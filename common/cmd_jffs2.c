@@ -1268,7 +1268,7 @@ static void list_partitions(void)
 		printf("\ndevice %s%d <%s>, # parts = %d\n",
 				MTD_DEV_TYPE(dev->id->type), dev->id->num,
 				dev->id->mtd_id, dev->num_parts);
-		printf(" #: name\t\t\tsize\t\toffset\t\tmask_flags\n");
+		printf(" #: name\t\tsize\t\toffset\t\tmask_flags\n");
 
 		/* list partitions for given device */
 		part_num = 0;
@@ -1581,6 +1581,7 @@ int mtdparts_init(void)
 
 	DEBUGF("\n---mtdparts_init---\n");
 	if (!initialized) {
+		//##### TODO
 		INIT_LIST_HEAD(&mtdids);
 		INIT_LIST_HEAD(&devices);
 		memset(last_ids, 0, MTDIDS_MAXLEN);

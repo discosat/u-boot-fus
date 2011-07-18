@@ -252,7 +252,21 @@ int usb_set_maxpacket(struct usb_device *dev)
 
 	for(i=0; i<dev->config.bNumInterfaces;i++) {
 		for(ii=0; ii<dev->config.if_desc[i].bNumEndpoints; ii++) {
+#ifdef CONFIG_PICOMOD6 //#####
+			/* The compiler does generate bad code and accesses
+			   wMaxPacketSize as a 16-bit value despite the fact
+			   that struct usb_endpoint_descriptor has attribute
+			   "packed". This fails if the endpoint descriptor is
+			   on an odd address. By copying the data to a local
+			   copy, we can avoid this problem. */
+			struct usb_endpoint_descriptor ep_copy;
+
 			ep = &dev->config.if_desc[i].ep_desc[ii];
+			memcpy(&ep_copy, ep, ep->bLength);
+			ep = &ep_copy;
+#else
+			ep = &dev->config.if_desc[i].ep_desc[ii];
+#endif
 			b=ep->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 
 			if((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)==USB_ENDPOINT_XFER_CONTROL) {	/* Control => bidirectional */

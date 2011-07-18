@@ -110,6 +110,12 @@ void dev_print (block_dev_desc_t *dev_desc)
 #endif
 
 	switch (dev_desc->if_type) {
+	case IF_TYPE_USB:
+		printf("Vendor: %s Prod.: %s Rev: %s\n",
+		       dev_desc->vendor,
+		       dev_desc->product,
+		       dev_desc->revision);
+		break;
 	case IF_TYPE_SCSI:
 		printf ("(%d:%d) Vendor: %s Prod.: %s Rev: %s\n",
 			dev_desc->target,dev_desc->lun,

@@ -189,7 +189,7 @@ static int sohci_get_current_frame_number (struct usb_device * dev);
 /* debug| print the main components of an URB
  * small: 0) header + data packets 1) just header */
 
-static void pkt_print (urb_priv_t *purb, struct usb_device * dev,
+static void pkt_print (int actual_length, struct usb_device * dev,
 	unsigned long pipe, void * buffer,
 	int transfer_len, struct devrequest * setup, char * str, int small)
 {
@@ -201,8 +201,7 @@ static void pkt_print (urb_priv_t *purb, struct usb_device * dev,
 			usb_pipeout (pipe)? 'O': 'I',
 			usb_pipetype (pipe) < 2? (usb_pipeint (pipe)? "INTR": "ISOC"):
 				(usb_pipecontrol (pipe)? "CTRL": "BULK"),
-			(purb ? purb->actual_length : 0),
-			transfer_len, dev->status);
+			actual_length, transfer_len, dev->status);
 #ifdef	OHCI_VERBOSE_DEBUG
 	if (!small) {
 		int i, len;
@@ -214,13 +213,11 @@ static void pkt_print (urb_priv_t *purb, struct usb_device * dev,
 			printf ("\n");
 		}
 		if (transfer_len > 0 && buffer) {
-			printf (__FILE__ ": data(%d/%d):",
-				(purb ? purb->actual_length : 0),
+			printf (__FILE__ ": data(%d/%d):", actual_length,
 				transfer_len);
 			len = usb_pipeout (pipe)?
-					transfer_len:
-					(purb ? purb->actual_length : 0);
-			for (i = 0; i < 16 && i < len; i++)
+					transfer_len : actual_length;
+			for (i = 0; i < 32 && i < len; i++)
 				printf (" %02x", ((__u8 *) buffer) [i]);
 			printf ("%s\n", i < len? "...": "");
 		}
@@ -1034,7 +1031,7 @@ static int dl_done_list (ohci_t *ohci, td_t *td_list)
 				lurb_priv->finished = sohci_return_job(ohci,
 						lurb_priv);
 			else
-				dbg("dl_done_list: strange.., ED state %x, ed->state\n");
+				dbg("dl_done_list: strange.., ED state %x\n", ed->state);
 		} else
 			dbg("dl_done_list: processing TD %x, len %x\n", lurb_priv->td_cnt,
 				lurb_priv->length);
@@ -1211,7 +1208,7 @@ static int ohci_submit_rh_msg(struct usb_device *dev, unsigned long pipe,
 	__u16 wLength;
 
 #ifdef DEBUG
-pkt_print(NULL, dev, pipe, buffer, transfer_len, cmd, "SUB(rh)", usb_pipein(pipe));
+pkt_print(0, dev, pipe, buffer, transfer_len, cmd, "SUB(rh)", usb_pipein(pipe));
 #else
 	wait_ms(1);
 #endif
@@ -1405,7 +1402,7 @@ pkt_print(NULL, dev, pipe, buffer, transfer_len, cmd, "SUB(rh)", usb_pipein(pipe
 	dev->status = stat;
 
 #ifdef DEBUG
-	pkt_print(NULL, dev, pipe, buffer, transfer_len, cmd, "RET(rh)", 0/*usb_pipein(pipe)*/);
+	pkt_print(len, dev, pipe, buffer, transfer_len, cmd, "RET(rh)", 0/*usb_pipein(pipe)*/);
 #else
 	wait_ms(1);
 #endif
@@ -1441,8 +1438,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	}
 
 #ifdef DEBUG
-	urb->actual_length = 0;
-	pkt_print(urb, dev, pipe, buffer, transfer_len, setup, "SUB", usb_pipein(pipe));
+	pkt_print(0, dev, pipe, buffer, transfer_len, setup, "SUB", usb_pipein(pipe));
 #else
 	wait_ms(1);
 #endif
@@ -1510,7 +1506,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	dev->act_len = transfer_len;
 
 #ifdef DEBUG
-	pkt_print(urb, dev, pipe, buffer, transfer_len, setup, "RET(ctlr)", usb_pipein(pipe));
+	pkt_print(transfer_len, dev, pipe, buffer, transfer_len, setup, "RET(ctlr)", 0/*usb_pipein(pipe)*/);
 #else
 	wait_ms(1);
 #endif
@@ -1536,7 +1532,7 @@ int submit_control_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 
 	info("submit_control_msg");
 #ifdef DEBUG
-	pkt_print(NULL, dev, pipe, buffer, transfer_len, setup, "SUB", usb_pipein(pipe));
+	pkt_print(0, dev, pipe, buffer, transfer_len, setup, "SUB", usb_pipein(pipe));
 #else
 	wait_ms(1);
 #endif

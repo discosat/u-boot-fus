@@ -24,6 +24,8 @@
 
 #include <common.h>
 
+#if !defined(CONFIG_PICOMOD6)
+
 ulong myflush (void);
 
 
@@ -431,3 +433,10 @@ int write_buff (flash_info_t * info, uchar * src, ulong addr, ulong cnt)
 
 	return write_hword (info, wp, data);
 }
+#else
+ulong flash_init (void)
+{
+	return 0;
+}
+
+#endif /* !CONFIG_PICOMOD6 */

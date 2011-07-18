@@ -279,7 +279,7 @@ __LIBS := $(subst $(obj),,$(LIBS)) $(subst $(obj),,$(LIBBOARD))
 #########################################################################
 #########################################################################
 
-ALL += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND) $(obj)u-boot.dis
+ALL += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND) $(obj)uboot.nb0 $(obj)u-boot.dis
 ifeq ($(ARCH),blackfin)
 ALL += $(obj)u-boot.ldr
 endif
@@ -316,6 +316,10 @@ $(obj)u-boot.sha1:	$(obj)u-boot.bin
 
 $(obj)u-boot.dis:	$(obj)u-boot
 		$(OBJDUMP) -d $< > $@
+
+$(obj)uboot.nb0:	$(obj)u-boot.bin
+		dd if=/dev/zero bs=1K count=256 | tr '\000' '\377' >$@
+		dd if=$< of=$@ conv=notrunc bs=1K
 
 $(obj)u-boot:		depend $(SUBDIRS) $(OBJS) $(LIBBOARD) $(LIBS) $(LDSCRIPT)
 		UNDEF_SYM=`$(OBJDUMP) -x $(LIBBOARD) $(LIBS) | \

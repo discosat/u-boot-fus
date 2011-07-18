@@ -1,0 +1,45 @@
+History of Changes for U-Boot on PicoMOD6
+-----------------------------------------
+
+V1.0 (18.10.2010)
+-----------------
+- Added support for USB host (USB hubs and mass storage devices)
+- Added support for FAT filesystems (ported back from u-boot-2010.09
+  and enhanced)
+- Changed spare area layout to match the layout of NBoot, added ECC-8
+  support for NBoot region
+- Access to NBoot and U-Boot regions now actually works
+- Added new default partitions NBoot, UBoot and UBootEnv; this moves
+  the TargetFS to /dev/mtdblock5 in Linux
+- Increased Kernel partition from 2MB to 3MB
+- Added software protection for NBoot partition to avoid accidental
+  erasing, e.g. when calling "nand erase" without further parameters:
+    nand nboot [protect | unprotect]
+- Placed environment fix in NAND, removed support for MoviNand and
+  OneNand (not required on PicoMOD6); this reduced the image size
+  considerably
+- Reduced environment to 16KB; this allows for a bad block
+- Added support for sntp command (time synching with time server)
+- Removed command "reginfo" as it only produces empty output on ARM
+- Aligned strings when calling "help"
+- Added new environment variables for easy switching between NFS and
+  local boot and for testing kernels:
+    run bootnfs   --> switch to NFS boot (TargetFS mounted via NFS)
+    run bootlocal --> switch to local boot (TargetFS loaded from NAND)
+    run r         --> download & start kernel without storing to NAND
+- Added target "make uboot.nb0" to create image file that is padded to
+  256KB (required for NBoot); this target is also automatically built
+  when calling "make" without any arguments
+- Removed some debug strings that accidently slipped into the previus
+  releases
+
+
+V0.2 (05.02.2010)
+-----------------
+- Activate ethernet once to set MAC address
+
+
+V0.1 (22.01.2010)
+-----------------
+- First working version
+- Update of U-Boot only possible from NBoot

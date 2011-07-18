@@ -203,6 +203,7 @@ int saveenv_nand_adv(void)
 	return ret;
 }
 
+#ifdef CONFIG_MOVINAND
 int saveenv_movinand(void)
 {
 #ifndef CONFIG_S5PC100
@@ -212,12 +213,15 @@ int saveenv_movinand(void)
 
 	return 1;
 }
+#endif /*CONFIG_MOVINAND*/
 
+#ifdef CONFIG_ONENAND
 int saveenv_onenand(void)
 {
 	printf("OneNAND does not support the saveenv command\n");
 	return 1;
 }
+#endif /*CONFIG_ONENAND*/
 
 int saveenv(void)
 {
@@ -226,10 +230,14 @@ int saveenv(void)
 		saveenv_nand();
 	else if (INF_REG3_REG == 4 || INF_REG3_REG == 5 || INF_REG3_REG == 6)
 		saveenv_nand_adv();
+#ifdef CONFIG_MOVINAND
 	else if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
 		saveenv_movinand();
+#endif
+#ifdef CONFIG_ONENAND
 	else if (INF_REG3_REG == 1)
 		saveenv_onenand();
+#endif
 	else
 		printf("Unknown boot device\n");
 #else
@@ -277,6 +285,7 @@ void env_relocate_spec_nand(void)
 #endif /* ! ENV_IS_EMBEDDED */
 }
 
+#ifdef CONFIG_MOVINAND
 void env_relocate_spec_movinand(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
@@ -290,28 +299,37 @@ void env_relocate_spec_movinand(void)
 		return use_default();
 #endif /* ! ENV_IS_EMBEDDED */
 }
+#endif /*CONFIG_MOVINAND*/
 
+#ifdef CONFIG_ONENAND
 void env_relocate_spec_onenand(void)
 {
 	use_default();
 }
+#endif
 
 void env_relocate_spec(void)
 {
 #if !defined(CONFIG_SMDK6440)
 	if (INF_REG3_REG >= 2 && INF_REG3_REG <= 6)
 		env_relocate_spec_nand();
+#ifdef CONFIG_MOVINAND
 	else if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
 		env_relocate_spec_movinand();
+#endif
+#ifdef CONFIG_ONENAND
 	else if (INF_REG3_REG == 1)
 		env_relocate_spec_onenand();
+#endif
 	else
 		printf("Unknown boot device\n");
 #else
 	if (INF_REG3_REG >= 3 && INF_REG3_REG <= 6)
 		env_relocate_spec_nand();
+#ifdef CONFIG_MOVINAND
 	else if (INF_REG3_REG == 0 || INF_REG3_REG == 1 || INF_REG3_REG == 7)
 		env_relocate_spec_movinand();
+#endif
 #endif
 }
 

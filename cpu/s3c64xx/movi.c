@@ -1,9 +1,12 @@
 #include <common.h>
+
 #include <movi.h>
 #include <asm/io.h>
 #include <regs.h>
 
 uint movi_hc = 0;
+
+#ifdef CONFIG_MOVINAND
 
 void movi_set_capacity(void)
 {
@@ -73,3 +76,4 @@ void movi_bl2_copy(void)
 #endif
 }
 
+#endif /* !CONFIG_MOVINAND */

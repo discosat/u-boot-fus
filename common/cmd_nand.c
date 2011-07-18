@@ -178,6 +178,12 @@ out:
 	return 0;
 }
 
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+/* Define prototypes for nbot protection functions */
+extern void nand_protect_nboot(int bProtected);
+extern int nand_is_nboot_protected(void);
+#endif
+
 int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 {
 	int i, dev, ret;
@@ -202,7 +208,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		putc('\n');
 		for (i = 0; i < CFG_MAX_NAND_DEVICE; i++) {
 			if (nand_info[i].name)
-				printf("Device %d: %s, sector size %u KiB\n",
+				printf("Device %d: %s, erase size %u KiB\n",
 					i, nand_info[i].name,
 					nand_info[i].erasesize >> 10);
 		}
@@ -238,6 +244,31 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 		return 0;
 	}
+
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+	/* Check for special NBoot protection functions
+	 * Syntax is:
+	 *   0    1     2
+	 *   nand nboot [protect | unprotect]
+	 */
+	if (strcmp(cmd, "nboot") == 0)
+	{
+		if (argc > 3)
+			goto usage;
+		if (argc == 3)
+		{
+			if (strcmp(argv[2], "protect") == 0)
+				nand_protect_nboot(1);
+			else if (strcmp(argv[2], "unprotect") == 0)
+				nand_protect_nboot(0);
+			else
+				goto usage;
+		}
+		printf("NBoot region is %sprotected\n",
+		       nand_is_nboot_protected() ? "software-" : "un");
+		return 0;
+	}
+#endif
 
 	if (strcmp(cmd, "bad") != 0 && strcmp(cmd, "erase") != 0 &&
 	    strncmp(cmd, "dump", 4) != 0 &&
@@ -511,6 +542,9 @@ U_BOOT_CMD(nand, 5, 1, do_nand,
 #endif
  	"nand erase [clean] [off size] - erase `size' bytes from\n"
 	"    offset `off' (entire device if not specified)\n"
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+	"nand nboot [[un]protect] - show or set Nboot software-protection\n"
+#endif
 	"nand bad - show bad blocks\n"
 	"nand dump[.oob] off - dump page\n"
 	"nand scrub - really clean NAND erasing bad blocks (UNSAFE)\n"

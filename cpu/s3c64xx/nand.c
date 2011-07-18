@@ -43,6 +43,22 @@ int cur_ecc_mode = 0;
 int nand_type = S3C_NAND_TYPE_UNKNOWN;
 
 /* Nand flash oob definition for SLC 512b page size by jsgood */
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+/* ECC is in bytes 8..11 in spare area, bad block marker is in byte 5 */
+static struct nand_ecclayout s3c_nand_oob_16 = {
+	.useecc = MTD_NANDECC_AUTOPLACE,	/* Only for U-Boot */
+	.eccbytes = 4,
+	.eccpos = {8, 9, 10, 11},
+	.oobfree = {
+		{.offset = 0,
+		 . length = 5},           /* Before bad block marker */
+                {.offset = 6,
+		 . length = 2},           /* Between bad block marker and ECC */
+                {.offset = 12,
+		 . length = 4},           /* Behind ECC */
+                }
+};
+#else
 static struct nand_ecclayout s3c_nand_oob_16 = {
 	.useecc = MTD_NANDECC_AUTOPLACE,	/* Only for U-Boot */
 	.eccbytes = 4,
@@ -51,8 +67,19 @@ static struct nand_ecclayout s3c_nand_oob_16 = {
 		{.offset = 6,
 		 . length = 10}}
 };
+#endif
 
-#if 1
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+/* ECC is in bytes 1..4, bad block marker is in byte 0 */
+static struct nand_ecclayout s3c_nand_oob_64 = {
+	.useecc = MTD_NANDECC_AUTOPLACE,	/* Only for U-Boot */
+	.eccbytes = 4,
+	.eccpos = {1, 2, 3, 4},
+	.oobfree = {
+		{.offset = 5,             /* Behind bad block marker and ECC */
+		 .length = 59}}
+};
+#elif 1
 /* Nand flash oob definition for SLC 2k page size by jsgood */
 static struct nand_ecclayout s3c_nand_oob_64 = {
 	.useecc = MTD_NANDECC_AUTOPLACE,	/* Only for U-Boot */
@@ -341,8 +368,6 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 		case 1: /* 1 bit error (Correctable)
 			   (nfestat0 >> 7) & 0x7ff	:error byte number
 			   (nfestat0 >> 4) & 0x7	:error bit number */
-//#####HK		printk("s3c-nand: 1 bit error detected at byte %ld, correcting from "
-//#####HK				"0x%02x ", (nfestat0 >> 7) & 0x7ff, dat[(nfestat0 >> 7) & 0x7ff]);
 			printk("s3c-nand (SLC): 1 bit error detected at byte %ld, correcting from "
 					"0x%02x ", (nfestat0 >> 7) & 0x7ff, dat[(nfestat0 >> 7) & 0x7ff]);
 			dat[(nfestat0 >> 7) & 0x7ff] ^= (1 << ((nfestat0 >> 4) & 0x7));
@@ -352,7 +377,6 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 
 		case 2: /* Multiple error */
 		case 3: /* ECC area error */
-//#####HK		printk("s3c-nand: ECC uncorrectable error detected\n");
 			printk("s3c-nand (SLC): ECC uncorrectable error detected\n");
 			ret = -1;
 			break;
@@ -380,7 +404,6 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 
 		switch (err_type) {
 		case 5: /* Uncorrectable */
-//#####HK		printk("s3c-nand: ECC uncorrectable error detected\n");
 			printk("s3c-nand (MLC): ECC uncorrectable error detected\n");
 			ret = -1;
 			break;
@@ -395,7 +418,6 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 			dat[(nfestat0 >> 16) & 0x3ff] ^= ((nfmlcbitpt >> 8) & 0xff);
 
 		case 1: /* 1 bit error (Correctable) */
-//####HK		printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
 			printk("s3c-nand (MLC): %d bit(s) error detected, corrected successfully\n", err_type);
 			dat[nfestat0 & 0x3ff] ^= (nfmlcbitpt & 0xff);
 			ret = err_type;
@@ -505,7 +527,6 @@ int s3c_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat, u_char *read_e
 
 	switch (err_type) {
 	case 9: /* Uncorrectable */
-//####HK	printk("s3c-nand: ECC uncorrectable error detected\n");
 		printk("s3c-nand (8bit): ECC uncorrectable error detected\n");
 		ret = -1;
 		break;
@@ -532,9 +553,8 @@ int s3c_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat, u_char *read_e
 		dat[(nf8eccerr0 >> 15) & 0x3ff] ^= ((nfmlc8bitpt0 >> 8) & 0xff);
 
 	case 1: /* 1 bit error (Correctable) */
-//####HK	printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
-		printk("s3c-nand (8-bit): %d bit(s) error detected, corrected successfully\n", err_type);
 		dat[nf8eccerr0 & 0x3ff] ^= (nfmlc8bitpt0 & 0xff);
+		printk("s3c-nand (8-bit): %d bit(s) error detected, corrected successfully\n", err_type);
 		ret = err_type;
 		break;
 
@@ -576,28 +596,38 @@ int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 	int col = 0;
 	uint8_t *p = buf;
 
-	/* Step1: read whole oob */
-	col = mtd->writesize;
-	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-
-	col = 0;
-	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
-		s3c_nand_enable_hwecc_8bit(mtd, NAND_ECC_READ);
-		chip->read_buf(mtd, p, eccsize);
-		chip->write_buf(mtd, chip->oob_poi + (((mtd->writesize / eccsize) - eccsteps) * eccbytes), eccbytes);
-		s3c_nand_calculate_ecc_8bit(mtd, 0, 0);
-
+        i = 0;
+	do {
+		/* Seek to main data */
 		if (mtd->writesize > 512) {
-			stat = s3c_nand_correct_data_8bit(mtd, p, 0, 0);
+			col = i * eccsize;
+			chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
+		}
+		s3c_nand_enable_hwecc_8bit(mtd, NAND_ECC_READ);
 
-			if (stat == -1)
-				mtd->ecc_stats.failed++;
+		/* Read 512 bytes of main data */
+		chip->read_buf(mtd, p, eccsize);
+
+		/* Seek to corresponding ECC part in OOB */
+		if (mtd->writesize > 512) {
+			col = mtd->writesize + i * eccbytes;
+			chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
 		}
 
-		col = eccsize * ((mtd->writesize / eccsize) + 1 - eccsteps);
-	}
+		/* Read 13 bytes of ECC data */
+		chip->read_buf(mtd, chip->oob_poi + i * eccbytes, eccbytes);
+
+		/* Calculate ECC and correct any errors */
+		s3c_nand_calculate_ecc_8bit(mtd, 0, 0);
+		stat = s3c_nand_correct_data_8bit(mtd, p, 0, 0);
+		if (stat == -1)
+			mtd->ecc_stats.failed++;
+		p += eccsize;
+	} while (++i < eccsteps);
+
+	/* Read remaining bytes of OOB */
+	chip->read_buf(mtd, chip->oob_poi + eccsteps*eccbytes,
+		       mtd->oobsize - eccsteps*eccbytes);
 
 	return 0;
 }

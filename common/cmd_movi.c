@@ -4,7 +4,7 @@
 #include <movi.h>
 #include <nand.h>
 
-#ifndef CONFIG_S5PC100
+#ifdef CONFIG_CMD_MOVINAND
 
 struct movi_offset_t ofsinfo;
 extern nand_info_t nand_info[];
@@ -489,4 +489,4 @@ U_BOOT_CMD(
 	": install SD/MMC bootloader to NAND flash\n"
 );
 
-#endif
+#endif /* CONFIG_CMD_MOVINAND */

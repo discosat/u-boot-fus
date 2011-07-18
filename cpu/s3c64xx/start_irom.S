@@ -83,14 +83,18 @@ nand_adv:
 	b	after_copy
 
 movinand:
+#ifdef CONFIG_MOVINAND
 	cmp	r3, #0xf
 	beq	after_copy
 	bl	movi_bl2_copy
+#endif
 	b	after_copy
 
 onenand:
+#ifdef CONFIG_ONENAND
 	cmp	r3, #0xf
 	beq	after_copy
 	bl	onenand_bl2_copy
+#endif
 	b	after_copy
 

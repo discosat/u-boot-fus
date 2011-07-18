@@ -1,6 +1,7 @@
 #include <config.h>
 #include <s3c6410.h>
 
+#ifndef CONFIG_PICOMOD6
 	.globl mem_ctrl_asm_init
 mem_ctrl_asm_init:
 	ldr	r0, =ELFIN_MEM_SYS_CFG			@Memory sussystem address 0x7e00f120
@@ -134,7 +135,7 @@ check_dmc1_ready:
 	bne	check_dmc1_ready
 	nop
 	mov	pc, lr
-
+#endif /* !CONFIG_PICOMOD6 */
 
 /* Below code is for ARM926EJS and ARM1026EJS */
 	.globl cleanDCache

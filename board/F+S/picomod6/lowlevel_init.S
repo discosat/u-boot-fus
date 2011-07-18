@@ -41,7 +41,7 @@ _TEXT_BASE:
 lowlevel_init:
 	mov	r12, lr
 
-#if 0 //#### HK
+#ifndef CONFIG_PICOMOD6
 	/* LED on only #8 */
 	ldr	r0, =ELFIN_GPIO_BASE
 	ldr	r1, =0x55540000
@@ -100,8 +100,8 @@ lowlevel_init:
 	beq	1f			/* r0 == r1 then skip sdram init   */
 #endif
 
-	bl	mem_ctrl_asm_init
-#endif  //### HK
+	bl	mem_ctrl_asm_init	/* Configure DRAM */
+#endif  /* !CONFIG_PICOMOD6 */
 
 #if 1
         ldr     r0, =(ELFIN_CLOCK_POWER_BASE+RST_STAT_OFFSET)
@@ -113,11 +113,11 @@ lowlevel_init:
 #endif
 
 1:
-#if 0 //####HK
+#ifndef CONFIG_PICOMOD6
 	ldr	r0, =ELFIN_UART_BASE
 	ldr	r1, =0x4b4b4b4b
 	str	r1, [r0, #UTXH_OFFSET]
-#endif //###HK
+#endif /* !CONFIG_PICOMOD6 */
 	
 	mov	lr, r12
 	mov	pc, lr
@@ -141,6 +141,8 @@ wakeup_reset:
 	nop
 	nop
 #endif
+
+#ifndef CONFIG_PICOMOD6  /* System clock already configured by NBoot */
 /*
  * system_clock_init: Initialize core clock and bus clock.
  * void system_clock_init(void)
@@ -259,8 +261,10 @@ wait_for_async:
 	str	r1, [r0, #OTHERS_OFFSET]
 #endif
 	mov	pc, lr
+#endif /* !CONFIG_PICOMOD6 */
 
 
+#ifndef CONFIG_PICOMOD6  /* UART already configured by NBoot */
 /*
  * uart_asm_init: Initialize UART in asm mode, 115200bps fixed.
  * void uart_asm_init(void)
@@ -313,6 +317,7 @@ uart_asm_init:
 	str	r1, [r0, #UTXH_OFFSET]		@'O'
 
 	mov	pc, lr
+#endif /* !CONFIG_PICOMOD6 */
 
 /*
  * Nand Interface Init for SMDK6400 */

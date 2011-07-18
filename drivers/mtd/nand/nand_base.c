@@ -72,6 +72,26 @@
 #include <jffs2/jffs2.h>
 #endif
 
+#if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
+		(defined(CONFIG_S3C6410) || \
+		 defined(CONFIG_S3C6430) || \
+		 defined(CONFIG_S3C2450) || \
+		 defined(CONFIG_S3C2416) || \
+		 defined(CONFIG_S5PC100)|| \
+		 defined(CONFIG_S5P6440))
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
+/* On F&S boards, the first two blocks use 8-bit ECC (=32KB on 512 byte pages,
+   256KB on 2048 byte pages), no bad block marker */
+#define IS_ECC8_REGION(writesize, page) \
+	((writesize==512 && page < 64) || (writesize == 2048 && page < 128))
+#else
+/* Other Samsung boards, the first 256KB use 8-bit ECC, no bad block marker */
+#define IS_ECC8_REGION(writesize, page) \
+	((writesize==512 && page < 512) || (writesize == 2048 && page < 128))
+#endif
+#endif
+
+
 /* Define default oob placement schemes for large and small page devices */
 static struct nand_ecclayout nand_oob_8 = {
 	.eccbytes = 3,
@@ -101,6 +121,20 @@ static struct nand_ecclayout nand_oob_64 = {
 		{.offset = 2,
 		 .length = 38}}
 };
+
+#ifdef IS_ECC8_REGION
+int m_bEcc8RegionProtected = 1;
+
+void nand_protect_nboot(int bProtected)
+{
+	m_bEcc8RegionProtected = bProtected;
+}
+
+int nand_is_nboot_protected(void)
+{
+	return m_bEcc8RegionProtected;
+}
+#endif
 
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
 			   int new_state);
@@ -348,15 +382,10 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		page = (int)ofs;
 
 /* jsgood */
-#if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
-		(defined(CONFIG_S3C6410) || \
-		 defined(CONFIG_S3C6430) || \
-		 defined(CONFIG_S3C2450) || \
-		 defined(CONFIG_S3C2416) || \
-		 defined(CONFIG_S5PC100)|| \
-		 defined(CONFIG_S5P6440))
-	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128))
-		return 0;
+#ifdef IS_ECC8_REGION
+	/* If ECC8 is used, then there is no bad block marker available */
+        if (IS_ECC8_REGION(mtd->writesize, page))
+                return 0;
 #endif
 
 	if (chip->options & NAND_BUSWIDTH_16) {
@@ -1095,29 +1124,19 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				sndcmd = 0;
 			}
 
-/* jsgood: org: #else block only */
-#if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
-		(defined(CONFIG_S3C6410) || \
-		 defined(CONFIG_S3C6430) || \
-		 defined(CONFIG_S3C2450) || \
-		 defined(CONFIG_S3C2416) || \
-		 defined(CONFIG_S5PC100)|| \
-		 defined(CONFIG_S5P6440))
-			if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128)) {
-				s3c_nand_read_page_8bit(mtd, chip, bufpoi);
-			} else {
+/* jsgood: org: else block only */
+#ifdef IS_ECC8_REGION
+                        if (IS_ECC8_REGION(mtd->writesize, page)) {
+				ret = s3c_nand_read_page_8bit(mtd, chip, bufpoi);
+			} else
+#endif
+			{
+				/* Now read the page into the buffer */
 				if (unlikely(ops->mode == MTD_OOB_RAW))
 					ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
 				else
 					ret = chip->ecc.read_page(mtd, chip, bufpoi);
 			}
-#else
-			/* Now read the page into the buffer */
-			if (unlikely(ops->mode == MTD_OOB_RAW))
-				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
-			else
-				ret = chip->ecc.read_page(mtd, chip, bufpoi);
-#endif
 
 			if (ret < 0)
 				break;
@@ -1192,23 +1211,12 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	if (oob)
 		ops->oobretlen = ops->ooblen - oobreadlen;
 
-        // ######
 	if (ret)
-        {
-            printf("#### nand_do_read_ops(): Error %d\n", ret);
 		return ret;
-        }
 
 	if (mtd->ecc_stats.failed - stats.failed)
-        {
-            printf("#### nand_do_read_ops(): mtd->ecc_stats.failed - stats.failed = %d\n", mtd->ecc_stats.failed - stats.failed);
 		return -EBADMSG;
-        }
-        if (mtd->ecc_stats.corrected - stats.corrected)
-        {
-            printf("#### nand_do_read_ops(): mtd->ecc_stats.corrected - stats.corrected = %d\n", mtd->ecc_stats.corrected - stats.corrected);
-        }
-        //####
+
 	return  mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
 
@@ -1653,29 +1661,24 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
-/* jsgood: org: #else block only */
-#if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
-		(defined(CONFIG_S3C6410) || \
-		 defined(CONFIG_S3C6430) || \
-		 defined(CONFIG_S3C2450) || \
-		 defined(CONFIG_S3C2416) || \
-		 defined(CONFIG_S5PC100)|| \
-		 defined(CONFIG_S5P6440))
-	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128)) {
+/* jsgood: org: else block only */
+#ifdef IS_ECC8_REGION
+        if (IS_ECC8_REGION(mtd->writesize, page)) {
+		if (m_bEcc8RegionProtected)
+		{
+			printf("NBoot region is software-protected\n");
+			return -EROFS;
+		}
 		memset(chip->oob_poi, 0xff, mtd->oobsize);
 		s3c_nand_write_page_8bit(mtd, chip, buf);
-	} else {
+	} else
+#endif
+	{
 		if (unlikely(raw))
 			chip->ecc.write_page_raw(mtd, chip, buf);
 		else
 			chip->ecc.write_page(mtd, chip, buf);
 	}
-#else
-	if (unlikely(raw))
-		chip->ecc.write_page_raw(mtd, chip, buf);
-	else
-		chip->ecc.write_page(mtd, chip, buf);
-#endif
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
@@ -2108,14 +2111,21 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		return -EINVAL;
 	}
 
+	/* Shift to get first page */
+	page = (int)(instr->addr >> chip->page_shift);
+	chipnr = (int)(instr->addr >> chip->chip_shift);
+
+#ifdef IS_ECC8_REGION
+	if (IS_ECC8_REGION(mtd->writesize, page) && m_bEcc8RegionProtected) {
+		printf("NBoot region is software-protected\n");
+		return -EROFS;
+	}
+#endif
+
 	instr->fail_addr = 0xffffffff;
 
 	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_ERASING);
-
-	/* Shift to get first page */
-	page = (int)(instr->addr >> chip->page_shift);
-	chipnr = (int)(instr->addr >> chip->chip_shift);
 
 	/* Calculate pages in each block */
 	pages_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
@@ -2147,16 +2157,14 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 
 	while (len) {
 		/*
-		 * heck if we have a bad block, we do not erase bad blocks !
+		 * Check if we have a bad block, we do not erase bad blocks !
 		 */
-		/* Commented by jsgood to erase absolutely */
-		/* if (nand_block_checkbad(mtd, ((loff_t) page) <<
-					chip->page_shift, 0, allowbbt)) {
+		if (nand_block_checkbad(mtd, (loff_t) page, 0, allowbbt)) {
 			printk(KERN_WARNING "nand_erase: attempt to erase a "
 			       "bad block at page 0x%08x\n", page);
 			instr->state = MTD_ERASE_FAILED;
 			goto erase_exit;
-		} */
+		}
 
 		/*
 		 * Invalidate the page cache, if we erase the block which

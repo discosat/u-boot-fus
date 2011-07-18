@@ -400,7 +400,7 @@ void start_armboot (void)
 #endif
 
 /* samsung socs: auto-detect devices */
-#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100) || defined(PICOMOD6)
+#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100)
 
 #if defined(CONFIG_MMC)
 	puts("SD/MMC:  ");
@@ -507,12 +507,8 @@ void start_armboot (void)
 	dataflash_print_info();
 #endif
 
-        puts("<A>\n"); //####HK
-
 	/* initialize environment */
 	env_relocate ();
-
-        puts("<B>\n"); //####HK
 
 #ifdef CONFIG_VFD
 	/* must do this after the framebuffer is allocated */

@@ -79,7 +79,7 @@ U_BOOT_CMD(
 
 U_BOOT_CMD(
 	re, 1, 0,	do_reset,
-	"reset   - Perform RESET of the CPU\n",
+	"re      - Perform RESET of the CPU\n",
 	NULL
 );
 

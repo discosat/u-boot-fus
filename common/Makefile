@@ -143,6 +143,7 @@ COBJS-y += cmd_movi.o
 COBJS-$(CONFIG_CMD_MFSL) += cmd_mfsl.o
 COBJS-$(CONFIG_MP) += cmd_mp.o
 COBJS-$(CONFIG_CMD_SF) += cmd_sf.o
+COBJS-$(CONFIG_PICOMOD6) += cmd_usb.o
 
 COBJS	:= $(COBJS-y)
 
@@ -152,7 +153,7 @@ else
  ifeq ($(BOARD),smdk6400)
  COBJS += env_nand.o env_movi.o env_onenand.o
  else
- COBJS += env_auto.o
+ COBJS += env_nand.o env_auto.o
  endif
 endif
 
