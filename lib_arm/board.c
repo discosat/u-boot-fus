@@ -621,6 +621,8 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 	debug ("Reset Ethernet PHY\n");
 	reset_phy();
 #endif
+        eth_init(gd->bd);                /* ### Set MAC-Address in any case */
+        eth_halt();
 #endif
 
 #if 0

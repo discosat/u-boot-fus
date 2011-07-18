@@ -1,8 +1,9 @@
 /*
- * (C) Copyright 2009
+ * (C) Copyright 2010
  * F&S Elektronik Systeme GmbH
  *
  * Configuation settings for the F&S PicoMOD6 board.
+ * Activate with "make picomod6_config"
  *
  * See file CREDITS for list of people who contributed to this
  * project.
