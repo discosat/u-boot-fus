@@ -341,7 +341,9 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 		case 1: /* 1 bit error (Correctable)
 			   (nfestat0 >> 7) & 0x7ff	:error byte number
 			   (nfestat0 >> 4) & 0x7	:error bit number */
-			printk("s3c-nand: 1 bit error detected at byte %ld, correcting from "
+//#####HK		printk("s3c-nand: 1 bit error detected at byte %ld, correcting from "
+//#####HK				"0x%02x ", (nfestat0 >> 7) & 0x7ff, dat[(nfestat0 >> 7) & 0x7ff]);
+			printk("s3c-nand (SLC): 1 bit error detected at byte %ld, correcting from "
 					"0x%02x ", (nfestat0 >> 7) & 0x7ff, dat[(nfestat0 >> 7) & 0x7ff]);
 			dat[(nfestat0 >> 7) & 0x7ff] ^= (1 << ((nfestat0 >> 4) & 0x7));
 			printk("to 0x%02x...OK\n", dat[(nfestat0 >> 7) & 0x7ff]);
@@ -350,7 +352,8 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 
 		case 2: /* Multiple error */
 		case 3: /* ECC area error */
-			printk("s3c-nand: ECC uncorrectable error detected\n");
+//#####HK		printk("s3c-nand: ECC uncorrectable error detected\n");
+			printk("s3c-nand (SLC): ECC uncorrectable error detected\n");
 			ret = -1;
 			break;
 		}
@@ -377,7 +380,8 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 
 		switch (err_type) {
 		case 5: /* Uncorrectable */
-			printk("s3c-nand: ECC uncorrectable error detected\n");
+//#####HK		printk("s3c-nand: ECC uncorrectable error detected\n");
+			printk("s3c-nand (MLC): ECC uncorrectable error detected\n");
 			ret = -1;
 			break;
 
@@ -391,7 +395,8 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 			dat[(nfestat0 >> 16) & 0x3ff] ^= ((nfmlcbitpt >> 8) & 0xff);
 
 		case 1: /* 1 bit error (Correctable) */
-			printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
+//####HK		printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
+			printk("s3c-nand (MLC): %d bit(s) error detected, corrected successfully\n", err_type);
 			dat[nfestat0 & 0x3ff] ^= (nfmlcbitpt & 0xff);
 			ret = err_type;
 			break;
@@ -500,7 +505,8 @@ int s3c_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat, u_char *read_e
 
 	switch (err_type) {
 	case 9: /* Uncorrectable */
-		printk("s3c-nand: ECC uncorrectable error detected\n");
+//####HK	printk("s3c-nand: ECC uncorrectable error detected\n");
+		printk("s3c-nand (8bit): ECC uncorrectable error detected\n");
 		ret = -1;
 		break;
 
@@ -526,7 +532,8 @@ int s3c_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat, u_char *read_e
 		dat[(nf8eccerr0 >> 15) & 0x3ff] ^= ((nfmlc8bitpt0 >> 8) & 0xff);
 
 	case 1: /* 1 bit error (Correctable) */
-		printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
+//####HK	printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
+		printk("s3c-nand (8-bit): %d bit(s) error detected, corrected successfully\n", err_type);
 		dat[nf8eccerr0 & 0x3ff] ^= (nfmlc8bitpt0 & 0xff);
 		ret = err_type;
 		break;

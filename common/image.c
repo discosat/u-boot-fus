@@ -640,7 +640,7 @@ int genimg_get_format (void *img_addr)
 			format = IMAGE_FORMAT_FIT;
 	}
 #endif
-	printf("-------- %x --------\n", format);
+	printf("-------- %lx --------\n", format);
 
 	return format;
 }

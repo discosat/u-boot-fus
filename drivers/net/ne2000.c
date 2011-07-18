@@ -93,7 +93,8 @@ void uboot_push_tx_done(int key, int val);
  * 8 for only startup status, so we can tell we're installed OK
  */
 #if 0
-#define DEBUG 0xf
+//###HK #define DEBUG 0xF
+#define DEBUG 0x1
 #else
 #define DEBUG 0
 #endif
@@ -406,12 +407,17 @@ dp83902a_RxEvent(void)
 		DP_IN(base, DP_P1_CURP, cur);
 		DP_OUT(base, DP_P1_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
 		DP_IN(base, DP_BNDRY, pkt);
+//                printf("--> pkt=%02x, cur=%02x\n", pkt, cur); //#####
 
 		pkt += 1;
 		if (pkt == dp->rx_buf_end)
+                {
+//                    printf("<$>"); //####
 			pkt = dp->rx_buf_start;
+                }
 
 		if (pkt == cur) {
+//                    printf("<1>"); //###
 			break;
 		}
 		DP_OUT(base, DP_RBCL, sizeof(rcv_hdr));
@@ -420,9 +426,17 @@ dp83902a_RxEvent(void)
 		DP_OUT(base, DP_RSAH, pkt);
 		if (dp->rx_next == pkt) {
 			if (cur == dp->rx_buf_start)
+                        {
+//                            printf("<2a>"); //####
 				DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1);
+                        }
 			else
-				DP_OUT(base, DP_BNDRY, cur - 1); /* Update pointer */
+                        {
+//                            printf("<2b>"); //####
+
+				DP_OUT(base, DP_BNDRY, cur - 1); /* Update
+                                                                    pointer */
+                        }
 			return;
 		}
 		dp->rx_next = pkt;
@@ -767,17 +781,18 @@ static void pcnet_reset_8390(void)
 {
 	int i, r;
 
-	PRINTK("nic base is %lx\n", nic.base);
+	PRINTK("nic base is %p\n", nic.base);
 
 	n2k_outb(E8390_NODMA + E8390_PAGE0+E8390_STOP, E8390_CMD);
-	PRINTK("cmd (at %lx) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
+	PRINTK("cmd (at %p) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
 	n2k_outb(E8390_NODMA+E8390_PAGE1+E8390_STOP, E8390_CMD);
-	PRINTK("cmd (at %lx) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
+	PRINTK("cmd (at %p) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
 	n2k_outb(E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD);
-	PRINTK("cmd (at %lx) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
+	PRINTK("cmd (at %p) is %x\n", nic.base + E8390_CMD, n2k_inb(E8390_CMD));
+
 	n2k_outb(E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD);
 
-	n2k_outb(n2k_inb(PCNET_RESET), PCNET_RESET);
+	n2k_outb(n2k_inb(PCNET_RESET) | 0x01 /*###HK*/, PCNET_RESET);
 
 	for (i = 0; i < 100; i++) {
 		if ((r = (n2k_inb(EN0_ISR) & ENISR_RESET)) != 0)
@@ -838,7 +853,7 @@ int __get_prom(u8* mac_addr)
 		}
 	}
 	if ((i < NR_INFO) || ((prom[28] == 0x57) && (prom[30] == 0x57))) {
-		PRINTK ("on exit i is %d/%ld\n", i, NR_INFO);
+		PRINTK ("on exit i is %d/%d\n", i, NR_INFO);
 		PRINTK ("MAC address is ");
 		for (j = 0; j < 6; j++) {
 			mac_addr[j] = prom[j << 1];
@@ -858,6 +873,7 @@ static int initialized = 0;
 
 void uboot_push_packet_len(int len) {
 	PRINTK("pushed len = %d\n", len);
+//	printf("pushed len = %d\n", len); //####HK
 	if (len >= 2000) {
 		printf("NE2000: packet too big\n");
 		return;
@@ -874,7 +890,6 @@ void uboot_push_tx_done(int key, int val) {
 }
 
 int eth_init(bd_t *bd) {
-	int r;
 	u8 dev_addr[6];
 	char ethaddr[20];
 
@@ -900,16 +915,37 @@ int eth_init(bd_t *bd) {
 
 	nic.base = (u8 *) CONFIG_DRIVER_NE2000_BASE;
 
-	r = get_prom(dev_addr);
-	if (!r)
-		return -1;
+#ifdef CONFIG_DRIVER_NE2000_SOFTMAC
+        {
+            /* Use software MAC address from environment */
+            char *tmp = getenv ("ethaddr");
+            char *end;
+            int i;
 
-	sprintf (ethaddr, "%02X:%02X:%02X:%02X:%02X:%02X",
-		 dev_addr[0], dev_addr[1],
-		 dev_addr[2], dev_addr[3],
-		 dev_addr[4], dev_addr[5]) ;
-	PRINTK("Set environment from HW MAC addr = \"%s\"\n", ethaddr);
-	setenv ("ethaddr", ethaddr);
+            for (i=0; i<6; i++) {
+		dev_addr[i] = tmp ? simple_strtoul(tmp, &end, 16) : 0;
+		if (tmp)
+                    tmp = (*end) ? end+1 : end;
+            }
+
+            sprintf (ethaddr, "%02X:%02X:%02X:%02X:%02X:%02X",
+                     dev_addr[0], dev_addr[1],
+                     dev_addr[2], dev_addr[3],
+                     dev_addr[4], dev_addr[5]) ;
+            PRINTK("Using environment MAC addr \"%s\"\n", ethaddr);
+        }
+#else
+        /* Get hardware MAC address from PROM */
+        if (!get_prom(dev_addr);)
+            return -1;
+
+        sprintf (ethaddr, "%02X:%02X:%02X:%02X:%02X:%02X",
+                 dev_addr[0], dev_addr[1],
+                 dev_addr[2], dev_addr[3],
+                 dev_addr[4], dev_addr[5]) ;
+        PRINTK("Set environment from HW MAC addr = \"%s\"\n", ethaddr);
+        setenv ("ethaddr", ethaddr);
+#endif /*CONFIG_DRIVER_NE2000_SOFTMAC*/
 
 	nic.data = nic.base + DP_DATA;
 	nic.tx_buf1 = START_PG;
@@ -955,7 +991,7 @@ int eth_send(volatile void *packet, int length) {
 			return 0;
 		}
 		if (get_timer (0) >= tmo) {
-			printf("transmission error (timoeut)\n");
+			printf("transmission error (timeout)\n");
 			return 0;
 		}
 

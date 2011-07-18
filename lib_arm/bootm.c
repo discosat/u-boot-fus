@@ -47,6 +47,11 @@ static void setup_commandline_tag (bd_t *bd, char *commandline);
 static void setup_initrd_tag (bd_t *bd, ulong initrd_start,
 			      ulong initrd_end);
 # endif
+
+# ifdef CONFIG_MTDPARTITION
+void setup_mtdpartition_tag (void);
+# endif
+
 static void setup_end_tag (bd_t *bd);
 
 # if defined (CONFIG_VFD) || defined (CONFIG_LCD)
@@ -57,6 +62,8 @@ static struct tag *params;
 #endif /* CONFIG_SETUP_MEMORY_TAGS || CONFIG_CMDLINE_TAG || CONFIG_INITRD_TAG */
 
 extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+extern unsigned int get_cpsr(void); //#####
 
 void do_bootm_linux (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[],
 		     bootm_headers_t *images)
@@ -104,6 +111,7 @@ void do_bootm_linux (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[],
 
 	show_boot_progress (15);
 
+	printf ("### Startaddr 0x%08lx, machid 0x%04x\n", (ulong) theKernel, machid); //#####
 	debug ("## Transferring control to Linux (at address %08lx) ...\n",
 	       (ulong) theKernel);
 
@@ -153,8 +161,21 @@ void do_bootm_linux (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[],
 	}
 #endif
 
+        printf("#### cleanup_before_linux()\n"); //#####
 	cleanup_before_linux ();
 
+        printf("#### Go....\n"); //######
+
+#if 0
+        //#### Disable FIFO
+        //#### warten bis alles gesendet
+        while ((*(volatile unsigned int *)(0x7F005810) & 4) == 0)
+            ;
+
+        // ### Disable FIFO
+        *(volatile unsigned int *)(0x7f005808) &= ~1;
+#endif
+        
 	theKernel (0, machid, bd->bi_boot_params);
 	/* does not return */
 	return;
@@ -304,7 +325,7 @@ void setup_revision_tag(struct tag **in_params)
 #endif  /* CONFIG_REVISION_TAG */
 
 #ifdef CONFIG_MTDPARTITION
-void setup_mtdpartition_tag()
+void setup_mtdpartition_tag(void)
 {
 	char *p, *temp;
 	int i = 0;

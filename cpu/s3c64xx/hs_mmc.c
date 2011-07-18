@@ -1,6 +1,6 @@
 #include <common.h>
 
-#if defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430)
+#if defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_PICOMOD6)
 
 #define CONFIG_SUPPORT_MMC_PLUS
 #define HCLK_OPERATION

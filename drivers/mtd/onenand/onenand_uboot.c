@@ -60,7 +60,7 @@ void onenand_init(void)
 		if (onenand_curr_device == -1)
 			onenand_curr_device = i;
 	}
-	printf("%lu MB\n", size / (1024 * 1024));
+	printf("%u MB\n", size / (1024 * 1024));
 }
 
 #else

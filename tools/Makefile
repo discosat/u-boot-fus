@@ -21,7 +21,7 @@
 # MA 02111-1307 USA
 #
 
-BIN_FILES	= img2srec$(SFX) mkimage$(SFX) envcrc$(SFX) ubsha1$(SFX) gen_eth_addr$(SFX) bmp_logo$(SFX)
+BIN_FILES	= img2srec$(SFX) mkimage$(SFX) envcrc$(SFX) ubsha1$(SFX) gen_eth_addr$(SFX) bmp_logo$(SFX) addfsheader$(SFX)
 
 OBJ_LINKS	= environment.o crc32.o md5.o sha1.o image.o
 OBJ_FILES	= img2srec.o mkimage.o envcrc.o ubsha1.o gen_eth_addr.o bmp_logo.o
@@ -29,6 +29,11 @@ OBJ_FILES	= img2srec.o mkimage.o envcrc.o ubsha1.o gen_eth_addr.o bmp_logo.o
 ifeq ($(ARCH),mips)
 BIN_FILES	+= inca-swap-bytes$(SFX)
 OBJ_FILES	+= inca-swap-bytes.o
+endif
+
+ifeq ($(VENDOR),F+S)
+BIN_FILES	+= addfsheader$(SFX)
+OBJ_FILES	+= addfsheader.o
 endif
 
 # Don't build by default
@@ -171,6 +176,10 @@ $(obj)mpc86x_clk$(SFX):	$(obj)mpc86x_clk.o
 		$(CC) $(CFLAGS) $(HOST_LDFLAGS) -o $@ $^
 		$(STRIP) $@
 
+$(obj)addfsheader$(SFX):	$(obj)addfsheader.o
+		$(CC) $(CFLAGS) $(HOST_LDFLAGS) -o $@ $^
+		$(STRIP) $@
+
 $(obj)envcrc.o:	$(src)envcrc.c
 		$(CC) -g $(CFLAGS) -c -o $@ $<
 
@@ -218,6 +227,9 @@ $(obj)fdt_strerror.o:	$(obj)fdt_strerror.c
 
 $(obj)fdt_wip.o:	$(obj)fdt_wip.c
 		$(CC) -g $(FIT_CFLAGS) -c -o $@ $<
+
+$(obj)addfsheader.o:	$(obj)addfsheader.c
+		$(CC) -g $(CFLAGS) -c -o $@ $<
 
 subdirs:
 ifeq ($(TOOLSUBDIRS),)

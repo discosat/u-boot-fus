@@ -208,6 +208,7 @@ cpu_init_crit:
 
 .globl after_copy
 after_copy:
+
 #ifdef CONFIG_ENABLE_MMU
 enable_mmu:
 	/* enable domain access */
@@ -233,6 +234,19 @@ mmu_on:
 	nop
 #endif
 
+#if 0  //#####HK
+	/* #####HK: Zeichen auf UART2 ausgeben ###### */
+	ldr	r0,=0x7F005820
+	mov	r1,#0x43
+	str	r1,[r0]
+	mov	r1,#0x43
+	str	r1,[r0]
+	ldr	r0,=10000000
+9:	subs	r0,r0,#1
+	bne	9b
+	/* ########### */
+#endif //#####HK
+	
 skip_hw_init:
 	/* Set up the stack						    */
 stack_setup:

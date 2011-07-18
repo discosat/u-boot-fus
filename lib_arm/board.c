@@ -400,7 +400,7 @@ void start_armboot (void)
 #endif
 
 /* samsung socs: auto-detect devices */
-#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100)
+#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100) || defined(PICOMOD6)
 
 #if defined(CONFIG_MMC)
 	puts("SD/MMC:  ");
@@ -507,8 +507,12 @@ void start_armboot (void)
 	dataflash_print_info();
 #endif
 
+        puts("<A>\n"); //####HK
+
 	/* initialize environment */
 	env_relocate ();
+
+        puts("<B>\n"); //####HK
 
 #ifdef CONFIG_VFD
 	/* must do this after the framebuffer is allocated */
@@ -580,6 +584,9 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 	cs8900_get_enetaddr (gd->bd->bi_enetaddr);
 #endif
 
+#ifdef CONFIG_DRIVER_NE2000
+#endif
+
 #if defined(CONFIG_DRIVER_SMC91111) || defined (CONFIG_DRIVER_LAN91C96)
 	if (getenv ("ethaddr")) {
 		smc_set_mac_addr(gd->bd->bi_enetaddr);
@@ -599,6 +606,12 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 #ifdef BOARD_LATE_INIT
 	board_late_init ();
 #endif
+
+#if 0 //######HK
+        printf("GPKCON0=%08lx, GPKDAT=%08lx, GPKPUD=%08lx\n", GPKCON0_REG,
+               GPKDAT_REG, GPKPUD_REG);
+#endif //#####HK
+
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
@@ -609,6 +622,19 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 	reset_phy();
 #endif
 #endif
+
+#if 0
+        /* #### Zeichen auf Schnittstelle ausgeben */
+        {
+            int __iii;
+            *(volatile unsigned int *)0x7F005820 = 0x2a;
+            *(volatile unsigned int *)0x7F005820 = 0x52;
+            for (__iii=1000000; __iii; __iii--)
+                ;
+        }
+        /* ####################### */
+#endif
+
 	/* main_loop() can return to retry autoboot, if so just run it again. */
 	for (;;) {
 		main_loop ();

@@ -349,7 +349,7 @@ void env_relocate_spec (void)
 	if (readenv(CFG_ENV_OFFSET, (u_char *) tmp_env1))
 		puts("No Valid Environment Area Found\n");
 	if (readenv(CFG_ENV_OFFSET_REDUND, (u_char *) tmp_env2))
-		puts("No Valid Reundant Environment Area Found\n");
+		puts("No Valid Redundant Environment Area Found\n");
 
 	crc1_ok = (crc32(0, tmp_env1->data, ENV_SIZE) == tmp_env1->crc);
 	crc2_ok = (crc32(0, tmp_env2->data, ENV_SIZE) == tmp_env2->crc);

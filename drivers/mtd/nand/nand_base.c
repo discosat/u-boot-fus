@@ -1192,12 +1192,23 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	if (oob)
 		ops->oobretlen = ops->ooblen - oobreadlen;
 
+        // ######
 	if (ret)
+        {
+            printf("#### nand_do_read_ops(): Error %d\n", ret);
 		return ret;
+        }
 
 	if (mtd->ecc_stats.failed - stats.failed)
+        {
+            printf("#### nand_do_read_ops(): mtd->ecc_stats.failed - stats.failed = %d\n", mtd->ecc_stats.failed - stats.failed);
 		return -EBADMSG;
-
+        }
+        if (mtd->ecc_stats.corrected - stats.corrected)
+        {
+            printf("#### nand_do_read_ops(): mtd->ecc_stats.corrected - stats.corrected = %d\n", mtd->ecc_stats.corrected - stats.corrected);
+        }
+        //####
 	return  mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
 

@@ -257,14 +257,22 @@ void env_relocate_spec_nand(void)
 #if !defined(ENV_IS_EMBEDDED)
 	size_t total;
 	int ret;
+        unsigned int crc32val;
 
 	total = CFG_ENV_SIZE;
 	ret = nand_read(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char*)env_ptr);
   	if (ret || total != CFG_ENV_SIZE)
+        {
+            printf("####### env_relocate_spec_nand(): ret=%d, total=0x%x\n", ret, total);
 		return use_default();
+        }
 
-	if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc)
+        crc32val = crc32(0, env_ptr->data, ENV_SIZE);
+	if (crc32val != env_ptr->crc)
+        {
+            printf("####### env_relocate_spec_nand(): crc=0x%x, env_ptr->crc=0x%x\n", crc32val, env_ptr->crc);
 		return use_default();
+        }
 
 #endif /* ! ENV_IS_EMBEDDED */
 }
