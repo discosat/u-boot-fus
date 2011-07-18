@@ -57,12 +57,19 @@ static uchar env_get_char_init (int index);
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
+#if defined(CONFIG_S3C6410) || defined(CONFIG_S3C6430) || defined(CONFIG_S5PC100) || defined(CONFIG_S5P6440)
+uchar default_environment[CFG_ENV_SIZE] = {
+#else
 uchar default_environment[] = {
+#endif
 #ifdef	CONFIG_BOOTARGS
 	"bootargs="	CONFIG_BOOTARGS			"\0"
 #endif
 #ifdef	CONFIG_BOOTCOMMAND
 	"bootcmd="	CONFIG_BOOTCOMMAND		"\0"
+#endif
+#ifdef	CONFIG_MTDPARTITION
+	"mtdpart="	CONFIG_MTDPARTITION		"\0"
 #endif
 #ifdef	CONFIG_RAMBOOTCOMMAND
 	"ramboot="	CONFIG_RAMBOOTCOMMAND		"\0"
@@ -133,8 +140,8 @@ uchar default_environment[] = {
 	"\0"
 };
 
-#if defined(CFG_ENV_IS_IN_NAND)		/* Environment is in Nand Flash */ \
-	|| defined(CFG_ENV_IS_IN_SPI_FLASH)
+#if defined(CFG_ENV_IS_IN_NAND) || defined(CFG_ENV_IS_IN_MOVINAND) || defined(CFG_ENV_IS_IN_ONENAND) || defined(CFG_ENV_IS_IN_AUTO) || defined(CFG_ENV_IS_IN_SPI_FLASH) /* Environment is in Nand Flash or MoviNAND or OneNAND */
+
 int default_environment_size = sizeof(default_environment);
 #endif
 

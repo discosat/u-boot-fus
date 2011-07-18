@@ -40,6 +40,10 @@
 #include <usb.h>
 #endif
 
+#if defined(CONFIG_CMD_DATE) || defined(CONFIG_TIMESTAMP)
+#include <rtc.h>
+#endif
+
 #ifdef CFG_HUSH_PARSER
 #include <hush.h>
 #endif
@@ -64,6 +68,8 @@ static int image_info (unsigned long addr);
 extern flash_info_t flash_info[]; /* info for FLASH chips */
 static int do_imls (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 #endif
+
+static void print_type (image_header_t *hdr);
 
 #ifdef CONFIG_SILENT_CONSOLE
 static void fixup_silent_linux (void);
@@ -122,6 +128,8 @@ void board_lmb_reserve(struct lmb *lmb) __attribute__((weak, alias("__board_lmb_
 /*******************************************************************/
 int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
+	image_header_t	*hdr;
+	ulong		addr;
 	ulong		iflag;
 	const char	*type_name;
 	uint		unc_len = CFG_BOOTM_LEN;
@@ -148,6 +156,37 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	lmb_add(&lmb, (phys_addr_t)mem_start, mem_size);
 
 	board_lmb_reserve(&lmb);
+
+#ifdef CONFIG_ZIMAGE_BOOT
+#define LINUX_ZIMAGE_MAGIC	0x016f2818
+	/* find out kernel image address */
+	if (argc < 2) {
+		addr = load_addr;
+		debug ("*  kernel: default image load address = 0x%08lx\n",
+				load_addr);
+	} else {
+		addr = simple_strtoul(argv[1], NULL, 16);
+		debug ("*  kernel: cmdline image address = 0x%08lx\n", img_addr);
+	}
+
+
+	if (*(ulong *)(addr + 9*4) == LINUX_ZIMAGE_MAGIC) {
+		printf("Boot with zImage\n");
+		addr = virt_to_phys(addr);
+		hdr = (image_header_t *)addr;
+		hdr->ih_os = IH_OS_LINUX;
+		hdr->ih_ep = ntohl(addr);
+
+		memmove (&images.legacy_hdr_os_copy, hdr, sizeof(image_header_t));
+
+		/* save pointer to image header */
+		images.legacy_hdr_os = hdr;
+
+		images.legacy_hdr_valid = 1;
+
+		goto after_header_check;
+	}
+#endif
 
 	/* get kernel image header, start address and length */
 	os_hdr = boot_get_kernel (cmdtp, flag, argc, argv,
@@ -317,6 +356,11 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	show_boot_progress (8);
 
 	lmb_reserve(&lmb, load_start, (load_end - load_start));
+
+#if defined(CONFIG_ZIMAGE_BOOT)
+after_header_check:
+	os = hdr->ih_os;
+#endif
 
 	switch (os) {
 	default:			/* handled by (original) Linux case */
@@ -1139,3 +1183,102 @@ static void do_bootm_artos (cmd_tbl_t *cmdtp, int flag,
 	(*entry) (kbd, cmdline, fwenv, top);
 }
 #endif
+void
+print_image_hdr (image_header_t *hdr)
+{
+#if defined(CONFIG_CMD_DATE) || defined(CONFIG_TIMESTAMP)
+	time_t timestamp = (time_t)ntohl(hdr->ih_time);
+	struct rtc_time tm;
+#endif
+
+	printf ("   Image Name:   %.*s\n", IH_NMLEN, hdr->ih_name);
+#if defined(CONFIG_CMD_DATE) || defined(CONFIG_TIMESTAMP)
+	to_tm (timestamp, &tm);
+	printf ("   Created:      %4d-%02d-%02d  %2d:%02d:%02d UTC\n",
+		tm.tm_year, tm.tm_mon, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec);
+#endif	/* CONFIG_CMD_DATE, CONFIG_TIMESTAMP */
+	puts ("   Image Type:   "); print_type(hdr);
+	printf ("\n   Data Size:    %d Bytes = ", ntohl(hdr->ih_size));
+	print_size (ntohl(hdr->ih_size), "\n");
+	printf ("   Load Address: %08x\n"
+		"   Entry Point:  %08x\n",
+		 ntohl(hdr->ih_load), ntohl(hdr->ih_ep));
+
+	if (hdr->ih_type == IH_TYPE_MULTI) {
+		int i;
+		ulong len;
+		ulong *len_ptr = (ulong *)((ulong)hdr + sizeof(image_header_t));
+
+		puts ("   Contents:\n");
+		for (i=0; (len = ntohl(*len_ptr)); ++i, ++len_ptr) {
+			printf ("   Image %d: %8ld Bytes = ", i, len);
+			print_size (len, "\n");
+		}
+	}
+}
+
+static void
+print_type (image_header_t *hdr)
+{
+	char *os, *arch, *type, *comp;
+
+	switch (hdr->ih_os) {
+	case IH_OS_INVALID:	os = "Invalid OS";		break;
+	case IH_OS_NETBSD:	os = "NetBSD";			break;
+	case IH_OS_LINUX:	os = "Linux";			break;
+	case IH_OS_VXWORKS:	os = "VxWorks";			break;
+	case IH_OS_QNX:		os = "QNX";			break;
+	case IH_OS_U_BOOT:	os = "U-Boot";			break;
+	case IH_OS_RTEMS:	os = "RTEMS";			break;
+#ifdef CONFIG_ARTOS
+	case IH_OS_ARTOS:	os = "ARTOS";			break;
+#endif
+#ifdef CONFIG_LYNXKDI
+	case IH_OS_LYNXOS:	os = "LynxOS";			break;
+#endif
+	default:		os = "Unknown OS";		break;
+	}
+
+	switch (hdr->ih_arch) {
+	case IH_ARCH_INVALID:	arch = "Invalid CPU";		break;
+	case IH_ARCH_ALPHA:	arch = "Alpha";			break;
+	case IH_ARCH_ARM:	arch = "ARM";			break;
+	case IH_ARCH_AVR32:	arch = "AVR32";			break;
+	case IH_ARCH_I386:	arch = "Intel x86";		break;
+	case IH_ARCH_IA64:	arch = "IA64";			break;
+	case IH_ARCH_MIPS:	arch = "MIPS";			break;
+	case IH_ARCH_MIPS64:	arch = "MIPS 64 Bit";		break;
+	case IH_ARCH_PPC:	arch = "PowerPC";		break;
+	case IH_ARCH_S390:	arch = "IBM S390";		break;
+	case IH_ARCH_SH:		arch = "SuperH";		break;
+	case IH_ARCH_SPARC:	arch = "SPARC";			break;
+	case IH_ARCH_SPARC64:	arch = "SPARC 64 Bit";		break;
+	case IH_ARCH_M68K:	arch = "M68K"; 			break;
+	case IH_ARCH_MICROBLAZE:	arch = "Microblaze"; 		break;
+	case IH_ARCH_NIOS:	arch = "Nios";			break;
+	case IH_ARCH_NIOS2:	arch = "Nios-II";		break;
+	default:		arch = "Unknown Architecture";	break;
+	}
+
+	switch (hdr->ih_type) {
+	case IH_TYPE_INVALID:	type = "Invalid Image";		break;
+	case IH_TYPE_STANDALONE:type = "Standalone Program";	break;
+	case IH_TYPE_KERNEL:	type = "Kernel Image";		break;
+	case IH_TYPE_RAMDISK:	type = "RAMDisk Image";		break;
+	case IH_TYPE_MULTI:	type = "Multi-File Image";	break;
+	case IH_TYPE_FIRMWARE:	type = "Firmware";		break;
+	case IH_TYPE_SCRIPT:	type = "Script";		break;
+	case IH_TYPE_FLATDT:	type = "Flat Device Tree";	break;
+	default:		type = "Unknown Image";		break;
+	}
+
+	switch (hdr->ih_comp) {
+	case IH_COMP_NONE:	comp = "uncompressed";		break;
+	case IH_COMP_GZIP:	comp = "gzip compressed";	break;
+	case IH_COMP_BZIP2:	comp = "bzip2 compressed";	break;
+	default:		comp = "unknown compression";	break;
+	}
+
+	printf ("%s %s %s (%s)", arch, os, type, comp);
+}

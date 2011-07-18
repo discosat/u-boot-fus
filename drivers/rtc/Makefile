@@ -56,6 +56,9 @@ COBJS-y += rs5c372.o
 COBJS-y += rx8025.o
 COBJS-y += s3c24x0_rtc.o
 COBJS-y += x1205.o
+COBJS-$(CONFIG_RTC_S3C24XX) += s3c24xx_rtc.o
+COBJS-$(CONFIG_RTC_S3C64XX) += s3c64xx_rtc.o
+COBJS-$(CONFIG_RTC_S5P64XX) += s5p64xx_rtc.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

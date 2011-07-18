@@ -15,7 +15,55 @@
 
 #include <common.h>
 
-#ifdef CONFIG_CMD_ONENAND
+/*#ifdef CONFIG_CMD_ONENAND*/
+
+#if defined(CONFIG_S3C64XX) || defined(CONFIG_S5PC1XX)
+
+#include <s3c_onenand.h>
+
+#ifndef CFG_ONENAND_BASE_LIST
+#define CFG_ONENAND_BASE_LIST { CFG_ONENAND_BASE }
+#endif
+
+int onenand_curr_device = -1;
+onenand_info_t onenand_info[CFG_MAX_ONENAND_DEVICE];
+
+static struct onenand_chip onenand_chip[CFG_MAX_ONENAND_DEVICE];
+static ulong base_address[CFG_MAX_ONENAND_DEVICE] = CFG_ONENAND_BASE_LIST;
+
+static const char default_onenand_name[] = "OneNAND";
+
+extern int board_onenand_init(struct onenand_chip *onenand);
+
+static void onenand_init_chip(struct mtd_info *mtd, struct onenand_chip *onenand,
+			   ulong base_addr)
+{
+	mtd->priv = onenand;
+
+	if (board_onenand_init(onenand))
+		return;
+
+	if (onenand_scan(mtd, CFG_MAX_ONENAND_DEVICE) == 0) {
+		if (!mtd->name)
+			mtd->name = (char *)default_onenand_name;
+	} else
+		mtd->name = NULL;
+}
+
+void onenand_init(void)
+{
+	int i;
+	unsigned int size = 0;
+	for (i = 0; i < CFG_MAX_ONENAND_DEVICE; i++) {
+		onenand_init_chip(&onenand_info[i], &onenand_chip[i], base_address[i]);
+		size += onenand_info[i].size;
+		if (onenand_curr_device == -1)
+			onenand_curr_device = i;
+	}
+	printf("%lu MB\n", size / (1024 * 1024));
+}
+
+#else
 
 #include <linux/mtd/compat.h>
 #include <linux/mtd/mtd.h>
@@ -38,4 +86,6 @@ void onenand_init(void)
 	print_size(onenand_mtd.size, "\n");
 }
 
-#endif	/* CONFIG_CMD_ONENAND */
+#endif
+
+//#endif	/* CONFIG_CMD_ONENAND */

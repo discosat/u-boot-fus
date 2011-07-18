@@ -7,7 +7,9 @@
  * Copyright (C) 2000-2004 Steven J. Hill (sjhill@realitydiluted.com)
  *                         Toshiba America Electronics Components, Inc.
  *
- * $Id: nand_ecc.c,v 1.14 2004/06/16 15:34:37 gleixner Exp $
+ * Copyright (C) 2006 Thomas Gleixner <tglx@linutronix.de>
+ *
+ * $Id: nand_ecc.c,v 1.3 2007/02/21 01:58:27 jsgood Exp $
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -40,11 +42,6 @@
 #if defined(CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY)
 
 #include<linux/mtd/mtd.h>
-
-/*
- * NAND-SPL has no sofware ECC for now, so don't include nand_calculate_ecc(),
- * only nand_correct_data() is needed
- */
 
 #ifndef CONFIG_NAND_SPL
 /*
@@ -197,4 +194,4 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	return -1;
 }
 
-#endif
+#endif	/* (CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY) */

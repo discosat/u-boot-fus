@@ -96,7 +96,7 @@ COBJS-$(CONFIG_CMD_SPI) += cmd_spi.o
 COBJS-$(CONFIG_CMD_STRINGS) += cmd_strings.o
 COBJS-$(CONFIG_CMD_TERMINAL) += cmd_terminal.o
 COBJS-$(CONFIG_CMD_UNIVERSE) += cmd_universe.o
-COBJS-$(CONFIG_CMD_USB) += cmd_usb.o
+COBJS-$(CONFIG_CMD_USB) += cmd_usbd.o
 COBJS-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 COBJS-y += cmd_vfd.o
 COBJS-y += command.o
@@ -108,11 +108,9 @@ COBJS-y += dlmalloc.o
 COBJS-y += docecc.o
 COBJS-y += environment.o
 COBJS-y += env_common.o
-COBJS-y += env_nand.o
 COBJS-y += env_dataflash.o
 COBJS-y += env_flash.o
 COBJS-y += env_eeprom.o
-COBJS-y += env_onenand.o
 COBJS-y += env_sf.o
 COBJS-y += env_nvram.o
 COBJS-y += env_nowhere.o
@@ -141,11 +139,23 @@ COBJS-y += xilinx.o
 COBJS-y += crc16.o
 COBJS-y += xyzModem.o
 COBJS-y += cmd_mac.o
+COBJS-y += cmd_movi.o
 COBJS-$(CONFIG_CMD_MFSL) += cmd_mfsl.o
 COBJS-$(CONFIG_MP) += cmd_mp.o
 COBJS-$(CONFIG_CMD_SF) += cmd_sf.o
 
 COBJS	:= $(COBJS-y)
+
+ifeq ($(CPU),s3c24xx)
+COBJS += env_nand.o env_movi.o env_onenand.o
+else
+ ifeq ($(BOARD),smdk6400)
+ COBJS += env_nand.o env_movi.o env_onenand.o
+ else
+ COBJS += env_auto.o
+ endif
+endif
+
 SRCS	:= $(AOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(AOBJS) $(COBJS))
 

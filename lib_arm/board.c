@@ -44,18 +44,26 @@
 #include <devices.h>
 #include <version.h>
 #include <net.h>
+#include <asm/io.h>
+#include <movi.h>
+#include <regs.h>
 #include <serial.h>
 #include <nand.h>
 #include <onenand_uboot.h>
 
+#undef DEBUG
+
 #ifdef CONFIG_DRIVER_SMC91111
-#include "../drivers/net/smc91111.h"
+#include "../drivers/smc91111.h"
 #endif
 #ifdef CONFIG_DRIVER_LAN91C96
-#include "../drivers/net/lan91c96.h"
+#include "../drivers/lan91c96.h"
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
+
+void nand_init (void);
+void onenand_init(void);
 
 ulong monitor_flash_len;
 
@@ -72,7 +80,7 @@ const char version_string[] =
 	U_BOOT_VERSION" (" __DATE__ " - " __TIME__ ")"CONFIG_IDENT_STRING;
 
 #ifdef CONFIG_DRIVER_CS8900
-extern void cs8900_get_enetaddr (uchar * addr);
+extern int cs8900_get_enetaddr (uchar * addr);
 #endif
 
 #ifdef CONFIG_DRIVER_RTL8019
@@ -91,8 +99,7 @@ static ulong mem_malloc_start = 0;
 static ulong mem_malloc_end = 0;
 static ulong mem_malloc_brk = 0;
 
-static
-void mem_malloc_init (ulong dest_addr)
+static void mem_malloc_init (ulong dest_addr)
 {
 	mem_malloc_start = dest_addr;
 	mem_malloc_end = dest_addr + CFG_MALLOC_LEN;
@@ -173,6 +180,11 @@ static int display_banner (void)
 	printf ("\n\n%s\n\n", version_string);
 	debug ("U-Boot code: %08lX -> %08lX  BSS: -> %08lX\n",
 	       _armboot_start, _bss_start, _bss_end);
+#ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
+	debug("\t\bMalloc and Stack is above the U-Boot Code.\n");
+#else
+	debug("\t\bMalloc and Stack is below the U-Boot Code.\n");
+#endif
 #ifdef CONFIG_MODEM_SUPPORT
 	debug ("Modem Support enabled\n");
 #endif
@@ -208,7 +220,8 @@ static int display_dram_config (void)
 	for (i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
 		size += gd->bd->bi_dram[i].size;
 	}
-	puts("DRAM:  ");
+
+	puts("DRAM:    ");
 	print_size(size, "\n");
 #endif
 
@@ -218,7 +231,7 @@ static int display_dram_config (void)
 #ifndef CFG_NO_FLASH
 static void display_flash_config (ulong size)
 {
-	puts ("Flash: ");
+	puts ("Flash:  ");
 	print_size (size, "\n");
 }
 #endif /* CFG_NO_FLASH */
@@ -307,12 +320,28 @@ void start_armboot (void)
 #if !defined(CFG_NO_FLASH) || defined (CONFIG_VFD) || defined(CONFIG_LCD)
 	ulong size;
 #endif
+
 #if defined(CONFIG_VFD) || defined(CONFIG_LCD)
 	unsigned long addr;
 #endif
 
+#if defined(CONFIG_BOOT_MOVINAND)
+	uint *magic = (uint *) (PHYS_SDRAM_1);
+#endif
+
 	/* Pointer is writable since we allocated a register for it */
+#ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
+	ulong gd_base;
+
+	gd_base = CFG_UBOOT_BASE + CFG_UBOOT_SIZE - CFG_MALLOC_LEN - CFG_STACK_SIZE - sizeof(gd_t);
+#ifdef CONFIG_USE_IRQ
+	gd_base -= (CONFIG_STACKSIZE_IRQ+CONFIG_STACKSIZE_FIQ);
+#endif
+	gd = (gd_t*)gd_base;
+#else
 	gd = (gd_t*)(_armboot_start - CFG_MALLOC_LEN - sizeof(gd_t));
+#endif
+
 	/* compiler optimization barrier needed for GCC >= 3.4 */
 	__asm__ __volatile__("": : :"memory");
 
@@ -364,15 +393,113 @@ void start_armboot (void)
 #endif /* CONFIG_LCD */
 
 	/* armboot_start is defined in the board-specific linker script */
+#ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
+	mem_malloc_init (CFG_UBOOT_BASE + CFG_UBOOT_SIZE - CFG_MALLOC_LEN - CFG_STACK_SIZE);
+#else
 	mem_malloc_init (_armboot_start - CFG_MALLOC_LEN);
-
-#if defined(CONFIG_CMD_NAND)
-	puts ("NAND:  ");
-	nand_init();		/* go init the NAND */
 #endif
 
-#if defined(CONFIG_CMD_ONENAND)
+/* samsung socs: auto-detect devices */
+#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100)
+
+#if defined(CONFIG_MMC)
+	puts("SD/MMC:  ");
+
+	if (INF_REG3_REG == 0)
+		movi_ch = 0;
+	else
+		movi_ch = 1;
+
+	movi_set_capacity();
+	movi_set_ofs(MOVI_TOTAL_BLKCNT);
+	movi_init();
+#endif
+
+	if (INF_REG3_REG == 1) {
+		puts("OneNAND: ");
+		onenand_init();
+		/*setenv("bootcmd", "onenand read c0008000 80000 380000;bootm c0008000");*/
+	} else {
+		puts("NAND:    ");
+		nand_init();
+
+#if !defined(CONFIG_SMDKC100)
+		if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
+			setenv("bootcmd", "movi read kernel c0008000;movi read rootfs c0800000;bootm c0008000");
+		else
+			setenv("bootcmd", "nand read c0008000 80000 380000;bootm c0008000");
+#endif
+	}
+
+/* samsung socs: another auto-detect devices */
+#elif defined(CONFIG_SMDK6440)
+
+#if defined(CONFIG_MMC)
+	if (INF_REG3_REG == 1) {	/* eMMC_4.3 */
+		puts("eMMC:    ");
+		movi_ch = 1;
+		movi_emmc = 1;
+
+		movi_set_ofs(0);
+		movi_init();
+	} else if (INF_REG3_REG == 7 || INF_REG3_REG == 0) {	/* SD/MMC */
+		if (INF_REG3_REG & 0x1)
+			movi_ch = 1;
+		else
+			movi_ch = 0;
+
+		puts("SD/MMC:  ");
+
+		movi_set_capacity();
+		movi_set_ofs(MOVI_TOTAL_BLKCNT);
+		movi_init();
+	} else {
+
+	}
+#endif	/* CONFIG_MMC */
+
+	if (INF_REG3_REG == 2) {
+		;	/* N/A */
+	} else {
+		puts("NAND:    ");
+		nand_init();
+
+		//setenv("bootcmd", "nand read c0008000 80000 380000;bootm c0008000");
+	}
+
+/* samsung socs: no auto-detect devices */
+#elif defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK2450) || defined(CONFIG_SMDK2416)
+
+#if defined(CONFIG_NAND)
+	puts("NAND:    ");
+	nand_init();
+#endif /* CONFIG_NAND */
+
+#if defined(CONFIG_ONENAND)
+	puts("OneNAND: ");
 	onenand_init();
+#endif /* CONFIG_ONENAND */
+
+#if defined(CONFIG_BOOT_MOVINAND)
+	puts("SD/MMC:  ");
+
+	if ((0x24564236 == magic[0]) && (0x20764316 == magic[1])) {
+		printf("Boot up for burning\n");
+	} else {
+		movi_set_capacity();
+		movi_set_ofs(MOVI_TOTAL_BLKCNT);
+		movi_init();
+	}
+#endif /* CONFIG_BOOT_MOVINAND */
+
+/* others */
+#else  /* defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK2450) || defined(CONFIG_SMDK2416) */
+
+#if defined(CONFIG_CMD_NAND)
+	puts ("NAND:    ");
+	nand_init();
+#endif /* CONFIG_CMD_NAND */
+
 #endif
 
 #ifdef CONFIG_HAS_DATAFLASH

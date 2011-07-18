@@ -75,6 +75,8 @@ extern int atngw100_eth_initialize(bd_t *);
 extern int mcffec_initialize(bd_t*);
 extern int mcdmafec_initialize(bd_t*);
 extern int at91sam9_eth_initialize(bd_t *);
+extern int cs8900_initialize (bd_t*);
+extern int smc911x_initialize (bd_t*);
 
 #ifdef CONFIG_API
 extern void (*push_packet)(volatile void *, int);
@@ -291,8 +293,16 @@ int eth_initialize(bd_t *bis)
 	at91sam9_eth_initialize(bis);
 #endif
 
+#if defined(CONFIG_DRIVER_CS8900)
+	cs8900_initialize(bis);
+#endif
+
+#if defined(CONFIG_DRIVER_SMC911X)
+	smc911x_initialize(bis);
+#endif
+
 	if (!eth_devices) {
-		puts ("No ethernet found.\n");
+		puts ("  No ethernet found\n");
 		show_boot_progress (-64);
 	} else {
 		struct eth_device *dev = eth_devices;
@@ -303,7 +313,7 @@ int eth_initialize(bd_t *bis)
 			if (eth_number)
 				puts (", ");
 
-			printf("%s", dev->name);
+			printf("  %s", dev->name);
 
 			if (ethprime && strcmp (dev->name, ethprime) == 0) {
 				eth_current = dev;
@@ -445,7 +455,7 @@ int eth_init(bd_t *bis)
 	struct eth_device* old_current;
 
 	if (!eth_current) {
-		puts ("No ethernet found.\n");
+		puts ("  No ethernet found\n");
 		return -1;
 	}
 

@@ -279,7 +279,7 @@ __LIBS := $(subst $(obj),,$(LIBS)) $(subst $(obj),,$(LIBBOARD))
 #########################################################################
 #########################################################################
 
-ALL += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND)
+ALL += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND) $(obj)u-boot.dis
 ifeq ($(ARCH),blackfin)
 ALL += $(obj)u-boot.ldr
 endif
@@ -2494,6 +2494,33 @@ smdk2400_config	:	unconfig
 smdk2410_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm920t smdk2410 NULL s3c24x0
 
+tabla_config	:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx tabla samsung mdirac3
+
+smdk6400_config	:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6400 samsung s3c6400 
+
+smdk6410_config	:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6410 samsung s3c6410 
+
+smdk6430_config :       unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6430 samsung s3c6430
+
+smdk2450_config :       unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c24xx smdk2450 samsung s3c2450
+
+smdk2416_config :       unconfig	
+	@$(MKCONFIG) $(@:_config=) arm s3c24xx smdk2416 samsung s3c2416
+
+smdk_mp_config	:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx-mp smdk_mp samsung s3c64xx-mp
+
+smdkc100_config :       unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc1xx smdkc100 samsung s5pc100
+
+smdk6440_config :       unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5p64xx smdk6440 samsung s5p6440
+
 SX1_config :		unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm925t sx1
 
@@ -3041,6 +3068,7 @@ clobber:	clean
 	@rm -f $(obj)tools/{fdt_wip.c,libfdt_internal.h}
 	@rm -f $(obj)cpu/mpc824x/bedbug_603e.c
 	@rm -f $(obj)include/asm/proc $(obj)include/asm/arch $(obj)include/asm
+	@rm -f $(obj)include/regs.h
 	@[ ! -d $(obj)nand_spl ] || find $(obj)nand_spl -lname "*" -print | xargs rm -f
 	@[ ! -d $(obj)onenand_ipl ] || find $(obj)onenand_ipl -lname "*" -print | xargs rm -f
 	@[ ! -d $(obj)api_examples ] || find $(obj)api_examples -lname "*" -print | xargs rm -f

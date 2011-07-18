@@ -625,6 +625,7 @@ int genimg_get_format (void *img_addr)
 {
 	ulong		format = IMAGE_FORMAT_INVALID;
 	image_header_t	*hdr;
+	printf("get_format\n");
 #if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
 	char		*fit_hdr;
 #endif
@@ -639,6 +640,7 @@ int genimg_get_format (void *img_addr)
 			format = IMAGE_FORMAT_FIT;
 	}
 #endif
+	printf("-------- %x --------\n", format);
 
 	return format;
 }

@@ -42,7 +42,7 @@
 #include <malloc.h>
 #include <nand.h>
 
-#if defined(CONFIG_CMD_ENV) && defined(CONFIG_CMD_NAND)
+#if defined(CONFIG_CMD_ENV) || defined(CONFIG_CMD_NAND) || defined(CONFIG_CMD_MOVINAND) || defined(CONFIG_CMD_ONENAND)
 #define CMD_SAVEENV
 #elif defined(CFG_ENV_OFFSET_REDUND)
 #error Cannot use CFG_ENV_OFFSET_REDUND without CONFIG_CMD_ENV & CONFIG_CMD_NAND
@@ -177,8 +177,10 @@ int writeenv(size_t offset, u_char *buf)
 			amount_saved += blocksize;
 		}
 	}
-	if (amount_saved != CFG_ENV_SIZE)
+	if (amount_saved != CFG_ENV_SIZE) {
+		printf("amount_saved: %d\n", amount_saved);
 		return 1;
+	}
 
 	return 0;
 }
@@ -226,6 +228,51 @@ int saveenv(void)
 	return ret;
 }
 #else /* ! CFG_ENV_OFFSET_REDUND */
+
+#ifdef CFG_NAND_LARGEPAGE_SAVEENV
+int saveenv(void)
+{
+	size_t total;
+	int ret = 0;
+	u_char *tmp;
+	nand_erase_options_t nand_erase_options;
+
+	nand_erase_options.length = CFG_ENV_OFFSET + CFG_ENV_SIZE;
+	nand_erase_options.quiet = 0;
+	nand_erase_options.jffs2 = 0;
+	nand_erase_options.scrub = 0;
+	nand_erase_options.offset = 0;
+
+	if (CFG_ENV_RANGE < CFG_ENV_SIZE)
+		return 1;
+
+	tmp = (u_char *) malloc(CFG_ENV_OFFSET);
+	total = CFG_ENV_OFFSET;
+	nand_read(&nand_info[0], 0x0, (size_t *) &total,  (u_char *) tmp);
+	
+	puts ("Erasing Nand...\n");
+	if (nand_erase_opts(&nand_info[0], &nand_erase_options)) {
+		free(tmp);
+		return 1;
+	}
+
+	puts ("Writing to Nand... ");
+	nand_write(&nand_info[0], 0x0, &total, (u_char *) tmp);
+
+	total = CFG_ENV_SIZE;
+
+	ret = nand_write(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char *) env_ptr);
+	if (ret || total != CFG_ENV_SIZE) {
+		free(tmp);
+		return 1;
+	}
+
+	puts ("done\n");
+	free(tmp);
+
+	return ret;
+}
+#else
 int saveenv(void)
 {
 	size_t total;
@@ -254,6 +301,8 @@ int saveenv(void)
 	puts ("done\n");
 	return ret;
 }
+#endif
+
 #endif /* CFG_ENV_OFFSET_REDUND */
 #endif /* CMD_SAVEENV */
 
@@ -349,7 +398,7 @@ void env_relocate_spec (void)
 	int ret;
 
 	total = CFG_ENV_SIZE;
-	ret = readenv(CFG_ENV_OFFSET, (u_char *) env_ptr);
+	ret = nand_read(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char*)env_ptr);
 	if (ret || total != CFG_ENV_SIZE)
 		return use_default();
 

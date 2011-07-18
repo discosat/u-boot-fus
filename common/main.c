@@ -946,7 +946,7 @@ int readline_into_buffer (const char *const prompt, char * buffer)
 	 * Revert to non-history version if still
 	 * running from flash.
 	 */
-	if (gd->flags & GD_FLG_RELOC) {
+	//if (gd->flags & GD_FLG_RELOC) {
 		if (!initted) {
 			hist_init();
 			initted = 1;
@@ -957,8 +957,9 @@ int readline_into_buffer (const char *const prompt, char * buffer)
 		rc = cread_line(prompt, p, &len);
 		return rc < 0 ? rc : len;
 
-	} else {
-#endif	/* CONFIG_CMDLINE_EDITING */
+	//} else {
+//#endif	/* CONFIG_CMDLINE_EDITING */
+#else
 	char * p_buf = p;
 	int	n = 0;				/* buffer index		*/
 	int	plen = 0;			/* prompt length	*/
@@ -1054,8 +1055,8 @@ int readline_into_buffer (const char *const prompt, char * buffer)
 			}
 		}
 	}
-#ifdef CONFIG_CMDLINE_EDITING
-	}
+//#ifdef CONFIG_CMDLINE_EDITING
+//	}
 #endif
 }
 

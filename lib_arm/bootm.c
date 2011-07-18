@@ -113,7 +113,8 @@ void do_bootm_linux (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[],
     defined (CONFIG_SERIAL_TAG) || \
     defined (CONFIG_REVISION_TAG) || \
     defined (CONFIG_LCD) || \
-    defined (CONFIG_VFD)
+    defined (CONFIG_VFD) || \
+    defined (CONFIG_MTDPARTITION)
 	setup_start_tag (bd);
 #ifdef CONFIG_SERIAL_TAG
 	setup_serial_tag (&params);
@@ -134,6 +135,11 @@ void do_bootm_linux (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[],
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)
 	setup_videolfb_tag ((gd_t *) gd);
 #endif
+
+#ifdef CONFIG_MTDPARTITION
+	setup_mtdpartition_tag();
+#endif
+
 	setup_end_tag (bd);
 #endif
 
@@ -165,7 +171,8 @@ error:
     defined (CONFIG_SERIAL_TAG) || \
     defined (CONFIG_REVISION_TAG) || \
     defined (CONFIG_LCD) || \
-    defined (CONFIG_VFD)
+    defined (CONFIG_VFD) || \
+    defined (CONFIG_MTDPARTITION)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *) bd->bi_boot_params;
@@ -296,6 +303,33 @@ void setup_revision_tag(struct tag **in_params)
 }
 #endif  /* CONFIG_REVISION_TAG */
 
+#ifdef CONFIG_MTDPARTITION
+void setup_mtdpartition_tag()
+{
+	char *p, *temp;
+	int i = 0;
+
+	p = getenv("mtdpart");
+
+	params->hdr.tag = ATAG_MTDPART;
+	params->hdr.size = tag_size (tag_mtdpart);
+
+	for(temp = p; *temp != '\0'; temp++)
+	{
+		if(*temp == ' ')
+		{
+			*temp = '\0';
+			params->u.mtdpart_info.mtd_part_size[i] = simple_strtoul(p, NULL, 16);
+
+			p = ++temp;
+			i++;
+		}
+	}
+	params->u.mtdpart_info.mtd_part_size[i] = simple_strtoul(p, NULL, 16);
+
+	params = tag_next (params);
+}
+#endif  /* CONFIG_MTDPARTITION */
 
 static void setup_end_tag (bd_t *bd)
 {

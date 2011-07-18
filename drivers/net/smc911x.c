@@ -23,9 +23,20 @@
  */
 
 #include <common.h>
+
+#ifdef CONFIG_DRIVER_SMC911X
+
 #include <command.h>
 #include <net.h>
 #include <miiphy.h>
+#include <malloc.h>
+
+#ifdef CONFIG_NET_MULTI
+#define eth_halt smc_eth_halt
+#define eth_init smc_eth_init
+#define eth_rx smc_eth_rx
+#define eth_send smc_eth_send
+#endif
 
 #if defined (CONFIG_DRIVER_SMC911X_32_BIT) && \
 	defined (CONFIG_DRIVER_SMC911X_16_BIT)
@@ -696,3 +707,77 @@ int eth_rx(void)
 
 	return 0;
 }
+
+#ifdef CONFIG_NET_MULTI
+
+static int smc911x_eth_init(struct eth_device* dev, bd_t* bis)
+{
+	if (smc_eth_init(bis)) {
+		return 0;
+	}
+	return 1;
+}
+
+static void smc911x_eth_halt (struct eth_device *dev)
+{
+	smc911x_reset();
+	return;
+}
+
+static int smc911x_eth_send (struct eth_device *dev, volatile void *packet, int length)
+{
+	if (smc_eth_send(packet, length)) {
+		return 0;
+	}
+	return length;
+}
+
+static int smc911x_eth_rx (struct eth_device *dev)
+{
+       return smc_eth_rx();
+}
+
+/*
+ * This function is designed for SMDK6410 and SMDK2450.
+ * by scsuh.
+ */
+int smc911x_initialize (bd_t * bis)
+{
+	struct eth_device *dev;
+	int i, val = 0;
+
+	val = reg_read(BYTE_TEST);
+	if (val != 0x87654321) {
+		return -1;
+	}
+
+	val = reg_read(ID_REV) >> 16;
+	for (i = 0; chip_ids[i].id != 0; i++) {
+		if (chip_ids[i].id == val)
+			break;
+	}
+	if (!chip_ids[i].id) {
+		return -1;
+	}
+
+	dev = (struct eth_device *) malloc (sizeof *dev);
+
+	memcpy(dev->enetaddr, bis->bi_enetaddr, 6);
+
+	sprintf(dev->name, DRIVERNAME);
+	dev->priv = (void *)NULL; /* this have to come before bus_to_phys() */
+	dev->iobase = CONFIG_DRIVER_SMC911X_BASE;
+	dev->init = smc911x_eth_init;
+	dev->halt = smc911x_eth_halt;
+	dev->send = smc911x_eth_send;
+	dev->recv = smc911x_eth_rx;
+
+	eth_register (dev);
+
+	return 0;
+}
+
+#endif	/* CONFIG_NET_MULTI */
+
+#endif	/* CONFIG_DRIVER_SMC911X */
+

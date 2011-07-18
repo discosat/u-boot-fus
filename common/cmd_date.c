@@ -29,6 +29,8 @@
 #include <rtc.h>
 #include <i2c.h>
 
+#ifndef CONFIG_S5PC100
+
 DECLARE_GLOBAL_DATA_PTR;
 
 const char *weekdays[] = {
@@ -208,3 +210,5 @@ U_BOOT_CMD(
 	"  - with numeric argument: set the system date & time\n"
 	"  - with 'reset' argument: reset the RTC\n"
 );
+
+#endif
