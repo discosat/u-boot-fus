@@ -52,6 +52,9 @@
        nicht.
    16. icache und dcache prüfen. Evtl. MMU einschalten und 1:1 TLB-Eintrag
        erzeugen, damit Code schneller läuft.
+   17. Befehl "window" durch "win" ersetzen.
+   18. Bei reg: reg create setzt lockupdate, reg save löscht lockupdate.
+   19. evtl. reg-Befehl ganz raus und externes Wandlungstool machen.
 ****/
 
 /*
@@ -64,11 +67,11 @@
 #include <lcd.h>			  /* lcd_line(), lcd_rect(), ... */
 #include <lcd_panels.h>			  /* lcdinfo_t, lcd_getlcd(), ... */
 #include <devices.h>			  /* device_t, device_register(), ... */
-#include <linux/ctype.h>		  /* isdigit() */
+#include <linux/ctype.h>		  /* isdigit(), toupper() */
 
-#if defined(CONFIG_CMD_BMP) || defined(CONFIG_SPLASH_SCREEN)
-# include <bmp_layout.h>
-# include <asm/byteorder.h>
+#if defined(CONFIG_CMD_PNG) || defined(CONFIG_CMD_BMP) || defined(CONFIG_CMD_JPG)
+#define _BITMAP_SUPPORT_
+#include <bitmap.h>			  /* lcd_scan_bitmap(), lcd_bitmap() */
 #endif
 
 /* The following LCD controller hardware specific includes provide extensions
@@ -136,7 +139,9 @@ enum DRAW_INDEX {
 	DI_DISC,
 	DI_TEXT,
 	DI_TURTLE,
+#ifdef _BITMAP_SUPPORT_
 	DI_BITMAP,
+#endif
 
 	/* Draw commands with no coordinate pair */
 	DI_COLOR,
@@ -225,7 +230,6 @@ enum LCD_INDEX {
 	LI_FPS,
 	LI_DRIVE,
 	LI_FRC,
-	LI_PWMENA,
 	LI_PWMVALUE,
 	LI_PWMFREQ,
 	LI_PONLOGIC,
@@ -314,25 +318,6 @@ static char * const typeinfo[9] = {
 	"TFT"
 };
 
-/* Bitmap types */
-static const char * const btypeinfo[] = {
-	"???",				  /* BT_UNKNOWN */
-	"PNG",				  /* BR_PNG */
-	"BMP",				  /* BT_BMP */
-	"JPG",				  /* BT_JPG ###not yet supported### */
-};
-
-
-/* Bitmap color types */
-static const char * const ctypeinfo[] = {
-	"(unknown)",			  /* CT_UNKNOWN */
-	"palette",			  /* CT_PALETTE */
-	"grayscale",			  /* CT_GRAY */
-	"grayscale+alpha",		  /* CT_GRAY_ALPHA */
-	"truecolor",			  /* CT_TRUECOL */
-	"truecolor+alpha",		  /* CT_TRUECOL_ALPHA */
-};
-
 /* Power-on sequence variable names */
 static const char * const ponseq_name[] = {
 	"ponlogic",
@@ -344,7 +329,7 @@ static const char * const ponseq_name[] = {
 
 /* Power-off sequence variable names */
 static const char * const poffseq_name[] = {
-	"poffbl"
+	"poffbl",
 	"poffpwm",
 	"poffcontr",
 	"poffdisp",
@@ -378,7 +363,9 @@ static kwinfo_t const draw_kw[] = {
 	[DI_DISC] =   {3, 5, 1, 3, "disc"},   /* x1 y1 r [rgba [rgba]] */
 	[DI_TEXT] =   {3, 6, 1, 4, "text"},   /* x1 y1 s [attr [rgba [rgba]]] */
 	[DI_TURTLE] = {3, 4, 1, 3, "turtle"}, /* x1 y1 s [rgba] */
+#ifdef _BITMAP_SUPPORT_
 	[DI_BITMAP] = {3, 5, 1, 9, "bm"},     /* x1 y1 addr [n [attr]] */
+#endif
 	[DI_COLOR] =  {1, 2, 0, 0, "color"},  /* rgba [rgba] */
 	[DI_FILL] =   {0, 1, 0, 0, "fill"},   /* [rgba] */
 	[DI_TEST] =   {0, 1, 0, 9, "test"},   /* [n] */
@@ -422,8 +409,7 @@ static kwinfo_t const lcd_kw[] = {
 	[LI_VTIMING] =   {1, 3, 0, 0, "vtiming"},  /* vfp [vsw [vbp]] */
 	[LI_POL] =       {1, 4, 0, 0, "pol"},      /* hspol [vspol [clkpol
 						      [denpol]]]*/
-	[LI_PWM] =       {1, 3, 0, 0, "pwm"},      /* pwmenable [pwmvalue
-						      [pwmfreq]]*/
+	[LI_PWM] =       {1, 2, 0, 0, "pwm"},      /* pwmvalue [pwmfreq]*/
 	[LI_PONSEQ] =    {1, 5, 0, 0, "ponseq"},   /* logic [disp [contr
 						      [pwm [bl]]]] */
 	[LI_POFFSEQ] =   {1, 5, 0, 0, "poffseq"},  /* bl [pwm [contr [disp
@@ -456,7 +442,6 @@ static kwinfo_t const lcd_kw[] = {
 	[LI_FPS] =       {1, 1, 0, 0, "fps"},	   /* fps */
 	[LI_DRIVE] =     {1, 1, 0, 0, "drive"},    /* strength */
 	[LI_FRC] =       {1, 1, 0, 0, "frc"},	   /* dither */
-	[LI_PWMENA] =    {1, 1, 0, 0, "pwmenable"},/* pwmenable */
 	[LI_PWMVALUE] =  {1, 1, 0, 0, "pwmvalue"}, /* pwmvalue */
 	[LI_PWMFREQ] =   {1, 1, 0, 0, "pwmfreq"},  /* pwmfreq */
 	[LI_PONLOGIC] =  {1, 1, 0, 0, "ponlogic"}, /* ponlogic */
@@ -491,7 +476,6 @@ static kwinfo_t const reg_kw[] =
 	[RI_EFW] =       {4, 4, LI_VFP,      0, "efw"},
 	[RI_LCDCLK] =    {4, 4, LI_CLK,      0, "lcdclk"},
 	[RI_LCDPDS] =    {4, 4, LI_DRIVE,    0, "lcdportdrivestrength"},
-	[RI_CONTRENA] =  {4, 4, LI_PWMENA,   0, "contrastenable"},
 	[RI_CONTRVAL] =  {4, 4, LI_PWMVALUE, 0, "contrastvalue"},
 	[RI_CONTRFREQ] = {4, 4, LI_PWMFREQ,  0, "contrastfreq"},
 	[RI_PONLCDPOW] = {4, 4, LI_PONLOGIC, 0, "ponlcdpow"},
@@ -504,6 +488,7 @@ static kwinfo_t const reg_kw[] =
 	   used differently here as in command lcd. */
 	[RI_TYPE] =      {4, 4, LI_HELP,     0, "type"},   /* lcd type */
 	[RI_CONFIG] =    {4, 4, LI_HELP,     0, "config"}, /* polarities */
+	[RI_CONTRENA] =  {4, 4, LI_HELP,     0, "contrastenable"},
 };
 #endif /*CONFIG_FSWINCE_COMPAT*/
 
@@ -556,17 +541,50 @@ static wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win);
 /* Local Helper Functions						*/
 /************************************************************************/
 
+/* Switch display on; return error message on error or NULL on success */
+static char *lcd_on(vidinfo_t *pvi)
+{
+	WINDOW win;
+	wininfo_t *pwi;
+
+	if (!pvi->lcd.hres || !pvi->lcd.vres)
+		return "No valid lcd panel\n";
+
+	for (win=0, pwi=pvi->pwi; win<pvi->wincount; win++, pwi++) {
+		if (pwi->active)
+			break;
+	}
+	if (win >= pvi->wincount)
+		return "No active window\n";
+
+	pvi->enable(pvi);
+	pvi->is_enabled = 1;
+
+	return NULL;
+}
+
+
+/* Switch display off */
+static void lcd_off(vidinfo_t *pvi)
+{
+	pvi->disable(pvi);
+	pvi->is_enabled = 0;
+}
+
+
 /* Get a pointer to the vidinfo structure */
 static vidinfo_t *lcd_get_vidinfo_p(VID vid)
 {
 	return (vid < vid_count) ? &vidinfo[vid] : NULL;
 }
 
+
 /* Get a pointer to the wininfo structure */
 static wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win)
 {
 	return (win < pvi->wincount) ? &pvi->pwi[win] : NULL;
 }
+
 
 /* If not locked, update lcd hardware and set environment variable */
 static void set_vidinfo(vidinfo_t *pvi)
@@ -581,13 +599,18 @@ static void set_vidinfo(vidinfo_t *pvi)
 
 	/* If new display has hres or vres 0 and display was switched on,
 	   switch it off now. The most common case is if panel #0 is set. */
-	if ((!pvi->lcd.hres || !pvi->lcd.vres) && pvi->is_enabled) {
-		pvi->disable(pvi);
-		pvi->is_enabled = 0;
-	}
+	if ((!pvi->lcd.hres || !pvi->lcd.vres) && pvi->is_enabled)
+		lcd_off(pvi);
 
 	/* Call hardware specific function to update controller hardware */
 	pvi->set_vidinfo(pvi);
+
+	/* If display is not active (hres or vres is 0), unset environment
+	   variable */
+	if (!pvi->lcd.hres || !pvi->lcd.vres) {
+		setenv(pvi->name, NULL);
+		return;
+	}
 
 	/* Prepare environment string for this lcd panel */
 	s += sprintf(s, "%s %s \"%s\"", cmd, lcd_kw[LI_NAME].keyword,
@@ -603,14 +626,14 @@ static void set_vidinfo(vidinfo_t *pvi)
 	s += sprintf(s, "; %s %s %u %u %u", cmd, lcd_kw[LI_VTIMING].keyword,
 		     pvi->lcd.vfp, pvi->lcd.vsw, pvi->lcd.vbp);
 	s += sprintf(s, "; %s %s %u %u %u %u", cmd, lcd_kw[LI_POL].keyword,
-		     pvi->lcd.hspol, pvi->lcd.vspol, pvi->lcd.clkpol,
-		     pvi->lcd.denpol);
+		     ((pvi->lcd.pol & HS_LOW) != 0),
+		     ((pvi->lcd.pol & VS_LOW) != 0),
+		     ((pvi->lcd.pol & DEN_LOW) != 0),
+		     ((pvi->lcd.pol & CLK_FALLING) != 0));
 	s += sprintf(s, "; %s %s %u", cmd, lcd_kw[LI_FPS].keyword,
 		     pvi->lcd.fps);
-	s += sprintf(s, "; %s %s %u %u %u", cmd, lcd_kw[LI_PWM].keyword,
-		     pvi->lcd.pwmvalue, pvi->lcd.pwmfreq, pvi->lcd.pwmenable);
-	s += sprintf(s, "; %s %s %u %u %u", cmd, lcd_kw[LI_PWM].keyword,
-		     pvi->lcd.pwmvalue, pvi->lcd.pwmfreq, pvi->lcd.pwmenable);
+	s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_PWM].keyword,
+		     pvi->lcd.pwmvalue, pvi->lcd.pwmfreq);
 	s += sprintf(s, "; %s %s %u %u %u %u %u", cmd,
 		     lcd_kw[LI_PONSEQ].keyword, pvi->lcd.ponseq[0],
 		     pvi->lcd.ponseq[1], pvi->lcd.ponseq[2],
@@ -626,11 +649,12 @@ static void set_vidinfo(vidinfo_t *pvi)
 	setenv(pvi->name, buf);
 }
 
+
 /* If not locked, update window hardware and set environment variable */
 static void set_wininfo(const wininfo_t *pwi)
 {
 	char buf[CFG_CBSIZE];
-	char *cmd = "window";
+	char *cmd = "win";
 	char *s = buf;
 
 	/* If update should not take place, return immediately */
@@ -639,6 +663,12 @@ static void set_wininfo(const wininfo_t *pwi)
 
 	/* Call hardware specific function to update controller hardware */
 	pwi->pvi->set_wininfo(pwi);
+
+	/* If window is not active, unset the environment variable */
+	if (!pwi->active) {
+		setenv((char *)pwi->name, NULL);
+		return;
+	}
 
 	/* Prepare environment string for this window */
 	s += sprintf(s, "%s %s %u %u %u %u", cmd, win_kw[WI_FBRES].keyword,
@@ -739,23 +769,6 @@ U_BOOT_CMD(
 	NULL
 );
 #endif //0 #####
-
-
-/************************************************************************/
-/* Command lcdclut							*/
-/************************************************************************/
-
-static int lcdclut(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	printf("#### lcdclut not yet implemented ####\n");
-	return 1;
-}
-
-U_BOOT_CMD(
-	lcdclut, 6,	1,	lcdclut,
-	"lcdclut\t- set or read the color look-up table (CLUT)\n",
-	NULL
-);
 
 
 /************************************************************************/
@@ -860,84 +873,15 @@ U_BOOT_CMD(
 
 
 /************************************************************************/
-/* Command bminfo							*/
-/************************************************************************/
-
-static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	u_int base, addr;
-	u_int i;
-	u_int start;
-	u_int count;
-
-	if (argc < 2) {
-		printf("Missing argument\n");
-		return 1;
-	}
-
-	/* Get base address */
-	base = simple_strtoul(argv[1], NULL, 16);
-
-	start = 0;
-	if (argc > 2)
-		start = simple_strtoul(argv[2], NULL, 0);
-
-	count = 0xFFFFFFFF;
-	if (argc > 3)
-		count = simple_strtoul(argv[3], NULL, 0);
-
-	/* Print header line for bitmap info list */
-	printf("#\tOffset\t\thres x vres\tbpp\tType\tCIB\tInfo\n");
-	printf("--------------------------------------------"
-	       "-----------------------------------\n");
-	addr = base;
-	for (i=0; ; i++)
-	{
-		bminfo_t bi;
-		u_int bmaddr = addr;
-
-		/* Scan bitmap structure and get end of current bitmap; stop
-		   on error, this is usually the end of the (multi-)image */
-		addr = lcd_scan_bitmap(addr);
-		if (!addr)
-			break;
-
-		/* Get bitmap info and show it */
-		lcd_get_bminfo(&bi, bmaddr);
-		if (i >= start) {
-			printf("%d\t0x%08x\t%4d x %d\t%d\t%s\t%c%c%c\t%s\n",
-			       i, bmaddr - base, bi.hres, bi.vres, bi.bitdepth,
-			       btypeinfo[bi.type],
-			       (bi.flags & BF_COMPRESSED) ? 'C' : '-',
-			       (bi.flags & BF_INTERLACED) ? 'I' : '-',
-			       (bi.flags & BF_BOTTOMUP) ? 'B' : '-', 
-			       ctypeinfo[bi.colortype]);
-			if (--count == 0)
-				break;
-		}
-	}
-	if (!i)
-		puts("(no bitmap found)\n");
-
-	return 0;
-}
-
-U_BOOT_CMD(
-	bminfo, 4,	0,	do_bminfo,
-	"bminfo\t- show (multi-)bitmap information in a list\n",
-	"addr [start [count]]\n"
-	"    - show information about bitmap(s) stored at addr\n"
-);
-
-
-/************************************************************************/
 /* Command draw								*/
 /************************************************************************/
 
 /* Draw turtle graphics until end of string, closing bracket or error */
-static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
+static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
 		      u_int count)
 {
+	XYPOS x = *px;
+	XYPOS y = *py;
 	u_char flagB = 0;
 	u_char flagN = 0;
 	char *s_new;
@@ -949,20 +893,22 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
 	char *errmsg = NULL;
 
 	do {
-		c = s[i++];
+		c = toupper(s[i++]);
 		if (c == 'B')		  /* "Blank" prefix */
 			flagB = 1;
 		else if (c == 'N')	  /* "No-update" prefix */
 			flagN = 1;
 		else if (c == 0) {	  /* End of string */
-			if (!count)
-				return i-1;
+			if (!count) {
+				i--;
+				goto DONE;
+			}
 			errmsg = "Missing ']'";
 		} else if (c == ']') {	  /* End of repeat */
 			if (!count)
 				errmsg = "Invalid ']'";
 			else if (!--count)
-				return i; /* Loop completed */
+				goto DONE;/* Loop completed */
 			i = 0;		  /* Next repeat iteration */
 		} else if (c == '(') {	  /* Call address */
 			u_int addr;
@@ -975,7 +921,7 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
 				i = s_new - s;
 				if (s[i++] != ')')
 					errmsg = "Missing ')'";
-				ret = lcd_turtle(pwi, x, y, (char *)addr, 0);
+				ret = lcd_turtle(pwi, &x, &y, (char *)addr, 0);
 				if (ret < 0) {
 					printf(" in substring at 0x%08x\n",
 					       addr);
@@ -995,7 +941,7 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
 				param = 1;
 
 			if (c == '[') {
-				int ret = lcd_turtle(pwi, x, y, s+i, param);
+				int ret = lcd_turtle(pwi, &x, &y, s+i, param);
 
 				if (ret < 0)
 					return -1;
@@ -1046,11 +992,13 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
 				break;
 
 			default:
-				errmsg = "Unknown command";
+				errmsg = "Unknown turtle command";
 				break;
 			}
 
 			if (!errmsg) {
+				printf("###B=%d, N=%d, (%d, %d)-(%d, %d)\n",
+				       flagB, flagN, x, y, nx, ny);
 				if (!flagB)
 					lcd_line(pwi, x, y, nx, ny);
 				if (!flagN) {
@@ -1065,8 +1013,11 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
 
 	/* Handle error message */
 	i--;
-	printf("%s at offset %i", errmsg, i);
+	printf("%s at offset %i\n", errmsg, i);
 
+DONE:
+	*px = x;
+	*py = y;
 	return i;
 }
 
@@ -1186,6 +1137,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		lcd_set_bg(pwi, rgba_save);
 		break;
 
+#ifdef _BITMAP_SUPPORT_
 	case DI_BITMAP:			  /* Draw bitmap */
 	{
 		u_int addr;
@@ -1221,9 +1173,10 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		}
 		break;
 	}
+#endif /*_BITMAP_SUPPORT_*/
 
 	case DI_TURTLE:			  /* Draw turtle graphics */
-		if (lcd_turtle(pwi, x1, y1, argv[4], 1) < 0)
+		if (lcd_turtle(pwi, &x1, &y1, argv[4], 0) < 0)
 			puts(" in argument string\n");
 		break;
 
@@ -1256,7 +1209,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	draw, 8,	0,	do_draw,
+	draw, 8,	1,	do_draw,
 	"draw\t- draw to selected window\n",
 	"pixel x y [#rgba]\n"
 	"    - draw pixel at (x, y)\n"
@@ -1272,8 +1225,10 @@ U_BOOT_CMD(
 	"    - draw filled circle (with outline) at (x, y) with radius r\n"
 	"draw text x y string [a [#rgba [#rgba]]]\n"
 	"    - draw text string at (x, y) with attribute a\n"
+#ifdef _BITMAP_SUPPORT_
 	"draw bitmap x y addr [n [a]]\n"
 	"    - draw bitmap n from addr at (x, y) with attribute a\n"
+#endif
 	"draw turtle x y string [#rgba]\n"
 	"    - draw turtle graphic command from string at (x, y)\n"
 	"draw fill [#rgba]\n"
@@ -1289,7 +1244,7 @@ U_BOOT_CMD(
 );
 
 U_BOOT_CMD(
-	adraw, 8,	0,	do_draw,
+	adraw, 8,	1,	do_draw,
 	"adraw\t- draw to selected window, directly applying alpha\n",
 	"arguments\n"
 	"    - see 'help draw' for a description of the 'adraw' arguments\n"
@@ -1492,7 +1447,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	cmap,	7,	0,	do_cmap,
+	cmap,	7,	1,	do_cmap,
 	"cmap\t- handle color map entries\n",
 	"set n #rgba\n"
 	"    - set color map entry n to new color\n"
@@ -1688,7 +1643,7 @@ static void show_wininfo(const wininfo_t *pwi)
 }
 
 /* Handle window command */
-static int do_window(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	vidinfo_t *pvi;
 	wininfo_t *pwi;
@@ -1897,7 +1852,7 @@ static int do_window(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			for (j=0; j<ARRAYSIZE(ident_color); j++) {
 				pwi->replace = ident_color[j];
 				set_wininfo(pwi);
-				udelay(200000);
+				udelay(50000);
 			}
 		}
 		pwi->replace = 0xFFFFFF00; /* Set transparent (=off) */
@@ -1918,29 +1873,29 @@ static int do_window(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	window,	7,	0,	do_window,
-	"window\t- set framebuffer and overlay window parameters\n",
+	win,	7,	0,	do_win,
+	"win\t- set framebuffer and overlay window parameters\n",
 	"n\n"
 	"    - Select window n\n"
-	"drawto fbdraw [fbshow]\n"
-	"    - Set the buffer to draw to and to show\n"
-	"window fbresolution [fbhres fbvres [pix [fbcount]]]\n"
+	"show fbshow [fbdraw]\n"
+	"    - Set the buffer to show and to draw to\n"
+	"win fbres [fbhres fbvres [pix [fbcount]]]\n"
 	"    - Set virtual framebuffer resolution, pixel format, buffer count\n"
-	"window resolution [hres vres]\n"
+	"win res [hres vres]\n"
 	"    - Set window resolution (i.e. OSD size)\n"
-	"window offset [hoffs voffs]\n"
+	"win offs [hoffs voffs]\n"
 	"    - Set window offset within virtual framebuffer\n"
-	"window position [x y]\n"
+	"win pos [x y]\n"
 	"    - Set window position on display\n"
-	"window ident\n"
+	"win ident\n"
 	"    - Identify the window by blinking it a few times\n"
-	"window alpha alpha0 [alpha1 [mode]]\n"
+	"win alpha alpha0 [alpha1 [mode]]\n"
 	"    - Set per-window alpha values and mode\n"
-	"window colkey rgbaval [rgbamask [mode]]"
+	"win colkey rgbaval [rgbamask [mode]]"
 	"    - Set per-window color key value, mask and mode\n"
-	"window all\n"
+	"win all\n"
 	"    - List all windows of the current display\n"
-	"window\n"
+	"win\n"
 	"    - Show all settings of selected window\n"
 );
 
@@ -2044,19 +1999,31 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		break;
 
 	case LI_HSPOL:			  /* Parse flag (u_char 0..1) */
-		pvi->lcd.hspol = (param != 0);
+		if (param)
+			pvi->lcd.pol |= HS_LOW;
+		else
+			pvi->lcd.pol &= ~HS_LOW;
 		break;
 
 	case LI_VSPOL:			  /* Parse flag (u_char 0..1) */
-		pvi->lcd.vspol = (param != 0);
+		if (param)
+			pvi->lcd.pol |= VS_LOW;
+		else
+			pvi->lcd.pol &= ~VS_LOW;
 		break;
 
 	case LI_DENPOL:			  /* Parse flag (u_char 0..1) */
-		pvi->lcd.denpol = (param != 0);
+		if (param)
+			pvi->lcd.pol |= DEN_LOW;
+		else
+			pvi->lcd.pol &= ~DEN_LOW;
 		break;
 
 	case LI_CLKPOL:			  /* Parse flag (u_char 0..1) */
-		pvi->lcd.clkpol = (param != 0);
+		if (param)
+			pvi->lcd.pol |= CLK_FALLING;
+		else
+			pvi->lcd.pol &= ~CLK_FALLING;
 		break;
 
 	case LI_CLK:			  /* Parse u_int; scale appropriately */
@@ -2070,7 +2037,7 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		break;
 
 	case LI_FPS:			  /* Parse u_int */
-		pvi->lcd.fps = (u_int)param;
+		pvi->lcd.fps = (u_short)param;
 		pvi->lcd.clk = 0;	  /* Compute clk from fps */
 		break;
 
@@ -2122,12 +2089,10 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		pvi->frc = (param != 0);
 		break;
 
-	case LI_PWMENA:			  /* Parse flag (u_char 0..1) */
-		pvi->lcd.pwmenable = (param != 0);
-		break;
-
 	case LI_PWMVALUE:		  /* Parse u_int */
-		pvi->lcd.pwmvalue = (u_int)param;
+		if (param > MAX_PWM)
+			param = MAX_PWM;
+		pvi->lcd.pwmvalue = (u_short)param;
 		break;
 
 	case LI_PWMFREQ:		  /* Parse u_int */
@@ -2153,31 +2118,34 @@ static void show_vidinfo(const vidinfo_t *pvi)
 	       pvi->lcd.type, typeinfo[pvi->lcd.type]);
 	printf("Display Size:\thres=%u, vres=%u\n",
 	       pvi->lcd.hres, pvi->lcd.vres);
-	printf("Horiz. Timing:\thfp=%d, hsw=%d, hbp=%d\n",
+	printf("Horiz. Timing:\thfp=%u, hsw=%u, hbp=%u\n",
 	       pvi->lcd.hfp, pvi->lcd.hsw, pvi->lcd.hbp);
-	printf("Vert. Timing:\tvfp=%d, vsw=%d, vbp=%d\n",
+	printf("Vert. Timing:\tvfp=%u, vsw=%u, vbp=%u\n",
 	       pvi->lcd.vfp, pvi->lcd.vsw, pvi->lcd.vbp);
-	printf("Polarity:\thspol=%d, vspol=%d, clkpol=%d, denpol=%d\n",
-	       pvi->lcd.hspol, pvi->lcd.vspol, pvi->lcd.clkpol,
-	       pvi->lcd.denpol);
-	printf("Display Timing:\tclk=%dHz (%dfps)\n",
-	       pvi->lcd.clk, pvi->lcd.fps);
-	printf("PWM:\t\tpwmenable=%d, pwmvalue=%d, pwmfreq=%dHz\n",
-	       pvi->lcd.pwmenable, pvi->lcd.pwmvalue, pvi->lcd.pwmfreq);
+	printf("Polarity:\thspol=%u, vspol=%u, denpol=%u, clkpol=%u\n",
+	       ((pvi->lcd.pol & HS_LOW) != 0),
+	       ((pvi->lcd.pol & VS_LOW) != 0),
+	       ((pvi->lcd.pol & DEN_LOW) != 0),
+	       ((pvi->lcd.pol & CLK_FALLING) != 0));
+	printf("Display Timing:\tfps=%u (clk=%u)\n",
+	       pvi->lcd.fps, pvi->lcd.clk);
+	printf("PWM:\t\tpwmvalue=%u, pwmfreq=%u\n",
+	       pvi->lcd.pwmvalue, pvi->lcd.pwmfreq);
 	puts("Power-on Seq.:\t");
 	for (i=0; i<POW_COUNT; i++)
-		printf("%s=%d%s", ponseq_name[i], pvi->lcd.ponseq[i],
+		printf("%s=%u%s", ponseq_name[i], pvi->lcd.ponseq[i],
 		       (i<POW_COUNT-1) ? ", " : "\n");
 	puts("Power-off Seq.:\t");
 	for (i=0; i<POW_COUNT; i++)
-		printf("%s=%d%s", poffseq_name[i], pvi->lcd.poffseq[i],
+		printf("%s=%u%s", poffseq_name[i], pvi->lcd.poffseq[i],
 		       (i<POW_COUNT-1) ? ", " : "\n");
+
 	/* Show driver settings */
 	printf("\nDisplay driver:\t%s, %u windows, %u pixel formats\n",
 	       pvi->driver_name, pvi->wincount, pvi->pixcount);
 	printf("State:\t\tdisplay is switched %s\n",
 	       pvi->is_enabled ? "ON" : "OFF");
-	printf("Extra Settings:\tfrc=%d, drive=%d\n\n",
+	printf("Extra Settings:\tfrc=%u, drive=%umA\n\n",
 	       pvi->frc, pvi->drive);
 }
 
@@ -2185,7 +2153,6 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	vidinfo_t *pvi;
 	u_short sc;
-	char c;
 	uint param;
 
 	/* Get the LCD panel info */
@@ -2199,8 +2166,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 #if (CONFIG_DISPLAYS > 1)
 	/* If the first argument is a number, this selects a new display */
-	c = argv[1][0];
-	if ((c >= '0') && (c <= '9')) {
+	if (isdigit(argv[1][0])) {
 		VID vid;
 		vid = (u_int)simple_strtoul(argv[1], NULL, 0);
 		if (vid >= vid_count) {
@@ -2228,33 +2194,15 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	   set_vidinfo(), directly use return 0. */
 	switch (sc) {
 	case LI_ON: {
-		if (!pvi->lcd.hres || !pvi->lcd.vres) {
-			puts("No valid lcd panel\n");
-			return 1;
-		}
-		else {
-			WINDOW win;
-			wininfo_t *pwi;
-
-			for (win=0, pwi=pvi->pwi; win<pvi->wincount;
-			     win++, pwi++) {
-				if (pwi->active)
-					break;
-			}
-			if (win >= pvi->wincount) {
-				puts("No active window\n");
-				return 1;
-			}
-			else
-				pvi->enable(pvi);
-		}
-		pvi->is_enabled = 1;
+		char *errmsg;
+		errmsg = lcd_on(pvi);
+		if (errmsg)
+			puts(errmsg);
 		return 0;
 	}
 
 	case LI_OFF:
-		pvi->disable(pvi);
-		pvi->is_enabled = 0;
+		lcd_off(pvi);
 		return 0;
 
 	case LI_LIST: {
@@ -2271,7 +2219,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			/* If first argument is a number, parse start index */
 			c = argv[2][0];
 			index = 0;
-			if ((c >= '0') & (c <= '9')) {
+			if (isdigit(c)) {
 				c = 0;
 				index = simple_strtoul(argv[2], NULL, 0);
 			}
@@ -2325,8 +2273,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case LI_PANEL: {		  /* Parse number or string */
 		const lcdinfo_t *pli;
 
-		c = argv[2][0];
-		if ((c >= '0') && (c <= '9')) {
+		if (isdigit(argv[2][0])) {
 			/* Parse panel index number */
 			param = simple_strtoul(argv[2], NULL, 0);
 		} else if (!(param = lcd_search_lcd(argv[2], 0))) {
@@ -2353,16 +2300,16 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 
 	case LI_DIM:		  /* Parse exactly 2 u_shorts */
-		param = simple_strtoul(argv[3], NULL, 0);
+		param = simple_strtoul(argv[2], NULL, 0);
 		pvi->lcd.hdim = (u_short)param;
-		param = simple_strtoul(argv[4], NULL, 0);
+		param = simple_strtoul(argv[3], NULL, 0);
 		pvi->lcd.vdim = (u_short)param;
 		break;
 
 	case LI_RES:		  /* Parse exactly 2 HVRES'es */
-		param = simple_strtoul(argv[3], NULL, 0);
+		param = simple_strtoul(argv[2], NULL, 0);
 		pvi->lcd.hres = (HVRES)param;
-		param = simple_strtoul(argv[4], NULL, 0);
+		param = simple_strtoul(argv[3], NULL, 0);
 		pvi->lcd.vres = (HVRES)param;
 		break;
 
@@ -2393,32 +2340,39 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		break;
 
 	case LI_POL:			  /* Parse up to 4 flags */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.hspol = (param != 0);
+		if (simple_strtoul(argv[2], NULL, 0))
+			pvi->lcd.pol |= HS_LOW;
+		else
+			pvi->lcd.pol &= ~HS_LOW;
 		if (argc < 4)
 			break;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.vspol = (param != 0);
+		if (simple_strtoul(argv[3], NULL, 0))
+			pvi->lcd.pol |= VS_LOW;
+		else
+			pvi->lcd.pol &= ~VS_LOW;
 		if (argc < 5)
 			break;
-		param = simple_strtoul(argv[4], NULL, 0);
-		pvi->lcd.denpol = (param != 0);
+		if (simple_strtoul(argv[4], NULL, 0))
+			pvi->lcd.pol |= DEN_LOW;
+		else
+			pvi->lcd.pol &= ~DEN_LOW;
+		break;
 		if (argc < 6)
 			break;
-		param = simple_strtoul(argv[5], NULL, 0);
-		pvi->lcd.clkpol = (param != 0);
+		if (simple_strtoul(argv[5], NULL, 0))
+			pvi->lcd.pol |= CLK_FALLING;
+		else
+			pvi->lcd.pol &= ~CLK_FALLING;
 		break;
 
-	case LI_PWM:		  /* Parse flag + 2 numbers */
+	case LI_PWM:		  /* Parse u_short and optional number */
 		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.pwmenable = (param != 0);
+		if (param > MAX_PWM)
+			param = MAX_PWM;
+		pvi->lcd.pwmvalue = (u_short)param;
 		if (argc < 4)
 			break;
 		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.pwmvalue = (u_int)param;
-		if (argc < 5)
-			break;
-		param = simple_strtoul(argv[4], NULL, 0);
 		pvi->lcd.pwmfreq = (u_int)param;
 		break;
 
@@ -2473,31 +2427,26 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	lcd,	7,	0,	do_lcd,
-	"lcd\t- set lcd panel parameters\n",
-	"list\n"
-	"    - list all predefined lcd panels\n"
+	"lcd\t- set or show lcd panel parameters\n",
+	"list [index [count]]\n"
+	"    - list predefined lcd panels\n"
 	"lcd list substring [count]\n"
-	"    - list at most count panel entries that match substring\n"
-	"lcd list index [count]\n"
-	"    - list at most count panel entries starting at index\n"
+	"    - list panel entries matching substring\n"
 	"lcd panel n\n"
 	"    - set the predefined lcd panel n\n"
 	"lcd panel substring\n"
-	"    - set the predefined panel that matches substring\n"
+	"    - set the (first) predefined panel that matches substring\n"
 	"lcd param value\n"
 	"    - set the lcd parameter param, which is one of:\n"
 	"\tname, hdim, vdim, hres, vres, hfp, hsw, hpb, vfp, vsw, vbp,\n"
 	"\thspol, vspol, denpol, clkpol, clk, fps, type, pixel, strength,\n"
-	"\tdither, pwmenable, pwmvalue, pwmfreq, ponlogic, pondisp, poncontr\n"
-	"\tponpwm, ponbl, poffbl, poffpwm, poffcontr, poffdisp, pofflogic\n"
+	"\tdither, pwmvalue, pwmfreq, ponlogic, pondisp, poncontr, ponpwm,\n"
+	"\tponbl, poffbl, poffpwm, poffcontr, poffdisp, pofflogic\n"
 	"lcd group {values}\n"
 	"    - set the lcd parameter group, which is one of:\n"
-	"\tdimension, resolution, htiming, vtiming, polarity, pwm, ponseq,\n"
-	"\tpoffseq, extra\n"
-	"lcd on\n"
-	"    - activate lcd\n"
-	"lcd off\n"
-	"    - deactivate lcd\n"
+	"\tdim, res, htiming, vtiming, pol, pwm, ponseq, poffseq, extra\n"
+	"lcd on | off\n"
+	"    - activate or deactivate lcd\n"
 #if (CONFIG_DISPLAYS > 1)
 	"lcd all\n"
 	"    - list information of all displays\n"
@@ -2550,10 +2499,28 @@ static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		case RI_CONFIG:
 			/* "config" is not available with lcd */
 			param = simple_strtoul(argv[5], NULL, 0);
-			pvi->lcd.vspol = ((param & 0x00100000) != 0);
-			pvi->lcd.hspol = ((param & 0x00200000) != 0);
-			pvi->lcd.clkpol = ((param & 0x00400000) != 0);
-			pvi->lcd.denpol = ((param & 0x00800000) != 0);
+			if (param & 0x00100000)
+				pvi->lcd.pol |= VS_LOW;
+			else
+				pvi->lcd.pol &= ~VS_LOW;
+			if (param & 0x00200000)
+				pvi->lcd.pol |= HS_LOW;
+			else
+				pvi->lcd.pol &= ~HS_LOW;
+			if (param & 0x00400000)
+				pvi->lcd.pol |= CLK_FALLING;
+			else
+				pvi->lcd.pol &= ~CLK_FALLING;
+			if (param & 0x00800000)
+				pvi->lcd.pol |= DEN_LOW;
+			else
+				pvi->lcd.pol &= ~DEN_LOW;
+			break;
+
+		case RI_CONTRENA:
+			param = simple_strtoul(argv[5], NULL, 0);
+			if (param == 0)
+				pvi->lcd.pwmvalue = 0;
 			break;
 
 		default:
@@ -2763,29 +2730,6 @@ void drv_lcd_init(void)
 		pvi->lcd = *lcd_get_lcdinfo_p(0); /* Set panel #0 */
 
 		printf("####j\n");
-		s = getenv(pvi->name);
-		if (s) {
-			lockupdate = 1;
-			run_command(s, 0);
-			lockupdate = 0;
-		}
-		
-		printf("####c\n");
-		set_vidinfo(pvi);
-		printf("####d\n");
-
-		/* Add a device for each display */
-		memset(&lcddev, 0, sizeof(lcddev));
-
-		strcpy(lcddev.name, pvi->name);
-		lcddev.ext   = 0;		  /* No extensions */
-		lcddev.flags = DEV_FLAGS_OUTPUT;  /* Output only */
-		lcddev.putc  = lcd_putc;	  /* 'putc' function */
-		lcddev.puts  = lcd_puts;	  /* 'puts' function */
-		lcddev.priv  = lcd_get_wininfo_p(pvi, 0);  /* Call-back arg */
-
-		device_register(&lcddev);
-
 		/* Initialize the window entries; the fields defpix, pfbuf,
 		   fbmaxcount and ext are already set by the controller
 		   specific init function(s) above. */
@@ -2830,12 +2774,51 @@ void drv_lcd_init(void)
 #else
 			sprintf(pwi->name, "win%u", win);
 #endif
+		}
+	}
+
+	/* Search if there are environment variables for the lcd panel(s) and
+	   windows; if yes, update the settings. In any case set the new
+	   information to the hardware */
+	for (vid = 0; vid < vid_count; vid++) {
+		int enable = 0;
+
+		pvi = lcd_get_vidinfo_p(vid);
+
+		s = getenv(pvi->name);
+		if (s) {
+			/* Execute the commands that are in the lcd variable.
+			   These commands must not modify the environment.
+			   This is only a danger if the user sets or adds own
+			   commands. The 'lcd' commands automatically
+			   generated by the driver don't change the
+			   environment as long as lockupdate is set. */
+			lockupdate = 1;
+			run_command(s, 0);
+			lockupdate = 0;
+			enable = 1;
+		}
+		
+		printf("####c\n");
+		set_vidinfo(pvi);
+		printf("####d\n");
+
+		for (win = 0; win < pvi->wincount; win++) {
+			pvi->win_sel = win;
+			pwi = lcd_get_wininfo_p(pvi, win);
 
 			printf("####f\n");
 
 			/* Is there an environment variable for this window? */
 			s = getenv(pwi->name);
 			if (s) {
+				/* Execute the commands that are in the window
+				   variable. These commands must not modify
+				   the environment. This is only a danger if
+				   the user sets or adds own commands. The
+				   'win' commands automatically generated by
+				   the driver don't change the environment as
+				   long as lockupdate is set. */
 				lockupdate = 1;
 				run_command(s, 0);
 				lockupdate = 0;
@@ -2844,7 +2827,6 @@ void drv_lcd_init(void)
 
 			/* Set new wininfo to controller hardware */
 			set_wininfo(pwi);
-
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
 			/* Init a console device for each window */
@@ -2857,6 +2839,25 @@ void drv_lcd_init(void)
 			device_register(&lcddev);
 #endif /*CONFIG_MULTIPLE_CONSOLES*/
 		}
+
+		pvi->win_sel = 0;
+
+		/* Add a device for each display */
+		memset(&lcddev, 0, sizeof(lcddev));
+
+		strcpy(lcddev.name, pvi->name);
+		lcddev.ext   = 0;		  /* No extensions */
+		lcddev.flags = DEV_FLAGS_OUTPUT;  /* Output only */
+		lcddev.putc  = lcd_putc;	  /* 'putc' function */
+		lcddev.puts  = lcd_puts;	  /* 'puts' function */
+		lcddev.priv  = lcd_get_wininfo_p(pvi, 0);  /* Call-back arg */
+
+		device_register(&lcddev);
+
+		/* If an lcd setting was loaded from environment, switch it on
+		   now; ignore any errors */
+		if (enable)
+			lcd_on(pvi);
 	}
 
 	printf("####h\n");

@@ -44,47 +44,8 @@
    window on each display. #### This does not work yet ### */
 //#define CONFIG_MULTIPLE_CONSOLES
 
-/* Draw attributes */
-#define ATTR_HLEFT   0x0000		  /* Available for text + bitmap */
-#define ATTR_HRIGHT  0x0001		  /* Available for text + bitmap */
-#define ATTR_HCENTER 0x0002		  /* Available for text + bitmap */
-#define ATTR_HSCREEN 0x0003		  /* Available for text + bitmap */
-#define ATTR_HMASK   0x0003		  /* Available for text + bitmap */
-#define ATTR_VTOP    0x0000		  /* Available for text + bitmap */
-#define ATTR_VBOTTOM 0x0004		  /* Available for text + bitmap */
-#define ATTR_VCENTER 0x0008		  /* Available for text + bitmap */
-#define ATTR_VSCREEN 0x000C		  /* Available for text + bitmap */
-#define ATTR_VMASK   0x000C		  /* Available for text + bitmap */
-#define ATTR_DWIDTH  0x0010		  /* Available for text + bitmap */
-#define ATTR_DHEIGHT 0x0020		  /* Available for text + bitmap */
-#define ATTR_TRANSP  0x0040		  /* Available for text + bitmap */
-#define ATTR_ALPHA   0x0080		  /* Available for all functions */
-#define ATTR_BOLD    0x0100		  /* Available for text only */
-#define ATTR_INVERSE 0x0200		  /* Available for text only */
-#define ATTR_UNDERL  0x0400		  /* Available for text only */
-#define ATTR_STRIKE  0x0800		  /* Available for text only */
 
-/* Bitmap types */
-#define BT_UNKNOW 0
-#define BT_PNG 1
-#define BT_BMP 2
-#define BT_JPG 3			  /* ### Not supported yet ### */
-
-/* Bitmap color types */
-#define CT_UNKNOWN 0
-#define CT_PALETTE 1			  /* Pixels refer to a color map */
-#define CT_GRAY 2			  /* Pixels are gray values */
-#define CT_GRAY_ALPHA 3			  /* Pixels are gray + alpha values */
-#define CT_TRUECOL 4			  /* Pixels are RGB values */
-#define CT_TRUECOL_ALPHA 5		  /* Pixels are RGBA values */
-
-/* Bitmap flags; more flags may follow */
-#define BF_INTERLACED 0x01		  /* Bitmap is stored interlaced */
-#define BF_COMPRESSED 0x02		  /* Bitmap is compressed */
-#define BF_BOTTOMUP   0x04		  /* Bitmap is stored bottom up */
-
-
-
+#if 0 //#########
 
 #define LCD_MONOCHROME	0
 #define LCD_COLOR2	1
@@ -155,6 +116,8 @@
 
 #endif /* color definitions */
 
+#endif //0 #########
+
 /************************************************************************/
 /* CONSOLE DEFINITIONS & FUNCTIONS					*/
 /************************************************************************/
@@ -185,48 +148,16 @@
 
 #endif //0####
 
-/************************************************************************/
-/* ENUMERATIONS								*/
-/************************************************************************/
-
-/************************************************************************/
-/* TYPES AND STRUCTURES							*/
-/************************************************************************/
-
-/* Bitmap information */
-typedef struct bminfo {
-	u_char type;			  /* Bitmap type (BT_*) */
-	u_char colortype;		  /* Color type (CT_*) */
-	u_char bitdepth;		  /* Per color channel */
-	u_char flags;			  /* Flags (BF_*) */
-	HVRES hres;			  /* Width of bitmap in pixels */
-	HVRES vres;			  /* Height of bitmap in pixels */
-} bminfo_t;
-
-
-/************************************************************************/
-/* EXPORTED VARIABLES							*/
-/************************************************************************/
-
-extern char lcd_is_enabled;
-
 
 /************************************************************************/
 /* PROTOTYPES OF EXPORTED FUNCTIONS 					*/
 /************************************************************************/
 
-/* Video functions */
-
-#if defined(CONFIG_RBC823)
-void	lcd_disable	(void);
-#endif
-
-/* int	lcd_init(void *lcdbase); */
+/* Console functions */
 extern void console_init(wininfo_t *pwi);
 extern void console_update(wininfo_t *pwi);
 extern void lcd_putc(const char c);
 extern void lcd_puts(const char *s);
-extern void lcd_printf(const char *fmt, ...);
 
 /* Set the FG color */
 extern void lcd_set_fg(wininfo_t *pwi, RGBA rgba);
@@ -264,20 +195,10 @@ extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
 /* Draw text string s at (x, y) with FG/BG color and alignment/attribute */
 extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s);
 
-/* Draw bitmap from address addr at (x, y) with alignment/attribute */
-extern const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y,
-			      u_long addr);
 /* Draw test pattern */
 extern void lcd_test(const wininfo_t *pwi, u_int pattern);
 
-/* Scan the bitmap at addr and return end address (0 on error) */
-extern u_long lcd_scan_bitmap(u_long addr);
-
-/* Fill the given bminfo struct with info found at addr */
-extern void lcd_get_bminfo(bminfo_t *pbi, u_long addr);
-
 /* Lookup nearest possible color in given color map */
 extern COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count);
-
 
 #endif	/* _LCD_H_ */

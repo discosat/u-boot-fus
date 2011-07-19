@@ -46,8 +46,14 @@
 #define VI_TYPE_TFT        0x08
 
 /* Signal polaritiy */
-#define CFG_HIGH 0			  /* Active high/rising edge */
-#define CFG_LOW  1			  /* Active low/falling edge */
+#define HS_HIGH     (0<<0)		  /* HSYNC active high */
+#define HS_LOW      (1<<0)		  /* HSYNC active low */
+#define VS_HIGH     (0<<1)		  /* VSYNC active high */
+#define VS_LOW      (1<<1)		  /* VSYNC active low */
+#define DEN_HIGH    (0<<2)		  /* Data Enable active high */
+#define DEN_LOW     (1<<2)		  /* Data Enable active low */
+#define CLK_RISING  (0<<3)		  /* Take data with rising edge */
+#define CLK_FALLING (1<<3)		  /* Take data with falling edge */
 
 /* Number of power-on/power-off sequence values */
 #define POW_COUNT 5
@@ -88,25 +94,21 @@ typedef struct lcdinfo {
 	u_short vbp;		/* Back porch (between VSYNC and data) */
 
 	/* Signal polarity */
-	u_char  hspol;	        /* HSYNC polarity (0=normal, 1=inverted) */
-	u_char  vspol;		/* VSYNC polarity (0=normal, 1=inverted) */
-	u_char  denpol;		/* DEN polarity (0=normal, 1=inverted) */
-	u_char  clkpol;		/* Clock polarity (0=normal, 1=inverted) */
-
-	/* Frequency */
-	u_int   fps;		/* Frame rate (in frames per second) */
-	u_int   clk;		/* Pixel clock (in Hz) */
-
-	/* Backlight settings */
-	u_int   pwmvalue;	/* PWM value (voltage) */
-	u_int   pwmfreq;	/* PWM frequency */
-	u_char  pwmenable;	/* 0: disabled, 1: enabled */
+	u_char  pol;	        /* HSYNC, VSYNC, DEN and CLK polarity */
 
 	/* Display type */
 	u_char  type;		/* Bit 0: 0: 4-bit bus, 1: 8-bit bus
 				   Bit 1: 0: single-scan, 1: dual-scan
 				   Bit 2: 0: STN, 1: CSTN
 				   Bit 3: 0: (C)STN, 1: TFT */
+
+	/* Frequency */
+	u_short fps;		/* Frame rate (in frames per second) */
+	u_int   clk;		/* Pixel clock (in Hz) */
+
+	/* Backlight settings */
+	u_int   pwmfreq;	/* PWM frequency */
+	u_short pwmvalue;	/* PWM value (voltage, 0=0V, 4096=3.3V) */
 
 	/* Power-on and power-off timings (absolute delays in ms) */
 	u_short ponseq[5];	/* Power-on delays */

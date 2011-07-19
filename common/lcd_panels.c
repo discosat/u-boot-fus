@@ -38,21 +38,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		0,
 		hres:		0,	  /* Resolution */
 		vres:		0,
-		hfp:		24,	  /* Horizontal timing */
+		hfp:		24,	  /* Signal timing and polarity */
 		hsw:		96,
 		hbp:		40,
-		vfp:		10,	  /* Vertical timing */
+		vfp:		10,
 		vsw:		2,
 		vbp:		33,
-		hspol:		CFG_LOW,  /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 		ponseq:		{0, 40, 60, 80, 80}, /* Power-on sequence */
 		poffseq:	{0, 0, 10, 40, 50},  /* Power-off sequence */
 	},
@@ -63,21 +59,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		98,
 		hres:		640,	  /* Resolution */
 		vres:		480,
-		hfp:		24,	  /* Horizontal timing */
+		hfp:		24,	  /* Signal timing and polarity */
 		hsw:		96,
 		hbp:		40,
-		vfp:		10,	  /* Vertical timing */
+		vfp:		10,
 		vsw:		2,
 		vbp:		33,
-		hspol:		CFG_LOW,  /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 		ponseq:		{0, 40, 60, 80, 80}, /* Power-on sequence */
 		poffseq:	{0, 0, 10, 40, 50},  /* Power-off sequence */
 	},
@@ -88,21 +80,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		53,
 		hres:		320,	  /* Resolution */
 		vres:		240,
-		hfp:		20,	  /* Horizontal timing */
+		hfp:		20,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		38,
-		vfp:		5,	  /* Vertical timing */
+		vfp:		5,
 		vsw:		3,
 		vbp:		15,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM320240N1TMQW",	  /* Name and type */
@@ -111,21 +99,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		86,
 		hres:		320,	  /* Resolution */
 		vres:		241,
-		hfp:		20,	  /* Horizontal timing */
+		hfp:		20,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		38,
-		vfp:		5,	  /* Vertical timing */
+		vfp:		5,
 		vsw:		3,
 		vbp:		15,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM640480GHTNQW",	  /* Name and type */
@@ -134,21 +118,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		86,
 		hres:		640,	  /* Resolution */
 		vres:		480,
-		hfp:		16,	  /* Horizontal timing */
+		hfp:		16,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		114,
-		vfp:		7,	  /* Vertical timing */
+		vfp:		7,
 		vsw:		3,
 		vbp:		35,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM800480E2TMQW",	  /* Name and type */
@@ -157,21 +137,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		91,
 		hres:		800,	  /* Resolution */
 		vres:		480,
-		hfp:		40,	  /* Horizontal timing */
+		hfp:		40,	  /* Signal timing and polarity */
 		hsw:		48,
 		hbp:		40,
-		vfp:		13,	  /* Vertical timing */
+		vfp:		13,
 		vsw:		3,
 		vbp:		29,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_LOW,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_FALLING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET035009DH6",  /* Name and type */
@@ -180,21 +156,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		53,
 		hres:		320,	  /* Resolution */
 		vres:		240,
-		hfp:		20,	  /* Horizontal timing */
+		hfp:		20,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		38,
-		vfp:		4,	  /* Vertical timing */
+		vfp:		4,
 		vsw:		2,
 		vbp:		16,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_LOW,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_LOW | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET035080DH6",  /* Name and type */
@@ -203,21 +175,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		53,
 		hres:		320,	  /* Resolution */
 		vres:		240,
-		hfp:		20,	  /* Horizontal timing */
+		hfp:		20,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		38,
-		vfp:		4,	  /* Vertical timing */
+		vfp:		4,
 		vsw:		2,
 		vbp:		16,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET043000DH6",  /* Name and type */
@@ -226,21 +194,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		54,
 		hres:		480,	  /* Resolution */
 		vres:		272,
-		hfp:		2,	  /* Horizontal timing */
+		hfp:		2,	  /* Signal timing and polarity */
 		hsw:		41,
 		hbp:		2,
-		vfp:		2,	  /* Vertical timing */
+		vfp:		2,
 		vsw:		10,
 		vbp:		2,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_LOW,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_FALLING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET050080DH6",  /* Name and type */
@@ -249,21 +213,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		65,
 		hres:		800,	  /* Resolution */
 		vres:		480,
-		hfp:		40,	  /* Horizontal timing */
+		hfp:		40,	  /* Signal timing and polarity */
 		hsw:		128,
 		hbp:		88,
-		vfp:		10,	  /* Vertical timing */
+		vfp:		10,
 		vsw:		2,
 		vbp:		33,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_HIGH | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET057080DH6",  /* Name and type */
@@ -272,21 +232,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		86,
 		hres:		320,	  /* Resolution */
 		vres:		240,
-		hfp:		20,	  /* Horizontal timing */
+		hfp:		20,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		38,
-		vfp:		5,	  /* Vertical timing */
+		vfp:		5,
 		vsw:		3,
 		vbp:		15,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_LOW | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET057090DHU",  /* Name and type */
@@ -295,21 +251,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		86,
 		hres:		640,	  /* Resolution */
 		vres:		480,
-		hfp:		16,	  /* Horizontal timing */
+		hfp:		16,	  /* Signal timing and polarity */
 		hsw:		30,
 		hbp:		114,
-		vfp:		10,	  /* Vertical timing */
+		vfp:		10,
 		vsw:		3,
 		vbp:		32,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_LOW | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET070080DH6",  /* Name and type */
@@ -318,21 +270,17 @@ const lcdinfo_t lcdlist[] = {
 		vdim:		91,
 		hres:		800,	  /* Resolution */
 		vres:		480,
-		hfp:		40,	  /* Horizontal timing */
+		hfp:		40,	  /* Signal timing and polarity */
 		hsw:		128,
 		hbp:		88,
-		vfp:		10,	  /* Vertical timing */
+		vfp:		10,
 		vsw:		2,
 		vbp:		33,
-		hspol:		CFG_LOW, /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
+		pol:		HS_LOW | VS_LOW | DEN_LOW | CLK_RISING,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
+		pwmvalue:	0,	  /* PWM/Backlight setting */
+		pwmfreq:	1000,
 	},
 };
 

@@ -20,6 +20,23 @@
 #define DEFAULT_PIXEL_FORMAT 5		  /* Default format: RGBA-5650 */
 #define IDENT_BLINK_COUNT 5		  /* Blink window 5 times on identify */
 
+#ifndef CONFIG_LCD_S3C64XX_PWM
+#define CONFIG_LCD_S3C64XX_PWM 1
+#endif
+
+#if (CONFIG_LCD_S3C64XX_PWM == 0)
+#define PWM_CON 14			  /* Use GPF14 */
+#define PWM_START (1<<0)
+#define PWM_UPDATE (1<<1)
+#define PWM_AUTOLOAD (1<<3)
+
+#else
+#define PWM_CON 15			  /* Use GPF15 */
+#define PWM_START (1<<8)
+#define PWM_UPDATE (1<<9)
+#define PWM_AUTOLOAD (1<<11)
+#endif
+
 
 /************************************************************************/
 /* ENUMERATIONS								*/
@@ -1055,6 +1072,7 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	unsigned ticks;
 	u_int drive;
 
+	puts("###<A>###\n");
 	hclk = get_HCLK();
 
 	/* Do sanity check on all values */
@@ -1120,6 +1138,7 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	pvi->lcd.clk = (hclk + div/2)/div;
 	pvi->lcd.fps = (pvi->lcd.clk + ticks/2)/ticks;
 
+	puts("###<B>###\n");
 	/* Output selection, clock setting and enable is in VIDCON0; keep
 	   enabled status */
 	__REG(S3C_VIDCON0) = (__REG(S3C_VIDCON0) & 0x3)
@@ -1133,10 +1152,10 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 
 	/* Signal polarity is in VIDCON1 */
 	__REG(S3C_VIDCON1) =
-		((pvi->lcd.clkpol) ? 0 : S3C_VIDCON1_IVCLK_RISE_EDGE)
-		| ((pvi->lcd.hspol) ? S3C_VIDCON1_IHSYNC_INVERT : 0)
-		| ((pvi->lcd.vspol) ? S3C_VIDCON1_IVSYNC_INVERT : 0)
-		| ((pvi->lcd.denpol)? S3C_VIDCON1_IVDEN_INVERT : 0);
+		((pvi->lcd.pol & CLK_FALLING) ? 0 : S3C_VIDCON1_IVCLK_RISE_EDGE)
+		| ((pvi->lcd.pol & HS_LOW) ? S3C_VIDCON1_IHSYNC_INVERT : 0)
+		| ((pvi->lcd.pol & VS_LOW) ? S3C_VIDCON1_IVSYNC_INVERT : 0)
+		| ((pvi->lcd.pol & DEN_LOW) ? S3C_VIDCON1_IVDEN_INVERT : 0);
 
 	/* TV settings are not required when using LCD */
 	__REG(S3C_VIDCON2) = 0;
@@ -1160,6 +1179,7 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 
 	/* No video interrupts */
 	__REG(S3C_VIDINTCON0) = 0;
+	puts("###<C>###\n");
 
 	/* Dithering mode */
 	__REG(S3C_DITHMODE) =
@@ -1170,6 +1190,51 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 
 	/* Drive strength */
 	__REG(SPCON) = (__REG(SPCON) & ~(0x3 << 24)) | (drive << 24);
+
+	puts("###<D>###\n");
+	/* PWM frequency */
+	if (pvi->lcd.pwmvalue == 0) {
+	puts("###<E>###\n");
+		/* Set PWM pin as GPIO and output 0 */
+		__REG(GPFDAT) &= ~(1<<PWM_CON);
+		__REG(GPFCON) =
+			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (1<<(2*PWM_CON));
+	} else if (pvi->lcd.pwmvalue == MAX_PWM) {
+	puts("###<F>###\n");
+		/* Set PWM pin as GPIO and output 1 */
+		__REG(GPFDAT) |= (1<<PWM_CON);
+		__REG(GPFCON) =
+			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (1<<(2*PWM_CON));
+	} else {
+		u_int cycle;
+		u_int duty;
+
+	puts("###<G>###\n");
+		/* We use divider=1 and prescale=1 for PWM, therefore we can
+		   divide PCLK directly by the desired frequency */
+		cycle = get_PCLK()/pvi->lcd.pwmfreq;
+		if (cycle < 1)
+			cycle = 1;
+
+		/* Compute the duty cycle */
+		duty = cycle * pvi->lcd.pwmvalue / 4096;
+
+		/* Stop PWM timer, enable manual update */
+		TCNTB1_REG = cycle;
+		TCMPB1_REG = duty;
+
+		/* Stop PWM timer, manually update TCNT1 from TCNT1B */
+		TCON_REG = (TCON_REG & ~PWM_START) | PWM_UPDATE;
+
+		/* Clear manual update bit, set auto-reload flag and start PWM
+		   timer */
+		TCON_REG = (TCON_REG & ~PWM_UPDATE) | PWM_AUTOLOAD | PWM_START;
+
+		/* Set PWM pin as PWM output */
+		__REG(GPFCON) =
+			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (2<<(2*PWM_CON));
+	}
+	puts("###<H>###\n");
 
 //###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx, hclk=%lu\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE), hclk);
 }
@@ -1354,16 +1419,19 @@ static void s3c64xx_enable(const vidinfo_t *pvi)
 	int index = 0;
 	const u_short *ponseq = pvi->lcd.ponseq;
 
+	puts("###<Z>###\n");
 	/* Find next delay entry */
 	while ((index = find_delay_index(ponseq, index, delay)) >= 0) {
 		u_short newdelay = ponseq[index];
 
 		/* Wait for the delay difference, if delay is higher */
+	puts("###<Y>###\n");
 		if (newdelay > delay) {
 			udelay((newdelay - delay)*1000);
 			delay = newdelay;
 		}
 
+	puts("###<X>###\n");
 		if (index == PON_CONTR) {
 			/* Activate LCD controller */
 			__REG(S3C_VIDCON0) |=
@@ -1371,9 +1439,12 @@ static void s3c64xx_enable(const vidinfo_t *pvi)
 				| S3C_VIDCON0_ENVID_F_ENABLE;
 		}
 
+	printf("###<W, index=%d>###\n", index);
 		/* Switch appropriate signal on; this is board specific */
 		s3c64xx_lcd_board_enable(index);
+		index++;
 	}
+	puts("###<V>###\n");
 
 #if 0 //####
 	/* Activate VLCD */
@@ -1495,6 +1566,16 @@ void s3c64xx_lcd_init(vidinfo_t *pvi)
 	/* Setup GPJ: LCD_VD[23:16], HSYNC, VSYNC, DEN, CLK, no pull-up/down */
 	__REG(GPJCON) = 0xAAAAAAAA;
 	__REG(GPJPUD) = 0x00000000;
+
+	/* Set PWM port as GPIO, output 0 */
+	__REG(GPFDAT) &= ~(1<<PWM_CON);
+	__REG(GPFCON) = (__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (1<<(2*PWM_CON));
+
+	/* Configure PWM port timing; we don't have to do anything because the
+	   divider for timer 1 is 1 (by default) and the prescaler for timers
+	   0 and 1 is set to 1 in interrupt_init() */
+	printf("TCFG0=0x%lx, TCFG1=0x%lx, TCON=0x%lx, TCNTB4=%lu, PCLK=%lu\n",
+	       TCFG0_REG, TCFG1_REG, TCON_REG, TCNTB4_REG, get_PCLK());
 
 	/* Copy our vidinfo to the global array pointer */
 	*pvi = s3c64xx_vidinfo;

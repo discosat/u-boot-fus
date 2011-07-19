@@ -37,6 +37,32 @@ typedef unsigned int HVRES;
 
 #include <lcd_panels.h>			  /* vidinfo_t */
 
+/************************************************************************/
+/* DEFINITIONS								*/
+/************************************************************************/
+
+/* Draw attributes */
+#define ATTR_HLEFT   0x0000		  /* Available for text + bitmap */
+#define ATTR_HRIGHT  0x0001		  /* Available for text + bitmap */
+#define ATTR_HCENTER 0x0002		  /* Available for text + bitmap */
+#define ATTR_HSCREEN 0x0003		  /* Available for text + bitmap */
+#define ATTR_HMASK   0x0003		  /* Available for text + bitmap */
+#define ATTR_VTOP    0x0000		  /* Available for text + bitmap */
+#define ATTR_VBOTTOM 0x0004		  /* Available for text + bitmap */
+#define ATTR_VCENTER 0x0008		  /* Available for text + bitmap */
+#define ATTR_VSCREEN 0x000C		  /* Available for text + bitmap */
+#define ATTR_VMASK   0x000C		  /* Available for text + bitmap */
+#define ATTR_DWIDTH  0x0010		  /* Available for text + bitmap */
+#define ATTR_DHEIGHT 0x0020		  /* Available for text + bitmap */
+#define ATTR_TRANSP  0x0040		  /* Available for text + bitmap */
+#define ATTR_ALPHA   0x0080		  /* Available for all functions */
+#define ATTR_BOLD    0x0100		  /* Available for text only */
+#define ATTR_INVERSE 0x0200		  /* Available for text only */
+#define ATTR_UNDERL  0x0400		  /* Available for text only */
+#define ATTR_STRIKE  0x0800		  /* Available for text only */
+
+/* PWM value for maximum voltage */
+#define MAX_PWM 4096
 
 
 /************************************************************************/
