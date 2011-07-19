@@ -665,7 +665,11 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
         "bootlocal=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/mtdblock5 ro rootfstype=jffs2\0" \
         "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/nfs rw nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)\0" \
-	"r=tftp 51000000 zImage ; bootm 51000000\0"
+	"r=tftp 51000000 zImage ; bootm 51000000\0" \
+	"autoload=PicoMOD6/autoload.scr\0" \
+	"autommc=3\0" \
+	"autousb=3\0" \
+	"autoaddr=50000000\0"
 #define CONFIG_ETHADDR		00:05:51:02:69:19
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252

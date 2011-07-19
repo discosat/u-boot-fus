@@ -39,6 +39,13 @@
 #include <command.h>
 #include <image.h>
 #include <malloc.h>
+#include <fat.h>			  /* fat_register_device(), ... */
+#ifdef CONFIG_MMC
+#include <mmc.h>			  /* mmc_init() */
+#endif
+#ifdef CONFIG_USB_STORAGE
+#include <usb.h>			  /* usb_init(), usb_stor_scan() */
+#endif
 #include <asm/byteorder.h>
 #if defined(CONFIG_8xx)
 #include <mpc8xx.h>
@@ -240,4 +247,87 @@ U_BOOT_CMD(
 	"unit name in the form of addr:<subimg_uname>\n"
 #endif
 );
+
+static int try_autodevs(char *fname, char *devname, char *devmaskname,
+			unsigned long addr)
+{
+	unsigned int devmask;
+	unsigned int dev_num;
+	char *s;
+
+	/* Get the devicemask from the environment and convert it to number */
+	s = getenv(devmaskname);
+	if (!s)
+		return 0;
+	devmask = simple_strtoul(s, NULL, 16);
+
+	/* Try all devices that are enabled in the devmask */
+	for (dev_num=0; dev_num<32; dev_num++) {
+		block_dev_desc_t *dev_desc;
+
+		if (!(devmask & (1<<dev_num)))
+			continue;
+
+		/* Show what we try to load */
+		printf(" %s %u:1: ", devname, dev_num);
+
+		/* If the device is valid and we can open partition 1, try to
+		   load the autoload file */
+		dev_desc = get_dev(devname, dev_num);
+		if (dev_desc && (fat_register_device(dev_desc, 1) == 0)) {
+			long size;
+			size = file_fat_read(fname, (unsigned char *)addr, 0);
+			if (size != -1) {
+				/* Seems to have worked, execute the script */
+				puts("Found autoload script, executing...\n");
+				autoscript(addr, NULL);
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+void autoload_script(void)
+{
+	char *fname;
+	char *s;
+	unsigned long addr;
+
+	/* Load filename to autoload */
+	fname = getenv("autoload");
+	if (!fname)
+		return;
+
+	/* Load address where to load to */
+	s = getenv("autoaddr");
+	if (!s)
+		return;
+
+	addr = simple_strtoul(s, NULL, 16);
+	printf("Trying autoload '%s', address 0x%08lx\n", fname, addr);
+
+#ifdef CONFIG_MMC
+	if (mmc_init(1) == 0) {
+		/* Try to load from MMC devices */
+		if (try_autodevs(fname, "mmc", "autommc", addr))
+			return;
+	}
+#endif
+
+#if defined(CONFIG_USB_STORAGE)
+	if (usb_init() >= 0) {
+		/* Try to recognize storage devices immediately */
+		usb_stor_scan(1);
+
+		/* Try to load from USB devices */
+		if (try_autodevs(fname, "usb", "autousb", addr))
+			return;
+	}
+#endif
+
+	printf("Could not autoload '%s'\n", fname);
+}
+
 #endif

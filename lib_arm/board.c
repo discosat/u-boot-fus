@@ -76,6 +76,10 @@ extern void dataflash_print_info(void);
 #define CONFIG_IDENT_STRING ""
 #endif
 
+#if defined(CONFIG_CMD_AUTOSCRIPT) || defined(CONFIG_CMD_AUTOSCRIPT)
+extern void autoload_script(void);
+#endif
+
 const char version_string[] =
 	U_BOOT_VERSION" (" __DATE__ " - " __TIME__ ")"CONFIG_IDENT_STRING;
 
@@ -619,6 +623,11 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
         eth_init(gd->bd);                /* ### Set MAC-Address in any case */
         eth_halt();
 #endif
+
+#if defined(CONFIG_CMD_AUTOSCRIPT) || defined(CONFIG_CMD_AUTOSCRIPT)
+	autoload_script();
+#endif
+
 
 #if 0
         /* #### Zeichen auf Schnittstelle ausgeben */
