@@ -31,14 +31,14 @@
     5. Pattern matching bei lcd list evtl. case insensitive
     6. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
        Treiberkonzept einbindet
-    7. cls entweder weg oder als Löschen des aktuellen Console-Windows
+    7. cls als Löschen des aktuellen Console-Windows
     8. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
     9. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
        Macht das Probleme, wenn fbpool über eine solche Segmentgrenze geht?
    10. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
        nicht.
-   12. Bei reg: reg create sollte lockupdate setzen, reg save wieder löschen
-   13. evtl. reg-Befehl ganz raus und externes Wandlungstool machen.
+   11. Bei reg: reg create sollte lockupdate setzen, reg save wieder löschen;
+       oder reg-Befehl ganz raus und besser externes Wandlungstool machen.
 ****/
 
 /*
@@ -2836,8 +2836,16 @@ void drv_lcd_init(void)
 
 		/* If an lcd setting was loaded from environment, switch it on
 		   now; ignore any errors */
-		if (enable)
+		if (enable) {
 			lcd_on(pvi);
+			
+			/* If there is an environment variable "splashcmd",
+			   run it to show the splash screen */
+			s = getenv("splashcmd");
+			if (s)
+				run_command(s, 0);
+		}
+
 	}
 
 #ifndef CONFIG_MULTIPLE_CONSOLES
