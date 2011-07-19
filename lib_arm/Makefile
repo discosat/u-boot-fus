@@ -31,6 +31,7 @@ SOBJS-y	+= _divsi3.o
 SOBJS-y	+= _modsi3.o
 SOBJS-y	+= _udivsi3.o
 SOBJS-y	+= _umodsi3.o
+SOBJS-$(CONFIG_S3C64XX) += string.o
 
 COBJS-y	+= board.o
 COBJS-y	+= bootm.o
@@ -42,6 +43,7 @@ SRCS	:= $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(SOBJS-y) $(COBJS-y))
 
 $(LIB):	$(obj).depend $(OBJS)
+	echo HURGA $(CONFIG_S3C64XX)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 
 #########################################################################

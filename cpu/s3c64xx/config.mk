@@ -24,7 +24,8 @@ PLATFORM_RELFLAGS += -fno-strict-aliasing  -fno-common -ffixed-r8 \
 	-msoft-float
 
 # Make ARMv5 to allow more compilers to work, even though its v6.
-PLATFORM_CPPFLAGS += -march=armv5t
+#PLATFORM_CPPFLAGS += -march=armv5t
+PLATFORM_CPPFLAGS += -march=armv6
 # =========================================================================
 #
 # Supply options according to compiler version

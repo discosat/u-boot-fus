@@ -401,14 +401,30 @@ char *strswab(const char *s)
  *
  * Do not use memset() to access IO space, use memset_io() instead.
  */
-void * memset(void * s,int c,size_t count)
+void * memset(void * s, int c, size_t count)
 {
-	char *xs = (char *) s;
+        unsigned long *sl = (unsigned long *) s;
+        unsigned long cl = 0;
+        char *s8;
+        int i;
 
-	while (count--)
-		*xs++ = c;
+        /* do it one word at a time (32 bits or 64 bits) while possible */
+        if ( ((ulong)s & (sizeof(*sl) - 1)) == 0) {
+                for (i = 0; i < sizeof(*sl); i++) {
+                        cl <<= 8;
+                        cl |= c & 0xff;
+                }
+                while (count >= sizeof(*sl)) {
+                        *sl++ = cl;
+                        count -= sizeof(*sl);
+                }
+        }
+        /* fill 8 bits at a time */
+        s8 = (char *)sl;
+        while (count--)
+                *s8++ = c;
 
-	return s;
+        return s;
 }
 #endif
 
@@ -446,14 +462,25 @@ char * bcopy(const char * src, char * dest, int count)
  * You should not use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
-void * memcpy(void * dest,const void *src,size_t count)
+void * memcpy(void *dest, const void *src, size_t count)
 {
-	char *tmp = (char *) dest, *s = (char *) src;
+        unsigned long *dl = (unsigned long *)dest, *sl = (unsigned long *)src;
+        char *d8, *s8;
 
-	while (count--)
-		*tmp++ = *s++;
+        /* while all data is aligned (common case), copy a word at a time */
+        if ( (((ulong)dest | (ulong)src) & (sizeof(*dl) - 1)) == 0) {
+                while (count >= sizeof(*dl)) {
+                        *dl++ = *sl++;
+                        count -= sizeof(*dl);
+                }
+        }
+        /* copy the rest one byte at a time */
+        d8 = (char *)dl;
+        s8 = (char *)sl;
+        while (count--)
+                *d8++ = *s8++;
 
-	return dest;
+        return dest;
 }
 #endif
 
@@ -468,22 +495,36 @@ void * memcpy(void * dest,const void *src,size_t count)
  */
 void * memmove(void * dest,const void *src,size_t count)
 {
-	char *tmp, *s;
+	char *d;
+	char *s;
 
-	if (dest <= src) {
-		tmp = (char *) dest;
-		s = (char *) src;
-		while (count--)
-			*tmp++ = *s++;
-		}
-	else {
-		tmp = (char *) dest + count;
-		s = (char *) src + count;
-		while (count--)
-			*--tmp = *--s;
-		}
+	if (dest <= src)
+		return memcpy(dest, src, count);
 
-	return dest;
+	d = (char *)dest;
+	s = (char *)src;
+
+	/* while all data is aligned (common case), copy a word at a
+	   time */
+	if ((count >= sizeof(ulong))
+	    && ((((ulong)d | (ulong)s) & (sizeof(ulong) - 1)) == 0)) {
+		while (count & (sizeof(ulong) - 1)) {
+			--count;
+			d[count] = s[count];
+		}
+		while (count) {
+			count -= sizeof(ulong);
+			*(ulong *)&d[count] = *(ulong *)&s[count];
+		}
+		return (void *)d;
+	}
+
+        /* copy the rest one byte at a time */
+	while (count) {
+		--count;
+		d[count] = s[count];
+	}
+	return (void *)d;
 }
 #endif
 
