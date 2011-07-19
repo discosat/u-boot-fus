@@ -1,9 +1,5 @@
 #include <config.h>
 #include <common.h>
-//#include <version.h>
-//#include <stdarg.h>
-//#include <linux/types.h>
-//#include <devices.h>
 #include <lcd_s3c64xx.h>		  /* Own interface */
 #include <cmd_lcd.h>			  /* wininfo_t, kwinfo_t, ... */
 #include <lcd.h>			  /* lcd_rgbalookup() */
@@ -363,7 +359,7 @@ static RGBA c2r_rgba2321(const wininfo_t *pwi, COLOR32 color)
 	rgba |= rgba >> 2;		    /* R[5:4], B[5:4] */
 	rgba |= rgba >> 4;		    /* R[3:0], B[3:0] */
 
-	temp = color & 0x0000001C;	    /* G3[4:2] */
+	temp = color & 0x0000001C;	    /* G[4:2] */
 	temp |= (temp << 3) | (temp >> 3);  /* G[7:5], G[1:0] */
 	rgba |= temp << 16;
 
@@ -643,7 +639,7 @@ static COLOR32 aa_rgba2321(const wininfo_t *pwi, const colinfo_t *pci,
 	G |= (G << 3) | (G >> 3);	  /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
+	   in G[15:8], we only need G[15:13] */
 	G = (pci->GA1 + G*pci->A256) & 0xE000;
 
 	/* Combine R, G and B in the final value */
@@ -675,7 +671,7 @@ static COLOR32 aa_rgba5650(const wininfo_t *pwi, const colinfo_t *pci,
 	G |= G >> 6;			  /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
+	   in G[15:8], we only need G[15:10] */
 	G = (pci->GA1 + G*pci->A256) & 0xFC00;
 
 	/* Combine R, G and B in the final value */
@@ -706,8 +702,8 @@ static COLOR32 aa_rgba5551(const wininfo_t *pwi, const colinfo_t *pci,
 	G |= G >> 5;			  /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
-	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+	   in G[15:8], we only need G[15:11] */
+	G = (pci->GA1 + G*pci->A256) & 0xF800;
 
 	/* Combine R, G and B in the final value */
 	new = color & 0x8000;		  /* new[15] = A[7] */
@@ -738,7 +734,7 @@ static COLOR32 aa_rgba6660(const wininfo_t *pwi, const colinfo_t *pci,
 	G |= G >> 6;			  /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
+	   in G[15:8], we only need G[15:10] */
 	G = (pci->GA1 + G*pci->A256) & 0xFC00;
 
 	/* Combine R, G and B in the final value */
@@ -762,13 +758,13 @@ static COLOR32 aa_rgba6651(const wininfo_t *pwi, const colinfo_t *pci,
 
 	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
 	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
-	RG = ((pci->RA1 << 16) | (pci->GA1 << 16)) + RG*pci->A256;
+	RG = ((pci->RA1 << 16) | pci->GA1) + RG*pci->A256;
 
 	B = (color & 0x0001F) << 3;	  /* B[7:3] */
 	B |= B >> 5;			  /* B[7:0] */
 
-	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
+	/* Multiply B with (256-alpha) and add the pre-multiplied B; result is
+	   in B[15:8], we only need B[15:11] */
 	B = (pci->BA1 + B*pci->A256) & 0xF800;
 
 	/* Combine R, G and B in the final value */
@@ -800,7 +796,7 @@ static COLOR32 aa_rgba6661(const wininfo_t *pwi, const colinfo_t *pci,
 	G |= G >> 6;			  /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
+	   in G[15:8], we only need G[15:10] */
 	G = (pci->GA1 + G*pci->A256) & 0xFC00;
 
 	/* Combine R, G and B in the final value */
@@ -828,12 +824,12 @@ static COLOR32 aa_rgba8880(const wininfo_t *pwi, const colinfo_t *pci,
 	G = (color >> 8) & 0xFF;     /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
-	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+	   in G[15:8] */
+	G = (pci->GA1 + G*pci->A256) & 0xFF00;
 
 	/* Combine R, G and B in the final value */
 	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
-	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+	new |= G;		      /* new[15:8] = G[7:0] */
 
 	return new;
 }
@@ -855,13 +851,13 @@ static COLOR32 aa_rgba8871(const wininfo_t *pwi, const colinfo_t *pci,
 	G = (color >> 7) & 0xFF;     /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
-	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+	   in G[15:8] */
+	G = (pci->GA1 + G*pci->A256) & 0xFF00;
 
 	/* Combine R, G and B in the final value */
 	new = (RB & 0xFF00FFFF) >> 9; /* new[22:15] = R[7:0], new[6:0]=B[7:1] */
-	new |= (G & 0xFF00) >> 1;     /* new[14:7] = G[7:0] */
-	new |= color & 0x20000;	      /* new[23] = A[7] */
+	new |= G >> 1;		      /* new[14:7] = G[7:0] */
+	new |= color & 0x800000;      /* new[23] = A[7] */
 
 	return new;
 }
@@ -882,12 +878,12 @@ static COLOR32 aa_rgba8881(const wininfo_t *pwi, const colinfo_t *pci,
 	G = (color >> 8) & 0xFF;     /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
-	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+	   in G[15:8] */
+	G = (pci->GA1 + G*pci->A256) & 0xFF00;
 
 	/* Combine R, G and B in the final value */
 	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
-	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+	new |= G;		      /* new[15:8] = G[7:0] */
 	new |= color & 0x01000000;    /* new[24] = A[7] */
 
 	return new;
@@ -909,12 +905,12 @@ static COLOR32 aa_rgba8884(const wininfo_t *pwi, const colinfo_t *pci,
 	G = (color >> 8) & 0xFF;     /* G[7:0] */
 
 	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
-	   in G[15:7], we only need G[15:9] */
-	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+	   in G[15:8] */
+	G = (pci->GA1 + G*pci->A256) & 0xFF00;
 
 	/* Combine R, G and B in the final value */
 	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
-	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+	new |= G;		      /* new[15:8] = G[7:0] */
 	new |= color & 0x0F000000;    /* new[27:24] = A[7:4] */
 
 	return new;
@@ -926,35 +922,35 @@ static COLOR32 aa_rgba8884(const wininfo_t *pwi, const colinfo_t *pci,
 /************************************************************************/
 
 const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
-	{ 1, 0,  2, r2c_cmap2,    c2r_cmap2,    aa_cmap2,
+	{ 1, 0, 3, r2c_cmap2,    c2r_cmap2,    aa_cmap2,
 	  "2-entry color map"},		                      /* 0 */
-	{ 2, 1,  4, r2c_cmap4,    c2r_cmap4,    aa_cmap4,
+	{ 2, 1, 3, r2c_cmap4,    c2r_cmap4,    aa_cmap4,
 	  "4-entry color map"},		                      /* 1 */
-	{ 4, 2, 16, r2c_cmap16,   c2r_cmap16,   aa_cmap16,
+	{ 4, 2, 3, r2c_cmap16,   c2r_cmap16,   aa_cmap16,
 	  "16-entry color map"},	                      /* 2 */
-	{ 8, 3,256, r2c_cmap256,  c2r_cmap256,  aa_cmap256,
+	{ 8, 3, 3, r2c_cmap256,  c2r_cmap256,  aa_cmap256,
 	  "256-entry color map"},	                      /* 3 */
-	{ 8, 3,  0, r2c_rgba2321, c2r_rgba2321, aa_rgba2321,
+	{ 8, 3, 2, r2c_rgba2321, c2r_rgba2321, aa_rgba2321,
 	  "RGBA-2321"},			                      /* 4 */
-	{16, 4,  0, r2c_rgba5650, c2r_rgba5650, aa_rgba5650,
+	{16, 4, 0, r2c_rgba5650, c2r_rgba5650, aa_rgba5650,
 	 "RGBA-5650 (default)"},	                      /* 5 */
-	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
+	{16, 4, 2, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
 	 "RGBA-5551"},			                      /* 6 */
-	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
+	{16, 4, 2, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
 	 "RGBI-5551 (I=intensity)"},	                      /* 7 */
-	{18, 5,  0, r2c_rgba6660, c2r_rgba6660, aa_rgba6660,
+	{18, 5, 0, r2c_rgba6660, c2r_rgba6660, aa_rgba6660,
 	 "RGBA-6660"},			                      /* 8 */
-	{18, 5,  0, r2c_rgba6651, c2r_rgba6651, aa_rgba6651,
+	{18, 5, 2, r2c_rgba6651, c2r_rgba6651, aa_rgba6651,
 	 "RGBA-6651"},					      /* 9 */
-	{19, 5,  0, r2c_rgba6661, c2r_rgba6661, aa_rgba6661,
+	{19, 5, 2, r2c_rgba6661, c2r_rgba6661, aa_rgba6661,
 	 "RGBA-6661"},					      /* 10 */
-	{24, 5,  0, r2c_rgba8880, c2r_rgba8880, aa_rgba8880,
+	{24, 5, 0, r2c_rgba8880, c2r_rgba8880, aa_rgba8880,
 	 "RGBA-8880"},					      /* 11 */
-	{24, 5,  0, r2c_rgba8871, c2r_rgba8871, aa_rgba8871,
+	{24, 5, 2, r2c_rgba8871, c2r_rgba8871, aa_rgba8871,
 	 "RGBA-8871"},					      /* 12 */
-	{25, 5,  0, r2c_rgba8881, c2r_rgba8881, aa_rgba8881,
+	{25, 5, 2, r2c_rgba8881, c2r_rgba8881, aa_rgba8881,
 	 "RGBA-8881"},					      /* 13 */
-	{28, 5,  0, r2c_rgba8884, c2r_rgba8884, aa_rgba8884,
+	{28, 5, 2, r2c_rgba8884, c2r_rgba8884, aa_rgba8884,
 	 "RGBA-8884"}			                      /* 14 */
 };
 
@@ -999,26 +995,31 @@ static void set_cmap16(const wininfo_t *pwi, u_int index, u_int end,
 		       RGBA *prgba)
 {
 	RGBA *cmap = pwi->cmap;
-	u_short *hwcmap = (u_short *)winregs_table[pwi->win].hwcmap;
+	u_int *hwcmap = (u_int *)winregs_table[pwi->win].hwcmap;
 
 	__REG(S3C_WPALCON) |= S3C_WPALCON_PALUPDATEEN;
 	do {
 		RGBA rgba = *prgba++;
 		RGBA newcmap;
 		u_int newhw;
+		u_int hw;
 
 		newcmap = rgba & 0xF8F8F800;
 		newcmap |= (rgba & 0xE0E0E000) >> 5;
 		newhw = (rgba & 0xF8000000) >> 17; /* C[14:10] = R[7:3] */
 		newhw |= (rgba & 0x00F80000) >> 14; /* C[9:5] = G[7:3] */
 		newhw |= (rgba & 0x0000F800) >> 11; /* C[4:0] = B[7:3] */
-		newhw = rgba >> 8;
 		if (rgba & 0x80) {
 			newcmap |= 0xFF;
 			newhw |= 0x8000;
 		}
 		cmap[index] = newcmap;
-		hwcmap[index] = (u_short)newhw;
+		hw = hwcmap[index >> 1];
+		if (index & 1)
+			hw = (hw & 0x0000FFFF) | (newhw << 16);
+		else
+			hw = (hw & 0xFFFF0000) | newhw;
+		hwcmap[index >> 1] = hw;
 	} while (++index <= end);
 	__REG(S3C_WPALCON) &= ~S3C_WPALCON_PALUPDATEEN;
 }
@@ -1072,7 +1073,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	unsigned ticks;
 	u_int drive;
 
-	puts("###<A>###\n");
 	hclk = get_HCLK();
 
 	/* Do sanity check on all values */
@@ -1138,7 +1138,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	pvi->lcd.clk = (hclk + div/2)/div;
 	pvi->lcd.fps = (pvi->lcd.clk + ticks/2)/ticks;
 
-	puts("###<B>###\n");
 	/* Output selection, clock setting and enable is in VIDCON0; keep
 	   enabled status */
 	__REG(S3C_VIDCON0) = (__REG(S3C_VIDCON0) & 0x3)
@@ -1179,7 +1178,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 
 	/* No video interrupts */
 	__REG(S3C_VIDINTCON0) = 0;
-	puts("###<C>###\n");
 
 	/* Dithering mode */
 	__REG(S3C_DITHMODE) =
@@ -1191,16 +1189,13 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	/* Drive strength */
 	__REG(SPCON) = (__REG(SPCON) & ~(0x3 << 24)) | (drive << 24);
 
-	puts("###<D>###\n");
 	/* PWM frequency */
 	if (pvi->lcd.pwmvalue == 0) {
-	puts("###<E>###\n");
 		/* Set PWM pin as GPIO and output 0 */
 		__REG(GPFDAT) &= ~(1<<PWM_CON);
 		__REG(GPFCON) =
 			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (1<<(2*PWM_CON));
 	} else if (pvi->lcd.pwmvalue == MAX_PWM) {
-	puts("###<F>###\n");
 		/* Set PWM pin as GPIO and output 1 */
 		__REG(GPFDAT) |= (1<<PWM_CON);
 		__REG(GPFCON) =
@@ -1209,7 +1204,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 		u_int cycle;
 		u_int duty;
 
-	puts("###<G>###\n");
 		/* We use divider=1 and prescale=1 for PWM, therefore we can
 		   divide PCLK directly by the desired frequency */
 		cycle = get_PCLK()/pvi->lcd.pwmfreq;
@@ -1234,7 +1228,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 		__REG(GPFCON) =
 			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (2<<(2*PWM_CON));
 	}
-	puts("###<H>###\n");
 
 //###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx, hclk=%lu\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE), hclk);
 }
@@ -1283,9 +1276,7 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 		if (hpos < 0) {
 			hres += hpos;
 			hoffs -= hpos;
-			printf("###vorher=%d,", hoffs);
 			hoffs = pvi->align_hoffs(pwi, hoffs);
-			printf("###nachher=%d\n", hoffs);
 			hpos = 0;
 		} else if (hpos + hres >= panel_hres)
 			hres = panel_hres - hpos;
@@ -1320,7 +1311,7 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 		bld_pix =
 			(pwi->alphamode & 0x2) ? S3C_WINCONx_BLD_PIX_PIXEL : 0;
 		alpha_sel =
-			(pwi->alphamode & 0x2) ? S3C_WINCONx_ALPHA_SEL_1 : 0;
+			(pwi->alphamode & 0x1) ? S3C_WINCONx_ALPHA_SEL_1 : 0;
 	}
 	bppmode_f = pwi->pix;
 	if (bppmode_f > 13)
@@ -1419,19 +1410,16 @@ static void s3c64xx_enable(const vidinfo_t *pvi)
 	int index = 0;
 	const u_short *ponseq = pvi->lcd.ponseq;
 
-	puts("###<Z>###\n");
 	/* Find next delay entry */
 	while ((index = find_delay_index(ponseq, index, delay)) >= 0) {
 		u_short newdelay = ponseq[index];
 
 		/* Wait for the delay difference, if delay is higher */
-	puts("###<Y>###\n");
 		if (newdelay > delay) {
 			udelay((newdelay - delay)*1000);
 			delay = newdelay;
 		}
 
-	puts("###<X>###\n");
 		if (index == PON_CONTR) {
 			/* Activate LCD controller */
 			__REG(S3C_VIDCON0) |=
@@ -1439,33 +1427,10 @@ static void s3c64xx_enable(const vidinfo_t *pvi)
 				| S3C_VIDCON0_ENVID_F_ENABLE;
 		}
 
-	printf("###<W, index=%d>###\n", index);
 		/* Switch appropriate signal on; this is board specific */
 		s3c64xx_lcd_board_enable(index);
 		index++;
 	}
-	puts("###<V>###\n");
-
-#if 0 //####
-	/* Activate VLCD */
-	__REG(GPKDAT) |= (1<<0);
-
-	/* Activate Buffer Enable */
-	__REG(GPKDAT) &= ~(1<<3);
-
-	/* Activate LCD controller */
-	__REG(S3C_VIDCON0) |=
-		S3C_VIDCON0_ENVID_ENABLE | S3C_VIDCON0_ENVID_F_ENABLE;
-
-	/* Activate Display Enable */
-	__REG(GPKDAT) &= ~(1<<2);
-
-	/* Activate VCFL */
-	__REG(GPKDAT) |= (1<<1);
-
-	/* Activate VEEK (backlight intensity full) */
-	__REG(GPFDAT) |= (0x1<<15);
-#endif	// ###
 }
 
 /* Deactivate display in power-off sequence order */
@@ -1492,27 +1457,8 @@ static void s3c64xx_disable(const vidinfo_t *pvi)
 			/* Deactivate LCD controller */
 			__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
 		}
+		index ++;
 	}
-
-#if 0 //#####
-	/* Deactivate VEEK (backlight intensity off) */
-	__REG(GPFDAT) &= ~(0x1<<15);
-
-	/* Deactivate VCFL */
-	__REG(GPKDAT) &= ~(1<<1);
-
-	/* Deactivate Display Enable */
-	__REG(GPKDAT) |= (1<<2);
-
-	/* Deactivate LCD controller */
-	__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
-
-	/* Deactivate Buffer Enable */
-	__REG(GPKDAT) |= (1<<3);
-
-	/* Deactivate VLCD */
-	__REG(GPKDAT) &= ~(1<<0);
-#endif //####
 }
 
 
@@ -1571,11 +1517,13 @@ void s3c64xx_lcd_init(vidinfo_t *pvi)
 	__REG(GPFDAT) &= ~(1<<PWM_CON);
 	__REG(GPFCON) = (__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (1<<(2*PWM_CON));
 
-	/* Configure PWM port timing; we don't have to do anything because the
-	   divider for timer 1 is 1 (by default) and the prescaler for timers
-	   0 and 1 is set to 1 in interrupt_init() */
+	/* Configure PWM port timing; actually we don't have to do anything
+	   because the divider for timer 1 is 1 (by default) and the prescaler
+	   for timers 0 and 1 is set to 1 in interrupt_init() */
+#if 0
 	printf("TCFG0=0x%lx, TCFG1=0x%lx, TCON=0x%lx, TCNTB4=%lu, PCLK=%lu\n",
 	       TCFG0_REG, TCFG1_REG, TCON_REG, TCNTB4_REG, get_PCLK());
+#endif
 
 	/* Copy our vidinfo to the global array pointer */
 	*pvi = s3c64xx_vidinfo;

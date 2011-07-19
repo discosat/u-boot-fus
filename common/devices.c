@@ -46,17 +46,17 @@ char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 
 
 #ifdef CFG_DEVICE_NULLDEV
-void nulldev_putc(const char c)
+void nulldev_putc(const device_t *pdev, const char c)
 {
   /* nulldev is empty! */
 }
 
-void nulldev_puts(const char *s)
+void nulldev_puts(const device_t *pdev, const char *s)
 {
   /* nulldev is empty! */
 }
 
-int nulldev_input(void)
+int nulldev_input(const device_t *pdev)
 {
   /* nulldev is empty! */
   return 0;

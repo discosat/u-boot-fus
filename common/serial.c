@@ -189,71 +189,62 @@ void serial_reinit_all (void)
 
 int serial_init (void)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		return dev->init ();
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	return serial_current->init ();
+	return dev->init ();
 }
 
 void serial_setbrg (void)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		dev->setbrg ();
-		return;
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	serial_current->setbrg ();
+	dev->setbrg ();
 }
 
-int serial_getc (void)
+int serial_getc (const device_t *pdev)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		return dev->getc ();
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	return serial_current->getc ();
+	return dev->getc (dev);
 }
 
-int serial_tstc (void)
+int serial_tstc (const device_t *pdev)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		return dev->tstc ();
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	return serial_current->tstc ();
+	return dev->tstc (dev);
 }
 
-void serial_putc (const char c)
+void serial_putc (const device_t *pdev, const char c)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		dev->putc (c);
-		return;
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	serial_current->putc (c);
+	dev->putc (dev, c);
 }
 
-void serial_puts (const char *s)
+void serial_puts (const device_t *pdev, const char *s)
 {
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		struct serial_device *dev = default_serial_console ();
+	struct serial_device *dev = serial_current;
 
-		dev->puts (s);
-		return;
-	}
+	if (!(gd->flags & GD_FLG_RELOC) || !dev)
+		dev = default_serial_console ();
 
-	serial_current->puts (s);
+	dev->puts (dev, s);
 }
 
 #endif /* CONFIG_SERIAL_MULTI */

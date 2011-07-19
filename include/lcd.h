@@ -33,120 +33,11 @@
 /************************************************************************/
 
 #include "cmd_lcd.h"			  /* wininfo_t, XYPOS, WINDOW, ... */
-
+#include "devices.h"			  /* device_t */
 
 /************************************************************************/
 /* DEFINITIONS								*/
 /************************************************************************/
-
-/* By default only one display console is available on window 0 of display 0.
-   If you enable the following line, a separate console is defined for each
-   window on each display. #### This does not work yet ### */
-//#define CONFIG_MULTIPLE_CONSOLES
-
-
-#if 0 //#########
-
-#define LCD_MONOCHROME	0
-#define LCD_COLOR2	1
-#define LCD_COLOR4	2
-#define LCD_COLOR8	3
-#define LCD_COLOR16	4	/* e.g. R5G5B5A1 or R5G6B5 */
-#define LCD_COLOR32	5	/* unpacked formats with >16 bpp, e.g.
-				   R6G6B6A1, R8G8B8, R8G8B8A4, etc. */
-#define LCD_COLOR_MANY  -1      /* Support different pixel formats */
-
-/*----------------------------------------------------------------------*/
-#if defined(CONFIG_LCD_INFO_BELOW_LOGO)
-# define LCD_INFO_X		0
-# define LCD_INFO_Y		(BMP_LOGO_HEIGHT + VIDEO_FONT_HEIGHT)
-#elif defined(CONFIG_LCD_LOGO)
-# define LCD_INFO_X		(BMP_LOGO_WIDTH + 4 * VIDEO_FONT_WIDTH)
-# define LCD_INFO_Y		(VIDEO_FONT_HEIGHT)
-#else
-# define LCD_INFO_X		(VIDEO_FONT_WIDTH)
-# define LCD_INFO_Y		(VIDEO_FONT_HEIGHT)
-#endif
-
-/* Default to 8bpp if bit depth not specified */
-#ifndef LCD_BPP
-# define LCD_BPP			LCD_COLOR8
-#endif
-#ifndef LCD_DF
-# define LCD_DF			1
-#endif
-
-/* Calculate nr. of bits per pixel  and nr. of colors */
-#define NBITS(bit_code)		(1 << (bit_code))
-#define NCOLORS(bit_code)	(1 << NBITS(bit_code))
-
-/************************************************************************/
-/* CONSOLE CONSTANTS							*/
-/************************************************************************/
-#if LCD_BPP == LCD_MONOCHROME
-
-/*
- * Simple black/white definitions
- */
-# define CONSOLE_COLOR_BLACK	0
-# define CONSOLE_COLOR_WHITE	1	/* Must remain last / highest	*/
-
-#elif LCD_BPP == LCD_COLOR8
-
-/*
- * 8bpp color definitions
- */
-# define CONSOLE_COLOR_BLACK	0
-# define CONSOLE_COLOR_RED	1
-# define CONSOLE_COLOR_GREEN	2
-# define CONSOLE_COLOR_YELLOW	3
-# define CONSOLE_COLOR_BLUE	4
-# define CONSOLE_COLOR_MAGENTA	5
-# define CONSOLE_COLOR_CYAN	6
-# define CONSOLE_COLOR_GRAY	14
-# define CONSOLE_COLOR_WHITE	15	/* Must remain last / highest	*/
-
-#else
-
-/*
- * 16bpp color definitions
- */
-# define CONSOLE_COLOR_BLACK	0x0000
-# define CONSOLE_COLOR_WHITE	0xffff	/* Must remain last / highest	*/
-
-#endif /* color definitions */
-
-#endif //0 #########
-
-/************************************************************************/
-/* CONSOLE DEFINITIONS & FUNCTIONS					*/
-/************************************************************************/
-#if 0 //#####
-
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-# define CONSOLE_ROWS		((panel_info.vl_row-BMP_LOGO_HEIGHT) \
-					/ VIDEO_FONT_HEIGHT)
-#else
-# define CONSOLE_ROWS		(panel_info.vl_row / VIDEO_FONT_HEIGHT)
-#endif
-
-#define CONSOLE_COLS		(panel_info.vl_col / VIDEO_FONT_WIDTH)
-#define CONSOLE_ROW_SIZE	(VIDEO_FONT_HEIGHT * lcd_line_length)
-#define CONSOLE_ROW_FIRST	(lcd_console_address)
-#define CONSOLE_ROW_SECOND	(lcd_console_address + CONSOLE_ROW_SIZE)
-#define CONSOLE_ROW_LAST	(lcd_console_address + CONSOLE_SIZE \
-					- CONSOLE_ROW_SIZE)
-#define CONSOLE_SIZE		(CONSOLE_ROW_SIZE * CONSOLE_ROWS)
-#define CONSOLE_SCROLL_SIZE	(CONSOLE_SIZE - CONSOLE_ROW_SIZE)
-
-#if LCD_BPP == LCD_MONOCHROME
-# define COLOR_MASK(c)		((c)	  | (c) << 1 | (c) << 2 | (c) << 3 | \
-				 (c) << 4 | (c) << 5 | (c) << 6 | (c) << 7))
-#else
-# define COLOR_MASK(c)		(c)
-#endif
-
-#endif //0####
 
 
 /************************************************************************/
@@ -154,10 +45,13 @@
 /************************************************************************/
 
 /* Console functions */
-extern void console_init(wininfo_t *pwi);
-extern void console_update(wininfo_t *pwi);
-extern void lcd_putc(const char c);
-extern void lcd_puts(const char *s);
+#ifndef CONFIG_MULTIPLE_CONSOLES
+extern void console_init(wininfo_t *pwi, RGBA fg, RGBA bg);
+extern void console_update(wininfo_t *pwi, RGBA fg, RGBA bg);
+#endif
+
+extern void lcd_putc(const device_t *pdev, const char c);
+extern void lcd_puts(const device_t *pdev, const char *s);
 
 /* Set the FG color */
 extern void lcd_set_fg(wininfo_t *pwi, RGBA rgba);

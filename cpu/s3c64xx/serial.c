@@ -20,6 +20,7 @@
 
 #include <common.h>
 
+#include <serial.h>
 #include <s3c6400.h>
 
 #ifdef CONFIG_SERIAL1
@@ -61,7 +62,7 @@ int serial_init(void)
  * otherwise. When the function is succesfull, the character read is
  * written into its argument c.
  */
-int serial_getc(void)
+int serial_getc(const device_t *pdev)
 {
 	S3C64XX_UART *const uart = S3C64XX_GetBase_UART(UART_NR);
 
@@ -107,7 +108,7 @@ void enable_putc(void)
 /*
  * Output a single byte to the serial port.
  */
-void serial_putc(const char c)
+void serial_putc(const device_t *pdev, const char c)
 {
 	S3C64XX_UART *const uart = S3C64XX_GetBase_UART(UART_NR);
 
@@ -128,23 +129,23 @@ void serial_putc(const char c)
 
 	/* If \n, also do \r */
 	if (c == '\n')
-		serial_putc('\r');
+		serial_putc(pdev, '\r');
 }
 
 /*
  * Test whether a character is in the RX buffer
  */
-int serial_tstc(void)
+int serial_tstc(const device_t *pdev)
 {
 	S3C64XX_UART *const uart = S3C64XX_GetBase_UART(UART_NR);
 
 	return uart->UTRSTAT & 0x1;
 }
 
-void serial_puts(const char *s)
+void serial_puts(const device_t *pdev, const char *s)
 {
 	while (*s) {
-		serial_putc(*s++);
+		serial_putc(pdev, *s++);
 	}
 }
 

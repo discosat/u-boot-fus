@@ -47,22 +47,13 @@
 
 #include <config.h>
 #include <common.h>
-#include <command.h>
-//#include <version.h>
-#include <lcd.h>			  /* Own interface */
-#include <cmd_lcd.h>			  /* cmd_lcd_init() */
-#include <video_font.h>			  /* Get font data, width and height */
-#include <stdarg.h>
+#include <command.h>			  /* U_BOOT_CMD */
+#include <cmd_lcd.h>			  /* wininfo_t, pixinfo_t */
+#include <bitmap.h>			  /* Own interface */
 #include <malloc.h>			  /* malloc(), free() */
-#include <linux/types.h>
 #include <linux/ctype.h>		  /* isalpha() */
-#include <devices.h>
 #include <zlib.h>			  /* z_stream, inflateInit(), ... */
-#if defined(CONFIG_POST)
-#include <post.h>
-#endif
 #include <watchdog.h>
-#include <bitmap.h>			  /* bminfo_t */
 
 
 /************************************************************************/

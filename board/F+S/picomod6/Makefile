@@ -25,22 +25,25 @@ include $(TOPDIR)/config.mk
 
 LIB	= lib$(BOARD).a
 
-OBJS	:= picomod6.o flash.o usb_ohci_pm6.o lcd_s3c64xx.o
-SOBJS	:= lowlevel_init.o
+COBJS-y += picomod6.o flash.o usb_ohci_pm6.o
+COBJS-$(CONFIG_LCD) += lcd_s3c64xx.o
 
-$(LIB):	$(OBJS) $(SOBJS)
-	$(AR) crv $@ $(SOBJS) $(OBJS)
+SOBJS	:= lowlevel_init.o
+COBJS	:= $(COBJS-y)
+
+$(LIB):	$(SOBJS) $(COBJS)
+	$(AR) crv $@ $(SOBJS) $(COBJS)
 
 clean:
-	rm -f $(SOBJS) $(OBJS)
+	rm -f $(SOBJS) $(COBJS)
 
 distclean:	clean
 	rm -f $(LIB) core *.bak .depend
 
 #########################################################################
 
-.depend:	Makefile $(SOBJS:.o=.S) $(OBJS:.o=.c)
-		$(CC) -M $(CPPFLAGS) $(SOBJS:.o=.S) $(OBJS:.o=.c) > $@
+.depend:	Makefile $(SOBJS:.o=.S) $(COBJS:.o=.c)
+		$(CC) -M $(CPPFLAGS) $(SOBJS:.o=.S) $(COBJS:.o=.c) > $@
 
 -include .depend
 

@@ -31,20 +31,12 @@
 
 #include <config.h>
 #include <common.h>
-#include <command.h>
-//#include <version.h>
 #include <lcd.h>			  /* Own interface */
 #include <cmd_lcd.h>			  /* cmd_lcd_init() */
 #include <video_font.h>			  /* Get font data, width and height */
-#include <stdarg.h>
-#include <malloc.h>			  /* malloc(), free() */
-#include <linux/types.h>
-#include <linux/ctype.h>		  /* isalpha() */
-#include <devices.h>
-#include <zlib.h>			  /* z_stream, inflateInit(), ... */
-#if defined(CONFIG_POST)
-#include <post.h>
-#endif
+//#include <linux/ctype.h>		  /* isalpha() */
+#include <devices.h>			  /* device_t */
+#include <serial.h>			  /* serial_putc(), serial_puts() */
 #include <watchdog.h>
 
 
@@ -96,7 +88,8 @@ static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 
 /* Draw a character, replacing pixels with new color; character area is
    definitely valid */
-static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c);
+static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
+			 COLOR32 fg, COLOR32 bg);
 
 /* Draw a character, applyig alpha; character area is definitely valid */
 static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c);
@@ -294,7 +287,8 @@ static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 
 /* Draw a character, replacing pixels with new color; character area is
    definitely valid */
-static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
+static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
+			 COLOR32 fg, COLOR32 bg)
 {
 	u_int bpp_shift = pwi->ppi->bpp_shift;
 	u_int bpp = 1 << bpp_shift;
@@ -352,9 +346,9 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 					s -= bpp;
 					val &= ~(mask << s);
 					if (fd & fm)
-						val |= pwi->fg.col << s;
+						val |= fg << s;
 					else if (!(attr & ATTR_TRANSP))
-						val |= pwi->bg.col << s;
+						val |= bg << s;
 
 					/* Shift mask to next pixel */
 					if (!s) {
@@ -588,8 +582,8 @@ static void test_pattern0(const wininfo_t *pwi)
 static void test_pattern1(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	XYPOS xres = (XYPOS)pwi->hres;
-	XYPOS yres = (XYPOS)pwi->vres;
+	XYPOS xres = (XYPOS)pwi->fbhres;
+	XYPOS yres = (XYPOS)pwi->fbvres;
 	XYPOS xres_4 = (xres + 2)/4;
 	XYPOS yres_2 = (yres + 1)/2;
 
@@ -627,8 +621,8 @@ static void test_pattern1(const wininfo_t *pwi)
 static void test_pattern2(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	int xres = (int)pwi->hres;
-	int yres = (int)pwi->vres;
+	int xres = (int)pwi->fbhres;
+	int yres = (int)pwi->fbvres;
 	int yres_2 = yres/2;
 	int scale = (yres-1)/2;
 	int hue;
@@ -691,8 +685,8 @@ static void test_pattern2(const wininfo_t *pwi)
 static void test_pattern3(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	int xres = (int)pwi->hres;
-	int yres = (int)pwi->vres;
+	int xres = (int)pwi->fbhres;
+	int yres = (int)pwi->fbvres;
 	int xres_2a = xres/2;
 	int xres_2b = xres - xres_2a - 1;
 	int yres_2a = yres/2;
@@ -1353,7 +1347,7 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 		if (attr & ATTR_ALPHA)
 			adraw_ll_char(pwi, x, y, c);
 		else
-			draw_ll_char(pwi, x, y, c);
+			draw_ll_char(pwi, x, y, c, pwi->fg.col, pwi->bg.col);
 		x += width;
 	}
 }
@@ -1469,34 +1463,36 @@ COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count)
 /* CONSOLE SUPPORT							*/
 /************************************************************************/
 
+#ifndef CONFIG_MULTIPLE_CONSOLES
 /* Initialize the console with the given window */
-void console_init(wininfo_t *pwi)
+void console_init(wininfo_t *pwi, RGBA fg, RGBA bg)
 {
 	/* Initialize the console */
 	console_pwi = pwi;
 	coninfo.x = 0;
 	coninfo.y = 0;
-	coninfo.fg = pwi->fg.col;
-	coninfo.bg = pwi->bg.col;
+	coninfo.fg = pwi->ppi->rgba2col(pwi, fg);
+	coninfo.bg = pwi->ppi->rgba2col(pwi, bg);
 }
 
 
 /* If the window is the console window, re-initialize console */
-void console_update(wininfo_t *pwi)
+void console_update(wininfo_t *pwi, RGBA fg, RGBA bg)
 {
 	if (console_pwi->win == pwi->win)
-		console_init(pwi);
+		console_init(pwi, fg, bg);
 }
+#endif /* CONFIG_MULTIPLE_CONSOLES */
 
 
 #define TABWIDTH (8 * VIDEO_FONT_WIDTH)	  /* 8 chars for tab */
 static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 {
-	int x = coninfo.x;
-	int y = coninfo.y;
+	int x = pci->x;
+	int y = pci->y;
 	int xtab;
-	COLOR32 fg = coninfo.fg;   //##### nicht verwendet, sondern fg aus pwi
-	COLOR32 bg = coninfo.bg;   //##### nicht verwendet, sondern bg aus pwi
+	COLOR32 fg = pci->fg;
+	COLOR32 bg = pci->bg;
 	int fbhres = pwi->fbhres;
 	int fbvres = pwi->fbvres;
 
@@ -1505,7 +1501,7 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 	case '\t':			  /* Tab */
 		xtab = ((x / TABWIDTH) + 1) * TABWIDTH;
 		while ((x + VIDEO_FONT_WIDTH <= fbhres) && (x < xtab)) {
-			draw_ll_char(pwi, x, y, ' ');
+			draw_ll_char(pwi, x, y, ' ', fg, bg);
 			x += VIDEO_FONT_WIDTH;
 		};
 		goto CHECKNEWLINE;
@@ -1517,11 +1513,11 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 			y -= VIDEO_FONT_HEIGHT;
 			x = (fbhres/VIDEO_FONT_WIDTH-1) * VIDEO_FONT_WIDTH;
 		}
-		draw_ll_char(pwi, x, y, ' ');
+		draw_ll_char(pwi, x, y, ' ', fg, bg);
 		break;
 
 	default:			  /* Character */
-		draw_ll_char(pwi, x, y, c);
+		draw_ll_char(pwi, x, y, c, fg, bg);
 		x += VIDEO_FONT_WIDTH;
 	CHECKNEWLINE:
 		/* Check if there is room on the row for another character */
@@ -1553,26 +1549,26 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 		break;
 	}
 
-	coninfo.x = (u_short)x;
-	coninfo.y = (u_short)y;
+	pci->x = (u_short)x;
+	pci->y = (u_short)y;
 }
 
 
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
-void lcd_putc(const char c, void *priv)
+void lcd_putc(const device_t *pdev, const char c)
 {
-	wininfo_t *pwi = (wininfo_t *)priv;
+	wininfo_t *pwi = (wininfo_t *)pdev->priv;
 	vidinfo_t *pvi = pwi->pvi;
 	
 	if (pvi->is_enabled && pwi->active)
 		console_putc(pwi, &pwi->ci, c);
 	else
-		serial_putc(c);
+		serial_putc(NULL, c);
 }
 #else
-void lcd_putc(const char c)
+void lcd_putc(const device_t *pdev, const char c)
 {
 	wininfo_t *pwi = console_pwi;
 	vidinfo_t *pvi = pwi->pvi;
@@ -1580,16 +1576,16 @@ void lcd_putc(const char c)
 	if (pvi->is_enabled && pwi->active)
 		console_putc(pwi, &coninfo, c);
 	else
-		serial_putc(c);
+		serial_putc(NULL, c);
 }
 #endif /*CONFIG_MULTIPLE_CONSOLES*/
 
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
-void lcd_puts(const char *s, void *priv)
+void lcd_puts(const device_t *pdev, const char *s)
 {
-	wininfo_t *pwi = (wininfo_t *)priv;
+	wininfo_t *pwi = (wininfo_t *)pdev->priv;
 	vidinfo_t *pvi = pwi->pvi;
 
 	if (pvi->is_enabled && pwi->active) {
@@ -1603,10 +1599,10 @@ void lcd_puts(const char *s, void *priv)
 			console_putc(pwi, pci, c);
 		}
 	} else
-		serial_puts(s);
+		serial_puts(NULL, s);
 }
 #else
-void lcd_puts(const char *s)
+void lcd_puts(const device_t *pdev, const char *s)
 {
 	wininfo_t *pwi = console_pwi;
 	vidinfo_t *pvi = pwi->pvi;
@@ -1622,6 +1618,6 @@ void lcd_puts(const char *s)
 			console_putc(pwi, pci, c);
 		}
 	} else
-		serial_puts(s);
+		serial_puts(NULL, s);
 }
 #endif /*CONFIG_MULTIPLE_CONSOLES*/

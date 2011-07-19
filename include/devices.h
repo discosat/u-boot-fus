@@ -36,30 +36,37 @@
 #define DEV_EXT_VIDEO	 0x00000001	/* Video extensions supported		*/
 
 /* Device information */
-typedef struct {
-	int	flags;			/* Device flags: input/output/system	*/
-	int	ext;			/* Supported extensions			*/
-	char	name[16];		/* Device name				*/
+typedef struct device device_t;
+
+struct device {
+	int	flags;			/* Device flags: input/output/system */
+	int	ext;			/* Supported extensions */
+	char	name[16];		/* Device name */
 
 /* GENERAL functions */
+	/* To start the device */
+	int (*start) (const device_t *pdev);
 
-	int (*start) (void);		/* To start the device			*/
-	int (*stop) (void);		/* To stop the device			*/
+	/* To stop the device */
+	int (*stop) (const device_t *pdev);
 
 /* OUTPUT functions */
+	/* To put a char */
+	void (*putc) (const device_t *pdev, const char c);
 
-	void (*putc) (const char c);	/* To put a char			*/
-	void (*puts) (const char *s);	/* To put a string (accelerator)	*/
+	/* To put a string (accelerator) */
+	void (*puts) (const device_t *pdev, const char *s);
 
 /* INPUT functions */
+	/* To test if a char is ready */
+	int (*tstc) (const device_t *pdev);
 
-	int (*tstc) (void);		/* To test if a char is ready...	*/
-	int (*getc) (void);		/* To get that char			*/
+	/* To get that char */
+	int (*getc) (const device_t *pdev);
 
 /* Other functions */
-
-	void *priv;			/* Private extensions			*/
-} device_t;
+	void *priv;			/* Private extensions */
+};
 
 /*
  * VIDEO EXTENSIONS

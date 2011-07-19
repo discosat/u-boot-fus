@@ -32,6 +32,7 @@
  */
 
 #include <common.h>
+#include <serial.h>			  /* serial_tstc(), serial_getc() */
 #include <command.h>
 #include <regs.h>
 
@@ -149,9 +150,9 @@ void reset_cpu(ulong ignored)
 	/* loop forever and wait for reset to happen */
 	while (1)
 	{
-		if (serial_tstc())
+		if (serial_tstc(NULL))
 		{
-			serial_getc();
+			serial_getc(NULL);
 			break;
 		}
 	}

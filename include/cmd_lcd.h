@@ -41,6 +41,10 @@ typedef unsigned int HVRES;
 /* DEFINITIONS								*/
 /************************************************************************/
 
+/* Pixel info flags */
+#define PIF_CMAP     0x01		  /* Pixel format uses a color map */
+#define PIF_ALPHA    0x02		  /* Pixel have alpha value */
+
 /* Draw attributes */
 #define ATTR_HLEFT   0x0000		  /* Available for text + bitmap */
 #define ATTR_HRIGHT  0x0001		  /* Available for text + bitmap */
@@ -88,8 +92,8 @@ typedef struct PIXEL_INFO {
 	u_char depth;			/* Actually used bits for the color */
 	u_char bpp_shift;		/* Bits per pixel as power of 2;
 					   0: 1 bpp, 1: 2 bpp, .. 5: 32bpp */
-	u_short cmapsize;		/* Number of CLUT entries
-					   (0=non-palettized) */
+	u_char flags;			/* Bit 0: 0: true color, 1: palettized
+					   Bit 1: 0: no alpha, 1: alpha */
 
 	/* Function to convert RGBA to COLOR32 */
 	COLOR32 (*rgba2col)(const wininfo_t *pwi, RGBA rgba);
@@ -206,7 +210,6 @@ struct wininfo
 	RGBA ckmask;			  /* Color keying mask */
 	RGBA replace;			  /* Replacement color for window */
 	RGBA *cmap;			  /* If CLUT: Pointer to color map */
-	
 
 	/* Function to set the color map from index to end; this also updates
 	   pwi->cmap. Some hardware has restrictions of how and when setting

@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <malloc.h>
 #include <console.h>
+#include <serial.h>			  /* serial_*() */
 #include <exports.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -61,7 +62,7 @@ static int console_setfile (int file, device_t * dev)
 	case stderr:
 		/* Start new device */
 		if (dev->start) {
-			error = dev->start ();
+			error = dev->start (dev);
 			/* If it's not started dont use it */
 			if (error < 0)
 				break;
@@ -109,35 +110,43 @@ void serial_printf (const char *fmt, ...)
 	i = vsprintf (printbuffer, fmt, args);
 	va_end (args);
 
-	serial_puts (printbuffer);
+	serial_puts (NULL, printbuffer);
 }
 
 int fgetc (int file)
 {
-	if (file < MAX_FILES)
-		return stdio_devices[file]->getc ();
+	if (file < MAX_FILES) {
+		device_t *pdev = stdio_devices[file];
+		return pdev->getc(pdev);
+	}
 
 	return -1;
 }
 
 int ftstc (int file)
 {
-	if (file < MAX_FILES)
-		return stdio_devices[file]->tstc ();
+	if (file < MAX_FILES) {
+		device_t *pdev = stdio_devices[file];
+		return pdev->tstc(pdev);
+	}
 
 	return -1;
 }
 
 void fputc (int file, const char c)
 {
-	if (file < MAX_FILES)
-		stdio_devices[file]->putc (c);
+	if (file < MAX_FILES) {
+		device_t *pdev = stdio_devices[file];
+		pdev->putc(pdev, c);
+	}
 }
 
 void fputs (int file, const char *s)
 {
-	if (file < MAX_FILES)
-		stdio_devices[file]->puts (s);
+	if (file < MAX_FILES) {
+		device_t *pdev = stdio_devices[file];
+		pdev->puts(pdev, s);
+	}
 }
 
 void fprintf (int file, const char *fmt, ...)
@@ -155,7 +164,7 @@ void fprintf (int file, const char *fmt, ...)
 	va_end (args);
 
 	/* Send to desired file */
-	fputs (file, printbuffer);
+	fputs(file, printbuffer);
 }
 
 /** U-Boot INITIAL CONSOLE-COMPATIBLE FUNCTION *****************************/
@@ -168,7 +177,7 @@ int getc (void)
 	}
 
 	/* Send directly to the handler */
-	return serial_getc ();
+	return serial_getc (NULL);
 }
 
 int tstc (void)
@@ -179,7 +188,7 @@ int tstc (void)
 	}
 
 	/* Send directly to the handler */
-	return serial_tstc ();
+	return serial_tstc (NULL);
 }
 
 void putc (const char c)
@@ -194,7 +203,7 @@ void putc (const char c)
 		fputc (stdout, c);
 	} else {
 		/* Send directly to the handler */
-		serial_putc (c);
+		serial_putc (NULL, c);
 	}
 }
 
@@ -210,7 +219,7 @@ void puts (const char *s)
 		fputs (stdout, s);
 	} else {
 		/* Send directly to the handler */
-		serial_puts (s);
+		serial_puts (NULL, s);
 	}
 }
 

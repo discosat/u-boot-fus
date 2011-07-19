@@ -341,6 +341,7 @@ void start_armboot (void)
 	/* compiler optimization barrier needed for GCC >= 3.4 */
 	__asm__ __volatile__("": : :"memory");
 
+
 	memset ((void*)gd, 0, sizeof (gd_t));
 	gd->bd = (bd_t*)((char*)gd - sizeof(bd_t));
 	memset (gd->bd, 0, sizeof (bd_t));
@@ -552,8 +553,6 @@ void start_armboot (void)
 #endif
 	}
 
-	printf("####A\n");
-
 #if 0
 	//######>>>>>
 	{
@@ -594,7 +593,6 @@ void start_armboot (void)
 #endif
 
 	devices_init ();	/* get the devices list going. */
-	printf("####B\n");
 
 #ifdef CONFIG_CMC_PU2
 	load_sernum_ethaddr ();
@@ -647,10 +645,6 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 	board_late_init ();
 #endif
 
-#if 0 //######HK
-        printf("GPKCON0=%08lx, GPKDAT=%08lx, GPKPUD=%08lx\n", GPKCON0_REG,
-               GPKDAT_REG, GPKPUD_REG);
-#endif //#####HK
 
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)

@@ -241,6 +241,7 @@
 #define CONFIG_FSWINCE_COMPAT		  /* Support F&S WinCE compatibility */
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
 #define CONFIG_LCD_S3C64XX_PWM 1	  /* Use PWM1 for backlight */
+#define CONFIG_MULTIPLE_CONSOLES	  /* Use a console on each window */
 #define CONFIG_CMD_PNG			  /* Support PNG images */
 #define CONFIG_CMD_BMP			  /* Support BMP images */
 //#define CONFIG_CMD_JPG		  /* Support JPG images */

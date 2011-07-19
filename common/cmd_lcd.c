@@ -25,36 +25,20 @@
 
 /* ##### TODO:
     1. Nochmal prüfen, dass fbhres und hoffs immer aligned sind
-    2. Unnötige includes entfernen, lokale Funktionsprototypen hinzufügen
-    3. Alten code aus lcd.c/lcd.h entfernen
-    4. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
-    5. PWM settings auf GPF15 setzen, 
-    6. Kommandozeile: Ein String mit "..." sollte als *ein* Argument geparsed
-       und die Anführungszeichen entfernt werden (evtl auch nicht entfernen,
-       damit z.B. lcd list "320" möglich wird) -> geht scheint's schon mit '...'
-    7. Pattern matching bei lcd list evtl. case insensitive
-    8. Für jedes Display und jedes Window eine mögliche Console lcdx_y
-       anlegen (x: display, y: window). dannauch wieder die Console-Infos ins
-       Window zurück. Problem: bei den Console-Funktionen (putc(), puts(),
-       etc) müsste ein Pointer auf die wininfo_t mitgegeben werden, damit man
-       in einer einheitlichen putc()/puts()-Funktion wieder auf das richtige
-       Window referenzieren kann. Mit dem gleichen Konzept könnte man auch
-       mehrere serielle Schnittstellen implementieren.
-    9. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
+    2. Lokale Funktionsprototypen hinzufügen
+    3. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
+    4. PWM settings auf GPF15 setzen, 
+    5. Pattern matching bei lcd list evtl. case insensitive
+    6. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
        Treiberkonzept einbindet
-   10. cls entweder weg oder als Löschen des aktuellen Console-Windows
-   11. alpha-Werte scheinen noch nicht zu tun, nochmal testen
-   12. bei lcd panel 0 muss display ausgeschaltet werden.
-   13. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
-   14. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
+    7. cls entweder weg oder als Löschen des aktuellen Console-Windows
+    8. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
+    9. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
        Macht das Probleme, wenn fbpool über eine solche Segmentgrenze geht?
-   15. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
+   10. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
        nicht.
-   16. icache und dcache prüfen. Evtl. MMU einschalten und 1:1 TLB-Eintrag
-       erzeugen, damit Code schneller läuft.
-   17. Befehl "window" durch "win" ersetzen.
-   18. Bei reg: reg create setzt lockupdate, reg save löscht lockupdate.
-   19. evtl. reg-Befehl ganz raus und externes Wandlungstool machen.
+   12. Bei reg: reg create sollte lockupdate setzen, reg save wieder löschen
+   13. evtl. reg-Befehl ganz raus und externes Wandlungstool machen.
 ****/
 
 /*
@@ -114,10 +98,21 @@
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1MB, enough for 800x600@16bpp */
 #endif
 
+/* Default window colors */
 #define DEFAULT_BG 0x000000FF		  /* Opaque black */
 #define DEFAULT_FG 0xFFFFFFFF		  /* Opaque white */
 
-#define IDENT_BLINK_COUNT 5		  /* Number of ident color cycles */
+/* Default console colors */
+#define DEFAULT_CON_BG 0x000000FF	  /* Opaque black */
+#define DEFAULT_CON_FG 0xFFFFFFFF	  /* Opaque white */
+
+/* Default alpha values */
+#define DEFAULT_ALPHA0 0x00000000	  /* Transparent */
+#define DEFAULT_ALPHA1 0xFFFFFFFF	  /* Opaque */
+
+/* Settings for win ident blinking */
+#define IDENT_BLINK_COUNT 5		  /* How often */
+#define IDENT_BLINK_DELAY 100000	  /* How fast */
 
 
 /************************************************************************/
@@ -342,15 +337,6 @@ static const u_char palsig[6] = {
 	1, 0				  /* V1.0 */
 };
 
-/* When identifying a window, cycle the following colors */
-static const RGBA ident_color[] = {
-	0xFF0000FF,			  /* Red */
-	0x00FF00FF,			  /* Green */
-	0x0000FFFF,			  /* Blue */
-	0xFFFFFFFF,			  /* White */
-	0x000000FF			  /* Black */
-};
-
 /* Keywords available with draw and adraw; info1 holds the number of
    coordinate pairs, info2 holds the index for the first rgba value (use a
    value higher than argc_max if no rgba value at all) */
@@ -508,20 +494,21 @@ static const RGBA defcmap4[] = {
 
 /* Default color map for 4 bpp */
 static const RGBA defcmap16[] = {
-	0x000000FF,			  /* Black */
-	0x800000FF,			  /* dark red */
-	0x008000FF,			  /* dark green */
-	0x808000FF,			  /* dark yellow */
+	0x000000FF,			  /* black */
 	0x000080FF,			  /* dark blue */
-	0x800080FF,			  /* dark magenta */
+	0x008000FF,			  /* dark green */
 	0x008080FF,			  /* dark cyan */
-	0x808080FF,			  /* dark gray */
-	0xFF0000FF,			  /* red */
-	0x00FF00FF,			  /* green */
-	0xFFFF00FF,			  /* yellow */
+	0x800000FF,			  /* dark red */
+	0x800080FF,			  /* dark magenta */
+	0x808000FF,			  /* dark yellow */
+	0x555555FF,			  /* dark gray */
+	0xAAAAAAFF,			  /* light gray */
 	0x0000FFFF,			  /* blue */
-	0xFF00FFFF,			  /* magenta */
+	0x00FF00FF,			  /* green */
 	0x00FFFFFF,			  /* cyan */
+	0xFF0000FF,			  /* red */
+	0xFF00FFFF,			  /* magenta */
+	0xFFFF00FF,			  /* yellow */
 	0xFFFFFFFF			  /* white */
 };
 
@@ -701,51 +688,6 @@ static int cls(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	wininfo_t *pwi;
 
-#if 0 //######
-#if LCD_BPP == LCD_MONOCHROME
-	/* Setting the palette */
-	lcd_initcolregs();
-
-#elif LCD_BPP == LCD_COLOR8
-	/* Setting the palette */
-	lcd_setcolreg  (CONSOLE_COLOR_BLACK,       0,    0,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_RED,	0xFF,    0,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_GREEN,       0, 0xFF,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_YELLOW,	0xFF, 0xFF,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_BLUE,        0,    0, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_MAGENTA,	0xFF,    0, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_CYAN,	   0, 0xFF, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_GRAY,	0xAA, 0xAA, 0xAA);
-	lcd_setcolreg  (CONSOLE_COLOR_WHITE,	0xFF, 0xFF, 0xFF);
-#endif
-
-#ifndef CFG_WHITE_ON_BLACK
-	lcd_setfgcolor (CONSOLE_COLOR_BLACK);
-	lcd_setbgcolor (CONSOLE_COLOR_WHITE);
-#else
-	lcd_setfgcolor (CONSOLE_COLOR_WHITE);
-	lcd_setbgcolor (CONSOLE_COLOR_BLACK);
-#endif	/* CFG_WHITE_ON_BLACK */
-
-#ifdef	LCD_TEST_PATTERN
-	test_pattern();
-#else
-	printf("####Z\n");
-
-	printf("####lcd_getbgcolor=%d, lcd_line_length=%d, vl_row=%d\n",
-	       lcd_getbgcolor(), lcd_line_length, panel_info.vl_row);
-	/* set framebuffer to background color */
-	memset ((char *)lcd_base,
-		COLOR_MASK(lcd_getbgcolor()),
-		lcd_line_length*panel_info.vl_row);
-	printf("####Y\n");
-#endif
-	/* Paint the logo and retrieve LCD base address */
-	debug ("[LCD] Drawing the logo...\n");
-	lcd_console_address = lcd_logo ();
-	printf("####X\n");
-#endif //0 ####
-
 	pwi = lcd_getwininfo(win_sel);
 
 	/* If selected window is active, fill it with background color */
@@ -789,9 +731,11 @@ static void relocbuffers(wininfo_t *pwi, u_long newaddr)
 
 		for (buf = 0; buf < pwi->fbmaxcount; buf++) {
 			if (pwi->pfbuf[buf] != newaddr) {
+#ifdef DEBUG
 				printf("%s: relocated buffer %u from 0x%08lx"
 				       " to 0x%08lx\n", pwi->name,
 				       buf, pwi->pfbuf[buf], newaddr);
+#endif
 				pwi->pfbuf[buf] = newaddr;
 			}
 			if (buf < pwi->fbcount)
@@ -812,6 +756,9 @@ static void relocbuffers(wininfo_t *pwi, u_long newaddr)
 static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	fbpoolinfo_t *pfp = &fbpool;
+	WINDOW win;
+	VID vid;
+	u_int buf;
 
 	if (argc > 1)
 	{
@@ -857,6 +804,26 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	printf("Framebuffer Pool: 0x%08lx - 0x%08lx (%lu bytes total,"
 	       " %lu bytes used)\n",
 	       pfp->base, pfp->base + pfp->size - 1, pfp->size, pfp->used);
+
+	/* List all buffers */
+	puts("\nBuffer list:\n");
+	for (vid = 0; vid < vid_count; vid++) {
+		const vidinfo_t *pvi;
+
+		pvi = lcd_get_vidinfo_p(vid);
+		for (win = 0; win < pvi->wincount; win++) {
+			const wininfo_t *pwi;
+
+			pwi = lcd_get_wininfo_p(pvi, win);
+			for (buf = 0; buf < pwi->fbcount; buf++) {
+				printf(" %s buffer %u: 0x%08lx - 0x%08lx\n",
+				       pwi->name, buf, pwi->pfbuf[buf],
+				       pwi->pfbuf[buf] + pwi->fbsize - 1);
+			}
+		}
+	}
+	putc('\n');
+
 	return 0;
 }
 
@@ -997,8 +964,6 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
 			}
 
 			if (!errmsg) {
-				printf("###B=%d, N=%d, (%d, %d)-(%d, %d)\n",
-				       flagB, flagN, x, y, nx, ny);
 				if (!flagB)
 					lcd_line(pwi, x, y, nx, ny);
 				if (!flagN) {
@@ -1257,22 +1222,27 @@ U_BOOT_CMD(
 static void set_default_cmap(const wininfo_t *pwi)
 {
 	u_int bpp_shift;
+	u_int cmapsize;
 	u_int end;
 	RGBA *defcmap;
 	static const RGBA * const defcmap_table[] = {
 		defcmap2,		  /* 1bpp, predefined map */
 		defcmap4,		  /* 2bpp, predefined map */
 		defcmap16,		  /* 4bpp, predefined map */
+		NULL			  /* 8bpp, compute here */
 	};
+
+	if (!(pwi->ppi->flags & PIF_CMAP))
+		return;			  /* No color map pixel format */
 
 	bpp_shift = pwi->ppi->bpp_shift;
 	if (bpp_shift > 3)
 		return;			  /* No support for 16/32 bpp cmaps */
 
-	end = pwi->ppi->cmapsize - 1;
-	if (bpp_shift < 3)
-		defcmap = (RGBA *)defcmap_table[bpp_shift];
-	else {
+	cmapsize = 1 << (1 << bpp_shift);
+	end = cmapsize - 1;
+	defcmap = (RGBA *)defcmap_table[bpp_shift];
+	if (!defcmap) {
 		u_int index;
 
 		defcmap = pwi->cmap;
@@ -1311,11 +1281,12 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	u_int end = ~0;
 	RGBA rgba;
 	RGBA *cmap;
+	u_int cmapsize;
 
 	/* Get the info for the currently selected display and window */
 	pvi = lcd_get_vidinfo_p(vid_sel);
 	pwi = lcd_get_wininfo_p(pvi, pvi->win_sel);
-	if (!pwi->ppi->cmapsize) {
+	if (!(pwi->ppi->flags & PIF_CMAP)) {
 		printf("%s: no color map based pixel format\n", pwi->name);
 		return 1;
 	}
@@ -1337,10 +1308,12 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		return 1;
 	}
 
+	cmapsize = 1 << (1 << pwi->ppi->bpp_shift);
+
 	/* info1 holds the argument index of the color (start) index */
 	if (argc > cmap_kw[sc].info1 + 2) {
-		index = simple_strtoul(argv[1], NULL, 0);
-		if (index >= pwi->ppi->cmapsize) {
+		index = simple_strtoul(argv[cmap_kw[sc].info1 + 2], NULL, 0);
+		if (index >= cmapsize) {
 			puts("Bad color index\n");
 			return 1;
 		}
@@ -1348,9 +1321,9 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	/* info2 holds the argument index of the color end index */
 	if (argc > cmap_kw[sc].info2 + 2)
-		end = simple_strtoul(argv[1], NULL, 0);
-	if (end >= pwi->ppi->cmapsize)
-	        end = pwi->ppi->cmapsize-1;
+		end = simple_strtoul(argv[cmap_kw[sc].info2 + 2], NULL, 0);
+	if (end >= cmapsize)
+	        end = cmapsize-1;
 	else if (end < index)
 		end = index;
 
@@ -1367,7 +1340,8 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case CI_VIEW:
 		/* List colors */
 		do {
-			printf("%05u: #%08x\n", index, cmap[index]);
+			printf("%3u (0x%02x): #%08x\n", index, index,
+			       cmap[index]);
 		} while (++index <= end);
 		break;
 
@@ -1417,8 +1391,10 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		palcount = (p[6] << 8) | p[7];
 
 		/* Adjust count if new palette has fewer colors */
-		if (palcount < count)
+		if (palcount < count) {
 			count = palcount;
+			end = index + count - 1;
+		}
 
 		printf("Reading %u entries from PAL V1.0 color map at %p\n",
 		       count, p);
@@ -1534,7 +1510,7 @@ static int setfbuf(wininfo_t *pwi, HVRES hres, HVRES vres,
 	pwi->fbvres = fbvres;
 	pwi->active = (fbhres && fbvres && fbcount);
 	pwi->ppi = ppi;
-	pwi->fbcount = fbcount;
+	pwi->fbcount = pwi->active ? fbcount : 0;
 	pwi->linelen = linelen;
 	pwi->fbsize = fbsize;
 	pwi->fbdraw = 0;
@@ -1542,9 +1518,12 @@ static int setfbuf(wininfo_t *pwi, HVRES hres, HVRES vres,
 	if (pwi->pix != pix) {
 		/* New pixel format: set default bg + fg */
 		pwi->pix = pix;
-		lcd_set_fg(pwi, DEFAULT_BG);
-		lcd_set_bg(pwi, DEFAULT_FG);
 		set_default_cmap(pwi);
+		lcd_set_fg(pwi, DEFAULT_FG);
+		lcd_set_bg(pwi, DEFAULT_BG);
+		pwi->alpha0 = DEFAULT_ALPHA0;
+		pwi->alpha1 = DEFAULT_ALPHA1;
+		pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
 	}
 	fix_offset(pwi);
 
@@ -1580,8 +1559,15 @@ static int setfbuf(wininfo_t *pwi, HVRES hres, HVRES vres,
 	/* Clear the new framebuffer with background color */
 	lcd_clear(pwi);
 
+#ifdef CONFIG_MULTIPLE_CONSOLES
+	pwi->ci.x = 0;
+	pwi->ci.y = 0;
+	pwi->ci.fg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_FG);
+	pwi->ci.bg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_BG);
+#else
 	/* The console might also be interested in the buffer changes */
-	console_update(pwi);
+	console_update(pwi, DEFAULT_CON_FG, DEFAULT_CON_BG);
+#endif
 
 	return 0;
 }
@@ -1846,17 +1832,16 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case WI_IDENT:
 	{
-		u_int i, j;
+		u_int i;
 
 		for (i=0; i<IDENT_BLINK_COUNT; i++) {
-			for (j=0; j<ARRAYSIZE(ident_color); j++) {
-				pwi->replace = ident_color[j];
-				set_wininfo(pwi);
-				udelay(50000);
-			}
+			pwi->replace = 0x00FF00FF; /* Green */
+			set_wininfo(pwi);
+			udelay(IDENT_BLINK_DELAY);
+			pwi->replace = 0xFFFFFF00; /* Transparent (=off) */
+			set_wininfo(pwi);
+			udelay(IDENT_BLINK_DELAY);
 		}
-		pwi->replace = 0xFFFFFF00; /* Set transparent (=off) */
-		set_wininfo(pwi);
 		break;
 	}
 
@@ -2685,8 +2670,6 @@ void drv_lcd_init(void)
 	gd->fb_base = fbpool.base;
 	memset(&lcddev, 0, sizeof(lcddev));
 
-	printf("####a\n");
-
 	/* Initialize LCD controller(s) (GPIOs, clock, etc.) */
 #if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
 	if (vid_count < CONFIG_DISPLAYS)
@@ -2708,8 +2691,6 @@ void drv_lcd_init(void)
 		s3c64xx_lcd_init(lcd_get_vidinfo_p(vid_count++));
 #endif
 
-	printf("####b\n");
-
 	/* Initialize all display entries and window entries */
 	fbuf = fbpool.base;
 	for (vid = 0; vid < vid_count; vid++) {
@@ -2729,7 +2710,6 @@ void drv_lcd_init(void)
 #endif
 		pvi->lcd = *lcd_get_lcdinfo_p(0); /* Set panel #0 */
 
-		printf("####j\n");
 		/* Initialize the window entries; the fields defpix, pfbuf,
 		   fbmaxcount and ext are already set by the controller
 		   specific init function(s) above. */
@@ -2737,8 +2717,6 @@ void drv_lcd_init(void)
 			unsigned buf;
 
 			pwi = lcd_get_wininfo_p(pvi, win);
-
-			printf("####e\n");
 
 			/* Fill remaining entries with default values */
 			pwi->pvi = pvi;
@@ -2761,14 +2739,15 @@ void drv_lcd_init(void)
 			pwi->fbvres = 0;
 			pwi->hoffs = 0;
 			pwi->voffs = 0;
-			pwi->alpha0 = 0x00000000; /* Transparent */
-			pwi->alpha1 = 0xFFFFFFFF; /* Opaque */
-			pwi->alphamode = 2;
+			pwi->alpha0 = DEFAULT_ALPHA0;
+			pwi->alpha1 = DEFAULT_ALPHA1;
+			pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
 			pwi->ckvalue = 0; /* Off */
 			pwi->ckmask = 0;  /* Bits must match */
 			pwi->ckmode = 0;  /* Check window pixels, no blend */
 			lcd_set_fg(pwi, DEFAULT_FG);
 			lcd_set_bg(pwi, DEFAULT_BG);
+
 #if (CONFIG_DISPLAYS > 1)
 			sprintf(pwi->name, "win%u_%u", vid, win);
 #else
@@ -2799,15 +2778,11 @@ void drv_lcd_init(void)
 			enable = 1;
 		}
 		
-		printf("####c\n");
 		set_vidinfo(pvi);
-		printf("####d\n");
 
 		for (win = 0; win < pvi->wincount; win++) {
 			pvi->win_sel = win;
 			pwi = lcd_get_wininfo_p(pvi, win);
-
-			printf("####f\n");
 
 			/* Is there an environment variable for this window? */
 			s = getenv(pwi->name);
@@ -2823,12 +2798,17 @@ void drv_lcd_init(void)
 				run_command(s, 0);
 				lockupdate = 0;
 			}
-			printf("####g\n");
 
 			/* Set new wininfo to controller hardware */
 			set_wininfo(pwi);
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
+			/* Set console info for this window */
+			pwi->ci.fg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_FG);
+			pwi->ci.bg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_BG);
+			pwi->ci.x = 0;
+			pwi->ci.y = 0;
+
 			/* Init a console device for each window */
 			strcpy(lcddev.name, pwi->name);
 			lcddev.ext   = 0;		  /* No extensions */
@@ -2860,10 +2840,9 @@ void drv_lcd_init(void)
 			lcd_on(pvi);
 	}
 
-	printf("####h\n");
-
+#ifndef CONFIG_MULTIPLE_CONSOLES
 	/* Default console "lcd" on vid 0, win 0 */
-	console_init(lcd_get_wininfo_p(lcd_get_vidinfo_p(0), 0));
-
-	printf("####i\n");
+	console_init(lcd_get_wininfo_p(lcd_get_vidinfo_p(0), 0),
+		     DEFAULT_CON_FG, DEFAULT_CON_BG);
+#endif
 }
