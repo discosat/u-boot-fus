@@ -24,12 +24,13 @@
 #ifndef _VIDEO_FONT_
 #define _VIDEO_FONT_
 
+#define VIDEO_FONT_TYPE         unsigned char
 #define VIDEO_FONT_CHARS	256
 #define VIDEO_FONT_WIDTH	8
 #define VIDEO_FONT_HEIGHT	16
 #define VIDEO_FONT_SIZE		(VIDEO_FONT_CHARS * VIDEO_FONT_HEIGHT)
 
-static unsigned char video_fontdata[VIDEO_FONT_SIZE] = {
+static VIDEO_FONT_TYPE video_fontdata[VIDEO_FONT_SIZE] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */

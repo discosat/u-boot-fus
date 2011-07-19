@@ -377,6 +377,7 @@ void start_armboot (void)
 #endif /* CONFIG_VFD */
 
 #ifdef CONFIG_LCD
+#ifndef CONFIG_S3C64XX
 	/* board init may have inited fb_base */
 	if (!gd->fb_base) {
 #		ifndef PAGE_SIZE
@@ -390,6 +391,7 @@ void start_armboot (void)
 		size = lcd_setmem (addr);
 		gd->fb_base = addr;
 	}
+#endif
 #endif /* CONFIG_LCD */
 
 	/* armboot_start is defined in the board-specific linker script */
@@ -550,7 +552,49 @@ void start_armboot (void)
 #endif
 	}
 
+	printf("####A\n");
+
+#if 0
+	//######>>>>>
+	{
+		unsigned jj;
+		unsigned char *pp = (unsigned char *)0x50000000;
+
+		extern void *mymemcpy(void *dest, void *src, size_t count);
+		extern void *mymemmove(void *dest, void *src, size_t count);
+		for (jj=0; jj<256; jj++)
+			pp[jj] = jj;
+		memset(pp+256, 0xcc, 256);
+		memset(pp+512, 0xcc, 256);
+		memset(pp+768, 0xcc, 256);
+		memset(pp+1024, 0xcc, 256);
+		memset(pp+1280, 0xcc, 256);
+		printf("Before:");
+		for (jj=0; jj<256; jj++)
+		{
+			if ((jj & 0xF) == 0)
+				printf("\n%02x:", jj);
+			printf(" %02x", pp[jj+256]);
+		}
+		mymemmove(pp+259, pp, 253);
+		mymemmove(pp+515, pp, 252);
+		mymemmove(pp+771, pp, 251);
+		mymemmove(pp+1027, pp, 250);
+		mymemmove(pp+1283, pp, 249);
+		printf("\n\nAfter:");
+		for (jj=0; jj<1280; jj++)
+		{
+			if ((jj & 0xF) == 0)
+				printf("\n%03x:", jj);
+			printf(" %02x", pp[jj+256]);
+		}
+		printf("\n");
+	}
+	//######<<<<<
+#endif
+
 	devices_init ();	/* get the devices list going. */
+	printf("####B\n");
 
 #ifdef CONFIG_CMC_PU2
 	load_sernum_ethaddr ();

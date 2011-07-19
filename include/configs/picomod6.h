@@ -232,6 +232,18 @@
 #define CFG_LOAD_ADDR		MEMORY_BASE_ADDRESS+0x8000
 
 
+
+
+/************************************************************************
+ * Display (LCD)
+ ************************************************************************/
+#define CONFIG_LCD			  /* Use LCD */
+#define LCD_BPP LCD_COLOR_MANY		  /* Support different pixel formats */
+#define CONFIG_FSWINCE_COMPAT		  /* Support F&S WinCE compatibility */
+#define MAX_WINDOWS 5			  /* S3C6410 supports 5 windows */
+#define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
+
+
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/

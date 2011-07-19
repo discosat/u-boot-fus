@@ -29,182 +29,57 @@
 #ifndef _LCD_H_
 #define _LCD_H_
 
-extern char lcd_is_enabled;
-
-extern int lcd_line_length;
-extern int lcd_color_fg;
-extern int lcd_color_bg;
-
-/*
- * Frame buffer memory information
- */
-extern void *lcd_base;		/* Start of framebuffer memory	*/
-extern void *lcd_console_address;	/* Start of console buffer	*/
-
-extern short console_col;
-extern short console_row;
-
-#if defined CONFIG_MPC823
-/*
- * LCD controller stucture for MPC823 CPU
- */
-typedef struct vidinfo {
-	ushort	vl_col;		/* Number of columns (i.e. 640) */
-	ushort	vl_row;		/* Number of rows (i.e. 480) */
-	ushort	vl_width;	/* Width of display area in millimeters */
-	ushort	vl_height;	/* Height of display area in millimeters */
-
-	/* LCD configuration register */
-	u_char	vl_clkp;	/* Clock polarity */
-	u_char	vl_oep;		/* Output Enable polarity */
-	u_char	vl_hsp;		/* Horizontal Sync polarity */
-	u_char	vl_vsp;		/* Vertical Sync polarity */
-	u_char	vl_dp;		/* Data polarity */
-	u_char	vl_bpix;	/* Bits per pixel, 0 = 1, 1 = 2, 2 = 4, 3 = 8 */
-	u_char	vl_lbw;		/* LCD Bus width, 0 = 4, 1 = 8 */
-	u_char	vl_splt;	/* Split display, 0 = single-scan, 1 = dual-scan */
-	u_char	vl_clor;	/* Color, 0 = mono, 1 = color */
-	u_char	vl_tft;		/* 0 = passive, 1 = TFT */
-
-	/* Horizontal control register. Timing from data sheet */
-	ushort	vl_wbl;		/* Wait between lines */
-
-	/* Vertical control register */
-	u_char	vl_vpw;		/* Vertical sync pulse width */
-	u_char	vl_lcdac;	/* LCD AC timing */
-	u_char	vl_wbf;		/* Wait between frames */
-} vidinfo_t;
-
-extern vidinfo_t panel_info;
-
-#elif defined CONFIG_PXA250
-/*
- * PXA LCD DMA descriptor
- */
-struct pxafb_dma_descriptor {
-	u_long	fdadr;		/* Frame descriptor address register */
-	u_long	fsadr;		/* Frame source address register */
-	u_long	fidr;		/* Frame ID register */
-	u_long	ldcmd;		/* Command register */
-};
-
-/*
- * PXA LCD info
- */
-struct pxafb_info {
-
-	/* Misc registers */
-	u_long	reg_lccr3;
-	u_long	reg_lccr2;
-	u_long	reg_lccr1;
-	u_long	reg_lccr0;
-	u_long	fdadr0;
-	u_long	fdadr1;
-
-	/* DMA descriptors */
-	struct	pxafb_dma_descriptor *	dmadesc_fblow;
-	struct	pxafb_dma_descriptor *	dmadesc_fbhigh;
-	struct	pxafb_dma_descriptor *	dmadesc_palette;
-
-	u_long	screen;		/* physical address of frame buffer */
-	u_long	palette;	/* physical address of palette memory */
-	u_int	palette_size;
-};
-
-/*
- * LCD controller stucture for PXA CPU
- */
-typedef struct vidinfo {
-	ushort	vl_col;		/* Number of columns (i.e. 640) */
-	ushort	vl_row;		/* Number of rows (i.e. 480) */
-	ushort	vl_width;	/* Width of display area in millimeters */
-	ushort	vl_height;	/* Height of display area in millimeters */
-
-	/* LCD configuration register */
-	u_char	vl_clkp;	/* Clock polarity */
-	u_char	vl_oep;		/* Output Enable polarity */
-	u_char	vl_hsp;		/* Horizontal Sync polarity */
-	u_char	vl_vsp;		/* Vertical Sync polarity */
-	u_char	vl_dp;		/* Data polarity */
-	u_char	vl_bpix;	/* Bits per pixel, 0 = 1, 1 = 2, 2 = 4, 3 = 8, 4 = 16 */
-	u_char	vl_lbw;		/* LCD Bus width, 0 = 4, 1 = 8 */
-	u_char	vl_splt;	/* Split display, 0 = single-scan, 1 = dual-scan */
-	u_char	vl_clor;	/* Color, 0 = mono, 1 = color */
-	u_char	vl_tft;		/* 0 = passive, 1 = TFT */
-
-	/* Horizontal control register. Timing from data sheet */
-	ushort	vl_hpw;		/* Horz sync pulse width */
-	u_char	vl_blw;		/* Wait before of line */
-	u_char	vl_elw;		/* Wait end of line */
-
-	/* Vertical control register. */
-	u_char	vl_vpw;		/* Vertical sync pulse width */
-	u_char	vl_bfw;		/* Wait before of frame */
-	u_char	vl_efw;		/* Wait end of frame */
-
-	/* PXA LCD controller params */
-	struct	pxafb_info pxa;
-} vidinfo_t;
-
-extern vidinfo_t panel_info;
-
-#elif defined(CONFIG_MCC200)
-typedef struct vidinfo {
-	ushort	vl_col;		/* Number of columns (i.e. 160) */
-	ushort	vl_row;		/* Number of rows (i.e. 100) */
-
-	u_char	vl_bpix;	/* Bits per pixel, 0 = 1 */
-} vidinfo_t;
-
-#elif defined(CONFIG_ATMEL_LCD)
-
-typedef struct vidinfo {
-	u_long vl_col;		/* Number of columns (i.e. 640) */
-	u_long vl_row;		/* Number of rows (i.e. 480) */
-	u_long vl_clk;	/* pixel clock in ps    */
-
-	/* LCD configuration register */
-	u_long vl_sync;		/* Horizontal / vertical sync */
-	u_long vl_bpix;		/* Bits per pixel, 0 = 1, 1 = 2, 2 = 4, 3 = 8, 4 = 16 */
-	u_long vl_tft;		/* 0 = passive, 1 = TFT */
-
-	/* Horizontal control register. */
-	u_long vl_hsync_len;	/* Length of horizontal sync */
-	u_long vl_left_margin;	/* Time from sync to picture */
-	u_long vl_right_margin;	/* Time from picture to sync */
-
-	/* Vertical control register. */
-	u_long vl_vsync_len;	/* Length of vertical sync */
-	u_long vl_upper_margin;	/* Time from sync to picture */
-	u_long vl_lower_margin;	/* Time from picture to sync */
-
-	u_long	mmio;		/* Memory mapped registers */
-} vidinfo_t;
-
-extern vidinfo_t panel_info;
-
-#endif /* CONFIG_MPC823, CONFIG_PXA250 or CONFIG_MCC200 or CONFIG_ATMEL_LCD */
-
-/* Video functions */
-
-#if defined(CONFIG_RBC823)
-void	lcd_disable	(void);
-#endif
-
-
-/* int	lcd_init	(void *lcdbase); */
-void	lcd_putc	(const char c);
-void	lcd_puts	(const char *s);
-void	lcd_printf	(const char *fmt, ...);
-
+/* Define some types to be used with displays */
+typedef unsigned int COLORVAL;
+typedef unsigned int RGBA;
+typedef short XYPOS;
 
 /************************************************************************/
-/* ** BITMAP DISPLAY SUPPORT						*/
+/* HEADER FILES								*/
 /************************************************************************/
 #if defined(CONFIG_CMD_BMP) || defined(CONFIG_SPLASH_SCREEN)
 # include <bmp_layout.h>
 # include <asm/byteorder.h>
 #endif
+
+/* Architecture specific includes */
+#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
+#include <asm/byteorder.h>
+#endif
+
+#if defined(CONFIG_MPC823)
+#include <lcdvideo.h>
+#endif
+
+#if defined(CONFIG_ATMEL_LCD)
+#include <atmel_lcdc.h>
+#include <nand.h>
+#endif
+
+#if defined(CONFIG_S3C64XX)
+#include <lcd_s3c64xx.h>
+#endif
+
+/************************************************************************/
+/* DEFINITIONS								*/
+/************************************************************************/
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE	4096
+#endif
+
+#define MAX_NAME 32
+
+/* Values for type entry of vidinfo_t; if TFT is set, all other bits must be
+   zero. Therefore the range of this value is 0..8 */
+#define VI_TYPE_SINGLESCAN 0x00		  /* Bit 0: single or dual scan */
+#define VI_TYPE_DUALSCAN   0x01
+#define VI_TYPE_4BITBUS    0x00		  /* Bit 1: 4-bit or 8-bit buswidth */
+#define VI_TYPE_8BITBUS    0x02
+#define VI_TYPE_STN        0x00		  /* Bit 2: STN or CSTN */
+#define VI_TYPE_CSTN       0x04
+#define VI_TYPE_STN_CSTN   0x00		  /* Bit 3: (C)STN or TFT */
+#define VI_TYPE_TFT        0x08
 
 /*
  *  Information about displays we are using. This is for configuring
@@ -218,7 +93,10 @@ void	lcd_printf	(const char *fmt, ...);
 #define LCD_COLOR2	1
 #define LCD_COLOR4	2
 #define LCD_COLOR8	3
-#define LCD_COLOR16	4
+#define LCD_COLOR16	4	/* e.g. R5G5B5A1 or R5G6B5 */
+#define LCD_COLOR32	5	/* unpacked formats with >16 bpp, e.g.
+				   R6G6B6A1, R8G8B8, R8G8B8A4, etc. */
+#define LCD_COLOR_MANY  -1      /* Support different pixel formats */
 
 /*----------------------------------------------------------------------*/
 #if defined(CONFIG_LCD_INFO_BELOW_LOGO)
@@ -245,7 +123,7 @@ void	lcd_printf	(const char *fmt, ...);
 #define NCOLORS(bit_code)	(1 << NBITS(bit_code))
 
 /************************************************************************/
-/* ** CONSOLE CONSTANTS							*/
+/* CONSOLE CONSTANTS							*/
 /************************************************************************/
 #if LCD_BPP == LCD_MONOCHROME
 
@@ -281,13 +159,10 @@ void	lcd_printf	(const char *fmt, ...);
 #endif /* color definitions */
 
 /************************************************************************/
-#ifndef PAGE_SIZE
-# define PAGE_SIZE	4096
-#endif
+/* CONSOLE DEFINITIONS & FUNCTIONS					*/
+/************************************************************************/
+#if 0 //#####
 
-/************************************************************************/
-/* ** CONSOLE DEFINITIONS & FUNCTIONS					*/
-/************************************************************************/
 #if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
 # define CONSOLE_ROWS		((panel_info.vl_row-BMP_LOGO_HEIGHT) \
 					/ VIDEO_FONT_HEIGHT)
@@ -306,13 +181,244 @@ void	lcd_printf	(const char *fmt, ...);
 
 #if LCD_BPP == LCD_MONOCHROME
 # define COLOR_MASK(c)		((c)	  | (c) << 1 | (c) << 2 | (c) << 3 | \
-				 (c) << 4 | (c) << 5 | (c) << 6 | (c) << 7)
-#elif LCD_BPP == LCD_COLOR8
-# define COLOR_MASK(c)		(c)
+				 (c) << 4 | (c) << 5 | (c) << 6 | (c) << 7))
 #else
-# error Unsupported LCD BPP.
+# define COLOR_MASK(c)		(c)
 #endif
 
+#endif //0####
+
 /************************************************************************/
+/* ENUMERATIONS								*/
+/************************************************************************/
+
+/* Available TrueColor formats; Format: LCD_BPP<BPP>_<RGBA> */
+typedef enum LCD_BPP_FORMATS
+{
+	LCD_BPP1_CLUT,
+	LCD_BPP2_CLUT,
+	LCD_BPP4_CLUT,
+	LCD_BPP8_CLUT,
+	LCD_BPP8_2321,
+	LCD_BPP16_565,
+	LCD_BPP16_5551,
+	LCD_BPP32_666,
+	LCD_BPP32_6651,
+	LCD_BPP32_6661,
+	LCD_BPP32_888,
+	LCD_BPP32_8871,
+	LCD_BPP32_8881,
+	LCD_BPP32_8884
+} LCD_BPP_FORMATS;
+
+
+/************************************************************************/
+/* TYPES AND STRUCTURES							*/
+/************************************************************************/
+
+#ifdef CONFIG_PXA250
+/*
+ * PXA LCD DMA descriptor
+ */
+struct pxafb_dma_descriptor {
+	u_long	fdadr;		/* Frame descriptor address register */
+	u_long	fsadr;		/* Frame source address register */
+	u_long	fidr;		/* Frame ID register */
+	u_long	ldcmd;		/* Command register */
+};
+
+/*
+ * PXA LCD info
+ */
+struct pxafb_info {
+
+	/* Misc registers */
+	u_long	reg_lccr3;
+	u_long	reg_lccr2;
+	u_long	reg_lccr1;
+	u_long	reg_lccr0;
+	u_long	fdadr0;
+	u_long	fdadr1;
+
+	/* DMA descriptors */
+	struct	pxafb_dma_descriptor *	dmadesc_fblow;
+	struct	pxafb_dma_descriptor *	dmadesc_fbhigh;
+	struct	pxafb_dma_descriptor *	dmadesc_palette;
+
+	u_long	screen;		/* physical address of frame buffer */
+	u_long	palette;	/* physical address of palette memory */
+	u_int	palette_size;
+	u_char	datapol;	/* DATA polarity (0=normal, 1=inverted) */
+};
+#endif /*CONFIG_PXA250*/
+
+/*
+ * Common LCD panel information
+ */
+typedef struct vidinfo {
+	/* Horizontal control */
+	u_short	hfp;		/* Front porch (between data and HSYNC) */
+	u_short hsw;		/* Horizontal sync pulse (HSYNC) width */
+	u_short hbp;		/* Back porch (between HSYNC and data) */
+	u_short	hres;		/* Horizontal pixel resolution (i.e. 640) */
+
+	/* Vertical control */
+	u_short vfp;		/* Front porch (between data and VSYNC) */
+	u_short	vsw;		/* Vertical sync pulse (VSYNC) width */
+	u_short vbp;		/* Back porch (between VSYNC and data) */
+	u_short	vres;		/* Vertical pixel resolution (i.e. 480) */
+
+	/* Signal polarity */
+	u_char  hspol;	        /* HSYNC polarity (0=normal, 1=inverted) */
+	u_char  vspol;		/* VSYNC polarity (0=normal, 1=inverted) */
+	u_char  denpol;		/* DEN polarity (0=normal, 1=inverted) */
+	u_char  clkpol;		/* Clock polarity (0=normal, 1=inverted) */
+
+	/* Timings */
+	u_int   fps;		/* Frame rate (in frames per second) */
+	u_int   clk;		/* Pixel clock (in Hz) */
+
+	/* Backlight settings */
+	u_int   pwmvalue;	/* PWM value (voltage) */
+	u_int   pwmfreq;	/* PWM frequency */
+	u_char  pwmenable;	/* 0: disabled, 1: enabled */
+
+	/* Display type */
+	u_char  type;		/* Bit 0: 0: 4-bit bus, 1: 8-bit bus
+				   Bit 1: 0: single-scan, 1: dual-scan
+				   Bit 2: 0: STN, 1: CSTN
+				   Bit 3: 0: (C)STN, 1: TFT */
+
+	/* Additional settings */
+	u_char  strength;	/* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
+	u_char	dither;		/* Dither mode (FRC) #### */
+	u_int   debug;		/* Debug configuration */
+
+	/* General info */
+	u_short	hsize;		/* Width of display area in millimeters */
+	u_short	vsize;		/* Height of display area in millimeters */
+	u_char  name[MAX_NAME];	/* Manufacturer, display and resolution */
+
+#ifdef CONFIG_PXA250
+	/* PXA LCD controller params */
+	struct	pxafb_info pxa;
+#endif
+#ifdef CONFIG_ATMEL_LCD
+	u_long	mmio;		/* Memory mapped registers */
+#endif
+} vidinfo_t;
+
+
+typedef struct wininfo
+{
+	void *fbbuf[2];			  /* Pointers to primary/backing fb */
+	ulong fbsize;			  /* Size of this framebuffer (bytes) */
+	ulong linelen;			  /* Bytes per hres_v line */
+	XYPOS hres_v;			  /* Virtual size of framebuffer */
+	XYPOS vres_v;
+	XYPOS hoffs;			  /* Offset within framebuffer */
+	XYPOS voffs;
+	XYPOS hres;			  /* Size of visible window */
+	XYPOS vres;
+	XYPOS hpos;			  /* Position of window on display */
+	XYPOS vpos;
+	XYPOS column;			  /* Console info (character based) */
+	XYPOS row;
+	uint fbmodify;			  /* Index of framebuffer to modify */
+	uint fbshare;			  /* Mask of shared framebuffers */
+	LCD_BPP_FORMATS pixformat;	  /* Pixel format */
+	COLORVAL fg_col;		  /* Foreground color */
+	COLORVAL bg_col;		  /* Background color */
+
+	/* Function to draw a pixel */
+	void (*lcd_pixel)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
+			  COLORVAL col);
+
+	/* Function to draw a filled rectangle */
+	void (*lcd_rect)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
+			 ushort width, ushort height, COLORVAL col);
+
+	/* Function to draw a character */
+	void (*lcd_char)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
+			 uchar c);
+} wininfo_t;
+
+
+/************************************************************************/
+/* EXPORTED VARIABLES							*/
+/************************************************************************/
+
+extern vidinfo_t panel_info;
+extern char lcd_is_enabled;
+
+
+
+
+
+/************************************************************************/
+/* PROTOTYPES OF EXPORTED FUNCTIONS IMPLEMENTED BY GENERIC PART lcd.c   */
+/************************************************************************/
+
+/* Video functions */
+
+#if defined(CONFIG_RBC823)
+void	lcd_disable	(void);
+#endif
+
+/* int	lcd_init(void *lcdbase); */
+extern void lcd_putc(const char c);
+extern void lcd_puts(const char *s);
+extern void lcd_printf(const char *fmt, ...);
+
+/* Enable or disable the display */
+extern void lcd_enable(uchar enable);
+
+/* Find predefined panel by index, returns 0 (and vi unchanged) on bad index */
+extern uint lcd_getpanel(uint index, vidinfo_t *vi);
+
+/* Search panel by string, start at index; return index (or 0 if no match) */ 
+extern uint lcd_searchpanel(uint index, char *s);
+
+/* Set new framebuffer pool information */
+extern void lcd_setfbpool(ulong size, ulong base);
+
+extern 
+
+/* Clear selected window(s) */
+extern void lcd_clear(void);
+
+/* Get a copy of the panel info */
+extern void lcd_getvidinfo(vidinfo_t *vi);
+
+/* Set/update panel info */
+extern void lcd_setvidinfo(vidinfo_t *vi);
+
+/* Select a window */
+extern void lcd_winselect(uint window);
+
+/* Select a window and get window information */
+extern void lcd_getwininfo(uint window, wininfo_t *wi);
+
+/* Set/update window information for currently selected */
+extern void lcd_winsize(uint hres, uint vres);
+
+
+/************************************************************************/
+/* EXPORTED FUNCTIONS IMPLEMENTED BY CONTROLLER SPECIFIC PART		*/
+/************************************************************************/
+
+/* Get pointer to a string describing the pixel format */
+extern const char *lcd_getpixformat(u_short pix);
+
+/* Get the closest matching pixel format for the given number:
+   1..32: bits per pixel, 111..888: RGB, 1111..8888: RGBA */
+extern u_short lcd_getpix(u_int n);
+
+/* Update controller hardware with new vidinfo */
+extern void lcd_update(vidinfo_t *vi);
+
+/* Get a COLORVAL entry with the given RGBA value */
+extern COLORVAL lcd_getcolorval(u_int rgba);
+
 
 #endif	/* _LCD_H_ */

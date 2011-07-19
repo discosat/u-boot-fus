@@ -25,7 +25,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= lib$(BOARD).a
 
-OBJS	:= picomod6.o flash.o usb_ohci_pm6.o
+OBJS	:= picomod6.o flash.o usb_ohci_pm6.o lcd_s3c64xx.o
 SOBJS	:= lowlevel_init.o
 
 $(LIB):	$(OBJS) $(SOBJS)
