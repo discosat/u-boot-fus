@@ -120,6 +120,12 @@ lowlevel_init:
 #endif /* !CONFIG_PICOMOD6 */
 	
 
+	/*  0x00000000 - 0x4FFFFFFF: 1:1, no caching
+	    0x50000000 - 0x57FFFFFF: 1:1, write-through
+	    0x58000000 - 0x5FFFFFFF: 1:1, no caching
+	    0x60000000 - 0x67FFFFFF -> 0x50000000 - 0x57FFFFFF, no caching
+	    0x68000000 - 0x9FFFFFFF: 1:1, no caching
+	    0xA0000000 - 0xFFFFFFFF: Invalid */
 setup_mmu_table:
 	ldr	r0, =mmu_table
 	mov	r1, #0			  // base
@@ -127,7 +133,12 @@ setup_mmu_table:
 	cmp	r1, #0xA00
 	bhs	3f
 	lsl	r2, r1, #20
-	orr	r2, r2, #(3<<10)	 // AP
+	cmp	r1, #0x600
+	blo	2f
+	cmp	r1, #0x680
+	bhs	2f
+	sub	r2, r2, #0x10000000
+2:	orr	r2, r2, #(3<<10)	 // AP
 	orr	r2, r2, #(1<<4)|2	 // NX, 1MB Section entry
 	cmp	r1, #0x500
 	blo	3f

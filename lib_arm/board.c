@@ -553,45 +553,6 @@ void start_armboot (void)
 #endif
 	}
 
-#if 0
-	//######>>>>>
-	{
-		unsigned jj;
-		unsigned char *pp = (unsigned char *)0x50000000;
-
-		extern void *mymemcpy(void *dest, void *src, size_t count);
-		extern void *mymemmove(void *dest, void *src, size_t count);
-		for (jj=0; jj<256; jj++)
-			pp[jj] = jj;
-		memset(pp+256, 0xcc, 256);
-		memset(pp+512, 0xcc, 256);
-		memset(pp+768, 0xcc, 256);
-		memset(pp+1024, 0xcc, 256);
-		memset(pp+1280, 0xcc, 256);
-		printf("Before:");
-		for (jj=0; jj<256; jj++)
-		{
-			if ((jj & 0xF) == 0)
-				printf("\n%02x:", jj);
-			printf(" %02x", pp[jj+256]);
-		}
-		mymemmove(pp+259, pp, 253);
-		mymemmove(pp+515, pp, 252);
-		mymemmove(pp+771, pp, 251);
-		mymemmove(pp+1027, pp, 250);
-		mymemmove(pp+1283, pp, 249);
-		printf("\n\nAfter:");
-		for (jj=0; jj<1280; jj++)
-		{
-			if ((jj & 0xF) == 0)
-				printf("\n%03x:", jj);
-			printf(" %02x", pp[jj+256]);
-		}
-		printf("\n");
-	}
-	//######<<<<<
-#endif
-
 	devices_init ();	/* get the devices list going. */
 
 #ifdef CONFIG_CMC_PU2

@@ -70,13 +70,11 @@
 /* ### TODO: Files/Switches, die noch zu testen und ggf. einzubinden sind:
    Define              File           Kommentar
    -------------------------------------------------------------------- 
-   CONFIG_CMD_BMP      cmd_bmp.c      wenn LCD eingebaut
    CONFIG_CMD_DIAG     cmd_diag.c     Selbsttests
    CONFIG_CMD_FAT      cmd_fat.c      fatls, fatinfo, fatload
    CONFIG_CMD_SAVES    cmd_load.c     Upload (save)
    CONFIG_CMD_HWFLOW   cmd_load.c     HW-Handshake (RTS/CTS)
    CONFIG_LOGBUFFER    cmd_log.c      Log-File-Funktionen
-   CONFIG_CMD_MMC      cmd_mmc.c      MMC Card
    CONFIG_CMD_ASKENV   cmd_nvedit.c   Abfragen einer Environmentvariablen über
                                       stdin (z.B. in einem autoskript)
    CONFIG_CMD_PORTIO   cmd_portio.c   in, out (evtl. nützlich für Kunden, die
@@ -92,7 +90,6 @@
                                       man diesen Modus so ändern, dass
 				      Downloads mit NetDCU-USBLoader möglich 
 				      werden
-   CONFIG_LCD          lcd.c          Display-Unterstützung
    CONFIG_USB_KEYBOARD usb_kbd.c      Unterstützung für USB-Tastaturen
  */
 
@@ -171,7 +168,6 @@
 
 /* The PWM Timer 4 uses a divider by 1 and a prescaler of 16. This results in
    the following counter value for 1 sec. */
-//####define CFG_HZ			1562500		/* at PCLK 50MHz */
 #define CFG_HZ			4156250		/* at PCLK 66.5MHz */
 
 

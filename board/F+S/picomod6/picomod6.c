@@ -71,6 +71,10 @@ int board_init(void)
 
 #if 1
 	icache_enable();
+	/* We already set up the MMU pagetable and could switch on the data
+	   cache, but then the USB driver will not work. The idea is to add
+	   another mapping for the RAM without caching and the USB driver
+	   should use this. Maybe other drivers don't work too? */
 //####	dcache_enable();
 #endif
 	return 0;

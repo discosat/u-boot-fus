@@ -111,16 +111,6 @@ int cleanup_before_linux (void)
 
 	disable_interrupts ();
 
-#if 0 //#### #ifdef CONFIG_LCD
-	{
-		extern void lcd_disable(void);
-		extern void lcd_panel_disable(void);
-
-		lcd_disable(); /* proper disable of lcd & panel */
-		lcd_panel_disable();
-	}
-#endif
-
 	/* turn off I/D-cache */
 	asm ("mrc p15, 0, %0, c1, c0, 0":"=r" (i));
 	i &= ~(C1_DC | C1_IC);

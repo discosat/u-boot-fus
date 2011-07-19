@@ -30,6 +30,7 @@
 #include <net.h>
 #include <exports.h>
 #include <xyzModem.h>
+#include <serial.h>			  /* serial_setbrg() */
 
 DECLARE_GLOBAL_DATA_PTR;
 
