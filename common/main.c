@@ -25,7 +25,7 @@
  * MA 02111-1307 USA
  */
 
-/* #define	DEBUG	*/
+/* #define	DEBUG */
 
 #include <common.h>
 #include <watchdog.h>
@@ -63,7 +63,7 @@ extern int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 static int abortboot(int);
 #endif
 
-#undef DEBUG_PARSER
+#define DEBUG_PARSER //######
 
 char        console_buffer[CFG_CBSIZE];		/* console I/O buffer	*/
 
@@ -1098,6 +1098,7 @@ static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen)
 
 /****************************************************************************/
 
+#if 0 //#####
 int parse_line (char *line, char *argv[])
 {
 	int nargs = 0;
@@ -1145,9 +1146,12 @@ int parse_line (char *line, char *argv[])
 #endif
 	return (nargs);
 }
+#endif //0 #####
+
 
 /****************************************************************************/
 
+#if 0 //#####
 static void process_macros (const char *input, char *output)
 {
 	char c, prev;
@@ -1257,6 +1261,8 @@ static void process_macros (const char *input, char *output)
 		strlen (output_start), output_start);
 #endif
 }
+#endif //#####0
+
 
 /****************************************************************************
  * returns:
@@ -1271,7 +1277,7 @@ static void process_macros (const char *input, char *output)
  *
  * We must create a temporary copy of the command since the command we get
  * may be the result from getenv(), which returns a pointer directly to
- * the environment data, which may change magicly when the command we run
+ * the environment data, which may change magically when the command we run
  * creates or modifies environment variables (like "bootp" does).
  */
 
@@ -1279,19 +1285,32 @@ int run_command (const char *cmd, int flag)
 {
 	cmd_tbl_t *cmdtp;
 	char cmdbuf[CFG_CBSIZE];	/* working copy of cmd		*/
-	char *token;			/* start of token in cmdbuf	*/
-	char *sep;			/* end of token (separator) in cmdbuf */
-	char finaltoken[CFG_CBSIZE];
-	char *str = cmdbuf;
+	char output[CFG_CBSIZE];
 	char *argv[CFG_MAXARGS + 1];	/* NULL terminated	*/
-	int argc, inquotes;
+	int argc;
 	int repeatable = 1;
 	int rc = 0;
+	char c;
+	char delim;
+	int varindex;
+	char *input = cmdbuf;
+	char *s;
+	int out;
+	int error;
+
+	/* The parser uses a state machine to decide how a character is to be
+	   interpreted. */
+	enum parse_state {
+		PS_WS,	      /* Ignoring whitespace at beginning of argument */
+		PS_NORMAL,    /* Normal unquoted argument */
+		PS_SQ,	      /* Within single quotes */
+		PS_DQ,	      /* Within double quotes */
+	} ps;
 
 #ifdef DEBUG_PARSER
-	printf ("[RUN_COMMAND] cmd[%p]=\"", cmd);
-	puts (cmd ? cmd : "NULL");	/* use puts - string may be loooong */
-	puts ("\"\n");
+	printf("[RUN_COMMAND] cmd[%p]=\"", cmd);
+	puts(cmd ? cmd : "NULL");	/* use puts - string may be loooong */
+	puts("\"\n");
 #endif
 
 	clear_ctrlc();		/* forget any previous Control C */
@@ -1301,57 +1320,209 @@ int run_command (const char *cmd, int flag)
 	}
 
 	if (strlen(cmd) >= CFG_CBSIZE) {
-		puts ("## Command too long!\n");
+		puts ("Command too long!\n");
 		return -1;
 	}
 
 	strcpy (cmdbuf, cmd);
 
-	/* Process separators and check for invalid
-	 * repeatable commands
-	 */
+	/* Parse commands, check for invalid and repeatable commands and
+	   execute command */
 
+	c = *input++;
+	do {
+		/* New command */
+		out = 0;
+		error = 0;
+		argc = 0;
+		argv[argc] = output;
+		ps = PS_WS;
+		do {
+			/* Command separator */
+			if (c == ';') {
+				if ((ps == PS_WS) || (ps == PS_NORMAL)) {
+					c = *input++;
+					break;
+				}
+				output[out++] = c;
+			} else if (c == '\\') {
+				c = *input++;
+				if (!c) {
+					output[out++] = '\\';
+					break;
+				}
+				output[out++] = c;
+			} else {
+				switch (c) {
+				case ' ':
+				case '\t':
+					if ((ps == PS_DQ) || (ps == PS_SQ))
+						output[out++] = c;
+					else if (ps == PS_NORMAL) {
+						/* Start new argument */
+						output[out++] = 0;
+						argv[argc] = output + out;
+						ps = PS_WS;
+					}
+					break;
+
+				case '\'':
+					if (ps == PS_DQ)
+						output[out++] = c;
+					else if (ps == PS_SQ)
+						ps = PS_NORMAL;
+					else {
+						if (ps == PS_WS)
+							argc++;
+						ps = PS_SQ;
+					}
+					break;
+
+				case '\"':
+					if (ps == PS_SQ)
+						output[out++] = c;
+					else if (ps == PS_DQ)
+						ps = PS_NORMAL;
+					else {
+						if (ps == PS_WS)
+							argc++;
+						ps = PS_DQ;
+					}
+					break;
+
+				case '$':
+					if (ps == PS_SQ) {
+						output[out++] = c;
+						break;
+					}
+					if (ps == PS_WS) {
+						argc++;
+						ps = PS_NORMAL;
+					}
+					/* Save start of variable */
+					varindex = out;
+					output[out++] = c;
+					if (out >= CFG_CBSIZE)
+						break;
+
+					/* Check for opening brace */
+					c = *input++;
+					if (!c)
+						break;
+
+					if (c == '(')
+						delim = ')';
+					else if (c == '{')
+						delim = '}';
+					else {
+						output[out++] = c;
+						break;
+					}
+
+					/* Copy var name */
+					do {
+						output[out++] = c;
+						c = *input++;
+					} while (c && (c != delim)
+						 && (out < CFG_CBSIZE));
+
+					/* Unexpected end of command or no
+					   more room in buffer */
+					if (!c || (out >= CFG_CBSIZE))
+						break;
+
+					/* The variable name starts 2 chars
+					   after the $( or ${ respectively;
+					   read the environment variable */
+					output[out] = 0;
+					s = getenv(output + varindex + 2);
 #ifdef DEBUG_PARSER
-	printf ("[PROCESS_SEPARATORS] %s\n", cmd);
+					printf("[$(%s)='",
+					       output + varindex + 2);
+					puts(s);
+					puts("']\n");
 #endif
-	while (*str) {
 
-		/*
-		 * Find separator, or string end
-		 * Allow simple escape of ';' by writing "\;"
-		 */
-		for (inquotes = 0, sep = str; *sep; sep++) {
-			if ((*sep=='\'') &&
-			    (*(sep-1) != '\\'))
-				inquotes=!inquotes;
+					/* Resume to start of variable */
+					out = varindex;
 
-			if (!inquotes &&
-			    (*sep == ';') &&	/* separator		*/
-			    ( sep != str) &&	/* past string start	*/
-			    (*(sep-1) != '\\'))	/* and NOT escaped	*/
+					/* Copy var content to output */
+					if (s) {
+						do {
+							char cc;
+							cc = *s++;
+							if (!cc)
+								break;
+							output[out++] = cc;
+						} while (out < CFG_CBSIZE);
+					}
+					break;
+
+				default:  /* Any other character */
+					output[out++] = c;
+					if (ps == PS_WS) {
+						argc++;
+						ps = PS_NORMAL;
+					}
+					break;
+				}
+			}
+			if (!c)
 				break;
-		}
+			/* Make sure that we don't exceed the allowed number
+			   of arguments */
+			if (argc >= CFG_MAXARGS) {
+				argc--;
+				error |= 1; /* Remember as error */
+			}
 
-		/*
-		 * Limit the token to data between separators
-		 */
-		token = str;
-		if (*sep) {
-			str = sep + 1;	/* start of command for next pass */
-			*sep = '\0';
-		}
-		else
-			str = sep;	/* no more commands for next pass */
+			/* If string is too long, store all remaining
+			   characters in the last character; this will give a
+			   strange result but as we don't execute this command
+			   anyway, it does not matter. By doing this here, we
+			   don't need to check for enough space in the buffer
+			   in the loop above and we also automatically find
+			   the end of the current command. */
+			if (out >= CFG_CBSIZE) {
+				out--;
+				error |= 2; /* Remember as error */
+			}
+
+			/* Get next character */
+			c = *input++;
+		} while (c);
+
+		/* Write final 0 */
+		output[out] = 0;
+
 #ifdef DEBUG_PARSER
-		printf ("token: \"%s\"\n", token);
+		{
+			int i;
+
+			for (i=0; i<argc; i++)
+				printf("[argv[%d]='%s']\n", i, argv[i]);
+		}
 #endif
 
-		/* find macros in this token and replace them */
-		process_macros (token, finaltoken);
+		/* argv is NULL terminated */
+		argv[argc] = NULL;
 
-		/* Extract arguments */
-		if ((argc = parse_line (finaltoken, argv)) == 0) {
-			rc = -1;	/* no command at all */
+		/* Check for some errors that may have appeared while parsing
+		   the command */
+		if (error) {
+			char *pReason;
+			if (error & 1)
+				pReason = "Too many command arguments!\n";
+			else
+				pReason = "Expanded command too long!\n";
+			puts(pReason);
+			rc = -1;
+			continue;
+		}
+
+		/* Do we have an empty command? */
+		if (!argc) {
+			rc = -1;
 			continue;
 		}
 
@@ -1362,18 +1533,19 @@ int run_command (const char *cmd, int flag)
 			continue;
 		}
 
-		/* found - check max args */
+		/* Found - check max args */
 		if (argc > cmdtp->maxargs) {
 			printf ("Usage:\n%s\n", cmdtp->usage);
 			rc = -1;
 			continue;
 		}
 
+
 #if defined(CONFIG_CMD_BOOTD)
 		/* avoid "bootd" recursion */
 		if (cmdtp->cmd == do_bootd) {
 #ifdef DEBUG_PARSER
-			printf ("[%s]\n", finaltoken);
+			printf ("[%s]\n", output);
 #endif
 			if (flag & CMD_FLAG_BOOTD) {
 				puts ("'bootd' recursion detected\n");
@@ -1395,7 +1567,7 @@ int run_command (const char *cmd, int flag)
 		/* Did the user stop this? */
 		if (had_ctrlc ())
 			return -1;	/* if stopped then not repeatable */
-	}
+	} while (c);
 
 	return rc ? rc : repeatable;
 }
