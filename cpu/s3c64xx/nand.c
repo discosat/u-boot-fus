@@ -854,7 +854,7 @@ void board_nand_init(struct nand_chip *nand)
 #if defined(CFG_NAND_HWECC)
 	int i;
 	u_char tmp;
-	struct nand_flash_dev *type = NULL;
+	const struct nand_flash_dev *type = NULL;
 #endif
 
 	if (INF_REG3_REG >= 2 && INF_REG3_REG <= 6)

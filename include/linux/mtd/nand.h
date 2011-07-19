@@ -465,8 +465,8 @@ struct nand_manufacturers {
 	char * name;
 };
 
-extern struct nand_flash_dev nand_flash_ids[];
-extern struct nand_manufacturers nand_manuf_ids[];
+extern const struct nand_flash_dev nand_flash_ids[];
+extern const struct nand_manufacturers nand_manuf_ids[];
 
 /**
  * struct nand_bbt_descr - bad block table descriptor

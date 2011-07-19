@@ -26,7 +26,7 @@
 #define memzero(dest, count) memset(dest, 0, count)
 
 /* This one is new: fill count words starting at dest with data */
-extern unsigned *memset32(const unsigned *dest, unsigned data, unsigned count);
+extern unsigned *memset32(unsigned *dest, unsigned data, unsigned count);
 
 #else
 

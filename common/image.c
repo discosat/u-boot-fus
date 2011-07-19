@@ -80,7 +80,7 @@ typedef struct table_entry {
 	char	*lname;		/* long (output) name		*/
 } table_entry_t;
 
-static table_entry_t uimage_arch[] = {
+static const table_entry_t uimage_arch[] = {
 	{	IH_ARCH_INVALID,	NULL,		"Invalid ARCH",	},
 	{	IH_ARCH_ALPHA,		"alpha",	"Alpha",	},
 	{	IH_ARCH_ARM,		"arm",		"ARM",		},
@@ -103,7 +103,7 @@ static table_entry_t uimage_arch[] = {
 	{	-1,			"",		"",		},
 };
 
-static table_entry_t uimage_os[] = {
+static const table_entry_t uimage_os[] = {
 	{	IH_OS_INVALID,	NULL,		"Invalid OS",		},
 #if defined(CONFIG_ARTOS) || defined(USE_HOSTCC)
 	{	IH_OS_ARTOS,	"artos",	"ARTOS",		},
@@ -135,7 +135,7 @@ static table_entry_t uimage_os[] = {
 	{	-1,		"",		"",			},
 };
 
-static table_entry_t uimage_type[] = {
+static const table_entry_t uimage_type[] = {
 	{	IH_TYPE_INVALID,    NULL,	  "Invalid Image",	},
 	{	IH_TYPE_FILESYSTEM, "filesystem", "Filesystem Image",	},
 	{	IH_TYPE_FIRMWARE,   "firmware",	  "Firmware",		},
@@ -148,7 +148,7 @@ static table_entry_t uimage_type[] = {
 	{	-1,		    "",		  "",			},
 };
 
-static table_entry_t uimage_comp[] = {
+static const table_entry_t uimage_comp[] = {
 	{	IH_COMP_NONE,	"none",		"uncompressed",		},
 	{	IH_COMP_BZIP2,	"bzip2",	"bzip2 compressed",	},
 	{	IH_COMP_GZIP,	"gzip",		"gzip compressed",	},
@@ -513,7 +513,7 @@ static void genimg_print_time (time_t timestamp)
  *     long entry name if translation succeeds
  *     msg otherwise
  */
-static char *get_table_entry_name (table_entry_t *table, char *msg, int id)
+static char *get_table_entry_name (const table_entry_t *table, char *msg, int id)
 {
 	for (; table->id >= 0; ++table) {
 		if (table->id == id)
@@ -556,10 +556,10 @@ const char *genimg_get_comp_name (uint8_t comp)
  *     entry id if translation succeeds
  *     -1 otherwise
  */
-static int get_table_entry_id (table_entry_t *table,
+static int get_table_entry_id (const table_entry_t *table,
 		const char *table_name, const char *name)
 {
-	table_entry_t *t;
+	const table_entry_t *t;
 #ifdef USE_HOSTCC
 	int first = 1;
 
