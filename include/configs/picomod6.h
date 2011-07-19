@@ -169,9 +169,10 @@
 /* Strange -- not used anywhere, but everybody and its dog undefines it */
 #undef CFG_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
-/* The PWM Timer 4 uses a counter of 15625 for 10 ms, so we need it to wrap
-   100 times (total 1562500) to get 1 sec. */
-#define CFG_HZ			1562500		/* at PCLK 50MHz */
+/* The PWM Timer 4 uses a divider by 1 and a prescaler of 16. This results in
+   the following counter value for 1 sec. */
+//####define CFG_HZ			1562500		/* at PCLK 50MHz */
+#define CFG_HZ			4156250		/* at PCLK 66.5MHz */
 
 
 /************************************************************************

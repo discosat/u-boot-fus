@@ -27,6 +27,8 @@
 #undef	_LINUX_CONFIG_H
 #define _LINUX_CONFIG_H 1	/* avoid reading Linux autoconf.h file	*/
 
+#define ARRAYSIZE(array) (sizeof(array)/sizeof(array[0]))
+
 typedef unsigned char		uchar;
 typedef volatile unsigned long	vu_long;
 typedef volatile unsigned short vu_short;
@@ -492,7 +494,7 @@ int	prt_mpc8220_clks (void);
 ulong	get_OPB_freq (void);
 ulong	get_PCI_freq (void);
 #endif
-#if defined(CONFIG_S3C2400) || defined(CONFIG_S3C2410) || defined(CONFIG_LH7A40X)
+#if defined(CONFIG_S3C2400) || defined(CONFIG_S3C2410) || defined(CONFIG_LH7A40X) || defined(CONFIG_S3C64XX)
 void	s3c2410_irq(void);
 #define ARM920_IRQ_CALLBACK s3c2410_irq
 ulong	get_FCLK (void);
