@@ -477,6 +477,7 @@ ulong	get_FCLK (void);
 ulong	get_HCLK (void);
 ulong	get_PCLK (void);
 ulong	get_UCLK (void);
+ulong	get_MCLK (void);
 #endif
 #if defined(CONFIG_LH7A40X)
 ulong	get_PLLCLK (void);

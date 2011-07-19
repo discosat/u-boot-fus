@@ -166,6 +166,29 @@ void nand_init(void)
 }
 #endif
 
+#ifdef CONFIG_MMC
+void mmc_s3c64xx_board_power(unsigned int channel)
+{
+	switch (channel) {
+	case 0:
+		/* Set GPN6 (GPIO6) as output low for SD card power, disable
+		   any pull-up/down */
+		GPNDAT_REG &= ~0x40;
+		GPNCON_REG = (GPNCON_REG & ~0x3000) | 0x1000;
+		GPNPUD_REG &= ~0x3000;
+		break;
+
+	case 1:
+		/* There is no power switch on this slot, power is always on. */
+		break;
+
+	case 2:
+		/* Not used */
+		break;
+	}
+}
+#endif
+
 #ifdef CONFIG_LCD
 void s3c64xx_lcd_board_init(void)
 {

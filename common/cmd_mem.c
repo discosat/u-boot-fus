@@ -435,7 +435,7 @@ int do_mem_cp ( cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 #endif
 
-#if 0 //#####defined(CONFIG_CMD_MMC)
+#if defined(CONFIG_CMD_MMC)
 	if (mmc2info(dest)) {
 		int rc;
 
