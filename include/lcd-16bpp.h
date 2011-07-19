@@ -5,13 +5,12 @@
 #include <lcd.h>			  /* XYPOS, COLORVAL, WIN_INFO */
 
 /* Draw characters at given position */
-extern void lcd_char16(WIN_INFO *wininfo, XYPOS x, XYPOS y, uchar c);
+extern void lcd_char16(wininfo_t *pwi, XYPOS x, XYPOS y, u_char c);
 
-/* Draw filled rectangle */
-extern void lcd_rect16(WIN_INFO *wininfo, XYPOS x, XYPOS y,
-		       ushort width, ushort height, COLORVAL col);
-
+/* Draw filled rectangle from (x1, y1) to (x1, y2) */
+extern void lcd_rect16(wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+		       COLORVAL col);
 /* Draw a pixel */
-extern void lcd_pixel16(WIN_INFO *wininfo, ushort x, ushort y, COLORVAL col);
+extern void lcd_pixel16(wininfo_t *pwi, XYPOS x, XYPOS y, COLORVAL col);
 
 #endif /*!_LCD_16BPP_H_*/

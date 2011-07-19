@@ -1,8 +1,8 @@
 /*
- * Common LCD routines for supported CPUs
+ * Hardware independent LCD controller part
  *
- * (C) Copyright 2001-2002
- * Wolfgang Denk, DENX Software Engineering -- wd@denx.de
+ * (C) Copyright 2011
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -32,7 +32,7 @@
 #include <config.h>
 #include <common.h>
 #include <command.h>
-#include <version.h>
+//#include <version.h>
 #include <lcd.h>			  /* Own interface */
 #include <video_font.h>			  /* Get font data, width and height */
 #include <stdarg.h>
@@ -44,8 +44,19 @@
 #include <watchdog.h>
 
 
+/************************************************************************/
+/* DEFINITIONS								*/
+/************************************************************************/
 
-#ifdef CONFIG_LCD
+#ifndef CONFIG_FBPOOL_SIZE
+#define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1MB, enough for 800x600@16bpp */
+#endif
+
+/* ###### Noch einzubauen:
+   CONFIG_LCD_LOGO
+   CONFIG_LCD_INFO_BELOW_LOGO
+   ######
+*/
 
 
 /************************************************************************/
@@ -60,17 +71,72 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-/* Window/overlay information */
-WIN_INFO windows[MAX_WINDOWS];
+wininfo_t wininfo[MAX_WINDOWS];		  /* Current window information */
+vidinfo_t vidinfo;			  /* Current panel information */
+coninfo_t coninfo;			  /* Console information */
 
-uint win_selected;			  /* Currently selected windows */
+vidinfo_t panellist[] = {
+	{				  /* Panel 0 */
+		name: "(no display)",	  /* Name, type and dimensions */
+		type:		VI_TYPE_TFT,
+		hdim:		0,
+		vdim:		0,
+		hres:		0,	  /* Resolution */
+		vres:		0,
+		hfp:		24,	  /* Horizontal timing */
+		hsw:		96,
+		hbp:		40,
+		vfp:		10,	  /* Vertical timing */
+		vsw:		2,
+		vbp:		33,
+		hspol:		CFG_LOW,  /* Signal polarity */
+		vspol:		CFG_LOW,
+		denpol:		CFG_HIGH,
+		clkpol:		CFG_HIGH,
+		fps:		60,	  /* Frame rate or pixel clock */
+		clk:		0,
+		pwmenable:	0,	  /* PWM/Backlight setting */
+		pwmvalue:	0,
+		pwmfreq:	0,
+		strength:	3,	  /* Extra settings */
+		dither:		0,
+	},
+	{				  /* Panel 1 */
+		name: "LG.Philips LB064V02", /* Name, type and dimensions */
+		type:		VI_TYPE_TFT,
+		hdim:		132,
+		vdim:		98,
+		hres:		640,	  /* Resolution */
+		vres:		480,
+		hfp:		24,	  /* Horizontal timing */
+		hsw:		96,
+		hbp:		40,
+		vfp:		10,	  /* Vertical timing */
+		vsw:		2,
+		vbp:		33,
+		hspol:		CFG_LOW,  /* Signal polarity */
+		vspol:		CFG_LOW,
+		denpol:		CFG_HIGH,
+		clkpol:		CFG_HIGH,
+		fps:		60,	  /* Frame rate or pixel clock */
+		clk:		0,
+		pwmenable:	0,	  /* PWM/Backlight setting */
+		pwmvalue:	0,
+		pwmfreq:	0,
+		strength:	3,	  /* Extra settings */
+		dither:		0,
+	},
+};
 
-
-ulong lcd_setmem(ulong addr);
-
+/* Size and base address of the framebuffer pool */
+static fbpoolinfo_t fbpool = {
+	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
+	size:	CONFIG_FBPOOL_SIZE,
+	used:	0
+};
+   
 static int lcd_init (void *lcdbase);
 
-static int lcd_clear (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[]);
 static void *lcd_logo (void);
 
 
@@ -94,144 +160,208 @@ static void lcd_getcolreg (ushort regno,
 static int lcd_getfgcolor (void);
 #endif	/* NOT_USED_SO_FAR */
 
-static void console_newline(WIN_INFO *wininfo, uint win);
-static void console_putc(const WIN_INFO *wininfo, const uint win, const char c);
+static void console_putc(char c);
 
+/* Draw pixel; pixel is definitely visible */
+static void lcd_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color);
+
+/* Draw filled rectangle; given region is definitely visible */
+static void lcd_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			XYPOS x2, XYPOS y2, COLOR32 color);
+
+/* Draw a character; character area is definitely visible */
+static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
+			COLOR32 fg, COLOR32 bg);
 
 
 /************************************************************************/
+/* ** Low-Level Graphics Routines					*/
+/************************************************************************/
+
+static void lcd_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color)
+{
+	u_int shift = pwi->pi->bpp_shift;
+	u_int bpp = 1 << shift;
+	u_int x_shift = 5-shift;
+	u_int x_mask = (1 << x_shift) - 1;
+	u_long fbuf;
+	COLOR32 mask;
+	COLOR32 *p;
+
+	/* Compute framebuffer address of the beginning of the row */
+	fbuf = pwi->linelen * y + pwi->fbuf[pwi->fbdraw];
+
+	/* We build the basic mask by using arithmetic right shift */ 
+	mask = (COLOR32)((signed)0x80000000 >> (bpp-1));
+
+	/* Shift the mask to the appropriate pixel */
+	mask >>= (x & x_mask)*bpp;
+
+	/* Remove old pixel and fill in new pixel */
+	p = (COLOR32 *)fbuf + (x >> x_shift);
+	*p = (*p & ~mask) | (color & mask);
+}
+
+
+/* Draw filled rectangle; given region is definitely visible */
+static void lcd_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			XYPOS x2, XYPOS y2, COLOR32 color)
+{
+	u_int shift = pwi->pi->bpp_shift;
+	u_int bpp = 1 << shift;
+	u_int x_shift = 5-shift;
+	u_int x_mask = (1 << x_shift) - 1;
+	u_long fbuf;
+	u_long linelen = pwi->linelen;
+	COLOR32 maskleft, maskright;
+	COLOR32 *p;
+	int count;
+
+	/* The left mask consists of 1s starting at pixel x1 */
+	maskleft = 0xFFFFFFFF >> ((x1 & x_mask)*bpp);
+
+	/* The right mask consists of 1s up to pixel x2 */
+	maskright = 0xFFFFFFFF << ((x_mask - (x2 & x_mask))*bpp);
+
+	/* Compute framebuffer address of the beginning of the top row */
+	fbuf = linelen * y1 + pwi->fbuf[pwi->fbdraw];
+
+	count = y2 - y1;
+	x1 >>= x_shift;
+	x2 >>= x_shift;
+	if (x1 < x2) {
+		/* Fill rectangle consisting of several words per row */
+		do {
+			int i;
+
+			/* Handle leftmost word in row */
+			p = (COLOR32 *)fbuf + x1;
+			*p = (*p & ~maskleft) | (color & maskleft);
+			p++;
+
+			/* Fill all middle words without masking */
+			for (i = x1 + 1; i < x2; i++)
+				*p++ = color;
+
+			/* Handle rightmost word in row */
+			*p = (*p & ~maskright) | (color & maskright);
+
+			/* Go to next row */
+			fbuf += linelen;
+		} while (--count);
+	} else {
+		/* Optimized version for the case where only one word has to be
+		   checked in each row; this includes vertical lines */
+		maskleft &= maskright;
+		p = (COLOR32 *)fbuf + x1;
+		do {
+			*p = (*p & ~maskleft) | (color & maskleft);
+			p += linelen >> 2;
+		} while (--count);
+	}
+}
+
+
+/* Draw a character; character area is definitely visible */
+static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
+			COLOR32 fg, COLOR32 bg)
+{
+	printf("####lcd_ll_char() not yet implemented####\n");
+}
+
 
 /************************************************************************/
 /* ** Console support							*/
 /************************************************************************/
 
-static void console_newline(WIN_INFO *wininfo, uint win)
+#define TABWIDTH (8 * VIDEO_FONT_WIDTH)	  /* 8 chars for tab */
+static void console_putc(char c)
 {
-	XYPOS row;
-	XYPOS yrow0 = 0;
-	uint numrows;
+	int x = coninfo.x;
+	int y = coninfo.y;
+	COLOR32 fg = coninfo.fg;
+	COLOR32 bg = coninfo.bg;
+	wininfo_t *pwi = &wininfo[coninfo.win];
+	int fbhres = pwi->fbhres;
+	int fbvres = pwi->fbvres;
 
-	wininfo->column = 0;
+	switch (c) {
+	case '\t':			  /* Tab */
+		x = ((x / TABWIDTH) + 1) * TABWIDTH;
+		goto CHECKNEWLINE;
 
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-	if (win == 0)
-		yrow0 = BMP_LOGO_HEIGHT;
-#endif
+	case '\b':			  /* Backspace */
+		if (x >= VIDEO_FONT_WIDTH)
+			x -= VIDEO_FONT_WIDTH;
+		else if (y >= VIDEO_FONT_HEIGHT) {
+			y -= VIDEO_FONT_HEIGHT;
+			x = (fbhres/VIDEO_FONT_WIDTH-1) * VIDEO_FONT_WIDTH;
+		}
+		lcd_ll_char(pwi, x, y, ' ', 0, fg, bg);
+		break;
 
-	numrows = (wininfo->vres_v-yrow0)/VIDEO_FONT_HEIGHT;
-	row = wininfo->row + 1;
+	default:			  /* Character */
+		lcd_ll_char(pwi, x, y, c, 0, fg, bg);
+		x += VIDEO_FONT_WIDTH;
+	CHECKNEWLINE:
+		/* Check if there is room on the row for another character */
+		if (x + VIDEO_FONT_WIDTH <= fbhres)
+			break;
+		/* No: fall through to case '\n' */
 
-	/* Check if we need to scroll the terminal */
-	if (row >= numrows) {
-		void *fbbuf = wininfo->fbbuf[wininfo->fbmodify];
-		ulong linelen = wininfo->linelen;
-		XYPOS yrow1 = yrow0 + VIDEO_FONT_HEIGHT;
-		XYPOS scrollsize = (numrows-1)*VIDEO_FONT_HEIGHT;
+	case '\n':			  /* Newline */
+		if (y + VIDEO_FONT_HEIGHT <= fbvres)
+			y += VIDEO_FONT_HEIGHT;
+		else {
+			u_long fbuf = pwi->fbuf[pwi->fbdraw];
+			u_long linelen = pwi->linelen;
+			
+			/* Scroll everything up */
+			memcpy((void *)fbuf,
+			       (void *)fbuf + linelen * VIDEO_FONT_HEIGHT,
+			       (fbvres - VIDEO_FONT_HEIGHT) * linelen);
 
-		/* Scroll everything up */
-		memcpy(yrow0*linelen + fbbuf, yrow1*linelen + fbbuf,
-		       scrollsize*linelen);
+			/* Clear bottom line to end of screen with console
+			   background color */
+			memset32((unsigned *)fbuf + y*linelen, bg,
+				 (fbvres - y) * linelen);
+		}
+		/* Fall through to case '\r' */
 
-		/* Clear the last line until end of buffer */
-		yrow0 += scrollsize;
-		memset32(yrow0*linelen + fbbuf, wininfo->bg_col,
-			 (wininfo->vres_v-yrow0)*linelen/4);
-		row--;
+	case '\r':			  /* Carriage return */
+		x = 0;
+		break;
 	}
-	wininfo->row = row;
-}
 
-/*----------------------------------------------------------------------*/
-
-static void console_putc(const WIN_INFO *wininfo, const uint win, const char c)
-{
-	if (!wininfo->lcd_char) {
-		XYPOS x, y;
-
-		x = wininfo->column * VIDEO_FONT_WIDTH;
-		y = wininfo->row * VIDEO_FONT_HEIGHT;
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-		if (win == 0)
-			y += BMP_LOGO_HEIGHT;
-#endif
-		wininfo->lcd_char(wininfo, x, y, c);
-	}
+	coninfo.x = (u_short)x;
+	coninfo.y = (u_short)y;
 }
 
 /*----------------------------------------------------------------------*/
 
 void lcd_putc(const char c)
 {
-	uint winmask;
-	uint win;
-
-	if (!lcd_is_enabled) {
+	if (!lcd_is_enabled)
 		serial_putc(c);
-		return;
-	}
-
-	for (win=0, winmask=0x1; win<MAX_WINDOWS; win++, winmask<<=1) {
-		WIN_INFO *p;
-
-		if (!(win_selected & winmask))
-			continue;
-
-		p = &windows[win];
-
-		switch (c) {
-		  case '\r':		  /* Carriage return */
-			  p->column = 0;
-			  break;
-
-		  case '\t':		  /* Tab (8 chars alignment) */
-			  p->column = (p->column + 8) & ~7;
-			  if (p->column*VIDEO_FONT_WIDTH >= p->hres_v)
-				  console_newline(p, win);
-			  break;
-
-		  case '\b':		  /* Backspace */
-			  if (p->column > 0)
-				  p->column--;
-			  else {
-				  p->column = p->hres_v/VIDEO_FONT_WIDTH - 1;
-				  if (p->row > 0)
-					  p->row--;
-			  }
-			  console_putc(p, win, ' ');
-			  break;
-
-		  default:		  /* Character */
-			  console_putc(p, win, c);
-			  p->column++;
-			  if (p->column * VIDEO_FONT_WIDTH < p->hres_v)
-				  break;
-			  /* Fall through to case '\n' */
-
-		  case '\n':		  /* Newline */
-			  console_newline(p, win);
-			  break;
-		}
-	}
-	
-
+	else
+		console_putc(c);
 }
 
 /*----------------------------------------------------------------------*/
 
 void lcd_puts(const char *s)
 {
-	if (!lcd_is_enabled) {
+	if (!lcd_is_enabled)
 		serial_puts(s);
-		return;
-	}
+	else {
+		for (;;)
+		{
+			char c = *s++;
 
-	for (;;)
-	{
-		char c;
-		c = *s++;
-		if (!c)
-			break;
-		lcd_putc(c);
+			if (!c)
+				break;
+			console_putc(c);
+		}
 	}
 }
 
@@ -250,9 +380,6 @@ void lcd_printf(const char *fmt, ...)
 }
 
 
-/************************************************************************/
-/* ** Low-Level Graphics Routines					*/
-/************************************************************************/
 
 
 /************************************************************************/
@@ -300,116 +427,63 @@ int drv_lcd_init(void)
 {
 	device_t lcddev;
 	int rc;
+	WINDOW win;
+	wininfo_t *pwi;
 
-	win_selected = 1;		  /* Select window 0 */
+	vidinfo = panellist[0];
 
-	lcd_base = (void *)(gd->fb_base);
+	for (win = 0, pwi=wininfo; win < MAX_WINDOWS; win++, pwi++) {
+		u_int buf;
 
-	lcd_line_length = (panel_info.vl_col * NBITS (panel_info.vl_bpix)) / 8;
-	printf("####lcd_line_length=%d\n", lcd_line_length);
+		memset(pwi, 0, sizeof(wininfo_t));
 
-	lcd_init(lcd_base);		/* LCD initialization */
+		/* Initialize some entries */
+		pwi->fbmaxcount = lcd_getfbmaxcount(win);
+		pwi->pix = DEFAULT_PIXEL_FORMAT;
+		pwi->fg = lcd_rgba2col(pwi, 0xFFFFFFFF);   /* Opaque white */
+		pwi->bg = lcd_rgba2col(pwi, 0x000000FF);   /* Opaque black */
+
+		/* Set all valid buffer pointers to the beginning of the
+		   framebuffer pool, all others to NULL */
+		for (buf=0; buf < MAX_BUFFERS_PER_WIN; buf++)
+			pwi->fbuf[buf] =
+				(buf < pwi->fbmaxcount) ? fbpool.base : 0;
+	}
+
+	lcd_ctrl_init();		  /* Initialize LCD controller */
+	printf("####b\n");
+//###	lcd_is_enabled = 1;
+	printf("####c\n");
+//###	lcd_enable ();
+	printf("####d\n");
+
+	printf("####e\n");
+
+	/* Initialize the console */
+	coninfo.win = 0;
+	coninfo.x = 0;
+	coninfo.y = 0;
+	coninfo.fg = lcd_rgba2col(&wininfo[coninfo.win], 0xFFFFFFFF);
+	coninfo.bg = lcd_rgba2col(&wininfo[coninfo.win], 0x000000FF);
 
 	/* Device initialization */
 	memset (&lcddev, 0, sizeof (lcddev));
 
 	strcpy (lcddev.name, "lcd");
-	lcddev.ext   = 0;			/* No extensions */
-	lcddev.flags = DEV_FLAGS_OUTPUT;	/* Output only */
-	lcddev.putc  = lcd_putc;		/* 'putc' function */
-	lcddev.puts  = lcd_puts;		/* 'puts' function */
+	lcddev.ext   = 0;		  /* No extensions */
+	lcddev.flags = DEV_FLAGS_OUTPUT;  /* Output only */
+	lcddev.putc  = lcd_putc;	  /* 'putc' function */
+	lcddev.puts  = lcd_puts;	  /* 'puts' function */
 
 	rc = device_register (&lcddev);
+	if (rc == 0)
+		rc = 1;
 
-	return (rc == 0) ? 1 : rc;
+	return rc;
 }
+
 
 /*----------------------------------------------------------------------*/
-static int lcd_clear (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
-{
-#if LCD_BPP == LCD_MONOCHROME
-	/* Setting the palette */
-	lcd_initcolregs();
-
-#elif LCD_BPP == LCD_COLOR8
-	/* Setting the palette */
-	lcd_setcolreg  (CONSOLE_COLOR_BLACK,       0,    0,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_RED,	0xFF,    0,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_GREEN,       0, 0xFF,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_YELLOW,	0xFF, 0xFF,    0);
-	lcd_setcolreg  (CONSOLE_COLOR_BLUE,        0,    0, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_MAGENTA,	0xFF,    0, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_CYAN,	   0, 0xFF, 0xFF);
-	lcd_setcolreg  (CONSOLE_COLOR_GREY,	0xAA, 0xAA, 0xAA);
-	lcd_setcolreg  (CONSOLE_COLOR_WHITE,	0xFF, 0xFF, 0xFF);
-#endif
-
-#ifndef CFG_WHITE_ON_BLACK
-	lcd_setfgcolor (CONSOLE_COLOR_BLACK);
-	lcd_setbgcolor (CONSOLE_COLOR_WHITE);
-#else
-	lcd_setfgcolor (CONSOLE_COLOR_WHITE);
-	lcd_setbgcolor (CONSOLE_COLOR_BLACK);
-#endif	/* CFG_WHITE_ON_BLACK */
-
-#ifdef	LCD_TEST_PATTERN
-	test_pattern();
-#else
-	printf("####Z\n");
-
-	printf("####lcd_getbgcolor=%d, lcd_line_length=%d, vl_row=%d\n",
-	       lcd_getbgcolor(), lcd_line_length, panel_info.vl_row);
-	/* set framebuffer to background color */
-	memset ((char *)lcd_base,
-		COLOR_MASK(lcd_getbgcolor()),
-		lcd_line_length*panel_info.vl_row);
-	printf("####Y\n");
-#endif
-	/* Paint the logo and retrieve LCD base address */
-	debug ("[LCD] Drawing the logo...\n");
-	lcd_console_address = lcd_logo ();
-	printf("####X\n");
-
-	console_col = 0;
-	console_row = 0;
-
-	return (0);
-}
-
-U_BOOT_CMD(
-	cls,	1,	1,	lcd_clear,
-	"cls     - clear screen\n",
-	NULL
-);
-
-/*----------------------------------------------------------------------*/
-
-static int lcd_init (void *lcdbase)
-{
-	printf("####a\n");
-
-	/* Initialize the lcd controller */
-	debug ("[LCD] Initializing LCD frambuffer at %p\n", lcdbase);
-
-	lcd_ctrl_init (lcdbase);
-	printf("####b\n");
-	lcd_is_enabled = 1;
-	lcd_clear (NULL, 1, 1, NULL);	/* dummy args */
-	printf("####c\n");
-	lcd_enable ();
-	printf("####d\n");
-
-	printf("####e\n");
-	/* Initialize the console */
-	console_col = 0;
-#ifdef CONFIG_LCD_INFO_BELOW_LOGO
-	console_row = 7 + BMP_LOGO_HEIGHT / VIDEO_FONT_HEIGHT;
-#else
-	console_row = 1;	/* leave 1 blank line below logo */
-#endif
-
-	return 0;
-}
 
 
 /************************************************************************/
@@ -446,6 +520,7 @@ ulong lcd_setmem (ulong addr)
 #endif /*!CONFIG_S3C64XX*/
 
 /*----------------------------------------------------------------------*/
+#if 0 //####
 
 static void lcd_setfgcolor(int color)
 {
@@ -482,6 +557,7 @@ static int lcd_getbgcolor (void)
 {
 	return lcd_color_bg;
 }
+#endif //0####
 
 /*----------------------------------------------------------------------*/
 
@@ -790,6 +866,8 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
 extern bmp_image_t *gunzip_bmp(unsigned long addr, unsigned long *lenp);
 #endif
 
+
+#if 0 //######
 static void *lcd_logo (void)
 {
 #ifdef CONFIG_SPLASH_SCREEN
@@ -851,7 +929,539 @@ static void *lcd_logo (void)
 #endif /* CONFIG_LCD_LOGO && !CONFIG_LCD_INFO_BELOW_LOGO */
 }
 
+#endif //0#####
+
 /************************************************************************/
 /************************************************************************/
 
-#endif /* CONFIG_LCD */
+
+
+/************************************************************************/
+/* Framebuffer Pool							*/
+/************************************************************************/
+
+/* Relocate all windows to newaddr, starting at window win */
+void lcd_relocbuffers(u_long newaddr, WINDOW win)
+{
+	/* Relocate all windows, i.e. set all image buffer addresses
+	   to the new address and update hardware */
+	for (; win < MAX_WINDOWS; win++) {
+		u_int buf;
+		wininfo_t wi;
+
+		lcd_getwininfo(&wi, win);
+
+		for (buf=0; buf<wi.fbmaxcount; buf++) {
+			printf("Window %u: Relocated buffer %u from 0x%08lx to"
+			       " 0x%08lx\n", win, buf, wi.fbuf[buf], newaddr);
+			wi.fbuf[buf] = newaddr;
+			if (buf < wi.fbcount)
+				newaddr += wi.fbsize;
+		}
+
+		/* Update controller hardware with new wininfo */
+		lcd_setwininfo(&wi, win);
+	}
+}
+
+
+/* Resize framebuffer for current window, relocate all subsequent windows */
+int lcd_setfbuf(wininfo_t *pwi, WINDOW win, u_short fbhres, u_short fbvres,
+		u_char pix, u_char fbcount)
+{
+	u_int bpp;			  /* Bits per pixel */
+	u_long linelen;			  /* New line length */
+	u_long fbsize;			  /* New size for one image buffer */
+	u_long oldsize;			  /* Old size for all buffers */
+	u_long newsize;			  /* New size for all buffers */
+	u_int buf;
+	u_long addr;
+
+	if ((fbhres == pwi->fbhres) && (fbvres == pwi->fbvres)
+	    && (pix == pwi->pix) && (fbcount == pwi->fbcount))
+		return 0;		  /* Success, nothing to do */
+
+	/* Align horizontal resolution to word boundary. */
+	bpp = 1 << pwi->pi->bpp_shift;
+	linelen = ((u_long)fbhres * bpp + 31) & ~31; /* in bits */
+	fbhres = (u_short)(linelen/bpp);	     /* in pixels */
+	linelen /= 8;				     /* in bytes */
+	fbsize = linelen * fbvres;
+
+	oldsize = pwi->fbsize * pwi->fbcount;
+	newsize = fbsize * fbcount;
+	if (fbpool.used - oldsize + newsize > fbpool.size)
+		return 1;		  /* Framebufferpool too small */
+
+	/* If we are not the last window, we have to relocate the subsequent
+	   windows. */
+	addr = pwi->fbuf[0];
+	if (win+1 < MAX_WINDOWS) {
+		u_long newaddr, oldaddr;
+		u_long used;
+
+		/* Move the framebuffer contents of all subsequent windows in
+		   one go */
+		oldaddr = addr + oldsize;
+		newaddr = addr + newsize;
+		used = oldaddr - fbpool.base;/* Used mem for windows 0..win */
+		used = fbpool.used - used;   /* Used mem for windows win+1.. */
+		memmove((void *)newaddr, (void *)oldaddr, used);
+
+		/* Then relocate the image buffer addresses of these windows */
+		lcd_relocbuffers(newaddr, win+1);
+	}
+
+	/* Now clear the new framebuffer with background color */
+	memset32((unsigned *)addr, pwi->bg, newsize/4);
+
+	/* Set new image buffer addresses for this window */
+	for (buf = 0; buf < pwi->fbmaxcount; buf++) {
+		pwi->fbuf[buf] = addr;
+		if (buf < fbcount)
+			addr += fbsize;
+	}
+
+	/* Set new window data */
+	pwi->fbhres = fbhres;
+	pwi->fbvres = fbvres;
+	pwi->fbcount = fbcount;
+	pwi->pix = pix;
+
+	/* Change the amount of used framepuffer pool */
+	fbpool.used = fbpool.used - oldsize + newsize;
+
+	return 0;			  /* Success */
+}
+
+
+/* Get current framebuffer pool information */
+void lcd_getfbpool(fbpoolinfo_t *pfp)
+{
+	*pfp = fbpool;
+}
+
+
+/* Set new framebuffer pool information */
+void lcd_setfbpool(fbpoolinfo_t *pfp)
+{
+	fbpool = *pfp;
+}
+
+/************************************************************************/
+/* Graphics Primitives							*/
+/************************************************************************/
+
+/* Draw pixel at (x, y) with color */
+void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color)
+{
+	if ((x >= 0) && (x < pwi->fbhres) && (y >= 0) && (y < pwi->fbvres))
+		lcd_ll_pixel(pwi, x, y, color);
+}
+
+
+/* Draw line from (x1, y1) to (x2, y2) in color */
+void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	      COLOR32 color)
+{
+	int dx, dy, dd;
+	XYPOS temp;
+	XYPOS xmax, ymax;
+	XYPOS xoffs, yoffs;
+
+	dx = (int)x2 - (int)x1;
+	if (dx < 0)
+		dx = -dx;
+	dy = (int)y2 - (int)y1;
+	if (dy < 0)
+		dy = -dy;
+
+	xmax = (XYPOS)pwi->fbhres - 1;
+	ymax = (XYPOS)pwi->fbvres - 1;
+
+	if (dy > dx) {			  /* High slope */
+		/* Sort pixels so that y1 <= y2 */
+		if (y1 > y2) {
+			temp = x1;
+			x1 = x2;
+			x2 = temp;
+			temp = y1;
+			y1 = y2;
+			y2 = temp;
+		}
+
+		/* Return if line is completely above or below the display */
+		if ((y2 < 0) || (y1 > xmax))
+			return;
+
+		dd = dy;
+		dx <<= 1;
+		dy <<= 1;
+
+		if (y1 < 0) {
+			/* Clip with upper screen edge */
+			yoffs = -y1;
+			xoffs = (dd + (int)yoffs * dx)/dy;
+			dd += xoffs*dy - yoffs*dx;
+			y1 = 0;
+			x1 += xoffs;
+		}
+
+		/* Return if line fragment is fully left or right of display */
+		if (((x1 < 0) && (x2 < 0)) || ((x1 > xmax) && (x2 > xmax)))
+			return;
+
+		/* We only need y2 as end coordinate */
+		if (y2 > ymax)
+			y2 = ymax;
+
+		if (dx == 0) {
+			/* Draw vertical line */
+			lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+			return;
+		}
+
+		xoffs = (x1 > x2) ? -1 : 1;
+		for (;;) {
+			if ((x1 >= 0) && (x1 <= xmax))
+				lcd_ll_pixel(pwi, x1, y1, color);
+			if (y1 == y2)
+				break;
+			y1++;
+			dd += dx;
+			if (dd >= dy) {
+				dd -= dy;
+				x1 += xoffs;
+			}
+		}
+	} else {			  /* Low slope */
+		/* Sort pixels so that x1 <= x2 */
+		if (x1 > x2) {
+			temp = x1;
+			x1 = x2;
+			x2 = temp;
+			temp = y1;
+			y1 = y2;
+			y2 = temp;
+		}
+
+		/* Return if line is completely left or right of the display */
+		if ((x2 < 0) || (x1 > xmax))
+			return;
+
+		dd = dx;
+		dx <<= 1;
+		dy <<= 1;
+
+		if (x1 < 0) {
+			/* Clip with left screen edge */
+			xoffs = -x1;
+			yoffs = (dd + (int)xoffs * dy)/dx;
+			dd += yoffs*dx - xoffs*dy;
+			x1 = 0;
+			y1 += yoffs;
+		}
+
+		/* Return if line fragment is fully above or below display */
+		if (((y1 < 0) && (y2 < 0)) || ((y1 > ymax) && (y2 > ymax)))
+			return;
+
+		/* We only need x2 as end coordinate */
+		if (x2 > xmax)
+			x2 = xmax;
+
+		if (dy == 0) {
+			/* Draw horizontal line */
+			lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+			return;
+		}
+
+		yoffs = (y1 > y2) ? -1 : 1;
+		for (;;) {
+			if ((y1 >= 0) && (y1 <= ymax))
+				lcd_ll_pixel(pwi, x1, y1, color);
+			if (x1 == x2)
+				break;
+			x1++;
+			dd += dy;
+			if (dd >= dx) {
+				dd -= dx;
+				y1 += yoffs;
+			}
+		}
+	}
+}
+
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in color */
+void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	       COLOR32 color)
+{
+	XYPOS xmax, ymax;
+
+	/* Sort x and y values */
+	if (x1 > x2) {
+		XYPOS xtemp = x1;
+		x1 = x2;
+		x2 = xtemp;
+	}
+	if (y1 > y2) {
+		XYPOS ytemp = y1;
+		y1 = y2;
+		y2 = ytemp;
+	}
+
+	/* Check if object is fully left, right, above or below screen */
+	xmax = (XYPOS)pwi->fbhres - 1;
+	ymax = (XYPOS)pwi->fbvres - 1;
+	if ((x2 < 0) || (y2 < 0) || (x1 > xmax) || (y1 > ymax))
+		return;			  /* Done, object not visible */
+
+	/* If the frame is wider than two pixels, we need to draw
+	   horizontal lines at the top and bottom */
+	if (x2 - x1 > 1) {
+		XYPOS xl, xr;
+
+		/* Clip at left and right screen edges if necessary */
+		xl = (x1 < 0) ? 0 : x1;
+		xr = (x2 > xmax) ? xmax : x2;
+
+		/* Draw top line */
+		if (y1 >= 0) {
+			lcd_ll_rect(pwi, xl, y1, xr, y1, color);
+
+			/* We are done if rectangle is only one pixel high */
+			if (y1 == y2)
+				return;
+		}
+
+		/* Draw bottom line */
+		if (y2 <= ymax)
+			lcd_ll_rect(pwi, xl, y2, xr, y2, color);
+
+		/* For the vertical lines we only need to draw the region
+		   between the horizontal lines, so increment y1 and decrement
+		   y2; if rectangle is exactly two pixels high, we don't
+		   need to draw any vertical lines at all. */
+		if (++y1 == y2--)
+			return;
+	}
+
+	/* Clip at upper and lower screen edges if necessary */
+	if (y1 < 0)
+		y1 = 0;
+	if (y2 > ymax)
+		y2 = ymax;
+
+	/* Draw left line */
+	if (x1 >= 0) {
+		lcd_ll_rect(pwi, x1, y1, x1, y2, color);
+
+		/* Return if rectangle is only one pixel wide */
+		if (x1 == x2)
+			return;
+	}
+
+	/* Draw right line */
+	if (x2 <= xmax)
+		lcd_ll_rect(pwi, x2, y1, x2, y2, color);
+}
+
+
+/* Draw filled rectangle from (x1, y1) to (x2, y2) in color */
+void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	      COLOR32 color)
+{
+	XYPOS xmax, ymax;
+
+	/* Sort x and y values */
+	if (x1 > x2) {
+		XYPOS xtemp = x1;
+		x1 = x2;
+		x2 = xtemp;
+	}
+	if (y1 > y2) {
+		XYPOS ytemp = y1;
+		y1 = y2;
+		y2 = ytemp;
+	}
+
+	/* Check if object is fully left, right, above or below screen */
+	xmax = (XYPOS)pwi->fbhres - 1;
+	ymax = (XYPOS)pwi->fbvres - 1;
+	if ((x2 < 0) || (y2 < 0) || (x1 > xmax) || (y1 > ymax))
+		return;			  /* Done, object not visible */
+
+	/* Clip rectangle to framebuffer boundaries */
+	if (x1 < 0)
+		x1 = 0;
+	if (y1 < 0)
+		y1 = 0;
+	if (x2 > xmax)
+		x2 = xmax;
+	if (y2 >= ymax)
+		y2 = ymax;
+
+	/* Finally draw rectangle */
+	lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+}
+
+
+/* Draw circle outline at (x, y) with radius r and color */
+void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
+{
+	printf("####lcd_circle() not yet implemented####\n");
+}
+
+/* Draw filled circle at (x, y) with radius r and color */
+void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
+{
+	printf("####lcd_disc() not yet implemented####\n");
+}
+
+/* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg */
+void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
+	      COLOR32 fg, COLOR32 bg)
+{
+	printf("####lcd_text() not yet implemented####\n");
+}
+
+/* Draw bitmap from address addr at (x, y) with alignment/attribute a */
+void lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr, u_int a)
+{
+	printf("####lcd_bitmap() not yet implemented####\n");
+}
+
+
+COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count)
+{
+#if 0
+	unsigned nearest = 0;
+	short r, g, b, a;
+	unsigned i;
+
+	signed mindist = 256*256*4;
+
+	r = (short)(rgba >> 24);
+	g = (short)((rgba >> 16) & 0xFF);
+	b = (short)((rgba >> 8) & 0xFF);
+	a = (short)(rgba & 0xFF);
+
+	for (i=0; i<count; i++) {
+		short dr, dg, db, da;
+		signed dist;
+
+		rgba = cmap[i];
+		dr = (short)(rgba >> 24) - r;
+		dg = (short)((rgba >> 16) & 0xFF) - g;
+		db = (short)((rgba >> 8) & 0xFF) - b;
+		da = (short)(rgba & 0xFF) - a;
+		dist = dr*dr + dg*dg + db*db + da*da;
+		if (dist == 0)
+			return (COLOR32)i;	  /* Exact match */
+		if (dist < mindist) {
+			mindist = dist;
+			nearest = i;
+		}
+	}
+
+	return (COLOR32)nearest;
+#else
+	unsigned nearest = 0;
+	u_char r, g, b, a;
+	unsigned i;
+
+	signed mindist = 256*256*4;
+
+	r = (u_char)(rgba >> 24);
+	g = (u_char)(rgba >> 16);
+	b = (u_char)(rgba >> 8);
+	a = (u_char)rgba;
+
+	i = count;
+	do {
+		short d;
+		signed dist;
+
+		rgba = cmap[--i];
+		d = (u_char)(rgba >> 24) - r;
+		dist = d*d;
+		d = (u_char)(rgba >> 16) - g;
+		dist += d*d;
+		d = (u_char)(rgba >> 8) - b;
+		dist += d*d;
+		d = (u_char)rgba - a;
+		dist += d*d;
+		if (dist == 0)
+			return (COLOR32)i;	  /* Exact match */
+		if (dist < mindist) {
+			mindist = dist;
+			nearest = i;
+		}
+	} while (i);
+
+	return (COLOR32)nearest;
+#endif
+}
+
+/************************************************************************/
+/* Video Information Handling						*/
+/************************************************************************/
+
+void lcd_getvidinfo(vidinfo_t *pvi)
+{
+	*pvi = vidinfo;
+}
+
+void lcd_setvidinfo(vidinfo_t *pvi)
+{
+	/* Set new settings to hardware; this updates vidinfo */
+	lcd_hw_vidinfo(pvi, &vidinfo);
+}
+
+/* Find predefined panel by index, returns 0 (and vi unchanged) on bad index */
+int lcd_getpanel(vidinfo_t *pvi, u_int index)
+{
+	if (index >= ARRAYSIZE(panellist))
+		return 1;
+
+	*pvi = panellist[index];
+	return 0;
+}
+
+/* Search panel by string, start at index; return index (or 0 if no match) */ 
+u_int lcd_searchpanel(char *s, u_int index)
+{
+	while (++index < ARRAYSIZE(panellist)) {
+		if (strstr(panellist[index].name, s))
+		    return index;	  /* match */
+	}
+
+	return 0;			  /* no more matches */
+}
+
+
+
+/************************************************************************/
+/* Window Information Handling						*/
+/************************************************************************/
+
+/* Get a pointer to the wininfo structure; the structure should be considered
+   as read-only here; this is more efficient than lcd_getwininfo() as the
+   structure needs not to be copied. lcd_getwininfop() should be prefered in
+   places where window information is required but not changed. */
+const wininfo_t *lcd_getwininfop(WINDOW win)
+{
+	return &wininfo[win];
+}
+
+void lcd_getwininfo(wininfo_t *pwi, WINDOW win)
+{
+	*pwi = wininfo[win];
+}
+
+void lcd_setwininfo(wininfo_t *pwi, WINDOW win)
+{
+	/* Set the values to hardware; this updates wininfo[win] */
+	lcd_hw_wininfo(pwi, win, &wininfo[win]);
+}
+

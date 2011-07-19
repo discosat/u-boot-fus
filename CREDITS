@@ -542,3 +542,8 @@ N: Philip Balister
 E: philip@opensdr.com
 D: Port to Lyrtech SFFSDR development board.
 W: www.opensdr.com
+
+N: Hartmut Keller
+E: keller@fs-net.de
+D: New LCD controller driver & commands; port to F&S PicoMOD6 & PicoCOM3
+W: www.fs-net.de

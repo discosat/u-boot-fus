@@ -34,68 +34,19 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-void lcd_pixel16(WIN_INFO *wininfo, XYPOS x, XYPOS y, COLORVAL col)
+
+
+void lcd_chars16(wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 {
-	void *fbbuf = wininfo->fbbase[wininfo->fbmodify];
-	COLORVAL mask = 0x0000FFFF;
-	COLORVAL *p;
-
-	if (x & 1)
-		mask = ~mask;
-	fbbuf += y * wininfo->linelen + x/2;
-	p = (COLORVAL *)fbbuf;
-	*p = (*p & ~mask) | (col & mask);
-}
-
-void lcd_rect16(WIN_INFO *wininfo, XYPOS x, XYPOS y,
-		ushort width, ushort height, COLORVAL col)
-{
-	void *fbbuf = wininfo->fbbase[wininfo->fbmodify];
-	COLORVAL maskleft, maskright;
-	ushort x2 = x + width - 1;
-	int i;
-	COLORVAL *p;
-
-	if (!width || !height)
-		return;
-
-	maskleft = (x & 1) ? 0xFFFF0000 : 0xFFFFFFFF;
-	maskright = (x2 & 1) ? 0xFFFFFFFF : 0x0000FFFF;
-
-	x >>= 1;
-	x2 >>= 1;
-	fbbuf += y * wininfo->linelen + x;
-	if (x < x2) {
-		/* Fill rectangle */
-		do {
-			p = (COLORVAL *)fbbuf + x;
-			*p = (*p & ~maskleft) | (col & maskleft);
-			p++;
-			for (i=x+1; i<x2; i++)
-				*p++ = col;
-			*p = (*p & ~maskright) | (col & maskright);
-			fbbuf += wininfo->linelen;
-		} while (--height);
-	} else {
-		/* Optimized version for vertical lines */
-		maskleft &= maskright;
-		p = (COLORVAL *)fbbuf + x;
-		do {
-			*p = (*p & ~maskleft) | (col & maskleft);
-			p += wininfo->linelen>>1;
-		} while (--height);
-	}
-}
-
-void lcd_chars16(WIN_INFO *wininfo, XYPOS x, XYPOS y, uchar c)
-{
-	void *fbbuf = wininfo->fbbase[wininfo->fbmodify];
+	u_long fbuf = wininfo->fbbase[wininfo->fbmodify];
+	u_long linelen;
         XYPOS row, col;
 	COLORVAL fgcol = wininfo->fg_col;
 	COLORVAL bgcol = wininfo->bg_col;
 	VIDEO_FONT_TYPE *fontdata;
 
-	fbbuf += y * wininfo->linelen + x/2;
+	linelen = pwi->linelen;
+	fbuf = y * linelen + x/2 + pwi->fbuf[pwi->fbdraw];
 	fontdata = &video_fontdata[c*VIDEO_FONT_HEIGHT];
 	for (row = 0; row < VIDEO_FONT_HEIGHT; row++) {
 		COLORVAL *p = (COLORVAL *)fbbuf;
@@ -118,7 +69,7 @@ void lcd_chars16(WIN_INFO *wininfo, XYPOS x, XYPOS y, uchar c)
 				p++;
 			}
 		}
-		fbbuf += wininfo->linelen;
+		fbuf += linelen;
 	}
 }
 

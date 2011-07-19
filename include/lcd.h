@@ -1,11 +1,9 @@
 /*
- * MPC823 and PXA LCD Controller
+ * Hardware independent LCD controller part
  *
- * Modeled after video interface by Paolo Scaffardi
+ * (C) Copyright 2011
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
- *
- * (C) Copyright 2001
- * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -30,13 +28,16 @@
 #define _LCD_H_
 
 /* Define some types to be used with displays */
-typedef unsigned int COLORVAL;
+typedef unsigned int COLOR32;
 typedef unsigned int RGBA;
+typedef unsigned int WINDOW;
 typedef short XYPOS;
 
 /************************************************************************/
 /* HEADER FILES								*/
 /************************************************************************/
+#include "cmd_lcd.h"			  /* struct kwinfo */
+
 #if defined(CONFIG_CMD_BMP) || defined(CONFIG_SPLASH_SCREEN)
 # include <bmp_layout.h>
 # include <asm/byteorder.h>
@@ -44,7 +45,7 @@ typedef short XYPOS;
 
 /* Architecture specific includes */
 #if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-#include <asm/byteorder.h>
+#include <asm/arch-pxa/pxafb.h>
 #endif
 
 #if defined(CONFIG_MPC823)
@@ -68,6 +69,9 @@ typedef short XYPOS;
 # define PAGE_SIZE	4096
 #endif
 
+#define ARRAYSIZE(array) (sizeof(array)/sizeof(array[0]))
+
+/* Maximum length of a panel name */
 #define MAX_NAME 32
 
 /* Values for type entry of vidinfo_t; if TFT is set, all other bits must be
@@ -192,65 +196,37 @@ typedef short XYPOS;
 /* ENUMERATIONS								*/
 /************************************************************************/
 
-/* Available TrueColor formats; Format: LCD_BPP<BPP>_<RGBA> */
-typedef enum LCD_BPP_FORMATS
-{
-	LCD_BPP1_CLUT,
-	LCD_BPP2_CLUT,
-	LCD_BPP4_CLUT,
-	LCD_BPP8_CLUT,
-	LCD_BPP8_2321,
-	LCD_BPP16_565,
-	LCD_BPP16_5551,
-	LCD_BPP32_666,
-	LCD_BPP32_6651,
-	LCD_BPP32_6661,
-	LCD_BPP32_888,
-	LCD_BPP32_8871,
-	LCD_BPP32_8881,
-	LCD_BPP32_8884
-} LCD_BPP_FORMATS;
-
-
 /************************************************************************/
 /* TYPES AND STRUCTURES							*/
 /************************************************************************/
 
-#ifdef CONFIG_PXA250
-/*
- * PXA LCD DMA descriptor
- */
-struct pxafb_dma_descriptor {
-	u_long	fdadr;		/* Frame descriptor address register */
-	u_long	fsadr;		/* Frame source address register */
-	u_long	fidr;		/* Frame ID register */
-	u_long	ldcmd;		/* Command register */
-};
+typedef struct CON_INFO {
+	WINDOW  win;			  /* Window where console is on */
+	u_short x;			  /* Current writing position */
+	u_short y;			  /* (aligned to characters) */
+	COLOR32 fg;			  /* Foreground and background color */
+	COLOR32 bg;
+} coninfo_t;
 
-/*
- * PXA LCD info
- */
-struct pxafb_info {
 
-	/* Misc registers */
-	u_long	reg_lccr3;
-	u_long	reg_lccr2;
-	u_long	reg_lccr1;
-	u_long	reg_lccr0;
-	u_long	fdadr0;
-	u_long	fdadr1;
+/* Pixel format information */
+typedef struct PIXEL_INFO {
+	u_int  hwmode;			/* Mode required for hardware */
+	u_char depth;			/* Actually used bits for the color */
+	u_char bpp_shift;		/* Bits per pixel as power of 2;
+					   0: 1 bpp, 1: 2 bpp, .. 5: 32bpp */
+	u_short clutsize;		/* Number of CLUT entries
+					   (0=non-palettized) */
+	char *name;			/* Format description */
+} pixinfo_t;
 
-	/* DMA descriptors */
-	struct	pxafb_dma_descriptor *	dmadesc_fblow;
-	struct	pxafb_dma_descriptor *	dmadesc_fbhigh;
-	struct	pxafb_dma_descriptor *	dmadesc_palette;
 
-	u_long	screen;		/* physical address of frame buffer */
-	u_long	palette;	/* physical address of palette memory */
-	u_int	palette_size;
-	u_char	datapol;	/* DATA polarity (0=normal, 1=inverted) */
-};
-#endif /*CONFIG_PXA250*/
+/* Framebuffer pool information */
+typedef struct FBPOOL_INFO {
+	u_long base;			  /* Base address of framebuffer pool */
+	u_long size;			  /* Size of framebuffer pool */
+	u_long used;			  /* Current usage */
+} fbpoolinfo_t;
 
 /*
  * Common LCD panel information
@@ -292,55 +268,40 @@ typedef struct vidinfo {
 	/* Additional settings */
 	u_char  strength;	/* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
 	u_char	dither;		/* Dither mode (FRC) #### */
-	u_int   debug;		/* Debug configuration */
 
 	/* General info */
-	u_short	hsize;		/* Width of display area in millimeters */
-	u_short	vsize;		/* Height of display area in millimeters */
-	u_char  name[MAX_NAME];	/* Manufacturer, display and resolution */
-
-#ifdef CONFIG_PXA250
-	/* PXA LCD controller params */
-	struct	pxafb_info pxa;
-#endif
-#ifdef CONFIG_ATMEL_LCD
-	u_long	mmio;		/* Memory mapped registers */
-#endif
+	u_short	hdim;		/* Width of display area in millimeters */
+	u_short	vdim;		/* Height of display area in millimeters */
+	char    name[MAX_NAME];	/* Manufacturer, display and resolution */
 } vidinfo_t;
 
 
 typedef struct wininfo
 {
-	void *fbbuf[2];			  /* Pointers to primary/backing fb */
-	ulong fbsize;			  /* Size of this framebuffer (bytes) */
-	ulong linelen;			  /* Bytes per hres_v line */
-	XYPOS hres_v;			  /* Virtual size of framebuffer */
-	XYPOS vres_v;
-	XYPOS hoffs;			  /* Offset within framebuffer */
-	XYPOS voffs;
-	XYPOS hres;			  /* Size of visible window */
-	XYPOS vres;
+	u_long fbuf[MAX_BUFFERS_PER_WIN]; /* Pointers to buffers */
+	u_long fbsize;			  /* Size of one buffer (bytes) */
+	u_long linelen;			  /* Bytes per fbhres line */
+	u_char fbcount;			  /* Number of active buffers */
+	u_char fbmaxcount;		  /* Maximum active buffer count */
+	u_char fbdraw;			  /* Index of buffer to draw to */
+	u_char fbshow;			  /* Index of buffer to show */
+	u_char pix;			  /* Current pixel format */
+	const pixinfo_t *pi;		  /* Pointer to pixel format info */
+	u_short fbhres;			  /* Virtual size of framebuffer */
+	u_short fbvres;
+	u_short hoffs;			  /* Offset within framebuffer */
+	u_short voffs;
+	u_short hres;			  /* Size of visible window */
+	u_short vres;
 	XYPOS hpos;			  /* Position of window on display */
 	XYPOS vpos;
-	XYPOS column;			  /* Console info (character based) */
-	XYPOS row;
-	uint fbmodify;			  /* Index of framebuffer to modify */
-	uint fbshare;			  /* Mask of shared framebuffers */
-	LCD_BPP_FORMATS pixformat;	  /* Pixel format */
-	COLORVAL fg_col;		  /* Foreground color */
-	COLORVAL bg_col;		  /* Background color */
+	COLOR32 fg;			  /* Foreground color */
+	COLOR32 bg;			  /* Background color */
+	RGBA *cmap;			  /* If CLUT: Pointer to color map */
 
-	/* Function to draw a pixel */
-	void (*lcd_pixel)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
-			  COLORVAL col);
-
-	/* Function to draw a filled rectangle */
-	void (*lcd_rect)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
-			 ushort width, ushort height, COLORVAL col);
-
-	/* Function to draw a character */
-	void (*lcd_char)(const struct wininfo *wininfo, XYPOS x, XYPOS y,
-			 uchar c);
+#ifdef CONFIG_LCDWIN_EXT
+	struct wininfo_ext ext;		  /* Hardware specific data */
+#endif
 } wininfo_t;
 
 
@@ -350,9 +311,6 @@ typedef struct wininfo
 
 extern vidinfo_t panel_info;
 extern char lcd_is_enabled;
-
-
-
 
 
 /************************************************************************/
@@ -370,22 +328,17 @@ extern void lcd_putc(const char c);
 extern void lcd_puts(const char *s);
 extern void lcd_printf(const char *fmt, ...);
 
-/* Enable or disable the display */
-extern void lcd_enable(uchar enable);
+/* Enable the display, return 0 on success */
+extern int lcd_enable(void);
 
-/* Find predefined panel by index, returns 0 (and vi unchanged) on bad index */
-extern uint lcd_getpanel(uint index, vidinfo_t *vi);
+/* Disable the display */
+extern void lcd_disable(void);
+
+/* Find predefined panel by index, returns 0 on success and 1 on bad index */
+extern int lcd_getpanel(vidinfo_t *pvi, u_int index);
 
 /* Search panel by string, start at index; return index (or 0 if no match) */ 
-extern uint lcd_searchpanel(uint index, char *s);
-
-/* Set new framebuffer pool information */
-extern void lcd_setfbpool(ulong size, ulong base);
-
-extern 
-
-/* Clear selected window(s) */
-extern void lcd_clear(void);
+extern u_int lcd_searchpanel(char *s, u_int index);
 
 /* Get a copy of the panel info */
 extern void lcd_getvidinfo(vidinfo_t *vi);
@@ -393,32 +346,102 @@ extern void lcd_getvidinfo(vidinfo_t *vi);
 /* Set/update panel info */
 extern void lcd_setvidinfo(vidinfo_t *vi);
 
-/* Select a window */
-extern void lcd_winselect(uint window);
+/* Get window information */
+extern void lcd_getwininfo(wininfo_t *wi, WINDOW win);
 
-/* Select a window and get window information */
-extern void lcd_getwininfo(uint window, wininfo_t *wi);
+/* Set new/updated window information */
+extern void lcd_setwininfo(wininfo_t *wi, WINDOW win);
 
-/* Set/update window information for currently selected */
-extern void lcd_winsize(uint hres, uint vres);
+/* Get pointer to current window information */
+extern const wininfo_t *lcd_getwininfop(WINDOW win);
+
+/* Relocate all windows to newaddr, starting at window win */
+extern void lcd_relocbuffers(u_long newaddr, WINDOW win);
+
+/* Resize framebuffer for current window, relocate all subsequent windows */
+extern int lcd_setfbuf(wininfo_t *pwi, WINDOW win, u_short fbhres,
+		       u_short fbvres, u_char pix, u_char fbcount);
+
+/* Get current framebuffer pool information */
+extern void lcd_getfbpool(fbpoolinfo_t *pfp);
+
+/* Set new framebuffer pool information */
+extern void lcd_setfbpool(fbpoolinfo_t *pfp);
+
+
+/* Draw pixel at (x, y) with color */
+extern void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color);
+
+/* Draw line from (x1, y1) to (x2, y2) in color */
+extern void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+		     XYPOS x2, XYPOS y2, COLOR32 color);
+
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in color */
+extern void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+		      XYPOS x2, XYPOS y2, COLOR32 color);
+
+/* Draw filled rectangle from (x1, y1) to (x2, y2) in color */
+extern void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+		     XYPOS x2, XYPOS y2, COLOR32 color);
+
+/* Draw circle outline at (x, y) with radius r and color */
+extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		       COLOR32 color);
+
+/* Draw filled circle at (x, y) with radius r and color */
+extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		     COLOR32 color);
+
+/* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg */
+extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
+		     COLOR32 fg, COLOR32 bg);
+
+/* Draw bitmap from address addr at (x, y) with alignment/attribute a */
+extern void lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr,
+		       u_int a);
+
+/* Lookup nearest possible color in given color map */
+extern COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count);
+
+
+#ifdef CONFIG_LCDWIN_EXT
+/* Parse and execute additional variants of command lcdwin; return WI_UNKNOWN
+   on error or index > WI_UNKNOWN. */
+extern int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si);
+
+/* Print info for those additional variants, index is the result from above */
+extern void lcdwin_ext_print(wininfo_t *pwi, u_int si);
+
+/* Table with additional keywords for lcdwin */
+extern const struct kwinfo winextkeywords[CONFIG_LCDWIN_EXT];
+
+#endif /*CONFIG_WININFO_EXT*/
 
 
 /************************************************************************/
 /* EXPORTED FUNCTIONS IMPLEMENTED BY CONTROLLER SPECIFIC PART		*/
 /************************************************************************/
 
-/* Get pointer to a string describing the pixel format */
-extern const char *lcd_getpixformat(u_short pix);
+/* Get a COLOR32 value from the given RGBA value */
+extern COLOR32 lcd_rgba2col(const wininfo_t *pwi, RGBA rgba);
 
-/* Get the closest matching pixel format for the given number:
-   1..32: bits per pixel, 111..888: RGB, 1111..8888: RGBA */
-extern u_short lcd_getpix(u_int n);
+/* Get an RGBA value from a COLOR32 value */
+extern RGBA lcd_col2rgba(const wininfo_t *pwi, COLOR32 color);
 
-/* Update controller hardware with new vidinfo */
-extern void lcd_update(vidinfo_t *vi);
+/* Return pointer to pixel info (NULL if pix not valid for this window) */
+extern const pixinfo_t *lcd_getpixinfo(WINDOW win, u_char pix);
 
-/* Get a COLORVAL entry with the given RGBA value */
-extern COLORVAL lcd_getcolorval(u_int rgba);
+/* Returns the next valid pixel format >= pix for this window */
+extern u_char lcd_getnextpix(WINDOW win, u_char pix);
+
+/* Return number of image buffers for this window */
+extern u_char lcd_getfbmaxcount(WINDOW win);
+
+/* Set new vidinfo to hardware */
+extern void lcd_hw_vidinfo(vidinfo_t *pvi_new, vidinfo_t *pvi_old);
+
+/* Set new wininfo to hardware */
+extern void lcd_hw_wininfo(wininfo_t *pwi_new, WINDOW win, wininfo_t *pwi_old);
 
 
 #endif	/* _LCD_H_ */
