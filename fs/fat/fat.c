@@ -1027,8 +1027,8 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 				        SECTOR_SIZE;
 
 			cursect++;
-			if ((mydata->fatsize != 32) && (cursect >= rootdir_size)) {
-				debug("End of Fixed Size RootDir\n");
+			if ((mydata->fatsize != 32) && (cursect >= (mydata->rootdir_sect + rootdir_size))) {
+				debug("End of Fixed Size RootDir, rootdir_size %d, cursect %d\n",rootdir_size,cursect);
 				if (dols == LS_ROOT) {
 					printf("\n%d file(s), %d dir(s)\n\n",
 						files, dirs);
