@@ -179,8 +179,8 @@
  * Memory layout
  ************************************************************************/
 /* Don't use MMU on PicoMOD6 */
-#undef CONFIG_ENABLE_MMU
-#ifdef CONFIG_ENABLE_MMU
+#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
+#if 0  //#ifdef CONFIG_ENABLE_MMU
 #define virt_to_phys(x)	virt_to_phy_picomod6(x)
 #else
 #define virt_to_phys(x)	(x)
@@ -201,7 +201,7 @@
 /* This results in the following base address for uboot */
 #define CFG_PHY_UBOOT_BASE	(MEMORY_BASE_ADDRESS + PM6_UBOOT_OFFS)
 
-#ifdef CONFIG_ENABLE_MMU
+#if 0 //###def CONFIG_ENABLE_MMU
 #define CFG_UBOOT_BASE		(0xc0000000 + PM6_UBOOT_OFFS)
 #else
 #define CFG_UBOOT_BASE		CFG_PHY_UBOOT_BASE
@@ -247,6 +247,7 @@
 #define CONFIG_KGDB_SER_INDEX	1	  /* which serial port to use */
 #endif
 
+#define CFG_CONSOLE_IS_IN_ENV		  /* Console can be saved in env */
 //#define CONFIG_UART_66		  /* default clock value of CLK_UART */
 
 
@@ -317,6 +318,7 @@
 
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_USB
+#define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
 #undef CONFIG_CMD_REGINFO		  /* No register info on ARM */
 #define	CONFIG_CMD_NAND

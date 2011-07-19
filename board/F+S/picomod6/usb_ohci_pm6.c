@@ -35,6 +35,10 @@ int usb_board_init(void)
 	GPKCON0_REG = (GPKCON0_REG & ~0xf0000000) | 0x10000000; /* Output */
 	GPKPUD_REG &= 0xffff3fff;	  /* No Pullup/down */
 
+	/* Let the power voltage settle */
+	//udelay(10000);
+udelay(100000);
+
 	return 0;
 }
 

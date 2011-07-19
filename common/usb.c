@@ -647,7 +647,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	if (!dev->have_langid) {
 		err = usb_string_sub(dev, 0, 0, tbuf);
 		if (err < 0) {
-			USB_PRINTF("error getting string descriptor 0 (error=%x)\n",dev->status);
+			USB_PRINTF("error getting string descriptor 0 (error=%lx)\n",dev->status);
 			return -1;
 		} else if (tbuf[0] < 4) {
 			USB_PRINTF("string descriptor 0 too short\n");

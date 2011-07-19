@@ -119,6 +119,32 @@ lowlevel_init:
 	str	r1, [r0, #UTXH_OFFSET]
 #endif /* !CONFIG_PICOMOD6 */
 	
+
+setup_mmu_table:
+	ldr	r0, =mmu_table
+	mov	r1, #0			  // base
+1:	mov	r2, #0
+	cmp	r1, #0xA00
+	bhs	3f
+	lsl	r2, r1, #20
+	orr	r2, r2, #(3<<10)	 // AP
+	orr	r2, r2, #(1<<4)|2	 // NX, 1MB Section entry
+	cmp	r1, #0x500
+	blo	3f
+	cmp	r1, #0x580
+	bhs	3f
+#if 0
+	/* Write-Back-Cache */
+	orr	r2, r2, #(3<<2)		  // RAM region: add read/write access 
+#else
+	/* Write-Through-Cache */
+	orr	r2, r2, #(2<<2)		  // RAM region: add read/write access 
+#endif
+3:	str	r2, [r0], #4		  // Store first level page table entry
+	add	r1, r1, #1		  // Next 1MB section
+	cmp	r1, #0x1000		  // After 4096 entries we are done
+	blo	1b
+
 	mov	lr, r12
 	mov	pc, lr
 #if 1
@@ -346,34 +372,49 @@ nand_asm_init:
 	.word (\base << 20) | (\ap << 10) | \
 	      (\d << 5) | (1<<4) | (\c << 3) | (\b << 2) | (1<<1)
 .endm
-.section .mmudata, "a"
+
+#if 1
+	.section .mmudata, "a", %nobits
 	.align 14
 	// the following alignment creates the mmu table at address 0x4000.
 	.globl mmu_table
 mmu_table:
+	/* We just reserve some space for the mmu_table and fill it by software.
+	   A constant table would require 16kB of code!!! We don't use the bss
+	   section as bss is cleared *after* the mmu_table is set up. This would
+	   destroy our table again. */
+	.space 0x4000
+#else
+	/* Build a constant mmu_table */
+	.section .mmudata, "a"
+	.align 14
+
+	// the following alignment creates the mmu table at address 0x4000.
+	.globl mmu_table
+mmu_table:
+	/* 1:1 Mapping */
 	.set __base,0
-	// 1:1 mapping for debugging
-	.rept 0xA00
+	.rept 0x500
+	FL_SECTION_ENTRY __base,3,0,0,0
+	.set __base,__base+1
+	.endr
+
+	// 128MB for SDRAM at 0x50000000-0x57ffffff
+	.rept 0x580 - 0x500
+	FL_SECTION_ENTRY __base,3,0,1,1
+	.set __base,__base+1
+	.endr
+
+	.rept 0xA00 - 0x580
 	FL_SECTION_ENTRY __base,3,0,0,0
 	.set __base,__base+1
 	.endr
 
 	// access is not allowed.
-	.rept 0xC00 - 0xA00
+	.rept 0x1000 - 0xa00
 	.word 0x00000000
 	.endr
-
-	// 128MB for SDRAM 0xC0000000 -> 0x50000000
-	.set __base, 0x500
-	.rept 0xC80 - 0xC00
-	FL_SECTION_ENTRY __base,3,0,1,1
-	.set __base,__base+1
-	.endr
-
-	// access is not allowed.
-	.rept 0x1000 - 0xc80
-	.word 0x00000000
-	.endr
-
+#endif //0/1
+	
 #endif
 

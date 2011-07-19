@@ -69,6 +69,7 @@
 #if defined(CONFIG_ARM920T) || \
     defined(CONFIG_S3C2400) || \
     defined(CONFIG_S3C2410) || \
+    defined(CONFIG_S3C64XX) || \
     defined(CONFIG_440EP) || \
     defined(CONFIG_PCI_OHCI) || \
     defined(CONFIG_MPC5200) || \
@@ -193,7 +194,7 @@ static void pkt_print (int actual_length, struct usb_device * dev,
 	unsigned long pipe, void * buffer,
 	int transfer_len, struct devrequest * setup, char * str, int small)
 {
-	dbg("%s URB:[%4x] dev:%2d,ep:%2d-%c,type:%s,len:%d/%d stat:%#lx",
+	dbg("%s URB:[%4x] dev:%2ld,ep:%2ld-%c,type:%s,len:%d/%d stat:%#lx",
 			str,
 			sohci_get_current_frame_number (dev),
 			usb_pipedevice (pipe),
@@ -1491,7 +1492,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 		if (--timeout) {
 			wait_ms(1);
 			if (!urb->finished)
-				dbg("\%");
+				dbg("%%");
 
 		} else {
 			err("CTL:TIMEOUT ");

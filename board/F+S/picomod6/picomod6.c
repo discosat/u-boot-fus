@@ -1,10 +1,6 @@
 /*
- * (C) Copyright 2002
- * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
- * Marius Groeger <mgroeger@sysgo.de>
- *
- * (C) Copyright 2002
- * David Mueller, ELSOFT AG, <d.mueller@elsoft.ch>
+ * (C) Copyright 2011
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -70,9 +66,9 @@ int board_init(void)
 	gd->bd->bi_arch_number = MACH_TYPE;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);
 
-#if 0
+#if 1
 	icache_enable();
-	dcache_enable();
+//####	dcache_enable();
 #endif
 	return 0;
 }
@@ -141,6 +137,7 @@ int checkboard(void)
 }
 #endif
 
+#if 0//#### MMU-Test mit 1:1-Mapping
 #ifdef CONFIG_ENABLE_MMU
 ulong virt_to_phy_picomod6(ulong addr)
 {
@@ -152,6 +149,7 @@ ulong virt_to_phy_picomod6(ulong addr)
 	return addr;
 }
 #endif
+#endif //0####
 
 #if defined(CONFIG_CMD_NAND) && defined(CFG_NAND_LEGACY)
 #include <linux/mtd/nand.h>

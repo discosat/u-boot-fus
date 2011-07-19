@@ -63,7 +63,7 @@ extern int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 static int abortboot(int);
 #endif
 
-#define DEBUG_PARSER //######
+#undef DEBUG_PARSER
 
 char        console_buffer[CFG_CBSIZE];		/* console I/O buffer	*/
 
