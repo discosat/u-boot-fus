@@ -24,7 +24,7 @@
  */
 
 /************************************************************************/
-/* ** HEADER FILES							*/
+/* HEADER FILES								*/
 /************************************************************************/
 
 /* #define DEBUG */
@@ -34,7 +34,6 @@
 #include <lcd.h>			  /* Own interface */
 #include <cmd_lcd.h>			  /* cmd_lcd_init() */
 #include <video_font.h>			  /* Get font data, width and height */
-//#include <linux/ctype.h>		  /* isalpha() */
 #include <devices.h>			  /* device_t */
 #include <serial.h>			  /* serial_putc(), serial_puts() */
 #include <watchdog.h>
@@ -344,11 +343,14 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 					/* Blend FG or BG pixel (BG only if not
 					   transparent) */
 					s -= bpp;
-					val &= ~(mask << s);
-					if (fd & fm)
+					if (fd & fm) {
+						val &= ~(mask << s);
 						val |= fg << s;
-					else if (!(attr & ATTR_TRANSP))
+					}
+					else if (!(attr & ATTR_TRANSP)) {
+						val &= ~(mask << s);
 						val |= bg << s;
+					}
 
 					/* Shift mask to next pixel */
 					if (!s) {
@@ -527,9 +529,9 @@ static void test_pattern0(const wininfo_t *pwi)
 	/* Draw 7 of the 8 basic colors (without black) as rectangles */
 	for (i=0; i<7; i++) {
 		x = hleft + (i+2)*dx;
-		draw_ll_rect(pwi, x+1, vbottom-2*dy+1, x+dx-1, vbottom-1, 
+		draw_ll_rect(pwi, x+1, vbottom-2*dy+1, x+dx-1, vbottom-1,
 			     ppi->rgba2col(pwi, coltab[6-i]));
-		draw_ll_rect(pwi, x+1, vtop+1, x+dx-1, vtop+2*dy-1, 
+		draw_ll_rect(pwi, x+1, vtop+1, x+dx-1, vtop+2*dy-1,
 			     ppi->rgba2col(pwi, coltab[i]));
 	}
 
@@ -1085,7 +1087,7 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
  * compute the differences from midpoint to midpoint, it will get much easier.
  * Let's assume we already have the value dd = F(dx+1, dy-1/2) at some
  * midpoint, then we can easily obtain the value of the next midpoint:
- *   dd<0:  E:  deltaE  = F(dx+2, dy-1/2) - dd = 2*dx + 3
+ *   dd<0:  E:	deltaE	= F(dx+2, dy-1/2) - dd = 2*dx + 3
  *   dd>=0: SE: deltaSE = F(dx+2, dy-3/2) - dd = 2*dx - 2*dy + 5
  *
  * We have to start with the midpoint of pixel (dx=0, dy=r) which is
@@ -1097,29 +1099,29 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
  * For the second part of the circle with high slope, the differences from
  * point to point can also be easily computed:
  *   dd<0:  SE: deltaSE = F(dx+3/2, dy-2) - dd = 2*dx - 2*dy + 5
- *   dd>=0: S:  deltaS  = F(dx+1/2, dy-2) - dd = -2*dy + 3
+ *   dd>=0: S:	deltaS	= F(dx+1/2, dy-2) - dd = -2*dy + 3
  *
  * We also have to consider the case when switching the slope, i.e. when we go
  * from midpoint (dx+1, dy-1/2) to midpoint (dx+1/2, dy-1). Again we only need
  * the difference:
  *   delta = F(dx+1/2, dy-1) - F(dx+1, dy-1/2) = F(dx+1/2, dy-1) - dd
- *         = -dx - dy
+ *	   = -dx - dy
  *
  * This results in the following basic circle algorithm:
  *     dx=0; dy=r; dd=1-r;
- *     while (dy>dx)                                   Slope >-1 (low)
- *         SetPixel(dx, dy);
- *         if (dd<0)                                   (*)
- *             dd = dd+2*dx+3; dx=dx+1;                East E
- *         else
- *             dd = dd+2*(dx-dy)+5; dx=dx+1; dy=dy-1;  Southeast SE
+ *     while (dy>dx)				       Slope >-1 (low)
+ *	   SetPixel(dx, dy);
+ *	   if (dd<0)				       (*)
+ *	       dd = dd+2*dx+3; dx=dx+1;		       East E
+ *	   else
+ *	       dd = dd+2*(dx-dy)+5; dx=dx+1; dy=dy-1;  Southeast SE
  *     dd = dd-dx-dy;
- *     while (dy>=0)                                   Slope <-1 (high)
- *         SetPixel(dx, dy)
- *         if (dd<0)
- *             dd = dd+2*(dx-dy)+5; dx=dx+1; dy=dy-1;  Southeast SE
- *         else
- *             dd = dd-2*dy+3; dy=dy-1;                South S
+ *     while (dy>=0)				       Slope <-1 (high)
+ *	   SetPixel(dx, dy)
+ *	   if (dd<0)
+ *	       dd = dd+2*(dx-dy)+5; dx=dx+1; dy=dy-1;  Southeast SE
+ *	   else
+ *	       dd = dd-2*dy+3; dy=dy-1;		       South S
  *
  * A small improvement can be obtained if adding && (dy > dx+1) at position
  * (*). Then there are no corners at slope -1 (45 degrees).
@@ -1241,12 +1243,12 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 /* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg
    the attributes are as follows:
      Bit 1..0: horizontal alignment:  00: left, 01: right,
-               10: hcenter, 11: screen hcenter (x ignored)
+	       10: hcenter, 11: screen hcenter (x ignored)
      Bit 3..2: vertical alignment: 00: top, 01: bottom,
-               10: vcenter, 11: screen vcenter (y ignored)
-     Bit 4: 0: FG+BG, 1: no BG (transparent, bg ignored)
-     Bit 5: 0: normal, 1: double width
-     Bit 6: 0: normal, 1: double height
+	       10: vcenter, 11: screen vcenter (y ignored)
+     Bit 4: 0: normal, 1: double width
+     Bit 5: 0: normal, 1: double height
+     Bit 6: 0: FG+BG, 1: no BG (transparent, bg ignored)
      Bit 7: reserved (blinking?)
      Bit 8: 0: normal, 1: bold
      Bit 9: 0: normal, 1: inverse
@@ -1391,7 +1393,7 @@ static void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci)
 
 	/* Store RGBA value */
 	pci->rgba = rgba;
-	
+
 	/* Premultiply alpha for apply_alpha functions */
 	alpha1 = rgba & 0x000000FF;
 	pci->A256 = 256 - alpha1;
@@ -1561,7 +1563,7 @@ void lcd_putc(const device_t *pdev, const char c)
 {
 	wininfo_t *pwi = (wininfo_t *)pdev->priv;
 	vidinfo_t *pvi = pwi->pvi;
-	
+
 	if (pvi->is_enabled && pwi->active)
 		console_putc(pwi, &pwi->ci, c);
 	else
@@ -1572,7 +1574,7 @@ void lcd_putc(const device_t *pdev, const char c)
 {
 	wininfo_t *pwi = console_pwi;
 	vidinfo_t *pvi = pwi->pvi;
-	
+
 	if (pvi->is_enabled && pwi->active)
 		console_putc(pwi, &coninfo, c);
 	else

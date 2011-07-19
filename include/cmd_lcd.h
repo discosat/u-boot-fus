@@ -119,7 +119,7 @@ typedef struct coninfo {
 
 
 /* Video/LCD device info */
-struct vidinfo 
+struct vidinfo
 {
 	/* Driver specific display info */
 	char *driver_name;		  /* Name of display driver */
@@ -133,8 +133,8 @@ struct vidinfo
 
 	/* Extra settings */
 	u_char	frc;		/* Dither mode (FRC) #### */
-	u_char  drive;	        /* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
-	u_char  reserved;	/* (needed for alignment anyway) */
+	u_char	drive;		/* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
+	u_char	reserved;	/* (needed for alignment anyway) */
 
 	/* Driver independent LCD panel info */
 	lcdinfo_t lcd;			  /* Info about lcd panel */
@@ -232,11 +232,11 @@ struct wininfo
    keyword string for commands using sub-commands (e.g. lcd, window, draw) */
 typedef struct kwinfo
 {
-	u_char  argc_min;
-	u_char  argc_max;
-	u_char  info1;
-	u_char  info2;
-	char    *keyword;
+	u_char	argc_min;
+	u_char	argc_max;
+	u_char	info1;
+	u_char	info2;
+	char	*keyword;
 } kwinfo_t;
 
 

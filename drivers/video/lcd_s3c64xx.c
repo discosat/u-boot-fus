@@ -1,4 +1,36 @@
+/*
+ * Display driver for LCD controller of Samsung S3C64XX
+ *
+ * (C) Copyright 2011
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
+ *
+ * See file CREDITS for list of people who contributed to this
+ * project.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
+/************************************************************************/
+/* HEADER FILES								*/
+/************************************************************************/
+
 #include <config.h>
+
+#ifdef CONFIG_LCD
+
 #include <common.h>
 #include <lcd_s3c64xx.h>		  /* Own interface */
 #include <cmd_lcd.h>			  /* wininfo_t, kwinfo_t, ... */
@@ -76,13 +108,13 @@ static u_long s3c64xx_fbuf[2+2+1+1+1];
    in the hardware. Holding these values in an extra table avoids having to
    read (and convert) the hardware register values everytime again when we
    need this value.
-   Window   Offset    Entries   Remarks
+   Window   Offset    Entries	Remarks
    ----------------------------------------------------------------------
-   0        0         256       Window 0 supports 1, 2, 4, 8 bpp palettes
-   1        256       256       Window 1 supports 1, 2, 4, 8 bpp palettes
-   2        512       16        Window 2 supports 1, 2, 4 bpp palettes
-   3        528       16        Window 3 supports 1, 2, 4 bpp palettes
-   4        544       4         Window 4 supports 1, 2 bpp palettes */
+   0	    0	      256	Window 0 supports 1, 2, 4, 8 bpp palettes
+   1	    256	      256	Window 1 supports 1, 2, 4, 8 bpp palettes
+   2	    512	      16	Window 2 supports 1, 2, 4 bpp palettes
+   3	    528	      16	Window 3 supports 1, 2, 4 bpp palettes
+   4	    544	      4		Window 4 supports 1, 2 bpp palettes */
 static RGBA cmap[256+256+16+16+4];
 
 /* The offsets for each window into the cmap array */
@@ -390,7 +422,7 @@ static RGBA c2r_rgba5551(const wininfo_t *pwi, COLOR32 color)
 
 	rgba = (color >> 10) << 27;	   /* R[7:3] */
 	rgba |= (color & 0x000003E0) << 14;/* G[7:3] */
-	rgba |= (color << 27) >> 16;       /* B[7:3] */
+	rgba |= (color << 27) >> 16;	   /* B[7:3] */
 	rgba |= (rgba & 0xE0E0E000) >> 5;  /* R[2:0], G[2:0], B[2:0] */
 
 	if (color & 0x8000)
@@ -405,7 +437,7 @@ static RGBA c2r_rgba6660(const wininfo_t *pwi, COLOR32 color)
 
 	rgba = (color >> 12) << 26;	    /* R[7:2] */
 	rgba |= (color & 0x00000FC0) << 12; /* G[7:2] */
-	rgba |= (color << 26) >> 16;        /* B[7:2] */
+	rgba |= (color << 26) >> 16;	    /* B[7:2] */
 	rgba |= (rgba & 0xC0C0C000) >> 6;   /* R[1:0], G[1:0], B[1:0] */
 	rgba |= 0xFF;			    /* A[7:0] = 0xFF */
 
@@ -434,7 +466,7 @@ static RGBA c2r_rgba6661(const wininfo_t *pwi, COLOR32 color)
 
 	rgba = (color >> 12) << 26;	    /* R[7:2] */
 	rgba |= (color & 0x00000FC0) << 12; /* G[7:2] */
-	rgba |= (color << 26) >> 16;        /* B[7:2] */
+	rgba |= (color << 26) >> 16;	    /* B[7:2] */
 	rgba |= (rgba & 0xC0C0C000) >> 6;   /* R[1:0], G[1:0], B[1:0] */
 	if (color & 0x00040000)
 		rgba |= 0xFF;		    /* A[7:0] = 0x00 or 0xFF */
@@ -479,7 +511,7 @@ static RGBA c2r_rgba8884(const wininfo_t *pwi, COLOR32 color)
 
 	color <<= 4;
 	color >>= 28;
-	rgba |= color | (color << 4);     /* A[7:0] */
+	rgba |= color | (color << 4);	  /* A[7:0] */
 
 	return rgba;
 }
@@ -922,24 +954,24 @@ static COLOR32 aa_rgba8884(const wininfo_t *pwi, const colinfo_t *pci,
 /************************************************************************/
 
 const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
-	{ 1, 0, 3, r2c_cmap2,    c2r_cmap2,    aa_cmap2,
-	  "2-entry color map"},		                      /* 0 */
-	{ 2, 1, 3, r2c_cmap4,    c2r_cmap4,    aa_cmap4,
-	  "4-entry color map"},		                      /* 1 */
-	{ 4, 2, 3, r2c_cmap16,   c2r_cmap16,   aa_cmap16,
-	  "16-entry color map"},	                      /* 2 */
-	{ 8, 3, 3, r2c_cmap256,  c2r_cmap256,  aa_cmap256,
-	  "256-entry color map"},	                      /* 3 */
+	{ 1, 0, 3, r2c_cmap2,	 c2r_cmap2,    aa_cmap2,
+	  "2-entry color map"},				      /* 0 */
+	{ 2, 1, 3, r2c_cmap4,	 c2r_cmap4,    aa_cmap4,
+	  "4-entry color map"},				      /* 1 */
+	{ 4, 2, 3, r2c_cmap16,	 c2r_cmap16,   aa_cmap16,
+	  "16-entry color map"},			      /* 2 */
+	{ 8, 3, 3, r2c_cmap256,	 c2r_cmap256,  aa_cmap256,
+	  "256-entry color map"},			      /* 3 */
 	{ 8, 3, 2, r2c_rgba2321, c2r_rgba2321, aa_rgba2321,
-	  "RGBA-2321"},			                      /* 4 */
+	  "RGBA-2321"},					      /* 4 */
 	{16, 4, 0, r2c_rgba5650, c2r_rgba5650, aa_rgba5650,
-	 "RGBA-5650 (default)"},	                      /* 5 */
+	 "RGBA-5650 (default)"},			      /* 5 */
 	{16, 4, 2, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
-	 "RGBA-5551"},			                      /* 6 */
+	 "RGBA-5551"},					      /* 6 */
 	{16, 4, 2, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
-	 "RGBI-5551 (I=intensity)"},	                      /* 7 */
+	 "RGBI-5551 (I=intensity)"},			      /* 7 */
 	{18, 5, 0, r2c_rgba6660, c2r_rgba6660, aa_rgba6660,
-	 "RGBA-6660"},			                      /* 8 */
+	 "RGBA-6660"},					      /* 8 */
 	{18, 5, 2, r2c_rgba6651, c2r_rgba6651, aa_rgba6651,
 	 "RGBA-6651"},					      /* 9 */
 	{19, 5, 2, r2c_rgba6661, c2r_rgba6661, aa_rgba6661,
@@ -951,7 +983,7 @@ const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
 	{25, 5, 2, r2c_rgba8881, c2r_rgba8881, aa_rgba8881,
 	 "RGBA-8881"},					      /* 13 */
 	{28, 5, 2, r2c_rgba8884, c2r_rgba8884, aa_rgba8884,
-	 "RGBA-8884"}			                      /* 14 */
+	 "RGBA-8884"}					      /* 14 */
 };
 
 /* Return a pointer to the pixel format info (NULL if pix not valid) */
@@ -1120,7 +1152,7 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 
 	/* Number of clock ticks per frame */
 	ticks = hline*vframe;
-	
+
 	if (pvi->lcd.clk) {
 		/* Compute divisor from given pixel clock */
 		div = (hclk + pvi->lcd.clk/2)/pvi->lcd.clk;
@@ -1318,7 +1350,7 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 		bppmode_f = 13;
 
 	/* General window configuration */
-	__REG(winregs->wincon) = 
+	__REG(winregs->wincon) =
 		S3C_WINCONx_WIDE_NARROW(0)
 		| S3C_WINCONx_ENLOCAL_DMA
 		| (pwi->fbshow ? S3C_WINCONx_BUFSEL_1 : S3C_WINCONx_BUFSEL_0)
@@ -1542,4 +1574,4 @@ void s3c64xx_lcd_init(vidinfo_t *pvi)
 		pfbuf += fbmaxcount;
 	}
 }
-
+#endif /* CONFIG_LCD */

@@ -120,6 +120,7 @@ lowlevel_init:
 #endif /* !CONFIG_PICOMOD6 */
 	
 
+#ifdef CONFIG_ENABLE_MMU
 	/*  0x00000000 - 0x4FFFFFFF: 1:1, no caching
 	    0x50000000 - 0x57FFFFFF: 1:1, write-through
 	    0x58000000 - 0x5FFFFFFF: 1:1, no caching
@@ -155,7 +156,9 @@ setup_mmu_table:
 	add	r1, r1, #1		  // Next 1MB section
 	cmp	r1, #0x1000		  // After 4096 entries we are done
 	blo	1b
+#endif /* CONFIG_ENABLE_MMU */
 
+	
 	mov	lr, r12
 	mov	pc, lr
 #if 1

@@ -14,7 +14,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -27,7 +27,7 @@
     1. Nochmal prüfen, dass fbhres und hoffs immer aligned sind
     2. Lokale Funktionsprototypen hinzufügen
     3. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
-    4. PWM settings auf GPF15 setzen, 
+    4. PWM settings auf GPF15 setzen,
     5. Pattern matching bei lcd list evtl. case insensitive
     6. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
        Treiberkonzept einbindet
@@ -175,7 +175,7 @@ enum WIN_INDEX {
 	WI_COLKEY,
 	WI_IDENT,
 	WI_ALL,
-	
+
 	/* Unkown window sub-command; must be the last entry or the window
 	   extension commands won't work */
 	WI_HELP
@@ -388,59 +388,59 @@ static kwinfo_t const win_kw[] = {
 /* Keywords available with command "lcd"; info1 and info2 are unused */
 static kwinfo_t const lcd_kw[] = {
 	/* Multiple arguments or argument with multiple types */
-	[LI_PANEL] =     {1, 1, 0, 0, "panel"},	   /* index | substring */
-	[LI_DIM] =       {2, 2, 0, 0, "dim"},      /* hdim vdim */
-	[LI_RES] =       {2, 2, 0, 0, "res"},      /* hres, vres */
-	[LI_HTIMING] =   {1, 3, 0, 0, "htiming"},  /* hfp [hsw [hbp]] */
-	[LI_VTIMING] =   {1, 3, 0, 0, "vtiming"},  /* vfp [vsw [vbp]] */
-	[LI_POL] =       {1, 4, 0, 0, "pol"},      /* hspol [vspol [clkpol
+	[LI_PANEL] =	 {1, 1, 0, 0, "panel"},	   /* index | substring */
+	[LI_DIM] =	 {2, 2, 0, 0, "dim"},	   /* hdim vdim */
+	[LI_RES] =	 {2, 2, 0, 0, "res"},	   /* hres, vres */
+	[LI_HTIMING] =	 {1, 3, 0, 0, "htiming"},  /* hfp [hsw [hbp]] */
+	[LI_VTIMING] =	 {1, 3, 0, 0, "vtiming"},  /* vfp [vsw [vbp]] */
+	[LI_POL] =	 {1, 4, 0, 0, "pol"},	   /* hspol [vspol [clkpol
 						      [denpol]]]*/
-	[LI_PWM] =       {1, 2, 0, 0, "pwm"},      /* pwmvalue [pwmfreq]*/
-	[LI_PONSEQ] =    {1, 5, 0, 0, "ponseq"},   /* logic [disp [contr
+	[LI_PWM] =	 {1, 2, 0, 0, "pwm"},	   /* pwmvalue [pwmfreq]*/
+	[LI_PONSEQ] =	 {1, 5, 0, 0, "ponseq"},   /* logic [disp [contr
 						      [pwm [bl]]]] */
-	[LI_POFFSEQ] =   {1, 5, 0, 0, "poffseq"},  /* bl [pwm [contr [disp
+	[LI_POFFSEQ] =	 {1, 5, 0, 0, "poffseq"},  /* bl [pwm [contr [disp
 						      [logic]]]] */
-	[LI_EXTRA] =     {1, 2, 0, 0, "extra"},	   /* dither [drive] */
-	[LI_LIST] =      {0, 2, 0, 0, "list"},     /* [index | substring
+	[LI_EXTRA] =	 {1, 2, 0, 0, "extra"},	   /* dither [drive] */
+	[LI_LIST] =	 {0, 2, 0, 0, "list"},	   /* [index | substring
 						      [count]]*/
-	[LI_ON] =        {0, 0, 0, 0, "on"},	   /* (no args) */
-	[LI_OFF] =       {0, 0, 0, 0, "off"},	   /* (no args) */
+	[LI_ON] =	 {0, 0, 0, 0, "on"},	   /* (no args) */
+	[LI_OFF] =	 {0, 0, 0, 0, "off"},	   /* (no args) */
 #if (CONFIG_DISPLAYS > 1)
-	[LI_ALL] =       {0, 0, 0, 0, "all"},	   /* (no args) */
+	[LI_ALL] =	 {0, 0, 0, 0, "all"},	   /* (no args) */
 #endif
-	[LI_NAME] =      {1, 1, 0, 0, "name"},	   /* name */
-	[LI_HDIM] =      {1, 1, 0, 0, "hdim"},	   /* hdim */
-	[LI_VDIM] =      {1, 1, 0, 0, "vdim"},	   /* vdim */
-	[LI_TYPE] =      {1, 1, 0, 0, "type"},	   /* type */
-	[LI_HFP] =       {1, 1, 0, 0, "hfp"},	   /* hfp */
-	[LI_HSW] =       {1, 1, 0, 0, "hsw"},	   /* hsw */
-	[LI_HBP] =       {1, 1, 0, 0, "hbp"},	   /* hbp */
-	[LI_HRES] =      {1, 1, 0, 0, "hres"},	   /* hres */
-	[LI_VFP] =       {1, 1, 0, 0, "vfp"},	   /* vfp */
-	[LI_VSW] =       {1, 1, 0, 0, "vsw"},	   /* vsw */
-	[LI_VBP] =       {1, 1, 0, 0, "vbp"},	   /* vbp */
-	[LI_VRES] =      {1, 1, 0, 0, "vres"},	   /* vres */
-	[LI_HSPOL] =     {1, 1, 0, 0, "hspol"},	   /* hspol */
-	[LI_VSPOL] =     {1, 1, 0, 0, "vspol"},	   /* hspol */
-	[LI_DENPOL] =    {1, 1, 0, 0, "denpol"},   /* denpol */
-	[LI_CLKPOL] =    {1, 1, 0, 0, "clkpol"},   /* clkpol */
-	[LI_CLK] =       {1, 1, 0, 0, "clk"},	   /* clk */
-	[LI_FPS] =       {1, 1, 0, 0, "fps"},	   /* fps */
-	[LI_DRIVE] =     {1, 1, 0, 0, "drive"},    /* strength */
-	[LI_FRC] =       {1, 1, 0, 0, "frc"},	   /* dither */
-	[LI_PWMVALUE] =  {1, 1, 0, 0, "pwmvalue"}, /* pwmvalue */
-	[LI_PWMFREQ] =   {1, 1, 0, 0, "pwmfreq"},  /* pwmfreq */
-	[LI_PONLOGIC] =  {1, 1, 0, 0, "ponlogic"}, /* ponlogic */
-	[LI_PONDISP] =   {1, 1, 0, 0, "pondisp"},  /* pondisp */
-	[LI_PONCONTR] =  {1, 1, 0, 0, "poncontr"}, /* pondisp */
-	[LI_PONPWM] =    {1, 1, 0, 0, "ponpwm"},   /* ponpwm */
-	[LI_PONBL] =     {1, 1, 0, 0, "ponbl"},    /* ponbl */
+	[LI_NAME] =	 {1, 1, 0, 0, "name"},	   /* name */
+	[LI_HDIM] =	 {1, 1, 0, 0, "hdim"},	   /* hdim */
+	[LI_VDIM] =	 {1, 1, 0, 0, "vdim"},	   /* vdim */
+	[LI_TYPE] =	 {1, 1, 0, 0, "type"},	   /* type */
+	[LI_HFP] =	 {1, 1, 0, 0, "hfp"},	   /* hfp */
+	[LI_HSW] =	 {1, 1, 0, 0, "hsw"},	   /* hsw */
+	[LI_HBP] =	 {1, 1, 0, 0, "hbp"},	   /* hbp */
+	[LI_HRES] =	 {1, 1, 0, 0, "hres"},	   /* hres */
+	[LI_VFP] =	 {1, 1, 0, 0, "vfp"},	   /* vfp */
+	[LI_VSW] =	 {1, 1, 0, 0, "vsw"},	   /* vsw */
+	[LI_VBP] =	 {1, 1, 0, 0, "vbp"},	   /* vbp */
+	[LI_VRES] =	 {1, 1, 0, 0, "vres"},	   /* vres */
+	[LI_HSPOL] =	 {1, 1, 0, 0, "hspol"},	   /* hspol */
+	[LI_VSPOL] =	 {1, 1, 0, 0, "vspol"},	   /* hspol */
+	[LI_DENPOL] =	 {1, 1, 0, 0, "denpol"},   /* denpol */
+	[LI_CLKPOL] =	 {1, 1, 0, 0, "clkpol"},   /* clkpol */
+	[LI_CLK] =	 {1, 1, 0, 0, "clk"},	   /* clk */
+	[LI_FPS] =	 {1, 1, 0, 0, "fps"},	   /* fps */
+	[LI_DRIVE] =	 {1, 1, 0, 0, "drive"},	   /* strength */
+	[LI_FRC] =	 {1, 1, 0, 0, "frc"},	   /* dither */
+	[LI_PWMVALUE] =	 {1, 1, 0, 0, "pwmvalue"}, /* pwmvalue */
+	[LI_PWMFREQ] =	 {1, 1, 0, 0, "pwmfreq"},  /* pwmfreq */
+	[LI_PONLOGIC] =	 {1, 1, 0, 0, "ponlogic"}, /* ponlogic */
+	[LI_PONDISP] =	 {1, 1, 0, 0, "pondisp"},  /* pondisp */
+	[LI_PONCONTR] =	 {1, 1, 0, 0, "poncontr"}, /* pondisp */
+	[LI_PONPWM] =	 {1, 1, 0, 0, "ponpwm"},   /* ponpwm */
+	[LI_PONBL] =	 {1, 1, 0, 0, "ponbl"},	   /* ponbl */
 	[LI_POFFLOGIC] = {1, 1, 0, 0, "pofflogic"},/* pofflogic */
-	[LI_POFFDISP] =  {1, 1, 0, 0, "poffdisp"}, /* poffdisp */
+	[LI_POFFDISP] =	 {1, 1, 0, 0, "poffdisp"}, /* poffdisp */
 	[LI_POFFCONTR] = {1, 1, 0, 0, "poffcontr"},/* poffdisp */
-	[LI_POFFPWM] =   {1, 1, 0, 0, "poffpwm"},  /* poffpwm */
-	[LI_POFFBL] =    {1, 1, 0, 0, "poffbl"},   /* poffbl */
-	[LI_HELP] =      {0, 0, 0, 0, "help"},	   /* (no args, show usage) */
+	[LI_POFFPWM] =	 {1, 1, 0, 0, "poffpwm"},  /* poffpwm */
+	[LI_POFFBL] =	 {1, 1, 0, 0, "poffbl"},   /* poffbl */
+	[LI_HELP] =	 {0, 0, 0, 0, "help"},	   /* (no args, show usage) */
 };
 
 #ifdef CONFIG_FSWINCE_COMPAT
@@ -449,32 +449,32 @@ static kwinfo_t const lcd_kw[] = {
    be used, info2 is unused. */
 static kwinfo_t const reg_kw[] =
 {
-	[RI_NAME] =      {4, 4, LI_NAME,     0, "name"},
-	[RI_WIDTH] =     {4, 4, LI_HDIM,     0, "width"},
-	[RI_HEIGHT] =    {4, 4, LI_VDIM,     0, "height"},
-	[RI_COLUMNS] =   {4, 4, LI_HRES,     0, "columns"},
-	[RI_ROWS] =      {4, 4, LI_VRES,     0, "rows"},
-	[RI_BLW] =       {4, 4, LI_HBP,      0, "blw"},
-	[RI_HSW] =       {4, 4, LI_HSW,      0, "hsw"},
-	[RI_ELW] =       {4, 4, LI_HFP,      0, "elw"},
-	[RI_BFW] =       {4, 4, LI_VBP,      0, "bfw"},
-	[RI_VSW] =       {4, 4, LI_VSW,      0, "vsw"},
-	[RI_EFW] =       {4, 4, LI_VFP,      0, "efw"},
-	[RI_LCDCLK] =    {4, 4, LI_CLK,      0, "lcdclk"},
-	[RI_LCDPDS] =    {4, 4, LI_DRIVE,    0, "lcdportdrivestrength"},
-	[RI_CONTRVAL] =  {4, 4, LI_PWMVALUE, 0, "contrastvalue"},
+	[RI_NAME] =	 {4, 4, LI_NAME,     0, "name"},
+	[RI_WIDTH] =	 {4, 4, LI_HDIM,     0, "width"},
+	[RI_HEIGHT] =	 {4, 4, LI_VDIM,     0, "height"},
+	[RI_COLUMNS] =	 {4, 4, LI_HRES,     0, "columns"},
+	[RI_ROWS] =	 {4, 4, LI_VRES,     0, "rows"},
+	[RI_BLW] =	 {4, 4, LI_HBP,	     0, "blw"},
+	[RI_HSW] =	 {4, 4, LI_HSW,	     0, "hsw"},
+	[RI_ELW] =	 {4, 4, LI_HFP,	     0, "elw"},
+	[RI_BFW] =	 {4, 4, LI_VBP,	     0, "bfw"},
+	[RI_VSW] =	 {4, 4, LI_VSW,	     0, "vsw"},
+	[RI_EFW] =	 {4, 4, LI_VFP,	     0, "efw"},
+	[RI_LCDCLK] =	 {4, 4, LI_CLK,	     0, "lcdclk"},
+	[RI_LCDPDS] =	 {4, 4, LI_DRIVE,    0, "lcdportdrivestrength"},
+	[RI_CONTRVAL] =	 {4, 4, LI_PWMVALUE, 0, "contrastvalue"},
 	[RI_CONTRFREQ] = {4, 4, LI_PWMFREQ,  0, "contrastfreq"},
 	[RI_PONLCDPOW] = {4, 4, LI_PONLOGIC, 0, "ponlcdpow"},
 	[RI_PONLCDENA] = {4, 4, LI_PONDISP,  0, "ponlcdena"},
 	[RI_PONBUFENA] = {4, 4, LI_PONCONTR, 0, "ponlcdbufena"},
-	[RI_PONVEEON] =  {4, 4, LI_PONPWM,   0, "ponveeon"},
+	[RI_PONVEEON] =	 {4, 4, LI_PONPWM,   0, "ponveeon"},
 	[RI_PONCFLPOW] = {4, 4, LI_PONBL,    0, "poncflpow"},
 
 	/* Special reg values with no corresponding lcd sub-command; type is
 	   used differently here as in command lcd. */
-	[RI_TYPE] =      {4, 4, LI_HELP,     0, "type"},   /* lcd type */
-	[RI_CONFIG] =    {4, 4, LI_HELP,     0, "config"}, /* polarities */
-	[RI_CONTRENA] =  {4, 4, LI_HELP,     0, "contrastenable"},
+	[RI_TYPE] =	 {4, 4, LI_HELP,     0, "type"},   /* lcd type */
+	[RI_CONFIG] =	 {4, 4, LI_HELP,     0, "config"}, /* polarities */
+	[RI_CONTRENA] =	 {4, 4, LI_HELP,     0, "contrastenable"},
 };
 #endif /*CONFIG_FSWINCE_COMPAT*/
 
@@ -791,7 +791,7 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		memmove((void *)newbase, (void *)pfp->base, pfp->used);
 
 		/* Relocate the image buffer addresses of all windows */
-	        relocbuffers(lcd_get_wininfo_p(lcd_get_vidinfo_p(0), 0),
+		relocbuffers(lcd_get_wininfo_p(lcd_get_vidinfo_p(0), 0),
 			     newbase);
 
 		/* Finally set the new framebuffer pool values */
@@ -1090,7 +1090,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		}
 		lcd_circle(pwi, x1, y1, x2);
 		break;
-			
+
 	case DI_TEXT:			  /* Draw text */
 		rgba_save = pwi->bg.rgba;
 		lcd_set_bg(pwi, rgba2);
@@ -1260,7 +1260,7 @@ static void set_default_cmap(const wininfo_t *pwi)
 			rgba |= (index & 0x1C) << 19;/* G[7:5] */
 			rgba |= rgba >> 3;	     /* R[7:2], G[7:2] */
 			rgba |= (rgba & 0xC0C00000) >> 6; /* R[7:0], G[7:0] */
-		        b = index & 0x03;		  /* B[1:0] */
+			b = index & 0x03;		  /* B[1:0] */
 			b |= b << 2;			  /* B[3:0] */
 			b |= b << 4;			  /* B[7:0] */
 			rgba |= (b << 8) | 0xFF;
@@ -1323,7 +1323,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	if (argc > cmap_kw[sc].info2 + 2)
 		end = simple_strtoul(argv[cmap_kw[sc].info2 + 2], NULL, 0);
 	if (end >= cmapsize)
-	        end = cmapsize-1;
+		end = cmapsize-1;
 	else if (end < index)
 		end = index;
 
@@ -1641,7 +1641,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	pvi = lcd_get_vidinfo_p(vid_sel);
 	pwi = lcd_get_wininfo_p(pvi, pvi->win_sel);
 
-	/* If no parameter, show current window info and valid pixel formats */ 
+	/* If no parameter, show current window info and valid pixel formats */
 	if (argc < 2) {
 		PIX pix;
 		const pixinfo_t *ppi;
@@ -1671,7 +1671,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		pvi->win_sel = win;
 		return 0;		  /* Done */
 	}
-		
+
 	/* Search for regular window sub-commands */
 	sc = parse_sc(argc, argv[1], WI_HELP, win_kw, ARRAYSIZE(win_kw));
 
@@ -1813,7 +1813,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				return 1;
 			if (argc > 4) {
 				u_char ckmode;
-			        ckmode = (u_char)simple_strtol(argv[4],
+				ckmode = (u_char)simple_strtol(argv[4],
 							       NULL, 0);
 				if (ckmode > 3) {
 					puts("Illegal color key mode\n");
@@ -1850,7 +1850,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			show_wininfo(lcd_get_wininfo_p(pvi, win));
 		break;
 
-        default:			  /* Unhandled sub-command?!?!? */
+	default:			  /* Unhandled sub-command?!?!? */
 		break;
 	}
 
@@ -1955,7 +1955,7 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		   the same size */
 		if (set_winres(lcd_get_wininfo_p(pvi, 0), hres, vres))
 			return 1;
-			
+
 		pvi->lcd.hres = hres;
 		break;
 
@@ -1979,7 +1979,7 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		   the same size */
 		if (set_winres(lcd_get_wininfo_p(pvi, 0), hres, vres))
 			return 1;
-			
+
 		pvi->lcd.vres = vres;
 		break;
 
@@ -2265,7 +2265,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf("\nNo panel matches '%s'\n", argv[2]);
 			break;
 		}
-			
+
 		pli = lcd_get_lcdinfo_p(param);
 		if (!pli)
 			printf("\nBad lcd panel index '%d'\n", param);
@@ -2586,12 +2586,12 @@ int parse_rgb(char *s, RGBA *prgba)
 		if (*ep == 0) {
 			/* No parse error, all digits are hex digits */
 			switch (ep-s) {
-			case 7:		        /* #RRGGBB, set as opaque */
+			case 7:			/* #RRGGBB, set as opaque */
 				rgba = (rgba << 8) | 0xFF;
 				/* Fall through to case 9 */
-			case 9:	                /* #RRGGBBAA */
+			case 9:			/* #RRGGBBAA */
 				*prgba = rgba;
-				return 0;       /* Success */
+				return 0;	/* Success */
 			}
 		}
 	}
@@ -2777,7 +2777,7 @@ void drv_lcd_init(void)
 			lockupdate = 0;
 			enable = 1;
 		}
-		
+
 		set_vidinfo(pvi);
 
 		for (win = 0; win < pvi->wincount; win++) {
@@ -2838,7 +2838,7 @@ void drv_lcd_init(void)
 		   now; ignore any errors */
 		if (enable) {
 			lcd_on(pvi);
-			
+
 			/* If there is an environment variable "splashcmd",
 			   run it to show the splash screen */
 			s = getenv("splashcmd");

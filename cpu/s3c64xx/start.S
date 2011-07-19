@@ -233,6 +233,19 @@ mmu_on:
 	nop
 	nop
 #endif
+
+#if 0  //#####HK
+	/* #####HK: Zeichen auf UART2 ausgeben ###### */
+	ldr	r0,=0x7F005820
+	mov	r1,#0x43
+	str	r1,[r0]
+	mov	r1,#0x43
+	str	r1,[r0]
+	ldr	r0,=10000000
+9:	subs	r0,r0,#1
+	bne	9b
+	/* ########### */
+#endif //#####HK
 	
 skip_hw_init:
 	/* Set up the stack						    */
@@ -261,19 +274,6 @@ clbss_l:
 	cmp	r0, r1
 	ble	clbss_l
 
-#if 0  //#####HK
-	/* #####HK: Zeichen auf UART2 ausgeben ###### */
-	ldr	r0,=0x7F005820
-	mov	r1,#0x47
-	str	r1,[r0]
-	mov	r1,#0x47
-	str	r1,[r0]
-	ldr	r0,=10000000
-9:	subs	r0,r0,#1
-	bne	9b
-	/* ########### */
-#endif //#####HK
-	
 	ldr	pc, _start_armboot
 
 _start_armboot:
@@ -284,7 +284,6 @@ _mmu_table_base:
 	.word mmu_table
 #endif
 
-	
 /*
  * copy U-Boot to SDRAM and jump to ram (from NAND or OneNAND)
  * r0: size to be compared

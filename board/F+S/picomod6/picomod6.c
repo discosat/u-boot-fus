@@ -66,6 +66,7 @@ int board_init(void)
 
 	ax88796_pre_init();
 
+
 	gd->bd->bi_arch_number = MACH_TYPE;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);
 

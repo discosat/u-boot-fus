@@ -27,6 +27,7 @@ LIB	:= $(obj)libvideo.a
 
 COBJS-y += ati_radeon_fb.o
 COBJS-$(CONFIG_ATMEL_LCD) += atmel_lcdfb.o
+COBJS-$(CONFIG_S3C64XX) += lcd_s3c64xx.o
 COBJS-y += cfb_console.o
 COBJS-y += ct69000.o
 COBJS-y += mb862xx.o

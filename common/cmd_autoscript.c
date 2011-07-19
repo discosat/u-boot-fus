@@ -306,7 +306,7 @@ void autoload_script(void)
 		return;
 
 	addr = simple_strtoul(s, NULL, 16);
-	printf("Trying autoload '%s', address 0x%08lx\n", fname, addr);
+	printf("Trying to autoload '%s', address 0x%08lx\n", fname, addr);
 
 #ifdef CONFIG_MMC
 	if (mmc_init(1) == 0) {
