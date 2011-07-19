@@ -43,7 +43,6 @@ SRCS	:= $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(SOBJS-y) $(COBJS-y))
 
 $(LIB):	$(obj).depend $(OBJS)
-	echo HURGA $(CONFIG_S3C64XX)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 
 #########################################################################

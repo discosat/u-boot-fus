@@ -280,6 +280,9 @@ const u8 config_high[] =
 	CONF_ATTR_DEFAULT|CONF_ATTR_SELFPOWERED,
 	0x19,	/*  8 same as configuration desc */
 
+	0x00,	/*  9 dummy to avoid compiler warning */
+	0x00,	/*  10 dummy to avoid compiler warning */
+	0x00,	/*  11 dummy to avoid compiler warning */
 };
 
 const u8 config_high_total[] =
@@ -1154,7 +1157,7 @@ void s3c_usb_transfer_ep0(void)
 		{
 			s3c_usb_set_inep_xfersize(EP_TYPE_CONTROL, 1, 8);
 				writel(EPEN_CNAK_EP0_8, S3C_OTG_DIEPCTL0);
-				s3c_usb_write_ep0_fifo(((u8 *)&config_high)+8, 8);
+				s3c_usb_write_ep0_fifo(((u8 *)&config_high_total)+8, 8);
 				otg.ep0_state = EP0_STATE_GD_OTHER_SPEED_HIGH_2;
 		}
 			break;
@@ -1163,7 +1166,7 @@ void s3c_usb_transfer_ep0(void)
 		DBG_SETUP1("EP0_STATE_GD_OTHER_SPEED_HIGH_2\n");
 		s3c_usb_set_inep_xfersize(EP_TYPE_CONTROL, 1, 8);
 			writel(EPEN_CNAK_EP0_8, S3C_OTG_DIEPCTL0);
-			s3c_usb_write_ep0_fifo(((u8 *)&config_high)+16, 8);
+			s3c_usb_write_ep0_fifo(((u8 *)&config_high_total)+16, 8);
 			otg.ep0_state = EP0_STATE_GD_OTHER_SPEED_HIGH_3;
 			break;
 
@@ -1171,7 +1174,7 @@ void s3c_usb_transfer_ep0(void)
 		DBG_SETUP1("EP0_STATE_GD_OTHER_SPEED_HIGH_3\n");
 		s3c_usb_set_inep_xfersize(EP_TYPE_CONTROL, 1, 8);
 			writel(EPEN_CNAK_EP0_8, S3C_OTG_DIEPCTL0);
-			s3c_usb_write_ep0_fifo(((u8 *)&config_high)+24, 8);
+			s3c_usb_write_ep0_fifo(((u8 *)&config_high_total)+24, 8);
 			otg.ep0_state = EP0_STATE_INIT;
 			break;
 
@@ -1400,7 +1403,7 @@ void s3c_usb_transfer_ep0(void)
 		DBG_SETUP1("EP0_STATE_GET_STATUS3\n");
 		s3c_usb_set_inep_xfersize(EP_TYPE_CONTROL, 1, 1);
 		writel(EPEN_CNAK_EP0_8, S3C_OTG_DIEPCTL0);
-		s3c_usb_write_ep0_fifo((u8 *)&get_status+3, 1);
+	        s3c_usb_write_ep0_fifo((u8 *)&get_status+3, 1);
 		otg.ep0_state = EP0_STATE_INIT;
 		break;
 

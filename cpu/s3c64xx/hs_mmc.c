@@ -20,7 +20,7 @@
 
 #include "hs_mmc.h"
 
-static ulong mmc_bread (int dev_num, ulong blknr, ulong blkcnt, ulong* dst);
+static unsigned long mmc_bread(int dev_num, unsigned long blknr, lbaint_t blkcnt, void *dst);
 
 #if defined(CONFIG_S3C6400)
 extern ulong virt_to_phy_smdk6400(ulong addr);
@@ -1144,17 +1144,17 @@ void movi_read (uint addr, uint start_blk, uint blknum)
 	ReadBlockCnt_INT = 0;
 }
 
-static ulong mmc_bread (int dev_num, ulong blknr, ulong blkcnt, ulong* dst)
+static unsigned long mmc_bread (int dev_num, unsigned long blknr, lbaint_t blkcnt, void *dst)
 {
 	/* Note: blknr is NOTHING like blknum! */
 
-	if (dst >= 0xc0000000)
+	if ((unsigned long)dst >= 0xc0000000)
 		dst = virt_to_phys(dst);
 
 	if (blkcnt != 0)
 		movi_read((uint) dst, (uint) blknr, (uint) blkcnt);
 
-	return blkcnt;
+	return (unsigned int)blkcnt;
 }
 
 static void write_test (uint test, uint start_blk, uint blknum)

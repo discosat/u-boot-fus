@@ -51,8 +51,10 @@
 *********************************************************************/
 	.globl	memcpy
 memcpy:
-	/* Return immediately if count is zero */
+	/* Return immediately if count is zero or dest == src */
 	cmp	r2, #0
+	bxeq	lr
+	cmp	r0, r1
 	bxeq	lr
 	push	{r0, r4, lr}
 	b	1f

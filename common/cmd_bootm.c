@@ -128,9 +128,9 @@ void board_lmb_reserve(struct lmb *lmb) __attribute__((weak, alias("__board_lmb_
 /*******************************************************************/
 int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	image_header_t	*hdr;
+	image_header_t	*hdr = NULL;
 	ulong		addr;
-	ulong		iflag;
+	ulong		iflag = 0;
 	const char	*type_name;
 	uint		unc_len = CFG_BOOTM_LEN;
 	uint8_t		comp, type, os;
