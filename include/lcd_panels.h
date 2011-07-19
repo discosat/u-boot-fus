@@ -45,13 +45,26 @@
 #define VI_TYPE_STN_CSTN   0x00		  /* Bit 3: (C)STN or TFT */
 #define VI_TYPE_TFT        0x08
 
-/*
- *  Information about displays we are using. This is for configuring
- *  the LCD controller and memory allocation. Someone has to know what
- *  is connected, as we can't autodetect anything.
- */
-#define CFG_HIGH	0	/* Pins are active high	*/
-#define CFG_LOW		1	/* Pins are active low */
+/* Signal polaritiy */
+#define CFG_HIGH 0			  /* Active high/rising edge */
+#define CFG_LOW  1			  /* Active low/falling edge */
+
+/* Number of power-on/power-off sequence values */
+#define POW_COUNT 5
+
+/* Power-on sequence indexes */
+#define PON_LOGIC 0			  /* Display logic power (VLCD) */
+#define PON_DISP  1			  /* Display Enable (DEN) */
+#define PON_CONTR 2			  /* Controller and signal buffers */
+#define PON_PWM   3			  /* PWM (backlight brightness) */
+#define PON_BL    4			  /* Backlight power (VCFL) */
+
+/* Power-off sequence indexes */
+#define POFF_BL    0			  /* Backlight power (VCFL) */
+#define POFF_PWM   1			  /* PWM (backlight brightness) */
+#define POFF_CONTR 2			  /* Controller and signal buffers */
+#define POFF_DISP  3			  /* Display Enable (DEN) */
+#define POFF_LOGIC 4			  /* Display logic power (VLCD) */
 
 
 /************************************************************************/
@@ -60,17 +73,19 @@
 
 /* Common LCD panel information */
 typedef struct lcdinfo {
-	/* Horizontal control */
+	/* Resolution */
+	u_short	hres;		/* Horizontal pixel resolution (i.e. 640) */
+	u_short	vres;		/* Vertical pixel resolution (i.e. 480) */
+
+	/* Horizontal timing */
 	u_short	hfp;		/* Front porch (between data and HSYNC) */
 	u_short hsw;		/* Horizontal sync pulse (HSYNC) width */
 	u_short hbp;		/* Back porch (between HSYNC and data) */
-	u_short	hres;		/* Horizontal pixel resolution (i.e. 640) */
 
-	/* Vertical control */
+	/* Vertical timing */
 	u_short vfp;		/* Front porch (between data and VSYNC) */
 	u_short	vsw;		/* Vertical sync pulse (VSYNC) width */
 	u_short vbp;		/* Back porch (between VSYNC and data) */
-	u_short	vres;		/* Vertical pixel resolution (i.e. 480) */
 
 	/* Signal polarity */
 	u_char  hspol;	        /* HSYNC polarity (0=normal, 1=inverted) */
@@ -78,7 +93,7 @@ typedef struct lcdinfo {
 	u_char  denpol;		/* DEN polarity (0=normal, 1=inverted) */
 	u_char  clkpol;		/* Clock polarity (0=normal, 1=inverted) */
 
-	/* Timings */
+	/* Frequency */
 	u_int   fps;		/* Frame rate (in frames per second) */
 	u_int   clk;		/* Pixel clock (in Hz) */
 
@@ -93,9 +108,9 @@ typedef struct lcdinfo {
 				   Bit 2: 0: STN, 1: CSTN
 				   Bit 3: 0: (C)STN, 1: TFT */
 
-	/* Additional settings */
-	u_char  strength;	/* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
-	u_char	dither;		/* Dither mode (FRC) #### */
+	/* Power-on and power-off timings (absolute delays in ms) */
+	u_short ponseq[5];	/* Power-on delays */
+	u_short poffseq[5];	/* Power-off delays */
 
 	/* General info */
 	u_short	hdim;		/* Width of display area in millimeters */
@@ -112,7 +127,7 @@ typedef struct lcdinfo {
 extern const lcdinfo_t *lcd_get_lcdinfo_p(u_int index);
 
 /* Return index of next panel matching string s (or 0 if no match); start
-   search at given index */ 
+   search at given index */
 extern u_int lcd_search_lcd(char *s, u_int index);
 
 

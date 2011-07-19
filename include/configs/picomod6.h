@@ -240,6 +240,8 @@
 #define CONFIG_LCD			  /* Use LCD */
 #define CONFIG_FSWINCE_COMPAT		  /* Support F&S WinCE compatibility */
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
+#define CONFIG_BMP			  /* Support BMP images */
+#define CONFIG_PNG			  /* Support PNG images */
 
 
 /************************************************************************

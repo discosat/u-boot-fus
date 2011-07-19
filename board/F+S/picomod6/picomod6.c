@@ -24,7 +24,7 @@
 #include <common.h>
 #include <regs.h>
 #ifdef CONFIG_LCD
-#include <lcd_s3c64xx.h>		  /* lcd_fbsize() */
+#include <cmd_lcd.h>			  /* PON_*, POFF_* */
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -163,5 +163,81 @@ void nand_init(void)
         if (nand_dev_desc[0].ChipID != NAND_ChipID_UNKNOWN) {
                 print_size(nand_dev_desc[0].totlen, "\n");
         }
+}
+#endif
+
+#ifdef CONFIG_LCD
+void s3c64xx_lcd_board_init(void)
+{
+	/* Setup GPF15 to output 0 (backlight intensity 0) */
+	__REG(GPFDAT) &= ~(0x1<<15);
+	__REG(GPFCON) = (__REG(GPFCON) & ~(0x3<<30)) | (0x1<<30);
+	__REG(GPFPUD) &= ~(0x3<<30);
+
+	/* Setup GPK[3] to output 1 (Buffer enable), GPK[2] to output 1
+	   (Display enable), GPK[1] to output 0 (VCFL), GPK[0] to output 0
+	   (VLCD), no pull-up/down */
+	__REG(GPKDAT) = (__REG(GPKDAT) & ~(0xf<<0)) | (0xc<<0);
+	__REG(GPKCON0) = (__REG(GPKCON0) & ~(0xFFF<<0)) | (0x111<<0);
+	__REG(GPKPUD) &= ~(0x3F<<0);
+
+}
+
+void s3c64xx_lcd_board_enable(int index)
+{
+	switch (index) {
+	case PON_LOGIC:			  /* Activate VLCD */
+		__REG(GPKDAT) |= (1<<0);
+		break;
+
+	case PON_DISP:			  /* Activate Display Enable signal */
+		__REG(GPKDAT) &= ~(1<<2);
+		break;
+
+	case PON_CONTR:			  /* Activate signal buffers */
+		__REG(GPKDAT) &= ~(1<<3);
+		break;
+
+	case PON_PWM:			  /* Activate VEEK*/
+		__REG(GPFDAT) |= (0x1<<15); /* full intensity
+					       #### TODO: actual PWM value */
+		break;
+
+	case PON_BL:			  /* Activate VCFL */
+		__REG(GPKDAT) |= (1<<1);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void s3c64xx_lcd_board_disable(int index)
+{
+	switch (index) {
+	case PON_BL:			  /* Deactivate VCFL */
+		__REG(GPKDAT) &= ~(1<<1);
+		break;
+
+	case PON_PWM:			  /* Activate VEEK*/
+		__REG(GPFDAT) &= ~(0x1<<15); /* full intensity
+					       #### TODO: actual PWM value */
+		break;
+
+	case PON_CONTR:			  /* Activate signal buffers */
+		__REG(GPKDAT) |= (1<<3);
+		break;
+
+	case PON_DISP:			  /* Activate Display Enable signal */
+		__REG(GPKDAT) |= (1<<2);
+		break;
+
+	case PON_LOGIC:			  /* Activate VLCD */
+		__REG(GPKDAT) &= ~(1<<0);
+		break;
+
+	default:
+		break;
+	}
 }
 #endif

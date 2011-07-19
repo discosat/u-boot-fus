@@ -18,38 +18,16 @@
 #define MAX_WINDOWS 5			  /* S3C64XX has 5 hardware windows */
 #define PIXEL_FORMAT_COUNT 15		  /* Number of pixel formats */
 #define DEFAULT_PIXEL_FORMAT 5		  /* Default format: RGBA-5650 */
+#define IDENT_BLINK_COUNT 5		  /* Blink window 5 times on identify */
 
 
 /************************************************************************/
 /* ENUMERATIONS								*/
 /************************************************************************/
 
-/* Additional commands recognized as extension of command window */
-enum WIN_INDEX_EXT {
-	WI_EXT_UNKNOWN,
-	WI_EXT_ALPHA,
-	WI_EXT_COLKEY,
-};
-
-
 /************************************************************************/
 /* TYPES AND STRUCTURES							*/
 /************************************************************************/
-
-/* This is the extension part, available as wininfo_t.ext */
-typedef struct wininfo_ext {
-	/* Alpha information */
-	u_int  alpha;			  /* Alpha R/G/B AEN=0/1 */
-	u_char bld_pix;			  /* Blend 0: per plane, 1: per pixel */
-	u_char alpha_sel;		  /* Alpha selection */
-
-	/* Color key information */
-	u_char ckena;			  /* 0: disabled, 1: enabled */
-	u_char ckdir;			  /* compare to 0: fg, 1: bg */
-	u_char ckblend;			  /* 0: no blending, 1: blend */
-	u_int  ckvalue;			  /* Color key value */
-	u_int  ckmask;			  /* Mask which value bits matter */
-} wininfo_ext_t;
 
 typedef unsigned long LCDREG;
 
@@ -67,7 +45,7 @@ struct LCD_WIN_REGS {
 	LCDREG keycon;			  /* Color key control */
 	LCDREG keyval;			  /* Color key value */
 	LCDREG winmap;			  /* Default color mapping */
-	u_int  clut;			  /* Color look-up table address */
+	u_int  hwcmap;			  /* Color look-up table address */
 };
 
 
@@ -79,24 +57,33 @@ struct LCD_WIN_REGS {
 static wininfo_t s3c64xx_wininfo[MAX_WINDOWS];
 
 /* Addresses of the possible image buffers of all windows */
-u_long s3c64xx_fbuf[2+2+1+1+1];
+static u_long s3c64xx_fbuf[2+2+1+1+1];
 
-/* One wininfo_ext extension structure per window */
-wininfo_ext_t s3c64xx_wininfo_ext[MAX_WINDOWS];
+/* Color maps; these entries hold the actually used RGBA value as is possible
+   in the hardware. Holding these values in an extra table avoids having to
+   read (and convert) the hardware register values everytime again when we
+   need this value.
+   Window   Offset    Entries   Remarks
+   ----------------------------------------------------------------------
+   0        0         256       Window 0 supports 1, 2, 4, 8 bpp palettes
+   1        256       256       Window 1 supports 1, 2, 4, 8 bpp palettes
+   2        512       16        Window 2 supports 1, 2, 4 bpp palettes
+   3        528       16        Window 3 supports 1, 2, 4 bpp palettes
+   4        544       4         Window 4 supports 1, 2 bpp palettes */
+static RGBA cmap[256+256+16+16+4];
+
+/* The offsets for each window into the cmap array */
+static int cmap_offset[MAX_WINDOWS] = {
+	0, 256, 256+256, 256+256+16, 256+256+16+16
+};
 
 /* Valid pixel formats for each window */
-u_int valid_pixels[MAX_WINDOWS] = {
+static u_int valid_pixels[MAX_WINDOWS] = {
 	0x09AF,			/* Win 0: no alpha formats */
 	0x7FFF,			/* Win 1: no restrictions  */
 	0x7FF7,			/* Win 2: no CMAP-8 */
 	0x7FE7,			/* Win 3: no CMAP-8, no RGBA-2321 */
 	0x7FE3,			/* Win 4: no CMAP-4, no CMAP-8, no RGBA-2321 */
-};
-
-/* Keywords for additional window sub-commands */
-const kwinfo_t winext_kw[] = {
-	{2, 4, WI_EXT_ALPHA,  "alpha"},
-	{1, 5, WI_EXT_COLKEY, "colkey"},
 };
 
 static const struct LCD_WIN_REGS winregs_table[5] = {
@@ -184,160 +171,23 @@ static const struct LCD_WIN_REGS winregs_table[5] = {
 
 
 /************************************************************************/
+/* PROTOTYPES OF IMPORTED FUNCTIONS					*/
+/************************************************************************/
+
+/* Configure board specific LCD signals, e.g. GPIOs */
+extern void s3c64xx_lcd_board_init(void);
+
+/* Switch board specfic LCD signal on */
+extern void s3c64xx_lcd_board_enable(int index);
+
+/* Switch board specfic LCD signal on */
+extern void s3c64xx_lcd_board_disable(int index);
+
+
+
+/************************************************************************/
 /* PROTOTYPES OF LOCAL FUNCTIONS					*/
 /************************************************************************/
-
-
-/************************************************************************/
-/* EXPORTED FUNCTIONS CALLED VIA vidinfo_t				*/
-/************************************************************************/
-
-#if 0 //#####
-ulong calc_fbsize (void)
-{
-	//#### TODO
-	return 0;
-}
-#endif
-
-#if 0 //######
-/* Compute framebuffer base address from size (immediately before U-Boot) */
-ulong lcd_fbsize(ulong fbsize)
-{
-	/* Round size up to pages */
-	fbsize = (fbsize + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
-
-	return CFG_UBOOT_BASE - fbsize;
-}
-#endif
-
-
-/* Parse additional window sub-commands; on error return 0 */
-static u_short s3c64xx_winext_parse(int argc, char *s)
-{
-	return parse_sc(argc, s, WI_EXT_UNKNOWN, winext_kw,
-			ARRAYSIZE(winext_kw));
-}
-
-/* Handle additional window sub-commands; on error, return 1 and keep *pwi
-   unchanged */
-static int s3c64xx_winext_exec(wininfo_t *pwi, int argc, char *argv[],
-			       u_short si)
-{
-	wininfo_ext_t *ext = (wininfo_ext_t *)pwi->ext;
-
-	/* OK, parse arguments and set data */
-	switch (si) {
-	case WI_EXT_ALPHA: {
-		u_char bld_pix = 1;
-		u_char alpha_sel = 0;
-		u_int alpha0_rgba;
-		u_int alpha1_rgba;
-		u_int alpha;
-		
-		/* Arguments 1+2: alpha0 and alpha1 */
-		if ((parse_rgb(argv[2], &alpha0_rgba) == RT_NONE)
-		    || (parse_rgb(argv[3], &alpha1_rgba) == RT_NONE))
-			return 1;
-
-		/* Argument 3: pix setting */
-		if (argc > 4)
-			bld_pix = (simple_strtoul(argv[4], NULL, 0) != 0);
-
-		/* Argument 4: sel setting */
-		if (argc > 5)
-			alpha_sel = (simple_strtoul(argv[5], NULL, 0) != 0);
-
-		/* Prepare alpha value from alpha0 and alpha1 */
-		alpha = (alpha0_rgba & 0x0000F000);	   /* B */
-		alpha |= (alpha0_rgba & 0x00F00000) >> 4;  /* G */
-		alpha |= (alpha0_rgba & 0xF0000000) >> 8;  /* R */
-		alpha |= (alpha1_rgba & 0xF0000000) >> 20; /* R */
-		alpha |= (alpha1_rgba & 0x00F00000) >> 16; /* G */
-		alpha |= (alpha1_rgba & 0x0000F000) >> 12; /* B */
-
-		ext->alpha = alpha;
-		ext->bld_pix = bld_pix;
-		ext->alpha_sel = alpha_sel;
-		break;
-	}
-
-	case WI_EXT_COLKEY: {
-		u_char ckdir = 0;
-		u_char ckblend = 0;
-		u_int ckvalue_rgba;
-		u_int ckmask_rgba;
-
-		/* Arguments 4 + 5: color key value and mask as RGB values */
-		if (argc > 5) {
-			if (argc == 6) {
-				printf("Missing argument\n");
-				return 1;
-			}
-			if ((parse_rgb(argv[5], &ckvalue_rgba) == RT_NONE)
-			    || (parse_rgb(argv[6], &ckmask_rgba) == RT_NONE))
-				return 1;
-			ext->ckvalue = ckvalue_rgba >> 8;
-			ext->ckmask = ckmask_rgba >> 8;
-		}
-
-		/* Argument 1: enable */
-		ext->ckena = (simple_strtoul(argv[2], NULL, 0) != 0);
-
-		/* Argument 2: dir */
-		if (argc > 3)
-			ckdir = (simple_strtoul(argv[3], NULL, 0) != 0);
-		ext->ckdir = ckdir;
-
-		/* Argument 3: blend */
-		if (argc > 4)
-			ckblend = (simple_strtoul(argv[4], NULL, 0) != 0);
-		ext->ckblend = ckblend;
-		break;
-	}
-		
-	default:
-		break;
-	}
-
-	/* Update hardware with new settings */
-	pwi->pvi->set_wininfo(pwi);
-
-	return 0;
-}
-
-/* Show info for all extended info pointed to by wininfo_t.ext */
-static void s3c64xx_winext_show(const wininfo_t *pwi)
-{
-	wininfo_ext_t *ext = (wininfo_ext_t *)pwi->ext;
-	u_int alpha0, alpha1;
-
-	alpha0 = ext->alpha & 0x00F00000;	  /* R */
-	alpha0 |= (ext->alpha & 0x000F0000) >> 4; /* G */
-	alpha0 |= (ext->alpha & 0x0000F000) >> 8; /* B */
-	alpha0 |= alpha0 >> 4;
-
-	alpha1 = ext->alpha & 0x0000000F; /* B */
-	alpha1 |= (ext->alpha & 0x000000F0) << 4; /* G */
-	alpha1 |= (ext->alpha & 0x00000F00) << 8; /* R */
-	alpha1 |= alpha1 << 4;
-	printf("Alpha:\t\t"
-	       "alpha0=#%06x, alpha1=#%06x, bld_pix=%d, alpha_sel=%d\n",
-	       alpha0, alpha1, ext->bld_pix, ext->alpha_sel);
-	printf("Color Key:\tenable=%d, dir=%d, blend=%d, colkey=#%06x,"
-	       " colmask=#%06x\n", ext->ckena, ext->ckdir, ext->ckblend,
-	       ext->ckvalue, ext->ckmask);
-}
-
-
-/* Extended help message for lcdwin */
-static void s3c64xx_winext_help(void)
-{
-	puts("window alpha [alpha0 [alpha1 [pix [sel]]]]\n"
-	     "    - Set per-window alpha values\n"
-	     "window colkey [enable [dir [blend [value [mask]]]]]\n"
-	     "    - Set per-window color key values\n");
-}
 
 
 /************************************************************************/
@@ -346,46 +196,22 @@ static void s3c64xx_winext_help(void)
 
 static COLOR32 r2c_cmap2(const wininfo_t *pwi, RGBA rgba)
 {
-	COLOR32 temp;
-
-	temp = lcd_rgbalookup(rgba, pwi->cmap, 2);
-	temp = temp << 31;
-	temp = (COLOR32)((signed)temp >> 31);
-
-	return temp;
+	return lcd_rgbalookup(rgba, pwi->cmap, 2);
 }
 
 static COLOR32 r2c_cmap4(const wininfo_t *pwi, RGBA rgba)
 {
-	COLOR32 temp;
-
-	temp = lcd_rgbalookup(rgba, pwi->cmap, 4);
-	temp |= temp << 2;
-	temp |= temp << 4;
-	temp |= temp << 8;
-
-	return temp | (temp << 16);
+	return lcd_rgbalookup(rgba, pwi->cmap, 4);
 }
 
 static COLOR32 r2c_cmap16(const wininfo_t *pwi, RGBA rgba)
 {
-	COLOR32 temp;
-
-	temp = lcd_rgbalookup(rgba, pwi->cmap, 16);
-	temp |= temp << 4;
-	temp |= temp << 8;
-
-	return temp | (temp << 16);
+	return lcd_rgbalookup(rgba, pwi->cmap, 16);
 }
 
 static COLOR32 r2c_cmap256(const wininfo_t *pwi, RGBA rgba)
 {
-	COLOR32 temp;
-
-	temp = lcd_rgbalookup(rgba, pwi->cmap, 256);
-	temp |= temp << 8;
-
-	return temp | (temp << 16);
+	return lcd_rgbalookup(rgba, pwi->cmap, 256);
 }
 
 static COLOR32 r2c_rgba2321(const wininfo_t *pwi, RGBA rgba)
@@ -396,38 +222,37 @@ static COLOR32 r2c_rgba2321(const wininfo_t *pwi, RGBA rgba)
 	temp |= (rgba & 0xC0000000) >> 25; /* C[6:5] = R[7:6] */
 	temp |= (rgba & 0x00E00000) >> 19; /* C[4:2] = G[7:5] */
 	temp |= (rgba & 0x0000C000) >> 14; /* C[1:0] = B[7:6] */
-	temp |= temp << 8;		   /* C[15:8] */
-	return temp | (temp << 16);	   /* C[31:16] */
+	return temp;
 }
 
 static COLOR32 r2c_rgba5650(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = rgba & 0xF8000000;
-	temp |= (rgba & 0x00FC0000) << 3;
-	temp |= (rgba & 0x0000F800) << 5;
-	return temp | (temp >> 16);
+	temp = (rgba & 0xF8000000) >> 16; /* C[15:11] = R[7:3] */
+	temp |= (rgba & 0x00FC0000) >> 13; /* C[10:5] = G[7:2] */
+	temp |= (rgba & 0x0000F800) >> 11; /* C[4:0] = B[7:3] */
+	return temp;
 }
 
 static COLOR32 r2c_rgba5551(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = (rgba & 0xF8000000) >> 1;
-	temp |= (rgba & 0x00F80000) << 2;
-	temp |= (rgba & 0x0000F800) << 5;
-	temp |= (rgba & 0x00000080) << 24;
-	return temp | (temp >> 16);
+	temp = (rgba & 0x00000080) << 8;  /* C[15] = A[7] */
+	temp |= (rgba & 0xF8000000) >> 17; /* C[14:10] = R[7:3] */
+	temp |= (rgba & 0x00F80000) >> 14; /* C[9:5] = G[7:3] */
+	temp |= (rgba & 0x0000F800) >> 11; /* C[4:0] = B[7:3] */
+	return temp;
 }
 
 static COLOR32 r2c_rgba6660(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = (rgba & 0xFC000000) >> 14;
-	temp |= (rgba & 0x00FC0000) >> 12;
-	temp |= (rgba & 0x0000FC00) >> 10;
+	temp = (rgba & 0xFC000000) >> 14; /* C[17:12] = R[7:2] */
+	temp |= (rgba & 0x00FC0000) >> 12; /* C[11:6] = G[7:2] */
+	temp |= (rgba & 0x0000FC00) >> 10; /* C[5:0] = B[7:2] */
 	return temp;
 }
 
@@ -435,10 +260,10 @@ static COLOR32 r2c_rgba6651(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = (rgba & 0xFC000000) >> 15;
-	temp |= (rgba & 0x00FC0000) >> 13;
-	temp |= (rgba & 0x0000FC00) >> 11;
-	temp |= (rgba & 0x00000080) << 10;
+	temp = (rgba & 0x00000080) << 10;  /* C[17] = A[7] */
+	temp |= (rgba & 0xFC000000) >> 15; /* C[16:11] = R[7:2] */
+	temp |= (rgba & 0x00FC0000) >> 13; /* C[10:5] = G[7:2] */
+	temp |= (rgba & 0x0000FC00) >> 11; /* C[4:0] = B[7:3] */
 	return temp;
 }
 
@@ -446,10 +271,10 @@ static COLOR32 r2c_rgba6661(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = (rgba & 0xFC000000) >> 14;
-	temp |= (rgba & 0x00FC0000) >> 12;
-	temp |= (rgba & 0x0000FC00) >> 10;
-	temp |= (rgba & 0x00000080) << 11;
+	temp = (rgba & 0x00000080) << 11;  /* C[18] = A[7] */
+	temp |= (rgba & 0xFC000000) >> 14; /* C[17:12] = R[7:2] */
+	temp |= (rgba & 0x00FC0000) >> 12; /* C[11:6] = G[7:2] */
+	temp |= (rgba & 0x0000FC00) >> 10; /* C[5:0] = B[7:2] */
 	return temp;
 }
 
@@ -647,22 +472,473 @@ static RGBA c2r_rgba8884(const wininfo_t *pwi, COLOR32 color)
 }
 
 
+/************************************************************************/
+/* Apply Alpha COLOR32 * (256-alpha) + pre-multiplied pixel -> COLOR32	*/
+/************************************************************************/
+
+/* The following functions blend an existing pixel with a new pixel by
+   applying an alpha value. The mathematically correct value would be:
+
+     C = (C_old * (255 - A_pix) + C_pix * A_pix) / 255
+
+   But dividing by 255 is rather time consuming. Therefore we use a slightly
+   different blending function that divides by 256 which can be done by a
+   right shift.
+
+     C = (C_old * (256 - A_pix) + C_pix * (A_pix + 1)) / 256
+
+   This formula generates only a slightly different result which is barely
+   visible. This approach is also commonly used by LCD controller hardware.
+
+     R_new = (R_old * (256 - A_pix) + R_pix * (A_pix + 1)) / 256
+     G_new = (G_old * (256 - A_pix) + G_pix * (A_pix + 1)) / 256
+     B_new = (B_old * (256 - A_pix) + B_pix * (A_pix + 1)) / 256
+     A_new = A_old;
+
+   Here are some considerations about performance optimization.
+
+   - Usually, for example when drawing a line, rectangle or circle, several
+     pixels with the same color/alpha are drawn. Therefore we can compute the
+     part for the new pixel beforehand and only need to do the part for the
+     existing pixel here. This we call pre-multiplied alpha and is done in
+     lcd_set_col() (or the bitmap line drawing functions). The pre-multiplied
+     data is part of the colinfo_t structure.
+
+   - We could provide a global function apply_alpha() that gets two RGBA
+     values (or one RGBA value and pre-multiplied data) and does the color
+     computation for that pixel. However this would mean calling col2rgba()
+     for the existing pixel to get the RGBA value, applying alpha and then
+     calling rgba2col() to convert the pixel back to framebuffer format. All
+     these steps involve quite a lot bit shifting which results in a rather
+     slow processing. For example col2rgba() separates R, G, B of the
+     framebuffer format and stuffs them in an RGBA value while apply_alpha()
+     would immediately separate this again to R, G, B. We can avoid some of
+     this overhead by having a special function for each pixel format. Here we
+     don't need to assemble a temporary RGBA value, but we can immediately use
+     R, G, B for the alpha-applying computation. And we can immediately
+     convert R, G, and B back to the required framebuffer format.
+
+   - We ary multiplying 8 bits by 8 bits with a 16 bit result were the most
+     significant 8 bits are of interest. This allows processing of two color
+     values in one go in a 32 bit register. By doing this, we can avoid one of
+     the multiplications and one of the additions.
+
+   - The right shift for /256 can be combined with the shift to the final bit
+     position in the RGBA word reducing the number of needed shifts. */
+
+#if 0
+/* To understand the algorithm better this is how the apply_alpha() function
+   would look if no pre-multiplication was used */
+static RGBA apply_alpha(RGBA old, RGBA pix)
+{
+	RGBA RB, G;
+	RGBA alpha1, alpha256;
+
+	/* Get the alpha values from the new pixel */
+	alpha1 = pix & 0x000000FF;
+	alpha256 = 256 - alpha1;
+	alpha1++;
+
+	/* Remove A, shift values to a position so that after the
+	   multiplication the result is already at the correct bit position */
+	old >>= 8;
+	pix >>= 8;
+
+	/* Handle R and B together in one register, removing G */
+	RB = (old & ~0xFF00) * alpha256 + (pix & ~0xFF00) * alpha1;
+
+	/* Handle G, removing R and B */
+	G = (old & 0xFF00) * alpha256 + (pix & 0xFF00) * alpha1;
+
+	/* Combine result */
+	return (RB & 0xFF00FF00) | (G & 0x00FF0000) | (old & 0x000000FF);
+}
+#endif
+
+static COLOR32 aa_cmap(const wininfo_t *pwi, const colinfo_t *pci,
+		       COLOR32 color, u_int count)
+{
+	RGBA RB, G;
+	RGBA rgba, new;
+
+	rgba = pwi->cmap[color & (count-1)];
+	new = rgba & 0xFF;
+
+	/* Remove A, shift values to a position so that after the
+	   multiplication the result is already at the correct bit position */
+	rgba >>= 8;
+
+	/* Handle R and B together in one register, removing G */
+	RB = (pci->RA1 << 16) | pci->BA1;
+	RB = RB + (rgba & ~0xFF00) * pci->A256;
+
+	/* Handle G, removing R and B */
+	G = (rgba & 0xFF00) * pci->A256 + (pci->GA1 << 8);
+
+	new |= RB & 0xFF00FF00;
+	new |= G & 0x00FF0000;
+
+	/* Now search matching color in color table */
+	return lcd_rgbalookup(new, pwi->cmap, count);
+}
+
+static COLOR32 aa_cmap2(const wininfo_t *pwi, const colinfo_t *pci,
+			COLOR32 color)
+{
+	return aa_cmap(pwi, pci, color, 2);
+}
+
+static COLOR32 aa_cmap4(const wininfo_t *pwi, const colinfo_t *pci,
+			COLOR32 color)
+{
+	return aa_cmap(pwi, pci, color, 4);
+}
+
+static COLOR32 aa_cmap16(const wininfo_t *pwi, const colinfo_t *pci,
+			 COLOR32 color)
+{
+	return aa_cmap(pwi, pci, color, 16);
+}
+
+static COLOR32 aa_cmap256(const wininfo_t *pwi, const colinfo_t *pci,
+			  COLOR32 color)
+{
+	return aa_cmap(pwi, pci, color, 256);
+}
+
+static COLOR32 aa_rgba2321(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA BR, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	BR = (color & 0x60) << 1; /* BR[7:6] = R[7:6] */
+	BR |= (color & 0x03);	  /* BR[23:22] = B[7:6] */
+	BR |= BR >> 2;		  /* BR[23:20] = B[7:4], BR[7:4] = R[7:4] */
+	BR |= BR >> 4;		  /* BR[23:16] = B[7:0], BR[7:0] = R[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	BR = ((pci->RA1 | (pci->BA1 << 16)) + BR*pci->A256);
+
+	G = (color & 0x1C);		  /* G[7:5] */
+	G |= (G << 3) | (G >> 3);	  /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xE000;
+
+	/* Combine R, G and B in the final value */
+	new = color & 0x80;		  /* new[7] = A[7] */
+	new |= (BR & 0xC000) >> 9;	  /* new[6:5] = R[7:6] */
+	new |= G >> 11;			  /* new[4:2] = G[7:5] */
+	new |= BR >> 30;		  /* new[1:0] = B[7:6] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba5650(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA BR, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	BR = color & 0xF800;	  /* BR[15:11] = R[7:3] */
+	BR |= color << 27;	  /* BR[31:27] = B[7:3] */
+	BR >>= 8;		  /* BR[23:19] = B[7:3], BR[7:3] = R[7:3] */
+	BR |= (BR & ~0x1F0000) >> 5; /* BR[23:16] = B[7:0], BR[7:0] = R[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	BR = (pci->RA1 | (pci->BA1 << 16)) + BR*pci->A256;
+
+	G = (color & 0x07E0) >> 3;	  /* G[7:2] */
+	G |= G >> 6;			  /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = BR & 0xF800;		  /* new[15:11] = R[7:3] */
+	new |= G >> 5;			  /* new[10:5] = G[7:2] */
+	new |= BR >> 27;		  /* new[4:0] = B[7:3] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba5551(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA BR, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	BR = (color & 0x7C00) << 1; /* BR[15:11] = R[7:3] */
+	BR |= color << 27;	  /* BR[31:27] = B[7:3] */
+	BR >>= 8;		  /* BR[23:19] = B[7:3], BR[7:3] = R[7:3] */
+	BR |= (BR & ~0x1F0000) >> 5; /* BR[23:16] = B[7:0], BR[7:0] = R[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	BR = (pci->RA1 | (pci->BA1 << 16)) + BR*pci->A256;
+
+	G = (color & 0x03E0) >> 3;	  /* G[7:3] */
+	G |= G >> 5;			  /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = color & 0x8000;		  /* new[15] = A[7] */
+	new |= (BR & 0xF800) >> 1;	  /* new[14:10] = R[7:3] */
+	new |= G >> 6;			  /* new[9:5] = G[7:3] */
+	new |= BR >> 27;		  /* new[4:0] = B[7:3] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba6660(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA BR, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	BR = (color & 0x3F000) >> 2; /* BR[15:10] = R[7:2] */
+	BR |= color << 26;	  /* BR[31:26] = B[7:2] */
+	BR >>= 8;		  /* BR[23:18] = B[7:2], BR[7:2] = R[7:2] */
+	BR |= (BR & ~0x3F0000) >> 6; /* BR[23:16] = B[7:0], BR[7:0] = R[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	BR = (pci->RA1 | (pci->BA1 << 16)) + BR*pci->A256;
+
+	G = (color & 0x00F30) >> 4;	  /* G[7:2] */
+	G |= G >> 6;			  /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = (BR & 0xFC00) << 2;	  /* new[17:12] = R[7:2] */
+	new |= G >> 4;			  /* new[11:6] = G[7:2] */
+	new |= BR >> 26;		  /* new[5:0] = B[7:2] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba6651(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA RG, B;
+	COLOR32 new;
+
+	/* Handle R and G in one go */
+	RG = (color & 0x1F800) << 7;  /* RG[23:18] = R[7:2] */
+	RG |= (color & 0x007E0) >> 3; /* RG[7:2] = G[7:2] */
+	RG |= (RG & ~0x3F0000) >> 6;  /* RG[23:16] = R[7:0], RG[7:0] = G[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	RG = ((pci->RA1 << 16) | (pci->GA1 << 16)) + RG*pci->A256;
+
+	B = (color & 0x0001F) << 3;	  /* B[7:3] */
+	B |= B >> 5;			  /* B[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	B = (pci->BA1 + B*pci->A256) & 0xF800;
+
+	/* Combine R, G and B in the final value */
+	new = color & 0x20000;		  /* new[17] = A[7] */
+	new |= (RG & 0xFC000000) >> 15;	  /* new[16:11] = R[7:2] */
+	new |= (RG & 0x0000FC00) >> 5;	  /* new[10:5] = G[7:2] */
+	new |= B >> 11;			  /* new[4:0] = B[7:3] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba6661(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA BR, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	BR = (color & 0x3F000) >> 2; /* BR[15:10] = R[7:2] */
+	BR |= color << 26;	  /* BR[31:26] = B[7:2] */
+	BR >>= 8;		  /* BR[23:18] = B[7:2], BR[7:2] = R[7:2] */
+	BR |= (BR & ~0x3F0000) >> 6; /* BR[23:16] = B[7:0], BR[7:0] = R[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	BR = (pci->RA1 | (pci->BA1 << 16)) + BR*pci->A256;
+
+	G = (color & 0x00F30) >> 4;	  /* G[7:2] */
+	G |= G >> 6;			  /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = color & 0x40000;		  /* new[18] = A[7] */
+	new |= (BR & 0xFC00) << 2;	  /* new[17:12] = R[7:2] */
+	new |= G >> 4;			  /* new[11:6] = G[7:2] */
+	new |= BR >> 26;		  /* new[5:0] = B[7:2] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba8880(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA RB, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	RB = (color & 0x00FF00FF); /* RB[23:16] = R[7:0], RB[7:0] = B[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	RB = ((pci->RA1 << 16) | pci->BA1) + RB*pci->A256;
+
+	G = (color >> 8) & 0xFF;     /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
+	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba8871(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA RB, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	RB = (color << 1) & 0xFF00FF; /* RB[23:16] = R[7:0], RB[7:1] = B[7:1] */
+	RB |= (RB & 0x80) >> 7;	      /* RB[7:0] = B[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	RB = ((pci->RA1 << 16) | pci->BA1) + RB*pci->A256;
+
+	G = (color >> 7) & 0xFF;     /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = (RB & 0xFF00FFFF) >> 9; /* new[22:15] = R[7:0], new[6:0]=B[7:1] */
+	new |= (G & 0xFF00) >> 1;     /* new[14:7] = G[7:0] */
+	new |= color & 0x20000;	      /* new[23] = A[7] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba8881(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA RB, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	RB = (color & 0x00FF00FF); /* RB[23:16] = R[7:0], RB[7:0] = B[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	RB = ((pci->RA1 << 16) | pci->BA1) + RB*pci->A256;
+
+	G = (color >> 8) & 0xFF;     /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
+	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+	new |= color & 0x01000000;    /* new[24] = A[7] */
+
+	return new;
+}
+
+static COLOR32 aa_rgba8884(const wininfo_t *pwi, const colinfo_t *pci,
+			   COLOR32 color)
+{
+	RGBA RB, G;
+	COLOR32 new;
+
+	/* Handle R and B in one go */
+	RB = (color & 0x00FF00FF); /* RB[23:16] = R[7:0], RB[7:0] = B[7:0] */
+
+	/* Multiply B and R with (256-alpha) and add the pre-multiplied B and
+	   R values; result is in BR[31:24] = B[7:0] and BR[15:8] = R[7:0] */
+	RB = ((pci->RA1 << 16) | pci->BA1) + RB*pci->A256;
+
+	G = (color >> 8) & 0xFF;     /* G[7:0] */
+
+	/* Multiply G with (256-alpha) and add the pre-multiplied G; result is
+	   in G[15:7], we only need G[15:9] */
+	G = (pci->GA1 + G*pci->A256) & 0xFC00;
+
+	/* Combine R, G and B in the final value */
+	new = (RB & 0xFF00FFFF) >> 8; /* new[23:16] = R[7:0], new[7:0]=B[7:0] */
+	new |= G & 0xFF00;	      /* new[15:8] = G[7:0] */
+	new |= color & 0x0F000000;    /* new[27:24] = A[7:4] */
+
+	return new;
+}
+
+
+/************************************************************************/
+/* Pixel Information Table						*/
+/************************************************************************/
+
 const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
-	{ 1, 0,  2, r2c_cmap2,    c2r_cmap2,    "2-entry color map"},   /* 0*/
-	{ 2, 1,  4, r2c_cmap4,    c2r_cmap4,    "4-entry color map"},	/* 1*/
-	{ 4, 2, 16, r2c_cmap16,   c2r_cmap16,   "16-entry color map"},	/* 2*/
-	{ 8, 3,256, r2c_cmap256,  c2r_cmap256,  "256-entry color map"}, /* 3*/
-	{ 8, 3,  0, r2c_rgba2321, c2r_rgba2321, "RGBA-2321"},           /* 4*/
-	{16, 4,  0, r2c_rgba5650, c2r_rgba5650, "RGBA-5650 (default)"},	/* 5*/
-	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, "RGBA-5551"},           /* 6*/
-	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, "RGBI-5551 (I=intensity)"},/*7*/
-	{18, 5,  0, r2c_rgba6660, c2r_rgba6660, "RGBA-6660"},           /* 8*/
-	{18, 5,  0, r2c_rgba6651, c2r_rgba6651, "RGBA-6651"},           /* 9*/
-	{19, 5,  0, r2c_rgba6661, c2r_rgba6661, "RGBA-6661"},           /*10*/
-	{24, 5,  0, r2c_rgba8880, c2r_rgba8880, "RGBA-8880"},           /*11*/
-	{24, 5,  0, r2c_rgba8871, c2r_rgba8871, "RGBA-8871"},           /*12*/
-	{25, 5,  0, r2c_rgba8881, c2r_rgba8881, "RGBA-8881"},           /*13*/
-	{28, 5,  0, r2c_rgba8884, c2r_rgba8884, "RGBA-8884"}            /*14*/
+	{ 1, 0,  2, r2c_cmap2,    c2r_cmap2,    aa_cmap2,
+	  "2-entry color map"},		                      /* 0 */
+	{ 2, 1,  4, r2c_cmap4,    c2r_cmap4,    aa_cmap4,
+	  "4-entry color map"},		                      /* 1 */
+	{ 4, 2, 16, r2c_cmap16,   c2r_cmap16,   aa_cmap16,
+	  "16-entry color map"},	                      /* 2 */
+	{ 8, 3,256, r2c_cmap256,  c2r_cmap256,  aa_cmap256,
+	  "256-entry color map"},	                      /* 3 */
+	{ 8, 3,  0, r2c_rgba2321, c2r_rgba2321, aa_rgba2321,
+	  "RGBA-2321"},			                      /* 4 */
+	{16, 4,  0, r2c_rgba5650, c2r_rgba5650, aa_rgba5650,
+	 "RGBA-5650 (default)"},	                      /* 5 */
+	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
+	 "RGBA-5551"},			                      /* 6 */
+	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, aa_rgba5551,
+	 "RGBI-5551 (I=intensity)"},	                      /* 7 */
+	{18, 5,  0, r2c_rgba6660, c2r_rgba6660, aa_rgba6660,
+	 "RGBA-6660"},			                      /* 8 */
+	{18, 5,  0, r2c_rgba6651, c2r_rgba6651, aa_rgba6651,
+	 "RGBA-6651"},					      /* 9 */
+	{19, 5,  0, r2c_rgba6661, c2r_rgba6661, aa_rgba6661,
+	 "RGBA-6661"},					      /* 10 */
+	{24, 5,  0, r2c_rgba8880, c2r_rgba8880, aa_rgba8880,
+	 "RGBA-8880"},					      /* 11 */
+	{24, 5,  0, r2c_rgba8871, c2r_rgba8871, aa_rgba8871,
+	 "RGBA-8871"},					      /* 12 */
+	{25, 5,  0, r2c_rgba8881, c2r_rgba8881, aa_rgba8881,
+	 "RGBA-8881"},					      /* 13 */
+	{28, 5,  0, r2c_rgba8884, c2r_rgba8884, aa_rgba8884,
+	 "RGBA-8884"}			                      /* 14 */
 };
 
 /* Return a pointer to the pixel format info (NULL if pix not valid) */
@@ -676,6 +952,59 @@ static const pixinfo_t *s3c64xx_get_pixinfo_p(WINDOW win, u_char pix)
 	return ppi;
 }
 
+/* Set color map entry for windows 0 and 1; we always use format RGBA8881 */
+static void set_cmap32(const wininfo_t *pwi, u_int index, u_int end,
+		       RGBA *prgba)
+{
+	RGBA *cmap = pwi->cmap;
+	u_int *hwcmap = (u_int *)winregs_table[pwi->win].hwcmap;
+
+	__REG(S3C_WPALCON) |= S3C_WPALCON_PALUPDATEEN;
+	do {
+		RGBA rgba = *prgba++;
+		RGBA newcmap;
+		u_int newhw;
+
+		newcmap = rgba & 0xFFFFFF00;
+		newhw = rgba >> 8;
+		if (rgba & 0x80) {
+			newcmap |= 0xFF;
+			newhw |= 0x1000000;
+		}
+		cmap[index] = newcmap;
+		hwcmap[index] = newhw;
+	} while (++index <= end);
+	__REG(S3C_WPALCON) &= ~S3C_WPALCON_PALUPDATEEN;
+}
+
+/* Set color map entry for windows 2 to 4; we always use format RGBA5551 */
+static void set_cmap16(const wininfo_t *pwi, u_int index, u_int end,
+		       RGBA *prgba)
+{
+	RGBA *cmap = pwi->cmap;
+	u_short *hwcmap = (u_short *)winregs_table[pwi->win].hwcmap;
+
+	__REG(S3C_WPALCON) |= S3C_WPALCON_PALUPDATEEN;
+	do {
+		RGBA rgba = *prgba++;
+		RGBA newcmap;
+		u_int newhw;
+
+		newcmap = rgba & 0xF8F8F800;
+		newcmap |= (rgba & 0xE0E0E000) >> 5;
+		newhw = (rgba & 0xF8000000) >> 17; /* C[14:10] = R[7:3] */
+		newhw |= (rgba & 0x00F80000) >> 14; /* C[9:5] = G[7:3] */
+		newhw |= (rgba & 0x0000F800) >> 11; /* C[4:0] = B[7:3] */
+		newhw = rgba >> 8;
+		if (rgba & 0x80) {
+			newcmap |= 0xFF;
+			newhw |= 0x8000;
+		}
+		cmap[index] = newcmap;
+		hwcmap[index] = (u_short)newhw;
+	} while (++index <= end);
+	__REG(S3C_WPALCON) &= ~S3C_WPALCON_PALUPDATEEN;
+}
 
 /* Return maximum horizontal framebuffer resolution for this window */
 static HVRES s3c64xx_get_fbmaxhres(WINDOW win, u_char pix)
@@ -724,6 +1053,7 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 	unsigned hline;
 	unsigned vframe;
 	unsigned ticks;
+	u_int drive;
 
 	hclk = get_HCLK();
 
@@ -750,6 +1080,19 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 		pvi->lcd.vsw = 1;
 	if (pvi->lcd.vbp > 255)
 		pvi->lcd.vbp = 255;
+	if (pvi->drive < 3) {
+		pvi->drive = 2;
+		drive = 0;
+	} else if (pvi->drive < 5) {
+		pvi->drive = 4;
+		drive = 1;
+	} else if (pvi->drive < 8) {
+		pvi->drive = 7;
+		drive = 2;
+	} else {
+		pvi->drive = 9;
+		drive = 3;
+	}
 
 	/* Number of clocks for one horizontal line */
 	hline = pvi->lcd.hres + pvi->lcd.hfp + pvi->lcd.hsw + pvi->lcd.hbp;
@@ -823,7 +1166,10 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 		S3C_DITHMODE_RDITHPOS_5BIT
 		| S3C_DITHMODE_GDITHPOS_6BIT
 		| S3C_DITHMODE_BDITHPOS_5BIT
-		| (pvi->lcd.dither ? S3C_DITHMODE_DITHERING_ENABLE : 0);
+		| (pvi->frc ? S3C_DITHMODE_DITHERING_ENABLE : 0);
+
+	/* Drive strength */
+	__REG(SPCON) = (__REG(SPCON) & ~(0x3 << 24)) | (drive << 24);
 
 //###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx, hclk=%lu\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE), hclk);
 }
@@ -836,7 +1182,6 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 {
 	const struct LCD_WIN_REGS *winregs = &winregs_table[pwi->win];
 	const vidinfo_t *pvi = pwi->pvi;
-	const wininfo_ext_t *ext = (const wininfo_ext_t *)pwi->ext;
 	unsigned pagewidth;
 	unsigned burstlen;
 	unsigned bld_pix;
@@ -848,6 +1193,7 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	XYPOS panel_hres;
 	XYPOS panel_vres;
 	u_long addr;
+	unsigned alpha;
 
 	hres = pvi->align_hres(pwi->win, pwi->pix, pwi->hres);
 	vres = pwi->vres;
@@ -901,12 +1247,15 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 		burstlen = S3C_WINCONx_BURSTLEN_8WORD;
 	else
 		burstlen = S3C_WINCONx_BURSTLEN_4WORD;
+
 	if (pwi->pix == 14) {
-		bld_pix = 1;
-		alpha_sel = 1;
+		bld_pix = S3C_WINCONx_BLD_PIX_PIXEL;
+		alpha_sel = S3C_WINCONx_ALPHA_SEL_1;
 	} else {
-		bld_pix = ext->bld_pix;
-		alpha_sel = ext->alpha_sel;
+		bld_pix =
+			(pwi->alphamode & 0x2) ? S3C_WINCONx_BLD_PIX_PIXEL : 0;
+		alpha_sel =
+			(pwi->alphamode & 0x2) ? S3C_WINCONx_ALPHA_SEL_1 : 0;
 	}
 	bppmode_f = pwi->pix;
 	if (bppmode_f > 13)
@@ -939,8 +1288,14 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	if (winregs->vidosdsize)
 		__REG(winregs->vidosdsize) = 0; /* Only for TV-Encoder */
 
+	alpha = (pwi->alpha0 & 0x0000F000);	   /* B */
+	alpha |= (pwi->alpha0 & 0x00F00000) >> 4;  /* G */
+	alpha |= (pwi->alpha0 & 0xF0000000) >> 8;  /* R */
+	alpha |= (pwi->alpha1 & 0xF0000000) >> 20; /* R */
+	alpha |= (pwi->alpha1 & 0x00F00000) >> 16; /* G */
+	alpha |= (pwi->alpha1 & 0x0000F000) >> 12; /* B */
 	if (winregs->vidosdalpha)
-		__REG(winregs->vidosdalpha) = ext->alpha;
+		__REG(winregs->vidosdalpha) = alpha;
 
 	/* Set buffer 0 */
 	addr = pwi->pfbuf[0] + voffs*pwi->linelen;
@@ -970,19 +1325,21 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 		| S3C_WPALCON_W1PAL_25BIT_A
 		| S3C_WPALCON_W0PAL_25BIT_A;
 
+	/* Set a fix color for window (instead of normal content) if alpha of
+	   the replacement color is >127 */
 	__REG(winregs->winmap) =
-		S3C_WINxMAP_MAPCOLEN_F_DISABLE
-		| S3C_WINxMAP_MAPCOLOR(0xFFFFFF);
+		(pwi->replace >> 8)
+		| ((pwi->replace & 0x80) ? S3C_WINxMAP_MAPCOLEN_F_ENABLE : 0);
 
 	if (winregs->keycon)
 		__REG(winregs->keycon) =
-			(ext->ckblend ? S3C_WxKEYCON0_KEYBLEN_ENABLE : 0)
-			| (ext->ckena ? S3C_WxKEYCON0_KEYEN_F_ENABLE : 0)
-			| (ext->ckdir ? S3C_WxKEYCON0_DIRCON_MATCH_BG_IMAGE : 0)
-			| ext->ckmask;
+		 ((pwi->ckmode & 2) ? S3C_WxKEYCON0_KEYBLEN_ENABLE : 0)
+		 | ((pwi->ckvalue & 0x80) ? S3C_WxKEYCON0_KEYEN_F_ENABLE : 0)
+		 | ((pwi->ckmode & 1) ? S3C_WxKEYCON0_DIRCON_MATCH_BG_IMAGE : 0)
+		 | (pwi->ckmask >> 8);
 
 	if (winregs->keyval)
-		__REG(winregs->keyval) = ext->ckvalue;
+		__REG(winregs->keyval) = pwi->ckvalue >> 8;
 
 //###	printf("###Window %u enabled: wincon=0x%lx, vidosdtl=0x%lx, vidosdbr=0x%lx, vidosdsize=0x%lx\n", pwi->win, __REG(winregs->wincon), __REG(winregs->vidosdtl), __REG(winregs->vidosdbr), __REG(winregs->vidosdsize));
 //###	printf("### vidosdalpha=0x%lx, vidadd[0].start=0x%lx, vidadd[0].end=0x%lx, vidsize=0x%lx\n", __REG(winregs->vidosdalpha), __REG(winregs->vidadd[0].start), __REG(winregs->vidadd[0].end), __REG(winregs->vidsize));
@@ -990,8 +1347,35 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	return;				  /* enabled */
 }
 
-static int s3c64xx_enable(void)
+/* Activate display in power-on sequence order */
+static void s3c64xx_enable(const vidinfo_t *pvi)
 {
+	u_short delay = 0;
+	int index = 0;
+	const u_short *ponseq = pvi->lcd.ponseq;
+
+	/* Find next delay entry */
+	while ((index = find_delay_index(ponseq, index, delay)) >= 0) {
+		u_short newdelay = ponseq[index];
+
+		/* Wait for the delay difference, if delay is higher */
+		if (newdelay > delay) {
+			udelay((newdelay - delay)*1000);
+			delay = newdelay;
+		}
+
+		if (index == PON_CONTR) {
+			/* Activate LCD controller */
+			__REG(S3C_VIDCON0) |=
+				S3C_VIDCON0_ENVID_ENABLE
+				| S3C_VIDCON0_ENVID_F_ENABLE;
+		}
+
+		/* Switch appropriate signal on; this is board specific */
+		s3c64xx_lcd_board_enable(index);
+	}
+
+#if 0 //####
 	/* Activate VLCD */
 	__REG(GPKDAT) |= (1<<0);
 
@@ -1010,15 +1394,36 @@ static int s3c64xx_enable(void)
 
 	/* Activate VEEK (backlight intensity full) */
 	__REG(GPFDAT) |= (0x1<<15);
-
-
-//###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE));
-	return 0;
+#endif	// ###
 }
 
-/* Deactivate display in reverse order */
-static void s3c64xx_disable(void)
+/* Deactivate display in power-off sequence order */
+static void s3c64xx_disable(const vidinfo_t *pvi)
 {
+	u_short delay = 0;
+	int index = 0;
+	const u_short *poffseq = pvi->lcd.poffseq;
+
+	/* Find next delay entry */
+	while ((index = find_delay_index(poffseq, index, delay)) >= 0) {
+		u_short newdelay = poffseq[index];
+
+		/* Wait for the delay difference, if delay is higher */
+		if (newdelay > delay) {
+			udelay((newdelay - delay)*1000);
+			delay = newdelay;
+		}
+
+		/* Switch appropriate signal off; this is board specific */
+		s3c64xx_lcd_board_enable(index);
+
+		if (index == PON_CONTR) {
+			/* Deactivate LCD controller */
+			__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
+		}
+	}
+
+#if 0 //#####
 	/* Deactivate VEEK (backlight intensity off) */
 	__REG(GPFDAT) &= ~(0x1<<15);
 
@@ -1036,6 +1441,7 @@ static void s3c64xx_disable(void)
 
 	/* Deactivate VLCD */
 	__REG(GPKDAT) &= ~(1<<0);
+#endif //####
 }
 
 
@@ -1047,10 +1453,6 @@ static const vidinfo_t s3c64xx_vidinfo = {
 	wincount: MAX_WINDOWS,
 	pixcount: PIXEL_FORMAT_COUNT,
 	pwi: s3c64xx_wininfo,
-	winext_parse: s3c64xx_winext_parse,
-	winext_exec: s3c64xx_winext_exec,
-	winext_show: s3c64xx_winext_show,
-	winext_help: s3c64xx_winext_help,
 	get_pixinfo_p: s3c64xx_get_pixinfo_p,
 	get_fbmaxhres: s3c64xx_get_fbmaxhres,
 	get_fbmaxvres: s3c64xx_get_fbmaxvres,
@@ -1075,12 +1477,12 @@ static const vidinfo_t s3c64xx_vidinfo = {
 void s3c64xx_lcd_init(vidinfo_t *pvi)
 {
 	u_long *pfbuf;
-	wininfo_ext_t *pwinext;
 	wininfo_t *pwi;
 	WINDOW win;
 
-	/* Call board specific GPIO configuration */
-//###	s3c64xx_lcd_board_init(void);
+	/* Configure board specific LCD signals, e.g. GPIOs used for LCD power
+	   (VLCD), Display Enable, signal buffers, PWM, backlight (VCFL) */
+	s3c64xx_lcd_board_init();
 
 	__REG(S3C_HOSTIFB_MIFPCON) = 0;	  /* 0: normal-path (no by-pass) */
 	__REG(HCLK_GATE) |= (1<<3);	  /* Enable clock to LCD */
@@ -1094,34 +1496,21 @@ void s3c64xx_lcd_init(vidinfo_t *pvi)
 	__REG(GPJCON) = 0xAAAAAAAA;
 	__REG(GPJPUD) = 0x00000000;
 
-	/* Setup GPF15 to output 0 (backlight intensity 0) */
-	__REG(GPFDAT) &= ~(0x1<<15);
-	__REG(GPFCON) = (__REG(GPFCON) & ~(0x3<<30)) | (0x1<<30);
-	__REG(GPFPUD) &= ~(0x3<<30);
-
-	/* Setup GPK[3] to output 1 (Buffer enable), GPK[2] to output 1
-	   (Display enable), GPK[1] to output 0 (VCFL), GPK[0] to output 0
-	   (VLCD), no pull-up/down */
-	__REG(GPKDAT) = (__REG(GPKDAT) & ~(0xf<<0)) | (0xc<<0);
-	__REG(GPKCON0) = (__REG(GPKCON0) & ~(0xFFF<<0)) | (0x111<<0);
-	__REG(GPKPUD) &= ~(0x3F<<0);
-
 	/* Copy our vidinfo to the global array pointer */
 	*pvi = s3c64xx_vidinfo;
 
 	/* Initialize hardware-specific part of the windows information:
 	   Pointer to framebuffers, default pixel format, maximum buffer
-	   count, wininfo extension. */
+	   count, color map info and color map access. */
 	pfbuf = s3c64xx_fbuf;
-	pwinext = s3c64xx_wininfo_ext;
 	for (win=0, pwi=s3c64xx_wininfo; win < MAX_WINDOWS; win++, pwi++) {
 		u_int fbmaxcount = (win < 2) ? 2 : 1;
+		pwi->cmap = cmap + cmap_offset[win];
+		pwi->set_cmap = (win <= 1) ? set_cmap32 : set_cmap16;
 		pwi->defpix = DEFAULT_PIXEL_FORMAT;
 		pwi->pfbuf = pfbuf;
 		pwi->fbmaxcount = (u_char)fbmaxcount;
 		pfbuf += fbmaxcount;
-		pwinext->alpha = 0x00FFF000;
-		pwi->ext = pwinext++;
 	}
 }
 

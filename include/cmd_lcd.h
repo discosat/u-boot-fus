@@ -40,16 +40,6 @@ typedef unsigned int HVRES;
 
 
 /************************************************************************/
-/* ENUMERATIONS								*/
-/************************************************************************/
-
-enum RGB_TYPE {
-	RT_NONE,
-	RT_RGB,
-	RT_RGBA
-};
-
-/************************************************************************/
 /* TYPES AND STRUCTURES							*/
 /************************************************************************/
 
@@ -57,12 +47,22 @@ enum RGB_TYPE {
 typedef struct wininfo wininfo_t;
 typedef struct vidinfo vidinfo_t;
 
+/* Structure for holding color info, incl. alpha pre-multiply data */
+typedef struct colinfo {
+	COLOR32 col;			  /* Color as COLOR32 */
+	RGBA rgba;			  /* Color as RGBA */
+	RGBA RA1;			  /* Red * (Alpha+1) (16 bits) */
+	RGBA GA1;			  /* Green * (Alpha+1) (16 bits) */
+	RGBA BA1;			  /* Blue * (Alpha+1) (16 bits) */
+	RGBA A256;			  /* 256-Alpha (8 bits) */
+} colinfo_t;
+
 /* Pixel format information */
 typedef struct PIXEL_INFO {
 	u_char depth;			/* Actually used bits for the color */
 	u_char bpp_shift;		/* Bits per pixel as power of 2;
 					   0: 1 bpp, 1: 2 bpp, .. 5: 32bpp */
-	u_short clutsize;		/* Number of CLUT entries
+	u_short cmapsize;		/* Number of CLUT entries
 					   (0=non-palettized) */
 
 	/* Function to convert RGBA to COLOR32 */
@@ -71,12 +71,16 @@ typedef struct PIXEL_INFO {
 	/* Function to convert COLOR32 to RGBA */
 	RGBA (*col2rgba)(const wininfo_t *pwi, COLOR32 color);
 
+	/* Function to apply Alpha and pre-multiplied pixel to COLOR32 value */
+	COLOR32 (*apply_alpha)(const wininfo_t *pwi, const colinfo_t *pci,
+			       COLOR32 oldcol);
+
 	char *name;			/* Format description */
 
 } pixinfo_t;
 
 /* Console information */
-typedef struct CON_INFO {
+typedef struct coninfo {
 	u_short x;			  /* Current writing position */
 	u_short y;			  /* (aligned to characters) */
 	COLOR32 fg;			  /* Foreground and background color */
@@ -84,31 +88,26 @@ typedef struct CON_INFO {
 } coninfo_t;
 
 
+/* Video/LCD device info */
 struct vidinfo 
 {
 	/* Driver specific display info */
 	char *driver_name;		  /* Name of display driver */
-	VID vid;			  /* Current display number */
-	u_char is_enabled;		  /* Flag if LCD is switched on */
+	char name[12];			  /* "lcd0" or "lcd" */
+	wininfo_t *pwi;			  /* Pointer to info about windows */
 	WINDOW wincount;		  /* Number of available windows */
 	WINDOW win_sel;			  /* Currently selected window */
 	PIX pixcount;			  /* Number of av. pixel formats */
-	wininfo_t *pwi;			  /* Pointer to info about windows */
+	VID vid;			  /* Current display number */
+	u_char is_enabled;		  /* Flag if LCD is switched on */
+
+	/* Extra settings */
+	u_char	frc;		/* Dither mode (FRC) #### */
+	u_char  drive;	        /* Drive strength: 0=2mA, 1=4mA, 2=7mA, 3=9mA */
+	u_char  reserved;	/* (needed for alignment anyway) */
 
 	/* Driver independent LCD panel info */
 	lcdinfo_t lcd;			  /* Info about lcd panel */
-
-	/* Function to parse additional window sub-commands (optional) */
-	u_short (*winext_parse)(int argc, char *s);
-
-	/* Function to execute additional window sub-commands (optional) */
-	int (*winext_exec)(wininfo_t *pwi, int argc, char *argv[], u_short sc);
-
-	/* Function to print info for additional window sub-commands (opt.) */
-	void (*winext_show)(const wininfo_t *pwi);
-
-	/* Function to print help for additional window sub-commands (opt.) */
-	void (*winext_help)(void);
 
 	/* Function to get a pointer to the info for pixel format pix */
 	const pixinfo_t *(*get_pixinfo_p)(WINDOW win, PIX pix);
@@ -134,10 +133,10 @@ struct vidinfo
 	void (*set_wininfo)(const wininfo_t *pwi);
 
 	/* Function to switch LCD on */
-	int (*enable)(void);
+	void (*enable)(const vidinfo_t *pvi);
 
 	/* Function to switch LCD off */
-	void (*disable)(void);
+	void (*disable)(const vidinfo_t *pvi);
 };
 
 
@@ -149,6 +148,7 @@ struct wininfo
 	u_char active;			  /* Flag if window is active */
 	PIX defpix;			  /* Default pixel format */
 	PIX pix;			  /* Current pixel format */
+	char name[12];			  /* "win0_0" or "win0" */
 	const pixinfo_t *ppi;		  /* Pointer to pixel format info */
 	HVRES hres;			  /* Size of visible window */
 	HVRES vres;
@@ -169,9 +169,26 @@ struct wininfo
 	XYPOS voffs;
 
 	/* Color information */
-	COLOR32 fg;			  /* Current foreground color */
-	COLOR32 bg;			  /* Current background color */
+	u_int attr;			  /* Current attribute */
+	colinfo_t fg;			  /* Foreground color info */
+	colinfo_t bg;			  /* Foreground color info */
+	RGBA alpha0;			  /* Alpha value for A=0 */
+	RGBA alpha1;			  /* Alpha value for A=1 */
+	u_char alphamode;		  /* 0: alpha0, 1: alpha1, 2: pixel */
+	u_char ckmode;			  /* Color keying mode */
+	RGBA ckvalue;			  /* Color keying RGBA value */
+	RGBA ckmask;			  /* Color keying mask */
+	RGBA replace;			  /* Replacement color for window */
 	RGBA *cmap;			  /* If CLUT: Pointer to color map */
+	
+
+	/* Function to set the color map from index to end; this also updates
+	   pwi->cmap. Some hardware has restrictions of how and when setting
+	   new palette entries is possible (e.g. only between frames), so
+	   please always update the color map in as large quantities as
+	   possible. */
+	void (*set_cmap)(const wininfo_t *pwi, u_int index, u_int end,
+			 RGBA *prgba);
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
 	coninfo_t ci;			  /* Console info for this window */
@@ -179,9 +196,6 @@ struct wininfo
 
 	/* Display information */
 	vidinfo_t *pvi;			  /* Pointer to corresponding display */
-	
-	/* Additional hardware specific data */
-	void *ext;			  /* Pointer to extended info */
 };
 
 
@@ -191,7 +205,8 @@ typedef struct kwinfo
 {
 	u_char  argc_min;
 	u_char  argc_max;
-	u_short sc;
+	u_char  info1;
+	u_char  info2;
 	char    *keyword;
 } kwinfo_t;
 
@@ -213,15 +228,15 @@ extern const struct kwinfo winextkeywords[CONFIG_WINDOW_EXT];
 /* PROTOTYPES OF EXPORTED FUNCTIONS					*/
 /************************************************************************/
 
-/* Return RT_RGB for #rrggbb, RT_RGBA for #rrggbbaa and RT_NONE otherwise */
-extern enum RGB_TYPE parse_rgb_type(char *s);
-
-/* Parse #rrggbb or #rrggbbaa value; return value and type */
-extern enum RGB_TYPE parse_rgb(char *s, u_int *prgba);
+/* Parse #rrggbb or #rrggbbaa value; return 1 on error, 0 on success */
+extern int parse_rgb(char *s, u_int *prgba);
 
 /* Parse sub-command and return sub-command index */
 extern u_short parse_sc(int argc, char *s, u_short sc,
 			const kwinfo_t *pki, u_short count);
+
+/* Find next delay entry in power-on/power-off sequence */
+extern int find_delay_index(const u_short *delays, int index, u_short value);
 
 /* Get pointer to the framebuffer pool info */
 extern const fbpoolinfo_t *lcd_get_fbpoolinfo_p(void);

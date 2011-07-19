@@ -32,7 +32,7 @@
 #define VIDEO_FONT_STRIKE       8
 #define VIDEO_FONT_SIZE		(VIDEO_FONT_CHARS * VIDEO_FONT_HEIGHT)
 
-static VIDEO_FONT_TYPE video_fontdata[VIDEO_FONT_SIZE] = {
+static const VIDEO_FONT_TYPE video_fontdata[VIDEO_FONT_SIZE] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */

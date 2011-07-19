@@ -23,6 +23,19 @@
  * MA 02111-1307 USA
  */
 
+/* ##### TODO
+   1. All *_ll_* functions could be moved to a separate file. This allows
+      replacing them with architecure specific optimized code. For example on
+      ARMv6 there are special commands that could be used to separate the
+      bytes of the RGBA value
+   2. Check if draw_ll_*() and adraw_ll_*() can use the 2D graphics
+      acceleration. For example on S3C6410, bitblt() can be done in so-called
+      host mode, where each pixel can be sent one by one from the host CPU.
+      The 2D-graphics then does alpha-blending and then we could convert the
+      result to the framebuffer format (some formats like RGBA5650 and
+      RGBA5551 are directly supported as target format).
+ */
+
 /************************************************************************/
 /* ** HEADER FILES							*/
 /************************************************************************/
@@ -37,6 +50,7 @@
 #include <cmd_lcd.h>			  /* cmd_lcd_init() */
 #include <video_font.h>			  /* Get font data, width and height */
 #include <stdarg.h>
+#include <malloc.h>			  /* malloc(), free() */
 #include <linux/types.h>
 #include <linux/ctype.h>		  /* isalpha() */
 #include <devices.h>
@@ -51,27 +65,8 @@
 /* DEFINITIONS								*/
 /************************************************************************/
 
-/* ###### Noch einzubauen:
-   CONFIG_LCD_LOGO
-   CONFIG_LCD_INFO_BELOW_LOGO
-   ######
-*/
-
-/* Get a big endian 32 or 16 bit number from address p (may be unaligned) */
-#define get_be32(p) (((((((p)[0]<<8)|(p)[1])<<8)|(p)[2])<<8)|(p)[3])
-#define get_be16(p) (((p)[0]<<8)|(p)[1])
-
-/* Get a little endian 32 or 16 bit number from address p (may be unaligned) */
-#define get_le32(p) (((((((p)[3]<<8)|(p)[2])<<8)|(p)[1])<<8)|(p)[0])
-#define get_le16(p) (((p)[1]<<8)|(p)[0])
-
-/* We build the basic mask by using arithmetic right shift */ 
-#define BASEMASK(bpp) (COLOR32)((signed)0x80000000 >> (bpp-1))
-
-/* Maximum length of a PNG row while decoding */
-#define MAX_PNGROWLEN 4096
-
-/* PNG chunk ids */
+#ifdef CONFIG_PNG
+/* Chunk IDs for PNG bitmaps */
 #define CHUNK_IHDR 0x49484452		  /* "IHDR" Image header */
 #define CHUNK_IDAT 0x49444154		  /* "IDAT" Image data */
 #define CHUNK_IEND 0x49454E44		  /* "IEND" Image end */
@@ -90,24 +85,8 @@
 #define CHUNK_hIST 0x68495354		  /* "hIST" Color histogram */
 #define CHUNK_pHYs 0x70485973		  /* "pHYs" Physical pixel size */
 #define CHUNK_sPLT 0x73504C54		  /* "sPLT" Suggested palette */
+#endif /* CONFIG_PNG */
 
-
-
-#define RMASK 0xFF000000
-#define GMASK 0x00FF0000
-#define BMASK 0x0000FF00
-#define AMASK 0x000000FF
-
-
-/************************************************************************/
-/* ** LOGO DATA								*/
-/************************************************************************/
-#ifdef CONFIG_LCD_LOGO
-# include <bmp_logo.h>		/* Get logo data, width and height	*/
-# if (CONSOLE_COLOR_WHITE >= BMP_LOGO_OFFSET) && (LCD_BPP != LCD_COLOR16)
-#  error Default Color Map overlaps with Logo Color Map
-# endif
-#endif
 
 /************************************************************************/
 /* TYPES AND STRUCTURES							*/
@@ -127,37 +106,37 @@ struct iRGB {
 	int B;
 };
 
-/* Possible modes when scanning a PNG bitmap */
-typedef enum SCANMODE
-{
-	SM_SKIP,			  /* Just skip file */
-	SM_INFO,			  /* Just load image info (for list) */
-	SM_LOAD				  /* Load image */
-} scanmode_t;
-
+#if defined(CONFIG_BMP) || defined(CONFIG_PNG)
 /* Type for bitmap information */
 typedef struct imginfo imginfo_t;	  /* Forward declaration */
 
 /* Type for lowlevel-drawing a bitmap row */
-typedef void (*draw_row_func_t)(const imginfo_t *, const u_char *, COLOR32 *);
+typedef void (*draw_row_func_t)(imginfo_t *, COLOR32 *);
 
 /* Image information */
 struct imginfo
 {
 	/* Framebuffer info */
-	const wininfo_t *pwi;		  /* Pointer to windo info */
 	XYPOS xpix;			  /* Current bitmap column */
 	XYPOS xend;			  /* Last bitmap column to draw */
-	XYPOS y;			  /* y-coordinate to draw to */
-	COLOR32 mask;			  /* Mask used in framebuffer */
-	u_int bpp;			  /* Framebuffer bitdepth */
 	u_int shift;			  /* Shift value for current x */
+	u_int bpp;			  /* Framebuffer bitdepth */
+	COLOR32 mask;			  /* Mask used in framebuffer */
+	XYPOS y;			  /* y-coordinate to draw to */
+	XYPOS ypix;			  /* Current bitmap row */
+	XYPOS yend;			  /* Last bitmap row to draw */
 	u_long fbuf;			  /* Frame buffer addres at current x */
+	const wininfo_t *pwi;		  /* Pointer to windo info */
 
 	/* Bitmap source data info */
 	u_int rowmask;			  /* Mask used in bitmap data */
 	u_int rowbitdepth;		  /* Bitmap bitdepth */
 	u_int rowshift;			  /* Shift value for current pos */
+	u_int rowshift0;		  /* Shift value at beginning of row */
+	u_char *prow;			  /* Pointer to row data */
+
+	RGBA hash_rgba;			  /* Remember last RGBA value */
+	COLOR32 hash_col;		  /* and corresponding color */
 
 	u_int applyalpha;		  /* ATTR_ALPHA 0: not set, 1: set */
 	u_int dwidthshift;		  /* ATTR_DWIDTH 0: not set, 1: set */
@@ -165,178 +144,254 @@ struct imginfo
 	RGBA trans_rgba;		  /* Transparent color if truecolor */
 	bminfo_t bi;			  /* Generic bitmap information */
 };
+#endif /* CONFIG_BMP || CONFIG_PNG */
 
 
 /************************************************************************/
 /* LOCAL VARIABLES							*/
 /************************************************************************/
 
+#ifdef CONFIG_PNG
 /* PNG signature and IHDR header; this must be the start of each PNG bitmap */
 static const u_char png_signature[16] = {
 	137, 80, 78, 71, 13, 10, 26, 10,  /* PNG signature */
 	0, 0, 0, 13, 'I', 'H', 'D', 'R'	  /* IHDR chunk header */
 };
-
-/* Buffer for two PNG rows; one to fill, one for the line before for reference
-   (required in some filters) */
-static u_char row[2][MAX_PNGROWLEN+1];	  /* +1 for filter type */
+#endif /* CONFIG_PNG */
 
 /* Buffer for palette */
-static RGBA palrgba[256];
-static COLOR32 palcol32[256];
+static RGBA palette[256];
 
 
 /************************************************************************/
 /* PROTOTYPES OF LOCAL FUNCTIONS					*/
 /************************************************************************/
 
-static int lcd_init(void *lcdbase);
-
-static void *lcd_logo (void);
-
-
-#if LCD_BPP == LCD_COLOR8
-extern void lcd_setcolreg (ushort regno,
-				ushort red, ushort green, ushort blue);
-#endif
-#if LCD_BPP == LCD_MONOCHROME
-extern void lcd_initcolregs (void);
-#endif
-
-static int lcd_getbgcolor (void);
-static void lcd_setfgcolor (int color);
-static void lcd_setbgcolor (int color);
-
-char lcd_is_enabled = 0;
-
-#ifdef	NOT_USED_SO_FAR
-static void lcd_getcolreg (ushort regno,
-				ushort *red, ushort *green, ushort *blue);
-static int lcd_getfgcolor (void);
-#endif	/* NOT_USED_SO_FAR */
-
 static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c);
 
-/* Draw pixel; pixel is definitely visible */
-static void lcd_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color);
+/* Draw pixel by replacing with new color; pixel is definitely valid */
+static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col);
 
-/* Draw filled rectangle; given region is definitely visible */
-static void lcd_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-			XYPOS x2, XYPOS y2, COLOR32 color);
+/* Draw pixel by applying alpha of new pixel; pixel is definitely valid */
+static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y);
 
-/* Draw a character; character area is definitely visible */
-static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
-			COLOR32 fg, COLOR32 bg);
+/* Draw filled rectangle, replacing pixels with new color; given region is
+   definitely valid and x and y are sorted (x1 <= x2, y1 <= y2) */
+static void draw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			 XYPOS x2, XYPOS y2, COLOR32 col);
+
+/* Draw filled rectangle, applying alpha; given region is definitely valid and
+   x and y are sorted (x1 <= x2, y1 <= y2) */
+static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			  XYPOS x2, XYPOS y2);
+
+/* Draw a character, replacing pixels with new color; character area is
+   definitely valid */
+static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c);
+
+/* Draw a character, applyig alpha; character area is definitely valid */
+static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c);
 
 
 /************************************************************************/
 /* ** Low-Level Graphics Routines					*/
 /************************************************************************/
 
-static void lcd_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color)
+/* Draw pixel by replacing with new color; pixel is definitely valid */
+static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col)
 {
-	u_int shift = pwi->ppi->bpp_shift;
-	int xpos = x << shift;
-	u_int bpp = 1 << shift;
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	int xpos = x << bpp_shift;
+	u_int bpp = 1 << bpp_shift;
 	u_long fbuf;
 	COLOR32 mask = (1 << bpp) - 1;
 	COLOR32 *p;
+	u_int shift = 32 - (xpos & 31) - bpp;
 
 	/* Compute framebuffer address of the pixel */
 	fbuf = pwi->linelen * y + pwi->pfbuf[pwi->fbdraw];
 
-	/* Shift the mask to the appropriate pixel */
-	mask <<= 32 - (xpos & 31) - bpp;
-
 	/* Remove old pixel and fill in new pixel */
 	p = (COLOR32 *)(fbuf + ((xpos >> 5) << 2));
-	*p = (*p & ~mask) | (color & mask);
+	*p = (*p & ~(mask << shift)) | (col << shift);
 }
 
 
-/* Draw filled rectangle; given region is definitely visible */
-static void lcd_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-			XYPOS x2, XYPOS y2, COLOR32 color)
+/* Draw pixel by applying alpha of new pixel; pixel is definitely valid */
+static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
 {
-	u_int shift = pwi->ppi->bpp_shift;
-	u_int bpp = 1 << shift;
-	u_int x_shift = 5-shift;
-	u_int x_mask = (1 << x_shift) - 1;
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	int xpos = x << bpp_shift;
+	u_int bpp = 1 << bpp_shift;
+	u_long fbuf;
+	COLOR32 mask = (1 << bpp) - 1;
+	COLOR32 *p;
+	COLOR32 val;
+	u_int shift = 32 - (xpos & 31) - bpp;
+	COLOR32 col;
+
+	/* Compute framebuffer address of the pixel */
+	fbuf = pwi->linelen * y + pwi->pfbuf[pwi->fbdraw];
+
+	/* Remove old pixel and fill in new pixel */
+	p = (COLOR32 *)(fbuf + ((xpos >> 5) << 2));
+	val = *p;
+	col = pwi->ppi->apply_alpha(pwi, &pwi->fg, val >> shift);
+	val &= ~(mask << shift);
+	val |= col << shift;
+	*p = val;
+}
+
+
+/* Draw filled rectangle, replacing pixels with new color; given region is
+   definitely valid and x and y are sorted (x1 <= x2, y1 <= y2) */
+static void draw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			 XYPOS x2, XYPOS y2, COLOR32 color)
+{
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	u_int bpp = 1 << bpp_shift;
 	u_long fbuf;
 	u_long linelen = pwi->linelen;
 	COLOR32 maskleft, maskright;
 	COLOR32 *p;
 	int count;
+	int xpos;
 
-	/* The left mask consists of 1s starting at pixel x1 */
-	maskleft = 0xFFFFFFFF >> ((x1 & x_mask)*bpp);
+	/* Repeat color so that it fills the whole 32 bits */
+	switch (bpp_shift) {
+	case 0:
+		color |= color << 1;
+		/* Fall through to case 1 */
+	case 1:
+		color |= color << 2;
+		/* Fall through to case 2 */
+	case 2:
+		color |= color << 4;
+		/* Fall through to case 3 */
+	case 3:
+		color |= color << 8;
+		/* Fall through to case 4 */
+	case 4:
+		color |= color << 16;
+		/* Fall through to default */
+	default:
+		break;
+	}
 
-	/* The right mask consists of 1s up to pixel x2 */
-	maskright = 0xFFFFFFFF << ((x_mask - (x2 & x_mask))*bpp);
+	xpos = x2 << bpp_shift;
+	maskright = 0xFFFFFFFF >> (xpos & 31);
+	maskright = ~(maskright >> bpp);
+	x2 = xpos >> 5;
+
+	xpos = x1 << bpp_shift;
+	maskleft = 0xFFFFFFFF >> (xpos & 31);
+	x1 = xpos >> 5;
 
 	/* Compute framebuffer address of the beginning of the top row */
 	fbuf = linelen * y1 + pwi->pfbuf[pwi->fbdraw];
+	p = (COLOR32 *)fbuf + x1;
+	linelen >>= 2;
 
 	count = y2 - y1 + 1;
-	x1 >>= x_shift;
-	x2 >>= x_shift;
-	if (x1 < x2) {
+	x2 -= x1;
+	if (x2) {
 		/* Fill rectangle consisting of several words per row */
 		do {
 			int i;
 
 			/* Handle leftmost word in row */
-			p = (COLOR32 *)fbuf + x1;
-			*p = (*p & ~maskleft) | (color & maskleft);
-			p++;
+			p[0] = (p[0] & ~maskleft) | (color & maskleft);
 
 			/* Fill all middle words without masking */
-			for (i = x1 + 1; i < x2; i++)
-				*p++ = color;
+			for (i = 1; i < x2; i++)
+				p[i] = color;
 
 			/* Handle rightmost word in row */
-			*p = (*p & ~maskright) | (color & maskright);
+			p[x2] = (p[x2] & ~maskright) | (color & maskright);
 
 			/* Go to next row */
-			fbuf += linelen;
+			p += linelen;
 		} while (--count);
 	} else {
 		/* Optimized version for the case where only one word has to be
 		   checked in each row; this includes vertical lines */
 		maskleft &= maskright;
-		p = (COLOR32 *)fbuf + x1;
+		color &= maskleft;
 		do {
-			*p = (*p & ~maskleft) | (color & maskleft);
-			p += linelen >> 2;
+			*p = (*p & ~maskleft) | color;
+			p += linelen;
 		} while (--count);
 	}
 }
 
 
-/* Draw a character; character area is definitely visible */
-static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
-			COLOR32 fg, COLOR32 bg)
+/* Draw filled rectangle, applying alpha; given region is definitely valid and
+   x and y are sorted (x1 <= x2, y1 <= y2) */
+static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+			  XYPOS x2, XYPOS y2)
 {
-	u_int shift = pwi->ppi->bpp_shift;
-	u_int bpp = 1 << shift;
-	u_int x_shift = 5-shift;
-	u_int x_mask = (1 << x_shift) - 1;
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	u_int bpp = 1 << bpp_shift;
+	u_long fbuf;
+	COLOR32 mask = (1 << bpp) - 1;
+	COLOR32 *p;
+	u_int shift;
+	int ycount, xcount;
+	int xpos;
+
+	xcount = x2 - x1 + 1;
+	ycount = y2 - y1 + 1;
+	xpos = x1 << bpp_shift;
+	shift = 32 - (xpos & 31);
+
+	/* Compute framebuffer address of the beginning of the top row */
+	fbuf = pwi->linelen*y1 + pwi->pfbuf[pwi->fbdraw] + ((xpos >> 5) << 2);
+	do {
+		COLOR32 val;
+		u_int s = shift;
+		int c = xcount;
+
+		p = (COLOR32 *)fbuf;
+		val = *p;
+		for (;;) {
+			COLOR32 col;
+			s -= bpp;
+			col = pwi->ppi->apply_alpha(pwi, &pwi->fg, val >> s);
+			val &= ~(mask << s);
+			val |= col << s;
+			if (!--c)
+				break;
+			if (!s) {
+				*p++ = val;
+				val = *p;
+				s = 32;
+			}
+		};
+		*p = val;
+
+		fbuf += pwi->linelen;
+	} while (--ycount);
+}
+
+
+/* Draw a character, replacing pixels with new color; character area is
+   definitely valid */
+static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
+{
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	u_int bpp = 1 << bpp_shift;
+	int xpos = x << bpp_shift;
 	u_long fbuf;
 	u_long linelen = pwi->linelen;
-	XYPOS underl = (a & ATTR_UNDERL) ? VIDEO_FONT_UNDERL : -1;
-	XYPOS strike = (a & ATTR_STRIKE) ? VIDEO_FONT_STRIKE : -1;
-	VIDEO_FONT_TYPE *pfont;
-	COLOR32 mask;
+	u_int attr = pwi->attr;
+	XYPOS underl = (attr & ATTR_UNDERL) ? VIDEO_FONT_UNDERL : -1;
+	XYPOS strike = (attr & ATTR_STRIKE) ? VIDEO_FONT_STRIKE : -1;
+	const VIDEO_FONT_TYPE *pfont;
+	COLOR32 mask = (1 << bpp) - 1;	  /* This also works for bpp==32! */
+	u_int shift = 32 - (xpos & 31);
 
 	/* Compute framebuffer address of the pixel */
-	fbuf = linelen * y + pwi->pfbuf[pwi->fbdraw];
-
-	/* We build the basic mask by using arithmetic right shift */ 
-	mask = BASEMASK(bpp);
-
-	/* Shift the mask to the appropriate pixel */
-	mask >>= (x & x_mask)*bpp;
-	x >>= x_shift;
+	fbuf = linelen * y + ((xpos >> 5) << 2) + pwi->pfbuf[pwi->fbdraw];
 
 	/* Compute start of character within font data */
 	pfont = video_fontdata;
@@ -353,50 +408,51 @@ static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
 			fd = (VIDEO_FONT_TYPE)0xFFFFFFFF;
 		else {
 			fd = *pfont;
-			if (a & ATTR_BOLD)
+			if (attr & ATTR_BOLD)
 				fd |= fd>>1;
 		}
-		if (a & ATTR_INVERSE)
+		if (attr & ATTR_INVERSE)
 			fd = ~fd;
 		pfont++;		  /* Next character row */
 
 		/* Loop twice if double height */
-		line_count = (a & ATTR_DHEIGHT) ? 2 : 1;
+		line_count = (attr & ATTR_DHEIGHT) ? 2 : 1;
 		do {
-			COLOR32 *p = (COLOR32 *)fbuf + x;
-			COLOR32 m = mask;
-			COLOR32 d;
+			COLOR32 *p = (COLOR32 *)fbuf;
+			u_int s = shift;
+			COLOR32 val;
 			VIDEO_FONT_TYPE fm = 1<<(VIDEO_FONT_WIDTH-1);
 
 			/* Load first word */
-			d = *p;
+			val = *p;
 			do {
 				/* Loop twice if double width */
-				unsigned col_count = (a & ATTR_DWIDTH) ? 2 : 1;
+				unsigned col_count = (attr & ATTR_DWIDTH)?2:1;
 				do {
 					/* Blend FG or BG pixel (BG only if not
 					   transparent) */
+					s -= bpp;
+					val &= ~(mask << s);
 					if (fd & fm)
-						d = (d & ~m) | (fg & m);
-					else if (!(a & ATTR_TRANSP))
-						d = (d & ~m) | (bg & m);
+						val |= pwi->fg.col << s;
+					else if (!(attr & ATTR_TRANSP))
+						val |= pwi->bg.col << s;
 
 					/* Shift mask to next pixel */
-					m >>= bpp;
-					if (!m) {
+					if (!s) {
 						/* Store old word and load
 						   next word; reset mask to
 						   first pixel in word */
-						*p++ = d;
-						m = BASEMASK(bpp);
-						d = *p;
+						*p++ = val;
+						s = 32;
+						val = *p;
 					}
 				} while (--col_count);
 				fm >>= 1;
 			} while (fm);
 
 			/* Store back last word */
-			*p = d;
+			*p = val;
 
 			/* Go to next line */
 			fbuf += linelen;
@@ -404,13 +460,696 @@ static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
 	}
 }
 
+
+/* Draw a character, applyig alpha; character area is definitely valid */
+static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
+{
+	u_int bpp_shift = pwi->ppi->bpp_shift;
+	u_int bpp = 1 << bpp_shift;
+	int xpos = x << bpp_shift;
+	u_long fbuf;
+	u_long linelen = pwi->linelen;
+	u_int attr = pwi->attr;
+	XYPOS underl = (attr & ATTR_UNDERL) ? VIDEO_FONT_UNDERL : -1;
+	XYPOS strike = (attr & ATTR_STRIKE) ? VIDEO_FONT_STRIKE : -1;
+	const VIDEO_FONT_TYPE *pfont;
+	COLOR32 mask = (1 << bpp) - 1;	  /* This also works for bpp==32! */
+	u_int shift = 32 - (xpos & 31);
+
+	/* Compute framebuffer address of the pixel */
+	fbuf = linelen * y + ((xpos >> 5) << 2) + pwi->pfbuf[pwi->fbdraw];
+
+	/* Compute start of character within font data */
+	pfont = video_fontdata;
+	pfont += sizeof(VIDEO_FONT_TYPE) * VIDEO_FONT_HEIGHT * c;
+
+	for (y = 0; y < VIDEO_FONT_HEIGHT; y++) {
+		VIDEO_FONT_TYPE fd;	  /* Font data (one character row) */
+		unsigned line_count;	  /* Loop twice if double height */
+
+		/* If underline or strike-through line is reached, use fully
+		   set pixel, otherwise get character pixel data and apply
+		   bold and inverse attributes */
+		if ((y == underl) || (y == strike))
+			fd = (VIDEO_FONT_TYPE)0xFFFFFFFF;
+		else {
+			fd = *pfont;
+			if (attr & ATTR_BOLD)
+				fd |= fd>>1;
+		}
+		if (attr & ATTR_INVERSE)
+			fd = ~fd;
+		pfont++;		  /* Next character row */
+
+		/* Loop twice if double height */
+		line_count = (attr & ATTR_DHEIGHT) ? 2 : 1;
+		do {
+			COLOR32 *p = (COLOR32 *)fbuf;
+			u_int s = shift;
+			COLOR32 val;
+			VIDEO_FONT_TYPE fm = 1<<(VIDEO_FONT_WIDTH-1);
+
+			/* Load first word */
+			val = *p;
+			do {
+				/* Loop twice if double width */
+				unsigned col_count = (attr & ATTR_DWIDTH)?2:1;
+				do {
+					COLOR32 col;
+
+					/* Blend FG or BG pixel (BG only if not
+					   transparent) */
+					s -= bpp;
+					if (fd & fm)
+						col = pwi->ppi->apply_alpha(
+							pwi, &pwi->fg,
+							val >> s);
+					else if (!(attr & ATTR_TRANSP))
+						col = pwi->ppi->apply_alpha(
+							pwi, &pwi->bg,
+							val >> s);
+					else
+						goto TRANS;
+					val &= ~(mask << s);
+					val |= col << s;
+				TRANS:
+
+					/* Shift mask to next pixel */
+					if (!s) {
+						/* Store old word and load
+						   next word; reset mask to
+						   first pixel in word */
+						*p++ = val;
+						s = 32;
+						val = *p;
+					}
+				} while (--col_count);
+				fm >>= 1;
+			} while (fm);
+
+			/* Store back last word */
+			*p = val;
+
+			/* Go to next line */
+			fbuf += linelen;
+		} while (--line_count);
+	}
+}
+
+#if defined(CONFIG_BMP) || defined(CONFIG_PNG)
+/* Version for 1bpp, 2bpp and 4bpp */
+static void draw_ll_row_PAL(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	int xend = pii->xend;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	u_int bpp = pii->bpp;
+
+	u_char *prow = pii->prow;
+	u_int rowshift = pii->rowshift;
+	//u_int rowbitdepth = pii->rowbitdepth;
+	//u_int rowmask = pii->rowmask;
+	COLOR32 mask = pii->mask;
+	//u_int dwidthshift = pii->dwidthshift;
+
+	val = *p;
+	for (;;) {
+		COLOR32 col;
+
+		rowshift -= pii->rowbitdepth;
+		col = palette[(*prow >> rowshift) & pii->rowmask];
+		if (!rowshift) {
+			prow++;
+			rowshift = 8;
+		}
+		do {
+			shift -= bpp;
+			val &= ~(mask << shift);
+			val |= col << shift;
+			if (++xpix >= /*pii->*/xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+/* Normal version for 1bpp, 2bpp, 4bpp */
+static void adraw_ll_row_PAL(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	u_char *prow = pii->prow;
+
+	u_int rowshift = pii->rowshift;
+	const wininfo_t *pwi = pii->pwi;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		RGBA alpha1;
+		colinfo_t ci;
+
+		rowshift -= pii->rowbitdepth;
+		rgba = palette[(*prow >> rowshift) & pii->rowmask];
+		if (!rowshift) {
+			prow++;
+			rowshift = 8;
+		}
+		alpha1 = rgba & 0xFF;
+		ci.A256 = 256 - alpha1;
+		alpha1++;
+		ci.RA1 = (rgba >> 24) * alpha1;
+		ci.GA1 = ((rgba >> 16) & 0xFF) * alpha1;
+		ci.BA1 = ((rgba >> 8) & 0xFF) * alpha1;
+		do {
+			shift -= pii->bpp;
+			if (alpha1 != 1) {
+				COLOR32 pixmask;
+				COLOR32 col;
+
+				col = pwi->ppi->apply_alpha(pwi, &ci,
+							    val >> shift);
+				pixmask = pii->mask << shift;
+				val = (val & ~pixmask) | (col & pixmask);
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+
+/* Optimized version for 8bpp, leaving all shifts out */
+static void draw_ll_row_PAL8(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	int xend = pii->xend;
+	u_int shift = pii->shift;
+	u_int bpp = pii->bpp;
+	u_char *prow = pii->prow;
+	COLOR32 val = *p;
+	COLOR32 mask = pii->mask;
+	u_int dwidthshift = pii->dwidthshift;
+
+	for (;;) {
+		COLOR32 col;
+
+		col = palette[prow[0]];
+		do {
+			shift -= bpp;
+			val &= ~(mask << shift);
+			val |= col << shift;
+
+			if (++xpix >= xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & dwidthshift);
+		prow++;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+/* Optimized version for 8bpp */
+static void adraw_ll_row_PAL8(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	u_char *prow = pii->prow;
+
+	u_int rowshift = pii->rowshift;
+	const wininfo_t *pwi = pii->pwi;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		RGBA alpha1;
+		colinfo_t ci;
+
+		rowshift -= pii->rowbitdepth;
+		rgba = palette[*prow++];
+		alpha1 = rgba & 0xFF;
+		ci.A256 = 256 - alpha1;
+		alpha1++;
+		ci.RA1 = (rgba >> 24) * alpha1;
+		ci.GA1 = ((rgba >> 16) & 0xFF) * alpha1;
+		ci.BA1 = ((rgba >> 8) & 0xFF) * alpha1;
+		do {
+			shift -= pii->bpp;
+			if (alpha1 != 1) {
+				COLOR32 pixmask;
+				COLOR32 col;
+
+				col = pwi->ppi->apply_alpha(pwi, &ci,
+							    val >> shift);
+				pixmask = pii->mask << shift;
+				val = (val & ~pixmask) | (col & pixmask);
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+#endif /* CONFIG_BMP || CONFIG_PNG */
+
+
+#ifdef CONFIG_PNG
+static void draw_ll_row_GA(imginfo_t *pii, COLOR32 *p)
+				   
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col;
+
+		rgba = prow[0] << 8;	            /* B[7:0] */
+		rgba |= (rgba << 8) | (rgba << 16); /* G[7:0], R[7:0] */
+		rgba |= prow[1];		    /* A[7:0] */
+		col = pwi->ppi->rgba2col(pwi, rgba);
+		do {
+			shift -= pii->bpp;
+			val &= ~(pii->mask << shift);
+			val |= col << shift;
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 2;
+	}
+DONE:
+	*p = val; /* Store final value */
+
+}
+
+static void adraw_ll_row_GA(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA alpha1;
+		colinfo_t ci;
+
+		alpha1 = prow[1];
+		ci.A256 = 256 - alpha1;
+		alpha1++;
+		ci.RA1 = prow[0] * alpha1;
+		ci.GA1 = ci.RA1;
+		ci.BA1 = ci.GA1;
+		do {
+			shift -= pii->bpp;
+			if (alpha1 != 1) {
+				COLOR32 pixmask;
+				COLOR32 col;
+
+				col = pwi->ppi->apply_alpha(pwi, &ci,
+							    val >> shift);
+				pixmask = pii->mask << shift;
+				val = (val & ~pixmask) | (col & pixmask);
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 2;
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+
+
+static void draw_ll_row_RGB(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col;
+
+		rgba = prow[0] << 24;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 8;
+		if (rgba != pii->trans_rgba)
+			rgba |= 0xFF;
+		col = pwi->ppi->rgba2col(pwi, rgba);
+		do {
+			shift -= pii->bpp;
+			val &= ~(pii->mask << shift);
+			val |= col << shift;
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 3;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+static void adraw_ll_row_RGB(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col = 0;
+
+		rgba = prow[0] << 24;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 8;
+		if (rgba != pii->trans_rgba) {
+			rgba |= 0xFF;
+			col = pwi->ppi->rgba2col(pwi, rgba);
+		}
+		do {
+			shift -= pii->bpp;
+			if (rgba & 0xFF) {
+				val &= ~(pii->mask << shift);
+				val |= col << shift;
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 3;
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+
+
+static void draw_ll_row_RGBA(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col;
+
+		rgba = prow[0] << 24;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 8;
+		rgba |= prow[3];
+		col = pwi->ppi->rgba2col(pwi, rgba);
+		do {
+			shift -= pii->bpp;
+			val &= ~(pii->mask << shift);
+			val |= col << shift;
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 4;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+
+static void adraw_ll_row_RGBA(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA alpha1;
+		colinfo_t ci;
+
+		alpha1 = prow[3];
+		ci.A256 = 256 - alpha1;
+		alpha1++;
+		ci.RA1 = prow[0] * alpha1;
+		ci.GA1 = prow[1] * alpha1;
+		ci.BA1 = prow[2] * alpha1;
+		do {
+			shift -= pii->bpp;
+			if (alpha1 != 1) {
+				COLOR32 col;
+
+				col = pwi->ppi->apply_alpha(pwi, &ci,
+							    val >> shift);
+				val &= ~(pii->mask << shift);
+				val |= col << shift;
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 4;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+#endif /* CONFIG_PNG */
+
+
+#ifdef CONFIG_BMP
+static void draw_ll_row_BGR(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col;
+
+		rgba = prow[0] << 8;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 24;
+		if (rgba != pii->trans_rgba)
+			rgba |= 0xFF;
+		col = pwi->ppi->rgba2col(pwi, rgba);
+		do {
+			shift -= pii->bpp;
+			val &= ~(pii->mask << shift);
+			val |= col << shift;
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 3;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+static void adraw_ll_row_BGR(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col = 0;
+
+		rgba = prow[0] << 8;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 24;
+		if (rgba != pii->trans_rgba) {
+			rgba |= 0xFF;
+			col = pwi->ppi->rgba2col(pwi, rgba);
+		}
+		do {
+			shift -= pii->bpp;
+			if (rgba & 0xFF) {
+				val &= ~(pii->mask << shift);
+				val |= col << shift;
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 3;
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+
+
+static void draw_ll_row_BGRA(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA rgba;
+		COLOR32 col;
+
+		rgba = prow[0] << 8;
+		rgba |= prow[1] << 16;
+		rgba |= prow[2] << 24;
+		rgba |= prow[3];
+		col = pwi->ppi->rgba2col(pwi, rgba);
+		do {
+			shift -= pii->bpp;
+			val &= ~(pii->mask << shift);
+			val |= col << shift;
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 4;
+	}
+DONE:
+	*p = val; /* Store final value */
+}
+
+
+static void adraw_ll_row_BGRA(imginfo_t *pii, COLOR32 *p)
+{
+	int xpix = pii->xpix;
+	u_int shift = pii->shift;
+	COLOR32 val;
+	const wininfo_t *pwi = pii->pwi;
+	u_char *prow = pii->prow;
+
+	val = *p;
+	for (;;) {
+		RGBA alpha1;
+		colinfo_t ci;
+
+		alpha1 = prow[3];
+		ci.A256 = 256 - alpha1;
+		alpha1++;
+		ci.RA1 = prow[2] * alpha1;
+		ci.GA1 = prow[1] * alpha1;
+		ci.BA1 = prow[0] * alpha1;
+		do {
+			shift -= pii->bpp;
+			if (alpha1 != 1) {
+				COLOR32 col;
+
+				col = pwi->ppi->apply_alpha(pwi, &ci,
+							    val >> shift);
+				val &= ~(pii->mask << shift);
+				val |= col << shift;
+			}
+			if (++xpix >= pii->xend)
+				goto DONE;
+			if (!shift) {
+				*p++ = val;
+				val = *p;
+				shift = 32;
+			}
+		} while (xpix & pii->dwidthshift);
+		prow += 4;
+	}
+DONE:
+	*p = val;			  /* Store final value */
+}
+#endif /* CONFIG_BMP */
+
+
 /************************************************************************/
 /* HELPER FUNCTIONS FOR GRAPHIC PRIMITIVES				*/
 /************************************************************************/
 
+/* Draw test pattern with grid, basic colors, color gradients and circles */
 static void test_pattern0(const wininfo_t *pwi)
 {
-	COLOR32 col;
 	const pixinfo_t *ppi = pwi->ppi;
 	XYPOS dx, dy;
 	XYPOS x, y, i;
@@ -418,7 +1157,6 @@ static void test_pattern0(const wininfo_t *pwi)
 	XYPOS fbhres = (XYPOS)pwi->fbhres;
 	XYPOS fbvres = (XYPOS)pwi->fbvres;
 	XYPOS r1, r2, scale;
-	RGBA rgb;
 
 	static const RGBA coltab[] = {
 		0xFF0000FF,		  /* R */
@@ -436,11 +1174,10 @@ static void test_pattern0(const wininfo_t *pwi)
 		return;
 	}
 
-	/* Fill screen with black */
-	lcd_fill(pwi, ppi->rgba2col(pwi, 0x000000FF));
+	/* Clear screen */
+	lcd_clear(pwi);
 
 	/* Use hres divided by 12 as grid size */
-	col = ppi->rgba2col(pwi, 0xFFFFFFFF);  /* White */
 	dx = fbhres/12;
 	dy = fbvres/8;
 
@@ -455,34 +1192,37 @@ static void test_pattern0(const wininfo_t *pwi)
 
 	/* Draw vertical lines of grid */
 	for (x = hleft; x < fbhres; x += dx)
-		lcd_ll_rect(pwi, x, 0, x, fbvres-1, col);
+		lcd_rect(pwi, x, 0, x, fbvres-1);
 
 	/* Draw horizontal lines of grid */
 	for (y = vtop; y < fbvres; y += dy)
-		lcd_ll_rect(pwi, 0, y, fbhres-1, y, col);
+		lcd_rect(pwi, 0, y, fbhres-1, y);
 
 	/* Draw 7 of the 8 basic colors (without black) as rectangles */
 	for (i=0; i<7; i++) {
 		x = hleft + (i+2)*dx;
-		lcd_ll_rect(pwi, x+1, vbottom-2*dy+1, x+dx-1, vbottom-1, 
-			    ppi->rgba2col(pwi, coltab[6-i]));
-		lcd_ll_rect(pwi, x+1, vtop+1, x+dx-1, vtop+2*dy-1, 
-			    ppi->rgba2col(pwi, coltab[i]));
+		draw_ll_rect(pwi, x+1, vbottom-2*dy+1, x+dx-1, vbottom-1, 
+			     ppi->rgba2col(pwi, coltab[6-i]));
+		draw_ll_rect(pwi, x+1, vtop+1, x+dx-1, vtop+2*dy-1, 
+			     ppi->rgba2col(pwi, coltab[i]));
 	}
 
+	/* Draw grayscale gradient on left, R, G, B gradient on right side */
 	scale = vbottom-vtop-2;
 	for (y=0; y<=scale; y++) {
 		XYPOS yy = y+vtop+1;
+		RGBA rgba;
 
-		rgb = y*255/scale;
-		lcd_ll_rect(pwi, hleft+1, yy, hleft+dx-1, yy,
-			ppi->rgba2col(pwi, (rgb<<24)|(rgb<<16)|(rgb<<8)|0xff));
-		lcd_ll_rect(pwi, hright-dx+1, yy, hright-2*dx/3, yy,
-			    ppi->rgba2col(pwi, (rgb<<24) | 0xff));
-		lcd_ll_rect(pwi, hright-2*dx/3+1, yy, hright-dx/3, yy,
-			    ppi->rgba2col(pwi, (rgb<<16) | 0xff));
-		lcd_ll_rect(pwi, hright-dx/3+1, yy, hright-1, yy,
-			    ppi->rgba2col(pwi, (rgb<<8) | 0xff));
+		rgba = (y*255/scale) << 8;
+		rgba |= (rgba << 8) | (rgba << 16) | 0xFF;
+		draw_ll_rect(pwi, hleft+1, yy, hleft+dx-1, yy,
+			     ppi->rgba2col(pwi, rgba));
+		draw_ll_rect(pwi, hright-dx+1, yy, hright-2*dx/3, yy,
+			     ppi->rgba2col(pwi, rgba & 0xFF0000FF));
+		draw_ll_rect(pwi, hright-2*dx/3+1, yy, hright-dx/3, yy,
+			     ppi->rgba2col(pwi, rgba & 0x00FF00FF));
+		draw_ll_rect(pwi, hright-dx/3+1, yy, hright-1, yy,
+			     ppi->rgba2col(pwi, rgba & 0x0000FFFF));
 	}
 
 	/* Draw big and small circle; make sure that circle fits on screen */
@@ -493,24 +1233,26 @@ static void test_pattern0(const wininfo_t *pwi)
 		r1 = fbhres/2;
 		r2 = dx;
 	}
-	lcd_circle(pwi, fbhres/2, fbvres/2, r1 - 1, col);
-	lcd_circle(pwi, fbhres/2, fbvres/2, r2, col);
+	lcd_circle(pwi, fbhres/2, fbvres/2, r1 - 1);
+	lcd_circle(pwi, fbhres/2, fbvres/2, r2);
 
 	/* Draw corners */
 	if ((fbhres >= 8) && (fbvres >= 8)) {
-		col = ppi->rgba2col(pwi, 0x00FF00FF);  /* Green */
-		lcd_ll_rect(pwi, 0, 0, 7, 0, col);
-		lcd_ll_rect(pwi, 0, 1, 0, 7, col);
-		lcd_ll_rect(pwi, fbhres-8, 0, fbhres-1, 0, col);
-		lcd_ll_rect(pwi, fbhres-1, 1, fbhres-1, 7, col);
-		lcd_ll_rect(pwi, 0, fbvres-8, 0, fbvres-2, col);
-		lcd_ll_rect(pwi, 0, fbvres-1, 7, fbvres-1, col);
-		lcd_ll_rect(pwi, fbhres-1, fbvres-8, fbhres-1, fbvres-2, col);
-		lcd_ll_rect(pwi, fbhres-8, fbvres-1, fbhres-1, fbvres-1, col);
-	}
+		COLOR32 col;
 
+		col = ppi->rgba2col(pwi, 0x00FF00FF);  /* Green */
+		draw_ll_rect(pwi, 0, 0, 7, 0, col);
+		draw_ll_rect(pwi, 0, 1, 0, 7, col);
+		draw_ll_rect(pwi, fbhres-8, 0, fbhres-1, 0, col);
+		draw_ll_rect(pwi, fbhres-1, 1, fbhres-1, 7, col);
+		draw_ll_rect(pwi, 0, fbvres-8, 0, fbvres-2, col);
+		draw_ll_rect(pwi, 0, fbvres-1, 7, fbvres-1, col);
+		draw_ll_rect(pwi, fbhres-1, fbvres-8, fbhres-1, fbvres-2, col);
+		draw_ll_rect(pwi, fbhres-8, fbvres-1, fbhres-1, fbvres-1, col);
+	}
 }
 
+/* Draw the eight basic colors in two rows of four */
 static void test_pattern1(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
@@ -525,30 +1267,31 @@ static void test_pattern1(const wininfo_t *pwi)
 		return;
 	}
 
-	/* Fill screen with black */
-	lcd_fill(pwi, ppi->rgba2col(pwi, 0x000000FF));
+	/* Clear screen with black */
+	lcd_clear(pwi);
 
 	/* Draw red, green, blue, black rectangles in top row */
-	lcd_ll_rect(pwi, 0, 0, xres_4-1, yres_2-1,
-		    ppi->rgba2col(pwi, 0xFF0000FF)); /* Red */
-	lcd_ll_rect(pwi, xres_4, 0, 2*xres_4-1, yres_2-1,
-		    ppi->rgba2col(pwi, 0x00FF00FF)); /* Green */
-	lcd_ll_rect(pwi, 2*xres_4, 0, 3*xres_4-1, yres_2-1,
-		    ppi->rgba2col(pwi, 0x0000FFFF)); /* Blue */
-	lcd_ll_rect(pwi, 3*xres_4, 0, xres-1, yres_2-1,
-		    ppi->rgba2col(pwi, 0x000000FF)); /* Black */
+	draw_ll_rect(pwi, 0, 0, xres_4-1, yres_2-1,
+		     ppi->rgba2col(pwi, 0xFF0000FF)); /* Red */
+	draw_ll_rect(pwi, xres_4, 0, 2*xres_4-1, yres_2-1,
+		     ppi->rgba2col(pwi, 0x00FF00FF)); /* Green */
+	draw_ll_rect(pwi, 2*xres_4, 0, 3*xres_4-1, yres_2-1,
+		     ppi->rgba2col(pwi, 0x0000FFFF)); /* Blue */
+	draw_ll_rect(pwi, 3*xres_4, 0, xres-1, yres_2-1,
+		     ppi->rgba2col(pwi, 0x000000FF)); /* Black */
 
 	/* Draw cyan, magenta, yellow, white rectangles in bottom row */
-	lcd_ll_rect(pwi, 0, yres_2, xres_4-1, yres-1,
-		    ppi->rgba2col(pwi, 0x00FFFFFF)); /* Cyan */
-	lcd_ll_rect(pwi, xres_4, yres_2, 2*xres_4-1, yres-1,
-		    ppi->rgba2col(pwi, 0xFF00FFFF)); /* Magenta */
-	lcd_ll_rect(pwi, 2*xres_4, yres_2, 3*xres_4-1, yres-1,
-		    ppi->rgba2col(pwi, 0xFFFF00FF)); /* Yellow */
-	lcd_ll_rect(pwi, 3*xres_4, yres_2, xres-1, yres-1,
-		    ppi->rgba2col(pwi, 0xFFFFFFFF)); /* White */
+	draw_ll_rect(pwi, 0, yres_2, xres_4-1, yres-1,
+		     ppi->rgba2col(pwi, 0x00FFFFFF)); /* Cyan */
+	draw_ll_rect(pwi, xres_4, yres_2, 2*xres_4-1, yres-1,
+		     ppi->rgba2col(pwi, 0xFF00FFFF)); /* Magenta */
+	draw_ll_rect(pwi, 2*xres_4, yres_2, 3*xres_4-1, yres-1,
+		     ppi->rgba2col(pwi, 0xFFFF00FF)); /* Yellow */
+	draw_ll_rect(pwi, 3*xres_4, yres_2, xres-1, yres-1,
+		     ppi->rgba2col(pwi, 0xFFFFFFFF)); /* White */
 }
 
+/* Draw color gradient, horizontal: hue, vertical: brightness */
 static void test_pattern2(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
@@ -574,8 +1317,8 @@ static void test_pattern2(const wininfo_t *pwi)
 		return;
 	}
 
-	/* Fill screen with black */
-	lcd_fill(pwi, ppi->rgba2col(pwi, 0x000000FF));
+	/* Clear screen with black */
+	lcd_clear(pwi);
 
 	for (hue = 0; hue < 6; hue++) {
 		int xfrom = (hue*xres + 3)/6;
@@ -596,8 +1339,8 @@ static void test_pattern2(const wininfo_t *pwi)
 				rgba |= (temp.G * y/scale) << 16;
 				rgba |= (temp.B * y/scale) << 8;
 				rgba |= 0xFF;
-				lcd_ll_pixel(pwi, x + xfrom, y,
-					     ppi->rgba2col(pwi, rgba));
+				draw_ll_pixel(pwi, x + xfrom, y,
+					      ppi->rgba2col(pwi, rgba));
 			}
 
 			for (y=0; y<yres-yres_2; y++) {
@@ -605,13 +1348,14 @@ static void test_pattern2(const wininfo_t *pwi)
 				rgba |= ((0xFF-temp.G)*y/scale + temp.G) << 16;
 				rgba |= ((0xFF-temp.B)*y/scale + temp.B) << 8;
 				rgba |= 0xFF;
-				lcd_ll_pixel(pwi, x + xfrom, y + yres_2,
-					     ppi->rgba2col(pwi, rgba));
+				draw_ll_pixel(pwi, x + xfrom, y + yres_2,
+					      ppi->rgba2col(pwi, rgba));
 			}
 		}
 	}
 }
 
+/* Draw color gradient: 8 basic colors along edges, gray in the center */
 static void test_pattern3(const wininfo_t *pwi)
 {
 	const pixinfo_t *ppi = pwi->ppi;
@@ -641,8 +1385,8 @@ static void test_pattern3(const wininfo_t *pwi)
 		return;
 	}
 
-	/* Fill screen with black */
-	lcd_fill(pwi, ppi->rgba2col(pwi, 0x000000FF));
+	/* Clear screen */
+	lcd_clear(pwi);
 
 	for (y=0; y<yres; y++) {
 
@@ -682,8 +1426,8 @@ static void test_pattern3(const wininfo_t *pwi)
 			rgb |= ((m.B - l.B)*x/xres_2a + l.B) << 8;
 			rgb |= 0xFF;
 
-			lcd_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
-				     ppi->rgba2col(pwi, rgb));
+			draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
+				      ppi->rgba2col(pwi, rgb));
 		}
 
 		/* Draw right half of row */
@@ -695,373 +1439,25 @@ static void test_pattern3(const wininfo_t *pwi)
 			rgb |= ((r.B - m.B)*x2/xres_2b + m.B) << 8;
 			rgb |= 0xFF;
 
-			lcd_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
-				     ppi->rgba2col(pwi, rgb));
+			draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
+				      ppi->rgba2col(pwi, rgb));
 		}
 	}
 }
 
 
-/* Multiply the old pixel with the new pixel value and its alpha. The correct
-   value would be:
-
-     C = (C_old * (255 - A_pix) + C_pix * A_pix) / 255
-
-   But dividing by 255 is rather time consuming. Therefore we use a slightly
-   different blending function that divides by 256 which can be done by a
-   right shift.
-
-     C = (C_old * (256 - A_pix) + C_pix * (A_pix + 1)) / 256
-
-   This formula generates a slightly different result which is barely visible.
-   This approach is also commonly used by LCD controller hardware.
-
-     R = (R_old * (256 - A_pix) + R_pix * (A_pix + 1)) / 256
-     G = (G_old * (256 - A_pix) + G_pix * (A_pix + 1)) / 256
-     B = (B_old * (256 - A_pix) + B_pix * (A_pix + 1)) / 256
-     A = A_old;
-
-   In fact the right shift of /256 can be combined with the shift to the final
-   position in the RGBA word. Also multiplying can be done in another bit
-   position which again removes the need for some shifts. */
-static RGBA apply_alpha(RGBA old, RGBA pix)
+#ifdef CONFIG_PNG
+/* Get a big endian 32 bit number from address p (may be unaligned) */
+static u_int get_be32(u_char *p)
 {
-	RGBA R, G, B;
-	RGBA alpha1, alpha256;
-
-	alpha1 = pix & 0x000000FF;
-	alpha256 = 256 - alpha1;
-	alpha1++;
-	R = ((old >> 24) * alpha256 + (pix >> 24) * alpha1) & 0x0000FF00;
-	G = ((old & 0xFF0000) >> 8) * alpha256;
-	G += ((pix & 0xFF0000) >> 8) * alpha1;
-	B = ((old & 0xFF00) * alpha256 + (pix & 0xFF00) * alpha1) & 0x00FF0000;
-	return (R << 16) | (G & 0x00FF0000) | (B >> 8) | (old & 0x000000FF);
+	return (p[0]<<24) | (p[1]<<16) | (p[2]<<8) | p[3];
 }
 
-
-static void draw_ll_row_gray_pal(const imginfo_t *pii, const u_char *prow,
-				 COLOR32 *p)
+/* Get a big endian 16 bit number from address p (may be unaligned) */
+static u_short get_be16(u_char *p)
 {
-	int xpix = pii->xpix;
-	int xend = pii->xend;
-	u_int shift = pii->shift;
-	COLOR32 val;
-
-	u_int rowshift = pii->rowshift;
-	u_char rowval;
-
-	rowval = *prow++;
-	val = *p;
-	for (;;) {
-		COLOR32 col;
-
-		rowshift -= pii->rowbitdepth;
-		col = palcol32[(rowval >> rowshift) & pii->rowmask];
-		do {
-			COLOR32 pixmask;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-
-		if (!rowshift) {
-			rowval = *prow++;
-			rowshift = 8;
-		}
-	}
+	return (p[0] << 8) | p[1];
 }
-
-static void draw_ll_row_gray_alpha(const imginfo_t *pii, const u_char *prow,
-				   COLOR32 *p)
-				   
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-		COLOR32 col;
-
-		rgba = *prow++ << 8;
-		rgba |= (rgba << 8) | (rgba << 16);
-		rgba |= *prow++;
-		col = pwi->ppi->rgba2col(pwi, rgba);
-		do {
-			COLOR32 pixmask;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
-static void draw_ll_row_truecol(const imginfo_t *pii, const u_char *prow,
-				COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-		COLOR32 col;
-
-		rgba = *prow++ << 24;
-		rgba |= *prow++ << 16;
-		rgba |= *prow++ << 8;
-		if (rgba != pii->trans_rgba)
-			rgba |= 0xFF;
-		col = pwi->ppi->rgba2col(pwi, rgba);
-		do {
-			COLOR32 pixmask;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
-static void draw_ll_row_truecol_alpha(const imginfo_t *pii, const u_char *prow,
-				      COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-		COLOR32 col;
-
-		rgba = *prow++ << 24;
-		rgba |= *prow++ << 16;
-		rgba |= *prow++ << 8;
-		rgba |= *prow++;
-		col = pwi->ppi->rgba2col(pwi, rgba);
-		do {
-			COLOR32 pixmask;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
-static void adraw_ll_row_gray_pal(const imginfo_t *pii, const u_char *prow,
-				  COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	int xend = pii->xend;
-	u_int shift = pii->shift;
-	COLOR32 val;
-
-	u_int rowshift = pii->rowshift;
-	u_char rowval;
-	const wininfo_t *pwi = pii->pwi;
-
-	rowval = *prow++;
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-
-		rowshift -= pii->rowbitdepth;
-		rgba = palrgba[(rowval >> rowshift) & pii->rowmask];
-		do {
-			COLOR32 pixmask;
-			COLOR32 col;
-			RGBA rgba_bg;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			rgba_bg = pwi->ppi->col2rgba(pwi, val >> shift);
-			rgba_bg = apply_alpha(rgba_bg, rgba);
-			col = pwi->ppi->rgba2col(pwi, rgba_bg);
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-
-		if (!rowshift) {
-			rowval = *prow++;
-			rowshift = 8;
-		}
-	}
-}
-
-static void adraw_ll_row_gray_alpha(const imginfo_t *pii, const u_char *prow,
-				    COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-
-		rgba = *prow++ << 8;
-		rgba |= (rgba << 8) | (rgba << 16);
-		rgba |= *prow++;
-		do {
-			COLOR32 pixmask;
-			COLOR32 col;
-			RGBA rgba_bg;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			rgba_bg = pwi->ppi->col2rgba(pwi, val >> shift);
-			rgba_bg = apply_alpha(rgba_bg, rgba);
-			col = pwi->ppi->rgba2col(pwi, rgba_bg);
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
-static void adraw_ll_row_truecol(const imginfo_t *pii, const u_char *prow,
-				 COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-
-		rgba = *prow++ << 24;
-		rgba |= *prow++ << 16;
-		rgba |= *prow++ << 8;
-		if (rgba != pii->trans_rgba)
-			rgba |= 0xFF;
-		do {
-			COLOR32 pixmask;
-			COLOR32 col;
-			RGBA rgba_bg;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			rgba_bg = pwi->ppi->col2rgba(pwi, val >> shift);
-			rgba_bg = apply_alpha(rgba_bg, rgba);
-			col = pwi->ppi->rgba2col(pwi, rgba_bg);
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
-static void adraw_ll_row_truecol_alpha(const imginfo_t *pii, const u_char *prow,
-				       COLOR32 *p)
-{
-	int xpix = pii->xpix;
-	u_int shift = pii->shift;
-	COLOR32 val;
-	const wininfo_t *pwi = pii->pwi;
-
-	val = *p;
-	for (;;) {
-		RGBA rgba;
-
-		rgba = *prow++ << 24;
-		rgba |= *prow++ << 16;
-		rgba |= *prow++ << 8;
-		rgba |= *prow++;
-		do {
-			COLOR32 pixmask;
-			COLOR32 col;
-			RGBA rgba_bg;
-
-			shift -= pii->bpp;
-			pixmask = pii->mask << shift;
-			rgba_bg = pwi->ppi->col2rgba(pwi, val >> shift);
-			rgba_bg = apply_alpha(rgba_bg, rgba);
-			col = pwi->ppi->rgba2col(pwi, rgba_bg);
-			val = (val & ~pixmask) | (col & pixmask);
-			if (++xpix >= pii->xend) {
-				*p = val; /* Store final value */
-				return;
-			}
-			if (!shift) {
-				*p++ = val;
-				val = *p;
-				shift = 32;
-			}
-		} while (xpix & pii->dwidthshift);
-	}
-}
-
 
 /* Special so-called paeth predictor for PNG line filtering */
 static u_char paeth(u_char a, u_char b, u_char c)
@@ -1085,44 +1481,77 @@ static u_char paeth(u_char a, u_char b, u_char c)
 }
 
 
+extern void *zalloc(void *, unsigned, unsigned);
+extern void zfree(void *, void *, unsigned);
+
+/* Draw PNG image. A PNG image consists of a signature and then a sequence of
+   chunks. Each chunk has the same structure:
+       Offset 0: Chunk data size in bytes (4 bytes)
+       Offset 4: Chunk ID, 4 characters, case has a meaning (4 bytes)
+       Offset 8: Chunk data (size bytes)
+       Offset 8+size: CRC32 checksum (4 bytes)
+   After the PNG signature, there must follow an IHDR chunk. This chunk tells
+   the image size, color type and compression type. Then there may follow all
+   the other chunks. The image data itself is contained in one or more IDAT
+   chunks. The file must end with an IEND chunk. We are ignoring all other
+   chunks but two: PLTE, which tells the color palette in palette images and
+   tRNS that tells the transparency in color types without alpha value.
+
+   The image data is compressed with the deflate method of zlib. Therefore we
+   need to inflate it here again. Before deflating, each row of the image is
+   processed by one of five filters: none, sub, up, average or paeth. The idea
+   is to only encode differences to neighbouring pixels (and here chosing the
+   minimal differences). These differences (usually small values) compress
+   better than the original pixels. The filter type is added as a prefix byte
+   to the row data of each image row. They work seperately on each byte of a
+   pixel, or (if pixels are smaller than 1 byte) on full bytes. This makes
+   applying the reverse filter here during decoding rather simple.
+
+   We do not support images with 16 bits per color channel and we don't
+   support interlaced images. These image types make no sense with our
+   embedded hardware. If you have such bitmaps, you have to convert them
+   first to a supported format with an external image program. */
 static const char *draw_png(imginfo_t *pii, u_long addr)
 {
 	u_char colortype;
 	u_char bitdepth;
-	int png_done;  //####
 	int current;
 	u_int pixelsize;		  /* Size of one full pixel (bits) */
 	u_int fsize;			  /* Size of one filter unit */
 	u_int rowlen;
 	int rowpos;
+	int palconverted = 1;
 	char *errmsg = NULL;
 	z_stream zs;
-	draw_row_func_t draw_row;
 	u_char *p;
+	u_char *prow;
+	draw_row_func_t draw_row;	  /* Draw bitmap row */
 
 	static const draw_row_func_t draw_row_tab[2][6] = {
 		{	
 			/* ATTR_ALPHA = 0 */
 			NULL,
-			draw_ll_row_gray_pal,
-			draw_ll_row_gray_pal,
-			draw_ll_row_gray_alpha,
-			draw_ll_row_truecol,
-			draw_ll_row_truecol_alpha
+			draw_ll_row_PAL,
+			draw_ll_row_PAL8,
+			draw_ll_row_GA,
+			draw_ll_row_RGB,
+			draw_ll_row_RGBA
 		},
 		{
 			/* ATTR_ALPHA = 1 */
 			NULL,
-			adraw_ll_row_gray_pal,
-			adraw_ll_row_gray_pal,
-			adraw_ll_row_gray_alpha,
-			adraw_ll_row_truecol,
-			adraw_ll_row_truecol_alpha
+			adraw_ll_row_PAL,
+			adraw_ll_row_PAL8,
+			adraw_ll_row_GA,
+			adraw_ll_row_RGB,
+			adraw_ll_row_RGBA
 		}
 	};
+
 	colortype = pii->bi.colortype;
 	bitdepth = pii->bi.bitdepth;
 		
+	/* We can not handle some types of bitmaps */
 	if (bitdepth > 8)
 		return "Unsupported PNG bit depth\n";
 	if ((bitdepth != 1) && (bitdepth != 2) && (bitdepth != 4)
@@ -1146,16 +1575,26 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 	else
 		pixelsize = bitdepth;	  /* index or gray */
 	rowlen = (pii->bi.hres * pixelsize + 7) / 8; /* round to bytes */
-	if (rowlen > MAX_PNGROWLEN)
-		return "PNG width exceeds internal decoding buffer size";
-	pii->rowmask = (1 << bitdepth)-1;
-	rowpos = (pii->xpix >> pii->dwidthshift) * bitdepth;
-	pii->rowbitdepth = bitdepth;
-	pii->rowshift = 8 - (rowpos & 7);
-	rowpos >>= 3;
 
-	/* Fill reference row (for UP and PAETH filter) with 0 */
-	memset(row[0], 0, rowlen+1);
+	/* Allocate row buffer for decoding two rows of the bitmap; we need
+	   one additional byte per row for the filter type */
+	prow = malloc(2*rowlen+2);
+	if (!prow)
+		return "Can't allocate decode buffer for PNG data";
+
+	pii->rowmask = (1 << bitdepth)-1;
+	pii->rowbitdepth = bitdepth;
+	rowpos = (pii->xpix >> pii->dwidthshift) * pixelsize;
+
+	/* Determine the correct draw_row function */
+	{
+		u_char temp = colortype;
+		if (temp == CT_GRAY)
+			temp = CT_PALETTE; /* Gray also uses the palette */
+		if ((temp == CT_PALETTE) && (bitdepth == 8))
+			temp = CT_GRAY;	  /* Optimized version for 8bpp */
+		draw_row = draw_row_tab[pii->applyalpha][temp];
+	}
 
 	/* If we use the palette, fill it with gray gradient as default */
 	if ((colortype == CT_PALETTE) || (colortype == CT_GRAY)) {
@@ -1174,18 +1613,30 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 		gray = 0xFFFFFF00;
 		delta = gray/(n - 1);
 		do {
-			palrgba[--n] = gray | 0xFF; /* A=0xFF (fully opaque) */
+			palette[--n] = gray | 0xFF; /* A=0xFF (fully opaque) */
 			gray -= delta;
 		} while (n);
+
+		if (!pii->applyalpha)
+			palconverted = 0;
 	}
 
+	/* Fill reference row (for UP and PAETH filter) with 0 */
+	current = rowlen + 1;
+	memset(prow, 0, rowlen+1);
+
 	/* Init zlib decompression */
-	zs.zalloc = NULL;
-	zs.zfree = NULL;
-	zs.next_in = NULL;
+	zs.zalloc = zalloc;
+	zs.zfree = zfree;
+	zs.next_in = Z_NULL;
 	zs.avail_in = 0;
-	zs.next_out = row[1];
+	zs.next_out = prow + current;
 	zs.avail_out = rowlen+1;	  /* +1 for filter type */
+#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
+	zs.outcb = (cb_func)WATCHDOG_RESET;
+#else
+	zs.outcb = Z_NULL;
+#endif	/* CONFIG_HW_WATCHDOG */
 	if (inflateInit(&zs) != Z_OK)
 		return "Can't initialize zlib\n";
 
@@ -1195,12 +1646,9 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 	/* Read chunks until IEND chunk is encountered; because we have called
 	   lcd_scan_bitmap() above, we know that the PNG structure is OK and
 	   we don't need to worry too much about bad chunks. */
-	png_done = 0; //####
-	current = 1;
 	fsize = pixelsize/8;		  /* in bytes, at least 1 */
 	if (fsize < 1)
 		fsize = 1;
-	draw_row = draw_row_tab[pii->applyalpha][colortype];
 	do {
 		u_char *p = (u_char *)addr;
 		u_int chunk_size;
@@ -1213,16 +1661,11 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 		p += 8;			   /* move to chunk data */
 
 		/* End of bitmap */
-		if (chunk_id == CHUNK_IEND) {
-			//####
-			if (!png_done)
-				errmsg = "Not all compressed data used\n";
-			//####
+		if (chunk_id == CHUNK_IEND)
 			break;
-		}
 
 		/* Only accept PLTE chunk in palette bitmaps */
-		if ((chunk_id == CHUNK_PLTE) && (colortype == 3)) {
+		if ((chunk_id == CHUNK_PLTE) && (colortype == CT_PALETTE)) {
 			unsigned int i;
 			unsigned int entries;
 
@@ -1239,20 +1682,21 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 				rgba |= *p++ << 16;
 				rgba |= *p++ << 8;
 				rgba |= 0xFF;	  /* Fully opaque */
-				palrgba[i] = rgba;
+				palette[i] = rgba;
 			}
 			continue;
 		}
 
 		/* Handle tRNS chunk */
 		if (chunk_id == CHUNK_tRNS) {
-			if ((colortype == 0) && (chunk_size >= 2)) {
+			if ((colortype == CT_GRAY) && (chunk_size >= 2)) {
 				u_int index = get_be16(p);
 
 				/* Make palette entry transparent */
 				if (index < 1 << bitdepth)
-					palrgba[index] &= 0xFFFFFF00;
-			} else if ((colortype == 2) && (chunk_size >= 6)) {
+					palette[index] &= 0xFFFFFF00;
+			} else if ((colortype == CT_TRUECOL)
+				   && (chunk_size >= 6)) {
 				RGBA rgba;
 
 				rgba = get_be16(p) << 24;
@@ -1260,7 +1704,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 				rgba |= get_be16(p+4) << 8;
 				rgba |= 0x00; /* Transparent, is now valid */
 				pii->trans_rgba = rgba;
-			} else if (colortype == 3) {
+			} else if (colortype == CT_PALETTE) {
 				u_int i;
 				u_int entries;
 
@@ -1268,7 +1712,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 				if (entries > chunk_size)
 					entries = chunk_size;
 				for (i=0; i<entries; i++)
-					palrgba[i] = (palrgba[i]&~0xFF) | *p++;
+					palette[i] = (palette[i]&~0xFF) | *p++;
 			}
 			continue;
 		}
@@ -1277,20 +1721,25 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 		if (chunk_id != CHUNK_IDAT)
 			continue;
 
-		/* Handle IDAT chunk */
-		//##### Hier nun beim ersten Mal ggf. die palrgba[] nach
-		//##### palcol32[] konvertieren.
+		/* Handle IDAT chunk; if we come here for the first time and
+		   have a palette based image, convert all colors to COLOR32
+		   values; this avoids having to convert the values again and
+		   again for each pixel. */
+		if (!palconverted) {
+			u_int i;
+			const wininfo_t *pwi = pii->pwi;
+
+			palconverted = 1;
+			i = 1<<bitdepth;
+			do {
+				RGBA rgba = palette[--i];
+				COLOR32 col = pwi->ppi->rgba2col(pwi, rgba);
+				palette[i] = (RGBA)col;
+			} while (i);
+		}
 
 		zs.next_in = p;		  /* Provide next data */
 		zs.avail_in = chunk_size;
-
-		//####
-		/* Compressed data was all handled, but there's more */
-		if (png_done) {
-			errmsg = "Extra data after Z_STREAM_END\n";
-			break;
-		}
-		//####
 
 		/* Process image rows until we need more input data */
 		do {
@@ -1298,20 +1747,20 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 
 			/* Decompress data for next PNG row */
 			zret = inflate(&zs, Z_SYNC_FLUSH);
-			if (zret == Z_STREAM_END) {
+			if (zret == Z_STREAM_END)
 				zret = Z_OK;
-				png_done = 1;
-			}
 			if (zret != Z_OK) {
 				errmsg = "zlib decompression failed\n";
 				break;
 			}
 			if (zs.avail_out == 0) {
 				int i;
-				u_char *pc = row[current];     /* current */
-				u_char *pp = row[1-current]+1; /* previous */
+
+				/* Current row */
+				u_char *pc = prow + current;
+				/* Previous row */
+				u_char *pp = prow + (rowlen+2) - current;
 				u_char filtertype = *pc++;
-				XYPOS y;
 
 				/* Apply the filter on this row */
 				switch (filtertype) {
@@ -1337,7 +1786,8 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 
 				case 4:			  /* paeth */
 					for (i=0; i<fsize; i++)
-						pc[i] += paeth(0, pp[i], 0);
+						//pc[i] += paeth(0, pp[i], 0);
+						pc[i] += pp[i];
 					for (; i<rowlen; i++)
 						pc[i] += paeth(pc[i-fsize],
 							       pp[i],
@@ -1346,60 +1796,254 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 				}
 
 				/* If row is in framebuffer range, draw it */
-				y = pii->y;
-				if ((y >= 0) && (y < pii->pwi->fbvres)) {
-					u_long fbuf = y*pii->pwi->linelen;
-					fbuf += pii->fbuf;
-					draw_row(pii, row[current]+1+rowpos,
-						 (COLOR32 *)fbuf);//###
-				}
-				current = 1 - current;
-				zs.next_out = row[current];
+				do {
+					XYPOS y = pii->y + pii->ypix;
+					if (y>=0) {
+						u_long fbuf;
+
+						fbuf = y*pii->pwi->linelen;
+						fbuf += pii->fbuf;
+						pii->rowshift = 8-(rowpos & 7);
+						pii->prow = prow + current + 1
+							+ (rowpos>>3);
+						draw_row(pii, (COLOR32 *)fbuf);
+					}
+					if (++pii->ypix >= pii->yend)
+						goto DONE;
+				} while (pii->ypix & pii->dheightshift);
+			
+				/* Toggle current between 0 and rowlen+1 */
+				current = rowlen + 1 - current;
+				zs.next_out = prow + current;
 				zs.avail_out = rowlen + 1;
 			}
 		} while (zs.avail_in > 0); /* Repeat as long as we have data */
 	} while (!errmsg);
 
+DONE:
 	/* Release resources of zlib decompression */
 	inflateEnd(&zs);
+
+	/* Free row buffer */
+	free(prow);
 
 	/* We're done */
 	return errmsg;
 }
+#endif /* CONFIG_PNG */
 
 
+#ifdef CONFIG_BMP
+/* Get a little endian 32 bit number from address p (may be unaligned) */
+static u_int get_le32(u_char *p)
+{
+	return (p[3]<<24) | (p[2]<<16) | (p[1]<<8) | p[0];
+}
+
+/* Get a little endian 16 bit number from address p (may be unaligned) */
+static u_short get_le16(u_char *p)
+{
+	return (p[1] << 8) | p[0];
+}
+
+
+/* Draw BMP image. A BMP image consists of a file header telling file type and
+   file size and a bitmap info header telling the image resolution, color type
+   and compression method. This is followed by the palette data (in case of a
+   palette bitmap) and the image data. The image data of each row is padded so
+   that the row is a multiple of 4 bytes long.
+
+   We do not support images with run-length encoded image data. The BMP format
+   was added as it is rather simple to decode and displays very fast. If you
+   need smaller bitmaps, use the PNG format, as this compresses much better
+   than the BMP run-length encoding. We also do not support images with 16 or
+   32 bits per pixel. These formats would require color masks and would be
+   again rather slow.
+
+   A normal BMP image is encoded bottom-up. But there are also images with
+   top-down encoding. We support both types of BMP bitmaps. */
 static const char *draw_bmp(imginfo_t *pii, u_long addr)
 {
-	return "###BMP bitmaps not yet implemented\n###";
-}
+	u_char colortype;
+	u_char bitdepth;
+	u_int compression;
+	u_int pixelsize;		  /* Size of one full pixel (bits) */
+	u_int rowlen;
+	int rowpos;
+	u_char *p;
+	draw_row_func_t draw_row;	  /* Draw bitmap row */
 
-static const char *draw_jpg(imginfo_t *pii, u_long addr)
-{
-	return "JPG bitmaps not yet supported\n";
+	static const draw_row_func_t draw_row_tab[2][6] = {
+		{	
+			/* ATTR_ALPHA = 0 */
+			NULL,
+			draw_ll_row_PAL,
+			draw_ll_row_PAL8, /* Optimized for 8bpp */
+			NULL,		  /* No BMPs with grayscale+alpha */
+			draw_ll_row_BGR,
+			draw_ll_row_BGRA
+		},
+		{
+			/* ATTR_ALPHA = 1 */
+			NULL,
+			adraw_ll_row_PAL,
+			adraw_ll_row_PAL8, /* Optimized for 8bpp */
+			NULL,		   /* No BMPs with grayscale+alpha */
+			adraw_ll_row_BGR,
+			adraw_ll_row_BGRA
+		}
+	};
+
+	colortype = pii->bi.colortype;
+	bitdepth = pii->bi.bitdepth;
+
+	/* We don't support more than 8 bits per color channel */
+	if ((bitdepth > 8) || (bitdepth == 5))
+		return "Unsupported BMP bit depth\n";
+	if ((bitdepth != 1) && (bitdepth != 2) && (bitdepth != 4)
+	    && (bitdepth != 8))
+		return "Invalid BMP bit depth\n";
+	p = (u_char *)(addr + 14);	  /* Bitmap Info Header */
+	compression = get_le32(p+16);
+	if (compression > 0)
+		return "Unsupported BMP compression method\n";
+	pixelsize = get_le16(p+14);
+
+	/* Round to 32 bit value */
+	rowlen = ((pii->bi.hres * pixelsize + 31) >> 5) << 2; /* in bytes */
+	pii->rowmask = (1 << bitdepth)-1;
+	rowpos = (pii->xpix >> pii->dwidthshift) * bitdepth;
+	pii->rowbitdepth = bitdepth;
+
+	/* Determine the correct draw_row function */
+	{
+		u_char temp = colortype;
+		if ((temp == CT_PALETTE) && (bitdepth == 8))
+			temp = CT_GRAY;	  /* Optimized version for 8bpp */
+		else if ((temp == CT_TRUECOL) && (bitdepth == 5))
+			temp = CT_GRAY_ALPHA; /* Version for 16bpp */
+		draw_row = draw_row_tab[pii->applyalpha][temp];
+	}
+
+	/* Read palette from image */
+	if (colortype == CT_PALETTE) {
+		u_int entries;
+		u_int i;
+		const wininfo_t *pwi = pii->pwi;
+
+		entries = get_le32(p+32);
+		if (entries == 0)
+			entries = 1 << bitdepth;
+		p = (u_char *)(addr+54);  /* go to color table */
+		for (i=0; i<entries; i++, p+=4) {
+			RGBA rgba;
+
+			rgba = p[0] << 8;   /* B[7:0] */
+			rgba |= p[1] << 16; /* G[7:0] */
+			rgba |= p[2] << 24; /* R[7:0] */
+			rgba |= 0xFF;	    /* A[7:0] = 0xFF */
+
+			/* If we do not apply alpha directly, i.e. we need the
+			   COLOR2 value of these RGBA values later, then
+			   already do the conversion now. This avoids having
+			   to do this conversion over and over again for each
+			   individual pixel of the bitmap. */
+			if (!pii->applyalpha)
+				rgba = (RGBA)pwi->ppi->rgba2col(pwi, rgba);
+			palette[i] = rgba;
+		}
+	}
+
+	/* Go to image data */
+	p = (u_char *)addr;
+	p += get_le32(p+10);
+
+	if (pii->bi.flags & BF_BOTTOMUP) {
+		/* Draw bottom-up bitmap; we have to recompute yend and ypix */
+		pii->ypix = (pii->bi.vres << pii->dheightshift);
+		pii->yend = (pii->y < 0) ? -pii->y : 0;
+
+		for (;;) {
+			/* If row is in framebuffer range, draw it */
+			do {
+				XYPOS y = pii->y + --pii->ypix;
+				if (y < pii->pwi->fbvres) {
+					u_long fbuf;
+
+					fbuf = y*pii->pwi->linelen + pii->fbuf;
+					pii->prow = p + (rowpos >> 3);
+					pii->rowshift = 8-(rowpos & 7);
+					draw_row(pii, (COLOR32 *)fbuf);
+				}
+				if (pii->ypix <= pii->yend)
+					goto DONE;
+			} while (pii->ypix & pii->dheightshift);
+			p += rowlen;
+		}
+	} else {		
+		/* Draw top-down bitmap */
+		for (;;) {
+			/* If row is in framebuffer range, draw it */
+			do {
+				XYPOS y = pii->y + pii->ypix;
+				if (y >= 0) {
+					u_long fbuf;
+
+					fbuf = y*pii->pwi->linelen + pii->fbuf;
+					pii->prow = p + (rowpos >> 3);
+					pii->rowshift = 8 - (rowpos & 7);
+					draw_row(pii, (COLOR32 *)fbuf);
+				}
+				if (++pii->ypix >= pii->yend)
+					goto DONE;
+			} while (pii->ypix & pii->dheightshift);
+			p += rowlen;
+		}
+	}
+DONE:
+	/* We're done */
+	return NULL;
 }
+#endif /* CONFIG_BMP */
+	
 
 /************************************************************************/
 /* GRAPHICS PRIMITIVES							*/
 /************************************************************************/
 
-/* Fill display with color */
-void lcd_fill(const wininfo_t *pwi, COLOR32 color)
+/* Fill display with FG color */
+void lcd_fill(const wininfo_t *pwi)
 {
-	memset32((unsigned *)pwi->pfbuf[pwi->fbdraw], color, pwi->fbsize/4);
+	if (pwi->attr & ATTR_ALPHA)
+		adraw_ll_rect(pwi, 0, 0, pwi->fbhres, pwi->fbvres);
+	else
+		memset32((unsigned *)pwi->pfbuf[pwi->fbdraw], pwi->fg.col,
+			 pwi->fbsize/4);
 }
 
-/* Draw pixel at (x, y) with color */
-void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color)
+/* Clear display with BG color */
+void lcd_clear(const wininfo_t *pwi)
 {
-	if ((x >= 0) && (x < (XYPOS)pwi->fbhres)
-	    && (y >= 0) && (y < (XYPOS)pwi->fbvres))
-		lcd_ll_pixel(pwi, x, y, color);
+	memset32((unsigned *)pwi->pfbuf[pwi->fbdraw], pwi->bg.col,
+		 pwi->fbsize/4);
+}
+
+/* Draw pixel at (x, y) with FG color */
+void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
+{
+	if ((x < 0) || (x >= (XYPOS)pwi->fbhres)
+	    || (y < 0) || (y >= (XYPOS)pwi->fbvres))
+		return;
+
+	if (pwi->attr & ATTR_ALPHA)
+		adraw_ll_pixel(pwi, x, y);
+	else
+		draw_ll_pixel(pwi, x, y, pwi->fg.col);
 }
 
 
 /* Draw line from (x1, y1) to (x2, y2) in color */
-void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
-	      COLOR32 color)
+void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	int dx, dy, dd;
 	XYPOS temp;
@@ -1454,14 +2098,13 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 		if (dx == 0) {
 			/* Draw vertical line */
-			lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+			lcd_rect(pwi, x1, y1, x2, y2);
 			return;
 		}
 
 		xoffs = (x1 > x2) ? -1 : 1;
 		for (;;) {
-			if ((x1 >= 0) && (x1 <= xmax))
-				lcd_ll_pixel(pwi, x1, y1, color);
+			lcd_pixel(pwi, x1, y1);
 			if (y1 == y2)
 				break;
 			y1++;
@@ -1509,14 +2152,13 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 		if (dy == 0) {
 			/* Draw horizontal line */
-			lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+			lcd_rect(pwi, x1, y1, x2, y2);
 			return;
 		}
 
 		yoffs = (y1 > y2) ? -1 : 1;
 		for (;;) {
-			if ((y1 >= 0) && (y1 <= ymax))
-				lcd_ll_pixel(pwi, x1, y1, color);
+			lcd_pixel(pwi, x1, y1);
 			if (x1 == x2)
 				break;
 			x1++;
@@ -1530,8 +2172,7 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 }
 
 /* Draw rectangular frame from (x1, y1) to (x2, y2) in color */
-void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
-	       COLOR32 color)
+void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	XYPOS xmax, ymax;
 
@@ -1564,7 +2205,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 		/* Draw top line */
 		if (y1 >= 0) {
-			lcd_ll_rect(pwi, xl, y1, xr, y1, color);
+			lcd_rect(pwi, xl, y1, xr, y1);
 
 			/* We are done if rectangle is only one pixel high */
 			if (y1 == y2)
@@ -1573,7 +2214,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 		/* Draw bottom line */
 		if (y2 <= ymax)
-			lcd_ll_rect(pwi, xl, y2, xr, y2, color);
+			lcd_rect(pwi, xl, y2, xr, y2);
 
 		/* For the vertical lines we only need to draw the region
 		   between the horizontal lines, so increment y1 and decrement
@@ -1591,7 +2232,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 	/* Draw left line */
 	if (x1 >= 0) {
-		lcd_ll_rect(pwi, x1, y1, x1, y2, color);
+		lcd_rect(pwi, x1, y1, x1, y2);
 
 		/* Return if rectangle is only one pixel wide */
 		if (x1 == x2)
@@ -1600,13 +2241,12 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 
 	/* Draw right line */
 	if (x2 <= xmax)
-		lcd_ll_rect(pwi, x2, y1, x2, y2, color);
+		lcd_rect(pwi, x2, y1, x2, y2);
 }
 
 
 /* Draw filled rectangle from (x1, y1) to (x2, y2) in color */
-void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
-	      COLOR32 color)
+void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	XYPOS xmax, ymax;
 
@@ -1639,7 +2279,10 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 		y2 = ymax;
 
 	/* Finally draw rectangle */
-	lcd_ll_rect(pwi, x1, y1, x2, y2, color);
+	if (pwi->attr & ATTR_ALPHA)
+		adraw_ll_rect(pwi, x1, y1, x2, y2);
+	else
+		draw_ll_rect(pwi, x1, y1, x2, y2, pwi->fg.col);
 }
 
 
@@ -1719,7 +2362,7 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
  *
  * Remark: this algorithm computes an optimal approximation to a circle, i.e.
  * the result is also symmetric to the angle bisector. */
-void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
+void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 {
 	XYPOS dx = 0;
 	XYPOS dy = r;
@@ -1729,13 +2372,13 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 		return;
 
 	if (r == 0) {
-		lcd_pixel(pwi, x, y, color);
+		lcd_pixel(pwi, x, y);
 		return;
 	}
 
 	/* Draw first two pixels with dx == 0 */
-	lcd_pixel(pwi, x, y - dy, color);
-	lcd_pixel(pwi, x, y + dy, color);
+	lcd_pixel(pwi, x, y - dy);
+	lcd_pixel(pwi, x, y + dy);
 	if (dd < 0)
 		dd += 3;		  /* 2*dx + 3, but dx is 0 */
 	else				  /* Only possible for r==1 */
@@ -1744,11 +2387,11 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_pixel(pwi, x + dx, y - dy, color);
-		lcd_pixel(pwi, x + dx, y + dy, color);
+		lcd_pixel(pwi, x + dx, y - dy);
+		lcd_pixel(pwi, x + dx, y + dy);
 		if (dx) {
-			lcd_pixel(pwi, x - dx, y - dy, color);
-			lcd_pixel(pwi, x - dx, y + dy, color);
+			lcd_pixel(pwi, x - dx, y - dy);
+			lcd_pixel(pwi, x - dx, y + dy);
 		}
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
@@ -1764,10 +2407,10 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy) {
-		lcd_pixel(pwi, x + dx, y - dy, color);
-		lcd_pixel(pwi, x - dx, y - dy, color);
-		lcd_pixel(pwi, x + dx, y + dy, color);
-		lcd_pixel(pwi, x - dx, y + dy, color);
+		lcd_pixel(pwi, x + dx, y - dy);
+		lcd_pixel(pwi, x - dx, y - dy);
+		lcd_pixel(pwi, x + dx, y + dy);
+		lcd_pixel(pwi, x - dx, y + dy);
 
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
@@ -1778,15 +2421,15 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 	}
 
 	/* Draw final pixels with dy == 0 */
-	lcd_pixel(pwi, x + dx, y, color);
-	lcd_pixel(pwi, x - dx, y, color);
+	lcd_pixel(pwi, x + dx, y);
+	lcd_pixel(pwi, x - dx, y);
 }
 
 
 /* Draw filled circle at (x, y) with radius r and color. The algorithm is the
    same as explained above at lcd_circle(), however we can skip some tests as
    we always draw a full line from the left to the right of the circle. */
-void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
+void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 {
 	XYPOS dx = 0;
 	XYPOS dy = r;
@@ -1797,8 +2440,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, color);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, color);
+		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy);
+		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy);
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
 		else {
@@ -1813,8 +2456,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy > 0) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, color);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, color);
+		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy);
+		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy);
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
 			dx++;
@@ -1824,7 +2467,7 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
 	}
 
 	/* Draw final line with dy == 0 */
-	lcd_rect(pwi, x - dx, y, x + dx, y, color);
+	lcd_rect(pwi, x - dx, y, x + dx, y);
 }
 
 
@@ -1847,26 +2490,26 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r, COLOR32 color)
    partly outside of the framebuffer, it is not drawn at all. If you need
    partly visible characters, use a larger framebuffer and show only the part
    with the partly visible characters in a window. */
-void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
-	      COLOR32 fg, COLOR32 bg)
+void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 {
 	XYPOS len = (XYPOS)strlen(s);
 	XYPOS width = VIDEO_FONT_WIDTH;
 	XYPOS height = VIDEO_FONT_HEIGHT;
 	XYPOS fbhres = (XYPOS)pwi->fbhres;
 	XYPOS fbvres = (XYPOS)pwi->fbvres;
+	u_int attr = pwi->attr;
 
 	/* Return if string is empty */
 	if (s == 0)
 		return;
 
-	if (a & ATTR_DWIDTH)
+	if (attr & ATTR_DWIDTH)
 		width *= 2;		  /* Double width */
-	if (a & ATTR_DHEIGHT)
+	if (attr & ATTR_DHEIGHT)
 		height *= 2;		  /* Double height */
 
 	/* Compute y from vertical alignment */
-	switch (a & ATTR_VMASK) {
+	switch (attr & ATTR_VMASK) {
 	case ATTR_VTOP:
 		break;
 
@@ -1888,7 +2531,7 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
 		return;
 
 	/* Compute x from horizontal alignment */
-	switch (a & ATTR_HMASK) {
+	switch (attr & ATTR_HMASK) {
 	case ATTR_HLEFT:
 		break;
 
@@ -1934,32 +2577,28 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
 			break;
 
 		/* Output character and move position */
-		lcd_ll_char(pwi, x, y, c, a, fg, bg);
+		if (attr & ATTR_ALPHA)
+			adraw_ll_char(pwi, x, y, c);
+		else
+			draw_ll_char(pwi, x, y, c);
 		x += width;
 	}
 }
 
 /* Draw bitmap from address addr at (x, y) with alignment/attribute a */
-const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr,
-		       u_int attr)
+const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 {
 	imginfo_t ii;
 	XYPOS hres, vres;
 	XYPOS fbhres, fbvres;
 	int xpos;
+	u_int attr;
 
 	const char *(*draw_bm_tab[])(imginfo_t *pii, u_long addr) = {
 		NULL,
 		draw_png,
 		draw_bmp,
-		draw_jpg
 	};
-
-	/* Store away some values to get the registers free */
-	ii.y = y;
-	ii.applyalpha = ((attr & ATTR_ALPHA) != 0);
-	ii.dwidthshift = ((attr & ATTR_DWIDTH) != 0);
-	ii.dheightshift = ((attr & ATTR_DHEIGHT) != 0);
 
 	/* Do a quick scan if bitmap integrity is OK */
 	if (!lcd_scan_bitmap(addr))
@@ -1969,6 +2608,12 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr,
 	lcd_get_bminfo(&ii.bi, addr);
 	if (ii.bi.colortype == CT_UNKNOWN)
 		return "Invalid bitmap color type\n";
+
+	/* Prepare attribute */
+	attr = pwi->attr;
+	ii.applyalpha = ((attr & ATTR_ALPHA) != 0);
+	ii.dwidthshift = ((attr & ATTR_DWIDTH) != 0);
+	ii.dheightshift = ((attr & ATTR_DHEIGHT) != 0);
 
 	/* Apply double width and double height */
 	hres = (XYPOS)ii.bi.hres << ii.dwidthshift;
@@ -2017,9 +2662,9 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr,
 		return NULL;
 
 	/* Compute end pixel in this row */
-	ii.xend = x + hres;
-	if (ii.xend > pwi->fbhres)
-		ii.xend = pwi->fbhres;
+	ii.xend = hres;
+	if (ii.xend + x > pwi->fbhres)
+		ii.xend = pwi->fbhres - x;
 
 	/* xpix counts the bitmap columns from 0 to xend; however if x < 0, we
 	   start at the appropriate offset. */
@@ -2036,6 +2681,14 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr,
 	ii.shift = 32 - (xpos & 31);
 	ii.mask = (1 << ii.bpp) - 1;	  /* This also works for bpp==32! */
 	ii.trans_rgba = 0x000000FF;	  /* No transparent color set yet */
+	ii.hash_rgba = 0x000000FF;	  /* Preload hash color */
+	ii.hash_col = pwi->ppi->rgba2col(pwi, 0x000000FF);
+
+	ii.ypix = 0;
+	ii.yend = vres;
+	ii.y = y;
+	if (ii.yend + y > pwi->fbvres)
+		ii.yend = pwi->fbvres - y;
 
 	/* Actually draw the bitmap */
 	return draw_bm_tab[ii.bi.type](&ii, addr);
@@ -2067,6 +2720,44 @@ void lcd_test(const wininfo_t *pwi, u_int pattern)
 		break;
 	}
 }
+
+
+/************************************************************************/
+/* OTHER EXPORTED GRAPHICS FUNCTIONS					*/
+/************************************************************************/
+
+/* Set colinfo structure */
+static void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci)
+{
+	RGBA alpha1;
+
+	/* Store RGBA value */
+	pci->rgba = rgba;
+	
+	/* Premultiply alpha for apply_alpha functions */
+	alpha1 = rgba & 0x000000FF;
+	pci->A256 = 256 - alpha1;
+	alpha1++;
+	pci->RA1 = (rgba >> 24) * alpha1;
+	pci->GA1 = ((rgba >> 16) & 0xFF) * alpha1;
+	pci->BA1 = ((rgba >> 8) & 0xFF) * alpha1;
+
+	/* Store COLOR32 value */
+	pci->col = pwi->ppi->rgba2col(pwi, rgba);
+}
+
+/* Set the FG color */
+void lcd_set_fg(wininfo_t *pwi, RGBA rgba)
+{
+	lcd_set_col(pwi, rgba, &pwi->fg);
+}
+
+/* Set the BG color */
+void lcd_set_bg(wininfo_t *pwi, RGBA rgba)
+{
+	lcd_set_col(pwi, rgba, &pwi->bg);
+}
+
 
 
 /* Get bitmap information; should only be called if bitmap integrity is OK,
@@ -2137,7 +2828,30 @@ void lcd_get_bminfo(bminfo_t *pbi, u_long addr)
 		p += 14;
 		pbi->type = BT_BMP;
 		pbi->bitdepth = get_le16(p+14);
-		pbi->colortype = (pbi->bitdepth <= 8) ? CT_PALETTE : CT_TRUECOL;
+		switch (pbi->bitdepth) {
+		case 1:
+		case 4:
+		case 8:
+			pbi->colortype = CT_PALETTE;
+			break;
+
+		case 16:
+			pbi->bitdepth = 5;
+			pbi->colortype = CT_TRUECOL;
+			break;
+		case 24:
+			pbi->bitdepth = 8;
+			pbi->colortype = CT_TRUECOL;
+			break;
+		case 32:
+			pbi->bitdepth = 8;
+			pbi->colortype = CT_TRUECOL_ALPHA;
+			break;
+
+		default:
+			pbi->colortype = CT_UNKNOWN;
+			break;
+		}
 		c = get_le32(p+16);
 		pbi->flags = ((c == 1) || (c == 2)) ? BF_COMPRESSED : 0;
 		pbi->hres = (HVRES)get_le32(p+4);
@@ -2204,7 +2918,44 @@ u_long lcd_scan_bitmap(u_long addr)
 	return addr;
 }
 
+/* Search for nearest color in the color map */
+COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count)
+{
+	unsigned nearest = 0;
+	u_char r, g, b, a;
+	unsigned i;
 
+	signed mindist = 256*256*4;
+
+	r = (u_char)(rgba >> 24);
+	g = (u_char)(rgba >> 16);
+	b = (u_char)(rgba >> 8);
+	a = (u_char)rgba;
+
+	i = count;
+	do {
+		short d;
+		signed dist;
+
+		rgba = cmap[--i];
+		d = (u_char)(rgba >> 24) - r;
+		dist = d*d;
+		d = (u_char)(rgba >> 16) - g;
+		dist += d*d;
+		d = (u_char)(rgba >> 8) - b;
+		dist += d*d;
+		d = (u_char)rgba - a;
+		dist += d*d;
+		if (dist == 0)
+			return (COLOR32)i;	  /* Exact match */
+		if (dist < mindist) {
+			mindist = dist;
+			nearest = i;
+		}
+	} while (i);
+
+	return (COLOR32)nearest;
+}
 
 
 /************************************************************************/
@@ -2218,8 +2969,8 @@ void console_init(wininfo_t *pwi)
 	console_pwi = pwi;
 	coninfo.x = 0;
 	coninfo.y = 0;
-	coninfo.fg = pwi->fg;
-	coninfo.bg = pwi->bg;
+	coninfo.fg = pwi->fg.col;
+	coninfo.bg = pwi->bg.col;
 }
 
 /* If the window is the console window, re-initialize console */
@@ -2235,16 +2986,17 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 	int x = coninfo.x;
 	int y = coninfo.y;
 	int xtab;
-	COLOR32 fg = coninfo.fg;
-	COLOR32 bg = coninfo.bg;
+	COLOR32 fg = coninfo.fg;   //##### nicht verwendet, sondern fg aus pwi
+	COLOR32 bg = coninfo.bg;   //##### nicht verwendet, sondern bg aus pwi
 	int fbhres = pwi->fbhres;
 	int fbvres = pwi->fbvres;
 
+	pwi->attr = 0;
 	switch (c) {
 	case '\t':			  /* Tab */
 		xtab = ((x / TABWIDTH) + 1) * TABWIDTH;
 		while ((x + VIDEO_FONT_WIDTH <= fbhres) && (x < xtab)) {
-			lcd_ll_char(pwi, x, y, ' ', 0, fg, bg);
+			draw_ll_char(pwi, x, y, ' ');
 			x += VIDEO_FONT_WIDTH;
 		};
 		goto CHECKNEWLINE;
@@ -2256,11 +3008,11 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 			y -= VIDEO_FONT_HEIGHT;
 			x = (fbhres/VIDEO_FONT_WIDTH-1) * VIDEO_FONT_WIDTH;
 		}
-		lcd_ll_char(pwi, x, y, ' ', 0, fg, bg);
+		draw_ll_char(pwi, x, y, ' ');
 		break;
 
 	default:			  /* Character */
-		lcd_ll_char(pwi, x, y, c, 0, fg, bg);
+		draw_ll_char(pwi, x, y, c);
 		x += VIDEO_FONT_WIDTH;
 	CHECKNEWLINE:
 		/* Check if there is room on the row for another character */
@@ -2364,579 +3116,3 @@ void lcd_puts(const char *s)
 		serial_puts(s);
 }
 #endif /*CONFIG_MULTIPLE_CONSOLES*/
-
-/*----------------------------------------------------------------------*/
-#if 0
-void lcd_printf(const char *fmt, ...)
-{
-	va_list args;
-	char buf[CFG_PBSIZE];
-
-	va_start(args, fmt);
-	vsprintf(buf, fmt, args);
-	va_end(args);
-
-	lcd_puts(buf);
-}
-#endif
-
-
-
-/************************************************************************/
-/**  Small utility to check that you got the colours right		*/
-/************************************************************************/
-#ifdef LCD_TEST_PATTERN
-
-#define	N_BLK_VERT	2
-#define	N_BLK_HOR	3
-
-static int test_colors[N_BLK_HOR*N_BLK_VERT] = {
-	CONSOLE_COLOR_RED,	CONSOLE_COLOR_GREEN,	CONSOLE_COLOR_YELLOW,
-	CONSOLE_COLOR_BLUE,	CONSOLE_COLOR_MAGENTA,	CONSOLE_COLOR_CYAN,
-};
-
-static void test_pattern (void)
-{
-	ushort v_max  = panel_info.vl_row;
-	ushort h_max  = panel_info.vl_col;
-	ushort v_step = (v_max + N_BLK_VERT - 1) / N_BLK_VERT;
-	ushort h_step = (h_max + N_BLK_HOR  - 1) / N_BLK_HOR;
-	ushort v, h;
-	uchar *pix = (uchar *)lcd_base;
-
-	/* WARNING: Code silently assumes 8bit/pixel */
-	for (v=0; v<v_max; ++v) {
-		uchar iy = v / v_step;
-		for (h=0; h<h_max; ++h) {
-			uchar ix = N_BLK_HOR * iy + (h/h_step);
-			*pix++ = test_colors[ix];
-		}
-	}
-}
-#endif /* LCD_TEST_PATTERN */
-
-
-
-/*----------------------------------------------------------------------*/
-
-
-/************************************************************************/
-/* ** ROM capable initialization part - needed to reserve FB memory	*/
-/************************************************************************/
-#ifndef CONFIG_S3C64XX
-/*
- * This is called early in the system initialization to grab memory
- * for the LCD controller.
- * Returns new address for monitor, after reserving LCD buffer memory
- *
- * Note that this is running from ROM, so no write access to global data.
- */
-ulong lcd_setmem (ulong addr)
-{
-	ulong size;
-	int line_length = (panel_info.vl_col * NBITS (panel_info.vl_bpix)) / 8;
-
-	debug ("LCD panel info: %d x %d, %d bit/pix\n",
-		panel_info.vl_col, panel_info.vl_row, NBITS (panel_info.vl_bpix) );
-
-	size = line_length * panel_info.vl_row;
-
-	/* Round up to nearest full page */
-	size = (size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-
-	/* Allocate pages for the frame buffer. */
-	addr -= size;
-
-	debug ("Reserving %ldk for LCD Framebuffer at: %08lx\n", size>>10, addr);
-
-	return (addr);
-}
-#endif /*!CONFIG_S3C64XX*/
-
-/*----------------------------------------------------------------------*/
-#if 0 //####
-
-static void lcd_setfgcolor(int color)
-{
-#ifdef CONFIG_ATMEL_LCD
-	lcd_color_fg = color;
-#else
-	lcd_color_fg = color & 0x0F;
-#endif
-}
-
-/*----------------------------------------------------------------------*/
-
-static void lcd_setbgcolor (int color)
-{
-#ifdef CONFIG_ATMEL_LCD
-	lcd_color_bg = color;
-#else
-	lcd_color_bg = color & 0x0F;
-#endif
-}
-
-/*----------------------------------------------------------------------*/
-
-#ifdef	NOT_USED_SO_FAR
-static int lcd_getfgcolor (void)
-{
-	return lcd_color_fg;
-}
-#endif	/* NOT_USED_SO_FAR */
-
-/*----------------------------------------------------------------------*/
-
-static int lcd_getbgcolor (void)
-{
-	return lcd_color_bg;
-}
-#endif //0####
-
-/*----------------------------------------------------------------------*/
-
-/************************************************************************/
-/* ** Chipset depending Bitmap / Logo stuff...                          */
-/************************************************************************/
-#ifdef CONFIG_LCD_LOGO
-void bitmap_plot (int x, int y)
-{
-#ifdef CONFIG_ATMEL_LCD
-	uint *cmap;
-#else
-	ushort *cmap;
-#endif
-	ushort i, j;
-	uchar *bmap;
-	uchar *fb;
-	ushort *fb16;
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-	struct pxafb_info *fbi = &panel_info.pxa;
-#elif defined(CONFIG_MPC823)
-	volatile immap_t *immr = (immap_t *) CFG_IMMR;
-	volatile cpm8xx_t *cp = &(immr->im_cpm);
-#endif
-
-	debug ("Logo: width %d  height %d  colors %d  cmap %d\n",
-		BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT, BMP_LOGO_COLORS,
-		(int)(sizeof(bmp_logo_palette)/(sizeof(ushort))));
-
-	bmap = &bmp_logo_bitmap[0];
-	fb   = (uchar *)(lcd_base + y * lcd_line_length + x);
-
-	if (NBITS(panel_info.vl_bpix) < 12) {
-		/* Leave room for default color map */
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-		cmap = (ushort *)fbi->palette;
-#elif defined(CONFIG_MPC823)
-		cmap = (ushort *)&(cp->lcd_cmap[BMP_LOGO_OFFSET*sizeof(ushort)]);
-#elif defined(CONFIG_ATMEL_LCD)
-		cmap = (uint *) (panel_info.mmio + ATMEL_LCDC_LUT(0));
-#else
-		/*
-		 * default case: generic system with no cmap (most likely 16bpp)
-		 * We set cmap to the source palette, so no change is done.
-		 * This avoids even more ifdef in the next stanza
-		 */
-		cmap = bmp_logo_palette;
-#endif
-
-		WATCHDOG_RESET();
-
-		/* Set color map */
-		for (i=0; i<(sizeof(bmp_logo_palette)/(sizeof(ushort))); ++i) {
-			ushort colreg = bmp_logo_palette[i];
-#ifdef CONFIG_ATMEL_LCD
-			uint lut_entry;
-#ifdef CONFIG_ATMEL_LCD_BGR555
-			lut_entry = ((colreg & 0x000F) << 11) |
-				    ((colreg & 0x00F0) <<  2) |
-				    ((colreg & 0x0F00) >>  7);
-#else /* CONFIG_ATMEL_LCD_RGB565 */
-			lut_entry = ((colreg & 0x000F) << 1) |
-				    ((colreg & 0x00F0) << 3) |
-				    ((colreg & 0x0F00) << 4);
-#endif
-			*(cmap + BMP_LOGO_OFFSET) = lut_entry;
-			cmap++;
-#else /* !CONFIG_ATMEL_LCD */
-#ifdef  CFG_INVERT_COLORS
-			*cmap++ = 0xffff - colreg;
-#else
-			*cmap++ = colreg;
-#endif
-#endif /* CONFIG_ATMEL_LCD */
-		}
-
-		WATCHDOG_RESET();
-
-		for (i=0; i<BMP_LOGO_HEIGHT; ++i) {
-			memcpy (fb, bmap, BMP_LOGO_WIDTH);
-			bmap += BMP_LOGO_WIDTH;
-			fb   += panel_info.vl_col;
-		}
-	}
-	else { /* true color mode */
-		u16 col16;
-		fb16 = (ushort *)(lcd_base + y * lcd_line_length + x);
-		for (i=0; i<BMP_LOGO_HEIGHT; ++i) {
-			for (j=0; j<BMP_LOGO_WIDTH; j++) {
-				col16 = bmp_logo_palette[(bmap[j]-16)];
-				fb16[j] =
-					((col16 & 0x000F) << 1) |
-					((col16 & 0x00F0) << 3) |
-					((col16 & 0x0F00) << 4);
-				}
-			bmap += BMP_LOGO_WIDTH;
-			fb16 += panel_info.vl_col;
-		}
-	}
-
-	WATCHDOG_RESET();
-}
-#endif /* CONFIG_LCD_LOGO */
-
-/*----------------------------------------------------------------------*/
-#if defined(CONFIG_CMD_BMP) || defined(CONFIG_SPLASH_SCREEN)
-/*
- * Display the BMP file located at address bmp_image.
- * Only uncompressed.
- */
-int lcd_display_bitmap(ulong bmp_image, int x, int y)
-{
-#ifdef CONFIG_ATMEL_LCD
-	uint *cmap;
-#elif !defined(CONFIG_MCC200)
-	ushort *cmap = NULL;
-#endif
-	ushort *cmap_base = NULL;
-	ushort i, j;
-	uchar *fb;
-	bmp_image_t *bmp=(bmp_image_t *)bmp_image;
-	uchar *bmap;
-	ushort padded_line;
-	unsigned long width, height, byte_width;
-	unsigned long pwidth = panel_info.vl_col;
-	unsigned colors, bpix, bmp_bpix;
-	unsigned long compression;
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-	struct pxafb_info *fbi = &panel_info.pxa;
-#elif defined(CONFIG_MPC823)
-	volatile immap_t *immr = (immap_t *) CFG_IMMR;
-	volatile cpm8xx_t *cp = &(immr->im_cpm);
-#endif
-
-	if (!((bmp->header.signature[0]=='B') &&
-		(bmp->header.signature[1]=='M'))) {
-		printf ("Error: no valid bmp image at %lx\n", bmp_image);
-		return 1;
-	}
-
-	width = le32_to_cpu (bmp->header.width);
-	height = le32_to_cpu (bmp->header.height);
-	bmp_bpix = le16_to_cpu(bmp->header.bit_count);
-	colors = 1 << bmp_bpix;
-	compression = le32_to_cpu (bmp->header.compression);
-
-	bpix = NBITS(panel_info.vl_bpix);
-
-	if ((bpix != 1) && (bpix != 8) && (bpix != 16)) {
-		printf ("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
-			bpix, bmp_bpix);
-		return 1;
-	}
-
-	/* We support displaying 8bpp BMPs on 16bpp LCDs */
-	if (bpix != bmp_bpix && (bmp_bpix != 8 || bpix != 16)) {
-		printf ("Error: %d bit/pixel mode, but BMP has %d bit/pixel\n",
-			bpix,
-			le16_to_cpu(bmp->header.bit_count));
-		return 1;
-	}
-
-	debug ("Display-bmp: %d x %d  with %d colors\n",
-		(int)width, (int)height, (int)colors);
-
-#if !defined(CONFIG_MCC200)
-	/* MCC200 LCD doesn't need CMAP, supports 1bpp b&w only */
-	if (bmp_bpix == 8) {
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-		cmap = (ushort *)fbi->palette;
-#elif defined(CONFIG_MPC823)
-		cmap = (ushort *)&(cp->lcd_cmap[255*sizeof(ushort)]);
-#elif defined(CONFIG_ATMEL_LCD)
-		cmap = (uint *) (panel_info.mmio + ATMEL_LCDC_LUT(0));
-#else
-		cmap = panel_info.cmap;
-#endif
-
-		cmap_base = cmap;
-
-		/* Set color map */
-		for (i=0; i<colors; ++i) {
-			bmp_color_table_entry_t cte = bmp->color_table[i];
-#if !defined(CONFIG_ATMEL_LCD)
-			ushort colreg =
-				( ((cte.red)   << 8) & 0xf800) |
-				( ((cte.green) << 3) & 0x07e0) |
-				( ((cte.blue)  >> 3) & 0x001f) ;
-#ifdef CFG_INVERT_COLORS
-			*cmap = 0xffff - colreg;
-#else
-			*cmap = colreg;
-#endif
-#if defined(CONFIG_PXA250)
-			cmap++;
-#elif defined(CONFIG_MPC823)
-			cmap--;
-#endif
-#else /* CONFIG_ATMEL_LCD */
-			lcd_setcolreg(i, cte.red, cte.green, cte.blue);
-#endif
-		}
-	}
-#endif
-
-	/*
-	 *  BMP format for Monochrome assumes that the state of a
-	 * pixel is described on a per Bit basis, not per Byte.
-	 *  So, in case of Monochrome BMP we should align widths
-	 * on a byte boundary and convert them from Bit to Byte
-	 * units.
-	 *  Probably, PXA250 and MPC823 process 1bpp BMP images in
-	 * their own ways, so make the converting to be MCC200
-	 * specific.
-	 */
-#if defined(CONFIG_MCC200)
-	if (bpix==1)
-	{
-		width = ((width + 7) & ~7) >> 3;
-		x     = ((x + 7) & ~7) >> 3;
-		pwidth= ((pwidth + 7) & ~7) >> 3;
-	}
-#endif
-
-	padded_line = (width&0x3) ? ((width&~0x3)+4) : (width);
-
-#ifdef CONFIG_SPLASH_SCREEN_ALIGN
-	if (x == BMP_ALIGN_CENTER)
-		x = max(0, (pwidth - width) / 2);
-	else if (x < 0)
-		x = max(0, pwidth - width + x + 1);
-
-	if (y == BMP_ALIGN_CENTER)
-		y = max(0, (panel_info.vl_row - height) / 2);
-	else if (y < 0)
-		y = max(0, panel_info.vl_row - height + y + 1);
-#endif /* CONFIG_SPLASH_SCREEN_ALIGN */
-
-	if ((x + width)>pwidth)
-		width = pwidth - x;
-	if ((y + height)>panel_info.vl_row)
-		height = panel_info.vl_row - y;
-
-	bmap = (uchar *)bmp + le32_to_cpu (bmp->header.data_offset);
-	fb   = (uchar *) (lcd_base +
-		(y + height - 1) * lcd_line_length + x);
-
-	switch (bmp_bpix) {
-	case 1: /* pass through */
-	case 8:
-		if (bpix != 16)
-			byte_width = width;
-		else
-			byte_width = width * 2;
-
-		for (i = 0; i < height; ++i) {
-			WATCHDOG_RESET();
-			for (j = 0; j < width; j++) {
-				if (bpix != 16) {
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS || defined(CONFIG_ATMEL_LCD)
-					*(fb++) = *(bmap++);
-#elif defined(CONFIG_MPC823) || defined(CONFIG_MCC200)
-					*(fb++) = 255 - *(bmap++);
-#endif
-				} else {
-					*(uint16_t *)fb = cmap_base[*(bmap++)];
-					fb += sizeof(uint16_t) / sizeof(*fb);
-				}
-			}
-			bmap += (width - padded_line);
-			fb   -= (byte_width + lcd_line_length);
-		}
-		break;
-
-#if defined(CONFIG_BMP_16BPP)
-	case 16:
-		for (i = 0; i < height; ++i) {
-			WATCHDOG_RESET();
-			for (j = 0; j < width; j++) {
-#if defined(CONFIG_ATMEL_LCD_BGR555)
-				*(fb++) = ((bmap[0] & 0x1f) << 2) |
-					(bmap[1] & 0x03);
-				*(fb++) = (bmap[0] & 0xe0) |
-					((bmap[1] & 0x7c) >> 2);
-				bmap += 2;
-#else
-				*(fb++) = *(bmap++);
-				*(fb++) = *(bmap++);
-#endif
-			}
-			bmap += (padded_line - width) * 2;
-			fb   -= (width * 2 + lcd_line_length);
-		}
-		break;
-#endif /* CONFIG_BMP_16BPP */
-
-	default:
-		break;
-	};
-
-	return (0);
-}
-#endif
-
-#ifdef CONFIG_VIDEO_BMP_GZIP
-extern bmp_image_t *gunzip_bmp(unsigned long addr, unsigned long *lenp);
-#endif
-
-
-#if 0 //######
-static void *lcd_logo (void)
-{
-#ifdef CONFIG_SPLASH_SCREEN
-	char *s;
-	ulong addr;
-	static int do_splash = 1;
-
-	if (do_splash && (s = getenv("splashimage")) != NULL) {
-		int x = 0, y = 0;
-		do_splash = 0;
-
-		addr = simple_strtoul (s, NULL, 16);
-#ifdef CONFIG_SPLASH_SCREEN_ALIGN
-		if ((s = getenv ("splashpos")) != NULL) {
-			if (s[0] == 'm')
-				x = BMP_ALIGN_CENTER;
-			else
-				x = simple_strtol (s, NULL, 0);
-
-			if ((s = strchr (s + 1, ',')) != NULL) {
-				if (s[1] == 'm')
-					y = BMP_ALIGN_CENTER;
-				else
-					y = simple_strtol (s + 1, NULL, 0);
-			}
-		}
-#endif /* CONFIG_SPLASH_SCREEN_ALIGN */
-
-#ifdef CONFIG_VIDEO_BMP_GZIP
-		bmp_image_t *bmp = (bmp_image_t *)addr;
-		unsigned long len;
-
-		if (!((bmp->header.signature[0]=='B') &&
-		      (bmp->header.signature[1]=='M'))) {
-			addr = (ulong)gunzip_bmp(addr, &len);
-		}
-#endif
-
-		if (lcd_display_bitmap (addr, x, y) == 0) {
-			return ((void *)lcd_base);
-		}
-	}
-#endif /* CONFIG_SPLASH_SCREEN */
-
-#ifdef CONFIG_LCD_LOGO
-	bitmap_plot (0, 0);
-#endif /* CONFIG_LCD_LOGO */
-
-#ifdef CONFIG_LCD_INFO
-	console_col = LCD_INFO_X / VIDEO_FONT_WIDTH;
-	console_row = LCD_INFO_Y / VIDEO_FONT_HEIGHT;
-	lcd_show_board_info();
-#endif /* CONFIG_LCD_INFO */
-
-#if defined(CONFIG_LCD_LOGO) && !defined(CONFIG_LCD_INFO_BELOW_LOGO)
-	return ((void *)((ulong)lcd_base + BMP_LOGO_HEIGHT * lcd_line_length));
-#else
-	return ((void *)lcd_base);
-#endif /* CONFIG_LCD_LOGO && !CONFIG_LCD_INFO_BELOW_LOGO */
-}
-
-#endif //0#####
-
-/************************************************************************/
-/************************************************************************/
-
-
-
-COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count)
-{
-#if 0
-	unsigned nearest = 0;
-	short r, g, b, a;
-	unsigned i;
-
-	signed mindist = 256*256*4;
-
-	r = (short)(rgba >> 24);
-	g = (short)((rgba >> 16) & 0xFF);
-	b = (short)((rgba >> 8) & 0xFF);
-	a = (short)(rgba & 0xFF);
-
-	for (i=0; i<count; i++) {
-		short dr, dg, db, da;
-		signed dist;
-
-		rgba = cmap[i];
-		dr = (short)(rgba >> 24) - r;
-		dg = (short)((rgba >> 16) & 0xFF) - g;
-		db = (short)((rgba >> 8) & 0xFF) - b;
-		da = (short)(rgba & 0xFF) - a;
-		dist = dr*dr + dg*dg + db*db + da*da;
-		if (dist == 0)
-			return (COLOR32)i;	  /* Exact match */
-		if (dist < mindist) {
-			mindist = dist;
-			nearest = i;
-		}
-	}
-
-	return (COLOR32)nearest;
-#else
-	unsigned nearest = 0;
-	u_char r, g, b, a;
-	unsigned i;
-
-	signed mindist = 256*256*4;
-
-	r = (u_char)(rgba >> 24);
-	g = (u_char)(rgba >> 16);
-	b = (u_char)(rgba >> 8);
-	a = (u_char)rgba;
-
-	i = count;
-	do {
-		short d;
-		signed dist;
-
-		rgba = cmap[--i];
-		d = (u_char)(rgba >> 24) - r;
-		dist = d*d;
-		d = (u_char)(rgba >> 16) - g;
-		dist += d*d;
-		d = (u_char)(rgba >> 8) - b;
-		dist += d*d;
-		d = (u_char)rgba - a;
-		dist += d*d;
-		if (dist == 0)
-			return (COLOR32)i;	  /* Exact match */
-		if (dist < mindist) {
-			mindist = dist;
-			nearest = i;
-		}
-	} while (i);
-
-	return (COLOR32)nearest;
-#endif
-}

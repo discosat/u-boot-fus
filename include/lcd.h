@@ -228,40 +228,45 @@ extern void lcd_putc(const char c);
 extern void lcd_puts(const char *s);
 extern void lcd_printf(const char *fmt, ...);
 
+/* Set the FG color */
+extern void lcd_set_fg(wininfo_t *pwi, RGBA rgba);
 
-/* Fill display with color */
-extern void lcd_fill(const wininfo_t *pwi, COLOR32 color);
+/* Set the BG color */
+extern void lcd_set_bg(wininfo_t *pwi, RGBA rgba);
 
-/* Draw pixel at (x, y) with color */
-extern void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 color);
+/* Fill display with FG color */
+extern void lcd_fill(const wininfo_t *pwi);
 
-/* Draw line from (x1, y1) to (x2, y2) in color */
+/* Fill display with BG color */
+extern void lcd_clear(const wininfo_t *pwi);
+
+/* Draw pixel at (x, y) with FG color */
+extern void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y);
+
+/* Draw line from (x1, y1) to (x2, y2) in FG color */
 extern void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		     XYPOS x2, XYPOS y2, COLOR32 color);
+		     XYPOS x2, XYPOS y2);
 
-/* Draw rectangular frame from (x1, y1) to (x2, y2) in color */
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in FG color */
 extern void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		      XYPOS x2, XYPOS y2, COLOR32 color);
+		      XYPOS x2, XYPOS y2);
 
-/* Draw filled rectangle from (x1, y1) to (x2, y2) in color */
+/* Draw filled rectangle from (x1, y1) to (x2, y2) in FG color */
 extern void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		     XYPOS x2, XYPOS y2, COLOR32 color);
+		     XYPOS x2, XYPOS y2);
 
-/* Draw circle outline at (x, y) with radius r and color */
-extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
-		       COLOR32 color);
+/* Draw circle outline at (x, y) with radius r and FG color */
+extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
 
-/* Draw filled circle at (x, y) with radius r and color */
-extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
-		     COLOR32 color);
+/* Draw filled circle at (x, y) with radius r and FG color */
+extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
 
-/* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg */
-extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s, u_int a,
-		     COLOR32 fg, COLOR32 bg);
+/* Draw text string s at (x, y) with FG/BG color and alignment/attribute */
+extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s);
 
-/* Draw bitmap from address addr at (x, y) with alignment/attribute a */
+/* Draw bitmap from address addr at (x, y) with alignment/attribute */
 extern const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y,
-			      u_long addr, u_int a);
+			      u_long addr);
 /* Draw test pattern */
 extern void lcd_test(const wininfo_t *pwi, u_int pattern);
 

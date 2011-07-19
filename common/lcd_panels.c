@@ -47,14 +47,14 @@ const lcdinfo_t lcdlist[] = {
 		hspol:		CFG_LOW,  /* Signal polarity */
 		vspol:		CFG_LOW,
 		denpol:		CFG_HIGH,
-		clkpol:		CFG_LOW,
+		clkpol:		CFG_HIGH,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
+		ponseq:		{0, 40, 60, 80, 80}, /* Power-on sequence */
+		poffseq:	{0, 0, 10, 40, 50},  /* Power-off sequence */
 	},
 	{				  /* Panel 1 */
 		name: "LG.Philips LB064V02", /* Name and type */
@@ -72,14 +72,14 @@ const lcdinfo_t lcdlist[] = {
 		hspol:		CFG_LOW,  /* Signal polarity */
 		vspol:		CFG_LOW,
 		denpol:		CFG_HIGH,
-		clkpol:		CFG_LOW,
+		clkpol:		CFG_HIGH,
 		fps:		60,	  /* Frame rate or pixel clock */
 		clk:		0,
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
+		ponseq:		{0, 40, 60, 80, 80}, /* Power-on sequence */
+		poffseq:	{0, 0, 10, 40, 50},  /* Power-off sequence */
 	},
 	{				  /* Panel 1 */
 		name: "Ampire AM320240LTNQW",	  /* Name and type */
@@ -103,8 +103,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM320240N1TMQW",	  /* Name and type */
@@ -128,8 +126,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM640480GHTNQW",	  /* Name and type */
@@ -153,8 +149,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "Ampire AM800480E2TMQW",	  /* Name and type */
@@ -178,8 +172,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET035009DH6",  /* Name and type */
@@ -203,8 +195,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET035080DH6",  /* Name and type */
@@ -228,8 +218,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET043000DH6",  /* Name and type */
@@ -253,8 +241,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET050080DH6",  /* Name and type */
@@ -278,8 +264,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET057080DH6",  /* Name and type */
@@ -303,8 +287,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET057090DHU",  /* Name and type */
@@ -328,8 +310,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 	{				  /* Panel ? */
 		name: "EDT ET070080DH6",  /* Name and type */
@@ -353,8 +333,6 @@ const lcdinfo_t lcdlist[] = {
 		pwmenable:	0,	  /* PWM/Backlight setting */
 		pwmvalue:	0,
 		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
 	},
 };
 
