@@ -34,6 +34,7 @@
 #include <command.h>
 //#include <version.h>
 #include <lcd.h>			  /* Own interface */
+#include <cmd_lcd.h>			  /* cmd_lcd_init() */
 #include <video_font.h>			  /* Get font data, width and height */
 #include <stdarg.h>
 #include <linux/types.h>
@@ -47,10 +48,6 @@
 /************************************************************************/
 /* DEFINITIONS								*/
 /************************************************************************/
-
-#ifndef CONFIG_FBPOOL_SIZE
-#define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1MB, enough for 800x600@16bpp */
-#endif
 
 /* ###### Noch einzubauen:
    CONFIG_LCD_LOGO
@@ -69,71 +66,23 @@
 # endif
 #endif
 
+/************************************************************************/
+/* TYPES AND STRUCTURES							*/
+/************************************************************************/
+typedef struct CON_INFO {
+	wininfo_t *pwi;			  /* Wininfo where console is on */
+	u_short x;			  /* Current writing position */
+	u_short y;			  /* (aligned to characters) */
+	COLOR32 fg;			  /* Foreground and background color */
+	COLOR32 bg;
+} coninfo_t;
+
+
+
 DECLARE_GLOBAL_DATA_PTR;
 
-wininfo_t wininfo[MAX_WINDOWS];		  /* Current window information */
-vidinfo_t vidinfo;			  /* Current panel information */
 coninfo_t coninfo;			  /* Console information */
 
-vidinfo_t panellist[] = {
-	{				  /* Panel 0 */
-		name: "(no display)",	  /* Name, type and dimensions */
-		type:		VI_TYPE_TFT,
-		hdim:		0,
-		vdim:		0,
-		hres:		0,	  /* Resolution */
-		vres:		0,
-		hfp:		24,	  /* Horizontal timing */
-		hsw:		96,
-		hbp:		40,
-		vfp:		10,	  /* Vertical timing */
-		vsw:		2,
-		vbp:		33,
-		hspol:		CFG_LOW,  /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
-		fps:		60,	  /* Frame rate or pixel clock */
-		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
-	},
-	{				  /* Panel 1 */
-		name: "LG.Philips LB064V02", /* Name, type and dimensions */
-		type:		VI_TYPE_TFT,
-		hdim:		132,
-		vdim:		98,
-		hres:		640,	  /* Resolution */
-		vres:		480,
-		hfp:		24,	  /* Horizontal timing */
-		hsw:		96,
-		hbp:		40,
-		vfp:		10,	  /* Vertical timing */
-		vsw:		2,
-		vbp:		33,
-		hspol:		CFG_LOW,  /* Signal polarity */
-		vspol:		CFG_LOW,
-		denpol:		CFG_HIGH,
-		clkpol:		CFG_HIGH,
-		fps:		60,	  /* Frame rate or pixel clock */
-		clk:		0,
-		pwmenable:	0,	  /* PWM/Backlight setting */
-		pwmvalue:	0,
-		pwmfreq:	0,
-		strength:	3,	  /* Extra settings */
-		dither:		0,
-	},
-};
-
-/* Size and base address of the framebuffer pool */
-static fbpoolinfo_t fbpool = {
-	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
-	size:	CONFIG_FBPOOL_SIZE,
-	used:	0
-};
    
 static int lcd_init (void *lcdbase);
 
@@ -274,6 +223,24 @@ static void lcd_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c, u_int a,
 /* ** Console support							*/
 /************************************************************************/
 
+/* Initialize the console with the given window */
+void console_init(wininfo_t *pwi)
+{
+	/* Initialize the console */
+	coninfo.pwi = pwi;
+	coninfo.x = 0;
+	coninfo.y = 0;
+	coninfo.fg = pwi->fg;
+	coninfo.bg = pwi->bg;
+}
+
+/* If the window is the console window, re-initialize console */
+void console_update(wininfo_t *pwi)
+{
+	if (coninfo.pwi->win == pwi->win)
+		console_init(pwi);
+}
+
 #define TABWIDTH (8 * VIDEO_FONT_WIDTH)	  /* 8 chars for tab */
 static void console_putc(char c)
 {
@@ -281,7 +248,7 @@ static void console_putc(char c)
 	int y = coninfo.y;
 	COLOR32 fg = coninfo.fg;
 	COLOR32 bg = coninfo.bg;
-	wininfo_t *pwi = &wininfo[coninfo.win];
+	wininfo_t *pwi = coninfo.pwi;
 	int fbhres = pwi->fbhres;
 	int fbvres = pwi->fbvres;
 
@@ -341,7 +308,7 @@ static void console_putc(char c)
 
 void lcd_putc(const char c)
 {
-	if (!lcd_is_enabled)
+	if (!lcd_is_enabled || !coninfo.pwi->active)
 		serial_putc(c);
 	else
 		console_putc(c);
@@ -351,7 +318,7 @@ void lcd_putc(const char c)
 
 void lcd_puts(const char *s)
 {
-	if (!lcd_is_enabled)
+	if (!lcd_is_enabled || !coninfo.pwi->active)
 		serial_puts(s);
 	else {
 		for (;;)
@@ -422,60 +389,24 @@ static void test_pattern (void)
 /************************************************************************/
 /* ** GENERIC Initialization Routines					*/
 /************************************************************************/
-
 int drv_lcd_init(void)
 {
 	device_t lcddev;
 	int rc;
-	WINDOW win;
-	wininfo_t *pwi;
 
-	vidinfo = panellist[0];
-
-	for (win = 0, pwi=wininfo; win < MAX_WINDOWS; win++, pwi++) {
-		u_int buf;
-
-		memset(pwi, 0, sizeof(wininfo_t));
-
-		/* Initialize some entries */
-		pwi->fbmaxcount = lcd_getfbmaxcount(win);
-		pwi->pix = DEFAULT_PIXEL_FORMAT;
-		pwi->fg = lcd_rgba2col(pwi, 0xFFFFFFFF);   /* Opaque white */
-		pwi->bg = lcd_rgba2col(pwi, 0x000000FF);   /* Opaque black */
-
-		/* Set all valid buffer pointers to the beginning of the
-		   framebuffer pool, all others to NULL */
-		for (buf=0; buf < MAX_BUFFERS_PER_WIN; buf++)
-			pwi->fbuf[buf] =
-				(buf < pwi->fbmaxcount) ? fbpool.base : 0;
-	}
-
-	lcd_ctrl_init();		  /* Initialize LCD controller */
-	printf("####b\n");
-//###	lcd_is_enabled = 1;
-	printf("####c\n");
-//###	lcd_enable ();
-	printf("####d\n");
-
-	printf("####e\n");
-
-	/* Initialize the console */
-	coninfo.win = 0;
-	coninfo.x = 0;
-	coninfo.y = 0;
-	coninfo.fg = lcd_rgba2col(&wininfo[coninfo.win], 0xFFFFFFFF);
-	coninfo.bg = lcd_rgba2col(&wininfo[coninfo.win], 0x000000FF);
+	/* Initialize controller hardware, panel, windows and console */
+	cmd_lcd_init();
 
 	/* Device initialization */
-	memset (&lcddev, 0, sizeof (lcddev));
+	memset(&lcddev, 0, sizeof(lcddev));
 
-	strcpy (lcddev.name, "lcd");
+	strcpy(lcddev.name, "lcd");
 	lcddev.ext   = 0;		  /* No extensions */
 	lcddev.flags = DEV_FLAGS_OUTPUT;  /* Output only */
 	lcddev.putc  = lcd_putc;	  /* 'putc' function */
 	lcddev.puts  = lcd_puts;	  /* 'puts' function */
 
-	rc = device_register (&lcddev);
+	rc = device_register(&lcddev);
 	if (rc == 0)
 		rc = 1;
 
@@ -937,118 +868,6 @@ static void *lcd_logo (void)
 
 
 /************************************************************************/
-/* Framebuffer Pool							*/
-/************************************************************************/
-
-/* Relocate all windows to newaddr, starting at window win */
-void lcd_relocbuffers(u_long newaddr, WINDOW win)
-{
-	/* Relocate all windows, i.e. set all image buffer addresses
-	   to the new address and update hardware */
-	for (; win < MAX_WINDOWS; win++) {
-		u_int buf;
-		wininfo_t wi;
-
-		lcd_getwininfo(&wi, win);
-
-		for (buf=0; buf<wi.fbmaxcount; buf++) {
-			printf("Window %u: Relocated buffer %u from 0x%08lx to"
-			       " 0x%08lx\n", win, buf, wi.fbuf[buf], newaddr);
-			wi.fbuf[buf] = newaddr;
-			if (buf < wi.fbcount)
-				newaddr += wi.fbsize;
-		}
-
-		/* Update controller hardware with new wininfo */
-		lcd_setwininfo(&wi, win);
-	}
-}
-
-
-/* Resize framebuffer for current window, relocate all subsequent windows */
-int lcd_setfbuf(wininfo_t *pwi, WINDOW win, u_short fbhres, u_short fbvres,
-		u_char pix, u_char fbcount)
-{
-	u_int bpp;			  /* Bits per pixel */
-	u_long linelen;			  /* New line length */
-	u_long fbsize;			  /* New size for one image buffer */
-	u_long oldsize;			  /* Old size for all buffers */
-	u_long newsize;			  /* New size for all buffers */
-	u_int buf;
-	u_long addr;
-
-	if ((fbhres == pwi->fbhres) && (fbvres == pwi->fbvres)
-	    && (pix == pwi->pix) && (fbcount == pwi->fbcount))
-		return 0;		  /* Success, nothing to do */
-
-	/* Align horizontal resolution to word boundary. */
-	bpp = 1 << pwi->pi->bpp_shift;
-	linelen = ((u_long)fbhres * bpp + 31) & ~31; /* in bits */
-	fbhres = (u_short)(linelen/bpp);	     /* in pixels */
-	linelen /= 8;				     /* in bytes */
-	fbsize = linelen * fbvres;
-
-	oldsize = pwi->fbsize * pwi->fbcount;
-	newsize = fbsize * fbcount;
-	if (fbpool.used - oldsize + newsize > fbpool.size)
-		return 1;		  /* Framebufferpool too small */
-
-	/* If we are not the last window, we have to relocate the subsequent
-	   windows. */
-	addr = pwi->fbuf[0];
-	if (win+1 < MAX_WINDOWS) {
-		u_long newaddr, oldaddr;
-		u_long used;
-
-		/* Move the framebuffer contents of all subsequent windows in
-		   one go */
-		oldaddr = addr + oldsize;
-		newaddr = addr + newsize;
-		used = oldaddr - fbpool.base;/* Used mem for windows 0..win */
-		used = fbpool.used - used;   /* Used mem for windows win+1.. */
-		memmove((void *)newaddr, (void *)oldaddr, used);
-
-		/* Then relocate the image buffer addresses of these windows */
-		lcd_relocbuffers(newaddr, win+1);
-	}
-
-	/* Now clear the new framebuffer with background color */
-	memset32((unsigned *)addr, pwi->bg, newsize/4);
-
-	/* Set new image buffer addresses for this window */
-	for (buf = 0; buf < pwi->fbmaxcount; buf++) {
-		pwi->fbuf[buf] = addr;
-		if (buf < fbcount)
-			addr += fbsize;
-	}
-
-	/* Set new window data */
-	pwi->fbhres = fbhres;
-	pwi->fbvres = fbvres;
-	pwi->fbcount = fbcount;
-	pwi->pix = pix;
-
-	/* Change the amount of used framepuffer pool */
-	fbpool.used = fbpool.used - oldsize + newsize;
-
-	return 0;			  /* Success */
-}
-
-
-/* Get current framebuffer pool information */
-void lcd_getfbpool(fbpoolinfo_t *pfp)
-{
-	*pfp = fbpool;
-}
-
-
-/* Set new framebuffer pool information */
-void lcd_setfbpool(fbpoolinfo_t *pfp)
-{
-	fbpool = *pfp;
-}
-
-/************************************************************************/
 /* Graphics Primitives							*/
 /************************************************************************/
 
@@ -1402,66 +1221,3 @@ COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count)
 	return (COLOR32)nearest;
 #endif
 }
-
-/************************************************************************/
-/* Video Information Handling						*/
-/************************************************************************/
-
-void lcd_getvidinfo(vidinfo_t *pvi)
-{
-	*pvi = vidinfo;
-}
-
-void lcd_setvidinfo(vidinfo_t *pvi)
-{
-	/* Set new settings to hardware; this updates vidinfo */
-	lcd_hw_vidinfo(pvi, &vidinfo);
-}
-
-/* Find predefined panel by index, returns 0 (and vi unchanged) on bad index */
-int lcd_getpanel(vidinfo_t *pvi, u_int index)
-{
-	if (index >= ARRAYSIZE(panellist))
-		return 1;
-
-	*pvi = panellist[index];
-	return 0;
-}
-
-/* Search panel by string, start at index; return index (or 0 if no match) */ 
-u_int lcd_searchpanel(char *s, u_int index)
-{
-	while (++index < ARRAYSIZE(panellist)) {
-		if (strstr(panellist[index].name, s))
-		    return index;	  /* match */
-	}
-
-	return 0;			  /* no more matches */
-}
-
-
-
-/************************************************************************/
-/* Window Information Handling						*/
-/************************************************************************/
-
-/* Get a pointer to the wininfo structure; the structure should be considered
-   as read-only here; this is more efficient than lcd_getwininfo() as the
-   structure needs not to be copied. lcd_getwininfop() should be prefered in
-   places where window information is required but not changed. */
-const wininfo_t *lcd_getwininfop(WINDOW win)
-{
-	return &wininfo[win];
-}
-
-void lcd_getwininfo(wininfo_t *pwi, WINDOW win)
-{
-	*pwi = wininfo[win];
-}
-
-void lcd_setwininfo(wininfo_t *pwi, WINDOW win)
-{
-	/* Set the values to hardware; this updates wininfo[win] */
-	lcd_hw_wininfo(pwi, win, &wininfo[win]);
-}
-

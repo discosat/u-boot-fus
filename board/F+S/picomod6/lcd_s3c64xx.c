@@ -5,11 +5,13 @@
 //#include <linux/types.h>
 //#include <devices.h>
 #include <lcd_s3c64xx.h>		  /* Own interface */
-#include <lcd.h>			  /* Common lcd interface */
-#include <cmd_lcd.h>			  /* parse_rgb(), struct kwinfo */
+#include <cmd_lcd.h>			  /* wininfo_t, kwinfo_t, ... */
+#include <lcd.h>			  /* lcd_rgbalookup() */
 #include <s3c-regs-lcd.h>		  /* S3C64XX LCD registers */
+#include <regs.h>			  /* GPxDAT, GPxCON, ... */
 
 #define PIXEL_FORMAT_COUNT 15
+
 
 typedef unsigned long LCDREG;
 
@@ -22,7 +24,7 @@ struct LCD_WIN_REGS {
 	struct vbuf {
 		LCDREG start;		  /* Video buffer start address */
 		LCDREG end;		  /* Video buffer end address */
-	} vidadd[MAX_BUFFERS_PER_WIN];
+	} vidadd[2];
 	LCDREG vidsize;			  /* Video buffer size */
 	LCDREG keycon;			  /* Color key control */
 	LCDREG keyval;			  /* Color key value */
@@ -30,7 +32,7 @@ struct LCD_WIN_REGS {
 	u_int  clut;			  /* Color look-up table address */
 };
 
-static const struct LCD_WIN_REGS winregs[MAX_WINDOWS] = {
+static const struct LCD_WIN_REGS winregs_table[5] = {
 	{				  /* Window 0 */
 		S3C_WINCON0,
 		S3C_VIDOSD0A,
@@ -114,25 +116,25 @@ static const struct LCD_WIN_REGS winregs[MAX_WINDOWS] = {
 };
 
 const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
-	{ 0,  1, 0,   2, "2-entry color look-up table"},   /* 0 */
-	{ 1,  2, 1,   4, "4-entry color look-up table"},   /* 1 */
-	{ 2,  4, 2,  16, "16-entry color look-up table"},  /* 2 */
-	{ 3,  8, 3, 256, "256-entry color look-up table"}, /* 3 */
-	{ 4,  8, 3,   0, "RGBA-2321"},			   /* 4 */
-	{ 5, 16, 4,   0, "RGBA-5650 (default)"},	   /* 5 */
-	{ 6, 16, 4,   0, "RGBA-5551"},			   /* 6 */
-	{ 7, 16, 4,   0, "RGBI-5551 (I=intensity)"},	   /* 7 */
-	{ 8, 18, 5,   0, "RGBA-6660"},			   /* 8 */
-	{ 9, 18, 5,   0, "RGBA-6651"},			   /* 9 */
-	{10, 19, 5,   0, "RGBA-6661"},			   /* 10 */
-	{11, 24, 5,   0, "RGBA-8880"},			   /* 11 */
-	{12, 24, 5,   0, "RGBA-8871"},			   /* 12 */
-	{13, 25, 5,   0, "RGBA-8881"},			   /* 13 */
-	{13, 28, 5,   0, "RGBA-8884"},			   /* 14 */
+	{ 1, 0,   2, "2-entry color look-up table"},   /* 0 */
+	{ 2, 1,   4, "4-entry color look-up table"},   /* 1 */
+	{ 4, 2,  16, "16-entry color look-up table"},  /* 2 */
+	{ 8, 3, 256, "256-entry color look-up table"}, /* 3 */
+	{ 8, 3,   0, "RGBA-2321"},			   /* 4 */
+	{16, 4,   0, "RGBA-5650 (default)"},	   /* 5 */
+	{16, 4,   0, "RGBA-5551"},			   /* 6 */
+	{16, 4,   0, "RGBI-5551 (I=intensity)"},	   /* 7 */
+	{18, 5,   0, "RGBA-6660"},			   /* 8 */
+	{18, 5,   0, "RGBA-6651"},			   /* 9 */
+	{19, 5,   0, "RGBA-6661"},			   /* 10 */
+	{24, 5,   0, "RGBA-8880"},			   /* 11 */
+	{24, 5,   0, "RGBA-8871"},			   /* 12 */
+	{25, 5,   0, "RGBA-8881"},			   /* 13 */
+	{28, 5,   0, "RGBA-8884"},			   /* 14 */
 };
 
 /* Valid pixel formats for each window */
-u_int valid_pixels[MAX_WINDOWS] = {
+u_int valid_pixels[5] = {
 	0x09AF,			/* Win 0: no alpha formats */
 	0x7FFF,			/* Win 1: no restrictions  */
 	0x7FF7,			/* Win 2: no CLUT-8 */
@@ -147,7 +149,7 @@ enum WIN_INDEX_EXT {
 	WI_COLKEY,
 };
 
-const struct kwinfo winextkeywords[] = {
+const kwinfo_t winextkeywords[] = {
 	{2, 4, WI_ALPHA,  "alpha"},
 	{1, 5, WI_COLKEY, "colkey"},
 };
@@ -212,10 +214,11 @@ int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
 	switch (si) {
 	case WI_ALPHA:
 	{
-		u_char pix = 1;
-		u_char sel = 0;
+		u_char bld_pix = 1;
+		u_char alpha_sel = 0;
 		u_int alpha0_rgba;
 		u_int alpha1_rgba;
+		u_int alpha;
 		
 		/* Arguments 1+2: alpha0 and alpha1 */
 		if ((parse_rgb(argv[2], &alpha0_rgba) == RT_NONE)
@@ -224,16 +227,23 @@ int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
 
 		/* Argument 3: pix setting */
 		if (argc > 4)
-			pix = (simple_strtoul(argv[4], NULL, 0) != 0);
+			bld_pix = (simple_strtoul(argv[4], NULL, 0) != 0);
 
 		/* Argument 4: sel setting */
 		if (argc > 5)
-			sel = (simple_strtoul(argv[5], NULL, 0) != 0);
+			alpha_sel = (simple_strtoul(argv[5], NULL, 0) != 0);
 
-		ext->alpha0 = alpha0_rgba;
-		ext->alpha1 = alpha1_rgba;
-		ext->pix = pix;
-		ext->sel = sel;
+		/* Prepare alpha value from alpha0 and alpha1 */
+		alpha = (alpha0_rgba & 0x0000F000);	   /* B */
+		alpha |= (alpha0_rgba & 0x00F00000) >> 4;  /* G */
+		alpha |= (alpha0_rgba & 0xF0000000) >> 8;  /* R */
+		alpha |= (alpha1_rgba & 0xF0000000) >> 20; /* R */
+		alpha |= (alpha1_rgba & 0x00F00000) >> 16; /* G */
+		alpha |= (alpha1_rgba & 0x0000F000) >> 12; /* B */
+
+		ext->alpha = alpha;
+		ext->bld_pix = bld_pix;
+		ext->alpha_sel = alpha_sel;
 		break;
 	}
 
@@ -287,11 +297,24 @@ void lcdwin_ext_print(wininfo_t *pwi, u_int si)
 
 	switch (si) {
 	case WI_INFO:
-	case WI_ALPHA:
-		printf("Alpha:\t\talpha0=#%06x, alpha1=#%06x, pix=%d, sel=%d\n",
-		       ext->alpha0, ext->alpha1, ext->pix, ext->sel);
+	case WI_ALPHA: {
+		u_int alpha0, alpha1;
+
+		alpha0 = ext->alpha & 0x00F00000;	  /* R */
+		alpha0 |= (ext->alpha & 0x000F0000) >> 4; /* G */
+		alpha0 |= (ext->alpha & 0x0000F000) >> 8; /* B */
+		alpha0 |= alpha0 >> 4;
+
+		alpha1 = ext->alpha & 0x0000000F; /* B */
+		alpha1 |= (ext->alpha & 0x000000F0) << 4; /* G */
+		alpha1 |= (ext->alpha & 0x00000F00) << 8; /* R */
+		alpha1 |= alpha1 << 4;
+		printf("Alpha:\t\t"
+		       "alpha0=#%06x, alpha1=#%06x, bld_pix=%d, alpha_sel=%d\n",
+		       alpha0, alpha1, ext->bld_pix, ext->alpha_sel);
 		if (si != WI_INFO)
 			break;
+	}
 		/* WI_INFO: fall through to case WI_COLKEY */
 	case WI_COLKEY:
 		printf("Color Key:\tenable=%d, dir=%d, blend=%d,"
@@ -685,24 +708,386 @@ RGBA lcd_col2rgba(const wininfo_t *pwi, COLOR32 color)
 /* Setting Video Infos							*/
 /************************************************************************/
 
-void lcd_hw_vidinfo(vidinfo_t *pvi_new, vidinfo_t *pvi_old)
+void lcd_hw_vidinfo(vidinfo_t *pvi)
 {
-	//#### TODO ####
+	ulong hclk;
+	unsigned int div;
+	unsigned hline;
+	unsigned vframe;
+	unsigned ticks;
+
+	hclk = get_HCLK();
+
+	/* Do sanity check on all values */
+	if ((pvi->clk == 0) && (pvi->fps == 0))
+		pvi->fps = 60;		  /* Neither fps nor clk are given */
+	if (pvi->hres > 2047)
+		pvi->hres = 2047;
+	if (pvi->vres > 2047)
+		pvi->vres = 2047;
+	if (pvi->hfp > 255)
+		pvi->hfp = 255;
+	if (pvi->hsw > 255)
+		pvi->hsw = 255;
+	else if (pvi->hsw < 1)
+		pvi->hsw = 1;
+	if (pvi->hbp > 255)
+		pvi->hbp = 255;
+	if (pvi->vfp > 255)
+		pvi->vfp = 255;
+	if (pvi->vsw > 255)
+		pvi->vsw = 255;
+	else if (pvi->vsw < 1)
+		pvi->vsw = 1;
+	if (pvi->vbp > 255)
+		pvi->vbp = 255;
+
+	/* Number of clocks for one horizontal line */
+	hline = pvi->hres + pvi->hfp + pvi->hsw + pvi->hbp;
+
+	/* Number of hlines for one vertical frame */
+	vframe = pvi->vres + pvi->vfp + pvi->vsw + pvi->vbp;
+
+	/* Number of clock ticks per frame */
+	ticks = hline*vframe;
+	
+	if (pvi->clk) {
+		/* Compute divisor from given pixel clock */
+		div = (hclk + pvi->clk/2)/pvi->clk;
+	} else {
+		/* Ticks per second */
+		unsigned ticks_per_second = ticks * pvi->fps;
+
+		/* Compute divisor from given frame rate */
+		div = (hclk + ticks_per_second/2)/ticks_per_second;
+	}
+	if (div < 2)
+		div = 2;
+	else if (div > 256)
+		div = 256;
+	pvi->clk = (hclk + div/2)/div;
+	pvi->fps = (pvi->clk + ticks/2)/ticks;
+
+	/* Output selection, clock setting and enable is in VIDCON0; keep
+	   enabled status */
+	__REG(S3C_VIDCON0) = (__REG(S3C_VIDCON0) & 0x3)
+		| S3C_VIDCON0_INTERLACE_F_PROGRESSIVE
+		| S3C_VIDCON0_VIDOUT_RGB_IF
+		| S3C_VIDCON0_PNRMODE_RGB_P
+		| S3C_VIDCON0_CLKVALUP_ST_FRM
+		| S3C_VIDCON0_CLKVAL_F(div-1)
+		| S3C_VIDCON0_CLKDIR_DIVIDED
+		| S3C_VIDCON0_CLKSEL_F_HCLK;
+
+	/* Signal polarity is in VIDCON1 */
+	__REG(S3C_VIDCON1) =
+		(pvi->clkpol) ? 0 : S3C_VIDCON1_IVCLK_RISE_EDGE
+		| (pvi->hspol) ? S3C_VIDCON1_IHSYNC_INVERT : 0
+		| (pvi->vspol) ? S3C_VIDCON1_IVSYNC_INVERT : 0
+		| (pvi->denpol)? S3C_VIDCON1_IVDEN_INVERT : 0;
+
+	/* TV settings are not required when using LCD */
+	__REG(S3C_VIDCON2) = 0;
+
+	/* Vertical timing is in VIDTCON0 */
+	__REG(S3C_VIDTCON0) =
+		S3C_VIDTCON0_VBPD(pvi->vbp)
+		| S3C_VIDTCON0_VFPD(pvi->vfp)
+		| S3C_VIDTCON0_VSPW(pvi->vsw);
+
+	/* Horizontal timing is in VIDTCON1 */
+	__REG(S3C_VIDTCON1) =
+		S3C_VIDTCON1_HBPD(pvi->hbp)
+		| S3C_VIDTCON1_HFPD(pvi->hfp)
+		| S3C_VIDTCON1_HSPW(pvi->hsw);
+
+	/* Display resolution is in VIDTCON2 */
+	__REG(S3C_VIDTCON2) =
+		S3C_VIDTCON2_LINEVAL(pvi->vres)
+		| S3C_VIDTCON2_HOZVAL(pvi->hres);
+
+	/* No video interrupts */
+	__REG(S3C_VIDINTCON0) = 0;
+
+	/* Dithering mode */
+	__REG(S3C_DITHMODE) =
+		S3C_DITHMODE_RDITHPOS_5BIT
+		| S3C_DITHMODE_GDITHPOS_6BIT
+		| S3C_DITHMODE_BDITHPOS_5BIT
+		| pvi->dither ? S3C_DITHMODE_DITHERING_ENABLE : 0;
 }
 
 /************************************************************************/
 /* Setting Window Infos							*/
 /************************************************************************/
 
-void lcd_hw_wininfo(wininfo_t *pwi_new, WINDOW win, wininfo_t *pwi_old)
+int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 {
-	if (pwi_new->pix != pwi_old->pix)
-		pwi_new->pi = &pixel_info[pwi_new->pix];
+	const struct LCD_WIN_REGS *winregs = &winregs_table[pwi->win];
+	unsigned pagewidth;
+	unsigned burstlen;
+	unsigned bld_pix;
+	unsigned alpha_sel;
+	unsigned bppmode_f;
+	signed hpos, vpos;
+	unsigned hres, vres;
+	unsigned hoffs, voffs;
+	XYPOS panel_hres;
+	XYPOS panel_vres;
+	u_long addr;
 
-	//#### TODO ####
+	hres = lcd_align_hres(pwi->win, pwi->pix, pwi->hres);
+	vres = pwi->vres;
+	hpos = pwi->hpos;
+	vpos = pwi->vpos;
+	hoffs = pwi->hoffs;
+	voffs = pwi->voffs;
+	panel_hres = (XYPOS)pvi->hres;
+	panel_vres = (XYPOS)pvi->vres;
+
+	/* Compute size of actual window and window viewport in framebuffer;
+	   we trust that fbhres and fbvres are already checked against
+	   lcd_getfbmaxhres() and lcd_getfbmaxvres() respectively in
+	   cmd_lcd.c. Also hres/vres should not exceed fbhres/fbvres. */
+	if ((hpos + hres < 0) || (hpos >= panel_hres)
+	    || (vpos + vres < 0) || (vpos >= panel_vres)) {
+		/* Window is completeley outside of panel */
+		hres = 0;
+		vres = 0;
+	} else {
+		/* If part of window reaches outside of panel, reduce size */
+		if (hpos < 0) {
+			hres += hpos;
+			hoffs = lcd_align_hoffs(pwi, hoffs + (-hpos));
+			hpos = 0;
+		} else if (hpos + hres >= panel_hres)
+			hres = panel_hres - hpos;
+		if (vpos < 0) {
+			vres += vpos;
+			voffs -= vpos;
+			vpos = 0;
+		} else if (vpos + vres >= panel_vres)
+			vres = panel_vres - hpos;
+	}
+
+	/* If nothing visible, disable window */
+	if (!hres || !vres || !pwi->fbcount) {
+		__REG(winregs->wincon) &= ~S3C_WINCONx_ENWIN_F_ENABLE;
+		return 0;		  /* not enabled */
+	}
+
+	pagewidth = lcd_align_hres(pwi->win, pwi->pix, hres);
+	pagewidth = (pagewidth << pwi->pi->bpp_shift) >> 3;
+	if (pagewidth > 16*4)
+		burstlen = S3C_WINCONx_BURSTLEN_16WORD;
+	else if (pagewidth > 8*4)
+		burstlen = S3C_WINCONx_BURSTLEN_8WORD;
+	else
+		burstlen = S3C_WINCONx_BURSTLEN_4WORD;
+	if (pwi->pix == 14) {
+		bld_pix = 1;
+		alpha_sel = 1;
+	} else {
+		bld_pix = pwi->ext.bld_pix;
+		alpha_sel = pwi->ext.alpha_sel;
+	}
+	bppmode_f = pwi->pix;
+	if (bppmode_f > 13)
+		bppmode_f = 13;
+
+	/* General window configuration */
+	__REG(winregs->wincon) = 
+		S3C_WINCONx_WIDE_NARROW(0)
+		| S3C_WINCONx_ENLOCAL_DMA
+		| pwi->fbshow ? S3C_WINCONx_BUFSEL_1 : S3C_WINCONx_BUFSEL_0
+		| S3C_WINCONx_BUFAUTOEN_DISABLE
+		| S3C_WINCONx_BITSWP_DISABLE
+		| S3C_WINCONx_BYTSWP_DISABLE
+		| S3C_WINCONx_HAWSWP_DISABLE
+		| S3C_WINCONx_INRGB_RGB
+		| burstlen
+		| bld_pix
+		| (bppmode_f << 2)
+		| alpha_sel
+		| S3C_WINCONx_ENWIN_F_ENABLE;
+
+	__REG(winregs->vidosdtl) =
+		S3C_VIDOSDxA_OSD_LTX_F(hpos)
+		| S3C_VIDOSDxA_OSD_LTY_F(vpos);
+
+	__REG(winregs->vidosdbr) =
+		S3C_VIDOSDxB_OSD_RBX_F(hpos + hres - 1)
+		| S3C_VIDOSDxB_OSD_RBY_F(vpos + vres - 1);
+
+	if (winregs->vidosdsize)
+		__REG(winregs->vidosdsize) = 0; /* Only for TV-Encoder */
+
+	if (winregs->vidosdalpha)
+		__REG(winregs->vidosdalpha) = pwi->ext.alpha;
+
+	/* Set buffer 0 */
+	addr = pwi->fbuf[0] + voffs*pwi->linelen;
+	addr += (hoffs << pwi->pi->bpp_shift) >> 8;
+	__REG(winregs->vidadd[0].start) = addr;
+	__REG(winregs->vidadd[0].end) = (addr + vres*pwi->linelen) & 0x00FFFFFF;
+
+	/* Set buffer 1 (if applicable) */
+	if (pwi->fbcount > 1) {
+		addr = pwi->fbuf[0] + voffs*pwi->linelen;
+		addr += (hoffs << pwi->pi->bpp_shift) >> 8;
+		if (winregs->vidadd[1].start)
+			__REG(winregs->vidadd[1].start) = addr;
+		if (winregs->vidadd[1].end)
+			__REG(winregs->vidadd[1].end) =
+				       (addr + vres*pwi->linelen) & 0x00FFFFFF;
+	}
+
+	__REG(winregs->vidsize) =
+		S3C_VIDWxxADD2_OFFSIZE_F(pwi->linelen - pagewidth)
+		| S3C_VIDWxxADD2_PAGEWIDTH_F(pagewidth);
+
+	__REG(S3C_WPALCON) =
+		S3C_WPALCON_W4PAL_16BIT_A
+		| S3C_WPALCON_W3PAL_16BIT_A
+		| S3C_WPALCON_W2PAL_16BIT_A
+		| S3C_WPALCON_W1PAL_25BIT_A
+		| S3C_WPALCON_W0PAL_25BIT_A;
+
+	__REG(winregs->winmap) =
+		S3C_WINxMAP_MAPCOLEN_F_DISABLE
+		| S3C_WINxMAP_MAPCOLOR(0xFFFFFF);
+
+	if (winregs->keycon)
+		__REG(winregs->keycon) =
+			(pwi->ext.ckblend ? S3C_WxKEYCON0_KEYBLEN_ENABLE : 0)
+			| (pwi->ext.ckenable ? S3C_WxKEYCON0_KEYEN_F_ENABLE : 0)
+			| (pwi->ext.ckdir ? S3C_WxKEYCON0_DIRCON_MATCH_BG_IMAGE : 0)
+			| pwi->ext.ckmask;
+
+	if (winregs->keyval)
+		__REG(winregs->keyval) = pwi->ext.ckvalue;
+
+	return 1;			  /* enabled */
 }
 
 u_char lcd_getfbmaxcount(WINDOW win)
 {
 	return (win <= 1) ? 2 : 1;
+}
+
+/* Return maximum horizontal framebuffer resolution for this window */
+u_short lcd_getfbmaxhres(WINDOW win, u_char pix)
+{
+	/* Maximum linelen is 13 bits, that's at most 8191 bytes; however to
+	   be word aligned even for 1bpp, we can at most take 8188 */
+	return (u_short)((8188 << 3) >> pixel_info[pix].bpp_shift);
+}
+
+/* Return maximum vertical framebuffer resolution for this window */
+u_short lcd_getfbmaxvres(WINDOW win, u_char pix)
+{
+	/* No limit on vertical size */
+	return 65535;
+}
+
+/* Align horizontal offset to current word boundary (round down) */
+XYPOS lcd_align_hoffs(const wininfo_t *pwi, XYPOS hoffs)
+{
+	unsigned shift = 5 - pwi->pi->bpp_shift;
+
+	hoffs >>= shift;
+	hoffs <<= shift;
+
+	return hoffs;
+}
+
+/* Align horizontal buffer resolution to next word boundary (round up) */
+u_short lcd_align_hres(WINDOW win, u_char pix, u_short hres)
+{
+	unsigned shift = 5 - pixel_info[pix].bpp_shift;
+	XYPOS mask = (1 << shift) - 1;
+
+	hres = (hres + mask) & ~mask;
+	return hres;
+}
+
+/* In addition to the standard video signals, we have five more signals:
+   GPF15: PWM output (backlight intensity)
+   GPK3:  Buffer Enable (active low): enable display driver chips
+   GPK2:  Display Enable (active low): Set signal for display
+   GPK1:  VCFL (active high): Activate backlight voltage
+   GPK0:  VLCD (active high): Activate LCD voltage */
+void lcd_hw_init(void)
+{
+	/* Call board specific GPIO configuration */
+//###	lcd_s3c64xx_board_init(void);
+
+	__REG(S3C_HOSTIFB_MIFPCON) = 0;	  /* 0: normal-path (no by-pass) */
+	__REG(HCLK_GATE) |= (1<<3);	  /* Enable clock to LCD */
+	__REG(SPCON) = (__REG(SPCON) & ~0x3) | 0x1; /* Select RGB I/F */
+
+	/* Setup GPI: LCD_VD[15:0], no pull-up/down */
+	__REG(GPICON) = 0xAAAAAAAA;
+	__REG(GPIPUD) = 0x00000000;
+
+	/* Setup GPJ: LCD_VD[23:16], HSYNC, VSYNC, DEN, CLK, no pull-up/down */
+	__REG(GPJCON) = 0xAAAAAAAA;
+	__REG(GPJPUD) = 0x00000000;
+
+	/* Setup GPF15 to output 0 (backlight intensity 0) */
+	__REG(GPFDAT) &= ~(0x1<<15);
+	__REG(GPFCON) = (__REG(GPFCON) & ~(0x3<<30)) | (0x1<<30);
+	__REG(GPFPUD) &= ~(0x3<<30);
+
+	/* Setup GPK[3] to output 1 (Buffer enable), GPK[2] to output 1
+	   (Display enable), GPK[1] to output 0 (VCFL), GPK[0] to output 0
+	   (VLCD), no pull-up/down */
+	__REG(GPKDAT) = (__REG(GPKDAT) & ~(0xf<<0)) | (0xc<<0);
+	__REG(GPKCON0) = (__REG(GPKCON0) & (0xFFF<<0)) | (0x111<0);
+	__REG(GPKPUD) &= ~(0x3F<<0);
+}
+
+int lcd_hw_enable(void)
+{
+	/* Activate VLCD */
+	__REG(GPKDAT) |= (1<<0);
+
+	/* Activate Buffer Enable */
+	__REG(GPKDAT) &= ~(1<<3);
+
+	/* Activate LCD controller */
+	__REG(S3C_VIDCON0) |= S3C_VIDCON0_ENVID_F_ENABLE;
+
+	/* Activate Display Enable */
+	__REG(GPKDAT) &= ~(1<<2);
+
+	/* Activate VCFL */
+	__REG(GPKDAT) |= (1<<1);
+
+	/* Activate VEEK (backlight intensity full) */
+	__REG(GPFDAT) |= (0x1<<15);
+
+	return 0;
+}
+
+/* Deactivate display in reverse order */
+void lcd_hw_disable(void)
+{
+	/* Deactivate VEEK (backlight intensity off) */
+	__REG(GPFDAT) &= ~(0x1<<15);
+
+	/* Deactivate VCFL */
+	__REG(GPKDAT) &= ~(1<<1);
+
+	/* Deactivate Display Enable */
+	__REG(GPKDAT) |= (1<<2);
+
+	/* Deactivate LCD controller */
+	__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
+
+	/* Deactivate Buffer Enable */
+	__REG(GPKDAT) |= (1<<3);
+
+	/* Deactivate VLCD */
+	__REG(GPKDAT) &= ~(1<<0);
 }

@@ -27,6 +27,10 @@
 #include <zlib.h>
 #include <asm/byteorder.h>
 
+#if defined (CONFIG_VFD) || defined (CONFIG_LCD)
+#include <cmd_lcd.h>			  /* lcd_getfbpoolinfo() */
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined (CONFIG_SETUP_MEMORY_TAGS) || \
@@ -271,9 +275,10 @@ static void setup_initrd_tag (bd_t *bd, ulong initrd_start, ulong initrd_end)
 
 
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)
-extern ulong calc_fbsize (void);
 static void setup_videolfb_tag (gd_t *gd)
 {
+	const fbpoolinfo_t *pfpi = lcd_getfbpoolinfo();
+
 	/* An ATAG_VIDEOLFB node tells the kernel where and how large
 	 * the framebuffer for video was allocated (among other things).
 	 * Note that a _physical_ address is passed !
@@ -284,10 +289,10 @@ static void setup_videolfb_tag (gd_t *gd)
 	params->hdr.tag = ATAG_VIDEOLFB;
 	params->hdr.size = tag_size (tag_videolfb);
 
-	params->u.videolfb.lfb_base = (u32) gd->fb_base;
+	params->u.videolfb.lfb_base = (u32)pfpi->base;
 	/* Fb size is calculated according to parameters for our panel
 	 */
-	params->u.videolfb.lfb_size = calc_fbsize();
+	params->u.videolfb.lfb_size = (u32)pfpi->size;
 
 	params = tag_next (params);
 }

@@ -69,11 +69,6 @@ int board_init(void)
 	gd->bd->bi_arch_number = MACH_TYPE;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);
 
-#ifdef CONFIG_LCD
-	/* Use 1MB below U-Boot as framebuffer */
-	gd->fb_base = lcd_fbsize(1024*1024);
-#endif
-
 #if 1
 	icache_enable();
 //####	dcache_enable();

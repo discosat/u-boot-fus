@@ -23,6 +23,44 @@
  * MA 02111-1307 USA
  */
 
+/* ##### TODO:
+   1. lcd_getwininfo() wegnehmen, nur noch lcd_getwininfop()
+   2. window 0 darf nicht < panelres sein
+   3. rgba2col() und col2rgba() in wininfo_t-Struktur einbetten
+   4. hardware-dependent includes von lcd.h nach cmd_lcd.h
+   5. Nochmal prüfen, dass fbhres und hoffs immer aligned sind
+   6. Unnötige includes entfernen
+   7. Alten code aus lcd.c/lcd.h entfernen
+   8. Evtl. coninfo hierher
+   9. LCD-Einschalttiming hinzunehmen
+
+   10. Vorbereitung für mehrere Displays an einem Board: eigenes File
+       vidinfo.c, das video-Devices verwaltet. Im init-Teil werden per #ifdef
+       die ganzen init-Funktionen der hardware-spez. Module aufgerufen. Ist
+       mehr als ein #ifdef aktiv, werden mehrere Devices aktiviert. Dort im
+       HW-Init() wird eine Struktur gefüllt, die als panelinfo_t die bisherige
+       vidinfo_t hat und zusätzlich Infos über maximale Fensteranzahl,
+       maximale Buffer pro Fenster usw. hat. Außerdem werden dort alle
+       Funktionen reingesetzt, die hardware-spezifisch sind, z.B. das
+       Alignment von hres und hoffs, lcd_hw_enable/disable(), etc. Außerdem
+       wird dort das aktuell selektierte Window gemerkt. In die
+       wininfo_t-Struktur sollte dann ein Pointer auf die zug. vidinfo_t rein,
+       damit man direkt diese Infos referenzieren kann.
+       Macht man umgekehrt einen Pointer in die vidinfo_t rein, die auf das
+       wininfo_t-Array zeigt, dann kann das wininfo_t-Array vom
+       Hardware-spezifischen Modul statisch (im bss) angelegt werden und
+       braucht nicht dynamisch auf den Heap.
+   11. lcdset, lcdon, lcdoff und lcdlist könnten unter "lcd" zusammengefasst
+       werden, lcdwin nach win(dow) und lcddraw nach draw geändert werden.
+   12. lcdwin col sollte als draw col kommen (logischer), draw-Befehle sollten
+       evtl. FG und BG ändern.
+   13. lcdwin ident könnte Farbe des Windows blinken (Hardware-Feature)
+   14. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
+   15. REG32() durch __REG() ersetzen
+   16. PWM settings auf GPF15 setzen.
+
+****/
+
 /*
  * LCD commands
  */
@@ -31,7 +69,19 @@
 #include <common.h>
 #include <cmd_lcd.h>			  /* Own interface */
 #include <lcd.h>			  /* vidinfo_t, wininfo_t, ... */
+#include <lcd_panels.h>			  /* lcd_getpanel(), ... */
 
+/* Always round framebuffer pool size to full pages */
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+
+#ifndef CONFIG_FBPOOL_SIZE
+#define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1MB, enough for 800x600@16bpp */
+#endif
+
+#define DEFAULT_BG 0x000000FF		  /* Opaque black */
+#define DEFAULT_FG 0xFFFFFFFF		  /* Opaque white */
 
 
 /************************************************************************/
@@ -112,8 +162,20 @@ typedef enum SET_INDEX
 /* LOCAL VARIABLES							*/
 /************************************************************************/
 
+DECLARE_GLOBAL_DATA_PTR;
+
 /* Currently selected window */
 static WINDOW win_sel = 0;
+
+wininfo_t wininfo[CONFIG_MAX_WINDOWS];	  /* Current window information */
+vidinfo_t vidinfo;			  /* Current panel information */
+
+/* Size and base address of the framebuffer pool */
+static fbpoolinfo_t fbpool = {
+	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
+	size:	CONFIG_FBPOOL_SIZE,
+	used:	0
+};
 
 /* Display types, corresponding to vidinfo_t.type */
 static char * const typeinfo[9] =
@@ -243,10 +305,18 @@ struct regkwinfo const regkeywords[] =
 };
 #endif /*CONFIG_FSWINCE_COMPAT*/
 
-
 /************************************************************************/
 /* Prototypes of local functions					*/
 /************************************************************************/
+/* Get window information */
+static void lcd_getwininfo(wininfo_t *wi, WINDOW win);
+
+/* Set new/updated window information */
+static void lcd_setwininfo(wininfo_t *wi, WINDOW win);
+
+/* Get pointer to current window information */
+static const wininfo_t *lcd_getwininfop(WINDOW win);
+
 
 /************************************************************************/
 /* Command cls								*/
@@ -304,7 +374,7 @@ static int cls(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	lcd_getwininfo(&wi, win_sel);
 
 	/* If selected window is active, fill it with background color */
-	if (wi.fbhres && wi.fbvres && wi.fbcount) {
+	if (wi.active) {
 		memset32((unsigned *)wi.fbuf[wi.fbdraw], wi.bg, wi.fbsize/4);
 		/* #### TODO
 		wi.column = 0;
@@ -330,11 +400,28 @@ U_BOOT_CMD(
 
 static int lcdon(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	if (lcd_enable()) {
-		printf("Can't enable display\n");
-		return 1;
+	char *pReason = NULL;
+
+	if (!vidinfo.hres || !vidinfo.vres)
+		pReason = "No valid lcd panel\n";
+	else {
+		WINDOW win;
+		wininfo_t *pwi;
+
+		for (win=0, pwi=wininfo; win<CONFIG_MAX_WINDOWS; win++, pwi++) {
+			if (pwi->active)
+				break;
+		}
+		if (win == CONFIG_MAX_WINDOWS)
+			pReason = "No active window\n";
+		else if (lcd_hw_enable())
+			pReason = "Can't enable display\n";
 	}
-	return 0;
+	if (!pReason)
+		return 0;
+
+	puts(pReason);
+	return 1;
 }
 
 U_BOOT_CMD(
@@ -345,9 +432,9 @@ U_BOOT_CMD(
 
 static int lcdoff(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	lcd_disable();
-	return 0;
+	lcd_hw_disable();
 
+	return 0;
 }
 
 U_BOOT_CMD(
@@ -380,14 +467,14 @@ U_BOOT_CMD(
 
 static int lcdlist(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	if ((argc >= 2) && (argc <= 3)) {
-		uint count = 0xFFFFFFFF;
-		uint index = 0;
-		vidinfo_t vi;
+	if (argc >= 2) {
+		unsigned count;
+		unsigned index;
 		char c;
 
 		/* Get count if given */
-		if (argc == 3)
+		count = 0xFFFFFFFF;
+		if (argc > 2)
 			count = simple_strtoul(argv[2], NULL, 0);
 
 		/* Show header line */
@@ -397,6 +484,7 @@ static int lcdlist(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 		/* If first argument is a number, parse start index */
 		c = argv[1][0];
+		index = 0;
 		if ((c >= '0') & (c <= '9')) {
 			c = 0;
 			index = simple_strtoul(argv[1], NULL, 0);
@@ -408,19 +496,29 @@ static int lcdlist(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 		while (count--)
 		{
+			const vidinfo_t *pvi;
+			const char *p;
+
 			if (c) {
 				/* Search next matching panel */
-				if (!(index = lcd_searchpanel(argv[1], index)))
+				index = lcd_searchpanel(argv[1], index);
+				if (!index)
 					break; /* No further match */
 			}
-			if (lcd_getpanel(&vi, index))
+			pvi = lcd_getpanel(index);
+			if (!pvi)
 				break;	  /* Reached end of list */
 
 			/* Show entry */
-			printf("%d:\t%s\t%4d x %d\t%4d x %d\t%s\n", index,
-			       (vi.type < 4) ? "STN" :
-			                       (vi.type < 8) ? "CSTN" : "TFT",
-			       vi.hres, vi.vres, vi.hdim, vi.vdim, vi.name);
+			if (pvi->type < 4)
+				p = "STN";
+			else if (pvi->type < 8)
+				p = "CSTN";
+			else
+				p = "TFT";
+			printf("%d:\t%s\t%4u x %u\t%4u x %u\t%s\n",
+			       index, p, pvi->hres, pvi->vres,
+			       pvi->hdim, pvi->vdim, pvi->name);
 
 			/* Next panel */
 			index++;
@@ -435,7 +533,7 @@ static int lcdlist(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	lcdlist,	2,	1,	lcdlist,
+	lcdlist,	3,	1,	lcdlist,
 	"lcdlist\t- list predefined LCD panels\n",
 	"\n    - List all predefined LCD panels\n"
 	"lcdlist substring [count]\n"
@@ -448,18 +546,49 @@ U_BOOT_CMD(
 /* Command lcdfbpool							*/
 /************************************************************************/
 
+/* Relocate all windows to newaddr, starting at window win */
+static void relocbuffers(u_long newaddr, WINDOW win)
+{
+	/* Relocate all windows, i.e. set all image buffer addresses
+	   to the new address and update hardware */
+	for (; win < CONFIG_MAX_WINDOWS; win++) {
+		u_int buf;
+		wininfo_t wi;
+
+		lcd_getwininfo(&wi, win);
+
+		for (buf=0; buf<CONFIG_MAX_BUFFERS_PER_WIN; buf++) {
+			if (buf >= wi.fbmaxcount)
+				wi.fbuf[buf] = 0;
+			else if (wi.fbuf[buf] != newaddr) {
+				printf("Window %u: Relocated buffer %u from"
+				       " 0x%08lx to 0x%08lx\n",
+				       win, buf, wi.fbuf[buf], newaddr);
+				wi.fbuf[buf] = newaddr;
+			}
+			if (buf < wi.fbcount)
+				newaddr += wi.fbsize;
+		}
+
+		/* Update controller hardware with new wininfo */
+		lcd_setwininfo(&wi, win);
+	}
+}
+
 static int lcdfbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	fbpoolinfo_t fp;
+	fbpoolinfo_t *pfp = &fbpool;
 
-	lcd_getfbpool(&fp);
 	if (argc > 1)
 	{
 		ulong newsize;
 		ulong newbase;
 
-		/* Get size and base address */
+		/* Get size and round to full pages */
 		newsize = simple_strtoul(argv[1], NULL, 16);
+		newsize = (((newsize - 1)/PAGE_SIZE)+1)*PAGE_SIZE;
+
+		/* Get base address */
 		if (argc > 2)
 			newbase = simple_strtoul(argv[1], NULL, 16);
 		else
@@ -472,23 +601,26 @@ static int lcdfbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			return 1;
 		}
 
-		if (fp.used > newsize) {
+		if (pfp->used > newsize) {
 			printf("Current framebuffers exceed new size\n");
 			return 1;
 		}
 
-		/* Move buffers of all windows to new address */
-		lcd_relocbuffers(newbase, 0);
+		/* Move framebuffer content in one go */
+		memmove((void *)newbase, (void *)pfp->base, pfp->used);
+
+		/* Relocate the image buffer addresses of all windows */
+	        relocbuffers(newbase, 0);
 
 		/* Finally set the new framebuffer pool values */
-		fp.size = newsize;
-		fp.base = newbase;
-		lcd_setfbpool(&fp);
+		pfp->size = newsize;
+		pfp->base = newbase;
+		gd->fb_base = newbase;
 	}
 
 	/* Print current or new settings */
 	printf("Framebuffer Pool: 0x%08lx - 0x%08lx (%lu bytes)\n",
-	       fp.base, fp.base+fp.size-1, fp.size);
+	       pfp->base, pfp->base + pfp->size - 1, pfp->size);
 	return 0;
 }
 
@@ -514,7 +646,7 @@ static int lcdtest(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	wininfo_t wi;
 
 	lcd_getwininfo(&wi, win_sel);
-	if (!wi.fbhres || !wi.fbvres || !wi.fbcount)
+	if (!wi.active)
 		return 0;
 
 	param = 0;
@@ -529,7 +661,7 @@ static int lcdtest(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 			/* Fill screen with single color */
 			memset32((unsigned *)wi.fbuf[wi.fbdraw],
-				 lcd_rgba2col(rgba, &wi), wi.fbsize/4);
+				 lcd_rgba2col(&wi, rgba), wi.fbsize/4);
 			return 0;
 		}
 		
@@ -572,10 +704,10 @@ U_BOOT_CMD(
 
 
 /************************************************************************/
-/* Command lcddraw							*/
+/* Command draw								*/
 /************************************************************************/
 
-static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	const wininfo_t *pwi;
 	u_int si = DI_UNKNOWN;
@@ -587,9 +719,9 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	pwi = lcd_getwininfop(win_sel);
 
-	/* If selected window is active, parse arguments and draw pixel */
-	if (!pwi->fbhres || !pwi->fbvres || !pwi->fbcount) {
-		printf("Window %d inactive\n", win_sel);
+	/* If selected window is not active do nothing */
+	if (!pwi->active) {
+		printf("Window %d not active\n", win_sel);
 		return 1;
 	}
 
@@ -634,7 +766,7 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 4) {
 			if (parse_rgb(argv[4], &rgba) == RT_NONE)
 				return 1;
-			col1 = lcd_rgba2col(rgba, pwi);
+			col1 = lcd_rgba2col(pwi, rgba);
 		}
 		lcd_pixel(pwi, x1, y1, col1);
 		break;
@@ -649,7 +781,7 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 6) {
 			if (parse_rgb(argv[6], &rgba) == RT_NONE)
 				return 1;
-			col1 = lcd_rgba2col(rgba, pwi);
+			col1 = lcd_rgba2col(pwi, rgba);
 		}
 
 		if (si == DI_LINE) {
@@ -662,7 +794,7 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 7) {
 			if (parse_rgb(argv[7], &rgba) == RT_NONE)
 				return 1;
-			col2 = lcd_rgba2col(rgba, pwi);
+			col2 = lcd_rgba2col(pwi, rgba);
 
 			/* Draw filled rectangle */
 			lcd_rect(pwi, x1, y1, x2, y2, col2);
@@ -684,14 +816,14 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 5) {
 			if (parse_rgb(argv[5], &rgba) == RT_NONE)
 				return 1;
-			col1 = lcd_rgba2col(rgba, pwi);
+			col1 = lcd_rgba2col(pwi, rgba);
 		}
 
 		/* Optional argument 5: fill color */
 		if (argc > 6) {
 			if (parse_rgb(argv[6], &rgba) == RT_NONE)
 				return 1;
-			col2 = lcd_rgba2col(rgba, pwi);
+			col2 = lcd_rgba2col(pwi, rgba);
 
 			/* Draw filled circle */
 			lcd_disc(pwi, x1, y1, x2, col2);
@@ -715,7 +847,7 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 6) {
 			if (parse_rgb(argv[6], &rgba) == RT_NONE)
 				return 1;
-			col1 = lcd_rgba2col(rgba, pwi);
+			col1 = lcd_rgba2col(pwi, rgba);
 		}
 
 		/* Optional argument 6: BG color */
@@ -723,7 +855,7 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 7) {
 			if (parse_rgb(argv[7], &rgba) == RT_NONE)
 				return 1;
-			col2 = lcd_rgba2col(rgba, pwi);
+			col2 = lcd_rgba2col(pwi, rgba);
 		}
 
 		/* Draw text */
@@ -748,19 +880,19 @@ static int lcddraw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	lcddraw, 7,	0,	lcddraw,
-	"lcddraw\t- draw to selected window\n",
+	draw, 7,	0,	draw,
+	"draw\t- draw to selected window\n",
 	"pixel x y [#rgba]\n"
 	"    - draw a pixel to (x, y)\n"
-	"lcddraw line x1 y1 x2 y2 [#rgba]\n"
+	"draw line x1 y1 x2 y2 [#rgba]\n"
 	"    - draw a line from (x1, y1) to (x2, y2)\n"
-	"lcddraw rectangle x1 y1 x2 y2 [#rgba [#rgba]]\n"
+	"draw rectangle x1 y1 x2 y2 [#rgba [#rgba]]\n"
 	"    - draw a filled or unfilled rectangle from (x1, y1) to (x2, y2)\n"
-	"lcddraw circle x y r [#rgba [#rgba]]\n"
+	"draw circle x y r [#rgba [#rgba]]\n"
 	"    - draw a filled or unfilled circle at (x, y) with radius r\n"
-	"lcddraw text x y string [a [#rgba [#rgba]]]\n"
+	"draw text x y string [a [#rgba [#rgba]]]\n"
 	"    - draw text string at (x, y) with attribute a\n"
-	"lcddraw bitmap x y addr [a]\n"
+	"draw bitmap x y addr [a]\n"
 	"    - draw bitmap from addr at (x, y) with attribute a\n"
 );
 
@@ -773,11 +905,118 @@ U_BOOT_CMD(
 static void fix_offset(wininfo_t *wi)
 {
 	/* Move offset if necessary; window must fit into image buffer */
-	if (wi->hoffs + wi->hres > wi->fbhres)
-		wi->hoffs = wi->fbhres - wi->hres;
-	if (wi->voffs + wi->vres > wi->fbvres)
-		wi->voffs = wi->fbvres - wi->vres;
+	if ((u_short)wi->hoffs + wi->hres > wi->fbhres)
+		wi->hoffs = (XYPOS)(wi->fbhres - wi->hres);
+	if ((u_short)wi->voffs + wi->vres > wi->fbvres)
+		wi->voffs = (XYPOS)(wi->fbvres - wi->vres);
 }
+
+static int setfbuf(wininfo_t *pwi, u_int fbhres, u_int fbvres, u_char pix,
+		   u_char fbcount)
+{
+	u_short fbmaxhres, fbmaxvres;
+	u_long oldsize, newsize;
+	u_long linelen, fbsize;
+	u_long addr;
+	WINDOW win;
+	const pixinfo_t *pi;
+	fbpoolinfo_t *pfp = &fbpool;
+
+	/* Check if pixel format is valid for this window */
+	win = pwi->win;
+	pi = lcd_getpixinfo(win, pix);
+	if (!pi) {
+		printf("Bad pixel format '%u'\n", pix);
+		return 1;
+	}
+
+	/* Check if framebuffer count is valid for this window */
+	if (fbcount > pwi->fbmaxcount) {
+		printf("Bad image buffer count '%u'\n", fbcount);
+		return 1;
+	}
+
+	/* Check if resolution is valid */
+	fbhres = lcd_align_hres(win, pix, fbhres);
+	fbmaxhres = lcd_getfbmaxhres(win, pix);
+	fbmaxvres = lcd_getfbmaxvres(win, pix);
+	if ((fbhres > fbmaxhres) || (fbvres > fbmaxvres)) {
+		printf("Requested size %ux%u exceeds allowed size %ux%u\n",
+		       fbhres, fbvres, fbmaxhres, fbmaxvres);
+		return 1;
+	}
+
+	/* If there are no changes, we're done */
+	if ((fbhres == pwi->fbhres) && (fbvres == pwi->fbvres)
+	    && (pix == pwi->pix) && (fbcount == pwi->fbcount))
+		return 0;
+
+	/* Compute the size of one framebuffer line (incl. alignment) */
+	linelen = ((u_long)fbhres << pi->bpp_shift) >> 3;
+
+	/* Compute the size of one image buffer */
+	fbsize = linelen * fbvres;
+
+	newsize = fbsize * fbcount;
+	oldsize = pwi->fbsize * pwi->fbcount;
+
+	if (pfp->used - oldsize + newsize > pfp->size) {
+		printf("Framebuffer pool too small\n");
+		return 1;
+	}
+
+	/* OK, the new settings can be made permanent */
+	pwi->fbhres = fbhres;
+	pwi->fbvres = fbvres;
+	pwi->pi = pi;
+	pwi->fbcount = fbcount;
+	pwi->linelen = linelen;
+	pwi->fbsize = fbsize;
+	if (pwi->pix != pix) {
+		/* New pixel format: set default bg + fg */
+		pwi->bg = lcd_rgba2col(pwi, DEFAULT_BG);
+		pwi->fg = lcd_rgba2col(pwi, DEFAULT_FG);
+	}
+	pwi->pix = pix;
+
+	/* If not the last window, relocate all subsequent windows. */
+	addr = pwi->fbuf[0];
+	if ((win+1 < CONFIG_MAX_WINDOWS) && (oldsize != newsize)) {
+		u_long newaddr, oldaddr;
+		u_long used;
+
+		oldaddr = addr + oldsize;
+		newaddr = addr + newsize;
+
+		/* Used mem for windows 0..win */
+		used = oldaddr - pfp->base;
+
+		/* Used mem for windows win+1..CONFIG_MAX_WINDOWS-1 */
+		used = pfp->used - used;
+
+		/* Move framebuffers of all subsequent windows in one go */
+		memmove((void *)newaddr, (void *)oldaddr, used);
+	}
+
+	/* Clear the new framebuffer with background color */
+	memset32((unsigned *)addr, pwi->bg, newsize/4);
+
+	/* Then relocate the image buffer addresses of this and all subsequent
+	   windows */
+	relocbuffers(addr, win);
+
+	/* Update framebuffer pool */
+	pfp->used = pfp->used - oldsize + newsize;
+
+	/* Set the active flag of the window */
+	pwi->active = (pwi->fbhres && pwi->fbvres && pwi->fbcount);
+
+	/* The console might also be interested in the buffer changes */
+	console_update(pwi);
+
+	return 0;
+}
+
 
 static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
@@ -827,7 +1066,7 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			
 			/* Argument 1: window number */
 			win = (WINDOW)simple_strtoul(argv[2], NULL, 0);
-			if (win >= MAX_WINDOWS) {
+			if (win >= CONFIG_MAX_WINDOWS) {
 				printf("Bad window number '%u'\n", win);
 				return 1;
 			}
@@ -844,7 +1083,7 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				return 1;
 			}
 
-			/* Argument 3: buffer number to show */
+			/* Argument 2: buffer number to show */
 			fbshow = 0;
 			if (argc == 4) {
 				fbshow = (u_char)simple_strtoul(argv[4],
@@ -868,37 +1107,22 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 			/* Argument 3: pixel format (index number) */
 			pix = DEFAULT_PIXEL_FORMAT;
-			if (argc > 4) {
+			if (argc > 4)
 				pix = (u_char)simple_strtoul(argv[4], NULL, 0);
-				if (!lcd_getpixinfo(win_sel, pix)) {
-					printf("Bad pixel format '%u'\n", pix);
-					return 1;
-				}
-			}
 
 			/* Argument 4: buffer count */
 			fbcount = 1;
-			if (argc == 6) {
+			if (argc == 6)
 				fbcount =
 				      (u_char)simple_strtoul(argv[5], NULL, 0);
-				if (fbcount > wi.fbmaxcount) {
-					printf("Bad image buffer count '%u'\n",
-					       fbcount);
-					return 1;
-				}
-			}
 
 			/* Arguments 1+2: fbhres and fbvres */
 			fbhres = (u_short)simple_strtoul(argv[2], NULL, 0);
 			fbvres = (u_short)simple_strtoul(argv[3], NULL, 0);
 
-			/* Re-arrange framebuffers for this and all subsequent
-			   windows */
-			if (lcd_setfbuf(&wi, win_sel, fbhres, fbvres, pix,
-					fbcount)) {
-				printf("Framebuffer pool too small\n");
+			/* Test validity and set new framebuffer size */
+			if (setfbuf(&wi, fbhres, fbvres, pix, fbcount))
 				return 1;
-			}
 
 			/* Reduce window size if necessary */
 			if (wi.hres > wi.fbhres)
@@ -906,22 +1130,28 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			if (wi.vres > wi.fbvres)
 				wi.vres = wi.fbvres;
 			fix_offset(&wi);
+
 			break;
 		}
 
 		case WI_RES: {
 			u_short hres, vres;
+			u_short fbhres, fbvres;
 
 			/* Arguments 1+2: hres and vres */
 			hres = (u_short)simple_strtoul(argv[2], NULL, 0);
 			vres = (u_short)simple_strtoul(argv[3], NULL, 0);
-			if ((hres > wi.fbhres) || (vres > wi.fbvres)) {
+			fbhres = wi.fbhres;
+			fbvres = wi.fbvres;
+			if ((hres > fbhres) || (vres > fbvres)) {
 				/* Framebuffer must be increased */
-				if (lcd_setfbuf(&wi, win_sel, hres, vres,
-						wi.pix, wi.fbcount)) {
-					printf("Can't resize framebuffer\n");
+				if (hres > fbhres)
+					fbhres = hres;
+				if (vres > fbvres)
+					fbvres = vres;
+				if (setfbuf(&wi, fbhres, fbvres, wi.pix,
+					    wi.fbcount))
 					return 1;
-				}
 			}
 
 			/* Set new window size */
@@ -932,8 +1162,9 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		}
 
 		case WI_OFFSET:
-			/* Arguments 1+2: hoffs and voffs */
-			wi.hoffs = (XYPOS)simple_strtoul(argv[2], NULL, 0);
+			/* Arguments 1+2: hoffs and voffs (non-negative) */
+			wi.hoffs = lcd_align_hoffs(&wi,
+				      (XYPOS)simple_strtoul(argv[2], NULL, 0));
 			wi.voffs = (XYPOS)simple_strtoul(argv[3], NULL, 0);
 			fix_offset(&wi);
 			break;
@@ -944,14 +1175,13 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			wi.vpos = (XYPOS)simple_strtol(argv[3], NULL, 0);
 			break;
 
-		case WI_COLOR:
-		{
+		case WI_COLOR: {
 			RGBA rgba;
 			COLOR32 fg;
 
 			if (parse_rgb(argv[2], &rgba) == RT_NONE)
 				return 1;
-			fg = lcd_rgba2col(rgba, &wi);
+			fg = lcd_rgba2col(&wi, rgba);
 
 			rgba = 0x000000FF; /* Opaque black */
 			if (argc > 3) {
@@ -959,7 +1189,7 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 					return 1;
 			}
 			wi.fg = fg;
-			wi.bg = lcd_rgba2col(rgba, &wi);
+			wi.bg = lcd_rgba2col(&wi, rgba);
 			break;
 		}
 
@@ -1000,7 +1230,7 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case WI_RES:
 	case WI_POS:
 	case WI_OFFSET:
-		printf("Window:\t%d x %d\n"
+		printf("Window:\t%u x %u\n"
 		       "\t\tfrom framebuffer offset (%d, %d)\n"
 		       "\t\tdisplayed at screen position (%d, %d)\n",
 		       wi.hres, wi.vres, wi.hoffs, wi.voffs, wi.hpos, wi.vpos);
@@ -1010,8 +1240,8 @@ static int lcdwin(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case WI_COLOR:
 		printf("Colors:\t\tFG #%08x, BG #%08x\n",
-		       lcd_col2rgba(wi.fg, &wi),
-		       lcd_col2rgba(wi.bg, &wi));
+		       lcd_col2rgba(&wi, wi.fg),
+		       lcd_col2rgba(&wi, wi.bg));
 		if (si != WI_INFO)
 			break;
 		/* WI_INFO: fall through to default */
@@ -1069,7 +1299,7 @@ U_BOOT_CMD(
 /* Command lcdset							*/
 /************************************************************************/
 
-static void setvalue(uint si, char *argv, vidinfo_t *vi)
+static void setvalue(uint si, char *argv, vidinfo_t *pvi)
 {
 	uint param = 0;
 
@@ -1080,70 +1310,70 @@ static void setvalue(uint si, char *argv, vidinfo_t *vi)
 	switch (si)
 	{
 	case SI_NAME:			  /* Parse string */
-		strncpy(vi->name, argv, MAX_NAME);
-		vi->name[MAX_NAME-1] = 0;
+		strncpy(pvi->name, argv, MAX_NAME);
+		pvi->name[MAX_NAME-1] = 0;
 		break;
 
 	case SI_HDIM:			  /* Parse u_short */
-		vi->hdim = (u_short)param;
+		pvi->hdim = (u_short)param;
 		break;
 
 	case SI_VDIM:			  /* Parse u_short */
-		vi->vdim = (u_short)param;
+		pvi->vdim = (u_short)param;
 		break;
 
 	case SI_TYPE:			  /* Parse u_char (0..8) */
 		if (param > 8)
 			param = 8;
-		vi->type = (u_char)param;
+		pvi->type = (u_char)param;
 		break;
 
 	case SI_HFP:			  /* Parse u_short */
-		vi->hfp = (u_short)param;
+		pvi->hfp = (u_short)param;
 		break;
 
 	case SI_HSW:			  /* Parse u_short */
-		vi->hsw = (u_short)param;
+		pvi->hsw = (u_short)param;
 		break;
 
 	case SI_HBP:			  /* Parse u_short */
-		vi->hbp = (u_short)param;
+		pvi->hbp = (u_short)param;
 		break;
 
 	case SI_HRES:			  /* Parse u_short */
-		vi->hres = (u_short)param;
+		pvi->hres = (u_short)param;
 		break;
 
 	case SI_VFP:			  /* Parse u_short */
-		vi->hfp = (u_short)param;
+		pvi->hfp = (u_short)param;
 		break;
 
 	case SI_VSW:			  /* Parse u_short */
-		vi->vsw = (u_short)param;
+		pvi->vsw = (u_short)param;
 		break;
 
 	case SI_VBP:			  /* Parse u_short */
-		vi->vbp = (u_short)param;
+		pvi->vbp = (u_short)param;
 		break;
 
 	case SI_VRES:			  /* Parse u_short */
-		vi->vres = (u_short)param;
+		pvi->vres = (u_short)param;
 		break;
 
 	case SI_HSPOL:			  /* Parse flag (u_char 0..1) */
-		vi->hspol = (param != 0);
+		pvi->hspol = (param != 0);
 		break;
 
 	case SI_VSPOL:			  /* Parse flag (u_char 0..1) */
-		vi->vspol = (param != 0);
+		pvi->vspol = (param != 0);
 		break;
 
 	case SI_DENPOL:			  /* Parse flag (u_char 0..1) */
-		vi->denpol = (param != 0);
+		pvi->denpol = (param != 0);
 		break;
 
 	case SI_CLKPOL:			  /* Parse flag (u_char 0..1) */
-		vi->clkpol = (param != 0);
+		pvi->clkpol = (param != 0);
 		break;
 
 	case SI_CLK:			  /* Parse u_int; scale appropriately */
@@ -1152,33 +1382,33 @@ static void setvalue(uint si, char *argv, vidinfo_t *vi)
 			if (param < 1000000)
 				param *= 1000;
 		}
-		vi->clk = (u_int)param;
-		vi->fps = 0;		  /* Compute fps from clk */
+		pvi->clk = (u_int)param;
+		pvi->fps = 0;		  /* Compute fps from clk */
 		break;
 
 	case SI_FPS:			  /* Parse u_int */
-		vi->fps = (u_int)param;
-		vi->clk = 0;		  /* Compute clk from fps */
+		pvi->fps = (u_int)param;
+		pvi->clk = 0;		  /* Compute clk from fps */
 		break;
 
 	case SI_STRENGTH:		  /* Parse u_char */
-		vi->strength = (u_char)param;
+		pvi->strength = (u_char)param;
 		break;
 
 	case SI_DITHER:			  /* Parse flag (u_char 0..1) */
-		vi->dither = (param != 0);
+		pvi->dither = (param != 0);
 		break;
 
 	case SI_PWMENABLE:		  /* Parse flag (u_char 0..1) */
-		vi->pwmenable = (param != 0);
+		pvi->pwmenable = (param != 0);
 		break;
 
 	case SI_PWMVALUE:		  /* Parse u_int */
-		vi->pwmvalue = (u_int)param;
+		pvi->pwmvalue = (u_int)param;
 		break;
 
 	case SI_PWMFREQ:		  /* Parse u_int */
-		vi->pwmfreq = (u_int)param;
+		pvi->pwmfreq = (u_int)param;
 		break;
 
 	default:			  /* Should not happen */
@@ -1189,13 +1419,13 @@ static void setvalue(uint si, char *argv, vidinfo_t *vi)
 
 static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	vidinfo_t vi;
+	vidinfo_t *pvi;
 	setindex_t si = SI_UNKNOWN;
 	char c;
 	uint param;
 
 	/* Get the LCD panel info */
-	lcd_getvidinfo(&vi);
+	pvi = &vidinfo;
 	if (argc < 2)
 		si = SI_PANEL; 		  /* No arguments: same as panel */
 	else {
@@ -1225,7 +1455,9 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	if (argc >= 3) {
 		/* We have our minimum number of arguments */
 		switch (si) {
-		case SI_PANEL:		  /* Parse number or string */
+		case SI_PANEL: {		  /* Parse number or string */
+			const vidinfo_t *pvi_new;
+
 			c = argv[2][0];
 			if ((c >= '0') && (c <= '9')) {
 				/* Parse panel index number */
@@ -1234,97 +1466,102 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				printf("\nNo panel matches '%s'\n", argv[2]);
 				break;
 			}
-			if (lcd_getpanel(&vi, param))
+			
+			pvi_new = lcd_getpanel(param);
+			if (!pvi_new)
 				printf("\nBad panel index %d\n", param);
+			else
+				*pvi = *pvi_new;
 			break;
+		}
 
 		case SI_DIM:		  /* Parse exactly 2 u_shorts */
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.hdim = (u_short)param;
+			pvi->hdim = (u_short)param;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.vdim = (u_short)param;
+			pvi->vdim = (u_short)param;
 			break;
 
 		case SI_SIZE:		  /* Parse exactly 2 u_shorts */
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.hres = (u_short)param;
+			pvi->hres = (u_short)param;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.vres = (u_short)param;
+			pvi->vres = (u_short)param;
 			break;
 
 		case SI_HTIMING:	  /* Parse up to 3 u_shorts */
 			param = simple_strtoul(argv[2], NULL, 0);
-			vi.hfp = (u_short)param;
+			pvi->hfp = (u_short)param;
 			if (argc < 4)
 				break;
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.hsw = (u_short)param;
+			pvi->hsw = (u_short)param;
 			if (argc < 5)
 				break;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.hbp = (u_short)param;
+			pvi->hbp = (u_short)param;
 			break;
 
 		case SI_VTIMING:	  /* Parse up to 3 u_shorts */
 			param = simple_strtoul(argv[2], NULL, 0);
-			vi.vfp = (u_short)param;
+			pvi->vfp = (u_short)param;
 			if (argc < 4)
 				break;
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.vsw = (u_short)param;
+			pvi->vsw = (u_short)param;
 			if (argc < 5)
 				break;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.vbp = (u_short)param;
+			pvi->vbp = (u_short)param;
 			break;
 
 		case SI_POLARITY:	  /* Parse up to 4 flags */
 			param = simple_strtoul(argv[2], NULL, 0);
-			vi.hspol = (param != 0);
+			pvi->hspol = (param != 0);
 			if (argc < 4)
 				break;
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.vspol = (param != 0);
+			pvi->vspol = (param != 0);
 			if (argc < 5)
 				break;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.denpol = (param != 0);
+			pvi->denpol = (param != 0);
 			if (argc < 6)
 				break;
 			param = simple_strtoul(argv[5], NULL, 0);
-			vi.clkpol = (param != 0);
+			pvi->clkpol = (param != 0);
 			break;
 
 		case SI_EXTRA:		  /* Parse number + flag */
 			param = simple_strtoul(argv[2], NULL, 0);
-			vi.strength = (u_char)param;
+			pvi->strength = (u_char)param;
 			if (argc < 4)
 				break;
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.dither = (param != 0);
+			pvi->dither = (param != 0);
 			break;
 
 		case SI_PWM:		  /* Parse flag + 2 numbers */
 			param = simple_strtoul(argv[2], NULL, 0);
-			vi.pwmenable = (param != 0);
+			pvi->pwmenable = (param != 0);
 			if (argc < 4)
 				break;
 			param = simple_strtoul(argv[3], NULL, 0);
-			vi.pwmvalue = (u_int)param;
+			pvi->pwmvalue = (u_int)param;
 			if (argc < 5)
 				break;
 			param = simple_strtoul(argv[4], NULL, 0);
-			vi.pwmfreq = (u_int)param;
+			pvi->pwmfreq = (u_int)param;
 			break;
 
 		default:		  /* Parse one argument */
-			setvalue(si, argv[2], &vi);
+			setvalue(si, argv[2], pvi);
 			break;
 		}
 
 		/* Set new vidinfo to hardware; this may also update vi to
 		   the actually used parameters. */
-		lcd_setvidinfo(&vi);
+		lcd_hw_vidinfo(pvi);
 	}
 
 	/* Print the modified or requested settings */
@@ -1333,7 +1570,7 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	default:
 	case SI_PANEL:
 	case SI_NAME:
-		printf("Display Name:\tname='%s'\n", vi.name);
+		printf("Display Name:\tname='%s'\n", pvi->name);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_DIM */
@@ -1341,14 +1578,15 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_DIM:
 	case SI_HDIM:
 	case SI_VDIM:
-		printf("Dimensions:\thdim=%dmm, vdim=%dmm\n", vi.hdim, vi.vdim);
+		printf("Dimensions:\thdim=%dmm, vdim=%dmm\n",
+		       pvi->hdim, pvi->vdim);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_TYPE */
 
 	case SI_TYPE:
 		printf("Display Type:\ttype=%d (%s)\n",
-		       vi.type, typeinfo[vi.type]);
+		       pvi->type, typeinfo[pvi->type]);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_SIZE */
@@ -1356,7 +1594,8 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_SIZE:
 	case SI_HRES:
 	case SI_VRES:
-		printf("Display Size:\thres=%d, vres=%d\n", vi.hres, vi.vres);
+		printf("Display Size:\thres=%d, vres=%d\n",
+		       pvi->hres, pvi->vres);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_HTIMING */
@@ -1366,7 +1605,7 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_HSW:
 	case SI_HBP:
 		printf("Horiz. Timing:\thfp=%d, hsw=%d, hbp=%d\n",
-		       vi.hfp, vi.hsw, vi.hbp);
+		       pvi->hfp, pvi->hsw, pvi->hbp);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_VTIMING */
@@ -1376,7 +1615,7 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_VSW:
 	case SI_VBP:
 		printf("Vert. Timing:\tvfp=%d, vsw=%d, vbp=%d\n",
-		       vi.vfp, vi.vsw, vi.vbp);
+		       pvi->vfp, pvi->vsw, pvi->vbp);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_POLARITY */
@@ -1387,14 +1626,15 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_DENPOL:
 	case SI_CLKPOL:
 		printf("Polarity:\thspol=%d, vspol=%d, clkpol=%d, denpol=%d\n",
-		       vi.hspol, vi.vspol, vi.clkpol, vi.denpol);
+		       pvi->hspol, pvi->vspol, pvi->clkpol, pvi->denpol);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_CLK */
 
 	case SI_CLK:
 	case SI_FPS:
-		printf("Display Timing:\tclk=%dHz (%dfps)\n", vi.clk, vi.fps);
+		printf("Display Timing:\tclk=%dHz (%dfps)\n",
+		       pvi->clk, pvi->fps);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_EXTRA */
@@ -1403,7 +1643,7 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_STRENGTH:
 	case SI_DITHER:
 		printf("Extra Settings:\tstrength=%d, dither=%d\n",
-		       vi.strength, vi.dither);
+		       pvi->strength, pvi->dither);
 		if (si != SI_PANEL)
 			break;
 		/* SI_PANEL: Fall through to case SI_PWM */
@@ -1413,7 +1653,7 @@ static int lcdset(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	case SI_PWMVALUE:
 	case SI_PWMFREQ:
 		printf("PWM:\t\tpwmenable=%d, pwmvalue=%d, pwmfreq=%dHz\n",
-		       vi.pwmenable, vi.pwmvalue, vi.pwmfreq);
+		       pvi->pwmenable, pvi->pwmvalue, pvi->pwmfreq);
 		break;
 	}
 
@@ -1466,47 +1706,44 @@ static int reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		/* Handle value if keyword was found */
 		if (i < ARRAYSIZE(regkeywords))
 		{
-			vidinfo_t vi;
+			vidinfo_t *pvi = &vidinfo;
 			uint param;
-
-			/* Get the LCD panel info */
-			lcd_getvidinfo(&vi);
 
 			switch (ki->si) {
 			case SI_TYPE:
 				/* "type" is used differently here */
 				param = simple_strtoul(argv[5], NULL, 0);
 				if (param & 0x0002)
-					vi.type = VI_TYPE_TFT;
+					pvi->type = VI_TYPE_TFT;
 				else {
-					vi.type = 0;
+					pvi->type = 0;
 					if (param & 0x0001)
-						vi.type |= VI_TYPE_DUALSCAN;
+						pvi->type |= VI_TYPE_DUALSCAN;
 					if (param & 0x0004)
-						vi.type |= VI_TYPE_CSTN;
+						pvi->type |= VI_TYPE_CSTN;
 					if (param & 0x0008)
-						vi.type |= VI_TYPE_8BITBUS;
+						pvi->type |= VI_TYPE_8BITBUS;
 				}
 				break;
 
 			case SI_CONFIG:
 				/* "config" is not available with lcdset */
 				param = simple_strtoul(argv[5], NULL, 0);
-				vi.vspol = ((param & 0x00100000) != 0);
-				vi.hspol = ((param & 0x00200000) != 0);
-				vi.clkpol = ((param & 0x00400000) != 0);
-				vi.denpol = ((param & 0x00800000) != 0);
+				pvi->vspol = ((param & 0x00100000) != 0);
+				pvi->hspol = ((param & 0x00200000) != 0);
+				pvi->clkpol = ((param & 0x00400000) != 0);
+				pvi->denpol = ((param & 0x00800000) != 0);
 				break;
 
 			default:
 				/* All other commands have a counterpart in
 				   lcdset, use common function */
-				setvalue(ki->si, argv[5], &vi);
+				setvalue(ki->si, argv[5], pvi);
 				break;
 			}
 
 			/* Update hardware with new settings */
-			lcd_setvidinfo(&vi);
+			lcd_hw_vidinfo(pvi);
 
 			/* Different to lcdset, reg set value does not echo
 			   the final result when setting the values */
@@ -1566,6 +1803,26 @@ U_BOOT_CMD(
 /* Exported functions							*/
 /************************************************************************/
 
+/* Get a pointer to the wininfo structure; the structure should be considered
+   as read-only here; this is more efficient than lcd_getwininfo() as the
+   structure needs not to be copied. lcd_getwininfop() should be prefered in
+   places where window information is required but not changed. */
+const wininfo_t *lcd_getwininfop(WINDOW win)
+{
+	return &wininfo[win];
+}
+
+void lcd_getwininfo(wininfo_t *pwi, WINDOW win)
+{
+	*pwi = wininfo[win];
+}
+
+void lcd_setwininfo(wininfo_t *pwi, WINDOW win)
+{
+	/* Set the values to hardware; this updates wininfo[win] */
+	lcd_hw_wininfo(pwi, &vidinfo);
+}
+
 /* Return RT_RGB for #rrggbb, RT_RGBA for #rrggbbaa and RT_NONE otherwise */
 enum RGB_TYPE parse_rgb_type(char *s)
 {
@@ -1608,3 +1865,71 @@ enum RGB_TYPE parse_rgb(char *s, u_int *prgba)
 	return rt;
 }
 
+
+const fbpoolinfo_t *lcd_getfbpoolinfo(void)
+{
+	return &fbpool;
+}
+
+/************************************************************************/
+/* GENERIC Initialization Routines					*/
+/************************************************************************/
+void cmd_lcd_init(void)
+{
+	WINDOW win;
+	wininfo_t *pwi;
+
+	/* Set framebuffer pool base into global data */
+	gd->fb_base = fbpool.base;
+
+	printf("####a\n");
+	/* Initialize LCD controller (GPIOs, clock, etc.) */
+	lcd_hw_init();
+
+	printf("####b\n");
+
+	/* Initialize vidinfo with the "no panel" settings */
+	vidinfo = *lcd_getpanel(0);
+
+	printf("####c\n");
+
+	lcd_hw_vidinfo(&vidinfo);
+
+	printf("####d\n");
+
+	for (win = 0, pwi = wininfo; win < CONFIG_MAX_WINDOWS; win++, pwi++) {
+		unsigned buf;
+		u_char fbmaxcount;
+
+		/* Clear structure */
+		memset(pwi, 0, sizeof(wininfo_t));
+
+	printf("####e\n");
+
+		/* Initialize some entries */
+		pwi->win = win;
+		pwi->fbcount = 0;
+		pwi->pix = DEFAULT_PIXEL_FORMAT;
+		pwi->fg = lcd_rgba2col(pwi, DEFAULT_FG);
+		pwi->bg = lcd_rgba2col(pwi, DEFAULT_BG);
+		fbmaxcount = lcd_getfbmaxcount(win);
+		pwi->fbmaxcount = fbmaxcount;
+
+		for (buf=0; buf<CONFIG_MAX_BUFFERS_PER_WIN; buf++)
+			pwi->fbuf[buf] = (buf < fbmaxcount) ? fbpool.base : 0;
+
+	printf("####f\n");
+
+		/* Update controller hardware with new wininfo */
+		lcd_hw_wininfo(pwi, &vidinfo);
+	printf("####g\n");
+
+	}
+
+	printf("####h\n");
+
+	/* Initialize text console to use window 0 */
+	console_init(&wininfo[0]);
+
+	printf("####i\n");
+}

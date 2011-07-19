@@ -321,10 +321,6 @@ void start_armboot (void)
 	ulong size;
 #endif
 
-#if defined(CONFIG_VFD) || defined(CONFIG_LCD)
-	unsigned long addr;
-#endif
-
 #if defined(CONFIG_BOOT_MOVINAND)
 	uint *magic = (uint *) (PHYS_SDRAM_1);
 #endif
@@ -364,22 +360,26 @@ void start_armboot (void)
 #endif /* CFG_NO_FLASH */
 
 #ifdef CONFIG_VFD
+	{
+		unsigned long addr;
 #	ifndef PAGE_SIZE
 #	  define PAGE_SIZE 4096
 #	endif
-	/*
-	 * reserve memory for VFD display (always full pages)
-	 */
-	/* bss_end is defined in the board-specific linker script */
-	addr = (_bss_end + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-	size = vfd_setmem (addr);
-	gd->fb_base = addr;
+		/*
+		 * reserve memory for VFD display (always full pages)
+		 */
+		/* bss_end is defined in the board-specific linker script */
+		addr = (_bss_end + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+		size = vfd_setmem (addr);
+		gd->fb_base = addr;
+	}
 #endif /* CONFIG_VFD */
 
 #ifdef CONFIG_LCD
 #ifndef CONFIG_S3C64XX
 	/* board init may have inited fb_base */
 	if (!gd->fb_base) {
+		unsigned long addr;
 #		ifndef PAGE_SIZE
 #		  define PAGE_SIZE 4096
 #		endif

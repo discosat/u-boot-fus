@@ -13,6 +13,9 @@
 
 //#include <plat/map-base.h>
 #define S3C_PA_LCD 0x77100000
+#define S3C64XX_PA_HOSTIFA 0x74000000
+#define S3C64XX_PA_HOSTIFB 0x74100000
+
 
 /***************************************************************************/
 /* LCD Registers for S3C2443/2450/S3C6400/6410 */
@@ -439,7 +442,7 @@
 /* Window 0~4 Color map register - WINxMAP */
 #define S3C_WINxMAP_MAPCOLEN_F_ENABLE			(1<<24)
 #define S3C_WINxMAP_MAPCOLEN_F_DISABLE			(0<<24)
-#define S3C_WINxMAP_MAPCOLOR				(((x)&0xFFFFFF)<<0)
+#define S3C_WINxMAP_MAPCOLOR(x)				(((x)&0xFFFFFF)<<0)
 
 /* Window Palette Control register - WPALCON */
 #define S3C_WPALCON_PALUPDATEEN				(1<<9)
@@ -481,12 +484,10 @@
 /***************************************************************************/
 /*HOST IF registers */
 /* Host I/F A - */
-#define S3C_HOSTIFAREG(x)				((x) + S3C64XX_VA_HOSTIFA)
-#define S3C_HOSTIFAREG_PHYS(x)				((x) + S3C64XX_PA_HOSTIFA)
+#define S3C_HOSTIFAREG(x)				((x) + S3C64XX_PA_HOSTIFA)
 
 /* Host I/F B - Modem I/F */
-#define S3C_HOSTIFBREG(x)				((x) + S3C64XX_VA_HOSTIFB)
-#define S3C_HOSTIFBREG_PHYS(x)				((x) + S3C64XX_PA_HOSTIFB)
+#define S3C_HOSTIFBREG(x)				((x) + S3C64XX_PA_HOSTIFB)
 
 #define S3C_HOSTIFB_INT2AP				S3C_HOSTIFBREG(0x8000)
 #define S3C_HOSTIFB_INT2MSM				S3C_HOSTIFBREG(0x8004)

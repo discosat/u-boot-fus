@@ -23,16 +23,23 @@
  * MA 02111-1307 USA
  */
 
-
-
 #ifndef _LCD_S3C64XX_H_
 #define _LCD_S3C64XX_H_
 
-/* We have 15 pixel formats available on S3C64XX */
+/* Default pixel format is RGBA5650 */
 #define DEFAULT_PIXEL_FORMAT 5
 
-/* We have at most two buffers per window (on window 0 & 1) */
-#define MAX_BUFFERS_PER_WIN 2
+/* S3C64XX has five hardware windows; you can override CONFIG_MAX_WINDOWS with
+   a lower value in your platform specific configuration header file */
+#ifndef CONFIG_MAX_WINDOWS
+#define CONFIG_MAX_WINDOWS 5
+#endif
+
+/* We have at most two buffers per window (on windows 0 & 1); you can override
+   this with a lower value in your platform specific header file */
+#ifndef CONFIG_MAX_BUFFERS_PER_WIN
+#define CONFIG_MAX_BUFFERS_PER_WIN 2
+#endif
 
 /* We extend the WININFO structure and lcdwin by 2 commands */
 #define CONFIG_LCDWIN_EXT 2
@@ -47,10 +54,9 @@
 /* This is the extension part, available as wininfo_t.ext */
 typedef struct wininfo_ext {
 	/* Alpha information */
-	u_int  alpha0;			  /* Alpha value for AEN=0 */
-	u_int  alpha1;			  /* Alpha value for AEN=1 */
-	u_char pix;			  /* 0: per plane, 1: per pixel */
-	u_char sel;			  /* Alpha selection */
+	u_int  alpha;			  /* Alpha R/G/B AEN=0/1 */
+	u_char bld_pix;			  /* Blend 0: per plane, 1: per pixel */
+	u_char alpha_sel;		  /* Alpha selection */
 
 	/* Color key information */
 	u_char ckenable;		  /* 0: disabled, 1: enabled */
@@ -59,11 +65,5 @@ typedef struct wininfo_ext {
 	u_int  ckvalue;			  /* Color key value */
 	u_int  ckmask;			  /* Mask which value bits matter */
 } wininfo_ext_t;
-
-//######
-extern void lcd_ctrl_init(void);
-//####extern void lcd_enable (void);
-
-//######
 
 #endif /*!_LCD_S3C64XX_H_*/
