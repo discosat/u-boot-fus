@@ -10,8 +10,46 @@
 #include <s3c-regs-lcd.h>		  /* S3C64XX LCD registers */
 #include <regs.h>			  /* GPxDAT, GPxCON, ... */
 
-#define PIXEL_FORMAT_COUNT 15
+/************************************************************************/
+/* DEFINITIONS								*/
+/************************************************************************/
 
+#define DRIVER_NAME "lcd_s3c64xx"	  /* Name of this driver */
+#define MAX_WINDOWS 5			  /* S3C64XX has 5 hardware windows */
+#define PIXEL_FORMAT_COUNT 15		  /* Number of pixel formats */
+#define DEFAULT_PIXEL_FORMAT 5		  /* Default format: RGBA-5650 */
+
+
+/************************************************************************/
+/* ENUMERATIONS								*/
+/************************************************************************/
+
+/* Additional commands recognized as extension of command window */
+enum WIN_INDEX_EXT {
+	WI_EXT_UNKNOWN,
+	WI_EXT_ALPHA,
+	WI_EXT_COLKEY,
+};
+
+
+/************************************************************************/
+/* TYPES AND STRUCTURES							*/
+/************************************************************************/
+
+/* This is the extension part, available as wininfo_t.ext */
+typedef struct wininfo_ext {
+	/* Alpha information */
+	u_int  alpha;			  /* Alpha R/G/B AEN=0/1 */
+	u_char bld_pix;			  /* Blend 0: per plane, 1: per pixel */
+	u_char alpha_sel;		  /* Alpha selection */
+
+	/* Color key information */
+	u_char ckena;			  /* 0: disabled, 1: enabled */
+	u_char ckdir;			  /* compare to 0: fg, 1: bg */
+	u_char ckblend;			  /* 0: no blending, 1: blend */
+	u_int  ckvalue;			  /* Color key value */
+	u_int  ckmask;			  /* Mask which value bits matter */
+} wininfo_ext_t;
 
 typedef unsigned long LCDREG;
 
@@ -30,6 +68,35 @@ struct LCD_WIN_REGS {
 	LCDREG keyval;			  /* Color key value */
 	LCDREG winmap;			  /* Default color mapping */
 	u_int  clut;			  /* Color look-up table address */
+};
+
+
+/************************************************************************/
+/* LOCAL VARIABLES							*/
+/************************************************************************/
+
+/* One wininfo structure per window */
+static wininfo_t s3c64xx_wininfo[MAX_WINDOWS];
+
+/* Addresses of the possible image buffers of all windows */
+u_long s3c64xx_fbuf[2+2+1+1+1];
+
+/* One wininfo_ext extension structure per window */
+wininfo_ext_t s3c64xx_wininfo_ext[MAX_WINDOWS];
+
+/* Valid pixel formats for each window */
+u_int valid_pixels[MAX_WINDOWS] = {
+	0x09AF,			/* Win 0: no alpha formats */
+	0x7FFF,			/* Win 1: no restrictions  */
+	0x7FF7,			/* Win 2: no CMAP-8 */
+	0x7FE7,			/* Win 3: no CMAP-8, no RGBA-2321 */
+	0x7FE3,			/* Win 4: no CMAP-4, no CMAP-8, no RGBA-2321 */
+};
+
+/* Keywords for additional window sub-commands */
+const kwinfo_t winext_kw[] = {
+	{2, 4, WI_EXT_ALPHA,  "alpha"},
+	{1, 5, WI_EXT_COLKEY, "colkey"},
 };
 
 static const struct LCD_WIN_REGS winregs_table[5] = {
@@ -115,45 +182,15 @@ static const struct LCD_WIN_REGS winregs_table[5] = {
 	},
 };
 
-const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
-	{ 1, 0,   2, "2-entry color look-up table"},   /* 0 */
-	{ 2, 1,   4, "4-entry color look-up table"},   /* 1 */
-	{ 4, 2,  16, "16-entry color look-up table"},  /* 2 */
-	{ 8, 3, 256, "256-entry color look-up table"}, /* 3 */
-	{ 8, 3,   0, "RGBA-2321"},			   /* 4 */
-	{16, 4,   0, "RGBA-5650 (default)"},	   /* 5 */
-	{16, 4,   0, "RGBA-5551"},			   /* 6 */
-	{16, 4,   0, "RGBI-5551 (I=intensity)"},	   /* 7 */
-	{18, 5,   0, "RGBA-6660"},			   /* 8 */
-	{18, 5,   0, "RGBA-6651"},			   /* 9 */
-	{19, 5,   0, "RGBA-6661"},			   /* 10 */
-	{24, 5,   0, "RGBA-8880"},			   /* 11 */
-	{24, 5,   0, "RGBA-8871"},			   /* 12 */
-	{25, 5,   0, "RGBA-8881"},			   /* 13 */
-	{28, 5,   0, "RGBA-8884"},			   /* 14 */
-};
 
-/* Valid pixel formats for each window */
-u_int valid_pixels[5] = {
-	0x09AF,			/* Win 0: no alpha formats */
-	0x7FFF,			/* Win 1: no restrictions  */
-	0x7FF7,			/* Win 2: no CLUT-8 */
-	0x7FE7,			/* Win 3: no CLUT-8, no RGBA-2321 */
-	0x7FE3,			/* Win 4: no CLUT-4, no ClUT-8, no RGBA-2321 */
-};
+/************************************************************************/
+/* PROTOTYPES OF LOCAL FUNCTIONS					*/
+/************************************************************************/
 
-/* Additional commands recognized as extension of lcdwin; values must start at
-   WI_UNKOWN+1. */
-enum WIN_INDEX_EXT {
-	WI_ALPHA = WI_UNKNOWN+1,
-	WI_COLKEY,
-};
 
-const kwinfo_t winextkeywords[] = {
-	{2, 4, WI_ALPHA,  "alpha"},
-	{1, 5, WI_COLKEY, "colkey"},
-};
-
+/************************************************************************/
+/* EXPORTED FUNCTIONS CALLED VIA vidinfo_t				*/
+/************************************************************************/
 
 #if 0 //#####
 ulong calc_fbsize (void)
@@ -175,45 +212,23 @@ ulong lcd_fbsize(ulong fbsize)
 #endif
 
 
-void lcd_ctrl_init(void)
+/* Parse additional window sub-commands; on error return 0 */
+static u_short s3c64xx_winext_parse(int argc, char *s)
 {
-	printf("#### lcd_ctrl_init\n");
-	//#### TODO
+	return parse_sc(argc, s, WI_EXT_UNKNOWN, winext_kw,
+			ARRAYSIZE(winext_kw));
 }
 
-void lcd_setcolreg (ushort regno, ushort red, ushort green, ushort blue)
-{
-	//#### TODO
-}
-
-int lcd_enable(void)
-{
-	//#### TODO
-	return 1;
-}
-
-/* LCD controller */
-void lcd_disable(void)
-{
-	//#### TODO
-}
-
-/* Backlight & Co */
-void lcd_panel_disable(void)
-{
-	//#### TODO
-}
-
-/* Handle extension commands for lcdwin; on error, return 1 and keep *pwi
+/* Handle additional window sub-commands; on error, return 1 and keep *pwi
    unchanged */
-int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
+static int s3c64xx_winext_exec(wininfo_t *pwi, int argc, char *argv[],
+			       u_short si)
 {
-	wininfo_ext_t *ext = &pwi->ext;
+	wininfo_ext_t *ext = (wininfo_ext_t *)pwi->ext;
 
 	/* OK, parse arguments and set data */
 	switch (si) {
-	case WI_ALPHA:
-	{
+	case WI_EXT_ALPHA: {
 		u_char bld_pix = 1;
 		u_char alpha_sel = 0;
 		u_int alpha0_rgba;
@@ -247,8 +262,7 @@ int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
 		break;
 	}
 
-	case WI_COLKEY:
-	{
+	case WI_EXT_COLKEY: {
 		u_char ckdir = 0;
 		u_char ckblend = 0;
 		u_int ckvalue_rgba;
@@ -263,12 +277,12 @@ int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
 			if ((parse_rgb(argv[5], &ckvalue_rgba) == RT_NONE)
 			    || (parse_rgb(argv[6], &ckmask_rgba) == RT_NONE))
 				return 1;
-			ext->ckvalue = ckvalue_rgba;
-			ext->ckmask = ckmask_rgba;
+			ext->ckvalue = ckvalue_rgba >> 8;
+			ext->ckmask = ckmask_rgba >> 8;
 		}
 
 		/* Argument 1: enable */
-		ext->ckenable = (simple_strtoul(argv[2], NULL, 0) != 0);
+		ext->ckena = (simple_strtoul(argv[2], NULL, 0) != 0);
 
 		/* Argument 2: dir */
 		if (argc > 3)
@@ -286,70 +300,43 @@ int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si)
 		break;
 	}
 
+	/* Update hardware with new settings */
+	pwi->pvi->set_wininfo(pwi);
+
 	return 0;
 }
 
-/* Print info for all commands in winextkeywords[]; we are also called if si
-   is WI_INFO, as this should print *all* window data */
-void lcdwin_ext_print(wininfo_t *pwi, u_int si)
+/* Show info for all extended info pointed to by wininfo_t.ext */
+static void s3c64xx_winext_show(const wininfo_t *pwi)
 {
-	wininfo_ext_t *ext = &pwi->ext;
+	wininfo_ext_t *ext = (wininfo_ext_t *)pwi->ext;
+	u_int alpha0, alpha1;
 
-	switch (si) {
-	case WI_INFO:
-	case WI_ALPHA: {
-		u_int alpha0, alpha1;
+	alpha0 = ext->alpha & 0x00F00000;	  /* R */
+	alpha0 |= (ext->alpha & 0x000F0000) >> 4; /* G */
+	alpha0 |= (ext->alpha & 0x0000F000) >> 8; /* B */
+	alpha0 |= alpha0 >> 4;
 
-		alpha0 = ext->alpha & 0x00F00000;	  /* R */
-		alpha0 |= (ext->alpha & 0x000F0000) >> 4; /* G */
-		alpha0 |= (ext->alpha & 0x0000F000) >> 8; /* B */
-		alpha0 |= alpha0 >> 4;
-
-		alpha1 = ext->alpha & 0x0000000F; /* B */
-		alpha1 |= (ext->alpha & 0x000000F0) << 4; /* G */
-		alpha1 |= (ext->alpha & 0x00000F00) << 8; /* R */
-		alpha1 |= alpha1 << 4;
-		printf("Alpha:\t\t"
-		       "alpha0=#%06x, alpha1=#%06x, bld_pix=%d, alpha_sel=%d\n",
-		       alpha0, alpha1, ext->bld_pix, ext->alpha_sel);
-		if (si != WI_INFO)
-			break;
-	}
-		/* WI_INFO: fall through to case WI_COLKEY */
-	case WI_COLKEY:
-		printf("Color Key:\tenable=%d, dir=%d, blend=%d,"
-		       "colkey=#%06x, colmask=#%06x\n",
-		       ext->ckenable, ext->ckdir, ext->ckblend,
-		       ext->ckvalue, ext->ckmask);
-		break;
-
-	default:
-		break;
-	}
+	alpha1 = ext->alpha & 0x0000000F; /* B */
+	alpha1 |= (ext->alpha & 0x000000F0) << 4; /* G */
+	alpha1 |= (ext->alpha & 0x00000F00) << 8; /* R */
+	alpha1 |= alpha1 << 4;
+	printf("Alpha:\t\t"
+	       "alpha0=#%06x, alpha1=#%06x, bld_pix=%d, alpha_sel=%d\n",
+	       alpha0, alpha1, ext->bld_pix, ext->alpha_sel);
+	printf("Color Key:\tenable=%d, dir=%d, blend=%d, colkey=#%06x,"
+	       " colmask=#%06x\n", ext->ckena, ext->ckdir, ext->ckblend,
+	       ext->ckvalue, ext->ckmask);
 }
 
-/* Return a pointer to the pixel format info (NULL if pix not valid) */
-const pixinfo_t *lcd_getpixinfo(WINDOW win, u_char pix)
-{
-	const pixinfo_t *ppi = NULL;
 
-	if ((pix < PIXEL_FORMAT_COUNT)
-	    && (valid_pixels[win] & (1<<pix)))
-		ppi = &pixel_info[pix];
-	return ppi;
-}
-
-/* Return index of next valid pixel format >= pix; result is >=
-   PIXEL_FORMAT_COUNT if no further format is found; usually the result is
-   immediately fed into lcd_getpixinfo() which returns NULL then. */
-u_char lcd_getnextpix(WINDOW win, u_char pix)
+/* Extended help message for lcdwin */
+static void s3c64xx_winext_help(void)
 {
-	while (pix < PIXEL_FORMAT_COUNT) {
-		if (valid_pixels[win] & (1<<pix))
-			break;
-		pix++;
-	}
-	return pix;
+	puts("window alpha [alpha0 [alpha1 [pix [sel]]]]\n"
+	     "    - Set per-window alpha values\n"
+	     "window colkey [enable [dir [blend [value [mask]]]]]\n"
+	     "    - Set per-window color key values\n");
 }
 
 
@@ -357,7 +344,7 @@ u_char lcd_getnextpix(WINDOW win, u_char pix)
 /* Color Conversions RGBA->COLOR32					*/
 /************************************************************************/
 
-static COLOR32 rgba2col_clut2(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_cmap2(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -368,7 +355,7 @@ static COLOR32 rgba2col_clut2(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_clut4(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_cmap4(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -380,7 +367,7 @@ static COLOR32 rgba2col_clut4(const wininfo_t *pwi, RGBA rgba)
 	return temp | (temp << 16);
 }
 
-static COLOR32 rgba2col_clut16(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_cmap16(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -391,7 +378,7 @@ static COLOR32 rgba2col_clut16(const wininfo_t *pwi, RGBA rgba)
 	return temp | (temp << 16);
 }
 
-static COLOR32 rgba2col_clut256(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_cmap256(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -401,19 +388,19 @@ static COLOR32 rgba2col_clut256(const wininfo_t *pwi, RGBA rgba)
 	return temp | (temp << 16);
 }
 
-static COLOR32 rgba2col_rgba2321(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba2321(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
-	temp = (rgba & 0xC0000000) >> 1;
-	temp |= (rgba & 0x00E00000) << 5;
-	temp |= (rgba & 0x0000C000) << 10;
-	temp |= (rgba & 0x00000080) << 24;
-	temp |= temp >> 8;
-	return temp | (temp >> 16);
+	temp = rgba & 0x00000080;	   /* C[7] = A[7] */
+	temp |= (rgba & 0xC0000000) >> 25; /* C[6:5] = R[7:6] */
+	temp |= (rgba & 0x00E00000) >> 19; /* C[4:2] = G[7:5] */
+	temp |= (rgba & 0x0000C000) >> 14; /* C[1:0] = B[7:6] */
+	temp |= temp << 8;		   /* C[15:8] */
+	return temp | (temp << 16);	   /* C[31:16] */
 }
 
-static COLOR32 rgba2col_rgba5650(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba5650(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -423,7 +410,7 @@ static COLOR32 rgba2col_rgba5650(const wininfo_t *pwi, RGBA rgba)
 	return temp | (temp >> 16);
 }
 
-static COLOR32 rgba2col_rgba5551(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba5551(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -434,7 +421,7 @@ static COLOR32 rgba2col_rgba5551(const wininfo_t *pwi, RGBA rgba)
 	return temp | (temp >> 16);
 }
 
-static COLOR32 rgba2col_rgba6660(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba6660(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -444,7 +431,7 @@ static COLOR32 rgba2col_rgba6660(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_rgba6651(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba6651(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -455,7 +442,7 @@ static COLOR32 rgba2col_rgba6651(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_rgba6661(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba6661(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -466,12 +453,12 @@ static COLOR32 rgba2col_rgba6661(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_rgba8880(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba8880(const wininfo_t *pwi, RGBA rgba)
 {
 	return rgba >> 8;
 }
 
-static COLOR32 rgba2col_rgba8871(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba8871(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -480,7 +467,7 @@ static COLOR32 rgba2col_rgba8871(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_rgba8881(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba8881(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -490,7 +477,7 @@ static COLOR32 rgba2col_rgba8881(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-static COLOR32 rgba2col_rgba8884(const wininfo_t *pwi, RGBA rgba)
+static COLOR32 r2c_rgba8884(const wininfo_t *pwi, RGBA rgba)
 {
 	COLOR32 temp;
 
@@ -500,62 +487,37 @@ static COLOR32 rgba2col_rgba8884(const wininfo_t *pwi, RGBA rgba)
 	return temp;
 }
 
-typedef COLOR32 (*rgba2col_func)(const wininfo_t *pwi, RGBA rgba);
-COLOR32 lcd_rgba2col(const wininfo_t *pwi, RGBA rgba)
-{
-	static const rgba2col_func rgba2coltab[PIXEL_FORMAT_COUNT] = {
-		rgba2col_clut2,
-		rgba2col_clut4,
-		rgba2col_clut16,
-		rgba2col_clut256,
-		rgba2col_rgba2321,
-		rgba2col_rgba5650,
-		rgba2col_rgba5551,
-		rgba2col_rgba5551,	  /* RGBI-5551 same as RGBA-5551 */
-		rgba2col_rgba6660,
-		rgba2col_rgba6651,
-		rgba2col_rgba6661,
-		rgba2col_rgba8880,
-		rgba2col_rgba8871,
-		rgba2col_rgba8881,
-		rgba2col_rgba8884
-	};
-
-	return rgba2coltab[pwi->pix](pwi, rgba);
-}
-
-
 /************************************************************************/
-/* Color Conversions COLOR32->RGBA					*/
+/* Color Conversions COLOR32->RGBA; functions must use LSBs to convert	*/
 /************************************************************************/
 
-static RGBA col2rgba_clut2(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_cmap2(const wininfo_t *pwi, COLOR32 color)
 {
 	return pwi->cmap[color & 0x00000001];
 }
 
-static RGBA col2rgba_clut4(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_cmap4(const wininfo_t *pwi, COLOR32 color)
 {
 	return pwi->cmap[color & 0x00000003];
 }
 
-static RGBA col2rgba_clut16(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_cmap16(const wininfo_t *pwi, COLOR32 color)
 {
 	return pwi->cmap[color & 0x0000000F];
 }
 
-static RGBA col2rgba_clut256(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_cmap256(const wininfo_t *pwi, COLOR32 color)
 {
 	return pwi->cmap[color & 0x000000FF];
 }
 
-static RGBA col2rgba_rgba2321(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba2321(const wininfo_t *pwi, COLOR32 color)
 {
 	COLOR32 temp;
 	RGBA rgba;
 
-	rgba = (color & 0x60000000) << 1;   /* R[7:6] */
-	rgba |= (color & 0x03000000) >> 10; /* B[7:6] */
+	rgba = (color & 0x00000060) << 25;  /* R[7:6] */
+	rgba |= ((color & 0x00000003) << 30) >> 16; /* B[7:6] */
 	rgba |= rgba >> 2;		    /* R[5:4], B[5:4] */
 	rgba |= rgba >> 4;		    /* R[3:0], B[3:0] */
 
@@ -563,152 +525,199 @@ static RGBA col2rgba_rgba2321(const wininfo_t *pwi, COLOR32 color)
 	temp |= (temp << 3) | (temp >> 3);  /* G[7:5], G[1:0] */
 	rgba |= temp << 16;
 
-	/* Use arithmetic shift right to duplicate the alpha bit 7 times */ 
-	rgba |= (RGBA)((signed)color >> 7) >> 24; /* A[7:0] */
+	if (color & 0x80)
+		rgba |= 0xFF;
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba5650(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba5650(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = color & 0xF8000000;	   /* R[7:3] */
-	rgba |= (color & 0x001F0000) >> 5; /* B[7:3] */
+	rgba = (color >> 9) << 25;	   /* R[7:3] */
+	rgba |= (color << 27) >> 16;	   /* B[7:3] */
 	rgba |= (rgba >> 5);		   /* R[2:0], B[2:0] */
 	rgba &= 0xFF00FFFF;
-	rgba |= (color & 0x07E00000) >> 3; /* G[7:2] */
-	rgba &= 0xFFFFFF00;		   /* A[7:0] = 0 */
-	rgba |= (color & 0x06000000) >> 9; /* G[1:0] */
+	rgba |= (color & 0x000007E0) << 13;/* G[7:2] */
+	rgba |= 0x000000FF;		   /* A[7:0] = 0xFF */
+	rgba |= (color & 0x00000600) << 7; /* G[1:0] */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba5551(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba5551(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = (color & 0x7C000000) << 1; /* R[7:3] */
-	rgba |= (color & 0x03E00000) >> 2; /* G[7:3] */
-	rgba |= (color & 0x001F0000) >> 5; /* G[7:3] */
+	rgba = (color >> 10) << 27;	   /* R[7:3] */
+	rgba |= (color & 0x000003E0) << 14;/* G[7:3] */
+	rgba |= (color << 27) >> 16;       /* B[7:3] */
 	rgba |= (rgba & 0xE0E0E000) >> 5;  /* R[2:0], G[2:0], B[2:0] */
 
-	/* Use arithmetic shift right to duplicate the alpha bit 7 times */ 
-	rgba |= (RGBA)((signed)color >> 7) >> 24; /* A[7:0] */
+	if (color & 0x8000)
+		rgba |= 0xFF;		   /* A[7:0] = 0x00 or 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba6660(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba6660(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = (color & 0x0003F000) << 14;  /* R[7:2] */
+	rgba = (color >> 12) << 26;	    /* R[7:2] */
 	rgba |= (color & 0x00000FC0) << 12; /* G[7:2] */
-	rgba |= (color & 0x0000003F) << 10; /* B[7:2] */
+	rgba |= (color << 26) >> 16;        /* B[7:2] */
 	rgba |= (rgba & 0xC0C0C000) >> 6;   /* R[1:0], G[1:0], B[1:0] */
+	rgba |= 0xFF;			    /* A[7:0] = 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba6651(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba6651(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = (color & 0x0001F800) << 15;  /* R[7..2] */
+	rgba = (color >> 11) << 26;	    /* R[7..2] */
 	rgba |= (color & 0x000007E0) << 13; /* G[7..2] */
-	rgba |= (color & 0x0000001F) << 11; /* B[7..3] */
+	rgba |= (color << 27) >> 16;	    /* B[7..3] */
 	rgba |= (rgba & 0xC0C00000) >> 6;   /* R[1:0], G[1:0] */
 	rgba |= (rgba & 0x0000E000) >> 5;   /* B[2:0] */
 
-	rgba |= (RGBA)((signed)(color << 14) >> 7) >> 24; /* A[7..0] */
+	if (color & 0x00020000)
+		rgba |= 0xFF;		    /* A[7:0] = 0x00 or 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba6661(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba6661(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = (color & 0x0003F000) << 14; /* R[7:2] */
+	rgba = (color >> 12) << 26;	    /* R[7:2] */
 	rgba |= (color & 0x00000FC0) << 12; /* G[7:2] */
-	rgba |= (color & 0x0000003F) << 10; /* B[7:2] */
+	rgba |= (color << 26) >> 16;        /* B[7:2] */
 	rgba |= (rgba & 0xC0C0C000) >> 6;   /* R[1:0], G[1:0], B[1:0] */
-
-	rgba |= (RGBA)((signed)(color << 14) >> 7) >> 24; /* A[7..0] */
+	if (color & 0x00040000)
+		rgba |= 0xFF;		    /* A[7:0] = 0x00 or 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba8880(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba8880(const wininfo_t *pwi, COLOR32 color)
 {
-	return color << 8;		  /* R[7:0], G[7:0], B[7:0], A=0 */
+	return (color << 8) | 0xFF;	  /* R[7:0], G[7:0], B[7:0], A=0xFF */
 }
 
-static RGBA col2rgba_rgba8871(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba8871(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
 	rgba = color << 9;		  /* R[7:0], G[7:0], B[7:1] */
 	rgba |= (color & 0x40) << 2;	  /* B[0] */
 
-	rgba |= (RGBA)((signed)(color << 8) >> 7) >> 24; /* A[7:0] */
+	if (color & 0x00800000)
+		rgba |= 0xFF;		  /* A[7:0] = 0x00 or 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba8881(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba8881(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
 	rgba = color << 8;		  /* R[7:0], G[7:0], B[7:0] */
-	rgba |= (RGBA)((signed)(color << 7) >> 7) >> 24; /* A[7:0] */
+	if (color & 0x01000000)
+		rgba |= 0xFF;		  /* A[7:0] = 0x00 or 0xFF */
 
 	return rgba;
 }
 
-static RGBA col2rgba_rgba8884(const wininfo_t *pwi, COLOR32 color)
+static RGBA c2r_rgba8884(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
 	rgba = color << 8;		  /* R[7:0], G[7:0], B[7:0] */
 
-	color &= 0x0f000000;		  /* A[7:4], A[3:0] */
-	rgba |= (color >> 24) | (color >> 20);
+	color <<= 4;
+	color >>= 28;
+	rgba |= color | (color << 4);     /* A[7:0] */
 
 	return rgba;
 }
 
-typedef RGBA (*col2rgba_func)(const wininfo_t *pwi, COLOR32 color);
-RGBA lcd_col2rgba(const wininfo_t *pwi, COLOR32 color)
-{
-	static const col2rgba_func col2rgbatab[PIXEL_FORMAT_COUNT] = {
-		col2rgba_clut2,
-		col2rgba_clut4,
-		col2rgba_clut16,
-		col2rgba_clut256,
-		col2rgba_rgba2321,
-		col2rgba_rgba5650,
-		col2rgba_rgba5551,
-		col2rgba_rgba5551,	  /* RGBI-5551 same as RGBA-5551 */
-		col2rgba_rgba6660,
-		col2rgba_rgba6651,
-		col2rgba_rgba6661,
-		col2rgba_rgba8880,
-		col2rgba_rgba8871,
-		col2rgba_rgba8881,
-		col2rgba_rgba8884
-	};
 
-	return col2rgbatab[pwi->pix](pwi, color);
+const pixinfo_t pixel_info[PIXEL_FORMAT_COUNT] = {
+	{ 1, 0,  2, r2c_cmap2,    c2r_cmap2,    "2-entry color map"},   /* 0*/
+	{ 2, 1,  4, r2c_cmap4,    c2r_cmap4,    "4-entry color map"},	/* 1*/
+	{ 4, 2, 16, r2c_cmap16,   c2r_cmap16,   "16-entry color map"},	/* 2*/
+	{ 8, 3,256, r2c_cmap256,  c2r_cmap256,  "256-entry color map"}, /* 3*/
+	{ 8, 3,  0, r2c_rgba2321, c2r_rgba2321, "RGBA-2321"},           /* 4*/
+	{16, 4,  0, r2c_rgba5650, c2r_rgba5650, "RGBA-5650 (default)"},	/* 5*/
+	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, "RGBA-5551"},           /* 6*/
+	{16, 4,  0, r2c_rgba5551, c2r_rgba5551, "RGBI-5551 (I=intensity)"},/*7*/
+	{18, 5,  0, r2c_rgba6660, c2r_rgba6660, "RGBA-6660"},           /* 8*/
+	{18, 5,  0, r2c_rgba6651, c2r_rgba6651, "RGBA-6651"},           /* 9*/
+	{19, 5,  0, r2c_rgba6661, c2r_rgba6661, "RGBA-6661"},           /*10*/
+	{24, 5,  0, r2c_rgba8880, c2r_rgba8880, "RGBA-8880"},           /*11*/
+	{24, 5,  0, r2c_rgba8871, c2r_rgba8871, "RGBA-8871"},           /*12*/
+	{25, 5,  0, r2c_rgba8881, c2r_rgba8881, "RGBA-8881"},           /*13*/
+	{28, 5,  0, r2c_rgba8884, c2r_rgba8884, "RGBA-8884"}            /*14*/
+};
+
+/* Return a pointer to the pixel format info (NULL if pix not valid) */
+static const pixinfo_t *s3c64xx_get_pixinfo_p(WINDOW win, u_char pix)
+{
+	const pixinfo_t *ppi = NULL;
+
+	if ((pix < PIXEL_FORMAT_COUNT)
+	    && (valid_pixels[win] & (1<<pix)))
+		ppi = &pixel_info[pix];
+	return ppi;
 }
 
+
+/* Return maximum horizontal framebuffer resolution for this window */
+static HVRES s3c64xx_get_fbmaxhres(WINDOW win, u_char pix)
+{
+	/* Maximum linelen is 13 bits, that's at most 8191 bytes; however to
+	   be word aligned even for 1bpp, we can at most take 8188 */
+	return (u_short)((8188 << 3) >> pixel_info[pix].bpp_shift);
+}
+
+/* Return maximum vertical framebuffer resolution for this window */
+static HVRES s3c64xx_get_fbmaxvres(WINDOW win, u_char pix)
+{
+	/* No limit on vertical size */
+	return 65535;
+}
+
+/* Align horizontal buffer resolution to next word boundary (round up) */
+static HVRES s3c64xx_align_hres(WINDOW win, u_char pix, HVRES hres)
+{
+	unsigned shift = 5 - pixel_info[pix].bpp_shift;
+	XYPOS mask = (1 << shift) - 1;
+
+	hres = (hres + mask) & ~mask;
+	return hres;
+}
+
+/* Align horizontal offset to current word boundary (round down) */
+static XYPOS s3c64xx_align_hoffs(const wininfo_t *pwi, XYPOS hoffs)
+{
+	unsigned shift = 5 - pwi->ppi->bpp_shift;
+
+	hoffs >>= shift;
+	hoffs <<= shift;
+
+	return hoffs;
+}
 
 /************************************************************************/
 /* Setting Video Infos							*/
 /************************************************************************/
 
-void lcd_hw_vidinfo(vidinfo_t *pvi)
+static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 {
 	ulong hclk;
 	unsigned int div;
@@ -719,44 +728,44 @@ void lcd_hw_vidinfo(vidinfo_t *pvi)
 	hclk = get_HCLK();
 
 	/* Do sanity check on all values */
-	if ((pvi->clk == 0) && (pvi->fps == 0))
-		pvi->fps = 60;		  /* Neither fps nor clk are given */
-	if (pvi->hres > 2047)
-		pvi->hres = 2047;
-	if (pvi->vres > 2047)
-		pvi->vres = 2047;
-	if (pvi->hfp > 255)
-		pvi->hfp = 255;
-	if (pvi->hsw > 255)
-		pvi->hsw = 255;
-	else if (pvi->hsw < 1)
-		pvi->hsw = 1;
-	if (pvi->hbp > 255)
-		pvi->hbp = 255;
-	if (pvi->vfp > 255)
-		pvi->vfp = 255;
-	if (pvi->vsw > 255)
-		pvi->vsw = 255;
-	else if (pvi->vsw < 1)
-		pvi->vsw = 1;
-	if (pvi->vbp > 255)
-		pvi->vbp = 255;
+	if ((pvi->lcd.clk == 0) && (pvi->lcd.fps == 0))
+		pvi->lcd.fps = 60;	  /* Neither fps nor clk are given */
+	if (pvi->lcd.hres > 2047)
+		pvi->lcd.hres = 2047;
+	if (pvi->lcd.vres > 2047)
+		pvi->lcd.vres = 2047;
+	if (pvi->lcd.hfp > 255)
+		pvi->lcd.hfp = 255;
+	if (pvi->lcd.hsw > 255)
+		pvi->lcd.hsw = 255;
+	else if (pvi->lcd.hsw < 1)
+		pvi->lcd.hsw = 1;
+	if (pvi->lcd.hbp > 255)
+		pvi->lcd.hbp = 255;
+	if (pvi->lcd.vfp > 255)
+		pvi->lcd.vfp = 255;
+	if (pvi->lcd.vsw > 255)
+		pvi->lcd.vsw = 255;
+	else if (pvi->lcd.vsw < 1)
+		pvi->lcd.vsw = 1;
+	if (pvi->lcd.vbp > 255)
+		pvi->lcd.vbp = 255;
 
 	/* Number of clocks for one horizontal line */
-	hline = pvi->hres + pvi->hfp + pvi->hsw + pvi->hbp;
+	hline = pvi->lcd.hres + pvi->lcd.hfp + pvi->lcd.hsw + pvi->lcd.hbp;
 
 	/* Number of hlines for one vertical frame */
-	vframe = pvi->vres + pvi->vfp + pvi->vsw + pvi->vbp;
+	vframe = pvi->lcd.vres + pvi->lcd.vfp + pvi->lcd.vsw + pvi->lcd.vbp;
 
 	/* Number of clock ticks per frame */
 	ticks = hline*vframe;
 	
-	if (pvi->clk) {
+	if (pvi->lcd.clk) {
 		/* Compute divisor from given pixel clock */
-		div = (hclk + pvi->clk/2)/pvi->clk;
+		div = (hclk + pvi->lcd.clk/2)/pvi->lcd.clk;
 	} else {
 		/* Ticks per second */
-		unsigned ticks_per_second = ticks * pvi->fps;
+		unsigned ticks_per_second = ticks * pvi->lcd.fps;
 
 		/* Compute divisor from given frame rate */
 		div = (hclk + ticks_per_second/2)/ticks_per_second;
@@ -765,8 +774,8 @@ void lcd_hw_vidinfo(vidinfo_t *pvi)
 		div = 2;
 	else if (div > 256)
 		div = 256;
-	pvi->clk = (hclk + div/2)/div;
-	pvi->fps = (pvi->clk + ticks/2)/ticks;
+	pvi->lcd.clk = (hclk + div/2)/div;
+	pvi->lcd.fps = (pvi->lcd.clk + ticks/2)/ticks;
 
 	/* Output selection, clock setting and enable is in VIDCON0; keep
 	   enabled status */
@@ -781,30 +790,30 @@ void lcd_hw_vidinfo(vidinfo_t *pvi)
 
 	/* Signal polarity is in VIDCON1 */
 	__REG(S3C_VIDCON1) =
-		(pvi->clkpol) ? 0 : S3C_VIDCON1_IVCLK_RISE_EDGE
-		| (pvi->hspol) ? S3C_VIDCON1_IHSYNC_INVERT : 0
-		| (pvi->vspol) ? S3C_VIDCON1_IVSYNC_INVERT : 0
-		| (pvi->denpol)? S3C_VIDCON1_IVDEN_INVERT : 0;
+		((pvi->lcd.clkpol) ? 0 : S3C_VIDCON1_IVCLK_RISE_EDGE)
+		| ((pvi->lcd.hspol) ? S3C_VIDCON1_IHSYNC_INVERT : 0)
+		| ((pvi->lcd.vspol) ? S3C_VIDCON1_IVSYNC_INVERT : 0)
+		| ((pvi->lcd.denpol)? S3C_VIDCON1_IVDEN_INVERT : 0);
 
 	/* TV settings are not required when using LCD */
 	__REG(S3C_VIDCON2) = 0;
 
 	/* Vertical timing is in VIDTCON0 */
 	__REG(S3C_VIDTCON0) =
-		S3C_VIDTCON0_VBPD(pvi->vbp)
-		| S3C_VIDTCON0_VFPD(pvi->vfp)
-		| S3C_VIDTCON0_VSPW(pvi->vsw);
+		S3C_VIDTCON0_VBPD(pvi->lcd.vbp)
+		| S3C_VIDTCON0_VFPD(pvi->lcd.vfp)
+		| S3C_VIDTCON0_VSPW(pvi->lcd.vsw);
 
 	/* Horizontal timing is in VIDTCON1 */
 	__REG(S3C_VIDTCON1) =
-		S3C_VIDTCON1_HBPD(pvi->hbp)
-		| S3C_VIDTCON1_HFPD(pvi->hfp)
-		| S3C_VIDTCON1_HSPW(pvi->hsw);
+		S3C_VIDTCON1_HBPD(pvi->lcd.hbp)
+		| S3C_VIDTCON1_HFPD(pvi->lcd.hfp)
+		| S3C_VIDTCON1_HSPW(pvi->lcd.hsw);
 
 	/* Display resolution is in VIDTCON2 */
 	__REG(S3C_VIDTCON2) =
-		S3C_VIDTCON2_LINEVAL(pvi->vres)
-		| S3C_VIDTCON2_HOZVAL(pvi->hres);
+		S3C_VIDTCON2_LINEVAL(pvi->lcd.vres)
+		| S3C_VIDTCON2_HOZVAL(pvi->lcd.hres);
 
 	/* No video interrupts */
 	__REG(S3C_VIDINTCON0) = 0;
@@ -814,16 +823,20 @@ void lcd_hw_vidinfo(vidinfo_t *pvi)
 		S3C_DITHMODE_RDITHPOS_5BIT
 		| S3C_DITHMODE_GDITHPOS_6BIT
 		| S3C_DITHMODE_BDITHPOS_5BIT
-		| pvi->dither ? S3C_DITHMODE_DITHERING_ENABLE : 0;
+		| (pvi->lcd.dither ? S3C_DITHMODE_DITHERING_ENABLE : 0);
+
+//###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx, hclk=%lu\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE), hclk);
 }
 
 /************************************************************************/
 /* Setting Window Infos							*/
 /************************************************************************/
 
-int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
+static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 {
 	const struct LCD_WIN_REGS *winregs = &winregs_table[pwi->win];
+	const vidinfo_t *pvi = pwi->pvi;
+	const wininfo_ext_t *ext = (const wininfo_ext_t *)pwi->ext;
 	unsigned pagewidth;
 	unsigned burstlen;
 	unsigned bld_pix;
@@ -836,14 +849,14 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 	XYPOS panel_vres;
 	u_long addr;
 
-	hres = lcd_align_hres(pwi->win, pwi->pix, pwi->hres);
+	hres = pvi->align_hres(pwi->win, pwi->pix, pwi->hres);
 	vres = pwi->vres;
 	hpos = pwi->hpos;
 	vpos = pwi->vpos;
 	hoffs = pwi->hoffs;
 	voffs = pwi->voffs;
-	panel_hres = (XYPOS)pvi->hres;
-	panel_vres = (XYPOS)pvi->vres;
+	panel_hres = (XYPOS)pvi->lcd.hres;
+	panel_vres = (XYPOS)pvi->lcd.vres;
 
 	/* Compute size of actual window and window viewport in framebuffer;
 	   we trust that fbhres and fbvres are already checked against
@@ -858,7 +871,10 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 		/* If part of window reaches outside of panel, reduce size */
 		if (hpos < 0) {
 			hres += hpos;
-			hoffs = lcd_align_hoffs(pwi, hoffs + (-hpos));
+			hoffs -= hpos;
+			printf("###vorher=%d,", hoffs);
+			hoffs = pvi->align_hoffs(pwi, hoffs);
+			printf("###nachher=%d\n", hoffs);
 			hpos = 0;
 		} else if (hpos + hres >= panel_hres)
 			hres = panel_hres - hpos;
@@ -867,17 +883,18 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 			voffs -= vpos;
 			vpos = 0;
 		} else if (vpos + vres >= panel_vres)
-			vres = panel_vres - hpos;
+			vres = panel_vres - vpos;
 	}
 
 	/* If nothing visible, disable window */
 	if (!hres || !vres || !pwi->fbcount) {
 		__REG(winregs->wincon) &= ~S3C_WINCONx_ENWIN_F_ENABLE;
-		return 0;		  /* not enabled */
+//###		printf("###Win %u disable: WINCON=0x%lx\n", pwi->win, __REG(winregs->wincon));
+		return;			  /* not enabled */
 	}
 
-	pagewidth = lcd_align_hres(pwi->win, pwi->pix, hres);
-	pagewidth = (pagewidth << pwi->pi->bpp_shift) >> 3;
+	pagewidth = pvi->align_hres(pwi->win, pwi->pix, hres);
+	pagewidth = (pagewidth << pwi->ppi->bpp_shift) >> 3;
 	if (pagewidth > 16*4)
 		burstlen = S3C_WINCONx_BURSTLEN_16WORD;
 	else if (pagewidth > 8*4)
@@ -888,8 +905,8 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 		bld_pix = 1;
 		alpha_sel = 1;
 	} else {
-		bld_pix = pwi->ext.bld_pix;
-		alpha_sel = pwi->ext.alpha_sel;
+		bld_pix = ext->bld_pix;
+		alpha_sel = ext->alpha_sel;
 	}
 	bppmode_f = pwi->pix;
 	if (bppmode_f > 13)
@@ -899,7 +916,7 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 	__REG(winregs->wincon) = 
 		S3C_WINCONx_WIDE_NARROW(0)
 		| S3C_WINCONx_ENLOCAL_DMA
-		| pwi->fbshow ? S3C_WINCONx_BUFSEL_1 : S3C_WINCONx_BUFSEL_0
+		| (pwi->fbshow ? S3C_WINCONx_BUFSEL_1 : S3C_WINCONx_BUFSEL_0)
 		| S3C_WINCONx_BUFAUTOEN_DISABLE
 		| S3C_WINCONx_BITSWP_DISABLE
 		| S3C_WINCONx_BYTSWP_DISABLE
@@ -923,18 +940,18 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 		__REG(winregs->vidosdsize) = 0; /* Only for TV-Encoder */
 
 	if (winregs->vidosdalpha)
-		__REG(winregs->vidosdalpha) = pwi->ext.alpha;
+		__REG(winregs->vidosdalpha) = ext->alpha;
 
 	/* Set buffer 0 */
-	addr = pwi->fbuf[0] + voffs*pwi->linelen;
-	addr += (hoffs << pwi->pi->bpp_shift) >> 8;
+	addr = pwi->pfbuf[0] + voffs*pwi->linelen;
+	addr += (hoffs << pwi->ppi->bpp_shift) >> 3;
 	__REG(winregs->vidadd[0].start) = addr;
 	__REG(winregs->vidadd[0].end) = (addr + vres*pwi->linelen) & 0x00FFFFFF;
 
 	/* Set buffer 1 (if applicable) */
 	if (pwi->fbcount > 1) {
-		addr = pwi->fbuf[0] + voffs*pwi->linelen;
-		addr += (hoffs << pwi->pi->bpp_shift) >> 8;
+		addr = pwi->pfbuf[1] + voffs*pwi->linelen;
+		addr += (hoffs << pwi->ppi->bpp_shift) >> 8;
 		if (winregs->vidadd[1].start)
 			__REG(winregs->vidadd[1].start) = addr;
 		if (winregs->vidadd[1].end)
@@ -959,57 +976,95 @@ int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi)
 
 	if (winregs->keycon)
 		__REG(winregs->keycon) =
-			(pwi->ext.ckblend ? S3C_WxKEYCON0_KEYBLEN_ENABLE : 0)
-			| (pwi->ext.ckenable ? S3C_WxKEYCON0_KEYEN_F_ENABLE : 0)
-			| (pwi->ext.ckdir ? S3C_WxKEYCON0_DIRCON_MATCH_BG_IMAGE : 0)
-			| pwi->ext.ckmask;
+			(ext->ckblend ? S3C_WxKEYCON0_KEYBLEN_ENABLE : 0)
+			| (ext->ckena ? S3C_WxKEYCON0_KEYEN_F_ENABLE : 0)
+			| (ext->ckdir ? S3C_WxKEYCON0_DIRCON_MATCH_BG_IMAGE : 0)
+			| ext->ckmask;
 
 	if (winregs->keyval)
-		__REG(winregs->keyval) = pwi->ext.ckvalue;
+		__REG(winregs->keyval) = ext->ckvalue;
 
-	return 1;			  /* enabled */
+//###	printf("###Window %u enabled: wincon=0x%lx, vidosdtl=0x%lx, vidosdbr=0x%lx, vidosdsize=0x%lx\n", pwi->win, __REG(winregs->wincon), __REG(winregs->vidosdtl), __REG(winregs->vidosdbr), __REG(winregs->vidosdsize));
+//###	printf("### vidosdalpha=0x%lx, vidadd[0].start=0x%lx, vidadd[0].end=0x%lx, vidsize=0x%lx\n", __REG(winregs->vidosdalpha), __REG(winregs->vidadd[0].start), __REG(winregs->vidadd[0].end), __REG(winregs->vidsize));
+//###	printf("### WPALCON=0x%lx, winmap=0x%lx, keycon=0x%lx, keyval=0x%lx\n", __REG(S3C_WPALCON), __REG(winregs->winmap), __REG(winregs->keycon), __REG(winregs->keyval));
+	return;				  /* enabled */
 }
 
-u_char lcd_getfbmaxcount(WINDOW win)
+static int s3c64xx_enable(void)
 {
-	return (win <= 1) ? 2 : 1;
+	/* Activate VLCD */
+	__REG(GPKDAT) |= (1<<0);
+
+	/* Activate Buffer Enable */
+	__REG(GPKDAT) &= ~(1<<3);
+
+	/* Activate LCD controller */
+	__REG(S3C_VIDCON0) |=
+		S3C_VIDCON0_ENVID_ENABLE | S3C_VIDCON0_ENVID_F_ENABLE;
+
+	/* Activate Display Enable */
+	__REG(GPKDAT) &= ~(1<<2);
+
+	/* Activate VCFL */
+	__REG(GPKDAT) |= (1<<1);
+
+	/* Activate VEEK (backlight intensity full) */
+	__REG(GPFDAT) |= (0x1<<15);
+
+
+//###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE));
+	return 0;
 }
 
-/* Return maximum horizontal framebuffer resolution for this window */
-u_short lcd_getfbmaxhres(WINDOW win, u_char pix)
+/* Deactivate display in reverse order */
+static void s3c64xx_disable(void)
 {
-	/* Maximum linelen is 13 bits, that's at most 8191 bytes; however to
-	   be word aligned even for 1bpp, we can at most take 8188 */
-	return (u_short)((8188 << 3) >> pixel_info[pix].bpp_shift);
+	/* Deactivate VEEK (backlight intensity off) */
+	__REG(GPFDAT) &= ~(0x1<<15);
+
+	/* Deactivate VCFL */
+	__REG(GPKDAT) &= ~(1<<1);
+
+	/* Deactivate Display Enable */
+	__REG(GPKDAT) |= (1<<2);
+
+	/* Deactivate LCD controller */
+	__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
+
+	/* Deactivate Buffer Enable */
+	__REG(GPKDAT) |= (1<<3);
+
+	/* Deactivate VLCD */
+	__REG(GPKDAT) &= ~(1<<0);
 }
 
-/* Return maximum vertical framebuffer resolution for this window */
-u_short lcd_getfbmaxvres(WINDOW win, u_char pix)
-{
-	/* No limit on vertical size */
-	return 65535;
-}
 
-/* Align horizontal offset to current word boundary (round down) */
-XYPOS lcd_align_hoffs(const wininfo_t *pwi, XYPOS hoffs)
-{
-	unsigned shift = 5 - pwi->pi->bpp_shift;
 
-	hoffs >>= shift;
-	hoffs <<= shift;
 
-	return hoffs;
-}
+/* One vidinfo structure (=support for one display) */
+static const vidinfo_t s3c64xx_vidinfo = {
+	driver_name: DRIVER_NAME,
+	wincount: MAX_WINDOWS,
+	pixcount: PIXEL_FORMAT_COUNT,
+	pwi: s3c64xx_wininfo,
+	winext_parse: s3c64xx_winext_parse,
+	winext_exec: s3c64xx_winext_exec,
+	winext_show: s3c64xx_winext_show,
+	winext_help: s3c64xx_winext_help,
+	get_pixinfo_p: s3c64xx_get_pixinfo_p,
+	get_fbmaxhres: s3c64xx_get_fbmaxhres,
+	get_fbmaxvres: s3c64xx_get_fbmaxvres,
+	align_hres: s3c64xx_align_hres,
+	align_hoffs: s3c64xx_align_hoffs,
+	set_vidinfo: s3c64xx_set_vidinfo,
+	set_wininfo: s3c64xx_set_wininfo,
+	enable: s3c64xx_enable,
+	disable: s3c64xx_disable,
+};
 
-/* Align horizontal buffer resolution to next word boundary (round up) */
-u_short lcd_align_hres(WINDOW win, u_char pix, u_short hres)
-{
-	unsigned shift = 5 - pixel_info[pix].bpp_shift;
-	XYPOS mask = (1 << shift) - 1;
-
-	hres = (hres + mask) & ~mask;
-	return hres;
-}
+/************************************************************************/
+/* EXPORTED FUNCTIONS							*/
+/************************************************************************/
 
 /* In addition to the standard video signals, we have five more signals:
    GPF15: PWM output (backlight intensity)
@@ -1017,10 +1072,15 @@ u_short lcd_align_hres(WINDOW win, u_char pix, u_short hres)
    GPK2:  Display Enable (active low): Set signal for display
    GPK1:  VCFL (active high): Activate backlight voltage
    GPK0:  VLCD (active high): Activate LCD voltage */
-void lcd_hw_init(void)
+void s3c64xx_lcd_init(vidinfo_t *pvi)
 {
+	u_long *pfbuf;
+	wininfo_ext_t *pwinext;
+	wininfo_t *pwi;
+	WINDOW win;
+
 	/* Call board specific GPIO configuration */
-//###	lcd_s3c64xx_board_init(void);
+//###	s3c64xx_lcd_board_init(void);
 
 	__REG(S3C_HOSTIFB_MIFPCON) = 0;	  /* 0: normal-path (no by-pass) */
 	__REG(HCLK_GATE) |= (1<<3);	  /* Enable clock to LCD */
@@ -1043,51 +1103,25 @@ void lcd_hw_init(void)
 	   (Display enable), GPK[1] to output 0 (VCFL), GPK[0] to output 0
 	   (VLCD), no pull-up/down */
 	__REG(GPKDAT) = (__REG(GPKDAT) & ~(0xf<<0)) | (0xc<<0);
-	__REG(GPKCON0) = (__REG(GPKCON0) & (0xFFF<<0)) | (0x111<0);
+	__REG(GPKCON0) = (__REG(GPKCON0) & ~(0xFFF<<0)) | (0x111<<0);
 	__REG(GPKPUD) &= ~(0x3F<<0);
+
+	/* Copy our vidinfo to the global array pointer */
+	*pvi = s3c64xx_vidinfo;
+
+	/* Initialize hardware-specific part of the windows information:
+	   Pointer to framebuffers, default pixel format, maximum buffer
+	   count, wininfo extension. */
+	pfbuf = s3c64xx_fbuf;
+	pwinext = s3c64xx_wininfo_ext;
+	for (win=0, pwi=s3c64xx_wininfo; win < MAX_WINDOWS; win++, pwi++) {
+		u_int fbmaxcount = (win < 2) ? 2 : 1;
+		pwi->defpix = DEFAULT_PIXEL_FORMAT;
+		pwi->pfbuf = pfbuf;
+		pwi->fbmaxcount = (u_char)fbmaxcount;
+		pfbuf += fbmaxcount;
+		pwinext->alpha = 0x00FFF000;
+		pwi->ext = pwinext++;
+	}
 }
 
-int lcd_hw_enable(void)
-{
-	/* Activate VLCD */
-	__REG(GPKDAT) |= (1<<0);
-
-	/* Activate Buffer Enable */
-	__REG(GPKDAT) &= ~(1<<3);
-
-	/* Activate LCD controller */
-	__REG(S3C_VIDCON0) |= S3C_VIDCON0_ENVID_F_ENABLE;
-
-	/* Activate Display Enable */
-	__REG(GPKDAT) &= ~(1<<2);
-
-	/* Activate VCFL */
-	__REG(GPKDAT) |= (1<<1);
-
-	/* Activate VEEK (backlight intensity full) */
-	__REG(GPFDAT) |= (0x1<<15);
-
-	return 0;
-}
-
-/* Deactivate display in reverse order */
-void lcd_hw_disable(void)
-{
-	/* Deactivate VEEK (backlight intensity off) */
-	__REG(GPFDAT) &= ~(0x1<<15);
-
-	/* Deactivate VCFL */
-	__REG(GPKDAT) &= ~(1<<1);
-
-	/* Deactivate Display Enable */
-	__REG(GPKDAT) |= (1<<2);
-
-	/* Deactivate LCD controller */
-	__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
-
-	/* Deactivate Buffer Enable */
-	__REG(GPKDAT) |= (1<<3);
-
-	/* Deactivate VLCD */
-	__REG(GPKDAT) &= ~(1<<0);
-}

@@ -29,35 +29,14 @@
 /* Define some types to be used with displays */
 typedef unsigned int COLOR32;
 typedef unsigned int RGBA;
-typedef unsigned short WINDOW;
-typedef short XYPOS;
+typedef unsigned char VID;
+typedef unsigned char WINDOW;
+typedef unsigned char PIX;
+typedef int XYPOS;
+typedef unsigned int HVRES;
 
 #include <lcd_panels.h>			  /* vidinfo_t */
 
-#if defined(CONFIG_CMD_BMP) || defined(CONFIG_SPLASH_SCREEN)
-# include <bmp_layout.h>
-# include <asm/byteorder.h>
-#endif
-
-/* The following LCD controller hardware specific includes provide extensions
-   like DEFAULT_PIXEL_FORMAT, CONFIG_MAX_WINDOWS, CONFIG_MAX_BUFFERS_PER_WIN,
-   CONFIG_LCDWIN_EXT, wininfo_ext_t etc. */
-#if defined CONFIG_PXA250 || defined CONFIG_PXA27X || defined CONFIG_CPU_MONAHANS
-#include <asm/arch-pxa/pxafb.h>
-#endif
-
-#if defined(CONFIG_MPC823)
-#include <lcdvideo.h>
-#endif
-
-#if defined(CONFIG_ATMEL_LCD)
-#include <atmel_lcdc.h>
-#include <nand.h>
-#endif
-
-#if defined(CONFIG_S3C64XX)
-#include <lcd_s3c64xx.h>
-#endif
 
 
 /************************************************************************/
@@ -70,25 +49,13 @@ enum RGB_TYPE {
 	RT_RGBA
 };
 
-/* Settings that correspond with lcdwin */
-typedef enum WIN_INDEX {
-	WI_INFO,
-	WI_SELECT,
-	WI_IMAGE,
-	WI_FBUF,
-	WI_RES,
-	WI_OFFSET,
-	WI_POS,
-	WI_COLOR,
-	
-	/* Unknown keyword (must be the last entry!) */
-	WI_UNKNOWN,
-} winindex_t;
-
-
 /************************************************************************/
 /* TYPES AND STRUCTURES							*/
 /************************************************************************/
+
+/* Forward declaration */
+typedef struct wininfo wininfo_t;
+typedef struct vidinfo vidinfo_t;
 
 /* Pixel format information */
 typedef struct PIXEL_INFO {
@@ -97,34 +64,107 @@ typedef struct PIXEL_INFO {
 					   0: 1 bpp, 1: 2 bpp, .. 5: 32bpp */
 	u_short clutsize;		/* Number of CLUT entries
 					   (0=non-palettized) */
+
+	/* Function to convert RGBA to COLOR32 */
+	COLOR32 (*rgba2col)(const wininfo_t *pwi, RGBA rgba);
+
+	/* Function to convert COLOR32 to RGBA */
+	RGBA (*col2rgba)(const wininfo_t *pwi, COLOR32 color);
+
 	char *name;			/* Format description */
+
 } pixinfo_t;
 
+/* Console information */
+typedef struct CON_INFO {
+	u_short x;			  /* Current writing position */
+	u_short y;			  /* (aligned to characters) */
+	COLOR32 fg;			  /* Foreground and background color */
+	COLOR32 bg;
+} coninfo_t;
+
+
+struct vidinfo 
+{
+	/* Driver specific display info */
+	char *driver_name;		  /* Name of display driver */
+	VID vid;			  /* Current display number */
+	u_char is_enabled;		  /* Flag if LCD is switched on */
+	WINDOW wincount;		  /* Number of available windows */
+	WINDOW win_sel;			  /* Currently selected window */
+	PIX pixcount;			  /* Number of av. pixel formats */
+	wininfo_t *pwi;			  /* Pointer to info about windows */
+
+	/* Driver independent LCD panel info */
+	lcdinfo_t lcd;			  /* Info about lcd panel */
+
+	/* Function to parse additional window sub-commands (optional) */
+	u_short (*winext_parse)(int argc, char *s);
+
+	/* Function to execute additional window sub-commands (optional) */
+	int (*winext_exec)(wininfo_t *pwi, int argc, char *argv[], u_short sc);
+
+	/* Function to print info for additional window sub-commands (opt.) */
+	void (*winext_show)(const wininfo_t *pwi);
+
+	/* Function to print help for additional window sub-commands (opt.) */
+	void (*winext_help)(void);
+
+	/* Function to get a pointer to the info for pixel format pix */
+	const pixinfo_t *(*get_pixinfo_p)(WINDOW win, PIX pix);
+
+	/* Return maximum horizontal framebuffer resolution for this window */
+	HVRES (*get_fbmaxhres)(WINDOW win, PIX pix);
+
+	/* Return maximum vertical framebuffer resolution for this window */
+	HVRES (*get_fbmaxvres)(WINDOW win, PIX pix);
+
+	/* Align horizontal resolution to next word boundary (round up) */
+	HVRES (*align_hres)(WINDOW win, PIX pix, HVRES hres);
+
+	/* Align horizontal offset to current word boundary (round down) */
+	XYPOS (*align_hoffs)(const wininfo_t *pwi, XYPOS hoffs);
+
+	/* Function to update controller hardware with new vidinfo; vidinfo
+	   is updated with actually used hardware settings */
+	void (*set_vidinfo)(vidinfo_t *pvi);
+
+	/* Function to update controller hardware with new wininfo; wininfo
+	   is not changed */
+	void (*set_wininfo)(const wininfo_t *pwi);
+
+	/* Function to switch LCD on */
+	int (*enable)(void);
+
+	/* Function to switch LCD off */
+	void (*disable)(void);
+};
 
 
 /* Common window information */
-typedef struct wininfo
+struct wininfo
 {
 	/* Window information */
 	WINDOW win;			  /* Number of this window */
 	u_char active;			  /* Flag if window is active */
-	u_char pix;			  /* Current pixel format */
-	const pixinfo_t *pi;		  /* Pointer to pixel format info */
-	u_short hres;			  /* Size of visible window */
-	u_short vres;
+	PIX defpix;			  /* Default pixel format */
+	PIX pix;			  /* Current pixel format */
+	const pixinfo_t *ppi;		  /* Pointer to pixel format info */
+	HVRES hres;			  /* Size of visible window */
+	HVRES vres;
 	XYPOS hpos;			  /* Position of window on display */
 	XYPOS vpos;
 
 	/* Framebuffer information */
-	u_long fbuf[CONFIG_MAX_BUFFERS_PER_WIN]; /* Pointers to buffers */
+	u_long *pfbuf;			  /* Pointers to buffers */
 	u_long fbsize;			  /* Size of one buffer (bytes) */
 	u_long linelen;			  /* Bytes per fbhres line */
 	u_char fbcount;			  /* Number of active buffers */
 	u_char fbmaxcount;		  /* Maximum active buffer count */
 	u_char fbdraw;			  /* Index of buffer to draw to */
 	u_char fbshow;			  /* Index of buffer to show */
-	u_short fbhres;			  /* Virtual size of framebuffer */
-	u_short fbvres;
+	HVRES fbhres;			  /* Virtual size of framebuffer */
+	HVRES fbvres;
 	XYPOS hoffs;			  /* Offset within framebuffer (>=0) */
 	XYPOS voffs;
 
@@ -133,19 +173,25 @@ typedef struct wininfo
 	COLOR32 bg;			  /* Current background color */
 	RGBA *cmap;			  /* If CLUT: Pointer to color map */
 
-#ifdef CONFIG_LCDWIN_EXT
-	wininfo_ext_t ext;		  /* Hardware specific data */
+#ifdef CONFIG_MULTIPLE_CONSOLES
+	coninfo_t ci;			  /* Console info for this window */
 #endif
-} wininfo_t;
+
+	/* Display information */
+	vidinfo_t *pvi;			  /* Pointer to corresponding display */
+	
+	/* Additional hardware specific data */
+	void *ext;			  /* Pointer to extended info */
+};
 
 
-/* Info about max. argument count, command index and keyword string of
-   commands lcdset and lcdwin */
+/* Info about minimal and maximal argument count, sub-command index and
+   keyword string for commands using sub-commands (e.g. lcd, window, draw) */
 typedef struct kwinfo
 {
 	u_char  argc_min;
 	u_char  argc_max;
-	u_short si;
+	u_short sc;
 	char    *keyword;
 } kwinfo_t;
 
@@ -157,14 +203,14 @@ typedef struct FBPOOL_INFO {
 	u_long used;			  /* Current usage */
 } fbpoolinfo_t;
 
-#ifdef CONFIG_LCDWIN_EXT
-/* Table with additional keywords for lcdwin */
-extern const struct kwinfo winextkeywords[CONFIG_LCDWIN_EXT];
+#ifdef CONFIG_WINDOW_EXT
+/* Table with additional keywords for window */
+extern const struct kwinfo winextkeywords[CONFIG_WINDOW_EXT];
 #endif /*CONFIG_WININFO_EXT*/
 
 
 /************************************************************************/
-/* PROTOTYPES OF EXPORTED FUNCTIONS IMPLEMENTED BY GENERIC cmd_lcd.c	*/
+/* PROTOTYPES OF EXPORTED FUNCTIONS					*/
 /************************************************************************/
 
 /* Return RT_RGB for #rrggbb, RT_RGBA for #rrggbbaa and RT_NONE otherwise */
@@ -173,65 +219,14 @@ extern enum RGB_TYPE parse_rgb_type(char *s);
 /* Parse #rrggbb or #rrggbbaa value; return value and type */
 extern enum RGB_TYPE parse_rgb(char *s, u_int *prgba);
 
-extern const fbpoolinfo_t *lcd_getfbpoolinfo(void);
+/* Parse sub-command and return sub-command index */
+extern u_short parse_sc(int argc, char *s, u_short sc,
+			const kwinfo_t *pki, u_short count);
+
+/* Get pointer to the framebuffer pool info */
+extern const fbpoolinfo_t *lcd_get_fbpoolinfo_p(void);
 
 /* Initialize panel and window information */
-extern void cmd_lcd_init(void);
-
-
-/************************************************************************/
-/* EXPORTED FUNCTIONS IMPLEMENTED BY CONTROLLER SPECIFIC PART		*/
-/************************************************************************/
-
-#ifdef CONFIG_LCDWIN_EXT
-/* Parse and execute additional variants of command lcdwin; return WI_UNKNOWN
-   on error or index > WI_UNKNOWN. */
-extern int lcdwin_ext_exec(wininfo_t *pwi, int argc, char *argv[], u_int si);
-
-/* Print info for those additional variants, index is the result from above */
-extern void lcdwin_ext_print(wininfo_t *pwi, u_int si);
-#endif /*CONFIG_WININFO_EXT*/
-
-/* Get a COLOR32 value from the given RGBA value */
-extern COLOR32 lcd_rgba2col(const wininfo_t *pwi, RGBA rgba);
-
-/* Get an RGBA value from a COLOR32 value */
-extern RGBA lcd_col2rgba(const wininfo_t *pwi, COLOR32 color);
-
-/* Return pointer to pixel info (NULL if pix not valid for this window) */
-extern const pixinfo_t *lcd_getpixinfo(WINDOW win, u_char pix);
-
-/* Returns the next valid pixel format >= pix for this window */
-extern u_char lcd_getnextpix(WINDOW win, u_char pix);
-
-/* Return number of image buffers for this window */
-extern u_char lcd_getfbmaxcount(WINDOW win);
-
-/* Return maximum horizontal framebuffer resolution for this window */
-extern u_short lcd_getfbmaxhres(WINDOW win, u_char pix);
-
-/* Return maximum vertical framebuffer resolution for this window */
-extern u_short lcd_getfbmaxvres(WINDOW win, u_char pix);
-
-/* Align horizontal offset to current word boundary (round down) */
-extern XYPOS lcd_align_hoffs(const wininfo_t *pwi, XYPOS hpos);
-
-/* Align horizontal resolution to next word boundary (round up) */
-extern u_short lcd_align_hres(WINDOW win, u_char pix, u_short hres);
-
-/* Enable the display, return 0 on success, 1 on failure */
-extern int lcd_hw_enable(void);
-
-/* Disable the display */
-extern void lcd_hw_disable(void);
-
-/* Set new vidinfo to hardware; update info to finally used values */
-extern void lcd_hw_vidinfo(vidinfo_t *pvi);
-
-/* Set new wininfo to hardware; info is not changed */
-extern int lcd_hw_wininfo(const wininfo_t *pwi, const vidinfo_t *pvi);
-
-/* Initialize LCD controller (GPIOs, clock, etc.) */
-extern void lcd_hw_init(void);
+extern void drv_lcd_init(void);
 
 #endif /*!_CMD_LCD_H_*/

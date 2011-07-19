@@ -59,7 +59,7 @@
 /************************************************************************/
 
 /* Common LCD panel information */
-typedef struct vidinfo {
+typedef struct lcdinfo {
 	/* Horizontal control */
 	u_short	hfp;		/* Front porch (between data and HSYNC) */
 	u_short hsw;		/* Horizontal sync pulse (HSYNC) width */
@@ -101,19 +101,19 @@ typedef struct vidinfo {
 	u_short	hdim;		/* Width of display area in millimeters */
 	u_short	vdim;		/* Height of display area in millimeters */
 	char    name[MAX_NAME];	/* Manufacturer, display and resolution */
-} vidinfo_t;
+} lcdinfo_t;
 
 
 /************************************************************************/
 /* PROTOTYPES OF EXPORTED FUNCTIONS					*/
 /************************************************************************/
 
-/* Find predefined panel by index (NULL on bad index) */
-extern const vidinfo_t *lcd_getpanel(u_int index);
+/* Find predefined lcd panel by index (NULL on bad index) */
+extern const lcdinfo_t *lcd_get_lcdinfo_p(u_int index);
 
 /* Return index of next panel matching string s (or 0 if no match); start
    search at given index */ 
-extern u_int lcd_searchpanel(char *s, u_int index);
+extern u_int lcd_search_lcd(char *s, u_int index);
 
 
 #endif /*!_LCD_PANELS_H_*/

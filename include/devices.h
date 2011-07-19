@@ -94,7 +94,7 @@ int	devices_init (void);
 int	devices_done (void);
 int	device_deregister(char *devname);
 #ifdef CONFIG_LCD
-int	drv_lcd_init (void);
+void	drv_lcd_init(void);
 #endif
 #ifdef CONFIG_VFD
 int	drv_vfd_init (void);

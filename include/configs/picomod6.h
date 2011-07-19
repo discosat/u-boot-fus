@@ -239,8 +239,6 @@
  ************************************************************************/
 #define CONFIG_LCD			  /* Use LCD */
 #define CONFIG_FSWINCE_COMPAT		  /* Support F&S WinCE compatibility */
-#define CONFIG_MAX_WINDOWS 5		  /* S3C6410 supports 5 windows */
-#define CONFIG_MAX_BUFFERS_PER_WIN 2	  /* 2 buffers (on windows 0 & 1) */
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
 
 

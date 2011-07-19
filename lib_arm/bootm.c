@@ -277,7 +277,7 @@ static void setup_initrd_tag (bd_t *bd, ulong initrd_start, ulong initrd_end)
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)
 static void setup_videolfb_tag (gd_t *gd)
 {
-	const fbpoolinfo_t *pfpi = lcd_getfbpoolinfo();
+	const fbpoolinfo_t *pfpi = lcd_get_fbpoolinfo_p();
 
 	/* An ATAG_VIDEOLFB node tells the kernel where and how large
 	 * the framebuffer for video was allocated (among other things).
