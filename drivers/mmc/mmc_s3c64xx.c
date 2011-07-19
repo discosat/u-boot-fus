@@ -14,7 +14,7 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 06.06.2011 20:46:24 (HK)                                    ***/
+/*** Modified: 07.06.2011 14:51:16 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
@@ -257,7 +257,7 @@ static U32 SDHC_SetHostSDCLK(SDHC_REGS *pRegs, U32 uTargetFreq, U32 uSrcFreq,
 
     /* Wait until internal clock is stable */
     while (!(pRegs->CLK_CTRL & (1<<1)))
-        ;
+	    ;
 
     /* Enable SDCLK */
     pRegs->CLK_CTRL |= (1<<2);
@@ -769,7 +769,6 @@ bool SDHC_OpenMedia(SDHC *sCh, SDHC_Channel eChannel, SDHC_Buswidth eBuswidth,
     /* Enable the SD card power */
     mmc_s3c64xx_board_power(eChannel);
 
-
     /* ---- Reset controller and wait for reset to finish ---- */
     pRegs->SOFTWARE_RESET = 0x7;
     while (pRegs->SOFTWARE_RESET & 0x7)
@@ -904,7 +903,6 @@ bool SDHC_OpenMedia(SDHC *sCh, SDHC_Channel eChannel, SDHC_Buswidth eBuswidth,
     if (!SDHC_IssueCommand(pRegs, 7, sCh->m_uRca, SDHC_CMD_AC_TYPE,
                            SDHC_RES_R1B_TYPE))
         return FALSE;
-
 
     /* ---- Set final card speed ---- */
     sCh->m_eSpeedMode = SDHC_NORMAL_SPEED;
@@ -1305,6 +1303,16 @@ int mmc_init(int verbose)
 	SDHC_Channel i;
 	SDHC *sCh;
 
+	/* Activate 48MHz clock, this is not only required for USB OTG, but
+	   also for MMC */
+	OTHERS_REG |= 1<<16;		  /* Enable USB signal */
+	__REG(S3C_OTG_PHYPWR) = 0x00;
+	__REG(S3C_OTG_PHYCTRL) = 0x00;
+	__REG(S3C_OTG_RSTCON) = 1;
+	udelay(10);
+	__REG(S3C_OTG_RSTCON) = 0;
+
+	/* Check for all available MMC slots if there is a card inserted */
 	for (i=0; i<MAX_UNITS; i++) {
 		if (verbose)
 			printf("mmc %d: ", i);

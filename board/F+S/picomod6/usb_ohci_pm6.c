@@ -22,7 +22,7 @@ int usb_board_init(void)
 	__REG(S3C_OTG_PHYPWR) = 0;
 
 	/* Use UTMI interface of OTG or serial 1 interface of USB1.1 host */
-	__REG(S3C_OTG_PHYCTRL) = 0x00; /* 0x40 for serial 2, or 0x00 for OTG */
+	__REG(S3C_OTG_PHYCTRL) = 0x10; /* 0x50 for serial 1, or 0x10 for OTG */
 
 	/* Reset PHY */
 	__REG(S3C_OTG_RSTCON) = 1;
@@ -36,8 +36,8 @@ int usb_board_init(void)
 	GPKPUD_REG &= 0xffff3fff;	  /* No Pullup/down */
 
 	/* Let the power voltage settle */
-	//udelay(10000);
-udelay(100000);
+	udelay(10000);
+	//udelay(50000);
 
 	return 0;
 }
