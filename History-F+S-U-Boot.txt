@@ -1,5 +1,11 @@
-History of Changes for U-Boot on PicoMOD6
------------------------------------------
+History of Changes for U-Boot on PicoMOD6/PicoCOM3
+--------------------------------------------------
+
+V1.2 (in progress)
+------------------
+- Add support for PicoCOM3
+- Fix display power-on/power-off sequence
+
 
 V1.1 (07.06.2011)
 -----------------

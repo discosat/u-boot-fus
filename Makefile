@@ -2531,6 +2531,9 @@ SX1_config :		unconfig
 picomod6_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx picomod6 F+S s3c6410 
 
+picocom3_config	:	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx picocom3 F+S s3c6410 
+
 # TRAB default configuration:	8 MB Flash, 32 MB RAM
 xtract_trab = $(subst _bigram,,$(subst _bigflash,,$(subst _old,,$(subst _config,,$1))))
 

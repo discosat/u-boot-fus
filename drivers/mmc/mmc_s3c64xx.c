@@ -14,11 +14,11 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 07.06.2011 14:51:16 (HK)                                    ***/
+/*** Modified: 27.07.2011 12:43:03 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
-/*** PicoMOD6 in the F&S NBoot loader.                                     ***/
+/*** PicoMOD6/PicoCOM3 in the F&S NBoot loader.                            ***/
 /***                                                                       ***/
 /*** Modification History:                                                 ***/
 /*** 06.06.2011 HK: Converted from NBoot to U-Boot.                        ***/
@@ -34,9 +34,13 @@
      ein paar kleinere Funktionen aufsplitten, damit es überschaubarer wird.
  */
 
-/* We support external SD card slot (SDHC_CHANNEL_0) and on-board SD card
-   slot (SDHC_CHANNEL_1) */
+/* We support external SD card slot (SDHC_CHANNEL_0) and on PicoMOD6 also the
+   on-board SD card slot (SDHC_CHANNEL_1) */
+#ifdef CONFIG_PICOMOD6
 #define MAX_UNITS 2
+#else
+#define MAX_UNITS 1
+#endif
 
 #define __USE_ISSUE_AND_READ__
 
@@ -737,6 +741,7 @@ bool SDHC_OpenMedia(SDHC *sCh, SDHC_Channel eChannel, SDHC_Buswidth eBuswidth,
           break;
 
       case SDHC_CHANNEL_1:                /* Internal micro SD slot */
+#ifdef PICOMOD6				  /* Only available on PicoMOD6 */
           /* Set GPH to SD card signals: GPH0: CLK1, GPH1: CMD1,
              GPH9..GPH2: DATA1[7..0]. This port is theoretically capable of 1,
              4, and 8 bit bus width, but our slot uses only 4 bits, the
@@ -748,6 +753,7 @@ bool SDHC_OpenMedia(SDHC *sCh, SDHC_Channel eChannel, SDHC_Buswidth eBuswidth,
           /* Set line driver strength for data lines and clock line */
           SPCON_REG = (SPCON_REG & ~(0x3<<26)) | (eStrength<<26); /* Data */
           pRegs->CONTROL4 = (0x3<<16);                      /* Clock */
+#endif
           break;
 
       case SDHC_CHANNEL_2:                /* 1 + 4 bits width */

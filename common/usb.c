@@ -252,7 +252,7 @@ int usb_set_maxpacket(struct usb_device *dev)
 
 	for(i=0; i<dev->config.bNumInterfaces;i++) {
 		for(ii=0; ii<dev->config.if_desc[i].bNumEndpoints; ii++) {
-#ifdef CONFIG_PICOMOD6 //#####
+#if defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3) //#####
 			/* The compiler does generate bad code and accesses
 			   wMaxPacketSize as a 16-bit value despite the fact
 			   that struct usb_endpoint_descriptor has attribute

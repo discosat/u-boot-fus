@@ -69,7 +69,7 @@
 	*((vu_short *)((_b_) + ((_o_) * 2) + ISA_OFFSET)) = (_d_)
 #define DP_IN_DATA(_b_, _d_)	(_d_) = *( (vu_short *) ((_b_) + ISA_OFFSET))
 #define DP_OUT_DATA(_b_, _d_)	*( (vu_short *) ((_b_)+ISA_OFFSET)) = (_d_)
-#elif defined(CONFIG_PICOMOD6)
+#elif defined(CONFIG_PICOMOD6) || defined(CONFIG_PICOCOM3)
 #define ISA_OFFSET	0x0000
 #define DP_IN(_b_, _o_, _d_)	(_d_) = \
         (u8)*((vu_short *) ((_b_) + ((_o_) * 2) + ISA_OFFSET))

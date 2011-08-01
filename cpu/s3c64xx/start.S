@@ -235,8 +235,9 @@ mmu_on:
 #endif
 
 #if 0  //#####HK
-	/* #####HK: Zeichen auf UART2 ausgeben ###### */
-	ldr	r0,=0x7F005820
+	/* #####HK: Zeichen auf UART ausgeben ###### */
+	ldr	r0,=0x7F005420		  /* UART1 */
+	//ldr	r0,=0x7F005820		  /* UART2 */
 	mov	r1,#0x43
 	str	r1,[r0]
 	mov	r1,#0x43

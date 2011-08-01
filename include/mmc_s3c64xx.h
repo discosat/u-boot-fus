@@ -14,11 +14,11 @@
 /*** File:     s1sdhc.h                                                    ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 06.06.2011 15:11:57 (HK)                                    ***/
+/*** Modified: 26.07.2011 14:00:26 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
-/*** PicoMOD6 in the F&S NBoot loader.                                     ***/
+/*** PicoMOD6/PicoCOM3 in the F&S NBoot loader.                            ***/
 /***                                                                       ***/
 /*** Modification History:                                                 ***/
 /*** 06.06.2011 HK: Converted from NBoot to U-Boot.                        ***/
