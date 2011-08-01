@@ -238,13 +238,19 @@ void udelay(unsigned long usec)
 	}
 
 	tmp = get_timer(0);		/* get current timestamp */
+#if 0
 	if ((tmo + tmp + 1) < tmp)	/* if setting this fordward will roll time stamp */
 		reset_timer_masked();	/* reset "advancing" timestamp to 0, set lastdec value */
 	else
-		tmo += tmp;		/* else, set advancing stamp wake up time */
+		tmo += tmp;		/* else, set advancing stamp wake up
+					   time */
 
 	while (get_timer_masked()<tmo)	/* loop till event */
 		 /*NOP*/;
+#else
+	while (get_timer_masked()-tmp < tmo)
+		/*NOP*/;
+#endif
 }
 
 void reset_timer_masked(void)
