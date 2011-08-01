@@ -2368,7 +2368,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		param = 0;
 		for (i=0; i<POW_COUNT; i++) {
 			if (argc > i+2)
-				param = simple_strtoul(argv[2], NULL, 0);
+				param = simple_strtoul(argv[i+2], NULL, 0);
 			else
 				param += 10;
 			if (sc == LI_PONSEQ)

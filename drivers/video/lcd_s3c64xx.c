@@ -1483,9 +1483,9 @@ static void s3c64xx_disable(const vidinfo_t *pvi)
 		}
 
 		/* Switch appropriate signal off; this is board specific */
-		s3c64xx_lcd_board_enable(index);
+		s3c64xx_lcd_board_disable(index);
 
-		if (index == PON_CONTR) {
+		if (index == POFF_CONTR) {
 			/* Deactivate LCD controller */
 			__REG(S3C_VIDCON0) &= ~S3C_VIDCON0_ENVID_F_ENABLE;
 		}
