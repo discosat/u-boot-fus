@@ -32,7 +32,6 @@
 #include <version.h>
 
 #include <s3c6410.h>
-#include "picomod6_val.h"
 
 _TEXT_BASE:
 	.word	TEXT_BASE

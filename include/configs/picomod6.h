@@ -30,7 +30,7 @@
  * Offset 0x0000_0100 - 0x0000_7FFF: bi_boot_params
  * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
  * Offset 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
- * Offset 0x0100_0000 - 0x03EF_FFFF: (unused, e.g. INITRD)
+ * Offset 0x0100_0000 - 0x07EF_FFFF: (unused, e.g. INITRD)
  * Offset 0x07F0_0000 - 0x07FF_FFFF: U-Boot (inkl. malloc area)
  *
  * NAND flash layout of PicoMOD6 (64MB) (Block size 16KB)
