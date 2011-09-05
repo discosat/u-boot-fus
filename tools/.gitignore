@@ -19,3 +19,4 @@
 /fdt_wip.c
 /libfdt_internal.h
 /zlib.h
+/addfsheader

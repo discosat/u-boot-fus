@@ -1,10 +1,14 @@
 History of Changes for U-Boot on PicoMOD6/PicoCOM3
 --------------------------------------------------
 
-V1.2 (in progress)
+V1.2 (05.09.2011)
 ------------------
 - Add support for PicoCOM3
 - Fix display power-on/power-off sequence
+- Fix display buffer enable signal (BUF_ENA)
+- Fix "lcd ponseq" and "lcd poffseq" commands
+- Optimize udelay() function
+- Remove some unneeded code
 
 
 V1.1 (07.06.2011)
