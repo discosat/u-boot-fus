@@ -127,6 +127,23 @@ typedef struct coninfo {
 	COLOR32 bg;
 } coninfo_t;
 
+/* Progress bar information */
+typedef struct PBINFO {
+	/* pbr info */
+	XYPOS x1;			  /* Bar position and size */
+	XYPOS y1;
+	XYPOS x2;
+	XYPOS y2;
+	RGBA  rect_fg;			  /* Color of progress bar */
+	RGBA  rect_bg;			  /* Color if background */
+	/* pbt info */
+	u_int attr;			  /* Text attribute */
+	RGBA  text_fg;			  /* Color of percentage text */
+	RGBA  text_bg;
+	/* prog info */
+	u_int prog;			  /* Percentage */
+} pbinfo_t;
+
 
 /* Video/LCD device info */
 struct vidinfo
@@ -207,6 +224,9 @@ struct wininfo
 	XYPOS fbvres;
 	XYPOS hoffs;			  /* Offset within framebuffer (>=0) */
 	XYPOS voffs;
+
+	/* Drawing information, only accessed by draw command */
+	pbinfo_t pbi;			  /* Progress bar info */
 
 	/* Color information */
 	u_int attr;			  /* Current attribute */

@@ -127,6 +127,7 @@ enum DRAW_INDEX {
 	DI_LINE,
 	DI_FRAME,
 	DI_RECT,
+	DI_PBR,
 
 	/* Draw commands with one coordinate pair x1/y1 */
 	DI_PIXEL,
@@ -139,10 +140,12 @@ enum DRAW_INDEX {
 #endif
 
 	/* Draw commands with no coordinate pair */
+	DI_PBT,
 	DI_COLOR,
 	DI_FILL,
 	DI_TEST,
 	DI_CLEAR,
+	DI_PROG,
 
 	/* Unknown draw sub-command (must be the last entry!) */
 	DI_HELP
@@ -293,6 +296,12 @@ static int lockupdate;
 
 static vidinfo_t vidinfo[CONFIG_DISPLAYS]; /* Current display information */
 
+static const pbinfo_t pbi_default = {	  /* Default progress bar info */
+	0, 0, 0, 0, DEFAULT_FG, DEFAULT_BG,
+	ATTR_HFOLLOW | ATTR_VCENTER, DEFAULT_FG, DEFAULT_BG,
+	0
+};
+
 /* Size and base address of the framebuffer pool */
 static fbpoolinfo_t fbpool = {
 	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
@@ -344,6 +353,7 @@ static kwinfo_t const draw_kw[] = {
 	[DI_LINE] =   {4, 5, 2, 4, "line"},   /* x1 y1 x2 y2 [rgba] */
 	[DI_FRAME] =  {4, 5, 2, 4, "frame"},  /* x1 y1 x2 y2 [rgba] */
 	[DI_RECT] =   {4, 6, 2, 4, "rect"},   /* x1 y1 x2 y2 [rgba [rgba]] */
+	[DI_PBR] =    {4, 6, 2, 4, "pbr"},    /* x1 y1 x2 y2 [rgba [rgba]] */
 	[DI_PIXEL] =  {2, 3, 1, 2, "pixel"},  /* x1 y1 [rgba] */
 	[DI_CIRCLE] = {3, 4, 1, 3, "circle"}, /* x1 y1 r [rgba] */
 	[DI_DISC] =   {3, 5, 1, 3, "disc"},   /* x1 y1 r [rgba [rgba]] */
@@ -352,8 +362,10 @@ static kwinfo_t const draw_kw[] = {
 #ifdef _BITMAP_SUPPORT_
 	[DI_BITMAP] = {3, 5, 1, 9, "bm"},     /* x1 y1 addr [n [attr]] */
 #endif
+	[DI_PBT] =    {0, 3, 0, 1, "pbt"},    /* [attr [rgba [rgba]]] */
 	[DI_COLOR] =  {1, 2, 0, 0, "color"},  /* rgba [rgba] */
 	[DI_FILL] =   {0, 1, 0, 0, "fill"},   /* [rgba] */
+	[DI_PROG] =   {0, 1, 0, 9, "prog"},   /* [n] */
 	[DI_TEST] =   {0, 1, 0, 9, "test"},   /* [n] */
 	[DI_CLEAR] =  {0, 0, 0, 9, "clear"},  /* (no args) */
 	[DI_HELP] =   {0, 0, 0, 9, "help"},   /* (no args, show usage) */
@@ -843,6 +855,84 @@ U_BOOT_CMD(
 /* Command draw								*/
 /************************************************************************/
 
+/* Draw progress bar; pwi->attr is either 0 or ATTR_ALPHA */
+static void lcd_progbar(wininfo_t *pwi)
+{
+	XYPOS x1, y1, x2, y2, x;
+	RGBA old_fg;
+	u_int attr;
+
+	x1 = pwi->pbi.x1;
+	y1 = pwi->pbi.y1;
+	x2 = pwi->pbi.x2;
+	y2 = pwi->pbi.y2;
+	x = ((x2 - x1 + 1) * pwi->pbi.prog + 50) / 100 + x1;
+	old_fg = pwi->fg.rgba;		  /* Save FG */
+	if (x > x1) {
+		/* Draw progress bar in FG color */
+		lcd_set_fg(pwi, pwi->pbi.rect_fg);
+		lcd_rect(pwi, x1, y1, x-1, y2);
+	}
+	if (x <= x2) {
+		/* Draw remaining part of rectangle with BG color */
+		lcd_set_fg(pwi, pwi->pbi.rect_bg);
+		lcd_rect(pwi, x, y1, x2, y2);
+	}
+
+	/* Draw percentage unless attribute ATTR_NO_TEXT is set */
+	attr = pwi->pbi.attr;
+	if ((attr & ATTR_VMASK) != ATTR_NO_TEXT) {
+		char s[5];		  /* "0%" .. "100%" */
+		RGBA old_bg;
+
+		/* Depending on reference point, compute alignment */
+		switch (attr & ATTR_HMASK) {
+		default:
+			break;
+
+		case ATTR_HCENTER:
+			x1 = (x1 + x2)/2;
+			break;
+
+		case ATTR_HRIGHT:
+			x1 = x2;
+			break;
+
+		case ATTR_HFOLLOW:
+			x1 = x+2;
+			attr = (attr & ~ATTR_HMASK) | ATTR_HLEFT;
+			break;
+		}
+
+		switch (attr & ATTR_VMASK) {
+		default:
+			break;
+
+		case ATTR_VCENTER:
+			y1 = (y1 + y2)/2;
+			break;
+
+		case ATTR_VBOTTOM:
+			y1 = y2;
+			break;
+		}
+
+		pwi->attr |= attr;	  /* Add text attributes */
+
+		/* Set text colors from progress bar */
+		lcd_set_fg(pwi, pwi->pbi.text_fg);
+		old_bg = pwi->bg.rgba;	  /* Save BG */
+		lcd_set_bg(pwi, pwi->pbi.text_bg);
+
+		/* Draw percentage text */
+		sprintf(s, "%d%%", pwi->pbi.prog);
+		lcd_text(pwi, x1, y1, s);
+
+		lcd_set_bg(pwi, old_bg);  /* Restore BG */
+	}
+	lcd_set_fg(pwi, old_fg);	  /* Restore FG */
+}
+
 /* Draw turtle graphics until end of string, closing bracket or error */
 static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
 		      u_int count)
@@ -1000,10 +1090,18 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	pvi = lcd_get_vidinfo_p(vid_sel);
 	pwi = lcd_get_wininfo_p(pvi, pvi->win_sel);
 
+	/* Without arguments, print current drawing parameters */
 	if (argc < 2) {
-		printf("%s: FG #%08x (#%08x), BG #%08x (#%08x)\n", pwi->name,
+		printf("%s:\n", pwi->name);
+		printf("color:\tFG #%08x (#%08x), BG #%08x (#%08x)\n",
 		       pwi->fg.rgba, pwi->ppi->col2rgba(pwi, pwi->fg.col),
 		       pwi->bg.rgba, pwi->ppi->col2rgba(pwi, pwi->bg.col));
+		printf("pbr:\t(%d, %d) - (%d, %d), FG #%08x, BG #%08x\n",
+		       pwi->pbi.x1, pwi->pbi.y1, pwi->pbi.x2, pwi->pbi.y2,
+		       pwi->pbi.rect_fg, pwi->pbi.rect_bg);
+		printf("pbt:\tattr 0x%05x, FG #%08x, BG #%08x\n",
+		       pwi->pbi.attr, pwi->pbi.text_fg, pwi->pbi.text_bg);
+		printf("prog:\t%u\n", pwi->pbi.prog);
 		return 0;
 	}
 
@@ -1079,6 +1177,15 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		lcd_frame(pwi, x1, y1, x2, y2);
 		break;
 
+	case DI_PBR:			  /* Define progress bar rectangle */
+		pwi->pbi.x1 = x1;
+		pwi->pbi.x2 = x2;
+		pwi->pbi.y1 = y1;
+		pwi->pbi.y2 = y2;
+		pwi->pbi.rect_fg = rgba1;
+		pwi->pbi.rect_bg = rgba2;
+		break;
+
 	case DI_CIRCLE:			  /* Draw circle outline */
 	case DI_DISC:			  /* Draw filled circle */
 		x2 = (XYPOS)simple_strtol(argv[4], NULL, 0); /* Parse radius */
@@ -1145,6 +1252,14 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			puts(" in argument string\n");
 		break;
 
+	case DI_PBT:			  /* Define progress bar text params */
+		a = (argc > 2) ? simple_strtoul(argv[2], NULL, 0)
+			: (ATTR_HFOLLOW | ATTR_VCENTER);
+		pwi->pbi.attr = a;
+		pwi->pbi.text_fg = rgba1;
+		pwi->pbi.text_bg = rgba2;
+		break;
+
 	case DI_COLOR:			  /* Set FG and BG color */
 		lcd_set_bg(pwi, rgba2);
 		break;
@@ -1155,6 +1270,18 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case DI_CLEAR:			  /* Fill window with BG color */
 		lcd_clear(pwi);
+		break;
+
+	case DI_PROG:			  /* Draw progress bar */
+		if (argc > 2) {
+			a = simple_strtoul(argv[2], NULL, 0);
+			if (a > 100)
+				a = 100;
+			else if (a < 0)
+				a = 0;
+			pwi->pbi.prog = a;
+		}
+		lcd_progbar(pwi);
 		break;
 
 	case DI_TEST:			  /* Draw test pattern */
@@ -1196,6 +1323,12 @@ U_BOOT_CMD(
 #endif
 	"draw turtle x y string [#rgba]\n"
 	"    - draw turtle graphic command from string at (x, y)\n"
+	"draw pbr x1 y1 x2 y2 [#rgba [#rgba]]\n"
+	"    - define progress bar rectangle\n"
+	"draw pbt [a [#rgba [#rgba]]]\n"
+	"    - define progress bar text parameters\n"
+	"draw prog [n]\n"
+	"    - draw progress bar with given progress\n"
 	"draw fill [#rgba]\n"
 	"    - fill window with color\n"
 	"draw test [n]\n"
@@ -1508,6 +1641,10 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 	pwi->vres = vres;
 	pwi->fbhres = fbhres;
 	pwi->fbvres = fbvres;
+	pwi->pbi.x1 = 0;
+	pwi->pbi.x2 = fbhres - 1;
+	pwi->pbi.y1 = 0;
+	pwi->pbi.y2 = fbvres - 1;
 	pwi->active = (fbhres && fbvres && fbcount);
 	pwi->ppi = ppi;
 	pwi->fbcount = pwi->active ? fbcount : 0;
@@ -1521,6 +1658,10 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 		set_default_cmap(pwi);
 		lcd_set_fg(pwi, DEFAULT_FG);
 		lcd_set_bg(pwi, DEFAULT_BG);
+		pwi->pbi.rect_fg = DEFAULT_FG;
+		pwi->pbi.rect_bg = DEFAULT_BG;
+		pwi->pbi.text_fg = DEFAULT_FG;
+		pwi->pbi.text_bg = DEFAULT_BG;
 		pwi->alpha0 = DEFAULT_ALPHA0;
 		pwi->alpha1 = DEFAULT_ALPHA1;
 		pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
@@ -2731,6 +2872,11 @@ void drv_lcd_init(void)
 			pwi->fbvres = 0;
 			pwi->hoffs = 0;
 			pwi->voffs = 0;
+
+			/* Drawing information */
+			pwi->pbi = pbi_default;
+
+			/* Color information */
 			pwi->alpha0 = DEFAULT_ALPHA0;
 			pwi->alpha1 = DEFAULT_ALPHA1;
 			pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
