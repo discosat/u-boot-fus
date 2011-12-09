@@ -326,8 +326,8 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 			fd = ~fd;
 		pfont++;		  /* Next character row */
 
-		/* Loop twice if double height */
-		line_count = (attr & ATTR_DHEIGHT) ? 2 : 1;
+		/* Loop up to four times if multiple height */
+		line_count = ((attr & ATTR_VS_MASK) >> 6) + 1;
 		do {
 			COLOR32 *p = (COLOR32 *)fbuf;
 			u_int s = shift;
@@ -337,8 +337,10 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 			/* Load first word */
 			val = *p;
 			do {
-				/* Loop twice if double width */
-				unsigned col_count = (attr & ATTR_DWIDTH)?2:1;
+				/* Loop up to four times if multiple width */
+				unsigned col_count;
+
+				col_count = ((attr & ATTR_HS_MASK) >> 4) + 1;
 				do {
 					/* Blend FG or BG pixel (BG only if not
 					   transparent) */
@@ -347,7 +349,7 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 						val &= ~(mask << s);
 						val |= fg << s;
 					}
-					else if (!(attr & ATTR_TRANSP)) {
+					else if (!(attr & ATTR_NO_BG)) {
 						val &= ~(mask << s);
 						val |= bg << s;
 					}
@@ -415,8 +417,8 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 			fd = ~fd;
 		pfont++;		  /* Next character row */
 
-		/* Loop twice if double height */
-		line_count = (attr & ATTR_DHEIGHT) ? 2 : 1;
+		/* Loop up to four times if multiple height */
+		line_count = ((attr & ATTR_VS_MASK) >> 6) + 1;
 		do {
 			COLOR32 *p = (COLOR32 *)fbuf;
 			u_int s = shift;
@@ -426,8 +428,10 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 			/* Load first word */
 			val = *p;
 			do {
-				/* Loop twice if double width */
-				unsigned col_count = (attr & ATTR_DWIDTH)?2:1;
+				/* Loop up to four times if multiple width */
+				unsigned col_count;
+
+				col_count = ((attr & ATTR_HS_MASK) >> 4) + 1;
 				do {
 					COLOR32 col;
 
@@ -438,7 +442,7 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 						col = pwi->ppi->apply_alpha(
 							pwi, &pwi->fg,
 							val >> s);
-					else if (!(attr & ATTR_TRANSP))
+					else if (!(attr & ATTR_NO_BG))
 						col = pwi->ppi->apply_alpha(
 							pwi, &pwi->bg,
 							val >> s);
@@ -1241,18 +1245,19 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 
 /* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg
    the attributes are as follows:
-     Bit 1..0: horizontal alignment:  00: left, 01: right,
-	       10: hcenter, 11: screen hcenter (x ignored)
-     Bit 3..2: vertical alignment: 00: top, 01: bottom,
-	       10: vcenter, 11: screen vcenter (y ignored)
-     Bit 4: 0: normal, 1: double width
-     Bit 5: 0: normal, 1: double height
-     Bit 6: 0: FG+BG, 1: no BG (transparent, bg ignored)
-     Bit 7: reserved (blinking?)
-     Bit 8: 0: normal, 1: bold
-     Bit 9: 0: normal, 1: inverse
-     Bit 10: 0: normal, 1: underline
-     Bit 11: 0: normal, 1: strike-through
+     Bit 1..0: horizontal refpoint:  00: left, 01: hcenter,
+                10: right, 11: right+1
+     Bit 3..2: vertical refpoint: 00: top, 01: vcenter,
+                10: bottom, 11: bottom+1
+     Bit 5..4: character width: 00: normal (1x), 01: double (2x),
+                10: triple (3x), 11: quadruple (4x)
+     Bit 7..6: character height: 00: normal (1x), 01: double (2x),
+                10: triple (3x), 11: quadruple (4x)
+     Bit 8:    0: normal, 1: bold
+     Bit 9:    0: normal, 1: inverse
+     Bit 10:   0: normal, 1: underline
+     Bit 11:   0: normal, 1: strike-through
+     Bit 12:   0: FG+BG, 1: only FG (BG transparent)
 
    We only draw fully visible characters. If a character would be fully or
    partly outside of the framebuffer, it is not drawn at all. If you need
@@ -1271,26 +1276,25 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 	if (s == 0)
 		return;
 
-	if (attr & ATTR_DWIDTH)
-		width *= 2;		  /* Double width */
-	if (attr & ATTR_DHEIGHT)
-		height *= 2;		  /* Double height */
+	/* Apply multiple width and multiple height */
+	width *= ((attr & ATTR_HS_MASK) >> 4) + 1;
+	height *= ((attr & ATTR_VS_MASK) >> 6) + 1;
 
 	/* Compute y from vertical alignment */
 	switch (attr & ATTR_VMASK) {
 	case ATTR_VTOP:
 		break;
 
-	case ATTR_VBOTTOM:
-		y -= height-1;
-		break;
-
-	case ATTR_VSCREEN:
-		y = fbvres/2;
-		/* Fall through to case ATTR_VCENTER */
-
 	case ATTR_VCENTER:
 		y -= height/2;
+		break;
+
+	case ATTR_VBOTTOM:
+		y++;
+		/* Fall through to case ATTR_VBOTTOM1 */
+
+	case ATTR_VBOTTOM1:
+		y -= height;
 		break;
 	}
 
@@ -1303,18 +1307,17 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 	case ATTR_HLEFT:
 		break;
 
-	case ATTR_HRIGHT:
-		x -= len*width - 1;
-		break;
-
-	case ATTR_HSCREEN:
-		x = (XYPOS)pwi->fbhres/2;
-		/* Fall through to case ATTR_HCENTER */
-
 	case ATTR_HCENTER:
 		x -= len*width/2;
 		break;
 
+	case ATTR_HRIGHT:
+		x++;
+		/* Fall through to ATTR_HRIGHT1 */
+
+	case ATTR_HRIGHT1:
+		x -= len*width;
+		break;
 	}
 
 	/* Return if text is completely right of framebuffer or if only the

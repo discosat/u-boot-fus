@@ -45,24 +45,35 @@ typedef int XYPOS;
 #define PIF_ALPHA    0x02		  /* Pixel have alpha value */
 
 /* Draw attributes */
-#define ATTR_HLEFT   0x0000		  /* Available for text + bitmap */
-#define ATTR_HRIGHT  0x0001		  /* Available for text + bitmap */
-#define ATTR_HCENTER 0x0002		  /* Available for text + bitmap */
-#define ATTR_HSCREEN 0x0003		  /* Available for text + bitmap */
-#define ATTR_HMASK   0x0003		  /* Available for text + bitmap */
-#define ATTR_VTOP    0x0000		  /* Available for text + bitmap */
-#define ATTR_VBOTTOM 0x0004		  /* Available for text + bitmap */
-#define ATTR_VCENTER 0x0008		  /* Available for text + bitmap */
-#define ATTR_VSCREEN 0x000C		  /* Available for text + bitmap */
-#define ATTR_VMASK   0x000C		  /* Available for text + bitmap */
-#define ATTR_DWIDTH  0x0010		  /* Available for text + bitmap */
-#define ATTR_DHEIGHT 0x0020		  /* Available for text + bitmap */
-#define ATTR_TRANSP  0x0040		  /* Available for text + bitmap */
-#define ATTR_ALPHA   0x0080		  /* Available for all functions */
-#define ATTR_BOLD    0x0100		  /* Available for text only */
-#define ATTR_INVERSE 0x0200		  /* Available for text only */
-#define ATTR_UNDERL  0x0400		  /* Available for text only */
-#define ATTR_STRIKE  0x0800		  /* Available for text only */
+#define ATTR_HLEFT    0x0000		  /* Available for text + pbt + bm */
+#define ATTR_HCENTER  0x0001		  /* Available for text + pbt + bm */
+#define ATTR_HRIGHT   0x0002		  /* Available for text + pbt + bm */
+#define ATTR_HRIGHT1  0x0003		  /* Available for text + bm */
+#define ATTR_HFOLLOW  0x0003		  /* Available for pbt */
+#define ATTR_HMASK    0x0003		  /* Horizontal reference point mask */
+#define ATTR_VTOP     0x0000		  /* Available for text + pbt + bm */
+#define ATTR_VCENTER  0x0004		  /* Available for text + pbt + bm */
+#define ATTR_VBOTTOM  0x0008		  /* Available for text + pbt + bm */
+#define ATTR_VBOTTOM1 0x000C		  /* Available for text + bm */
+#define ATTR_NO_TEXT  0x000C		  /* Available for pbt */
+#define ATTR_VMASK    0x000C		  /* Vertical reference point mask */
+#define ATTR_HSINGLE  0x0000		  /* Available for text + pbt + bm */
+#define ATTR_HDOUBLE  0x0010		  /* Available for text + pbt + bm */
+#define ATTR_HTRIPLE  0x0020		  /* Available for text + pbt + bm */
+#define ATTR_HQUAD    0x0030		  /* Available for text + pbt + bm */
+#define ATTR_HS_MASK  0x0030		  /* Horizontal scaling mask */
+#define ATTR_VSINGLE  0x0000		  /* Available for text + pbt + bm */
+#define ATTR_VDOUBLE  0x0040		  /* Available for text + pbt + bm */
+#define ATTR_VTRIPLE  0x0080		  /* Available for text + pbt + bm */
+#define ATTR_VQUAD    0x00C0		  /* Available for text + pbt + bm */
+#define ATTR_VS_MASK  0x00C0		  /* Vertical scaling mask */
+#define ATTR_BOLD     0x0100		  /* Available for text + pbt */
+#define ATTR_INVERSE  0x0200		  /* Available for text + pbt */
+#define ATTR_UNDERL   0x0400		  /* Available for text + pbt */
+#define ATTR_STRIKE   0x0800		  /* Available for text + pbt */
+#define ATTR_NO_BG    0x1000		  /* Available for text + pbt */
+
+#define ATTR_ALPHA    0x8000		  /* Available for all functions */
 
 /* PWM value for maximum voltage */
 #define MAX_PWM 4096

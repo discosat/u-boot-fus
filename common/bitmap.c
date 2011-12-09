@@ -164,8 +164,8 @@ struct imginfo
 	COLOR32 hash_col;		  /* and corresponding color */
 
 	u_int applyalpha;		  /* ATTR_ALPHA 0: not set, 1: set */
-	u_int dwidthshift;		  /* ATTR_DWIDTH 0: not set, 1: set */
-	u_int dheightshift;		  /* ATTR_DHEIGHT 0: not set, 1: set */
+	u_int multiwidth;		  /* Width factor (1..4) */
+	u_int multiheight;		  /* Height factor (1..4) */
 	RGBA trans_rgba;		  /* Transparent color if truecolor */
 	bminfo_t bi;			  /* Generic bitmap information */
 };
@@ -211,7 +211,7 @@ static void draw_ll_row_PAL(imginfo_t *pii, COLOR32 *p)
 	//u_int rowbitdepth = pii->rowbitdepth;
 	//u_int rowmask = pii->rowmask;
 	COLOR32 mask = pii->mask;
-	//u_int dwidthshift = pii->dwidthshift;
+	//u_int multiwidth = pii->multiwidth;
 
 	val = *p;
 	for (;;) {
@@ -234,7 +234,7 @@ static void draw_ll_row_PAL(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 	}
 DONE:
 	*p = val; /* Store final value */
@@ -286,7 +286,7 @@ static void adraw_ll_row_PAL(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 	}
 DONE:
 	*p = val;			  /* Store final value */
@@ -302,7 +302,7 @@ static void draw_ll_row_PAL8(imginfo_t *pii, COLOR32 *p)
 	u_char *prow = pii->prow;
 	COLOR32 val = *p;
 	COLOR32 mask = pii->mask;
-	u_int dwidthshift = pii->dwidthshift;
+	u_int multiwidth = pii->multiwidth;
 
 	for (;;) {
 		COLOR32 col;
@@ -320,7 +320,7 @@ static void draw_ll_row_PAL8(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & dwidthshift);
+		} while (xpix % multiwidth);
 		prow++;
 	}
 DONE:
@@ -369,7 +369,7 @@ static void adraw_ll_row_PAL8(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 	}
 DONE:
 	*p = val;			  /* Store final value */
@@ -407,7 +407,7 @@ static void draw_ll_row_GA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 2;
 	}
 DONE:
@@ -451,7 +451,7 @@ static void adraw_ll_row_GA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 2;
 	}
 DONE:
@@ -489,7 +489,7 @@ static void draw_ll_row_RGB(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 3;
 	}
 DONE:
@@ -529,7 +529,7 @@ static void adraw_ll_row_RGB(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 3;
 	}
 DONE:
@@ -566,7 +566,7 @@ static void draw_ll_row_RGBA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 4;
 	}
 DONE:
@@ -610,7 +610,7 @@ static void adraw_ll_row_RGBA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 4;
 	}
 DONE:
@@ -650,7 +650,7 @@ static void draw_ll_row_BGR(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 3;
 	}
 DONE:
@@ -690,7 +690,7 @@ static void adraw_ll_row_BGR(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 3;
 	}
 DONE:
@@ -727,7 +727,7 @@ static void draw_ll_row_BGRA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 4;
 	}
 DONE:
@@ -771,7 +771,7 @@ static void adraw_ll_row_BGRA(imginfo_t *pii, COLOR32 *p)
 				val = *p;
 				shift = 32;
 			}
-		} while (xpix & pii->dwidthshift);
+		} while (xpix % pii->multiwidth);
 		prow += 4;
 	}
 DONE:
@@ -922,7 +922,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 
 	pii->rowmask = (1 << bitdepth)-1;
 	pii->rowbitdepth = bitdepth;
-	rowpos = (pii->xpix >> pii->dwidthshift) * pixelsize;
+	rowpos = (pii->xpix / pii->multiwidth) * pixelsize;
 
 	/* Determine the correct draw_row function */
 	{
@@ -1148,8 +1148,8 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 					}
 					if (++pii->ypix >= pii->yend)
 						goto DONE;
-				} while (pii->ypix & pii->dheightshift);
-			
+				} while (pii->ypix % pii->multiheight);
+
 				/* Toggle current between 0 and rowlen+1 */
 				current = rowlen + 1 - current;
 				zs.next_out = prow + current;
@@ -1254,7 +1254,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 	/* Round to 32 bit value */
 	rowlen = ((pii->bi.hres * pixelsize + 31) >> 5) << 2; /* in bytes */
 	pii->rowmask = (1 << bitdepth)-1;
-	rowpos = (pii->xpix >> pii->dwidthshift) * bitdepth;
+	rowpos = (pii->xpix / pii->multiwidth) * bitdepth;
 	pii->rowbitdepth = bitdepth;
 
 	/* Determine the correct draw_row function */
@@ -1302,7 +1302,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 
 	if (pii->bi.flags & BF_BOTTOMUP) {
 		/* Draw bottom-up bitmap; we have to recompute yend and ypix */
-		pii->ypix = (pii->bi.vres << pii->dheightshift);
+		pii->ypix = (pii->bi.vres * pii->multiheight);
 		pii->yend = (pii->y < 0) ? -pii->y : 0;
 
 		for (;;) {
@@ -1319,7 +1319,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 				}
 				if (pii->ypix <= pii->yend)
 					goto DONE;
-			} while (pii->ypix & pii->dheightshift);
+			} while (pii->ypix % pii->multiheight);
 			p += rowlen;
 		}
 	} else {
@@ -1338,7 +1338,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 				}
 				if (++pii->ypix >= pii->yend)
 					goto DONE;
-			} while (pii->ypix & pii->dheightshift);
+			} while (pii->ypix % pii->multiheight);
 			p += rowlen;
 		}
 	}
@@ -1531,12 +1531,12 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 	/* Prepare attribute */
 	attr = pwi->attr;
 	ii.applyalpha = ((attr & ATTR_ALPHA) != 0);
-	ii.dwidthshift = ((attr & ATTR_DWIDTH) != 0);
-	ii.dheightshift = ((attr & ATTR_DHEIGHT) != 0);
+	ii.multiwidth = ((attr & ATTR_HS_MASK) >> 4) + 1;
+	ii.multiheight = ((attr & ATTR_VS_MASK) >> 6) + 1;
 
 	/* Apply double width and double height */
-	hres = (XYPOS)ii.bi.hres << ii.dwidthshift;
-	vres = (XYPOS)ii.bi.vres << ii.dheightshift;
+	hres = ii.bi.hres * ii.multiwidth;
+	vres = ii.bi.vres * ii.multiheight;
 
 	/* Apply horizontal alignment */
 	fbhres = (XYPOS)pwi->fbhres;
@@ -1545,16 +1545,16 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 	case ATTR_HLEFT:
 		break;
 
-	case ATTR_HRIGHT:
-		x -= hres-1;
-		break;
-
 	case ATTR_HCENTER:
 		x -= hres/2;
 		break;
 
-	case ATTR_HSCREEN:
-		x = (fbhres - hres)/2;
+	case ATTR_HRIGHT:
+		x++;
+		/* Fall through to case ATTR_HRIGHT1 */
+
+	case ATTR_HRIGHT1:
+		x -= hres;
 		break;
 	}
 
@@ -1563,16 +1563,16 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 	case ATTR_VTOP:
 		break;
 
-	case ATTR_VBOTTOM:
-		y -= vres-1;
-		break;
-
 	case ATTR_VCENTER:
 		y -= vres/2;
 		break;
 
-	case ATTR_VSCREEN:
-		y = (fbvres - vres)/2;
+	case ATTR_VBOTTOM:
+		y++;
+		/* Fall through to case ATTR_VBOTTOM1 */
+
+	case ATTR_VBOTTOM1:
+		y -= vres;
 		break;
 	}
 
