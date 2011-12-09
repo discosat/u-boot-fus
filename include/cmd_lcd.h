@@ -33,7 +33,6 @@ typedef unsigned char VID;
 typedef unsigned char WINDOW;
 typedef unsigned char PIX;
 typedef int XYPOS;
-typedef unsigned int HVRES;
 
 #include <lcd_panels.h>			  /* vidinfo_t */
 
@@ -143,13 +142,13 @@ struct vidinfo
 	const pixinfo_t *(*get_pixinfo_p)(WINDOW win, PIX pix);
 
 	/* Return maximum horizontal framebuffer resolution for this window */
-	HVRES (*get_fbmaxhres)(WINDOW win, PIX pix);
+	XYPOS (*get_fbmaxhres)(WINDOW win, PIX pix);
 
 	/* Return maximum vertical framebuffer resolution for this window */
-	HVRES (*get_fbmaxvres)(WINDOW win, PIX pix);
+	XYPOS (*get_fbmaxvres)(WINDOW win, PIX pix);
 
 	/* Align horizontal resolution to next word boundary (round up) */
-	HVRES (*align_hres)(WINDOW win, PIX pix, HVRES hres);
+	XYPOS (*align_hres)(WINDOW win, PIX pix, XYPOS hres);
 
 	/* Align horizontal offset to current word boundary (round down) */
 	XYPOS (*align_hoffs)(const wininfo_t *pwi, XYPOS hoffs);
@@ -180,8 +179,8 @@ struct wininfo
 	PIX pix;			  /* Current pixel format */
 	char name[12];			  /* "win0_0" or "win0" */
 	const pixinfo_t *ppi;		  /* Pointer to pixel format info */
-	HVRES hres;			  /* Size of visible window */
-	HVRES vres;
+	XYPOS hres;			  /* Size of visible window */
+	XYPOS vres;
 	XYPOS hpos;			  /* Position of window on display */
 	XYPOS vpos;
 
@@ -193,8 +192,8 @@ struct wininfo
 	u_char fbmaxcount;		  /* Maximum active buffer count */
 	u_char fbdraw;			  /* Index of buffer to draw to */
 	u_char fbshow;			  /* Index of buffer to show */
-	HVRES fbhres;			  /* Virtual size of framebuffer */
-	HVRES fbvres;
+	XYPOS fbhres;			  /* Virtual size of framebuffer */
+	XYPOS fbvres;
 	XYPOS hoffs;			  /* Offset within framebuffer (>=0) */
 	XYPOS voffs;
 

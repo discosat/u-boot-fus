@@ -291,7 +291,7 @@ static VID vid_sel;
 static VID vid_count;
 static int lockupdate;
 
-vidinfo_t vidinfo[CONFIG_DISPLAYS];	  /* Current display information */
+static vidinfo_t vidinfo[CONFIG_DISPLAYS]; /* Current display information */
 
 /* Size and base address of the framebuffer pool */
 static fbpoolinfo_t fbpool = {
@@ -1443,18 +1443,18 @@ U_BOOT_CMD(
 static void fix_offset(wininfo_t *wi)
 {
 	/* Move offset if necessary; window must fit into image buffer */
-	if ((HVRES)wi->hoffs + wi->hres > wi->fbhres)
-		wi->hoffs = (XYPOS)(wi->fbhres - wi->hres);
-	if ((HVRES)wi->voffs + wi->vres > wi->fbvres)
-		wi->voffs = (XYPOS)(wi->fbvres - wi->vres);
+	if (wi->hoffs + wi->hres > wi->fbhres)
+		wi->hoffs = (wi->fbhres - wi->hres);
+	if (wi->voffs + wi->vres > wi->fbvres)
+		wi->voffs = (wi->fbvres - wi->vres);
 }
 
 /* Set new framebuffer resolution, pixel format, and/or framebuffer count for
    the given window */
-static int setfbuf(wininfo_t *pwi, HVRES hres, HVRES vres,
-		   HVRES fbhres, HVRES fbvres, PIX pix, u_char fbcount)
+static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
+		   XYPOS fbhres, XYPOS fbvres, PIX pix, u_char fbcount)
 {
-	HVRES fbmaxhres, fbmaxvres;
+	XYPOS fbmaxhres, fbmaxvres;
 	u_long oldsize, newsize;
 	u_long linelen, fbsize;
 	u_long addr;
@@ -1573,9 +1573,9 @@ static int setfbuf(wininfo_t *pwi, HVRES hres, HVRES vres,
 }
 
 /* Set window resolution */
-static int set_winres(wininfo_t *pwi, HVRES hres, HVRES vres)
+static int set_winres(wininfo_t *pwi, XYPOS hres, XYPOS vres)
 {
-	HVRES fbhres, fbvres;
+	XYPOS fbhres, fbvres;
 	u_char fbcount;
 
 	/* Check if framebuffer must be increased */
@@ -1685,13 +1685,13 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	switch (sc) {
 	case WI_FBRES: {
-		HVRES fbhres, fbvres;
-		HVRES hres, vres;
+		XYPOS fbhres, fbvres;
+		XYPOS hres, vres;
 		u_char pix, fbcount;
 
 		/* Arguments 1+2: fbhres and fbvres */
-		fbhres = (HVRES)simple_strtoul(argv[2], NULL, 0);
-		fbvres = (HVRES)simple_strtoul(argv[3], NULL, 0);
+		fbhres = (XYPOS)simple_strtoul(argv[2], NULL, 0);
+		fbvres = (XYPOS)simple_strtoul(argv[3], NULL, 0);
 
 		/* Argument 3: pixel format (index number) */
 		pix = pwi->defpix;
@@ -1746,11 +1746,11 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 
 	case WI_RES: {
-		HVRES hres, vres;
+		XYPOS hres, vres;
 
 		/* Arguments 1+2: hres and vres */
-		hres = (HVRES)simple_strtoul(argv[2], NULL, 0);
-		vres = (HVRES)simple_strtoul(argv[3], NULL, 0);
+		hres = (XYPOS)simple_strtoul(argv[2], NULL, 0);
+		vres = (XYPOS)simple_strtoul(argv[3], NULL, 0);
 
 		/* Set window resolution */
 		return set_winres(pwi, hres, vres);
@@ -1908,7 +1908,7 @@ static void set_delay(u_short *delays, int index, u_short value)
 static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 {
 	u_int param = 0;
-	HVRES hres, vres;
+	XYPOS hres, vres;
 
 	/* All parameters but LI_NAME require a number, parse it */
 	if (sc != LI_NAME)
@@ -1947,8 +1947,8 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		pvi->lcd.hbp = (u_short)param;
 		break;
 
-	case LI_HRES:			  /* Parse HVRES */
-		hres = (HVRES)param;
+	case LI_HRES:			  /* Parse XYPOS */
+		hres = (XYPOS)param;
 		vres = pvi->lcd.vres;
 
 		/* This also sets resolution of window 0 of this display to
@@ -1971,9 +1971,9 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 		pvi->lcd.vbp = (u_short)param;
 		break;
 
-	case LI_VRES:			  /* Parse HVRES */
+	case LI_VRES:			  /* Parse XYPOS */
 		hres = pvi->lcd.hres;
-		vres = (HVRES)param;
+		vres = (XYPOS)param;
 
 		/* This also sets resolution of window 0 of this display to
 		   the same size */
@@ -2285,43 +2285,33 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 
 	case LI_DIM:		  /* Parse exactly 2 u_shorts */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.hdim = (u_short)param;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.vdim = (u_short)param;
+		pvi->lcd.hdim = (u_short)simple_strtoul(argv[2], NULL, 0);
+		pvi->lcd.vdim = (u_short)simple_strtoul(argv[3], NULL, 0);
 		break;
 
-	case LI_RES:		  /* Parse exactly 2 HVRES'es */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.hres = (HVRES)param;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.vres = (HVRES)param;
+	case LI_RES:		  /* Parse exactly 2 XYPOS'es */
+		pvi->lcd.hres = (XYPOS)simple_strtoul(argv[2], NULL, 0);
+		pvi->lcd.vres = (XYPOS)simple_strtoul(argv[3], NULL, 0);
 		break;
 
 	case LI_HTIMING:	  /* Parse up to 3 u_shorts */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.hfp = (u_short)param;
+		pvi->lcd.hfp = (u_short)simple_strtoul(argv[2], NULL, 0);
 		if (argc < 4)
 			break;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.hsw = (u_short)param;
+		pvi->lcd.hsw = (u_short)simple_strtoul(argv[3], NULL, 0);
 		if (argc < 5)
 			break;
-		param = simple_strtoul(argv[4], NULL, 0);
-		pvi->lcd.hbp = (u_short)param;
+		pvi->lcd.hbp = (u_short)simple_strtoul(argv[4], NULL, 0);
 		break;
 
 	case LI_VTIMING:	  /* Parse up to 3 u_shorts */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->lcd.vfp = (u_short)param;
+		pvi->lcd.vfp = (u_short)simple_strtoul(argv[2], NULL, 0);
 		if (argc < 4)
 			break;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->lcd.vsw = (u_short)param;
+		pvi->lcd.vsw = (u_short)simple_strtoul(argv[3], NULL, 0);
 		if (argc < 5)
 			break;
-		param = simple_strtoul(argv[4], NULL, 0);
-		pvi->lcd.vbp = (u_short)param;
+		pvi->lcd.vbp = (u_short)simple_strtoul(argv[4], NULL, 0);
 		break;
 
 	case LI_POL:			  /* Parse up to 4 flags */
@@ -2380,12 +2370,10 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 
 	case LI_EXTRA:		  /* Parse flag + number */
-		param = simple_strtoul(argv[2], NULL, 0);
-		pvi->frc = (param != 0);
+		pvi->frc = ( simple_strtoul(argv[2], NULL, 0) != 0);
 		if (argc < 4)
 			break;
-		param = simple_strtoul(argv[3], NULL, 0);
-		pvi->drive = (u_char)param;
+		pvi->drive = (u_char)simple_strtoul(argv[3], NULL, 0);
 		break;
 
 #if (CONFIG_DISPLAYS > 1)
@@ -2720,6 +2708,8 @@ void drv_lcd_init(void)
 
 			/* Fill remaining entries with default values */
 			pwi->pvi = pvi;
+
+			/* Window information */
 			pwi->win = win;
 			pwi->active = 0;
 			pwi->pix = pwi->defpix;
@@ -2728,6 +2718,8 @@ void drv_lcd_init(void)
 			pwi->vres = 0;
 			pwi->hpos = 0;
 			pwi->vpos = 0;
+
+			/* Framebuffer information */
 			for (buf = 0; buf < pwi->fbmaxcount; buf++)
 				pwi->pfbuf[buf] = fbpool.base;
 			pwi->fbsize = 0;

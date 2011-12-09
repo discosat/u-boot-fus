@@ -126,8 +126,8 @@ typedef struct bminfo {
 	u_char colortype;		  /* Color type (CT_*) */
 	u_char bitdepth;		  /* Per color channel */
 	u_char flags;			  /* Flags (BF_*) */
-	HVRES hres;			  /* Width of bitmap in pixels */
-	HVRES vres;			  /* Height of bitmap in pixels */
+	XYPOS hres;			  /* Width of bitmap in pixels */
+	XYPOS vres;			  /* Height of bitmap in pixels */
 	const char *bm_name;		  /* Bitmap type "BMP", "PNG", ... */
 	const char *ct_name;		  /* Color type "palette", ... */
 } bminfo_t;
@@ -379,7 +379,7 @@ DONE:
 
 #ifdef CONFIG_CMD_PNG
 static void draw_ll_row_GA(imginfo_t *pii, COLOR32 *p)
-				   
+
 {
 	int xpix = pii->xpix;
 	u_int shift = pii->shift;
@@ -866,7 +866,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 	draw_row_func_t draw_row;	  /* Draw bitmap row */
 
 	static const draw_row_func_t draw_row_tab[2][6] = {
-		{	
+		{
 			/* ATTR_ALPHA = 0 */
 			NULL,
 			draw_ll_row_PAL,
@@ -888,7 +888,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 
 	colortype = pii->bi.colortype;
 	bitdepth = pii->bi.bitdepth;
-		
+
 	/* We can not handle some types of bitmaps */
 	if (bitdepth > 8)
 		return "Unsupported PNG bit depth\n";
@@ -1216,7 +1216,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 	draw_row_func_t draw_row;	  /* Draw bitmap row */
 
 	static const draw_row_func_t draw_row_tab[2][6] = {
-		{	
+		{
 			/* ATTR_ALPHA = 0 */
 			NULL,
 			draw_ll_row_PAL,
@@ -1322,7 +1322,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 			} while (pii->ypix & pii->dheightshift);
 			p += rowlen;
 		}
-	} else {		
+	} else {
 		/* Draw top-down bitmap */
 		for (;;) {
 			/* If row is in framebuffer range, draw it */
@@ -1359,7 +1359,7 @@ static const char *draw_jpg(imginfo_t *pii, u_long addr)
 {
 	return "JPG images not yet supported";
 }
-#endif /* CONFIG_CMD_JPG */	
+#endif /* CONFIG_CMD_JPG */
 
 
 /************************************************************************/
@@ -1420,8 +1420,8 @@ static void lcd_get_bminfo(bminfo_t *pbi, u_long addr)
 		pbi->colortype = (p[9]>6) ? CT_UNKNOWN : png_colortypes[p[9]];
 		pbi->bitdepth = p[8];
 		pbi->flags = BF_COMPRESSED | (p[12] ? BF_INTERLACED : 0);
-		pbi->hres = (HVRES)get_be32(p);
-		pbi->vres = (HVRES)get_be32(p+4);
+		pbi->hres = (XYPOS)get_be32(p);
+		pbi->vres = (XYPOS)get_be32(p+4);
 	} else
 #endif /* CONFIG_CMD_PNG */
 
@@ -1478,13 +1478,13 @@ static void lcd_get_bminfo(bminfo_t *pbi, u_long addr)
 		}
 		c = get_le32(p+16);
 		pbi->flags = ((c == 1) || (c == 2)) ? BF_COMPRESSED : 0;
-		pbi->hres = (HVRES)get_le32(p+4);
+		pbi->hres = (XYPOS)get_le32(p+4);
 		vres = (int)get_le32(p+8);
 		if (vres < 0)
 			vres = -vres;
 		else
 			pbi->flags |= BF_BOTTOMUP;
-		pbi->vres = (HVRES)vres;
+		pbi->vres = (XYPOS)vres;
 	} else
 #endif /* CONFIG_CMD_BMP */
 
@@ -1723,7 +1723,7 @@ static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			       bi.bm_name,
 			       (bi.flags & BF_COMPRESSED) ? 'C' : '-',
 			       (bi.flags & BF_INTERLACED) ? 'I' : '-',
-			       (bi.flags & BF_BOTTOMUP) ? 'B' : '-', 
+			       (bi.flags & BF_BOTTOMUP) ? 'B' : '-',
 			       bi.ct_name);
 			if (--count == 0)
 				break;

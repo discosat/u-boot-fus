@@ -1057,7 +1057,7 @@ static void set_cmap16(const wininfo_t *pwi, u_int index, u_int end,
 }
 
 /* Return maximum horizontal framebuffer resolution for this window */
-static HVRES s3c64xx_get_fbmaxhres(WINDOW win, u_char pix)
+static XYPOS s3c64xx_get_fbmaxhres(WINDOW win, u_char pix)
 {
 	/* Maximum linelen is 13 bits, that's at most 8191 bytes; however to
 	   be word aligned even for 1bpp, we can at most take 8188 */
@@ -1065,14 +1065,14 @@ static HVRES s3c64xx_get_fbmaxhres(WINDOW win, u_char pix)
 }
 
 /* Return maximum vertical framebuffer resolution for this window */
-static HVRES s3c64xx_get_fbmaxvres(WINDOW win, u_char pix)
+static XYPOS s3c64xx_get_fbmaxvres(WINDOW win, u_char pix)
 {
 	/* No limit on vertical size */
 	return 65535;
 }
 
 /* Align horizontal buffer resolution to next word boundary (round up) */
-static HVRES s3c64xx_align_hres(WINDOW win, u_char pix, HVRES hres)
+static XYPOS s3c64xx_align_hres(WINDOW win, u_char pix, XYPOS hres)
 {
 	unsigned shift = 5 - pixel_info[pix].bpp_shift;
 	XYPOS mask = (1 << shift) - 1;

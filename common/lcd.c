@@ -501,7 +501,6 @@ static void test_pattern0(const wininfo_t *pwi)
 		puts("Window too small\n");
 		return;
 	}
-
 	/* Clear screen */
 	lcd_clear(pwi);
 
