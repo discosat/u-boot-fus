@@ -1146,6 +1146,21 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			y2 = (XYPOS)simple_strtol(argv[5], NULL, 0);
 			x2 += pwi->horigin;
 			y2 += pwi->vorigin;
+
+			/* Sort coordinates unless drawing a line */
+			if (sc != DI_LINE) {
+				XYPOS tmp;
+				if (x1 > x2) {
+					tmp = x1;
+					x1 = x2;
+					x2 = tmp;
+				}
+				if (y1 > y2) {
+					tmp = y1;
+					y1 = y2;
+					y2 = tmp;
+				}
+			}
 		}
 	}
 

@@ -969,18 +969,6 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
 
-	/* Sort x and y values */
-	if (x1 > x2) {
-		XYPOS xtemp = x1;
-		x1 = x2;
-		x2 = xtemp;
-	}
-	if (y1 > y2) {
-		XYPOS ytemp = y1;
-		y1 = y2;
-		y2 = ytemp;
-	}
-
 	/* Check if object is fully left, right, above or below screen */
 	xmin = pwi->clip_left;
 	ymin = pwi->clip_top;
@@ -1046,18 +1034,6 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
-
-	/* Sort x and y values */
-	if (x1 > x2) {
-		XYPOS xtemp = x1;
-		x1 = x2;
-		x2 = xtemp;
-	}
-	if (y1 > y2) {
-		XYPOS ytemp = y1;
-		y1 = y2;
-		y2 = ytemp;
-	}
 
 	/* Check if object is fully left, right, above or below screen */
 	xmin = pwi->clip_left;
