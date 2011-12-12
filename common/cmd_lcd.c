@@ -311,6 +311,10 @@ static fbpoolinfo_t fbpool = {
 	used:	0
 };
 
+/* Expression parser for draw command */
+static char *pNextChar;			  /* Pointer to next character */
+static char *pParseError;		  /* NULL or error reason */
+
 /* LCD types, corresponding to lcdinfo_t.type */
 static char * const typeinfo[9] = {
 	"Single-scan 4-bit STN",
@@ -538,6 +542,18 @@ static vidinfo_t *lcd_get_vidinfo_p(VID vid);
 
 /* Get pointer to current window information */
 static wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win);
+
+/* Parse a factor, i.e. a sub-expression in '('..')', a variable or a number */
+static int parse_factor(wininfo_t *pwi);
+
+/* Parse a product, i.e. a sub-expression combining factors with '*' or '/' */
+static int parse_product(wininfo_t *pwi);
+
+/* Parse a sum, i.e. a sub-expression combining products with '+' or '-' */
+static int parse_sum(wininfo_t *pwi);
+
+/* Parse a corrdinate expression for draw command */
+static int parse_expr(wininfo_t *pwi, char *pExpr, XYPOS *pResult);
 
 
 /************************************************************************/
@@ -859,6 +875,183 @@ U_BOOT_CMD(
 /* Command draw								*/
 /************************************************************************/
 
+/* Parse a factor, i.e. a sub-expression in '('..')', a variable or a number;
+   the factor can have any number of prefix signs '+' or '-'. After return,
+   pNextChar is either on the next character behind the factor or in case of
+   error on the erroneous character itself */
+static int parse_factor(wininfo_t *pwi)
+{
+	char c;
+	int sign = 1;
+	int result;
+
+	/* Parse sign prefix (multiple prefixes allowed, e.g. --+-5) */
+	for (;;) {
+		c = *pNextChar;
+		if (c == '-')
+			sign = -sign;
+		else if (c != '+')
+			break;
+		pNextChar++;
+	}
+
+	/* Check for subexpression in parantheses */
+	if (c == '(') {
+		pNextChar++;
+		result = parse_sum(pwi);
+		if (pParseError)
+			return result;
+
+		/* Check for closing parenthesis */
+		if (*pNextChar == ')')
+			pNextChar++;
+		else
+			pParseError = "Missing ')'";
+	}
+	/* Check for number */
+	else if (isdigit(c)) {
+		char *pStop;
+
+		result = (int)simple_strtoul(pNextChar, &pStop, 0);
+		pNextChar = pStop;
+	}
+	/* Check for variables */
+	else {
+		int bUseFB = 0;
+		XYPOS res;
+		XYPOS origin;
+
+		if (strncmp(pNextChar, "fb", 2) == 0) {
+			bUseFB = 1;
+			pNextChar += 2;
+		}
+		c = *pNextChar++;
+		if (c == 'h') {
+			/* Horizontal values */
+			res = bUseFB ? pwi->fbhres
+				: (pwi->clip_right - pwi->clip_left + 1);
+			origin = pwi->horigin;
+		} else if (c == 'v') {
+			res = bUseFB ? pwi->fbvres
+				: (pwi->clip_bottom - pwi->clip_top + 1);
+			origin = pwi->vorigin;
+		} else {
+		BADVAR:
+			/* Bad variable name; reset pointer to beginning of
+			   variable name */
+			pParseError = "Bad name";
+			pNextChar -= bUseFB ? 3 : 1;
+			return 0;
+		}
+		if (strncmp(pNextChar, "min", 3) == 0)
+			result = -origin;
+		else if (strncmp(pNextChar, "max", 3) == 0)
+			result = res - 1 - origin;
+		else if (strncmp(pNextChar, "mid", 6) == 0)
+			result = res/2 - origin;
+		else if (strncmp(pNextChar, "res", 3) == 0)
+			result = res;
+		else
+			goto BADVAR;
+		pNextChar += 3;
+	} 
+
+	/* Apply sign */
+	if (sign < 0)
+		result = -result;
+
+	return result;
+}
+
+/* Parse a product i.e. a sub-expression that combines factors with '*' or '/'.
+   After return, pNextChar is either on the next character behind the product
+   or in case of error on the erroneous character itself */
+static int parse_product(wininfo_t *pwi)
+{
+	int result;
+	char c;
+
+	result = parse_factor(pwi);
+
+	while (!pParseError) {
+		c = *pNextChar;
+		if (c == '*') {
+			pNextChar++;
+			result *= parse_product(pwi);
+		}
+		else if (c == '/') {
+			int tmp;
+			pNextChar++;
+			tmp = parse_product(pwi);
+			if (pParseError)
+				break;
+
+			if (!tmp)
+				pParseError = "Division by zero";
+			else
+				result /= tmp;
+		}
+		else
+			break;
+	}
+
+	return result;
+}
+
+/* Parse a sum, i.e. a sub-expression that combines products with '+' or '-'.
+   After return, pNextChar is either on the next character behind the sum
+   or in case of error on the erroneous character itself */
+static int parse_sum(wininfo_t *pwi)
+{
+	int result;
+	char c;
+
+	result = parse_product(pwi);
+	while (!pParseError) {
+		c = *pNextChar;
+		if (c == '+') {
+			pNextChar++;
+			result += parse_product(pwi);
+		}
+		else if (c == '-') {
+			pNextChar++;
+			result -= parse_product(pwi);
+		}
+		else
+			break;
+	}
+
+	return result;
+}
+
+/* Parse the expression at pExpr for coordinates, return result in pResult.
+   Return 0 on success and 1 on error. */
+static int parse_expr(wininfo_t *pwi, char *pExpr, XYPOS *pResult)
+{
+	char c;
+
+	/* Initialize parser pointer and parser error */
+	pNextChar = pExpr;
+	pParseError = NULL;
+
+	/* Parse expression as a sum */
+	*pResult = parse_sum(pwi);
+
+	/* If the expression does not contain an error, it should now be fully
+	   consumed. */
+	c = *pNextChar;
+	if (c && !pParseError)
+		pParseError = "Invalid character";
+
+	/* Show any error */
+	if (pParseError) {
+		printf("%s at %s\n", pParseError,
+		       c ? pNextChar : "end of expression");
+	}
+
+	return (pParseError != NULL);
+}
+
 /* Draw progress bar; pwi->attr is either 0 or ATTR_ALPHA */
 static void lcd_progbar(wininfo_t *pwi)
 {
@@ -1136,14 +1329,17 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	/* Parse one or two coordinate pairs for commands with coordinates */
 	coord_pairs = draw_kw[sc].info1;
 	if (coord_pairs > 0) {
-		x1 = (XYPOS)simple_strtol(argv[2], NULL, 0);
-		y1 = (XYPOS)simple_strtol(argv[3], NULL, 0);
+		if (parse_expr(pwi, argv[2], &x1)
+		    || parse_expr(pwi, argv[3], &y1))
+			return 1;
 		x1 += pwi->horigin;
 		y1 += pwi->vorigin;
 
 		if (coord_pairs > 1) {
-			x2 = (XYPOS)simple_strtol(argv[4], NULL, 0);
-			y2 = (XYPOS)simple_strtol(argv[5], NULL, 0);
+			if (parse_expr(pwi, argv[4], &x2)
+			    || parse_expr(pwi, argv[5], &y2))
+				return 1;
+
 			x2 += pwi->horigin;
 			y2 += pwi->vorigin;
 
@@ -1389,6 +1585,9 @@ U_BOOT_CMD(
 	"    - set FG (and BG) color\n"
 	"draw\n"
 	"    - show current drawing parameters\n"
+        "Coordinates may be expressions with +, -, *, /, (, ), and with the\n"
+	"following names: hmin, hmid, hmax, hres, vmin, vmid, vmax, vres\n"
+	"fbhmin, fbhmid, fbhmax, fbhres, fbvmin, fbvmid, fbvmax, fbvres\n"
 );
 
 U_BOOT_CMD(
