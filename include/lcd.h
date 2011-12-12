@@ -50,44 +50,44 @@ extern void console_init(wininfo_t *pwi, RGBA fg, RGBA bg);
 extern void console_update(wininfo_t *pwi, RGBA fg, RGBA bg);
 #endif
 
+extern void console_cls(const wininfo_t *pwi, COLOR32 col);
+
 extern void lcd_putc(const device_t *pdev, const char c);
 extern void lcd_puts(const device_t *pdev, const char *s);
 
-/* Set the FG color */
-extern void lcd_set_fg(wininfo_t *pwi, RGBA rgba);
+/* Set colinfo structure */
+extern void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci);
 
-/* Set the BG color */
-extern void lcd_set_bg(wininfo_t *pwi, RGBA rgba);
+/* Fill display with given color */
+extern void lcd_fill(const wininfo_t *pwi, const colinfo_t *pci);
 
-/* Fill display with FG color */
-extern void lcd_fill(const wininfo_t *pwi);
+/* Draw pixel at (x, y) with given color */
+extern void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y,
+		      const colinfo_t *pci);
 
-/* Fill display with BG color */
-extern void lcd_clear(const wininfo_t *pwi);
-
-/* Draw pixel at (x, y) with FG color */
-extern void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y);
-
-/* Draw line from (x1, y1) to (x2, y2) in FG color */
+/* Draw line from (x1, y1) to (x2, y2) in given color */
 extern void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		     XYPOS x2, XYPOS y2);
+		     XYPOS x2, XYPOS y2, const colinfo_t *pci);
 
-/* Draw rectangular frame from (x1, y1) to (x2, y2) in FG color */
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in given color */
 extern void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		      XYPOS x2, XYPOS y2);
+		      XYPOS x2, XYPOS y2, const colinfo_t *pci);
 
-/* Draw filled rectangle from (x1, y1) to (x2, y2) in FG color */
+/* Draw filled rectangle from (x1, y1) to (x2, y2) in given color */
 extern void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-		     XYPOS x2, XYPOS y2);
+		     XYPOS x2, XYPOS y2, const colinfo_t *pci);
 
-/* Draw circle outline at (x, y) with radius r and FG color */
-extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
+/* Draw circle outline at (x, y) with radius r and given color */
+extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		       const colinfo_t *pci);
 
-/* Draw filled circle at (x, y) with radius r and FG color */
-extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
+/* Draw filled circle at (x, y) with radius r and given color */
+extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		     const colinfo_t *pci);
 
-/* Draw text string s at (x, y) with FG/BG color and alignment/attribute */
-extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s);
+/* Draw text string s at (x, y) with given colors and alignment/attribute */
+extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
+		     const colinfo_t *pci_fg, const colinfo_t *pci_bg);
 
 /* Draw test pattern */
 extern int lcd_test(const wininfo_t *pwi, u_int pattern);

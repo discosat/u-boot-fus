@@ -81,7 +81,8 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c);
 static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col);
 
 /* Draw pixel by applying alpha of new pixel; pixel is definitely valid */
-static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y);
+static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y,
+			   const colinfo_t *pci);
 
 /* Draw filled rectangle, replacing pixels with new color; given region is
    definitely valid and x and y are sorted (x1 <= x2, y1 <= y2) */
@@ -91,7 +92,7 @@ static void draw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 /* Draw filled rectangle, applying alpha; given region is definitely valid and
    x and y are sorted (x1 <= x2, y1 <= y2) */
 static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-			  XYPOS x2, XYPOS y2);
+			  XYPOS x2, XYPOS y2, const colinfo_t *pci);
 
 /* Draw a character, replacing pixels with new color; character area is
    definitely valid */
@@ -99,7 +100,8 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 			 COLOR32 fg, COLOR32 bg);
 
 /* Draw a character, applyig alpha; character area is definitely valid */
-static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c);
+static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
+			  const colinfo_t *pci_fg, const colinfo_t *pci_bg);
 
 
 /************************************************************************/
@@ -154,7 +156,8 @@ static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col)
 
 
 /* Draw pixel by applying alpha of new pixel; pixel is definitely valid */
-static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
+static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y,
+			   const colinfo_t *pci)
 {
 	u_int bpp_shift = pwi->ppi->bpp_shift;
 	int xpos = x << bpp_shift;
@@ -172,7 +175,7 @@ static void adraw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
 	/* Remove old pixel and fill in new pixel */
 	p = (COLOR32 *)(fbuf + ((xpos >> 5) << 2));
 	val = *p;
-	col = pwi->ppi->apply_alpha(pwi, &pwi->fg, val >> shift);
+	col = pwi->ppi->apply_alpha(pwi, pci, val >> shift);
 	val &= ~(mask << shift);
 	val |= col << shift;
 	*p = val;
@@ -246,7 +249,7 @@ static void draw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 /* Draw filled rectangle, applying alpha; given region is definitely valid and
    x and y are sorted (x1 <= x2, y1 <= y2) */
 static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
-			  XYPOS x2, XYPOS y2)
+			  XYPOS x2, XYPOS y2, const colinfo_t *pci)
 {
 	u_int bpp_shift = pwi->ppi->bpp_shift;
 	u_int bpp = 1 << bpp_shift;
@@ -274,7 +277,7 @@ static void adraw_ll_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 		for (;;) {
 			COLOR32 col;
 			s -= bpp;
-			col = pwi->ppi->apply_alpha(pwi, &pwi->fg, val >> s);
+			col = pwi->ppi->apply_alpha(pwi, pci, val >> s);
 			val &= ~(mask << s);
 			val |= col << s;
 			if (!--c)
@@ -386,7 +389,8 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 
 
 /* Draw a character, applyig alpha; character area is definitely valid */
-static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
+static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
+			  const colinfo_t *pci_fg, const colinfo_t *pci_bg)
 {
 	u_int bpp_shift = pwi->ppi->bpp_shift;
 	u_int bpp = 1 << bpp_shift;
@@ -448,12 +452,10 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 					s -= bpp;
 					if (fd & fm)
 						col = pwi->ppi->apply_alpha(
-							pwi, &pwi->fg,
-							val >> s);
+							pwi, pci_fg, val >> s);
 					else if (!(attr & ATTR_NO_BG))
 						col = pwi->ppi->apply_alpha(
-							pwi, &pwi->bg,
-							val >> s);
+							pwi, pci_bg, val >> s);
 					else
 						goto TRANS;
 					val &= ~(mask << s);
@@ -499,6 +501,7 @@ static void lcd_ll_pattern0(const wininfo_t *pwi,
 	XYPOS r1, r2, scale;
 	XYPOS hres, vres;
 	COLOR32 col;
+	colinfo_t ci;
 
 	static const RGBA const coltab[] = {
 		0xFF0000FF,		  /* R */
@@ -526,7 +529,11 @@ static void lcd_ll_pattern0(const wininfo_t *pwi,
 	hright = hleft + (12-1)*dx;
 	vbottom = vtop + (8-1)*dy;
 
+	/* Draw lines and circles in white; the circle command needs a colinfo
+	   structure for the color; however we know that ATTR_ALPHA is cleared
+	   so it is enough to set the col entry of this structure. */
 	col = ppi->rgba2col(pwi, 0xFFFFFFFF);  /* White */
+	ci.col = col;
 
 	/* Draw vertical lines of grid */
 	for (x = hleft; x <= hright; x += dx)
@@ -576,11 +583,9 @@ static void lcd_ll_pattern0(const wininfo_t *pwi,
 	x = hres/2 + x1;
 	y = vres/2 + y1;
 
-	//##### Wegen diesen Kreisen muss die FG-Farbe auf weiß gesetzt sein;
-	//##### wenn das weg könnte, dann könnte man sich das Sichern und
-	//##### Wiederherstellen der FG-Farbe in do_draw() sparen.
-	lcd_circle(pwi, x, y, r1 - 1);
-	lcd_circle(pwi, x, y, r2);
+	/* Draw two circles */
+	lcd_circle(pwi, x, y, r1 - 1, &ci);
+	lcd_circle(pwi, x, y, r2, &ci);
 
 	/* Draw corners */
 	if ((hres >= 8) && (vres >= 8)) {
@@ -795,8 +800,8 @@ static void lcd_ll_pattern3(const wininfo_t *pwi,
 /* GRAPHICS PRIMITIVES							*/
 /************************************************************************/
 
-/* Fill clipping region with FG color */
-void lcd_fill(const wininfo_t *pwi)
+/* Fill clipping region with given color */
+void lcd_fill(const wininfo_t *pwi, const colinfo_t *pci)
 {
 	XYPOS x1, y1, x2, y2;
 
@@ -807,35 +812,28 @@ void lcd_fill(const wininfo_t *pwi)
 	y2 = pwi->clip_bottom;
 
 	if (pwi->attr & ATTR_ALPHA)
-		adraw_ll_rect(pwi, x1, y1, x2, y2);
+		adraw_ll_rect(pwi, x1, y1, x2, y2, pci);
 	else
-		memset32((unsigned *)pwi->pfbuf[pwi->fbdraw],
-			 col2col32(pwi, pwi->fg.col), pwi->fbsize/4);
+		draw_ll_rect(pwi, x1, y1, x2, y2, pci->col);
 }
 
-/* Clear display with BG color */
-void lcd_clear(const wininfo_t *pwi)
-{
-	memset32((unsigned *)pwi->pfbuf[pwi->fbdraw],
-		 col2col32(pwi, pwi->bg.col), pwi->fbsize/4);
-}
-
-/* Draw pixel at (x, y) with FG color */
-void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
+/* Draw pixel at (x, y) with given color */
+void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, const colinfo_t *pci)
 {
 	if ((x < pwi->clip_left) || (x > pwi->clip_right)
 	    || (y < pwi->clip_top) || (y > pwi->clip_bottom))
 		return;
 
 	if (pwi->attr & ATTR_ALPHA)
-		adraw_ll_pixel(pwi, x, y);
+		adraw_ll_pixel(pwi, x, y, pci);
 	else
-		draw_ll_pixel(pwi, x, y, pwi->fg.col);
+		draw_ll_pixel(pwi, x, y, pci->col);
 }
 
 
 /* Draw line from (x1, y1) to (x2, y2) in color */
-void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
+void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	      const colinfo_t *pci)
 {
 	int dx, dy, dd;
 	XYPOS xmin, ymin, xmax, ymax;
@@ -897,14 +895,14 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		/* If line is vertical, we can use the more efficient
 		   rectangle function */
 		if (dx == 0) {
-			lcd_rect(pwi, x1, y1, x2, y2);
+			lcd_rect(pwi, x1, y1, x2, y2, pci);
 			return;
 		}
 
 		/* Draw line from top to bottom, i.e. every loop cycle go one
 		   pixel down and sometimes one pixel left or right */
 		for (;;) {
-			lcd_pixel(pwi, x1, y1);
+			lcd_pixel(pwi, x1, y1, pci);
 			if (y1 == y2)
 				break;
 			y1++;
@@ -958,14 +956,14 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		   rectangle function */
 		if (dy == 0) {
 			/* Draw horizontal line */
-			lcd_rect(pwi, x1, y1, x2, y2);
+			lcd_rect(pwi, x1, y1, x2, y2, pci);
 			return;
 		}
 
 		/* Draw line from left to right, i.e. every loop cycle go one
 		   pixel right and sometimes one pixel up or down */
 		for (;;) {
-			lcd_pixel(pwi, x1, y1);
+			lcd_pixel(pwi, x1, y1, pci);
 			if (x1 == x2)
 				break;
 			x1++;
@@ -978,9 +976,10 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	}
 }
 
-/* Draw rectangular frame from (x1, y1) to (x2, y2) in color; x1<=x2 and
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in given color; x1<=x2 and
    y1<=y2 must be valid! */
-void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
+void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	       const colinfo_t *pci)
 {
 	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
@@ -1004,7 +1003,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 
 		/* Draw top line */
 		if (y1 >= ymin) {
-			lcd_rect(pwi, xl, y1, xr, y1);
+			lcd_rect(pwi, xl, y1, xr, y1, pci);
 
 			/* We are done if rectangle is exactly one pixel high */
 			if (y1 == y2)
@@ -1013,7 +1012,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 
 		/* Draw bottom line */
 		if (y2 <= ymax)
-			lcd_rect(pwi, xl, y2, xr, y2);
+			lcd_rect(pwi, xl, y2, xr, y2, pci);
 
 		/* For the vertical lines we only need to draw the region
 		   between the horizontal lines, so increment y1 and decrement
@@ -1031,7 +1030,7 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 
 	/* Draw left line */
 	if (x1 >= xmin) {
-		lcd_rect(pwi, x1, y1, x1, y2);
+		lcd_rect(pwi, x1, y1, x1, y2, pci);
 
 		/* Return if rectangle is exactly one pixel wide */
 		if (x1 == x2)
@@ -1040,13 +1039,14 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 
 	/* Draw right line */
 	if (x2 <= xmax)
-		lcd_rect(pwi, x2, y1, x2, y2);
+		lcd_rect(pwi, x2, y1, x2, y2, pci);
 }
 
 
 /* Draw filled rectangle from (x1, y1) to (x2, y2) in color; x1<=x2 and
    y1<=y2 must be valid! */
-void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
+void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	      const colinfo_t *pci)
 {
 	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
@@ -1071,9 +1071,9 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 
 	/* Finally draw rectangle */
 	if (pwi->attr & ATTR_ALPHA)
-		adraw_ll_rect(pwi, x1, y1, x2, y2);
+		adraw_ll_rect(pwi, x1, y1, x2, y2, pci);
 	else
-		draw_ll_rect(pwi, x1, y1, x2, y2, pwi->fg.col);
+		draw_ll_rect(pwi, x1, y1, x2, y2, pci->col);
 }
 
 
@@ -1153,7 +1153,8 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
  *
  * Remark: this algorithm computes an optimal approximation to a circle, i.e.
  * the result is also symmetric to the angle bisector. */
-void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
+void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		const colinfo_t *pci)
 {
 	XYPOS dx = 0;
 	XYPOS dy = r;
@@ -1163,13 +1164,13 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 		return;
 
 	if (r == 0) {
-		lcd_pixel(pwi, x, y);
+		lcd_pixel(pwi, x, y, pci);
 		return;
 	}
 
 	/* Draw first two pixels with dx == 0 */
-	lcd_pixel(pwi, x, y - dy);
-	lcd_pixel(pwi, x, y + dy);
+	lcd_pixel(pwi, x, y - dy, pci);
+	lcd_pixel(pwi, x, y + dy, pci);
 	if (dd < 0)
 		dd += 3;		  /* 2*dx + 3, but dx is 0 */
 	else				  /* Only possible for r==1 */
@@ -1178,12 +1179,10 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_pixel(pwi, x + dx, y - dy);
-		lcd_pixel(pwi, x + dx, y + dy);
-		if (dx) {
-			lcd_pixel(pwi, x - dx, y - dy);
-			lcd_pixel(pwi, x - dx, y + dy);
-		}
+		lcd_pixel(pwi, x + dx, y - dy, pci);
+		lcd_pixel(pwi, x + dx, y + dy, pci);
+		lcd_pixel(pwi, x - dx, y - dy, pci);
+		lcd_pixel(pwi, x - dx, y + dy, pci);
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
 		else {
@@ -1198,10 +1197,10 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy) {
-		lcd_pixel(pwi, x + dx, y - dy);
-		lcd_pixel(pwi, x - dx, y - dy);
-		lcd_pixel(pwi, x + dx, y + dy);
-		lcd_pixel(pwi, x - dx, y + dy);
+		lcd_pixel(pwi, x + dx, y - dy, pci);
+		lcd_pixel(pwi, x - dx, y - dy, pci);
+		lcd_pixel(pwi, x + dx, y + dy, pci);
+		lcd_pixel(pwi, x - dx, y + dy, pci);
 
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
@@ -1212,15 +1211,17 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 	}
 
 	/* Draw final pixels with dy == 0 */
-	lcd_pixel(pwi, x + dx, y);
-	lcd_pixel(pwi, x - dx, y);
+	lcd_pixel(pwi, x + dx, y, pci);
+	lcd_pixel(pwi, x - dx, y, pci);
 }
 
 
 /* Draw filled circle at (x, y) with radius r and color. The algorithm is the
    same as explained above at lcd_circle(), however we can skip some tests as
-   we always draw a full line from the left to the right of the circle. */
-void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
+   we always draw a full line from the left to the right of the circle. As
+   clipping is done in lcd_rect(), we don't care about clipping here. */
+void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+	      const colinfo_t *pci)
 {
 	XYPOS dx = 0;
 	XYPOS dy = r;
@@ -1231,8 +1232,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy);
+		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, pci);
+		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, pci);
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
 		else {
@@ -1247,8 +1248,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy > 0) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy);
+		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, pci);
+		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, pci);
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
 			dx++;
@@ -1258,7 +1259,7 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
 	}
 
 	/* Draw final line with dy == 0 */
-	lcd_rect(pwi, x - dx, y, x + dx, y);
+	lcd_rect(pwi, x - dx, y, x + dx, y, pci);
 }
 
 
@@ -1282,7 +1283,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r)
    partly outside of the framebuffer, it is not drawn at all. If you need
    partly visible characters, use a larger framebuffer and show only the part
    with the partly visible characters in a window. */
-void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
+void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s,
+	      const colinfo_t *pci_fg, const colinfo_t *pci_bg)
 {
 	XYPOS len = (XYPOS)strlen(s);
 	XYPOS width = VIDEO_FONT_WIDTH;
@@ -1370,9 +1372,9 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 
 		/* Output character and move position */
 		if (attr & ATTR_ALPHA)
-			adraw_ll_char(pwi, x, y, c);
+			adraw_ll_char(pwi, x, y, c, pci_fg, pci_bg);
 		else
-			draw_ll_char(pwi, x, y, c, pwi->fg.col, pwi->bg.col);
+			draw_ll_char(pwi, x, y, c, pci_fg->col, pci_bg->col);
 		x += width;
 	}
 }
@@ -1417,7 +1419,7 @@ int lcd_test(const wininfo_t *pwi, u_int pattern)
 /************************************************************************/
 
 /* Set colinfo structure */
-static void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci)
+void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci)
 {
 	RGBA alpha1;
 
@@ -1434,20 +1436,6 @@ static void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci)
 
 	/* Store COLOR32 value */
 	pci->col = pwi->ppi->rgba2col(pwi, rgba);
-}
-
-
-/* Set the FG color */
-void lcd_set_fg(wininfo_t *pwi, RGBA rgba)
-{
-	lcd_set_col(pwi, rgba, &pwi->fg);
-}
-
-
-/* Set the BG color */
-void lcd_set_bg(wininfo_t *pwi, RGBA rgba)
-{
-	lcd_set_col(pwi, rgba, &pwi->bg);
 }
 
 
@@ -1505,6 +1493,7 @@ void console_init(wininfo_t *pwi, RGBA fg, RGBA bg)
 	coninfo.y = 0;
 	coninfo.fg = pwi->ppi->rgba2col(pwi, fg);
 	coninfo.bg = pwi->ppi->rgba2col(pwi, bg);
+	console_cls(pwi, coninfo.bg);
 }
 
 
@@ -1515,6 +1504,13 @@ void console_update(wininfo_t *pwi, RGBA fg, RGBA bg)
 		console_init(pwi, fg, bg);
 }
 #endif /* CONFIG_MULTIPLE_CONSOLES */
+
+/* Clear the console window with given color */
+void console_cls(const wininfo_t *pwi, COLOR32 col)
+{
+	memset32((unsigned *)pwi->pfbuf[pwi->fbdraw], col2col32(pwi, col),
+		 pwi->fbsize/4);
+}
 
 
 #define TABWIDTH (8 * VIDEO_FONT_WIDTH)	  /* 8 chars for tab */

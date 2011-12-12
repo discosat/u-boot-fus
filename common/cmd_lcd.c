@@ -298,12 +298,6 @@ static int lockupdate;
 
 static vidinfo_t vidinfo[CONFIG_DISPLAYS]; /* Current display information */
 
-static const pbinfo_t pbi_default = {	  /* Default progress bar info */
-	0, 0, 0, 0, DEFAULT_FG, DEFAULT_BG,
-	ATTR_HFOLLOW | ATTR_VCENTER, DEFAULT_FG, DEFAULT_BG,
-	0
-};
-
 /* Size and base address of the framebuffer pool */
 static fbpoolinfo_t fbpool = {
 	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
@@ -711,6 +705,20 @@ static void set_wininfo(const wininfo_t *pwi)
 }
 
 
+/* Set the FG color */
+static void lcd_set_fg(wininfo_t *pwi, RGBA rgba)
+{
+	lcd_set_col(pwi, rgba, &pwi->fg);
+}
+
+
+/* Set the BG color */
+static void lcd_set_bg(wininfo_t *pwi, RGBA rgba)
+{
+	lcd_set_col(pwi, rgba, &pwi->bg);
+}
+
+
 /************************************************************************/
 /* Command cls								*/
 /************************************************************************/
@@ -1056,7 +1064,6 @@ static int parse_expr(wininfo_t *pwi, char *pExpr, XYPOS *pResult)
 static void lcd_progbar(wininfo_t *pwi)
 {
 	XYPOS x1, y1, x2, y2, x;
-	RGBA old_fg;
 	u_int attr;
 
 	x1 = pwi->pbi.x1;
@@ -1064,23 +1071,19 @@ static void lcd_progbar(wininfo_t *pwi)
 	x2 = pwi->pbi.x2;
 	y2 = pwi->pbi.y2;
 	x = ((x2 - x1 + 1) * pwi->pbi.prog + 50) / 100 + x1;
-	old_fg = pwi->fg.rgba;		  /* Save FG */
 	if (x > x1) {
 		/* Draw progress bar in FG color */
-		lcd_set_fg(pwi, pwi->pbi.rect_fg);
-		lcd_rect(pwi, x1, y1, x-1, y2);
+		lcd_rect(pwi, x1, y1, x-1, y2, &pwi->pbi.rect_fg);
 	}
 	if (x <= x2) {
 		/* Draw remaining part of rectangle with BG color */
-		lcd_set_fg(pwi, pwi->pbi.rect_bg);
-		lcd_rect(pwi, x, y1, x2, y2);
+		lcd_rect(pwi, x, y1, x2, y2, &pwi->pbi.rect_bg);
 	}
 
 	/* Draw percentage unless attribute ATTR_NO_TEXT is set */
 	attr = pwi->pbi.attr;
 	if ((attr & ATTR_VMASK) != ATTR_NO_TEXT) {
 		char s[5];		  /* "0%" .. "100%" */
-		RGBA old_bg;
 
 		/* Depending on reference point, compute alignment */
 		switch (attr & ATTR_HMASK) {
@@ -1113,21 +1116,12 @@ static void lcd_progbar(wininfo_t *pwi)
 			y1 = y2;
 			break;
 		}
-
 		pwi->attr |= attr;	  /* Add text attributes */
-
-		/* Set text colors from progress bar */
-		lcd_set_fg(pwi, pwi->pbi.text_fg);
-		old_bg = pwi->bg.rgba;	  /* Save BG */
-		lcd_set_bg(pwi, pwi->pbi.text_bg);
 
 		/* Draw percentage text */
 		sprintf(s, "%d%%", pwi->pbi.prog);
-		lcd_text(pwi, x1, y1, s);
-
-		lcd_set_bg(pwi, old_bg);  /* Restore BG */
+		lcd_text(pwi, x1, y1, s, &pwi->pbi.text_fg, &pwi->pbi.text_bg);
 	}
-	lcd_set_fg(pwi, old_fg);	  /* Restore FG */
 }
 
 /* Draw turtle graphics until end of string, closing bracket or error */
@@ -1252,7 +1246,7 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
 
 			if (!errmsg) {
 				if (!flagB)
-					lcd_line(pwi, x, y, nx, ny);
+					lcd_line(pwi, x, y, nx, ny, &pwi->fg);
 				if (!flagN) {
 					x = nx;
 					y = ny;
@@ -1280,8 +1274,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	u_short sc;
 	XYPOS x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 	u_int a;			  /* Attribute */
-	RGBA rgba2;
-	RGBA rgba_save;
+	RGBA rgba1, rgba2;
 	u_char coord_pairs, colindex;
 
 	pvi = lcd_get_vidinfo_p(vid_sel);
@@ -1298,9 +1291,9 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		printf("origin:\t(%d, %d)\n", pwi->horigin, pwi->vorigin);
 		printf("pbr:\t(%d, %d) - (%d, %d), FG #%08x, BG #%08x\n",
 		       pwi->pbi.x1, pwi->pbi.y1, pwi->pbi.x2, pwi->pbi.y2,
-		       pwi->pbi.rect_fg, pwi->pbi.rect_bg);
-		printf("pbt:\tattr 0x%05x, FG #%08x, BG #%08x\n",
-		       pwi->pbi.attr, pwi->pbi.text_fg, pwi->pbi.text_bg);
+		       pwi->pbi.rect_fg.col, pwi->pbi.rect_bg.col);
+		printf("pbt:\tattr 0x%08x, FG #%08x, BG #%08x\n", pwi->pbi.attr,
+		       pwi->pbi.text_fg.col, pwi->pbi.text_bg.col);
 		printf("prog:\t%u\n", pwi->pbi.prog);
 		return 0;
 	}
@@ -1362,10 +1355,9 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	/* Parse one or two optional colors for commands who may have colors */
 	colindex = draw_kw[sc].info2 + 2;
+	rgba1 = pwi->fg.rgba;
 	rgba2 = pwi->bg.rgba;
 	if (argc > colindex) {
-		RGBA rgba1;
-
 		/* Parse first color */
 		if (parse_rgb(argv[colindex], &rgba1))
 			return 1;
@@ -1375,28 +1367,31 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			if (parse_rgb(argv[colindex], &rgba2))
 				return 1;
 		}
-		lcd_set_fg(pwi, rgba1); /* Set FG color */
 	}
 
 	/* Finally execute the drawing command */
 	switch (sc) {
 	case DI_PIXEL:			  /* Draw pixel */
-		lcd_pixel(pwi, x1, y1);
+		lcd_set_fg(pwi, rgba1);
+		lcd_pixel(pwi, x1, y1, &pwi->fg);
 		break;
 
 	case DI_LINE:			  /* Draw line */
-		lcd_line(pwi, x1, y1, x2, y2);
+		lcd_set_fg(pwi, rgba1);
+		lcd_line(pwi, x1, y1, x2, y2, &pwi->fg);
 		break;
 
 	case DI_RECT:			  /* Draw filled rectangle */
-		lcd_rect(pwi, x1, y1, x2, y2);
-		if ((argc < 8) || (pwi->fg.rgba == rgba2))
+		lcd_set_fg(pwi, rgba1);
+		lcd_rect(pwi, x1, y1, x2, y2, &pwi->fg);
+		if ((argc < 8) || (rgba1 == rgba2))
 			break;
-		lcd_set_fg(pwi, rgba2);
+		rgba1 = rgba2;
 		/* Fall through to case DI_FRAME */
 
 	case DI_FRAME:			  /* Draw rectangle outline */
-		lcd_frame(pwi, x1, y1, x2, y2);
+		lcd_set_fg(pwi, rgba1);
+		lcd_frame(pwi, x1, y1, x2, y2, &pwi->fg);
 		break;
 
 	case DI_PBR:			  /* Define progress bar rectangle */
@@ -1404,8 +1399,8 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		pwi->pbi.x2 = x2;
 		pwi->pbi.y1 = y1;
 		pwi->pbi.y2 = y2;
-		pwi->pbi.rect_fg = rgba1;
-		pwi->pbi.rect_bg = rgba2;
+		lcd_set_col(pwi, rgba1, &pwi->pbi.rect_fg);
+		lcd_set_col(pwi, rgba2, &pwi->pbi.rect_bg);
 		break;
 
 	case DI_CLIP:			  /* Set new clipping region */
@@ -1425,18 +1420,19 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case DI_CIRCLE:			  /* Draw circle outline */
 	case DI_DISC:			  /* Draw filled circle */
+		lcd_set_fg(pwi, rgba1);
 		x2 = (XYPOS)simple_strtol(argv[4], NULL, 0); /* Parse radius */
 		if (sc == DI_DISC) {
-			lcd_disc(pwi, x1, y1, x2);
+			lcd_disc(pwi, x1, y1, x2, &pwi->fg);
 			if ((argc < 7) || (pwi->fg.rgba == rgba2))
 				break;
 			lcd_set_fg(pwi, rgba2);
 		}
-		lcd_circle(pwi, x1, y1, x2);
+		lcd_circle(pwi, x1, y1, x2, &pwi->fg);
 		break;
 
 	case DI_TEXT:			  /* Draw text */
-		rgba_save = pwi->bg.rgba;
+		lcd_set_fg(pwi, rgba1);
 		lcd_set_bg(pwi, rgba2);
 
 		/* Optional argument 4: attribute */
@@ -1446,8 +1442,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		} else
 			a = pwi->text_attr;
 		pwi->attr |= a;
-		lcd_text(pwi, x1, y1, argv[4]);
-		lcd_set_bg(pwi, rgba_save);
+		lcd_text(pwi, x1, y1, argv[4], &pwi->fg, &pwi->bg);
 		break;
 
 #ifdef _BITMAP_SUPPORT_
@@ -1494,6 +1489,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		break;
 
 	case DI_TURTLE:			  /* Draw turtle graphics */
+		lcd_set_fg(pwi, rgba1);
 		if (lcd_turtle(pwi, &x1, &y1, argv[4], 0) < 0)
 			puts(" in argument string\n");
 		break;
@@ -1502,20 +1498,22 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		a = (argc > 2) ? simple_strtoul(argv[2], NULL, 0)
 			: (ATTR_HFOLLOW | ATTR_VCENTER);
 		pwi->pbi.attr = a;
-		pwi->pbi.text_fg = rgba1;
-		pwi->pbi.text_bg = rgba2;
+		lcd_set_col(pwi, rgba1, &pwi->pbi.text_fg);
+		lcd_set_col(pwi, rgba2, &pwi->pbi.text_bg);
 		break;
 
 	case DI_COLOR:			  /* Set FG and BG color */
+		lcd_set_fg(pwi, rgba1);
 		lcd_set_bg(pwi, rgba2);
 		break;
 
 	case DI_FILL:			  /* Fill window with FG color */
-		lcd_fill(pwi);
+		lcd_set_fg(pwi, rgba1);
+		lcd_fill(pwi, &pwi->fg);
 		break;
 
 	case DI_CLEAR:			  /* Fill window with BG color */
-		lcd_clear(pwi);
+		lcd_fill(pwi, &pwi->bg);
 		break;
 
 	case DI_PROG:			  /* Draw progress bar */
@@ -1532,13 +1530,11 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case DI_TEST:			  /* Draw test pattern */
 		a = (argc > 2) ? simple_strtoul(argv[2], NULL, 0) : 0;
-		rgba2 = pwi->fg.rgba; //####
-		lcd_set_fg(pwi, 0xFFFFFFFF); /* White for grid & circles */
+		pwi->attr = 0;		  /* Clear ATTR_ALPHA if adraw */
 		if (lcd_test(pwi, a)) {
 			printf("Window too small\n");
 			return 1;
 		}
-		lcd_set_fg(pwi, rgba2); //####
 		break;
 
 	default:			  /* Should not happen */
@@ -1920,10 +1916,10 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 		set_default_cmap(pwi);
 		lcd_set_fg(pwi, DEFAULT_FG);
 		lcd_set_bg(pwi, DEFAULT_BG);
-		pwi->pbi.rect_fg = DEFAULT_FG;
-		pwi->pbi.rect_bg = DEFAULT_BG;
-		pwi->pbi.text_fg = DEFAULT_FG;
-		pwi->pbi.text_bg = DEFAULT_BG;
+		lcd_set_col(pwi, DEFAULT_FG, &pwi->pbi.rect_fg);
+		lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.rect_bg);
+		lcd_set_col(pwi, DEFAULT_FG, &pwi->pbi.text_fg);
+		lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.text_bg);
 		pwi->alpha0 = DEFAULT_ALPHA0;
 		pwi->alpha1 = DEFAULT_ALPHA1;
 		pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
@@ -1960,14 +1956,13 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 		relocbuffers(pwi, addr);
 	}
 
-	/* Clear the new framebuffer with background color */
-	lcd_clear(pwi);
-
+	/* Clear the new framebuffer with console color */
 #ifdef CONFIG_MULTIPLE_CONSOLES
 	pwi->ci.x = 0;
 	pwi->ci.y = 0;
 	pwi->ci.fg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_FG);
 	pwi->ci.bg = pwi->ppi->rgba2col(pwi, DEFAULT_CON_BG);
+	console_cls(pwi, pwi->ci.bg);
 #else
 	/* The console might also be interested in the buffer changes */
 	console_update(pwi, DEFAULT_CON_FG, DEFAULT_CON_BG);
@@ -3144,7 +3139,18 @@ void drv_lcd_init(void)
 			pwi->clip_bottom = 0;
 			pwi->horigin = 0;
 			pwi->vorigin = 0;
-			pwi->pbi = pbi_default;
+			lcd_set_fg(pwi, DEFAULT_FG);
+			lcd_set_bg(pwi, DEFAULT_BG);
+			pwi->pbi.x1 = 0;
+			pwi->pbi.y1 = 0;
+			pwi->pbi.x2 = 0;
+			pwi->pbi.y2 = 0;
+			lcd_set_col(pwi, DEFAULT_FG, &pwi->pbi.rect_fg);
+			lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.rect_bg);
+			lcd_set_col(pwi, DEFAULT_FG, &pwi->pbi.text_fg);
+			lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.text_bg);
+			pwi->pbi.attr = ATTR_HFOLLOW | ATTR_VCENTER;
+			pwi->pbi.prog = 0;
 
 			/* Color information */
 			pwi->alpha0 = DEFAULT_ALPHA0;
@@ -3153,8 +3159,6 @@ void drv_lcd_init(void)
 			pwi->ckvalue = 0; /* Off */
 			pwi->ckmask = 0;  /* Bits must match */
 			pwi->ckmode = 0;  /* Check window pixels, no blend */
-			lcd_set_fg(pwi, DEFAULT_FG);
-			lcd_set_bg(pwi, DEFAULT_BG);
 
 #if (CONFIG_DISPLAYS > 1)
 			sprintf(pwi->name, "win%u_%u", vid, win);

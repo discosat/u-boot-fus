@@ -128,18 +128,18 @@ typedef struct coninfo {
 } coninfo_t;
 
 /* Progress bar information */
-typedef struct PBINFO {
+typedef struct pbinfo {
 	/* pbr info */
 	XYPOS x1;			  /* Bar position and size */
 	XYPOS y1;
 	XYPOS x2;
 	XYPOS y2;
-	RGBA  rect_fg;			  /* Color of progress bar */
-	RGBA  rect_bg;			  /* Color if background */
+	colinfo_t rect_fg;		  /* Color of progress bar */
+	colinfo_t rect_bg;		  /* Color if background */
 	/* pbt info */
-	u_int attr;			  /* Text attribute */
-	RGBA  text_fg;			  /* Color of percentage text */
-	RGBA  text_bg;
+	colinfo_t text_fg;		  /* Color of percentage text */
+	colinfo_t text_bg;
+	u_int attr;			  /* Attribute of percentage text */
 	/* prog info */
 	u_int prog;			  /* Percentage */
 } pbinfo_t;
@@ -225,8 +225,11 @@ struct wininfo
 	XYPOS hoffs;			  /* Offset within framebuffer (>=0) */
 	XYPOS voffs;
 
-	/* Drawing information, only accessed by draw command */
+	/* Drawing information, only accessed by draw commands */
+	colinfo_t fg;			  /* Foreground color info */
+	colinfo_t bg;			  /* Foreground color info */
 	u_int text_attr;		  /* Current text attribute */
+	u_int attr;			  /* Attribute only for next drawing */
 	XYPOS clip_left;		  /* Current clipping region */
 	XYPOS clip_top;
 	XYPOS clip_right;
@@ -235,10 +238,7 @@ struct wininfo
 	XYPOS vorigin;
 	pbinfo_t pbi;			  /* Progress bar info */
 
-	/* Color information */
-	colinfo_t fg;			  /* Foreground color info */
-	colinfo_t bg;			  /* Foreground color info */
-	u_int attr;			  /* Attribute for next drawing */
+	/* Alpha and color keying information */
 	RGBA alpha0;			  /* Alpha value for A=0 */
 	RGBA alpha1;			  /* Alpha value for A=1 */
 	u_char alphamode;		  /* 0: alpha0, 1: alpha1, 2: pixel */
