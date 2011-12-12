@@ -234,6 +234,14 @@ extern void s3c64xx_lcd_board_disable(int index);
 /* PROTOTYPES OF LOCAL FUNCTIONS					*/
 /************************************************************************/
 
+/* Set color map entry for windows 0 and 1; we always use format RGBA8881 */
+static void set_cmap32(const wininfo_t *pwi, u_int index, u_int end,
+		       RGBA *prgba);
+
+/* Set color map entry for windows 2 to 4; we always use format RGBA5551 */
+static void set_cmap16(const wininfo_t *pwi, u_int index, u_int end,
+		       RGBA *prgba);
+
 
 /************************************************************************/
 /* Color Conversions RGBA->COLOR32					*/
@@ -1260,8 +1268,6 @@ static void s3c64xx_set_vidinfo(vidinfo_t *pvi)
 		__REG(GPFCON) =
 			(__REG(GPFCON) & ~(3<<(2*PWM_CON))) | (2<<(2*PWM_CON));
 	}
-
-//###	printf("###VIDCON0=0x%lx, VIDCON1=0x%lx, VIDTCON0=0x%lx, VIDTCON1=0x%lx, VIDTCON2=0x%lx, DITHMODE=0x%lx, hclk=%lu\n", __REG(S3C_VIDCON0), __REG(S3C_VIDCON1), __REG(S3C_VIDTCON0), __REG(S3C_VIDTCON1), __REG(S3C_VIDTCON2), __REG(S3C_DITHMODE), hclk);
 }
 
 /************************************************************************/
@@ -1323,7 +1329,6 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	/* If nothing visible, disable window */
 	if (!hres || !vres || !pwi->fbcount) {
 		__REG(winregs->wincon) &= ~S3C_WINCONx_ENWIN_F_ENABLE;
-//###		printf("###Win %u disable: WINCON=0x%lx\n", pwi->win, __REG(winregs->wincon));
 		return;			  /* not enabled */
 	}
 
@@ -1428,11 +1433,6 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 
 	if (winregs->keyval)
 		__REG(winregs->keyval) = pwi->ckvalue >> 8;
-
-//###	printf("###Window %u enabled: wincon=0x%lx, vidosdtl=0x%lx, vidosdbr=0x%lx, vidosdsize=0x%lx\n", pwi->win, __REG(winregs->wincon), __REG(winregs->vidosdtl), __REG(winregs->vidosdbr), __REG(winregs->vidosdsize));
-//###	printf("### vidosdalpha=0x%lx, vidadd[0].start=0x%lx, vidadd[0].end=0x%lx, vidsize=0x%lx\n", __REG(winregs->vidosdalpha), __REG(winregs->vidadd[0].start), __REG(winregs->vidadd[0].end), __REG(winregs->vidsize));
-//###	printf("### WPALCON=0x%lx, winmap=0x%lx, keycon=0x%lx, keyval=0x%lx\n", __REG(S3C_WPALCON), __REG(winregs->winmap), __REG(winregs->keycon), __REG(winregs->keyval));
-	return;				  /* enabled */
 }
 
 /* Activate display in power-on sequence order */

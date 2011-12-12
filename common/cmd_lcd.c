@@ -24,21 +24,67 @@
  */
 
 /* ##### TODO:
-    1. Nochmal prüfen, dass fbhres und hoffs immer aligned sind
-    2. Lokale Funktionsprototypen hinzufügen
-    3. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
-    4. PWM settings auf GPF15 setzen,
-    5. Pattern matching bei lcd list evtl. case insensitive
-    6. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
+    1. Prüfen, was bei LCD-Signalen schon von NBoot gesetzt ist
+    2. PWM settings auf GPF15 setzen,
+    3. Pattern matching bei lcd list evtl. case insensitive
+    4. Kleines README.txt schreiben, wie man neuen Displaytreiber in das neue
        Treiberkonzept einbindet
-    7. cls als Löschen des aktuellen Console-Windows
-    8. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
-    9. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
+    5. cls als Löschen des aktuellen Console-Windows nach console.c. Dazu im
+       device (ähnlich getc/putc) auch eine cls-Funktion einfügen und diese
+       dann beim Kommando aufrufen. Entsprechend müssten auch Kommandos zum
+       Setzen der Console-Farben dort hin. --> als eigenen ChangeSet ins GIT
+    6. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
+    7. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
        Macht das Probleme, wenn fbpool über eine solche Segmentgrenze geht?
-   10. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
-       nicht.
-   11. Bei reg: reg create sollte lockupdate setzen, reg save wieder löschen;
-       oder reg-Befehl ganz raus und besser externes Wandlungstool machen.
+    8. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
+       nicht. Ein solcher Software-Puffer ist sogar schon vorbereitet.
+    9. FS-Compatibility wieder wegnehmen und lieber ein externes Tool
+       schreiben, das eine WinCE-Displaydatei in die passenden U-Boot-Settings
+       wandelt. Dann set_value() wieder nach do_lcd() einbetten.
+   10. Einfache Console weg und nur Multiple Console hin.
+   11. In "win"-Environment-Variable nur das setzen, was nicht per Default so
+       käme. Also z.B. nur FG/BG setzen, wenn nicht weiß/schwarz, bei
+       Display-Parametern nur das, was sich vom Dummy-Display "no display"
+       unterscheidet. Das macht die Variable kleiner und übersichtlicher.
+   12. "win alpha" weg, dafür "win alpha0", "win alpha1" und "win alphamode"
+       hinzufügen. Dabei kann auch Zeitdauer für Überblendung gesetzt werden.
+       Mit neuem Befehl "win fade" startet dann die Überblendung. Sollte mit
+       Ctl-C unterbrechbar sein.
+   13. Evtl. fbpool wieder weg. Der Pool startet automatisch vor dem U-Boot und
+       wächst abwärts. Dadurch braucht man das alles nicht. Die Länge des
+       Pools kann sowieso nicht nach Linux übertragen werden.
+   14. Neuer Befehl "draw font <addr>". Dann muss an der gegebenen Adresse ein
+       Font mit dem gleichen Aufbau wie der interne Font abgelegt sein. Ab
+       jetzt wird dann dieser Font verwendet (nur für draw-Befehle, nicht für
+       Console!). Ohne Adresse oder mit Adresse 0 wird wieder der interne Font
+       genutzt. Als Header sollte ein struct verwendet werden, in dem die
+       Anzahl Zeichen, Breite, Höhe, Unterstreichungszeile und
+       Durchstreichungszeile angegeben sind. Als Breite sollte dabei 32 das
+       Maximum sein, damit eine Characterzeile immer in ein Register passt.
+       Alternativ können diese Werte auch im Befehl draw font angegeben werden.
+   15. Neuen Befehl oder neues Attributbit, das es erlaubt, nur in eine
+       Alpha-Ebene zu zeichnen (speziell wenn nur ein A-Bit da ist). Durch das
+       A-Bit kann man ja sozusagen zwei Bilder (disjunkt) überlagern. Beim
+       Zeichnen von normalen Grafikelementen kann man das ja durch Angabe
+       einer Farbe mit passenden Alpha in die entsprechende Ebene zeichnen,
+       aber bei Grafiken wird es schwieriger. Erstens ist es schwer, die
+       konkrete Farbe bei transparenten Stellen in einem Grafikprogramm
+       anzugeben und außerdem möchte man vielleicht einfach zwei Grafiken ohne
+       Transparenz in die beiden Alpha-Ebenen legen. Idee: neuer Befehl idraw,
+       der einen inversen Alpha-Wert annimmt, sich aber sonst wie draw
+       verhält. iadraw macht auch Sinn, z.B. um zwei Bilder übereinander
+       zeichnen zu können. Beim einen landen die sichtbaren Pixel in A1, beim
+       andern in A0.
+       Denkbar ist auch ein externes Programm, mit dem man solche Bilder
+       kombinieren kann, um PNG-Grafiken mit den richtigen Alpha-Werten zu
+       erzeugen.
+   16. Neue Befehle rframe und rrect zum Zeichnen von Rechtecken mit
+       abgerundeten Ecken. Der Kreis ist dann nur noch ein Spezialfall davon.
+   17. Wird eine geclippte schräge Linie mit gleichen Koordinaten über eine
+       ungeclippte Linie gemalt, werden nicht alle Pixel perfekt überdeckt.
+       Bei der Berechnung des dd-Offsets am Clipping-Rand stimmt also was
+       nicht. Nochmal nachprüfen.
+
 ****/
 
 /*
@@ -531,11 +577,35 @@ static const RGBA defcmap16[] = {
 /* Prototypes of local functions					*/
 /************************************************************************/
 
-/* Get pointer to current lcd panel information */
+/* Switch display on; return error message on error or NULL on success */
+static char *lcd_on(vidinfo_t *pvi);
+
+/* Switch display off */
+static void lcd_off(vidinfo_t *pvi);
+
+/* Get a pointer to current lcd panel information */
 static vidinfo_t *lcd_get_vidinfo_p(VID vid);
 
-/* Get pointer to current window information */
+/* Get a pointer to the wininfo structure */
 static wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win);
+
+/* If not locked, update lcd hardware and set environment variable */
+static void set_vidinfo(vidinfo_t *pvi);
+
+/* If not locked, update window hardware and set environment variable */
+static void set_wininfo(const wininfo_t *pwi);
+
+/* Set the FG color */
+static void lcd_set_fg(wininfo_t *pwi, RGBA rgba);
+
+/* Set the BG color */
+static void lcd_set_bg(wininfo_t *pwi, RGBA rgba);
+
+/* Relocate all windows to newaddr, starting at given window (via pwi) */
+static void relocbuffers(wininfo_t *pwi, u_long newaddr);
+
+/* Handle fbpool command */
+static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 
 /* Parse a factor, i.e. a sub-expression in '('..')', a variable or a number */
 static int parse_factor(wininfo_t *pwi);
@@ -548,6 +618,58 @@ static int parse_sum(wininfo_t *pwi);
 
 /* Parse a corrdinate expression for draw command */
 static int parse_expr(wininfo_t *pwi, char *pExpr, XYPOS *pResult);
+
+/* Draw progress bar; pwi->attr is either 0 or ATTR_ALPHA */
+static void lcd_progbar(wininfo_t *pwi);
+
+/* Draw turtle graphics until end of string, closing bracket or error */
+static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
+		      u_int count);
+
+/* Handle draw command */
+static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+/* Set the default color map */
+static void set_default_cmap(const wininfo_t *pwi);
+
+/* Handle cmap command */
+static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+/* Move offset if window would not fit within framebuffer */
+static void fix_offset(wininfo_t *wi);
+
+/* Set new framebuffer resolution, pixel format, and/or framebuffer count */
+static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
+		   XYPOS fbhres, XYPOS fbvres, PIX pix, u_char fbcount);
+
+/* Set window resolution */
+static int set_winres(wininfo_t *pwi, XYPOS hres, XYPOS vres);
+
+/* Print the window information */
+static void show_wininfo(const wininfo_t *pwi);
+
+/* Handle win command */
+static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+/* Increment all PONSEQ or POFFSEQ entries that come after the current one */
+static void set_delay(u_short *delays, int index, u_short value);
+
+/* Handle all lcd commands with single parameters */
+static int set_value(vidinfo_t *pvi, char *argv, u_int sc);
+
+/* Show vidinfo as text */
+static void show_vidinfo(const vidinfo_t *pvi);
+
+/* Handle lcd command */
+static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+#ifdef CONFIG_FSWINCE_COMPAT
+/* Handle reg command */
+static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+
+/* Handle contrast, display and reboot commands by ignoring them */
+static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+#endif /*CONFIG_FSWINCE_COMPAT*/
 
 
 /************************************************************************/
@@ -793,6 +915,8 @@ static void relocbuffers(wininfo_t *pwi, u_long newaddr)
 	} while (vid < vid_count);
 }
 
+
+/* Handle fbpool command */
 static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	fbpoolinfo_t *pfp = &fbpool;
@@ -962,7 +1086,7 @@ static int parse_factor(wininfo_t *pwi)
 		else
 			goto BADVAR;
 		pNextChar += 3;
-	} 
+	}
 
 	/* Apply sign */
 	if (sign < 0)
@@ -1267,6 +1391,8 @@ DONE:
 	return i;
 }
 
+
+/* Handle draw command */
 static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	wininfo_t *pwi;
@@ -1591,7 +1717,7 @@ U_BOOT_CMD(
 	"    - set FG (and BG) color\n"
 	"draw\n"
 	"    - show current drawing parameters\n"
-        "Coordinates may be expressions with +, -, *, /, (, ), and with the\n"
+	"Coordinates may be expressions with +, -, *, /, (, ), and with the\n"
 	"following names: hmin, hmid, hmax, hres, vmin, vmid, vmax, vres\n"
 	"fbhmin, fbhmid, fbhmax, fbhres, fbvmin, fbvmid, fbvmax, fbvres\n"
 );
@@ -1607,6 +1733,7 @@ U_BOOT_CMD(
 /* Command cmap								*/
 /************************************************************************/
 
+/* Set the default color map */
 static void set_default_cmap(const wininfo_t *pwi)
 {
 	u_int bpp_shift;
@@ -1660,6 +1787,8 @@ static void set_default_cmap(const wininfo_t *pwi)
 	pwi->set_cmap(pwi, 0, end, defcmap);
 }
 
+
+/* Handle cmap command */
 static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	vidinfo_t *pvi;
@@ -2030,7 +2159,8 @@ static void show_wininfo(const wininfo_t *pwi)
 	       pwi->ckvalue, pwi->ckmask, pwi->ckmode);
 }
 
-/* Handle window command */
+
+/* Handle win command */
 static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	vidinfo_t *pvi;
@@ -2291,6 +2421,7 @@ U_BOOT_CMD(
 /* Command lcd								*/
 /************************************************************************/
 
+/* Increment all PONSEQ or POFFSEQ entries that come after the current one */
 static void set_delay(u_short *delays, int index, u_short value)
 {
 	u_short oldval = delays[index];
@@ -2307,6 +2438,8 @@ static void set_delay(u_short *delays, int index, u_short value)
 	}
 }
 
+
+/* Handle all lcd commands with single parameters */
 static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 {
 	u_int param = 0;
@@ -2493,6 +2626,8 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc)
 	return 0;
 }
 
+
+/* Show vidinfo as text */
 static void show_vidinfo(const vidinfo_t *pvi)
 {
 	u_int i;
@@ -2536,6 +2671,8 @@ static void show_vidinfo(const vidinfo_t *pvi)
 	       pvi->frc, pvi->drive);
 }
 
+
+/* Handle lcd command */
 static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	vidinfo_t *pvi;

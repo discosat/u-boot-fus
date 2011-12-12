@@ -75,7 +75,8 @@ struct testinfo {
 /* PROTOTYPES OF LOCAL FUNCTIONS					*/
 /************************************************************************/
 
-static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c);
+/* Repeat color value so that it fills the whole 32 bits */
+static COLOR32 col2col32(const wininfo_t *pwi, COLOR32 color);
 
 /* Draw pixel by replacing with new color; pixel is definitely valid */
 static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col);
@@ -103,9 +104,28 @@ static void draw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 			  const colinfo_t *pci_fg, const colinfo_t *pci_bg);
 
+/* Draw test pattern with grid, basic colors, color gradients and circles */
+static void lcd_ll_pattern0(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2);
+
+/* Draw the eight basic colors in two rows of four */
+static void lcd_ll_pattern1(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2);
+
+/* Draw color gradient, horizontal: hue, vertical: brightness */
+static void lcd_ll_pattern2(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2);
+
+/* Draw color gradient: 8 basic colors along edges, gray in the center */
+static void lcd_ll_pattern3(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2);
+
+/* Draw character to console */
+static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c);
+
 
 /************************************************************************/
-/* ** Low-Level Graphics Routines					*/
+/* HELPER FUNCTIONS FOR GRAPHIC PRIMITIVES				*/
 /************************************************************************/
 
 /* Repeat color value so that it fills the whole 32 bits */
@@ -134,6 +154,10 @@ static COLOR32 col2col32(const wininfo_t *pwi, COLOR32 color)
 	return color;
 }
 
+
+/************************************************************************/
+/* ** Low-Level Graphics Routines					*/
+/************************************************************************/
 
 /* Draw pixel by replacing with new color; pixel is definitely valid */
 static void draw_ll_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y, COLOR32 col)
@@ -485,10 +509,6 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c,
 }
 
 
-/************************************************************************/
-/* HELPER FUNCTIONS FOR GRAPHIC PRIMITIVES				*/
-/************************************************************************/
-
 /* Draw test pattern with grid, basic colors, color gradients and circles */
 static void lcd_ll_pattern0(const wininfo_t *pwi,
 			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
@@ -601,6 +621,7 @@ static void lcd_ll_pattern0(const wininfo_t *pwi,
 	}
 }
 
+
 /* Draw the eight basic colors in two rows of four */
 static void lcd_ll_pattern1(const wininfo_t *pwi,
 			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
@@ -641,6 +662,7 @@ static void lcd_ll_pattern1(const wininfo_t *pwi,
 	draw_ll_rect(pwi, xres_3_4, yres_1_2 + 1, x2, y2,
 		     ppi->rgba2col(pwi, 0xFFFFFFFF)); /* White */
 }
+
 
 /* Draw color gradient, horizontal: hue, vertical: brightness */
 static void lcd_ll_pattern2(const wininfo_t *pwi,
@@ -705,6 +727,7 @@ static void lcd_ll_pattern2(const wininfo_t *pwi,
 		xfrom = xto;
 	} while (hue < 6);
 }
+
 
 /* Draw color gradient: 8 basic colors along edges, gray in the center */
 static void lcd_ll_pattern3(const wininfo_t *pwi,
@@ -1239,13 +1262,13 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 /* Draw text string s at (x, y) with alignment/attribute a and colors fg/bg
    the attributes are as follows:
      Bit 1..0: horizontal refpoint:  00: left, 01: hcenter,
-                10: right, 11: right+1
+		10: right, 11: right+1
      Bit 3..2: vertical refpoint: 00: top, 01: vcenter,
-                10: bottom, 11: bottom+1
+		10: bottom, 11: bottom+1
      Bit 5..4: character width: 00: normal (1x), 01: double (2x),
-                10: triple (3x), 11: quadruple (4x)
+		10: triple (3x), 11: quadruple (4x)
      Bit 7..6: character height: 00: normal (1x), 01: double (2x),
-                10: triple (3x), 11: quadruple (4x)
+		10: triple (3x), 11: quadruple (4x)
      Bit 8:    0: normal, 1: bold
      Bit 9:    0: normal, 1: inverse
      Bit 10:   0: normal, 1: underline
