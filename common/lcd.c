@@ -840,6 +840,7 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	int dx, dy, dd;
 	XYPOS xmin, ymin, xmax, ymax;
 	XYPOS xoffs, yoffs;
+	XYPOS xinc, yinc;
 
 	dx = (int)x2 - (int)x1;
 	if (dx < 0)
@@ -874,12 +875,14 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		dx <<= 1;
 		dy <<= 1;
 
+		xinc = (x1 > x2) ? -1 : 1;
 		if (y1 < ymin) {
 			/* Clip with upper screen edge */
 			yoffs = ymin - y1;
 			xoffs = (dd + (int)yoffs * dx)/dy;
 			dd += xoffs*dy - yoffs*dx;
 			y1 = ymin;
+			x1 += xinc*xoffs;
 		}
 
 		/* Return if line fragment is fully left or right of display */
@@ -898,7 +901,6 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 			return;
 		}
 
-		xoffs = (x1 > x2) ? -1 : 1;
 		/* Draw line from top to bottom, i.e. every loop cycle go one
 		   pixel down and sometimes one pixel left or right */
 		for (;;) {
@@ -909,7 +911,7 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 			dd += dx;
 			if (dd >= dy) {
 				dd -= dy;
-				x1 += xoffs;
+				x1 += xinc;
 			}
 		}
 	} else {			  /* Low slope */
@@ -933,12 +935,14 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		dx <<= 1;
 		dy <<= 1;
 
+		yinc = (y1 > y2) ? -1 : 1;
 		if (x1 < xmin) {
 			/* Clip with left screen edge */
 			xoffs = xmin - x1;
 			yoffs = (dd + (int)xoffs * dy)/dx;
 			dd += yoffs*dx - xoffs*dy;
 			x1 = xmin;
+			y1 += yinc*yoffs;
 		}
 
 		/* Return if line fragment is fully above or below display */
@@ -958,7 +962,6 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 			return;
 		}
 
-		yoffs = (y1 > y2) ? -1 : 1;
 		/* Draw line from left to right, i.e. every loop cycle go one
 		   pixel right and sometimes one pixel up or down */
 		for (;;) {
@@ -969,7 +972,7 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 			dd += dy;
 			if (dd >= dx) {
 				dd -= dx;
-				y1 += yoffs;
+				y1 += yinc;
 			}
 		}
 	}
