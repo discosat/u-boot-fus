@@ -57,6 +57,14 @@ struct iRGB {
 	int B;
 };
 
+struct testinfo {
+	XYPOS minhres;
+	XYPOS minvres;
+	void (*draw_ll_pattern)(const wininfo_t *pwi,
+				XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2);
+};
+
+
 /************************************************************************/
 /* LOCAL VARIABLES							*/
 /************************************************************************/
@@ -480,17 +488,19 @@ static void adraw_ll_char(const wininfo_t *pwi, XYPOS x, XYPOS y, char c)
 /************************************************************************/
 
 /* Draw test pattern with grid, basic colors, color gradients and circles */
-static void test_pattern0(const wininfo_t *pwi)
+static void lcd_ll_pattern0(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	const pixinfo_t *ppi = pwi->ppi;
 	XYPOS dx, dy;
-	XYPOS x, y, i;
+	XYPOS x, y;
+	XYPOS i;
 	XYPOS hleft, vtop, hright, vbottom;
-	XYPOS fbhres = (XYPOS)pwi->fbhres;
-	XYPOS fbvres = (XYPOS)pwi->fbvres;
 	XYPOS r1, r2, scale;
+	XYPOS hres, vres;
+	COLOR32 col;
 
-	static const RGBA coltab[] = {
+	static const RGBA const coltab[] = {
 		0xFF0000FF,		  /* R */
 		0x00FF00FF,		  /* G */
 		0x0000FFFF,		  /* B */
@@ -500,139 +510,143 @@ static void test_pattern0(const wininfo_t *pwi)
 		0x00FFFFFF,		  /* C */
 	};
 
-	/* We need at least 24x16 resolution */
-	if ((fbhres < 24) || (fbvres < 16)) {
-		puts("Window too small\n");
-		return;
-	}
-	/* Clear screen */
-	lcd_clear(pwi);
-
-	/* Use hres divided by 12 as grid size */
-	dx = fbhres/12;
-	dy = fbvres/8;
+	/* Use hres divided by 12 and vres divided by 8 as grid size */
+	hres = x2-x1+1;
+	vres = y2-y1+1;
+	dx = hres/12;
+	dy = vres/8;
 
 	/* Compute left and top margin for first line as half of the remaining
-	   space (that was not multiple of 12) and half of one d x d field */
-	hleft = (dx + fbhres % dx)/2;
-	vtop = (dy + fbvres % dy)/2;
+	   space (that was not multiple of 12 or 8 respectively) and half of
+	   a grid rectangle size */
+	hleft = (dx + hres % 12)/2 + x1;
+	vtop = (dy + vres % 8)/2 + y1;
 
 	/* Compute right and bottom margin for last line in a similar way */
-	hright = ((fbhres - hleft)/dx)*dx + hleft;
-	vbottom = ((fbvres - vtop)/dy)*dy + vtop;
+	hright = hleft + (12-1)*dx;
+	vbottom = vtop + (8-1)*dy;
+
+	col = ppi->rgba2col(pwi, 0xFFFFFFFF);  /* White */
 
 	/* Draw vertical lines of grid */
-	for (x = hleft; x < fbhres; x += dx)
-		lcd_rect(pwi, x, 0, x, fbvres-1);
+	for (x = hleft; x <= hright; x += dx)
+		draw_ll_rect(pwi, x, y1, x, y2, col);
 
 	/* Draw horizontal lines of grid */
-	for (y = vtop; y < fbvres; y += dy)
-		lcd_rect(pwi, 0, y, fbhres-1, y);
+	for (y = vtop; y <= vbottom; y += dy)
+		draw_ll_rect(pwi, x1, y, x2, y, col);
 
 	/* Draw 7 of the 8 basic colors (without black) as rectangles */
+	x = 2*dx + hleft + 1;
 	for (i=0; i<7; i++) {
-		x = hleft + (i+2)*dx;
-		draw_ll_rect(pwi, x+1, vbottom-2*dy+1, x+dx-1, vbottom-1,
+		draw_ll_rect(pwi, x, vbottom-2*dy+1, x+dx-2, vbottom-1,
 			     ppi->rgba2col(pwi, coltab[6-i]));
-		draw_ll_rect(pwi, x+1, vtop+1, x+dx-1, vtop+2*dy-1,
+		draw_ll_rect(pwi, x, vtop+1, x+dx-2, vtop+2*dy-1,
 			     ppi->rgba2col(pwi, coltab[i]));
+		x += dx;
 	}
 
 	/* Draw grayscale gradient on left, R, G, B gradient on right side */
 	scale = vbottom-vtop-2;
-	for (y=0; y<=scale; y++) {
-		XYPOS yy = y+vtop+1;
+	y = vtop+1;
+	for (i=0; i<=scale; i++) {
 		RGBA rgba;
 
-		rgba = (y*255/scale) << 8;
+		rgba = (i*255/scale) << 8;
 		rgba |= (rgba << 8) | (rgba << 16) | 0xFF;
-		draw_ll_rect(pwi, hleft+1, yy, hleft+dx-1, yy,
+		draw_ll_rect(pwi, hleft+1, y, hleft+dx-1, y,
 			     ppi->rgba2col(pwi, rgba));
-		draw_ll_rect(pwi, hright-dx+1, yy, hright-2*dx/3, yy,
+		draw_ll_rect(pwi, hright-dx+1, y, hright-2*dx/3, y,
 			     ppi->rgba2col(pwi, rgba & 0xFF0000FF));
-		draw_ll_rect(pwi, hright-2*dx/3+1, yy, hright-dx/3, yy,
+		draw_ll_rect(pwi, hright-2*dx/3+1, y, hright-dx/3, y,
 			     ppi->rgba2col(pwi, rgba & 0x00FF00FF));
-		draw_ll_rect(pwi, hright-dx/3+1, yy, hright-1, yy,
+		draw_ll_rect(pwi, hright-dx/3+1, y, hright-1, y,
 			     ppi->rgba2col(pwi, rgba & 0x0000FFFF));
+		y++;
 	}
 
 	/* Draw big and small circle; make sure that circle fits on screen */
-	if (fbhres > fbvres) {
-		r1 = fbvres/2;
+	if (hres > vres) {
+		r1 = vres/2;
 		r2 = dy;
 	} else {
-		r1 = fbhres/2;
+		r1 = hres/2;
 		r2 = dx;
 	}
-	lcd_circle(pwi, fbhres/2, fbvres/2, r1 - 1);
-	lcd_circle(pwi, fbhres/2, fbvres/2, r2);
+	x = hres/2 + x1;
+	y = vres/2 + y1;
+
+	//##### Wegen diesen Kreisen muss die FG-Farbe auf weiß gesetzt sein;
+	//##### wenn das weg könnte, dann könnte man sich das Sichern und
+	//##### Wiederherstellen der FG-Farbe in do_draw() sparen.
+	lcd_circle(pwi, x, y, r1 - 1);
+	lcd_circle(pwi, x, y, r2);
 
 	/* Draw corners */
-	if ((fbhres >= 8) && (fbvres >= 8)) {
-		COLOR32 col;
-
+	if ((hres >= 8) && (vres >= 8)) {
 		col = ppi->rgba2col(pwi, 0x00FF00FF);  /* Green */
-		draw_ll_rect(pwi, 0, 0, 7, 0, col);
-		draw_ll_rect(pwi, 0, 1, 0, 7, col);
-		draw_ll_rect(pwi, fbhres-8, 0, fbhres-1, 0, col);
-		draw_ll_rect(pwi, fbhres-1, 1, fbhres-1, 7, col);
-		draw_ll_rect(pwi, 0, fbvres-8, 0, fbvres-2, col);
-		draw_ll_rect(pwi, 0, fbvres-1, 7, fbvres-1, col);
-		draw_ll_rect(pwi, fbhres-1, fbvres-8, fbhres-1, fbvres-2, col);
-		draw_ll_rect(pwi, fbhres-8, fbvres-1, fbhres-1, fbvres-1, col);
+		draw_ll_rect(pwi, x1, y1, x1+7, y1, col); /* top left */
+		draw_ll_rect(pwi, x1, y1, x1, y1+7, col);
+		draw_ll_rect(pwi, x2-7, y1, x2, y1, col); /* top right */
+		draw_ll_rect(pwi, x2, y1, x2, y1+7, col);
+		draw_ll_rect(pwi, x1, y2-7, x1, y2, col); /* bottom left */
+		draw_ll_rect(pwi, x1, y2, x1+7, y2, col);
+		draw_ll_rect(pwi, x2, y2-7, x2, y2, col); /* bottom right */
+		draw_ll_rect(pwi, x2-7, y2, x2, y2, col);
 	}
 }
 
 /* Draw the eight basic colors in two rows of four */
-static void test_pattern1(const wininfo_t *pwi)
+static void lcd_ll_pattern1(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	XYPOS xres = (XYPOS)pwi->fbhres;
-	XYPOS yres = (XYPOS)pwi->fbvres;
-	XYPOS xres_4 = (xres + 2)/4;
-	XYPOS yres_2 = (yres + 1)/2;
+	XYPOS xres_1_4, xres_2_4, xres_3_4;
+	XYPOS yres_1_2 = (y1+y2)/2;
 
-	/* We need at least 4 pixels in x and 2 pixels in y direction */
-	if ((xres < 4) || (yres < 2)) {
-		puts("Window too small\n");
-		return;
-	}
-
-	/* Clear screen with black */
-	lcd_clear(pwi);
-
-	/* Draw red, green, blue, black rectangles in top row */
-	draw_ll_rect(pwi, 0, 0, xres_4-1, yres_2-1,
+	/* Draw red and cyan rectangles in first column */
+	xres_1_4 = (3*x1 + x2)/4;	  /* 1/4 hres */
+	draw_ll_rect(pwi, x1, y1, xres_1_4, yres_1_2,
 		     ppi->rgba2col(pwi, 0xFF0000FF)); /* Red */
-	draw_ll_rect(pwi, xres_4, 0, 2*xres_4-1, yres_2-1,
-		     ppi->rgba2col(pwi, 0x00FF00FF)); /* Green */
-	draw_ll_rect(pwi, 2*xres_4, 0, 3*xres_4-1, yres_2-1,
-		     ppi->rgba2col(pwi, 0x0000FFFF)); /* Blue */
-	draw_ll_rect(pwi, 3*xres_4, 0, xres-1, yres_2-1,
-		     ppi->rgba2col(pwi, 0x000000FF)); /* Black */
-
-	/* Draw cyan, magenta, yellow, white rectangles in bottom row */
-	draw_ll_rect(pwi, 0, yres_2, xres_4-1, yres-1,
+	draw_ll_rect(pwi, x1, yres_1_2 + 1, xres_1_4, y2,
 		     ppi->rgba2col(pwi, 0x00FFFFFF)); /* Cyan */
-	draw_ll_rect(pwi, xres_4, yres_2, 2*xres_4-1, yres-1,
+
+	/* Draw green and magenta rectangles in second column */
+	xres_1_4++;
+	xres_2_4 = (x1 + x2)/2;		  /* 2/4 hres */
+	draw_ll_rect(pwi, xres_1_4, y1, xres_2_4, yres_1_2,
+		     ppi->rgba2col(pwi, 0x00FF00FF)); /* Green */
+	draw_ll_rect(pwi, xres_1_4, yres_1_2 + 1, xres_2_4, y2,
 		     ppi->rgba2col(pwi, 0xFF00FFFF)); /* Magenta */
-	draw_ll_rect(pwi, 2*xres_4, yres_2, 3*xres_4-1, yres-1,
+
+	/* Draw blue and yellow rectangles in third column */
+	xres_2_4++;
+	xres_3_4 = (x1 + 3*x2)/4;	  /* 3/4 hres */
+	draw_ll_rect(pwi, xres_2_4, y1, xres_3_4, yres_1_2,
+		     ppi->rgba2col(pwi, 0x0000FFFF)); /* Blue */
+	draw_ll_rect(pwi, xres_2_4, yres_1_2 + 1, xres_3_4, y2,
 		     ppi->rgba2col(pwi, 0xFFFF00FF)); /* Yellow */
-	draw_ll_rect(pwi, 3*xres_4, yres_2, xres-1, yres-1,
+
+	/* Draw black and white rectangles in fourth column */
+	xres_3_4++;
+#if 0	/* Drawing black not necessary, window was already cleared black */
+	draw_ll_rect(pwi, xres_3_4, y1, x2, yres_1_2,
+		     ppi->rgba2col(pwi, 0x000000FF)); /* Black */
+#endif
+	draw_ll_rect(pwi, xres_3_4, yres_1_2 + 1, x2, y2,
 		     ppi->rgba2col(pwi, 0xFFFFFFFF)); /* White */
 }
 
 /* Draw color gradient, horizontal: hue, vertical: brightness */
-static void test_pattern2(const wininfo_t *pwi)
+static void lcd_ll_pattern2(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	int xres = (int)pwi->fbhres;
-	int yres = (int)pwi->fbvres;
-	int yres_2 = yres/2;
-	int scale = (yres-1)/2;
-	int hue;
-
-	static const struct iRGB target[] = {
+	int xres = x2 - x1;
+	int yres_1_2 = (y2 - y1)/2 + 1 + y1;
+	int xfrom = x1;
+	int hue = 0;
+	static const struct iRGB const target[] = {
 		{0xFF, 0x00, 0x00},	  /* R */
 		{0xFF, 0xFF, 0x00},	  /* Y */
 		{0x00, 0xFF, 0x00},	  /* G */
@@ -642,119 +656,117 @@ static void test_pattern2(const wininfo_t *pwi)
 		{0xFF, 0x00, 0x00}	  /* R */
 	};
 
-	/* We need at least 6 pixels in x and 3 pixels in y direction */
-	if ((xres < 6) || (yres < 3)) {
-		puts("Window too small\n");
-		return;
-	}
+	do {
+		struct iRGB from = target[hue++];
+		struct iRGB to = target[hue];
+		int xto = hue * xres / 6 + 1 + x1;
+		int dx = xto - xfrom;
+		int x;
 
-	/* Clear screen with black */
-	lcd_clear(pwi);
+		for (x = xfrom; x < xto; x++) {
+			int sx = x - xfrom;
+			int dy, y;
+			struct iRGB temp;
+			RGBA rgba;
 
-	for (hue = 0; hue < 6; hue++) {
-		int xfrom = (hue*xres + 3)/6;
-		int dx = ((hue + 1)*xres + 3)/6 - xfrom;
-		struct iRGB from = target[hue];
-		struct iRGB to = target[hue+1];
-		struct iRGB temp;
-		int x, y;
-		RGBA rgba;
+			temp.R = (to.R - from.R)*sx/dx + from.R;
+			temp.G = (to.G - from.G)*sx/dx + from.G;
+			temp.B = (to.B - from.B)*sx/dx + from.B;
 
-		for (x=0; x<dx; x++) {
-			temp.R = (to.R - from.R)*x/dx + from.R;
-			temp.G = (to.G - from.G)*x/dx + from.G;
-			temp.B = (to.B - from.B)*x/dx + from.B;
+			dy = yres_1_2 - y1;
+			for (y = y1; y < yres_1_2; y++) {
+				int sy = y - y1;
 
-			for (y=0; y<yres_2; y++) {
-				rgba = (temp.R * y/scale) << 24;
-				rgba |= (temp.G * y/scale) << 16;
-				rgba |= (temp.B * y/scale) << 8;
+				rgba = (temp.R * sy/dy) << 24;
+				rgba |= (temp.G * sy/dy) << 16;
+				rgba |= (temp.B * sy/dy) << 8;
 				rgba |= 0xFF;
-				draw_ll_pixel(pwi, x + xfrom, y,
+				draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
 					      ppi->rgba2col(pwi, rgba));
 			}
 
-			for (y=0; y<yres-yres_2; y++) {
-				rgba = ((0xFF-temp.R)*y/scale + temp.R) << 24;
-				rgba |= ((0xFF-temp.G)*y/scale + temp.G) << 16;
-				rgba |= ((0xFF-temp.B)*y/scale + temp.B) << 8;
+			dy = y2 - yres_1_2;
+			for (y = yres_1_2; y <= y2; y++) {
+				int sy = y - yres_1_2;
+
+				rgba = ((0xFF-temp.R)*sy/dy + temp.R) << 24;
+				rgba |= ((0xFF-temp.G)*sy/dy + temp.G) << 16;
+				rgba |= ((0xFF-temp.B)*sy/dy + temp.B) << 8;
 				rgba |= 0xFF;
-				draw_ll_pixel(pwi, x + xfrom, y + yres_2,
+				draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
 					      ppi->rgba2col(pwi, rgba));
 			}
 		}
-	}
+		xfrom = xto;
+	} while (hue < 6);
 }
 
 /* Draw color gradient: 8 basic colors along edges, gray in the center */
-static void test_pattern3(const wininfo_t *pwi)
+static void lcd_ll_pattern3(const wininfo_t *pwi,
+			    XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	const pixinfo_t *ppi = pwi->ppi;
-	int xres = (int)pwi->fbhres;
-	int yres = (int)pwi->fbvres;
-	int xres_2a = xres/2;
-	int xres_2b = xres - xres_2a - 1;
-	int yres_2a = yres/2;
-	int yres_2b = yres - yres_2a - 1;
-	int x, y;
-	RGBA rgb;
-	struct iRGB l, m, r;
+	int xres_1_2 = (x2 - x1)/2 + 1 + x1;
+	int yres_1_2 = (y2 - y1)/2 + 1 + y1;
+	int y;
 
-	struct iRGB tl = {0x00, 0x00, 0x00};	  /* Top left: Black */
-	struct iRGB tm = {0x00, 0x00, 0xFF};	  /* Top middle: Blue */
-	struct iRGB tr = {0x00, 0xFF, 0xFF};	  /* Top right: Cyan */
-	struct iRGB ml = {0xFF, 0x00, 0x00};	  /* Middle left: Red */
-	struct iRGB mm = {0x80, 0x80, 0x80};	  /* Middle middle: Gray */
-	struct iRGB mr = {0x00, 0xFF, 0x00};	  /* Middle right: Green */
-	struct iRGB bl = {0xFF, 0x00, 0xFF};	  /* Bottom left: Magenta */
-	struct iRGB bm = {0xFF, 0xFF, 0xFF};	  /* Bottom middle: White */
-	struct iRGB br = {0xFF, 0xFF, 0x00};	  /* Bottom right: Yellow */
+	struct iRGB const tl = {0x00, 0x00, 0x00}; /* Top left: Black */
+	struct iRGB const tm = {0x00, 0x00, 0xFF}; /* Top middle: Blue */
+	struct iRGB const tr = {0x00, 0xFF, 0xFF}; /* Top right: Cyan */
+	struct iRGB const ml = {0xFF, 0x00, 0x00}; /* Middle left: Red */
+	struct iRGB const mm = {0x80, 0x80, 0x80}; /* Middle middle: Gray */
+	struct iRGB const mr = {0x00, 0xFF, 0x00}; /* Middle right: Green */
+	struct iRGB const bl = {0xFF, 0x00, 0xFF}; /* Bottom left: Magenta */
+	struct iRGB const bm = {0xFF, 0xFF, 0xFF}; /* Bottom middle: White */
+	struct iRGB const br = {0xFF, 0xFF, 0x00}; /* Bottom right: Yellow */
 
-	/* We need at least 3 pixels in x and 3 pixels in y direction */
-	if ((xres < 3) || (yres < 3)) {
-		puts("Window too small\n");
-		return;
-	}
-
-	/* Clear screen */
-	lcd_clear(pwi);
-
-	for (y=0; y<yres; y++) {
+	for (y = y1; y <= y2; y++) {
+		struct iRGB l, m, r;
+		int x, dx;
+		int sy, dy;
+		RGBA rgb;
 
 		/* Compute left, middle and right colors for next row */
-		if (y<yres_2a) {
-			l.R = (ml.R - tl.R)*y/yres_2a + tl.R;
-			l.G = (ml.G - tl.G)*y/yres_2a + tl.G;
-			l.B = (ml.B - tl.B)*y/yres_2a + tl.B;
+		if (y < yres_1_2) {
+			sy = y - y1;
+			dy = yres_1_2 - y1;
 
-			m.R = (mm.R - tm.R)*y/yres_2a + tm.R;
-			m.G = (mm.G - tm.G)*y/yres_2a + tm.G;
-			m.B = (mm.B - tm.B)*y/yres_2a + tm.B;
+			l.R = (ml.R - tl.R)*sy/dy + tl.R;
+			l.G = (ml.G - tl.G)*sy/dy + tl.G;
+			l.B = (ml.B - tl.B)*sy/dy + tl.B;
 
-			r.R = (mr.R - tr.R)*y/yres_2a + tr.R;
-			r.G = (mr.G - tr.G)*y/yres_2a + tr.G;
-			r.B = (mr.B - tr.B)*y/yres_2a + tr.B;
+			m.R = (mm.R - tm.R)*sy/dy + tm.R;
+			m.G = (mm.G - tm.G)*sy/dy + tm.G;
+			m.B = (mm.B - tm.B)*sy/dy + tm.B;
+
+			r.R = (mr.R - tr.R)*sy/dy + tr.R;
+			r.G = (mr.G - tr.G)*sy/dy + tr.G;
+			r.B = (mr.B - tr.B)*sy/dy + tr.B;
 		} else {
-			int y2 = y - yres_2a;
+			sy = y - yres_1_2;
+			dy = y2 - yres_1_2;
 
-			l.R = (bl.R - ml.R)*y2/yres_2b + ml.R;
-			l.G = (bl.G - ml.G)*y2/yres_2b + ml.G;
-			l.B = (bl.B - ml.B)*y2/yres_2b + ml.B;
+			l.R = (bl.R - ml.R)*sy/dy + ml.R;
+			l.G = (bl.G - ml.G)*sy/dy + ml.G;
+			l.B = (bl.B - ml.B)*sy/dy + ml.B;
 
-			m.R = (bm.R - mm.R)*y2/yres_2b + mm.R;
-			m.G = (bm.G - mm.G)*y2/yres_2b + mm.G;
-			m.B = (bm.B - mm.B)*y2/yres_2b + mm.B;
+			m.R = (bm.R - mm.R)*sy/dy + mm.R;
+			m.G = (bm.G - mm.G)*sy/dy + mm.G;
+			m.B = (bm.B - mm.B)*sy/dy + mm.B;
 
-			r.R = (br.R - mr.R)*y2/yres_2b + mr.R;
-			r.G = (br.G - mr.G)*y2/yres_2b + mr.G;
-			r.B = (br.B - mr.B)*y2/yres_2b + mr.B;
+			r.R = (br.R - mr.R)*sy/dy + mr.R;
+			r.G = (br.G - mr.G)*sy/dy + mr.G;
+			r.B = (br.B - mr.B)*sy/dy + mr.B;
 		}
 
 		/* Draw left half of row */
-		for (x=0; x<xres_2a; x++) {
-			rgb = ((m.R - l.R)*x/xres_2a + l.R) << 24;
-			rgb |= ((m.G - l.G)*x/xres_2a + l.G) << 16;
-			rgb |= ((m.B - l.B)*x/xres_2a + l.B) << 8;
+		dx = xres_1_2 - x1;
+		for (x = x1; x < xres_1_2; x++) {
+			int sx = x - x1;
+
+			rgb = ((m.R - l.R)*sx/dx + l.R) << 24;
+			rgb |= ((m.G - l.G)*sx/dx + l.G) << 16;
+			rgb |= ((m.B - l.B)*sx/dx + l.B) << 8;
 			rgb |= 0xFF;
 
 			draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
@@ -762,12 +774,13 @@ static void test_pattern3(const wininfo_t *pwi)
 		}
 
 		/* Draw right half of row */
-		for (x=xres_2a; x<xres; x++) {
-			int x2 = x - xres_2a;
+		dx = x2 - xres_1_2;
+		for (x = xres_1_2; x <= x2; x++) {
+			int sx = x - xres_1_2;
 
-			rgb = ((r.R - m.R)*x2/xres_2b + m.R) << 24;
-			rgb |= ((r.G - m.G)*x2/xres_2b + m.G) << 16;
-			rgb |= ((r.B - m.B)*x2/xres_2b + m.B) << 8;
+			rgb = ((r.R - m.R)*sx/dx + m.R) << 24;
+			rgb |= ((r.G - m.G)*sx/dx + m.G) << 16;
+			rgb |= ((r.B - m.B)*sx/dx + m.B) << 8;
 			rgb |= 0xFF;
 
 			draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
@@ -1363,29 +1376,36 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 
 
 /* Draw test pattern */
-void lcd_test(const wininfo_t *pwi, u_int pattern)
+int lcd_test(const wininfo_t *pwi, u_int pattern)
 {
-	switch (pattern) {
-	default:			  /* Test pattern */
-		/* grid, circle, basic colors */
-		test_pattern0(pwi);
-		break;
+	XYPOS x1 = pwi->clip_left;
+	XYPOS y1 = pwi->clip_top;
+	XYPOS x2 = pwi->clip_right;
+	XYPOS y2 = pwi->clip_bottom;
+	const struct testinfo ti[] = {
+		{24, 16, lcd_ll_pattern0}, /* Grid, circle, basic colors */
+		{ 4,  2, lcd_ll_pattern1}, /* Eight colors in 4x2 fields */
+		{ 6,  3, lcd_ll_pattern2}, /* Hor: colors, vert: brightness */
+		{ 6,  3, lcd_ll_pattern3}  /* Colors at screen borders */
+	};
+	const struct testinfo *pti;
 
-	case 1:			/* Color gradient 1 */
-		/* Eight colors in two rows a four */
-		test_pattern1(pwi);
-		break;
+	/* Get info to the given pattern */
+	if (pattern > ARRAYSIZE(ti))
+		pattern = 0;
+	pti = &ti[pattern];
 
-	case 2:			/* Color gradient 2 */
-		/* Horizontal: colors, vertical: brightness */
-		test_pattern2(pwi);
-		break;
+	/* Return with error if window is too small */
+	if ((x2-x1+1 < pti->minhres) || (y2-y1+1 < pti->minvres))
+		return 1;
 
-	case 3:		       /* Color gradient 3 */
-		/* Colors along screen edges, gray in center */
-		test_pattern3(pwi);
-		break;
-	}
+	/* Clear window in black */
+	draw_ll_rect(pwi, x1, y1, x2, y2, pwi->ppi->rgba2col(pwi, 0x000000FF));
+
+	/* Call lowlevel drawing function for pattern */
+	pti->draw_ll_pattern(pwi, x1, y1, x2, y2);
+
+	return 0;
 }
 
 

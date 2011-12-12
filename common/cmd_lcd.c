@@ -1528,10 +1528,13 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case DI_TEST:			  /* Draw test pattern */
 		a = (argc > 2) ? simple_strtoul(argv[2], NULL, 0) : 0;
-		rgba_save = pwi->fg.rgba;
+		rgba2 = pwi->fg.rgba; //####
 		lcd_set_fg(pwi, 0xFFFFFFFF); /* White for grid & circles */
-		lcd_test(pwi, a);
-		lcd_set_fg(pwi, rgba_save);
+		if (lcd_test(pwi, a)) {
+			printf("Window too small\n");
+			return 1;
+		}
+		lcd_set_fg(pwi, rgba2); //####
 		break;
 
 	default:			  /* Should not happen */

@@ -90,7 +90,7 @@ extern void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r);
 extern void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s);
 
 /* Draw test pattern */
-extern void lcd_test(const wininfo_t *pwi, u_int pattern);
+extern int lcd_test(const wininfo_t *pwi, u_int pattern);
 
 /* Lookup nearest possible color in given color map */
 extern COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count);
