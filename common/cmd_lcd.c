@@ -1440,7 +1440,11 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		lcd_set_bg(pwi, rgba2);
 
 		/* Optional argument 4: attribute */
-		a = (argc > 5) ? simple_strtoul(argv[5], NULL, 0) : 0;
+		if (argc > 5) {
+			a = simple_strtoul(argv[5], NULL, 0);
+			pwi->text_attr = a;
+		} else
+			a = pwi->text_attr;
 		pwi->attr |= a;
 		lcd_text(pwi, x1, y1, argv[4]);
 		lcd_set_bg(pwi, rgba_save);
@@ -1923,6 +1927,7 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 		pwi->alpha0 = DEFAULT_ALPHA0;
 		pwi->alpha1 = DEFAULT_ALPHA1;
 		pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
+		pwi->text_attr = 0;
 	}
 	fix_offset(pwi);
 

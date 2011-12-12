@@ -226,6 +226,7 @@ struct wininfo
 	XYPOS voffs;
 
 	/* Drawing information, only accessed by draw command */
+	u_int text_attr;		  /* Current text attribute */
 	XYPOS clip_left;		  /* Current clipping region */
 	XYPOS clip_top;
 	XYPOS clip_right;
@@ -235,9 +236,9 @@ struct wininfo
 	pbinfo_t pbi;			  /* Progress bar info */
 
 	/* Color information */
-	u_int attr;			  /* Current attribute */
 	colinfo_t fg;			  /* Foreground color info */
 	colinfo_t bg;			  /* Foreground color info */
+	u_int attr;			  /* Attribute for next drawing */
 	RGBA alpha0;			  /* Alpha value for A=0 */
 	RGBA alpha1;			  /* Alpha value for A=1 */
 	u_char alphamode;		  /* 0: alpha0, 1: alpha1, 2: pixel */
