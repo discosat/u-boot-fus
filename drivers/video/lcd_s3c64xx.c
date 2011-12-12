@@ -405,7 +405,7 @@ static RGBA c2r_rgba5650(const wininfo_t *pwi, COLOR32 color)
 {
 	RGBA rgba;
 
-	rgba = (color >> 9) << 25;	   /* R[7:3] */
+	rgba = (color >> 11) << 27;	   /* R[7:3] */
 	rgba |= (color << 27) >> 16;	   /* B[7:3] */
 	rgba |= (rgba >> 5);		   /* R[2:0], B[2:0] */
 	rgba &= 0xFF00FFFF;
