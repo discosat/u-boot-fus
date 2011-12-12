@@ -145,9 +145,9 @@ enum DRAW_INDEX {
 	DI_PBT,
 	DI_COLOR,
 	DI_FILL,
-	DI_TEST,
 	DI_CLEAR,
 	DI_PROG,
+	DI_TEST,
 
 	/* Unknown draw sub-command (must be the last entry!) */
 	DI_HELP
@@ -367,9 +367,9 @@ static kwinfo_t const draw_kw[] = {
 	[DI_PBT] =    {0, 3, 0, 1, "pbt"},    /* [attr [rgba [rgba]]] */
 	[DI_COLOR] =  {1, 2, 0, 0, "color"},  /* rgba [rgba] */
 	[DI_FILL] =   {0, 1, 0, 0, "fill"},   /* [rgba] */
+	[DI_CLEAR] =  {0, 1, 0, 9, "clear"},  /* [rgba] */
 	[DI_PROG] =   {0, 1, 0, 9, "prog"},   /* [n] */
 	[DI_TEST] =   {0, 1, 0, 9, "test"},   /* [n] */
-	[DI_CLEAR] =  {0, 0, 0, 9, "clear"},  /* (no args) */
 	[DI_HELP] =   {0, 0, 0, 9, "help"},   /* (no args, show usage) */
 };
 
@@ -1513,6 +1513,9 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		break;
 
 	case DI_CLEAR:			  /* Fill window with BG color */
+		if ((argc > 2) && (parse_rgb(argv[colindex], &rgba2)))
+		    return 1;
+		lcd_set_bg(pwi, rgba2);
 		lcd_fill(pwi, &pwi->bg);
 		break;
 
@@ -1576,10 +1579,10 @@ U_BOOT_CMD(
 	"    - draw progress bar with given progress\n"
 	"draw fill [#rgba]\n"
 	"    - fill window with color\n"
+	"draw clear [#rgba]\n"
+	"    - clear window with color\n"
 	"draw test [n]\n"
 	"    - draw test pattern n\n"
-	"draw clear\n"
-	"    - clear window\n"
 	"draw clip x1 y1 x2 y2\n"
 	"    - define clipping region from (x1, y1) to (x2, y2)\n"
 	"draw origin x y\n"
