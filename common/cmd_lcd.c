@@ -128,6 +128,7 @@ enum DRAW_INDEX {
 	DI_FRAME,
 	DI_RECT,
 	DI_PBR,
+	DI_CLIP,
 
 	/* Draw commands with one coordinate pair x1/y1 */
 	DI_PIXEL,
@@ -354,6 +355,7 @@ static kwinfo_t const draw_kw[] = {
 	[DI_FRAME] =  {4, 5, 2, 4, "frame"},  /* x1 y1 x2 y2 [rgba] */
 	[DI_RECT] =   {4, 6, 2, 4, "rect"},   /* x1 y1 x2 y2 [rgba [rgba]] */
 	[DI_PBR] =    {4, 6, 2, 4, "pbr"},    /* x1 y1 x2 y2 [rgba [rgba]] */
+	[DI_CLIP] =   {4, 4, 2, 9, "clip"},   /* x1 y1 x2 y2 */
 	[DI_PIXEL] =  {2, 3, 1, 2, "pixel"},  /* x1 y1 [rgba] */
 	[DI_CIRCLE] = {3, 4, 1, 3, "circle"}, /* x1 y1 r [rgba] */
 	[DI_DISC] =   {3, 5, 1, 3, "disc"},   /* x1 y1 r [rgba [rgba]] */
@@ -1096,6 +1098,8 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		printf("color:\tFG #%08x (#%08x), BG #%08x (#%08x)\n",
 		       pwi->fg.rgba, pwi->ppi->col2rgba(pwi, pwi->fg.col),
 		       pwi->bg.rgba, pwi->ppi->col2rgba(pwi, pwi->bg.col));
+		printf("clip:\t(%d, %d) - (%d, %d)\n", pwi->clip_left,
+		       pwi->clip_top, pwi->clip_right, pwi->clip_bottom);
 		printf("pbr:\t(%d, %d) - (%d, %d), FG #%08x, BG #%08x\n",
 		       pwi->pbi.x1, pwi->pbi.y1, pwi->pbi.x2, pwi->pbi.y2,
 		       pwi->pbi.rect_fg, pwi->pbi.rect_bg);
@@ -1184,6 +1188,21 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		pwi->pbi.y2 = y2;
 		pwi->pbi.rect_fg = rgba1;
 		pwi->pbi.rect_bg = rgba2;
+		break;
+
+	case DI_CLIP:			  /* Set new clipping region */
+		if (x1 < 0)
+			x1 = 0;
+		if (y1 < 0)
+			y1 = 0;
+		if (x2 >= pwi->fbhres)
+			x2 = pwi->fbhres - 1;
+		if (y2 >= pwi->fbvres)
+			y2 = pwi->fbvres - 1;
+		pwi->clip_left = x1;
+		pwi->clip_top = y1;
+		pwi->clip_right = x2;
+		pwi->clip_bottom = y2;
 		break;
 
 	case DI_CIRCLE:			  /* Draw circle outline */
@@ -1335,6 +1354,8 @@ U_BOOT_CMD(
 	"    - draw test pattern n\n"
 	"draw clear\n"
 	"    - clear window\n"
+	"draw clip x1 y1 x2 y2\n"
+	"    - define clipping region from (x1, y1) to (x2, y2)\n"
 	"draw color #rgba [#rgba]\n"
 	"    - set FG (and BG) color\n"
 	"draw\n"
@@ -1641,6 +1662,10 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 	pwi->vres = vres;
 	pwi->fbhres = fbhres;
 	pwi->fbvres = fbvres;
+	pwi->clip_left = 0;
+	pwi->clip_top = 0;
+	pwi->clip_right = fbhres - 1;
+	pwi->clip_bottom = fbvres - 1;
 	pwi->pbi.x1 = 0;
 	pwi->pbi.x2 = fbhres - 1;
 	pwi->pbi.y1 = 0;
@@ -2874,6 +2899,11 @@ void drv_lcd_init(void)
 			pwi->voffs = 0;
 
 			/* Drawing information */
+			pwi->text_attr = 0;
+			pwi->clip_left = 0;
+			pwi->clip_top = 0;
+			pwi->clip_right = 0;
+			pwi->clip_bottom = 0;
 			pwi->pbi = pbi_default;
 
 			/* Color information */

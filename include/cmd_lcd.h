@@ -226,6 +226,10 @@ struct wininfo
 	XYPOS voffs;
 
 	/* Drawing information, only accessed by draw command */
+	XYPOS clip_left;		  /* Current clipping region */
+	XYPOS clip_top;
+	XYPOS clip_right;
+	XYPOS clip_bottom;
 	pbinfo_t pbi;			  /* Progress bar info */
 
 	/* Color information */

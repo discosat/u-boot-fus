@@ -778,16 +778,23 @@ static void test_pattern3(const wininfo_t *pwi)
 
 
 
-
 /************************************************************************/
 /* GRAPHICS PRIMITIVES							*/
 /************************************************************************/
 
-/* Fill display with FG color */
+/* Fill clipping region with FG color */
 void lcd_fill(const wininfo_t *pwi)
 {
+	XYPOS x1, y1, x2, y2;
+
+	/* Move from clipping region coordinates to absolute coordinates */
+	x1 = pwi->clip_left;
+	y1 = pwi->clip_top;
+	x2 = pwi->clip_right;
+	y2 = pwi->clip_bottom;
+
 	if (pwi->attr & ATTR_ALPHA)
-		adraw_ll_rect(pwi, 0, 0, pwi->fbhres, pwi->fbvres);
+		adraw_ll_rect(pwi, x1, y1, x2, y2);
 	else
 		memset32((unsigned *)pwi->pfbuf[pwi->fbdraw],
 			 col2col32(pwi, pwi->fg.col), pwi->fbsize/4);
@@ -803,8 +810,8 @@ void lcd_clear(const wininfo_t *pwi)
 /* Draw pixel at (x, y) with FG color */
 void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
 {
-	if ((x < 0) || (x >= (XYPOS)pwi->fbhres)
-	    || (y < 0) || (y >= (XYPOS)pwi->fbvres))
+	if ((x < pwi->clip_left) || (x > pwi->clip_right)
+	    || (y < pwi->clip_top) || (y > pwi->clip_bottom))
 		return;
 
 	if (pwi->attr & ATTR_ALPHA)
@@ -818,8 +825,7 @@ void lcd_pixel(const wininfo_t *pwi, XYPOS x, XYPOS y)
 void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
 	int dx, dy, dd;
-	XYPOS temp;
-	XYPOS xmax, ymax;
+	XYPOS xmin, ymin, xmax, ymax;
 	XYPOS xoffs, yoffs;
 
 	dx = (int)x2 - (int)x1;
@@ -829,12 +835,16 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	if (dy < 0)
 		dy = -dy;
 
-	xmax = (XYPOS)pwi->fbhres - 1;
-	ymax = (XYPOS)pwi->fbvres - 1;
+	xmin = pwi->clip_left;
+	ymin = pwi->clip_top;
+	xmax = pwi->clip_right;
+	ymax = pwi->clip_bottom;
 
 	if (dy > dx) {			  /* High slope */
 		/* Sort pixels so that y1 <= y2 */
 		if (y1 > y2) {
+			XYPOS temp;
+
 			temp = x1;
 			x1 = x2;
 			x2 = temp;
@@ -844,37 +854,40 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		}
 
 		/* Return if line is completely above or below the display */
-		if ((y2 < 0) || (y1 > ymax))
+		if ((y2 < ymin) || (y1 > ymax))
 			return;
 
 		dd = dy;
 		dx <<= 1;
 		dy <<= 1;
 
-		if (y1 < 0) {
+		if (y1 < ymin) {
 			/* Clip with upper screen edge */
-			yoffs = -y1;
+			yoffs = ymin - y1;
 			xoffs = (dd + (int)yoffs * dx)/dy;
 			dd += xoffs*dy - yoffs*dx;
-			y1 = 0;
-			x1 += xoffs;
+			y1 = ymin;
 		}
 
 		/* Return if line fragment is fully left or right of display */
-		if (((x1 < 0) && (x2 < 0)) || ((x1 > xmax) && (x2 > xmax)))
+		if (((x1 < xmin) && (x2 < xmin))
+		    || ((x1 > xmax) && (x2 > xmax)))
 			return;
 
 		/* We only need y2 as end coordinate */
 		if (y2 > ymax)
 			y2 = ymax;
 
+		/* If line is vertical, we can use the more efficient
+		   rectangle function */
 		if (dx == 0) {
-			/* Draw vertical line */
 			lcd_rect(pwi, x1, y1, x2, y2);
 			return;
 		}
 
 		xoffs = (x1 > x2) ? -1 : 1;
+		/* Draw line from top to bottom, i.e. every loop cycle go one
+		   pixel down and sometimes one pixel left or right */
 		for (;;) {
 			lcd_pixel(pwi, x1, y1);
 			if (y1 == y2)
@@ -889,6 +902,8 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	} else {			  /* Low slope */
 		/* Sort pixels so that x1 <= x2 */
 		if (x1 > x2) {
+			XYPOS temp;
+
 			temp = x1;
 			x1 = x2;
 			x2 = temp;
@@ -898,30 +913,32 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		}
 
 		/* Return if line is completely left or right of the display */
-		if ((x2 < 0) || (x1 > xmax))
+		if ((x2 < xmin) || (x1 > xmax))
 			return;
 
 		dd = dx;
 		dx <<= 1;
 		dy <<= 1;
 
-		if (x1 < 0) {
+		if (x1 < xmin) {
 			/* Clip with left screen edge */
-			xoffs = -x1;
+			xoffs = xmin - x1;
 			yoffs = (dd + (int)xoffs * dy)/dx;
 			dd += yoffs*dx - xoffs*dy;
-			x1 = 0;
-			y1 += yoffs;
+			x1 = xmin;
 		}
 
 		/* Return if line fragment is fully above or below display */
-		if (((y1 < 0) && (y2 < 0)) || ((y1 > ymax) && (y2 > ymax)))
+		if (((y1 < xmin) && (y2 < xmin))
+		    || ((y1 > ymax) && (y2 > ymax)))
 			return;
 
 		/* We only need x2 as end coordinate */
 		if (x2 > xmax)
 			x2 = xmax;
 
+		/* If line is horizontal, we can use the more efficient
+		   rectangle function */
 		if (dy == 0) {
 			/* Draw horizontal line */
 			lcd_rect(pwi, x1, y1, x2, y2);
@@ -929,6 +946,8 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		}
 
 		yoffs = (y1 > y2) ? -1 : 1;
+		/* Draw line from left to right, i.e. every loop cycle go one
+		   pixel right and sometimes one pixel up or down */
 		for (;;) {
 			lcd_pixel(pwi, x1, y1);
 			if (x1 == x2)
@@ -943,9 +962,11 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	}
 }
 
-/* Draw rectangular frame from (x1, y1) to (x2, y2) in color */
+/* Draw rectangular frame from (x1, y1) to (x2, y2) in color; x1<=x2 and
+   y1<=y2 must be valid! */
 void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
+	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
 
 	/* Sort x and y values */
@@ -961,9 +982,11 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	}
 
 	/* Check if object is fully left, right, above or below screen */
-	xmax = (XYPOS)pwi->fbhres - 1;
-	ymax = (XYPOS)pwi->fbvres - 1;
-	if ((x2 < 0) || (y2 < 0) || (x1 > xmax) || (y1 > ymax))
+	xmin = pwi->clip_left;
+	ymin = pwi->clip_top;
+	xmax = pwi->clip_right;
+	ymax = pwi->clip_bottom;
+	if ((x2 < xmin) || (y2 < ymin) || (x1 > xmax) || (y1 > ymax))
 		return;			  /* Done, object not visible */
 
 	/* If the frame is wider than two pixels, we need to draw
@@ -972,14 +995,14 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 		XYPOS xl, xr;
 
 		/* Clip at left and right screen edges if necessary */
-		xl = (x1 < 0) ? 0 : x1;
+		xl = (x1 < xmin) ? xmin : x1;
 		xr = (x2 > xmax) ? xmax : x2;
 
 		/* Draw top line */
-		if (y1 >= 0) {
+		if (y1 >= ymin) {
 			lcd_rect(pwi, xl, y1, xr, y1);
 
-			/* We are done if rectangle is only one pixel high */
+			/* We are done if rectangle is exactly one pixel high */
 			if (y1 == y2)
 				return;
 		}
@@ -997,16 +1020,16 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	}
 
 	/* Clip at upper and lower screen edges if necessary */
-	if (y1 < 0)
-		y1 = 0;
+	if (y1 < ymin)
+		y1 = ymin;
 	if (y2 > ymax)
 		y2 = ymax;
 
 	/* Draw left line */
-	if (x1 >= 0) {
+	if (x1 >= xmin) {
 		lcd_rect(pwi, x1, y1, x1, y2);
 
-		/* Return if rectangle is only one pixel wide */
+		/* Return if rectangle is exactly one pixel wide */
 		if (x1 == x2)
 			return;
 	}
@@ -1017,9 +1040,11 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 }
 
 
-/* Draw filled rectangle from (x1, y1) to (x2, y2) in color */
+/* Draw filled rectangle from (x1, y1) to (x2, y2) in color; x1<=x2 and
+   y1<=y2 must be valid! */
 void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 {
+	XYPOS xmin, ymin;
 	XYPOS xmax, ymax;
 
 	/* Sort x and y values */
@@ -1035,16 +1060,18 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2)
 	}
 
 	/* Check if object is fully left, right, above or below screen */
-	xmax = (XYPOS)pwi->fbhres - 1;
-	ymax = (XYPOS)pwi->fbvres - 1;
-	if ((x2 < 0) || (y2 < 0) || (x1 > xmax) || (y1 > ymax))
+	xmin = pwi->clip_left;
+	ymin = pwi->clip_top;
+	xmax = pwi->clip_right;
+	ymax = pwi->clip_bottom;
+	if ((x2 < xmin) || (y2 < ymin) || (x1 > xmax) || (y1 > ymax))
 		return;			  /* Done, object not visible */
 
 	/* Clip rectangle to framebuffer boundaries */
-	if (x1 < 0)
-		x1 = 0;
-	if (y1 < 0)
-		y1 = 0;
+	if (x1 < xmin)
+		x1 = xmin;
+	if (y1 < ymin)
+		y1 = ymin;
 	if (x2 > xmax)
 		x2 = xmax;
 	if (y2 >= ymax)
@@ -1268,8 +1295,10 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 	XYPOS len = (XYPOS)strlen(s);
 	XYPOS width = VIDEO_FONT_WIDTH;
 	XYPOS height = VIDEO_FONT_HEIGHT;
-	XYPOS fbhres = (XYPOS)pwi->fbhres;
-	XYPOS fbvres = (XYPOS)pwi->fbvres;
+	XYPOS xmin = pwi->clip_left;
+	XYPOS ymin = pwi->clip_top;
+	XYPOS xmax = pwi->clip_right+1;
+	XYPOS ymax = pwi->clip_bottom+1;
 	u_int attr = pwi->attr;
 
 	/* Return if string is empty */
@@ -1299,7 +1328,7 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 	}
 
 	/* Return if text is completely or partly above or below framebuffer */
-	if ((y < 0) || (y + height > fbvres))
+	if ((y < ymin) || (y + height > ymax))
 		return;
 
 	/* Compute x from horizontal alignment */
@@ -1322,12 +1351,12 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 
 	/* Return if text is completely right of framebuffer or if only the
 	   first character would be partly inside of the framebuffer */
-	if (x + width > fbhres)
+	if (x + width > xmax)
 		return;
 
-	if (x < 0) {
+	if (x < xmin) {
 		/* Compute number of characters left of framebuffer */
-		unsigned offs = (-x - 1)/width + 1;
+		unsigned offs = (xmin - x - 1)/width + 1;
 
 		/* Return if string would be completeley left of framebuffer */
 		if (offs >= len)
@@ -1344,7 +1373,7 @@ void lcd_text(const wininfo_t *pwi, XYPOS x, XYPOS y, char *s)
 
 		/* Stop on end of string or if character would not fit into
 		   framebuffer anymore */
-		if (!c || (x + width > fbhres))
+		if (!c || (x + width > xmax))
 			break;
 
 		/* Output character and move position */

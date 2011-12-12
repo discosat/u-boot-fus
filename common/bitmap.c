@@ -1515,7 +1515,7 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 {
 	imginfo_t ii;
 	XYPOS hres, vres;
-	XYPOS fbhres, fbvres;
+	XYPOS xmin, ymin, xmax, ymax;
 	int xpos;
 	u_int attr;
 
@@ -1538,9 +1538,6 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 	hres = ii.bi.hres * ii.multiwidth;
 	vres = ii.bi.vres * ii.multiheight;
 
-	/* Apply horizontal alignment */
-	fbhres = (XYPOS)pwi->fbhres;
-	fbvres = (XYPOS)pwi->fbvres;
 	switch (attr & ATTR_HMASK) {
 	case ATTR_HLEFT:
 		break;
@@ -1576,14 +1573,20 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 		break;
 	}
 
+	/* Apply horizontal alignment */
+	xmin = pwi->clip_left;
+	xmax = pwi->clip_right + 1;
+	ymin = pwi->clip_top;
+	ymax = pwi->clip_bottom + 1;
+
 	/* Return if image is completely outside of framebuffer */
-	if ((x >= fbhres) || (x+hres < 0) || (y >= fbvres) || (y+vres < 0))
+	if ((x >= xmax) || (x+hres <= xmin) || (y >= xmax) || (y+vres <= xmin))
 		return NULL;
 
 	/* Compute end pixel in this row */
 	ii.xend = hres;
-	if (ii.xend + x > pwi->fbhres)
-		ii.xend = pwi->fbhres - x;
+	if (ii.xend + x > xmax)
+		ii.xend = xmax - x;
 
 	/* xpix counts the bitmap columns from 0 to xend; however if x < 0, we
 	   start at the appropriate offset. */
@@ -1606,8 +1609,8 @@ const char *lcd_bitmap(const wininfo_t *pwi, XYPOS x, XYPOS y, u_long addr)
 	ii.ypix = 0;
 	ii.yend = vres;
 	ii.y = y;
-	if (ii.yend + y > pwi->fbvres)
-		ii.yend = pwi->fbvres - y;
+	if (ii.yend + y > ymax)
+		ii.yend = ymax - y;
 
 	/* Actually draw the bitmap */
 	return bmtype_tab[ii.bi.type].draw_bm(&ii, addr);
