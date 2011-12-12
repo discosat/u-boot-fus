@@ -981,38 +981,19 @@ void lcd_line(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 	       const colinfo_t *pci)
 {
-	XYPOS xmin, ymin;
-	XYPOS xmax, ymax;
-
-	/* Check if object is fully left, right, above or below screen */
-	xmin = pwi->clip_left;
-	ymin = pwi->clip_top;
-	xmax = pwi->clip_right;
-	ymax = pwi->clip_bottom;
-	if ((x2 < xmin) || (y2 < ymin) || (x1 > xmax) || (y1 > ymax))
-		return;			  /* Done, object not visible */
-
 	/* If the frame is wider than two pixels, we need to draw
-	   horizontal lines at the top and bottom */
+	   horizontal lines at the top and bottom; clipping is done in
+	   lcd_rect() so we don't care about clipping here. */
 	if (x2 - x1 > 1) {
-		XYPOS xl, xr;
-
-		/* Clip at left and right screen edges if necessary */
-		xl = (x1 < xmin) ? xmin : x1;
-		xr = (x2 > xmax) ? xmax : x2;
-
 		/* Draw top line */
-		if (y1 >= ymin) {
-			lcd_rect(pwi, xl, y1, xr, y1, pci);
+		lcd_rect(pwi, x1, y1, x2, y1, pci);
 
-			/* We are done if rectangle is exactly one pixel high */
-			if (y1 == y2)
-				return;
-		}
+		/* We are done if rectangle is exactly one pixel high */
+		if (y1 == y2)
+			return;
 
 		/* Draw bottom line */
-		if (y2 <= ymax)
-			lcd_rect(pwi, xl, y2, xr, y2, pci);
+		lcd_rect(pwi, x1, y2, x2, y2, pci);
 
 		/* For the vertical lines we only need to draw the region
 		   between the horizontal lines, so increment y1 and decrement
@@ -1022,24 +1003,15 @@ void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 			return;
 	}
 
-	/* Clip at upper and lower screen edges if necessary */
-	if (y1 < ymin)
-		y1 = ymin;
-	if (y2 > ymax)
-		y2 = ymax;
-
 	/* Draw left line */
-	if (x1 >= xmin) {
-		lcd_rect(pwi, x1, y1, x1, y2, pci);
+	lcd_rect(pwi, x1, y1, x1, y2, pci);
 
-		/* Return if rectangle is exactly one pixel wide */
-		if (x1 == x2)
-			return;
-	}
+	/* Return if rectangle is exactly one pixel wide */
+	if (x1 == x2)
+		return;
 
 	/* Draw right line */
-	if (x2 <= xmax)
-		lcd_rect(pwi, x2, y1, x2, y2, pci);
+	lcd_rect(pwi, x2, y1, x2, y2, pci);
 }
 
 
@@ -1150,6 +1122,7 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
  *
  * To avoid drawing pixels twice when using the symmetry, we further handle
  * the first pixel (dx=0, dy=r) and the last pixel (dx=r, dy=0) separately.
+ * Clipping is done in lcd_pixel() so we don't care about clipping here.
  *
  * Remark: this algorithm computes an optimal approximation to a circle, i.e.
  * the result is also symmetric to the angle bisector. */
