@@ -139,6 +139,7 @@ enum DRAW_INDEX {
 #ifdef _BITMAP_SUPPORT_
 	DI_BITMAP,
 #endif
+	DI_ORIGIN,
 
 	/* Draw commands with no coordinate pair */
 	DI_PBT,
@@ -364,6 +365,7 @@ static kwinfo_t const draw_kw[] = {
 #ifdef _BITMAP_SUPPORT_
 	[DI_BITMAP] = {3, 5, 1, 9, "bm"},     /* x1 y1 addr [n [attr]] */
 #endif
+	[DI_ORIGIN] = {2, 2, 1, 9, "origin"}, /* x1 y1 */
 	[DI_PBT] =    {0, 3, 0, 1, "pbt"},    /* [attr [rgba [rgba]]] */
 	[DI_COLOR] =  {1, 2, 0, 0, "color"},  /* rgba [rgba] */
 	[DI_FILL] =   {0, 1, 0, 0, "fill"},   /* [rgba] */
@@ -1100,6 +1102,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		       pwi->bg.rgba, pwi->ppi->col2rgba(pwi, pwi->bg.col));
 		printf("clip:\t(%d, %d) - (%d, %d)\n", pwi->clip_left,
 		       pwi->clip_top, pwi->clip_right, pwi->clip_bottom);
+		printf("origin:\t(%d, %d)\n", pwi->horigin, pwi->vorigin);
 		printf("pbr:\t(%d, %d) - (%d, %d), FG #%08x, BG #%08x\n",
 		       pwi->pbi.x1, pwi->pbi.y1, pwi->pbi.x2, pwi->pbi.y2,
 		       pwi->pbi.rect_fg, pwi->pbi.rect_bg);
@@ -1135,10 +1138,14 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	if (coord_pairs > 0) {
 		x1 = (XYPOS)simple_strtol(argv[2], NULL, 0);
 		y1 = (XYPOS)simple_strtol(argv[3], NULL, 0);
+		x1 += pwi->horigin;
+		y1 += pwi->vorigin;
 
 		if (coord_pairs > 1) {
 			x2 = (XYPOS)simple_strtol(argv[4], NULL, 0);
 			y2 = (XYPOS)simple_strtol(argv[5], NULL, 0);
+			x2 += pwi->horigin;
+			y2 += pwi->vorigin;
 		}
 	}
 
@@ -1266,6 +1273,11 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 #endif /*_BITMAP_SUPPORT_*/
 
+	case DI_ORIGIN:			  /* Set new origin position */
+		pwi->horigin = x1;
+		pwi->vorigin = y1;
+		break;
+
 	case DI_TURTLE:			  /* Draw turtle graphics */
 		if (lcd_turtle(pwi, &x1, &y1, argv[4], 0) < 0)
 			puts(" in argument string\n");
@@ -1356,10 +1368,12 @@ U_BOOT_CMD(
 	"    - clear window\n"
 	"draw clip x1 y1 x2 y2\n"
 	"    - define clipping region from (x1, y1) to (x2, y2)\n"
+	"draw origin x y\n"
+	"    - move drawing origin (0, 0) to given position\n"
 	"draw color #rgba [#rgba]\n"
 	"    - set FG (and BG) color\n"
 	"draw\n"
-	"    - show current FG and BG color\n"
+	"    - show current drawing parameters\n"
 );
 
 U_BOOT_CMD(
@@ -1670,6 +1684,8 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 	pwi->pbi.x2 = fbhres - 1;
 	pwi->pbi.y1 = 0;
 	pwi->pbi.y2 = fbvres - 1;
+	pwi->horigin = 0;
+	pwi->vorigin = 0;
 	pwi->active = (fbhres && fbvres && fbcount);
 	pwi->ppi = ppi;
 	pwi->fbcount = pwi->active ? fbcount : 0;
@@ -2904,6 +2920,8 @@ void drv_lcd_init(void)
 			pwi->clip_top = 0;
 			pwi->clip_right = 0;
 			pwi->clip_bottom = 0;
+			pwi->horigin = 0;
+			pwi->vorigin = 0;
 			pwi->pbi = pbi_default;
 
 			/* Color information */

@@ -230,6 +230,8 @@ struct wininfo
 	XYPOS clip_top;
 	XYPOS clip_right;
 	XYPOS clip_bottom;
+	XYPOS horigin;			  /* Current drawing origin */
+	XYPOS vorigin;
 	pbinfo_t pbi;			  /* Progress bar info */
 
 	/* Color information */
