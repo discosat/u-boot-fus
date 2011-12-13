@@ -594,31 +594,30 @@ static void lcd_ll_pattern0(const wininfo_t *pwi,
 
 	/* Draw big and small circle; make sure that circle fits on screen */
 	if (hres > vres) {
-		r1 = vres/2;
+		r1 = vres-1;
 		r2 = dy;
 	} else {
-		r1 = hres/2;
+		r1 = hres-1;
 		r2 = dx;
 	}
+	r1 = r1/2;
 	x = hres/2 + x1;
 	y = vres/2 + y1;
 
 	/* Draw two circles */
-	lcd_circle(pwi, x, y, r1 - 1, &ci);
-	lcd_circle(pwi, x, y, r2, &ci);
+	lcd_rframe(pwi, x-r1, y-r1, x+r1-1, y+r1-1, r1, &ci);
+	lcd_rframe(pwi, x-r2, y-r2, x+r2-1, y+r2-1, r2, &ci);
 
-	/* Draw corners */
-	if ((hres >= 8) && (vres >= 8)) {
-		col = ppi->rgba2col(pwi, 0x00FF00FF);  /* Green */
-		draw_ll_rect(pwi, x1, y1, x1+7, y1, col); /* top left */
-		draw_ll_rect(pwi, x1, y1, x1, y1+7, col);
-		draw_ll_rect(pwi, x2-7, y1, x2, y1, col); /* top right */
-		draw_ll_rect(pwi, x2, y1, x2, y1+7, col);
-		draw_ll_rect(pwi, x1, y2-7, x1, y2, col); /* bottom left */
-		draw_ll_rect(pwi, x1, y2, x1+7, y2, col);
-		draw_ll_rect(pwi, x2, y2-7, x2, y2, col); /* bottom right */
-		draw_ll_rect(pwi, x2-7, y2, x2, y2, col);
-	}
+	/* Draw corners; the window is min. 24x16, so +/-7 will always fit */
+	col = ppi->rgba2col(pwi, 0x00FF00FF);  /* Green */
+	draw_ll_rect(pwi, x1, y1, x1+7, y1, col); /* top left */
+	draw_ll_rect(pwi, x1, y1, x1, y1+7, col);
+	draw_ll_rect(pwi, x2-7, y1, x2, y1, col); /* top right */
+	draw_ll_rect(pwi, x2, y1, x2, y1+7, col);
+	draw_ll_rect(pwi, x1, y2-7, x1, y2, col); /* bottom left */
+	draw_ll_rect(pwi, x1, y2, x1+7, y2, col);
+	draw_ll_rect(pwi, x2, y2-7, x2, y2, col); /* bottom right */
+	draw_ll_rect(pwi, x2-7, y2, x2, y2, col);
 }
 
 
@@ -816,7 +815,6 @@ static void lcd_ll_pattern3(const wininfo_t *pwi,
 		}
 	}
 }
-
 
 
 /************************************************************************/
