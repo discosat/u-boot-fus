@@ -1072,10 +1072,12 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
 }
 
 
-/* Draw circle outline at (x, y) with radius r and color.
+/* Draw unfilled frame from (x1, y1) to (x2, y2) using rounded corners with
+ * radius r. Call with x1=x-r, y1=y-r, x2=x+r, y2=y+r to draw a circle with
+ * radius r at centerpoint (x,y).
  *
- * Circle algorithm
- * ----------------
+ * Circle algorithm for corners
+ * ----------------------------
  * The circle is computed as if it was at the coordinate system origin. We
  * only compute the pixels (dx, dy) for the first quadrant (top right),
  * starting from the top position. The other pixels of the circle can be
@@ -1149,24 +1151,42 @@ void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
  *
  * Remark: this algorithm computes an optimal approximation to a circle, i.e.
  * the result is also symmetric to the angle bisector. */
-void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
-		const colinfo_t *pci)
+void lcd_rframe(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+		XYPOS r, const colinfo_t *pci)
 {
-	XYPOS dx = 0;
-	XYPOS dy = r;
-	XYPOS dd = 1-r;
+	XYPOS dx, dy, dd, maxr;
 
 	if (r < 0)
 		return;
 
+	/* Check for the maximum possible radius for these coordinates */
+	maxr = x2-x1;
+	if (maxr > y2-y1)
+		maxr = y2-y1;
+	maxr = maxr/2;
+	if (r > maxr)
+		r = maxr;
+
+	/* If r=0, draw standard frame without rounded corners */
 	if (r == 0) {
-		lcd_pixel(pwi, x, y, pci);
+		lcd_frame(pwi, x1, y1, x2, y2, pci);
 		return;
 	}
 
-	/* Draw first two pixels with dx == 0 */
-	lcd_pixel(pwi, x, y - dy, pci);
-	lcd_pixel(pwi, x, y + dy, pci);
+	/* Move coordinates to the centers of the quarter circle centers */
+	x1 += r;
+	y1 += r;
+	x2 -= r;
+	y2 -= r;
+
+	/* Initialize midpoint values */
+	dx = 0;
+	dy = r;
+	dd = 1-r;
+
+	/* Draw top and bottom horizontal lines (dx == 0) */
+	lcd_rect(pwi, x1, y1 - dy, x2, y1 - dy, pci);
+	lcd_rect(pwi, x1, y2 + dy, x2, y2 + dy, pci);
 	if (dd < 0)
 		dd += 3;		  /* 2*dx + 3, but dx is 0 */
 	else				  /* Only possible for r==1 */
@@ -1175,10 +1195,10 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_pixel(pwi, x + dx, y - dy, pci);
-		lcd_pixel(pwi, x + dx, y + dy, pci);
-		lcd_pixel(pwi, x - dx, y - dy, pci);
-		lcd_pixel(pwi, x - dx, y + dy, pci);
+		lcd_pixel(pwi, x1 - dx, y1 - dy, pci);
+		lcd_pixel(pwi, x2 + dx, y1 - dy, pci);
+		lcd_pixel(pwi, x1 - dx, y2 + dy, pci);
+		lcd_pixel(pwi, x2 + dx, y2 + dy, pci);
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
 		else {
@@ -1193,10 +1213,10 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy) {
-		lcd_pixel(pwi, x + dx, y - dy, pci);
-		lcd_pixel(pwi, x - dx, y - dy, pci);
-		lcd_pixel(pwi, x + dx, y + dy, pci);
-		lcd_pixel(pwi, x - dx, y + dy, pci);
+		lcd_pixel(pwi, x1 - dx, y1 - dy, pci);
+		lcd_pixel(pwi, x2 + dx, y1 - dy, pci);
+		lcd_pixel(pwi, x1 - dx, y2 + dy, pci);
+		lcd_pixel(pwi, x2 + dx, y2 + dy, pci);
 
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
@@ -1206,30 +1226,52 @@ void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 		dy--;
 	}
 
-	/* Draw final pixels with dy == 0 */
-	lcd_pixel(pwi, x + dx, y, pci);
-	lcd_pixel(pwi, x - dx, y, pci);
+	/* Draw left and right vertical lines (dy == 0) */
+	lcd_rect(pwi, x1 - dx, y1, x1 - dx, y2, pci);
+	lcd_rect(pwi, x2 + dx, y1, x2 + dx, y2, pci);
 }
 
 
-/* Draw filled circle at (x, y) with radius r and color. The algorithm is the
-   same as explained above at lcd_circle(), however we can skip some tests as
-   we always draw a full line from the left to the right of the circle. As
+/* Draw filled rectangle from (x1, y1) to (x2, y2) using rounded corners with
+   radius r in given color. Call with x1=x-r, y1=y-r, x2=x+r, y2=y+r to draw a
+   filled circle at (x, y) with radius r. The algorithm is the same as
+   explained above at lcd_rframe(), however we can skip some tests as we
+   always draw a full line from the left to the right of the circle. As
    clipping is done in lcd_rect(), we don't care about clipping here. */
-void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
-	      const colinfo_t *pci)
+void lcd_rrect(const wininfo_t *pwi, XYPOS x1, XYPOS y1, XYPOS x2, XYPOS y2,
+	       XYPOS r, const colinfo_t *pci)
 {
-	XYPOS dx = 0;
-	XYPOS dy = r;
-	XYPOS dd = 1-r;
+	XYPOS dx, dy, dd, maxr;
 
 	if (r < 0)
 		return;
 
+	/* Check for the maximum possible radius for these coordinates */
+	maxr = x2-x1;
+	if (maxr > y2-y1)
+		maxr = y2-y1;
+	maxr = maxr/2;
+	if (r > maxr)
+		r = maxr;
+	/* If r=0, draw standard filled rectangle without rounded corners */
+	if (r == 0)
+		lcd_rect(pwi, x1, y1, x2, y2, pci);
+
+	/* Move coordinates to the centers of the quarter circle centers */
+	x1 += r;
+	y1 += r;
+	x2 -= r;
+	y2 -= r;
+
+	/* Initialize midpoint values */
+	dx = 0;
+	dy = r;
+	dd = 1-r;
+
 	/* Draw part with low slope (every step changes dx, sometimes dy) */
 	while (dy > dx) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, pci);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, pci);
+		lcd_rect(pwi, x1 - dx, y1 - dy, x2 + dx, y1 - dy, pci);
+		lcd_rect(pwi, x1 - dx, y2 + dy, x2 + dx, y2 + dy, pci);
 		if ((dd < 0) && (dy > dx + 1))
 			dd += 2*dx + 3;	       /* E */
 		else {
@@ -1244,8 +1286,8 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 
 	/* Draw part with high slope (every step changes dym sometimes dx) */
 	while (dy > 0) {
-		lcd_rect(pwi, x - dx, y - dy, x + dx, y - dy, pci);
-		lcd_rect(pwi, x - dx, y + dy, x + dx, y + dy, pci);
+		lcd_rect(pwi, x1 - dx, y1 - dy, x2 + dx, y1 - dy, pci);
+		lcd_rect(pwi, x1 - dx, y2 + dy, x2 + dx, y2 + dy, pci);
 		if (dd < 0) {
 			dd += (dx - dy)*2 + 5; /* SE */
 			dx++;
@@ -1254,8 +1296,24 @@ void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 		dy--;
 	}
 
-	/* Draw final line with dy == 0 */
-	lcd_rect(pwi, x - dx, y, x + dx, y, pci);
+	/* Draw final vertical middle part (dy == 0) */
+	lcd_rect(pwi, x1 - dx, y1, x2 + dx, y2, pci);
+}
+
+
+/* Draw circle outline at (x, y) with radius r and given color */
+void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+		const colinfo_t *pci)
+{
+	lcd_rframe(pwi, x-r, y-r, x+r, y+r, r, pci);
+}
+
+
+/* Draw filled circle at (x, y) with radius r and given color */
+void lcd_disc(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
+	      const colinfo_t *pci)
+{
+	lcd_rrect(pwi, x-r, y-r, x+r, y+r, r, pci);
 }
 
 

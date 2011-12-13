@@ -77,6 +77,14 @@ extern void lcd_frame(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 extern void lcd_rect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
 		     XYPOS x2, XYPOS y2, const colinfo_t *pci);
 
+/* Draw rounded frame from (x1, y1) to (x2, y2) with radius r and given color */
+extern void lcd_rframe(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+		       XYPOS x2, XYPOS y2, XYPOS r, const colinfo_t *pci);
+
+/* Draw filled rounded rectangle from (x1, y1) to (x2, y2) with radius r */
+extern void lcd_rrect(const wininfo_t *pwi, XYPOS x1, XYPOS y1,
+		      XYPOS x2, XYPOS y2, XYPOS r, const colinfo_t *pci);
+
 /* Draw circle outline at (x, y) with radius r and given color */
 extern void lcd_circle(const wininfo_t *pwi, XYPOS x, XYPOS y, XYPOS r,
 		       const colinfo_t *pci);

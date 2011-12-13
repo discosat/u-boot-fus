@@ -172,7 +172,9 @@ enum DRAW_INDEX {
 	/* Draw commands with two coordinate pairs x1/y1 and x2/y2 */
 	DI_LINE,
 	DI_FRAME,
+	DI_RFRAME,
 	DI_RECT,
+	DI_RRECT,
 	DI_PBR,
 	DI_CLIP,
 
@@ -398,7 +400,9 @@ static const u_char palsig[6] = {
 static kwinfo_t const draw_kw[] = {
 	[DI_LINE] =   {4, 5, 2, 4, "line"},   /* x1 y1 x2 y2 [rgba] */
 	[DI_FRAME] =  {4, 5, 2, 4, "frame"},  /* x1 y1 x2 y2 [rgba] */
+	[DI_RFRAME] = {5, 6, 2, 5, "rframe"}, /* x1 y1 x2 y2 r [rgba] */
 	[DI_RECT] =   {4, 6, 2, 4, "rect"},   /* x1 y1 x2 y2 [rgba [rgba]] */
+	[DI_RRECT] =  {5, 7, 2, 5, "rrect"},  /* x1 y1 x2 y2 r [rgba [rgba]] */
 	[DI_PBR] =    {4, 6, 2, 4, "pbr"},    /* x1 y1 x2 y2 [rgba [rgba]] */
 	[DI_CLIP] =   {4, 4, 2, 9, "clip"},   /* x1 y1 x2 y2 */
 	[DI_PIXEL] =  {2, 3, 1, 2, "pixel"},  /* x1 y1 [rgba] */
@@ -1399,6 +1403,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	const vidinfo_t *pvi;
 	u_short sc;
 	XYPOS x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+	XYPOS r = 0;
 	u_int a;			  /* Attribute */
 	RGBA rgba1, rgba2;
 	u_char coord_pairs, colindex;
@@ -1507,17 +1512,23 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		lcd_line(pwi, x1, y1, x2, y2, &pwi->fg);
 		break;
 
-	case DI_RECT:			  /* Draw filled rectangle */
-		lcd_set_fg(pwi, rgba1);
-		lcd_rect(pwi, x1, y1, x2, y2, &pwi->fg);
-		if ((argc < 8) || (rgba1 == rgba2))
-			break;
-		rgba1 = rgba2;
+	case DI_RRECT:			  /* Draw rounded filled rectangle */
+		if (argc < 9)
+			rgba2 = rgba1;
 		/* Fall through to case DI_FRAME */
-
+	case DI_RFRAME:			  /* Draw rounded rectangle outline */
+		r = (XYPOS)simple_strtol(argv[6], NULL, 0); /* Parse radius */
+		/* Fall through to case DI_RECT */
+	case DI_RECT:			  /* Draw filled rectangle */
 	case DI_FRAME:			  /* Draw rectangle outline */
 		lcd_set_fg(pwi, rgba1);
-		lcd_frame(pwi, x1, y1, x2, y2, &pwi->fg);
+		if ((sc == DI_RECT) || (sc == DI_RRECT)) {
+			lcd_rrect(pwi, x1, y1, x2, y2, r, &pwi->fg);
+			if ((argc < 8) || (rgba1 == rgba2))
+				break;
+			lcd_set_fg(pwi, rgba2);
+		}
+		lcd_rframe(pwi, x1, y1, x2, y2, r, &pwi->fg);
 		break;
 
 	case DI_PBR:			  /* Define progress bar rectangle */
@@ -1546,15 +1557,15 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	case DI_CIRCLE:			  /* Draw circle outline */
 	case DI_DISC:			  /* Draw filled circle */
+		r = (XYPOS)simple_strtol(argv[4], NULL, 0); /* Parse radius */
 		lcd_set_fg(pwi, rgba1);
-		x2 = (XYPOS)simple_strtol(argv[4], NULL, 0); /* Parse radius */
 		if (sc == DI_DISC) {
-			lcd_disc(pwi, x1, y1, x2, &pwi->fg);
-			if ((argc < 7) || (pwi->fg.rgba == rgba2))
+			lcd_disc(pwi, x1, y1, r, &pwi->fg);
+			if ((argc < 7) || (rgba1 == rgba2))
 				break;
 			lcd_set_fg(pwi, rgba2);
 		}
-		lcd_circle(pwi, x1, y1, x2, &pwi->fg);
+		lcd_circle(pwi, x1, y1, r, &pwi->fg);
 		break;
 
 	case DI_TEXT:			  /* Draw text */
@@ -1675,7 +1686,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	draw, 8,	1,	do_draw,
+	draw, 9,	1,	do_draw,
 	"draw\t- draw to selected window\n",
 	"pixel x y [#rgba]\n"
 	"    - draw pixel at (x, y)\n"
