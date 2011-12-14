@@ -953,7 +953,7 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 		/* Get base address */
 		if (argc > 2)
-			newbase = simple_strtoul(argv[1], NULL, 16);
+			newbase = simple_strtoul(argv[2], NULL, 16);
 		else
 			newbase = CFG_UBOOT_BASE - newsize;
 
