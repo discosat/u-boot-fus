@@ -1504,6 +1504,8 @@ static const vidinfo_t s3c64xx_vidinfo = {
 	wincount: MAX_WINDOWS,
 	pixcount: PIXEL_FORMAT_COUNT,
 	pwi: s3c64xx_wininfo,
+	frc: 0,
+	drive: 9,
 	get_pixinfo_p: s3c64xx_get_pixinfo_p,
 	get_fbmaxhres: s3c64xx_get_fbmaxhres,
 	get_fbmaxvres: s3c64xx_get_fbmaxvres,
