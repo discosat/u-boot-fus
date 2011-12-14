@@ -741,6 +741,8 @@ static void set_vidinfo(vidinfo_t *pvi)
 	char buf[CFG_CBSIZE];
 	char *cmd = "lcd";
 	char *s = buf;
+	const lcdinfo_t *lcd;		  /* Current display */
+	const lcdinfo_t *def;		  /* Default display */
 
 	/* If update should not take place, return immediately */
 	if (lockupdate)
@@ -748,7 +750,8 @@ static void set_vidinfo(vidinfo_t *pvi)
 
 	/* If new display has hres or vres 0 and display was switched on,
 	   switch it off now. The most common case is if panel #0 is set. */
-	if ((!pvi->lcd.hres || !pvi->lcd.vres) && pvi->is_enabled)
+	lcd = &pvi->lcd;
+	if ((!lcd->hres || !lcd->vres) && pvi->is_enabled)
 		lcd_off(pvi);
 
 	/* Call hardware specific function to update controller hardware */
@@ -756,41 +759,77 @@ static void set_vidinfo(vidinfo_t *pvi)
 
 	/* If display is not active (hres or vres is 0), unset environment
 	   variable */
-	if (!pvi->lcd.hres || !pvi->lcd.vres) {
+	if (!lcd->hres || !lcd->vres) {
 		setenv(pvi->name, NULL);
 		return;
 	}
 
+	/* Only set values that differ from the default panel #0 */ 
+	def = lcd_get_lcdinfo_p(0);
+
 	/* Prepare environment string for this lcd panel */
 	s += sprintf(s, "%s %s \"%s\"", cmd, lcd_kw[LI_NAME].keyword,
-		     pvi->lcd.name);
-	s += sprintf(s, "; %s %s %u", cmd, lcd_kw[LI_TYPE].keyword,
-		     pvi->lcd.type);
-	s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_DIM].keyword,
-		     pvi->lcd.hdim, pvi->lcd.vdim);
-	s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_RES].keyword,
-		     pvi->lcd.hres, pvi->lcd.vres);
-	s += sprintf(s, "; %s %s %u %u %u", cmd, lcd_kw[LI_HTIMING].keyword,
-		     pvi->lcd.hfp, pvi->lcd.hsw, pvi->lcd.hbp);
-	s += sprintf(s, "; %s %s %u %u %u", cmd, lcd_kw[LI_VTIMING].keyword,
-		     pvi->lcd.vfp, pvi->lcd.vsw, pvi->lcd.vbp);
-	s += sprintf(s, "; %s %s %u %u %u %u", cmd, lcd_kw[LI_POL].keyword,
-		     ((pvi->lcd.pol & HS_LOW) != 0),
-		     ((pvi->lcd.pol & VS_LOW) != 0),
-		     ((pvi->lcd.pol & DEN_LOW) != 0),
-		     ((pvi->lcd.pol & CLK_FALLING) != 0));
-	s += sprintf(s, "; %s %s %u", cmd, lcd_kw[LI_FPS].keyword,
-		     pvi->lcd.fps);
-	s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_PWM].keyword,
-		     pvi->lcd.pwmvalue, pvi->lcd.pwmfreq);
-	s += sprintf(s, "; %s %s %u %u %u %u %u", cmd,
-		     lcd_kw[LI_PONSEQ].keyword, pvi->lcd.ponseq[0],
-		     pvi->lcd.ponseq[1], pvi->lcd.ponseq[2],
-		     pvi->lcd.ponseq[3], pvi->lcd.ponseq[4]);
-	s += sprintf(s, "; %s %s %u %u %u %u %u", cmd,
-		     lcd_kw[LI_POFFSEQ].keyword, pvi->lcd.poffseq[0],
-		     pvi->lcd.poffseq[1], pvi->lcd.poffseq[2],
-		     pvi->lcd.poffseq[3], pvi->lcd.poffseq[4]);
+		     lcd->name);
+	if (lcd->type != def->type) {
+		s += sprintf(s, "; %s %s %u", cmd, lcd_kw[LI_TYPE].keyword,
+			     lcd->type);
+	}
+	if ((lcd->hdim != def->hdim) || (lcd->vdim != def->vdim)) {
+		s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_DIM].keyword,
+			     lcd->hdim, lcd->vdim);
+	}
+	if ((lcd->hres != def->hres) || (lcd->vres != def->vres)) {
+		s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_RES].keyword,
+			     lcd->hres, lcd->vres);
+	}
+	if ((lcd->hfp != def->hfp) || (lcd->hsw != def->hsw)
+	    || (lcd->hbp != def->hbp)) {
+		s += sprintf(s, "; %s %s %u %u %u", cmd,
+			     lcd_kw[LI_HTIMING].keyword,
+			     lcd->hfp, lcd->hsw, lcd->hbp);
+	}
+	if ((lcd->vfp != def->vfp) || (lcd->vsw != def->vsw)
+	    || (lcd->vbp != def->vbp)) {
+		s += sprintf(s, "; %s %s %u %u %u", cmd,
+			     lcd_kw[LI_VTIMING].keyword,
+			     lcd->vfp, lcd->vsw, lcd->vbp);
+	}
+	if (lcd->pol != def->pol) {
+		s += sprintf(s, "; %s %s %u %u %u %u", cmd,
+			     lcd_kw[LI_POL].keyword,
+			     ((lcd->pol & HS_LOW) != 0),
+			     ((lcd->pol & VS_LOW) != 0),
+			     ((lcd->pol & DEN_LOW) != 0),
+			     ((lcd->pol & CLK_FALLING) != 0));
+	}
+	if (lcd->fps != def->fps) {
+		s += sprintf(s, "; %s %s %u", cmd, lcd_kw[LI_FPS].keyword,
+			     lcd->fps);
+	}
+	if ((lcd->pwmvalue != def->pwmvalue) || (lcd->pwmfreq != def->pwmfreq)){
+		s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_PWM].keyword,
+			     lcd->pwmvalue, lcd->pwmfreq);
+	}
+	if ((lcd->ponseq[0] != def->ponseq[0])
+	    || (lcd->ponseq[1] != def->ponseq[1])
+	    || (lcd->ponseq[1] != def->ponseq[2])
+	    || (lcd->ponseq[1] != def->ponseq[3])
+	    || (lcd->ponseq[1] != def->ponseq[4])) {
+		s += sprintf(s, "; %s %s %u %u %u %u %u", cmd,
+			     lcd_kw[LI_PONSEQ].keyword, lcd->ponseq[0],
+			     lcd->ponseq[1], lcd->ponseq[2],
+			     lcd->ponseq[3], lcd->ponseq[4]);
+	}
+	if ((lcd->poffseq[0] != def->poffseq[0])
+	    || (lcd->poffseq[1] != def->poffseq[1])
+	    || (lcd->poffseq[1] != def->poffseq[2])
+	    || (lcd->poffseq[1] != def->poffseq[3])
+	    || (lcd->poffseq[1] != def->poffseq[4])) {
+		s += sprintf(s, "; %s %s %u %u %u %u %u", cmd,
+			     lcd_kw[LI_POFFSEQ].keyword, lcd->poffseq[0],
+			     lcd->poffseq[1], lcd->poffseq[2],
+			     lcd->poffseq[3], lcd->poffseq[4]);
+	}
 	s += sprintf(s, "; %s %s %u %u", cmd, lcd_kw[LI_EXTRA].keyword,
 		     pvi->frc, pvi->drive);
 
@@ -822,23 +861,37 @@ static void set_wininfo(const wininfo_t *pwi)
 	/* Prepare environment string for this window */
 	s += sprintf(s, "%s %s %u %u %u %u", cmd, win_kw[WI_FBRES].keyword,
 		     pwi->fbhres, pwi->fbvres, pwi->pix, pwi->fbcount);
-	s += sprintf(s, "; %s %s %u %u", cmd, win_kw[WI_SHOW].keyword,
-		     pwi->fbshow, pwi->fbdraw);
 	s += sprintf(s, "; %s %s %u %u", cmd, win_kw[WI_RES].keyword,
-		     pwi->fbhres, pwi->fbvres);
-	s += sprintf(s, "; %s %s %u %u", cmd, win_kw[WI_OFFS].keyword,
-		     pwi->hoffs, pwi->voffs);
-	s += sprintf(s, "; %s %s %d %d", cmd, win_kw[WI_POS].keyword,
-		     pwi->hpos, pwi->vpos);
-	s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA0].keyword,
-		     pwi->ai[0].alpha);
-	s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA1].keyword,
-		     pwi->ai[1].alpha);
-	s += sprintf(s, "; %s %s %u", cmd, win_kw[WI_ALPHAM].keyword,
-		     pwi->alphamode);
-	s += sprintf(s, "; %s %s #%08x #%08x %u", cmd,
-		     win_kw[WI_COLKEY].keyword, pwi->ckvalue, pwi->ckmask,
-		     pwi->ckmode);
+		     pwi->hres, pwi->vres);
+	if (pwi->fbshow || pwi->fbdraw) {
+		s += sprintf(s, "; %s %s %u %u", cmd, win_kw[WI_SHOW].keyword,
+			     pwi->fbshow, pwi->fbdraw);
+	}
+	if (pwi->hoffs || pwi->voffs) {
+		s += sprintf(s, "; %s %s %u %u", cmd, win_kw[WI_OFFS].keyword,
+			     pwi->hoffs, pwi->voffs);
+	}
+	if (pwi->hpos || pwi->vpos) {
+		s += sprintf(s, "; %s %s %d %d", cmd, win_kw[WI_POS].keyword,
+			     pwi->hpos, pwi->vpos);
+	}
+	if (pwi->ai[0].alpha != DEFAULT_ALPHA0) {
+		s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA0].keyword,
+			     pwi->ai[0].alpha);
+	}
+	if (pwi->ai[1].alpha != DEFAULT_ALPHA1) {
+		s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA1].keyword,
+			     pwi->ai[1].alpha);
+	}
+	if (pwi->alphamode != ((pwi->ppi->flags & PIF_ALPHA) ? 2 : 1)) {
+		s += sprintf(s, "; %s %s %u", cmd, win_kw[WI_ALPHAM].keyword,
+			     pwi->alphamode);
+	}
+	if (pwi->ckvalue || pwi->ckmask || pwi->ckmode) {
+		s += sprintf(s, "; %s %s #%08x #%08x %u", cmd,
+			     win_kw[WI_COLKEY].keyword, pwi->ckvalue,
+			     pwi->ckmask, pwi->ckmode);
+	}
 
 	/* Set the environment variable */
 	setenv((char *)pwi->name, buf);
