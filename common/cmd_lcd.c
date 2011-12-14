@@ -3153,7 +3153,7 @@ u_short parse_sc(int argc, char *s, u_short sc, const kwinfo_t *pki,
 			/* We have a string match */
 			if (argc < pki->argc_min+2)
 				puts("Missing argument\n");
-			if (argc <= pki->argc_max+2)
+			else if (argc <= pki->argc_max+2)
 				sc = i; /* OK */
 			break;
 		}
