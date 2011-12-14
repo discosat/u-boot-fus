@@ -36,7 +36,7 @@
 #include <video_font.h>			  /* Get font data, width and height */
 #include <devices.h>			  /* device_t */
 #include <serial.h>			  /* serial_putc(), serial_puts() */
-#include <watchdog.h>
+#include <watchdog.h>			  /* WATCHDOG_RESET */
 
 
 /************************************************************************/
@@ -722,6 +722,7 @@ static void lcd_ll_pattern2(const wininfo_t *pwi,
 				draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
 					      ppi->rgba2col(pwi, rgba));
 			}
+			WATCHDOG_RESET();
 		}
 		xfrom = xto;
 	} while (hue < 6);
@@ -813,6 +814,7 @@ static void lcd_ll_pattern3(const wininfo_t *pwi,
 			draw_ll_pixel(pwi, (XYPOS)x, (XYPOS)y,
 				      ppi->rgba2col(pwi, rgb));
 		}
+		WATCHDOG_RESET();
 	}
 }
 

@@ -95,6 +95,7 @@
 #include <lcd_panels.h>			  /* lcdinfo_t, lcd_getlcd(), ... */
 #include <devices.h>			  /* device_t, device_register(), ... */
 #include <linux/ctype.h>		  /* isdigit(), toupper() */
+#include <watchdog.h>			  /* WATCHDOG_RESET */
 
 #if defined(CONFIG_CMD_PNG) || defined(CONFIG_CMD_BMP) || defined(CONFIG_CMD_JPG)
 #define _BITMAP_SUPPORT_
@@ -2262,6 +2263,7 @@ static void fade_alpha(void)
 			} /* for (win) */
 		} /* for (vid) */
 		udelay(1000);		  /* Wait 1ms */
+		WATCHDOG_RESET();
 	} while (!done && !ctrlc());
 }
 

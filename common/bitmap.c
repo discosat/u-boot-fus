@@ -53,7 +53,7 @@
 #include <malloc.h>			  /* malloc(), free() */
 #include <linux/ctype.h>		  /* isalpha() */
 #include <zlib.h>			  /* z_stream, inflateInit(), ... */
-#include <watchdog.h>
+#include <watchdog.h>			  /* WATCHDOG_RESET() */
 
 
 /************************************************************************/
@@ -978,6 +978,8 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 	if (inflateInit(&zs) != Z_OK)
 		return "Can't initialize zlib\n";
 
+	WATCHDOG_RESET();
+
 	/* Go to first chunk after IHDR */
 	addr += 8 + 8+13+4; 		  /* Signature size + IHDR size */
 
@@ -1085,6 +1087,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 
 			/* Decompress data for next PNG row */
 			zret = inflate(&zs, Z_SYNC_FLUSH);
+			WATCHDOG_RESET();
 			if (zret == Z_STREAM_END)
 				zret = Z_OK;
 			if (zret != Z_OK) {
@@ -1155,6 +1158,7 @@ static const char *draw_png(imginfo_t *pii, u_long addr)
 				zs.next_out = prow + current;
 				zs.avail_out = rowlen + 1;
 			}
+			WATCHDOG_RESET();
 		} while (zs.avail_in > 0); /* Repeat as long as we have data */
 	} while (!errmsg);
 
@@ -1321,6 +1325,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 					goto DONE;
 			} while (pii->ypix % pii->multiheight);
 			p += rowlen;
+			WATCHDOG_RESET();
 		}
 	} else {
 		/* Draw top-down bitmap */
@@ -1340,6 +1345,7 @@ static const char *draw_bmp(imginfo_t *pii, u_long addr)
 					goto DONE;
 			} while (pii->ypix % pii->multiheight);
 			p += rowlen;
+			WATCHDOG_RESET();
 		}
 	}
 DONE:
