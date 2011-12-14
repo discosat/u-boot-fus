@@ -33,22 +33,21 @@
        device (ähnlich getc/putc) auch eine cls-Funktion einfügen und diese
        dann beim Kommando aufrufen. Entsprechend müssten auch Kommandos zum
        Setzen der Console-Farben dort hin. --> als eigenen ChangeSet ins GIT
-    6. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
-       Macht das Probleme, wenn fbpool über eine solche Segmentgrenze geht?
+    6. Test auf Segmentgrenzen im fbpool. Im LCD-Controller vom S3C6410 sind
+       beim Framebuffer im Ende-Reg nur die LSBs der Adresse vorhanden. Das
+       macht Probleme, wenn der Framebuffer eines Windows über so eine
+       Segmentgrenze hinweggeht. Dann sieht man im unteren Bereich die
+       falschen Daten.
     7. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
        nicht. Ein solcher Software-Puffer ist sogar schon vorbereitet.
     8. FS-Compatibility wieder wegnehmen und lieber ein externes Tool
        schreiben, das eine WinCE-Displaydatei in die passenden U-Boot-Settings
        wandelt. Dann set_value() wieder nach do_lcd() einbetten.
     9. Einfache Console weg und nur Multiple Console hin.
-   10. In "win"-Environment-Variable nur das setzen, was nicht per Default so
-       käme. Also z.B. nur FG/BG setzen, wenn nicht weiß/schwarz, bei
-       Display-Parametern nur das, was sich vom Dummy-Display "no display"
-       unterscheidet. Das macht die Variable kleiner und übersichtlicher.
-   11. Evtl. fbpool wieder weg. Der Pool startet automatisch vor dem U-Boot und
+   10. Evtl. fbpool wieder weg. Der Pool startet automatisch vor dem U-Boot und
        wächst abwärts. Dadurch braucht man das alles nicht. Die Länge des
        Pools kann sowieso nicht nach Linux übertragen werden.
-   12. Neuer Befehl "draw font <addr>". Dann muss an der gegebenen Adresse ein
+   11. Neuer Befehl "draw font <addr>". Dann muss an der gegebenen Adresse ein
        Font mit dem gleichen Aufbau wie der interne Font abgelegt sein. Ab
        jetzt wird dann dieser Font verwendet (nur für draw-Befehle, nicht für
        Console!). Ohne Adresse oder mit Adresse 0 wird wieder der interne Font
@@ -57,7 +56,7 @@
        Durchstreichungszeile angegeben sind. Als Breite sollte dabei 32 das
        Maximum sein, damit eine Characterzeile immer in ein Register passt.
        Alternativ können diese Werte auch im Befehl draw font angegeben werden.
-   13. Neuen Befehl oder neues Attributbit, das es erlaubt, nur in eine
+   12. Neuen Befehl oder neues Attributbit, das es erlaubt, nur in eine
        Alpha-Ebene zu zeichnen (speziell wenn nur ein A-Bit da ist). Durch das
        A-Bit kann man sozusagen zwei Bilder (disjunkt) überlagern. Beim
        Zeichnen von normalen Grafikelementen kann man ja durch Angabe
@@ -73,14 +72,16 @@
        Denkbar ist auch ein externes Programm, mit dem man solche Bilder
        kombinieren kann, um PNG-Grafiken mit den richtigen Alpha-Werten zu
        erzeugen.
-   14. Wird eine geclippte schräge Linie mit gleichen Koordinaten über eine
+   13. Wird eine geclippte schräge Linie mit gleichen Koordinaten über eine
        ungeclippte Linie gemalt, werden nicht alle Pixel perfekt überdeckt.
        Bei der Berechnung des dd-Offsets am Clipping-Rand stimmt also was
        nicht. Nochmal nachprüfen.
-   15. alphamode 0 und 1 scheinen nicht zu funktionieren.
-   16. Die Zeiteinheit bei win fade funktioniert nicht, da man nur für eine
+   14. alphamode 0 und 1 scheinen nicht zu funktionieren.
+   15. Die Zeiteinheit bei win fade funktioniert nicht, da man nur für eine
        gewisse Zeit warten kann und nicht schon die durch die Berechnung
        (set_wininfo()) verbrauchte Zeit abziehen kann.
+   16. FRC ist noch weitgehend ungetestet. Es tut sich was, aber noch nicht so
+       wie erwartet.
 
 ****/
 
