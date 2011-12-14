@@ -1289,7 +1289,7 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	XYPOS panel_hres;
 	XYPOS panel_vres;
 	u_long addr;
-	unsigned alpha;
+	unsigned alpha, alpha0, alpha1;
 
 	hres = pvi->align_hres(pwi->win, pwi->pix, pwi->hres);
 	vres = pwi->vres;
@@ -1381,12 +1381,14 @@ static void s3c64xx_set_wininfo(const wininfo_t *pwi)
 	if (winregs->vidosdsize)
 		__REG(winregs->vidosdsize) = 0; /* Only for TV-Encoder */
 
-	alpha = (pwi->alpha0 & 0x0000F000);	   /* B */
-	alpha |= (pwi->alpha0 & 0x00F00000) >> 4;  /* G */
-	alpha |= (pwi->alpha0 & 0xF0000000) >> 8;  /* R */
-	alpha |= (pwi->alpha1 & 0xF0000000) >> 20; /* R */
-	alpha |= (pwi->alpha1 & 0x00F00000) >> 16; /* G */
-	alpha |= (pwi->alpha1 & 0x0000F000) >> 12; /* B */
+	alpha0 = pwi->ai[0].alpha;
+	alpha1 = pwi->ai[1].alpha;
+	alpha = (alpha0 & 0x0000F000);		   /* B */
+	alpha |= (alpha0 & 0x00F00000) >> 4;	   /* G */
+	alpha |= (alpha0 & 0xF0000000) >> 8;	   /* R */
+	alpha |= (alpha1 & 0xF0000000) >> 20;	   /* R */
+	alpha |= (alpha1 & 0x00F00000) >> 16;	   /* G */
+	alpha |= (alpha1 & 0x0000F000) >> 12;	   /* B */
 	if (winregs->vidosdalpha)
 		__REG(winregs->vidosdalpha) = alpha;
 

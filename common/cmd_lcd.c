@@ -33,27 +33,22 @@
        device (ähnlich getc/putc) auch eine cls-Funktion einfügen und diese
        dann beim Kommando aufrufen. Entsprechend müssten auch Kommandos zum
        Setzen der Console-Farben dort hin. --> als eigenen ChangeSet ins GIT
-    6. Bei komplexen Zeichenoperationen ab und zu WATCHDOG_RESET() aufrufen.
-    7. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
+    6. Bei Framebuffer sind im Ende-Reg ja nur die LSBs der Adresse vorhanden.
        Macht das Probleme, wenn fbpool über eine solche Segmentgrenze geht?
-    8. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
+    7. Puffer für Kommando-Eingabe? Sonst klappt der Download von Scripten
        nicht. Ein solcher Software-Puffer ist sogar schon vorbereitet.
-    9. FS-Compatibility wieder wegnehmen und lieber ein externes Tool
+    8. FS-Compatibility wieder wegnehmen und lieber ein externes Tool
        schreiben, das eine WinCE-Displaydatei in die passenden U-Boot-Settings
        wandelt. Dann set_value() wieder nach do_lcd() einbetten.
-   10. Einfache Console weg und nur Multiple Console hin.
-   11. In "win"-Environment-Variable nur das setzen, was nicht per Default so
+    9. Einfache Console weg und nur Multiple Console hin.
+   10. In "win"-Environment-Variable nur das setzen, was nicht per Default so
        käme. Also z.B. nur FG/BG setzen, wenn nicht weiß/schwarz, bei
        Display-Parametern nur das, was sich vom Dummy-Display "no display"
        unterscheidet. Das macht die Variable kleiner und übersichtlicher.
-   12. "win alpha" weg, dafür "win alpha0", "win alpha1" und "win alphamode"
-       hinzufügen. Dabei kann auch Zeitdauer für Überblendung gesetzt werden.
-       Mit neuem Befehl "win fade" startet dann die Überblendung. Sollte mit
-       Ctl-C unterbrechbar sein.
-   13. Evtl. fbpool wieder weg. Der Pool startet automatisch vor dem U-Boot und
+   11. Evtl. fbpool wieder weg. Der Pool startet automatisch vor dem U-Boot und
        wächst abwärts. Dadurch braucht man das alles nicht. Die Länge des
        Pools kann sowieso nicht nach Linux übertragen werden.
-   14. Neuer Befehl "draw font <addr>". Dann muss an der gegebenen Adresse ein
+   12. Neuer Befehl "draw font <addr>". Dann muss an der gegebenen Adresse ein
        Font mit dem gleichen Aufbau wie der interne Font abgelegt sein. Ab
        jetzt wird dann dieser Font verwendet (nur für draw-Befehle, nicht für
        Console!). Ohne Adresse oder mit Adresse 0 wird wieder der interne Font
@@ -62,10 +57,10 @@
        Durchstreichungszeile angegeben sind. Als Breite sollte dabei 32 das
        Maximum sein, damit eine Characterzeile immer in ein Register passt.
        Alternativ können diese Werte auch im Befehl draw font angegeben werden.
-   15. Neuen Befehl oder neues Attributbit, das es erlaubt, nur in eine
+   13. Neuen Befehl oder neues Attributbit, das es erlaubt, nur in eine
        Alpha-Ebene zu zeichnen (speziell wenn nur ein A-Bit da ist). Durch das
-       A-Bit kann man ja sozusagen zwei Bilder (disjunkt) überlagern. Beim
-       Zeichnen von normalen Grafikelementen kann man das ja durch Angabe
+       A-Bit kann man sozusagen zwei Bilder (disjunkt) überlagern. Beim
+       Zeichnen von normalen Grafikelementen kann man ja durch Angabe
        einer Farbe mit passenden Alpha in die entsprechende Ebene zeichnen,
        aber bei Grafiken wird es schwieriger. Erstens ist es schwer, die
        konkrete Farbe bei transparenten Stellen in einem Grafikprogramm
@@ -78,12 +73,14 @@
        Denkbar ist auch ein externes Programm, mit dem man solche Bilder
        kombinieren kann, um PNG-Grafiken mit den richtigen Alpha-Werten zu
        erzeugen.
-   16. Neue Befehle rframe und rrect zum Zeichnen von Rechtecken mit
-       abgerundeten Ecken. Der Kreis ist dann nur noch ein Spezialfall davon.
-   17. Wird eine geclippte schräge Linie mit gleichen Koordinaten über eine
+   14. Wird eine geclippte schräge Linie mit gleichen Koordinaten über eine
        ungeclippte Linie gemalt, werden nicht alle Pixel perfekt überdeckt.
        Bei der Berechnung des dd-Offsets am Clipping-Rand stimmt also was
        nicht. Nochmal nachprüfen.
+   15. alphamode 0 und 1 scheinen nicht zu funktionieren.
+   16. Die Zeiteinheit bei win fade funktioniert nicht, da man nur für eine
+       gewisse Zeit warten kann und nicht schon die durch die Berechnung
+       (set_wininfo()) verbrauchte Zeit abziehen kann.
 
 ****/
 
@@ -224,8 +221,11 @@ enum WIN_INDEX {
 	WI_RES,
 	WI_OFFS,
 	WI_POS,
-	WI_ALPHA,
+	WI_ALPHA0,
+	WI_ALPHA1,
+	WI_ALPHAM,
 	WI_COLKEY,
+	WI_FADE,
 	WI_IDENT,
 	WI_ALL,
 
@@ -442,8 +442,11 @@ static kwinfo_t const win_kw[] = {
 	[WI_RES] =    {2, 2, 0, 0, "res"},   /* hres vres */
 	[WI_OFFS] =   {2, 2, 0, 0, "offs"},  /* hoffs voffs */
 	[WI_POS] =    {2, 2, 0, 0, "pos"},   /* hpos vpos */
-	[WI_ALPHA] =  {1, 3, 0, 0, "alpha"}, /* alpha0 [alpha1 [mode]] */
+	[WI_ALPHA0] = {1, 2, 0, 0, "alpha0"},/* alpha0 [time] */
+	[WI_ALPHA1] = {1, 2, 0, 0, "alpha1"},/* alpha1 [time] */
+	[WI_ALPHAM] = {1, 1, 0, 0, "alpham"},/* mode */
 	[WI_COLKEY] = {1, 3, 0, 0, "colkey"},/* value [mask [mode]] */
+	[WI_FADE] =   {0, 0, 0, 0, "fade"},  /* (no args) */
 	[WI_IDENT] =  {0, 0, 0, 0, "ident"}, /* (no args) */
 	[WI_ALL] =    {0, 0, 0, 0, "all"},   /* (no args) */
 	[WI_HELP] =   {0, 0, 0, 0, "help"},  /* (no args, show usage) */
@@ -649,8 +652,14 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 /* Set window resolution */
 static int set_winres(wininfo_t *pwi, XYPOS hres, XYPOS vres);
 
+/* Print the alpha information for channel alpha0 or alpha1 */
+static void show_alphainfo(const wininfo_t *pwi, int channel);
+
 /* Print the window information */
 static void show_wininfo(const wininfo_t *pwi);
+
+/* Fade alpha value of all windows */
+static void fade_alpha(void);
 
 /* Handle win command */
 static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
@@ -820,8 +829,12 @@ static void set_wininfo(const wininfo_t *pwi)
 		     pwi->hoffs, pwi->voffs);
 	s += sprintf(s, "; %s %s %d %d", cmd, win_kw[WI_POS].keyword,
 		     pwi->hpos, pwi->vpos);
-	s += sprintf(s, "; %s %s #%08x #%08x %u", cmd, win_kw[WI_ALPHA].keyword,
-		     pwi->alpha0, pwi->alpha1, pwi->alphamode);
+	s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA0].keyword,
+		     pwi->ai[0].alpha);
+	s += sprintf(s, "; %s %s #%08x", cmd, win_kw[WI_ALPHA1].keyword,
+		     pwi->ai[1].alpha);
+	s += sprintf(s, "; %s %s %u", cmd, win_kw[WI_ALPHAM].keyword,
+		     pwi->alphamode);
 	s += sprintf(s, "; %s %s #%08x #%08x %u", cmd,
 		     win_kw[WI_COLKEY].keyword, pwi->ckvalue, pwi->ckmask,
 		     pwi->ckmode);
@@ -2063,8 +2076,10 @@ static int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
 		lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.rect_bg);
 		lcd_set_col(pwi, DEFAULT_FG, &pwi->pbi.text_fg);
 		lcd_set_col(pwi, DEFAULT_BG, &pwi->pbi.text_bg);
-		pwi->alpha0 = DEFAULT_ALPHA0;
-		pwi->alpha1 = DEFAULT_ALPHA1;
+		pwi->ai[0].alpha = DEFAULT_ALPHA0;
+		pwi->ai[0].time = 0;
+		pwi->ai[1].alpha = DEFAULT_ALPHA1;
+		pwi->ai[1].time = 0;
 		pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
 		pwi->text_attr = 0;
 	}
@@ -2143,6 +2158,20 @@ static int set_winres(wininfo_t *pwi, XYPOS hres, XYPOS vres)
 	return setfbuf(pwi, hres, vres, fbhres, fbvres, pwi->pix, fbcount);
 }
 
+/* Print the alpha information for alpha0 or alpha1 */
+static void show_alphainfo(const wininfo_t *pwi, int channel)
+{
+	const alphainfo_t *pai = &pwi->ai[channel];
+
+	printf("Alpha%d Setting:\t#%06x", channel, pai->alpha>>8);
+	if (pai->time) {
+		printf(", fade from #%06x to #%06x @ %u/%u ms",
+		       pai->from>>8, pai->to>>8, pai->now, pai->time);
+	}
+	puts("\n");
+}
+
+
 /* Print the window information */
 static void show_wininfo(const wininfo_t *pwi)
 {
@@ -2164,12 +2193,77 @@ static void show_wininfo(const wininfo_t *pwi)
 	printf("Window:\t\t%u x %u pixels, from offset (%d, %d)"
 	       " to pos (%d, %d)\n", pwi->hres, pwi->vres,
 	       pwi->hoffs, pwi->voffs, pwi->hpos, pwi->vpos);
-	printf("Alpha Setting:\talpha0=#%08x, alpha1=#%08x, alphamode=0x%x\n",
-	       pwi->alpha0, pwi->alpha1, pwi->alphamode);
+	printf("Alphamode:\t%u\n", pwi->alphamode);
+	show_alphainfo(pwi, 0);
+	show_alphainfo(pwi, 1);
 	printf("Color Keying:\tckvalue=#%08x, ckmask=#%08x, ckmode=0x%x\n\n",
 	       pwi->ckvalue, pwi->ckmask, pwi->ckmode);
 }
 
+/* Fade alpha value of all windows of all displays */
+static void fade_alpha(void)
+{
+	int done;
+
+	do {
+		VID vid;
+
+		done = 1;
+		for (vid = 0; vid < vid_count; vid++) {
+			WINDOW win;
+			vidinfo_t *pvi = lcd_get_vidinfo_p(vid);
+
+			for (win = 0; win < pvi->wincount; win++) {
+				int a;
+				int update = 0;
+				wininfo_t *pwi = lcd_get_wininfo_p(pvi, win);
+
+				for (a = 0; a < 2; a++) {
+					alphainfo_t *pai = &pwi->ai[a];
+					RGBA alpha;
+					int from, to;
+					int time, now;
+
+					if (!pai->time)
+						continue;
+
+					now = ++(pai->now);
+					time = pai->time;
+
+					/* Handle R */
+					to = (int)(pai->to >> 24);
+					from = (int)(pai->from >> 24);
+					from += (to - from) * now / time;
+					alpha = ((RGBA)from) << 24;
+
+					/* Handle G */
+					to = (int)((pai->to & 0xFF0000) >> 16);
+					from = (int)((pai->from&0xFF0000)>>16);
+					from += (to - from) * now / time;
+					alpha |= ((RGBA)from) << 16;
+
+					/* Handle B */
+					to = (int)((pai->to & 0xFF00) >> 8);
+					from = (int)((pai->from & 0xFF00) >> 8);
+					from += (to - from) * now / time;
+					alpha |= ((RGBA)from) << 8;
+
+					if (alpha != pai->alpha) {
+						pai->alpha = alpha;
+						update = 1;
+					}
+					if (now >= time)
+						pai->time = 0;
+					else
+						done = 0;
+				} /* for (a) */
+				if (update)
+					set_wininfo(pwi);
+			} /* for (win) */
+		} /* for (vid) */
+		udelay(1000);		  /* Wait 1ms */
+	} while (!done && !ctrlc());
+}
 
 /* Handle win command */
 static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
@@ -2315,32 +2409,41 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		set_wininfo(pwi);
 		break;
 
-	case WI_ALPHA:
+	case WI_ALPHA0:
+	case WI_ALPHA1:
 	{
-		RGBA alpha0;
+		RGBA alpha;
+		u_int time;
+		alphainfo_t *pai;
 
-		if (parse_rgb(argv[2], &alpha0))
+		if (parse_rgb(argv[2], &alpha))
 			return 1;
-		if (argc > 3) {
-			RGBA alpha1;
-			if (parse_rgb(argv[3], &alpha1))
-				return 1;
-			if (argc > 4) {
-				u_char alphamode;
-				alphamode = (u_char)simple_strtol(argv[4],
-								  NULL, 0);
-				if (alphamode > 2) {
-					puts("Illegal alpha mode\n");
-					return 1;
-				}
-				pwi->alphamode = alphamode;
-			}
-			pwi->alpha1 = alpha1;
+		time = (argc > 3) ? simple_strtol(argv[3], NULL, 0) : 0;
+		if (time < 0)
+			time = 0;
+		pai = (sc== WI_ALPHA0) ? &pwi->ai[0] : &pwi->ai[1];
+		pai->to = alpha;
+		pai->from = pai->alpha;
+		pai->time = time;
+		pai->now = 0;
+		if (time == 0) {
+			/* Set hardware immediately */
+			pai->alpha = alpha;
+			set_wininfo(pwi);
 		}
-		pwi->alpha0 = alpha0;
+		break;
+	}
 
-		/* Actually set hardware */
-		set_wininfo(pwi);
+	case WI_ALPHAM:
+	{
+		u_int alphamode;
+
+		alphamode = simple_strtoul(argv[2], NULL, 0);
+		if (alphamode > 2) {
+			puts("Illegal alpha mode\n");
+			return 1;
+		}
+		pwi->alphamode = (u_char)alphamode;
 		break;
 	}
 
@@ -2372,6 +2475,10 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		set_wininfo(pwi);
 		break;
 	}
+
+	case WI_FADE:
+		fade_alpha();
+		break;
 
 	case WI_IDENT:
 	{
@@ -2417,10 +2524,16 @@ U_BOOT_CMD(
 	"    - Set window position on display\n"
 	"win ident\n"
 	"    - Identify the window by blinking it a few times\n"
-	"win alpha alpha0 [alpha1 [mode]]\n"
-	"    - Set per-window alpha values and mode\n"
+	"win alpham mode\n"
+	"    - Set alpha mode\n"
+	"win alpha0 val time\n"
+	"    - Set alpha0 value and fading time (0: set immediately)\n"
+	"win alpha1 val time\n"
+	"    - Set alpha1 value and fading time (0: set immediately)\n"
 	"win colkey rgbaval [rgbamask [mode]]"
 	"    - Set per-window color key value, mask and mode\n"
+	"win fade\n"
+	"    - Fade alpha values for all windows\n"
 	"win all\n"
 	"    - List all windows of the current display\n"
 	"win\n"
@@ -3303,9 +3416,11 @@ void drv_lcd_init(void)
 			pwi->pbi.attr = ATTR_HFOLLOW | ATTR_VCENTER;
 			pwi->pbi.prog = 0;
 
-			/* Color information */
-			pwi->alpha0 = DEFAULT_ALPHA0;
-			pwi->alpha1 = DEFAULT_ALPHA1;
+			/* Alpha and color keying information */
+			pwi->ai[0].alpha = DEFAULT_ALPHA0;
+			pwi->ai[0].time = 0;
+			pwi->ai[1].alpha = DEFAULT_ALPHA1;
+			pwi->ai[1].time = 0;
 			pwi->alphamode = (pwi->ppi->flags & PIF_ALPHA) ? 2 : 1;
 			pwi->ckvalue = 0; /* Off */
 			pwi->ckmask = 0;  /* Bits must match */

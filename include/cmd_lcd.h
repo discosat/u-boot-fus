@@ -97,6 +97,16 @@ typedef struct colinfo {
 	RGBA A256;			  /* 256-Alpha (8 bits) */
 } colinfo_t;
 
+/* Structure to store window specific alpha information; from, to and now are
+   only valid if time != 0. */
+typedef struct alphainfo {
+	RGBA alpha;			  /* Current alpha value */
+	RGBA from;			  /* Alpha to fade from */
+	RGBA to;			  /* Alpha to fade to */
+	int time;			  /* Total fading time (in ms) */
+	int now;			  /* Current fading time (in ms) */
+} alphainfo_t;
+
 /* Pixel format information */
 typedef struct PIXEL_INFO {
 	u_char depth;			/* Actually used bits for the color */
@@ -239,8 +249,7 @@ struct wininfo
 	pbinfo_t pbi;			  /* Progress bar info */
 
 	/* Alpha and color keying information */
-	RGBA alpha0;			  /* Alpha value for A=0 */
-	RGBA alpha1;			  /* Alpha value for A=1 */
+	alphainfo_t ai[2];		  /* Alpha info for A=0 and A=1 */
 	u_char alphamode;		  /* 0: alpha0, 1: alpha1, 2: pixel */
 	u_char ckmode;			  /* Color keying mode */
 	RGBA ckvalue;			  /* Color keying RGBA value */
