@@ -27,13 +27,15 @@ LIB	:= $(obj)libonenand.a
 
 COBJS := onenand_uboot.o
 
-ifeq ($(BOARD),smdk6400) 
+ifeq ($(BOARD),smdk6400)
 COBJS += s3c_onenand.o
 else ifeq ($(BOARD),smdk6410)
 COBJS += s3c_onenand.o
 else ifeq ($(BOARD),smdk6430)
 COBJS += s3c_onenand.o
 else ifeq ($(BOARD),smdkc100)
+COBJS += s3c_onenand.o
+else ifeq ($(BOARD),smdkc110)
 COBJS += s3c_onenand.o
 else
 COBJS += onenand_base.o onenand_bbt.o

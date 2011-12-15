@@ -102,6 +102,28 @@ static struct nand_ecclayout nand_oob_64 = {
 		 .length = 38}}
 };
 
+/* Nand flash oob definition for 4Kb page size with 8_bit ECC */
+static struct nand_ecclayout nand_oob_128 = {
+        .eccbytes = 104,
+        .eccpos = {
+                   24, 25, 26, 27, 28, 29, 30, 31,
+                   32, 33, 34, 35, 36, 37, 38, 39,
+                   40, 41, 42, 43, 44, 45, 46, 47,
+                   48, 49, 50, 51, 52, 53, 54, 55,
+                   56, 57, 58, 59, 60, 61, 62, 63,
+                   64, 65, 66, 67, 68, 69, 70, 71,
+                   72, 73, 74, 75, 76, 77, 78, 79,
+                   80, 81, 82, 83, 84, 85, 86, 87,
+                   88, 89, 90, 91, 92, 93, 94, 95,
+                   96, 97, 98, 99, 100, 101, 102, 103,
+                   104, 105, 106, 107, 108, 109, 110, 111,
+                   112, 113, 114, 115, 116, 117, 118, 119,
+                   120, 121, 122, 123, 124, 125, 126, 127},
+        .oobfree = {
+                {.offset = 2,
+                 .length = 22}}
+};
+
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
 			   int new_state);
 
@@ -354,8 +376,9 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		 defined(CONFIG_S3C2450) || \
 		 defined(CONFIG_S3C2416) || \
 		 defined(CONFIG_S5PC100)|| \
+		 defined(CONFIG_S5PC110)|| \
 		 defined(CONFIG_S5P6440))
-	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128))
+	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 256))
 		return 0;
 #endif
 
@@ -1054,8 +1077,13 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
  * Internal function. Called with chip held.
  */
 /* jsgood */
+#if defined(CONFIG_NAND_BL1_8BIT_ECC) && defined(CONFIG_S3C6410)
+extern int s3c_nand_read_page_8bit_for_irom(struct mtd_info *mtd, struct nand_chip *chip,
+				uint8_t *buf);
+#else
 extern int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf);
+#endif
 static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
@@ -1097,27 +1125,29 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 /* jsgood: org: #else block only */
 #if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
-		(defined(CONFIG_S3C6410) || \
-		 defined(CONFIG_S3C6430) || \
+		 (defined(CONFIG_S3C6430) || \
 		 defined(CONFIG_S3C2450) || \
 		 defined(CONFIG_S3C2416) || \
 		 defined(CONFIG_S5PC100)|| \
+		 defined(CONFIG_S5PC110)|| \
 		 defined(CONFIG_S5P6440))
-			if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128)) {
+			if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 256) ||
+				(mtd->writesize == 4096 && page < 128)) {
 				s3c_nand_read_page_8bit(mtd, chip, bufpoi);
-			} else {
+			} else
+#elif defined(CONFIG_NAND_BL1_8BIT_ECC) && defined(CONFIG_S3C6410)
+			if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128) ||
+				(mtd->writesize == 4096 && page < 128)) {
+				s3c_nand_read_page_8bit_for_irom(mtd, chip, bufpoi);
+			} else
+#endif
+			{
+				/* Now read the page into the buffer */
 				if (unlikely(ops->mode == MTD_OOB_RAW))
 					ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
 				else
 					ret = chip->ecc.read_page(mtd, chip, bufpoi);
 			}
-#else
-			/* Now read the page into the buffer */
-			if (unlikely(ops->mode == MTD_OOB_RAW))
-				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
-			else
-				ret = chip->ecc.read_page(mtd, chip, bufpoi);
-#endif
 
 			if (ret < 0)
 				break;
@@ -1632,8 +1662,13 @@ static void nand_write_page_syndrome(struct mtd_info *mtd,
  */
 
 /* jsgood */
+#if defined(CONFIG_NAND_BL1_8BIT_ECC) && defined(CONFIG_S3C6410)
+extern void s3c_nand_write_page_8bit_for_irom(struct mtd_info *mtd, struct nand_chip *chip,
+				  const uint8_t *buf);
+#else
 extern void s3c_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 				  const uint8_t *buf);
+#endif
 
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			   const uint8_t *buf, int page, int cached, int raw)
@@ -1644,27 +1679,30 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 /* jsgood: org: #else block only */
 #if defined(CONFIG_NAND_BL1_8BIT_ECC) && \
-		(defined(CONFIG_S3C6410) || \
-		 defined(CONFIG_S3C6430) || \
+		 (defined(CONFIG_S3C6430) || \
 		 defined(CONFIG_S3C2450) || \
 		 defined(CONFIG_S3C2416) || \
 		 defined(CONFIG_S5PC100)|| \
+		 defined(CONFIG_S5PC110)|| \
 		 defined(CONFIG_S5P6440))
-	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128)) {
+	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 256) || 
+		(mtd->writesize == 4096 && page < 128)) {
 		memset(chip->oob_poi, 0xff, mtd->oobsize);
 		s3c_nand_write_page_8bit(mtd, chip, buf);
-	} else {
+	} else
+#elif defined(CONFIG_NAND_BL1_8BIT_ECC) && defined(CONFIG_S3C6410)
+	if ((mtd->writesize == 512 && page < 512) || (mtd->writesize == 2048 && page < 128) || 
+		(mtd->writesize == 4096 && page < 128)) {
+		memset(chip->oob_poi, 0xff, mtd->oobsize);
+		s3c_nand_write_page_8bit_for_irom(mtd, chip, buf);
+	} else
+#endif
+	{
 		if (unlikely(raw))
 			chip->ecc.write_page_raw(mtd, chip, buf);
 		else
 			chip->ecc.write_page(mtd, chip, buf);
 	}
-#else
-	if (unlikely(raw))
-		chip->ecc.write_page_raw(mtd, chip, buf);
-	else
-		chip->ecc.write_page(mtd, chip, buf);
-#endif
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
@@ -1885,6 +1923,11 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	struct nand_chip *chip = mtd->priv;
 	int ret;
+#if defined(CONFIG_EVT1)
+	int i;
+	ulong checksum;
+	uint8_t *ptr;
+#endif
 
 	/* Do not allow reads past end of device */
 	if ((to + len) > mtd->size)
@@ -1893,6 +1936,17 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		return 0;
 
 	nand_get_device(chip, mtd, FL_WRITING);
+
+#if defined(CONFIG_EVT1)
+	if (to == 0) {
+		ptr = buf + 16;	
+		for(i = 16, checksum = 0; i < 8192; i++) {
+			checksum += *ptr;
+			ptr++;
+		}
+		*((volatile u32 *)(buf + 0x8)) = checksum;
+	}
+#endif
 
 	chip->ops.len = len;
 	chip->ops.datbuf = (uint8_t *)buf;
@@ -2401,22 +2455,45 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	/* Newer devices have all the information in additional id bytes */
 	if (!type->pagesize) {
-		int extid;
-		/* The 3rd id byte holds MLC / multichip data */
-		chip->cellinfo = chip->read_byte(mtd);
-		/* The 4th id byte is the important one */
-		extid = chip->read_byte(mtd);
-		/* Calc pagesize */
-		mtd->writesize = 1024 << (extid & 0x3);
-		extid >>= 2;
-		/* Calc oobsize */
-		mtd->oobsize = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
-		extid >>= 2;
-		/* Calc blocksize. Blocksize is multiples of 64KiB */
-		mtd->erasesize = (64 * 1024) << (extid & 0x03);
-		extid >>= 2;
-		/* Get buswidth information */
-		busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+		if (dev_id == 0xd5) {
+			int extid;
+			/* The 3rd id byte holds MLC / multichip data */
+			chip->cellinfo = chip->read_byte(mtd);
+			/* The 4th id byte is the important one */
+			extid = chip->read_byte(mtd);
+			/* Calc pagesize */
+			mtd->writesize = 2048 << (extid & 0x3);
+			extid >>= 2;
+			/* Calc oobsize */
+			if ((extid & 0x3) == 0x1) {
+				mtd->oobsize = 128;
+			} else if ((extid & 0x3) == 0x2) {
+				mtd->oobsize = 218;
+			}
+			extid >>= 2;
+			/* Calc blocksize. Blocksize is multiples of 64KiB */
+			mtd->erasesize = (128 * 1024) << (extid & 0x03);
+			extid >>= 2;
+			/* Get buswidth information */
+			busw = 0;			
+		} else {	
+			int extid;
+			/* The 3rd id byte holds MLC / multichip data */
+			chip->cellinfo = chip->read_byte(mtd);
+			/* The 4th id byte is the important one */
+			extid = chip->read_byte(mtd);
+			/* Calc pagesize */
+			mtd->writesize = 1024 << (extid & 0x3);
+			extid >>= 2;
+			/* Calc oobsize */
+			mtd->oobsize = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
+			extid >>= 2;
+			/* Calc blocksize. Blocksize is multiples of 64KiB */
+			mtd->erasesize = (64 * 1024) << (extid & 0x03);
+			extid >>= 2;
+			/* Get buswidth information */
+			busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+		}
 	} else {
 		/*
 		 * Old devices have chip data hardcoded in the device id table
@@ -2582,6 +2659,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 			break;
 		case 64:
 			chip->ecc.layout = &nand_oob_64;
+			break;
+		case 128:
+			chip->ecc.layout = &nand_oob_128;
 			break;
 		default:
 			printk(KERN_WARNING "No oob scheme defined for "

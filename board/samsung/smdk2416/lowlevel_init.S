@@ -89,7 +89,7 @@ lowlevel_init:
 	beq     1f			/* r0 == r1 then skip sdram init   */
 
 	adr     r0, sdram_bank_set_val
-	bl sdr_ctrl_asm_init
+	bl 	sdr_ctrl_asm_init
 
 1:	ldr	r0, =ELFIN_UART_BASE
 	ldr	r1, =0x4b4b4b4b

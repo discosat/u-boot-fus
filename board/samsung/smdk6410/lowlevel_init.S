@@ -84,6 +84,91 @@ lowlevel_init:
 	str	r3, [r0, #oVECTADDR]
 	str	r3, [r1, #oVECTADDR]
 
+#if defined(CONFIG_CLK_800_133_66)
+  /* Voltage changes for high frequency */
+  /* GPIO init for ltc3714 regulator */
+  ldr	r0, =ELFIN_GPIO_BASE
+	ldr	r1, [r0, #GPNDAT_OFFSET]
+	bic r1, r1, #0xf800
+	str r1, [r0, #GPNDAT_OFFSET]
+	
+	ldr	r1, [r0, #GPNCON_OFFSET]
+	ldr r2, =0xffc00000
+	bic r1, r2
+	ldr r2, =0x55400000
+	orr r1, r2
+	str r1, [r0, #GPNCON_OFFSET]
+  
+  ldr	r1, [r0, #GPNPUD_OFFSET]
+  ldr r2, =0xffc00000
+	bic r1, r2
+	str r1, [r0, #GPNPUD_OFFSET]
+  
+  ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x700
+	str r1, [r0, #GPLDAT_OFFSET]
+  
+	ldr	r1, [r0, #GPLCON1_OFFSET]
+	ldr r2, =0xfff
+	bic r1, r2
+	ldr r2, =0x111
+	orr r1, r2
+	str r1, [r0, #GPLCON1_OFFSET]  
+  
+  ldr	r1, [r0, #GPLPUD_OFFSET]
+  ldr r2, =0x3f0000
+	bic r1, r2
+	str r1, [r0, #GPLPUD_OFFSET]
+	  
+  /* Set voltage value for VDD_ARM(1.35V) */
+  ldr	r1, [r0, #GPNDAT_OFFSET]
+	bic r1, r1, #0xf800
+	orr r1, r1, #0x4000
+	str r1, [r0, #GPNDAT_OFFSET]
+	
+	/* VDD_ARM LE */
+	ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x100
+	orr r1, r1, #0x100
+	str r1, [r0, #GPLDAT_OFFSET]
+
+  ldr r2, =40000
+delay_loop:
+  subs  r2, r2, #1
+  bne delay_loop
+  
+  ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x100
+	str r1, [r0, #GPLDAT_OFFSET]
+  
+  /* Set voltage value for VDD_INT(1.3V) */
+  ldr	r1, [r0, #GPNDAT_OFFSET]
+	bic r1, r1, #0xf800
+	orr r1, r1, #0x4800
+	str r1, [r0, #GPNDAT_OFFSET]
+	
+	/* VDD_INT LE */
+	ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x400
+	orr r1, r1, #0x400
+	str r1, [r0, #GPLDAT_OFFSET]
+
+  ldr r2, =40000
+delay_loop2:
+  subs  r2, r2, #1
+  bne delay_loop2
+  
+  ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x400
+	str r1, [r0, #GPLDAT_OFFSET]
+  
+  /* Voltage output enable */
+  ldr	r1, [r0, #GPLDAT_OFFSET]
+	bic r1, r1, #0x200
+	orr r1, r1, #0x200
+	str r1, [r0, #GPLDAT_OFFSET]
+#endif  
+
 	/* init system clock */
 	bl system_clock_init
 
@@ -265,7 +350,7 @@ uart_asm_init:
 	/* set GPIO to enable UART */
 	@ GPIO setting for UART
 	ldr	r0, =ELFIN_GPIO_BASE
-	ldr	r1, =0x220022
+	ldr	r1, =0x22220022
 	str   	r1, [r0, #GPACON_OFFSET]
 
 	ldr	r1, =0x2222

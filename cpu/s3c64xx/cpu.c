@@ -238,3 +238,19 @@ int branch_status (void)
 	return (read_p15_c1 () & C1_BRANCH) != 0;
 }
 
+/*
+ * Initializes on-chip MMC controllers.
+ * to override, implement board_mmc_init()
+ */
+int cpu_mmc_init(bd_t *bis)
+{
+#ifdef CONFIG_S3C_HSMMC
+	setup_hsmmc_clock();
+	setup_hsmmc0_cfg_gpio();
+	return smdk_s3c_hsmmc_init();
+#else
+	return 0;
+#endif
+}
+
+

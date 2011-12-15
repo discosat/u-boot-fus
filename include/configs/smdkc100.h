@@ -36,12 +36,31 @@
 #define CONFIG_S5PC100		1		/* in a SAMSUNG S3C6410 SoC */
 #define CONFIG_S5PC1XX		1		/* in a SAMSUNG S3C64XX Family  */
 #define CONFIG_SMDKC100		1
-#define CONFIG_S5PC100_EVT1
+
+//#define CONFIG_S5PC100_EVT1
+#define CONFIG_S5PC100_EVT2
 
 #define BOOT_ONENAND		0x1
 #define BOOT_NAND		0x2
+#define BOOT_MMCSD		0x3
 
 #define MEMORY_BASE_ADDRESS	0x20000000
+
+/* IROM specific data */
+#define SDMMC_BLK_SIZE        (0xd0020230)
+#define SDMMC_SDHC_INFO       (0xd002011F)
+
+/* MMC configuration */
+#if defined(CONFIG_S5PC100_EVT2)
+#define CONFIG_MEMORY_UPPER_CODE
+#define CONFIG_GENERIC_MMC
+#define CONFIG_S3C_HSMMC
+#undef DEBUG_S3C_HSMMC
+
+/* The macro for MMC channel 0 is defined by default and can't be undefined */
+#define USE_MMC0
+#define MMC_MAX_CHANNEL		3
+#endif
 
 /* input clock of PLL */
 #define CONFIG_SYS_CLK_FREQ	12000000	/* the SMDK6400 has 12MHz input clock */
@@ -108,6 +127,13 @@
 #define CS8900_BUS16		1 	/* the Linux driver does accesses as shorts */
 #endif
 
+#ifdef CONFIG_DRIVER_DM9000
+#define CONFIG_DM9000_BASE		(0x80000000)
+#define DM9000_IO			(CONFIG_DM9000_BASE)
+#define DM9000_DATA			(CONFIG_DM9000_BASE+2)
+#endif
+
+
 /*
  * select serial console configuration
  */
@@ -170,7 +196,6 @@
 #define CONFIG_BOOTP_HOSTNAME
 #define CONFIG_BOOTP_BOOTPATH
 
-#define CONFIG_BOOTDELAY	3
 /*#define CONFIG_BOOTARGS    	"root=ramfs devfs=mount console=ttySA0,9600" */
 #define CONFIG_ETHADDR		00:40:5c:26:0a:5b
 #define CONFIG_NETMASK          255.255.255.0
@@ -183,17 +208,6 @@
 #define CONFIG_NET_MULTI
 #undef	CONFIG_NET_MULTI
 
-#ifdef CONFIG_NET_MULTI
-#define CONFIG_DRIVER_SMC911X_BASE	0x98800300
-#define CONFIG_DRIVER_SMC911X_16_BIT
-#define CONFIG_DRIVER_CS8900
-#define CS8900_BASE	  		0x18800300
-#define CS8900_BUS16
-#else
-#define CONFIG_DRIVER_SMC911X_16_BIT
-#define CONFIG_DRIVER_SMC911X_BASE	0x98800300
-#undef	CONFIG_DRIVER_CS8900
-#endif
 
 #if defined(CONFIG_CMD_KGDB)
 #define CONFIG_KGDB_BAUDRATE	115200		/* speed to run kgdb serial port */
@@ -212,15 +226,19 @@
 #define CFG_BARGSIZE		CFG_CBSIZE	/* Boot Argument Buffer Size	*/
 
 #define CFG_MEMTEST_START	MEMORY_BASE_ADDRESS	/* memtest works on	*/
-#define CFG_MEMTEST_END		MEMORY_BASE_ADDRESS + 0x7e00000		/* 128 MB in DRAM	*/
+#if defined(MEMORY_SIZE_256)
+#define CFG_MEMTEST_END		MEMORY_BASE_ADDRESS + 0xfe00000		/* 256 MB in DRAM	*/
+#else
+#define CFG_MEMTEST_END		MEMORY_BASE_ADDRESS + 0x7e00000		/* 256 MB in DRAM	*/
+#endif
 
 #undef CFG_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
 #define CFG_LOAD_ADDR		MEMORY_BASE_ADDRESS	/* default load address	*/
 
-/* the PWM TImer 4 uses a counter of 15625 for 10 ms, so we need */
-/* it to wrap 100 times (total 1562500) to get 1 sec. */
-#define CFG_HZ			1562500		// at PCLK 50MHz
+/* the PWM TImer 4 uses a counter of 41687 for 10 ms, so we need */
+/* it to wrap 100 times (total 4168750) to get 1 sec. */
+#define CFG_HZ			4168750		// at PCLK 66MHz
 
 /* valid baudrates */
 #define CFG_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
@@ -236,22 +254,46 @@
 #define CONFIG_STACKSIZE_FIQ	(4*1024)	/* FIQ stack */
 #endif
 
-#define CONFIG_CLK_666_166_66
-//#define CONFIG_CLK_833_166_66
+// ARMCLK:D0_BUS:PCLKD1
+//#define CONFIG_CLK_666_166_66
+#define CONFIG_CLK_833_166_66
+//#define CONFIG_CLK_800_200_66	/* MPLL:200MHz, HCLKD1:200MHz,PCLKD1:66MHz */
+//#define CONFIG_CLK_800_200_83	/* MPLL:166MHz, HCLKD1:166MHz,PCLKD1:83MHz */
+//#define CONFIG_CLK_833_166_200_66	/* MPLL:200MHz, HCLKD1:200MHz, PCLKD1:66MHz */
+//#define CONFIG_CLK_833_166_166_83	/* MPLL:166MHz, HCLKD1:166MHz, PCLKD1:83MHz */
 
 #if defined(CONFIG_CLK_666_166_66)
-#define APLL_MDIV       444
-#define APLL_PDIV       4
-#define APLL_SDIV       0
-#elif defined(CONFIG_CLK_833_166_66)
+#define APLL_MDIV       333
+#define APLL_PDIV       3
+#define APLL_SDIV       1
+#elif defined(CONFIG_CLK_833_166_66) || defined(CONFIG_CLK_833_166_200_66) || defined(CONFIG_CLK_833_166_166_83)
 #define APLL_MDIV       417
 #define APLL_PDIV       3
-#define APLL_SDIV       0
+#define APLL_SDIV       1
+#elif defined(CONFIG_CLK_800_200_66) || defined(CONFIG_CLK_800_200_83)
+#define APLL_MDIV       400
+#define APLL_PDIV       3
+#define APLL_SDIV       1
 #endif
 
+#if defined(CONFIG_CLK_666_166_66) || defined(CONFIG_CLK_833_166_66)
 #define MPLL_MDIV	89
 #define MPLL_PDIV	2
 #define MPLL_SDIV	1
+#elif defined(CONFIG_CLK_800_200_66) || defined(CONFIG_CLK_833_166_200_66)
+#define MPLL_MDIV	100
+#define MPLL_PDIV	3
+#define MPLL_SDIV	1
+#elif defined(CONFIG_CLK_800_200_83) || defined(CONFIG_CLK_833_166_166_83)
+#define MPLL_MDIV	167
+#define MPLL_PDIV	6
+#define MPLL_SDIV	1
+#else
+
+#error "You should define clk configuration for S5PC100"
+
+#endif
+
 #define EPLL_MDIV	135
 #define EPLL_PDIV	3
 #define EPLL_SDIV	3
@@ -273,64 +315,33 @@
 #define EPLL_VAL	set_pll(EPLL_MDIV,EPLL_PDIV,EPLL_SDIV)
 #define HPLL_VAL	set_pll(HPLL_MDIV,HPLL_PDIV,HPLL_SDIV)
 
-#if defined(CONFIG_CLK_666_166_66)
-#define CLK_DIV0_VAL    ((1<<APLL_RATIO)|(0<<ARM_RATIO)|(3<<D0_BUS_RATIO)|(1<<PCLKD0_RATIO)|(1<<SECSS_RATIO))
-#elif defined(CONFIG_CLK_833_166_66)
-#define CLK_DIV0_VAL    ((1<<APLL_RATIO)|(0<<ARM_RATIO)|(4<<D0_BUS_RATIO)|(1<<PCLKD0_RATIO)|(1<<SECSS_RATIO))
+#if defined(CONFIG_CLK_666_166_66) || defined(CONFIG_CLK_800_200_66) || defined(CONFIG_CLK_800_200_83)
+#define CLK_DIV0_VAL    ((0<<APLL_RATIO)|(0<<ARM_RATIO)|(3<<D0_BUS_RATIO)|(1<<PCLKD0_RATIO)|(1<<SECSS_RATIO))
+#elif defined(CONFIG_CLK_833_166_66) || defined(CONFIG_CLK_833_166_200_66) || defined(CONFIG_CLK_833_166_166_83)
+#define CLK_DIV0_VAL    ((0<<APLL_RATIO)|(0<<ARM_RATIO)|(4<<D0_BUS_RATIO)|(1<<PCLKD0_RATIO)|(1<<SECSS_RATIO))
 #endif
 
+#if defined(CONFIG_CLK_666_166_66) || defined(CONFIG_CLK_833_166_66)
 #define CLK_DIV1_VAL	((1<<16)|(1<<12)|(1<<8)|(1<<4))
+#elif defined(CONFIG_CLK_800_200_66) || defined(CONFIG_CLK_833_166_200_66) 
+#define CLK_DIV1_VAL	((2<<16)|(0<<12)|(0<<8)|(0<<4))
+#elif defined(CONFIG_CLK_800_200_83) || defined(CONFIG_CLK_833_166_166_83) 
+#define CLK_DIV1_VAL	((1<<16)|(0<<12)|(0<<8)|(0<<4))
+#endif
 #define CLK_DIV2_VAL	(1<<0)
 
 /*-----------------------------------------------------------------------
  * Physical Memory Map
  */
-#ifndef CONFIG_SMDK6410_X5A
 
-#define DMC1_MEM_CFG		0x00010012	/* Supports one CKE control, Chip1, Burst4, Row/Column bit */
-#define DMC1_MEM_CFG2		0xB45
-#define DMC1_CHIP0_CFG		0x150F8
-#define DMC_DDR_32_CFG		0x0 		/* 32bit, DDR */
-
-/* Memory Parameters */
-/* DDR Parameters */
-#define DDR_tREFRESH		7800		/* ns */
-#define DDR_tRAS		45		/* ns (min: 45ns)*/
-#define DDR_tRC 		68		/* ns (min: 67.5ns)*/
-#define DDR_tRCD		23		/* ns (min: 22.5ns)*/
-#define DDR_tRFC		80		/* ns (min: 80ns)*/
-#define DDR_tRP 		23		/* ns (min: 22.5ns)*/
-#define DDR_tRRD		15		/* ns (min: 15ns)*/
-#define DDR_tWR 		15		/* ns (min: 15ns)*/
-#define DDR_tXSR		120		/* ns (min: 120ns)*/
-#define DDR_CASL		3		/* CAS Latency 3 */
-
-#else
-
-#define DMC1_MEM_CFG		0x00210011	/* Supports one CKE control, Chip1, Burst4, Row/Column bit */
-#define DMC1_MEM_CFG2		0xB41
-#define DMC1_CHIP0_CFG		0x150FC
-#define DMC1_CHIP1_CFG		0x154FC
-#define DMC_DDR_32_CFG		0x0		/* 32bit, DDR */
-
-/* Memory Parameters */
-/* DDR Parameters */
-#define DDR_tREFRESH		5865		/* ns */
-#define DDR_tRAS		50		/* ns (min: 45ns)*/
-#define DDR_tRC 		68		/* ns (min: 67.5ns)*/
-#define DDR_tRCD		23		/* ns (min: 22.5ns)*/
-#define DDR_tRFC		133		/* ns (min: 80ns)*/
-#define DDR_tRP 		23		/* ns (min: 22.5ns)*/
-#define DDR_tRRD		20		/* ns (min: 15ns)*/
-#define DDR_tWR 		20		/* ns (min: 15ns)*/
-#define DDR_tXSR		125		/* ns (min: 120ns)*/
-#define DDR_CASL		3		/* CAS Latency 3 */
-
-#endif
 
 #define CONFIG_NR_DRAM_BANKS	1	   /* we have 2 bank of DRAM */
 #define PHYS_SDRAM_1		MEMORY_BASE_ADDRESS /* SDRAM Bank #1 */
-#define PHYS_SDRAM_1_SIZE	0x08000000 /* 64 MB */
+#if defined(MEMORY_SIZE_256)
+#define PHYS_SDRAM_1_SIZE	0x10000000 /* 256 MB */
+#else
+#define PHYS_SDRAM_1_SIZE	0x08000000 /* 128 MB */
+#endif
 
 #define CFG_FLASH_BASE		0x00000000
 
@@ -358,16 +369,32 @@
 /* total memory required by uboot */
 #define CFG_UBOOT_SIZE		(2*1024*1024)
 
+#if defined(MEMORY_SIZE_256)
+/* base address for uboot */
+#ifdef CONFIG_ENABLE_MMU
+#define CFG_UBOOT_BASE		0xcfe00000
+#else
+#define CFG_UBOOT_BASE		0x2fe00000
+#endif
+#else
 /* base address for uboot */
 #ifdef CONFIG_ENABLE_MMU
 #define CFG_UBOOT_BASE		0xc7e00000
 #else
 #define CFG_UBOOT_BASE		0x27e00000
 #endif
+#endif
 
+#if defined(MEMORY_SIZE_256)
+#define CFG_PHY_UBOOT_BASE	MEMORY_BASE_ADDRESS + 0xfe00000
+#else
 #define CFG_PHY_UBOOT_BASE	MEMORY_BASE_ADDRESS + 0x7e00000
+#endif
 
 #define CFG_ENV_OFFSET		0x0007C000
+
+/* nand copy size from nand to DRAM.*/
+#define	COPY_BL2_SIZE		0x80000
 
 /* NAND configuration */
 #define CFG_MAX_NAND_DEVICE     1
@@ -393,6 +420,8 @@
 #undef	CONFIG_NO_SDMMC_DETECTION
 
 #define CONFIG_MTDPARTITION	"40000 3c0000 3000000"
+#define CONFIG_BOOTDELAY	3
+#define CONFIG_BOOTCOMMAND	"onenand read c0008000 80000 400000;bootm c0008000"
 /* OneNAND configuration */
 #define CFG_ONENAND_BASE 	(0xe7100000)
 #define CFG_MAX_ONENAND_DEVICE	1

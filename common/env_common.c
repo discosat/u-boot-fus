@@ -37,6 +37,7 @@ DECLARE_GLOBAL_DATA_PTR;
 	extern void disable_nvram(void);
 #endif
 
+#define DEBUG_ENV
 #undef DEBUG_ENV
 #ifdef DEBUG_ENV
 #define DEBUGF(fmt,args...) printf(fmt ,##args)
@@ -57,7 +58,7 @@ static uchar env_get_char_init (int index);
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
-#if defined(CONFIG_S3C6410) || defined(CONFIG_S3C6430) || defined(CONFIG_S5PC100) || defined(CONFIG_S5P6440)
+#if defined(CONFIG_S3C6410) || defined(CONFIG_S3C6430) || defined(CONFIG_S5P6440) || defined(CONFIG_S5PC100) || defined(CONFIG_S5PC110) || defined(CONFIG_S5P6442)
 uchar default_environment[CFG_ENV_SIZE] = {
 #else
 uchar default_environment[] = {

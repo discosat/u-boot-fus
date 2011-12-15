@@ -29,7 +29,7 @@ START	= start.o
 
 OBJS	= nand_cp.o i2c.o serial.o  usb_ohci.o \
 		interrupts.o cpu.o nand.o onenand.o onenand_cp.o \
-		usbd-otg-hs.o hs_mmc.o movi.o
+		usbd-otg-hs.o movi.o setup_hsmmc.o
 
 all:	.depend $(START) $(LIB)
 

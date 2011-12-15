@@ -47,8 +47,8 @@ DECLARE_GLOBAL_DATA_PTR;
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
-void inline __show_boot_progress (int val) {}
-void inline show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
+void __show_boot_progress (int val) {}
+void show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
 
 #if defined(CONFIG_BOOT_RETRY_TIME) && defined(CONFIG_RESET_TO_RETRY)
 extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);		/* for do_reset() prototype */
@@ -280,9 +280,11 @@ void main_loop (void)
 	char *s;
 	int bootdelay;
 #endif
+
 #ifdef CONFIG_PREBOOT
 	char *p;
 #endif
+
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	unsigned long bootcount = 0;
 	unsigned long bootlimit = 0;
@@ -294,10 +296,10 @@ void main_loop (void)
 	ulong bmp = 0;		/* default bitmap */
 	extern int trab_vfd (ulong bitmap);
 
-#ifdef CONFIG_MODEM_SUPPORT
+	#ifdef CONFIG_MODEM_SUPPORT
 	if (do_mdm_init)
 		bmp = 1;	/* alternate bitmap */
-#endif
+	#endif
 	trab_vfd (bmp);
 #endif	/* CONFIG_VFD && VFD_TEST_LOGO */
 
@@ -340,20 +342,20 @@ void main_loop (void)
 
 #ifdef CONFIG_PREBOOT
 	if ((p = getenv ("preboot")) != NULL) {
-# ifdef CONFIG_AUTOBOOT_KEYED
+	#ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
-# endif
+	#endif
 
-# ifndef CFG_HUSH_PARSER
+	#ifndef CFG_HUSH_PARSER
 		run_command (p, 0);
-# else
+	#else
 		parse_string_outer(p, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-# endif
+	#endif
 
-# ifdef CONFIG_AUTOBOOT_KEYED
+	#ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
-# endif
+	#endif
 	}
 #endif /* CONFIG_PREBOOT */
 
@@ -373,6 +375,7 @@ void main_loop (void)
 	}
 	else
 #endif /* CONFIG_POST */
+
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	if (bootlimit && (bootcount > bootlimit)) {
 		printf ("Warning: Bootlimit (%u) exceeded. Using altbootcmd.\n",
@@ -386,32 +389,32 @@ void main_loop (void)
 	debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (bootdelay >= 0 && s && !abortboot (bootdelay)) {
-# ifdef CONFIG_AUTOBOOT_KEYED
+#ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
-# endif
+#endif
 
-# ifndef CFG_HUSH_PARSER
+#ifndef CFG_HUSH_PARSER
 		run_command (s, 0);
-# else
+#else
 		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-# endif
+#endif
 
-# ifdef CONFIG_AUTOBOOT_KEYED
+#ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
-# endif
+#endif
 	}
 
-# ifdef CONFIG_MENUKEY
+#ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {
 	    s = getenv("menucmd");
 	    if (s) {
-# ifndef CFG_HUSH_PARSER
+#ifndef CFG_HUSH_PARSER
 		run_command (s, 0);
-# else
+#else
 		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-# endif
+#endif
 	    }
 	}
 #endif /* CONFIG_MENUKEY */
@@ -433,14 +436,14 @@ void main_loop (void)
 	for (;;);
 #else
 	for (;;) {
-#ifdef CONFIG_BOOT_RETRY_TIME
+	#ifdef CONFIG_BOOT_RETRY_TIME
 		if (rc >= 0) {
 			/* Saw enough of a valid command to
 			 * restart the timeout.
 			 */
 			reset_cmd_timeout();
 		}
-#endif
+	#endif
 		len = readline (CFG_PROMPT);
 
 		flag = 0;	/* assume no special flags for now */
@@ -453,12 +456,13 @@ void main_loop (void)
 			/* -2 means timed out, retry autoboot
 			 */
 			puts ("\nTimed out waiting for command\n");
-# ifdef CONFIG_RESET_TO_RETRY
+
+	#ifdef CONFIG_RESET_TO_RETRY
 			/* Reinit board to run initialization code again */
 			do_reset (NULL, 0, 0, NULL);
-# else
+	#else
 			return;		/* retry autoboot */
-# endif
+	#endif
 		}
 #endif
 

@@ -445,7 +445,7 @@ int console_init_r (void)
 
 #ifndef CFG_CONSOLE_INFO_QUIET
 	/* Print information */
-	puts ("In:      ");
+	puts ("\nIn:      ");
 	if (stdio_devices[stdin] == NULL) {
 		puts ("No input devices available!\n");
 	} else {
@@ -549,10 +549,12 @@ int console_init_r (void)
 	}
 #endif /* CFG_CONSOLE_INFO_QUIET */
 
+#ifndef	CONFIG_SMDKC110
 	/* Setting environment variables */
 	for (i = 0; i < 3; i++) {
 		setenv (stdio_names[i], stdio_devices[i]->name);
 	}
+#endif
 
 #if 0
 	/* If nothing usable installed, use only the initial console */

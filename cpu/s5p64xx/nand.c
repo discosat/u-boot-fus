@@ -18,6 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
+ *
+ * original code is from mtd part in U-Boot.
+ * 1st modification for S3C is done by js.yang.
+ * 2nd modification for S3C is done by sc.suh.
+ *                      (because of new version of nand controller)
  */
 
 #include <common.h>
@@ -407,25 +412,36 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read
 
 #if defined(CONFIG_NAND_BL1_8BIT_ECC) && (defined(CONFIG_S5P6440))
 /***************************************************************
- * jsgood: Temporary 8 Bit H/W ECC supports for BL1 (6410/6430 only)
+ * jsgood: Temporary 8 Bit H/W ECC supports for BL1 (6440 only)
  ***************************************************************/
 static void s3c_nand_wait_dec_8bit(void)
 {
-	while (!(readl(NFECCSTAT) & NFECCSTAT_DEC_DONE)) {
-		printf("NFECCSTAT: %08x\n", readl(NFECCSTAT));
+	uint i = 0;
+	for (i=0; i<0x100000; i++) {
+		if (readl(NFECCSTAT) & NFECCSTAT_DEC_DONE)
+			return;
 	}
+	printf("ecc dec timeout\n");
 }
 
 static void s3c_nand_wait_enc_8bit(void)
 {
-	while (!(readl(NFECCSTAT) & NFECCSTAT_ENC_DONE)) {
-		printf("NFECCSTAT: %08x\n", readl(NFECCSTAT));
+	uint i = 0;
+	for (i=0; i<0x100000; i++) {
+		if (readl(NFECCSTAT) & NFECCSTAT_ENC_DONE)
+			return;
 	}
+	printf("ecc enc timeout\n");
 }
 
 static void s3c_nand_wait_ecc_busy_8bit(void)
 {
-	while (readl(NFECCSTAT) & NFESTAT0_ECCBUSY) {}
+	uint i = 0;
+	for (i=0; i<0x100000; i++) {
+		if (readl(NFECCSTAT) & NFECCSTAT_BUSY)
+			return;
+	}
+	printf("wait ecc timeout\n");
 }
 
 /*
@@ -437,10 +453,9 @@ void s3c_nand_enable_hwecc_8bit(struct mtd_info *mtd, int mode)
 
 	cur_ecc_mode = mode;
 
-	/* 8 bit selection */
+	/* 8bit/512byte selection */
 	nfeccconf = NFECCCONF_ECCTYPE_8_512 | NFECCCONF_MSGLENGTH(511);
-
-	writel(nfeccconf, NFCONF);
+	writel(nfeccconf, NFECCCONF);
 
 	/* Initialize & unlock */
 	nfecccont = readl(NFECCCONT);
@@ -457,6 +472,9 @@ void s3c_nand_enable_hwecc_8bit(struct mtd_info *mtd, int mode)
 	nfcont = readl(NFCONT);
 	nfcont &= ~NFCONT_MECCLOCK;
 	writel(nfcont, NFCONT);
+
+	writel(0xffffffff, NFECCSTAT);
+//	printf("readl(NFECCSTAT) = %08x\n", readl(NFECCSTAT));
 }
 
 int s3c_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
@@ -468,8 +486,9 @@ int s3c_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat, u_char 
 	nfcont |= NFCONT_MECCLOCK;
 	writel(nfcont, NFCONT);
 
-	if (cur_ecc_mode == NAND_ECC_READ)
+	if (cur_ecc_mode == NAND_ECC_READ) {
 		s3c_nand_wait_dec_8bit();
+	}
 	else {
 		s3c_nand_wait_enc_8bit();
 
@@ -499,61 +518,70 @@ int s3c_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat, u_char 
 int s3c_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc)
 {
 	int ret = -1;
-	u_long nf8eccerr0, nf8eccerr1, nf8eccerr2, nfmlc8bitpt0, nfmlc8bitpt1;
-	u_char err_type;
+	uint err_type;
+	ulong nfeccerl0, nfeccerl1, nfeccerl2, nfeccerl3, nfeccerp0, nfeccerp1;
+	ulong nfeccstat;
 
 	s3c_nand_wait_ecc_busy_8bit();
 
-#if 0
-	nf8eccerr0 = readl(NF8ECCERR0);
-	nf8eccerr1 = readl(NF8ECCERR1);
-	nf8eccerr2 = readl(NF8ECCERR2);
-	nfmlc8bitpt0 = readl(NFMLC8BITPT0);
-	nfmlc8bitpt1 = readl(NFMLC8BITPT1);
-#endif
+	printf("s3c_nand_correct_data_8bit()\n");
 
-	err_type = (nf8eccerr0 >> 25) & 0xf;
+	nfeccstat = readl(NFECCSTAT);
+	nfeccerl0 = readl(NFMLCECCERL0);
+	nfeccerl1 = readl(NFMLCECCERL1);
+	nfeccerl2 = readl(NFMLCECCERL2);
+	nfeccerl3 = readl(NFMLCECCERL3);
+
+	nfeccerp0 = readl(NFMLCECCERP0);
+	nfeccerp1 = readl(NFMLCECCERP1);
 
 	/* No error, If free page (all 0xff) */
-	if ((nf8eccerr0 >> 29) & 0x1)
+	if (nfeccstat & NFECCSTAT_FREE_PAGE)
 		err_type = 0;
+	else
+		err_type = readl(NFECCSECSTAT0) & 0x1f;
+
+	/* no errors are found. */
+	if (err_type == 0)
+		return 0;
+
+	/* unrecoverable errors are found */
+	if (err_type > 8) {
+		printf("s3c-nand: ECC uncorrectable error: %d\n", err_type);
+		return -1;
+	}
 
 	switch (err_type) {
-	case 9: /* Uncorrectable */
-		printk("s3c-nand: ECC uncorrectable error detected\n");
-		ret = -1;
-		break;
-
 	case 8: /* 8 bit error (Correctable) */
-		dat[(nf8eccerr2 >> 22) & 0x3ff] ^= ((nfmlc8bitpt1 >> 24) & 0xff);
+		dat[(nfeccerl3 >> 16) & 0x3ff] ^= ((nfeccerp1 >> 24) & 0xff);
 
 	case 7: /* 7 bit error (Correctable) */
-		dat[(nf8eccerr2 >> 11) & 0x3ff] ^= ((nfmlc8bitpt1 >> 16) & 0xff);
+		dat[nfeccerl3 & 0x3ff] ^= ((nfeccerp1 >> 16) & 0xff);
 
 	case 6: /* 6 bit error (Correctable) */
-		dat[nf8eccerr2 & 0x3ff] ^= ((nfmlc8bitpt1 >> 8) & 0xff);
+		dat[(nfeccerl2 >> 16) & 0x3ff] ^= ((nfeccerp1 >> 8) & 0xff);
 
 	case 5: /* 5 bit error (Correctable) */
-		dat[(nf8eccerr1 >> 22) & 0x3ff] ^= (nfmlc8bitpt1 & 0xff);
+		dat[nfeccerl2 & 0x3ff] ^= (nfeccerp1 & 0xff);
 
 	case 4: /* 4 bit error (Correctable) */
-		dat[(nf8eccerr1 >> 11) & 0x3ff] ^= ((nfmlc8bitpt0 >> 24) & 0xff);
+		dat[(nfeccerl1 >> 16) & 0x3ff] ^= ((nfeccerp0 >> 24) & 0xff);
 
 	case 3: /* 3 bit error (Correctable) */
-		dat[nf8eccerr1 & 0x3ff] ^= ((nfmlc8bitpt0 >> 16) & 0xff);
+		dat[nfeccerl1 & 0x3ff] ^= ((nfeccerp0 >> 16) & 0xff);
 
 	case 2: /* 2 bit error (Correctable) */
-		dat[(nf8eccerr0 >> 15) & 0x3ff] ^= ((nfmlc8bitpt0 >> 8) & 0xff);
+		dat[(nfeccerl0 >> 16) & 0x3ff] ^= ((nfeccerp0 >> 8) & 0xff);
 
 	case 1: /* 1 bit error (Correctable) */
-		printk("s3c-nand: %d bit(s) error detected, corrected successfully\n", err_type);
-		dat[nf8eccerr0 & 0x3ff] ^= (nfmlc8bitpt0 & 0xff);
+		printf("s3c-nand: %d bit(s) error is recoverd.\n", err_type);
+		dat[nfeccerl0 & 0x3ff] ^= (nfeccerp0 & 0xff);
 		ret = err_type;
 		break;
 
-	case 0: /* No error */
-		ret = 0;
-		break;
+	default:
+		printf("err_type is not recognized: %d\n", err_type);
+		ret = -1;
 	}
 
 	return ret;
@@ -576,6 +604,30 @@ void s3c_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 
 	for (i = 0; i < eccbytes * (mtd->writesize / eccsize); i++)
 		chip->oob_poi[i] = ecc_calc[i];
+
+	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+}
+
+void s3c_nand_write_page_8bit_bug(struct mtd_info *mtd, struct nand_chip *chip,
+				  const uint8_t *buf)
+{
+	int i, eccsize = 512;
+	int eccbytes = 13;
+	int eccsteps = mtd->writesize / eccsize;
+	uint8_t *ecc_calc = chip->buffers->ecccalc;
+	uint8_t *p = (uint8_t *) buf;
+	uint col;
+
+	/* Step1: read whole oob */
+	col = mtd->writesize;
+	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
+	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
+		s3c_nand_enable_hwecc_8bit(mtd, NAND_ECC_WRITE);
+		chip->write_buf(mtd, p, eccsize);
+		s3c_nand_calculate_ecc_8bit(mtd, p, &ecc_calc[i]);
+	}
 
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 }
@@ -603,10 +655,12 @@ int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 		s3c_nand_calculate_ecc_8bit(mtd, 0, 0);
 
 		if (mtd->writesize > 512) {
-			stat = s3c_nand_correct_data_8bit(mtd, p, 0, 0);
-
-			if (stat == -1)
-				mtd->ecc_stats.failed++;
+			if ((readl(NFECCSECSTAT0) & 0x1f) != 0) {
+				printf("NFECCSECSTAT0: %08x\n", readl(NFECCSECSTAT0));
+				stat = s3c_nand_correct_data_8bit(mtd, p, 0, 0);
+				if (stat == -1)
+					mtd->ecc_stats.failed++;
+			}
 		}
 
 		col = eccsize * ((mtd->writesize / eccsize) + 1 - eccsteps);

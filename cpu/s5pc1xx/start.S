@@ -43,12 +43,14 @@
 /*
  * Information for iROM
  */
-#ifndef CONFIG_S5PC100_EVT1
+
+#if !defined(CONFIG_S5PC100_EVT1) && !defined(CONFIG_S5PC100_EVT2)
 .word 0x2000
 .word 0x0
 .word 0x0
 .word 0x0
 #endif
+
 /*
  *************************************************************************
  *
@@ -176,32 +178,68 @@ cpu_init_crit:
        /*
         * disable MMU stuff and caches
         */
-       mrc	p15, 0, r0, c1, c0, 0
-       bic	r0, r0, #0x00002000     @ clear bits 13 (--V-)
-       bic	r0, r0, #0x00000007     @ clear bits 2:0 (-CAM)
-       orr	r0, r0, #0x00000002     @ set bit 1 (--A-) Align
-       orr	r0, r0, #0x00000800     @ set bit 12 (Z---) BTB
-       mcr 	p15, 0, r0, c1, c0, 0
+        mrc	p15, 0, r0, c1, c0, 0
+        bic	r0, r0, #0x00002000     @ clear bits 13 (--V-)
+        bic	r0, r0, #0x00000007     @ clear bits 2:0 (-CAM)
+        orr	r0, r0, #0x00000002     @ set bit 1 (--A-) Align
+        orr	r0, r0, #0x00000800     @ set bit 12 (Z---) BTB
+        mcr 	p15, 0, r0, c1, c0, 0
 
-       /* Read booting information */
-       ldr	r0, =PRO_ID_BASE
-       ldr	r1, [r0,#OMR_OFFSET]
-       bic	r2, r1, #0xfffffff9
-       cmp	r2, #0x0
-       moveq	r3, #BOOT_NAND
-       cmp	r2, #0x2
-       moveq	r3, #BOOT_ONENAND
+        /* Read booting information */
+        ldr	r0, =PRO_ID_BASE
+        ldr	r1, [r0,#OMR_OFFSET]
+        bic	r2, r1, #0xfffffff9
+        cmp	r2, #0x0
+        moveq	r3, #BOOT_NAND
+        cmp	r2, #0x2
+        moveq	r3, #BOOT_ONENAND
+        cmp      r2, #0x4
+        moveq    r3, #BOOT_MMCSD	
 
 	ldr	r0, =INF_REG_BASE
-	str	r3, [r0, #INF_REG3_OFFSET]     
-       
-
+	str	r3, [r0, #INF_REG3_OFFSET]
+	
+	cmp	r3, #BOOT_NAND		/* 0x0 => boot device is nand */
+	bne 	skip_nand_pin_mux
+	ldr     r0, =0xe03002a0  	// GPK0CON
+	ldr     r1, =0x22443322
+	str     r1, [r0]
+	ldr     r0, =0xe03002e0  	// GPK2CON
+	ldr     r1, =0x33333333
+	str     r1, [r0]  
+skip_nand_pin_mux :
+  
 	/*
 	 * Go setup Memory and board specific bits prior to relocation.
 	 */
 
+	ldr	sp, =0xd0036000 /* end of sram dedicated to u-boot */
+	sub	sp, sp, #12	/* set stack */
+	mov	fp, #0
+	
 	bl	lowlevel_init	/* go setup pll,mux,memory */
 
+	ldr	r0, =INF_REG_BASE
+	ldr	r1, [r0, #INF_REG3_OFFSET]
+	cmp     r1, #BOOT_MMCSD
+	bne     not_hclk_change
+
+	ldr	r0, =0xff000fff		// If running PC value is in RAM. Not Change clk.
+	bic	r1, pc, r0		/* r0 <- current base addr of code */
+	ldr	r2, _TEXT_BASE		/* r1 <- original base addr in ram */
+	bic	r2, r2, r0		/* r0 <- current base addr of code */
+	cmp     r1, r2                  /* compare r0, r1                  */
+	beq     not_hclk_change		/* r0 == r1 then skip flash copy   */
+
+	ldr	r0, =ELFIN_CLOCK_POWER_BASE
+	ldr   	r1, [r0, #CLK_DIV1_OFFSET]
+	ldr	r2, =0xf000
+	bic	r1, r1, r2
+	ldr	r2, =0x5000
+	orr	r1, r1, r2
+	str	r1, [r0, #CLK_DIV1_OFFSET]
+
+not_hclk_change:
 	/* when we already run in ram, we don't need to relocate U-Boot.
 	 * and actually, memory controller must be configured before U-Boot
 	 * is running in ram.
@@ -219,11 +257,16 @@ cpu_init_crit:
 	beq	nand_boot
 	cmp	r1, #BOOT_ONENAND	/* 0x1 => boot device is onenand */
 	beq	onenand_boot
+	cmp     r1, #BOOT_MMCSD		/* 0x2 => boot device is SD/MMC */
+	beq     mmcsd_boot
 
 nand_boot:
-	mov	r0, #0x1000
-	bl	copy_from_nand
 
+	/* get ready to call C functions */
+	ldr	sp, _TEXT_PHY_BASE	/* setup temp stack pointer */
+	sub	sp, sp, #12
+	mov	fp, #0			/* no previous frame, so fp=0 */
+	bl	copy_from_nand
 	b	after_copy
 
 onenand_boot:
@@ -253,7 +296,13 @@ move_page:
 	mov	r1, #0x400
 	str	r1, [r0, #0x50]
 
-	cmp	r3, #127
+	/* 
+		Changed BL2 copy size 
+		256KB => 512KB
+	*/
+
+	cmp	r3, #255
+	
 	blt	page_increment
 
 	add	r4, r4, #1
@@ -280,6 +329,45 @@ move_page:
         str     r1, [r0, #0x834]
 
 	b	after_copy
+
+mmcsd_boot:
+
+	ldr	r0, =APB_DMC_BASE			@APB_DMC_BASE 0xE6000000
+
+	ldr	r1, =PRO_ID_BASE
+	ldr	r2, [r1, #PRO_ID_OFFSET]
+	bic	r2, #0xfffffdff
+	mov	r2, r2, lsr #9
+	cmp	r2, #0x1
+	beq	jump_nand				@if pop then skip nand pin setting
+
+	/* GPIO SET for NAND */
+	ldr	r0, =ELFIN_GPIO_BASE
+	
+	ldr	r1, [r0, #GPK0CON_OFFSET]
+	bic	r1, #0xff00
+	ldr	r2, =0x3300
+	orr	r1, r1 ,r2
+	str	r1, [r0, #GPK0CON_OFFSET]
+	
+	ldr	r1, =0x33333333
+	str	r1, [r0, #GPK2CON_OFFSET]
+
+jump_nand:
+        ldr     sp, _TEXT_PHY_BASE      
+        sub     sp, sp, #12
+        mov     fp, #0         
+        bl      movi_bl2_copy
+	
+	ldr	r0, =ELFIN_CLOCK_POWER_BASE
+	ldr   	r1, [r0, #CLK_DIV1_OFFSET]
+	ldr	r2, =0xf000
+	bic	r1, r1, r2
+	ldr	r2, =0x1000
+	orr	r1, r1, r2
+	str	r1, [r0, #CLK_DIV1_OFFSET]
+
+	b       after_copy
 
 after_copy:
 #if defined(CONFIG_ENABLE_MMU)
@@ -333,7 +421,7 @@ clbss_l:
 	add	r0, r0, #4
 	cmp	r0, r1
 	ble	clbss_l
-
+	
 	ldr	pc, _start_armboot
 
 _start_armboot:
@@ -351,17 +439,11 @@ _mmu_table_base:
  */
 	.globl copy_from_nand
 copy_from_nand:
-	mov	r10, lr		/* save return address */
+	push	{lr}
 
-	mov	r9, r0
-	/* get ready to call C functions */
-	ldr	sp, _TEXT_PHY_BASE	/* setup temp stack pointer */
-	sub	sp, sp, #12
-	mov	fp, #0			/* no previous frame, so fp=0 */
 	mov	r9, #0x100		/* Compare about 8KB */
 	bl	copy_uboot_to_ram
-
-3:	tst 	r0, #0x0
+	tst 	r0, #0x0
 	bne	copy_failed
 
 /* FIXME: 0xd0034000 should be used for nand? */
@@ -379,8 +461,7 @@ copy_from_nand:
 	subs	r9, r9, #4
 	bne	1b
 
-4:	mov	lr, r10		/* all is OK */
-	mov	pc, lr
+	pop	{pc}
 
 copy_failed:
 	nop			/* copy from nand failed */

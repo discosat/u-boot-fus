@@ -36,11 +36,13 @@
 #define CONFIG_S5P6440		1		/* in a SAMSUNG S5P6440 SoC */
 #define CONFIG_S5P64XX		1		/* in a SAMSUNG S5P64XX Family  */
 #define CONFIG_SMDK6440		1		/* on a SAMSUNG SMDK6440 Board  */
+#define SMDK6440_EVT0				/* using EVT0 Chip */
+//#define SMDK6440_EVT1				/* using EVT1 Chip */
 
 #define MEMORY_BASE_ADDRESS	(0x20000000)
 
 /* input clock of PLL */
-#define CONFIG_SYS_CLK_FREQ	12000000	/* the SMDK6400 has 12MHz input clock */
+#define CONFIG_SYS_CLK_FREQ	12000000	/* the SMDK6440 has 12MHz input clock */
 
 #define CONFIG_ENABLE_MMU
 #ifdef CONFIG_ENABLE_MMU
@@ -154,6 +156,8 @@
 #define CONFIG_BOOTP_BOOTPATH
 
 #define CONFIG_BOOTDELAY	3
+#define CONFIG_BOOTCOMMAND	"movi read kernel c0008000 ;movi read rootfs c0800000 C00000;bootm c0008000"
+//#define CONFIG_BOOTCOMMAND	"nand read c0008000 80000 400000;nand read c0800000 400000 600000;bootm c0008000"
 //#define CONFIG_BOOTARGS    	"root=ramfs devfs=mount console=ttySA0,9600"
 #define CONFIG_ETHADDR		00:40:5c:26:0a:5b
 #define CONFIG_NETMASK          255.255.255.0
@@ -219,9 +223,9 @@
 
 #define CFG_LOAD_ADDR		MEMORY_BASE_ADDRESS	/* default load address	*/
 
-/* the PWM TImer 4 uses a counter of 15625 for 10 ms, so we need */
-/* it to wrap 100 times (total 1562500) to get 1 sec. */
-#define CFG_HZ			1562500		/* at PCLK 50MHz */
+/* the PWM TImer 4 uses a counter of 41687 for 10 ms, so we need */
+/* it to wrap 100 times (total 4168750) to get 1 sec. */
+#define CFG_HZ			4168750		/* at PCLK 66MHz */
 
 /* valid baudrates */
 #define CFG_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
@@ -341,6 +345,9 @@
 /*
  * mDDR memory configuration
  */
+#define SMDK6440_DDR		// define memory type[DDR] for revision cpu board. 
+//#define SMDK6440_DDR2		// define memory type[DDR2] for revision cpu board.
+
 #define DMC_DDR_BA_EMRS 	2
 #define DMC_DDR_MEM_CASLAT	3
 #define DMC_DDR_CAS_LATENCY	(DDR_CASL<<1)						//6   Set Cas Latency to 3
@@ -403,6 +410,9 @@
 
 #define CFG_ENV_OFFSET		0x0007c000
 
+/* nand copy size from nand to DRAM.*/
+#define	COPY_BL2_SIZE		0x80000
+
 #define CFG_MAX_NAND_DEVICE     1
 #define CFG_NAND_BASE           (0x70200010)
 #define CFG_NAND_SKIP_BAD_DOT_I	1  /* ".i" read skips bad blocks   */
@@ -410,12 +420,39 @@
 #define CFG_NAND_YAFFS_WRITE	1  /* support yaffs write */
 #define CFG_NAND_HWECC
 #undef	CFG_NAND_FLASH_BBT
+
+/* IROM specific data */
+#ifdef SMDK6440_EVT0
+#define SDMMC_BLK_SIZE        (0xd0021c54)
+#endif
+#ifdef SMDK6440_EVT1
+#define SDMMC_BLK_SIZE        (0xd0021FF0)
+#endif
+
+/* SD/MMC configuration */
+#define CONFIG_GENERIC_MMC
+#define CONFIG_S3C_HSMMC
+#undef DEBUG_S3C_HSMMC
+
+/*
+   Select a needed channel :
+   It's recommanded to select only one channel to use 'movi' command
+*/
+#define USE_MMC0
+#define MMC_MAX_CHANNEL		3
+/* If OM_PIN is defined, USE_MMC0-2 macro will be ignored. */
+#define OM_PIN			((GPNDAT_REG >> 13) & 7)
+
+#ifdef OM_PIN
+#define SDMMC_CHANNEL0	0x0
+#define SDMMC_CHANNEL1	0x7
+#endif
+
 #define CONFIG_NAND_BL1_8BIT_ECC
 #define NAND_MAX_CHIPS          1
 #define NAND_DISABLE_CE()	(NFCONT_REG |= (1 << 1))
 #define NAND_ENABLE_CE()	(NFCONT_REG &= ~(1 << 1))
 #define NF_TRANSRnB()		do { while(!(NFSTAT_REG & (1 << 0))); } while(0)
-#define CONFIG_MMC
 #define CONFIG_MTDPARTITION	"40000 3c0000 3000000"
 #define CFG_ONENAND_BASE 	(0x70100000)
 #define CFG_MAX_ONENAND_DEVICE	1

@@ -6,9 +6,11 @@ mem_ctrl_asm_init:
 
 	ldr	r0, =APB_DMC_BASE			@APB_DMC_BASE 0xE6000000
 
-	ldr	r1, =INF_REG_BASE
-	ldr	r2, [r1, #INF_REG3_OFFSET]
-	cmp	r2, #BOOT_ONENAND
+	ldr	r1, =PRO_ID_BASE
+	ldr	r2, [r1, #PRO_ID_OFFSET]
+	bic	r2, #0xfffffdff
+	mov	r2, r2, lsr #9
+	cmp	r2, #0x1
 	beq	onenand_pop
 
 single:
@@ -30,7 +32,7 @@ single:
         ldr     r1, =0x6A3B3B03                         @Force Value locking
         str     r1, [r0, #DMC_PHYCONTROL0]
 
-        ldr     r1, =0x6A3B3B01                         @Dll off
+        ldr     r1, =0x6A3B3B09                         @Dll off
         str     r1, [r0, #DMC_PHYCONTROL0]
 
         ldr     r1, =0xFF001010                         @auto refresh off
@@ -39,7 +41,20 @@ single:
         ldr     r1, =0xFF212100                         @Dll off
         str     r1, [r0, #DMC_MEMCONTROL]
 
-        ldr     r1, =0x20F80312
+#if defined(MEMORY_SIZE_256)
+        ldr     r1, =0x20F01322
+        str     r1, [r0, #DMC_MEMCONFIG0]
+
+        ldr     r1, =0x40F00322
+        str     r1, [r0, #DMC_MEMCONFIG1]
+
+        ldr     r1, =0x20000000
+        str     r1, [r0, #DMC_PRECHCONFIG]
+
+	ldr     r1, =0x0000050E
+	str     r1, [r0, #DMC_TIMINGAREF]
+#else
+        ldr     r1, =0x20F81312
         str     r1, [r0, #DMC_MEMCONFIG0]
 
         ldr     r1, =0x40F80312
@@ -50,7 +65,7 @@ single:
 
 	ldr     r1, =0x0000004E
         str     r1, [r0, #DMC_TIMINGAREF]
-
+#endif
         ldr     r1, =0x0C233287                         @TimingRow      @133MHz
         str     r1, [r0, #DMC_TIMINGROW]
 
@@ -90,6 +105,16 @@ single:
         ldr     r1, =0x00100032                         @chip1 MRS
         str     r1, [r0, #DMC_DIRECTCMD]
 
+#if defined(MEMORY_SIZE_256)
+        ldr     r1, =0xFF0010B0                         @ConControl auto refresh on
+        str     r1, [r0, #DMC_CONCONTROL]
+
+        ldr     r1, =0x001000ff                         @PwrdnConfig
+        str     r1, [r0, #DMC_PWRDNCONFIG]
+
+        ldr     r1, =0xFF212113                         @MemControl
+        str     r1, [r0, #DMC_MEMCONTROL]
+#else
         ldr     r1, =0xFF001030                         @ConControl auto refresh on
         str     r1, [r0, #DMC_CONCONTROL]
 
@@ -98,6 +123,7 @@ single:
 
         ldr     r1, =0xFF212100                         @MemControl
         str     r1, [r0, #DMC_MEMCONTROL]
+#endif
 
         b	exit_cpu_init
 onenand_pop:
@@ -119,7 +145,7 @@ onenand_pop:
 	ldr	r1, =0x50101003				@Force Value locking
 	str	r1, [r0, #DMC_PHYCONTROL0]
 
-	ldr	r1, =0x50101001				@Dll off
+	ldr	r1, =0x50101009				@Dll off
 	str	r1, [r0, #DMC_PHYCONTROL0]
 
 	ldr	r1, =0xFF001010				@auto refresh off

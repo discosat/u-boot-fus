@@ -117,6 +117,18 @@ ulong get_PCLK(void)
 	return fclk/(div_d1_bus * div_pclk);
 }
 
+/* return DoutMpll frequency */
+ulong get_DoutMpll(void)
+{
+	ulong fclk;
+	uint div = CLK_DIV1_REG;
+	uint div_mpll = ((div>>4) & 0x3) + 1;
+
+	fclk = get_PLLCLK(MPLL);
+
+	return fclk/div_mpll;
+}
+
 /* return UCLK frequency */
 ulong get_UCLK(void)
 {
@@ -126,8 +138,8 @@ ulong get_UCLK(void)
 int print_cpuinfo(void)
 {
 	printf("\nCPU:     S5PC100@%ldMHz\n", get_ARMCLK()/1000000);
-	printf("         Fclk = %ldMHz, Hclk = %ldMHz, Pclk = %ldMHz",
-			get_FCLK()/1000000, get_HCLK()/1000000, get_PCLK()/1000000);
+	printf("         Fclk = %ldMHz, Hclk = %ldMHz, Pclk = %ldMHz, DoutMpll = %ldMHz",
+			get_FCLK()/1000000, get_HCLK()/1000000, get_PCLK()/1000000, get_DoutMpll()/1000000);
 
 /**************
 * Display Serial SRC
@@ -141,3 +153,4 @@ int print_cpuinfo(void)
 
 	return 0;
 }
+

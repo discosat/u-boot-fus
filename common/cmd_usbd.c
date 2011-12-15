@@ -44,8 +44,12 @@
 #include "../cpu/s3c64xx/usbd-otg-hs.h"
 #elif defined(CONFIG_S5PC100)
 #include "../cpu/s5pc1xx/usbd-otg-hs.h"
+#elif defined(CONFIG_S5PC110)
+#include "../cpu/s5pc11x/usbd-otg-hs.h"
 #elif defined(CONFIG_S5P6440)
 #include "../cpu/s5p64xx/usbd-otg-hs.h"
+#elif defined(CONFIG_S5P6442)
+#include "../cpu/s5p644x/usbd-otg-hs.h"
 #else
 #error "* CFG_ERROR : you have to setup right Samsung CPU configuration"
 #endif

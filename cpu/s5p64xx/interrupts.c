@@ -46,7 +46,7 @@ static inline ulong READ_TIMER(void)
 {
 	S5P64XX_TIMERS *const timers = S5P64XX_GetBase_TIMERS();
 
-	return (timers->TCNTO4 & 0xffff);
+	return (timers->TCNTO4 & 0xffffffff);
 }
 
 static ulong timestamp;
@@ -188,7 +188,7 @@ int interrupt_init(void)
 		 * (default) and prescaler = 16. Should be 10390
 		 * @33.25MHz and 15625 @ 50 MHz
 		 */
-		timer_load_val = get_PCLK() / (2 * 16 * 100);
+		timer_load_val = get_PCLK() / (16 * 100);
 	}
 
 	/* load value for 10 ms timeout */

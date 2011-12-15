@@ -36,6 +36,9 @@
 #include <lmb.h>
 #include <asm/byteorder.h>
 
+/* for timemeasurement */
+#include <s5pc110.h>
+#include <asm-arm/io.h>
 #if defined(CONFIG_CMD_USB)
 #include <usb.h>
 #endif
@@ -166,12 +169,13 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				load_addr);
 	} else {
 		addr = simple_strtoul(argv[1], NULL, 16);
-		debug ("*  kernel: cmdline image address = 0x%08lx\n", img_addr);
 	}
 
 
 	if (*(ulong *)(addr + 9*4) == LINUX_ZIMAGE_MAGIC) {
+		u32 val;
 		printf("Boot with zImage\n");
+
 		addr = virt_to_phys(addr);
 		hdr = (image_header_t *)addr;
 		hdr->ih_os = IH_OS_LINUX;

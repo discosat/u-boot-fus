@@ -82,14 +82,14 @@ lowlevel_init:
 	str	r3, [r1, #oVECTADDR]
 
 	/* init system clock */
-	bl system_clock_init
+	bl 	system_clock_init
 
 	/* for UART */
-	bl uart_asm_init
+	bl 	uart_asm_init
 
 #ifdef CONFIG_BOOT_NAND
 	/* simple init for NAND */
-	bl nand_asm_init
+	bl 	nand_asm_init
 #endif
 
 #if 0

@@ -2426,7 +2426,11 @@ struct reserved_combo {
  * to turn the compound list into a command.
  * FLAG_START means the word must start a new compound list.
  */
+#ifndef FPGA_SMDKC110
 static struct reserved_combo reserved_list[] = {
+#else
+static struct reserved_combo reserved_list[11] = {
+#endif
 	{ "if",    RES_IF,    FLAG_THEN | FLAG_START },
 	{ "then",  RES_THEN,  FLAG_ELIF | FLAG_ELSE | FLAG_FI },
 	{ "elif",  RES_ELIF,  FLAG_THEN },
@@ -2446,6 +2450,7 @@ int reserved_word(o_string *dest, struct p_context *ctx)
 	struct reserved_combo *r;
 	for (r=reserved_list;
 		r<reserved_list+NRES; r++) {
+#ifndef FPGA_SMDKC110
 		if (strcmp(dest->data, r->literal) == 0) {
 			debug_printf("found reserved word %s, code %d\n",r->literal,r->code);
 			if (r->flag & FLAG_START) {
@@ -2484,6 +2489,7 @@ int reserved_word(o_string *dest, struct p_context *ctx)
 			b_reset (dest);
 			return 1;
 		}
+#endif
 	}
 	return 0;
 }

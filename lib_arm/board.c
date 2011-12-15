@@ -51,13 +51,18 @@
 #include <nand.h>
 #include <onenand_uboot.h>
 
+#ifdef CONFIG_GENERIC_MMC
+#include <mmc.h>
+#endif
+
+
 #undef DEBUG
 
 #ifdef CONFIG_DRIVER_SMC91111
-#include "../drivers/smc91111.h"
+#include "../drivers/net/smc91111.h"
 #endif
 #ifdef CONFIG_DRIVER_LAN91C96
-#include "../drivers/lan91c96.h"
+#include "../drivers/net/lan91c96.h"
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -141,20 +146,22 @@ char *strmhz(char *buf, long hz)
  ************************************************************************
  * May be supplied by boards if desired
  */
-void inline __coloured_LED_init (void) {}
-void inline coloured_LED_init (void) __attribute__((weak, alias("__coloured_LED_init")));
-void inline __red_LED_on (void) {}
-void inline red_LED_on (void) __attribute__((weak, alias("__red_LED_on")));
-void inline __red_LED_off(void) {}
-void inline red_LED_off(void)	     __attribute__((weak, alias("__red_LED_off")));
-void inline __green_LED_on(void) {}
-void inline green_LED_on(void) __attribute__((weak, alias("__green_LED_on")));
-void inline __green_LED_off(void) {}
-void inline green_LED_off(void)__attribute__((weak, alias("__green_LED_off")));
-void inline __yellow_LED_on(void) {}
-void inline yellow_LED_on(void)__attribute__((weak, alias("__yellow_LED_on")));
-void inline __yellow_LED_off(void) {}
-void inline yellow_LED_off(void)__attribute__((weak, alias("__yellow_LED_off")));
+void __coloured_LED_init (void) {}
+void coloured_LED_init (void)
+	__attribute__((weak, alias("__coloured_LED_init")));
+void  __red_LED_on (void) {}
+void  red_LED_on (void)
+	__attribute__((weak, alias("__red_LED_on")));
+void  __red_LED_off(void) {}
+void  red_LED_off(void)	     __attribute__((weak, alias("__red_LED_off")));
+void  __green_LED_on(void) {}
+void  green_LED_on(void) __attribute__((weak, alias("__green_LED_on")));
+void  __green_LED_off(void) {}
+void  green_LED_off(void)__attribute__((weak, alias("__green_LED_off")));
+void  __yellow_LED_on(void) {}
+void  yellow_LED_on(void)__attribute__((weak, alias("__yellow_LED_on")));
+void  __yellow_LED_off(void) {}
+void  yellow_LED_off(void)__attribute__((weak, alias("__yellow_LED_off")));
 
 /************************************************************************
  * Init Utilities							*
@@ -317,6 +324,7 @@ void start_armboot (void)
 {
 	init_fnc_t **init_fnc_ptr;
 	char *s;
+	int mmc_exist = 0;
 #if !defined(CFG_NO_FLASH) || defined (CONFIG_VFD) || defined(CONFIG_LCD)
 	ulong size;
 #endif
@@ -399,10 +407,13 @@ void start_armboot (void)
 	mem_malloc_init (_armboot_start - CFG_MALLOC_LEN);
 #endif
 
-/* samsung socs: auto-detect devices */
-#if defined(CONFIG_SMDK6410) || defined(CONFIG_SMDK6430) || defined(CONFIG_SMDKC100)
+//******************************//
+// Board Specific
+// #if defined(CONFIG_SMDKXXXX)
+//******************************//
 
-#if defined(CONFIG_MMC)
+#if defined(CONFIG_SMDK6410)
+	#if defined(CONFIG_MMC)
 	puts("SD/MMC:  ");
 
 	if (INF_REG3_REG == 0)
@@ -411,37 +422,87 @@ void start_armboot (void)
 		movi_ch = 1;
 
 	movi_set_capacity();
-	movi_set_ofs(MOVI_TOTAL_BLKCNT);
 	movi_init();
-#endif
+	movi_set_ofs(MOVI_TOTAL_BLKCNT);
+	#endif
 
-	if (INF_REG3_REG == 1) {
+	#if defined(CONFIG_GENERIC_MMC)
+	puts ("SD/MMC:  ");
+	mmc_exist = mmc_initialize(gd->bd);
+	if (mmc_exist != 0)
+	{
+		puts ("0 MB\n");	
+	}
+	#endif
+
+
+	if (INF_REG3_REG == BOOT_ONENAND) {
+	#if defined(CONFIG_CMD_ONENAND)
 		puts("OneNAND: ");
 		onenand_init();
+	#endif
 		/*setenv("bootcmd", "onenand read c0008000 80000 380000;bootm c0008000");*/
 	} else {
 		puts("NAND:    ");
 		nand_init();
 
-#if !defined(CONFIG_SMDKC100)
 		if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
 			setenv("bootcmd", "movi read kernel c0008000;movi read rootfs c0800000;bootm c0008000");
 		else
 			setenv("bootcmd", "nand read c0008000 80000 380000;bootm c0008000");
-#endif
 	}
+#endif	/* CONFIG_SMDK6410 */
 
-/* samsung socs: another auto-detect devices */
-#elif defined(CONFIG_SMDK6440)
+#if defined(CONFIG_SMDKC100)
 
-#if defined(CONFIG_MMC)
+	#if defined(CONFIG_GENERIC_MMC)
+		puts ("SD/MMC:  ");
+		mmc_exist = mmc_initialize(gd->bd);
+		if (mmc_exist != 0)
+		{
+			puts ("0 MB\n");
+		}
+	#endif
+
+	#if defined(CONFIG_CMD_ONENAND)
+		puts("OneNAND: ");
+		onenand_init();
+	#endif
+
+	#if defined(CONFIG_CMD_NAND)
+		puts("NAND:    ");
+		nand_init();
+	#endif
+	
+#endif /* CONFIG_SMDKC100 */
+
+#if defined(CONFIG_SMDKC110)
+
+	#if defined(CONFIG_GENERIC_MMC)
+		puts ("SD/MMC:  ");
+		mmc_exist = mmc_initialize(gd->bd);
+		if (mmc_exist != 0)
+		{
+			puts ("0 MB\n");	
+		}
+	#endif
+
+	#if defined(CONFIG_CMD_NAND)
+		puts("NAND:    ");
+		nand_init();
+	#endif
+	
+#endif /* CONFIG_SMDKC110 */
+
+#if defined(CONFIG_SMDK6440)
+	#if defined(CONFIG_MMC)
 	if (INF_REG3_REG == 1) {	/* eMMC_4.3 */
 		puts("eMMC:    ");
 		movi_ch = 1;
 		movi_emmc = 1;
 
-		movi_set_ofs(0);
 		movi_init();
+		movi_set_ofs(0);
 	} else if (INF_REG3_REG == 7 || INF_REG3_REG == 0) {	/* SD/MMC */
 		if (INF_REG3_REG & 0x1)
 			movi_ch = 1;
@@ -451,56 +512,125 @@ void start_armboot (void)
 		puts("SD/MMC:  ");
 
 		movi_set_capacity();
-		movi_set_ofs(MOVI_TOTAL_BLKCNT);
 		movi_init();
+		movi_set_ofs(MOVI_TOTAL_BLKCNT);
+
 	} else {
 
 	}
-#endif	/* CONFIG_MMC */
+	#endif
+
+	#if defined(CONFIG_GENERIC_MMC)
+	puts ("SD/MMC:  ");
+	mmc_exist = mmc_initialize(gd->bd);
+	if (mmc_exist != 0)
+	{
+		puts ("0 MB\n");	
+	}
+	#endif
 
 	if (INF_REG3_REG == 2) {
-		;	/* N/A */
+			/* N/A */
 	} else {
 		puts("NAND:    ");
 		nand_init();
-
 		//setenv("bootcmd", "nand read c0008000 80000 380000;bootm c0008000");
 	}
+#endif /* CONFIG_SMDK6440 */
 
-/* samsung socs: no auto-detect devices */
-#elif defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK2450) || defined(CONFIG_SMDK2416)
+#if defined(CONFIG_SMDK6430)
+	#if defined(CONFIG_MMC)
+	puts("SD/MMC:  ");
 
-#if defined(CONFIG_NAND)
+	if (INF_REG3_REG == 0)
+		movi_ch = 0;
+	else
+		movi_ch = 1;
+
+	movi_set_capacity();
+	movi_init();
+	movi_set_ofs(MOVI_TOTAL_BLKCNT);
+
+	#endif
+
+	#if defined(CONFIG_GENERIC_MMC)
+	puts ("SD/MMC:  ");
+	mmc_exist = mmc_initialize(gd->bd);
+	if (mmc_exist != 0)
+	{
+		puts ("0 MB\n");	
+	}
+	#endif
+
+	if (INF_REG3_REG == BOOT_ONENAND) {
+	#if defined(CONFIG_CMD_ONENAND)
+		puts("OneNAND: ");
+		onenand_init();
+	#endif
+		/*setenv("bootcmd", "onenand read c0008000 80000 380000;bootm c0008000");*/
+	} else if (INF_REG3_REG == BOOT_NAND) {
+		puts("NAND:    ");
+		nand_init();
+	} else {
+	}
+
+	if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
+		setenv("bootcmd", "movi read kernel c0008000;movi read rootfs c0800000;bootm c0008000");
+	else
+		setenv("bootcmd", "nand read c0008000 80000 380000;bootm c0008000");
+#endif	/* CONFIG_SMDK6430 */
+
+#if defined(CONFIG_SMDK6442)
+
+	#if defined(CONFIG_MMC)
+	puts("SD/MMC:  ");
+
+	movi_set_capacity();
+	movi_init();
+	movi_set_ofs(MOVI_TOTAL_BLKCNT);
+	
+	#endif
+
+	#if defined(CONFIG_GENERIC_MMC)
+	puts ("SD/MMC:  ");
+	mmc_exist = mmc_initialize(gd->bd);
+	if (mmc_exist != 0)
+	{
+		puts ("0 MB\n");	
+	}
+	#endif
+
+	#if defined(CONFIG_CMD_ONENAND)
+	if (INF_REG3_REG == BOOT_ONENAND) {
+		puts("OneNAND: ");
+		onenand_init();
+		}
+	#endif
+
+#endif	/* CONFIG_SMDK6442 */
+
+#if defined(CONFIG_SMDK2416) || defined(CONFIG_SMDK2450)
+	#if defined(CONFIG_NAND)
 	puts("NAND:    ");
 	nand_init();
-#endif /* CONFIG_NAND */
+	#endif
 
-#if defined(CONFIG_ONENAND)
+	#if defined(CONFIG_ONENAND)
 	puts("OneNAND: ");
 	onenand_init();
-#endif /* CONFIG_ONENAND */
+	#endif
 
-#if defined(CONFIG_BOOT_MOVINAND)
+	#if defined(CONFIG_BOOT_MOVINAND)
 	puts("SD/MMC:  ");
 
 	if ((0x24564236 == magic[0]) && (0x20764316 == magic[1])) {
 		printf("Boot up for burning\n");
 	} else {
-		movi_set_capacity();
-		movi_set_ofs(MOVI_TOTAL_BLKCNT);
-		movi_init();
+			movi_init();
+			movi_set_ofs(MOVI_TOTAL_BLKCNT);
 	}
-#endif /* CONFIG_BOOT_MOVINAND */
-
-/* others */
-#else  /* defined(CONFIG_SMDK6400) || defined(CONFIG_SMDK2450) || defined(CONFIG_SMDK2416) */
-
-#if defined(CONFIG_CMD_NAND)
-	puts ("NAND:    ");
-	nand_init();
-#endif /* CONFIG_CMD_NAND */
-
-#endif
+	#endif
+#endif	/* CONFIG_SMDK2416 CONFIG_SMDK2450 */
 
 #ifdef CONFIG_HAS_DATAFLASH
 	AT91F_DataflashInit();
@@ -557,8 +687,9 @@ void start_armboot (void)
 #endif /* CONFIG_CMC_PU2 */
 
 	jumptable_init ();
-
+#if !defined(CONFIG_SMDK6442)
 	console_init_r ();	/* fully init console as a device */
+#endif
 
 #if defined(CONFIG_MISC_INIT_R)
 	/* miscellaneous platform dependent initialisations */
@@ -609,6 +740,12 @@ extern void dm644x_eth_set_mac_addr (const u_int8_t *addr);
 	reset_phy();
 #endif
 #endif
+
+#if defined(CONFIG_CMD_IDE)
+	puts("IDE:   ");
+	ide_init();
+#endif
+
 	/* main_loop() can return to retry autoboot, if so just run it again. */
 	for (;;) {
 		main_loop ();

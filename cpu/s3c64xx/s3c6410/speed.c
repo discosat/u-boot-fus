@@ -119,6 +119,12 @@ ulong get_UCLK(void)
 	return (get_PLLCLK(EPLL));
 }
 
+/* return FCLK frequency */
+ulong get_MPLL_CLK(void)
+{
+	return (get_PLLCLK(MPLL));
+}
+
 int print_cpuinfo(void)
 {
 	printf("\nCPU:     S3C6410@%dMHz\n", get_ARMCLK()/1000000);

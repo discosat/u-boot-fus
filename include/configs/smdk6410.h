@@ -37,6 +37,10 @@
 #define CONFIG_S3C64XX		1		/* in a SAMSUNG S3C64XX Family  */
 #define CONFIG_SMDK6410		1		/* on a SAMSUNG SMDK6410 Board  */
 
+#define BOOT_ONENAND		0x1
+#define BOOT_NAND		0x2
+#define BOOT_MMCSD		0x3
+
 /* use this define with CONFIG_SMDK6410 for x5a-pop (do not undef the CONFIG_SMDK6410) */
 //#define CONFIG_SMDK6410_X5A	1		/* on a SAMSUNG SMDK6410 OneNAND POP Board */
 
@@ -431,6 +435,9 @@
 
 #define CFG_ENV_OFFSET		0x0007C000
 
+/* nand copy size from nand to DRAM.*/
+#define	COPY_BL2_SIZE		0x80000
+
 #define CFG_MAX_NAND_DEVICE     1
 #define CFG_NAND_BASE           (0x70200010)
 #define CFG_NAND_SKIP_BAD_DOT_I	1  /* ".i" read skips bad blocks   */
@@ -443,11 +450,34 @@
 #define NAND_DISABLE_CE()	(NFCONT_REG |= (1 << 1))
 #define NAND_ENABLE_CE()	(NFCONT_REG &= ~(1 << 1))
 #define NF_TRANSRnB()		do { while(!(NFSTAT_REG & (1 << 0))); } while(0)
-#define CONFIG_MMC
 #define CONFIG_MTDPARTITION	"40000 3c0000 3000000"
+#define CONFIG_BOOTCOMMAND      "onenand read c0008000 80000 380000;bootm c0008000"
 #define CFG_ONENAND_BASE 	(0x70100000)
 #define CFG_MAX_ONENAND_DEVICE	1
 #define CFG_ENV_IS_IN_AUTO
+
+/* IROM specific data */
+#define SDMMC_BLK_SIZE        (0x0C003FFC)
+
+/* SD/MMC configuration */
+#define CONFIG_GENERIC_MMC
+#define CONFIG_S3C_HSMMC
+#undef DEBUG_S3C_HSMMC
+
+/*
+   Select a needed channel :
+   It's recommanded to select only one channel to use 'movi' command
+*/
+#define USE_MMC0
+#define MMC_MAX_CHANNEL		3
+/* If OM_PIN is defined, USE_MMC0-2 macro will be ignored. */
+#define OM_PIN			((GPNDAT_REG >> 13) & 7)
+
+#ifdef OM_PIN
+#define SDMMC_CHANNEL0	0x0
+#define SDMMC_CHANNEL1	0x7
+#endif
+
 
 #endif	/* __CONFIG_H */
 

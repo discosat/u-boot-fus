@@ -49,13 +49,9 @@
  * --------------------------------------------
  */
 
-static int nandll_read_page (uchar *buf, ulong addr, int large_block)
+static int nandll_read_page (uchar *buf, ulong addr, int large_block, int page_size)
 {
         int i;
-	int page_size = 512;
-
-	if (large_block)
-		page_size = 2048;
 
         NAND_ENABLE_CE();
 
@@ -88,18 +84,14 @@ static int nandll_read_page (uchar *buf, ulong addr, int large_block)
 /*
  * Read data from NAND.
  */
-static int nandll_read_blocks (ulong dst_addr, ulong size, int large_block)
+static int nandll_read_blocks (ulong dst_addr, ulong size, int large_block, int page_shift)
 {
         uchar *buf = (uchar *)dst_addr;
         int i;
-	uint page_shift = 9;
-
-	if (large_block)
-		page_shift = 11;
 
         /* Read pages */
-        for (i = 0; i < (0x3c000>>page_shift); i++, buf+=(1<<page_shift)) {
-                nandll_read_page(buf, i, large_block);
+        for (i = 0; i < (size>>page_shift); i++, buf+=(1<<page_shift)) {
+                nandll_read_page(buf, i, large_block, 1 << page_shift);
         }
 
         return 0;
@@ -110,6 +102,7 @@ int copy_uboot_to_ram (void)
 	int large_block = 0;
 	int i;
 	vu_char id;
+	int page_shift = 9;
 
 	NAND_CONTROL_ENABLE();
         NAND_ENABLE_CE();
@@ -121,14 +114,17 @@ int copy_uboot_to_ram (void)
 	id = NFDATA8_REG;
 	id = NFDATA8_REG;
 
-	if (id > 0x80)
+	if (id > 0x80) {
 		large_block = 1;
+		id = NFDATA8_REG;
+		id = NFDATA8_REG;
+		page_shift = 10+(id&3);
+	}
 
 	/* read NAND Block.
-	 * 128KB ->240KB because of U-Boot size increase. by scsuh
-	 * So, read 0x3c000 bytes not 0x20000(128KB).
+	 * read the size of UBOOT to RAM
 	 */
-	return nandll_read_blocks(CFG_PHY_UBOOT_BASE, 0x3c000, large_block);
+	return nandll_read_blocks(CFG_PHY_UBOOT_BASE, COPY_BL2_SIZE, large_block, page_shift);
 }
 
 void ltc_init_gpio_bit(char bit, char value )

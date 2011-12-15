@@ -425,6 +425,7 @@ int do_mem_cp ( cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 		puts ("Copy to Flash... ");
 
+		size = 2;
 		rc = flash_write ((char *)addr, dest, count*size);
 		if (rc != 0) {
 			flash_perror (rc);
