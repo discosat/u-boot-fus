@@ -1,6 +1,8 @@
 #ifndef __MOVI_H__
 #define __MOVI_H__
 
+#ifndef CONFIG_GENERIC_MMC
+
 #define MOVI_INIT_REQUIRED	0
 
 #if defined(CONFIG_S3C6400) || defined(CONFIG_S3C6410) || defined(CONFIG_S3C6430)
@@ -9,15 +11,16 @@
 #elif defined(CONFIG_S3C2450) || defined(CONFIG_S3C2416)
 #define	TCM_BASE		0x40004000
 #define BL2_BASE		0x33E00000
-#elif defined(CONFIG_S5PC100)
-#define	TCM_BASE		0x0C004000
-#define BL2_BASE		0x57E00000
 #elif defined(CONFIG_S5P6440)
 #define S5P6440_SDMMC_BASE	0xd0021c4c
 #define S5P6440_SDHC_INFO	0xd0021c50
 #define S5P6440_BLK_SIZE	0xd0021c54
 #define BL2_BASE		0x27e00000
 #define S5P6440_DEVCPY_BASE	0xd0021c00
+#elif defined(CONFIG_S5PC100) || defined(CONFIG_S5PC110) || defined(CONFIG_S5P6442)
+#define S5PC100_BLK_SIZE        0xd0020230
+#define S5PC100_SDHC_INFO       0xd002011F
+#define BL2_BASE                0x27e00000
 #else
 # error TCM_BASE or BL2_BASE is not defined
 #endif
@@ -50,6 +53,9 @@
 #if defined(CONFIG_S5P6440)
 #define MOVI_TOTAL_BLKCNT	*((volatile unsigned int*)(S5P6440_BLK_SIZE))
 #define MOVI_HIGH_CAPACITY	*((volatile unsigned int*)(S5P6440_SDHC_INFO))
+#elif defined(CONFIG_S5PC100) || defined(CONFIG_S5PC110) || defined(CONFIG_S5P6442)
+#define MOVI_TOTAL_BLKCNT       *((volatile unsigned int*)(S5PC100_BLK_SIZE))
+#define MOVI_HIGH_CAPACITY      *((volatile unsigned char*)(S5PC100_SDHC_INFO))
 #else
 #define MOVI_TOTAL_BLKCNT	*((volatile unsigned int*)(TCM_BASE - 0x4))
 #define MOVI_HIGH_CAPACITY	*((volatile unsigned int*)(TCM_BASE - 0x8))
@@ -67,6 +73,7 @@
 #define MOVI_BL2_BLKCNT		(PART_SIZE_BL / MOVI_BLKSIZE)
 #define MOVI_ZIMAGE_BLKCNT	(PART_SIZE_KERNEL / MOVI_BLKSIZE)
 #define MOVI_BL2_POS		(MOVI_LAST_BLKPOS - MOVI_BL1_BLKCNT - MOVI_BL2_BLKCNT - MOVI_ENV_BLKCNT)
+#define MOVI_ZIMAGE_POS		(MOVI_BL2_POS - MOVI_ZIMAGE_BLKCNT)
 #define MOVI_ROOTFS_BLKCNT	(PART_SIZE_ROOTFS / MOVI_BLKSIZE)
 
 /* eMMC partition information */
@@ -128,5 +135,83 @@ extern int movi_ch;
 extern int movi_emmc;
 extern uint movi_hc;
 extern struct movi_offset_t ofsinfo;
+
+#else	/* !CONFIG_GENERIC_MMC */
+
+#define MAGIC_NUMBER_MOVI	(0x24564236)
+
+#define MOVI_TOTAL_BLKCNT       *((volatile unsigned int*)(SDMMC_BLK_SIZE))
+
+#define SS_SIZE			(8 * 1024)
+
+#if defined(CONFIG_EVT1)
+#define eFUSE_SIZE		(1 * 512)	// 512 Byte eFuse, 512 Byte reserved
+#else
+#define eFUSE_SIZE		(1 * 1024)	// 1 kB eFuse, 1 KB reserved
+#endif /* CONFIG_EVT1 */
+
+
+#define MOVI_BLKSIZE		(1<<9) /* 512 bytes */
+
+/* partition information */
+#define PART_SIZE_BL		(512 * 1024)
+#define PART_SIZE_KERNEL	(4 * 1024 * 1024)
+#define PART_SIZE_ROOTFS	(26 * 1024 * 1024)
+
+#define MOVI_LAST_BLKPOS	(MOVI_TOTAL_BLKCNT - (eFUSE_SIZE / MOVI_BLKSIZE))
+#define MOVI_BL1_BLKCNT		(SS_SIZE / MOVI_BLKSIZE)
+#define MOVI_ENV_BLKCNT		(CFG_ENV_SIZE / MOVI_BLKSIZE)
+#define MOVI_BL2_BLKCNT		(PART_SIZE_BL / MOVI_BLKSIZE)
+#define MOVI_ZIMAGE_BLKCNT	(PART_SIZE_KERNEL / MOVI_BLKSIZE)
+#if defined(CONFIG_EVT1)
+#define MOVI_BL2_POS		((eFUSE_SIZE / MOVI_BLKSIZE) + MOVI_BL1_BLKCNT + MOVI_ENV_BLKCNT)
+#else
+#define MOVI_BL2_POS		(MOVI_LAST_BLKPOS - MOVI_BL1_BLKCNT - MOVI_BL2_BLKCNT - MOVI_ENV_BLKCNT)
+#endif
+#define MOVI_ZIMAGE_POS		(MOVI_BL2_POS - MOVI_ZIMAGE_BLKCNT)
+#define MOVI_ROOTFS_BLKCNT	(PART_SIZE_ROOTFS / MOVI_BLKSIZE)
+
+/*
+ *
+ * start_blk: start block number for image
+ * used_blk: blocks occupied by image
+ * size: image size in bytes
+ * attribute: attributes of image
+ *            0x1: u-boot parted (BL1)
+ *            0x2: u-boot (BL2)
+ *            0x4: kernel
+ *            0x8: root file system
+ *            0x10: environment area
+ *            0x20: reserved
+ * description: description for image
+ * by scsuh
+ */
+typedef struct member {
+	uint start_blk;
+	uint used_blk;
+	uint size;
+	uint attribute; /* attribute of image */
+	char description[16];
+} member_t; /* 32 bytes */
+
+/*
+ * magic_number: 0x24564236
+ * start_blk: start block number for raw area
+ * total_blk: total block number of card
+ * next_raw_area: add next raw_area structure
+ * description: description for raw_area
+ * image: several image that is controlled by raw_area structure
+ * by scsuh
+ */
+typedef struct raw_area {
+	uint magic_number; /* to identify itself */
+	uint start_blk; /* compare with PT on coherency test */
+	uint total_blk;
+	uint next_raw_area; /* should be sector number */
+	char description[16];
+	member_t image[15];
+} raw_area_t; /* 512 bytes */
+
+#endif /* !CONFIG_GENERIC_MMC */
 
 #endif /*__MOVI_H__*/

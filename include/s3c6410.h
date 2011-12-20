@@ -509,6 +509,7 @@ typedef enum {
 #define GPQPUDSLP	(ELFIN_GPIO_BASE+GPQPUDSLP_OFFSET)
 #define SPCON		(ELFIN_GPIO_BASE+SPCON_OFFSET)
 
+
 /*
  * Bus Matrix
  */

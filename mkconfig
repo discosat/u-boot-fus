@@ -72,8 +72,16 @@ if [ "$3" = "s3c64xx" ] ; then
 	ln -s arch-$3 asm-$2/arch
 fi
 
-# create link for s3c64xx SoC
+# create link for s5pc1xx SoC
 if [ "$3" = "s5pc1xx" ] ; then
+        rm -f regs.h
+        ln -s $6.h regs.h
+        rm -f asm-$2/arch
+        ln -s arch-$3 asm-$2/arch
+fi
+
+# create link for s5pc11x SoC
+if [ "$3" = "s5pc11x" ] ; then
         rm -f regs.h
         ln -s $6.h regs.h
         rm -f asm-$2/arch
@@ -82,6 +90,14 @@ fi
 
 # create link for s5p64xx SoC
 if [ "$3" = "s5p64xx" ] ; then
+	rm -f regs.h
+	ln -s $6.h regs.h
+	rm -f asm-$2/arch
+	ln -s arch-$3 asm-$2/arch
+fi
+
+# create link for s5p644x SoC
+if [ "$3" = "s5p644x" ] ; then
 	rm -f regs.h
 	ln -s $6.h regs.h
 	rm -f asm-$2/arch

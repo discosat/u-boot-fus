@@ -23,7 +23,8 @@
 
 #ifndef _FLASH_H_
 #define _FLASH_H_
-
+#define DEBUG
+#undef DEBUG
 #ifndef CFG_NO_FLASH
 /*-----------------------------------------------------------------------
  * FLASH Info: contains chip specific data, per FLASH bank
@@ -58,6 +59,8 @@ typedef struct {
 #endif
 } flash_info_t;
 
+#define BL1_SIZE		(8 * 1024)
+
 /*
  * Values for the width of the port
  */
@@ -89,6 +92,7 @@ typedef struct {
 extern unsigned long flash_init (void);
 extern void flash_print_info (flash_info_t *);
 extern int flash_erase	(flash_info_t *, int, int);
+extern int flash_erase_all (flash_info_t *);
 extern int flash_sect_erase (ulong addr_first, ulong addr_last);
 extern int flash_sect_protect (int flag, ulong addr_first, ulong addr_last);
 
@@ -97,7 +101,7 @@ extern void flash_protect (int flag, ulong from, ulong to, flash_info_t *info);
 extern int flash_write (char *, ulong, ulong);
 extern flash_info_t *addr2info (ulong);
 extern int write_buff (flash_info_t *info, uchar *src, ulong addr, ulong cnt);
-
+extern void read_hword (void);
 /* board/?/flash.c */
 #if defined(CFG_FLASH_PROTECTION)
 extern int flash_real_protect(flash_info_t *info, long sector, int prot);
@@ -212,6 +216,8 @@ extern int jedec_flash_match(flash_info_t *info, ulong base);
 #define AMD_ID_DL323B	0x22532253	/* 29DL323B ID (32 M, bottom boot sect) */
 #define AMD_ID_DL324T	0x225C225C	/* 29DL324T ID (32 M, top boot sector)	*/
 #define AMD_ID_DL324B	0x225F225F	/* 29DL324B ID (32 M, bottom boot sect) */
+
+#define MX_ID_LV640EB	0x22CB22CB	/* 29LV640EB ID (64 M, bottom boot sect) */
 
 #define AMD_ID_DL640	0x227E227E	/* 29DL640D ID (64 M, dual boot sectors)*/
 #define AMD_ID_MIRROR	0x227E227E	/* 1st ID word for MirrorBit family */

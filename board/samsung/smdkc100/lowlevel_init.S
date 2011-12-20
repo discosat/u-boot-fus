@@ -39,7 +39,8 @@ _TEXT_BASE:
 
 	.globl lowlevel_init
 lowlevel_init:
-	mov	r12, lr
+
+	push	{lr}
 
 	/* IO Retention release */
 	ldr	r0, =(ELFIN_CLOCK_POWER_BASE + OTHERS_OFFSET)
@@ -58,26 +59,10 @@ lowlevel_init:
 	mov	r1, #0x9
 	str	r1, [r0]
 
-#if defined(CONFIG_CLK_833_166_66)
-	ldr	sp, =0x37ff0	/* setup temp stack pointer */
-	sub	sp, sp, #12
+#if defined(CONFIG_CLK_833_166_66) || defined(CONFIG_CLK_800_200_83) || defined(CONFIG_CLK_800_200_66)
 	bl	set_ltc_for_833
 #endif
-
-	/* init system clock */
-	bl system_clock_init
-
-	/* for UART */
-	bl uart_asm_init
-
-	bl dma_init
-
-#if defined(CONFIG_NAND)
-	/* simple init for NAND */
-	bl nand_asm_init
-#endif
-
-	/* when we already run in ram, we don't need to relocate U-Boot.
+/* when we already run in ram, we don't need to relocate U-Boot.
 	 * and actually, memory controller must be configured before U-Boot
 	 * is running in ram.
 	 */
@@ -88,21 +73,34 @@ lowlevel_init:
 	cmp     r1, r2                  /* compare r0, r1                  */
 	beq     1f			/* r0 == r1 then skip sdram init   */
 
-	bl 	mem_ctrl_asm_init
-
+	/* init system clock */
+	bl system_clock_init
+	
+	bl mem_ctrl_asm_init
 1:
+	/* for UART */
+	bl uart_asm_init
+
+	bl tzpc_init
+
+#if defined(CONFIG_NAND)
+	/* simple init for NAND */
+	bl nand_asm_init
+#endif
+	
         ldr     r0, =(ELFIN_CLOCK_POWER_BASE+RST_STAT_OFFSET)
         ldr     r1, [r0]
-        bic     r1, r1, #0xfffffff7
+        bic     r1, r1, #0xffffff77
         cmp     r1, #0x8
         beq     wakeup_reset
+	cmp	r1, #0x80
+	beq	wakeup_reset
 
 	ldr	r0, =ELFIN_UART_BASE
 	ldr	r1, =0x4b4b4b4b
 	str	r1, [r0, #UTXH_OFFSET]
 
-	mov	lr, r12
-	mov	pc, lr
+	pop	{pc}
 
 wakeup_reset:
 
@@ -110,11 +108,6 @@ wakeup_reset:
 	ldr	r0, =ELFIN_GPIO_BASE
 	ldr	r1, =0x40
 	str	r1, [r0, #GPH1DAT_OFFSET]
-
-	/*Clear wakeup status register*/
-	ldr	r0, =(ELFIN_CLOCK_POWER_BASE+WAKEUP_STAT_OFFSET)
-	ldr	r1, [r0]
-	str	r1, [r0]
 
 	/*Load return address and jump to kernel*/
 	ldr	r0, =(INF_REG_BASE+INF_REG0_OFFSET)
@@ -150,15 +143,15 @@ system_clock_init:
 	ldr	r1, =APLL_VAL
 	str	r1, [r0, #APLL_CON_OFFSET]
 
-	ldr   	r1, [r0, #CLK_DIV1_OFFSET]
+	@ldr   	r1, [r0, #CLK_DIV1_OFFSET]
 	ldr	r2, =CLK_DIV1_VAL
-	orr	r1, r1, r2
-	str	r1, [r0, #CLK_DIV1_OFFSET]
+	@orr	r1, r1, r2
+	str	r2, [r0, #CLK_DIV1_OFFSET]
 
 	ldr	r1, =MPLL_VAL
 	str	r1, [r0, #MPLL_CON_OFFSET]
-	ldr	r1, =EPLL_VAL
-	str	r1, [r0, #EPLL_CON_OFFSET]
+	@ldr	r1, =EPLL_VAL
+	@str	r1, [r0, #EPLL_CON_OFFSET]
 	ldr	r1, =HPLL_VAL
 	str	r1, [r0, #HPLL_CON_OFFSET]
 
@@ -198,13 +191,19 @@ uart_asm_init:
 
 	ldr	r1, =0x245
 	str	r1, [r0, #UCON_OFFSET]
+#if defined(CONFIG_CLK_800_200_83) || defined(CONFIG_CLK_833_166_166_83)
+        ldr     r1, =0x2c
+        str     r1, [r0, #UBRDIV_OFFSET]
 
+        ldr     r1, =0x0
+        str     r1, [r0, #UDIVSLOT_OFFSET]
+#else
 	ldr	r1, =0x23
 	str	r1, [r0, #UBRDIV_OFFSET]
 
-	ldr	r1, =0x3
+	ldr	r1, =0x0808
 	str	r1, [r0, #UDIVSLOT_OFFSET]
-
+#endif
 	ldr	r1, =0x4f4f4f4f
 	str	r1, [r0, #UTXH_OFFSET]		@'O'
 
@@ -228,10 +227,10 @@ nand_asm_init:
 	mov	pc, lr
 
 /*
- * Setting for DMA
+ * Setting TZPC[TrustZone Protection Controller]
  */
 
-dma_init:
+tzpc_init:
 
  	ldr	r0, =0xE3800000
  	mov	r1, #0x0
@@ -250,7 +249,6 @@ dma_init:
  	str	r1, [r0, #0x810]
 
  	mov	pc, lr
-
 
 #ifdef CONFIG_ENABLE_MMU
 
@@ -287,12 +285,12 @@ mmu_table:
 
 	.set __base,0x200
 	// should be accessed
-	.rept 0x280 - 0x200
+	.rept 0x300 - 0x200
 	FL_SECTION_ENTRY __base,3,0,1,1
 	.set __base,__base+1
 	.endr
 
-	.rept 0x800 - 0x280
+	.rept 0x800 - 0x300
 	.word 0x00000000
 	.endr
 
@@ -314,16 +312,16 @@ mmu_table:
 	.endr
 
 	.set __base,0x200
-	// 128MB for SDRAM with cacheable
-	.rept 0xC80 - 0xC00
+	// 256MB for SDRAM with cacheable
+	.rept 0xD00 - 0xC00
 	FL_SECTION_ENTRY __base,3,0,1,1
 	.set __base,__base+1
 	.endr
 
 	// access is not allowed.
-	.rept 0xD00 - 0xC80
-	.word 0x00000000
-	.endr
+	@.rept 0xD00 - 0xC80
+	@.word 0x00000000
+	@.endr
 
 	.set __base,0xD00
 	// 1:1 mapping for debugging with non-cacheable

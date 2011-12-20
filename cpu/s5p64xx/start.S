@@ -188,6 +188,11 @@ cpu_init_crit:
 	/*
 	 * Go setup Memory and board specific bits prior to relocation.
 	 */
+
+	ldr	sp, =0xd0036000 /* end of sram dedicated to u-boot */
+	sub	sp, sp, #12	/* set stack */
+	mov	fp, #0
+	
 	bl	lowlevel_init	/* go setup pll,mux,memory */
 
 	/* when we already run in ram, we don't need to relocate U-Boot.

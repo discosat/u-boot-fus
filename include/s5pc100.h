@@ -45,7 +45,7 @@ typedef enum {
 	S5PC1XX_UART3,
 } S5PC1XX_UARTS_NR;
 
-#include <s5pc1x0.h>
+#include <s5pc1xx.h>
 #endif
 
 #define BIT0 				0x00000001
@@ -88,16 +88,17 @@ typedef enum {
 
 
 /* S3C6400 device base addresses */
-#define ELFIN_DMA_BASE			0xE3800000
+#define ELFIN_DMA_BASE			0xE9000000
 #define ELFIN_LCD_BASE			0x77100000
 #define ELFIN_USB_HOST_BASE		0x74300000
 #define ELFIN_I2C_BASE			0x7f004000
 #define ELFIN_I2S_BASE			0x7f002000
 #define ELFIN_ADC_BASE			0x7e00b000
 #define ELFIN_SPI_BASE			0x7f00b000
-#define ELFIN_HSMMC_0_BASE		0x7c200000
-#define ELFIN_HSMMC_1_BASE		0x7c300000
-#define ELFIN_HSMMC_2_BASE		0x7c400000
+
+#define ELFIN_HSMMC_0_BASE		0xed800000
+#define ELFIN_HSMMC_1_BASE		0xed900000
+#define ELFIN_HSMMC_2_BASE		0xeda00000
 
 #define ELFIN_CLOCK_POWER_BASE		0xE0100000
 
@@ -921,7 +922,7 @@ typedef enum {
 /*
  * HS MMC Interface
  */
-#define ELFIN_HSMMC_BASE		0x7C200000
+#define ELFIN_HSMMC_BASE		0xED800000
 
 #define HM_SYSAD			(0x00)
 #define HM_BLKSIZE			(0x04)

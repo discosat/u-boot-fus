@@ -145,7 +145,8 @@ ulong virt_to_phy_smdk6440(ulong addr)
 	if ((0xc0000000 <= addr) && (addr < 0xc8000000))
 		return (addr - 0xc0000000 + 0x20000000);
 	else
-		printf("do not support this address : %08lx\n", addr);
+		printf("The input address don't need "\
+			"a virtual-to-physical translation : %08lx\n", addr);
 
 	return addr;
 }

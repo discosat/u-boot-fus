@@ -166,7 +166,6 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				load_addr);
 	} else {
 		addr = simple_strtoul(argv[1], NULL, 16);
-		debug ("*  kernel: cmdline image address = 0x%08lx\n", img_addr);
 	}
 
 

@@ -389,6 +389,9 @@
 
 #define CFG_ENV_OFFSET		0x0007C000
 
+/* nand copy size from nand to DRAM.*/
+#define	COPY_BL2_SIZE		0x80000
+
 /* NAND configuration */
 #define CFG_MAX_NAND_DEVICE     1
 #define CFG_NAND_BASE           (0x70200010)

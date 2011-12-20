@@ -429,7 +429,7 @@ int s3c_usbctl_init(void)
 	/* usb20_en is set high so that otg power don't shut down. */
 	GPNCON_REG = (GPNCON_REG&~(3<<2))|(1<<2); /* output */
 	GPNDAT_REG |= (1<<1); 
-	OTHERS_REG &= (0<<16);	/*unmask usb signal */
+	OTHERS_REG &= ~(1<<16);	/*unmask usb signal */
 
 	otg.speed = speed;
 	otg.set_config = 0;

@@ -330,9 +330,9 @@ int do_flerase (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	if (strcmp(argv[1], "all") == 0) {
 		for (bank=1; bank<=CFG_MAX_FLASH_BANKS; ++bank) {
-			printf ("Erase Flash Bank # %ld ", bank);
+			printf ("Erase Flash Bank # %ld \n", bank);
 			info = &flash_info[bank-1];
-			rcode = flash_erase (info, 0, info->sector_count-1);
+			rcode = flash_erase_all (info);
 		}
 		return rcode;
 	}
@@ -386,7 +386,7 @@ int do_flerase (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				CFG_MAX_FLASH_BANKS);
 			return 1;
 		}
-		printf ("Erase Flash Bank # %ld ", bank);
+		printf ("Erase Flash Bank # %ld \n", bank);
 		info = &flash_info[bank-1];
 		rcode = flash_erase (info, 0, info->sector_count-1);
 		return rcode;

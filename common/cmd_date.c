@@ -29,7 +29,7 @@
 #include <rtc.h>
 #include <i2c.h>
 
-#ifndef CONFIG_S5PC100
+#if !defined(CONFIG_S5PC100) && !defined(CONFIG_S5PC110) && !defined(CONFIG_S5P6442)
 
 DECLARE_GLOBAL_DATA_PTR;
 

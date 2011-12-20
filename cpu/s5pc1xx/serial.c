@@ -31,6 +31,9 @@
 #elif defined(CONFIG_SERIAL3)
 #define UART_NR	S5PC1XX_UART2
 
+#elif defined(CONFIG_SERIAL4)
+#define UART_NR	S5PC1XX_UART3
+
 #else
 #error "Bad: you didn't configure serial ..."
 #endif

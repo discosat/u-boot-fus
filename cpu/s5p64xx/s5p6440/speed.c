@@ -110,6 +110,12 @@ ulong get_UCLK(void)
 	return (get_PLLCLK(EPLL));
 }
 
+/* return MPLL frequency */
+ulong get_MPLL_CLK(void)
+{
+	return (get_PLLCLK(MPLL));
+}
+
 int print_cpuinfo(void)
 {
 	printf("\nCPU:     S5P6440@%dMHz\n", get_ARMCLK()/1000000);

@@ -26,25 +26,32 @@ include $(TOPDIR)/config.mk
 LIB	= lib$(CPU).a
 START   = start.o
 
-ifeq ($(BOARD),smdk6400)
-START	+= start_6400.o
-else
-START	+= start_irom.o
-endif
+START-$(CONFIG_SMDK6400) += start_6400.o
+START-$(CONFIG_SMDK6410) += start_irom.o
+# No START on PicoMOD6 and PicoCOM3
+START := $(START-y)
 
-OBJS	= nand_cp.o i2c.o serial.o  usb_ohci.o \
+COBJS-$(CONFIG_SMDK6400) +=  nand_cp.o i2c.o serial.o usb_ohci.o \
 		interrupts.o cpu.o nand.o onenand.o onenand_cp.o \
-		usbd-otg-hs.o hs_mmc.o movi.o
+		usbd-otg-hs.o movi.o setup_hsmmc.o
+COBJS-$(CONFIG_SMDK6410) +=  nand_cp.o i2c.o serial.o usb_ohci.o \
+		interrupts.o cpu.o nand.o onenand.o onenand_cp.o \
+		usbd-otg-hs.o movi.o setup_hsmmc.o
+COBJS-$(CONFIG_PICOMOD6) +=  serial.o usb_ohci.o interrupts.o \
+		cpu.o nand.o #usbd-otg-hs.o setup_hsmmc.o
+COBJS-$(CONFIG_PICOCOM3) +=  serial.o usb_ohci.o interrupts.o \
+		cpu.o nand.o #usbd-otg-hs.o setup_hsmmc.o
+COBJS := $(COBJS-y)
 
 all:	.depend $(START) $(LIB)
 
-$(LIB):	$(OBJS)
-	$(AR) crv $@ $(OBJS)
+$(LIB):	$(COBJS)
+	$(AR) crv $@ $(COBJS)
 
 #########################################################################
 
-.depend:	Makefile $(START:.o=.S) $(OBJS:.o=.c)
-		$(CC) -M $(CFLAGS) $(START:.o=.S) $(OBJS:.o=.c) > $@
+.depend:	Makefile $(START:.o=.S) $(COBJS:.o=.c)
+		$(CC) -M $(CFLAGS) $(START:.o=.S) $(COBJS:.o=.c) > $@
 
 sinclude .depend
 

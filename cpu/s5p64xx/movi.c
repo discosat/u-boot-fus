@@ -1,101 +1,71 @@
 #include <common.h>
+#include <s5p6440.h>
+
 #include <movi.h>
 #include <asm/io.h>
 #include <regs.h>
+#include <mmc.h>
 
-uint movi_hc = 0;
+extern raw_area_t raw_area_control;
 
-void movi_set_capacity(void)
+typedef u32 (*copy_sd_mmc_to_mem) \
+	(u32 channel, u32 start_block, u16 block_size, u32* trg, u32 init);
+
+void movi_bl2_copy(void)
 {
-	if (MOVI_HIGH_CAPACITY & 0x1)
-		movi_hc = 1;
+#ifdef SMDK6440_EVT0
+	copy_sd_mmc_to_mem copy_bl2 = (copy_sd_mmc_to_mem)(*(u32*)(0xD0021C08));
+#endif
+#ifdef SMDK6440_EVT1
+	copy_sd_mmc_to_mem copy_bl2 = (copy_sd_mmc_to_mem)(*(u32*)(0xD0021FE0));
+#endif
+	u32 ret;
+
+	ret = copy_bl2(0, MOVI_BL2_POS, MOVI_BL2_BLKCNT, CFG_PHY_UBOOT_BASE, 0);
+
+	if(ret == 0)
+		while(1);
+	else
+		return;
 }
 
-int movi_set_ofs(uint last)
+void print_movi_bl2_info (void)
 {
-	int changed = 0;
-
-	if (INF_REG3_REG == 1) {	/* eMMC_4.3 */
-		/* last of boot partition */
-		ofsinfo.last 	= EMMC_BL_BLKCNT + EMMC_KERNEL_BLKCNT + EMMC_ROOTFS_BLKCNT;
-		ofsinfo.bl1	= 0;
-		ofsinfo.bl2	= 0;
-		ofsinfo.env	= ofsinfo.bl2 + EMMC_UBOOT_BLKCNT;
-		ofsinfo.kernel	= ofsinfo.bl2 + EMMC_BL_BLKCNT;
-		ofsinfo.rootfs	= ofsinfo.kernel + EMMC_KERNEL_BLKCNT;
-		changed = 1;
-	} else {			/* SD/MMC */
-		if (ofsinfo.last != last) {
-			ofsinfo.last 	= last - (eFUSE_SIZE / MOVI_BLKSIZE);
-			ofsinfo.bl1	= ofsinfo.last - MOVI_BL1_BLKCNT;
-			ofsinfo.env	= ofsinfo.bl1 - MOVI_ENV_BLKCNT;
-			ofsinfo.bl2	= ofsinfo.bl1 - (MOVI_BL2_BLKCNT + MOVI_ENV_BLKCNT);
-			ofsinfo.kernel	= ofsinfo.bl2 - MOVI_ZIMAGE_BLKCNT;
-			ofsinfo.rootfs	= ofsinfo.kernel - MOVI_ROOTFS_BLKCNT;
-			changed = 1;
-		}
-	}
-
-	return changed;
-}
-
-int movi_init(void)
-{
-	int ret = 0;
-
-	hsmmc_set_gpio();
-	hsmmc_set_base();
-	hsmmc_reset();
-
-	if (INF_REG3_REG == 1)	/* eMMC_4.3 */
-		ret = emmc_init();
-	else			/* SD/MMC */
-		ret = hsmmc_init();
-
-	if (ret) {
-		printf("\nCard Initialization failed(%d)\n", ret);
-		return -1;
-	}
-
-	return 1;
+	printf("%d, %d, %d\n", MOVI_BL2_POS, MOVI_BL2_BLKCNT, MOVI_ENV_BLKCNT);
 }
 
 void movi_write_env(ulong addr)
 {
-	if (INF_REG3_REG == 1) {	/* eMMC_4.3 */
-		emmc_write((uint)addr, ofsinfo.env, EMMC_ENV_BLKCNT);
-	} else {			/* SD/MMC */
-		movi_write((uint)addr, ofsinfo.env, MOVI_ENV_BLKCNT);
-	}
+	movi_write(raw_area_control.image[1].start_blk, 
+		raw_area_control.image[1].used_blk, addr);
 }
 
 void movi_read_env(ulong addr)
 {
-	if (INF_REG3_REG == 1) {	/* eMMC_4.3 */
-		emmc_read((uint)addr, ofsinfo.env, EMMC_ENV_BLKCNT);
-	} else {			/* SD/MMC */
-		movi_read((uint)addr, ofsinfo.env, MOVI_ENV_BLKCNT);
-	}
+	movi_read(raw_area_control.image[1].start_blk,
+		raw_area_control.image[1].used_blk, addr);
 }
 
-void movi_bl2_copy(void)
+void movi_write_bl1(ulong addr)
 {
-	int movi_ch;
+	int i;
+	ulong checksum;
+	ulong src;
+	ulong tmp;
 
-	if (INF_REG3_REG & 0x1)
-		movi_ch = 1;
-	else
-		movi_ch = 0;
-
-	if (INF_REG3_REG == 1) {
-		/* Device copy function for eMMC */
-		COPY_eMMC_to_MEM(0, (1024-14), (uint *)(BL2_BASE+0x1c00), 4);
-		COPY_eMMC_to_MEM(0, EMMC_KERNEL_BLKCNT, (uint *)(0x20008000), 4);
-		COPY_eMMC_to_MEM(0, EMMC_ROOTFS_BLKCNT, (uint *)(0x20800000), 4);
-
-		memcpy(0x27e00000, 0xd0020000, 7*1024);
-	} else {
-		/* Device copy function for SD/MMC */
-		CopyMovitoMem(movi_ch, MOVI_BL2_POS, MOVI_BL2_BLKCNT, (uint *)BL2_BASE, MOVI_INIT_REQUIRED);
+	src = addr;
+	
+	for(i = 0, checksum = 0;i < SS_SIZE - 4;i++)
+	{
+		checksum += *(u8*)addr++;
 	}
+
+	tmp = *(ulong*)addr;
+	*(ulong*)addr = checksum;
+			
+	movi_write(raw_area_control.image[0].start_blk, 
+		raw_area_control.image[0].used_blk, src);
+
+	*(ulong*)addr = tmp;
 }
+

@@ -136,6 +136,28 @@ int nand_is_nboot_protected(void)
 }
 #endif
 
+/* Nand flash oob definition for 4Kb page size with 8_bit ECC */
+static struct nand_ecclayout nand_oob_128 = {
+        .eccbytes = 104,
+        .eccpos = {
+                   24, 25, 26, 27, 28, 29, 30, 31,
+                   32, 33, 34, 35, 36, 37, 38, 39,
+                   40, 41, 42, 43, 44, 45, 46, 47,
+                   48, 49, 50, 51, 52, 53, 54, 55,
+                   56, 57, 58, 59, 60, 61, 62, 63,
+                   64, 65, 66, 67, 68, 69, 70, 71,
+                   72, 73, 74, 75, 76, 77, 78, 79,
+                   80, 81, 82, 83, 84, 85, 86, 87,
+                   88, 89, 90, 91, 92, 93, 94, 95,
+                   96, 97, 98, 99, 100, 101, 102, 103,
+                   104, 105, 106, 107, 108, 109, 110, 111,
+                   112, 113, 114, 115, 116, 117, 118, 119,
+                   120, 121, 122, 123, 124, 125, 126, 127},
+        .oobfree = {
+                {.offset = 2,
+                 .length = 22}}
+};
+
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
 			   int new_state);
 
@@ -2420,22 +2442,45 @@ static const struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	/* Newer devices have all the information in additional id bytes */
 	if (!type->pagesize) {
-		int extid;
-		/* The 3rd id byte holds MLC / multichip data */
-		chip->cellinfo = chip->read_byte(mtd);
-		/* The 4th id byte is the important one */
-		extid = chip->read_byte(mtd);
-		/* Calc pagesize */
-		mtd->writesize = 1024 << (extid & 0x3);
-		extid >>= 2;
-		/* Calc oobsize */
-		mtd->oobsize = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
-		extid >>= 2;
-		/* Calc blocksize. Blocksize is multiples of 64KiB */
-		mtd->erasesize = (64 * 1024) << (extid & 0x03);
-		extid >>= 2;
-		/* Get buswidth information */
-		busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+		if (dev_id == 0xd5) {
+			int extid;
+			/* The 3rd id byte holds MLC / multichip data */
+			chip->cellinfo = chip->read_byte(mtd);
+			/* The 4th id byte is the important one */
+			extid = chip->read_byte(mtd);
+			/* Calc pagesize */
+			mtd->writesize = 2048 << (extid & 0x3);
+			extid >>= 2;
+			/* Calc oobsize */
+			if ((extid & 0x3) == 0x1) {
+				mtd->oobsize = 128;
+			} else if ((extid & 0x3) == 0x2) {
+				mtd->oobsize = 218;
+			}
+			extid >>= 2;
+			/* Calc blocksize. Blocksize is multiples of 64KiB */
+			mtd->erasesize = (128 * 1024) << (extid & 0x03);
+			extid >>= 2;
+			/* Get buswidth information */
+			busw = 0;			
+		} else {	
+			int extid;
+			/* The 3rd id byte holds MLC / multichip data */
+			chip->cellinfo = chip->read_byte(mtd);
+			/* The 4th id byte is the important one */
+			extid = chip->read_byte(mtd);
+			/* Calc pagesize */
+			mtd->writesize = 1024 << (extid & 0x3);
+			extid >>= 2;
+			/* Calc oobsize */
+			mtd->oobsize = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
+			extid >>= 2;
+			/* Calc blocksize. Blocksize is multiples of 64KiB */
+			mtd->erasesize = (64 * 1024) << (extid & 0x03);
+			extid >>= 2;
+			/* Get buswidth information */
+			busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+		}
 	} else {
 		/*
 		 * Old devices have chip data hardcoded in the device id table
@@ -2601,6 +2646,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 			break;
 		case 64:
 			chip->ecc.layout = &nand_oob_64;
+			break;
+		case 128:
+			chip->ecc.layout = &nand_oob_128;
 			break;
 		default:
 			printk(KERN_WARNING "No oob scheme defined for "

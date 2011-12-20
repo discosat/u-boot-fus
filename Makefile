@@ -467,7 +467,8 @@ CHANGELOG:
 unconfig:
 	@rm -f $(obj)include/config.h $(obj)include/config.mk \
 		$(obj)board/*/config.tmp $(obj)board/*/*/config.tmp \
-		$(obj)include/autoconf.mk $(obj)include/autoconf.mk.dep
+		$(obj)include/autoconf.mk $(obj)include/autoconf.mk.dep \
+		$(obj)board/$(VENDOR)/$(BOARD)/config.mk
 
 #========================================================================
 # PowerPC
@@ -2503,36 +2504,82 @@ tabla_config	:	unconfig
 
 smdk6400_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6400 samsung s3c6400 
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6400/config.mk
 
 smdk6410_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6410 samsung s3c6410 
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6410/config.mk
 
 smdk6430_config :       unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx smdk6430 samsung s3c6430
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6430/config.mk
 
 smdk2450_config :       unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c24xx smdk2450 samsung s3c2450
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk2450/config.mk
 
 smdk2416_config :       unconfig	
 	@$(MKCONFIG) $(@:_config=) arm s3c24xx smdk2416 samsung s3c2416
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk2416/config.mk
 
 smdk_mp_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx-mp smdk_mp samsung s3c64xx-mp
 
-smdkc100_config :       unconfig
+smdkc100_config :	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s5pc1xx smdkc100 samsung s5pc100
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdkc100/config.mk
 
-smdk6440_config :       unconfig
+smdkc100_256_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc1xx smdkc100 samsung s5pc100
+	@echo "TEXT_BASE = 0xcfe00000" > $(obj)board/samsung/smdkc100/config.mk
+
+smdkc110ac_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk
+
+smdkc110h_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk
+
+smdkc110b_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk	
+
+smdkc110d_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk	
+
+smdkv210single_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk
+
+smdkv210vogue_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5pc11x smdkc110 samsung s5pc110
+	@echo "TEXT_BASE = 0xc3e00000" > $(obj)board/samsung/smdkc110/config.mk
+
+
+smdk6440_config :	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s5p64xx smdk6440 samsung s5p6440
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6440/config.mk
+
+smdk6442_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5p644x smdk6442 samsung s5p6442
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6442/config.mk
+
+smdk6442c_config :	unconfig
+	@$(MKCONFIG) $(@:_config=) arm s5p644x smdk6442 samsung s5p6442
+	@echo "TEXT_BASE = 0xc7e00000" > $(obj)board/samsung/smdk6442/config.mk
 
 SX1_config :		unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm925t sx1
 
 picomod6_config	:	unconfig
-	@$(MKCONFIG) $(@:_config=) arm s3c64xx picomod6 F+S s3c6410 
+	@$(MKCONFIG) $(@:_config=) arm s3c64xx picomod6 F+S s3c6410
+	@echo "TEXT_BASE = 0x57f00000" > $(obj)board/F+S/picomod6/config.mk
 
 picocom3_config	:	unconfig
 	@$(MKCONFIG) $(@:_config=) arm s3c64xx picocom3 F+S s3c6410 
+	@echo "TEXT_BASE = 0x53f00000" > $(obj)board/F+S/picocom3/config.mk
 
 # TRAB default configuration:	8 MB Flash, 32 MB RAM
 xtract_trab = $(subst _bigram,,$(subst _bigflash,,$(subst _old,,$(subst _config,,$1))))

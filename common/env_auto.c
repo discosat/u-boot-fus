@@ -41,12 +41,18 @@
 #include <movi.h>
 #include <regs.h>
 
-#if defined(CONFIG_CMD_ENV) || defined(CONFIG_CMD_NAND) || defined(CONFIG_CMD_MOVINAND) || defined(CONFIG_CMD_ONENAND)
+#if defined(CONFIG_CMD_ENV) || \
+	defined(CONFIG_CMD_NAND) || \
+	defined(CONFIG_CMD_MOVINAND) || \
+	defined(CONFIG_CMD_ONENAND)
 #define CMD_SAVEENV
 #endif
 
 /* info for NAND chips, defined in drivers/nand/nand.c */
 extern nand_info_t nand_info[];
+
+/* info for NOR flash chips, defined in board/samsung/common/flash_common.c */
+extern flash_info_t flash_info[];
 
 /* references to names in env_common.c */
 extern uchar default_environment[];
@@ -140,35 +146,95 @@ int env_init(void)
  */
 int saveenv_nand(void)
 {
-	size_t total;
-	int ret = 0;
+        size_t total;
+        int ret = 0, i;
+        u32 erasebase;
+        u32 eraselength;
+        u32 eraseblock;
+        u32 erasesize = nand_info[0].erasesize;
+        uint8_t *data;
 
-	puts("Erasing Nand...");
-	nand_erase(&nand_info[0], CFG_ENV_OFFSET, CFG_ENV_SIZE);
+        puts("Erasing Nand...\n");
 
-//#ifndef CONFIG_S5PC100_EVT1
-	if (nand_erase(&nand_info[0], CFG_ENV_OFFSET, CFG_ENV_SIZE))
-		return 1;
-//#endif
+        /* If the value of CFG_ENV_OFFSET is not a NAND block boundary, the
+         * NAND erase operation will fail. So first check if the CFG_ENV_OFFSET
+         * is equal to a NAND block boundary
+         */
+        if ((CFG_ENV_OFFSET % (erasesize - 1)) != 0 ) {
+                /* CFG_ENV_OFFSET is not equal to block boundary address. So, read
+                 * the read the NAND block (in which ENV has to be stored), and
+                 * copy the ENV data into the copied block data.
+                 */
 
-	puts("Writing to Nand... ");
-	total = CFG_ENV_SIZE;
+                /* Step 1: Find out the starting address of the NAND block to
+                 * be erased. Also allocate memory whose size is equal to tbe
+                 * NAND block size (NAND erasesize).
+                 */
+                eraseblock = CFG_ENV_OFFSET / erasesize;
+                erasebase = eraseblock * erasesize;
+                data = (uint8_t*)malloc(erasesize);
+                if (data == NULL) {
+                        printf("Could not save enviroment variables\n");
+                        return 1;
+                }
 
-//#ifndef CONFIG_S5PC100_EVT1
-	ret = nand_write(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char*) env_ptr);
-	if (ret || total != CFG_ENV_SIZE)
-		return 1;
-//#endif
+                /* Step 2: Read the NAND block into which the ENV data has
+                 * to be copied
+                 */
+                total = erasesize;
+		for (i = 0; i < CFG_MAX_NAND_DEVICE; i++) {
+			if (nand_scan(&nand_info[i], 1) == 0) {
+				ret = nand_read(&nand_info[0], erasebase, &total, data);
+			} else {
+				printf("no devices available\n");
+				return 1;
+			}
+		}
+                if (ret || total != erasesize) {
+                        printf("Could not save enviroment variables %d\n",ret);
+                        return 1;
+                }
 
-	puts("done\n");
-	return ret;
+                /* Step 3: Copy the ENV data into the local copy of the block
+                 * contents.
+                 */
+                memcpy((data + (CFG_ENV_OFFSET - erasebase)), (void*)env_ptr, CFG_ENV_SIZE);
+        } else {
+                /* CFG_ENV_OFFSET is equal to a NAND block boundary. So
+                 * no special care is required when erasing and writing NAND
+                 * block
+                 */
+                data = env_ptr;
+                erasebase = CFG_ENV_OFFSET;
+                erasesize = CFG_ENV_SIZE;
+        }
+
+        /* Erase the NAND block which will hold the ENV data */
+        if (nand_erase(&nand_info[0], erasebase, erasesize))
+                return 1;
+
+        puts("Writing to Nand... \n");
+        total = erasesize;
+
+        /* Write the ENV data to the NAND block */
+        ret = nand_write(&nand_info[0], erasebase, &total, (u_char*)data);
+        if (ret || total != erasesize) {
+                printf("Could not save enviroment variables\n");
+                return 1;
+        }
+
+         if ((CFG_ENV_OFFSET % (erasesize - 1)) != 0 )
+                free(data);
+
+        puts("Saved enviroment variables\n");
+        return ret;
 }
 
 int saveenv_nand_adv(void)
 {
 	size_t total;
 	int ret = 0;
-
+	
 	u_char *tmp;
 	total = CFG_ENV_OFFSET;
 
@@ -203,57 +269,107 @@ int saveenv_nand_adv(void)
 	return ret;
 }
 
-#ifdef CONFIG_MOVINAND
 int saveenv_movinand(void)
 {
-#ifndef CONFIG_S5PC100
-	movi_write_env(virt_to_phys((ulong)env_ptr));
-#endif
-	puts("done\n");
+        movi_write_env(virt_to_phys((ulong)env_ptr));
+        puts("done\n");
 
-	return 1;
+        return 1;
 }
-#endif /*CONFIG_MOVINAND*/
 
-#ifdef CONFIG_ONENAND
 int saveenv_onenand(void)
 {
-	printf("OneNAND does not support the saveenv command\n");
-	return 1;
+        printf("OneNAND does not support the saveenv command\n");
+        return 1;
 }
-#endif /*CONFIG_ONENAND*/
 
+int saveenv_nor(void)
+{
+	u32 sect_num;
+	u32 sect_size;
+	u32 pos_env;
+	u8 *tmp_buf, *tmp_pos_env;
+	ulong from, to;	/* unprotect area */
+	flash_info_t *info;
+	
+	info = &flash_info[0];	/* NOR flash is located in #1 bank */
+
+	/* find sector for saving environment variables */
+	pos_env = CFG_FLASH_BASE + CFG_ENV_ADDR + CFG_ENV_OFFSET;
+	for (sect_num = 0; sect_num < info->sector_count; sect_num++) {
+		if ((info->start[sect_num] <= pos_env) &&
+			(info->start[sect_num + 1] > pos_env)) {
+			break;
+		}
+	}
+
+	/* unprotect finding sector */
+	from = info->start[sect_num];
+	to = info->start[sect_num + 1] - 1;
+	flash_protect(0, from, to, info); /* unprotect */
+
+	/*
+	 * read 64kb one sector from NOR flash to memory
+	 * because env var is inserted into unprotected sector
+	 */
+	sect_size = info->start[sect_num + 1] - info->start[sect_num];
+	tmp_buf = (u8 *)malloc(sect_size);
+	memcpy(tmp_buf, (u8 *)info->start[sect_num], sect_size);
+	tmp_pos_env = tmp_buf + pos_env - info->start[sect_num];
+	memcpy(tmp_pos_env, (u8 *)env_ptr, CFG_ENV_SIZE);
+	
+	/* erase unprotected sector */
+	flash_erase(info, sect_num, sect_num);
+
+	/* write modified sector including environment variables */
+	flash_write(tmp_buf, (ulong)info->start[sect_num], sect_size);
+
+	free(tmp_buf);
+        printf("done\n");
+	
+        return 1;
+}
 int saveenv(void)
 {
 #if !defined(CONFIG_SMDK6440)
-	if (INF_REG3_REG == 2 || INF_REG3_REG == 3)
-		saveenv_nand();
-	else if (INF_REG3_REG == 4 || INF_REG3_REG == 5 || INF_REG3_REG == 6)
-		saveenv_nand_adv();
-#ifdef CONFIG_MOVINAND
-	else if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
-		saveenv_movinand();
+#if defined(CONFIG_S5PC100) || defined(CONFIG_S5PC110) || defined(CONFIG_S5P6442)
+
+        if (INF_REG3_REG == 2)
+                saveenv_nand();
+        else if (INF_REG3_REG == 3)
+                saveenv_movinand();
+        else if (INF_REG3_REG == 1)
+                saveenv_onenand();
+        else if (INF_REG3_REG == 4)
+                saveenv_nor();
+        else
+                printf("Unknown boot device\n");
+#else   // others
+        if (INF_REG3_REG == 2 || INF_REG3_REG == 3)
+                saveenv_nand();
+        else if (INF_REG3_REG == 4 || INF_REG3_REG == 5 || INF_REG3_REG == 6)
+                saveenv_nand_adv();
+        else if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
+                saveenv_movinand();
+        else if (INF_REG3_REG == 1)
+                saveenv_onenand();
+        else
+                printf("Unknown boot device\n");
+
 #endif
-#ifdef CONFIG_ONENAND
-	else if (INF_REG3_REG == 1)
-		saveenv_onenand();
-#endif
-	else
-		printf("Unknown boot device\n");
-#else
-	if (INF_REG3_REG == 3)
-		saveenv_nand();
-	else if (INF_REG3_REG == 4 || INF_REG3_REG == 5 || INF_REG3_REG == 6)
-		saveenv_nand_adv();
-	else if (INF_REG3_REG == 0 || INF_REG3_REG == 1 || INF_REG3_REG == 7)
-		saveenv_movinand();
-	else
-		printf("Unknown boot device\n");
+#else	// CONFIG_SMDK6440
+        if (INF_REG3_REG == 3)
+                saveenv_nand();
+        else if (INF_REG3_REG == 4 || INF_REG3_REG == 5 || INF_REG3_REG == 6)
+                saveenv_nand_adv();
+        else if (INF_REG3_REG == 0 || INF_REG3_REG == 1 || INF_REG3_REG == 7)
+                saveenv_movinand();
+        else
+                printf("Unknown boot device\n");
 #endif
 
-	return 0;
+        return 0;
 }
-
 #endif /* CMD_SAVEENV */
 
 /*
@@ -264,72 +380,94 @@ void env_relocate_spec_nand(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
 	size_t total;
-	int ret;
-        unsigned int crc32val;
+	int ret, i;
+	u_char *data;
 
+	data = (u_char*)malloc(CFG_ENV_SIZE);
 	total = CFG_ENV_SIZE;
-	ret = nand_read(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char*)env_ptr);
-  	if (ret || total != CFG_ENV_SIZE)
-        {
-            printf("####### env_relocate_spec_nand(): ret=%d, total=0x%x\n", ret, total);
-		return use_default();
-        }
-
-        crc32val = crc32(0, env_ptr->data, ENV_SIZE);
-	if (crc32val != env_ptr->crc)
-        {
-            printf("####### env_relocate_spec_nand(): crc=0x%x, env_ptr->crc=0x%x\n", crc32val, env_ptr->crc);
-		return use_default();
-        }
-
+	for (i = 0; i < CFG_MAX_NAND_DEVICE; i++) {
+		if (nand_scan(&nand_info[i], 1) == 0) {
+			ret = nand_read(&nand_info[0], CFG_ENV_OFFSET, &total, (u_char*)data);
+			env_ptr = data;
+			if (ret || total != CFG_ENV_SIZE)
+				return use_default();
+			if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc)
+				return use_default();
+		} else {
+			printf("no devices available\n");
+			return use_default();
+		}
+	}
+/*	
+*/
 #endif /* ! ENV_IS_EMBEDDED */
 }
 
-#ifdef CONFIG_MOVINAND
+void env_relocate_spec_nor(void)
+{
+#if !defined(ENV_IS_EMBEDDED)
+	size_t total;
+	int ret, i;
+	u_char *env_dst, *env_src;
+
+	env_src = (u_char *)(CFG_FLASH_BASE + CFG_ENV_OFFSET);
+	env_dst = (u_char *)malloc(CFG_ENV_SIZE);
+	total = CFG_ENV_SIZE;
+	
+	memcpy(env_dst, env_src, total);
+	env_ptr = env_dst;
+	
+	if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc)
+		return use_default();
+#endif
+}
+
 void env_relocate_spec_movinand(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
 	uint *magic = (uint*)(PHYS_SDRAM_1);
 
-	if ((0x24564236 != magic[0]) || (0x20764316 != magic[1]))
-#ifndef CONFIG_S5PC100
+	if ((0x24564236 != magic[0]) || (0x20764316 != magic[1])) {
 		movi_read_env(virt_to_phys((ulong)env_ptr));
-#endif
+	}
+	
 	if (crc32(0, env_ptr->data, ENV_SIZE) != env_ptr->crc)
 		return use_default();
 #endif /* ! ENV_IS_EMBEDDED */
 }
-#endif /*CONFIG_MOVINAND*/
 
-#ifdef CONFIG_ONENAND
 void env_relocate_spec_onenand(void)
 {
 	use_default();
 }
-#endif
 
 void env_relocate_spec(void)
 {
-#if !defined(CONFIG_SMDK6440)
+#if defined(CONFIG_SMDKC100) | defined(CONFIG_SMDKC110) | defined(CONFIG_S5P6442)
+	if (INF_REG3_REG == 1)
+		env_relocate_spec_onenand();
+	else if (INF_REG3_REG == 2)
+		env_relocate_spec_nand();
+	else if (INF_REG3_REG == 3)
+		env_relocate_spec_movinand();
+	else if (INF_REG3_REG == 4)
+		env_relocate_spec_nor();
+	else
+		use_default();
+#elif !defined(CONFIG_SMDK6440)
 	if (INF_REG3_REG >= 2 && INF_REG3_REG <= 6)
 		env_relocate_spec_nand();
-#ifdef CONFIG_MOVINAND
 	else if (INF_REG3_REG == 0 || INF_REG3_REG == 7)
 		env_relocate_spec_movinand();
-#endif
-#ifdef CONFIG_ONENAND
 	else if (INF_REG3_REG == 1)
 		env_relocate_spec_onenand();
-#endif
 	else
 		printf("Unknown boot device\n");
 #else
 	if (INF_REG3_REG >= 3 && INF_REG3_REG <= 6)
 		env_relocate_spec_nand();
-#ifdef CONFIG_MOVINAND
 	else if (INF_REG3_REG == 0 || INF_REG3_REG == 1 || INF_REG3_REG == 7)
 		env_relocate_spec_movinand();
-#endif
 #endif
 }
 

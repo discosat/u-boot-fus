@@ -37,6 +37,8 @@
 #include <linux/mtd/nand.h>
 #include <regs.h>
 
+#define NAND_CONTROL_ENABLE()	(NFCONT_REG |= (1 << 0))
+
 #define NF8_ReadPage(a,b,c)	(((int(*)(uint, uint, uchar *))(*((uint *)(0x0c004000))))(a,b,c))
 #define NF8_ReadPage_Adv(a,b,c)	(((int(*)(uint, uint, uchar *))(*((uint *)(0x0c004004))))(a,b,c))
 
@@ -45,7 +47,7 @@ void nand_bl2_copy(void)
 	int block, page;
 	volatile uint *base = (uint *) 0x57e00000;
 
-	for (block = 0; block < 16; block++) {
+	for (block = 0; block < 32; block++) {
 		for (page = 0; page < 32; page++) {
 			NF8_ReadPage(block, page, (uchar *)base);
 			base += (512 / (sizeof(uint)));
@@ -53,15 +55,24 @@ void nand_bl2_copy(void)
 	}
 }
 
-void nand_bl2_copy_adv(void)
+void nand_bl2_copy_adv(int b4Kpage)
 {
 	int block, page;
 	volatile uint *base = (uint *) 0x57e00000;
 
-	for (block = 0; block < 2; block++) {
-		for (page = 0; page < 128; page++) {
-			NF8_ReadPage_Adv(block, page, (uchar *) base);
-			base += (2048 / (sizeof(uint)));
+	if(b4Kpage == 1) {
+		for (block = 0; block < 2; block++) {
+			for (page = 0; page < 128; page++) {
+				NF8_ReadPage_Adv(block, page, (uchar *) base);
+				base += (4096 / (sizeof(uint)));
+			}
+		}
+	} else {
+		for (block = 0; block < 4; block++) {
+			for (page = 0; page < 64; page++) {
+				NF8_ReadPage_Adv(block, page, (uchar *) base);
+				base += (2048 / (sizeof(uint)));
+			}
 		}
 	}
 }
@@ -74,13 +85,9 @@ void nand_bl2_copy_adv(void)
  * --------------------------------------------
  */
 
-static int nandll_read_page (uchar *buf, ulong addr, int large_block)
+static int nandll_read_page (uchar *buf, ulong addr, int large_block, int page_size)
 {
         int i;
-	int page_size = 512;
-
-	if (large_block)
-		page_size = 2048;
 
         NAND_ENABLE_CE();
 
@@ -113,18 +120,14 @@ static int nandll_read_page (uchar *buf, ulong addr, int large_block)
 /*
  * Read data from NAND.
  */
-static int nandll_read_blocks (ulong dst_addr, ulong size, int large_block)
+static int nandll_read_blocks (ulong dst_addr, ulong size, int large_block, int page_shift)
 {
         uchar *buf = (uchar *)dst_addr;
         int i;
-	uint page_shift = 9;
-
-	if (large_block)
-		page_shift = 11;
 
         /* Read pages */
-        for (i = 0; i < (0x3c000>>page_shift); i++, buf+=(1<<page_shift)) {
-                nandll_read_page(buf, i, large_block);
+        for (i = 0; i < (size>>page_shift); i++, buf+=(1<<page_shift)) {
+                nandll_read_page(buf, i, large_block, 1 << page_shift);
         }
 
         return 0;
@@ -135,7 +138,9 @@ int copy_uboot_to_ram (void)
 	int large_block = 0;
 	int i;
 	vu_char id;
+	int page_shift = 9;
 	
+	NAND_CONTROL_ENABLE();
         NAND_ENABLE_CE();
         NFCMD_REG = NAND_CMD_READID;
         NFADDR_REG =  0x00;
@@ -145,13 +150,24 @@ int copy_uboot_to_ram (void)
 	id = NFDATA8_REG;
 	id = NFDATA8_REG;
 
-	if (id > 0x80)
+	if (id > 0x80) {
 		large_block = 1;
+		id = NFDATA8_REG;
+		id = NFDATA8_REG;
+		switch (id & 3) {
+			case 1:
+				page_shift = 11; break;
+			case 2: 
+				page_shift = 12; break;
+			case 3:
+				page_shift = 13; break;
+		}
+	}
 
 	/* read NAND Block.
 	 * 128KB ->240KB because of U-Boot size increase. by scsuh
 	 * So, read 0x3c000 bytes not 0x20000(128KB).
 	 */
-	return nandll_read_blocks(CFG_PHY_UBOOT_BASE, 0x3c000, large_block);
+	return nandll_read_blocks(CFG_PHY_UBOOT_BASE, COPY_BL2_SIZE, large_block, page_shift);
 }
 

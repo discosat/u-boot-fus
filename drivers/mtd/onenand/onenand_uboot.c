@@ -17,7 +17,7 @@
 
 #ifdef CONFIG_CMD_ONENAND
 
-#if defined(CONFIG_S3C64XX) || defined(CONFIG_S5PC1XX)
+#if defined(CONFIG_S3C64XX) || defined(CONFIG_S5PC1XX) || defined(CONFIG_S5PC11X)
 
 #include <s3c_onenand.h>
 

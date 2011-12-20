@@ -77,12 +77,6 @@ lowlevel_init:
 	str	r3, [r0, #oVECTADDR]
 	str	r3, [r1, #oVECTADDR]
 
-	/* init system clock */
-	bl system_clock_init
-
-	/* for UART */
-	bl uart_asm_init
-
 #if 1
 	ldr	r0, =0xff000fff
 	bic	r1, pc, r0		/* r0 <- current base addr of code */
@@ -91,8 +85,14 @@ lowlevel_init:
 	cmp 	r1, r2			/* compare r0, r1                  */
 	beq	1f			/* r0 == r1 then skip sdram init   */
 #endif
-
+	/* init system clock */
+	bl 	system_clock_init
+	
 	bl	mem_ctrl_asm_init
+
+1:
+	/* for UART */
+	bl 	uart_asm_init
 
 #if 1
         ldr     r0, =(ELFIN_CLOCK_POWER_BASE+RST_STAT_OFFSET)
@@ -103,7 +103,6 @@ lowlevel_init:
 
 #endif
 
-1:
 	ldr	r0, =ELFIN_UART_BASE
 	ldr	r1, =0x4b4b4b4b
 	str	r1, [r0, #UTXH_OFFSET]
@@ -136,6 +135,69 @@ wakeup_reset:
  */
 system_clock_init:
 
+#ifdef SMDK6440_DDR2
+	ldr	r0, =ELFIN_CLOCK_POWER_BASE	@0xE0100000
+
+	/* APLL MPLL Clock select*/
+	mov	r1, #0
+	orr	r1, r1, #VSEL_M_ENABLE
+	str	r1, [r0, #CLK_SRC0_OFFSET]
+
+	ldr	r1, [r0, #CLK_SRC1_OFFSET]
+	ldr	r2, =0x200
+	str	r2, [r0, #CLK_SRC1_OFFSET]
+
+	ldr	r1, [r0, #OTHERS_OFFSET]
+	ldr	r2, =0x00018F1E
+	str	r2, [r0, #OTHERS_OFFSET]
+
+	mov	r1, #0xe10
+	str	r1, [r0, #APLL_LOCK_OFFSET]
+	str	r1, [r0, #MPLL_LOCK_OFFSET]
+
+	ldr   	r1, [r0, #CLK_DIV0_OFFSET]	/*Set Clock Divider 0 */
+	bic	r1, r1, #0xff00
+	bic	r1, r1, #0x1f
+	ldr	r2, =CLK_DIV_VAL
+	orr	r1, r1, r2
+	str	r1, [r0, #CLK_DIV0_OFFSET]
+
+	ldr   	r1, [r0, #CLK_DIV3_OFFSET]	/*Set Clock Divider 3 */
+	bic	r1, r1, #0xff00
+	bic	r1, r1, #0x1f
+	ldr	r2, =CLK_DIV_VAL
+	orr	r2, r2, #0x10
+	orr	r1, r1, r2
+	str	r1, [r0, #CLK_DIV3_OFFSET]
+
+	ldr	r1, [r0, #CLK_DIV1_OFFSET]
+	ldr	r2, =0x00000000
+	str	r2, [r0, #CLK_DIV1_OFFSET]
+
+	ldr	r1, [r0, #CLK_DIV2_OFFSET]
+	ldr	r2, =0x00000000
+	str	r2, [r0, #CLK_DIV2_OFFSET]
+
+	ldr	r1, =APLL_VAL
+	str	r1, [r0, #APLL_CON_OFFSET]
+	ldr	r1, =MPLL_VAL
+	str	r1, [r0, #MPLL_CON_OFFSET]
+
+	/* wait at least 200us to stablize all clock */
+	mov	r1, #0x10000
+1:	subs	r1, r1, #1
+	bne	1b
+
+	ldr	r1, [r0, #CLK_SRC0_OFFSET]	/* APLL, MPLL, EPLL select to Fout */
+	orr	r1, r1, #APLL_SEL_ENABLE
+	orr	r1, r1, #MPLL_SEL_ENABLE
+	orr	r1, r1, #VSEL_M_ENABLE
+	str	r1, [r0, #CLK_SRC0_OFFSET]
+
+	mov	pc, lr
+	
+#else
+
 	ldr	r0, =ELFIN_CLOCK_POWER_BASE	@0xE0100000
 
 	/* APLL MPLL Clock select*/
@@ -150,6 +212,14 @@ system_clock_init:
 	ldr	r2, =CLK_DIV_VAL
 	orr	r1, r1, r2
 	str	r1, [r0, #CLK_DIV0_OFFSET]
+
+	ldr   	r1, [r0, #CLK_DIV3_OFFSET]	/*Set Clock Divider 3 */
+	bic	r1, r1, #0xff00
+	bic	r1, r1, #0x1f
+	ldr	r2, =CLK_DIV_VAL
+	orr	r2, r2, #0x10
+	orr	r1, r1, r2
+	str	r1, [r0, #CLK_DIV3_OFFSET]
 
 	mov	r1, #0xe10
 	str	r1, [r0, #APLL_LOCK_OFFSET]
@@ -174,6 +244,8 @@ system_clock_init:
 	str	r1, [r0, #CLK_SRC0_OFFSET]
 
 	mov	pc, lr
+#endif	
+
 /*
  * uart_asm_init: Initialize UART in asm mode, 115200bps fixed.
  * void uart_asm_init(void)

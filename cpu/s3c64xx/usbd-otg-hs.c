@@ -332,6 +332,12 @@ void s3c_usb_init_phy(void)
 	udelay(10);
 }
 
+/* OTG PHY Power Off */
+void s3c_usb_phy_off(void) {
+	writel(readl(S3C_OTG_PHYPWR)|(0x3<<3), S3C_OTG_PHYPWR);
+	OTHERS_REG &= ~(1<<16);
+}
+
 void s3c_usb_core_soft_reset(void)
 {
 	u32 tmp;
@@ -456,6 +462,8 @@ int s3c_usbc_activate (void)
 int s3c_usb_stop (void)
 {
 	/* dont used in usb high speed, but used in common file cmd_usbd.c  */
+	s3c_usb_core_soft_reset();
+	s3c_usb_phy_off();
 	return 0;
 }
 

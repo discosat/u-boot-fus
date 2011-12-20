@@ -109,6 +109,7 @@ ulong get_PCLK(void)
 		fclk = get_FCLK();		// SYNC Mode
 	else
 		fclk = get_PLLCLK(MPLL);	// ASYNC Mode
+
 	return fclk/(hclkx2_div * pre_div);
 }
 

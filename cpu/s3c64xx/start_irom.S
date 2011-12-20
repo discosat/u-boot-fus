@@ -70,15 +70,24 @@ nand:
 	beq	after_copy
 
 	cmp	r1, #0x4
-	beq	nand_adv
+	beq	nand_adv_2K
 
 	cmp	r1, #0x5
-	beq	nand_adv
+	beq	nand_adv_2K
+
+	cmp	r1, #0x6
+	beq	nand_adv_4K
 
 	bl	nand_bl2_copy
 	b	after_copy
 
-nand_adv:
+nand_adv_2K:
+	mov     r0, #0
+	bl	nand_bl2_copy_adv
+	b	after_copy
+
+nand_adv_4K:
+	mov     r0, #1
 	bl	nand_bl2_copy_adv
 	b	after_copy
 

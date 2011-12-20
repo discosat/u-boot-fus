@@ -38,6 +38,10 @@
 #define CONFIG_SMDK6430		1		/* on a SAMSUNG SMDK6430 Board  */
 //#define CONFIG_SMDK6430_X5A	1		/* on a SAMSUNG SMDK6430 OneNAND POP Board */
 
+#define BOOT_ONENAND		0x1
+#define BOOT_NAND		0x2
+#define BOOT_MMCSD		0x3
+
 #define MEMORY_BASE_ADDRESS	0x50000000
 
 /* input clock of PLL */
@@ -426,6 +430,9 @@
 #define CFG_PHY_UBOOT_BASE	MEMORY_BASE_ADDRESS + 0x7e00000
 
 #define CFG_ENV_OFFSET		0x0007C000
+
+/* nand copy size from nand to DRAM.*/
+#define	COPY_BL2_SIZE		0x80000
 
 #define CFG_MAX_NAND_DEVICE     1
 #define CFG_NAND_BASE           (0x70200010)

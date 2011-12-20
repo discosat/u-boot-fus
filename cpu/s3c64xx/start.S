@@ -199,8 +199,10 @@ cpu_init_crit:
 	cmp	r1, r2                  /* compare r0, r1                  */
 
 #if !defined(CONFIG_S3C6400)
+#if !defined(CONFIG_PICOMOD6) && !defined(CONFIG_PICOCOM3)
 	moveq	r3, #0xf		/* r0 == r1 then skip flash copy   */
 	bl	load_bl2_irom
+#endif
 #else
 	beq	after_copy
 	bl	load_bl2_6400
@@ -285,6 +287,7 @@ _mmu_table_base:
 	.word mmu_table
 #endif
 
+#if !defined(CONFIG_PICOMOD6) && !defined(CONFIG_PICOCOM3)
 /*
  * copy U-Boot to SDRAM and jump to ram (from NAND or OneNAND)
  * r0: size to be compared
@@ -324,6 +327,7 @@ copy_failed:
 compare_failed:
 	nop			/* compare failed */
 	b	compare_failed
+#endif
 
 /*
  * we assume that cache operation is done before. (eg. cleanup_before_linux())
