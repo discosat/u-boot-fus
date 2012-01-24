@@ -142,7 +142,7 @@ static int s3c_nand_device_ready(struct mtd_info *mtdinfo)
 	return !!(readl(NFSTAT) & NFSTAT_RnB);
 }
 
-#ifdef CFG_S3C_NAND_HWECC
+#ifdef CONFIG_SYS_S3C_NAND_HWECC
 /*
  * This function is called before encoding ecc codes to ready ecc engine.
  * Written by jsgood
@@ -257,7 +257,7 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 
 	return ret;
 }
-#endif /* CFG_S3C_NAND_HWECC */
+#endif /* CONFIG_SYS_S3C_NAND_HWECC */
 
 static void s3c_nand_wait_ecc_busy_8bit(void)
 {
@@ -515,7 +515,7 @@ int s3c64xx_nand_init(struct nand_chip *nand)
 	nand->read_buf		= nand_read_buf;
 #endif
 
-#ifdef CFG_S3C_NAND_HWECC
+#ifdef CONFIG_SYS_S3C_NAND_HWECC
 #ifdef CONFIG_NAND_NBOOT
 	nand->ecc.read_page_nboot	= s3c_nand_read_page_8bit;
 	nand->ecc.write_page_nboot	= s3c_nand_write_page_8bit;
@@ -528,7 +528,6 @@ int s3c64xx_nand_init(struct nand_chip *nand)
 	nand->ecc.read_page	= s3c_nand_read_page_1bit;
 	nand->ecc.write_page	= s3c_nand_write_page_1bit;
 #endif
-
 	nand->ecc.hwctl		= s3c_nand_enable_hwecc;
 	nand->ecc.calculate	= s3c_nand_calculate_ecc;
 	nand->ecc.correct	= s3c_nand_correct_data;
@@ -538,11 +537,11 @@ int s3c64xx_nand_init(struct nand_chip *nand)
 	 * board one day, it will get more complicated...
 	 */
 	nand->ecc.mode		= NAND_ECC_HW;
-	nand->ecc.size		= CFG_NAND_ECCSIZE;
-	nand->ecc.bytes		= CFG_NAND_ECCBYTES;
+	nand->ecc.size		= CONFIG_SYS_NAND_ECCSIZE;
+	nand->ecc.bytes		= CONFIG_SYS_NAND_ECCBYTES;
 #else
 	nand->ecc.mode		= NAND_ECC_SOFT;
-#endif /* ! CFG_S3C_NAND_HWECC */
+#endif /* ! CONFIG_SYS_S3C_NAND_HWECC */
 
 	nand->priv		= nand_cs + chip_n++;
 

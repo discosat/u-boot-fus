@@ -31,7 +31,7 @@
  * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
  * Offset 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
  * Offset 0x0100_0000 - 0x03EF_FFFF: (unused, e.g. INITRD)
- * Offset 0x03F0_0000 - 0x07FF_FFFF: U-Boot (inkl. malloc area)
+ * Offset 0x03F0_0000 - 0x03FF_FFFF: U-Boot (inkl. malloc area)
  *
  * NAND flash layout of PicoCOM3 (64MB) (Block size 16KB)
  * --------------------------------------------------------
@@ -51,16 +51,16 @@
  * Offset 0x0050_0000 - 0x007F_FFFF: Linux Kernel zImage (3MB)
  * Offset 0x0080_0000 - 0x3FFF_FFFF: Linux Target System (1016MB)
  *
- * Memory layout within U-Boot (Base address CFG_PHY_UBOOT_BASE)
+ * Memory layout within U-Boot (Base address CONFIG_SYS_PHY_UBOOT_BASE)
  * ----------------------------------------------------------------
- * (Code size):           U-Boot code    
- * CONFIG_STACKSIZE_FIQ:  FIQ stack (if CONFIG_USE_IRQ is defined)
- * CONFIG_STACKSIZE_IRQ:  IRQ stack (if CONFIG_USE_IRQ is defined)
- * CFG_GBL_DATA_SIZE:     Gobal data
- * CFG_MALLOC_LEN:        Heap
- * CFG_STACK_SIZE:        (128K) Stack
+ * (Code size):              U-Boot code    
+ * CONFIG_STACKSIZE_FIQ:     FIQ stack (if CONFIG_USE_IRQ is defined)
+ * CONFIG_STACKSIZE_IRQ:     IRQ stack (if CONFIG_USE_IRQ is defined)
+ * CONFIG_SYS_GBL_DATA_SIZE: Gobal data
+ * CONFIG_SYS_MALLOC_LEN:    Heap
+ * CONFIG_SYS_STACK_SIZE:    (128K) Stack
  * ----------------------------------------------------------------
- * CFG_UBOOT_SIZE:        Sum is size of U-Boot 
+ * CONFIG_SYS_UBOOT_SIZE:    Sum is size of U-Boot 
  *
  */
 
@@ -121,12 +121,12 @@
  * Command line editor (shell)
  ************************************************************************/
 /* Use standard command line parser */
-#undef CFG_HUSH_PARSER			  /* use "hush" command parser */
-#ifdef CFG_HUSH_PARSER
-#define CFG_PROMPT_HUSH_PS2	"> "
+#undef CONFIG_SYS_HUSH_PARSER		  /* use "hush" command parser */
+#ifdef CONFIG_SYS_HUSH_PARSER
+#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CFG_PROMPT		"PicoCOM3 # " /* Monitor Command Prompt */
+#define CONFIG_SYS_PROMPT	"PicoMOD6 # " /* Monitor Command Prompt */
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
@@ -135,13 +135,13 @@
 /************************************************************************
  * Miscellaneous configurable options
  ************************************************************************/
-#define CFG_LONGHELP			   /* undef to save memory */
-#define CFG_CBSIZE		256	   /* Console I/O Buffer Size */
-#define CFG_PBSIZE		384	   /* Print Buffer Size */
-#define CFG_MAXARGS		16	   /* max number of command args */
-#define CFG_BARGSIZE		CFG_CBSIZE /* Boot Argument Buffer Size	*/
+#define CONFIG_SYS_LONGHELP		   /* undef to save memory */
+#define CONFIG_SYS_CBSIZE	256	   /* Console I/O Buffer Size */
+#define CONFIG_SYS_PBSIZE	384	   /* Print Buffer Size */
+#define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
+#define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 
-/* Stack is above U-Boot code, at the end of CFG_UBOOT_SIZE */
+/* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
 #define CONFIG_MEMORY_UPPER_CODE
 
 /* No need to call special board_late_init() function */
@@ -164,23 +164,18 @@
 #undef CONFIG_USE_IRQ
 
 /* Strange -- not used anywhere, but everybody and its dog undefines it */
-#undef CFG_CLKS_IN_HZ		/* everything, incl board info, in Hz */
+#undef CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
 /* The PWM Timer 4 uses a prescaler of 167 and a divider of 4. This results in
    100kHz or one tick every 10us at PCLK=66.5MHz. */
-#define CFG_HZ			100000
+#define CONFIG_SYS_HZ		100000
 
 
 /************************************************************************
  * Memory layout
  ************************************************************************/
-/* Don't use MMU on PicoCOM3 */
+/* Use MMU */
 #define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
-#if 0  //#ifdef CONFIG_ENABLE_MMU
-#define virt_to_phys(x)	virt_to_phy_picocom3(x)
-#else
-#define virt_to_phys(x)	(x)
-#endif
 
 #define MEMORY_BASE_ADDRESS	0x50000000      /* Physical RAM address */
 
@@ -189,30 +184,30 @@
 #define PHYS_SDRAM_1_SIZE	0x04000000      /* 64 MB */
 
 /* Total memory required by uboot: 1MB */
-#define CFG_UBOOT_SIZE		(1*1024*1024)
+#define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
 /* Locate U-Boot at 1MB below end of memory */
-#define PC3_UBOOT_OFFS          (PHYS_SDRAM_1_SIZE - CFG_UBOOT_SIZE)
+#define OUR_UBOOT_OFFS          (PHYS_SDRAM_1_SIZE - CONFIG_SYS_UBOOT_SIZE)
 
 /* This results in the following base address for uboot */
-#define CFG_PHY_UBOOT_BASE	(MEMORY_BASE_ADDRESS + PC3_UBOOT_OFFS)
+#define CONFIG_SYS_PHY_UBOOT_BASE (MEMORY_BASE_ADDRESS + OUR_UBOOT_OFFS)
 
 #if 0 //###def CONFIG_ENABLE_MMU
-#define CFG_UBOOT_BASE		(0xc0000000 + PC3_UBOOT_OFFS)
+#define CONFIG_SYS_UBOOT_BASE	(0xc0000000 + OUR_UBOOT_OFFS)
 #else
-#define CFG_UBOOT_BASE		CFG_PHY_UBOOT_BASE
+#define CONFIG_SYS_UBOOT_BASE	CONFIG_SYS_PHY_UBOOT_BASE
 #endif
 
 /* Size of malloc() pool (heap) */
-#define CFG_MALLOC_LEN		(CONFIG_ENV_SIZE + 512*1024)
+#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 512*1024)
 
 /* Size in bytes reserved for initial data */
-#define CFG_GBL_DATA_SIZE	128
+#define CONFIG_SYS_GBL_DATA_SIZE	128
 
 /* Stack */
 
 /* The stack sizes are set up in start.S using the settings below */
-#define CFG_STACK_SIZE		128*1024  /* 128KB */
+#define CONFIG_SYS_STACK_SIZE	128*1024  /* 128KB */
 //#define CONFIG_STACKSIZE	0x20000	  /* (unused on S3C6410) */
 #ifdef CONFIG_USE_IRQ
 #define CONFIG_STACKSIZE_IRQ	(4*1024)  /* IRQ stack */
@@ -221,11 +216,11 @@
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) */
-#define CFG_MEMTEST_START	MEMORY_BASE_ADDRESS
-#define CFG_MEMTEST_END		MEMORY_BASE_ADDRESS + PC3_UBOOT_OFFS
+#define CONFIG_SYS_MEMTEST_START MEMORY_BASE_ADDRESS
+#define CONFIG_SYS_MEMTEST_END	MEMORY_BASE_ADDRESS + OUR_UBOOT_OFFS
 
 /* Default load address */
-#define CFG_LOAD_ADDR		MEMORY_BASE_ADDRESS+0x8000
+#define CONFIG_SYS_LOAD_ADDR	MEMORY_BASE_ADDRESS+0x8000
 
 
 
@@ -250,15 +245,14 @@
 #define CONFIG_BAUDRATE		38400
 
 /* valid baudrates */
-#define CFG_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
+#define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
 #if defined(CONFIG_CMD_KGDB)
 #define CONFIG_KGDB_BAUDRATE	115200	  /* speed to run kgdb serial port */
 #define CONFIG_KGDB_SER_INDEX	1	  /* which serial port to use */
 #endif
 
-#define CFG_CONSOLE_IS_IN_ENV		  /* Console can be saved in env */
-//#define CONFIG_UART_66		  /* default clock value of CLK_UART */
+#define CONFIG_SYS_CONSOLE_IS_IN_ENV	  /* Console can be saved in env */
 
 
 /************************************************************************
@@ -282,12 +276,12 @@
 /************************************************************************
  * I2C
  ************************************************************************/
-/* No need to access I2C from U-Boot on PicoCOM3 */
+/* No need to access I2C from U-Boot on this board */
 #undef CONFIG_S3C64XX_I2C
 #ifdef CONFIG_S3C64XX_I2C
 #define CONFIG_HARD_I2C		1
-#define CFG_I2C_SPEED		50000
-#define CFG_I2C_SLAVE		0xFE
+#define CONFIG_SYS_I2C_SPEED	50000
+#define CONFIG_SYS_I2C_SLAVE	0xFE
 #endif
 
 
@@ -359,7 +353,7 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-/* The PicoCOM3 has a NE2000 compatible AX88769B ethernet chip */
+/* This board has a NE2000 compatible AX88769B ethernet chip */
 //#define CONFIG_NET_MULTI
 #define CONFIG_DRIVER_NE2000
 #define CONFIG_DRIVER_NE2000_BASE	0x18000000
@@ -403,29 +397,6 @@
 #define DDR_tWR 		15		/* ns (min: 15ns)*/
 #define DDR_tXSR		120		/* ns (min: 120ns)*/
 #define DDR_CASL		3		/* CAS Latency 3 */
-
-/* mDDR memory configuration */
-#define DMC_DDR_BA_EMRS 	2
-#define DMC_DDR_MEM_CASLAT	3
-#define DMC_DDR_CAS_LATENCY	(DDR_CASL<<1)	/* 6   Set Cas Latency to 3 */
-#define DMC_DDR_t_DQSS		1		/* Min 0.75 ~ 1.25 */
-#define DMC_DDR_t_MRD		2		/* Min 2 tck */
-#define DMC_DDR_t_RAS		(((Startup_HCLK / 1000 * DDR_tRAS) - 1) / 1000000 + 1)	//7, Min 45ns
-#define DMC_DDR_t_RC		(((Startup_HCLK / 1000 * DDR_tRC) - 1) / 1000000 + 1) 	//10, Min 67.5ns
-#define DMC_DDR_t_RCD		(((Startup_HCLK / 1000 * DDR_tRCD) - 1) / 1000000 + 1) 	//4,5(TRM), Min 22.5ns
-#define DMC_DDR_schedule_RCD	((DMC_DDR_t_RCD - 3) << 3)
-#define DMC_DDR_t_RFC		(((Startup_HCLK / 1000 * DDR_tRFC) - 1) / 1000000 + 1) 	//11,18(TRM) Min 80ns
-#define DMC_DDR_schedule_RFC	((DMC_DDR_t_RFC - 3) << 5)
-#define DMC_DDR_t_RP		(((Startup_HCLK / 1000 * DDR_tRP) - 1) / 1000000 + 1) 	//4, 5(TRM) Min 22.5ns
-#define DMC_DDR_schedule_RP	((DMC_DDR_t_RP - 3) << 3)
-#define DMC_DDR_t_RRD		(((Startup_HCLK / 1000 * DDR_tRRD) - 1) / 1000000 + 1)	//3, Min 15ns
-#define DMC_DDR_t_WR		(((Startup_HCLK / 1000 * DDR_tWR) - 1) / 1000000 + 1)	//Min 15ns
-#define DMC_DDR_t_WTR		2
-#define DMC_DDR_t_XP		2							//1tck + tIS(1.5ns)
-#define DMC_DDR_t_XSR		(((Startup_HCLK / 1000 * DDR_tXSR) - 1) / 1000000 + 1)	//17, Min 120ns
-#define DMC_DDR_t_ESR		DMC_DDR_t_XSR
-#define DMC_DDR_REFRESH_PRD	(((Startup_HCLK / 1000 * DDR_tREFRESH) - 1) / 1000000) 	// TRM 2656
-#define DMC_DDR_USER_CONFIG	1							// 2b01 : mDDR
 #endif /* !CONFIG_PICOCOM3 */
 
 
@@ -435,18 +406,22 @@
 #define CONFIG_USB_STORAGE
 //#define CONFIG_USB_OHCI
 #define CONFIG_USB_OHCI_NEW
-#define CFG_USB_OHCI_REGS_BASE 0x74300000
-#define CFG_USB_OHCI_BOARD_INIT
-#define CFG_USB_OHCI_SLOT_NAME "PC3 USB Host"
-#define CFG_USB_OHCI_MAX_ROOT_PORTS 2
+#define CONFIG_SYS_USB_OHCI_REGS_BASE 0x74300000
+#define CONFIG_SYS_USB_OHCI_BOARD_INIT
+#define CONFIG_SYS_USB_OHCI_SLOT_NAME "F+S USB Host"
+#define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 2
+
+/************************************************************************
+ * Keyboard
+ ************************************************************************/
 //#define CONFIG_USB_KEYBOARD
-//#define CFG_DEVICE_DEREGISTER		/* Required for CONFIG_USB_KEYBOARD */
+//#define CONFIG_SYS_DEVICE_DEREGISTER	/* Required for CONFIG_USB_KEYBOARD */
 
 
 /************************************************************************
  * USB device
  ************************************************************************/
-/* No support for special USB device download on PicoCOM3 */
+/* No support for special USB device download on this board */
 #undef CONFIG_S3C_USBD
 //#define USBD_DOWN_ADDR		0xc0000000
 
@@ -456,8 +431,8 @@
  ************************************************************************/
 /* No support for OneNAND */
 #undef CONFIG_ONENAND
-#define CFG_MAX_ONENAND_DEVICE	0
-#define CFG_ONENAND_BASE 	(0x70100000)
+#define CONFIG_SYS_MAX_ONENAND_DEVICE	0
+#define CONFIG_SYS_ONENAND_BASE 	(0x70100000)
 
 
 /************************************************************************
@@ -471,16 +446,7 @@
  * NOR Flash
  ************************************************************************/
 /* No support for NOR flash */
-#define CFG_NO_FLASH		1	/* no NOR flash */     
-#define CFG_MAX_FLASH_BANKS	0	/* max number of memory banks */
-//#define CFG_FLASH_BASE		0x00000000
-#define CFG_MAX_FLASH_SECT	1024
-//#define CONFIG_AMD_LV800
-//#define PHYS_FLASH_SIZE		0x100000
-
-/* timeout values are in ticks */
-#define CFG_FLASH_ERASE_TOUT	(5*CFG_HZ) /* Timeout for Flash Erase */
-#define CFG_FLASH_WRITE_TOUT	(5*CFG_HZ) /* Timeout for Flash Write */
+#define CONFIG_SYS_NO_FLASH	1	/* no NOR flash */     
 
 
 /************************************************************************
@@ -496,40 +462,33 @@
  ************************************************************************/
 /* We have one NAND device */
 #define CONFIG_NAND_S3C64XX     1
-#define CFG_MAX_NAND_DEVICE     1
+#define CONFIG_SYS_MAX_NAND_DEVICE     1
 
 /* One chip per device */
 #define NAND_MAX_CHIPS          1
 
 /* Address of the DATA register for reading and writing data */
-#define CFG_NAND_BASE           (0x70200010)
+#define CONFIG_SYS_NAND_BASE	(0x70200010)
 
 #define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
 #ifdef __NAND_64MB__
-#define CFG_NAND_NBOOT_SIZE	0x08000	  /* 32KB NBoot, uses ECC8 */
-#define CFG_NAND_PAGE_SIZE	512
-#define CFG_NAND_PAGE_COUNT	32
-#define CFG_NAND_ECCSIZE	512	  /* Full page in one ECC cycle */
-#define CFG_NAND_ECCBYTES	4
+#define CONFIG_SYS_NAND_NBOOT_SIZE 0x08000 /* 32KB NBoot, uses ECC8 */
+#define CONFIG_SYS_NAND_PAGE_SIZE  512
+#define CONFIG_SYS_NAND_PAGE_COUNT 32
+#define CONFIG_SYS_NAND_ECCSIZE    512	  /* Full page in one ECC cycle */
+#define CONFIG_SYS_NAND_ECCBYTES   4
 #else
-#define CFG_NAND_NBOOT_SIZE	0x40000	  /* 256KB NBoot, uses ECC8 */
-#define CFG_NAND_PAGE_SIZE	2048
-#define CFG_NAND_PAGE_COUNT	64
-#define CFG_NAND_ECCSIZE	2048	  /* Full page in one ECC cycle */
-#define CFG_NAND_ECCBYTES	4
+#define CONFIG_SYS_NAND_NBOOT_SIZE 0x40000 /* 256KB NBoot, uses ECC8 */
+#define CONFIG_SYS_NAND_PAGE_SIZE  2048
+#define CONFIG_SYS_NAND_PAGE_COUNT 64
+#define CONFIG_SYS_NAND_ECCSIZE    2048	  /* Full page in one ECC cycle */
+#define CONFIG_SYS_NAND_ECCBYTES   4
 #endif
-#define CFG_NAND_BLOCK_SIZE	(CFG_NAND_PAGE_COUNT * CFG_NAND_PAGE_SIZE)
+#define CONFIG_SYS_NAND_BLOCK_SIZE \
+		(CONFIG_SYS_NAND_PAGE_COUNT * CONFIG_SYS_NAND_PAGE_SIZE)
 
 /* Use hardware ECC */
-#define CFG_S3C_NAND_HWECC
-
-/* Support YAFFS access */
-#define CFG_NAND_YAFFS_WRITE	1
-
-/* Commands to (de)select NAND flash */
-#define NAND_DISABLE_CE()	(NFCONT_REG |= (1 << 1))
-#define NAND_ENABLE_CE()	(NFCONT_REG &= ~(1 << 1))
-#define NF_TRANSRnB()		do { while(!(NFSTAT_REG & (1 << 0))); } while(0)
+#define CONFIG_SYS_S3C_NAND_HWECC
 
 /* Support JFFS2 in NAND (commands: fsload, ls, fsinfo) */
 #define CONFIG_JFFS2_NAND
@@ -565,7 +524,7 @@
    is available. To avoid this time, we can save the environment alternatively
    to two different locations in the NAND flash. Then at least one of the
    environments is always valid. Currently we don't use this feature. */
-//#define CFG_ENV_OFFSET_REDUND   0x0007c000
+//#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
 
 /* We have one NAND chip, give it a name */

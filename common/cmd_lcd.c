@@ -350,7 +350,7 @@ static vidinfo_t vidinfo[CONFIG_DISPLAYS]; /* Current display information */
 
 /* Size and base address of the framebuffer pool */
 static fbpoolinfo_t fbpool = {
-	base:	CFG_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
+	base:	CONFIG_SYS_UBOOT_BASE - CONFIG_FBPOOL_SIZE,
 	size:	CONFIG_FBPOOL_SIZE,
 	used:	0
 };
@@ -739,7 +739,7 @@ static wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win)
 /* If not locked, update lcd hardware and set environment variable */
 static void set_vidinfo(vidinfo_t *pvi)
 {
-	char buf[CFG_CBSIZE];
+	char buf[CONFIG_SYS_CBSIZE];
 	char *cmd = "lcd";
 	char *s = buf;
 	const lcdinfo_t *lcd;		  /* Current display */
@@ -842,7 +842,7 @@ static void set_vidinfo(vidinfo_t *pvi)
 /* If not locked, update window hardware and set environment variable */
 static void set_wininfo(const wininfo_t *pwi)
 {
-	char buf[CFG_CBSIZE];
+	char buf[CONFIG_SYS_CBSIZE];
 	char *cmd = "win";
 	char *s = buf;
 
@@ -1009,11 +1009,11 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (argc > 2)
 			newbase = simple_strtoul(argv[2], NULL, 16);
 		else
-			newbase = CFG_UBOOT_BASE - newsize;
+			newbase = CONFIG_SYS_UBOOT_BASE - newsize;
 
 		/* Check if new values are valid */
 		if ((newbase < MEMORY_BASE_ADDRESS)
-		    || (newbase + newsize > CFG_UBOOT_BASE)) {
+		    || (newbase + newsize > CONFIG_SYS_UBOOT_BASE)) {
 			puts("Bad address or collision with U-Boot code\n");
 			return 1;
 		}

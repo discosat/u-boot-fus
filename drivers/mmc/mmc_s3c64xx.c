@@ -14,7 +14,7 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 23.01.2012 18:13:52 (HK)                                    ***/
+/*** Modified: 24.01.2012 16:16:22 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
@@ -55,7 +55,7 @@
 #endif
 
 /* Timeout when waiting for block read/write/etc: 1s */
-#define SDHC_TIMEOUT CFG_HZ
+#define SDHC_TIMEOUT CONFIG_SYS_HZ
 
 /* HighSpeed mode separator */
 #define SDHC_MMC_HIGH_SPEED_CLOCK 26000000

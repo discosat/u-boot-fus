@@ -42,6 +42,7 @@
 #include <command.h>
 #include <malloc.h>
 #include <devices.h>
+#include <timestamp.h>
 #include <version.h>
 #include <net.h>
 #include <serial.h>
@@ -83,7 +84,7 @@ extern void autoload_script(void);
 #endif
 
 const char version_string[] =
-	U_BOOT_VERSION" (" __DATE__ " - " __TIME__ ")"CONFIG_IDENT_STRING;
+	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")"CONFIG_IDENT_STRING;
 
 #ifdef CONFIG_DRIVER_CS8900
 extern int cs8900_get_enetaddr (uchar * addr);
@@ -108,7 +109,7 @@ static ulong mem_malloc_brk = 0;
 static void mem_malloc_init (ulong dest_addr)
 {
 	mem_malloc_start = dest_addr;
-	mem_malloc_end = dest_addr + CFG_MALLOC_LEN;
+	mem_malloc_end = dest_addr + CONFIG_SYS_MALLOC_LEN;
 	mem_malloc_brk = mem_malloc_start;
 
 	memset ((void *) mem_malloc_start, 0,
@@ -223,19 +224,19 @@ static int display_dram_config (void)
 	return (0);
 }
 
-#ifndef CFG_NO_FLASH
+#ifndef CONFIG_SYS_NO_FLASH
 static void display_flash_config (ulong size)
 {
 	puts ("Flash:  ");
 	print_size (size, "\n");
 }
-#endif /* CFG_NO_FLASH */
+#endif /* CONFIG_SYS_NO_FLASH */
 
 #if defined(CONFIG_HARD_I2C) || defined(CONFIG_SOFT_I2C)
 static int init_func_i2c (void)
 {
 	puts ("I2C:   ");
-	i2c_init (CFG_I2C_SPEED, CFG_I2C_SLAVE);
+	i2c_init (CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
 	puts ("ready\n");
 	return (0);
 }
@@ -304,13 +305,14 @@ void start_armboot (void)
 #ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
 	ulong gd_base;
 
-	gd_base = CFG_UBOOT_BASE + CFG_UBOOT_SIZE - CFG_MALLOC_LEN - CFG_STACK_SIZE - sizeof(gd_t);
+	gd_base = CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE
+		- CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_STACK_SIZE - sizeof(gd_t);
 #ifdef CONFIG_USE_IRQ
-	gd_base -= (CONFIG_STACKSIZE_IRQ+CONFIG_STACKSIZE_FIQ);
+	gd_base -= (CONFIG_STACKSIZE_IRQ + CONFIG_STACKSIZE_FIQ);
 #endif
 	gd = (gd_t*)gd_base;
 #else
-	gd = (gd_t*)(_armboot_start - CFG_MALLOC_LEN - sizeof(gd_t));
+	gd = (gd_t*)(_armboot_start - CONFIG_SYS_MALLOC_LEN - sizeof(gd_t));
 #endif
 
 	/* compiler optimization barrier needed for GCC >= 3.4 */
@@ -330,10 +332,10 @@ void start_armboot (void)
 		}
 	}
 
-#ifndef CFG_NO_FLASH
+#ifndef CONFIG_SYS_NO_FLASH
 	/* configure available FLASH banks */
 	display_flash_config (flash_init());
-#endif /* CFG_NO_FLASH */
+#endif /* CONFIG_SYS_NO_FLASH */
 
 #ifdef CONFIG_VFD
 	{
@@ -351,11 +353,11 @@ void start_armboot (void)
 	}
 #endif /* CONFIG_VFD */
 
-	/* armboot_start is defined in the board-specific linker script */
 #ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
-	mem_malloc_init (CFG_UBOOT_BASE + CFG_UBOOT_SIZE - CFG_MALLOC_LEN - CFG_STACK_SIZE);
+	mem_malloc_init (CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE
+			 - CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_STACK_SIZE);
 #else
-	mem_malloc_init (_armboot_start - CFG_MALLOC_LEN);
+	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN);
 #endif
 
 #if defined(CONFIG_CMD_NAND)
@@ -423,9 +425,8 @@ void start_armboot (void)
 #endif /* CONFIG_CMC_PU2 */
 
 	jumptable_init ();
-#if !defined(CONFIG_SMDK6442)
+
 	console_init_r ();	/* fully init console as a device */
-#endif
 
 #if defined(CONFIG_MISC_INIT_R)
 	/* miscellaneous platform dependent initialisations */
@@ -466,8 +467,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 #ifdef BOARD_LATE_INIT
 	board_late_init ();
 #endif
-
-
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
@@ -479,6 +478,11 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 #endif
         eth_init(gd->bd);                /* ### Set MAC-Address in any case */
         eth_halt();
+#endif
+
+#if defined(CONFIG_CMD_IDE)
+	puts("IDE:   ");
+	ide_init();
 #endif
 
 #ifdef CONFIG_CMD_AUTOSCRIPT
@@ -496,11 +500,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
                 ;
         }
         /* ####################### */
-#endif
-
-#if defined(CONFIG_CMD_IDE)
-	puts("IDE:   ");
-	ide_init();
 #endif
 
 	/* main_loop() can return to retry autoboot, if so just run it again. */
@@ -547,7 +546,7 @@ int mdm_init (void)
 			serial_puts(init_str);
 			serial_puts("\n");
 			for(;;) {
-				mdm_readline(console_buffer, CFG_CBSIZE);
+				mdm_readline(console_buffer, CONFIG_SYS_CBSIZE);
 				dbg("ini%d: [%s]", i, console_buffer);
 
 				if ((strcmp(console_buffer, "OK") == 0) ||
@@ -571,7 +570,7 @@ int mdm_init (void)
 	/* final stage - wait for connect */
 	for(;i > 1;) { /* if 'i' > 1 - wait for connection
 				  message from modem */
-		mdm_readline(console_buffer, CFG_CBSIZE);
+		mdm_readline(console_buffer, CONFIG_SYS_CBSIZE);
 		dbg("ini_f: [%s]", console_buffer);
 		if (strncmp(console_buffer, "CONNECT", 7) == 0) {
 			dbg("ini_f: connected");

@@ -177,8 +177,8 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	size_t size;
 	char *cmd, *s;
 	nand_info_t *nand;
-#ifdef CFG_NAND_QUIET
-	int quiet = CFG_NAND_QUIET;
+#ifdef CONFIG_SYS_NAND_QUIET
+	int quiet = CONFIG_SYS_NAND_QUIET;
 #else
 	int quiet = 0;
 #endif
@@ -196,7 +196,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	if (strcmp(cmd, "info") == 0) {
 
 		putc('\n');
-		for (i = 0; i < CFG_MAX_NAND_DEVICE; i++) {
+		for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++) {
 			if (nand_info[i].name)
 				printf("Device %d: %s, erase size %u KiB\n",
 					i, nand_info[i].name,
@@ -209,7 +209,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 		if (argc < 3) {
 			if ((nand_curr_device < 0) ||
-			    (nand_curr_device >= CFG_MAX_NAND_DEVICE))
+			    (nand_curr_device >= CONFIG_SYS_MAX_NAND_DEVICE))
 				puts("\nno devices available\n");
 			else
 				printf("\nDevice %d: %s\n", nand_curr_device,
@@ -217,7 +217,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			return 0;
 		}
 		dev = (int)simple_strtoul(argv[2], NULL, 10);
-		if (dev < 0 || dev >= CFG_MAX_NAND_DEVICE || !nand_info[dev].name) {
+		if (dev < 0 || dev >= CONFIG_SYS_MAX_NAND_DEVICE || !nand_info[dev].name) {
 			puts("No such device\n");
 			return 1;
 		}
@@ -225,7 +225,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		puts("... is now current device\n");
 		nand_curr_device = dev;
 
-#ifdef CFG_NAND_SELECT_DEVICE
+#ifdef CONFIG_SYS_NAND_SELECT_DEVICE
 		/*
 		 * Select the chip in the board/cpu specific driver
 		 */
@@ -269,7 +269,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		goto usage;
 
 	/* the following commands operate on the current device */
-	if (nand_curr_device < 0 || nand_curr_device >= CFG_MAX_NAND_DEVICE ||
+	if (nand_curr_device < 0 || nand_curr_device >= CONFIG_SYS_MAX_NAND_DEVICE ||
 	    !nand_info[nand_curr_device].name) {
 		puts("\nno devices available\n");
 		return 1;
@@ -643,7 +643,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			if (argc == 3)
 				addr = simple_strtoul(argv[1], NULL, 16);
 			else
-				addr = CFG_LOAD_ADDR;
+				addr = CONFIG_SYS_LOAD_ADDR;
 			return nand_load_image(cmdtp, &nand_info[dev->id->num],
 					       part->offset, addr, argv[0]);
 		}
@@ -653,7 +653,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	show_boot_progress(52);
 	switch (argc) {
 	case 1:
-		addr = CFG_LOAD_ADDR;
+		addr = CONFIG_SYS_LOAD_ADDR;
 		boot_device = getenv("bootdevice");
 		break;
 	case 2:
@@ -688,7 +688,7 @@ usage:
 
 	idx = simple_strtoul(boot_device, NULL, 16);
 
-	if (idx < 0 || idx >= CFG_MAX_NAND_DEVICE || !nand_info[idx].name) {
+	if (idx < 0 || idx >= CONFIG_SYS_MAX_NAND_DEVICE || !nand_info[idx].name) {
 		printf("\n** Device %d not available\n", idx);
 		show_boot_progress(-55);
 		return 1;
@@ -765,7 +765,7 @@ void archflashwp(void *archdata, int wp);
 /*
  * Imports from nand_legacy.c
  */
-extern struct nand_chip nand_dev_desc[CFG_MAX_NAND_DEVICE];
+extern struct nand_chip nand_dev_desc[CONFIG_SYS_MAX_NAND_DEVICE];
 extern int curr_device;
 extern int nand_legacy_erase(struct nand_chip *nand, size_t ofs,
 			    size_t len, int clean);
@@ -794,7 +794,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 			putc ('\n');
 
-			for (i = 0; i < CFG_MAX_NAND_DEVICE; ++i) {
+			for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; ++i) {
 				if (nand_dev_desc[i].ChipID ==
 				    NAND_ChipID_UNKNOWN)
 					continue;	/* list only known devices */
@@ -805,7 +805,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 		} else if (strcmp (argv[1], "device") == 0) {
 			if ((curr_device < 0)
-			    || (curr_device >= CFG_MAX_NAND_DEVICE)) {
+			    || (curr_device >= CONFIG_SYS_MAX_NAND_DEVICE)) {
 				puts ("\nno devices available\n");
 				return 1;
 			}
@@ -815,7 +815,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 		} else if (strcmp (argv[1], "bad") == 0) {
 			if ((curr_device < 0)
-			    || (curr_device >= CFG_MAX_NAND_DEVICE)) {
+			    || (curr_device >= CONFIG_SYS_MAX_NAND_DEVICE)) {
 				puts ("\nno devices available\n");
 				return 1;
 			}
@@ -831,7 +831,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			int dev = (int) simple_strtoul (argv[2], NULL, 10);
 
 			printf ("\nDevice %d: ", dev);
-			if (dev >= CFG_MAX_NAND_DEVICE) {
+			if (dev >= CONFIG_SYS_MAX_NAND_DEVICE) {
 				puts ("unknown device\n");
 				return 1;
 			}
@@ -903,7 +903,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			else if (cmdtail && !strcmp (cmdtail, ".e"))
 				cmd |= NANDRW_JFFS2;	/* skip bad blocks */
 #endif
-#ifdef CFG_NAND_SKIP_BAD_DOT_I
+#ifdef CONFIG_SYS_NAND_SKIP_BAD_DOT_I
 			/* need ".i" same as ".jffs2s" for compatibility with older units (esd) */
 			/* ".i" for image -> read skips bad block (no 0xff) */
 			else if (cmdtail && !strcmp (cmdtail, ".i")) {
@@ -911,7 +911,7 @@ int do_nand (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 				if (cmd & NANDRW_READ)
 					cmd |= NANDRW_JFFS2_SKIP;	/* skip bad blocks (on read too) */
 			}
-#endif /* CFG_NAND_SKIP_BAD_DOT_I */
+#endif /* CONFIG_SYS_NAND_SKIP_BAD_DOT_I */
 			else if (cmdtail) {
 				printf ("Usage:\n%s\n", cmdtp->usage);
 				return 1;
@@ -989,7 +989,7 @@ int do_nandboot (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	show_boot_progress (52);
 	switch (argc) {
 	case 1:
-		addr = CFG_LOAD_ADDR;
+		addr = CONFIG_SYS_LOAD_ADDR;
 		boot_device = getenv ("bootdevice");
 		break;
 	case 2:
@@ -1021,7 +1021,7 @@ int do_nandboot (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	dev = simple_strtoul(boot_device, &ep, 16);
 
-	if ((dev >= CFG_MAX_NAND_DEVICE) ||
+	if ((dev >= CONFIG_SYS_MAX_NAND_DEVICE) ||
 	    (nand_dev_desc[dev].ChipID == NAND_ChipID_UNKNOWN)) {
 		printf ("\n** Device %d not available\n", dev);
 		show_boot_progress (-55);

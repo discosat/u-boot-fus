@@ -34,7 +34,7 @@
 #include <malloc.h>		/* for free() prototype */
 #endif
 
-#ifdef CFG_HUSH_PARSER
+#ifdef CONFIG_SYS_HUSH_PARSER
 #include <hush.h>
 #endif
 
@@ -56,6 +56,9 @@ extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);		/* fo
 
 extern int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 
+#if defined(CONFIG_UPDATE_TFTP)
+void update_tftp (void);
+#endif /* CONFIG_UPDATE_TFTP */
 
 #define MAX_DELAY_STOP_STR 32
 
@@ -65,7 +68,7 @@ static int abortboot(int);
 
 #undef DEBUG_PARSER
 
-char        console_buffer[CFG_CBSIZE];		/* console I/O buffer	*/
+char        console_buffer[CONFIG_SYS_CBSIZE];		/* console I/O buffer	*/
 
 #ifndef CONFIG_CMDLINE_EDITING
 static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen);
@@ -271,8 +274,8 @@ static __inline__ int abortboot(int bootdelay)
 
 void main_loop (void)
 {
-#ifndef CFG_HUSH_PARSER
-	static char lastcommand[CFG_CBSIZE] = { 0, };
+#ifndef CONFIG_SYS_HUSH_PARSER
+	static char lastcommand[CONFIG_SYS_CBSIZE] = { 0, };
 	int len;
 	int rc = 1;
 	int flag;
@@ -282,11 +285,9 @@ void main_loop (void)
 	char *s;
 	int bootdelay;
 #endif
-
 #ifdef CONFIG_PREBOOT
 	char *p;
 #endif
-
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	unsigned long bootcount = 0;
 	unsigned long bootlimit = 0;
@@ -298,12 +299,16 @@ void main_loop (void)
 	ulong bmp = 0;		/* default bitmap */
 	extern int trab_vfd (ulong bitmap);
 
-	#ifdef CONFIG_MODEM_SUPPORT
+#ifdef CONFIG_MODEM_SUPPORT
 	if (do_mdm_init)
 		bmp = 1;	/* alternate bitmap */
-	#endif
+#endif
 	trab_vfd (bmp);
 #endif	/* CONFIG_VFD && VFD_TEST_LOGO */
+
+#if defined(CONFIG_UPDATE_TFTP)
+	update_tftp ();
+#endif /* CONFIG_UPDATE_TFTP */
 
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	bootcount = bootcount_load();
@@ -334,8 +339,12 @@ void main_loop (void)
 	}
 #endif /* CONFIG_VERSION_VARIABLE */
 
-#ifdef CFG_HUSH_PARSER
+#ifdef CONFIG_SYS_HUSH_PARSER
 	u_boot_hush_start ();
+#endif
+
+#if defined(CONFIG_HUSH_INIT_VAR)
+	hush_init_var ();
 #endif
 
 #ifdef CONFIG_AUTO_COMPLETE
@@ -344,20 +353,20 @@ void main_loop (void)
 
 #ifdef CONFIG_PREBOOT
 	if ((p = getenv ("preboot")) != NULL) {
-	#ifdef CONFIG_AUTOBOOT_KEYED
+# ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
-	#endif
+# endif
 
-	#ifndef CFG_HUSH_PARSER
+# ifndef CONFIG_SYS_HUSH_PARSER
 		run_command (p, 0);
-	#else
+# else
 		parse_string_outer(p, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-	#endif
+# endif
 
-	#ifdef CONFIG_AUTOBOOT_KEYED
+# ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
-	#endif
+# endif
 	}
 #endif /* CONFIG_PREBOOT */
 
@@ -377,7 +386,6 @@ void main_loop (void)
 	}
 	else
 #endif /* CONFIG_POST */
-
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	if (bootlimit && (bootcount > bootlimit)) {
 		printf ("Warning: Bootlimit (%u) exceeded. Using altbootcmd.\n",
@@ -391,32 +399,32 @@ void main_loop (void)
 	debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (bootdelay >= 0 && s && !abortboot (bootdelay)) {
-#ifdef CONFIG_AUTOBOOT_KEYED
+# ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
-#endif
+# endif
 
-#ifndef CFG_HUSH_PARSER
+# ifndef CONFIG_SYS_HUSH_PARSER
 		run_command (s, 0);
-#else
+# else
 		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-#endif
+# endif
 
-#ifdef CONFIG_AUTOBOOT_KEYED
+# ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
-#endif
+# endif
 	}
 
-#ifdef CONFIG_MENUKEY
+# ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {
 	    s = getenv("menucmd");
 	    if (s) {
-#ifndef CFG_HUSH_PARSER
+# ifndef CONFIG_SYS_HUSH_PARSER
 		run_command (s, 0);
-#else
+# else
 		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
-#endif
+# endif
 	    }
 	}
 #endif /* CONFIG_MENUKEY */
@@ -432,7 +440,7 @@ void main_loop (void)
 	/*
 	 * Main Loop for Monitor Command Processing
 	 */
-#ifdef CFG_HUSH_PARSER
+#ifdef CONFIG_SYS_HUSH_PARSER
 	parse_file_outer();
 	/* This point is never reached */
 	for (;;);
@@ -446,7 +454,7 @@ void main_loop (void)
 			reset_cmd_timeout();
 		}
 #endif
-		len = readline (CFG_PROMPT);
+		len = readline (CONFIG_SYS_PROMPT);
 
 		flag = 0;	/* assume no special flags for now */
 		if (len > 0)
@@ -458,13 +466,12 @@ void main_loop (void)
 			/* -2 means timed out, retry autoboot
 			 */
 			puts ("\nTimed out waiting for command\n");
-
-	#ifdef CONFIG_RESET_TO_RETRY
+# ifdef CONFIG_RESET_TO_RETRY
 			/* Reinit board to run initialization code again */
 			do_reset (NULL, 0, 0, NULL);
-	#else
+# else
 			return;		/* retry autoboot */
-	#endif
+# endif
 		}
 #endif
 
@@ -478,7 +485,7 @@ void main_loop (void)
 			lastcommand[0] = 0;
 		}
 	}
-#endif /*CFG_HUSH_PARSER*/
+#endif /*CONFIG_SYS_HUSH_PARSER*/
 }
 
 #ifdef CONFIG_BOOT_RETRY_TIME
@@ -1038,7 +1045,7 @@ int readline_into_buffer (const char *const prompt, char * buffer)
 			/*
 			 * Must be a normal character then
 			 */
-			if (n < CFG_CBSIZE-2) {
+			if (n < CONFIG_SYS_CBSIZE-2) {
 				if (c == '\t') {	/* expand TABs		*/
 #ifdef CONFIG_AUTO_COMPLETE
 					/* if auto completion triggered just continue */
@@ -1108,7 +1115,7 @@ static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen)
  *	0  - command executed but not repeatable, interrupted commands are
  *	     always considered not repeatable
  *	-1 - not executed (unrecognized, bootd recursion or too many args)
- *           (If cmd is NULL or "" or longer than CFG_CBSIZE-1 it is
+ *           (If cmd is NULL or "" or longer than CONFIG_SYS_CBSIZE-1 it is
  *           considered unrecognized)
  *
  * WARNING:
@@ -1122,9 +1129,9 @@ static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen)
 int run_command (const char *cmd, int flag)
 {
 	cmd_tbl_t *cmdtp;
-	char cmdbuf[CFG_CBSIZE];	/* working copy of cmd		*/
-	char output[CFG_CBSIZE];
-	char *argv[CFG_MAXARGS + 1];	/* NULL terminated	*/
+	char cmdbuf[CONFIG_SYS_CBSIZE];	/* working copy of cmd		*/
+	char output[CONFIG_SYS_CBSIZE];
+	char *argv[CONFIG_SYS_MAXARGS + 1];	/* NULL terminated	*/
 	int argc;
 	int repeatable = 1;
 	int rc = 0;
@@ -1157,8 +1164,8 @@ int run_command (const char *cmd, int flag)
 		return -1;	/* empty command */
 	}
 
-	if (strlen(cmd) >= CFG_CBSIZE) {
-		puts ("Command too long!\n");
+	if (strlen(cmd) >= CONFIG_SYS_CBSIZE) {
+		puts ("## Command too long!\n");
 		return -1;
 	}
 
@@ -1240,7 +1247,7 @@ int run_command (const char *cmd, int flag)
 					/* Save start of variable */
 					varindex = out;
 					output[out++] = c;
-					if (out >= CFG_CBSIZE)
+					if (out >= CONFIG_SYS_CBSIZE)
 						break;
 
 					/* Check for opening brace */
@@ -1262,11 +1269,11 @@ int run_command (const char *cmd, int flag)
 						output[out++] = c;
 						c = *input++;
 					} while (c && (c != delim)
-						 && (out < CFG_CBSIZE));
+						 && (out < CONFIG_SYS_CBSIZE));
 
 					/* Unexpected end of command or no
 					   more room in buffer */
-					if (!c || (out >= CFG_CBSIZE))
+					if (!c || (out >= CONFIG_SYS_CBSIZE))
 						break;
 
 					/* The variable name starts 2 chars
@@ -1292,7 +1299,7 @@ int run_command (const char *cmd, int flag)
 							if (!cc)
 								break;
 							output[out++] = cc;
-						} while (out < CFG_CBSIZE);
+						} while (out < CONFIG_SYS_CBSIZE);
 					}
 					break;
 
@@ -1309,7 +1316,7 @@ int run_command (const char *cmd, int flag)
 				break;
 			/* Make sure that we don't exceed the allowed number
 			   of arguments */
-			if (argc >= CFG_MAXARGS) {
+			if (argc >= CONFIG_SYS_MAXARGS) {
 				argc--;
 				error |= 1; /* Remember as error */
 			}
@@ -1321,7 +1328,7 @@ int run_command (const char *cmd, int flag)
 			   don't need to check for enough space in the buffer
 			   in the loop above and we also automatically find
 			   the end of the current command. */
-			if (out >= CFG_CBSIZE) {
+			if (out >= CONFIG_SYS_CBSIZE) {
 				out--;
 				error |= 2; /* Remember as error */
 			}
@@ -1429,7 +1436,7 @@ int do_run (cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			printf ("## Error: \"%s\" not defined\n", argv[i]);
 			return 1;
 		}
-#ifndef CFG_HUSH_PARSER
+#ifndef CONFIG_SYS_HUSH_PARSER
 		if (run_command (arg, flag) == -1)
 			return 1;
 #else
