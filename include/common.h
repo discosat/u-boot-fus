@@ -269,6 +269,7 @@ void	forceenv     (char *, char *);
 #ifdef CONFIG_AUTO_COMPLETE
 int env_complete(char *var, int maxv, char *cmdv[], int maxsz, char *buf);
 #endif
+int get_env_id (void);
 
 void	pci_init      (void);
 void	pci_init_board(void);
@@ -597,6 +598,8 @@ ulong	video_setmem (ulong);
 
 /* lib_$(ARCH)/cache.c */
 void	flush_cache   (unsigned long, unsigned long);
+void	flush_dcache_range(unsigned long start, unsigned long stop);
+void	invalidate_dcache_range(unsigned long start, unsigned long stop);
 
 
 /* lib_$(ARCH)/ticks.S */

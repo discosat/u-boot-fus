@@ -434,7 +434,8 @@ slot2str(dir_slot *slotptr, char *l_name, int *idx)
  * into 'retdent'
  * Return 0 on success, -1 otherwise.
  */
-__u8	 get_vfatname_block[MAX_CLUSTSIZE];
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
+__u8 get_vfatname_block[MAX_CLUSTSIZE];
 static int
 get_vfatname(fsdata *mydata, int curclust, __u8 *cluster,
 	     dir_entry *retdent, char *l_name)
@@ -520,6 +521,7 @@ mkcksum(const char *str)
  * Get the directory entry associated with 'filename' from the directory
  * starting at 'startsect'
  */
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_dentfromdir_block[MAX_CLUSTSIZE];
 static dir_entry *get_dentfromdir (fsdata * mydata, int startsect,
 				   char *filename, dir_entry * retdent,
@@ -670,6 +672,7 @@ read_bootsectandvi(boot_sector *bs, volume_info *volinfo, int *fatsize)
 {
 	__u8 block[FS_BLOCK_SIZE];
 	volume_info *vistart;
+	char *fstype;
 
 	if (disk_read(0, 1, block) < 0) {
 		FAT_DPRINT("Error: reading block\n");
@@ -702,9 +705,12 @@ read_bootsectandvi(boot_sector *bs, volume_info *volinfo, int *fatsize)
 	}
 	memcpy(volinfo, vistart, sizeof(volume_info));
 
-	/* Terminate fs_type string. Writing past the end of vistart
-	   is ok - it's just the buffer. */
-	vistart->fs_type[8] = '\0';
+	/*
+	 * Terminate fs_type string. Writing past the end of vistart
+	 * is ok - it's just the buffer.
+	 */
+	fstype = vistart->fs_type;
+	fstype[8] = '\0';
 
 	if (*fatsize == 32) {
 		if (compare_sign(FAT32_SIGN, vistart->fs_type) == 0) {
@@ -725,8 +731,8 @@ read_bootsectandvi(boot_sector *bs, volume_info *volinfo, int *fatsize)
 	return -1;
 }
 
-
-__u8 do_fat_read_block[MAX_CLUSTSIZE];  /* Block buffer */
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
+__u8 do_fat_read_block[MAX_CLUSTSIZE];
 long
 do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 	     int dols)
