@@ -68,6 +68,7 @@ int	serial_init   (void);
 void	serial_addr   (unsigned int);
 void	serial_setbrg (void);
 void	serial_putc_raw(const char);
+int	serial_start  (const device_t *);
 void	serial_putc   (const device_t *, const char);
 void	serial_puts   (const device_t *, const char *);
 int	serial_getc   (const device_t *);

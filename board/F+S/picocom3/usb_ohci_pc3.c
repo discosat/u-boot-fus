@@ -2,7 +2,7 @@
 
 #ifdef CONFIG_USB_OHCI_NEW
 
-#include <regs.h>
+#include <s3c64xx-regs.h>
 
 int usb_board_init(void)
 {

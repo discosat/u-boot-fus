@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2006 Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand_ecc.c,v 1.3 2007/02/21 01:58:27 jsgood Exp $
+ * $Id: nand_ecc.c,v 1.15 2005/11/07 11:14:30 gleixner Exp $
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -39,9 +39,20 @@
 
 #include <common.h>
 
-#if defined(CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY)
+/* XXX U-BOOT XXX */
+#if 0
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mtd/nand_ecc.h>
+#endif
 
 #include<linux/mtd/mtd.h>
+
+/*
+ * NAND-SPL has no sofware ECC for now, so don't include nand_calculate_ecc(),
+ * only nand_correct_data() is needed
+ */
 
 #ifndef CONFIG_NAND_SPL
 /*
@@ -125,6 +136,10 @@ int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 
 	return 0;
 }
+/* XXX U-BOOT XXX */
+#if 0
+EXPORT_SYMBOL(nand_calculate_ecc);
+#endif
 #endif /* CONFIG_NAND_SPL */
 
 static inline int countbits(uint32_t byte)
@@ -194,4 +209,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	return -1;
 }
 
-#endif	/* (CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY) */
+/* XXX U-BOOT XXX */
+#if 0
+EXPORT_SYMBOL(nand_correct_data);
+#endif

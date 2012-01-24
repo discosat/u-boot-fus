@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@cotw.com>
  *		       Thomas Gleixner <gleixner@autronix.de>
  *
- * $Id: nand_legacy.h,v 1.1.1.1 2006/12/06 00:22:13 scsuh Exp $
+ * $Id: nand.h,v 1.7 2003/07/24 23:30:46 a0384864 Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,7 +36,7 @@
 #ifndef __LINUX_MTD_NAND_LEGACY_H
 #define __LINUX_MTD_NAND_LEGACY_H
 
-#ifndef CFG_NAND_LEGACY
+#ifndef CONFIG_NAND_LEGACY
 #error This module is for the legacy NAND support
 #endif
 
@@ -53,18 +53,6 @@
 #define NAND_CMD_READID		0x90
 #define NAND_CMD_ERASE2		0xd0
 #define NAND_CMD_RESET		0xff
-
-/*
- * Enumeration for NAND flash chip state
- */
-typedef enum {
-	FL_READY,
-	FL_READING,
-	FL_WRITING,
-	FL_ERASING,
-	FL_SYNCING
-} nand_state_t;
-
 
 /*
  * NAND Private Flash Chip Data
@@ -104,12 +92,12 @@ struct Nand {
 };
 
 struct nand_chip {
-	int 		page_shift;
-	u_char 		*data_buf;
-	u_char 		*data_cache;
+	int		page_shift;
+	u_char		*data_buf;
+	u_char		*data_cache;
 	int		cache_page;
-	u_char 		ecc_code_buf[6];
-	u_char 		reserved[2];
+	u_char		ecc_code_buf[6];
+	u_char		reserved[2];
 	char ChipID; /* Type of DiskOnChip */
 	struct Nand *chips;
 	int chipshift;

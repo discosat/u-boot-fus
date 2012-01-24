@@ -1,5 +1,5 @@
 /*
- * $Id: nftl.h,v 1.2 2007/02/13 02:11:16 jsgood Exp $
+ * $Id: nftl.h,v 1.16 2004/06/30 14:49:00 dbrown Exp $
  *
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */
@@ -10,13 +10,13 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/blktrans.h>
 
-#include <mtd/nftl-user.h>
+#include <linux/mtd/nftl-user.h>
 
 /* these info are used in ReplUnitTable */
-#define BLOCK_NIL          0xffff /* last block of a chain */
-#define BLOCK_FREE         0xfffe /* free block */
+#define BLOCK_NIL	   0xffff /* last block of a chain */
+#define BLOCK_FREE	   0xfffe /* free block */
 #define BLOCK_NOTEXPLORED  0xfffd /* non explored block, only used during mounting */
-#define BLOCK_RESERVED     0xfffc /* bios block or bad block */
+#define BLOCK_RESERVED	   0xfffc /* bios block or bad block */
 
 struct NFTLrecord {
 	struct mtd_blktrans_dev mbd;
@@ -28,15 +28,15 @@ struct NFTLrecord {
 	unsigned char sectors;
 	unsigned short cylinders;
 	__u16 numvunits;
-	__u16 lastEUN;                  /* should be suppressed */
+	__u16 lastEUN;			/* should be suppressed */
 	__u16 numfreeEUNs;
-	__u16 LastFreeEUN; 		/* To speed up finding a free EUN */
+	__u16 LastFreeEUN;		/* To speed up finding a free EUN */
 	int head,sect,cyl;
-	__u16 *EUNtable; 		/* [numvunits]: First EUN for each virtual unit  */
-	__u16 *ReplUnitTable; 		/* [numEUNs]: ReplUnitNumber for each */
-        unsigned int nb_blocks;		/* number of physical blocks */
-        unsigned int nb_boot_blocks;	/* number of blocks used by the bios */
-        struct erase_info instr;
+	__u16 *EUNtable;		/* [numvunits]: First EUN for each virtual unit  */
+	__u16 *ReplUnitTable;		/* [numEUNs]: ReplUnitNumber for each */
+	unsigned int nb_blocks;		/* number of physical blocks */
+	unsigned int nb_boot_blocks;	/* number of blocks used by the bios */
+	struct erase_info instr;
 	struct nand_ecclayout oobinfo;
 };
 

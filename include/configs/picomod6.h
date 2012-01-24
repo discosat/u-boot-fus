@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2010
+ * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
  * Configuation settings for the F&S PicoMOD6 board.
@@ -166,9 +166,9 @@
 /* Strange -- not used anywhere, but everybody and its dog undefines it */
 #undef CFG_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
-/* The PWM Timer 4 uses a divider by 1 and a prescaler of 16. This results in
-   the following counter value for 1 sec. */
-#define CFG_HZ			4156250		/* at PCLK 66.5MHz */
+/* The PWM Timer 4 uses a prescaler of 167 and a divider of 4. This results in
+   100kHz or one tick every 10us at PCLK=66.5MHz. */
+#define CFG_HZ			100000
 
 
 /************************************************************************
@@ -204,7 +204,7 @@
 #endif
 
 /* Size of malloc() pool (heap) */
-#define CFG_MALLOC_LEN		(CFG_ENV_SIZE + 512*1024)
+#define CFG_MALLOC_LEN		(CONFIG_ENV_SIZE + 512*1024)
 
 /* Size in bytes reserved for initial data */
 #define CFG_GBL_DATA_SIZE	128
@@ -377,83 +377,6 @@
 #define CONFIG_CLK_532_133_66
 //#define CONFIG_CLK_400_133_66
 //#define CONFIG_CLK_400_100_50
-//#define CONFIG_CLK_OTHERS
-
-#define CONFIG_CLKSRC_CLKUART
-
-#define set_pll(mdiv, pdiv, sdiv)	(1<<31 | mdiv<<16 | pdiv<<8 | sdiv)
-
-#if defined(CONFIG_CLK_666_133_66) /* FIN 12MHz, Fout 666MHz */
-#define APLL_MDIV	333
-#define APLL_PDIV	3
-#define APLL_SDIV	1
-#undef  CONFIG_SYNC_MODE /* ASYNC MODE */
-
-#elif defined(CONFIG_CLK_532_133_66) /* FIN 12MHz, Fout 532MHz */
-#define APLL_MDIV	266
-#define APLL_PDIV	3
-#define APLL_SDIV	1
-#define CONFIG_SYNC_MODE
-
-#elif defined(CONFIG_CLK_400_133_66) || defined(CONFIG_CLK_800_133_66) /* FIN 12MHz, Fout 800MHz */
-#define APLL_MDIV	400
-#define APLL_PDIV	3
-#define APLL_SDIV	1
-#define CONFIG_SYNC_MODE
-
-#elif defined(CONFIG_CLK_400_100_50) /* FIN 12MHz, Fout 400MHz */
-#define APLL_MDIV	400
-#define APLL_PDIV	3
-#define APLL_SDIV	2
-#define CONFIG_SYNC_MODE
-
-#elif defined(CONFIG_CLK_OTHERS)
-/*If you have to use another value, please define pll value here*/
-/* FIN 12MHz, Fout 532MHz */
-#define APLL_MDIV	266
-#define APLL_PDIV	3
-#define APLL_SDIV	1
-#define CONFIG_SYNC_MODE
-
-#else
-#error "Not Support Fequency or Mode!! you have to setup right configuration."
-#endif
-
-#define APLL_VAL	set_pll(APLL_MDIV, APLL_PDIV, APLL_SDIV)
-/* prevent overflow */
-#define Startup_APLL	(CONFIG_SYS_CLK_FREQ/(APLL_PDIV<<APLL_SDIV)*APLL_MDIV)
-
-/* fixed MPLL 533MHz */
-#define MPLL_MDIV	266
-#define MPLL_PDIV	3
-#define MPLL_SDIV	1
-
-#define MPLL_VAL	set_pll(MPLL_MDIV, MPLL_PDIV, MPLL_SDIV)
-/* prevent overflow */
-#define Startup_MPLL	((CONFIG_SYS_CLK_FREQ)/(MPLL_PDIV<<MPLL_SDIV)*MPLL_MDIV)
-
-#if defined(CONFIG_CLK_800_133_66)
-#define Startup_APLLdiv		0
-#define Startup_HCLKx2div	2
-#elif defined(CONFIG_CLK_400_133_66)
-#define Startup_APLLdiv		1
-#define Startup_HCLKx2div	2
-#else
-#define Startup_APLLdiv		0
-#define Startup_HCLKx2div	1
-#endif
-
-#define	Startup_PCLKdiv		3
-#define Startup_HCLKdiv		1
-#define Startup_MPLLdiv		1
-
-#define CLK_DIV_VAL	((Startup_PCLKdiv<<12)|(Startup_HCLKx2div<<9)|(Startup_HCLKdiv<<8)|(Startup_MPLLdiv<<4)|Startup_APLLdiv)
-
-#if defined(CONFIG_SYNC_MODE)
-#define Startup_HCLK	(Startup_APLL/(Startup_HCLKx2div+1)/(Startup_HCLKdiv+1))
-#else
-#define Startup_HCLK	(Startup_MPLL/(Startup_HCLKx2div+1)/(Startup_HCLKdiv+1))
-#endif
 #endif /* !CONFIG_PICOMOD6 */
 
 
@@ -548,6 +471,7 @@
  * NOR Flash
  ************************************************************************/
 /* No support for NOR flash */
+#define CFG_NO_FLASH		1	/* no NOR flash */     
 #define CFG_MAX_FLASH_BANKS	0	/* max number of memory banks */
 //#define CFG_FLASH_BASE		0x00000000
 #define CFG_MAX_FLASH_SECT	1024
@@ -571,6 +495,7 @@
  * NAND flash organization
  ************************************************************************/
 /* We have one NAND device */
+#define CONFIG_NAND_S3C64XX     1
 #define CFG_MAX_NAND_DEVICE     1
 
 /* One chip per device */
@@ -579,23 +504,27 @@
 /* Address of the DATA register for reading and writing data */
 #define CFG_NAND_BASE           (0x70200010)
 
-/* .i read skips bad blocks */
-#define CFG_NAND_SKIP_BAD_DOT_I	1
+#define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
+#ifdef __NAND_64MB__
+#define CFG_NAND_NBOOT_SIZE	0x08000	  /* 32KB NBoot, uses ECC8 */
+#define CFG_NAND_PAGE_SIZE	512
+#define CFG_NAND_PAGE_COUNT	32
+#define CFG_NAND_ECCSIZE	512	  /* Full page in one ECC cycle */
+#define CFG_NAND_ECCBYTES	4
+#else
+#define CFG_NAND_NBOOT_SIZE	0x40000	  /* 256KB NBoot, uses ECC8 */
+#define CFG_NAND_PAGE_SIZE	2048
+#define CFG_NAND_PAGE_COUNT	64
+#define CFG_NAND_ECCSIZE	2048	  /* Full page in one ECC cycle */
+#define CFG_NAND_ECCBYTES	4
+#endif
+#define CFG_NAND_BLOCK_SIZE	(CFG_NAND_PAGE_COUNT * CFG_NAND_PAGE_SIZE)
+
+/* Use hardware ECC */
+#define CFG_S3C_NAND_HWECC
 
 /* Support YAFFS access */
 #define CFG_NAND_YAFFS_WRITE	1
-
-/* Support hardware ECC */
-#define CFG_NAND_HWECC
-
-/* Don't use bad block table */
-#undef CFG_NAND_FLASH_BBT
-
-/* The first two blocks in NAND are using 8-bit ECC (instead of 1-bit ECC) */
-#define CONFIG_NAND_BL1_8BIT_ECC
-
-/* Use NAND write protection (unused, only used if CFG_NAND_LEGACY is set) */
-#define	CFG_NAND_WP		1
 
 /* Commands to (de)select NAND flash */
 #define NAND_DISABLE_CE()	(NFCONT_REG |= (1 << 1))
@@ -613,27 +542,22 @@
  * Environment
  ************************************************************************/
 /* Use this if the environment should be in the NAND flash */
-#define CFG_ENV_IS_IN_NAND
+#define CONFIG_ENV_IS_IN_NAND
 
-/* Use this if the code should decide itself if the system was booted from
-   NAND, MoviNAND (=MMC-Card) or OneNAND. The environment ist assumed to be
-   in the same device. */
-//#define CFG_ENV_IS_IN_AUTO
-
-#define CFG_ENV_ADDR		0	  /* Only needed for NOR flash */
+#define CONFIG_ENV_ADDR		0	  /* Only needed for NOR flash */
 
 #ifdef __NAND_64MB__
 /* The environment is 16KB and can use a region of 32KB, allowing for one bad
    block. */
-#define CFG_ENV_SIZE		0x00004000   /* 16KB actual environment */
-#define CFG_ENV_RANGE           0x00008000   /* 32KB region for environment */
-#define CFG_ENV_OFFSET		0x00078000
+#define CONFIG_ENV_SIZE    0x00004000	  /* 16KB actual environment */
+#define CONFIG_ENV_RANGE   0x00008000	  /* 32KB region for environment */
+#define CONFIG_ENV_OFFSET  0x00078000
 #else
 /* The environment is 128KB and can use a region of 256KB, allowing for one
    bad block. */
-#define CFG_ENV_SIZE		0x00020000   /* 128KB actual environment */
-#define CFG_ENV_RANGE           0x00040000   /* 256KB region for environment */
-#define CFG_ENV_OFFSET		0x000C0000
+#define CONFIG_ENV_SIZE	   0x00020000	  /* 128KB actual environment */
+#define CONFIG_ENV_RANGE   0x00040000	  /* 256KB region for environment */
+#define CONFIG_ENV_OFFSET  0x000C0000
 #endif
 
 /* When saving the environment, we usually have a short period of time between

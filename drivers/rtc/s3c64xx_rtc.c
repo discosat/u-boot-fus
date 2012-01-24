@@ -30,7 +30,7 @@
 
 #if defined(CONFIG_RTC_S3C64XX) && defined(CONFIG_CMD_DATE)
 
-#include <regs.h>
+#include <s3c64xx-regs.h>
 
 #include <rtc.h>
 
@@ -44,7 +44,7 @@ typedef enum {
 
 static inline void SetRTC_Access(RTC_ACCESS a)
 {
-	S3C64XX_RTC * const rtc = S3C64XX_GetBase_RTC();
+	s3c64xx_rtc * const rtc = S3C64XX_GetBase_RTC();
 	switch (a) {
 		case RTC_ENABLE:
 			rtc->RTCCON |= 0x01; break;
@@ -66,9 +66,9 @@ static unsigned char bin2bcd (unsigned int n)
 
 /* ------------------------------------------------------------------------- */
 
-void rtc_get (struct rtc_time *tmp)
+int rtc_get (struct rtc_time *tmp)
 {
-	S3C64XX_RTC * const rtc = S3C64XX_GetBase_RTC();
+	s3c64xx_rtc * const rtc = S3C64XX_GetBase_RTC();
 	uchar sec, min, hour, mday, wday, mon, year;
 	uchar a_sec,a_min, a_hour, a_date, a_mon, a_year, a_armed;
 
@@ -127,11 +127,13 @@ void rtc_get (struct rtc_time *tmp)
 		tmp->tm_year, tmp->tm_mon, tmp->tm_mday, tmp->tm_wday,
 		tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 #endif
+
+	return 0;
 }
 
-void rtc_set (struct rtc_time *tmp)
+int rtc_set (struct rtc_time *tmp)
 {
-	S3C64XX_RTC * const rtc = S3C64XX_GetBase_RTC();
+	s3c64xx_rtc * const rtc = S3C64XX_GetBase_RTC();
 	uchar sec, min, hour, mday, wday, mon, year;
 
 #ifdef RTC_DEBUG
@@ -161,11 +163,13 @@ void rtc_set (struct rtc_time *tmp)
 
 	/* disable access to RTC registers */
 	SetRTC_Access(RTC_DISABLE);
+
+	return 0;
 }
 
 void rtc_reset (void)
 {
-	S3C64XX_RTC * const rtc = S3C64XX_GetBase_RTC();
+	s3c64xx_rtc * const rtc = S3C64XX_GetBase_RTC();
 
 	rtc->RTCCON = (rtc->RTCCON & ~0x06) | 0x08;
 	rtc->RTCCON &= ~(0x08|0x01);

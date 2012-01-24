@@ -2,6 +2,9 @@
 # (C) Copyright 2000, 2001, 2002
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
 #
+# (C) Copyright 2008
+# Guennadi Liakhovetki, DENX Software Engineering, <lg@denx.de>
+#
 # See file CREDITS for list of people who contributed to this
 # project.
 #
@@ -23,25 +26,29 @@
 
 include $(TOPDIR)/config.mk
 
-LIB	= lib$(BOARD).a
+LIB	= $(obj)lib$(BOARD).a
 
-OBJS	:= smdk6400.o flash.o
+COBJS-y	:= smdk6400.o
 SOBJS	:= lowlevel_init.o
 
-$(LIB):	$(OBJS) $(SOBJS)
-	$(AR) crv $@ $(SOBJS) $(OBJS)
+SRCS    := $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
+OBJS	:= $(addprefix $(obj),$(COBJS-y))
+SOBJS	:= $(addprefix $(obj),$(SOBJS))
+
+$(LIB):	$(obj).depend $(SOBJS) $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(SOBJS) $(OBJS)
 
 clean:
 	rm -f $(SOBJS) $(OBJS)
 
 distclean:	clean
-	rm -f $(LIB) core *.bak .depend
+	rm -f $(LIB) core *.bak $(obj).depend
 
 #########################################################################
 
-.depend:	Makefile $(SOBJS:.o=.S) $(OBJS:.o=.c)
-		$(CC) -M $(CPPFLAGS) $(SOBJS:.o=.S) $(OBJS:.o=.c) > $@
+# defines $(obj).depend target
+include $(SRCTREE)/rules.mk
 
--include .depend
+sinclude $(obj).depend
 
 #########################################################################

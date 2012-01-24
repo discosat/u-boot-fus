@@ -22,9 +22,6 @@
  */
 
 #include <common.h>
-
-#if defined(CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY)
-
 #include <nand.h>
 
 #ifndef CFG_NAND_BASE_LIST
@@ -39,7 +36,7 @@ static ulong base_address[CFG_MAX_NAND_DEVICE] = CFG_NAND_BASE_LIST;
 
 static const char default_nand_name[] = "nand";
 
-extern void board_nand_init(struct nand_chip *nand);
+extern int board_nand_init(struct nand_chip *nand);
 
 static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 			   ulong base_addr)
@@ -47,13 +44,16 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 	mtd->priv = nand;
 
 	nand->IO_ADDR_R = nand->IO_ADDR_W = (void  __iomem *)base_addr;
-	board_nand_init(nand);
-
-	if (nand_scan(mtd, 1) == 0) {
-		if (!mtd->name)
-			mtd->name = (char *)default_nand_name;
-	} else
+	if (board_nand_init(nand) == 0) {
+		if (nand_scan(mtd, 1) == 0) {
+			if (!mtd->name)
+				mtd->name = (char *)default_nand_name;
+		} else
+			mtd->name = NULL;
+	} else {
 		mtd->name = NULL;
+		mtd->size = 0;
+	}
 
 }
 
@@ -63,17 +63,11 @@ void nand_init(void)
 	unsigned int size = 0;
 	for (i = 0; i < CFG_MAX_NAND_DEVICE; i++) {
 		nand_init_chip(&nand_info[i], &nand_chip[i], base_address[i]);
-		size += nand_info[i].size;
+		size += nand_info[i].size / 1024;
 		if (nand_curr_device == -1)
 			nand_curr_device = i;
 	}
-	printf("%u MB ", size / (1024 * 1024));
-
-#if defined(CFG_NAND_FLASH_BBT)
-	printf("(Flash Based BBT Enabled)");
-#endif
-
-	printf("\n");
+	printf("%u MiB\n", size / 1024);
 
 #ifdef CFG_NAND_SELECT_DEVICE
 	/*
@@ -82,5 +76,3 @@ void nand_init(void)
 	board_nand_select_device(nand_info[nand_curr_device].priv, nand_curr_device);
 #endif
 }
-
-#endif

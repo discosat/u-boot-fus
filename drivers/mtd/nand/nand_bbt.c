@@ -6,7 +6,7 @@
  *
  *  Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_bbt.c,v 1.4 2008/03/31 07:00:37 jsgood Exp $
+ * $Id: nand_bbt.c,v 1.36 2005/11/07 11:14:30 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -53,15 +53,25 @@
  */
 
 #include <common.h>
-
-#if defined(CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY)
-
 #include <malloc.h>
 #include <linux/mtd/compat.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 
 #include <asm/errno.h>
+
+/* XXX U-BOOT XXX */
+#if 0
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/compatmac.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
+#include <linux/vmalloc.h>
+#endif
 
 /**
  * check_pattern - [GENERIC] check if a pattern is in the buffer
@@ -182,11 +192,8 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 				}
 				/* Leave it for now, if its matured we can move this
 				 * message to MTD_DEBUG_LEVEL0 */
-/* jsgood: turn off the message */
-#if 0
 				printk(KERN_DEBUG "nand_read_bbt: Bad block at 0x%08x\n",
 				       ((offs << 2) + (act >> 1)) << this->bbt_erase_shift);
-#endif
 				/* Factory marked bad or worn out ? */
 				if (tmp == 0)
 					this->bbt[offs + (act >> 3)] |= 0x3 << (act & 0x06);
@@ -337,13 +344,6 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 	struct mtd_oob_ops ops;
 	int j, ret;
 
-	/* jsgood: for Samsung MLC */
-	struct nand_chip *nand = mtd->priv;
-
-	/* jsgood: for Samsung MLC */
-	if ((nand->cellinfo >> 2) & 0x3)
-		offs += (mtd->erasesize - (mtd->writesize * len));
-
 	ops.ooblen = mtd->oobsize;
 	ops.oobbuf = buf;
 	ops.ooboffs = 0;
@@ -357,7 +357,6 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 		 * buswidth
 		 */
 		ret = mtd->read_oob(mtd, offs, &ops);
-		
 		if (ret)
 			return ret;
 
@@ -389,7 +388,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	loff_t from;
 	size_t readlen;
 
-	printk(KERN_INFO "Scanning device for bad blocks\n");
+	MTDDEBUG (MTD_DEBUG_LEVEL0, "Scanning device for bad blocks\n");
 
 	if (bd->options & NAND_BBT_SCANALLPAGES)
 		len = 1 << (this->bbt_erase_shift - this->page_shift);
@@ -431,6 +430,11 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	for (i = startblock; i < numblocks;) {
 		int ret;
 
+#ifdef CONFIG_NAND_NBOOT
+		if (from < CFG_NAND_NBOOT_SIZE)
+			ret = 0;
+		else
+#endif
 		if (bd->options & NAND_BBT_SCANALLPAGES)
 			ret = scan_block_full(mtd, bd, from, buf, readlen,
 					      scanlen, len);
@@ -442,11 +446,9 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		if (ret) {
 			this->bbt[i >> 3] |= 0x03 << (i & 0x6);
-/* jsgood: turn off the message */
-#if 0
-			printk(KERN_WARNING "Bad eraseblock %d at 0x%08x\n",
-			       i >> 1, (unsigned int)from);
-#endif
+			MTDDEBUG (MTD_DEBUG_LEVEL0,
+			          "Bad eraseblock %d at 0x%08x\n",
+			          i >> 1, (unsigned int)from);
 			mtd->ecc_stats.badblocks++;
 		}
 
@@ -526,9 +528,6 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		}
 		startblock += this->chipsize >> this->bbt_erase_shift;
 	}
-
-/* jsgood: turn off the messages */
-#if 0
 	/* Check, if we found a bbt for each requested chip */
 	for (i = 0; i < chips; i++) {
 		if (td->pages[i] == -1)
@@ -537,7 +536,6 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 			printk(KERN_DEBUG "Bad block table found at page %d, version 0x%02X\n", td->pages[i],
 			       td->version[i]);
 	}
-#endif
 	return 0;
 }
 
@@ -750,11 +748,9 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		if (res < 0)
 			goto outerr;
 
-/* jsgood: turn off the message */
-#if 0
 		printk(KERN_DEBUG "Bad block table written to 0x%08x, version "
 		       "0x%02X\n", (unsigned int)to, td->version[chip]);
-#endif
+
 		/* Mark it as used */
 		td->pages[chip] = page;
 	}
@@ -982,14 +978,11 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 
 	len = mtd->size >> (this->bbt_erase_shift + 2);
 	/* Allocate memory (2bit per block) and clear the memory bad block table */
-	this->bbt = kmalloc(len, GFP_KERNEL);
+	this->bbt = kzalloc(len, GFP_KERNEL);
 	if (!this->bbt) {
 		printk(KERN_ERR "nand_scan_bbt: Out of memory\n");
 		return -ENOMEM;
 	}
-
-	/* jsgood: for some cases, this->bbt should be clean */
-	memset(this->bbt, 0, len);
 
 	/* If no primary table decriptor is given, scan the device
 	 * to build a memory based bad block table
@@ -1006,7 +999,7 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	/* Allocate a temporary buffer for one eraseblock incl. oob */
 	len = (1 << this->bbt_erase_shift);
 	len += (len >> this->page_shift) * mtd->oobsize;
-	buf = kmalloc(len, GFP_KERNEL);
+	buf = vmalloc(len);
 	if (!buf) {
 		printk(KERN_ERR "nand_bbt: Out of memory\n");
 		kfree(this->bbt);
@@ -1030,7 +1023,7 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	if (md)
 		mark_bbt_region(mtd, md);
 
-	kfree(buf);
+	vfree(buf);
 	return res;
 }
 
@@ -1227,8 +1220,8 @@ int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 	block = (int)(offs >> (this->bbt_erase_shift - 1));
 	res = (this->bbt[block >> 3] >> (block & 0x06)) & 0x03;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "nand_isbad_bbt(): bbt info for offs 0x%08x: (block %d) 0x%02x\n",
-	      (unsigned int)offs, block >> 1, res);
+	MTDDEBUG (MTD_DEBUG_LEVEL2, "nand_isbad_bbt(): bbt info for offs 0x%08x: "
+	          "(block %d) 0x%02x\n", (unsigned int)offs, res, block >> 1);
 
 	switch ((int)res) {
 	case 0x00:
@@ -1241,4 +1234,8 @@ int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 	return 1;
 }
 
+/* XXX U-BOOT XXX */
+#if 0
+EXPORT_SYMBOL(nand_scan_bbt);
+EXPORT_SYMBOL(nand_default_bbt);
 #endif

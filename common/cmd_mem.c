@@ -37,37 +37,6 @@
 #endif
 #include <watchdog.h>
 
-#if defined(CONFIG_CMD_MEMORY)		\
-    || defined(CONFIG_CMD_I2C)		\
-    || defined(CONFIG_CMD_ITEST)	\
-    || defined(CONFIG_CMD_PCI)		\
-    || defined(CONFIG_CMD_PORTIO)
-
-int cmd_get_data_size(char* arg, int default_size)
-{
-	/* Check for a size specification .b, .w or .l.
-	 */
-	int len = strlen(arg);
-	if (len > 2 && arg[len-2] == '.') {
-		switch(arg[len-1]) {
-		case 'b':
-			return 1;
-		case 'w':
-			return 2;
-		case 'l':
-			return 4;
-		case 's':
-			return -2;
-		default:
-			return -1;
-		}
-	}
-	return default_size;
-}
-#endif
-
-#if defined(CONFIG_CMD_MEMORY)
-
 #ifdef	CMD_MEM_DEBUG
 #define	PRINTF(fmt,args...)	printf (fmt ,##args)
 #else
@@ -1198,8 +1167,35 @@ int do_mem_crc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 #endif	/* CONFIG_CRC32_VERIFY */
 
+
+#ifdef CONFIG_CMD_UNZIP
+int  gunzip (void *, int, unsigned char *, unsigned long *);
+
+int do_unzip ( cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	unsigned long src, dst;
+	unsigned long src_len = ~0UL, dst_len = ~0UL;
+	int err;
+
+	switch (argc) {
+		case 4:
+			dst_len = simple_strtoul(argv[3], NULL, 16);
+			/* fall through */
+		case 3:
+			src = simple_strtoul(argv[1], NULL, 16);
+			dst = simple_strtoul(argv[2], NULL, 16);
+			break;
+		default:
+			printf ("Usage:\n%s\n", cmdtp->usage);
+			return 1;
+	}
+
+	return !!gunzip((void *) dst, dst_len, (void *) src, &src_len);
+}
+#endif /* CONFIG_CMD_UNZIP */
+
+
 /**************************************************/
-#if defined(CONFIG_CMD_MEMORY)
 U_BOOT_CMD(
 	md,	3,	1,	do_mem_md,
 	"md	- memory display\n",
@@ -1223,7 +1219,7 @@ U_BOOT_CMD(
 U_BOOT_CMD(
 	mw,	4,	1,	do_mem_mw,
 	"mw	- memory write (fill)\n",
-	"[.b, .w, .l] address value [count]\n	 - write memory\n"
+	"[.b, .w, .l] address value [count]\n	- write memory\n"
 );
 
 U_BOOT_CMD(
@@ -1301,5 +1297,10 @@ U_BOOT_CMD(
 );
 #endif /* CONFIG_MX_CYCLIC */
 
-#endif
-#endif
+#ifdef CONFIG_CMD_UNZIP
+U_BOOT_CMD(
+	unzip,	4,	1,	do_unzip,
+	"unzip - unzip a memory region\n",
+	"srcaddr dstaddr [dstsize]\n"
+);
+#endif /* CONFIG_CMD_UNZIP */

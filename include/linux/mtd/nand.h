@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.6 2007/03/21 10:43:42 jsgood Exp $
+ * $Id: nand.h,v 1.74 2005/09/15 13:58:50 vwool Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,8 +20,18 @@
 #ifndef __LINUX_MTD_NAND_H
 #define __LINUX_MTD_NAND_H
 
-#include <linux/mtd/compat.h>
+/* XXX U-BOOT XXX */
+#if 0
+#include <linux/wait.h>
+#include <linux/spinlock.h>
 #include <linux/mtd/mtd.h>
+#endif
+
+#include "config.h"
+
+#include "linux/mtd/compat.h"
+#include "linux/mtd/mtd.h"
+
 
 struct mtd_info;
 /* Scan and identify a NAND device */
@@ -37,11 +47,16 @@ extern void nand_release (struct mtd_info *mtd);
 /* Internal helper for board drivers which need to override command function */
 extern void nand_wait_ready(struct mtd_info *mtd);
 
+/* The maximum number of NAND chips in an array */
+#ifndef NAND_MAX_CHIPS
+#define NAND_MAX_CHIPS		8
+#endif
+
 /* This constant declares the max. oobsize / page, which
  * is supported now. If you add a chip with bigger oobsize/page
  * adjust this accordingly.
  */
-#define NAND_MAX_OOBSIZE	218
+#define NAND_MAX_OOBSIZE	128
 #define NAND_MAX_PAGESIZE	4096
 
 /*
@@ -189,6 +204,8 @@ typedef enum {
    (e.g. because it needs them DMA-coherent */
 #define NAND_OWN_BUFFERS	0x00040000
 /* Options set by nand scan */
+/* bbt has already been read */
+#define NAND_BBT_SCANNED	0x40000000
 /* Nand scan has allocated controller struct */
 #define NAND_CONTROLLER_ALLOC	0x80000000
 
@@ -196,25 +213,9 @@ typedef enum {
 #define NAND_CI_CHIPNR_MSK	0x03
 #define NAND_CI_CELLTYPE_MSK	0x0C
 
-/*
- * nand_state_t - chip states
- * Enumeration for NAND flash chip state
- */
-typedef enum {
-	FL_READY,
-	FL_READING,
-	FL_WRITING,
-	FL_ERASING,
-	FL_SYNCING,
-	FL_CACHEDPRG,
-	FL_PM_SUSPENDED,
-} nand_state_t;
-
 /* Keep gcc happy */
 struct nand_chip;
 
-/* XXX U-BOOT XXX */
-#if 0
 /**
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
  * @lock:               protection lock
@@ -223,11 +224,13 @@ struct nand_chip;
  *                      used instead of the per chip wait queue when a hw controller is available
  */
 struct nand_hw_control {
+/* XXX U-BOOT XXX */
+#if 0
 	spinlock_t	 lock;
-	struct nand_chip *active;
 	wait_queue_head_t wq;
-};
 #endif
+	struct nand_chip *active;
+};
 
 /**
  * struct nand_ecc_ctrl - Control structure for ecc
@@ -285,6 +288,14 @@ struct nand_ecc_ctrl {
 	int			(*write_oob)(struct mtd_info *mtd,
 					     struct nand_chip *chip,
 					     int page);
+#ifdef CONFIG_NAND_NBOOT
+	int			(*read_page_nboot)(struct mtd_info *mtd,
+						   struct nand_chip *chip,
+						   uint8_t *buf);
+	void			(*write_page_nboot)(struct mtd_info *mtd,
+						    struct nand_chip *chip,
+						    const uint8_t *buf);
+#endif
 };
 
 /**
@@ -342,6 +353,7 @@ struct nand_buffers {
  * @options:		[BOARDSPECIFIC] various chip options. They can partly be set to inform nand_scan about
  *			special functionality. See the defines for further explanation
  * @badblockpos:	[INTERN] position of the bad block marker in the oob area
+ * @cellinfo:		[INTERN] MLC/multichip data from chip ident
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
@@ -398,20 +410,17 @@ struct nand_chip {
 	uint8_t		cellinfo;
 	int		badblockpos;
 
-	nand_state_t	state;
+	int 		state;
 
 	uint8_t		*oob_poi;
-#if 0
 	struct nand_hw_control  *controller;
-#endif
 	struct nand_ecclayout	*ecclayout;
 
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers *buffers;
-/* XXX U-BOOT XXX */
-#if 0
+
 	struct nand_hw_control hwcontrol;
-#endif
+
 	struct mtd_oob_ops ops;
 
 	uint8_t		*bbt;
@@ -433,6 +442,7 @@ struct nand_chip {
 #define NAND_MFR_RENESAS	0x07
 #define NAND_MFR_STMICRO	0x20
 #define NAND_MFR_HYNIX		0xad
+#define NAND_MFR_MICRON		0x2c
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
@@ -467,6 +477,10 @@ struct nand_manufacturers {
 
 extern const struct nand_flash_dev nand_flash_ids[];
 extern const struct nand_manufacturers nand_manuf_ids[];
+
+#ifndef NAND_MAX_CHIPS
+#define NAND_MAX_CHIPS 8
+#endif
 
 /**
  * struct nand_bbt_descr - bad block table descriptor
@@ -561,6 +575,7 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @chip_delay:		R/B delay value in us
  * @options:		Option flags, e.g. 16bit buswidth
  * @ecclayout:		ecc layout info structure
+ * @part_probe_types:	NULL-terminated array of probe types
  * @priv:		hardware controller specific settings
  */
 struct platform_nand_chip {
@@ -571,6 +586,7 @@ struct platform_nand_chip {
 	struct nand_ecclayout	*ecclayout;
 	int			chip_delay;
 	unsigned int		options;
+	const char		**part_probe_types;
 	void			*priv;
 };
 
@@ -579,6 +595,8 @@ struct platform_nand_chip {
  * @hwcontrol:		platform specific hardware control structure
  * @dev_ready:		platform specific function to read ready/busy pin
  * @select_chip:	platform specific chip select function
+ * @cmd_ctrl:		platform specific function for controlling
+ *			ALE/CLE/nCE. Also used to write command and address
  * @priv:		private data to transport driver specific settings
  *
  * All fields are optional and depend on the hardware driver requirements
@@ -587,7 +605,19 @@ struct platform_nand_ctrl {
 	void		(*hwcontrol)(struct mtd_info *mtd, int cmd);
 	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*select_chip)(struct mtd_info *mtd, int chip);
+	void		(*cmd_ctrl)(struct mtd_info *mtd, int dat,
+				    unsigned int ctrl);
 	void		*priv;
+};
+
+/**
+ * struct platform_nand_data - container structure for platform-specific data
+ * @chip:		chip level chip structure
+ * @ctrl:		controller level device structure
+ */
+struct platform_nand_data {
+	struct platform_nand_chip	chip;
+	struct platform_nand_ctrl	ctrl;
 };
 
 /* Some helpers to access the data structures */

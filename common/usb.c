@@ -50,8 +50,6 @@
 #include <linux/ctype.h>
 #include <asm/byteorder.h>
 
-#if defined(CONFIG_CMD_USB)
-
 #include <usb.h>
 #ifdef CONFIG_4xx
 #include <asm/4xx_pci.h>
@@ -128,10 +126,15 @@ int usb_init(void)
  */
 int usb_stop(void)
 {
-	asynch_allowed=1;
-	usb_started = 0;
-	usb_hub_reset();
-	return usb_lowlevel_stop();
+	int res = 0;
+
+	if (usb_started) {
+		asynch_allowed = 1;
+		usb_started = 0;
+		usb_hub_reset();
+		res = usb_lowlevel_stop();
+	}
+	return res;
 }
 
 /*
@@ -1260,7 +1263,5 @@ int usb_hub_probe(struct usb_device *dev, int ifnum)
 	ret=usb_hub_configure(dev);
 	return ret;
 }
-
-#endif
 
 /* EOF */

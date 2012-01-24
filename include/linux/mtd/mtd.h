@@ -1,5 +1,5 @@
 /*
- * $Id: mtd.h,v 1.4 2007/09/28 06:57:09 jsgood Exp $
+ * $Id: mtd.h,v 1.61 2005/11/07 11:14:54 gleixner Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -12,13 +12,31 @@
 #include <linux/types.h>
 #include <linux/mtd/mtd-abi.h>
 
+#define MTD_CHAR_MAJOR 90
+#define MTD_BLOCK_MAJOR 31
 #define MAX_MTD_DEVICES 32
 
-#define MTD_ERASE_PENDING      	0x01
+#define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
 #define MTD_ERASE_DONE          0x08
 #define MTD_ERASE_FAILED        0x10
+
+/*
+ * Enumeration for NAND/OneNAND flash chip state
+ */
+enum {
+	FL_READY,
+	FL_READING,
+	FL_WRITING,
+	FL_ERASING,
+	FL_SYNCING,
+	FL_CACHEDPRG,
+	FL_RESETING,
+	FL_UNLOCKING,
+	FL_LOCKING,
+	FL_PM_SUSPENDED,
+};
 
 /* If the erase fails, fail_addr might indicate exactly which block failed.  If
    fail_addr = 0xffffffff, the failure was not at the device level or was not
@@ -42,6 +60,7 @@ struct mtd_erase_region_info {
 	u_int32_t offset;			/* At which this region starts, from the beginning of the MTD */
 	u_int32_t erasesize;		/* For this region */
 	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
+	unsigned long *lockmap;		/* If keeping bitmap of locks */
 };
 
 /*
@@ -74,6 +93,10 @@ typedef enum {
  *		mode = MTD_OOB_PLACE)
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
+ *
+ * Note, it is allowed to read more then one OOB area at one go, but not write.
+ * The interface assumes that the OOB write requests program only one page's
+ * OOB area.
  */
 struct mtd_oob_ops {
 	mtd_oob_mode_t	mode;
@@ -89,7 +112,7 @@ struct mtd_oob_ops {
 struct mtd_info {
 	u_char type;
 	u_int32_t flags;
-	u_int32_t size;	 // Total size of the MTD
+	u_int32_t size;	 /* Total size of the MTD */
 
 	/* "Major" erase size for the device. Naïve users may take this
 	 * to be the only erase size available, or may use the more detailed
@@ -105,23 +128,10 @@ struct mtd_info {
 	 */
 	u_int32_t writesize;
 
-	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
-	u_int32_t oobavail;  // Available OOB bytes per block
+	u_int32_t oobsize;   /* Amount of OOB data per block (e.g. 16) */
+	u_int32_t oobavail;  /* Available OOB bytes per block */
 
-	u_int32_t ecctype;
-	u_int32_t eccsize;
-
-	/*
-	 * Reuse some of the above unused fields in the case of NOR flash
-	 * with configurable programming regions to avoid modifying the
-	 * user visible structure layout/size.  Only valid when the
-	 * MTD_PROGRAM_REGIONS flag is set.
-	 * (Maybe we should have an union for those?)
-	 */
-#define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
-#define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
-
-	// Kernel-only stuff starts here.
+	/* Kernel-only stuff starts here. */
 	char *name;
 	int index;
 
@@ -133,9 +143,6 @@ struct mtd_info {
 	 */
 	int numeraseregions;
 	struct mtd_erase_region_info *eraseregions;
-
-	/* This really shouldn't be here. It can go away in 2.5 */
-	u_int32_t bank_size;
 
 	int (*erase) (struct mtd_info *mtd, struct erase_info *instr);
 
@@ -168,7 +175,6 @@ struct mtd_info {
 
 /* XXX U-BOOT XXX */
 #if 0
-
 	/* kvec-based read/write methods.
 	   NB: The 'count' parameter is the number of _vectors_, each of
 	   which contains an (ofs, len) tuple.
@@ -225,7 +231,6 @@ extern struct mtd_info *get_mtd_device_nm(const char *name);
 
 extern void put_mtd_device(struct mtd_info *mtd);
 
-
 /* XXX U-BOOT XXX */
 #if 0
 struct mtd_notifier {
@@ -233,7 +238,6 @@ struct mtd_notifier {
 	void (*remove)(struct mtd_info *mtd);
 	struct list_head list;
 };
-
 
 extern void register_mtd_user (struct mtd_notifier *new);
 extern int unregister_mtd_user (struct mtd_notifier *old);
@@ -264,14 +268,13 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 #define MTD_DEBUG_LEVEL3	(3)	/* Noisy   */
 
 #ifdef CONFIG_MTD_DEBUG
-#define DEBUG(n, args...)				\
+#define MTDDEBUG(n, args...)				\
 	do {						\
 		if (n <= CONFIG_MTD_DEBUG_VERBOSE)	\
 			printk(KERN_INFO args);		\
 	} while(0)
 #else /* CONFIG_MTD_DEBUG */
-#define DEBUG(n, args...) do { } while(0)
-
+#define MTDDEBUG(n, args...) do { } while(0)
 #endif /* CONFIG_MTD_DEBUG */
 
 #endif /* __MTD_MTD_H__ */

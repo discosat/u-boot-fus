@@ -22,7 +22,9 @@
  */
 
 #include <common.h>
-#include <regs.h>
+#include <s3c64xx-regs.h>
+#include <s3c64x0.h>
+#include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
 #ifdef CONFIG_LCD
 #include <cmd_lcd.h>			  /* PON_*, POFF_* */
 #endif
@@ -35,6 +37,31 @@
 #define CS8900_Tah	(0x4)	// 4clk		address holding time
 #define CS8900_Tacp	(0x6)	// 6clk		page mode access cycle
 #define CS8900_PMC	(0x0)	// normal(1data)page mode configuration
+
+#ifdef __NAND_64MB__
+/* 512+16 pages: ECC is in bytes 8..11 in OOB, bad block marker is in byte 5 */
+static struct nand_ecclayout picomod6_oob_16 = {
+	.eccbytes = 4,
+	.eccpos = {8, 9, 10, 11},
+	.oobfree = {
+		{.offset = 0,
+		 . length = 5},           /* Before bad block marker */
+                {.offset = 6,
+		 . length = 2},           /* Between bad block marker and ECC */
+                {.offset = 12,
+		 . length = 4},           /* Behind ECC */
+	}
+};
+#else
+/* 2048+64 pages: ECC is in bytes 1..4 in OOB, bad block marker is in byte 0 */
+static struct nand_ecclayout picomod6_oob_16 = {
+	.eccbytes = 4,
+	.eccpos = {1, 2, 3, 4},
+	.oobfree = {
+		{.offset = 5,             /* Behind bad block marker and ECC */
+		 .length = 59}}
+};
+#endif
 
 static inline void delay(unsigned long loops)
 {
@@ -66,7 +93,6 @@ int board_init(void)
 
 	ax88796_pre_init();
 
-
 	gd->bd->bi_arch_number = MACH_TYPE;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);
 
@@ -92,49 +118,10 @@ int dram_init(void)
 }
 
 #ifdef BOARD_LATE_INIT
-#if defined(CONFIG_BOOT_NAND)
-int board_late_init (void)
-{
-	uint *magic = (uint*)(PHYS_SDRAM_1);
-	char boot_cmd[100];
-
-	if ((0x24564236 == magic[0]) && (0x20764316 == magic[1])) {
-		sprintf(boot_cmd, "nand erase 0 40000;nand write %08x 0 40000", PHYS_SDRAM_1 + 0x8000);
-		magic[0] = 0;
-		magic[1] = 0;
-		printf("\nready for self-burning U-Boot image\n\n");
-		setenv("bootdelay", "0");
-		setenv("bootcmd", boot_cmd);
-	}
-
-	return 0;
-}
-#elif defined(CONFIG_BOOT_MOVINAND)
-int board_late_init (void)
-{
-	uint *magic = (uint*)(PHYS_SDRAM_1);
-	char boot_cmd[100];
-	int hc;
-
-	hc = (magic[2] & 0x1) ? 1 : 0;
-
-	if ((0x24564236 == magic[0]) && (0x20764316 == magic[1])) {
-		sprintf(boot_cmd, "movi init %d %d;movi write u-boot %08x", magic[3], hc, PHYS_SDRAM_1 + 0x8000);
-		magic[0] = 0;
-		magic[1] = 0;
-		printf("\nready for self-burning U-Boot image\n\n");
-		setenv("bootdelay", "0");
-		setenv("bootcmd", boot_cmd);
-	}
-
-	return 0;
-}
-#else
 int board_late_init (void)
 {
 	return 0;
 }
-#endif
 #endif
 
 #ifdef CONFIG_DISPLAY_BOARDINFO
@@ -159,17 +146,21 @@ ulong virt_to_phy_picomod6(ulong addr)
 #endif
 #endif //0####
 
-#if defined(CONFIG_CMD_NAND) && defined(CFG_NAND_LEGACY)
-#include <linux/mtd/nand.h>
-extern struct nand_chip nand_dev_desc[CFG_MAX_NAND_DEVICE];
-void nand_init(void)
+/* Initialize some board specific nand chip settings */
+extern int s3c64xx_nand_init(struct nand_chip *nand);
+int board_nand_init(struct nand_chip *nand)
 {
-	nand_probe(CFG_NAND_BASE);
-        if (nand_dev_desc[0].ChipID != NAND_ChipID_UNKNOWN) {
-                print_size(nand_dev_desc[0].totlen, "\n");
-        }
-}
+#ifdef __NAND_64MB__
+	nand->ecc.layout = &picomod6_oob_16;
+#else
+	nand->ecc.layout = &picomod6_oob_64;
 #endif
+
+	/* Call CPU specific init */
+	return s3c64xx_nand_init(nand);
+}
+
+
 
 #ifdef CONFIG_MMC
 void mmc_s3c64xx_board_power(unsigned int channel)

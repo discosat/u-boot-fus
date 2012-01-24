@@ -14,7 +14,7 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 27.07.2011 12:43:03 (HK)                                    ***/
+/*** Modified: 23.01.2012 18:13:52 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
@@ -25,7 +25,7 @@
 /*****************************************************************************/
 
 #include <common.h>
-#include <regs.h>
+#include <s3c64xx-regs.h>
 #include <mmc.h>
 #include <mmc_s3c64xx.h>                  /* Own interface */
 
@@ -73,7 +73,9 @@ SDHC mmc_unit[MAX_UNITS];
 /* Mapping between mmc device number and SDHC channel */
 SDHC_Channel mmc_channel[MAX_UNITS] = {
 	SDHC_CHANNEL_0,			  /* mmc 0 is on channel 0 */
+#if (MAX_UNITS > 1)
 	SDHC_CHANNEL_1			  /* mmc 1 is on channel 1 */
+#endif
 };
 
 /* Possible card types */

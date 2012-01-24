@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_ids.c,v 1.4 2007/04/23 01:29:36 jsgood Exp $
+ * $Id: nand_ids.c,v 1.16 2005/11/07 11:14:31 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,6 @@
  */
 
 #include <common.h>
-
-#if defined(CONFIG_CMD_NAND) && !defined(CFG_NAND_LEGACY)
-
 #include <linux/mtd/nand.h>
 /*
 *	Chip ID list
@@ -28,14 +25,15 @@
 *	512	512 Byte page size
 */
 const struct nand_flash_dev nand_flash_ids[] = {
+
+#ifdef CONFIG_MTD_NAND_MUSEUM_IDS
 	{"NAND 1MiB 5V 8-bit",		0x6e, 256, 1, 0x1000, 0},
 	{"NAND 2MiB 5V 8-bit",		0x64, 256, 2, 0x1000, 0},
 	{"NAND 4MiB 5V 8-bit",		0x6b, 512, 4, 0x2000, 0},
 	{"NAND 1MiB 3,3V 8-bit",	0xe8, 256, 1, 0x1000, 0},
 	{"NAND 1MiB 3,3V 8-bit",	0xec, 256, 1, 0x1000, 0},
 	{"NAND 2MiB 3,3V 8-bit",	0xea, 256, 2, 0x1000, 0},
-	/* To detect 0xD5 device by jsgood */
-	/* {"NAND 4MiB 3,3V 8-bit",	0xd5, 512, 4, 0x2000, 0}, */
+	{"NAND 4MiB 3,3V 8-bit", 	0xd5, 512, 4, 0x2000, 0},
 	{"NAND 4MiB 3,3V 8-bit",	0xe3, 512, 4, 0x2000, 0},
 	{"NAND 4MiB 3,3V 8-bit",	0xe5, 512, 4, 0x2000, 0},
 	{"NAND 8MiB 3,3V 8-bit",	0xd6, 512, 8, 0x2000, 0},
@@ -44,6 +42,7 @@ const struct nand_flash_dev nand_flash_ids[] = {
 	{"NAND 8MiB 3,3V 8-bit",	0xe6, 512, 8, 0x2000, 0},
 	{"NAND 8MiB 1,8V 16-bit",	0x49, 512, 8, 0x2000, NAND_BUSWIDTH_16},
 	{"NAND 8MiB 3,3V 16-bit",	0x59, 512, 8, 0x2000, NAND_BUSWIDTH_16},
+#endif
 
 	{"NAND 16MiB 1,8V 8-bit",	0x33, 512, 16, 0x4000, 0},
 	{"NAND 16MiB 3,3V 8-bit",	0x73, 512, 16, 0x4000, 0},
@@ -142,7 +141,6 @@ const struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_RENESAS, "Renesas"},
 	{NAND_MFR_STMICRO, "ST Micro"},
 	{NAND_MFR_HYNIX, "Hynix"},
+	{NAND_MFR_MICRON, "Micron"},
 	{0x0, "Unknown"}
 };
-
-#endif

@@ -37,7 +37,7 @@ DECLARE_GLOBAL_DATA_PTR;
 	extern void disable_nvram(void);
 #endif
 
-//#define DEBUG_ENV
+#undef DEBUG_ENV
 #ifdef DEBUG_ENV
 #define DEBUGF(fmt,args...) printf(fmt ,##args)
 #else
@@ -57,11 +57,7 @@ static uchar env_get_char_init (int index);
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
-#ifdef CFG_ENV_IS_IN_AUTO
-uchar default_environment[CFG_ENV_SIZE] = {
-#else
 uchar default_environment[] = {
-#endif
 #ifdef	CONFIG_BOOTARGS
 	"bootargs="	CONFIG_BOOTARGS			"\0"
 #endif
@@ -140,7 +136,7 @@ uchar default_environment[] = {
 	"\0"
 };
 
-#if defined(CFG_ENV_IS_IN_NAND) || defined(CFG_ENV_IS_IN_MOVINAND) || defined(CFG_ENV_IS_IN_ONENAND) || defined(CFG_ENV_IS_IN_AUTO) || defined(CFG_ENV_IS_IN_SPI_FLASH) /* Environment is in Nand Flash or MoviNAND or OneNAND */
+#if defined(CONFIG_ENV_IS_IN_NAND) || defined(CONFIG_ENV_IS_IN_MOVINAND) || defined(CONFIG_ENV_IS_IN_ONENAND) || defined(CONFIG_ENV_IS_IN_AUTO) || defined(CONFIG_ENV_IS_IN_SPI_FLASH) /* Environment is in Nand Flash or MoviNAND or OneNAND */
 
 int default_environment_size = sizeof(default_environment);
 #endif
@@ -248,12 +244,12 @@ void env_relocate (void)
 	/*
 	 * We must allocate a buffer for the environment
 	 */
-	env_ptr = (env_t *)malloc (CFG_ENV_SIZE);
+	env_ptr = (env_t *)malloc (CONFIG_ENV_SIZE);
 	DEBUGF ("%s[%d] malloced ENV at %p\n", __FUNCTION__,__LINE__,env_ptr);
 #endif
 
 	if (gd->env_valid == 0) {
-#if defined(CONFIG_GTH)	|| defined(CFG_ENV_IS_NOWHERE)	/* Environment not changable */
+#if defined(CONFIG_GTH)	|| defined(CONFIG_ENV_IS_NOWHERE)	/* Environment not changable */
 		puts ("Using default environment\n\n");
 #else
 		puts ("*** Warning - bad CRC, using default environment\n\n");

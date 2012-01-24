@@ -36,7 +36,7 @@
 #include <cmd_lcd.h>			  /* wininfo_t, kwinfo_t, ... */
 #include <lcd.h>			  /* lcd_rgbalookup() */
 #include <s3c-regs-lcd.h>		  /* S3C64XX LCD registers */
-#include <regs.h>			  /* GPxDAT, GPxCON, ... */
+#include <s3c64xx-regs.h>		  /* GPxDAT, GPxCON, ... */
 
 /************************************************************************/
 /* DEFINITIONS								*/

@@ -21,7 +21,7 @@
  * MA 02111-1307 USA
  */
 
-#include <lists.h>
+#include <linux/list.h>
 
 #ifndef _DEVICES_H_
 #define _DEVICES_H_
@@ -65,7 +65,9 @@ struct device {
 	int (*getc) (const device_t *pdev);
 
 /* Other functions */
-	void *priv;			/* Private extensions */
+
+	void *priv;			/* Private extensions			*/
+	struct list_head list;
 };
 
 /*
@@ -89,7 +91,6 @@ typedef struct {
 /*
  * VARIABLES
  */
-extern list_t devlist;
 extern device_t *stdio_devices[];
 extern char *stdio_names[MAX_FILES];
 
@@ -98,8 +99,11 @@ extern char *stdio_names[MAX_FILES];
  */
 int	device_register (device_t * dev);
 int	devices_init (void);
-int	devices_done (void);
 int	device_deregister(char *devname);
+struct list_head* device_get_list(void);
+device_t* device_get_by_name(char* name);
+device_t* device_clone(device_t *dev);
+
 #ifdef CONFIG_LCD
 void	drv_lcd_init(void);
 #endif
