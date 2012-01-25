@@ -28,6 +28,8 @@
 #define CONFIG_SYS_NAND_BASE_LIST { CONFIG_SYS_NAND_BASE }
 #endif
 
+DECLARE_GLOBAL_DATA_PTR;
+
 int nand_curr_device = -1;
 nand_info_t nand_info[CONFIG_SYS_MAX_NAND_DEVICE];
 
@@ -35,8 +37,6 @@ static struct nand_chip nand_chip[CONFIG_SYS_MAX_NAND_DEVICE];
 static ulong base_address[CONFIG_SYS_MAX_NAND_DEVICE] = CONFIG_SYS_NAND_BASE_LIST;
 
 static const char default_nand_name[] = "nand";
-
-extern int board_nand_init(struct nand_chip *nand);
 
 static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 			   ulong base_addr)
@@ -48,6 +48,8 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 		if (nand_scan(mtd, 1) == 0) {
 			if (!mtd->name)
 				mtd->name = (char *)default_nand_name;
+			else
+				mtd->name += gd->reloc_off;
 		} else
 			mtd->name = NULL;
 	} else {

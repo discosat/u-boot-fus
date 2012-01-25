@@ -941,7 +941,7 @@ static int cls(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	cls,	1,	1,	cls,
-	"cls\t- clear screen\n",
+	"clear screen",
 	NULL
 );
 #endif //0 #####
@@ -1065,7 +1065,7 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	fbpool,	5,	1,	do_fbpool,
-	"fbpool\t- set framebuffer pool\n",
+	"set framebuffer pool",
 	"<size> <address>\n"
 	"    - set framebuffer pool of <size> at <address>\n"
 	"fbpool <size>\n"
@@ -1505,9 +1505,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	/* Print usage if command not valid */
 	if (sc == DI_HELP) {
-		printf("usage:\n%s ", cmdtp->name);
-		puts(cmdtp->help);
-		putc('\n');
+		cmd_usage(cmdtp);
 		return 1;
 	}
 
@@ -1755,7 +1753,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	draw, 9,	1,	do_draw,
-	"draw\t- draw to selected window\n",
+	"draw to selected window",
 	"pixel x y [#rgba]\n"
 	"    - draw pixel at (x, y)\n"
 	"draw line x1 y1 x2 y2 [#rgba]\n"
@@ -1803,7 +1801,7 @@ U_BOOT_CMD(
 
 U_BOOT_CMD(
 	adraw, 8,	1,	do_draw,
-	"adraw\t- draw to selected window, directly applying alpha\n",
+	"draw to selected window, directly applying alpha",
 	"arguments\n"
 	"    - see 'help draw' for a description of the 'adraw' arguments\n"
 );
@@ -1898,9 +1896,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	}
 
 	if (sc == CI_HELP) {
-		printf("usage:\n%s ", cmdtp->name);
-		puts(cmdtp->help);
-		putc('\n');
+		cmd_usage(cmdtp);
 		return 1;
 	}
 
@@ -2020,7 +2016,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	cmap,	7,	1,	do_cmap,
-	"cmap\t- handle color map entries\n",
+	"handle color map entries",
 	"set n #rgba\n"
 	"    - set color map entry n to new color\n"
 	"cmap load | store addr [start [end]]\n"
@@ -2370,9 +2366,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	/* If not recognized, print usage and return */
 	if (sc == WI_HELP) {
-		printf("usage:\n%s ", cmdtp->name);
-		puts(cmdtp->help);
-		putc('\n');
+		cmd_usage(cmdtp);
 		return 1;
 	}
 
@@ -2565,7 +2559,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	win,	7,	0,	do_win,
-	"win\t- set framebuffer and overlay window parameters\n",
+	"set framebuffer and overlay window parameters",
 	"n\n"
 	"    - Select window n\n"
 	"show fbshow [fbdraw]\n"
@@ -2887,9 +2881,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	/* If not recognized, print usage and return */
 	if (sc == LI_HELP) {
-		printf("usage:\n%s ", cmdtp->name);
-		puts(cmdtp->help);
-		putc('\n');
+		cmd_usage(cmdtp);
 		return 1;
 	}
 
@@ -3119,7 +3111,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	lcd,	7,	0,	do_lcd,
-	"lcd\t- set or show lcd panel parameters\n",
+	"set or show lcd panel parameters",
 	"list [index [count]]\n"
 	"    - list predefined lcd panels\n"
 	"lcd list substring [count]\n"
@@ -3232,7 +3224,7 @@ static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	reg,	6,	0,	do_reg,
-	"reg\t- set LCD panel parameters (F&S WinCE compatibility)\n",
+	"set LCD panel parameters (F&S WinCE compatibility)",
 	"set value name string <name>\n"
 	"    - set the display name\n"
 	"reg set value <param> dword <value>\n"
@@ -3255,21 +3247,21 @@ static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	display,	4,	0,	do_ignore,
-	"display\t- Ignored (F&S WinCE compatibility)\n",
+	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"
 );
 
 U_BOOT_CMD(
 	contrast,	3,	0,	do_ignore,
-	"contrast\t- Ignored (F&S WinCE compatibility)\n",
+	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"
 );
 
 U_BOOT_CMD(
 	reboot,		2,	0,	do_ignore,
-	"reboot\t- Ignored (F&S WinCE compatibility)\n",
+	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"
 );

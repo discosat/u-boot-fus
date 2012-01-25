@@ -431,9 +431,8 @@ static int slot2str (dir_slot *slotptr, char *l_name, int *idx)
  * into 'retdent'
  * Return 0 on success, -1 otherwise.
  */
-__attribute__ ((__aligned__ (__alignof__ (dir_entry))))
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_vfatname_block[MAX_CLUSTSIZE];
-
 static int
 get_vfatname (fsdata *mydata, int curclust, __u8 *cluster,
 	      dir_entry *retdent, char *l_name)
@@ -523,7 +522,7 @@ static __u8 mkcksum (const char *str)
  * Get the directory entry associated with 'filename' from the directory
  * starting at 'startsect'
  */
-__attribute__ ((__aligned__ (__alignof__ (dir_entry))))
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_dentfromdir_block[MAX_CLUSTSIZE];
 
 static dir_entry *get_dentfromdir (fsdata *mydata, int startsect,
@@ -739,9 +738,8 @@ read_bootsectandvi (boot_sector *bs, volume_info *volinfo, int *fatsize)
 	return -1;
 }
 
-__attribute__ ((__aligned__ (__alignof__ (dir_entry))))
+__attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 do_fat_read_block[MAX_CLUSTSIZE];
-
 long
 do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 	     int dols)

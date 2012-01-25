@@ -462,10 +462,10 @@
  ************************************************************************/
 /* We have one NAND device */
 #define CONFIG_NAND_S3C64XX     1
-#define CONFIG_SYS_MAX_NAND_DEVICE     1
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
 
 /* One chip per device */
-#define NAND_MAX_CHIPS          1
+#define CONFIG_SYS_NAND_MAX_CHIPS	1
 
 /* Address of the DATA register for reading and writing data */
 #define CONFIG_SYS_NAND_BASE	(0x70200010)

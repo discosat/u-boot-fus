@@ -87,7 +87,7 @@ const char version_string[] =
 	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")"CONFIG_IDENT_STRING;
 
 #ifdef CONFIG_DRIVER_CS8900
-extern int cs8900_get_enetaddr (uchar * addr);
+extern void cs8900_get_enetaddr (uchar * addr);
 #endif
 
 #ifdef CONFIG_DRIVER_RTL8019
@@ -160,6 +160,9 @@ void  yellow_LED_off(void)__attribute__((weak, alias("__yellow_LED_off")));
  * but let's get it working (again) first...
  */
 
+#if defined(CONFIG_ARM_DCC) && !defined(CONFIG_BAUDRATE)
+#define CONFIG_BAUDRATE 115200
+#endif
 static int init_baudrate (void)
 {
 	char tmp[64];	/* long enough for environment variables */
@@ -216,8 +219,7 @@ static int display_dram_config (void)
 	for (i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
 		size += gd->bd->bi_dram[i].size;
 	}
-
-	puts("DRAM:    ");
+	puts("DRAM:  ");
 	print_size(size, "\n");
 #endif
 
@@ -227,7 +229,7 @@ static int display_dram_config (void)
 #ifndef CONFIG_SYS_NO_FLASH
 static void display_flash_config (ulong size)
 {
-	puts ("Flash:  ");
+	puts ("Flash: ");
 	print_size (size, "\n");
 }
 #endif /* CONFIG_SYS_NO_FLASH */
@@ -241,6 +243,15 @@ static int init_func_i2c (void)
 	return (0);
 }
 #endif
+
+#if defined(CONFIG_CMD_PCI) || defined (CONFIG_PCI)
+#include <pci.h>
+static int arm_pci_init(void)
+{
+	pci_init();
+	return 0;
+}
+#endif /* CONFIG_CMD_PCI || CONFIG_PCI */
 
 /*
  * Breathe some life into the board...
@@ -288,6 +299,9 @@ init_fnc_t *init_sequence[] = {
 	init_func_i2c,
 #endif
 	dram_init,		/* configure available RAM banks */
+#if defined(CONFIG_CMD_PCI) || defined (CONFIG_PCI)
+	arm_pci_init,
+#endif
 	display_dram_config,
 	NULL,
 };
@@ -357,13 +371,14 @@ void start_armboot (void)
 	mem_malloc_init (CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE
 			 - CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_STACK_SIZE);
 #else
+	/* armboot_start is defined in the board-specific linker script */
 	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN);
 #endif
 
 #if defined(CONFIG_CMD_NAND)
-	puts ("NAND:    ");
-	nand_init();
-#endif /* CONFIG_CMD_NAND */
+	puts ("NAND:  ");
+	nand_init();		/* go init the NAND */
+#endif
 
 #if defined(CONFIG_CMD_ONENAND)
 	onenand_init();
@@ -425,6 +440,11 @@ void start_armboot (void)
 #endif /* CONFIG_CMC_PU2 */
 
 	jumptable_init ();
+
+#if defined(CONFIG_API)
+	/* Initialize API */
+	api_init ();
+#endif
 
 	console_init_r ();	/* fully init console as a device */
 

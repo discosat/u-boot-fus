@@ -4,15 +4,23 @@
  *  NAND family Bad Block Management (BBM) header file
  *    - Bad Block Table (BBT) implementation
  *
- *  Copyright (c) 2005 Samsung Electronics
+ *  Copyright (c) 2005-2007 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  *  Copyright (c) 2000-2005
  *  Thomas Gleixner <tglx@linuxtronix.de>
  *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 #ifndef __LINUX_MTD_BBM_H
 #define __LINUX_MTD_BBM_H
+
+/* The maximum number of NAND chips in an array */
+#ifndef CONFIG_SYS_NAND_MAX_CHIPS
+#define CONFIG_SYS_NAND_MAX_CHIPS	1
+#endif
 
 /**
  * struct nand_bbt_descr - bad block table descriptor
@@ -40,10 +48,10 @@
  */
 struct nand_bbt_descr {
 	int options;
-	int pages[NAND_MAX_CHIPS];
+	int pages[CONFIG_SYS_NAND_MAX_CHIPS];
 	int offs;
 	int veroffs;
-	uint8_t version[NAND_MAX_CHIPS];
+	uint8_t version[CONFIG_SYS_NAND_MAX_CHIPS];
 	int len;
 	int maxblocks;
 	int reserved_block_code;
