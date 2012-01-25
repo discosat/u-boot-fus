@@ -30,16 +30,12 @@
 /* ARM asynchronous clock */
 #define AT91_CPU_NAME		"AT91SAM9263"
 #define AT91_MAIN_CLOCK		16367660	/* 16.367 MHz crystal */
-#define AT91_MASTER_CLOCK	100000000	/* peripheral */
-#define AT91_CPU_CLOCK		200000000	/* cpu */
-#define CONFIG_SYS_AT91_PLLB	0x133a3e8d	/* PLLB settings for USB */
-#define CONFIG_SYS_HZ		1000000		/* 1us resolution */
-
-#define AT91_SLOW_CLOCK		32768	/* slow clock */
+#define CONFIG_SYS_HZ		1000
 
 #define CONFIG_ARM926EJS	1	/* This is an ARM926EJS Core	*/
 #define CONFIG_AT91SAM9263	1	/* It's an Atmel AT91SAM9263 SoC*/
 #define CONFIG_AT91SAM9263EK	1	/* on an AT91SAM9263EK Board	*/
+#define CONFIG_ARCH_CPU_INIT
 #undef CONFIG_USE_IRQ			/* we don't need IRQ/FIQ stuff	*/
 
 #define CONFIG_CMDLINE_TAG	1	/* enable passing of ATAGs	*/
@@ -70,6 +66,12 @@
 #define CONFIG_ATMEL_LCD_BGR555		1
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV		1
 
+/* LED */
+#define CONFIG_AT91_LED
+#define	CONFIG_RED_LED		AT91_PIN_PB7	/* this is the power led */
+#define	CONFIG_GREEN_LED	AT91_PIN_PB8	/* this is the user1 led */
+#define	CONFIG_YELLOW_LED	AT91_PIN_PC29	/* this is the user2 led */
+
 #define CONFIG_BOOTDELAY	3
 
 /*
@@ -85,11 +87,11 @@
  */
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_BDI
-#undef CONFIG_CMD_IMI
-#undef CONFIG_CMD_AUTOSCRIPT
 #undef CONFIG_CMD_FPGA
-#undef CONFIG_CMD_LOADS
+#undef CONFIG_CMD_IMI
 #undef CONFIG_CMD_IMLS
+#undef CONFIG_CMD_LOADS
+#undef CONFIG_CMD_SOURCE
 
 #define CONFIG_CMD_PING		1
 #define CONFIG_CMD_DHCP		1
@@ -102,6 +104,7 @@
 #define PHYS_SDRAM_SIZE			0x04000000	/* 64 megs */
 
 /* DataFlash */
+#define CONFIG_ATMEL_DATAFLASH_SPI
 #define CONFIG_HAS_DATAFLASH		1
 #define CONFIG_SYS_SPI_WRITE_TOUT		(5*CONFIG_SYS_HZ)
 #define CONFIG_SYS_MAX_DATAFLASH_BANKS		1
@@ -123,9 +126,18 @@
 #endif
 
 /* NAND flash */
+#ifdef CONFIG_CMD_NAND
+#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE		1
 #define CONFIG_SYS_NAND_BASE			0x40000000
 #define CONFIG_SYS_NAND_DBW_8			1
+/* our ALE is AD21 */
+#define CONFIG_SYS_NAND_MASK_ALE		(1 << 21)
+/* our CLE is AD22 */
+#define CONFIG_SYS_NAND_MASK_CLE		(1 << 22)
+#define CONFIG_SYS_NAND_ENABLE_PIN		AT91_PIN_PD15
+#define CONFIG_SYS_NAND_READY_PIN		AT91_PIN_PA22
+#endif
 
 /* Ethernet */
 #define CONFIG_MACB			1
@@ -135,6 +147,7 @@
 #define CONFIG_RESET_PHY_R		1
 
 /* USB */
+#define CONFIG_USB_ATMEL
 #define CONFIG_USB_OHCI_NEW		1
 #define CONFIG_DOS_PARTITION		1
 #define CONFIG_SYS_USB_OHCI_CPU_INIT		1
@@ -187,6 +200,9 @@
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 #define CONFIG_SYS_LONGHELP		1
 #define CONFIG_CMDLINE_EDITING	1
+#define CONFIG_AUTO_COMPLETE
+#define CONFIG_SYS_HUSH_PARSER
+#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 
 #define ROUND(A, B)		(((A) + (B)) & ~((B) - 1))
 /*

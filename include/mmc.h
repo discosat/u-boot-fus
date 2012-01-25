@@ -1,65 +1,3 @@
-#ifndef CONFIG_GENERIC_MMC
-
-/*
- * (C) Copyright 2000-2003
- * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
- */
-
-#ifndef _MMC_H_
-#define _MMC_H_
-
-#include <asm/arch/mmc.h>
-
-/* MMC command numbers */
-#define MMC_CMD_GO_IDLE_STATE		0
-#define MMC_CMD_SEND_OP_COND		1
-#define MMC_CMD_ALL_SEND_CID		2
-#define MMC_CMD_SET_RELATIVE_ADDR	3
-#define MMC_CMD_SET_DSR			4
-#define MMC_CMD_SELECT_CARD		7
-#define MMC_CMD_SEND_CSD		9
-#define MMC_CMD_SEND_CID		10
-#define MMC_CMD_SEND_STATUS		13
-#define MMC_CMD_SET_BLOCKLEN		16
-#define MMC_CMD_READ_SINGLE_BLOCK	17
-#define MMC_CMD_READ_MULTIPLE_BLOCK	18
-#define MMC_CMD_WRITE_BLOCK		24
-#define MMC_CMD_APP_CMD			55
-
-/* SD Card command numbers */
-#define SD_CMD_SEND_RELATIVE_ADDR	3
-#define SD_CMD_SWITCH			6
-#define SD_CMD_SEND_IF_COND		8
-
-#define SD_CMD_APP_SET_BUS_WIDTH	6
-#define SD_CMD_APP_SEND_OP_COND		41
-
-int mmc_init(int verbose);
-int mmc_read(ulong src, uchar *dst, int size);
-int mmc_write(uchar *src, ulong dst, int size);
-int mmc2info(ulong addr);
-#endif /* _MMC_H_ */
-
-#else	/* !CONFIG_GENERIC_MMC */
-
 /*
  * Copyright 2008, Freescale Semiconductor, Inc
  * Andy Fleming
@@ -121,13 +59,13 @@ int mmc2info(ulong addr);
 
 #define MMC_CMD_GO_IDLE_STATE		0
 #define MMC_CMD_SEND_OP_COND		1
-#define MMC_ALL_SEND_CID		2
-#define MMC_SET_RELATIVE_ADDR		3
+#define MMC_CMD_ALL_SEND_CID		2
+#define MMC_CMD_SET_RELATIVE_ADDR	3
 #define MMC_CMD_SET_DSR			4
 #define MMC_CMD_SWITCH			6
 #define MMC_CMD_SELECT_CARD		7
 #define MMC_CMD_SEND_EXT_CSD		8
-#define MMC_SEND_CSD			9
+#define MMC_CMD_SEND_CSD		9
 #define MMC_CMD_SEND_CID		10
 #define MMC_CMD_STOP_TRANSMISSION	12
 #define MMC_CMD_SEND_STATUS		13
@@ -138,18 +76,13 @@ int mmc2info(ulong addr);
 #define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
 #define MMC_CMD_APP_CMD			55
 
-/* This is basically the same command as for MMC with some quirks. */
-#define SD_SEND_RELATIVE_ADDR	3	/* bcr                     R6  */
-#define SD_SEND_IF_COND		8	/* bcr  [11:0] See below   R7  */
+#define SD_CMD_SEND_RELATIVE_ADDR	3
+#define SD_CMD_SWITCH_FUNC		6
+#define SD_CMD_SEND_IF_COND		8
 
-/* class 10 */
-#define SD_SWITCH		6	/* adtc [31:0] See below   R1  */
-
-/* Application commands */
-#define SD_APP_SET_BUS_WIDTH	6	/* ac   [1:0] bus width    R1  */
-#define SD_APP_SEND_NUM_WR_BLKS	22	/* adtc                    R1  */
-#define SD_APP_OP_COND		41	/* bcr  [31:0] OCR         R3  */
-#define SD_APP_SEND_SCR		51	/* adtc                    R1  */
+#define SD_CMD_APP_SET_BUS_WIDTH	6
+#define SD_CMD_APP_SEND_OP_COND		41
+#define SD_CMD_APP_SEND_SCR		51
 
 /* SCR definitions in different words */
 #define SD_HIGHSPEED_BUSY	0x00020000
@@ -238,49 +171,66 @@ int mmc2info(ulong addr);
 
 
 struct mmc_cid {
-	unsigned int		manfid;
-	char			prod_name[8];
-	unsigned int		serial;
-	unsigned short		oemid;
-	unsigned short		year;
-	unsigned char		hwrev;
-	unsigned char		fwrev;
-	unsigned char		month;
+	unsigned long psn;
+	unsigned short oid;
+	unsigned char mid;
+	unsigned char prv;
+	unsigned char mdt;
+	char pnm[7];
 };
 
-struct mmc_csd {
-	unsigned char		mmca_vsn;
-	unsigned short		cmdclass;
-	unsigned short		tacc_clks;
-	unsigned int		tacc_ns;
-	unsigned int		r2w_factor;
-	unsigned int		max_dtr;
-	unsigned int		read_blkbits;
-	unsigned int		write_blkbits;
-	unsigned int		capacity;
-	unsigned int		read_partial:1,
-				read_misalign:1,
-				write_partial:1,
-				write_misalign:1;
-};
-
-struct mmc_ext_csd {
-	unsigned int		hs_max_dtr;
-	unsigned int		sectors;
+struct mmc_csd
+{
+	u8	csd_structure:2,
+		spec_vers:4,
+		rsvd1:2;
+	u8	taac;
+	u8	nsac;
+	u8	tran_speed;
+	u16	ccc:12,
+		read_bl_len:4;
+	u64	read_bl_partial:1,
+		write_blk_misalign:1,
+		read_blk_misalign:1,
+		dsr_imp:1,
+		rsvd2:2,
+		c_size:12,
+		vdd_r_curr_min:3,
+		vdd_r_curr_max:3,
+		vdd_w_curr_min:3,
+		vdd_w_curr_max:3,
+		c_size_mult:3,
+		sector_size:5,
+		erase_grp_size:5,
+		wp_grp_size:5,
+		wp_grp_enable:1,
+		default_ecc:2,
+		r2w_factor:3,
+		write_bl_len:4,
+		write_bl_partial:1,
+		rsvd3:5;
+	u8	file_format_grp:1,
+		copy:1,
+		perm_write_protect:1,
+		tmp_write_protect:1,
+		file_format:2,
+		ecc:2;
+	u8	crc:7;
+	u8	one:1;
 };
 
 struct mmc_cmd {
-	ushort opcode;
+	ushort cmdidx;
 	uint resp_type;
-	uint arg;
-	uint resp[4];
+	uint cmdarg;
+	uint response[4];
 	uint flags;
 };
 
 struct mmc_data {
 	union {
-		u8 *dest;
-		const u8 *src; /* src buffers don't get written to */
+		char *dest;
+		const char *src; /* src buffers don't get written to */
 	};
 	uint flags;
 	uint blocks;
@@ -308,8 +258,7 @@ struct mmc {
 	uint tran_speed;
 	uint read_bl_len;
 	uint write_bl_len;
-	u32 capacity;
-	struct mmc_ext_csd	ext_csd;	/* mmc v4 extended card specific */
+	u64 capacity;
 	block_dev_desc_t block_dev;
 	int (*send_cmd)(struct mmc *mmc,
 			struct mmc_cmd *cmd, struct mmc_data *data);
@@ -320,7 +269,7 @@ struct mmc {
 int mmc_register(struct mmc *mmc);
 int mmc_initialize(bd_t *bis);
 int mmc_init(struct mmc *mmc);
-int mmc_read(struct mmc *mmc, uint src, uchar *dst, int size);
+int mmc_read(struct mmc *mmc, u64 src, uchar *dst, int size);
 struct mmc *find_mmc_device(int dev_num);
 void print_mmc_devices(char separator);
 
@@ -328,5 +277,3 @@ void print_mmc_devices(char separator);
 int mmc_legacy_init(int verbose);
 #endif
 #endif /* _MMC_H_ */
-
-#endif /* !CONFIG_GENERIC_MMC */

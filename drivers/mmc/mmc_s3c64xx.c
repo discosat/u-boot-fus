@@ -14,7 +14,7 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 24.01.2012 16:16:22 (HK)                                    ***/
+/*** Modified: 25.01.2012 12:49:58 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
@@ -1306,7 +1306,7 @@ U32 SDCardGetMediaSize(SDHC *sCh)
     return (sCh->m_sCSize+1) * (1U << (sCh->m_sCSizeMult+2));
 }
 
-int mmc_init(int verbose)
+int mmc_legacy_init(int verbose)
 {
 	SDHC_Channel i;
 	SDHC *sCh;
@@ -1359,8 +1359,9 @@ block_dev_desc_t* mmc_get_dev(int dev_num)
 	return NULL;
 }
 
+#if 0 //### kann das weg?
 /* No support for copying data from/to MMC with memory command cp */
-int mmc_read(ulong src, uchar *dst, int size)
+int mmc_read(struct mmc *mmc, u64 src, uchar *dst, int size)
 {
 	return -1;
 }
@@ -1376,3 +1377,4 @@ int mmc2info(ulong addr)
 {
 	return 0;
 }
+#endif //0

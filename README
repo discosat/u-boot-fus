@@ -593,7 +593,6 @@ The following options need to be configured:
 		except those marked below with a "*".
 
 		CONFIG_CMD_ASKENV	* ask for env variable
-		CONFIG_CMD_AUTOSCRIPT	  Autoscript Support
 		CONFIG_CMD_BDI		  bdinfo
 		CONFIG_CMD_BEDBUG	* Include BedBug Debugger
 		CONFIG_CMD_BMP		* BMP support
@@ -636,6 +635,7 @@ The following options need to be configured:
 		CONFIG_CMD_MISC		  Misc functions like sleep etc
 		CONFIG_CMD_MMC		* MMC memory mapped support
 		CONFIG_CMD_MII		* MII utility commands
+		CONFIG_CMD_MTDPARTS	* MTD partition support
 		CONFIG_CMD_NAND		* NAND support
 		CONFIG_CMD_NET		  bootp, tftpboot, rarpboot
 		CONFIG_CMD_PCA953X	* PCA953x I2C gpio commands
@@ -653,6 +653,7 @@ The following options need to be configured:
 					  (requires CONFIG_CMD_I2C)
 		CONFIG_CMD_SETGETDCR	  Support for DCR Register access
 					  (4xx only)
+		CONFIG_CMD_SOURCE	  "source" command Support
 		CONFIG_CMD_SPI		* SPI serial bus support
 		CONFIG_CMD_USB		* USB support
 		CONFIG_CMD_VFD		* VFD support (TRAB)
@@ -1788,7 +1789,7 @@ The following options need to be configured:
 
 		Note: overly (ab)use of the default environment is
 		discouraged. Make sure to check other ways to preset
-		the environment like the autoscript function or the
+		the environment like the "source" command or the
 		boot command first.
 
 - DataFlash Support:
@@ -1947,8 +1948,8 @@ Legacy uImage format:
    81	common/cmd_net.c	NetLoop() back without error
   -82	common/cmd_net.c	size == 0 (File with size 0 loaded)
    82	common/cmd_net.c	trying automatic boot
-   83	common/cmd_net.c	running autoscript
-  -83	common/cmd_net.c	some error in automatic boot or autoscript
+   83	common/cmd_net.c	running "source" command
+  -83	common/cmd_net.c	some error in automatic boot or "source" command
    84	common/cmd_net.c	end without errors
 
 FIT uImage format:
@@ -2715,6 +2716,16 @@ necessary. For example using the ELDK on a 4xx CPU, please enter:
 	$ CROSS_COMPILE=ppc_4xx-
 	$ export CROSS_COMPILE
 
+Note: If you wish to generate Windows versions of the utilities in
+      the tools directory you can use the MinGW toolchain
+      (http://www.mingw.org).  Set your HOST tools to the MinGW
+      toolchain and execute 'make tools'.  For example:
+
+       $ make HOSTCC=i586-mingw32msvc-gcc HOSTSTRIP=i586-mingw32msvc-strip tools
+
+      Binaries such as tools/mkimage.exe will be created which can
+      be executed on computers running Windows.
+
 U-Boot is intended to be simple to build. After installing the
 sources you must configure U-Boot for one specific board type. This
 is done by typing:
@@ -2951,7 +2962,7 @@ Some configuration options can be set using Environment Variables:
   autoscript	- if set to "yes" commands like "loadb", "loady",
 		  "bootp", "tftpb", "rarpboot" and "nfs" will attempt
 		  to automatically run script images (by internally
-		  calling "autoscript").
+		  calling "source").
 
   autoscript_uname - if script image is in a format (FIT) this
 		     variable is used to get script subimage unit name.

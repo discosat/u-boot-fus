@@ -871,6 +871,7 @@ static int ppc_4xx_eth_init (struct eth_device *dev, bd_t * bis)
     defined(CONFIG_440SP) || defined(CONFIG_440SPE) || \
     defined(CONFIG_460EX) || defined(CONFIG_460GT) || \
     defined(CONFIG_405EX)
+	u32 opbfreq;
 	sys_info_t sysinfo;
 #if defined(CONFIG_440GX) || defined(CONFIG_440SPE) || \
     defined(CONFIG_440EPX) || defined(CONFIG_440GRX) || \
@@ -997,12 +998,13 @@ static int ppc_4xx_eth_init (struct eth_device *dev, bd_t * bis)
 	/* Whack the M1 register */
 	mode_reg = 0x0;
 	mode_reg &= ~0x00000038;
-	if (sysinfo.freqOPB <= 50000000);
-	else if (sysinfo.freqOPB <= 66666667)
+	opbfreq = sysinfo.freqOPB / 1000000;
+	if (opbfreq <= 50);
+	else if (opbfreq <= 66)
 		mode_reg |= EMAC_M1_OBCI_66;
-	else if (sysinfo.freqOPB <= 83333333)
+	else if (opbfreq <= 83)
 		mode_reg |= EMAC_M1_OBCI_83;
-	else if (sysinfo.freqOPB <= 100000000)
+	else if (opbfreq <= 100)
 		mode_reg |= EMAC_M1_OBCI_100;
 	else
 		mode_reg |= EMAC_M1_OBCI_GT100;
@@ -1927,24 +1929,22 @@ int ppc_4xx_eth_initialize (bd_t * bis)
 		memcpy(ethaddr[eth_num], "\0\0\0\0\0\0", 6);
 
 	for (eth_num = 0; eth_num < LAST_EMAC_NUM; eth_num++) {
+		int ethaddr_idx = eth_num + CONFIG_EMAC_NR_START;
 		switch (eth_num) {
 		default:		/* fall through */
 		case 0:
-			memcpy(ethaddr[eth_num + CONFIG_EMAC_NR_START],
-			       bis->bi_enetaddr, 6);
+			eth_getenv_enetaddr("ethaddr", ethaddr[ethaddr_idx]);
 			hw_addr[eth_num] = 0x0;
 			break;
 #ifdef CONFIG_HAS_ETH1
 		case 1:
-			memcpy(ethaddr[eth_num + CONFIG_EMAC_NR_START],
-			       bis->bi_enet1addr, 6);
+			eth_getenv_enetaddr("eth1addr", ethaddr[ethaddr_idx]);
 			hw_addr[eth_num] = 0x100;
 			break;
 #endif
 #ifdef CONFIG_HAS_ETH2
 		case 2:
-			memcpy(ethaddr[eth_num + CONFIG_EMAC_NR_START],
-			       bis->bi_enet2addr, 6);
+			eth_getenv_enetaddr("eth2addr", ethaddr[ethaddr_idx]);
 #if defined(CONFIG_460GT)
 			hw_addr[eth_num] = 0x300;
 #else
@@ -1954,8 +1954,7 @@ int ppc_4xx_eth_initialize (bd_t * bis)
 #endif
 #ifdef CONFIG_HAS_ETH3
 		case 3:
-			memcpy(ethaddr[eth_num + CONFIG_EMAC_NR_START],
-			       bis->bi_enet3addr, 6);
+			eth_getenv_enetaddr("eth3addr", ethaddr[ethaddr_idx]);
 #if defined(CONFIG_460GT)
 			hw_addr[eth_num] = 0x400;
 #else

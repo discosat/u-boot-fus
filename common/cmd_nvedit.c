@@ -52,15 +52,17 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if !defined(CONFIG_ENV_IS_IN_NVRAM)	&& \
-    !defined(CONFIG_ENV_IS_IN_EEPROM)	&& \
+#if !defined(CONFIG_ENV_IS_IN_EEPROM)	&& \
     !defined(CONFIG_ENV_IS_IN_FLASH)	&& \
     !defined(CONFIG_ENV_IS_IN_DATAFLASH)	&& \
+    !defined(CONFIG_ENV_IS_IN_MG_DISK)	&& \
     !defined(CONFIG_ENV_IS_IN_NAND)	&& \
+    !defined(CONFIG_ENV_IS_IN_NVRAM)	&& \
     !defined(CONFIG_ENV_IS_IN_ONENAND)	&& \
     !defined(CONFIG_ENV_IS_IN_SPI_FLASH)	&& \
     !defined(CONFIG_ENV_IS_NOWHERE)
-# error Define one of CONFIG_ENV_IS_IN_{NVRAM|EEPROM|FLASH|DATAFLASH|ONENAND|SPI_FLASH|NOWHERE}
+# error Define one of CONFIG_ENV_IS_IN_{EEPROM|FLASH|DATAFLASH|ONENAND|\
+SPI_FLASH|MG_DISK|NVRAM|NOWHERE}
 #endif
 
 #define XMK_STR(x)	#x
@@ -75,6 +77,13 @@ DECLARE_GLOBAL_DATA_PTR;
 static const unsigned long baudrate_table[] = CONFIG_SYS_BAUDRATE_TABLE;
 #define	N_BAUDRATES (sizeof(baudrate_table) / sizeof(baudrate_table[0]))
 
+/*
+ * This variable is incremented on each do_setenv (), so it can
+ * be used via get_env_id() as an indication, if the environment
+ * has changed or not. So it is possible to reread an environment
+ * variable only if the environment was changed ... done so for
+ * example in NetInitLoop()
+ */
 static int env_id = 1;
 
 int get_env_id (void)
@@ -283,18 +292,6 @@ int _do_setenv (int flag, int argc, char *argv[])
 		*++env = '\0';
 	}
 
-#ifdef CONFIG_NET_MULTI
-	if (strncmp(name, "eth", 3) == 0) {
-		char *end;
-		int   num = simple_strtoul(name+3, &end, 10);
-
-		if (strcmp(end, "addr") == 0) {
-			eth_set_enetaddr(num, argv[2]);
-		}
-	}
-#endif
-
-
 	/* Delete only ? */
 	if ((argc < 3) || argv[2] == NULL) {
 		env_crc_update ();
@@ -342,18 +339,8 @@ int _do_setenv (int flag, int argc, char *argv[])
 	 * entry in the enviornment is changed
 	 */
 
-	if (strcmp(argv[1],"ethaddr") == 0) {
-		char *s = argv[2];	/* always use only one arg */
-		char *e;
-		for (i=0; i<6; ++i) {
-			bd->bi_enetaddr[i] = s ? simple_strtoul(s, &e, 16) : 0;
-			if (s) s = (*e) ? e+1 : e;
-		}
-#ifdef CONFIG_NET_MULTI
-		eth_set_enetaddr(0, argv[2]);
-#endif
+	if (strcmp(argv[1],"ethaddr") == 0)
 		return 0;
-	}
 
 	if (strcmp(argv[1],"ipaddr") == 0) {
 		char *s = argv[2];	/* always use only one arg */

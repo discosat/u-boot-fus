@@ -204,6 +204,10 @@ Klaus Heydeck <heydeck@kieback-peter.de>
 	KUP4K		MPC855
 	KUP4X		MPC859
 
+Ilko Iliev <iliev@ronetix.at>
+
+	PM9263		AT91SAM9263
+
 Gary Jennejohn <garyj@denx.de>
 
 	quad100hd	PPC405EP
@@ -218,6 +222,10 @@ Murray Jensen <Murray.Jensen@csiro.au>
 Larry Johnson <lrj@acm.org>
 
 	korat		PPC440EPx
+
+Feng Kan <fkan@amcc.com>
+
+	redwood			PPC4xx
 
 Brad Kemp <Brad.Kemp@seranoa.com>
 
@@ -448,9 +456,10 @@ John Zhan <zhanz@sinovee.com>
 
 	svm_sc8xx	MPC8xx
 
-Feng Kan <fkan@amcc.com>
+Detlev Zundel <dzu@denx.de>
 
-	redwood			PPC4xx
+	inka4x0		MPC5200
+
 -------------------------------------------------------------------------
 
 Unknown / orphaned boards:
@@ -509,6 +518,9 @@ George G. Davis <gdavis@mvista.com>
 	assabet		SA1100
 	gcplus		SA1100
 
+Wolfgang Denk <wd@denx.de>
+	qong		i.MX31
+
 Thomas Elste <info@elste.org>
 
 	modnet50	ARM720T (NET+50)
@@ -527,16 +539,11 @@ Kshitij Gupta <kshitij@ti.com>
 	omap1510inn	ARM925T
 	omap1610inn	ARM926EJS
 
-Sascha Hauer <s.hauer@pengutronix.de>
-
-	imx31_litekit	i.MX31
-	imx31_phycore	i.MX31
-
 Grazvydas Ignotas <notasas@gmail.com>
 
 	omap3_pandora	ARM CORTEX-A8 (OMAP3xx SoC)
 
-Gary Jennejohn <gj@denx.de>
+Gary Jennejohn <garyj@denx.de>
 
 	smdk2400	ARM920T
 	trab		ARM920T
@@ -560,8 +567,9 @@ Prakash Kumar <prakash@embedx.com>
 
 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
-	mx31ads		i.MX31
-	SMDK6400	S3C6400
+	imx31_phycore_eet	i.MX31
+	mx31ads			i.MX31
+	SMDK6400		S3C6400
 
 Nishanth Menon <nm@ti.com>
 
@@ -655,9 +663,6 @@ Alex Züpke <azu@sysgo.de>
 Sergey Lapin <slapin@ossfans.org>
 
 	afeb9260	ARM926EJS (AT91SAM9260 SoC)
-
-Wolfgang Denk <wd@denx.de>
-	qong		i.MX31
 
 -------------------------------------------------------------------------
 
@@ -849,9 +854,14 @@ Yusuke Goda <goda.yusuke@renesas.com>
 Mike Frysinger <vapier@gentoo.org>
 Blackfin Team <u-boot-devel@blackfin.uclinux.org>
 
+	BF518F-EZBRD	BF518
+	BF526-EZBRD	BF526
+	BF527-EZKIT	BF527
 	BF533-EZKIT	BF533
 	BF533-STAMP	BF533
 	BF537-STAMP	BF537
+	BF538F-EZKIT	BF538
+	BF548-EZKIT	BF548
 	BF561-EZKIT	BF561
 
 #########################################################################

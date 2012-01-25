@@ -295,7 +295,7 @@
  * Command definition
  ************************************************************************/
 //#include <config_cmd_default.h>
-#define CONFIG_CMD_AUTOSCRIPT	/* Autoscript Support		*/
+#define CONFIG_CMD_SOURCE	/* Source support (was autoscr)	*/
 #define CONFIG_CMD_BDI		/* bdinfo			*/
 #define CONFIG_CMD_BOOTD	/* bootd			*/
 #define CONFIG_CMD_CONSOLE	/* coninfo			*/
@@ -406,6 +406,7 @@
 #define CONFIG_USB_STORAGE
 //#define CONFIG_USB_OHCI
 #define CONFIG_USB_OHCI_NEW
+#define CONFIG_USB_S3C64XX
 #define CONFIG_SYS_USB_OHCI_REGS_BASE 0x74300000
 #define CONFIG_SYS_USB_OHCI_BOARD_INIT
 #define CONFIG_SYS_USB_OHCI_SLOT_NAME "F+S USB Host"
@@ -494,7 +495,7 @@
 #define CONFIG_JFFS2_NAND
 
 /* Support mtd partitions (commands: mtdparts, chpart) */
-#define CONFIG_JFFS2_CMDLINE
+#define CONFIG_CMD_MTDPARTS
 
 
 /************************************************************************
@@ -563,5 +564,10 @@
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
+
+/************************************************************************
+ * Tools
+ ************************************************************************/
+#define CONFIG_ADDFSHEADER	1
 
 #endif /* !__CONFIG_H */

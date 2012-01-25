@@ -2,7 +2,9 @@
  * (C) Copyright 2007
  * Byungjae Lee, Samsung Erectronics, bjlee@samsung.com.
  *      - only support for S3C6400
- *  $Id: s3c6430.h,v 1.1 2008/10/14 04:01:59 dark0351 Exp $
+ *
+ * (C) Copyright 2008
+ * Guennadi Liakhovetki, DENX Software Engineering, <lg@denx.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,11 +29,8 @@
 #ifndef __S3C6430_H__
 #define __S3C6430_H__
 
-#ifndef CONFIG_S3C6430
-#define CONFIG_S3C6430		1
-#endif
-
 #define CPU_NAME		"S3C6430"
+
 #define S3C64XX_UART_CHANNELS	4
 #define S3C64XX_SPI_CHANNELS	2
 
@@ -230,9 +229,9 @@
 #define GPACONSLP_OFFSET	0x0C
 #define GPAPUDSLP_OFFSET	0x10
 #define GPBCON_OFFSET		0x20
-#define GPBDAT_OFFSET		0x04
-#define GPBPUD_OFFSET		0x08
-#define GPBCONSLP_OFFSET	0x0C
+#define GPBDAT_OFFSET		0x24
+#define GPBPUD_OFFSET		0x28
+#define GPBCONSLP_OFFSET	0x2C
 #define GPBPUDSLP_OFFSET	0x30
 #define GPCCON_OFFSET		0x40
 #define GPCDAT_OFFSET		0x44
@@ -480,6 +479,10 @@
  */
 #define ELFIN_MEM_SYS_CFG	0x7e00f120
 
+#define S3C64XX_MEM_SYS_CFG_16BIT	(1 << 12)
+
+#define S3C64XX_MEM_SYS_CFG_NAND	0x0008
+#define S3C64XX_MEM_SYS_CFG_ONENAND	S3C64XX_MEM_SYS_CFG_16BIT
 
 /*
  * Memory controller

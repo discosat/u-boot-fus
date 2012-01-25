@@ -24,7 +24,7 @@
 #include <common.h>
 #include <command.h>
 #include <image.h>
-#include <zlib.h>
+#include <u-boot/zlib.h>
 #include <asm/byteorder.h>
 
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)

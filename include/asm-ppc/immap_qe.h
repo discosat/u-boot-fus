@@ -20,7 +20,9 @@
 typedef struct qe_iram {
 	u32 iadd;		/* I-RAM Address Register */
 	u32 idata;		/* I-RAM Data Register    */
-	u8 res0[0x78];
+	u8 res0[0x4];
+	u32 iready;
+	u8 res1[0x70];
 } __attribute__ ((packed)) qe_iram_t;
 
 /* QE Interrupt Controller
@@ -583,6 +585,9 @@ typedef struct qe_immap {
 #if defined(CONFIG_MPC8568)
 	u8 muram[0x10000];	/* 0x1_0000 -  0x2_0000 Multi-user RAM */
 	u8 res17[0x20000];	/* 0x2_0000 -  0x4_0000 */
+#elif defined(CONFIG_MPC8569)
+	u8 muram[0x20000];	/* 0x1_0000 -  0x3_0000 Multi-user RAM */
+	u8 res17[0x10000];	/* 0x3_0000 -  0x4_0000 */
 #else
 	u8 muram[0xC000];	/* 0x110000 -  0x11C000 Multi-user RAM */
 	u8 res17[0x24000];	/* 0x11C000 -  0x140000 */
@@ -594,6 +599,8 @@ extern qe_map_t *qe_immr;
 
 #if defined(CONFIG_MPC8568)
 #define QE_MURAM_SIZE		0x10000UL
+#elif defined(CONFIG_MPC8569)
+#define QE_MURAM_SIZE		0x20000UL
 #elif defined(CONFIG_MPC8360)
 #define QE_MURAM_SIZE		0xc000UL
 #elif defined(CONFIG_MPC832X)

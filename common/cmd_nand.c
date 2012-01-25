@@ -29,7 +29,7 @@
 #include <jffs2/jffs2.h>
 #include <nand.h>
 
-#if defined(CONFIG_CMD_JFFS2) && defined(CONFIG_JFFS2_CMDLINE)
+#if defined(CONFIG_CMD_MTDPARTS)
 
 /* parition handling routines */
 int mtdparts_init(void);
@@ -105,7 +105,7 @@ static int
 arg_off_size(int argc, char *argv[], nand_info_t *nand, ulong *off, size_t *size)
 {
 	int idx = nand_curr_device;
-#if defined(CONFIG_CMD_JFFS2) && defined(CONFIG_JFFS2_CMDLINE)
+#if defined(CONFIG_CMD_MTDPARTS)
 	struct mtd_device *dev;
 	struct part_info *part;
 	u8 pnum;
@@ -153,7 +153,7 @@ arg_off_size(int argc, char *argv[], nand_info_t *nand, ulong *off, size_t *size
 		*size = nand->size - *off;
 	}
 
-#if  defined(CONFIG_CMD_JFFS2) && defined(CONFIG_JFFS2_CMDLINE)
+#if defined(CONFIG_CMD_MTDPARTS)
 out:
 #endif
 	printf("device %d ", idx);
@@ -205,6 +205,17 @@ static void do_nand_status(nand_info_t *nand)
 }
 #endif
 
+static void nand_print_info(int idx)
+{
+	nand_info_t *nand = &nand_info[idx];
+	struct nand_chip *chip = nand->priv;
+	printf("Device %d: ", idx);
+	if (chip->numchips > 1)
+		printf("%dx ", chip->numchips);
+	printf("%s, erase size %u KiB\n",
+	       nand->name, nand->erasesize >> 10);
+}
+
 #ifdef CONFIG_NAND_NBOOT
 /* Define prototypes for nboot protection functions */
 extern void nand_protect_nboot(int bProtected);
@@ -239,9 +250,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		putc('\n');
 		for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++) {
 			if (nand_info[i].name)
-				printf("Device %d: %s, erase size %u KiB\n",
-					i, nand_info[i].name,
-					nand_info[i].erasesize >> 10);
+				nand_print_info(i);
 		}
 		return 0;
 	}
@@ -249,12 +258,12 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	if (strcmp(cmd, "device") == 0) {
 
 		if (argc < 3) {
+			putc('\n');
 			if ((nand_curr_device < 0) ||
 			    (nand_curr_device >= CONFIG_SYS_MAX_NAND_DEVICE))
-				puts("\nno devices available\n");
+				puts("no devices available\n");
 			else
-				printf("\nDevice %d: %s\n", nand_curr_device,
-				       nand_info[nand_curr_device].name);
+				nand_print_info(nand_curr_device);
 			return 0;
 		}
 		dev = (int)simple_strtoul(argv[2], NULL, 10);
@@ -412,7 +421,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			else
 				ret = nand_write_skip_bad(nand, off, &size,
 							  (u_char *)addr);
-		} else if (s != NULL && !strcmp(s, ".oob")) {
+		} else if (!strcmp(s, ".oob")) {
 			/* out-of-band data */
 			mtd_oob_ops_t ops = {
 				.oobbuf = (u8 *)addr,
@@ -626,7 +635,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	char *boot_device = NULL;
 	int idx;
 	ulong addr, offset = 0;
-#if defined(CONFIG_CMD_JFFS2) && defined(CONFIG_JFFS2_CMDLINE)
+#if defined(CONFIG_CMD_MTDPARTS)
 	struct mtd_device *dev;
 	struct part_info *part;
 	u8 pnum;
@@ -671,7 +680,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		offset = simple_strtoul(argv[3], NULL, 16);
 		break;
 	default:
-#if defined(CONFIG_CMD_JFFS2) && defined(CONFIG_JFFS2_CMDLINE)
+#if defined(CONFIG_CMD_MTDPARTS)
 usage:
 #endif
 		cmd_usage(cmdtp);

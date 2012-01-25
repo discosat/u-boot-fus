@@ -37,20 +37,9 @@
  */
 
 #include <common.h>
-
-#ifdef CONFIG_DRIVER_CS8900
-
 #include <command.h>
-#include <malloc.h>
 #include "cs8900.h"
 #include <net.h>
-
-#ifdef CONFIG_NET_MULTI
-#define eth_halt cs8900_eth_halt
-#define eth_init cs8900_eth_init
-#define eth_rx cs8900_eth_rx
-#define eth_send cs8900_eth_send
-#endif
 
 #undef DEBUG
 
@@ -121,32 +110,18 @@ static void eth_reginit (void)
 	put_reg (PP_LineCTL, PP_LineCTL_Rx | PP_LineCTL_Tx);
 }
 
-int cs8900_get_enetaddr (uchar * addr)
+void cs8900_get_enetaddr (void)
 {
 	int i;
-	unsigned char env_enetaddr[6];
-	char *tmp = getenv ("ethaddr");
-	char *end;
+	uchar enetaddr[6];
 
-	for (i=0; i<6; i++) {
-		env_enetaddr[i] = tmp ? simple_strtoul(tmp, &end, 16) : 0;
-		if (tmp)
-			tmp = (*end) ? end+1 : end;
-	}
+	/* if the env is setup, then bail */
+	if (eth_getenv_enetaddr("ethaddr", enetaddr))
+		return;
 
 	/* verify chip id */
-	if (get_reg_init_bus (PP_ChipID) != 0x630e) {
-#ifndef CONFIG_NET_MULTI
-		printf("Net:     Not Found CS8900@0x%08x\n", CS8900_BASE);
-#endif
-		return -1;
-	}
-	else {
-#ifndef CONFIG_NET_MULTI
-		printf("Net:     Found CS8900@0x%08x\n", CS8900_BASE);
-#endif
-	}
-
+	if (get_reg_init_bus (PP_ChipID) != 0x630e)
+		return;
 	eth_reset ();
 	if ((get_reg (PP_SelfSTAT) & (PP_SelfSTAT_EEPROM | PP_SelfSTAT_EEPROM_OK)) ==
 			(PP_SelfSTAT_EEPROM | PP_SelfSTAT_EEPROM_OK)) {
@@ -156,38 +131,13 @@ int cs8900_get_enetaddr (uchar * addr)
 			unsigned int Addr;
 
 			Addr = get_reg (PP_IA + i * 2);
-			addr[i * 2] = Addr & 0xFF;
-			addr[i * 2 + 1] = Addr >> 8;
+			enetaddr[i * 2] = Addr & 0xFF;
+			enetaddr[i * 2 + 1] = Addr >> 8;
 		}
 
-		if (memcmp(env_enetaddr, "\0\0\0\0\0\0", 6) != 0 &&
-		    memcmp(env_enetaddr, addr, 6) != 0) {
-			printf ("\nWarning: MAC addresses don't match:\n");
-			printf ("\tHW MAC address:  "
-				"%02X:%02X:%02X:%02X:%02X:%02X\n",
-				addr[0], addr[1],
-				addr[2], addr[3],
-				addr[4], addr[5] );
-			printf ("\t\"ethaddr\" value: "
-				"%02X:%02X:%02X:%02X:%02X:%02X\n",
-				env_enetaddr[0], env_enetaddr[1],
-				env_enetaddr[2], env_enetaddr[3],
-				env_enetaddr[4], env_enetaddr[5]) ;
-			debug ("### Set MAC addr from environment\n");
-			memcpy (addr, env_enetaddr, 6);
-		}
-		if (!tmp) {
-			char ethaddr[20];
-			sprintf (ethaddr, "%02X:%02X:%02X:%02X:%02X:%02X",
-				 addr[0], addr[1],
-				 addr[2], addr[3],
-				 addr[4], addr[5]) ;
-			debug ("### Set environment from HW MAC addr = \"%s\"\n", ethaddr);
-			setenv ("ethaddr", ethaddr);
-		}
+		eth_setenv_enetaddr("ethaddr", enetaddr);
+		debug("### Set environment from HW MAC addr = \"%pM\"\n", enetaddr);
 	}
-
-	return 0;
 }
 
 void eth_halt (void)
@@ -201,6 +151,8 @@ void eth_halt (void)
 
 int eth_init (bd_t * bd)
 {
+	uchar enetaddr[6];
+
 	/* verify chip id */
 	if (get_reg_init_bus (PP_ChipID) != 0x630e) {
 		printf ("CS8900 Ethernet chip not found?!\n");
@@ -209,9 +161,10 @@ int eth_init (bd_t * bd)
 
 	eth_reset ();
 	/* set the ethernet address */
-	put_reg (PP_IA + 0, bd->bi_enetaddr[0] | (bd->bi_enetaddr[1] << 8));
-	put_reg (PP_IA + 2, bd->bi_enetaddr[2] | (bd->bi_enetaddr[3] << 8));
-	put_reg (PP_IA + 4, bd->bi_enetaddr[4] | (bd->bi_enetaddr[5] << 8));
+	eth_getenv_enetaddr("ethaddr", enetaddr);
+	put_reg (PP_IA + 0, enetaddr[0] | (enetaddr[1] << 8));
+	put_reg (PP_IA + 2, enetaddr[2] | (enetaddr[3] << 8));
+	put_reg (PP_IA + 4, enetaddr[4] | (enetaddr[5] << 8));
 
 	eth_reginit ();
 	return 0;
@@ -334,63 +287,3 @@ int cs8900_e2prom_write(unsigned char addr, unsigned short value)
 
 	return 0;
 }
-
-#ifdef CONFIG_NET_MULTI
-/*
- * These functions are designed for SMDK6410 and SMDK2450.
- * by scsuh.
- */
-
-static int cs8900_init(struct eth_device* dev, bd_t* bis)
-{
-	if (cs8900_eth_init(bis)) {
-		return 0;
-	}
-	return 1;
-}
-
-static void cs8900_halt (struct eth_device *dev)
-{
-	cs8900_eth_halt();
-	return;
-}
-
-static int cs8900_send (struct eth_device *dev, volatile void *packet, int length)
-{
-	if (cs8900_eth_send(packet, length)) {
-		return 0;
-	}
-	return length;
-}
-
-static int cs8900_rx (struct eth_device *dev)
-{
-       return cs8900_eth_rx();
-}
-
-int cs8900_initialize (bd_t * bis)
-{
-	struct eth_device *dev;
-
-	if (cs8900_get_enetaddr(bis->bi_enetaddr)) {
-		return -1;
-	}
-	dev = (struct eth_device *) malloc (sizeof *dev);
-
-	sprintf (dev->name, "cs8900");
-	dev->priv = (void *) NULL; /* this have to come before bus_to_phys() */
-	dev->iobase = CS8900_BASE;
-	dev->init = cs8900_init;
-	dev->halt = cs8900_halt;
-	dev->send = cs8900_send;
-	dev->recv = cs8900_rx;
-
-	eth_register (dev);
-
-	return 0;
-}
-
-#endif	/* CONFIG_NET_MULTI */
-
-#endif	/* CONFIG_DRIVER_CS8900 */
-

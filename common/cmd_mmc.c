@@ -25,54 +25,99 @@
 #include <command.h>
 #include <mmc.h>
 
-#define MAXIMUM_BLOCK_COUNT 0xFFFF
-
 #ifndef CONFIG_GENERIC_MMC
+int curr_device = -1;
+
 int do_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
-	if (mmc_init (1) != 0) {
-		printf ("No MMC card found\n");
+	int dev;
+
+	if (argc < 2) {
+		cmd_usage(cmdtp);
 		return 1;
 	}
+
+	if (strcmp(argv[1], "init") == 0) {
+		if (argc == 2) {
+			if (curr_device < 0)
+				dev = 1;
+			else
+				dev = curr_device;
+		} else if (argc == 3) {
+			dev = (int)simple_strtoul(argv[2], NULL, 10);
+		} else {
+			cmd_usage(cmdtp);
+			return 1;
+		}
+
+		if (mmc_legacy_init(dev) != 0) {
+			puts("No MMC card found\n");
+			return 1;
+		}
+
+		curr_device = dev;
+		printf("mmc%d is available\n", curr_device);
+	} else if (strcmp(argv[1], "device") == 0) {
+		if (argc == 2) {
+			if (curr_device < 0) {
+				puts("No MMC device available\n");
+				return 1;
+			}
+		} else if (argc == 3) {
+			dev = (int)simple_strtoul(argv[2], NULL, 10);
+
+#ifdef CONFIG_SYS_MMC_SET_DEV
+			if (mmc_set_dev(dev) != 0)
+				return 1;
+#endif
+			curr_device = dev;
+		} else {
+			cmd_usage(cmdtp);
+			return 1;
+		}
+
+		printf("mmc%d is current device\n", curr_device);
+	} else {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+
 	return 0;
 }
 
 U_BOOT_CMD(
-	mmcinit,	1,	0,	do_mmc,
-	"init mmc card",
-	NULL
+	mmc, 3, 1, do_mmc,
+	"MMC sub-system",
+	"init [dev] - init MMC sub system\n"
+	"mmc device [dev] - show or set current device\n"
 );
 #else /* !CONFIG_GENERIC_MMC */
 
-static void print_mmcinfo(struct mmc *host)
+static void print_mmcinfo(struct mmc *mmc)
 {
-	printf("Device: %s\n", host->name);
-	printf("Manufacturer ID: %x\n", host->cid[0] >> 24);
-	printf("RCA: %x\n", host->rca);
-	printf("OEM: %x\n", (host->cid[0] >> 8) & 0xffff);
-	printf("Name: %c%c%c%c%c \n", host->cid[0] & 0xff,
-			(host->cid[1] >> 24), (host->cid[1] >> 16) & 0xff,
-			(host->cid[1] >> 8) & 0xff, host->cid[1] & 0xff);
+	printf("Device: %s\n", mmc->name);
+	printf("Manufacturer ID: %x\n", mmc->cid[0] >> 24);
+	printf("OEM: %x\n", (mmc->cid[0] >> 8) & 0xffff);
+	printf("Name: %c%c%c%c%c \n", mmc->cid[0] & 0xff,
+			(mmc->cid[1] >> 24), (mmc->cid[1] >> 16) & 0xff,
+			(mmc->cid[1] >> 8) & 0xff, mmc->cid[1] & 0xff);
 
-	printf("Tran Speed: %d\n", host->clock);
-	printf("Rd Block Len: %d\n", host->read_bl_len);
+	printf("Tran Speed: %d\n", mmc->tran_speed);
+	printf("Rd Block Len: %d\n", mmc->read_bl_len);
 
-	printf("%s version %d.%d\n", IS_SD(host) ? "SD" : "MMC",
-			(host->version >> 4) & 0xf, host->version & 0xf);
+	printf("%s version %d.%d\n", IS_SD(mmc) ? "SD" : "MMC",
+			(mmc->version >> 4) & 0xf, mmc->version & 0xf);
 
-	printf("High Capacity: %s\n", host->high_capacity ? "Yes" : "No");
-	printf("Size: %dMB (block: %d)\n",
-			(host->capacity/(1024*1024/host->read_bl_len)),
-			host->capacity);
+	printf("High Capacity: %s\n", mmc->high_capacity ? "Yes" : "No");
+	printf("Capacity: %lld\n", mmc->capacity);
 
-	printf("Bus Width: %d-bit\n\n", host->bus_width);
+	printf("Bus Width: %d-bit\n", mmc->bus_width);
 }
 
 int do_mmcinfo (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
 	struct mmc *mmc;
 	int dev_num;
-	int err;
 
 	if (argc < 2)
 		dev_num = 0;
@@ -82,9 +127,7 @@ int do_mmcinfo (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	mmc = find_mmc_device(dev_num);
 
 	if (mmc) {
-		err = mmc_init(mmc);
-		if(err)
-			return err;
+		mmc_init(mmc);
 
 		print_mmcinfo(mmc);
 	}
@@ -109,8 +152,9 @@ int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			if (!mmc)
 				return 1;
 
-			rc = mmc_init(mmc);
-			return rc;
+			mmc_init(mmc);
+
+			return 0;
 		}
 
 	case 0:
@@ -129,60 +173,35 @@ int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		if (strcmp(argv[1], "read") == 0) {
 			int dev = simple_strtoul(argv[2], NULL, 10);
 			void *addr = (void *)simple_strtoul(argv[3], NULL, 16);
-			u32 cnt = simple_strtoul(argv[5], NULL, 10);
-			u32 blk = simple_strtoul(argv[4], NULL, 10);
+			u32 cnt = simple_strtoul(argv[5], NULL, 16);
 			u32 n;
-			u32 read_cnt;
-			u32 cnt_to_read;
-			void *addr_to_read;
+			u32 blk = simple_strtoul(argv[4], NULL, 16);
 			struct mmc *mmc = find_mmc_device(dev);
 
 			if (!mmc)
 				return 1;
 
-			printf("\nMMC read: dev # %d, block # %d, count %d ...",
+			printf("\nMMC read: dev # %d, block # %d, count %d ... ",
 				dev, blk, cnt);
 
-			rc = mmc_init(mmc);
-			if(rc)
-				return rc;
+			mmc_init(mmc);
 
-			n = 0;
-			addr_to_read = addr;
-			do {
-				if (cnt - n > MAXIMUM_BLOCK_COUNT)
-					cnt_to_read = MAXIMUM_BLOCK_COUNT;
-				else
-					cnt_to_read = cnt - n;
-
-				read_cnt = mmc->block_dev.block_read(dev, blk, cnt_to_read, addr_to_read);
-				n += read_cnt;
-				blk += read_cnt;
-				addr_to_read += read_cnt * 512;
-				if(cnt_to_read != read_cnt) {
-					printf("%d blocks read: %s\n",
-						n, "ERROR");
-					return -1;
-				}
-			} while(cnt > n);
+			n = mmc->block_dev.block_read(dev, blk, cnt, addr);
 
 			/* flush cache after read */
 			flush_cache((ulong)addr, cnt * 512); /* FIXME */
 
 			printf("%d blocks read: %s\n",
-				n, "OK");
-			return 0;
+				n, (n==cnt) ? "OK" : "ERROR");
+			return (n == cnt) ? 0 : 1;
 		} else if (strcmp(argv[1], "write") == 0) {
 			int dev = simple_strtoul(argv[2], NULL, 10);
 			void *addr = (void *)simple_strtoul(argv[3], NULL, 16);
-			u32 cnt = simple_strtoul(argv[5], NULL, 10);
-			int blk = simple_strtoul(argv[4], NULL, 10);
+			u32 cnt = simple_strtoul(argv[5], NULL, 16);
 			u32 n;
-			u32 written_cnt;
-			u32 cnt_to_write;
-			void *addr_to_write = addr;
 			struct mmc *mmc = find_mmc_device(dev);
 
+			int blk = simple_strtoul(argv[4], NULL, 16);
 
 			if (!mmc)
 				return 1;
@@ -190,32 +209,13 @@ int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf("\nMMC write: dev # %d, block # %d, count %d ... ",
 				dev, blk, cnt);
 
-			rc = mmc_init(mmc);
-			if(rc)
-				return rc;
+			mmc_init(mmc);
 
-			n = 0;
-			addr_to_write = addr;
-			do {
-				if (cnt - n > MAXIMUM_BLOCK_COUNT)
-					cnt_to_write = MAXIMUM_BLOCK_COUNT;
-				else
-					cnt_to_write = cnt - n;
-
-				written_cnt = mmc->block_dev.block_write(dev, blk, cnt_to_write, addr_to_write);
-				n += written_cnt;
-				blk += written_cnt;
-				addr_to_write += written_cnt * 512;
-				if(cnt_to_write != written_cnt) {
-					printf("%d blocks written: %s\n",
-						n, "ERROR");
-					return -1;
-				}
-			} while(cnt > n);
+			n = mmc->block_dev.block_write(dev, blk, cnt, addr);
 
 			printf("%d blocks written: %s\n",
-				n, "OK");
-			return 0;
+				n, (n == cnt) ? "OK" : "ERROR");
+			return (n == cnt) ? 0 : 1;
 		} else {
 			printf("Usage:\n%s\n", cmdtp->usage);
 			rc = 1;

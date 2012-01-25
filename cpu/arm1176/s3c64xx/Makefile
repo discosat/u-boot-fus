@@ -32,7 +32,6 @@ COBJS-y	= interrupts.o
 COBJS-$(CONFIG_S3C6400)	+= cpu_init.o speed.o
 COBJS-$(CONFIG_S3C6410)	+= cpu_init.o speed.o
 COBJS-$(CONFIG_S3C6430)	+= cpu_init.o speed.o
-COBJS-$(CONFIG_USB_OHCI_NEW) += usb.o
 
 OBJS	:= $(addprefix $(obj),$(SOBJS) $(COBJS-y))
 

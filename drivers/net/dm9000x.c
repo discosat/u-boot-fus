@@ -53,7 +53,7 @@ v1.2   03/18/2003       Weilun Huang <weilun_huang@davicom.com.tw>:
 			  notes (i.e. double reset)
 			- some minor code cleanups
 			These changes are tested with DM9000{A,EP,E} together
-			with a 200MHz Atmel AT91SAM92161 core
+			with a 200MHz Atmel AT91SAM9261 core
 
 TODO: external MII is not functional, only internal at the moment.
 */
@@ -62,6 +62,7 @@ TODO: external MII is not functional, only internal at the moment.
 #include <command.h>
 #include <net.h>
 #include <asm/io.h>
+#include <dm9000.h>
 
 #include "dm9000x.h"
 
@@ -113,7 +114,6 @@ void eth_halt(void);
 static int dm9000_probe(void);
 static u16 phy_read(int);
 static void phy_write(int, u16);
-u16 read_srom_word(int);
 static u8 DM9000_ior(int);
 static void DM9000_iow(int reg, u8 value);
 
@@ -287,6 +287,7 @@ eth_init(bd_t * bd)
 	int i, oft, lnk;
 	u8 io_mode;
 	struct board_info *db = &dm9000_info;
+	uchar enetaddr[6];
 
 	DM9000_DBG("eth_init()\n");
 
@@ -345,32 +346,19 @@ eth_init(bd_t * bd)
 	DM9000_iow(DM9000_ISR, ISR_ROOS | ISR_ROS | ISR_PTS | ISR_PRS);
 
 	/* Set Node address */
-#if !defined(CONFIG_AT91SAM9261EK)
-	for (i = 0; i < 6; i++)
-		((u16 *) bd->bi_enetaddr)[i] = read_srom_word(i);
+	if (!eth_getenv_enetaddr("ethaddr", enetaddr)) {
+#if !defined(CONFIG_DM9000_NO_SROM)
+		for (i = 0; i < 3; i++)
+			dm9000_read_srom_word(i, enetaddr + 2 * i);
+		eth_setenv_enetaddr("ethaddr", enetaddr);
 #endif
-
-	if (is_zero_ether_addr(bd->bi_enetaddr) ||
-	    is_multicast_ether_addr(bd->bi_enetaddr)) {
-		/* try reading from environment */
-		u8 i;
-		char *s, *e;
-		s = getenv ("ethaddr");
-		for (i = 0; i < 6; ++i) {
-			bd->bi_enetaddr[i] = s ?
-				simple_strtoul (s, &e, 16) : 0;
-			if (s)
-				s = (*e) ? e + 1 : e;
-		}
 	}
 
-	printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", bd->bi_enetaddr[0],
-	       bd->bi_enetaddr[1], bd->bi_enetaddr[2], bd->bi_enetaddr[3],
-	       bd->bi_enetaddr[4], bd->bi_enetaddr[5]);
+	printf("MAC: %pM\n", enetaddr);
 
 	/* fill device MAC address registers */
 	for (i = 0, oft = DM9000_PAR; i < 6; i++, oft++)
-		DM9000_iow(oft, bd->bi_enetaddr[i]);
+		DM9000_iow(oft, enetaddr[i]);
 	for (i = 0, oft = 0x16; i < 8; i++, oft++)
 		DM9000_iow(oft, 0xff);
 
@@ -553,18 +541,18 @@ eth_rx(void)
 /*
   Read a word data from SROM
 */
-u16
-read_srom_word(int offset)
+#if !defined(CONFIG_DM9000_NO_SROM)
+void dm9000_read_srom_word(int offset, u8 *to)
 {
 	DM9000_iow(DM9000_EPAR, offset);
 	DM9000_iow(DM9000_EPCR, 0x4);
 	udelay(8000);
 	DM9000_iow(DM9000_EPCR, 0x0);
-	return (DM9000_ior(DM9000_EPDRL) + (DM9000_ior(DM9000_EPDRH) << 8));
+	to[0] = DM9000_ior(DM9000_EPDRL);
+	to[1] = DM9000_ior(DM9000_EPDRH);
 }
 
-void
-write_srom_word(int offset, u16 val)
+void dm9000_write_srom_word(int offset, u16 val)
 {
 	DM9000_iow(DM9000_EPAR, offset);
 	DM9000_iow(DM9000_EPDRH, ((val >> 8) & 0xff));
@@ -573,7 +561,7 @@ write_srom_word(int offset, u16 val)
 	udelay(8000);
 	DM9000_iow(DM9000_EPCR, 0);
 }
-
+#endif
 
 /*
    Read a byte from I/O port

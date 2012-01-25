@@ -189,7 +189,7 @@
 #define CONFIG_JFFS2_DEV	"nand0"
 
 /* mtdparts command line support */
-#define CONFIG_JFFS2_CMDLINE
+#define CONFIG_CMD_MTDPARTS
 #define MTDIDS_DEFAULT		"nand0=nand0"
 #define MTDPARTS_DEFAULT	"mtdparts=nand0:2M(u-boot),6M(kernel),-(jffs2)"
 
@@ -437,7 +437,7 @@
 #define CONFIG_SYS_IBAT5U	(CONFIG_SYS_IMMR | BATU_BL_256M | BATU_VS | BATU_VP)
 
 /* SDRAM @ 0xF0000000, stack in DCACHE 0xFDF00000 & FLASH @ 0xFE000000 */
-#define CONFIG_SYS_IBAT6L	(0xF0000000 | BATL_PP_10)
+#define CONFIG_SYS_IBAT6L	(0xF0000000 | BATL_PP_10 | BATL_GUARDEDSTORAGE)
 #define CONFIG_SYS_IBAT6U	(0xF0000000 | BATU_BL_256M | BATU_VS | BATU_VP)
 
 #define CONFIG_SYS_IBAT7L	(0)

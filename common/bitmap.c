@@ -52,7 +52,7 @@
 #include <bitmap.h>			  /* Own interface */
 #include <malloc.h>			  /* malloc(), free() */
 #include <linux/ctype.h>		  /* isalpha() */
-#include <zlib.h>			  /* z_stream, inflateInit(), ... */
+#include <u-boot/zlib.h>		  /* z_stream, inflateInit(), ... */
 #include <watchdog.h>			  /* WATCHDOG_RESET() */
 
 
@@ -1746,7 +1746,7 @@ static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 U_BOOT_CMD(
 	bminfo, 4,	1,	do_bminfo,
-	"bminfo\t- show (multi-)bitmap information in a list\n",
+	"show (multi-)bitmap information in a list",
 	"addr [start [count]]\n"
 	"    - show information about bitmap(s) stored at addr\n"
 );
