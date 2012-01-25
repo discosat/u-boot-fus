@@ -32,7 +32,6 @@ COBJS-y += main.o
 COBJS-y += circbuf.o
 COBJS-y += console.o
 COBJS-y += command.o
-COBJS-y += devices.o
 COBJS-y += dlmalloc.o
 COBJS-y += exports.o
 COBJS-$(CONFIG_SYS_HUSH_PARSER) += hush.o
@@ -40,6 +39,7 @@ COBJS-y += image.o
 COBJS-y += memsize.o
 COBJS-y += s_record.o
 COBJS-$(CONFIG_SERIAL_MULTI) += serial.o
+COBJS-y += stdio.o
 COBJS-y += xyzModem.o
 
 # core command
@@ -83,7 +83,6 @@ ifdef CONFIG_POST
 COBJS-$(CONFIG_CMD_DIAG) += cmd_diag.o
 endif
 COBJS-$(CONFIG_CMD_DISPLAY) += cmd_display.o
-COBJS-$(CONFIG_CMD_DOC) += cmd_doc.o
 COBJS-$(CONFIG_CMD_DTT) += cmd_dtt.o
 COBJS-$(CONFIG_ENV_IS_IN_EEPROM) += cmd_eeprom.o
 COBJS-$(CONFIG_CMD_EEPROM) += cmd_eeprom.o
@@ -133,8 +132,10 @@ COBJS-$(CONFIG_CMD_SF) += cmd_sf.o
 COBJS-$(CONFIG_CMD_SCSI) += cmd_scsi.o
 COBJS-$(CONFIG_CMD_SETEXPR) += cmd_setexpr.o
 COBJS-$(CONFIG_CMD_SPI) += cmd_spi.o
+COBJS-$(CONFIG_CMD_SPIBOOTLDR) += cmd_spibootldr.o
 COBJS-$(CONFIG_CMD_STRINGS) += cmd_strings.o
 COBJS-$(CONFIG_CMD_TERMINAL) += cmd_terminal.o
+COBJS-$(CONFIG_CMD_TSI148) += cmd_tsi148.o
 COBJS-$(CONFIG_CMD_UBI) += cmd_ubi.o
 COBJS-$(CONFIG_CMD_UBIFS) += cmd_ubifs.o
 COBJS-$(CONFIG_CMD_UNIVERSE) += cmd_universe.o
@@ -149,12 +150,14 @@ COBJS-$(CONFIG_VFD) += cmd_vfd.o
 
 # others
 COBJS-$(CONFIG_DDR_SPD) += ddr_spd.o
-COBJS-$(CONFIG_CMD_DOC) += docecc.o
+COBJS-$(CONFIG_HWCONFIG) += hwconfig.o
 COBJS-$(CONFIG_CONSOLE_MUX) += iomux.o
 COBJS-y += flash.o
 COBJS-$(CONFIG_CMD_KGDB) += kgdb.o
+COBJS-$(CONFIG_KALLSYMS) += kallsyms.o
 COBJS-$(CONFIG_LCD) += lcd.o
 COBJS-$(CONFIG_LYNXKDI) += lynxkdi.o
+COBJS-$(CONFIG_MODEM_SUPPORT) += modem.o
 COBJS-$(CONFIG_UPDATE_TFTP) += update.o
 COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
 

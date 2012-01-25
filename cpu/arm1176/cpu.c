@@ -38,11 +38,6 @@
 
 static void cache_flush (void);
 
-int cpu_init (void)
-{
-	return 0;
-}
-
 int cleanup_before_linux (void)
 {
 	/*
@@ -61,22 +56,6 @@ int cleanup_before_linux (void)
 	cache_flush();
 
 	return 0;
-}
-
-
-/* * reset the cpu by setting up the watchdog timer and let him time out */
-void reset_cpu (ulong ignored)
-{
-	printf("reset... \n\n\n");
-	SW_RST_REG = 0x6400;
-	/* loop forever and wait for reset to happen */
-	while (1) {
-		if (serial_tstc()) {
-			serial_getc();
-			break;
-		}
-	}
-	/*NOTREACHED*/
 }
 
 /* flush I/D-cache */

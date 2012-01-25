@@ -351,8 +351,6 @@
 /* NAND FLASH */
 #ifdef CONFIG_NAND
 
-#undef CONFIG_NAND_LEGACY
-
 #define CONFIG_NAND_FSL_UPM	1
 
 #define	CONFIG_MTD_NAND_ECC_JFFS2	1	/* use JFFS2 ECC	*/
@@ -373,6 +371,8 @@
 #define CONFIG_SYS_OR3_PRELIM		(P2SZ_TO_AM(CONFIG_SYS_NAND_SIZE) | OR_UPM_BI)
 
 #define NAND_BIG_DELAY_US		25	/* max tR for Samsung devices	*/
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 #endif /* CONFIG_NAND */
 
@@ -567,6 +567,8 @@
 #define	CONFIG_JFFS2_NAND	1
 
 #ifdef CONFIG_CMD_MTDPARTS
+#define CONFIG_MTD_DEVICE		/* needed for mtdparts commands */
+#define CONFIG_FLASH_CFI_MTD
 #define MTDIDS_DEFAULT		"nand0=TQM85xx-nand"
 #define MTDPARTS_DEFAULT	"mtdparts=TQM85xx-nand:-"
 #else

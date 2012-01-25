@@ -54,6 +54,7 @@ int __get_cpu_num(void)
 }
 int get_cpu_num(void) __attribute__((weak, alias("__get_cpu_num")));
 
+#if defined(CONFIG_PCI)
 #if defined(CONFIG_405GP) || \
     defined(CONFIG_440EP) || defined(CONFIG_440GR) || \
     defined(CONFIG_440EPX) || defined(CONFIG_440GRX)
@@ -76,6 +77,7 @@ static int pci_async_enabled(void)
 #endif
 }
 #endif
+#endif /* CONFIG_PCI */
 
 #if defined(CONFIG_PCI) && !defined(CONFIG_IOP480) && \
     !defined(CONFIG_405) && !defined(CONFIG_405EX)
@@ -270,7 +272,7 @@ static int do_chip_reset (unsigned long sys0, unsigned long sys1)
 	mtdcr (cpc0_sys0, sys0);
 	mtdcr (cpc0_sys1, sys1);
 	mtdcr (cntrl0, mfdcr (cntrl0) & ~0x80000000);	/* Clr SWE */
-	mtspr (dbcr0, 0x20000000);	/* Reset the chip */
+	mtspr (SPRN_DBCR0, 0x20000000);	/* Reset the chip */
 
 	return 1;
 }
@@ -283,6 +285,9 @@ int checkcpu (void)
 	uint pvr = get_pvr();
 	ulong clock = gd->cpu_clk;
 	char buf[32];
+#if defined(CONFIG_460EX) || defined(CONFIG_460GT)
+	u32 reg;
+#endif
 
 #if !defined(CONFIG_IOP480)
 	char addstr[64] = "";
@@ -524,6 +529,7 @@ int checkcpu (void)
 		strcpy(addstr, "No RAID 6 support");
 		break;
 
+#if defined(CONFIG_460EX) || defined(CONFIG_460GT)
 	case PVR_460EX_RA:
 		puts("EX Rev. A");
 		strcpy(addstr, "No Security/Kasumi support");
@@ -532,6 +538,15 @@ int checkcpu (void)
 	case PVR_460EX_SE_RA:
 		puts("EX Rev. A");
 		strcpy(addstr, "Security/Kasumi support");
+		break;
+
+	case PVR_460EX_RB:
+		puts("EX Rev. B");
+		mfsdr(SDR0_ECID3, reg);
+		if (reg & 0x00100000)
+			strcpy(addstr, "No Security/Kasumi support");
+		else
+			strcpy(addstr, "Security/Kasumi support");
 		break;
 
 	case PVR_460GT_RA:
@@ -543,6 +558,16 @@ int checkcpu (void)
 		puts("GT Rev. A");
 		strcpy(addstr, "Security/Kasumi support");
 		break;
+
+	case PVR_460GT_RB:
+		puts("GT Rev. B");
+		mfsdr(SDR0_ECID3, reg);
+		if (reg & 0x00100000)
+			strcpy(addstr, "No Security/Kasumi support");
+		else
+			strcpy(addstr, "Security/Kasumi support");
+		break;
+#endif
 
 	case PVR_460SX_RA:
 		puts("SX Rev. A");
@@ -597,7 +622,7 @@ int checkcpu (void)
 	printf ("       Internal PCI arbiter %sabled", pci_arbiter_enabled() ? "en" : "dis");
 #endif
 
-#if defined(PCI_ASYNC)
+#if defined(CONFIG_PCI) && defined(PCI_ASYNC)
 	if (pci_async_enabled()) {
 		printf (", PCI async ext clock used");
 	} else {
@@ -652,12 +677,12 @@ int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	board_reset();
 #else
 #if defined(CONFIG_SYS_4xx_RESET_TYPE)
-	mtspr(dbcr0, CONFIG_SYS_4xx_RESET_TYPE << 28);
+	mtspr(SPRN_DBCR0, CONFIG_SYS_4xx_RESET_TYPE << 28);
 #else
 	/*
 	 * Initiate system reset in debug control register DBCR
 	 */
-	mtspr(dbcr0, 0x30000000);
+	mtspr(SPRN_DBCR0, 0x30000000);
 #endif /* defined(CONFIG_SYS_4xx_RESET_TYPE) */
 #endif /* defined(CONFIG_BOARD_RESET) */
 
@@ -695,7 +720,7 @@ void reset_4xx_watchdog(void)
 	/*
 	 * Clear TSR(WIS) bit
 	 */
-	mtspr(tsr, 0x40000000);
+	mtspr(SPRN_TSR, 0x40000000);
 }
 #endif	/* CONFIG_WATCHDOG */
 

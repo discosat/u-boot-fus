@@ -14,11 +14,10 @@
  */
 #define CONFIG_E300		1	/* E300 family */
 #define CONFIG_QE		1	/* Has QE */
-#define CONFIG_MPC83XX		1	/* MPC83xx family */
-#define CONFIG_MPC832X		1	/* MPC832x CPU specific */
+#define CONFIG_MPC83xx		1	/* MPC83xx family */
+#define CONFIG_MPC832x		1	/* MPC832x CPU specific */
 
 #define CONFIG_PCI		1
-#define CONFIG_83XX_GENERIC_PCI	1
 
 /*
  * System Clock Setup
@@ -156,7 +155,7 @@
 #endif
 
 /* CONFIG_SYS_MONITOR_LEN must be a multiple of CONFIG_ENV_SECT_SIZE */
-#define CONFIG_SYS_MONITOR_LEN		(256 * 1024)	/* Reserve 256 kB for Mon */
+#define CONFIG_SYS_MONITOR_LEN		(384 * 1024)	/* Reserve 384 kB for Mon */
 #define CONFIG_SYS_MALLOC_LEN		(128 * 1024)	/* Reserved for malloc */
 
 /*
@@ -543,7 +542,7 @@
 #define CONFIG_UBOOTPATH	u-boot.bin	/* U-Boot image on TFTP server */
 #define CONFIG_FDTFILE		mpc832x_rdb.dtb
 
-#define CONFIG_LOADADDR		500000	/* default location for tftp and bootm */
+#define CONFIG_LOADADDR		800000	/* default location for tftp and bootm */
 #define CONFIG_BOOTDELAY	6	/* -1 disables auto-boot */
 #define CONFIG_BAUDRATE		115200
 
@@ -559,7 +558,7 @@
 		"cp.b $loadaddr " MK_STR(TEXT_BASE) " $filesize; "	\
 		"protect on " MK_STR(TEXT_BASE) " +$filesize; "		\
 		"cmp.b $loadaddr " MK_STR(TEXT_BASE) " $filesize\0"	\
-	"fdtaddr=400000\0"						\
+	"fdtaddr=780000\0"						\
 	"fdtfile=" MK_STR(CONFIG_FDTFILE) "\0"				\
 	"ramdiskaddr=1000000\0"						\
 	"ramdiskfile=" MK_STR(CONFIG_RAMDISKFILE) "\0"			\

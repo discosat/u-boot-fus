@@ -28,13 +28,15 @@
 #define __CONFIG_H
 
 /* ARM asynchronous clock */
-#define AT91_CPU_NAME		"AT91SAM9261"
 #define AT91_MAIN_CLOCK		18432000	/* 18.432 MHz crystal */
 #define CONFIG_SYS_HZ		1000
 
 #define CONFIG_ARM926EJS	1	/* This is an ARM926EJS Core	*/
+#ifdef CONFIG_AT91SAM9G10EK
+#define CONFIG_AT91SAM9G10	1	/* It's an Atmel AT91SAM9G10 SoC*/
+#else
 #define CONFIG_AT91SAM9261	1	/* It's an Atmel AT91SAM9261 SoC*/
-#define CONFIG_AT91SAM9261EK	1	/* on an AT91SAM9261EK Board	*/
+#endif
 #define CONFIG_ARCH_CPU_INIT
 #undef CONFIG_USE_IRQ			/* we don't need IRQ/FIQ stuff	*/
 
@@ -63,7 +65,11 @@
 #define CONFIG_LCD_INFO_BELOW_LOGO	1
 #define CONFIG_SYS_WHITE_ON_BLACK		1
 #define CONFIG_ATMEL_LCD		1
+#ifdef CONFIG_AT91SAM9261EK
 #define CONFIG_ATMEL_LCD_BGR555		1
+#else
+#define	CONFIG_AT91SAM9G10_LCD_BASE		0x23E00000	/* LCD is no more in SRAM */
+#endif
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV		1
 
 /* LED */
@@ -126,12 +132,15 @@
 #define CONFIG_SYS_NAND_MASK_CLE		(1 << 21)
 #define CONFIG_SYS_NAND_ENABLE_PIN		AT91_PIN_PC14
 #define CONFIG_SYS_NAND_READY_PIN		AT91_PIN_PC15
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 #endif
 
 /* NOR flash - no real flash on this board */
 #define CONFIG_SYS_NO_FLASH			1
 
 /* Ethernet */
+#define CONFIG_NET_MULTI		1
 #define CONFIG_DRIVER_DM9000		1
 #define CONFIG_DM9000_BASE		0x30000000
 #define DM9000_IO			CONFIG_DM9000_BASE
@@ -147,7 +156,11 @@
 #define CONFIG_DOS_PARTITION		1
 #define CONFIG_SYS_USB_OHCI_CPU_INIT		1
 #define CONFIG_SYS_USB_OHCI_REGS_BASE		0x00500000	/* AT91SAM9261_UHP_BASE */
+#ifdef CONFIG_AT91SAM9G10EK
+#define CONFIG_SYS_USB_OHCI_SLOT_NAME		"at91sam9g10"
+#else
 #define CONFIG_SYS_USB_OHCI_SLOT_NAME		"at91sam9261"
+#endif
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS	2
 #define CONFIG_USB_STORAGE		1
 #define CONFIG_CMD_FAT			1
@@ -168,7 +181,7 @@
 #define CONFIG_BOOTCOMMAND	"cp.b 0xC0042000 0x22000000 0x210000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock0 "			\
-				"mtdparts=at91_nand:-(root) "		\
+				"mtdparts=atmel_nand:-(root) "		\
 				"rw rootfstype=jffs2"
 
 #elif CONFIG_SYS_USE_DATAFLASH_CS3
@@ -182,7 +195,7 @@
 #define CONFIG_BOOTCOMMAND	"cp.b 0xD0042000 0x22000000 0x210000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock0 "			\
-				"mtdparts=at91_nand:-(root) "		\
+				"mtdparts=atmel_nand:-(root) "		\
 				"rw rootfstype=jffs2"
 
 #else /* CONFIG_SYS_USE_NANDFLASH */
@@ -195,7 +208,7 @@
 #define CONFIG_BOOTCOMMAND	"nand read 0x22000000 0xA0000 0x200000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock5 "			\
-				"mtdparts=at91_nand:128k(bootstrap)ro,"	\
+				"mtdparts=atmel_nand:128k(bootstrap)ro,"	\
 				"256k(uboot)ro,128k(env1)ro,"		\
 				"128k(env2)ro,2M(linux),-(root) "	\
 				"rw rootfstype=jffs2"
@@ -212,7 +225,6 @@
 #define CONFIG_SYS_LONGHELP		1
 #define CONFIG_CMDLINE_EDITING	1
 
-#define ROUND(A, B)		(((A) + (B)) & ~((B) - 1))
 /*
  * Size of malloc() pool
  */

@@ -38,6 +38,9 @@
 #  define CONFIG_CMD_USB_STORAGE
 #  define CONFIG_DOS_PARTITION
 # endif
+# ifdef CONFIG_NAND_PLAT
+#  define CONFIG_CMD_NAND
+# endif
 # ifdef CONFIG_POST
 #  define CONFIG_CMD_DIAG
 # endif
@@ -71,6 +74,7 @@
 # define CONFIG_CMD_STRINGS
 # if defined(__ADSPBF51x__) || defined(__ADSPBF52x__) || defined(__ADSPBF54x__)
 #  define CONFIG_CMD_OTP
+#  define CONFIG_CMD_SPIBOOTLDR
 # endif
 #endif
 
@@ -91,7 +95,7 @@
  */
 #define CONFIG_ENV_OVERWRITE	1
 #define CONFIG_DEBUG_DUMP	1
-#define CONFIG_DEBUG_DUMP_SYMS	1
+#define CONFIG_KALLSYMS		1
 #define CONFIG_PANIC_HANG	1
 
 /*
@@ -102,14 +106,19 @@
 #else
 # define CONFIG_BOOTDELAY	5
 #endif
-#define CONFIG_BOOTCOMMAND	"run ramboot"
+#ifndef CONFIG_BOOTCOMMAND
+# define CONFIG_BOOTCOMMAND	"run ramboot"
+#endif
 #ifdef CONFIG_VIDEO
 # define CONFIG_BOOTARGS_VIDEO "console=tty0 "
 #else
 # define CONFIG_BOOTARGS_VIDEO ""
 #endif
+#ifndef CONFIG_BOOTARGS_ROOT
+# define CONFIG_BOOTARGS_ROOT "/dev/mtdblock0 rw"
+#endif
 #define CONFIG_BOOTARGS	\
-	"root=/dev/mtdblock0 rw " \
+	"root=" CONFIG_BOOTARGS_ROOT " " \
 	"clkin_hz=" MK_STR(CONFIG_CLKIN_HZ) " " \
 	"earlyprintk=" \
 		"serial," \
@@ -117,7 +126,17 @@
 		MK_STR(CONFIG_BAUDRATE) " " \
 	CONFIG_BOOTARGS_VIDEO \
 	"console=ttyBF0," MK_STR(CONFIG_BAUDRATE)
-
+#if defined(CONFIG_CMD_NAND)
+# define NAND_ENV_SETTINGS \
+	"nandargs=set bootargs " CONFIG_BOOTARGS "\0" \
+	"nandboot=" \
+		"nand read $(loadaddr) 0x20000 0x100000;" \
+		"run nandargs;" \
+		"bootm" \
+		"\0"
+#else
+# define NAND_ENV_SETTINGS
+#endif
 #if defined(CONFIG_CMD_NET)
 # if (CONFIG_BFIN_BOOT_MODE == BFIN_BOOT_BYPASS)
 #  define UBOOT_ENV_FILE "u-boot.bin"
@@ -155,19 +174,23 @@
 		"ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask):" \
 		   "$(hostname):eth0:off" \
 		"\0" \
+	\
+	"ramfile=uImage\0" \
 	"ramargs=set bootargs " CONFIG_BOOTARGS "\0" \
 	"ramboot=" \
-		"tftp $(loadaddr) uImage;" \
+		"tftp $(loadaddr) $(ramfile);" \
 		"run ramargs;" \
 		"run addip;" \
 		"bootm" \
 		"\0" \
+	\
+	"nfsfile=vmImage\0" \
 	"nfsargs=set bootargs " \
 		"root=/dev/nfs rw " \
 		"nfsroot=$(serverip):$(rootpath),tcp,nfsvers=3" \
 		"\0" \
 	"nfsboot=" \
-		"tftp $(loadaddr) vmImage;" \
+		"tftp $(loadaddr) $(nfsfile);" \
 		"run nfsargs;" \
 		"run addip;" \
 		"bootm" \
@@ -176,6 +199,7 @@
 # define NETWORK_ENV_SETTINGS
 #endif
 #define CONFIG_EXTRA_ENV_SETTINGS \
+	NAND_ENV_SETTINGS \
 	NETWORK_ENV_SETTINGS \
 	"flashboot=bootm 0x20100000\0"
 
@@ -195,5 +219,10 @@
 # endif
 # define CONFIG_NET_RETRY_COUNT 20
 #endif
+
+/*
+ * Misc Settings
+ */
+#define CONFIG_LZMA
 
 #endif

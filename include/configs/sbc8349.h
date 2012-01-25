@@ -35,29 +35,33 @@
  * High Level Configuration Options
  */
 #define CONFIG_E300		1	/* E300 Family */
-#define CONFIG_MPC83XX		1	/* MPC83XX family */
-#define CONFIG_MPC834X		1	/* MPC834X family */
+#define CONFIG_MPC83xx		1	/* MPC83xx family */
+#define CONFIG_MPC834x		1	/* MPC834x family */
 #define CONFIG_MPC8349		1	/* MPC8349 specific */
 #define CONFIG_SBC8349		1	/* WRS SBC8349 board specific */
 
-#undef CONFIG_PCI
 /* Don't enable PCI2 on sbc834x - it doesn't exist physically. */
 #undef CONFIG_MPC83XX_PCI2		/* support for 2nd PCI controller */
 
-#define PCI_66M
-#ifdef PCI_66M
-#define CONFIG_83XX_CLKIN	66000000	/* in Hz */
-#else
+/*
+ * The default if PCI isn't enabled, or if no PCI clk setting is given
+ * is 66MHz; this is what the board defaults to when the PCI slot is
+ * physically empty.  The board will automatically (i.e w/o jumpers)
+ * clock down to 33MHz if you insert a 33MHz PCI card.
+ */
+#ifdef PCI_33M
 #define CONFIG_83XX_CLKIN	33000000	/* in Hz */
+#else	/* 66M */
+#define CONFIG_83XX_CLKIN	66000000	/* in Hz */
 #endif
 
 #ifndef CONFIG_SYS_CLK_FREQ
-#ifdef PCI_66M
-#define CONFIG_SYS_CLK_FREQ	66000000
-#define HRCWL_CSB_TO_CLKIN	HRCWL_CSB_TO_CLKIN_4X1
-#else
+#ifdef PCI_33M
 #define CONFIG_SYS_CLK_FREQ	33000000
 #define HRCWL_CSB_TO_CLKIN	HRCWL_CSB_TO_CLKIN_8X1
+#else	/* 66M */
+#define CONFIG_SYS_CLK_FREQ	66000000
+#define HRCWL_CSB_TO_CLKIN	HRCWL_CSB_TO_CLKIN_4X1
 #endif
 #endif
 
@@ -153,7 +157,6 @@
 #define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
 #define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
 
-#define CONFIG_SYS_MID_FLASH_JUMP	0x7F000000
 #define CONFIG_SYS_MONITOR_BASE	TEXT_BASE	/* start of monitor */
 
 #if (CONFIG_SYS_MONITOR_BASE < CONFIG_SYS_FLASH_BASE)
@@ -279,7 +282,6 @@
 #define CONFIG_HARD_I2C			/* I2C with hardware support*/
 #undef CONFIG_SOFT_I2C			/* I2C bit-banged */
 #define CONFIG_FSL_I2C
-#define CONFIG_I2C_CMD_TREE
 #define CONFIG_SYS_I2C_SPEED		400000	/* I2C speed and slave address */
 #define CONFIG_SYS_I2C_SLAVE		0x7F
 #define CONFIG_SYS_I2C_NOPROBES	{0x69}	/* Don't probe these addrs */
@@ -628,7 +630,7 @@
 #define CONFIG_GATEWAYIP	192.168.1.1
 #define CONFIG_NETMASK		255.255.255.0
 
-#define CONFIG_LOADADDR		500000	/* default location for tftp and bootm */
+#define CONFIG_LOADADDR		800000	/* default location for tftp and bootm */
 
 #define CONFIG_BOOTDELAY	6	/* -1 disables auto-boot */
 #undef  CONFIG_BOOTARGS			/* the boot command will set bootargs */
@@ -652,10 +654,10 @@
 	"net_nfs=tftp 200000 ${bootfile};run nfsargs addip addtty;"	\
 		"bootm\0"						\
 	"load=tftp 100000 /tftpboot/sbc8349/u-boot.bin\0"		\
-	"update=protect off fff00000 fff3ffff; "			\
-		"era fff00000 fff3ffff; cp.b 100000 fff00000 ${filesize}\0"	\
+	"update=protect off ff800000 ff83ffff; "			\
+		"era ff800000 ff83ffff; cp.b 100000 ff800000 ${filesize}\0"	\
 	"upd=run load update\0"						\
-	"fdtaddr=400000\0"						\
+	"fdtaddr=780000\0"						\
 	"fdtfile=sbc8349.dtb\0"						\
 	""
 

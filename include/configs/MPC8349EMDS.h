@@ -33,13 +33,10 @@
  * High Level Configuration Options
  */
 #define CONFIG_E300		1	/* E300 Family */
-#define CONFIG_MPC83XX		1	/* MPC83XX family */
-#define CONFIG_MPC834X		1	/* MPC834X family */
+#define CONFIG_MPC83xx		1	/* MPC83xx family */
+#define CONFIG_MPC834x		1	/* MPC834x family */
 #define CONFIG_MPC8349		1	/* MPC8349 specific */
 #define CONFIG_MPC8349EMDS	1	/* MPC8349EMDS board specific */
-
-#undef CONFIG_PCI
-#undef CONFIG_MPC83XX_PCI2		/* support for 2nd PCI controller */
 
 #define PCI_66M
 #ifdef PCI_66M
@@ -175,7 +172,6 @@
 #define CONFIG_SYS_FLASH_ERASE_TOUT	60000	/* Flash Erase Timeout (ms) */
 #define CONFIG_SYS_FLASH_WRITE_TOUT	500	/* Flash Write Timeout (ms) */
 
-#define CONFIG_SYS_MID_FLASH_JUMP	0x7F000000
 #define CONFIG_SYS_MONITOR_BASE	TEXT_BASE	/* start of monitor */
 
 #if (CONFIG_SYS_MONITOR_BASE < CONFIG_SYS_FLASH_BASE)
@@ -201,7 +197,7 @@
 #define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_INIT_RAM_END - CONFIG_SYS_GBL_DATA_SIZE)
 #define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_GBL_DATA_OFFSET
 
-#define CONFIG_SYS_MONITOR_LEN		(256 * 1024)		/* Reserve 256 kB for Mon */
+#define CONFIG_SYS_MONITOR_LEN		(384 * 1024)		/* Reserve 384 kB for Mon */
 #define CONFIG_SYS_MALLOC_LEN		(128 * 1024)		/* Reserved for malloc */
 
 /*
@@ -315,7 +311,6 @@
 #undef CONFIG_SOFT_I2C			/* I2C bit-banged */
 #define CONFIG_FSL_I2C
 #define CONFIG_I2C_MULTI_BUS
-#define CONFIG_I2C_CMD_TREE
 #define CONFIG_SYS_I2C_SPEED		400000	/* I2C speed and slave address */
 #define CONFIG_SYS_I2C_SLAVE		0x7F
 #define CONFIG_SYS_I2C_NOPROBES	{{0,0x69}}	/* Don't probe these addrs */
@@ -375,7 +370,6 @@
 
 #define CONFIG_NET_MULTI
 #define CONFIG_PCI_PNP		/* do pci plug-and-play */
-#define CONFIG_83XX_GENERIC_PCI
 #define CONFIG_83XX_PCI_STREAMING
 
 #undef CONFIG_EEPRO100
@@ -706,7 +700,7 @@
 #define CONFIG_GATEWAYIP	192.168.1.1
 #define CONFIG_NETMASK		255.255.255.0
 
-#define CONFIG_LOADADDR		500000	/* default location for tftp and bootm */
+#define CONFIG_LOADADDR		800000	/* default location for tftp and bootm */
 
 #define CONFIG_BOOTDELAY	6	/* -1 disables auto-boot */
 #undef  CONFIG_BOOTARGS			/* the boot command will set bootargs */
@@ -737,8 +731,8 @@
 	"update=protect off fe000000 fe03ffff; "			\
 		"era fe000000 fe03ffff; cp.b 100000 fe000000 ${filesize}\0"	\
 	"upd=run load update\0"						\
-	"fdtaddr=400000\0"						\
-	"fdtfile=mpc8349emds.dtb\0"					\
+	"fdtaddr=780000\0"						\
+	"fdtfile=mpc834x_mds.dtb\0"					\
 	""
 
 #define CONFIG_NFSBOOTCOMMAND	                                        \

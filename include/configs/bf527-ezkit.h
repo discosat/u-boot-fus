@@ -5,7 +5,7 @@
 #ifndef __CONFIG_BF527_EZKIT_H__
 #define __CONFIG_BF527_EZKIT_H__
 
-#include <asm/blackfin-config-pre.h>
+#include <asm/config-pre.h>
 
 
 /*
@@ -105,7 +105,7 @@
  */
 #define CONFIG_BFIN_SPI
 #define CONFIG_ENV_SPI_MAX_HZ	30000000
-#define CONFIG_SF_DEFAULT_HZ	30000000
+#define CONFIG_SF_DEFAULT_SPEED	30000000
 #define CONFIG_SPI_FLASH
 #define CONFIG_SPI_FLASH_STMICRO
 
@@ -166,7 +166,5 @@
  * Pull in common ADI header for remaining command/environment setup
  */
 #include <configs/bfin_adi_common.h>
-
-#include <asm/blackfin-config-post.h>
 
 #endif

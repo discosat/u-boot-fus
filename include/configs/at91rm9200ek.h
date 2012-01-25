@@ -56,11 +56,6 @@
 #ifndef CONFIG_SKIP_LOWLEVEL_INIT
 #define CONFIG_SYS_USE_MAIN_OSCILLATOR		1
 /* flash */
-#define CONFIG_SYS_MC_PUIA_VAL	0x00000000
-#define CONFIG_SYS_MC_PUP_VAL	0x00000000
-#define CONFIG_SYS_MC_PUER_VAL	0x00000000
-#define CONFIG_SYS_MC_ASR_VAL	0x00000000
-#define CONFIG_SYS_MC_AASR_VAL	0x00000000
 #define CONFIG_SYS_EBI_CFGR_VAL	0x00000000
 #define CONFIG_SYS_SMC_CSR0_VAL	0x00003284 /* 16bit, 2 TDF, 4 WS */
 
@@ -266,7 +261,6 @@
 
 #ifdef CONFIG_HARD_I2C
 #define CONFIG_CMD_I2C
-#define CONFIG_I2C_CMD_TREE
 #define CONFIG_SYS_I2C_SPEED		0	/* not used */
 #define CONFIG_SYS_I2C_SLAVE		0	/* not used */
 #endif
@@ -312,7 +306,6 @@ struct bd_info_ext {
  */
 #define CONFIG_SYS_HZ_CLOCK (AT91C_MASTER_CLOCK / 2)
 
-#define ROUND(A, B)		(((A) + (B)) & ~((B) - 1))
 /*
  * Size of malloc() pool
  */

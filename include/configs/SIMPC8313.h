@@ -32,12 +32,11 @@
 #define CONFIG_NAND_U_BOOT
 
 #define CONFIG_E300			1
-#define CONFIG_MPC83XX			1
-#define CONFIG_MPC831X			1
+#define CONFIG_MPC83xx			1
+#define CONFIG_MPC831x			1
 #define CONFIG_MPC8313			1
 
 #define CONFIG_PCI
-#define CONFIG_83XX_GENERIC_PCI
 
 #define CONFIG_MISC_INIT_R
 
@@ -131,6 +130,7 @@
 #define CONFIG_MTD_NAND_VERIFY_WRITE
 #define CONFIG_CMD_NAND 		1
 #define CONFIG_NAND_FSL_ELBC		1
+#define CONFIG_SYS_64BIT_VSPRINTF	/* needed for nand_util.c */
 
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	(512 << 10)
 #define CONFIG_SYS_NAND_U_BOOT_DST	0x00100000
@@ -190,6 +190,7 @@
 
 /* mtdparts command line support */
 #define CONFIG_CMD_MTDPARTS
+#define CONFIG_MTD_DEVICE		/* needed for mtdparts commands */
 #define MTDIDS_DEFAULT		"nand0=nand0"
 #define MTDPARTS_DEFAULT	"mtdparts=nand0:2M(u-boot),6M(kernel),-(jffs2)"
 
@@ -223,7 +224,6 @@
 #define CONFIG_HARD_I2C			/* I2C with hardware support*/
 #define CONFIG_FSL_I2C
 #define CONFIG_I2C_MULTI_BUS
-#define CONFIG_I2C_CMD_TREE
 #define CONFIG_SYS_I2C_SPEED		400000	/* I2C speed and slave address */
 #define CONFIG_SYS_I2C_SLAVE		0x7F
 #define CONFIG_SYS_I2C_NOPROBES		{{0,0x69}} /* Don't probe these addrs */

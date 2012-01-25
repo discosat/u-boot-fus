@@ -49,11 +49,6 @@
 #ifndef CONFIG_SKIP_LOWLEVEL_INIT
 #define CONFIG_SYS_USE_MAIN_OSCILLATOR	1
 /* flash */
-#define CONFIG_SYS_MC_PUIA_VAL	0x00000000
-#define CONFIG_SYS_MC_PUP_VAL	0x00000000
-#define CONFIG_SYS_MC_PUER_VAL	0x00000000
-#define CONFIG_SYS_MC_ASR_VAL	0x00000000
-#define CONFIG_SYS_MC_AASR_VAL	0x00000000
 #define CONFIG_SYS_EBI_CFGR_VAL	0x00000000
 #define CONFIG_SYS_SMC_CSR0_VAL	0x00003084 /* 16bit, 2 TDF, 4 WS */
 
@@ -216,7 +211,7 @@
 #define CONFIG_SYS_MAXARGS		32		/* max number of command args */
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE+sizeof(CONFIG_SYS_PROMPT)+16) /* Print Buffer Size */
 
-#define CONFIG_SYS_DEVICE_DEREGISTER           /* needs device_deregister */
+#define CONFIG_SYS_STDIO_DEREGISTER           /* needs stdio_deregister */
 
 #define CONFIG_SYS_HZ 1000
 #define CONFIG_SYS_HZ_CLOCK (AT91C_MASTER_CLOCK/2)	/* AT91C_TC0_CMR is implicitly set to */

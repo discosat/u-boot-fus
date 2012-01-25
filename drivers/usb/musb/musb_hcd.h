@@ -26,8 +26,12 @@
 
 #include "musb_core.h"
 #ifdef CONFIG_USB_KEYBOARD
-#include <devices.h>
+#include <stdio_dev.h>
 extern unsigned char new[];
+#endif
+
+#ifndef CONFIG_MUSB_TIMEOUT
+# define CONFIG_MUSB_TIMEOUT 100000
 #endif
 
 /* This defines the endpoint number used for control transfers */

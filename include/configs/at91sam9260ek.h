@@ -34,10 +34,8 @@
 #define CONFIG_ARM926EJS	1	/* This is an ARM926EJS Core	*/
 
 #ifdef CONFIG_AT91SAM9G20EK
-#define AT91_CPU_NAME		"AT91SAM9G20"
 #define CONFIG_AT91SAM9G20	1	/* It's an Atmel AT91SAM9G20 SoC*/
 #else
-#define AT91_CPU_NAME		"AT91SAM9260"
 #define CONFIG_AT91SAM9260	1	/* It's an Atmel AT91SAM9260 SoC*/
 #endif
 
@@ -124,6 +122,8 @@
 #define CONFIG_SYS_NAND_MASK_CLE		(1 << 22)
 #define CONFIG_SYS_NAND_ENABLE_PIN		AT91_PIN_PC14
 #define CONFIG_SYS_NAND_READY_PIN		AT91_PIN_PC13
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 #endif
 
 /* NOR flash - no real flash on this board */
@@ -163,7 +163,7 @@
 #define CONFIG_BOOTCOMMAND	"cp.b 0xC0042000 0x22000000 0x210000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock0 "			\
-				"mtdparts=at91_nand:-(root) "		\
+				"mtdparts=atmel_nand:-(root) "		\
 				"rw rootfstype=jffs2"
 
 #elif CONFIG_SYS_USE_DATAFLASH_CS1
@@ -177,7 +177,7 @@
 #define CONFIG_BOOTCOMMAND	"cp.b 0xD0042000 0x22000000 0x210000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock0 "			\
-				"mtdparts=at91_nand:-(root) "		\
+				"mtdparts=atmel_nand:-(root) "		\
 				"rw rootfstype=jffs2"
 
 #else /* CONFIG_SYS_USE_NANDFLASH */
@@ -190,7 +190,7 @@
 #define CONFIG_BOOTCOMMAND	"nand read 0x22000000 0xA0000 0x200000; bootm"
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock5 "			\
-				"mtdparts=at91_nand:128k(bootstrap)ro,"	\
+				"mtdparts=atmel_nand:128k(bootstrap)ro,"	\
 				"256k(uboot)ro,128k(env1)ro,"		\
 				"128k(env2)ro,2M(linux),-(root) "	\
 				"rw rootfstype=jffs2"
@@ -207,7 +207,6 @@
 #define CONFIG_SYS_LONGHELP		1
 #define CONFIG_CMDLINE_EDITING	1
 
-#define ROUND(A, B)		(((A) + (B)) & ~((B) - 1))
 /*
  * Size of malloc() pool
  */

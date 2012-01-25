@@ -5,7 +5,7 @@
 #ifndef __CONFIG_BF533_STAMP_H__
 #define __CONFIG_BF533_STAMP_H__
 
-#include <asm/blackfin-config-pre.h>
+#include <asm/config-pre.h>
 
 
 /*
@@ -36,7 +36,7 @@
 #define CONFIG_CCLK_DIV			1
 /* SCLK_DIV controls the system clock divider				*/
 /* Values can range from 1-15						*/
-#define CONFIG_SCLK_DIV			5
+#define CONFIG_SCLK_DIV			6 /* note: 1.2 boards can go faster */
 
 
 /*
@@ -89,7 +89,7 @@
  */
 #define CONFIG_BFIN_SPI
 #define CONFIG_ENV_SPI_MAX_HZ	30000000
-#define CONFIG_SF_DEFAULT_HZ	30000000
+#define CONFIG_SF_DEFAULT_SPEED	30000000
 #define CONFIG_SPI_FLASH
 #define CONFIG_SPI_FLASH_ATMEL
 #define CONFIG_SPI_FLASH_SPANSION
@@ -102,9 +102,9 @@
  */
 #if (CONFIG_BFIN_BOOT_MODE == BFIN_BOOT_SPI_MASTER)
 #define CONFIG_ENV_IS_IN_SPI_FLASH
-#define CONFIG_ENV_OFFSET	0x4000
+#define CONFIG_ENV_OFFSET	0x10000
 #define CONFIG_ENV_SIZE		0x2000
-#define CONFIG_ENV_SECT_SIZE	0x2000
+#define CONFIG_ENV_SECT_SIZE	0x10000
 #else
 #define CONFIG_ENV_IS_IN_FLASH
 #define CONFIG_ENV_OFFSET	0x4000
@@ -116,6 +116,21 @@
 #define ENV_IS_EMBEDDED
 #else
 #define ENV_IS_EMBEDDED_CUSTOM
+#endif
+#ifdef ENV_IS_EMBEDDED
+/* WARNING - the following is hand-optimized to fit within
+ * the sector before the environment sector. If it throws
+ * an error during compilation remove an object here to get
+ * it linked after the configuration sector.
+ */
+# define LDS_BOARD_TEXT \
+	cpu/blackfin/traps.o		(.text .text.*); \
+	cpu/blackfin/interrupt.o	(.text .text.*); \
+	cpu/blackfin/serial.o		(.text .text.*); \
+	common/dlmalloc.o		(.text .text.*); \
+	lib_generic/crc32.o		(.text .text.*); \
+	. = DEFINED(env_offset) ? env_offset : .; \
+	common/env_embedded.o		(.text .text.*);
 #endif
 
 
@@ -240,7 +255,5 @@ void __led_toggle(led_id_t mask);
  * Pull in common ADI header for remaining command/environment setup
  */
 #include <configs/bfin_adi_common.h>
-
-#include <asm/blackfin-config-post.h>
 
 #endif

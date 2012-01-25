@@ -36,18 +36,18 @@ TOOLSUBDIRS =
 # -multiply_defined suppress option to turn off this error.
 #
 
-HOST_CFLAGS = -Wall
+HOSTCFLAGS = -Wall
 HOST_LDFLAGS =
 
 ifeq ($(HOSTOS)-$(HOSTARCH),darwin-ppc)
-HOST_CFLAGS += -traditional-cpp
+HOSTCFLAGS += -traditional-cpp
 HOST_LDFLAGS += -multiply_defined suppress
 else
-HOST_CFLAGS += -pedantic
+HOSTCFLAGS += -pedantic
 endif
 
 ifeq ($(HOSTOS),cygwin)
-HOST_CFLAGS += -ansi
+HOSTCFLAGS += -ansi
 endif
 
 #
@@ -69,9 +69,13 @@ include $(TOPDIR)/config.mk
 BIN_FILES-$(CONFIG_CMD_LOADS) += img2srec$(SFX)
 BIN_FILES-y += mkimage$(SFX)
 BIN_FILES-$(CONFIG_ENV_IS_EMBEDDED) += envcrc$(SFX)
+BIN_FILES-$(CONFIG_ENV_IS_IN_DATAFLASH) += envcrc$(SFX)
 BIN_FILES-$(CONFIG_ENV_IS_IN_EEPROM) += envcrc$(SFX)
 BIN_FILES-$(CONFIG_ENV_IS_IN_FLASH) += envcrc$(SFX)
+BIN_FILES-$(CONFIG_ENV_IS_IN_ONENAND) += envcrc$(SFX)
+BIN_FILES-$(CONFIG_ENV_IS_IN_NAND) += envcrc$(SFX)
 BIN_FILES-$(CONFIG_ENV_IS_IN_NVRAM) += envcrc$(SFX)
+BIN_FILES-$(CONFIG_ENV_IS_IN_SPI_FLASH) += envcrc$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
 BIN_FILES-$(CONFIG_CMD_NET) += gen_eth_addr$(SFX)
 BIN_FILES-$(CONFIG_LCD_LOGO) += bmp_logo$(SFX)
@@ -144,7 +148,7 @@ CPPFLAGS   = -idirafter $(SRCTREE)/include \
 		-I $(SRCTREE)/tools \
 		-DTEXT_BASE=$(TEXT_BASE) -DUSE_HOSTCC \
 		-D__KERNEL_STRICT_NAMES
-CFLAGS     = $(HOST_CFLAGS) $(CPPFLAGS) -O
+CFLAGS     = $(HOSTCFLAGS) $(CPPFLAGS) -O
 
 # No -pedantic switch to avoid libfdt compilation warnings
 FIT_CFLAGS = -Wall $(CPPFLAGS) -O
@@ -223,7 +227,7 @@ else
 	    $(MAKE) \
 		HOSTOS=$(HOSTOS) \
 		HOSTARCH=$(HOSTARCH) \
-		HOST_CFLAGS="$(HOST_CFLAGS)" \
+		HOSTCFLAGS="$(HOSTCFLAGS)" \
 		HOST_LDFLAGS="$(HOST_LDFLAGS)" \
 		-C $$dir || exit 1 ; \
 	done
