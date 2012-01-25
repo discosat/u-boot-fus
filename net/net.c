@@ -209,8 +209,6 @@ uchar		NetArpWaitPacketBuf[PKTSIZE_ALIGN + PKTALIGN];
 ulong		NetArpWaitTimerStart;
 int		NetArpWaitTry;
 
-int		env_changed_id = 0;
-
 void ArpRequest (void)
 {
 	int i;
@@ -278,76 +276,25 @@ void ArpTimeoutCheck(void)
 	}
 }
 
-int
+static void
 NetInitLoop(proto_t protocol)
 {
+	static int env_changed_id = 0;
 	bd_t *bd = gd->bd;
 	int env_id = get_env_id ();
 
 	/* update only when the environment has changed */
-	if (env_changed_id == env_id)
-		return 0;
-
-	switch (protocol) {
-#if defined(CONFIG_CMD_NFS)
-	case NFS:
-#endif
-#if defined(CONFIG_CMD_PING)
-	case PING:
-#endif
-#if defined(CONFIG_CMD_SNTP)
-	case SNTP:
-#endif
-	case NETCONS:
-	case TFTP:
+	if (env_changed_id != env_id) {
 		NetCopyIP(&NetOurIP, &bd->bi_ip_addr);
 		NetOurGatewayIP = getenv_IPaddr ("gatewayip");
 		NetOurSubnetMask= getenv_IPaddr ("netmask");
-		NetOurVLAN = getenv_VLAN("vlan");
-		NetOurNativeVLAN = getenv_VLAN("nvlan");
-
-		switch (protocol) {
-#if defined(CONFIG_CMD_NFS)
-		case NFS:
-#endif
-		case NETCONS:
-		case TFTP:
-			NetServerIP = getenv_IPaddr ("serverip");
-			break;
-#if defined(CONFIG_CMD_PING)
-		case PING:
-			/* nothing */
-			break;
-#endif
-#if defined(CONFIG_CMD_SNTP)
-		case SNTP:
-			/* nothing */
-			break;
-#endif
-		default:
-			break;
-		}
-
-		break;
-	case BOOTP:
-	case RARP:
-		/*
-		 * initialize our IP addr to 0 in order to accept ANY
-		 * IP addr assigned to us by the BOOTP / RARP server
-		 */
-		NetOurIP = 0;
 		NetServerIP = getenv_IPaddr ("serverip");
-		NetOurVLAN = getenv_VLAN("vlan");	/* VLANs must be read */
 		NetOurNativeVLAN = getenv_VLAN("nvlan");
-	case CDP:
-		NetOurVLAN = getenv_VLAN("vlan");	/* VLANs must be read */
-		NetOurNativeVLAN = getenv_VLAN("nvlan");
-		break;
-	default:
-		break;
+		NetOurVLAN = getenv_VLAN("vlan");
+		env_changed_id = env_id;
 	}
-	env_changed_id = env_id;
-	return 0;
+
+	return;
 }
 
 /**********************************************************************/
@@ -404,7 +351,7 @@ restart:
 #ifdef CONFIG_NET_MULTI
 	memcpy (NetOurEther, eth_get_dev()->enetaddr, 6);
 #else
-	memcpy (NetOurEther, bd->bi_enetaddr, 6);
+	eth_getenv_enetaddr("ethaddr", NetOurEther);
 #endif
 
 	NetState = NETLOOP_CONTINUE;
@@ -440,10 +387,7 @@ restart:
 
 #if defined(CONFIG_CMD_DHCP)
 		case DHCP:
-			/* Start with a clean slate... */
 			BootpTry = 0;
-			NetOurIP = 0;
-			NetServerIP = getenv_IPaddr ("serverip");
 			DhcpRequest();		/* Basically same as BOOTP */
 			break;
 #endif
@@ -709,8 +653,7 @@ NetSendUDPPacket(uchar *ether, IPaddr_t dest, int dport, int sport, int len)
 	}
 
 #ifdef ET_DEBUG
-	printf("sending UDP to %08lx/%02x:%02x:%02x:%02x:%02x:%02x\n",
-		dest, ether[0], ether[1], ether[2], ether[3], ether[4], ether[5]);
+	printf("sending UDP to %08lx/%pM\n", dest, ether);
 #endif
 
 	pkt = (uchar *)NetTxPacket;
@@ -931,11 +874,7 @@ int CDPSendTrigger(void)
 #ifdef CONFIG_CDP_DEVICE_ID
 	*s++ = htons(CDP_DEVICE_ID_TLV);
 	*s++ = htons(CONFIG_CDP_DEVICE_ID);
-	memset(buf, 0, sizeof(buf));
-	sprintf(buf, CONFIG_CDP_DEVICE_ID_PREFIX "%02X%02X%02X%02X%02X%02X",
-		NetOurEther[0] & 0xff, NetOurEther[1] & 0xff,
-		NetOurEther[2] & 0xff, NetOurEther[3] & 0xff,
-		NetOurEther[4] & 0xff, NetOurEther[5] & 0xff);
+	sprintf(buf, CONFIG_CDP_DEVICE_ID_PREFIX "%pm", NetOurEther);
 	memcpy((uchar *)s, buf, 16);
 	s += 16 / 2;
 #endif
@@ -1335,10 +1274,8 @@ NetReceive(volatile uchar * inpkt, int len)
 			if (!NetArpWaitPacketIP || !NetArpWaitPacketMAC)
 				break;
 #ifdef ET_DEBUG
-			printf("Got ARP REPLY, set server/gtwy eth addr (%02x:%02x:%02x:%02x:%02x:%02x)\n",
-				arp->ar_data[0], arp->ar_data[1],
-				arp->ar_data[2], arp->ar_data[3],
-				arp->ar_data[4], arp->ar_data[5]);
+			printf("Got ARP REPLY, set server/gtwy eth addr (%pM)\n",
+				arp->ar_data);
 #endif
 
 			tmp = NetReadIP(&arp->ar_data[6]);
@@ -1461,9 +1398,7 @@ NetReceive(volatile uchar * inpkt, int len)
 			case ICMP_REDIRECT:
 				if (icmph->code != ICMP_REDIR_HOST)
 					return;
-				puts (" ICMP Host Redirect to ");
-				print_IPaddr(icmph->un.gateway);
-				putc(' ');
+				printf (" ICMP Host Redirect to %pI4 ", &icmph->un.gateway);
 				return;
 #if defined(CONFIG_CMD_PING)
 			case ICMP_ECHO_REPLY:
@@ -1803,15 +1738,6 @@ ushort string_to_VLAN(char *s)
 		id = (ushort)simple_strtoul(s, NULL, 10);
 
 	return htons(id);
-}
-
-void print_IPaddr (IPaddr_t x)
-{
-	char tmp[16];
-
-	ip_to_string (x, tmp);
-
-	puts (tmp);
 }
 
 IPaddr_t getenv_IPaddr (char *var)

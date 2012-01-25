@@ -4,7 +4,7 @@
  * Marius Groeger <mgroeger@sysgo.de>
  *
  * (C) Copyright 2002
- * Gary Jennejohn, DENX Software Engineering, <gj@denx.de>
+ * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -65,29 +65,4 @@ int cleanup_before_linux (void)
 	 */
 
 	return (0);
-}
-
-int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	extern void reset_cpu (ulong addr);
-
-	disable_interrupts ();
-	reset_cpu (0);
-	/*NOTREACHED*/
-	return (0);
-}
-
-/* May not be cahed processor on the CM - do nothing */
-void icache_enable (void)
-{
-}
-
-void icache_disable (void)
-{
-}
-
-/* return "disabled" */
-int icache_status (void)
-{
-	return 0;
 }

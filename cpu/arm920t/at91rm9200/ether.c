@@ -53,10 +53,11 @@ typedef struct {
 #if defined(CONFIG_CMD_NET)
 
 /* alignment as per Errata #11 (64 bytes) is insufficient! */
-rbf_t rbfdt[RBF_FRAMEMAX] __attribute((aligned(512)));
+rbf_t rbfdt[RBF_FRAMEMAX] __attribute__((aligned(512)));
 rbf_t *rbfp;
 
-unsigned char rbf_framebuf[RBF_FRAMEMAX][RBF_FRAMELEN] __attribute((aligned(4)));
+unsigned char rbf_framebuf[RBF_FRAMEMAX][RBF_FRAMELEN]
+	__attribute__((aligned(4)));
 
 /* structure to interface the PHY */
 AT91S_PhyOps PhyOps;
@@ -155,6 +156,7 @@ int eth_init (bd_t * bd)
 {
 	int ret;
 	int i;
+	uchar enetaddr[6];
 
 	p_mac = AT91C_BASE_EMAC;
 
@@ -190,9 +192,10 @@ int eth_init (bd_t * bd)
 	rbfdt[RBF_FRAMEMAX - 1].addr |= RBF_WRAP;
 	rbfp = &rbfdt[0];
 
-	p_mac->EMAC_SA2L = (bd->bi_enetaddr[3] << 24) | (bd->bi_enetaddr[2] << 16)
-			 | (bd->bi_enetaddr[1] <<  8) | (bd->bi_enetaddr[0]);
-	p_mac->EMAC_SA2H = (bd->bi_enetaddr[5] <<  8) | (bd->bi_enetaddr[4]);
+	eth_getenv_enetaddr("ethaddr", enetaddr);
+	p_mac->EMAC_SA2L = (enetaddr[3] << 24) | (enetaddr[2] << 16)
+			 | (enetaddr[1] <<  8) | (enetaddr[0]);
+	p_mac->EMAC_SA2H = (enetaddr[5] <<  8) | (enetaddr[4]);
 
 	p_mac->EMAC_RBQP = (long) (&rbfdt[0]);
 	p_mac->EMAC_RSR &= ~(AT91C_EMAC_RSR_OVR | AT91C_EMAC_REC | AT91C_EMAC_BNA);

@@ -102,7 +102,6 @@
 #define CONFIG_SYS_MAXARGS	16		/* max number of command args	*/
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE	/* Boot Argument Buffer Size	*/
 
-#undef	CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 #define CONFIG_SYS_LOAD_ADDR	0x7fc0	/* default load address */
 
 /*-----------------------------------------------------------------------
@@ -143,14 +142,13 @@
  * PCI definitions
  */
 
-/*#define CONFIG_PCI			/--* include pci support	*/
+#ifdef CONFIG_PCI			/* pci support	*/
 #undef CONFIG_PCI_PNP
 #define CONFIG_PCI_SCAN_SHOW	1	/* show pci devices on startup	*/
 #define DEBUG
 
 #define CONFIG_EEPRO100
 #define CONFIG_SYS_RX_ETH_BUFFER	8	/* use 8 rx buffer on eepro100	*/
-
 
 #define INTEGRATOR_BOOT_ROM_BASE	0x20000000
 #define INTEGRATOR_HDR0_SDRAM_BASE	0x80000000
@@ -279,6 +277,7 @@
 #define INTEGRATOR_SC_PCIENABLE \
 			(INTEGRATOR_SC_BASE + INTEGRATOR_SC_PCIENABLE_OFFSET)
 
+#endif /* CONFIG_PCI */
 /*-----------------------------------------------------------------------
  * There are various dependencies on the core module (CM) fitted
  * Users should refer to their CM user guide

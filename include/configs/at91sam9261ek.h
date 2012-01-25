@@ -30,15 +30,12 @@
 /* ARM asynchronous clock */
 #define AT91_CPU_NAME		"AT91SAM9261"
 #define AT91_MAIN_CLOCK		18432000	/* 18.432 MHz crystal */
-#define AT91_MASTER_CLOCK	100000000	/* peripheral */
-#define AT91_CPU_CLOCK		200000000	/* cpu */
-#define CONFIG_SYS_HZ		1000000		/* 1us resolution */
-
-#define AT91_SLOW_CLOCK		32768	/* slow clock */
+#define CONFIG_SYS_HZ		1000
 
 #define CONFIG_ARM926EJS	1	/* This is an ARM926EJS Core	*/
 #define CONFIG_AT91SAM9261	1	/* It's an Atmel AT91SAM9261 SoC*/
 #define CONFIG_AT91SAM9261EK	1	/* on an AT91SAM9261EK Board	*/
+#define CONFIG_ARCH_CPU_INIT
 #undef CONFIG_USE_IRQ			/* we don't need IRQ/FIQ stuff	*/
 
 #define CONFIG_CMDLINE_TAG	1	/* enable passing of ATAGs	*/
@@ -69,6 +66,12 @@
 #define CONFIG_ATMEL_LCD_BGR555		1
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV		1
 
+/* LED */
+#define CONFIG_AT91_LED
+#define	CONFIG_RED_LED		AT91_PIN_PA23	/* this is the power led */
+#define	CONFIG_GREEN_LED	AT91_PIN_PA13	/* this is the user1 led */
+#define	CONFIG_YELLOW_LED	AT91_PIN_PA14	/* this is the user2 led */
+
 #define CONFIG_BOOTDELAY	3
 
 /*
@@ -84,11 +87,11 @@
  */
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_BDI
-#undef CONFIG_CMD_IMI
-#undef CONFIG_CMD_AUTOSCRIPT
 #undef CONFIG_CMD_FPGA
-#undef CONFIG_CMD_LOADS
+#undef CONFIG_CMD_IMI
 #undef CONFIG_CMD_IMLS
+#undef CONFIG_CMD_LOADS
+#undef CONFIG_CMD_SOURCE
 
 #define CONFIG_CMD_PING		1
 #define CONFIG_CMD_DHCP		1
@@ -101,6 +104,7 @@
 #define PHYS_SDRAM_SIZE			0x04000000	/* 64 megs */
 
 /* DataFlash */
+#define CONFIG_ATMEL_DATAFLASH_SPI
 #define CONFIG_HAS_DATAFLASH		1
 #define CONFIG_SYS_SPI_WRITE_TOUT		(5*CONFIG_SYS_HZ)
 #define CONFIG_SYS_MAX_DATAFLASH_BANKS		2
@@ -111,9 +115,18 @@
 #define DATAFLASH_TCHS			(0x1 << 24)
 
 /* NAND flash */
+#ifdef CONFIG_CMD_NAND
+#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE		1
 #define CONFIG_SYS_NAND_BASE			0x40000000
 #define CONFIG_SYS_NAND_DBW_8			1
+/* our ALE is AD22 */
+#define CONFIG_SYS_NAND_MASK_ALE		(1 << 22)
+/* our CLE is AD21 */
+#define CONFIG_SYS_NAND_MASK_CLE		(1 << 21)
+#define CONFIG_SYS_NAND_ENABLE_PIN		AT91_PIN_PC14
+#define CONFIG_SYS_NAND_READY_PIN		AT91_PIN_PC15
+#endif
 
 /* NOR flash - no real flash on this board */
 #define CONFIG_SYS_NO_FLASH			1
@@ -124,10 +137,12 @@
 #define DM9000_IO			CONFIG_DM9000_BASE
 #define DM9000_DATA			(CONFIG_DM9000_BASE + 4)
 #define CONFIG_DM9000_USE_16BIT		1
+#define CONFIG_DM9000_NO_SROM		1
 #define CONFIG_NET_RETRY_COUNT		20
 #define CONFIG_RESET_PHY_R		1
 
 /* USB */
+#define CONFIG_USB_ATMEL
 #define CONFIG_USB_OHCI_NEW		1
 #define CONFIG_DOS_PARTITION		1
 #define CONFIG_SYS_USB_OHCI_CPU_INIT		1

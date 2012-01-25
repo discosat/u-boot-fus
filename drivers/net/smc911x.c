@@ -39,14 +39,14 @@ void pkt_data_push(u32 addr, u32 val) \
 static int smx911x_handle_mac_address(bd_t *bd)
 {
 	unsigned long addrh, addrl;
-	unsigned char *m = bd->bi_enetaddr;
+	uchar m[6];
 
-	/* if the environment has a valid mac address then use it */
-	if ((m[0] | m[1] | m[2] | m[3] | m[4] | m[5])) {
-		addrl = m[0] | m[1] << 8 | m[2] << 16 | m[3] << 24;
-		addrh = m[4] | m[5] << 8;
-		smc911x_set_mac_csr(ADDRH, addrh);
+	if (eth_getenv_enetaddr("ethaddr", m)) {
+		/* if the environment has a valid mac address then use it */
+		addrl = m[0] | (m[1] << 8) | (m[2] << 16) | (m[3] << 24);
+		addrh = m[4] | (m[5] << 8);
 		smc911x_set_mac_csr(ADDRL, addrl);
+		smc911x_set_mac_csr(ADDRH, addrh);
 	} else {
 		/* if not, try to get one from the eeprom */
 		addrh = smc911x_get_mac_csr(ADDRH);
@@ -65,10 +65,11 @@ static int smx911x_handle_mac_address(bd_t *bd)
 				"and no eeprom found\n");
 			return -1;
 		}
+
+		eth_setenv_enetaddr("ethaddr", m);
 	}
 
-	printf(DRIVERNAME ": MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-		m[0], m[1], m[2], m[3], m[4], m[5]);
+	printf(DRIVERNAME ": MAC %pM\n", m);
 
 	return 0;
 }

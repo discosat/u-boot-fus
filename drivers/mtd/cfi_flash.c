@@ -1788,13 +1788,10 @@ static void flash_fixup_atmel(flash_info_t *info, struct cfi_qry *qry)
 
 	/* AT49BV6416(T) list the erase regions in the wrong order.
 	 * However, the device ID is identical with the non-broken
-	 * AT49BV642D since u-boot only reads the low byte (they
-	 * differ in the high byte.) So leave out this fixup for now.
+	 * AT49BV642D they differ in the high byte.
 	 */
-#if 0
 	if (info->device_id == 0xd6 || info->device_id == 0xd2)
 		reverse_geometry = !reverse_geometry;
-#endif
 
 	if (reverse_geometry)
 		cfi_reverse_geometry(qry);
@@ -2009,7 +2006,9 @@ unsigned long flash_init (void)
 #endif
 
 #ifdef CONFIG_SYS_FLASH_PROTECTION
-	char *s = getenv("unlock");
+	/* read environment from EEPROM */
+	char s[64];
+	getenv_r ("unlock", s, sizeof(s));
 #endif
 
 #define BANK_BASE(i)	(((phys_addr_t [CFI_MAX_FLASH_BANKS])CONFIG_SYS_FLASH_BANKS_LIST)[i])
@@ -2099,7 +2098,7 @@ unsigned long flash_init (void)
 #ifdef CONFIG_ENV_ADDR_REDUND
 	flash_protect (FLAG_PROTECT_SET,
 		       CONFIG_ENV_ADDR_REDUND,
-		       CONFIG_ENV_ADDR_REDUND + CONFIG_ENV_SIZE_REDUND - 1,
+		       CONFIG_ENV_ADDR_REDUND + CONFIG_ENV_SECT_SIZE - 1,
 		       flash_get_info(CONFIG_ENV_ADDR_REDUND));
 #endif
 

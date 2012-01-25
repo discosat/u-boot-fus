@@ -135,7 +135,7 @@
     #define CONFIG_CMD_I2C
     #define CONFIG_CMD_JFFS2
 
-    #undef CONFIG_CMD_AUTOSCRIPT
+    #undef CONFIG_CMD_SOURCE
 #endif
 
 
@@ -216,22 +216,20 @@
 #define CONFIG_SYS_MEMTEST_START        (OMAP2420_SDRC_CS0)  /* memtest works on */
 #define CONFIG_SYS_MEMTEST_END          (OMAP2420_SDRC_CS0+SZ_31M)
 
-#undef	CONFIG_SYS_CLKS_IN_HZ           /* everything, incl board info, in Hz */
-
 #define CONFIG_SYS_LOAD_ADDR            (OMAP2420_SDRC_CS0) /* default load address */
 
 /* The 2420 has 12 GP timers, they can be driven by the SysClk (12/13/19.2) or by
  * 32KHz clk, or from external sig. This rate is divided by a local divisor.
  */
 #ifdef CONFIG_APTIX
-#define V_PVT                    3
+#define V_PTV			3
 #else
-#define V_PVT                    7  /* use with 12MHz/128 */
+#define V_PTV			7	/* use with 12MHz/128 */
 #endif
 
-#define CONFIG_SYS_TIMERBASE            OMAP2420_GPT2
-#define CONFIG_SYS_PVT                  V_PVT  /* 2^(pvt+1) */
-#define CONFIG_SYS_HZ	                 ((CONFIG_SYS_CLK_FREQ)/(2 << CONFIG_SYS_PVT))
+#define CONFIG_SYS_TIMERBASE		OMAP2420_GPT2
+#define CONFIG_SYS_PTV			V_PTV	/* 2^(PTV+1) */
+#define CONFIG_SYS_HZ			((CONFIG_SYS_CLK_FREQ)/(2 << CONFIG_SYS_PTV))
 
 /*-----------------------------------------------------------------------
  * Stack sizes
@@ -296,7 +294,7 @@
  * JFFS2 partitions
  */
 /* No command line, one static partition, whole device */
-#undef CONFIG_JFFS2_CMDLINE
+#undef CONFIG_CMD_MTDPARTS
 #define CONFIG_JFFS2_DEV		"nor1"
 #define CONFIG_JFFS2_PART_SIZE		0xFFFFFFFF
 #define CONFIG_JFFS2_PART_OFFSET	0x00000000
@@ -304,7 +302,7 @@
 /* mtdparts command line support */
 /* Note: fake mtd_id used, no linux mtd map file */
 /*
-#define CONFIG_JFFS2_CMDLINE
+#define CONFIG_CMD_MTDPARTS
 #define MTDIDS_DEFAULT		"nor1=omap2420-1"
 #define MTDPARTS_DEFAULT	"mtdparts=omap2420-1:-(jffs2)"
 */

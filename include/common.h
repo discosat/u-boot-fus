@@ -234,8 +234,8 @@ int mac_read_from_eeprom(void);
 /* common/flash.c */
 void flash_perror (int);
 
-/* common/cmd_autoscript.c */
-int	autoscript (ulong addr, const char *fit_uname);
+/* common/cmd_source.c */
+int	source (ulong addr, const char *fit_uname);
 
 extern ulong load_addr;		/* Default Load Address */
 
@@ -352,13 +352,6 @@ void	board_serial_init (void);
 void	board_ether_init (void);
 #endif
 
-#if defined(CONFIG_RPXCLASSIC)	|| defined(CONFIG_MBX) || \
-    defined(CONFIG_IAD210)	|| defined(CONFIG_XPEDITE1K) || \
-    defined(CONFIG_METROBOX)    || defined(CONFIG_KAREF) || \
-    defined(CONFIG_V38B)
-void	board_get_enetaddr (uchar *addr);
-#endif
-
 #ifdef CONFIG_HERMES
 /* $(BOARD)/hermes.c */
 void hermes_start_lxt980 (int speed);
@@ -370,8 +363,6 @@ void  debug_led(int, int);
 void  display_mem_map(void);
 void  perform_soft_reset(void);
 #endif
-
-void	load_sernum_ethaddr (void);
 
 /* $(BOARD)/$(BOARD).c */
 int board_early_init_f (void);
@@ -462,6 +453,7 @@ void ft_pci_setup(void *blob, bd_t *bd);
 
 /* $(CPU)/serial.c */
 int	serial_init   (void);
+void	serial_exit   (void);
 void	serial_addr   (unsigned int);
 void	serial_setbrg (void);
 void	serial_putc   (const char);

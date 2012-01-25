@@ -258,6 +258,21 @@ typedef struct ccsr_lbc {
 } ccsr_lbc_t;
 
 /*
+ * eSPI Registers(0x7000-0x8000)
+ */
+typedef struct ccsr_espi {
+	uint	mode;		/* 0x00 - eSPI mode register  */
+	uint	event;		/* 0x04 - eSPI event register */
+	uint	mask;		/* 0x08 - eSPI mask register  */
+	uint	com;		/* 0x0c - eSPI command register */
+	uint	tx;		/* 0x10 - eSPI transmit FIFO access register */
+	uint	rx;		/* 0x14 - eSPI receive FIFO access register */
+	char	res1[8];	/* reserved */
+	uint	csmode[4];	/* 0x20 - 0x2c: sSPI CS0/1/2/3 mode register */
+	char	res2[4048];	/* fill up to 0x1000 */
+} ccsr_espi_t;
+
+/*
  * PCI Registers(0x8000-0x9000)
  */
 typedef struct ccsr_pcix {
@@ -1609,8 +1624,19 @@ typedef struct ccsr_gur {
 	char	res2[12];
 	uint	gpiocr;		/* 0xe0030 - GPIO control register */
 	char	res3[12];
+#if defined(CONFIG_MPC8569)
+	uint	plppar1;
+			/* 0xe0040 - Platform port pin assignment register 1 */
+	uint	plppar2;
+			/* 0xe0044 - Platform port pin assignment register 2 */
+	uint	plpdir1;
+			/* 0xe0048 - Platform port pin direction register 1 */
+	uint	plpdir2;
+			/* 0xe004c - Platform port pin direction register 2 */
+#else
 	uint	gpoutdr;	/* 0xe0040 - General-purpose output data register */
 	char	res4[12];
+#endif
 	uint	gpindr;		/* 0xe0050 - General-purpose input data register */
 	char	res5[12];
 	uint	pmuxcr;		/* 0xe0060 - Alternate function signal multiplex control */
@@ -1651,7 +1677,7 @@ typedef struct ccsr_gur {
 	uint	svr;		/* 0xe00a4 - System version register */
 	char	res10a[8];
 	uint	rstcr;		/* 0xe00b0 - Reset control register */
-#ifdef CONFIG_MPC8568
+#if defined(CONFIG_MPC8568)||defined(CONFIG_MPC8569)
 	char	res10b[76];
 	par_io_t qe_par_io[7];  /* 0xe0100 - 0xe01bf */
 	char	res10c[3136];
@@ -1682,6 +1708,8 @@ typedef struct ccsr_gur {
 #define CONFIG_SYS_MPC85xx_DDR2_ADDR	(CONFIG_SYS_IMMR + CONFIG_SYS_MPC85xx_DDR2_OFFSET)
 #define CONFIG_SYS_MPC85xx_LBC_OFFSET	(0x5000)
 #define CONFIG_SYS_MPC85xx_LBC_ADDR	(CONFIG_SYS_IMMR + CONFIG_SYS_MPC85xx_LBC_OFFSET)
+#define CONFIG_SYS_MPC85xx_ESPI_OFFSET	(0x7000)
+#define CONFIG_SYS_MPC85xx_ESPI_ADDR	(CONFIG_SYS_IMMR + CONFIG_SYS_MPC85xx_ESPI_OFFSET)
 #define CONFIG_SYS_MPC85xx_PCIX_OFFSET	(0x8000)
 #define CONFIG_SYS_MPC85xx_PCIX_ADDR	(CONFIG_SYS_IMMR + CONFIG_SYS_MPC85xx_PCIX_OFFSET)
 #define CONFIG_SYS_MPC85xx_PCIX2_OFFSET	(0x9000)

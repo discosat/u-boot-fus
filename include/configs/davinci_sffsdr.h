@@ -32,7 +32,6 @@
 				 * powering ON the DSP. */
 /* SoC Configuration */
 #define CONFIG_ARM926EJS			/* arm926ejs CPU core */
-#define CONFIG_SYS_CLK_FREQ	297000000	/* Arm Clock frequency */
 #define CONFIG_SYS_TIMERBASE		0x01c21400	/* use timer 0 */
 #define CONFIG_SYS_HZ_CLOCK		27000000	/* Timer Input clock freq */
 #define CONFIG_SYS_HZ			1000
@@ -54,9 +53,9 @@
 /* Serial Driver info */
 #define CONFIG_SYS_NS16550
 #define CONFIG_SYS_NS16550_SERIAL
-#define CONFIG_SYS_NS16550_REG_SIZE	4		/* NS16550 register size */
+#define CONFIG_SYS_NS16550_REG_SIZE	-4	/* NS16550 register size, byteorder */
 #define CONFIG_SYS_NS16550_COM1	0x01c20000	/* Base address of UART0 */
-#define CONFIG_SYS_NS16550_CLK		27000000	/* Input clock to NS16550 */
+#define CONFIG_SYS_NS16550_CLK	CONFIG_SYS_HZ_CLOCK	/* Input clock to NS16550 */
 #define CONFIG_CONS_INDEX	1		/* use UART0 for console */
 #define CONFIG_BAUDRATE		115200		/* Default baud rate */
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
@@ -77,6 +76,7 @@
 /* Flash & Environment */
 #undef CONFIG_ENV_IS_IN_FLASH
 #define CONFIG_SYS_NO_FLASH
+#define CONFIG_NAND_DAVINCI
 #define CONFIG_ENV_IS_IN_NAND		/* U-Boot env in NAND Flash  */
 #define CONFIG_ENV_SECT_SIZE	2048	/* Env sector Size */
 #define CONFIG_ENV_SIZE		SZ_128K

@@ -2,7 +2,7 @@
  * (C) Copyright 2002
  * Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Marius Groeger <mgroeger@sysgo.de>
- * Gary Jennejohn <gj@denx.de>
+ * Gary Jennejohn <garyj@denx.de>
  * David Mueller <d.mueller@elsoft.ch>
  *
  * (C) Copyright 2008
@@ -288,6 +288,7 @@
 
 #if !defined(CONFIG_ENABLE_MMU)
 #define CONFIG_CMD_USB			1
+#define CONFIG_USB_S3C64XX
 #define CONFIG_USB_OHCI_NEW		1
 #define CONFIG_SYS_USB_OHCI_REGS_BASE		0x74300000
 #define CONFIG_SYS_USB_OHCI_SLOT_NAME		"s3c6400"

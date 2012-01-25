@@ -303,7 +303,7 @@ int do_ide (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 #ifdef CONFIG_SYS_64BIT_LBA
 		lbaint_t blk  = simple_strtoull(argv[3], NULL, 16);
 
-		printf ("\nIDE read: device %d block # %qd, count %ld ... ",
+		printf ("\nIDE read: device %d block # %Ld, count %ld ... ",
 			curr_device, blk, cnt);
 #else
 		lbaint_t blk  = simple_strtoul(argv[3], NULL, 16);
@@ -332,7 +332,7 @@ int do_ide (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 #ifdef CONFIG_SYS_64BIT_LBA
 		lbaint_t blk  = simple_strtoull(argv[3], NULL, 16);
 
-		printf ("\nIDE write: device %d block # %qd, count %ld ... ",
+		printf ("\nIDE write: device %d block # %Ld, count %ld ... ",
 			curr_device, blk, cnt);
 #else
 		lbaint_t blk  = simple_strtoul(argv[3], NULL, 16);
@@ -532,7 +532,7 @@ __ide_outb(int dev, int port, unsigned char val)
 		dev, port, val, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)));
 	outb(val, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)));
 }
-void inline ide_outb (int dev, int port, unsigned char val)
+void ide_outb (int dev, int port, unsigned char val)
 		__attribute__((weak, alias("__ide_outb")));
 
 unsigned char inline
@@ -544,7 +544,7 @@ __ide_inb(int dev, int port)
 		dev, port, (ATA_CURR_BASE(dev)+CONFIG_SYS_ATA_PORT_ADDR(port)), val);
 	return val;
 }
-unsigned char inline ide_inb(int dev, int port)
+unsigned char ide_inb(int dev, int port)
 			__attribute__((weak, alias("__ide_inb")));
 
 #ifdef CONFIG_TUNE_PIO
@@ -851,28 +851,6 @@ set_pcmcia_timing (int pmode)
 
 /* ------------------------------------------------------------------------- */
 
-#ifdef __PPC__
-# ifdef CONFIG_AMIGAONEG3SE
-static void
-output_data_short(int dev, ulong *sect_buf, int words)
-{
-	ushort	*dbuf;
-	volatile ushort	*pbuf;
-
-	pbuf = (ushort *)(ATA_CURR_BASE(dev)+ATA_DATA_REG);
-	dbuf = (ushort *)sect_buf;
-	while (words--) {
-		EIEIO;
-		*pbuf = *dbuf++;
-		EIEIO;
-	}
-
-	if (words&1)
-		*pbuf = 0;
-}
-# endif	/* CONFIG_AMIGAONEG3SE */
-#endif /* __PPC_ */
-
 /* We only need to swap data if we are running on a big endian cpu. */
 /* But Au1x00 cpu:s already swaps data in big endian mode! */
 #if defined(__LITTLE_ENDIAN) || ( defined(CONFIG_AU1X00) && !defined(CONFIG_GTH2) )
@@ -1027,28 +1005,6 @@ input_data(int dev, ulong *sect_buf, int words)
 }
 
 #endif	/* __PPC__ */
-
-#ifdef CONFIG_AMIGAONEG3SE
-static void
-input_data_short(int dev, ulong *sect_buf, int words)
-{
-	ushort	*dbuf;
-	volatile ushort	*pbuf;
-
-	pbuf = (ushort *)(ATA_CURR_BASE(dev)+ATA_DATA_REG);
-	dbuf = (ushort *)sect_buf;
-	while (words--) {
-		EIEIO;
-		*dbuf++ = *pbuf;
-		EIEIO;
-	}
-
-	if (words&1) {
-		ushort dummy;
-		dummy = *pbuf;
-	}
-}
-#endif
 
 /* -------------------------------------------------------------------------
  */
@@ -1315,7 +1271,7 @@ ulong ide_read (int device, lbaint_t blknr, ulong blkcnt, void *buffer)
 		lba48 = 1;
 	}
 #endif
-	debug ("ide_read dev %d start %qX, blocks %lX buffer at %lX\n",
+	debug ("ide_read dev %d start %LX, blocks %lX buffer at %lX\n",
 		device, blknr, blkcnt, (ulong)buffer);
 
 	ide_led (DEVICE_LED(device), 1);	/* LED on	*/
@@ -1403,7 +1359,7 @@ ulong ide_read (int device, lbaint_t blknr, ulong blkcnt, void *buffer)
 
 		if ((c&(ATA_STAT_DRQ|ATA_STAT_BUSY|ATA_STAT_ERR)) != ATA_STAT_DRQ) {
 #if defined(CONFIG_SYS_64BIT_LBA) && defined(CONFIG_SYS_64BIT_VSPRINTF)
-			printf ("Error (no IRQ) dev %d blk %qd: status 0x%02x\n",
+			printf ("Error (no IRQ) dev %d blk %Ld: status 0x%02x\n",
 				device, blknr, c);
 #else
 			printf ("Error (no IRQ) dev %d blk %ld: status 0x%02x\n",
@@ -1493,7 +1449,7 @@ ulong ide_write (int device, lbaint_t blknr, ulong blkcnt, void *buffer)
 
 		if ((c&(ATA_STAT_DRQ|ATA_STAT_BUSY|ATA_STAT_ERR)) != ATA_STAT_DRQ) {
 #if defined(CONFIG_SYS_64BIT_LBA) && defined(CONFIG_SYS_64BIT_VSPRINTF)
-			printf ("Error (no IRQ) dev %d blk %qd: status 0x%02x\n",
+			printf ("Error (no IRQ) dev %d blk %Ld: status 0x%02x\n",
 				device, blknr, c);
 #else
 			printf ("Error (no IRQ) dev %d blk %ld: status 0x%02x\n",

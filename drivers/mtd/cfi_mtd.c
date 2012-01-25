@@ -32,6 +32,7 @@
 extern flash_info_t flash_info[];
 
 static struct mtd_info cfi_mtd_info[CONFIG_SYS_MAX_FLASH_BANKS];
+static char cfi_mtd_names[CONFIG_SYS_MAX_FLASH_BANKS][16];
 
 static int cfi_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
@@ -42,11 +43,16 @@ static int cfi_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int s_last = -1;
 	int error, sect;
 
-	for (sect = 0; sect < fi->sector_count - 1; sect++) {
+	for (sect = 0; sect < fi->sector_count; sect++) {
 		if (a_start == fi->start[sect])
 			s_first = sect;
 
-		if (a_end == fi->start[sect + 1]) {
+		if (sect < fi->sector_count - 1) {
+			if (a_end == fi->start[sect + 1]) {
+				s_last = sect;
+				break;
+			}
+		} else {
 			s_last = sect;
 			break;
 		}
@@ -141,22 +147,12 @@ static int cfi_mtd_set_erasesize(struct mtd_info *mtd, flash_info_t *fi)
 	int sect_size = 0;
 	int sect;
 
+	/*
+	 * Select the largest sector size as erasesize (e.g. for UBI)
+	 */
 	for (sect = 0; sect < fi->sector_count; sect++) {
-		if (!sect_size) {
+		if (flash_sector_size(fi, sect) > sect_size)
 			sect_size = flash_sector_size(fi, sect);
-			continue;
-		}
-
-		if (sect_size != flash_sector_size(fi, sect)) {
-			sect_size = 0;
-			break;
-		}
-	}
-
-	if (!sect_size) {
-		puts("cfi-mtd: devices with multiple sector sizes are"
-							"not supported\n");
-		return -EINVAL;
 	}
 
 	mtd->erasesize = sect_size;
@@ -180,7 +176,8 @@ int cfi_mtd_init(void)
 		if (error)
 			continue;
 
-		mtd->name		= CFI_MTD_DEV_NAME;
+		sprintf(cfi_mtd_names[i], "nor%d", i);
+		mtd->name		= cfi_mtd_names[i];
 		mtd->type		= MTD_NORFLASH;
 		mtd->flags		= MTD_CAP_NORFLASH;
 		mtd->size		= fi->size;

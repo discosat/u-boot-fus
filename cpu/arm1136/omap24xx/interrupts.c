@@ -9,7 +9,7 @@
  * Alex Zuepke <azu@sysgo.de>
  *
  * (C) Copyright 2002
- * Gary Jennejohn, DENX Software Engineering, <gj@denx.de>
+ * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -49,7 +49,7 @@ int interrupt_init (void)
 
 	/* Start the counter ticking up */
 	*((int32_t *) (CONFIG_SYS_TIMERBASE + TLDR)) = TIMER_LOAD_VAL;	/* reload value on overflow*/
-	val = (CONFIG_SYS_PVT << 2) | BIT5 | BIT1 | BIT0;		/* mask to enable timer*/
+	val = (CONFIG_SYS_PTV << 2) | BIT5 | BIT1 | BIT0;		/* mask to enable timer*/
 	*((int32_t *) (CONFIG_SYS_TIMERBASE + TCLR)) = val;	/* start timer */
 
 	reset_timer_masked(); /* init the timestamp and lastinc value */

@@ -18,7 +18,7 @@
 
 #if defined(CONFIG_AT91RM9200)
 #include <asm/arch/at91rm9200.h>
-#elif defined(CONFIG_AT91SAM9260)
+#elif defined(CONFIG_AT91SAM9260) || defined(CONFIG_AT91SAM9G20)
 #include <asm/arch/at91sam9260.h>
 #define AT91_BASE_SPI	AT91SAM9260_BASE_SPI0
 #define AT91_ID_UHP	AT91SAM9260_ID_UHP
@@ -47,5 +47,25 @@
 #else
 #error "Unsupported AT91 processor"
 #endif
+
+/* External Memory Map */
+#define AT91_CHIPSELECT_0	0x10000000
+#define AT91_CHIPSELECT_1	0x20000000
+#define AT91_CHIPSELECT_2	0x30000000
+#define AT91_CHIPSELECT_3	0x40000000
+#define AT91_CHIPSELECT_4	0x50000000
+#define AT91_CHIPSELECT_5	0x60000000
+#define AT91_CHIPSELECT_6	0x70000000
+#define AT91_CHIPSELECT_7	0x80000000
+
+/* SDRAM */
+#ifdef CONFIG_DRAM_BASE
+#define AT91_SDRAM_BASE		CONFIG_DRAM_BASE
+#else
+#define AT91_SDRAM_BASE		AT91_CHIPSELECT_1
+#endif
+
+/* Clocks */
+#define AT91_SLOW_CLOCK		32768		/* slow clock */
 
 #endif

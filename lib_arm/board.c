@@ -73,7 +73,7 @@ const char version_string[] =
 	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")"CONFIG_IDENT_STRING;
 
 #ifdef CONFIG_DRIVER_CS8900
-extern void cs8900_get_enetaddr (uchar * addr);
+extern void cs8900_get_enetaddr (void);
 #endif
 
 #ifdef CONFIG_DRIVER_RTL8019
@@ -258,10 +258,13 @@ static int arm_pci_init(void)
  */
 typedef int (init_fnc_t) (void);
 
-int print_cpuinfo (void); /* test-only */
+int print_cpuinfo (void);
 
 init_fnc_t *init_sequence[] = {
 	cpu_init,		/* basic cpu dependent setup */
+#if defined(CONFIG_ARCH_CPU_INIT)
+	arch_cpu_init,		/* basic arch cpu dependent setup */
+#endif
 	board_init,		/* basic board dependent setup */
 	interrupt_init,		/* set up exceptions */
 	env_init,		/* initialize environment */
@@ -379,39 +382,7 @@ void start_armboot (void)
 	/* IP Address */
 	gd->bd->bi_ip_addr = getenv_IPaddr ("ipaddr");
 
-	/* MAC Address */
-	{
-		int i;
-		ulong reg;
-		char *s, *e;
-		char tmp[64];
-
-		i = getenv_r ("ethaddr", tmp, sizeof (tmp));
-		s = (i > 0) ? tmp : NULL;
-
-		for (reg = 0; reg < 6; ++reg) {
-			gd->bd->bi_enetaddr[reg] = s ? simple_strtoul (s, &e, 16) : 0;
-			if (s)
-				s = (*e) ? e + 1 : e;
-		}
-
-#ifdef CONFIG_HAS_ETH1
-		i = getenv_r ("eth1addr", tmp, sizeof (tmp));
-		s = (i > 0) ? tmp : NULL;
-
-		for (reg = 0; reg < 6; ++reg) {
-			gd->bd->bi_enet1addr[reg] = s ? simple_strtoul (s, &e, 16) : 0;
-			if (s)
-				s = (*e) ? e + 1 : e;
-		}
-#endif
-	}
-
 	devices_init ();	/* get the devices list going. */
-
-#ifdef CONFIG_CMC_PU2
-	load_sernum_ethaddr ();
-#endif /* CONFIG_CMC_PU2 */
 
 	jumptable_init ();
 
@@ -432,19 +403,26 @@ void start_armboot (void)
 
 	/* Perform network card initialisation if necessary */
 #ifdef CONFIG_DRIVER_TI_EMAC
+	/* XXX: this needs to be moved to board init */
 extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	if (getenv ("ethaddr")) {
-		davinci_eth_set_mac_addr(gd->bd->bi_enetaddr);
+		uchar enetaddr[6];
+		eth_getenv_enetaddr("ethaddr", enetaddr);
+		davinci_eth_set_mac_addr(enetaddr);
 	}
 #endif
 
 #ifdef CONFIG_DRIVER_CS8900
-	cs8900_get_enetaddr (gd->bd->bi_enetaddr);
+	/* XXX: this needs to be moved to board init */
+	cs8900_get_enetaddr ();
 #endif
 
 #if defined(CONFIG_DRIVER_SMC91111) || defined (CONFIG_DRIVER_LAN91C96)
+	/* XXX: this needs to be moved to board init */
 	if (getenv ("ethaddr")) {
-		smc_set_mac_addr(gd->bd->bi_enetaddr);
+		uchar enetaddr[6];
+		eth_getenv_enetaddr("ethaddr", enetaddr);
+		smc_set_mac_addr(enetaddr);
 	}
 #endif /* CONFIG_DRIVER_SMC91111 || CONFIG_DRIVER_LAN91C96 */
 
