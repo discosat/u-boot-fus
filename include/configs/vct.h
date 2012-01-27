@@ -89,10 +89,11 @@
 /*
  * SMSC91C11x Network Card
  */
-#define CONFIG_DRIVER_SMC911X
-#define CONFIG_DRIVER_SMC911X_BASE	0x00000000
-#define CONFIG_DRIVER_SMC911X_32_BIT
+#define CONFIG_SMC911X
+#define CONFIG_SMC911X_BASE	0x00000000
+#define CONFIG_SMC911X_32_BIT
 #define CONFIG_NET_RETRY_COUNT		20
+#define CONFIG_NET_MULTI
 #endif
 
 /*
@@ -296,6 +297,7 @@ int vct_gpio_get(int pin);
 #define	CONFIG_CMD_JFFS2
 #define	CONFIG_CMD_UBI
 #define	CONFIG_RBTREE
+#define CONFIG_MTD_DEVICE		/* needed for mtdparts commands */
 #define CONFIG_MTD_PARTITIONS
 #define CONFIG_CMD_MTDPARTS
 
@@ -341,7 +343,7 @@ int vct_gpio_get(int pin);
 #undef CONFIG_CMD_TERMINAL
 #undef CONFIG_CMD_USB
 
-#undef CONFIG_DRIVER_SMC911X
+#undef CONFIG_SMC911X
 #undef CONFIG_SOFT_I2C
 #undef CONFIG_SOURCE
 #undef CONFIG_SYS_LONGHELP

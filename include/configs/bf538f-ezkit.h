@@ -5,7 +5,7 @@
 #ifndef __CONFIG_BF538F_EZKIT_H__
 #define __CONFIG_BF538F_EZKIT_H__
 
-#include <asm/blackfin-config-pre.h>
+#include <asm/config-pre.h>
 
 
 /*
@@ -83,7 +83,7 @@
  */
 #define CONFIG_BFIN_SPI
 #define CONFIG_ENV_SPI_MAX_HZ	30000000
-#define CONFIG_SF_DEFAULT_HZ	30000000
+#define CONFIG_SF_DEFAULT_SPEED	30000000
 #define CONFIG_SPI_FLASH
 #define CONFIG_SPI_FLASH_ATMEL
 #define CONFIG_SPI_FLASH_SPANSION
@@ -111,6 +111,21 @@
 #else
 #define ENV_IS_EMBEDDED_CUSTOM
 #endif
+#ifdef ENV_IS_EMBEDDED
+/* WARNING - the following is hand-optimized to fit within
+ * the sector before the environment sector. If it throws
+ * an error during compilation remove an object here to get
+ * it linked after the configuration sector.
+ */
+# define LDS_BOARD_TEXT \
+	cpu/blackfin/traps.o		(.text .text.*); \
+	cpu/blackfin/interrupt.o	(.text .text.*); \
+	cpu/blackfin/serial.o		(.text .text.*); \
+	common/dlmalloc.o		(.text .text.*); \
+	lib_generic/crc32.o		(.text .text.*); \
+	. = DEFINED(env_offset) ? env_offset : .; \
+	common/env_embedded.o		(.text .text.*);
+#endif
 
 
 /*
@@ -133,7 +148,5 @@
  * Pull in common ADI header for remaining command/environment setup
  */
 #include <configs/bfin_adi_common.h>
-
-#include <asm/blackfin-config-post.h>
 
 #endif

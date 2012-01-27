@@ -110,7 +110,7 @@ int serial_init(void)
 /*
  * Read a single byte from the serial port. 
  */
-int serial_getc(const device_t *pdev)
+int serial_getc(const struct stdio_dev *pdev)
 {
 	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
 
@@ -136,7 +136,7 @@ void enable_putc(void)
 /*
  * Output a single byte to the serial port.
  */
-void serial_putc(const device_t *pdev, const char c)
+void serial_putc(const struct stdio_dev *pdev, const char c)
 {
 	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
 
@@ -158,7 +158,7 @@ void serial_putc(const device_t *pdev, const char c)
 /*
  * Test whether a character is in the RX buffer
  */
-int serial_tstc(const device_t *pdev)
+int serial_tstc(const struct stdio_dev *pdev)
 {
 	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
 
@@ -168,7 +168,7 @@ int serial_tstc(const device_t *pdev)
 /*
  * Output a string to the serial port.
  */
-void serial_puts(const device_t *pdev, const char *s)
+void serial_puts(const struct stdio_dev *pdev, const char *s)
 {
 	while (*s)
 		serial_putc(pdev, *s++);

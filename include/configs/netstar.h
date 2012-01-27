@@ -110,6 +110,8 @@
 #define CONFIG_SYS_NAND_BASE		0x04000000 + (2 << 23)
 #define NAND_ALLOW_ERASE_ALL		1
 
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
+
 #define CONFIG_HARD_I2C
 #define CONFIG_SYS_I2C_SPEED		100000
 #define CONFIG_SYS_I2C_SLAVE		1
@@ -130,6 +132,8 @@
  * partitions (mtdparts command line support)
  */
 #define CONFIG_CMD_MTDPARTS
+#define CONFIG_MTD_DEVICE		/* needed for mtdparts commands */
+#define CONFIG_FLASH_CFI_MTD
 #define MTDIDS_DEFAULT		"nor0=omapflash.0,nand0=omapnand.0"
 #define MTDPARTS_DEFAULT	"mtdparts=" \
 	"omapflash.0:8k@16k(env),8k(r_env),448k@576k(u-boot);" \

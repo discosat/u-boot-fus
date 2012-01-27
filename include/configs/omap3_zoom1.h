@@ -126,6 +126,12 @@
 #define CONFIG_DRIVER_OMAP34XX_I2C	1
 
 /*
+ * TWL4030
+ */
+#define CONFIG_TWL4030_POWER		1
+#define CONFIG_TWL4030_LED		1
+
+/*
  * Board NAND Info.
  */
 #define CONFIG_NAND_OMAP_GPMC
@@ -138,18 +144,8 @@
 
 #define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of NAND */
 							/* devices */
-#define SECTORSIZE			512
 
-#define NAND_ALLOW_ERASE_ALL
-#define ADDR_COLUMN			1
-#define ADDR_PAGE			2
-#define ADDR_COLUMN_PAGE		3
-
-#define NAND_ChipID_UNKNOWN		0x00
-#define NAND_MAX_FLOORS			1
-#define NAND_MAX_CHIPS			1
-#define NAND_NO_RB			1
-#define CONFIG_SYS_NAND_WP
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 #define CONFIG_JFFS2_NAND
 /* nand device jffs2 lives on */
@@ -301,8 +297,7 @@
 #define CONFIG_SYS_JFFS2_NUM_BANKS	1
 
 #ifndef __ASSEMBLY__
-extern gpmc_csx_t *nand_cs_base;
-extern gpmc_t *gpmc_cfg_base;
+extern struct gpmc *gpmc_cfg;
 extern unsigned int boot_flash_base;
 extern volatile unsigned int boot_flash_env_addr;
 extern unsigned int boot_flash_off;

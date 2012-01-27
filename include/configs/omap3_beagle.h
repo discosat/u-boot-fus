@@ -105,6 +105,7 @@
 #define CONFIG_CMD_FAT		/* FAT support			*/
 #define CONFIG_CMD_JFFS2	/* JFFS2 Support		*/
 #define CONFIG_CMD_MTDPARTS	/* Enable MTD parts commands */
+#define CONFIG_MTD_DEVICE	/* needed for mtdparts commands */
 #define MTDIDS_DEFAULT			"nand0=nand"
 #define MTDPARTS_DEFAULT		"mtdparts=nand:512k(x-loader),"\
 					"1920k(u-boot),128k(u-boot-env),"\
@@ -129,6 +130,12 @@
 #define CONFIG_DRIVER_OMAP34XX_I2C	1
 
 /*
+ * TWL4030
+ */
+#define CONFIG_TWL4030_POWER		1
+#define CONFIG_TWL4030_LED		1
+
+/*
  * Board NAND Info.
  */
 #define CONFIG_NAND_OMAP_GPMC
@@ -141,6 +148,7 @@
 
 #define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of NAND */
 							/* devices */
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 #define CONFIG_JFFS2_NAND
 /* nand device jffs2 lives on */
@@ -292,8 +300,7 @@
 #define CONFIG_SYS_JFFS2_NUM_BANKS	1
 
 #ifndef __ASSEMBLY__
-extern gpmc_csx_t *nand_cs_base;
-extern gpmc_t *gpmc_cfg_base;
+extern struct gpmc *gpmc_cfg;
 extern unsigned int boot_flash_base;
 extern volatile unsigned int boot_flash_env_addr;
 extern unsigned int boot_flash_off;

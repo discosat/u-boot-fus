@@ -236,10 +236,11 @@ U_BOOT_CMD(
 	"run script from memory",
 	"[addr]\n"
 	"\t- run script starting at addr\n"
-	"\t- A valid image header must be present\n"
+	"\t- A valid image header must be present"
 #if defined(CONFIG_FIT)
+	"\n"
 	"For FIT format uImage addr must include subimage\n"
-	"unit name in the form of addr:<subimg_uname>\n"
+	"unit name in the form of addr:<subimg_uname>"
 #endif
 );
 
@@ -258,7 +259,7 @@ do_autoscr (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 U_BOOT_CMD(
 	autoscr, 2, 0,	do_autoscr,
 	"DEPRECATED - use \"source\" command instead",
-	"DEPRECATED - use \"source\" command instead\n"
+	""
 );
 
 static int try_autodevs(char *fname, char *devname, char *devmaskname,

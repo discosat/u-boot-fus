@@ -28,7 +28,7 @@
 #include <common.h>
 #include <command.h>
 #include <malloc.h>
-#include <devices.h>
+#include <stdio_dev.h>
 #include <config.h>
 #if defined(CONFIG_CMD_IDE)
 #include <ide.h>
@@ -331,6 +331,10 @@ void board_init_f(ulong bootflag)
 	 */
 	interrupt_init();
 
+	/* initialize malloc() area */
+	mem_malloc_init();
+	malloc_bin_reloc();
+
 #if !defined(CONFIG_SYS_NO_FLASH)
 	puts("FLASH: ");
 
@@ -371,11 +375,6 @@ void board_init_f(ulong bootflag)
 	bd->bi_flashoffset = 0;
 #endif				/* !CONFIG_SYS_NO_FLASH */
 
-	/* initialize malloc() area */
-	mem_malloc_init();
-
-	malloc_bin_reloc();
-
 #ifdef CONFIG_SPI
 # if !defined(CONFIG_ENV_IS_IN_EEPROM)
 	spi_init_f();
@@ -403,8 +402,8 @@ void board_init_f(ulong bootflag)
 	pci_init();
 #endif
 
-	/* Initialize devices */
-	devices_init();
+	/* Initialize stdio devices */
+	stdio_init();
 
 	/* Initialize the jump table for applications */
 	jumptable_init();

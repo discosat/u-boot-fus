@@ -28,7 +28,6 @@
 #define __CONFIG_H
 
 /* ARM asynchronous clock */
-#define AT91_CPU_NAME		"AT91CAP9"
 #define AT91_MAIN_CLOCK		12000000	/* 12 MHz crystal */
 #define CONFIG_SYS_HZ		1000
 
@@ -124,7 +123,6 @@
 /* our CLE is AD22 */
 #define CONFIG_SYS_NAND_MASK_CLE		(1 << 22)
 #define CONFIG_SYS_NAND_ENABLE_PIN		AT91_PIN_PD15
-#endif
 
 /* NAND flash */
 #ifdef CONFIG_CMD_NAND
@@ -132,6 +130,9 @@
 #define CONFIG_SYS_MAX_NAND_DEVICE		1
 #define CONFIG_SYS_NAND_BASE			0x40000000
 #define CONFIG_SYS_NAND_DBW_8			1
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
+#endif
 
 /* Ethernet */
 #define CONFIG_MACB			1
@@ -171,7 +172,7 @@
 #define CONFIG_BOOTARGS		"console=ttyS0,115200 "			\
 				"root=/dev/mtdblock1 "			\
 				"mtdparts=physmap-flash.0:-(nor);"	\
-				"at91_nand:-(root) "			\
+				"atmel_nand:-(root) "			\
 				"rw rootfstype=jffs2"
 
 #else
@@ -187,7 +188,7 @@
 				"root=/dev/mtdblock4 "			\
 				"mtdparts=physmap-flash.0:16k(bootstrap)ro,"\
 				"16k(env),224k(uboot)ro,-(linux);"	\
-				"at91_nand:-(root) "			\
+				"atmel_nand:-(root) "			\
 				"rw rootfstype=jffs2"
 
 #endif
@@ -202,7 +203,6 @@
 #define CONFIG_SYS_LONGHELP		1
 #define CONFIG_CMDLINE_EDITING	1
 
-#define ROUND(A, B)		(((A) + (B)) & ~((B) - 1))
 /*
  * Size of malloc() pool
  */

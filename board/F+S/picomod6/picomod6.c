@@ -12,7 +12,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -45,11 +45,11 @@ static struct nand_ecclayout picomod6_oob_16 = {
 	.eccpos = {8, 9, 10, 11},
 	.oobfree = {
 		{.offset = 0,
-		 . length = 5},           /* Before bad block marker */
-                {.offset = 6,
-		 . length = 2},           /* Between bad block marker and ECC */
-                {.offset = 12,
-		 . length = 4},           /* Behind ECC */
+		 . length = 5},		  /* Before bad block marker */
+		{.offset = 6,
+		 . length = 2},		  /* Between bad block marker and ECC */
+		{.offset = 12,
+		 . length = 4},		  /* Behind ECC */
 	}
 };
 #else
@@ -58,7 +58,7 @@ static struct nand_ecclayout picomod6_oob_16 = {
 	.eccbytes = 4,
 	.eccpos = {1, 2, 3, 4},
 	.oobfree = {
-		{.offset = 5,             /* Behind bad block marker and ECC */
+		{.offset = 5,		  /* Behind bad block marker and ECC */
 		 .length = 59}}
 };
 #endif
@@ -74,11 +74,11 @@ static inline void delay(unsigned long loops)
 
 static void ax88796_pre_init(void)
 {
-    /* Reset AX88796 ethernet chip (Toggle nRST line for min 200us); we can't
-       use udelay() here, as timers are not yet initialized */
-    GPKDAT_REG &= ~0x00000010;
-    delay(10000000);
-    GPKDAT_REG |= 0x00000010;
+	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us); we
+	   can't use udelay() here, as timers are not yet initialized */
+	GPKDAT_REG &= ~0x00000010;
+	delay(10000000);
+	GPKDAT_REG |= 0x00000010;
 
 #if 0 //#####HK
 	SROM_BW_REG &= ~(0xf << 4);
@@ -127,7 +127,7 @@ int board_late_init (void)
 #ifdef CONFIG_DISPLAY_BOARDINFO
 int checkboard(void)
 {
-	printf("Board:   PicoMOD6\n");
+	printf("Board: PicoMOD6\n");
 	return (0);
 }
 #endif

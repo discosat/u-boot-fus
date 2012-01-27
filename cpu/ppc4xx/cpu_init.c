@@ -123,7 +123,7 @@ void reconfigure_pll(u32 new_cpu_freq)
 	/* Reset processor if configuration changed */
 	if (reset_needed) {
 		__asm__ __volatile__ ("sync; isync");
-		mtspr(dbcr0, 0x20000000);
+		mtspr(SPRN_DBCR0, 0x20000000);
 	}
 #endif
 }
@@ -174,11 +174,6 @@ cpu_init_f (void)
 	 * Set EMAC noise filter bits
 	 */
 	mtdcr(cpc0_epctl, CPC0_EPRCSR_E0NFE | CPC0_EPRCSR_E1NFE);
-
-	/*
-	 * Enable the internal PCI arbiter
-	 */
-	mtdcr(cpc0_pci, mfdcr(cpc0_pci) | CPC0_PCI_HOST_CFG_EN | CPC0_PCI_ARBIT_EN);
 #endif /* CONFIG_405EP */
 
 #if defined(CONFIG_SYS_4xx_GPIO_TABLE)

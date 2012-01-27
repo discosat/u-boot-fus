@@ -119,32 +119,6 @@ mem_ctrl_asm_init:
 	ldr	r1, =DMC_mDDR_MR0
 	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
 
-#if defined(CONFIG_SMDK6410_X5A) || defined(CONFIG_SMDK6430_X5A)
-	ldr	r1, =DMC1_CHIP1_CFG
-	str	r1, [r0, #INDEX_DMC_CHIP_1_CFG]
-
-	/* DMC0 DDR Chip 0 configuration direct command reg */
-	ldr	r1, =DMC_NOP1
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-
-	/* Precharge All */
-	ldr	r1, =DMC_PA1
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-
-	/* Auto Refresh	2 time */
-	ldr	r1, =DMC_AR1
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-
-	/* MRS */
-	ldr	r1, =DMC_mDDR_EMR1
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-
-	/* Mode Reg */
-	ldr	r1, =DMC_mDDR_MR1
-	str	r1, [r0, #INDEX_DMC_DIRECT_CMD]
-#endif
-
 	/* Enable DMC1 */
 	mov	r1, #0x0
 	str	r1, [r0, #INDEX_DMC_MEMC_CMD]
@@ -158,25 +132,5 @@ check_dmc1_ready:
 	nop
 	mov	pc, lr
 #endif /* !CONFIG_PICOMOD6 && !CONFIG_PICOCOM3 */
-
-/* Below code is for ARM926EJS and ARM1026EJS */
-	.globl cleanDCache
-cleanDCache:
-	mrc	p15, 0, pc, c7, c10, 3	/* test/clean D-Cache */
-	bne	cleanDCache
-	mov	pc, lr
-
-	.globl cleanFlushDCache
-cleanFlushDCache:
-	mrc	p15, 0, pc, c7, c14, 3	/* test/cleanflush D-Cache */
-	bne	cleanFlushDCache
-	mov	pc, lr
-
-	.globl cleanFlushCache
-cleanFlushCache:
-	mrc	p15, 0, pc, c7, c14, 3	/* test/cleanflush D-Cache */
-	bne	cleanFlushCache
-	mcr	p15, 0, r0, c7, c5, 0	/* flush I-Cache */
-	mov	pc, lr
 
 	.ltorg

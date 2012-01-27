@@ -23,27 +23,29 @@
 
 include $(TOPDIR)/config.mk
 
-LIB	= lib$(BOARD).a
+LIB	= $(obj)lib$(BOARD).a
 
-COBJS-y += picomod6.o flash.o usb_ohci_pm6.o
-
+COBJS-y += picomod6.o usb_ohci_pm6.o
 SOBJS	:= lowlevel_init.o
-COBJS	:= $(COBJS-y)
 
-$(LIB):	$(SOBJS) $(COBJS)
-	$(AR) crv $@ $(SOBJS) $(COBJS)
+SRCS    := $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
+OBJS	:= $(addprefix $(obj),$(COBJS-y))
+SOBJS	:= $(addprefix $(obj),$(SOBJS))
+
+$(LIB):	$(obj).depend $(SOBJS) $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(SOBJS) $(OBJS)
 
 clean:
-	rm -f $(SOBJS) $(COBJS)
+	rm -f $(SOBJS) $(OBJS)
 
 distclean:	clean
-	rm -f $(LIB) core *.bak .depend
+	rm -f $(LIB) core *.bak $(obj).depend
 
 #########################################################################
 
-.depend:	Makefile $(SOBJS:.o=.S) $(COBJS:.o=.c)
-		$(CC) -M $(CPPFLAGS) $(SOBJS:.o=.S) $(COBJS:.o=.c) > $@
+# defines $(obj).depend target
+include $(SRCTREE)/rules.mk
 
--include .depend
+sinclude $(obj).depend
 
 #########################################################################

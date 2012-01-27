@@ -7,11 +7,11 @@
  */
 
 #include <common.h>
-#include <devices.h>
+#include <stdio_dev.h>
 #include <asm/blackfin.h>
 
 #ifndef CONFIG_JTAG_CONSOLE_TIMEOUT
-# define CONFIG_JTAG_CONSOLE_TIMEOUT 100
+# define CONFIG_JTAG_CONSOLE_TIMEOUT 500
 #endif
 
 /* The Blackfin tends to be much much faster than the JTAG hardware. */
@@ -105,7 +105,7 @@ static int jtag_getc(void)
 
 int drv_jtag_console_init(void)
 {
-	device_t dev;
+	struct stdio_dev dev;
 	int ret;
 
 	memset(&dev, 0x00, sizeof(dev));
@@ -116,7 +116,7 @@ int drv_jtag_console_init(void)
 	dev.tstc = jtag_tstc;
 	dev.getc = jtag_getc;
 
-	ret = device_register(&dev);
+	ret = stdio_register(&dev);
 	return (ret == 0 ? 1 : ret);
 }
 

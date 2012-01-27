@@ -43,7 +43,7 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 			   ulong base_addr)
 {
 	int maxchips = CONFIG_SYS_NAND_MAX_CHIPS;
-	int __attribute__((unused)) i = 0;
+	static int __attribute__((unused)) i = 0;
 
 	if (maxchips < 1)
 		maxchips = 1;
@@ -57,7 +57,7 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 			else
 				mtd->name += gd->reloc_off;
 
-#ifdef CONFIG_MTD_PARTITIONS
+#ifdef CONFIG_MTD_DEVICE
 			/*
 			 * Add MTD device so that we can reference it later
 			 * via the mtdcore infrastructure (e.g. ubi).
@@ -79,6 +79,7 @@ void nand_init(void)
 {
 	int i;
 	unsigned int size = 0;
+
 	for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++) {
 		nand_init_chip(&nand_info[i], &nand_chip[i], base_address[i]);
 		size += nand_info[i].size / 1024;

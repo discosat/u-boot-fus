@@ -34,7 +34,7 @@
 #include <lcd.h>			  /* Own interface */
 #include <cmd_lcd.h>			  /* cmd_lcd_init() */
 #include <video_font.h>			  /* Get font data, width and height */
-#include <devices.h>			  /* device_t */
+#include <stdio_dev.h>			  /* struct stdio_dev */
 #include <serial.h>			  /* serial_putc(), serial_puts() */
 #include <watchdog.h>			  /* WATCHDOG_RESET */
 
@@ -1639,7 +1639,7 @@ static void console_putc(wininfo_t *pwi, coninfo_t *pci, char c)
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
-void lcd_putc(const device_t *pdev, const char c)
+void lcd_putc(const struct stdio_dev *pdev, const char c)
 {
 	wininfo_t *pwi = (wininfo_t *)pdev->priv;
 	vidinfo_t *pvi = pwi->pvi;
@@ -1650,7 +1650,7 @@ void lcd_putc(const device_t *pdev, const char c)
 		serial_putc(NULL, c);
 }
 #else
-void lcd_putc(const device_t *pdev, const char c)
+void lcd_putc(const struct stdio_dev *pdev, const char c)
 {
 	wininfo_t *pwi = console_pwi;
 	vidinfo_t *pvi = pwi->pvi;
@@ -1665,7 +1665,7 @@ void lcd_putc(const device_t *pdev, const char c)
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_MULTIPLE_CONSOLES
-void lcd_puts(const device_t *pdev, const char *s)
+void lcd_puts(const struct stdio_dev *pdev, const char *s)
 {
 	wininfo_t *pwi = (wininfo_t *)pdev->priv;
 	vidinfo_t *pvi = pwi->pvi;
@@ -1684,7 +1684,7 @@ void lcd_puts(const device_t *pdev, const char *s)
 		serial_puts(NULL, s);
 }
 #else
-void lcd_puts(const device_t *pdev, const char *s)
+void lcd_puts(const struct stdio_dev *pdev, const char *s)
 {
 	wininfo_t *pwi = console_pwi;
 	vidinfo_t *pvi = pwi->pvi;

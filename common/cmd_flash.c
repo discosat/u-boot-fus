@@ -468,17 +468,19 @@ int do_protect (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	ulong bank;
 	int i, n, sect_first, sect_last;
 #endif /* CONFIG_SYS_NO_FLASH */
+#if !defined(CONFIG_SYS_NO_FLASH) || defined(CONFIG_HAS_DATAFLASH)
 	ulong addr_first, addr_last;
-	int p;
+#endif
 #if defined(CONFIG_CMD_JFFS2) && defined(CONFIG_CMD_MTDPARTS)
 	struct mtd_device *dev;
 	struct part_info *part;
 	u8 dev_type, dev_num, pnum;
 #endif
-	int rcode = 0;
 #ifdef CONFIG_HAS_DATAFLASH
 	int status;
 #endif
+	int p;
+	int rcode = 0;
 
 	if (argc < 3) {
 		cmd_usage(cmdtp);
@@ -712,7 +714,7 @@ U_BOOT_CMD(
 	flinfo,    2,    1,    do_flinfo,
 	"print FLASH memory information",
 	"\n    - print information for all FLASH memory banks\n"
-	"flinfo N\n    - print information for FLASH memory bank # N\n"
+	"flinfo N\n    - print information for FLASH memory bank # N"
 );
 
 U_BOOT_CMD(
@@ -726,7 +728,7 @@ U_BOOT_CMD(
 	"erase N:SF[-SL]\n    - erase sectors SF-SL in FLASH bank # N\n"
 	"erase bank N\n    - erase FLASH bank # N\n"
 	TMP_ERASE
-	"erase all\n    - erase all FLASH banks\n"
+	"erase all\n    - erase all FLASH banks"
 );
 
 U_BOOT_CMD(
@@ -751,7 +753,7 @@ U_BOOT_CMD(
 	"    - make sectors SF-SL writable in FLASH bank # N\n"
 	"protect off bank N\n    - make FLASH bank # N writable\n"
 	TMP_PROT_OFF
-	"protect off all\n    - make all FLASH banks writable\n"
+	"protect off all\n    - make all FLASH banks writable"
 );
 
 #undef	TMP_ERASE

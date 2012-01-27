@@ -135,8 +135,8 @@ ulong get_MCLK(void)
 
 int print_cpuinfo(void)
 {
-	printf("\nCPU:     " CPU_NAME "@%luMHz\n", get_ARMCLK() / 1000000);
-	printf("         Fclk = %luMHz, Hclk = %luMHz, Pclk = %luMHz ",
+	printf("CPU:   " CPU_NAME "@%luMHz\n", get_ARMCLK() / 1000000);
+	printf("       Fclk = %luMHz, Hclk = %luMHz, Pclk = %luMHz ",
 	       get_FCLK() / 1000000, get_HCLK() / 1000000,
 	       get_PCLK() / 1000000);
 

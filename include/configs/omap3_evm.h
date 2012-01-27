@@ -128,6 +128,11 @@
 #define CONFIG_DRIVER_OMAP34XX_I2C	1
 
 /*
+ * TWL4030
+ */
+#define CONFIG_TWL4030_POWER		1
+
+/*
  * Board NAND Info.
  */
 #define CONFIG_SYS_NAND_ADDR		NAND_BASE	/* physical address */
@@ -138,6 +143,7 @@
 
 #define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of */
 							/* NAND devices */
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 #define CONFIG_JFFS2_NAND
 /* nand device jffs2 lives on */
@@ -148,6 +154,8 @@
 
 /* Environment information */
 #define CONFIG_BOOTDELAY	10
+
+#define CONFIG_BOOTFILE		uImage
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x82000000\0" \
@@ -284,8 +292,7 @@
 #define CONFIG_SYS_JFFS2_NUM_BANKS	1
 
 #ifndef __ASSEMBLY__
-extern gpmc_csx_t *nand_cs_base;
-extern gpmc_t *gpmc_cfg_base;
+extern struct gpmc *gpmc_cfg;
 extern unsigned int boot_flash_base;
 extern volatile unsigned int boot_flash_env_addr;
 extern unsigned int boot_flash_off;
@@ -299,9 +306,10 @@ extern unsigned int boot_flash_type;
  */
 #if defined(CONFIG_CMD_NET)
 
-#define CONFIG_DRIVER_SMC911X
-#define CONFIG_DRIVER_SMC911X_32_BIT
-#define CONFIG_DRIVER_SMC911X_BASE	0x2C000000
+#define CONFIG_NET_MULTI
+#define CONFIG_SMC911X
+#define CONFIG_SMC911X_32_BIT
+#define CONFIG_SMC911X_BASE	0x2C000000
 
 #endif /* (CONFIG_CMD_NET) */
 

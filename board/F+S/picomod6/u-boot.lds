@@ -35,11 +35,10 @@ SECTIONS
 	  cpu/arm1176/start.o	(.text)
 	  board/F+S/picomod6/lowlevel_init.o	(.text)
 	  *(.text)
-	  lib_arm/div0.o
 	}
 
 	. = ALIGN(4);
-	.rodata : { *(.rodata) }
+	.rodata : { *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.rodata*))) }
 
 	. = ALIGN(4);
 	.data : { *(.data) }
@@ -56,6 +55,6 @@ SECTIONS
 
 	. = ALIGN(4);
 	__bss_start = .;
-	.bss : { *(.bss) }
+	.bss : { *(.bss) . = ALIGN(4); }
 	_end = .;
 }

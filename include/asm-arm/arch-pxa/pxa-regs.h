@@ -1094,7 +1094,7 @@ typedef void		(*ExcpHndlr) (void) ;
 #define OMCR10		__REG(0x40A000D8)  /* OS Match Control Register 10 */
 #define OMCR11		__REG(0x40A000DC)  /* OS Match Control Register 11 */
 
-#define OSCR_CLK_FREQ	 3.250		   /* MHz */
+#define OSCR_CLK_FREQ	 3250		   /* kHz = 3.25 MHz */
 #endif /* CONFIG_CPU_MONAHANS */
 
 #define OSSR_M4		(1 << 4)	/* Match status channel 4 */
@@ -1217,7 +1217,7 @@ typedef void		(*ExcpHndlr) (void) ;
 #define GCFER3		__REG(0x40E004AC) /* Clr Falling Edge Det. Enable[127:96] */
 
 #define GSDR(x)		__REG2(0x40E00400, ((x) & 0x60) >> 3)
-#define GCDR(x)		__REG2(0x40300420, ((x) & 0x60) >> 3)
+#define GCDR(x)		__REG2(0x40E00420, ((x) & 0x60) >> 3)
 
 /* Multi-funktion Pin Registers, uncomplete, only:
  *    - GPIO
@@ -1952,12 +1952,13 @@ typedef void		(*ExcpHndlr) (void) ;
 #define CKENA_2_USBHOST	(1 << 2)	/* USB Host Unit Clock Enable */
 #define CKENA_1_LCD	(1 << 1)	/* LCD Unit Clock Enable */
 
-#define CKENB_8_1WIRE	((1 << 8) + 32) /* One Wire Interface Unit Clock Enable */
-#define CKENB_7_GPIO	((1 << 7) + 32)	/* GPIO Clock Enable */
-#define CKENB_6_IRQ	((1 << 6) + 32)	/* Interrupt Controller Clock Enable */
-#define CKENB_4_I2C	((1 << 4) + 32)	/* I2C Unit Clock Enable */
-#define CKENB_1_PWM1	((1 << 1) + 32)	/* PWM2 & PWM3 Clock Enable */
-#define CKENB_0_PWM0	((1 << 0) + 32)	/* PWM0 & PWM1 Clock Enable */
+#define CKENB_9_SYSBUS2	(1 << 9)	/* System bus 2 */
+#define CKENB_8_1WIRE	(1 << 8)	/* One Wire Interface Unit Clock Enable */
+#define CKENB_7_GPIO	(1 << 7)	/* GPIO Clock Enable */
+#define CKENB_6_IRQ	(1 << 6)	/* Interrupt Controller Clock Enable */
+#define CKENB_4_I2C	(1 << 4)	/* I2C Unit Clock Enable */
+#define CKENB_1_PWM1	(1 << 1)	/* PWM2 & PWM3 Clock Enable */
+#define CKENB_0_PWM0	(1 << 0)	/* PWM0 & PWM1 Clock Enable */
 
 #else /* if defined CONFIG_CPU_MONAHANS */
 

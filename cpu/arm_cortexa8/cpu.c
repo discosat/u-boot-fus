@@ -33,31 +33,13 @@
 
 #include <common.h>
 #include <command.h>
-#include <asm/arch/sys_proto.h>
 #include <asm/system.h>
-
-#ifdef CONFIG_USE_IRQ
-DECLARE_GLOBAL_DATA_PTR;
-#endif
-
+#include <asm/cache.h>
 #ifndef CONFIG_L2_OFF
-void l2cache_disable(void);
+#include <asm/arch/sys_proto.h>
 #endif
 
 static void cache_flush(void);
-
-int cpu_init(void)
-{
-	/*
-	 * setup up stacks if necessary
-	 */
-#ifdef CONFIG_USE_IRQ
-	IRQ_STACK_START =
-	    _armboot_start - CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_GBL_DATA_SIZE - 4;
-	FIQ_STACK_START = IRQ_STACK_START - CONFIG_STACKSIZE_IRQ;
-#endif
-	return 0;
-}
 
 int cleanup_before_linux(void)
 {
@@ -80,7 +62,7 @@ int cleanup_before_linux(void)
 
 #ifndef CONFIG_L2_OFF
 	/* turn off L2 cache */
-	l2cache_disable();
+	l2_cache_disable();
 	/* invalidate L2 cache also */
 	v7_flush_dcache_all(get_device_type());
 #endif
@@ -89,69 +71,10 @@ int cleanup_before_linux(void)
 	asm("mcr p15, 0, %0, c7, c10, 4": :"r"(i));
 
 #ifndef CONFIG_L2_OFF
-	l2cache_enable();
+	l2_cache_enable();
 #endif
 
 	return 0;
-}
-
-void l2cache_enable()
-{
-	unsigned long i;
-	volatile unsigned int j;
-
-	/* ES2 onwards we can disable/enable L2 ourselves */
-	if (get_cpu_rev() >= CPU_3XX_ES20) {
-		__asm__ __volatile__("mrc p15, 0, %0, c1, c0, 1":"=r"(i));
-		__asm__ __volatile__("orr %0, %0, #0x2":"=r"(i));
-		__asm__ __volatile__("mcr p15, 0, %0, c1, c0, 1":"=r"(i));
-	} else {
-		/* Save r0, r12 and restore them after usage */
-		__asm__ __volatile__("mov %0, r12":"=r"(j));
-		__asm__ __volatile__("mov %0, r0":"=r"(i));
-
-		/*
-		 * GP Device ROM code API usage here
-		 * r12 = AUXCR Write function and r0 value
-		 */
-		__asm__ __volatile__("mov r12, #0x3");
-		__asm__ __volatile__("mrc p15, 0, r0, c1, c0, 1");
-		__asm__ __volatile__("orr r0, r0, #0x2");
-		/* SMI instruction to call ROM Code API */
-		__asm__ __volatile__(".word 0xE1600070");
-		__asm__ __volatile__("mov r0, %0":"=r"(i));
-		__asm__ __volatile__("mov r12, %0":"=r"(j));
-	}
-
-}
-
-void l2cache_disable()
-{
-	unsigned long i;
-	volatile unsigned int j;
-
-	/* ES2 onwards we can disable/enable L2 ourselves */
-	if (get_cpu_rev() >= CPU_3XX_ES20) {
-		__asm__ __volatile__("mrc p15, 0, %0, c1, c0, 1":"=r"(i));
-		__asm__ __volatile__("bic %0, %0, #0x2":"=r"(i));
-		__asm__ __volatile__("mcr p15, 0, %0, c1, c0, 1":"=r"(i));
-	} else {
-		/* Save r0, r12 and restore them after usage */
-		__asm__ __volatile__("mov %0, r12":"=r"(j));
-		__asm__ __volatile__("mov %0, r0":"=r"(i));
-
-		/*
-		 * GP Device ROM code API usage here
-		 * r12 = AUXCR Write function and r0 value
-		 */
-		__asm__ __volatile__("mov r12, #0x3");
-		__asm__ __volatile__("mrc p15, 0, r0, c1, c0, 1");
-		__asm__ __volatile__("bic r0, r0, #0x2");
-		/* SMI instruction to call ROM Code API */
-		__asm__ __volatile__(".word 0xE1600070");
-		__asm__ __volatile__("mov r0, %0":"=r"(i));
-		__asm__ __volatile__("mov r12, %0":"=r"(j));
-	}
 }
 
 static void cache_flush(void)

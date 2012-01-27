@@ -33,7 +33,7 @@
 /************************************************************************/
 
 #include "cmd_lcd.h"			  /* wininfo_t, XYPOS, WINDOW, ... */
-#include "devices.h"			  /* device_t */
+#include "stdio_dev.h"			  /* struct stdio_dev */
 
 /************************************************************************/
 /* DEFINITIONS								*/
@@ -52,8 +52,8 @@ extern void console_update(wininfo_t *pwi, RGBA fg, RGBA bg);
 
 extern void console_cls(const wininfo_t *pwi, COLOR32 col);
 
-extern void lcd_putc(const device_t *pdev, const char c);
-extern void lcd_puts(const device_t *pdev, const char *s);
+extern void lcd_putc(const struct stdio_dev *pdev, const char c);
+extern void lcd_puts(const struct stdio_dev *pdev, const char *s);
 
 /* Set colinfo structure */
 extern void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci);

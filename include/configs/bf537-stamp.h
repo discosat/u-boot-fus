@@ -5,7 +5,7 @@
 #ifndef __CONFIG_BF537_STAMP_H__
 #define __CONFIG_BF537_STAMP_H__
 
-#include <asm/blackfin-config-pre.h>
+#include <asm/config-pre.h>
 
 
 /*
@@ -87,7 +87,7 @@
  */
 #define CONFIG_BFIN_SPI
 #define CONFIG_ENV_SPI_MAX_HZ	30000000
-#define CONFIG_SF_DEFAULT_HZ	30000000
+#define CONFIG_SF_DEFAULT_SPEED	30000000
 #define CONFIG_SPI_FLASH
 #define CONFIG_SPI_FLASH_ATMEL
 #define CONFIG_SPI_FLASH_SPANSION
@@ -100,9 +100,9 @@
  */
 #if (CONFIG_BFIN_BOOT_MODE == BFIN_BOOT_SPI_MASTER)
 #define CONFIG_ENV_IS_IN_SPI_FLASH
-#define CONFIG_ENV_OFFSET	0x4000
+#define CONFIG_ENV_OFFSET	0x10000
 #define CONFIG_ENV_SIZE		0x2000
-#define CONFIG_ENV_SECT_SIZE	0x2000
+#define CONFIG_ENV_SECT_SIZE	0x10000
 #else
 #define CONFIG_ENV_IS_IN_FLASH
 #define CONFIG_ENV_OFFSET	0x4000
@@ -114,6 +114,21 @@
 #define ENV_IS_EMBEDDED
 #else
 #define ENV_IS_EMBEDDED_CUSTOM
+#endif
+#ifdef ENV_IS_EMBEDDED
+/* WARNING - the following is hand-optimized to fit within
+ * the sector before the environment sector. If it throws
+ * an error during compilation remove an object here to get
+ * it linked after the configuration sector.
+ */
+# define LDS_BOARD_TEXT \
+	cpu/blackfin/traps.o		(.text .text.*); \
+	cpu/blackfin/interrupt.o	(.text .text.*); \
+	cpu/blackfin/serial.o		(.text .text.*); \
+	common/dlmalloc.o		(.text .text.*); \
+	lib_generic/crc32.o		(.text .text.*); \
+	. = DEFINED(env_offset) ? env_offset : .; \
+	common/env_embedded.o		(.text .text.*);
 #endif
 
 
@@ -136,36 +151,28 @@
 /*
  * NAND Settings
  */
-/* #define CONFIG_BF537_NAND */
-#ifdef CONFIG_BF537_NAND
-# define CONFIG_CMD_NAND
-#endif
-
-#define CONFIG_SYS_NAND_ADDR		0x20212000
-#define CONFIG_SYS_NAND_BASE		CONFIG_SYS_NAND_ADDR
+/* #define CONFIG_NAND_PLAT */
+#define CONFIG_SYS_NAND_BASE		0x20212000
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
-#define SECTORSIZE		512
-#define ADDR_COLUMN		1
-#define ADDR_PAGE		2
-#define ADDR_COLUMN_PAGE	3
-#define NAND_ChipID_UNKNOWN	0x00
-#define NAND_MAX_FLOORS		1
-#define BFIN_NAND_READY		PF3
 
-#define NAND_WAIT_READY(nand) \
+#define BFIN_NAND_CLE(chip) ((unsigned long)(chip)->IO_ADDR_W | (1 << 2))
+#define BFIN_NAND_ALE(chip) ((unsigned long)(chip)->IO_ADDR_W | (1 << 1))
+#define BFIN_NAND_READY     PF3
+#define BFIN_NAND_WRITE(addr, cmd) \
 	do { \
-		int timeout = 0; \
-		while (!(*pPORTFIO & PF3)) \
-			if (timeout++ > 100000) \
-				break; \
+		bfin_write8(addr, cmd); \
+		SSYNC(); \
 	} while (0)
 
-#define BFIN_NAND_CLE		(1 << 2)	/* A2 -> Command Enable */
-#define BFIN_NAND_ALE		(1 << 1)	/* A1 -> Address Enable */
-#define WRITE_NAND_COMMAND(d, adr) bfin_write8(adr | BFIN_NAND_CLE, d)
-#define WRITE_NAND_ADDRESS(d, adr) bfin_write8(adr | BFIN_NAND_ALE, d)
-#define WRITE_NAND(d, adr)         bfin_write8(adr, d)
-#define READ_NAND(adr)             bfin_read8(adr)
+#define NAND_PLAT_WRITE_CMD(chip, cmd) BFIN_NAND_WRITE(BFIN_NAND_CLE(chip), cmd)
+#define NAND_PLAT_WRITE_ADR(chip, cmd) BFIN_NAND_WRITE(BFIN_NAND_ALE(chip), cmd)
+#define NAND_PLAT_DEV_READY(chip)      (bfin_read_PORTFIO() & BFIN_NAND_READY)
+#define NAND_PLAT_INIT() \
+	do { \
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() & ~BFIN_NAND_READY); \
+		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() & ~BFIN_NAND_READY); \
+		bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | BFIN_NAND_READY); \
+	} while (0)
 
 
 /*
@@ -256,7 +263,5 @@
  * Pull in common ADI header for remaining command/environment setup
  */
 #include <configs/bfin_adi_common.h>
-
-#include <asm/blackfin-config-post.h>
 
 #endif

@@ -255,14 +255,17 @@ stack_setup:
 	bne	9b
 	/* ########### */
 #endif //#####HK
+	/* We need additonal 3 words for the abort-stack above the initial
+	   value of the stack pointer. But we also need to be 64-bit aligned
+	   or va_arg with 64 bit values won't work. So we subtract 16 instead
+	   of 12. The overall sp value must be a multiple of 8 (=64 bit). */ 
 #ifdef CONFIG_MEMORY_UPPER_CODE
-	ldr	sp, =(CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE - 0xc)
+	ldr	sp, =(CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE - 16)
 #else
 	ldr	r0, _TEXT_BASE		/* upper 128 KiB: relocated uboot   */
-	sub	r0, r0, #CONFIG_SYS_MALLOC_LEN	/* malloc area                      */
-	sub	r0, r0, #CONFIG_SYS_GBL_DATA_SIZE /* bdinfo                        */
-	sub	sp, r0, #12		/* leave 3 words for abort-stack    */
-
+	sub	r0, r0, #CONFIG_SYS_MALLOC_LEN	/* malloc area              */
+	sub	r0, r0, #CONFIG_SYS_GBL_DATA_SIZE /* bdinfo                 */
+	sub	sp, r0, #16		/* leave 3 words for abort-stack    */
 #endif
 
 clear_bss:

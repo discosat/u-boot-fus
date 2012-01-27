@@ -11,7 +11,7 @@
 
 #include <common.h>
 #include <command.h>
-#include <devices.h>
+#include <stdio_dev.h>
 #include <environment.h>
 #include <malloc.h>
 #include <net.h>
@@ -324,6 +324,10 @@ void board_init_r(gd_t * id, ulong dest_addr)
 	post_reloc();
 #endif
 
+	/* initialize malloc() area */
+	mem_malloc_init();
+	malloc_bin_reloc();
+
 #if	!defined(CONFIG_SYS_NO_FLASH)
 	/* Initialize the flash and protect u-boot by default */
 	extern flash_info_t flash_info[];
@@ -341,9 +345,6 @@ void board_init_r(gd_t * id, ulong dest_addr)
 	bd->bi_flashsize = 0;
 	bd->bi_flashoffset = 0;
 #endif
-	/* initialize malloc() area */
-	mem_malloc_init();
-	malloc_bin_reloc();
 
 #ifdef CONFIG_CMD_NAND
 	puts("NAND:  ");
@@ -353,8 +354,8 @@ void board_init_r(gd_t * id, ulong dest_addr)
 	/* relocate environment function pointers etc. */
 	env_relocate();
 
-	/* Initialize devices */
-	devices_init();
+	/* Initialize stdio devices */
+	stdio_init();
 	jumptable_init();
 
 	/* Initialize the console (after the relocation and devices init) */
@@ -382,6 +383,12 @@ void board_init_r(gd_t * id, ulong dest_addr)
 	if (post_flag)
 		post_run(NULL, POST_RAM | post_bootmode_get(0));
 #endif
+
+	if (bfin_os_log_check()) {
+		puts("\nLog buffer from operating system:\n");
+		bfin_os_log_dump();
+		puts("\n");
+	}
 
 	/* main_loop() can return to retry autoboot, if so just run it again. */
 	for (;;)

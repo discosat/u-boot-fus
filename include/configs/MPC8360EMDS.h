@@ -27,7 +27,7 @@
  */
 #define CONFIG_E300		1 /* E300 family */
 #define CONFIG_QE		1 /* Has QE */
-#define CONFIG_MPC83XX		1 /* MPC83XX family */
+#define CONFIG_MPC83xx		1 /* MPC83xx family */
 #define CONFIG_MPC8360		1 /* MPC8360 CPU specific */
 #define CONFIG_MPC8360EMDS	1 /* MPC8360EMDS board specific */
 #undef CONFIG_PQ_MDS_PIB /* POWERQUICC MDS Platform IO Board */
@@ -170,7 +170,7 @@
 #endif
 
 /* CONFIG_SYS_MONITOR_LEN must be a multiple of CONFIG_ENV_SECT_SIZE */
-#define CONFIG_SYS_MONITOR_LEN		(256 * 1024) /* Reserve 256 kB for Mon */
+#define CONFIG_SYS_MONITOR_LEN		(384 * 1024) /* Reserve 384 kB for Mon */
 #define CONFIG_SYS_MALLOC_LEN		(128 * 1024) /* Reserved for malloc */
 
 /*
@@ -350,15 +350,15 @@
  * General PCI
  * Addresses are mapped 1-1.
  */
-#define CONFIG_SYS_PCI_MEM_BASE	0x80000000
-#define CONFIG_SYS_PCI_MEM_PHYS	CONFIG_SYS_PCI_MEM_BASE
-#define CONFIG_SYS_PCI_MEM_SIZE	0x10000000 /* 256M */
-#define CONFIG_SYS_PCI_MMIO_BASE	0x90000000
-#define CONFIG_SYS_PCI_MMIO_PHYS	CONFIG_SYS_PCI_MMIO_BASE
-#define CONFIG_SYS_PCI_MMIO_SIZE	0x10000000 /* 256M */
-#define CONFIG_SYS_PCI_IO_BASE		0x00000000
-#define CONFIG_SYS_PCI_IO_PHYS		0xE0300000
-#define CONFIG_SYS_PCI_IO_SIZE		0x100000 /* 1M */
+#define CONFIG_SYS_PCI1_MEM_BASE	0x80000000
+#define CONFIG_SYS_PCI1_MEM_PHYS	CONFIG_SYS_PCI1_MEM_BASE
+#define CONFIG_SYS_PCI1_MEM_SIZE	0x10000000 /* 256M */
+#define CONFIG_SYS_PCI1_MMIO_BASE	0x90000000
+#define CONFIG_SYS_PCI1_MMIO_PHYS	CONFIG_SYS_PCI1_MMIO_BASE
+#define CONFIG_SYS_PCI1_MMIO_SIZE	0x10000000 /* 256M */
+#define CONFIG_SYS_PCI1_IO_BASE		0x00000000
+#define CONFIG_SYS_PCI1_IO_PHYS		0xE0300000
+#define CONFIG_SYS_PCI1_IO_SIZE		0x100000 /* 1M */
 
 #define CONFIG_SYS_PCI_SLV_MEM_LOCAL	CONFIG_SYS_SDRAM_BASE
 #define CONFIG_SYS_PCI_SLV_MEM_BUS	0x00000000
@@ -369,6 +369,7 @@
 
 #define CONFIG_NET_MULTI
 #define CONFIG_PCI_PNP		/* do pci plug-and-play */
+#define CONFIG_83XX_PCI_STREAMING
 
 #undef CONFIG_EEPRO100
 #undef CONFIG_PCI_SCAN_SHOW	/* show pci devices on startup */
@@ -539,14 +540,14 @@
 
 #ifdef CONFIG_PCI
 /* PCI MEM space: cacheable */
-#define CONFIG_SYS_IBAT6L	(CONFIG_SYS_PCI_MEM_PHYS | BATL_PP_10 | BATL_MEMCOHERENCE)
-#define CONFIG_SYS_IBAT6U	(CONFIG_SYS_PCI_MEM_PHYS | BATU_BL_256M | BATU_VS | BATU_VP)
+#define CONFIG_SYS_IBAT6L	(CONFIG_SYS_PCI1_MEM_PHYS | BATL_PP_10 | BATL_MEMCOHERENCE)
+#define CONFIG_SYS_IBAT6U	(CONFIG_SYS_PCI1_MEM_PHYS | BATU_BL_256M | BATU_VS | BATU_VP)
 #define CONFIG_SYS_DBAT6L	CONFIG_SYS_IBAT6L
 #define CONFIG_SYS_DBAT6U	CONFIG_SYS_IBAT6U
 /* PCI MMIO space: cache-inhibit and guarded */
-#define CONFIG_SYS_IBAT7L	(CONFIG_SYS_PCI_MMIO_PHYS | BATL_PP_10 | \
+#define CONFIG_SYS_IBAT7L	(CONFIG_SYS_PCI1_MMIO_PHYS | BATL_PP_10 | \
 			BATL_CACHEINHIBIT | BATL_GUARDEDSTORAGE)
-#define CONFIG_SYS_IBAT7U	(CONFIG_SYS_PCI_MMIO_PHYS | BATU_BL_256M | BATU_VS | BATU_VP)
+#define CONFIG_SYS_IBAT7U	(CONFIG_SYS_PCI1_MMIO_PHYS | BATU_BL_256M | BATU_VS | BATU_VP)
 #define CONFIG_SYS_DBAT7L	CONFIG_SYS_IBAT7L
 #define CONFIG_SYS_DBAT7U	CONFIG_SYS_IBAT7U
 #else
@@ -588,7 +589,7 @@
 
 #define CONFIG_BAUDRATE 115200
 
-#define CONFIG_LOADADDR 500000	/* default location for tftp and bootm */
+#define CONFIG_LOADADDR 800000	/* default location for tftp and bootm */
 
 #define CONFIG_BOOTDELAY 6	/* -1 disables auto-boot */
 #undef	CONFIG_BOOTARGS		/* the boot command will set bootargs */
@@ -598,7 +599,7 @@
    "consoledev=ttyS0\0"							\
    "ramdiskaddr=1000000\0"						\
    "ramdiskfile=ramfs.83xx\0"						\
-   "fdtaddr=400000\0"							\
+   "fdtaddr=780000\0"							\
    "fdtfile=mpc836x_mds.dtb\0"						\
    ""
 

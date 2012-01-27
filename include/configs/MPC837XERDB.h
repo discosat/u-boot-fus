@@ -26,14 +26,15 @@
  * High Level Configuration Options
  */
 #define CONFIG_E300		1 /* E300 family */
-#define CONFIG_MPC83XX		1 /* MPC83XX family */
-#define CONFIG_MPC837X		1 /* MPC837X CPU specific */
+#define CONFIG_MPC83xx		1 /* MPC83xx family */
+#define CONFIG_MPC837x		1 /* MPC837x CPU specific */
 #define CONFIG_MPC837XERDB	1
 
 #define CONFIG_PCI	1
 
 #define CONFIG_BOARD_EARLY_INIT_F
 #define CONFIG_MISC_INIT_R
+#define CONFIG_HWCONFIG
 
 /*
  * On-board devices
@@ -48,8 +49,7 @@
 #define CONFIG_83XX_PCICLK	66666667 /* in HZ */
 #else
 #define CONFIG_83XX_CLKIN	66666667 /* in Hz */
-#define CONFIG_83XX_GENERIC_PCI	1
-#define CONFIG_83XX_GENERIC_PCIE	1
+#define CONFIG_PCIE
 #endif
 
 #ifndef CONFIG_SYS_CLK_FREQ
@@ -190,8 +190,8 @@
 				/* 0x3937d322 */
 #define CONFIG_SYS_DDR_TIMING_2	0x02984cc8
 
-#define CONFIG_SYS_DDR_INTERVAL	((1545 << SDRAM_INTERVAL_REFINT_SHIFT) \
-				| (256 << SDRAM_INTERVAL_BSTOPRE_SHIFT))
+#define CONFIG_SYS_DDR_INTERVAL	((1024 << SDRAM_INTERVAL_REFINT_SHIFT) \
+				| (0 << SDRAM_INTERVAL_BSTOPRE_SHIFT))
 				/* 0x06090100 */
 
 #if defined(CONFIG_DDR_2T_TIMING)
@@ -205,7 +205,7 @@
 				/* 0x43000000 */
 #endif
 #define CONFIG_SYS_DDR_SDRAM_CFG2	0x00001000 /* 1 posted refresh */
-#define CONFIG_SYS_DDR_MODE		((0x0440 << SDRAM_MODE_ESD_SHIFT) \
+#define CONFIG_SYS_DDR_MODE		((0x0406 << SDRAM_MODE_ESD_SHIFT) \
 				| (0x0442 << SDRAM_MODE_SD_SHIFT))
 				/* 0x04400442 */ /* DDR400 */
 #define CONFIG_SYS_DDR_MODE2		0x00000000
@@ -228,7 +228,7 @@
 #undef	CONFIG_SYS_RAMBOOT
 #endif
 
-#define CONFIG_SYS_MONITOR_LEN		(256 * 1024) /* Reserve 256 kB for Mon */
+#define CONFIG_SYS_MONITOR_LEN		(384 * 1024) /* Reserve 384 kB for Mon */
 #define CONFIG_SYS_MALLOC_LEN		(512 * 1024) /* Reserved for malloc */
 
 /*
@@ -341,6 +341,9 @@
 #define CONFIG_OF_LIBFDT	1
 #define CONFIG_OF_BOARD_SETUP	1
 #define CONFIG_OF_STDOUT_VIA_ALIAS 1
+
+#define CONFIG_SYS_64BIT_STRTOUL		1
+#define CONFIG_SYS_64BIT_VSPRINTF		1
 
 /* I2C */
 #define CONFIG_HARD_I2C		/* I2C with hardware support */
@@ -510,6 +513,18 @@
 
 #undef CONFIG_WATCHDOG		/* watchdog disabled */
 
+#define CONFIG_MMC     1
+
+#ifdef CONFIG_MMC
+#define CONFIG_FSL_ESDHC
+#define CONFIG_SYS_FSL_ESDHC_ADDR	CONFIG_SYS_MPC83xx_ESDHC_ADDR
+#define CONFIG_CMD_MMC
+#define CONFIG_GENERIC_MMC
+#define CONFIG_CMD_EXT2
+#define CONFIG_CMD_FAT
+#define CONFIG_DOS_PARTITION
+#endif
+
 /*
  * Miscellaneous configurable options
  */
@@ -653,7 +668,7 @@
 #define CONFIG_UBOOTPATH	u-boot.bin	/* U-Boot image on TFTP server */
 #define CONFIG_FDTFILE		mpc8379_rdb.dtb
 
-#define CONFIG_LOADADDR		500000	/* default location for tftp and bootm */
+#define CONFIG_LOADADDR		800000	/* default location for tftp and bootm */
 #define CONFIG_BOOTDELAY	6	/* -1 disables auto-boot */
 #define CONFIG_BAUDRATE		115200
 
@@ -669,7 +684,7 @@
 		"cp.b $loadaddr " MK_STR(TEXT_BASE) " $filesize; "	\
 		"protect on " MK_STR(TEXT_BASE) " +$filesize; "		\
 		"cmp.b $loadaddr " MK_STR(TEXT_BASE) " $filesize\0"	\
-	"fdtaddr=400000\0"						\
+	"fdtaddr=780000\0"						\
 	"fdtfile=" MK_STR(CONFIG_FDTFILE) "\0"				\
 	"ramdiskaddr=1000000\0"						\
 	"ramdiskfile=" MK_STR(CONFIG_RAMDISKFILE) "\0"			\

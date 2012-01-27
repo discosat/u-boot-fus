@@ -835,14 +835,19 @@ static int flash_write_cfiword (flash_info_t * info, ulong dest,
 		break;
 	case CFI_CMDSET_AMD_EXTENDED:
 	case CFI_CMDSET_AMD_STANDARD:
-#ifdef CONFIG_FLASH_CFI_LEGACY
-	case CFI_CMDSET_AMD_LEGACY:
-#endif
 		sect = find_sector(info, dest);
 		flash_unlock_seq (info, sect);
 		flash_write_cmd (info, sect, info->addr_unlock1, AMD_CMD_WRITE);
 		sect_found = 1;
 		break;
+#ifdef CONFIG_FLASH_CFI_LEGACY
+	case CFI_CMDSET_AMD_LEGACY:
+		sect = find_sector(info, dest);
+		flash_unlock_seq (info, 0);
+		flash_write_cmd (info, 0, info->addr_unlock1, AMD_CMD_WRITE);
+		sect_found = 1;
+		break;
+#endif
 	}
 
 	switch (info->portwidth) {
@@ -996,7 +1001,7 @@ static int flash_write_cfibuffer (flash_info_t * info, ulong dest, uchar * cp,
 #endif
 		flash_write_cmd(info, sector, offset, AMD_CMD_WRITE_TO_BUFFER);
 		cnt = len >> shift;
-		flash_write_cmd(info, sector, offset, (uchar)cnt - 1);
+		flash_write_cmd(info, sector, offset, cnt - 1);
 
 		switch (info->portwidth) {
 		case FLASH_CFI_8BIT:

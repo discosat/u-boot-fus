@@ -142,11 +142,6 @@ uchar default_environment[] = {
 	"\0"
 };
 
-#if defined(CONFIG_ENV_IS_IN_NAND) || defined(CONFIG_ENV_IS_IN_MOVINAND) || defined(CONFIG_ENV_IS_IN_ONENAND) || defined(CONFIG_ENV_IS_IN_AUTO) || defined(CONFIG_ENV_IS_IN_SPI_FLASH) /* Environment is in Nand Flash or MoviNAND or OneNAND */
-
-int default_environment_size = sizeof(default_environment);
-#endif
-
 void env_crc_update (void)
 {
 	env_ptr->crc = crc32(0, env_ptr->data, ENV_SIZE);

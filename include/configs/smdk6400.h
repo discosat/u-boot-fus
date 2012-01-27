@@ -209,6 +209,9 @@
 /* total memory available to uboot */
 #define CONFIG_SYS_UBOOT_SIZE		(1024 * 1024)
 
+/* Put environment copies after the end of U-Boot owned RAM */
+#define CONFIG_NAND_ENV_DST	(CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE)
+
 #ifdef CONFIG_ENABLE_MMU
 #define CONFIG_SYS_MAPPED_RAM_BASE	0xc0000000
 #define CONFIG_BOOTCOMMAND	"nand read 0xc0018000 0x60000 0x1c0000;" \
@@ -265,6 +268,8 @@
 #define CONFIG_SYS_NAND_ECCPOS		{40, 41, 42, 43, 44, 45, 46, 47, \
 				 48, 49, 50, 51, 52, 53, 54, 55, \
 				 56, 57, 58, 59, 60, 61, 62, 63}
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 /* Boot configuration (define only one of next 3) */
 #define CONFIG_BOOT_NAND

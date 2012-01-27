@@ -5,7 +5,7 @@
 #ifndef __CONFIG_BF561_EZKIT_H__
 #define __CONFIG_BF561_EZKIT_H__
 
-#include <asm/blackfin-config-pre.h>
+#include <asm/config-pre.h>
 
 
 /*
@@ -88,6 +88,23 @@
 #else
 #define ENV_IS_EMBEDDED_CUSTOM
 #endif
+#ifdef ENV_IS_EMBEDDED
+/* WARNING - the following is hand-optimized to fit within
+ * the sector before the environment sector. If it throws
+ * an error during compilation remove an object here to get
+ * it linked after the configuration sector.
+ */
+# define LDS_BOARD_TEXT \
+	cpu/blackfin/traps.o		(.text .text.*); \
+	cpu/blackfin/interrupt.o	(.text .text.*); \
+	cpu/blackfin/serial.o		(.text .text.*); \
+	common/dlmalloc.o		(.text .text.*); \
+	lib_generic/crc32.o		(.text .text.*); \
+	lib_generic/zlib.o		(.text .text.*); \
+	board/bf561-ezkit/bf561-ezkit.o	(.text .text.*); \
+	. = DEFINED(env_offset) ? env_offset : .; \
+	common/env_embedded.o		(.text .text.*);
+#endif
 
 
 /*
@@ -149,6 +166,4 @@
  */
 #include <configs/bfin_adi_common.h>
 
-#include <asm/blackfin-config-post.h>
-
-#endif				/* __CONFIG_EZKIT561_H__ */
+#endif

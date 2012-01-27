@@ -124,6 +124,7 @@
 #define	CONFIG_CMD_JFFS2
 #define	CONFIG_CMD_UBI
 #define	CONFIG_RBTREE
+#define CONFIG_MTD_DEVICE		/* needed for mtdparts commands */
 #define CONFIG_MTD_PARTITIONS
 #endif
 
@@ -254,6 +255,8 @@
 #define CONFIG_SYS_MONITOR_LEN		SZ_256K	/* U-Boot image size */
 #define	CONFIG_ENV_IS_IN_ONENAND	1
 #define CONFIG_ENV_ADDR		0x00020000
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 #ifdef CONFIG_SYS_USE_UBI
 #define CONFIG_CMD_MTDPARTS

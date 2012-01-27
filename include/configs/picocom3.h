@@ -540,6 +540,8 @@
 #define MTDPARTS_DEFAULT	"mtdparts=pc3nand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
 #endif
 
+#define CONFIG_MTD_DEVICE
+//#define CONFIG_MTD_PARTITIONS  /* For UBI */
 
 #define CONFIG_BOOTDELAY	3
 #define CONFIG_BOOTARGS    	"console=ttySAC1,38400 init=linuxrc"
@@ -569,5 +571,11 @@
  * Tools
  ************************************************************************/
 #define CONFIG_ADDFSHEADER	1
+
+/************************************************************************
+ * Libraries
+ ************************************************************************/
+//#define USE_PRIVATE_LIBGCC
+#define CONFIG_SYS_64BIT_VSPRINTF	  /* needed for nand_util.c */
 
 #endif /* !__CONFIG_H */

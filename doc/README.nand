@@ -101,21 +101,11 @@ Configuration Options:
    CONFIG_SYS_NAND_MAX_CHIPS
       The maximum number of NAND chips per device to be supported.
 
-   CONFIG_SYS_DAVINCI_BROKEN_ECC
-      Versions of U-Boot <= 1.3.3 and Montavista Linux kernels
-      generated bogus ECCs on large-page NAND. Both large and small page
-      NAND ECCs were incompatible with the Linux davinci git tree (since
-      NAND was integrated in 2.6.24).
-      Turn this ON if you want backwards compatibility.
-      Turn this OFF if you want U-Boot and the Linux davinci git kernel
-      to use the same ECC format.
-
 NOTE:
 =====
 
 The current NAND implementation is based on what is in recent
-Linux kernels.  The old legacy implementation has been disabled,
-and will be removed soon.
+Linux kernels.  The old legacy implementation has been removed.
 
 If you have board code which used CONFIG_NAND_LEGACY, you'll need
 to convert to the current NAND interface for it to continue to work.

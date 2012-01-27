@@ -32,17 +32,10 @@
  */
 
 #include <common.h>
-#include <serial.h>			  /* serial_tstc(), serial_getc() */
 #include <command.h>
-#include <s3c64xx-regs.h>
 #include <asm/system.h>
 
 static void cache_flush (void);
-
-int cpu_init (void)
-{
-	return 0;
-}
 
 int cleanup_before_linux (void)
 {
@@ -62,31 +55,6 @@ int cleanup_before_linux (void)
 	cache_flush();
 
 	return 0;
-}
-
-
-/* * reset the cpu by setting up the watchdog timer and let him time out */
-void reset_cpu (ulong ignored)
-{
-	printf("reset... \n\n\n");
-
-#if defined(CONFIG_S3C6400)
-        SW_RST_REG = 0x6400;
-#elif defined(CONFIG_S3C6410)
-        SW_RST_REG = 0x6410;
-#elif defined(CONFIG_S3C6430)
-        SW_RST_REG = 0x6410;
-#endif
-	/* loop forever and wait for reset to happen */
-	while (1)
-	{
-		if (serial_tstc(NULL))
-		{
-			serial_getc(NULL);
-			break;
-		}
-	}
-	/*NOTREACHED*/
 }
 
 /* flush I/D-cache */

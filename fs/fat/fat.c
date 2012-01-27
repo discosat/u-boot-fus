@@ -35,7 +35,7 @@
 /*
  * Convert a string to lowercase.
  */
-static void downcase (char *str)
+static void downcase(char *str)
 {
 	while (*str != '\0') {
 		TOLOWER(*str);
@@ -44,9 +44,7 @@ static void downcase (char *str)
 }
 
 static block_dev_desc_t *cur_dev = NULL;
-
 static unsigned long part_offset = 0;
-
 static int cur_part = 1;
 
 #define DOS_PART_TBL_OFFSET	0x1be
@@ -54,7 +52,7 @@ static int cur_part = 1;
 #define DOS_FS_TYPE_OFFSET	0x36
 #define DOS_FS32_TYPE_OFFSET	0x52
 
-static int disk_read (__u32 startblock, __u32 getsize, __u8 * bufptr)
+static int disk_read(__u32 startblock, __u32 getsize, __u8 * bufptr)
 {
 	if (cur_dev == NULL)
 		return -1;
@@ -63,15 +61,14 @@ static int disk_read (__u32 startblock, __u32 getsize, __u8 * bufptr)
 
 	if (cur_dev->block_read) {
 		return cur_dev->block_read(cur_dev->dev, startblock, getsize,
-					   (unsigned long *) bufptr);
+					   (unsigned long *)bufptr);
 	}
 	return -1;
 }
 
-int fat_register_device (block_dev_desc_t * dev_desc, int part_no)
+int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 {
 	unsigned char buffer[SECTOR_SIZE];
-
 	disk_partition_t info;
 
 	if (!dev_desc->block_read)
@@ -135,7 +132,7 @@ int fat_register_device (block_dev_desc_t * dev_desc, int part_no)
  * Get the first occurence of a directory delimiter ('/' or '\') in a string.
  * Return index into string if found, -1 otherwise.
  */
-static int dirdelim (char *str)
+static int dirdelim(char *str)
 {
 	char *start = str;
 
@@ -179,7 +176,7 @@ static void get_name (dir_entry *dirent, char *s_name)
  * Get the entry at index 'entry' in a FAT (12/16/32) table.
  * On failure 0x00 is returned.
  */
-static __u32 get_fatent (fsdata *mydata, __u32 entry)
+static __u32 get_fatent(fsdata *mydata, __u32 entry)
 {
 	__u32 bufnum;
 	__u32 off16, offset;
@@ -230,17 +227,17 @@ static __u32 get_fatent (fsdata *mydata, __u32 entry)
 	/* Get the actual entry from the table */
 	switch (mydata->fatsize) {
 	case 32:
-		ret = FAT2CPU32(((__u32 *) mydata->fatbuf)[offset]);
+		ret = FAT2CPU32(((__u32 *)mydata->fatbuf)[offset]);
 		break;
 	case 16:
-		ret = FAT2CPU16(((__u16 *) mydata->fatbuf)[offset]);
+		ret = FAT2CPU16(((__u16 *)mydata->fatbuf)[offset]);
 		break;
 	case 12:
 		off16 = (offset * 3) / 4;
 
 		switch (offset & 0x3) {
 		case 0:
-			ret = FAT2CPU16(((__u16 *) mydata->fatbuf)[off16]);
+			ret = FAT2CPU16(((__u16 *)mydata->fatbuf)[off16]);
 			ret &= 0xfff;
 			break;
 		case 1:
@@ -319,8 +316,8 @@ get_cluster (fsdata *mydata, __u32 clustnum, __u8 *buffer,
  * Return the number of bytes read or -1 on fatal errors.
  */
 static long
-get_contents (fsdata *mydata, dir_entry *dentptr, __u8 *buffer,
-	      unsigned long maxsize)
+get_contents(fsdata *mydata, dir_entry *dentptr, __u8 *buffer,
+	     unsigned long maxsize)
 {
 	unsigned long filesize = FAT2CPU32(dentptr->size), gotsize = 0;
 	unsigned int bytesperclust = mydata->clust_size * SECTOR_SIZE;
@@ -399,7 +396,7 @@ getit:
  * starting at l_name[*idx].
  * Return 1 if terminator (zero byte) is found, 0 otherwise.
  */
-static int slot2str (dir_slot *slotptr, char *l_name, int *idx)
+static int slot2str(dir_slot *slotptr, char *l_name, int *idx)
 {
 	int j;
 
@@ -434,8 +431,8 @@ static int slot2str (dir_slot *slotptr, char *l_name, int *idx)
 __attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_vfatname_block[MAX_CLUSTSIZE];
 static int
-get_vfatname (fsdata *mydata, int curclust, __u8 *cluster,
-	      dir_entry *retdent, char *l_name)
+get_vfatname(fsdata *mydata, int curclust, __u8 *cluster,
+	     dir_entry *retdent, char *l_name)
 {
 	dir_entry *realdent;
 	dir_slot *slotptr = (dir_slot *)retdent;
@@ -507,7 +504,6 @@ get_vfatname (fsdata *mydata, int curclust, __u8 *cluster,
 static __u8 mkcksum (const char *str)
 {
 	int i;
-
 	__u8 ret = 0;
 
 	for (i = 0; i < 11; i++) {
@@ -525,9 +521,9 @@ static __u8 mkcksum (const char *str)
 __attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_dentfromdir_block[MAX_CLUSTSIZE];
 
-static dir_entry *get_dentfromdir (fsdata *mydata, int startsect,
-				   char *filename, dir_entry *retdent,
-				   int dols)
+static dir_entry *get_dentfromdir(fsdata *mydata, int startsect,
+				  char *filename, dir_entry *retdent,
+				  int dols)
 {
 	__u16 prevcksum = 0xffff;
 	__u32 curclust = START(retdent);
@@ -1087,7 +1083,7 @@ rootdir_done:
 	return ret;
 }
 
-int file_fat_detectfs (void)
+int file_fat_detectfs(void)
 {
 	boot_sector bs;
 	volume_info volinfo;
@@ -1151,12 +1147,12 @@ int file_fat_detectfs (void)
 	return 0;
 }
 
-int file_fat_ls (const char *dir)
+int file_fat_ls(const char *dir)
 {
 	return do_fat_read(dir, NULL, 0, LS_YES);
 }
 
-long file_fat_read (const char *filename, void *buffer, unsigned long maxsize)
+long file_fat_read(const char *filename, void *buffer, unsigned long maxsize)
 {
 	printf("reading %s\n", filename);
 	return do_fat_read(filename, buffer, maxsize, LS_NO);

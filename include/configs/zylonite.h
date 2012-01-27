@@ -72,6 +72,7 @@
 /*
  * select serial console configuration
  */
+#define CONFIG_PXA_SERIAL
 #define CONFIG_FFUART	       1
 
 /* allow to overwrite serial and ethaddr */
@@ -192,7 +193,6 @@
 /*
  * NAND Flash
  */
-#define CONFIG_NEW_NAND_CODE
 #define CONFIG_SYS_NAND0_BASE		0x0
 #undef CONFIG_SYS_NAND1_BASE
 
@@ -204,6 +204,8 @@
 #define CONFIG_SYS_NAND_OTHER_TO	100
 #define CONFIG_SYS_NAND_SENDCMD_RETRY	3
 #undef NAND_ALLOW_ERASE_ALL	/* Allow erasing bad blocks - don't use */
+
+#define CONFIG_SYS_64BIT_VSPRINTF		/* needed for nand_util.c */
 
 /* NAND Timing Parameters (in ns) */
 #define NAND_TIMING_tCH		10
@@ -225,13 +227,6 @@
 
 #define CONFIG_MTD_DEBUG
 #define CONFIG_MTD_DEBUG_VERBOSE 1
-
-#define ADDR_COLUMN		1
-#define ADDR_PAGE		2
-#define ADDR_COLUMN_PAGE	3
-
-#define NAND_ChipID_UNKNOWN	0x00
-#define NAND_MAX_FLOORS		1
 
 #define CONFIG_SYS_NO_FLASH		1
 

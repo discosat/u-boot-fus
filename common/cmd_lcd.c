@@ -94,7 +94,7 @@
 #include <cmd_lcd.h>			  /* Own interface */
 #include <lcd.h>			  /* lcd_line(), lcd_rect(), ... */
 #include <lcd_panels.h>			  /* lcdinfo_t, lcd_getlcd(), ... */
-#include <devices.h>			  /* device_t, device_register(), ... */
+#include <stdio_dev.h>			  /* stdio_dev, stdio_register(), ... */
 #include <linux/ctype.h>		  /* isdigit(), toupper() */
 #include <watchdog.h>			  /* WATCHDOG_RESET */
 
@@ -3361,7 +3361,7 @@ void drv_lcd_init(void)
 	VID vid;
 	wininfo_t *pwi;
 	vidinfo_t *pvi;
-	device_t lcddev;
+	struct stdio_dev lcddev;
 	u_long fbuf;
 	char *s;
 
@@ -3535,20 +3535,20 @@ void drv_lcd_init(void)
 			pwi->ci.x = 0;
 			pwi->ci.y = 0;
 
-			/* Init a console device for each window */
+			/* Init a stdio device for each window */
 			strcpy(lcddev.name, pwi->name);
 			lcddev.ext   = 0;		  /* No extensions */
 			lcddev.flags = DEV_FLAGS_OUTPUT;  /* Output only */
 			lcddev.putc  = lcd_putc;	  /* 'putc' function */
 			lcddev.puts  = lcd_puts;	  /* 'puts' function */
 			lcddev.priv  = pwi;		  /* Call-back arg */
-			device_register(&lcddev);
+			stdio_register(&lcddev);
 #endif /*CONFIG_MULTIPLE_CONSOLES*/
 		}
 
 		pvi->win_sel = 0;
 
-		/* Add a device for each display */
+		/* Add a stdio device for each display */
 		memset(&lcddev, 0, sizeof(lcddev));
 
 		strcpy(lcddev.name, pvi->name);
@@ -3558,7 +3558,7 @@ void drv_lcd_init(void)
 		lcddev.puts  = lcd_puts;	  /* 'puts' function */
 		lcddev.priv  = lcd_get_wininfo_p(pvi, 0);  /* Call-back arg */
 
-		device_register(&lcddev);
+		stdio_register(&lcddev);
 
 		/* If an lcd setting was loaded from environment, switch it on
 		   now; ignore any errors */
