@@ -468,6 +468,16 @@
 #define SPRN_IVOR13	0x19d	/* Interrupt Vector Offset Register 13 */
 #define SPRN_IVOR14	0x19e	/* Interrupt Vector Offset Register 14 */
 #define SPRN_IVOR15	0x19f	/* Interrupt Vector Offset Register 15 */
+#define SPRN_IVOR38	0x1b0	/* Interrupt Vector Offset Register 38 */
+#define SPRN_IVOR39	0x1b1	/* Interrupt Vector Offset Register 39 */
+#define SPRN_IVOR40	0x1b2	/* Interrupt Vector Offset Register 40 */
+#define SPRN_IVOR41	0x1b3	/* Interrupt Vector Offset Register 41 */
+#define SPRN_GIVOR2	0x1b8	/* Guest Interrupt Vector Offset Register 2 */
+#define SPRN_GIVOR3	0x1b9	/* Guest Interrupt Vector Offset Register 3 */
+#define SPRN_GIVOR4	0x1ba	/* Guest Interrupt Vector Offset Register 4 */
+#define SPRN_GIVOR8	0x1bb	/* Guest Interrupt Vector Offset Register 8 */
+#define SPRN_GIVOR13	0x1bc	/* Guest Interrupt Vector Offset Register 13 */
+#define SPRN_GIVOR14	0x1bd	/* Guest Interrupt Vector Offset Register 14 */
 
 /* e500 definitions */
 #define SPRN_L1CFG0	0x203	/* L1 Cache Configuration Register 0 */
@@ -508,11 +518,14 @@
 #define SPRN_MAS5	0x275	/* MMU Assist Register 5 */
 #define SPRN_MAS6	0x276	/* MMU Assist Register 6 */
 #define SPRN_MAS7	0x3B0	/* MMU Assist Register 7 */
+#define SPRN_MAS8	0x155	/* MMU Assist Register 8 */
 
 #define SPRN_IVOR32	0x210	/* Interrupt Vector Offset Register 32 */
 #define SPRN_IVOR33	0x211	/* Interrupt Vector Offset Register 33 */
 #define SPRN_IVOR34	0x212	/* Interrupt Vector Offset Register 34 */
 #define SPRN_IVOR35	0x213	/* Interrupt Vector Offset Register 35 */
+#define SPRN_IVOR36	0x214	/* Interrupt Vector Offset Register 36 */
+#define SPRN_IVOR37	0x215	/* Interrupt Vector Offset Register 37 */
 #define SPRN_SPEFSCR	0x200	/* SPE & Embedded FP Status & Control */
 
 #define SPRN_MCSRR0	0x23a	/* Machine Check Save and Restore Register 0 */
@@ -708,6 +721,7 @@
 #define MAS5	SPRN_MAS5
 #define MAS6	SPRN_MAS6
 #define MAS7	SPRN_MAS7
+#define MAS8 	SPRN_MAS8
 
 #if defined(CONFIG_4xx) || defined(CONFIG_44x) || defined(CONFIG_MPC85xx)
 #define DAR_DEAR DEAR
@@ -849,14 +863,16 @@
 #define PVR_405EP_RA	0x51210950
 #define PVR_405GPR_RB	0x50910951
 #define PVR_405EZ_RA	0x41511460
-#define PVR_405EXR1_RA	0x12911473 /* 405EXr rev A/B with Security */
 #define PVR_405EXR2_RA	0x12911471 /* 405EXr rev A/B without Security */
 #define PVR_405EX1_RA	0x12911477 /* 405EX rev A/B with Security */
-#define PVR_405EX2_RA	0x12911475 /* 405EX rev A/B without Security */
 #define PVR_405EXR1_RC	0x1291147B /* 405EXr rev C with Security */
 #define PVR_405EXR2_RC	0x12911479 /* 405EXr rev C without Security */
 #define PVR_405EX1_RC	0x1291147F /* 405EX rev C with Security */
 #define PVR_405EX2_RC	0x1291147D /* 405EX rev C without Security */
+#define PVR_405EXR1_RD	0x12911472 /* 405EXr rev D with Security */
+#define PVR_405EXR2_RD	0x12911470 /* 405EXr rev D without Security */
+#define PVR_405EX1_RD	0x12911475 /* 405EX rev D with Security */
+#define PVR_405EX2_RD	0x12911473 /* 405EX rev D without Security */
 #define PVR_440GP_RB	0x40120440
 #define PVR_440GP_RC	0x40120481
 #define PVR_440EP_RA	0x42221850
@@ -1009,12 +1025,24 @@
 #define SVR_8569_E	0x808800
 #define SVR_8572	0x80E000
 #define SVR_8572_E	0x80E800
+#define SVR_P1011	0x80E500
+#define SVR_P1011_E	0x80ED00
+#define SVR_P1020	0x80E400
+#define SVR_P1020_E	0x80EC00
+#define SVR_P2010	0x80E300
+#define SVR_P2010_E	0x80EB00
 #define SVR_P2020	0x80E200
 #define SVR_P2020_E	0x80EA00
+#define SVR_P4040	0x820100
+#define SVR_P4040_E	0x820900
+#define SVR_P4080	0x820000
+#define SVR_P4080_E	0x820800
 
 #define SVR_8610	0x80A000
 #define SVR_8641	0x809000
 #define SVR_8641D	0x809001
+
+#define SVR_Unknown	0xFFFFFF
 
 #define _GLOBAL(n)\
 	.globl n;\
@@ -1065,13 +1093,14 @@ n:
 struct cpu_type {
 	char name[15];
 	u32 soc_ver;
+	u32 num_cores;
 };
 
 struct cpu_type *identify_cpu(u32 ver);
 
 #if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
-#define CPU_TYPE_ENTRY(n, v) \
-	{ .name = #n, .soc_ver = SVR_##v, }
+#define CPU_TYPE_ENTRY(n, v, nc) \
+	{ .name = #n, .soc_ver = SVR_##v, .num_cores = (nc), }
 #else
 #if defined(CONFIG_MPC83xx)
 #define CPU_TYPE_ENTRY(x) {#x, SPR_##x}

@@ -127,11 +127,6 @@ initdram(int board_type)
 	dram_size = fixed_sdram();
 #endif
 
-#if defined(CONFIG_SYS_RAMBOOT)
-	puts(" DDR: ");
-	return dram_size;
-#endif
-
 	puts(" DDR: ");
 	return dram_size;
 }
@@ -248,9 +243,8 @@ void pci_init_board(void)
  {
 	volatile ccsr_fsl_pci_t *pci = (ccsr_fsl_pci_t *) CONFIG_SYS_PCIE1_ADDR;
 	struct pci_controller *hose = &pcie1_hose;
-	int pcie_configured = (io_sel == 1) || (io_sel == 4);
-	int pcie_ep = (host_agent == 0) || (host_agent == 2) ||
-		(host_agent == 5);
+	int pcie_configured = is_fsl_pci_cfg(LAW_TRGT_IF_PCIE_1, io_sel);
+	int pcie_ep = is_fsl_pci_agent(LAW_TRGT_IF_PCIE_1, host_agent);
 	struct pci_region *r = hose->regions;
 
 	if (pcie_configured && !(devdisr & MPC86xx_DEVDISR_PCIE1)) {
@@ -259,9 +253,6 @@ void pci_init_board(void)
 			(uint)pci);
 		if (pci->pme_msg_det)
 			pci->pme_msg_det = 0xffffffff;
-
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
 
 		/* outbound memory */
 		pci_set_region(r++,
@@ -280,10 +271,8 @@ void pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno = first_free_busno;
-		pci_setup_indirect(hose, (int)&pci->cfg_addr,
-				 (int)&pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno = hose->last_busno + 1;
 		printf(" PCI-Express 1 on bus %02x - %02x\n",
@@ -303,9 +292,8 @@ void pci_init_board(void)
 	struct pci_controller *hose = &pcie2_hose;
 	struct pci_region *r = hose->regions;
 
-	int pcie_configured = (io_sel == 0) || (io_sel == 4);
-	int pcie_ep = (host_agent == 0) || (host_agent == 1) ||
-		(host_agent == 4);
+	int pcie_configured = is_fsl_pci_cfg(LAW_TRGT_IF_PCIE_2, io_sel);
+	int pcie_ep = is_fsl_pci_agent(LAW_TRGT_IF_PCIE_2, host_agent);
 
 	if (pcie_configured && !(devdisr & MPC86xx_DEVDISR_PCIE2)) {
 		printf(" PCI-Express 2 connected to slot as %s" \
@@ -314,9 +302,6 @@ void pci_init_board(void)
 			(uint)pci);
 		if (pci->pme_msg_det)
 			pci->pme_msg_det = 0xffffffff;
-
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
 
 		/* outbound memory */
 		pci_set_region(r++,
@@ -335,10 +320,8 @@ void pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno = first_free_busno;
-		pci_setup_indirect(hose, (int)&pci->cfg_addr,
-				 (int)&pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno = hose->last_busno + 1;
 		printf(" PCI-Express 2 on bus %02x - %02x\n",
@@ -355,7 +338,7 @@ void pci_init_board(void)
  {
 	volatile ccsr_fsl_pci_t *pci = (ccsr_fsl_pci_t *) CONFIG_SYS_PCI1_ADDR;
 	struct pci_controller *hose = &pci1_hose;
-	int pci_agent = (host_agent >= 4) && (host_agent <= 6);
+	int pci_agent = is_fsl_pci_agent(LAW_TRGT_IF_PCI_1, host_agent);
 	struct pci_region *r = hose->regions;
 
 	if ( !(devdisr & MPC86xx_DEVDISR_PCI1)) {
@@ -363,9 +346,6 @@ void pci_init_board(void)
 			" (base address %x)\n",
 			pci_agent ? "Agent" : "Host",
 			(uint)pci);
-
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
 
 		/* outbound memory */
 		pci_set_region(r++,
@@ -384,10 +364,8 @@ void pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno = first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr,
-				 (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno = hose->last_busno + 1;
 		printf(" PCI on bus %02x - %02x\n",
@@ -404,19 +382,7 @@ void pci_init_board(void)
 void
 ft_board_setup(void *blob, bd_t *bd)
 {
-	do_fixup_by_prop_u32(blob, "device_type", "cpu", 4,
-			     "timebase-frequency", bd->bi_busfreq / 4, 1);
-	do_fixup_by_prop_u32(blob, "device_type", "cpu", 4,
-			     "bus-frequency", bd->bi_busfreq, 1);
-	do_fixup_by_prop_u32(blob, "device_type", "cpu", 4,
-			     "clock-frequency", bd->bi_intfreq, 1);
-	do_fixup_by_prop_u32(blob, "device_type", "soc", 4,
-			     "bus-frequency", bd->bi_busfreq, 1);
-
-	do_fixup_by_compat_u32(blob, "ns16550",
-			       "clock-frequency", bd->bi_busfreq, 1);
-
-	fdt_fixup_memory(blob, bd->bi_memstart, bd->bi_memsize);
+	ft_cpu_setup(blob, bd);
 
 #ifdef CONFIG_PCI1
 	ft_fsl_pci_setup(blob, "pci0", &pci1_hose);

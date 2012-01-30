@@ -1,6 +1,6 @@
 /*
  * (C) Copyright 2002
- * Daniel Engström, Omicron Ceti AB, daniel@omicron.se
+ * Daniel Engstrï¿½m, Omicron Ceti AB, daniel@omicron.se
  *
  * (C) Copyright 2002
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -39,6 +39,10 @@
 #include <ide.h>
 #include <asm/u-boot-i386.h>
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 extern long _i386boot_start;
@@ -73,14 +77,6 @@ ulong i386boot_bios_size     = (ulong)&_i386boot_bios_size;     /* size of BIOS 
 const char version_string[] =
 	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")";
 
-
-/*
- * Begin and End of memory area for malloc(), and current "brk"
- */
-static ulong mem_malloc_start = 0;
-static ulong mem_malloc_end = 0;
-static ulong mem_malloc_brk = 0;
-
 static int mem_malloc_init(void)
 {
 	/* start malloc area right after the stack */
@@ -94,19 +90,6 @@ static int mem_malloc_init(void)
 	mem_malloc_brk = mem_malloc_start;
 
 	return 0;
-}
-
-void *sbrk (ptrdiff_t increment)
-{
-	ulong old = mem_malloc_brk;
-	ulong new = old + increment;
-
-	if ((new < mem_malloc_start) || (new > mem_malloc_end)) {
-		return (NULL);
-	}
-	mem_malloc_brk = new;
-
-	return ((void *) old);
 }
 
 /************************************************************************
@@ -372,6 +355,9 @@ void start_i386boot (void)
 	doc_init();
 #endif
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	WATCHDOG_RESET();

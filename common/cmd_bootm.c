@@ -129,7 +129,7 @@ int do_bootelf (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 static boot_os_fn do_bootm_integrity;
 #endif
 
-boot_os_fn * boot_os[] = {
+static boot_os_fn *boot_os[] = {
 #ifdef CONFIG_BOOTM_LINUX
 	[IH_OS_LINUX] = do_bootm_linux,
 #endif
@@ -165,6 +165,13 @@ void __arch_lmb_reserve(struct lmb *lmb)
 	/* please define platform specific arch_lmb_reserve() */
 }
 void arch_lmb_reserve(struct lmb *lmb) __attribute__((weak, alias("__arch_lmb_reserve")));
+
+/* Allow for arch specific config before we boot */
+void __arch_preboot_os(void)
+{
+	/* please define platform specific arch_preboot_os() */
+}
+void arch_preboot_os(void) __attribute__((weak, alias("__arch_preboot_os")));
 
 #if defined(__ARM__)
   #define IH_INITRD_ARCH IH_ARCH_ARM
@@ -446,8 +453,8 @@ cmd_tbl_t cmd_bootm_sub[] = {
 #ifdef CONFIG_OF_LIBFDT
 	U_BOOT_CMD_MKENT(fdt, 0, 1, (void *)BOOTM_STATE_FDT, "", ""),
 #endif
-	U_BOOT_CMD_MKENT(bdt, 0, 1, (void *)BOOTM_STATE_OS_BD_T, "", ""),
 	U_BOOT_CMD_MKENT(cmdline, 0, 1, (void *)BOOTM_STATE_OS_CMDLINE, "", ""),
+	U_BOOT_CMD_MKENT(bdt, 0, 1, (void *)BOOTM_STATE_OS_BD_T, "", ""),
 	U_BOOT_CMD_MKENT(prep, 0, 1, (void *)BOOTM_STATE_OS_PREP, "", ""),
 	U_BOOT_CMD_MKENT(go, 0, 1, (void *)BOOTM_STATE_OS_GO, "", ""),
 };
@@ -517,7 +524,7 @@ int do_bootm_subcommand (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		}
 			break;
 #endif
-#ifdef CONFIG_OF_LIBFDT
+#if defined(CONFIG_OF_LIBFDT) && defined(CONFIG_SYS_BOOTMAPSZ)
 		case BOOTM_STATE_FDT:
 		{
 			ulong bootmap_base = getenv_bootm_low();
@@ -543,6 +550,7 @@ int do_bootm_subcommand (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			break;
 		case BOOTM_STATE_OS_GO:
 			disable_interrupts();
+			arch_preboot_os();
 			boot_fn(BOOTM_STATE_OS_GO, argc, argv, &images);
 			break;
 	}
@@ -553,7 +561,6 @@ int do_bootm_subcommand (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 /*******************************************************************/
 /* bootm - boot application image from image in memory */
 /*******************************************************************/
-static int relocated = 0;
 
 int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 {
@@ -561,6 +568,8 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	ulong		load_end = 0;
 	int		ret;
 	boot_os_fn	*boot_fn;
+#ifndef CONFIG_RELOC_FIXUP_WORKS
+	static int relocated = 0;
 
 	/* relocate boot function table */
 	if (!relocated) {
@@ -570,6 +579,7 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				boot_os[i] += gd->reloc_off;
 		relocated = 1;
 	}
+#endif
 
 	/* determine if we have a sub command */
 	if (argc > 1) {
@@ -672,6 +682,8 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		show_boot_progress (-8);
 		return 1;
 	}
+
+	arch_preboot_os();
 
 	boot_fn(0, argc, argv, &images);
 
@@ -988,8 +1000,8 @@ U_BOOT_CMD(
 #if defined(CONFIG_OF_LIBFDT)
 	"\tfdt     - relocate flat device tree\n"
 #endif
-	"\tbdt     - OS specific bd_t processing\n"
 	"\tcmdline - OS specific command line processing/setup\n"
+	"\tbdt     - OS specific bd_t processing\n"
 	"\tprep    - OS specific prep before relocation or go\n"
 	"\tgo      - start OS"
 );

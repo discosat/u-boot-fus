@@ -202,8 +202,8 @@ pci_init_board(void)
  {
 	volatile ccsr_fsl_pci_t *pci = (ccsr_fsl_pci_t *) CONFIG_SYS_PCIE1_ADDR;
 	struct pci_controller *hose = &pcie1_hose;
-	int pcie_ep = (host_agent == 5);
-	int pcie_configured  = io_sel & 6;
+	int pcie_ep = is_fsl_pci_agent(LAW_TRGT_IF_PCIE_1, host_agent);
+	int pcie_configured = is_fsl_pci_cfg(LAW_TRGT_IF_PCIE_1, io_sel);
 	struct pci_region *r = hose->regions;
 
 	if (pcie_configured && !(devdisr & MPC85xx_DEVDISR_PCIE)){
@@ -215,9 +215,6 @@ pci_init_board(void)
 			debug (" with errors.  Clearing.  Now 0x%08x",pci->pme_msg_det);
 		}
 		printf ("\n");
-
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
 
 		/* outbound memory */
 		pci_set_region(r++,
@@ -244,9 +241,7 @@ pci_init_board(void)
 		hose->region_count = r - hose->regions;
 		hose->first_busno=first_free_busno;
 
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
-
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno=hose->last_busno+1;
 		printf("    PCIE1 on bus %02x - %02x\n",
@@ -267,7 +262,7 @@ pci_init_board(void)
 	struct pci_controller *hose = &pci1_hose;
 	struct pci_region *r = hose->regions;
 
-	uint pci_agent = (host_agent == 6);
+	uint pci_agent = is_fsl_pci_agent(LAW_TRGT_IF_PCI_1, host_agent);
 	uint pci_speed = 33333000; /*get_clock_freq (); PCI PSPEED in [4:5] */
 	uint pci_32 = gur->pordevsr & MPC85xx_PORDEVSR_PCI1_PCI32;	/* PORDEVSR[15] */
 	uint pci_arb = gur->pordevsr & MPC85xx_PORDEVSR_PCI1_ARB;	/* PORDEVSR[14] */
@@ -284,9 +279,6 @@ pci_init_board(void)
 			(uint)pci
 			);
 
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
-
 		/* outbound memory */
 		pci_set_region(r++,
 			       CONFIG_SYS_PCI1_MEM_BASE,
@@ -302,9 +294,8 @@ pci_init_board(void)
 			       PCI_REGION_IO);
 		hose->region_count = r - hose->regions;
 		hose->first_busno=first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 		first_free_busno=hose->last_busno+1;
 		printf ("PCI1 on bus %02x - %02x\n",
 			hose->first_busno,hose->last_busno);
@@ -323,8 +314,6 @@ pci_init_board(void)
 	struct pci_region *r = hose->regions;
 
 	if (!(devdisr & MPC85xx_DEVDISR_PCI2)) {
-		r += fsl_pci_setup_inbound_windows(r);
-
 		pci_set_region(r++,
 			       CONFIG_SYS_PCI2_MEM_BASE,
 			       CONFIG_SYS_PCI2_MEM_PHYS,
@@ -338,9 +327,8 @@ pci_init_board(void)
 			       PCI_REGION_IO);
 		hose->region_count = r - hose->regions;
 		hose->first_busno=first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 		first_free_busno=hose->last_busno+1;
 		printf ("PCI2 on bus %02x - %02x\n",
 			hose->first_busno,hose->last_busno);

@@ -39,7 +39,7 @@ int board_early_init_f (void)
 	/*-------------------------------------------------------------------------
 	 * Initialize EBC CONFIG
 	 *-------------------------------------------------------------------------*/
-	mtebc(xbcfg, EBC_CFG_LE_UNLOCK |
+	mtebc(EBC0_CFG, EBC_CFG_LE_UNLOCK |
 	      EBC_CFG_PTD_DISABLE | EBC_CFG_RTC_64PERCLK |
 	      EBC_CFG_ATC_PREVIOUS | EBC_CFG_DTC_PREVIOUS |
 	      EBC_CFG_CTC_PREVIOUS | EBC_CFG_EMC_NONDEFAULT |
@@ -60,43 +60,43 @@ int board_early_init_f (void)
 	 * UIC2		UIC1
 	 * UIC3		UIC2
 	 */
-	mtdcr (uic1sr, 0xffffffff);	/* clear all */
-	mtdcr (uic1er, 0x00000000);	/* disable all */
-	mtdcr (uic1cr, 0x00000009);	/* SMI & UIC1 crit are critical */
-	mtdcr (uic1pr, 0xfffffe03);	/* per manual */
-	mtdcr (uic1tr, 0x01c00000);	/* per manual */
-	mtdcr (uic1vr, 0x00000001);	/* int31 highest, base=0x000 */
-	mtdcr (uic1sr, 0xffffffff);	/* clear all */
+	mtdcr (UIC1SR, 0xffffffff);	/* clear all */
+	mtdcr (UIC1ER, 0x00000000);	/* disable all */
+	mtdcr (UIC1CR, 0x00000009);	/* SMI & UIC1 crit are critical */
+	mtdcr (UIC1PR, 0xfffffe03);	/* per manual */
+	mtdcr (UIC1TR, 0x01c00000);	/* per manual */
+	mtdcr (UIC1VR, 0x00000001);	/* int31 highest, base=0x000 */
+	mtdcr (UIC1SR, 0xffffffff);	/* clear all */
 
-	mtdcr (uic2sr, 0xffffffff);	/* clear all */
-	mtdcr (uic2er, 0x00000000);	/* disable all */
-	mtdcr (uic2cr, 0x00000000);	/* all non-critical */
-	mtdcr (uic2pr, 0xffffe0ff);	/* per ref-board manual */
-	mtdcr (uic2tr, 0x00ffc000);	/* per ref-board manual */
-	mtdcr (uic2vr, 0x00000001);	/* int31 highest, base=0x000 */
-	mtdcr (uic2sr, 0xffffffff);	/* clear all */
+	mtdcr (UIC2SR, 0xffffffff);	/* clear all */
+	mtdcr (UIC2ER, 0x00000000);	/* disable all */
+	mtdcr (UIC2CR, 0x00000000);	/* all non-critical */
+	mtdcr (UIC2PR, 0xffffe0ff);	/* per ref-board manual */
+	mtdcr (UIC2TR, 0x00ffc000);	/* per ref-board manual */
+	mtdcr (UIC2VR, 0x00000001);	/* int31 highest, base=0x000 */
+	mtdcr (UIC2SR, 0xffffffff);	/* clear all */
 
-	mtdcr (uic3sr, 0xffffffff);	/* clear all */
-	mtdcr (uic3er, 0x00000000);	/* disable all */
-	mtdcr (uic3cr, 0x00000000);	/* all non-critical */
-	mtdcr (uic3pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr (uic3tr, 0x00ff8c0f);	/* per ref-board manual */
-	mtdcr (uic3vr, 0x00000001);	/* int31 highest, base=0x000 */
-	mtdcr (uic3sr, 0xffffffff);	/* clear all */
+	mtdcr (UIC3SR, 0xffffffff);	/* clear all */
+	mtdcr (UIC3ER, 0x00000000);	/* disable all */
+	mtdcr (UIC3CR, 0x00000000);	/* all non-critical */
+	mtdcr (UIC3PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr (UIC3TR, 0x00ff8c0f);	/* per ref-board manual */
+	mtdcr (UIC3VR, 0x00000001);	/* int31 highest, base=0x000 */
+	mtdcr (UIC3SR, 0xffffffff);	/* clear all */
 
-	mtdcr (uic0sr, 0xfc000000); /* clear all */
-	mtdcr (uic0er, 0x00000000); /* disable all */
-	mtdcr (uic0cr, 0x00000000); /* all non-critical */
-	mtdcr (uic0pr, 0xfc000000); /* */
-	mtdcr (uic0tr, 0x00000000); /* */
-	mtdcr (uic0vr, 0x00000001); /* */
+	mtdcr (UIC0SR, 0xfc000000); /* clear all */
+	mtdcr (UIC0ER, 0x00000000); /* disable all */
+	mtdcr (UIC0CR, 0x00000000); /* all non-critical */
+	mtdcr (UIC0PR, 0xfc000000); /* */
+	mtdcr (UIC0TR, 0x00000000); /* */
+	mtdcr (UIC0VR, 0x00000001); /* */
 
 	/* Setup shutdown/SSD empty interrupt as inputs */
 	out32(GPIO0_TCR, in32(GPIO0_TCR) & ~(CONFIG_SYS_GPIO_SHUTDOWN | CONFIG_SYS_GPIO_SSD_EMPTY));
 	out32(GPIO0_ODR, in32(GPIO0_ODR) & ~(CONFIG_SYS_GPIO_SHUTDOWN | CONFIG_SYS_GPIO_SSD_EMPTY));
 
 	/* Setup GPIO/IRQ multiplexing */
-	mtsdr(sdr_pfc0, 0x01a33e00);
+	mtsdr(SDR0_PFC0, 0x01a33e00);
 
 	return 0;
 }
@@ -165,7 +165,7 @@ int pci_pre_init(struct pci_controller * hose )
 	 *	The ocotea board is always configured as the host & requires the
 	 *	PCI arbiter to be enabled.
 	 *--------------------------------------------------------------------------*/
-	mfsdr(sdr_sdstp1, strap);
+	mfsdr(SDR0_SDSTP1, strap);
 	if( (strap & SDR0_SDSTP1_PAE_MASK) == 0 ){
 		printf("PCI: SDR0_STRP1[%08lX] - PCI Arbiter disabled.\n",strap);
 		return 0;
@@ -192,28 +192,28 @@ void pci_target_init(struct pci_controller * hose )
 	/*--------------------------------------------------------------------------+
 	 * Disable everything
 	 *--------------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0SA, 0 ); /* disable */
-	out32r( PCIX0_PIM1SA, 0 ); /* disable */
-	out32r( PCIX0_PIM2SA, 0 ); /* disable */
-	out32r( PCIX0_EROMBA, 0 ); /* disable expansion rom */
+	out32r( PCIL0_PIM0SA, 0 ); /* disable */
+	out32r( PCIL0_PIM1SA, 0 ); /* disable */
+	out32r( PCIL0_PIM2SA, 0 ); /* disable */
+	out32r( PCIL0_EROMBA, 0 ); /* disable expansion rom */
 
 	/*--------------------------------------------------------------------------+
 	 * Map all of SDRAM to PCI address 0x0000_0000. Note that the 440 strapping
 	 * options to not support sizes such as 128/256 MB.
 	 *--------------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
-	out32r( PCIX0_PIM0LAH, 0 );
-	out32r( PCIX0_PIM0SA, ~(gd->ram_size - 1) | 1 );
+	out32r( PCIL0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
+	out32r( PCIL0_PIM0LAH, 0 );
+	out32r( PCIL0_PIM0SA, ~(gd->ram_size - 1) | 1 );
 
-	out32r( PCIX0_BAR0, 0 );
+	out32r( PCIL0_BAR0, 0 );
 
 	/*--------------------------------------------------------------------------+
 	 * Program the board's subsystem id/vendor id
 	 *--------------------------------------------------------------------------*/
-	out16r( PCIX0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
-	out16r( PCIX0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
+	out16r( PCIL0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
+	out16r( PCIL0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
 
-	out16r( PCIX0_CMD, in16r(PCIX0_CMD) | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	out16r( PCIL0_CMD, in16r(PCIL0_CMD) | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 }
 #endif /* defined(CONFIG_PCI) && defined(CONFIG_SYS_PCI_TARGET_INIT) */
 
@@ -270,21 +270,21 @@ void pci_master_init(struct pci_controller *hose)
 	  |   Use byte reversed out routines to handle endianess.
 	  | Make this region non-prefetchable.
 	  +--------------------------------------------------------------------------*/
-	out32r( PCIX0_POM0SA, 0 ); /* disable */
-	out32r( PCIX0_POM1SA, 0 ); /* disable */
-	out32r( PCIX0_POM2SA, 0 ); /* disable */
+	out32r( PCIL0_POM0SA, 0 ); /* disable */
+	out32r( PCIL0_POM1SA, 0 ); /* disable */
+	out32r( PCIL0_POM2SA, 0 ); /* disable */
 
-	out32r(PCIX0_POM0LAL, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 Local Address */
-	out32r(PCIX0_POM0LAH, 0x00000003);	/* PMM0 Local Address */
-	out32r(PCIX0_POM0PCIAL, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 PCI Low Address */
-	out32r(PCIX0_POM0PCIAH, 0x00000000);	/* PMM0 PCI High Address */
-	out32r(PCIX0_POM0SA, ~(0x10000000 - 1) | 1);	/* 256MB + enable region */
+	out32r(PCIL0_POM0LAL, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 Local Address */
+	out32r(PCIL0_POM0LAH, 0x00000003);	/* PMM0 Local Address */
+	out32r(PCIL0_POM0PCIAL, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 PCI Low Address */
+	out32r(PCIL0_POM0PCIAH, 0x00000000);	/* PMM0 PCI High Address */
+	out32r(PCIL0_POM0SA, ~(0x10000000 - 1) | 1);	/* 256MB + enable region */
 
-	out32r(PCIX0_POM1LAL, CONFIG_SYS_PCI_MEMBASE2);	/* PMM0 Local Address */
-	out32r(PCIX0_POM1LAH, 0x00000003);	/* PMM0 Local Address */
-	out32r(PCIX0_POM1PCIAL, CONFIG_SYS_PCI_MEMBASE2);	/* PMM0 PCI Low Address */
-	out32r(PCIX0_POM1PCIAH, 0x00000000);	/* PMM0 PCI High Address */
-	out32r(PCIX0_POM1SA, ~(0x10000000 - 1) | 1);	/* 256MB + enable region */
+	out32r(PCIL0_POM1LAL, CONFIG_SYS_PCI_MEMBASE2);	/* PMM0 Local Address */
+	out32r(PCIL0_POM1LAH, 0x00000003);	/* PMM0 Local Address */
+	out32r(PCIL0_POM1PCIAL, CONFIG_SYS_PCI_MEMBASE2);	/* PMM0 PCI Low Address */
+	out32r(PCIL0_POM1PCIAH, 0x00000000);	/* PMM0 PCI High Address */
+	out32r(PCIL0_POM1SA, ~(0x10000000 - 1) | 1);	/* 256MB + enable region */
 }
 #endif				/* defined(CONFIG_PCI) && defined(CONFIG_SYS_PCI_MASTER_INIT) */
 

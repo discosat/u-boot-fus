@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Freescale Semiconductor, Inc.
+ * Copyright 2008-2009 Freescale Semiconductor, Inc.
  *
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -32,6 +32,30 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+void invalidate_tlb(u8 tlb)
+{
+	if (tlb == 0)
+		mtspr(MMUCSR0, 0x4);
+	if (tlb == 1)
+		mtspr(MMUCSR0, 0x2);
+}
+
+void init_tlbs(void)
+{
+	int i;
+
+	for (i = 0; i < num_tlb_entries; i++) {
+		write_tlb(tlb_table[i].mas0,
+			  tlb_table[i].mas1,
+			  tlb_table[i].mas2,
+			  tlb_table[i].mas3,
+			  tlb_table[i].mas7);
+	}
+
+	return ;
+}
+
+#ifndef CONFIG_NAND_SPL
 void set_tlb(u8 tlb, u32 epn, u64 rpn,
 	     u8 perms, u8 wimge,
 	     u8 ts, u8 esel, u8 tsize, u8 iprot)
@@ -42,16 +66,9 @@ void set_tlb(u8 tlb, u32 epn, u64 rpn,
 	_mas1 = FSL_BOOKE_MAS1(1, iprot, 0, ts, tsize);
 	_mas2 = FSL_BOOKE_MAS2(epn, wimge);
 	_mas3 = FSL_BOOKE_MAS3(rpn, 0, perms);
-	_mas7 = rpn >> 32;
+	_mas7 = FSL_BOOKE_MAS7(rpn);
 
-	mtspr(MAS0, _mas0);
-	mtspr(MAS1, _mas1);
-	mtspr(MAS2, _mas2);
-	mtspr(MAS3, _mas3);
-#ifdef CONFIG_ENABLE_36BIT_PHYS
-	mtspr(MAS7, _mas7);
-#endif
-	asm volatile("isync;msync;tlbwe;isync");
+	write_tlb(_mas0, _mas1, _mas2, _mas3, _mas7);
 
 #ifdef CONFIG_ADDR_MAP
 	if ((tlb == 1) && (gd->flags & GD_FLG_RELOC))
@@ -84,36 +101,41 @@ void disable_tlb(u8 esel)
 #endif
 }
 
-void invalidate_tlb(u8 tlb)
+static void tlbsx (const volatile unsigned *addr)
 {
-	if (tlb == 0)
-		mtspr(MMUCSR0, 0x4);
-	if (tlb == 1)
-		mtspr(MMUCSR0, 0x2);
+	__asm__ __volatile__ ("tlbsx 0,%0" : : "r" (addr), "m" (*addr));
 }
 
-void init_tlbs(void)
+/* return -1 if we didn't find anything */
+int find_tlb_idx(void *addr, u8 tlbsel)
 {
-	int i;
+	u32 _mas0, _mas1;
 
-	for (i = 0; i < num_tlb_entries; i++) {
-		set_tlb(tlb_table[i].tlb, tlb_table[i].epn, tlb_table[i].rpn,
-			tlb_table[i].perms, tlb_table[i].wimge,
-			tlb_table[i].ts, tlb_table[i].esel, tlb_table[i].tsize,
-			tlb_table[i].iprot);
+	/* zero out Search PID, AS */
+	mtspr(MAS6, 0);
+
+	tlbsx(addr);
+
+	_mas0 = mfspr(MAS0);
+	_mas1 = mfspr(MAS1);
+
+	/* we found something, and its in the TLB we expect */
+	if ((MAS1_VALID & _mas1) &&
+		(MAS0_TLBSEL(tlbsel) == (_mas0 & MAS0_TLBSEL_MSK))) {
+		return ((_mas0 & MAS0_ESEL_MSK) >> 16);
 	}
 
-	return ;
+	return -1;
 }
 
 #ifdef CONFIG_ADDR_MAP
 void init_addr_map(void)
 {
 	int i;
-	unsigned int max_cam = (mfspr(SPRN_TLB1CFG) >> 16) & 0xff;
+	unsigned int num_cam = mfspr(SPRN_TLB1CFG) & 0xfff;
 
 	/* walk all the entries */
-	for (i = 0; i < max_cam; i++) {
+	for (i = 0; i < num_cam; i++) {
 		unsigned long epn;
 		u32 tsize, _mas1;
 		phys_addr_t rpn;
@@ -188,3 +210,4 @@ unsigned int setup_ddr_tlbs(unsigned int memsize_in_meg)
 	 */
 	return memsize_in_meg;
 }
+#endif /* !CONFIG_NAND_SPL */

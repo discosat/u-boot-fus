@@ -50,6 +50,10 @@
 #include <onenand_uboot.h>
 #include <mmc.h>
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #ifdef CONFIG_DRIVER_SMC91111
 #include "../drivers/net/smc91111.h"
 #endif
@@ -73,10 +77,6 @@ extern void dataflash_print_info(void);
 const char version_string[] =
 	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")"CONFIG_IDENT_STRING;
 
-#ifdef CONFIG_DRIVER_CS8900
-extern void cs8900_get_enetaddr (void);
-#endif
-
 #ifdef CONFIG_DRIVER_RTL8019
 extern void rtl8019_get_enetaddr (uchar * addr);
 #endif
@@ -86,37 +86,6 @@ extern void rtl8019_get_enetaddr (uchar * addr);
 #include <i2c.h>
 #endif
 
-/*
- * Begin and End of memory area for malloc(), and current "brk"
- */
-static ulong mem_malloc_start = 0;
-static ulong mem_malloc_end = 0;
-static ulong mem_malloc_brk = 0;
-
-static
-void mem_malloc_init (ulong dest_addr)
-{
-	mem_malloc_start = dest_addr;
-	mem_malloc_end = dest_addr + CONFIG_SYS_MALLOC_LEN;
-	mem_malloc_brk = mem_malloc_start;
-
-	memset ((void *) mem_malloc_start, 0,
-			mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk (ptrdiff_t increment)
-{
-	ulong old = mem_malloc_brk;
-	ulong new = old + increment;
-
-	if ((new < mem_malloc_start) || (new > mem_malloc_end)) {
-		return (NULL);
-	}
-	mem_malloc_brk = new;
-
-	return ((void *) old);
-}
-
 
 /************************************************************************
  * Coloured LED functionality
@@ -124,23 +93,23 @@ void *sbrk (ptrdiff_t increment)
  * May be supplied by boards if desired
  */
 void inline __coloured_LED_init (void) {}
-void inline coloured_LED_init (void) __attribute__((weak, alias("__coloured_LED_init")));
+void coloured_LED_init (void) __attribute__((weak, alias("__coloured_LED_init")));
 void inline __red_LED_on (void) {}
-void inline red_LED_on (void) __attribute__((weak, alias("__red_LED_on")));
+void red_LED_on (void) __attribute__((weak, alias("__red_LED_on")));
 void inline __red_LED_off(void) {}
-void inline red_LED_off(void)	     __attribute__((weak, alias("__red_LED_off")));
+void red_LED_off(void) __attribute__((weak, alias("__red_LED_off")));
 void inline __green_LED_on(void) {}
-void inline green_LED_on(void) __attribute__((weak, alias("__green_LED_on")));
+void green_LED_on(void) __attribute__((weak, alias("__green_LED_on")));
 void inline __green_LED_off(void) {}
-void inline green_LED_off(void)__attribute__((weak, alias("__green_LED_off")));
+void green_LED_off(void) __attribute__((weak, alias("__green_LED_off")));
 void inline __yellow_LED_on(void) {}
-void inline yellow_LED_on(void)__attribute__((weak, alias("__yellow_LED_on")));
+void yellow_LED_on(void) __attribute__((weak, alias("__yellow_LED_on")));
 void inline __yellow_LED_off(void) {}
-void inline yellow_LED_off(void)__attribute__((weak, alias("__yellow_LED_off")));
+void yellow_LED_off(void) __attribute__((weak, alias("__yellow_LED_off")));
 void inline __blue_LED_on(void) {}
-void inline blue_LED_on(void)__attribute__((weak, alias("__blue_LED_on")));
+void blue_LED_on(void) __attribute__((weak, alias("__blue_LED_on")));
 void inline __blue_LED_off(void) {}
-void inline blue_LED_off(void)__attribute__((weak, alias("__blue_LED_off")));
+void blue_LED_off(void) __attribute__((weak, alias("__blue_LED_off")));
 
 /************************************************************************
  * Init Utilities							*
@@ -324,7 +293,8 @@ void start_armboot (void)
 	}
 
 	/* armboot_start is defined in the board-specific linker script */
-	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN);
+	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN,
+			CONFIG_SYS_MALLOC_LEN);
 
 #ifndef CONFIG_SYS_NO_FLASH
 	/* configure available FLASH banks */
@@ -423,11 +393,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	}
 #endif
 
-#ifdef CONFIG_DRIVER_CS8900
-	/* XXX: this needs to be moved to board init */
-	cs8900_get_enetaddr ();
-#endif
-
 #if defined(CONFIG_DRIVER_SMC91111) || defined (CONFIG_DRIVER_LAN91C96)
 	/* XXX: this needs to be moved to board init */
 	if (getenv ("ethaddr")) {
@@ -456,6 +421,9 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	mmc_initialize (gd->bd);
 #endif
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");

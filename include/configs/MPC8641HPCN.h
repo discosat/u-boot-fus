@@ -37,7 +37,6 @@
 #define CONFIG_MPC8641		1	/* MPC8641 specific */
 #define CONFIG_MPC8641HPCN	1	/* MPC8641HPCN board specific */
 #define CONFIG_MP		1	/* support multiple processors */
-#define CONFIG_NUM_CPUS		2	/* Number of CPUs in the system */
 #define CONFIG_LINUX_RESET_VEC	0x100	/* Reset vector used by Linux */
 /*#define CONFIG_PHYS_64BIT	1*/	/* Place devices in 36-bit space */
 #define CONFIG_ADDR_MAP		1	/* Use addr map */
@@ -141,8 +140,6 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
 #define CONFIG_SYS_SDRAM_BASE		CONFIG_SYS_DDR_SDRAM_BASE
 #define CONFIG_SYS_MAX_DDR_BAT_SIZE	0x80000000	/* BAT mapping size */
 #define CONFIG_VERY_BIG_RAM
-
-#define MPC86xx_DDR_SDRAM_CLK_CNTL
 
 #define CONFIG_NUM_DDR_CONTROLLERS	2
 #define CONFIG_DIMM_SLOTS_PER_CTLR	2

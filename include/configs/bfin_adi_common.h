@@ -12,6 +12,13 @@
 # include <config_cmd_default.h>
 # if ADI_CMDS_NETWORK
 #  define CONFIG_CMD_DHCP
+#  define CONFIG_BOOTP_SUBNETMASK
+#  define CONFIG_BOOTP_GATEWAY
+#  define CONFIG_BOOTP_DNS
+#  define CONFIG_BOOTP_NTPSERVER
+#  define CONFIG_BOOTP_RANDOM_DELAY
+#  define CONFIG_KEEP_SERVERADDR
+#  define CONFIG_CMD_DNS
 #  define CONFIG_CMD_PING
 #  ifdef CONFIG_BFIN_MAC
 #   define CONFIG_CMD_MII
@@ -46,6 +53,9 @@
 # endif
 # ifdef CONFIG_RTC_BFIN
 #  define CONFIG_CMD_DATE
+#  if ADI_CMDS_NETWORK
+#   define CONFIG_CMD_SNTP
+#  endif
 # endif
 # ifdef CONFIG_SPI
 #  define CONFIG_CMD_EEPROM
@@ -76,6 +86,9 @@
 #  define CONFIG_CMD_OTP
 #  define CONFIG_CMD_SPIBOOTLDR
 # endif
+#endif
+#ifdef CONFIG_CMD_NAND
+# define CONFIG_SYS_64BIT_VSPRINTF
 #endif
 
 /*
@@ -125,7 +138,7 @@
 		"uart" MK_STR(CONFIG_UART_CONSOLE) "," \
 		MK_STR(CONFIG_BAUDRATE) " " \
 	CONFIG_BOOTARGS_VIDEO \
-	"console=ttyBF0," MK_STR(CONFIG_BAUDRATE)
+	"console=ttyBF" MK_STR(CONFIG_UART_CONSOLE) "," MK_STR(CONFIG_BAUDRATE)
 #if defined(CONFIG_CMD_NAND)
 # define NAND_ENV_SETTINGS \
 	"nandargs=set bootargs " CONFIG_BOOTARGS "\0" \
@@ -160,8 +173,8 @@
 		"nand write $(loadaddr) 0 0x40000"
 # else
 #  define UBOOT_ENV_UPDATE \
-		"protect off 0x20000000 0x2003FFFF;" \
-		"erase 0x20000000 0x2003FFFF;" \
+		"protect off 0x20000000 +$(filesize);" \
+		"erase 0x20000000 +$(filesize);" \
 		"cp.b $(loadaddr) 0x20000000 $(filesize)"
 # endif
 # define NETWORK_ENV_SETTINGS \

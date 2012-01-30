@@ -42,34 +42,34 @@ int board_early_init_f(void)
 {
 	u32 mfr;
 
-	mtebc( pb0ap,  0x03800000 );	/* set chip selects */
-	mtebc( pb0cr,  0xffc58000 );	/* ebc0_b0cr, 4MB at 0xffc00000 CS0 */
-	mtebc( pb1ap,  0x03800000 );
-	mtebc( pb1cr,  0xff018000 );	/* ebc0_b1cr, 1MB at 0xff000000 CS1 */
-	mtebc( pb2ap,  0x03800000 );
-	mtebc( pb2cr,  0xff838000 );	/* ebc0_b2cr, 2MB at 0xff800000 CS2 */
+	mtebc( PB0AP,  0x03800000 );	/* set chip selects */
+	mtebc( PB0CR,  0xffc58000 );	/* ebc0_b0cr, 4MB at 0xffc00000 CS0 */
+	mtebc( PB1AP,  0x03800000 );
+	mtebc( PB1CR,  0xff018000 );	/* ebc0_b1cr, 1MB at 0xff000000 CS1 */
+	mtebc( PB2AP,  0x03800000 );
+	mtebc( PB2CR,  0xff838000 );	/* ebc0_b2cr, 2MB at 0xff800000 CS2 */
 
-	mtdcr( uic1sr, 0xffffffff );	/* Clear all interrupts */
-	mtdcr( uic1er, 0x00000000 );	/* disable all interrupts */
-	mtdcr( uic1cr, 0x00000000 );	/* Set Critical / Non Critical interrupts */
-	mtdcr( uic1pr, 0x7fff83ff );	/* Set Interrupt Polarities */
-	mtdcr( uic1tr, 0x001f8000 );	/* Set Interrupt Trigger Levels */
-	mtdcr( uic1vr, 0x00000001 );	/* Set Vect base=0,INT31 Highest priority */
-	mtdcr( uic1sr, 0x00000000 );	/* clear all interrupts */
-	mtdcr( uic1sr, 0xffffffff );
+	mtdcr( UIC1SR, 0xffffffff );	/* Clear all interrupts */
+	mtdcr( UIC1ER, 0x00000000 );	/* disable all interrupts */
+	mtdcr( UIC1CR, 0x00000000 );	/* Set Critical / Non Critical interrupts */
+	mtdcr( UIC1PR, 0x7fff83ff );	/* Set Interrupt Polarities */
+	mtdcr( UIC1TR, 0x001f8000 );	/* Set Interrupt Trigger Levels */
+	mtdcr( UIC1VR, 0x00000001 );	/* Set Vect base=0,INT31 Highest priority */
+	mtdcr( UIC1SR, 0x00000000 );	/* clear all interrupts */
+	mtdcr( UIC1SR, 0xffffffff );
 
-	mtdcr( uic0sr, 0xffffffff );	/* Clear all interrupts */
-	mtdcr( uic0er, 0x00000000 );	/* disable all interrupts excepted cascade */
-	mtdcr( uic0cr, 0x00000001 );	/* Set Critical / Non Critical interrupts */
-	mtdcr( uic0pr, 0xffffffff );	/* Set Interrupt Polarities */
-	mtdcr( uic0tr, 0x01000004 );	/* Set Interrupt Trigger Levels */
-	mtdcr( uic0vr, 0x00000001 );	/* Set Vect base=0,INT31 Highest priority */
-	mtdcr( uic0sr, 0x00000000 );	/* clear all interrupts */
-	mtdcr( uic0sr, 0xffffffff );
+	mtdcr( UIC0SR, 0xffffffff );	/* Clear all interrupts */
+	mtdcr( UIC0ER, 0x00000000 );	/* disable all interrupts excepted cascade */
+	mtdcr( UIC0CR, 0x00000001 );	/* Set Critical / Non Critical interrupts */
+	mtdcr( UIC0PR, 0xffffffff );	/* Set Interrupt Polarities */
+	mtdcr( UIC0TR, 0x01000004 );	/* Set Interrupt Trigger Levels */
+	mtdcr( UIC0VR, 0x00000001 );	/* Set Vect base=0,INT31 Highest priority */
+	mtdcr( UIC0SR, 0x00000000 );	/* clear all interrupts */
+	mtdcr( UIC0SR, 0xffffffff );
 
-	mfsdr(sdr_mfr, mfr);
+	mfsdr(SDR0_MFR, mfr);
 	mfr |= SDR0_MFR_FIXD;		/* Workaround for PCI/DMA */
-	mtsdr(sdr_mfr, mfr);
+	mtsdr(SDR0_MFR, mfr);
 
 	return  0;
 }
@@ -147,7 +147,7 @@ int pci_pre_init( struct pci_controller *hose )
 	 *	The luan board is always configured as the host & requires the
 	 *	PCI arbiter to be enabled.
 	 *--------------------------------------------------------------------------*/
-	mfsdr(sdr_sdstp1, strap);
+	mfsdr(SDR0_SDSTP1, strap);
 	if( (strap & SDR0_SDSTP1_PAE_MASK) == 0 ) {
 		printf("PCI: SDR0_STRP1[%08lX] - PCI Arbiter disabled.\n",strap);
 
@@ -173,28 +173,28 @@ void pci_target_init(struct pci_controller *hose)
 	/*--------------------------------------------------------------------------+
 	 * Disable everything
 	 *--------------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0SA, 0 ); /* disable */
-	out32r( PCIX0_PIM1SA, 0 ); /* disable */
-	out32r( PCIX0_PIM2SA, 0 ); /* disable */
-	out32r( PCIX0_EROMBA, 0 ); /* disable expansion rom */
+	out32r( PCIL0_PIM0SA, 0 ); /* disable */
+	out32r( PCIL0_PIM1SA, 0 ); /* disable */
+	out32r( PCIL0_PIM2SA, 0 ); /* disable */
+	out32r( PCIL0_EROMBA, 0 ); /* disable expansion rom */
 
 	/*--------------------------------------------------------------------------+
 	 * Map all of SDRAM to PCI address 0x0000_0000. Note that the 440 strapping
 	 * options to not support sizes such as 128/256 MB.
 	 *--------------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
-	out32r( PCIX0_PIM0LAH, 0 );
-	out32r( PCIX0_PIM0SA, ~(gd->ram_size - 1) | 1 );
+	out32r( PCIL0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
+	out32r( PCIL0_PIM0LAH, 0 );
+	out32r( PCIL0_PIM0SA, ~(gd->ram_size - 1) | 1 );
 
-	out32r( PCIX0_BAR0, 0 );
+	out32r( PCIL0_BAR0, 0 );
 
 	/*--------------------------------------------------------------------------+
 	 * Program the board's subsystem id/vendor id
 	 *--------------------------------------------------------------------------*/
-	out16r( PCIX0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
-	out16r( PCIX0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
+	out16r( PCIL0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
+	out16r( PCIL0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
 
-	out16r( PCIX0_CMD, in16r(PCIX0_CMD) | PCI_COMMAND_MEMORY );
+	out16r( PCIL0_CMD, in16r(PCIL0_CMD) | PCI_COMMAND_MEMORY );
 }
 #endif /* defined(CONFIG_PCI) && defined(CONFIG_SYS_PCI_TARGET_INIT) */
 

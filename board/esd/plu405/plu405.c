@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <command.h>
 #include <malloc.h>
+#include <sja1000.h>
 
 #undef FPGA_DEBUG
 
@@ -61,6 +62,34 @@ au_image_t au_image[] = {
 
 int N_AU_IMAGES = (sizeof(au_image) / sizeof(au_image[0]));
 
+/*
+ * generate a short spike on the CAN tx line
+ * to bring the couplers in sync
+ */
+void init_coupler(u32 addr)
+{
+	struct sja1000_basic_s *ctrl = (struct sja1000_basic_s *)addr;
+
+	/* reset */
+	out_8(&ctrl->cr, CR_RR);
+
+	/* dominant */
+	out_8(&ctrl->btr0, 0x00); /* btr setup is required */
+	out_8(&ctrl->btr1, 0x14); /* we use 1Mbit/s */
+	out_8(&ctrl->oc, OC_TP1 | OC_TN1 | OC_POL1 |
+	      OC_TP0 | OC_TN0 | OC_POL0 | OC_MODE1);
+	out_8(&ctrl->cr, 0x00);
+
+	/* delay */
+	in_8(&ctrl->cr);
+	in_8(&ctrl->cr);
+	in_8(&ctrl->cr);
+	in_8(&ctrl->cr);
+
+	/* reset */
+	out_8(&ctrl->cr, CR_RR);
+}
+
 /* Prototypes */
 int gunzip(void *, int, unsigned char *, unsigned long *);
 
@@ -78,19 +107,19 @@ int board_early_init_f(void)
 	 * IRQ 30 (EXT IRQ 5) PCI INTA; active low; level sensitive
 	 * IRQ 31 (EXT IRQ 6) COMPACT FLASH; active high; level sensitive
 	 */
-	mtdcr(uicsr, 0xFFFFFFFF);       /* clear all ints */
-	mtdcr(uicer, 0x00000000);       /* disable all ints */
-	mtdcr(uiccr, 0x00000000);       /* set all to be non-critical*/
-	mtdcr(uicpr, 0xFFFFFF99);       /* set int polarities */
-	mtdcr(uictr, 0x10000000);       /* set int trigger levels */
-	mtdcr(uicvcr, 0x00000001);      /* set vect base=0,INT0 highest prio */
-	mtdcr(uicsr, 0xFFFFFFFF);       /* clear all ints */
+	mtdcr(UIC0SR, 0xFFFFFFFF);       /* clear all ints */
+	mtdcr(UIC0ER, 0x00000000);       /* disable all ints */
+	mtdcr(UIC0CR, 0x00000000);       /* set all to be non-critical*/
+	mtdcr(UIC0PR, 0xFFFFFF99);       /* set int polarities */
+	mtdcr(UIC0TR, 0x10000000);       /* set int trigger levels */
+	mtdcr(UIC0VCR, 0x00000001);      /* set vect base=0,INT0 highest prio */
+	mtdcr(UIC0SR, 0xFFFFFFFF);       /* clear all ints */
 
 	/*
 	 * EBC Configuration Register: set ready timeout to
 	 * 512 ebc-clks -> ca. 15 us
 	 */
-	mtebc(epcr, 0xa8400000); /* ebc always driven */
+	mtebc(EBC0_CFG, 0xa8400000); /* ebc always driven */
 
 	return 0;
 }
@@ -214,6 +243,13 @@ int misc_init_r(void)
 	out_8((void *)DUART1_BA + 1, fctr); /* write FCTR */
 	out_8((void *)DUART1_BA + 3, 0);    /* write LCR */
 
+	/*
+	 * Init magnetic couplers
+	 */
+	if (!getenv("noinitcoupler")) {
+		init_coupler(CAN0_BA);
+		init_coupler(CAN1_BA);
+	}
 	return 0;
 }
 

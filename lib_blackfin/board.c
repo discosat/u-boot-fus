@@ -26,6 +26,10 @@
 #include <nand.h>	/* cannot even include nand.h if it isnt configured */
 #endif
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #if defined(CONFIG_POST)
 #include <post.h>
 int post_flag;
@@ -42,29 +46,6 @@ static inline void serial_early_puts(const char *s)
 	serial_puts("Early: ");
 	serial_puts(s);
 #endif
-}
-
-static void *mem_malloc_start, *mem_malloc_end, *mem_malloc_brk;
-
-static void mem_malloc_init(void)
-{
-	mem_malloc_start = (void *)CONFIG_SYS_MALLOC_BASE;
-	mem_malloc_end = (void *)(CONFIG_SYS_MALLOC_BASE + CONFIG_SYS_MALLOC_LEN);
-	mem_malloc_brk = mem_malloc_start;
-	memset(mem_malloc_start, 0, mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk(ptrdiff_t increment)
-{
-	void *old = mem_malloc_brk;
-	void *new = old + increment;
-
-	if (new < mem_malloc_start || new > mem_malloc_end)
-		return NULL;
-
-	mem_malloc_brk = new;
-
-	return old;
 }
 
 static int display_banner(void)
@@ -93,25 +74,25 @@ static void display_global_data(void)
 #ifdef CONFIG_DEBUG_EARLY_SERIAL
 	bd_t *bd;
 	bd = gd->bd;
-	printf(" gd: %x\n", gd);
-	printf(" |-flags: %x\n", gd->flags);
-	printf(" |-board_type: %x\n", gd->board_type);
-	printf(" |-baudrate: %i\n", gd->baudrate);
-	printf(" |-have_console: %x\n", gd->have_console);
-	printf(" |-ram_size: %x\n", gd->ram_size);
-	printf(" |-reloc_off: %x\n", gd->reloc_off);
-	printf(" |-env_addr: %x\n", gd->env_addr);
-	printf(" |-env_valid: %x\n", gd->env_valid);
-	printf(" |-jt(%x): %x\n", gd->jt, *(gd->jt));
-	printf(" \\-bd: %x\n", gd->bd);
+	printf(" gd: %p\n", gd);
+	printf(" |-flags: %lx\n", gd->flags);
+	printf(" |-board_type: %lx\n", gd->board_type);
+	printf(" |-baudrate: %lu\n", gd->baudrate);
+	printf(" |-have_console: %lx\n", gd->have_console);
+	printf(" |-ram_size: %lx\n", gd->ram_size);
+	printf(" |-reloc_off: %lx\n", gd->reloc_off);
+	printf(" |-env_addr: %lx\n", gd->env_addr);
+	printf(" |-env_valid: %lx\n", gd->env_valid);
+	printf(" |-jt(%p): %p\n", gd->jt, *(gd->jt));
+	printf(" \\-bd: %p\n", gd->bd);
 	printf("   |-bi_baudrate: %x\n", bd->bi_baudrate);
-	printf("   |-bi_ip_addr: %x\n", bd->bi_ip_addr);
-	printf("   |-bi_boot_params: %x\n", bd->bi_boot_params);
-	printf("   |-bi_memstart: %x\n", bd->bi_memstart);
-	printf("   |-bi_memsize: %x\n", bd->bi_memsize);
-	printf("   |-bi_flashstart: %x\n", bd->bi_flashstart);
-	printf("   |-bi_flashsize: %x\n", bd->bi_flashsize);
-	printf("   \\-bi_flashoffset: %x\n", bd->bi_flashoffset);
+	printf("   |-bi_ip_addr: %lx\n", bd->bi_ip_addr);
+	printf("   |-bi_boot_params: %lx\n", bd->bi_boot_params);
+	printf("   |-bi_memstart: %lx\n", bd->bi_memstart);
+	printf("   |-bi_memsize: %lx\n", bd->bi_memsize);
+	printf("   |-bi_flashstart: %lx\n", bd->bi_flashstart);
+	printf("   |-bi_flashsize: %lx\n", bd->bi_flashsize);
+	printf("   \\-bi_flashoffset: %lx\n", bd->bi_flashoffset);
 #endif
 }
 
@@ -293,8 +274,10 @@ void board_init_f(ulong bootflag)
 
 static void board_net_init_r(bd_t *bd)
 {
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #ifdef CONFIG_CMD_NET
-	uchar enetaddr[6];
 	char *s;
 
 	if ((s = getenv("bootfile")) != NULL)
@@ -304,15 +287,11 @@ static void board_net_init_r(bd_t *bd)
 
 	printf("Net:   ");
 	eth_initialize(gd->bd);
-
-	eth_getenv_enetaddr("ethaddr", enetaddr);
-	printf("MAC:   %pM\n", enetaddr);
 #endif
 }
 
 void board_init_r(gd_t * id, ulong dest_addr)
 {
-	extern void malloc_bin_reloc(void);
 	char *s;
 	bd_t *bd;
 	gd = id;
@@ -325,8 +304,7 @@ void board_init_r(gd_t * id, ulong dest_addr)
 #endif
 
 	/* initialize malloc() area */
-	mem_malloc_init();
-	malloc_bin_reloc();
+	mem_malloc_init(CONFIG_SYS_MALLOC_BASE, CONFIG_SYS_MALLOC_LEN);
 
 #if	!defined(CONFIG_SYS_NO_FLASH)
 	/* Initialize the flash and protect u-boot by default */

@@ -40,6 +40,7 @@
 
 #define CONFIG_BOARD_EARLY_INIT_F 1		/* Call board_early_init_f	*/
 #define	CONFIG_MISC_INIT_F	1		/* and misc_init_f()		*/
+#define	CONFIG_MISC_INIT_R	1		/* and misc_init_r()		*/
 
 #define CONFIG_SYS_CLK_FREQ	33333333	/* external frequency to pll	*/
 
@@ -214,9 +215,9 @@
 #define CONFIG_SYS_EBC_PB5CR   0xFD87A000
 
 /* bank 6 is unused */
-/* pb6ap = 0 */
+/* PB6AP = 0 */
 #define CONFIG_SYS_EBC_PB6AP   0x00000000
-/* pb6cr = 0 */
+/* PB6CR = 0 */
 #define CONFIG_SYS_EBC_PB6CR   0x00000000
 
 /* bank 7 is LED register */

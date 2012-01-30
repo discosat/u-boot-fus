@@ -1,5 +1,5 @@
 /*
- * Copyright 2004, 2007 Freescale Semiconductor.
+ * Copyright 2004, 2007-2009 Freescale Semiconductor.
  * Copyright (C) 2003  Motorola,Inc.
  *
  * See file CREDITS for list of people who contributed to this
@@ -57,10 +57,12 @@
 	GOT_ENTRY(_GOT2_TABLE_)
 	GOT_ENTRY(_FIXUP_TABLE_)
 
+#ifndef CONFIG_NAND_SPL
 	GOT_ENTRY(_start)
 	GOT_ENTRY(_start_of_vectors)
 	GOT_ENTRY(_end_of_vectors)
 	GOT_ENTRY(transfer_to_handler)
+#endif
 
 	GOT_ENTRY(__init_end)
 	GOT_ENTRY(_end)
@@ -156,6 +158,10 @@ _start_e500:
 	mtspr	MCSR,r0			/* machine check syndrome register */
 	mtxer	r0			/* clear integer exception register */
 
+#ifdef CONFIG_SYS_BOOK3E_HV
+	mtspr	MAS8,r0			/* make sure MAS8 is clear */
+#endif
+
 	/* Enable Time Base and Select Time Base Clock */
 	lis	r0,HID0_EMCP@h		/* Enable machine check */
 #if defined(CONFIG_ENABLE_36BIT_PHYS)
@@ -235,10 +241,11 @@ _start_e500:
 
 #endif /* CONFIG_MPC8569 */
 
-	/* create a temp mapping in AS=1 to the 4M boot window */
 	lis     r6,FSL_BOOKE_MAS0(1, 15, 0)@h
 	ori     r6,r6,FSL_BOOKE_MAS0(1, 15, 0)@l
 
+#ifndef CONFIG_SYS_RAMBOOT
+	/* create a temp mapping in AS=1 to the 4M boot window */
 	lis     r7,FSL_BOOKE_MAS1(1, 1, 0, 1, BOOKE_PAGESZ_4M)@h
 	ori     r7,r7,FSL_BOOKE_MAS1(1, 1, 0, 1, BOOKE_PAGESZ_4M)@l
 
@@ -248,6 +255,20 @@ _start_e500:
 	/* The 85xx has the default boot window 0xff800000 - 0xffffffff */
 	lis     r9,FSL_BOOKE_MAS3(0xffc00000, 0, (MAS3_SX|MAS3_SW|MAS3_SR))@h
 	ori     r9,r9,FSL_BOOKE_MAS3(0xffc00000, 0, (MAS3_SX|MAS3_SW|MAS3_SR))@l
+#else
+	/*
+	 * create a temp mapping in AS=1 to the 1M TEXT_BASE space, the main
+	 * image has been relocated to TEXT_BASE on the second stage.
+	 */
+	lis     r7,FSL_BOOKE_MAS1(1, 1, 0, 1, BOOKE_PAGESZ_1M)@h
+	ori     r7,r7,FSL_BOOKE_MAS1(1, 1, 0, 1, BOOKE_PAGESZ_1M)@l
+
+	lis     r8,FSL_BOOKE_MAS2(TEXT_BASE, (MAS2_I|MAS2_G))@h
+	ori     r8,r8,FSL_BOOKE_MAS2(TEXT_BASE, (MAS2_I|MAS2_G))@l
+
+	lis     r9,FSL_BOOKE_MAS3(TEXT_BASE, 0, (MAS3_SX|MAS3_SW|MAS3_SR))@h
+	ori     r9,r9,FSL_BOOKE_MAS3(TEXT_BASE, 0, (MAS3_SX|MAS3_SW|MAS3_SR))@l
+#endif
 
 	mtspr   MAS0,r6
 	mtspr   MAS1,r7
@@ -278,8 +299,8 @@ _start_e500:
 	msync
 	tlbwe
 
-	lis	r6,MSR_CE|MSR_ME|MSR_DE|MSR_IS|MSR_DS@h
-	ori	r6,r6,MSR_CE|MSR_ME|MSR_DE|MSR_IS|MSR_DS@l
+	lis	r6,MSR_IS|MSR_DS@h
+	ori	r6,r6,MSR_IS|MSR_DS@l
 	lis	r7,switch_as@h
 	ori	r7,r7,switch_as@l
 
@@ -359,6 +380,7 @@ _start_cont:
 	bl	board_init_f
 	isync
 
+#ifndef CONFIG_NAND_SPL
 	. = EXC_OFF_SYS_RESET
 	.globl	_start_of_vectors
 _start_of_vectors:
@@ -813,8 +835,31 @@ in32:
 in32r:
 	lwbrx	r3,r0,r3
 	blr
+#endif  /* !CONFIG_NAND_SPL */
 
 /*------------------------------------------------------------------------------*/
+
+/*
+ * void write_tlb(mas0, mas1, mas2, mas3, mas7)
+ */
+	.globl	write_tlb
+write_tlb:
+	mtspr	MAS0,r3
+	mtspr	MAS1,r4
+	mtspr	MAS2,r5
+	mtspr	MAS3,r6
+#ifdef CONFIG_ENABLE_36BIT_PHYS
+	mtspr	MAS7,r7
+#endif
+	li	r3,0
+#ifdef CONFIG_SYS_BOOK3E_HV
+	mtspr	MAS8,r3
+#endif
+	isync
+	tlbwe
+	msync
+	isync
+	blr
 
 /*
  * void relocate_code (addr_sp, gd, addr_moni)
@@ -932,15 +977,17 @@ in_ram:
 	sub	r11,r3,r11
 	addi	r3,r3,-4
 1:	lwzu	r0,4(r3)
+	cmpwi	r0,0
+	beq-	2f
 	add	r0,r0,r11
 	stw	r0,0(r3)
-	bdnz	1b
+2:	bdnz	1b
 
 	/*
 	 * Now adjust the fixups and the pointers to the fixups
 	 * in case we need to move ourselves again.
 	 */
-2:	li	r0,__fixup_entries@sectoff@l
+	li	r0,__fixup_entries@sectoff@l
 	lwz	r3,GOT(_FIXUP_TABLE_)
 	cmpwi	r0,0
 	mtctr	r0
@@ -975,6 +1022,7 @@ clear_bss:
 	mr	r4,r10		/* Destination Address		*/
 	bl	board_init_r
 
+#ifndef CONFIG_NAND_SPL
 	/*
 	 * Copy exception vector code to low memory
 	 *
@@ -1122,3 +1170,10 @@ flush_dcache:
 	isync
 
 	blr
+
+.globl setup_ivors
+setup_ivors:
+
+#include "fixed_ivor.S"
+	blr
+#endif /* !CONFIG_NAND_SPL */

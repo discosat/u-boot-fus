@@ -1,5 +1,5 @@
 /*
- * Copyright 2007 Freescale Semiconductor, Inc.
+ * Copyright 2007-2009 Freescale Semiconductor, Inc.
  *
  * (C) Copyright 2000
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -27,10 +27,15 @@
 #include <libfdt.h>
 #include <fdt_support.h>
 #include <asm/processor.h>
+#include <linux/ctype.h>
+#ifdef CONFIG_FSL_ESDHC
+#include <fsl_esdhc.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
 extern void ft_qe_setup(void *blob);
+extern void ft_fixup_num_cores(void *blob);
 
 #ifdef CONFIG_MP
 #include "mp.h"
@@ -38,7 +43,7 @@ extern void ft_qe_setup(void *blob);
 void ft_fixup_cpu(void *blob, u64 memory_limit)
 {
 	int off;
-	ulong spin_tbl_addr = get_spin_addr();
+	ulong spin_tbl_addr = get_spin_phys_addr();
 	u32 bootpg = determine_mp_bootpg();
 	u32 id = get_my_id();
 
@@ -144,8 +149,14 @@ static inline void ft_fixup_l2cache(void *blob)
 	}
 
 	if (cpu) {
-		len = sprintf(compat_buf, "fsl,mpc%s-l2-cache-controller",
-				cpu->name);
+		if (isdigit(cpu->name[0]))
+			len = sprintf(compat_buf,
+				"fsl,mpc%s-l2-cache-controller", cpu->name);
+		else
+			len = sprintf(compat_buf,
+				"fsl,%c%s-l2-cache-controller",
+				tolower(cpu->name[0]), cpu->name + 1);
+
 		sprintf(&compat_buf[len + 1], "cache");
 	}
 	fdt_setprop(blob, off, "cache-unified", NULL, 0);
@@ -283,7 +294,7 @@ void ft_cpu_setup(void *blob, bd_t *bd)
 	fdt_add_enet_stashing(blob);
 
 	do_fixup_by_prop_u32(blob, "device_type", "cpu", 4,
-		"timebase-frequency", bd->bi_busfreq / 8, 1);
+		"timebase-frequency", get_tbclk(), 1);
 	do_fixup_by_prop_u32(blob, "device_type", "cpu", 4,
 		"bus-frequency", bd->bi_busfreq, 1);
 	get_sys_info(&sysinfo);
@@ -324,6 +335,11 @@ void ft_cpu_setup(void *blob, bd_t *bd)
 #ifdef CONFIG_MP
 	ft_fixup_cpu(blob, (u64)bd->bi_memstart + (u64)bd->bi_memsize);
 #endif
+	ft_fixup_num_cores(blob);
 
 	ft_fixup_cache(blob);
+
+#if defined(CONFIG_FSL_ESDHC)
+	fdt_fixup_esdhc(blob, bd);
+#endif
 }

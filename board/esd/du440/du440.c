@@ -45,8 +45,8 @@ int board_early_init_f(void)
 	u32 sdr0_pfc1, sdr0_pfc2;
 	u32 reg;
 
-	mtdcr(ebccfga, xbcfg);
-	mtdcr(ebccfgd, 0xb8400000);
+	mtdcr(EBC0_CFGADDR, EBC0_CFG);
+	mtdcr(EBC0_CFGDATA, 0xb8400000);
 
 	/*
 	 * Setup the GPIO pins
@@ -87,37 +87,37 @@ int board_early_init_f(void)
 	/*
 	 * Setup the interrupt controller polarities, triggers, etc.
 	 */
-	mtdcr(uic0sr, 0xffffffff);	/* clear all */
-	mtdcr(uic0er, 0x00000000);	/* disable all */
-	mtdcr(uic0cr, 0x00000005);	/* ATI & UIC1 crit are critical */
-	mtdcr(uic0pr, 0xfffff7ff);	/* per ref-board manual */
-	mtdcr(uic0tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic0vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic0sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC0SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC0ER, 0x00000000);	/* disable all */
+	mtdcr(UIC0CR, 0x00000005);	/* ATI & UIC1 crit are critical */
+	mtdcr(UIC0PR, 0xfffff7ff);	/* per ref-board manual */
+	mtdcr(UIC0TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC0VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC0SR, 0xffffffff);	/* clear all */
 
 	/*
 	 * UIC1:
 	 *  bit30: ext. Irq 1: PLD : int 32+30
 	 */
-	mtdcr(uic1sr, 0xffffffff);	/* clear all */
-	mtdcr(uic1er, 0x00000000);	/* disable all */
-	mtdcr(uic1cr, 0x00000000);	/* all non-critical */
-	mtdcr(uic1pr, 0xfffffffd);
-	mtdcr(uic1tr, 0x00000000);
-	mtdcr(uic1vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic1sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC1SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC1ER, 0x00000000);	/* disable all */
+	mtdcr(UIC1CR, 0x00000000);	/* all non-critical */
+	mtdcr(UIC1PR, 0xfffffffd);
+	mtdcr(UIC1TR, 0x00000000);
+	mtdcr(UIC1VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC1SR, 0xffffffff);	/* clear all */
 
 	/*
 	 * UIC2
 	 *  bit3: ext. Irq 2: DCF77 : int 64+3
 	 */
-	mtdcr(uic2sr, 0xffffffff);	/* clear all */
-	mtdcr(uic2er, 0x00000000);	/* disable all */
-	mtdcr(uic2cr, 0x00000000);	/* all non-critical */
-	mtdcr(uic2pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr(uic2tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic2vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic2sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC2SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC2ER, 0x00000000);	/* disable all */
+	mtdcr(UIC2CR, 0x00000000);	/* all non-critical */
+	mtdcr(UIC2PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr(UIC2TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC2VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC2SR, 0xffffffff);	/* clear all */
 
 	/* select Ethernet pins */
 	mfsdr(SDR0_PFC1, sdr0_pfc1);
@@ -145,8 +145,8 @@ int board_early_init_f(void)
 	mtsdr(SDR0_PFC1, sdr0_pfc1);
 
 	/* PCI arbiter enabled */
-	mfsdr(sdr_pci0, reg);
-	mtsdr(sdr_pci0, 0x80000000 | reg);
+	mfsdr(SDR0_PCI0, reg);
+	mtsdr(SDR0_PCI0, 0x80000000 | reg);
 
 	/* setup NAND FLASH */
 	mfsdr(SDR0_CUST0, sdr0_cust0);
@@ -176,12 +176,12 @@ int misc_init_r(void)
 	gd->bd->bi_flashstart = 0 - gd->bd->bi_flashsize;
 	gd->bd->bi_flashoffset = 0;
 
-	mtdcr(ebccfga, pb0cr);
-	pbcr = mfdcr(ebccfgd);
+	mtdcr(EBC0_CFGADDR, PB0CR);
+	pbcr = mfdcr(EBC0_CFGDATA);
 	size_val = ffs(gd->bd->bi_flashsize) - 21;
 	pbcr = (pbcr & 0x0001ffff) | gd->bd->bi_flashstart | (size_val << 17);
-	mtdcr(ebccfga, pb0cr);
-	mtdcr(ebccfgd, pbcr);
+	mtdcr(EBC0_CFGADDR, PB0CR);
+	mtdcr(EBC0_CFGDATA, pbcr);
 
 	/*
 	 * Re-check to get correct base address
@@ -265,8 +265,8 @@ int misc_init_r(void)
 	 * This fix will make the MAL burst disabling patch for the Linux
 	 * EMAC driver obsolete.
 	 */
-	reg = mfdcr(plb4_acr) & ~PLB4_ACR_WRP;
-	mtdcr(plb4_acr, reg);
+	reg = mfdcr(PLB4_ACR) & ~PLB4_ACR_WRP;
+	mtdcr(PLB4_ACR, reg);
 
 	/*
 	 * release IO-RST#
@@ -380,35 +380,35 @@ int pci_pre_init(struct pci_controller *hose)
 	 * Set priority for all PLB3 devices to 0.
 	 * Set PLB3 arbiter to fair mode.
 	 */
-	mfsdr(sdr_amp1, addr);
-	mtsdr(sdr_amp1, (addr & 0x000000FF) | 0x0000FF00);
-	addr = mfdcr(plb3_acr);
-	mtdcr(plb3_acr, addr | 0x80000000);
+	mfsdr(SD0_AMP1, addr);
+	mtsdr(SD0_AMP1, (addr & 0x000000FF) | 0x0000FF00);
+	addr = mfdcr(PLB3_ACR);
+	mtdcr(PLB3_ACR, addr | 0x80000000);
 
 	/*
 	 * Set priority for all PLB4 devices to 0.
 	 */
-	mfsdr(sdr_amp0, addr);
-	mtsdr(sdr_amp0, (addr & 0x000000FF) | 0x0000FF00);
-	addr = mfdcr(plb4_acr) | 0xa0000000; /* Was 0x8---- */
-	mtdcr(plb4_acr, addr);
+	mfsdr(SD0_AMP0, addr);
+	mtsdr(SD0_AMP0, (addr & 0x000000FF) | 0x0000FF00);
+	addr = mfdcr(PLB4_ACR) | 0xa0000000; /* Was 0x8---- */
+	mtdcr(PLB4_ACR, addr);
 
 	/*
 	 * Set Nebula PLB4 arbiter to fair mode.
 	 */
 	/* Segment0 */
-	addr = (mfdcr(plb0_acr) & ~plb0_acr_ppm_mask) | plb0_acr_ppm_fair;
-	addr = (addr & ~plb0_acr_hbu_mask) | plb0_acr_hbu_enabled;
-	addr = (addr & ~plb0_acr_rdp_mask) | plb0_acr_rdp_4deep;
-	addr = (addr & ~plb0_acr_wrp_mask) | plb0_acr_wrp_2deep;
-	mtdcr(plb0_acr, addr);
+	addr = (mfdcr(PLB0_ACR) & ~PLB0_ACR_PPM_MASK) | PLB0_ACR_PPM_FAIR;
+	addr = (addr & ~PLB0_ACR_HBU_MASK) | PLB0_ACR_HBU_ENABLED;
+	addr = (addr & ~PLB0_ACR_RDP_MASK) | PLB0_ACR_RDP_4DEEP;
+	addr = (addr & ~PLB0_ACR_WRP_MASK) | PLB0_ACR_WRP_2DEEP;
+	mtdcr(PLB0_ACR, addr);
 
 	/* Segment1 */
-	addr = (mfdcr(plb1_acr) & ~plb1_acr_ppm_mask) | plb1_acr_ppm_fair;
-	addr = (addr & ~plb1_acr_hbu_mask) | plb1_acr_hbu_enabled;
-	addr = (addr & ~plb1_acr_rdp_mask) | plb1_acr_rdp_4deep;
-	addr = (addr & ~plb1_acr_wrp_mask) | plb1_acr_wrp_2deep;
-	mtdcr(plb1_acr, addr);
+	addr = (mfdcr(PLB1_ACR) & ~PLB1_ACR_PPM_MASK) | PLB1_ACR_PPM_FAIR;
+	addr = (addr & ~PLB1_ACR_HBU_MASK) | PLB1_ACR_HBU_ENABLED;
+	addr = (addr & ~PLB1_ACR_RDP_MASK) | PLB1_ACR_RDP_4DEEP;
+	addr = (addr & ~PLB1_ACR_WRP_MASK) | PLB1_ACR_WRP_2DEEP;
+	mtdcr(PLB1_ACR, addr);
 
 	return 1;
 }
@@ -435,26 +435,26 @@ void pci_target_init(struct pci_controller *hose)
 	 * Use byte reversed out routines to handle endianess.
 	 * Make this region non-prefetchable.
 	 */
-	out32r(PCIX0_PMM0MA, 0x00000000);	/* PMM0 Mask/Attribute */
+	out32r(PCIL0_PMM0MA, 0x00000000);	/* PMM0 Mask/Attribute */
 						/* - disabled b4 setting */
-	out32r(PCIX0_PMM0LA, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 Local Address */
-	out32r(PCIX0_PMM0PCILA, CONFIG_SYS_PCI_MEMBASE); /* PMM0 PCI Low Address */
-	out32r(PCIX0_PMM0PCIHA, 0x00000000);	/* PMM0 PCI High Address */
-	out32r(PCIX0_PMM0MA, 0xE0000001);	/* 512M + No prefetching, */
+	out32r(PCIL0_PMM0LA, CONFIG_SYS_PCI_MEMBASE);	/* PMM0 Local Address */
+	out32r(PCIL0_PMM0PCILA, CONFIG_SYS_PCI_MEMBASE); /* PMM0 PCI Low Address */
+	out32r(PCIL0_PMM0PCIHA, 0x00000000);	/* PMM0 PCI High Address */
+	out32r(PCIL0_PMM0MA, 0xE0000001);	/* 512M + No prefetching, */
 						/* and enable region */
 
-	out32r(PCIX0_PMM1MA, 0x00000000);	/* PMM0 Mask/Attribute */
+	out32r(PCIL0_PMM1MA, 0x00000000);	/* PMM0 Mask/Attribute */
 						/* - disabled b4 setting */
-	out32r(PCIX0_PMM1LA, CONFIG_SYS_PCI_MEMBASE2); /* PMM0 Local Address */
-	out32r(PCIX0_PMM1PCILA, CONFIG_SYS_PCI_MEMBASE2); /* PMM0 PCI Low Address */
-	out32r(PCIX0_PMM1PCIHA, 0x00000000);	/* PMM0 PCI High Address */
-	out32r(PCIX0_PMM1MA, 0xE0000001);	/* 512M + No prefetching, */
+	out32r(PCIL0_PMM1LA, CONFIG_SYS_PCI_MEMBASE2); /* PMM0 Local Address */
+	out32r(PCIL0_PMM1PCILA, CONFIG_SYS_PCI_MEMBASE2); /* PMM0 PCI Low Address */
+	out32r(PCIL0_PMM1PCIHA, 0x00000000);	/* PMM0 PCI High Address */
+	out32r(PCIL0_PMM1MA, 0xE0000001);	/* 512M + No prefetching, */
 						/* and enable region */
 
-	out32r(PCIX0_PTM1MS, 0x00000001);	/* Memory Size/Attribute */
-	out32r(PCIX0_PTM1LA, 0);		/* Local Addr. Reg */
-	out32r(PCIX0_PTM2MS, 0);		/* Memory Size/Attribute */
-	out32r(PCIX0_PTM2LA, 0);		/* Local Addr. Reg */
+	out32r(PCIL0_PTM1MS, 0x00000001);	/* Memory Size/Attribute */
+	out32r(PCIL0_PTM1LA, 0);		/* Local Addr. Reg */
+	out32r(PCIL0_PTM2MS, 0);		/* Memory Size/Attribute */
+	out32r(PCIL0_PTM2LA, 0);		/* Local Addr. Reg */
 
 	/*
 	 * Set up Configuration registers

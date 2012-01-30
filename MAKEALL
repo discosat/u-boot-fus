@@ -1,11 +1,15 @@
-#!/bin/sh
+#!/bin/bash
+
+# Print statistics when we exit
+trap exit 1 2 3 15
+trap print_stats 0
 
 # Determine number of CPU cores if no default was set
 : ${BUILD_NCPUS:="`getconf _NPROCESSORS_ONLN`"}
 
 if [ "$BUILD_NCPUS" -gt 1 ]
 then
-	JOBS=-j`expr "$BUILD_NCPUS" + 1`
+	JOBS="-j $((BUILD_NCPUS + 1))"
 else
 	JOBS=""
 fi
@@ -31,6 +35,12 @@ fi
 
 LIST=""
 
+# Keep track of the number of builds and errors
+ERR_CNT=0
+ERR_LIST=""
+TOTAL_CNT=0
+RC=0
+
 #########################################################################
 ## MPC5xx Systems
 #########################################################################
@@ -50,6 +60,7 @@ LIST_5xxx="		\
 	digsy_mtc	\
 	EVAL5200	\
 	fo300		\
+	galaxy5200	\
 	icecube_5100	\
 	icecube_5200	\
 	inka4x0		\
@@ -184,7 +195,6 @@ LIST_4xx="		\
 	canyonlands	\
 	canyonlands_nand \
 	CMS700		\
-	compactcenter	\
 	CPCI2DP		\
 	CPCI405		\
 	CPCI4052	\
@@ -213,6 +223,7 @@ LIST_4xx="		\
 	hcu5		\
 	HH405		\
 	HUB405		\
+	intip		\
 	JSE		\
 	KAREF		\
 	katmai		\
@@ -377,6 +388,9 @@ LIST_83xx="		\
 LIST_85xx="		\
 	ATUM8548	\
 	MPC8536DS	\
+	MPC8536DS_NAND	\
+	MPC8536DS_SDCARD	\
+	MPC8536DS_SPIFLASH	\
 	MPC8540ADS	\
 	MPC8540EVAL	\
 	MPC8541CDS	\
@@ -390,10 +404,30 @@ LIST_85xx="		\
 	MPC8572DS_36BIT	\
 	P2020DS		\
 	P2020DS_36BIT	\
+	P1011RDB	\
+	P1011RDB_NAND	\
+	P1011RDB_SDCARD	\
+	P1011RDB_SPIFLASH	\
+	P1020RDB	\
+	P1020RDB_NAND	\
+	P1020RDB_SDCARD	\
+	P1020RDB_SPIFLASH	\
+	P2010RDB	\
+	P2010RDB_NAND	\
+	P2010RDB_SDCARD	\
+	P2010RDB_SPIFLASH	\
+	P2020RDB	\
+	P2020RDB_NAND	\
+	P2020RDB_SDCARD	\
+	P2020RDB_SPIFLASH	\
 	PM854		\
 	PM856		\
 	sbc8540		\
 	sbc8548		\
+	sbc8548_PCI_33	\
+	sbc8548_PCI_66	\
+	sbc8548_PCI_33_PCIE \
+	sbc8548_PCI_66_PCIE \
 	sbc8560		\
 	socrates	\
 	stxgp3		\
@@ -515,6 +549,7 @@ LIST_ARM9="			\
 	cp926ejs		\
 	cp946es			\
 	cp966			\
+	imx27lite		\
 	lpd7a400		\
 	mv88f6281gtw_ge		\
 	mx1ads			\
@@ -527,6 +562,7 @@ LIST_ARM9="			\
 	omap1610inn		\
 	omap5912osk		\
 	omap730p2		\
+	openrd_base		\
 	rd6281a			\
 	sbc2410x		\
 	scb9328			\
@@ -544,6 +580,8 @@ LIST_ARM9="			\
 	davinci_sffsdr		\
 	davinci_sonata		\
 	davinci_dm355evm	\
+	davinci_dm355leopard	\
+	davinci_dm6467evm	\
 "
 
 #########################################################################
@@ -575,12 +613,15 @@ LIST_ARM11="			\
 ## ARM Cortex-A8 Systems
 #########################################################################
 LIST_ARM_CORTEX_A8="		\
+	devkit8000		\
 	omap3_beagle		\
 	omap3_overo		\
 	omap3_evm		\
 	omap3_pandora		\
+	omap3_sdp3430		\
 	omap3_zoom1		\
 	omap3_zoom2		\
+	smdkc100		\
 "
 
 #########################################################################
@@ -595,11 +636,14 @@ LIST_at91="			\
 	at91sam9260ek		\
 	at91sam9261ek		\
 	at91sam9263ek		\
-	at91sam9g10ek	\
+	at91sam9g10ek		\
 	at91sam9g20ek		\
 	at91sam9m10g45ek	\
 	at91sam9rlek		\
 	cmc_pu2			\
+	CPUAT91			\
+	CPU9260			\
+	CPU9G20			\
 	csb637			\
 	kb9202			\
 	meesc			\
@@ -607,6 +651,9 @@ LIST_at91="			\
 	m501sk			\
 	pm9261			\
 	pm9263			\
+	SBC35_A9G20		\
+	TNY_A9260		\
+	TNY_A9G20		\
 "
 
 #########################################################################
@@ -765,7 +812,6 @@ LIST_nios2="		\
 
 LIST_microblaze="			\
 	microblaze-generic		\
-	suzaku				\
 "
 
 #########################################################################
@@ -833,6 +879,7 @@ LIST_blackfin="		\
 	cm-bf527	\
 	cm-bf533	\
 	cm-bf537e	\
+	cm-bf537u	\
 	cm-bf548	\
 	cm-bf561	\
 	ibf-dsp561	\
@@ -891,13 +938,39 @@ build_target() {
 	${MAKE} ${JOBS} all 2>&1 >${LOG_DIR}/$target.MAKELOG \
 				| tee ${LOG_DIR}/$target.ERR
 
+	# Check for 'make' errors
+	if [ ${PIPESTATUS[0]} -ne 0 ] ; then
+		RC=1
+	fi
+
+	if [ -s ${LOG_DIR}/$target.ERR ] ; then
+		ERR_CNT=$((ERR_CNT + 1))
+		ERR_LIST="${ERR_LIST} $target"
+	else
+		rm ${LOG_DIR}/$target.ERR
+	fi
+
+	TOTAL_CNT=$((TOTAL_CNT + 1))
+
 	${CROSS_COMPILE}size ${BUILD_DIR}/u-boot \
 				| tee -a ${LOG_DIR}/$target.MAKELOG
 }
 
 #-----------------------------------------------------------------------
 
+print_stats() {
+	echo ""
+	echo "--------------------- SUMMARY ----------------------------"
+	echo "Boards compiled: ${TOTAL_CNT}"
+	if [ ${ERR_CNT} -gt 0 ] ; then
+		echo "Boards with warnings or errors: ${ERR_CNT} (${ERR_LIST} )"
+	fi
+	echo "----------------------------------------------------------"
 
+	exit $RC
+}
+
+#-----------------------------------------------------------------------
 for arg in $@
 do
 	case "$arg" in

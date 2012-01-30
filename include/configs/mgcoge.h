@@ -70,6 +70,7 @@
 #define CONFIG_NET_MULTI	1
 
 #define CONFIG_ETHER_INDEX	4
+#define CONFIG_HAS_ETH0
 #define CONFIG_SYS_SCC_TOUT_LOOP	10000000
 
 # define CONFIG_SYS_CMXSCR_VALUE	(CMXSCR_RS4CS_CLK7 | CMXSCR_TS4CS_CLK8)
@@ -346,8 +347,6 @@
 #define CONFIG_OF_LIBFDT	1
 #define CONFIG_OF_BOARD_SETUP	1
 
-#define OF_CPU			"PowerPC,8247@0"
-#define OF_SOC			"soc@f0000000"
 #define OF_TBCLK		(bd->bi_busfreq / 4)
 #define OF_STDOUT_PATH		"/soc/cpm/serial@11a90"
 

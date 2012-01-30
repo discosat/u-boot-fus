@@ -37,7 +37,7 @@ void pkt_data_push(struct eth_device *dev, u32 addr, u32 val) \
 
 #define mdelay(n)       udelay((n)*1000)
 
-static void smx911x_handle_mac_address(struct eth_device *dev)
+static void smc911x_handle_mac_address(struct eth_device *dev)
 {
 	unsigned long addrh, addrl;
 	uchar *m = dev->enetaddr;
@@ -146,25 +146,21 @@ static void smc911x_enable(struct eth_device *dev)
 
 static int smc911x_init(struct eth_device *dev, bd_t * bd)
 {
-	printf(DRIVERNAME ": initializing\n");
+	struct chip_id *id = dev->priv;
 
-	if (smc911x_detect_chip(dev))
-		goto err_out;
+	printf(DRIVERNAME ": detected %s controller\n", id->name);
 
 	smc911x_reset(dev);
 
 	/* Configure the PHY, initialize the link state */
 	smc911x_phy_configure(dev);
 
-	smx911x_handle_mac_address(dev);
+	smc911x_handle_mac_address(dev);
 
 	/* Turn on Tx + Rx */
 	smc911x_enable(dev);
 
 	return 0;
-
-err_out:
-	return -1;
 }
 
 static int smc911x_send(struct eth_device *dev,
@@ -247,11 +243,17 @@ int smc911x_initialize(u8 dev_num, int base_addr)
 	dev = malloc(sizeof(*dev));
 	if (!dev) {
 		free(dev);
-		return 0;
+		return -1;
 	}
 	memset(dev, 0, sizeof(*dev));
 
 	dev->iobase = base_addr;
+
+	/* Try to detect chip. Will fail if not present. */
+	if (smc911x_detect_chip(dev)) {
+		free(dev);
+		return 0;
+	}
 
 	addrh = smc911x_get_mac_csr(dev, ADDRH);
 	addrl = smc911x_get_mac_csr(dev, ADDRL);
@@ -269,5 +271,5 @@ int smc911x_initialize(u8 dev_num, int base_addr)
 	sprintf(dev->name, "%s-%hu", DRIVERNAME, dev_num);
 
 	eth_register(dev);
-	return 0;
+	return 1;
 }

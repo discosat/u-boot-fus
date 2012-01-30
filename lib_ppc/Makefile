@@ -35,13 +35,19 @@ COBJS-y	+= bootm.o
 COBJS-y	+= cache.o
 COBJS-y	+= extable.o
 COBJS-y	+= interrupts.o
-COBJS-y	+= kgdb.o
+COBJS-$(CONFIG_CMD_KGDB) += kgdb.o
 COBJS-y	+= time.o
 
 SRCS	:= $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(SOBJS-y) $(COBJS-y))
 
 $(LIB):	$(obj).depend $(OBJS)
+	@if ! $(CROSS_COMPILE)readelf -S $(OBJS) | grep -q '\.fixup.*PROGBITS';\
+	then \
+		echo "ERROR: Your compiler doesn't generate .fixup sections!";\
+		echo "       Upgrade to a recent toolchain."; \
+		exit 1; \
+	fi;
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 
 #########################################################################

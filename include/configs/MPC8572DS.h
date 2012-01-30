@@ -27,6 +27,10 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#ifdef CONFIG_MK_36BIT
+#define CONFIG_PHYS_64BIT
+#endif
+
 /* High Level Configuration Options */
 #define CONFIG_BOOKE		1	/* BOOKE */
 #define CONFIG_E500		1	/* BOOKE e500 family */
@@ -34,7 +38,6 @@
 #define CONFIG_MPC8572		1
 #define CONFIG_MPC8572DS	1
 #define CONFIG_MP		1	/* support multiple processors */
-#define CONFIG_NUM_CPUS		2	/* Number of CPUs in the system */
 
 #define CONFIG_FSL_ELBC		1	/* Has Enhanced localbus controller */
 #define CONFIG_PCI		1	/* Enable PCI/PCIE */
@@ -49,13 +52,6 @@
 
 #define CONFIG_TSEC_ENET		/* tsec ethernet support */
 #define CONFIG_ENV_OVERWRITE
-
-/*
- * When initializing flash, if we cannot find the manufacturer ID,
- * assume this is the AMD flash associated with the CDS board.
- * This allows booting from a promjet.
- */
-#define CONFIG_ASSUME_AMD_FLASH
 
 #ifndef __ASSEMBLY__
 extern unsigned long get_board_sys_clk(unsigned long dummy);

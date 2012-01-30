@@ -63,6 +63,10 @@
 #include <spi.h>
 #endif
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #include <nand.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -101,46 +105,10 @@ extern int watchdog_disable(void);
 
 ulong monitor_flash_len;
 
-/*
- * Begin and End of memory area for malloc(), and current "brk"
- */
-static	ulong	mem_malloc_start = 0;
-static	ulong	mem_malloc_end	 = 0;
-static	ulong	mem_malloc_brk	 = 0;
-
 /************************************************************************
  * Utilities								*
  ************************************************************************
  */
-
-/*
- * The Malloc area is immediately below the monitor copy in DRAM
- */
-static void mem_malloc_init (void)
-{
-	ulong dest_addr = CONFIG_SYS_MONITOR_BASE + gd->reloc_off;
-
-	mem_malloc_end = dest_addr;
-	mem_malloc_start = dest_addr - TOTAL_MALLOC_LEN;
-	mem_malloc_brk = mem_malloc_start;
-
-	memset ((void *) mem_malloc_start,
-		0,
-		mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk (ptrdiff_t increment)
-{
-	ulong old = mem_malloc_brk;
-	ulong new = old + increment;
-
-	if ((new < mem_malloc_start) ||
-	    (new > mem_malloc_end) ) {
-		return (NULL);
-	}
-	mem_malloc_brk = new;
-	return ((void *)old);
-}
 
 /*
  * All attempts to come up with a "common" initialization sequence
@@ -518,8 +486,9 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	 */
 	trap_init (CONFIG_SYS_SDRAM_BASE);
 
-	/* initialize malloc() area */
-	mem_malloc_init ();
+	/* The Malloc area is immediately below the monitor copy in DRAM */
+	mem_malloc_init (CONFIG_SYS_MONITOR_BASE + gd->reloc_off -
+			TOTAL_MALLOC_LEN, TOTAL_MALLOC_LEN);
 	malloc_bin_reloc ();
 
 #if !defined(CONFIG_SYS_NO_FLASH)
@@ -665,6 +634,9 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	nand_init();		/* go init the NAND */
 #endif
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 	WATCHDOG_RESET();
 #if defined(FEC_ENET)

@@ -23,12 +23,14 @@
 
 CROSS_COMPILE ?= bfin-uclinux-
 
+STANDALONE_LOAD_ADDR = 0x1000
+
 CONFIG_BFIN_CPU := $(strip $(subst ",,$(CONFIG_BFIN_CPU)))
 CONFIG_BFIN_BOOT_MODE := $(strip $(subst ",,$(CONFIG_BFIN_BOOT_MODE)))
 CONFIG_ENV_OFFSET := $(strip $(subst ",,$(CONFIG_ENV_OFFSET)))
 CONFIG_ENV_SIZE := $(strip $(subst ",,$(CONFIG_ENV_SIZE)))
 
-PLATFORM_RELFLAGS += -ffixed-P5 -fomit-frame-pointer -mno-fdpic
+PLATFORM_RELFLAGS += -ffixed-P3 -fomit-frame-pointer -mno-fdpic
 PLATFORM_CPPFLAGS += -DCONFIG_BLACKFIN
 
 LDFLAGS += --gc-sections

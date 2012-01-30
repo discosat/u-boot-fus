@@ -65,7 +65,7 @@ extern int do_bdinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static image_header_t* image_get_ramdisk (ulong rd_addr, uint8_t arch,
+static const image_header_t* image_get_ramdisk (ulong rd_addr, uint8_t arch,
 						int verify);
 #else
 #include "mkimage.h"
@@ -73,12 +73,6 @@ static image_header_t* image_get_ramdisk (ulong rd_addr, uint8_t arch,
 #include <time.h>
 #include <image.h>
 #endif /* !USE_HOSTCC*/
-
-typedef struct table_entry {
-	int	id;		/* as defined in image.h	*/
-	char	*sname;		/* short (input) name		*/
-	char	*lname;		/* long (output) name		*/
-} table_entry_t;
 
 static table_entry_t uimage_arch[] = {
 	{	IH_ARCH_INVALID,	NULL,		"Invalid ARCH",	},
@@ -145,6 +139,7 @@ static table_entry_t uimage_type[] = {
 	{	IH_TYPE_SCRIPT,     "script",	  "Script",		},
 	{	IH_TYPE_STANDALONE, "standalone", "Standalone Program", },
 	{	IH_TYPE_FLATDT,     "flat_dt",    "Flat Device Tree",	},
+	{	IH_TYPE_KWBIMAGE,   "kwbimage",   "Kirkwood Boot Image",},
 	{	-1,		    "",		  "",			},
 };
 
@@ -158,7 +153,6 @@ static table_entry_t uimage_comp[] = {
 
 uint32_t crc32 (uint32_t, const unsigned char *, uint);
 uint32_t crc32_wd (uint32_t, const unsigned char *, uint, uint);
-static void genimg_print_size (uint32_t size);
 #if defined(CONFIG_TIMESTAMP) || defined(CONFIG_CMD_DATE) || defined(USE_HOSTCC)
 static void genimg_print_time (time_t timestamp);
 #endif
@@ -166,7 +160,7 @@ static void genimg_print_time (time_t timestamp);
 /*****************************************************************************/
 /* Legacy format routines */
 /*****************************************************************************/
-int image_check_hcrc (image_header_t *hdr)
+int image_check_hcrc (const image_header_t *hdr)
 {
 	ulong hcrc;
 	ulong len = image_get_header_size ();
@@ -181,7 +175,7 @@ int image_check_hcrc (image_header_t *hdr)
 	return (hcrc == image_get_hcrc (hdr));
 }
 
-int image_check_dcrc (image_header_t *hdr)
+int image_check_dcrc (const image_header_t *hdr)
 {
 	ulong data = image_get_data (hdr);
 	ulong len = image_get_data_size (hdr);
@@ -203,7 +197,7 @@ int image_check_dcrc (image_header_t *hdr)
  * returns:
  *     number of components
  */
-ulong image_multi_count (image_header_t *hdr)
+ulong image_multi_count (const image_header_t *hdr)
 {
 	ulong i, count = 0;
 	uint32_t *size;
@@ -236,7 +230,7 @@ ulong image_multi_count (image_header_t *hdr)
  *     data address and size of the component, if idx is valid
  *     0 in data and len, if idx is out of range
  */
-void image_multi_getimg (image_header_t *hdr, ulong idx,
+void image_multi_getimg (const image_header_t *hdr, ulong idx,
 			ulong *data, ulong *len)
 {
 	int i;
@@ -272,7 +266,7 @@ void image_multi_getimg (image_header_t *hdr, ulong idx,
 	}
 }
 
-static void image_print_type (image_header_t *hdr)
+static void image_print_type (const image_header_t *hdr)
 {
 	const char *os, *arch, *type, *comp;
 
@@ -286,7 +280,7 @@ static void image_print_type (image_header_t *hdr)
 
 /**
  * image_print_contents - prints out the contents of the legacy format image
- * @hdr: pointer to the legacy format image header
+ * @ptr: pointer to the legacy format image header
  * @p: pointer to prefix string
  *
  * image_print_contents() formats a multi line legacy image contents description.
@@ -296,8 +290,9 @@ static void image_print_type (image_header_t *hdr)
  * returns:
  *     no returned results
  */
-void image_print_contents (image_header_t *hdr)
+void image_print_contents (const void *ptr)
 {
+	const image_header_t *hdr = (const image_header_t *)ptr;
 	const char *p;
 
 #ifdef USE_HOSTCC
@@ -363,10 +358,10 @@ void image_print_contents (image_header_t *hdr)
  *     pointer to a ramdisk image header, if image was found and valid
  *     otherwise, return NULL
  */
-static image_header_t* image_get_ramdisk (ulong rd_addr, uint8_t arch,
+static const image_header_t *image_get_ramdisk (ulong rd_addr, uint8_t arch,
 						int verify)
 {
-	image_header_t *rd_hdr = (image_header_t *)rd_addr;
+	const image_header_t *rd_hdr = (const image_header_t *)rd_addr;
 
 	if (!image_check_magic (rd_hdr)) {
 		puts ("Bad Magic Number\n");
@@ -472,7 +467,7 @@ void memmove_wd (void *to, void *from, size_t len, ulong chunksz)
 }
 #endif /* !USE_HOSTCC */
 
-static void genimg_print_size (uint32_t size)
+void genimg_print_size (uint32_t size)
 {
 #ifndef USE_HOSTCC
 	printf ("%d Bytes = ", size);
@@ -514,11 +509,11 @@ static void genimg_print_time (time_t timestamp)
  *     long entry name if translation succeeds
  *     msg otherwise
  */
-static char *get_table_entry_name (table_entry_t *table, char *msg, int id)
+char *get_table_entry_name (table_entry_t *table, char *msg, int id)
 {
 	for (; table->id >= 0; ++table) {
 		if (table->id == id)
-#ifdef USE_HOSTCC
+#if defined(USE_HOSTCC) || defined(CONFIG_RELOC_FIXUP_WORKS)
 			return table->lname;
 #else
 			return table->lname + gd->reloc_off;
@@ -561,7 +556,7 @@ const char *genimg_get_comp_name (uint8_t comp)
  *     entry id if translation succeeds
  *     -1 otherwise
  */
-static int get_table_entry_id (table_entry_t *table,
+int get_table_entry_id (table_entry_t *table,
 		const char *table_name, const char *name)
 {
 	table_entry_t *t;
@@ -583,7 +578,11 @@ static int get_table_entry_id (table_entry_t *table,
 	fprintf (stderr, "\n");
 #else
 	for (t = table; t->id >= 0; ++t) {
+#ifdef CONFIG_RELOC_FIXUP_WORKS
+		if (t->sname && strcmp(t->sname, name) == 0)
+#else
 		if (t->sname && strcmp(t->sname + gd->reloc_off, name) == 0)
+#endif
 			return (t->id);
 	}
 	debug ("Invalid %s Type: %s\n", table_name, name);
@@ -628,13 +627,13 @@ int genimg_get_comp_id (const char *name)
  */
 int genimg_get_format (void *img_addr)
 {
-	ulong		format = IMAGE_FORMAT_INVALID;
-	image_header_t	*hdr;
+	ulong format = IMAGE_FORMAT_INVALID;
+	const image_header_t *hdr;
 #if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
-	char		*fit_hdr;
+	char *fit_hdr;
 #endif
 
-	hdr = (image_header_t *)img_addr;
+	hdr = (const image_header_t *)img_addr;
 	if (image_check_magic(hdr))
 		format = IMAGE_FORMAT_LEGACY;
 #if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
@@ -685,7 +684,7 @@ ulong genimg_get_image (ulong img_addr)
 		/* get data size */
 		switch (genimg_get_format ((void *)ram_addr)) {
 		case IMAGE_FORMAT_LEGACY:
-			d_size = image_get_data_size ((image_header_t *)ram_addr);
+			d_size = image_get_data_size ((const image_header_t *)ram_addr);
 			debug ("   Legacy format image found at 0x%08lx, size 0x%08lx\n",
 					ram_addr, d_size);
 			break;
@@ -762,7 +761,7 @@ int boot_get_ramdisk (int argc, char *argv[], bootm_headers_t *images,
 {
 	ulong rd_addr, rd_load;
 	ulong rd_data, rd_len;
-	image_header_t *rd_hdr;
+	const image_header_t *rd_hdr;
 #if defined(CONFIG_FIT)
 	void		*fit_hdr;
 	const char	*fit_uname_config = NULL;
@@ -1085,9 +1084,9 @@ static void fdt_error (const char *msg)
 	puts (" - must RESET the board to recover.\n");
 }
 
-static image_header_t *image_get_fdt (ulong fdt_addr)
+static const image_header_t *image_get_fdt (ulong fdt_addr)
 {
-	image_header_t *fdt_hdr = (image_header_t *)fdt_addr;
+	const image_header_t *fdt_hdr = (const image_header_t *)fdt_addr;
 
 	image_print_contents (fdt_hdr);
 
@@ -1283,8 +1282,8 @@ error:
 int boot_get_fdt (int flag, int argc, char *argv[], bootm_headers_t *images,
 		char **of_flat_tree, ulong *of_size)
 {
+	const image_header_t *fdt_hdr;
 	ulong		fdt_addr;
-	image_header_t	*fdt_hdr;
 	char		*fdt_blob = NULL;
 	ulong		image_start, image_end;
 	ulong		load_start, load_end;

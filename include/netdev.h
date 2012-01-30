@@ -43,6 +43,7 @@ int cpu_eth_init(bd_t *bis);
 /* Driver initialization prototypes */
 int au1x00_enet_initialize(bd_t*);
 int bfin_EMAC_initialize(bd_t *bis);
+int cs8900_initialize(u8 dev_num, int base_addr);
 int dc21x4x_initialize(bd_t *bis);
 int davinci_emac_initialize(void);
 int dnet_eth_initialize(int id, void *regs, unsigned int phy_addr);
@@ -74,6 +75,7 @@ int rtl8169_initialize(bd_t *bis);
 int scc_initialize(bd_t *bis);
 int skge_initialize(bd_t *bis);
 int smc911x_initialize(u8 dev_num, int base_addr);
+int smc91111_initialize(u8 dev_num, int base_addr);
 int tsi108_eth_initialize(bd_t *bis);
 int uec_initialize(int index);
 int uec_standard_init(bd_t *bis);

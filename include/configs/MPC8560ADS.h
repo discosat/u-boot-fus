@@ -48,6 +48,7 @@
 #undef CONFIG_ETHER_ON_FCC             /* cpm FCC ethernet support */
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_FSL_LAW		1	/* Use common FSL init code */
+#define CONFIG_RESET_PHY_R	1	/* Call reset_phy() */
 
 /*
  * sysclk for MPC85xx
@@ -362,6 +363,10 @@
  * GPIO pins used for bit-banged MII communications
  */
 #define MDIO_PORT	2		/* Port C */
+#define MDIO_DECLARE	volatile ioport_t *iop = ioport_addr ( \
+				(immap_t *) CONFIG_SYS_IMMR, MDIO_PORT )
+#define MDC_DECLARE	MDIO_DECLARE
+
 #define MDIO_ACTIVE	(iop->pdir |=  0x00400000)
 #define MDIO_TRISTATE	(iop->pdir &= ~0x00400000)
 #define MDIO_READ	((iop->pdat &  0x00400000) != 0)

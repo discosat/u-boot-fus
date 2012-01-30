@@ -27,6 +27,10 @@
 #include <version.h>
 #include <net.h>
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #include <asm/initcalls.h>
 #include <asm/sections.h>
 
@@ -41,13 +45,6 @@ const char version_string[] =
 
 unsigned long monitor_flash_len;
 
-/*
- * Begin and end of memory area for malloc(), and current "brk"
- */
-static unsigned long mem_malloc_start = 0;
-static unsigned long mem_malloc_end = 0;
-static unsigned long mem_malloc_brk = 0;
-
 /* Weak aliases for optional board functions */
 static int __do_nothing(void)
 {
@@ -55,35 +52,6 @@ static int __do_nothing(void)
 }
 int board_postclk_init(void) __attribute__((weak, alias("__do_nothing")));
 int board_early_init_r(void) __attribute__((weak, alias("__do_nothing")));
-
-/* The malloc area is right below the monitor image in RAM */
-static void mem_malloc_init(void)
-{
-	unsigned long monitor_addr;
-
-	monitor_addr = CONFIG_SYS_MONITOR_BASE + gd->reloc_off;
-	mem_malloc_end = monitor_addr;
-	mem_malloc_start = mem_malloc_end - CONFIG_SYS_MALLOC_LEN;
-	mem_malloc_brk = mem_malloc_start;
-
-	printf("malloc: Using memory from 0x%08lx to 0x%08lx\n",
-	       mem_malloc_start, mem_malloc_end);
-
-	memset ((void *)mem_malloc_start, 0,
-		mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk(ptrdiff_t increment)
-{
-	unsigned long old = mem_malloc_brk;
-	unsigned long new = old + increment;
-
-	if ((new < mem_malloc_start) || (new > mem_malloc_end))
-		return NULL;
-
-	mem_malloc_brk = new;
-	return ((void *)old);
-}
 
 #ifdef CONFIG_SYS_DMA_ALLOC_LEN
 #include <asm/arch/cacheflush.h>
@@ -331,7 +299,10 @@ void board_init_r(gd_t *new_gd, ulong dest_addr)
 #endif
 
 	timer_init();
-	mem_malloc_init();
+
+	/* The malloc area is right below the monitor image in RAM */
+	mem_malloc_init(CONFIG_SYS_MONITOR_BASE + gd->reloc_off -
+			CONFIG_SYS_MALLOC_LEN, CONFIG_SYS_MALLOC_LEN);
 	malloc_bin_reloc();
 	dma_alloc_init();
 
@@ -370,6 +341,9 @@ void board_init_r(gd_t *new_gd, ulong dest_addr)
 	if (s)
 		load_addr = simple_strtoul(s, NULL, 16);
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 	s = getenv("bootfile");
 	if (s)

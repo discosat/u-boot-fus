@@ -62,11 +62,6 @@ phys_size_t initdram (int board_type)
 	dram_size = fixed_sdram ();
 #endif
 
-#if defined(CONFIG_SYS_RAMBOOT)
-	puts ("    DDR: ");
-	return dram_size;
-#endif
-
 	puts ("    DDR: ");
 	return dram_size;
 }
@@ -239,9 +234,6 @@ void pci_init_board(void)
 		}
 		debug("\n");
 
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
-
 		/* outbound memory */
 		pci_set_region(r++,
 			       CONFIG_SYS_PCI1_MEM_BUS,
@@ -259,9 +251,8 @@ void pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno=first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno=hose->last_busno+1;
 		printf ("    PCI-EXPRESS 1 on bus %02x - %02x\n",
@@ -281,10 +272,6 @@ void pci_init_board(void)
 	struct pci_controller *hose = &pci2_hose;
 	struct pci_region *r = hose->regions;
 
-
-	/* inbound */
-	r += fsl_pci_setup_inbound_windows(r);
-
 	/* outbound memory */
 	pci_set_region(r++,
 		       CONFIG_SYS_PCI2_MEM_BUS,
@@ -302,9 +289,8 @@ void pci_init_board(void)
 	hose->region_count = r - hose->regions;
 
 	hose->first_busno=first_free_busno;
-	pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-	fsl_pci_init(hose);
+	fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 	first_free_busno=hose->last_busno+1;
 	printf ("    PCI-EXPRESS 2 on bus %02x - %02x\n",

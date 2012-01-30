@@ -14,6 +14,13 @@
 # error CONFIG_BFIN_CPU: your board config needs to define this
 #endif
 
+#ifndef CONFIG_BFIN_SCRATCH_REG
+# define CONFIG_BFIN_SCRATCH_REG retn
+#endif
+
+/* Relocation to SDRAM works on all Blackfin boards */
+#define CONFIG_RELOC_FIXUP_WORKS
+
 /* Make sure the structure is properly aligned */
 #if ((CONFIG_SYS_GBL_DATA_ADDR & -4) != CONFIG_SYS_GBL_DATA_ADDR)
 # error CONFIG_SYS_GBL_DATA_ADDR: must be 4 byte aligned
@@ -120,11 +127,7 @@
 # define CONFIG_SYS_PROMPT "bfin> "
 #endif
 #ifndef CONFIG_SYS_CBSIZE
-# ifdef CONFIG_CMD_KGDB
-#  define CONFIG_SYS_CBSIZE 1024
-# else
-#  define CONFIG_SYS_CBSIZE 256
-# endif
+# define CONFIG_SYS_CBSIZE 1024
 #endif
 #ifndef CONFIG_SYS_BARGSIZE
 # define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE

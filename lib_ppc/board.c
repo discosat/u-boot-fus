@@ -83,6 +83,10 @@
 #include <asm/mp.h>
 #endif
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #ifdef CONFIG_SYS_UPDATE_FLASH_SIZE
 extern int update_flash_size (int flash_size);
 #endif
@@ -136,45 +140,10 @@ ulong monitor_flash_len;
 #include <bedbug/type.h>
 #endif
 
-/*
- * Begin and End of memory area for malloc(), and current "brk"
- */
-static	ulong	mem_malloc_start = 0;
-static	ulong	mem_malloc_end	 = 0;
-static	ulong	mem_malloc_brk	 = 0;
-
 /************************************************************************
  * Utilities								*
  ************************************************************************
  */
-
-/*
- * The Malloc area is immediately below the monitor copy in DRAM
- */
-static void mem_malloc_init (void)
-{
-#if !defined(CONFIG_RELOC_FIXUP_WORKS)
-	mem_malloc_end = CONFIG_SYS_MONITOR_BASE + gd->reloc_off;
-#endif
-	mem_malloc_start = mem_malloc_end - TOTAL_MALLOC_LEN;
-	mem_malloc_brk = mem_malloc_start;
-
-	memset ((void *) mem_malloc_start,
-		0,
-		mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk (ptrdiff_t increment)
-{
-	ulong old = mem_malloc_brk;
-	ulong new = old + increment;
-
-	if ((new < mem_malloc_start) || (new > mem_malloc_end)) {
-		return (NULL);
-	}
-	mem_malloc_brk = new;
-	return ((void *) old);
-}
 
 /*
  * All attempts to come up with a "common" initialization sequence
@@ -286,11 +255,12 @@ static int init_func_watchdog_reset (void)
  */
 
 init_fnc_t *init_sequence[] = {
-
+#if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
+	probecpu,
+#endif
 #if defined(CONFIG_BOARD_EARLY_INIT_F)
 	board_early_init_f,
 #endif
-
 #if !defined(CONFIG_8xx_CPUCLK_DEFAULT)
 	get_clocks,		/* get CPU and bus clocks (etc.) */
 #if defined(CONFIG_TQM8xxL) && !defined(CONFIG_TQM866M) \
@@ -659,13 +629,9 @@ void board_init_f (ulong bootflag)
  */
 void board_init_r (gd_t *id, ulong dest_addr)
 {
-	cmd_tbl_t *cmdtp;
 	char *s;
 	bd_t *bd;
-	extern void malloc_bin_reloc (void);
-#ifndef CONFIG_ENV_IS_NOWHERE
-	extern char * env_name_spec;
-#endif
+	ulong malloc_start;
 
 #ifndef CONFIG_SYS_NO_FLASH
 	ulong flash_size;
@@ -676,11 +642,15 @@ void board_init_r (gd_t *id, ulong dest_addr)
 
 	gd->flags |= GD_FLG_RELOC;	/* tell others: relocation done */
 
-#if defined(CONFIG_RELOC_FIXUP_WORKS)
-	gd->reloc_off = 0;
-	mem_malloc_end = dest_addr;
-#else
-	gd->reloc_off = dest_addr - CONFIG_SYS_MONITOR_BASE;
+	/* The Malloc area is immediately below the monitor copy in DRAM */
+	malloc_start = dest_addr - TOTAL_MALLOC_LEN;
+
+#if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
+	/*
+	 * The gd->cpu pointer is set to an address in flash before relocation.
+	 * We need to update it to point to the same CPU entry in RAM.
+	 */
+	gd->cpu += dest_addr - CONFIG_SYS_MONITOR_BASE;
 #endif
 
 #ifdef CONFIG_SERIAL_MULTI
@@ -706,38 +676,6 @@ void board_init_r (gd_t *id, ulong dest_addr)
 
 	monitor_flash_len = (ulong)&__init_end - dest_addr;
 
-	/*
-	 * We have to relocate the command table manually
-	 */
-	for (cmdtp = &__u_boot_cmd_start; cmdtp !=  &__u_boot_cmd_end; cmdtp++) {
-		ulong addr;
-		addr = (ulong) (cmdtp->cmd) + gd->reloc_off;
-#if 0
-		printf ("Command \"%s\": 0x%08lx => 0x%08lx\n",
-				cmdtp->name, (ulong) (cmdtp->cmd), addr);
-#endif
-		cmdtp->cmd =
-			(int (*)(struct cmd_tbl_s *, int, int, char *[]))addr;
-
-		addr = (ulong)(cmdtp->name) + gd->reloc_off;
-		cmdtp->name = (char *)addr;
-
-		if (cmdtp->usage) {
-			addr = (ulong)(cmdtp->usage) + gd->reloc_off;
-			cmdtp->usage = (char *)addr;
-		}
-#ifdef	CONFIG_SYS_LONGHELP
-		if (cmdtp->help) {
-			addr = (ulong)(cmdtp->help) + gd->reloc_off;
-			cmdtp->help = (char *)addr;
-		}
-#endif
-	}
-	/* there are some other pointer constants we must deal with */
-#ifndef CONFIG_ENV_IS_NOWHERE
-	env_name_spec += gd->reloc_off;
-#endif
-
 	WATCHDOG_RESET ();
 
 #ifdef CONFIG_LOGBUFFER
@@ -745,7 +683,6 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #endif
 #ifdef CONFIG_POST
 	post_output_backlog ();
-	post_reloc ();
 #endif
 
 	WATCHDOG_RESET();
@@ -775,9 +712,7 @@ void board_init_r (gd_t *id, ulong dest_addr)
 
 	asm ("sync ; isync");
 
-	/* initialize malloc() area */
-	mem_malloc_init ();
-	malloc_bin_reloc ();
+	mem_malloc_init (malloc_start, TOTAL_MALLOC_LEN);
 
 #if !defined(CONFIG_SYS_NO_FLASH)
 	puts ("FLASH: ");
@@ -946,17 +881,7 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	/* Initialize the console (after the relocation and devices init) */
 	console_init_r ();
 
-#if defined(CONFIG_CCM)		|| \
-    defined(CONFIG_COGENT)	|| \
-    defined(CONFIG_CPCI405)	|| \
-    defined(CONFIG_EVB64260)	|| \
-    defined(CONFIG_KUP4K)	|| \
-    defined(CONFIG_KUP4X)	|| \
-    defined(CONFIG_LWMON)	|| \
-    defined(CONFIG_PCU_E)	|| \
-    defined(CONFIG_SC3)		|| \
-    defined(CONFIG_W7O)		|| \
-    defined(CONFIG_MISC_INIT_R)
+#if defined(CONFIG_MISC_INIT_R)
 	/* miscellaneous platform dependent initialisations */
 	misc_init_r ();
 #endif
@@ -1027,6 +952,9 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	doc_init ();
 #endif
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	WATCHDOG_RESET ();
@@ -1035,22 +963,7 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	eth_initialize (bd);
 #endif
 
-#if defined(CONFIG_CMD_NET) && ( \
-    defined(CONFIG_CCM)		|| \
-    defined(CONFIG_ELPT860)	|| \
-    defined(CONFIG_EP8260)	|| \
-    defined(CONFIG_IP860)	|| \
-    defined(CONFIG_IVML24)	|| \
-    defined(CONFIG_IVMS8)	|| \
-    defined(CONFIG_MPC8260ADS)	|| \
-    defined(CONFIG_MPC8266ADS)	|| \
-    defined(CONFIG_MPC8560ADS)	|| \
-    defined(CONFIG_PCU_E)	|| \
-    defined(CONFIG_RPXSUPER)	|| \
-    defined(CONFIG_STXGP3)	|| \
-    defined(CONFIG_SPD823TS)	|| \
-    defined(CONFIG_RESET_PHY_R)	)
-
+#if defined(CONFIG_CMD_NET) && defined(CONFIG_RESET_PHY_R)
 	WATCHDOG_RESET ();
 	debug ("Reset Ethernet PHY\n");
 	reset_phy ();

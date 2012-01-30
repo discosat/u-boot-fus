@@ -28,7 +28,10 @@
 #include <net.h>
 #include <environment.h>
 
-extern void malloc_bin_reloc (void);
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 extern int cpu_init(void);
 extern int board_init(void);
 extern int dram_init(void);
@@ -37,34 +40,6 @@ extern int timer_init(void);
 const char version_string[] = U_BOOT_VERSION" ("U_BOOT_DATE" - "U_BOOT_TIME")";
 
 unsigned long monitor_flash_len = CONFIG_SYS_MONITOR_LEN;
-
-static unsigned long mem_malloc_start;
-static unsigned long mem_malloc_end;
-static unsigned long mem_malloc_brk;
-
-static void mem_malloc_init(void)
-{
-
-	mem_malloc_start = (TEXT_BASE - CONFIG_SYS_GBL_DATA_SIZE - CONFIG_SYS_MALLOC_LEN);
-	mem_malloc_end = (mem_malloc_start + CONFIG_SYS_MALLOC_LEN - 16);
-	mem_malloc_brk = mem_malloc_start;
-	memset((void *) mem_malloc_start, 0,
-		(mem_malloc_end - mem_malloc_start));
-}
-
-void *sbrk(ptrdiff_t increment)
-{
-	unsigned long old = mem_malloc_brk;
-	unsigned long new = old + increment;
-
-	if ((new < mem_malloc_start) ||
-	    (new > mem_malloc_end)) {
-		return NULL;
-	}
-
-	mem_malloc_brk = new;
-	return (void *) old;
-}
 
 static int sh_flash_init(void)
 {
@@ -114,8 +89,8 @@ static int sh_pci_init(void)
 
 static int sh_mem_env_init(void)
 {
-	mem_malloc_init();
-	malloc_bin_reloc();
+	mem_malloc_init(TEXT_BASE - CONFIG_SYS_GBL_DATA_SIZE -
+			CONFIG_SYS_MALLOC_LEN, CONFIG_SYS_MALLOC_LEN - 16);
 	env_relocate();
 	jumptable_init();
 	return 0;
@@ -205,6 +180,9 @@ void sh_generic_init(void)
 #endif /* CONFIG_WATCHDOG*/
 
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 	{
 		char *s;

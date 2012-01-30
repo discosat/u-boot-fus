@@ -37,7 +37,6 @@
 #define CONFIG_XPEDITE5200	1
 #define CONFIG_SYS_BOARD_NAME	"XPedite5200"
 #define CONFIG_BOARD_EARLY_INIT_R	/* Call board_pre_init */
-#define CONFIG_RELOC_FIXUP_WORKS	/* Fully relocate to SDRAM */
 
 #define CONFIG_PCI		1	/* Enable PCI/PCIE */
 #define CONFIG_PCI_PNP		1	/* do pci plug-and-play */
@@ -103,7 +102,7 @@
  * 0xfc00_0000	0xffff_ffff	NOR Flash 1		64M non-cacheable
  */
 
-#define CONFIG_SYS_LBC_LCRR	(LCRR_CLKDIV_4 | LCRR_EADC_3)
+#define CONFIG_SYS_LBC_LCRR	(LCRR_CLKDIV_8 | LCRR_EADC_3)
 
 /*
  * NAND flash configuration

@@ -32,6 +32,7 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/4xx_pcie.h>
+#include <asm/errno.h>
 
 #include "yucca.h"
 
@@ -167,7 +168,7 @@ int board_early_init_f (void)
 	 |	0x07C00000 - 0 0 000 1 1 1 1 1 0000 0 00000 000000000000
 	 |
 	 +-------------------------------------------------------------------*/
-	mtebc(xbcfg, EBC_CFG_LE_UNLOCK |
+	mtebc(EBC0_CFG, EBC_CFG_LE_UNLOCK |
 			EBC_CFG_PTD_ENABLE |
 			EBC_CFG_RTC_16PERCLK |
 			EBC_CFG_ATC_PREVIOUS |
@@ -188,8 +189,8 @@ int board_early_init_f (void)
 	 | boot type
 	 |
 	 +-------------------------------------------------------------------*/
-	mtebc(pb1ap, EBC_BXAP_FPGA);
-	mtebc(pb1cr, EBC_BXCR_FPGA_CS1);
+	mtebc(PB1AP, EBC_BXAP_FPGA);
+	mtebc(PB1CR, EBC_BXCR_FPGA_CS1);
 
 	/*-------------------------------------------------------------------+
 	 |
@@ -334,10 +335,10 @@ int board_early_init_f (void)
 			break;
 	}
 
-	mtebc(pb0ap, ebc0_cs0_bxap_value);
-	mtebc(pb0cr, ebc0_cs0_bxcr_value);
-	mtebc(pb2ap, ebc0_cs2_bxap_value);
-	mtebc(pb2cr, ebc0_cs2_bxcr_value);
+	mtebc(PB0AP, ebc0_cs0_bxap_value);
+	mtebc(PB0CR, ebc0_cs0_bxcr_value);
+	mtebc(PB2AP, ebc0_cs2_bxap_value);
+	mtebc(PB2CR, ebc0_cs2_bxcr_value);
 
 	/*--------------------------------------------------------------------+
 	 | Interrupt controller setup for the AMCC 440SPe Evaluation board.
@@ -485,54 +486,54 @@ int board_early_init_f (void)
 	 | interrupt trigger levels.  Make bit 0 High  priority.  Clear all
 	 | interrupts again.
 	 +-------------------------------------------------------------------*/
-	mtdcr (uic3sr, 0xffffffff);	/* Clear all interrupts */
-	mtdcr (uic3er, 0x00000000);	/* disable all interrupts */
-	mtdcr (uic3cr, 0x00000000);	/* Set Critical / Non Critical
+	mtdcr (UIC3SR, 0xffffffff);	/* Clear all interrupts */
+	mtdcr (UIC3ER, 0x00000000);	/* disable all interrupts */
+	mtdcr (UIC3CR, 0x00000000);	/* Set Critical / Non Critical
 					 * interrupts */
-	mtdcr (uic3pr, 0xffffffff);	/* Set Interrupt Polarities */
-	mtdcr (uic3tr, 0x001fffff);	/* Set Interrupt Trigger Levels */
-	mtdcr (uic3vr, 0x00000001);	/* Set Vect base=0,INT31 Highest
+	mtdcr (UIC3PR, 0xffffffff);	/* Set Interrupt Polarities */
+	mtdcr (UIC3TR, 0x001fffff);	/* Set Interrupt Trigger Levels */
+	mtdcr (UIC3VR, 0x00000001);	/* Set Vect base=0,INT31 Highest
 					 * priority */
-	mtdcr (uic3sr, 0x00000000);	/* clear all  interrupts */
-	mtdcr (uic3sr, 0xffffffff);	/* clear all  interrupts */
+	mtdcr (UIC3SR, 0x00000000);	/* clear all  interrupts */
+	mtdcr (UIC3SR, 0xffffffff);	/* clear all  interrupts */
 
-	mtdcr (uic2sr, 0xffffffff);	/* Clear all interrupts */
-	mtdcr (uic2er, 0x00000000);	/* disable all interrupts */
-	mtdcr (uic2cr, 0x00000000);	/* Set Critical / Non Critical
+	mtdcr (UIC2SR, 0xffffffff);	/* Clear all interrupts */
+	mtdcr (UIC2ER, 0x00000000);	/* disable all interrupts */
+	mtdcr (UIC2CR, 0x00000000);	/* Set Critical / Non Critical
 					 * interrupts */
-	mtdcr (uic2pr, 0xebebebff);	/* Set Interrupt Polarities */
-	mtdcr (uic2tr, 0x74747400);	/* Set Interrupt Trigger Levels */
-	mtdcr (uic2vr, 0x00000001);	/* Set Vect base=0,INT31 Highest
+	mtdcr (UIC2PR, 0xebebebff);	/* Set Interrupt Polarities */
+	mtdcr (UIC2TR, 0x74747400);	/* Set Interrupt Trigger Levels */
+	mtdcr (UIC2VR, 0x00000001);	/* Set Vect base=0,INT31 Highest
 					 * priority */
-	mtdcr (uic2sr, 0x00000000);	/* clear all interrupts */
-	mtdcr (uic2sr, 0xffffffff);	/* clear all interrupts */
+	mtdcr (UIC2SR, 0x00000000);	/* clear all interrupts */
+	mtdcr (UIC2SR, 0xffffffff);	/* clear all interrupts */
 
-	mtdcr (uic1sr, 0xffffffff);	/* Clear all interrupts */
-	mtdcr (uic1er, 0x00000000);	/* disable all interrupts */
-	mtdcr (uic1cr, 0x00000000);	/* Set Critical / Non Critical
+	mtdcr (UIC1SR, 0xffffffff);	/* Clear all interrupts */
+	mtdcr (UIC1ER, 0x00000000);	/* disable all interrupts */
+	mtdcr (UIC1CR, 0x00000000);	/* Set Critical / Non Critical
 					 * interrupts */
-	mtdcr (uic1pr, 0xffffffff);	/* Set Interrupt Polarities */
-	mtdcr (uic1tr, 0x001f8040);	/* Set Interrupt Trigger Levels */
-	mtdcr (uic1vr, 0x00000001);	/* Set Vect base=0,INT31 Highest
+	mtdcr (UIC1PR, 0xffffffff);	/* Set Interrupt Polarities */
+	mtdcr (UIC1TR, 0x001f8040);	/* Set Interrupt Trigger Levels */
+	mtdcr (UIC1VR, 0x00000001);	/* Set Vect base=0,INT31 Highest
 					 * priority */
-	mtdcr (uic1sr, 0x00000000);	/* clear all interrupts */
-	mtdcr (uic1sr, 0xffffffff);	/* clear all interrupts */
+	mtdcr (UIC1SR, 0x00000000);	/* clear all interrupts */
+	mtdcr (UIC1SR, 0xffffffff);	/* clear all interrupts */
 
-	mtdcr (uic0sr, 0xffffffff);	/* Clear all interrupts */
-	mtdcr (uic0er, 0x00000000);	/* disable all interrupts excepted
+	mtdcr (UIC0SR, 0xffffffff);	/* Clear all interrupts */
+	mtdcr (UIC0ER, 0x00000000);	/* disable all interrupts excepted
 					 * cascade to be checked */
-	mtdcr (uic0cr, 0x00104001);	/* Set Critical / Non Critical
+	mtdcr (UIC0CR, 0x00104001);	/* Set Critical / Non Critical
 					 * interrupts */
-	mtdcr (uic0pr, 0xffffffff);	/* Set Interrupt Polarities */
-	mtdcr (uic0tr, 0x010f0004);	/* Set Interrupt Trigger Levels */
-	mtdcr (uic0vr, 0x00000001);	/* Set Vect base=0,INT31 Highest
+	mtdcr (UIC0PR, 0xffffffff);	/* Set Interrupt Polarities */
+	mtdcr (UIC0TR, 0x010f0004);	/* Set Interrupt Trigger Levels */
+	mtdcr (UIC0VR, 0x00000001);	/* Set Vect base=0,INT31 Highest
 					 * priority */
-	mtdcr (uic0sr, 0x00000000);	/* clear all interrupts */
-	mtdcr (uic0sr, 0xffffffff);	/* clear all interrupts */
+	mtdcr (UIC0SR, 0x00000000);	/* clear all interrupts */
+	mtdcr (UIC0SR, 0xffffffff);	/* clear all interrupts */
 
-	mfsdr(sdr_mfr, mfr);
+	mfsdr(SDR0_MFR, mfr);
 	mfr |= SDR0_MFR_FIXD;		/* Workaround for PCI/DMA */
-	mtsdr(sdr_mfr, mfr);
+	mtsdr(SDR0_MFR, mfr);
 
 	fpga_init();
 
@@ -608,7 +609,7 @@ int pci_pre_init(struct pci_controller * hose )
 	 *	The yucca board is always configured as the host & requires the
 	 *	PCI arbiter to be enabled.
 	 *-------------------------------------------------------------------*/
-	mfsdr(sdr_sdstp1, strap);
+	mfsdr(SDR0_SDSTP1, strap);
 	if( (strap & SDR0_SDSTP1_PAE_MASK) == 0 ) {
 		printf("PCI: SDR0_STRP1[%08lX] - PCI Arbiter disabled.\n",strap);
 		return 0;
@@ -632,27 +633,27 @@ void pci_target_init(struct pci_controller * hose )
 	/*-------------------------------------------------------------------+
 	 * Disable everything
 	 *-------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0SA, 0 ); /* disable */
-	out32r( PCIX0_PIM1SA, 0 ); /* disable */
-	out32r( PCIX0_PIM2SA, 0 ); /* disable */
-	out32r( PCIX0_EROMBA, 0 ); /* disable expansion rom */
+	out32r( PCIL0_PIM0SA, 0 ); /* disable */
+	out32r( PCIL0_PIM1SA, 0 ); /* disable */
+	out32r( PCIL0_PIM2SA, 0 ); /* disable */
+	out32r( PCIL0_EROMBA, 0 ); /* disable expansion rom */
 
 	/*-------------------------------------------------------------------+
 	 * Map all of SDRAM to PCI address 0x0000_0000. Note that the 440
 	 * strapping options to not support sizes such as 128/256 MB.
 	 *-------------------------------------------------------------------*/
-	out32r( PCIX0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
-	out32r( PCIX0_PIM0LAH, 0 );
-	out32r( PCIX0_PIM0SA, ~(gd->ram_size - 1) | 1 );
-	out32r( PCIX0_BAR0, 0 );
+	out32r( PCIL0_PIM0LAL, CONFIG_SYS_SDRAM_BASE );
+	out32r( PCIL0_PIM0LAH, 0 );
+	out32r( PCIL0_PIM0SA, ~(gd->ram_size - 1) | 1 );
+	out32r( PCIL0_BAR0, 0 );
 
 	/*-------------------------------------------------------------------+
 	 * Program the board's subsystem id/vendor id
 	 *-------------------------------------------------------------------*/
-	out16r( PCIX0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
-	out16r( PCIX0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
+	out16r( PCIL0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
+	out16r( PCIL0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID );
 
-	out16r( PCIX0_CMD, in16r(PCIX0_CMD) | PCI_COMMAND_MEMORY );
+	out16r( PCIL0_CMD, in16r(PCIL0_CMD) | PCI_COMMAND_MEMORY );
 }
 #endif	/* defined(CONFIG_PCI) && defined(CONFIG_SYS_PCI_TARGET_INIT) */
 
@@ -830,6 +831,8 @@ void pcie_setup_hoses(int busno)
 			yucca_setup_pcie_fpga_rootpoint(i);
 			ret = ppc4xx_init_pcie_rootport(i);
 		}
+		if (ret == -ENODEV)
+			continue;
 		if (ret) {
 			printf("PCIE%d: initialization as %s failed\n", i,
 			       is_end_point(i) ? "endpoint" : "root-complex");

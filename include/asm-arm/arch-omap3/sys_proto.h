@@ -34,6 +34,8 @@ void memif_init(void);
 void sdrc_init(void);
 void do_sdrc_init(u32, u32);
 void gpmc_init(void);
+void enable_gpmc_cs_config(const u32 *gpmc_config, struct gpmc_cs *cs, u32 base,
+			u32 size);
 
 void watchdog_init(void);
 void set_muxconf_regs(void);
@@ -55,7 +57,7 @@ void secureworld_exit(void);
 void setup_auxcr(void);
 void try_unlock_memory(void);
 u32 get_boot_type(void);
-void v7_flush_dcache_all(u32);
+void invalidate_dcache(u32);
 void sr32(void *, u32, u32, u32);
 u32 wait_on_value(u32, u32, void *, u32);
 void sdelay(unsigned long);
