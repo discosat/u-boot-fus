@@ -25,6 +25,9 @@
 #include <s3c64xx-regs.h>
 #include <s3c64x0.h>
 #include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
+#ifdef CONFIG_CMD_NET
+#include <netdev.h>			  /* ne2000_initialize() */
+#endif
 #ifdef CONFIG_LCD
 #include <cmd_lcd.h>			  /* PON_*, POFF_* */
 #endif
@@ -63,35 +66,42 @@ static struct nand_ecclayout picomod6_oob_16 = {
 };
 #endif
 
+#if 0 //#####
 static inline void delay(unsigned long loops)
 {
 	__asm__ volatile ("1:\n" "subs %0, %1, #1\n" "bne 1b":"=r" (loops):"0"(loops));
 }
+#endif //####
 
 /*
  * Miscellaneous platform dependent initialisations
  */
 
-static void ax88796_pre_init(void)
+#ifdef CONFIG_CMD_NET
+int board_eth_init(bd_t *bis)
 {
-	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us); we
-	   can't use udelay() here, as timers are not yet initialized */
+	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us) */
 	GPKDAT_REG &= ~0x00000010;
-	delay(10000000);
+	udelay(200);
 	GPKDAT_REG |= 0x00000010;
 
-#if 0 //#####HK
+#if 0 /* Already done in NBoot */
+	/* Set correct CS timing for ethernet access */
 	SROM_BW_REG &= ~(0xf << 4);
 	SROM_BW_REG |= (1<<7) | (1<<6) | (1<<4);
-	SROM_BC1_REG = ((CS8900_Tacs<<28)+(CS8900_Tcos<<24)+(CS8900_Tacc<<16)+(CS8900_Tcoh<<12)+(CS8900_Tah<<8)+(CS8900_Tacp<<4)+(CS8900_PMC));
-#endif //####HK
+	SROM_BC1_REG = ((CS8900_Tacs<<28) + (CS8900_Tcos<<24) +
+			(CS8900_Tacc<<16) + (CS8900_Tcoh<<12) +
+			(CS8900_Tah<<8) + (CS8900_Tacp<<4) + (CS8900_PMC));
+#endif
+
+	/* Check for ethernet chip and register it */
+	return ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
 }
+#endif /* CONFIG_CMD_NET */
 
 int board_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-
-	ax88796_pre_init();
 
 	gd->bd->bi_arch_number = MACH_TYPE;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);

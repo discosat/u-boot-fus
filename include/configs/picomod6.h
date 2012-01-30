@@ -354,7 +354,7 @@
  * Ethernet
  ************************************************************************/
 /* This board has a NE2000 compatible AX88769B ethernet chip */
-//#define CONFIG_NET_MULTI
+//#define CONFIG_NET_MULTI		  /* Works, but bigger code size */
 #define CONFIG_DRIVER_NE2000
 #define CONFIG_DRIVER_NE2000_BASE	0x18000000
 #define CONFIG_DRIVER_NE2000_SOFTMAC

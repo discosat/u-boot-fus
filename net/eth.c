@@ -62,8 +62,6 @@ int eth_getenv_enetaddr_by_index(int index, uchar *enetaddr)
 }
 #endif
 
-#if defined(CONFIG_CMD_NET) && defined(CONFIG_NET_MULTI)
-
 /*
  * CPU and board-specific Ethernet initializations.  Aliased function
  * signals caller to move on
@@ -74,6 +72,8 @@ static int __def_eth_init(bd_t *bis)
 }
 int cpu_eth_init(bd_t *bis) __attribute__((weak, alias("__def_eth_init")));
 int board_eth_init(bd_t *bis) __attribute__((weak, alias("__def_eth_init")));
+
+#if defined(CONFIG_CMD_NET) && defined(CONFIG_NET_MULTI)
 
 extern int mv6436x_eth_initialize(bd_t *);
 extern int mv6446x_eth_initialize(bd_t *);
@@ -500,7 +500,6 @@ extern int at91rm9200_miiphy_initialize(bd_t *bis);
 extern int mcf52x2_miiphy_initialize(bd_t *bis);
 extern int ns7520_miiphy_initialize(bd_t *bis);
 
-
 int eth_initialize(bd_t *bis)
 {
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
@@ -516,6 +515,7 @@ int eth_initialize(bd_t *bis)
 #if defined(CONFIG_DRIVER_NS7520_ETHERNET)
 	ns7520_miiphy_initialize(bis);
 #endif
-	return 0;
+
+	return board_eth_init(bis);
 }
 #endif

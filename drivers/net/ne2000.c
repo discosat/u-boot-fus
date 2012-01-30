@@ -75,6 +75,8 @@ Add SNMP
 #include <common.h>
 #include <command.h>
 
+#ifndef CONFIG_DRIVER_NE2000_SOFTMAC 
+
 /* NE2000 base header file */
 #include "ne2000_base.h"
 
@@ -257,3 +259,5 @@ int get_prom(u8* mac_addr, u8* base_addr)
 	}
 	return 0;
 }
+
+#endif /* !CONFIG_DRIVER_NE2000_SOFTMAC */

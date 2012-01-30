@@ -111,9 +111,6 @@ are GPL, so this is, of course, GPL.
 
 /* timeout for tx/rx in s */
 #define TOUT 5
-/* Ether MAC address size */
-#define ETHER_ADDR_LEN 6
-
 
 #define CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA 1
 #define CYGACC_CALL_IF_DELAY_US(X) udelay(X)
@@ -138,6 +135,8 @@ typedef struct dp83902a_priv_data {
 	bool tx_started, running, hardwired_esa;
 	u8 esa[6];
 	void* plf_priv;
+	u32 pkey;		/* Set to key if packet transmitted */
+	u8 *pbuf;		/* Receive buffer */
 
 	/* Buffer allocation */
 	int tx_buf1, tx_buf2;

@@ -18,6 +18,8 @@
 #include <common.h>
 #include "ax88796.h"
 
+#ifndef CONFIG_DRIVER_NE2000_SOFTMAC 
+
 /*
  * Set 1 bit data
  */
@@ -154,3 +156,5 @@ int get_prom(u8* mac_addr, u8* base_addr)
 	}
 	return 1;
 }
+
+#endif /* !CONFIG_DRIVER_NE2000_SOFTMAC */
