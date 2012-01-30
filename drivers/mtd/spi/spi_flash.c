@@ -2,6 +2,7 @@
  * SPI flash interface
  *
  * Copyright (C) 2008 Atmel Corporation
+ * Licensed under the GPL-2 or later.
  */
 
 #include <common.h>
@@ -137,6 +138,11 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 #ifdef CONFIG_SPI_FLASH_MACRONIX
 	case 0xc2:
 		flash = spi_flash_probe_macronix(spi, idcode);
+		break;
+#endif
+#ifdef CONFIG_SPI_FLASH_WINBOND
+	case 0xef:
+		flash = spi_flash_probe_winbond(spi, idcode);
 		break;
 #endif
 #ifdef CONFIG_SPI_FLASH_STMICRO

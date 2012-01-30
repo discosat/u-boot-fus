@@ -52,13 +52,6 @@
 
 #define CONFIG_FSL_VIA
 
-/*
- * When initializing flash, if we cannot find the manufacturer ID,
- * assume this is the AMD flash associated with the CDS board.
- * This allows booting from a promjet.
- */
-#define CONFIG_ASSUME_AMD_FLASH
-
 #ifndef __ASSEMBLY__
 extern unsigned long get_clock_freq(void);
 #endif
@@ -69,7 +62,6 @@ extern unsigned long get_clock_freq(void);
  */
 #define CONFIG_L2_CACHE			/* toggle L2 cache */
 #define CONFIG_BTB			/* toggle branch predition */
-#define CONFIG_CLEAR_LAW0		/* Clear LAW0 in cpu_init_r */
 
 /*
  * Only possible on E500 Version 2 or newer cores.

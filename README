@@ -1,5 +1,5 @@
 #
-# (C) Copyright 2000 - 2008
+# (C) Copyright 2000 - 2009
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
 #
 # See file CREDITS for list of people who contributed to this
@@ -138,6 +138,7 @@ U-Boot will always have a patchlevel of "0".
 Directory Hierarchy:
 ====================
 
+- api		Machine/arch independent API for external apps
 - board		Board dependent files
 - common	Misc architecture independent functions
 - cpu		CPU specific files
@@ -178,8 +179,8 @@ Directory Hierarchy:
 - disk		Code for disk drive partition handling
 - doc		Documentation (don't expect too much)
 - drivers	Commonly used device drivers
-- dtt		Digital Thermometer and Thermostat drivers
 - examples	Example code for standalone applications, etc.
+- fs		Filesystem code (cramfs, ext2, jffs2, etc.)
 - include	Header Files
 - lib_arm	Files generic to ARM	 architecture
 - lib_avr32	Files generic to AVR32	 architecture
@@ -187,9 +188,12 @@ Directory Hierarchy:
 - lib_generic	Files generic to all	 architectures
 - lib_i386	Files generic to i386	 architecture
 - lib_m68k	Files generic to m68k	 architecture
+- lib_microblaze Files generic to microblaze architecture
 - lib_mips	Files generic to MIPS	 architecture
 - lib_nios	Files generic to NIOS	 architecture
+- lib_nios2	Files generic to NIOS2	 architecture
 - lib_ppc	Files generic to PowerPC architecture
+- lib_sh	Files generic to SH	 architecture
 - lib_sparc	Files generic to SPARC	 architecture
 - libfdt	Library files to support flattened device trees
 - net		Networking code
@@ -368,8 +372,10 @@ The following options need to be configured:
 		 * Adds the "fdt" command
 		 * The bootm command automatically updates the fdt
 
-		OF_CPU - The proper name of the cpus node.
-		OF_SOC - The proper name of the soc node.
+		OF_CPU - The proper name of the cpus node (only required for
+			MPC512X and MPC5xxx based boards).
+		OF_SOC - The proper name of the soc node (only required for
+			MPC512X and MPC5xxx based boards).
 		OF_TBCLK - The timebase frequency.
 		OF_STDOUT_PATH - The path to the console device
 
@@ -385,6 +391,15 @@ The following options need to be configured:
 
 		This define fills in the correct boot CPU in the boot
 		param header, the default value is zero if undefined.
+
+		CONFIG_OF_IDE_FIXUP
+
+		U-Boot can detect if an IDE device is present or not.
+		If not, and this new config option is activated, U-Boot
+		removes the ATA node from the DTS before booting Linux,
+		so the Linux IDE driver does not probe the device and
+		crash. This is needed for buggy hardware (uc101) where
+		no pull down resistor is connected to the signal IDE5V_DD7.
 
 - vxWorks boot parameters:
 
@@ -609,6 +624,7 @@ The following options need to be configured:
 		CONFIG_CMD_DS4510_RST	* ds4510 I2C rst command
 		CONFIG_CMD_DTT		* Digital Therm and Thermostat
 		CONFIG_CMD_ECHO		  echo arguments
+		CONFIG_CMD_EDITENV	  edit env variable
 		CONFIG_CMD_EEPROM	* EEPROM read/write support
 		CONFIG_CMD_ELF		* bootelf, bootvx
 		CONFIG_CMD_SAVEENV	  saveenv
@@ -629,6 +645,8 @@ The following options need to be configured:
 		CONFIG_CMD_KGDB		* kgdb
 		CONFIG_CMD_LOADB	  loadb
 		CONFIG_CMD_LOADS	  loads
+		CONFIG_CMD_MD5SUM	  print md5 message digest
+					  (requires CONFIG_CMD_MEMORY and CONFIG_MD5)
 		CONFIG_CMD_MEMORY	  md, mm, nm, mw, cp, cmp, crc, base,
 					  loop, loopw, mtest
 		CONFIG_CMD_MISC		  Misc functions like sleep etc
@@ -652,6 +670,8 @@ The following options need to be configured:
 					  (requires CONFIG_CMD_I2C)
 		CONFIG_CMD_SETGETDCR	  Support for DCR Register access
 					  (4xx only)
+		CONFIG_CMD_SHA1		  print sha1 memory digest
+					  (requires CONFIG_CMD_MEMORY)
 		CONFIG_CMD_SOURCE	  "source" command Support
 		CONFIG_CMD_SPI		* SPI serial bus support
 		CONFIG_CMD_USB		* USB support
@@ -826,20 +846,20 @@ The following options need to be configured:
 			Define this to use i/o functions instead of macros
 			(some hardware wont work with macros)
 
-		CONFIG_DRIVER_SMC911X
+		CONFIG_SMC911X
 		Support for SMSC's LAN911x and LAN921x chips
 
-			CONFIG_DRIVER_SMC911X_BASE
+			CONFIG_SMC911X_BASE
 			Define this to hold the physical address
 			of the device (I/O space)
 
-			CONFIG_DRIVER_SMC911X_32_BIT
+			CONFIG_SMC911X_32_BIT
 			Define this if data bus is 32 bits
 
-			CONFIG_DRIVER_SMC911X_16_BIT
+			CONFIG_SMC911X_16_BIT
 			Define this if data bus is 16 bits. If your processor
 			automatically converts one 32 bit word to two 16 bit
-			words you may also try CONFIG_DRIVER_SMC911X_32_BIT.
+			words you may also try CONFIG_SMC911X_32_BIT.
 
 - USB Support:
 		At the moment only the UHCI host controller is
@@ -854,9 +874,13 @@ The following options need to be configured:
 		MPC5200 USB requires additional defines:
 			CONFIG_USB_CLOCK
 				for 528 MHz Clock: 0x0001bbbb
+			CONFIG_PSC3_USB
+				for USB on PSC3
 			CONFIG_USB_CONFIG
 				for differential drivers: 0x00001000
 				for single ended drivers: 0x00005000
+				for differential drivers on PSC3: 0x00000100
+				for single ended drivers on PSC3: 0x00004100
 			CONFIG_SYS_USB_EVENT_POLL
 				May be defined to allow interrupt polling
 				instead of using asynchronous interrupts
@@ -1357,6 +1381,13 @@ The following options need to be configured:
 		sets the CPU up as a master node and so its address should
 		therefore be cleared to 0 (See, eg, MPC823e User's Manual
 		p.16-473). So, set CONFIG_SYS_I2C_SLAVE to 0.
+
+		CONFIG_SYS_I2C_INIT_MPC5XXX
+
+		When a board is reset during an i2c bus transfer
+		chips might think that the current transfer is still
+		in progress.  Reset the slave devices by sending start
+		commands until the slave device responds.
 
 		That's all that's required for CONFIG_HARD_I2C.
 
@@ -1862,25 +1893,6 @@ The following options need to be configured:
 		example, some LED's) on your board. At the moment,
 		the following checkpoints are implemented:
 
-- Automatic software updates via TFTP server
-		CONFIG_UPDATE_TFTP
-		CONFIG_UPDATE_TFTP_CNT_MAX
-		CONFIG_UPDATE_TFTP_MSEC_MAX
-
-		These options enable and control the auto-update feature;
-		for a more detailed description refer to doc/README.update.
-
-- MTD Support (mtdparts command, UBI support)
-		CONFIG_MTD_DEVICE
-
-		Adds the MTD device infrastructure from the Linux kernel.
-		Needed for mtdparts command support.
-
-		CONFIG_MTD_PARTITIONS
-
-		Adds the MTD partitioning infrastructure from the Linux
-		kernel. Needed for UBI support.
-
 Legacy uImage format:
 
   Arg	Where			When
@@ -2033,6 +2045,25 @@ FIT uImage format:
 
  -150	common/cmd_nand.c	Incorrect FIT image format
   151	common/cmd_nand.c	FIT image format OK
+
+- Automatic software updates via TFTP server
+		CONFIG_UPDATE_TFTP
+		CONFIG_UPDATE_TFTP_CNT_MAX
+		CONFIG_UPDATE_TFTP_MSEC_MAX
+
+		These options enable and control the auto-update feature;
+		for a more detailed description refer to doc/README.update.
+
+- MTD Support (mtdparts command, UBI support)
+		CONFIG_MTD_DEVICE
+
+		Adds the MTD device infrastructure from the Linux kernel.
+		Needed for mtdparts command support.
+
+		CONFIG_MTD_PARTITIONS
+
+		Adds the MTD partitioning infrastructure from the Linux
+		kernel. Needed for UBI support.
 
 
 Modem Support:
@@ -2993,14 +3024,6 @@ Some configuration options can be set using Environment Variables:
 		  configuration from the BOOTP server, but not try to
 		  load any image using TFTP
 
-  autoscript	- if set to "yes" commands like "loadb", "loady",
-		  "bootp", "tftpb", "rarpboot" and "nfs" will attempt
-		  to automatically run script images (by internally
-		  calling "source").
-
-  autoscript_uname - if script image is in a format (FIT) this
-		     variable is used to get script subimage unit name.
-
   autostart	- if set to "yes", an image loaded using the "bootp",
 		  "rarpboot", "tftpboot" or "diskboot" commands will
 		  be automatically started (by internally calling
@@ -3904,10 +3927,10 @@ For PowerPC, the following registers have specific use:
     average for all boards 752 bytes for the whole U-Boot image,
     624 text + 127 data).
 
-On Blackfin, the normal C ABI (except for P5) is followed as documented here:
+On Blackfin, the normal C ABI (except for P3) is followed as documented here:
 	http://docs.blackfin.uclinux.org/doku.php?id=application_binary_interface
 
-    ==> U-Boot will use P5 to hold a pointer to the global data
+    ==> U-Boot will use P3 to hold a pointer to the global data
 
 On ARM, the following registers are used:
 

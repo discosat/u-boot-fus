@@ -34,6 +34,9 @@
 #endif
 #include <watchdog.h>
 
+#include <u-boot/md5.h>
+#include <sha1.h>
+
 #ifdef	CMD_MEM_DEBUG
 #define	PRINTF(fmt,args...)	printf (fmt ,##args)
 #else
@@ -628,7 +631,7 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	vu_long	*addr, *start, *end;
 	ulong	val;
 	ulong	readback;
-	int     rcode = 0;
+	ulong	errs = 0;
 	int iterations = 1;
 	int iteration_limit;
 
@@ -695,9 +698,9 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 
 		if (iteration_limit && iterations > iteration_limit) {
-			printf("Tested %d iteration(s) without errors.\n",
-				iterations-1);
-			return 0;
+			printf("Tested %d iteration(s) with %lu errors.\n",
+				iterations-1, errs);
+			return errs != 0;
 		}
 
 		printf("Iteration: %6d\r", iterations);
@@ -729,9 +732,14 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			*dummy  = ~val; /* clear the test data off of the bus */
 			readback = *addr;
 			if(readback != val) {
-			     printf ("FAILURE (data line): "
+			    printf ("FAILURE (data line): "
 				"expected %08lx, actual %08lx\n",
 					  val, readback);
+			    errs++;
+			    if (ctrlc()) {
+				putc ('\n');
+				return 1;
+			    }
 			}
 			*addr  = ~val;
 			*dummy  = val;
@@ -740,6 +748,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			    printf ("FAILURE (data line): "
 				"Is %08lx, should be %08lx\n",
 					readback, ~val);
+			    errs++;
+			    if (ctrlc()) {
+				putc ('\n');
+				return 1;
+			    }
 			}
 		    }
 		}
@@ -805,7 +818,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf ("\nFAILURE: Address bit stuck high @ 0x%.8lx:"
 				" expected 0x%.8lx, actual 0x%.8lx\n",
 				(ulong)&start[offset], pattern, temp);
-			return 1;
+			errs++;
+			if (ctrlc()) {
+			    putc ('\n');
+			    return 1;
+			}
 		    }
 		}
 		start[test_offset] = pattern;
@@ -823,7 +840,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			    printf ("\nFAILURE: Address bit stuck low or shorted @"
 				" 0x%.8lx: expected 0x%.8lx, actual 0x%.8lx\n",
 				(ulong)&start[offset], pattern, temp);
-			    return 1;
+			    errs++;
+			    if (ctrlc()) {
+				putc ('\n');
+				return 1;
+			    }
 			}
 		    }
 		    start[test_offset] = pattern;
@@ -861,7 +882,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf ("\nFAILURE (read/write) @ 0x%.8lx:"
 				" expected 0x%.8lx, actual 0x%.8lx)\n",
 				(ulong)&start[offset], pattern, temp);
-			return 1;
+			errs++;
+			if (ctrlc()) {
+			    putc ('\n');
+			    return 1;
+			}
 		    }
 
 		    anti_pattern = ~pattern;
@@ -879,7 +904,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			printf ("\nFAILURE (read/write): @ 0x%.8lx:"
 				" expected 0x%.8lx, actual 0x%.8lx)\n",
 				(ulong)&start[offset], anti_pattern, temp);
-			return 1;
+			errs++;
+			if (ctrlc()) {
+			    putc ('\n');
+			    return 1;
+			}
 		    }
 		    start[offset] = 0;
 		}
@@ -894,9 +923,9 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		}
 
 		if (iteration_limit && iterations > iteration_limit) {
-			printf("Tested %d iteration(s) without errors.\n",
-				iterations-1);
-			return 0;
+			printf("Tested %d iteration(s) with %lu errors.\n",
+				iterations-1, errs);
+			return errs != 0;
 		}
 		++iterations;
 
@@ -920,7 +949,11 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 				printf ("\nMem error @ 0x%08X: "
 					"found %08lX, expected %08lX\n",
 					(uint)addr, readback, val);
-				rcode = 1;
+				errs++;
+				if (ctrlc()) {
+					putc ('\n');
+					return 1;
+				}
 			}
 			val += incr;
 		}
@@ -940,7 +973,7 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		incr = -incr;
 	}
 #endif
-	return rcode;
+	return 0;	/* not reached */
 }
 
 
@@ -1141,6 +1174,55 @@ int do_mem_crc (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 #endif	/* CONFIG_CRC32_VERIFY */
 
+#ifdef CONFIG_CMD_MD5SUM
+int do_md5sum(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	unsigned long addr, len;
+	unsigned int i;
+	u8 output[16];
+
+	if (argc < 3) {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+
+	addr = simple_strtoul(argv[1], NULL, 16);
+	len = simple_strtoul(argv[2], NULL, 16);
+
+	md5((unsigned char *) addr, len, output);
+	printf("md5 for %08lx ... %08lx ==> ", addr, addr + len - 1);
+	for (i = 0; i < 16; i++)
+		printf("%02x", output[i]);
+	printf("\n");
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_CMD_SHA1
+int do_sha1sum(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	unsigned long addr, len;
+	unsigned int i;
+	u8 output[20];
+
+	if (argc < 3) {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+
+	addr = simple_strtoul(argv[1], NULL, 16);
+	len = simple_strtoul(argv[2], NULL, 16);
+
+	sha1_csum((unsigned char *) addr, len, output);
+	printf("SHA1 for %08lx ... %08lx ==> ", addr, addr + len - 1);
+	for (i = 0; i < 20; i++)
+		printf("%02x", output[i]);
+	printf("\n");
+
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_CMD_UNZIP
 int  gunzip (void *, int, unsigned char *, unsigned long *);
@@ -1266,6 +1348,22 @@ U_BOOT_CMD(
 	"[.b, .w, .l] address value delay(ms)"
 );
 #endif /* CONFIG_MX_CYCLIC */
+
+#ifdef CONFIG_CMD_MD5SUM
+U_BOOT_CMD(
+	md5sum,	3,	1,	do_md5sum,
+	"compute MD5 message digest",
+	"address count"
+);
+#endif
+
+#ifdef CONFIG_CMD_SHA1SUM
+U_BOOT_CMD(
+	sha1sum,	3,	1,	do_sha1sum,
+	"compute SHA1 message digest",
+	"address count"
+);
+#endif /* CONFIG_CMD_SHA1 */
 
 #ifdef CONFIG_CMD_UNZIP
 U_BOOT_CMD(

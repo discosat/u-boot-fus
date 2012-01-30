@@ -74,11 +74,6 @@ initdram(int board_type)
 	dram_size = fixed_sdram();
 #endif
 
-#if defined(CONFIG_SYS_RAMBOOT)
-	puts("    DDR: ");
-	return dram_size;
-#endif
-
 	puts("    DDR: ");
 	return dram_size;
 }
@@ -155,15 +150,14 @@ void pci_init_board(void)
 	uint devdisr = gur->devdisr;
 	uint io_sel = (gur->pordevsr & MPC8641_PORDEVSR_IO_SEL)
 		>> MPC8641_PORDEVSR_IO_SEL_SHIFT;
+	int pcie_configured = is_fsl_pci_cfg(LAW_TRGT_IF_PCIE_1, io_sel);
 
 #ifdef DEBUG
 	uint host1_agent = (gur->porbmsr & MPC8641_PORBMSR_HA)
 		>> MPC8641_PORBMSR_HA_SHIFT;
 	uint pex1_agent = (host1_agent == 0) || (host1_agent == 1);
 #endif
-	if ((io_sel == 2 || io_sel == 3 || io_sel == 5
-	     || io_sel == 6 || io_sel == 7 || io_sel == 0xF)
-	    && !(devdisr & MPC86xx_DEVDISR_PCIEX1)) {
+	if (pcie_configured && !(devdisr & MPC86xx_DEVDISR_PCIEX1)) {
 		debug("PCI-EXPRESS 1: %s \n", pex1_agent ? "Agent" : "Host");
 		debug("0x%08x=0x%08x ", &pci->pme_msg_det, pci->pme_msg_det);
 		if (pci->pme_msg_det) {
@@ -187,15 +181,11 @@ void pci_init_board(void)
 			       CONFIG_SYS_PCI1_IO_SIZE,
 			       PCI_REGION_IO);
 
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
-
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno=first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 		first_free_busno=hose->last_busno+1;
 		printf ("    PCI-EXPRESS 1 on bus %02x - %02x\n",
@@ -236,15 +226,11 @@ void pci_init_board(void)
 		       CONFIG_SYS_PCI2_IO_SIZE,
 		       PCI_REGION_IO);
 
-	/* inbound */
-	r += fsl_pci_setup_inbound_windows(r);
-
 	hose->region_count = r - hose->regions;
 
 	hose->first_busno=first_free_busno;
-	pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-	fsl_pci_init(hose);
+	fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 
 	first_free_busno=hose->last_busno+1;
 	printf ("    PCI-EXPRESS 2 on bus %02x - %02x\n",

@@ -100,7 +100,7 @@ int __pci_pre_init(struct pci_controller *hose)
 	 * The arbiter is enabled in this place because of
 	 * compatibility reasons.
 	 */
-	mtdcr(cpc0_pci, mfdcr(cpc0_pci) | CPC0_PCI_ARBIT_EN);
+	mtdcr(CPC0_PCI, mfdcr(CPC0_PCI) | CPC0_PCI_ARBIT_EN);
 #endif /* CONFIG_405EP */
 
 	return 1;
@@ -118,10 +118,10 @@ ushort pmc405_pci_subsys_deviceid(void);
 int __is_pci_host(struct pci_controller *hose)
 {
 #if defined(CONFIG_405GP)
-	if (mfdcr(strap) & PSR_PCI_ARBIT_EN)
+	if (mfdcr(CPC0_PSR) & PSR_PCI_ARBIT_EN)
 		return 1;
 #elif defined (CONFIG_405EP)
-	if (mfdcr(cpc0_pci) & CPC0_PCI_ARBIT_EN)
+	if (mfdcr(CPC0_PCI) & CPC0_PCI_ARBIT_EN)
 		return 1;
 #endif
 	return 0;
@@ -138,7 +138,7 @@ void pci_405gp_init(struct pci_controller *hose)
 
 	unsigned short temp_short;
 	unsigned long ptmpcila[2] = {CONFIG_SYS_PCI_PTM1PCI, CONFIG_SYS_PCI_PTM2PCI};
-#if defined(CONFIG_CPCI405) || defined(CONFIG_PMC405)
+#if defined(CONFIG_PCI_4xx_PTM_OVERWRITE)
 	char *ptmla_str, *ptmms_str;
 #endif
 	unsigned long ptmla[2]    = {CONFIG_SYS_PCI_PTM1LA, CONFIG_SYS_PCI_PTM2LA};
@@ -160,7 +160,7 @@ void pci_405gp_init(struct pci_controller *hose)
 #endif
 #endif
 
-#if defined(CONFIG_CPCI405) || defined(CONFIG_PMC405)
+#if defined(CONFIG_PCI_4xx_PTM_OVERWRITE)
 	ptmla_str = getenv("ptm1la");
 	ptmms_str = getenv("ptm1ms");
 	if(NULL != ptmla_str && NULL != ptmms_str ) {
@@ -491,7 +491,7 @@ int pci_440_init (struct pci_controller *hose)
 #if defined(CONFIG_440GX) || defined(CONFIG_440SP) || defined(CONFIG_440SPE)
 	unsigned long strap;
 
-	mfsdr(sdr_sdstp1,strap);
+	mfsdr(SDR0_SDSTP1,strap);
 	if ((strap & SDR0_SDSTP1_PISE_MASK) == 0) {
 		printf("PCI: SDR0_STRP1[PISE] not set.\n");
 		printf("PCI: Configuration aborted.\n");
@@ -500,7 +500,7 @@ int pci_440_init (struct pci_controller *hose)
 #elif defined(CONFIG_440GP)
 	unsigned long strap;
 
-	strap = mfdcr(cpc0_strp1);
+	strap = mfdcr(CPC0_STRP1);
 	if ((strap & CPC0_STRP1_PISE_MASK) == 0) {
 		printf("PCI: CPC0_STRP1[PISE] not set.\n");
 		printf("PCI: Configuration aborted.\n");
@@ -518,7 +518,7 @@ int pci_440_init (struct pci_controller *hose)
 	/* PCI I/O space */
 	pci_set_region(hose->regions + reg_num++,
 		       0x00000000,
-		       PCIX0_IOBASE,
+		       PCIL0_IOBASE,
 		       0x10000,
 		       PCI_REGION_IO);
 
@@ -545,7 +545,7 @@ int pci_440_init (struct pci_controller *hose)
 
 	hose->region_count = reg_num;
 
-	pci_setup_indirect(hose, PCIX0_CFGADR, PCIX0_CFGDATA);
+	pci_setup_indirect(hose, PCIL0_CFGADR, PCIL0_CFGDATA);
 
 	/* Let board change/modify hose & do initial checks */
 	if (pci_pre_init (hose) == 0) {
@@ -562,18 +562,18 @@ int pci_440_init (struct pci_controller *hose)
 #if defined(CONFIG_SYS_PCI_TARGET_INIT)
 	pci_target_init(hose);                /* Let board setup pci target */
 #else
-	out16r( PCIX0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
-	out16r( PCIX0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_ID );
-	out16r( PCIX0_CLS, 0x00060000 ); /* Bridge, host bridge */
+	out16r( PCIL0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID );
+	out16r( PCIL0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_ID );
+	out16r( PCIL0_CLS, 0x00060000 ); /* Bridge, host bridge */
 #endif
 
 #if defined(CONFIG_440GX) || defined(CONFIG_440SPE) || \
     defined(CONFIG_460EX) || defined(CONFIG_460GT)
-	out32r( PCIX0_BRDGOPT1, 0x04000060 );               /* PLB Rq pri highest   */
-	out32r( PCIX0_BRDGOPT2, in32(PCIX0_BRDGOPT2) | 0x83 ); /* Enable host config, clear Timeout, ensure int src1  */
-#elif defined(PCIX0_BRDGOPT1)
-	out32r( PCIX0_BRDGOPT1, 0x10000060 );               /* PLB Rq pri highest   */
-	out32r( PCIX0_BRDGOPT2, in32(PCIX0_BRDGOPT2) | 1 ); /* Enable host config   */
+	out32r( PCIL0_BRDGOPT1, 0x04000060 );               /* PLB Rq pri highest   */
+	out32r( PCIL0_BRDGOPT2, in32(PCIL0_BRDGOPT2) | 0x83 ); /* Enable host config, clear Timeout, ensure int src1  */
+#elif defined(PCIL0_BRDGOPT1)
+	out32r( PCIL0_BRDGOPT1, 0x10000060 );               /* PLB Rq pri highest   */
+	out32r( PCIL0_BRDGOPT2, in32(PCIL0_BRDGOPT2) | 1 ); /* Enable host config   */
 #endif
 
 	/*--------------------------------------------------------------------------+
@@ -583,23 +583,23 @@ int pci_440_init (struct pci_controller *hose)
 #if defined(CONFIG_SYS_PCI_MASTER_INIT)
 	pci_master_init(hose);          /* Let board setup pci master */
 #else
-	out32r( PCIX0_POM0SA, 0 ); /* disable */
-	out32r( PCIX0_POM1SA, 0 ); /* disable */
-	out32r( PCIX0_POM2SA, 0 ); /* disable */
+	out32r( PCIL0_POM0SA, 0 ); /* disable */
+	out32r( PCIL0_POM1SA, 0 ); /* disable */
+	out32r( PCIL0_POM2SA, 0 ); /* disable */
 #if defined(CONFIG_440SPE)
-	out32r( PCIX0_POM0LAL, 0x10000000 );
-	out32r( PCIX0_POM0LAH, 0x0000000c );
+	out32r( PCIL0_POM0LAL, 0x10000000 );
+	out32r( PCIL0_POM0LAH, 0x0000000c );
 #elif defined(CONFIG_460EX) || defined(CONFIG_460GT)
-	out32r( PCIX0_POM0LAL, 0x20000000 );
-	out32r( PCIX0_POM0LAH, 0x0000000c );
+	out32r( PCIL0_POM0LAL, 0x20000000 );
+	out32r( PCIL0_POM0LAH, 0x0000000c );
 #else
-	out32r( PCIX0_POM0LAL, 0x00000000 );
-	out32r( PCIX0_POM0LAH, 0x00000003 );
+	out32r( PCIL0_POM0LAL, 0x00000000 );
+	out32r( PCIL0_POM0LAH, 0x00000003 );
 #endif
-	out32r( PCIX0_POM0PCIAL, CONFIG_SYS_PCI_MEMBASE );
-	out32r( PCIX0_POM0PCIAH, 0x00000000 );
-	out32r( PCIX0_POM0SA, 0xf0000001 ); /* 256MB, enabled */
-	out32r( PCIX0_STS, in32r( PCIX0_STS ) & ~0x0000fff8 );
+	out32r( PCIL0_POM0PCIAL, CONFIG_SYS_PCI_MEMBASE );
+	out32r( PCIL0_POM0PCIAH, 0x00000000 );
+	out32r( PCIL0_POM0SA, 0xf0000001 ); /* 256MB, enabled */
+	out32r( PCIL0_STS, in32r( PCIL0_STS ) & ~0x0000fff8 );
 #endif
 
 	/*--------------------------------------------------------------------------+
@@ -614,7 +614,7 @@ int pci_440_init (struct pci_controller *hose)
 #endif
 #if !defined(CONFIG_440EP) && !defined(CONFIG_440GR) && \
     !defined(CONFIG_440EPX) && !defined(CONFIG_440GRX)
-		out16r( PCIX0_CMD, in16r( PCIX0_CMD ) | PCI_COMMAND_MASTER);
+		out16r( PCIL0_CMD, in16r( PCIL0_CMD ) | PCI_COMMAND_MASTER);
 #endif
 		hose->last_busno = pci_hose_scan(hose);
 	}

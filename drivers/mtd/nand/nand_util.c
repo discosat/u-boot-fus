@@ -452,7 +452,7 @@ static size_t get_len_incl_bad (nand_info_t *nand, loff_t offset,
 		len_incl_bad += block_len;
 		offset       += block_len;
 
-		if ((offset + len_incl_bad) >= nand->size)
+		if (offset >= nand->size)
 			break;
 	}
 
@@ -490,7 +490,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 
 	len_incl_bad = get_len_incl_bad (nand, offset, *length);
 
-	if ((offset + len_incl_bad) >= nand->size) {
+	if ((offset + len_incl_bad) > nand->size) {
 		printf ("Attempt to write outside the flash area\n");
 		return -EINVAL;
 	}
@@ -562,7 +562,7 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 
 	len_incl_bad = get_len_incl_bad (nand, offset, *length);
 
-	if ((offset + len_incl_bad) >= nand->size) {
+	if ((offset + len_incl_bad) > nand->size) {
 		printf ("Attempt to read outside the flash area\n");
 		return -EINVAL;
 	}

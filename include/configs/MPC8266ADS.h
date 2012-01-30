@@ -54,6 +54,7 @@
 #define CONFIG_CPM2		1	/* Has a CPM2 */
 
 #define CONFIG_BOARD_EARLY_INIT_F 1	/* Call board_early_init_f	*/
+#define CONFIG_RESET_PHY_R	1	/* Call reset_phy()		*/
 
 /* allow serial and ethaddr to be overwritten */
 #define CONFIG_ENV_OVERWRITE
@@ -95,6 +96,10 @@
  * Port pins used for bit-banged MII communictions (if applicable).
  */
 #define MDIO_PORT	2	/* Port C */
+#define MDIO_DECLARE	volatile ioport_t *iop = ioport_addr ( \
+				(immap_t *) CONFIG_SYS_IMMR, MDIO_PORT )
+#define MDC_DECLARE	MDIO_DECLARE
+
 #define MDIO_ACTIVE	(iop->pdir |=  0x00400000)
 #define MDIO_TRISTATE	(iop->pdir &= ~0x00400000)
 #define MDIO_READ	((iop->pdat &  0x00400000) != 0)

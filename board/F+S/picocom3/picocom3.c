@@ -26,6 +26,7 @@
 #include <s3c64x0.h>
 #include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
 #ifdef CONFIG_CMD_NET
+#include <net.h>			  /* eth_init(), eth_halt() */
 #include <netdev.h>			  /* ne2000_initialize() */
 #endif
 #ifdef CONFIG_LCD
@@ -80,6 +81,8 @@ static inline void delay(unsigned long loops)
 #ifdef CONFIG_CMD_NET
 int board_eth_init(bd_t *bis)
 {
+	int res;
+
 	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us) */
 	GPKDAT_REG &= ~0x00000010;
 	udelay(200);
@@ -95,7 +98,13 @@ int board_eth_init(bd_t *bis)
 #endif
 
 	/* Check for ethernet chip and register it */
-	return ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
+	res = ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
+	if (res >= 0) {
+		eth_init(bis);		 /* Set MAC-Address in any case */
+		eth_halt();
+	}
+
+	return res;
 }
 #endif /* CONFIG_CMD_NET */
 

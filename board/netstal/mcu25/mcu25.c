@@ -64,15 +64,15 @@ int board_early_init_f (void)
 	 *      IRQ 17-24 RESERVED/UNUSED
 	 *      IRQ 31 (EXT IRQ 6) (unused)
 	 */
-	mtdcr(uicsr, 0xFFFFFFFF); /* clear all ints */
-	mtdcr(uicer, 0x00000000); /* disable all ints */
-	mtdcr(uiccr, 0x00000000); /* set all to be non-critical */
-	mtdcr(uicpr, 0xFFFFE000); /* set int polarities */
-	mtdcr(uictr, 0x00000000); /* set int trigger levels */
-	mtdcr(uicsr, 0xFFFFFFFF); /* clear all ints */
+	mtdcr(UIC0SR, 0xFFFFFFFF); /* clear all ints */
+	mtdcr(UIC0ER, 0x00000000); /* disable all ints */
+	mtdcr(UIC0CR, 0x00000000); /* set all to be non-critical */
+	mtdcr(UIC0PR, 0xFFFFE000); /* set int polarities */
+	mtdcr(UIC0TR, 0x00000000); /* set int trigger levels */
+	mtdcr(UIC0SR, 0xFFFFFFFF); /* clear all ints */
 
-	mtdcr(cntrl1, CPC0_CR1_VALUE);
-	mtdcr(ecr, 0x60606000);
+	mtdcr(CPC0_CR1, CPC0_CR1_VALUE);
+	mtdcr(CPC0_ECR, 0x60606000);
 	mtdcr(CPC0_EIRR, 0x7C000000);
 	out32(GPIO0_OR,		CONFIG_SYS_GPIO0_OR );
 	out32(GPIO0_TCR,	CONFIG_SYS_GPIO0_TCR);
@@ -103,7 +103,7 @@ int checkboard (void)
 	u16 index      = boardVersReg & 0xf0;
 
 	/* Cannot be done in board_early_init */
-	mtdcr(cntrl0,  CPC0_CR0_VALUE);
+	mtdcr(CPC0_CR0,  CPC0_CR0_VALUE);
 
 	/* Force /RTS to active. The board it not wired quite
 	 * correctly to use cts/rtc flow control, so just force the

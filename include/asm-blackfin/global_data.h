@@ -44,7 +44,6 @@ typedef struct global_data {
 	unsigned long baudrate;
 	unsigned long have_console;	/* serial_init() was called */
 	phys_size_t ram_size;		/* RAM size */
-	unsigned long reloc_off;	/* Relocation Offset */
 	unsigned long env_addr;	/* Address  of Environment struct */
 	unsigned long env_valid;	/* Checksum of Environment valid? */
 #if defined(CONFIG_POST) || defined(CONFIG_LOGBUFFER)
@@ -66,6 +65,6 @@ typedef struct global_data {
 #define	GD_FLG_LOGINIT	0x00020	/* Log Buf has been initialized	 */
 #define GD_FLG_DISABLE_CONSOLE	0x00040		/* Disable console (in & out)	 */
 
-#define DECLARE_GLOBAL_DATA_PTR     register gd_t * volatile gd asm ("P5")
+#define DECLARE_GLOBAL_DATA_PTR     register gd_t * volatile gd asm ("P3")
 
 #endif

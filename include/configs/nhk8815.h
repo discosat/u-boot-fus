@@ -132,11 +132,16 @@
 #define __io(a)			((void __iomem *)(PCI_IO_VADDR + (a)))
 #define __mem_isa(a)		((a) + PCI_MEMORY_VADDR)
 
-#define CONFIG_DRIVER_SMC91111	/* Using SMC91c111*/
+#define CONFIG_NET_MULTI
+#define CONFIG_SMC91111	/* Using SMC91c111*/
 #define CONFIG_SMC91111_BASE	0x34000300
 #undef  CONFIG_SMC91111_EXT_PHY	/* Internal PHY */
 #define CONFIG_SMC_USE_32_BIT
 #define CONFIG_BOOTFILE		"uImage"
+
+#define CONFIG_IP_DEFRAG	/* Allows faster download, TFTP and NFS */
+#define CONFIG_TFTP_BLOCKSIZE	4096
+#define CONFIG_NFS_READ_SIZE	4096
 
 /* Storage information: onenand and nand */
 #define CONFIG_CMD_ONENAND

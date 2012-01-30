@@ -52,6 +52,10 @@
 
 #undef DEBUG
 
+#ifdef CONFIG_BITBANGMII
+#include <miiphy.h>
+#endif
+
 #ifdef CONFIG_DRIVER_SMC91111
 #include "../drivers/net/smc91111.h"
 #endif
@@ -60,9 +64,6 @@
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
-
-void nand_init (void);
-void onenand_init(void);
 
 ulong monitor_flash_len;
 
@@ -82,10 +83,6 @@ extern void autoload_script(void);
 const char version_string[] =
 	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")"CONFIG_IDENT_STRING;
 
-#ifdef CONFIG_DRIVER_CS8900
-extern void cs8900_get_enetaddr (void);
-#endif
-
 #ifdef CONFIG_DRIVER_RTL8019
 extern void rtl8019_get_enetaddr (uchar * addr);
 #endif
@@ -94,36 +91,6 @@ extern void rtl8019_get_enetaddr (uchar * addr);
     defined(CONFIG_SOFT_I2C)
 #include <i2c.h>
 #endif
-
-/*
- * Begin and End of memory area for malloc(), and current "brk"
- */
-static ulong mem_malloc_start = 0;
-static ulong mem_malloc_end = 0;
-static ulong mem_malloc_brk = 0;
-
-static void mem_malloc_init (ulong dest_addr)
-{
-	mem_malloc_start = dest_addr;
-	mem_malloc_end = dest_addr + CONFIG_SYS_MALLOC_LEN;
-	mem_malloc_brk = mem_malloc_start;
-
-	memset ((void *) mem_malloc_start, 0,
-			mem_malloc_end - mem_malloc_start);
-}
-
-void *sbrk (ptrdiff_t increment)
-{
-	ulong old = mem_malloc_brk;
-	ulong new = old + increment;
-
-	if ((new < mem_malloc_start) || (new > mem_malloc_end)) {
-		return (NULL);
-	}
-	mem_malloc_brk = new;
-
-	return ((void *) old);
-}
 
 
 /************************************************************************
@@ -339,7 +306,6 @@ void start_armboot (void)
 
 	gd->flags |= GD_FLG_RELOC;
 
-
 	monitor_flash_len = _bss_start - _armboot_start;
 
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
@@ -351,10 +317,12 @@ void start_armboot (void)
 
 #ifdef CONFIG_MEMORY_UPPER_CODE /* by scsuh */
 	mem_malloc_init (CONFIG_SYS_UBOOT_BASE + CONFIG_SYS_UBOOT_SIZE
-			 - CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_STACK_SIZE);
+			 - CONFIG_SYS_MALLOC_LEN - CONFIG_SYS_STACK_SIZE,
+			 CONFIG_SYS_MALLOC_LEN);
 #else
 	/* armboot_start is defined in the board-specific linker script */
-	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN);
+	mem_malloc_init (_armboot_start - CONFIG_SYS_MALLOC_LEN,
+			 CONFIG_SYS_MALLOC_LEN);
 #endif
 
 #ifndef CONFIG_SYS_NO_FLASH
@@ -442,11 +410,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	}
 #endif
 
-#ifdef CONFIG_DRIVER_CS8900
-	/* XXX: this needs to be moved to board init */
-	cs8900_get_enetaddr ();
-#endif
-
 #if defined(CONFIG_DRIVER_SMC91111) || defined (CONFIG_DRIVER_LAN91C96)
 	/* XXX: this needs to be moved to board init */
 	if (getenv ("ethaddr")) {
@@ -475,6 +438,9 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	mmc_initialize (gd->bd);
 #endif
 
+#ifdef CONFIG_BITBANGMII
+	bb_miiphy_init();
+#endif
 #if defined(CONFIG_CMD_NET)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
@@ -484,8 +450,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 	debug ("Reset Ethernet PHY\n");
 	reset_phy();
 #endif
-        eth_init(gd->bd);                /* ### Set MAC-Address in any case */
-        eth_halt();
 #endif
 
 #if defined(CONFIG_CMD_IDE)

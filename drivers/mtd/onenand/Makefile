@@ -25,20 +25,8 @@ include $(TOPDIR)/config.mk
 
 LIB	:= $(obj)libonenand.a
 
-COBJS-$(CONFIG_CMD_ONENAND)	:= onenand_uboot.o
-ifeq ($(BOARD),smdk6400)
-COBJS-y += s3c_onenand.o
-else ifeq ($(BOARD),smdk6410)
-COBJS-y += s3c_onenand.o
-else ifeq ($(BOARD),smdk6430)
-COBJS-y += s3c_onenand.o
-else ifeq ($(BOARD),smdkc100)
-COBJS-y += s3c_onenand.o
-else ifeq ($(BOARD),smdkc110)
-COBJS-y += s3c_onenand.o
-else
-COBJS-$(CONFIG_CMD_ONENAND) += onenand_base.o onenand_bbt.o
-endif
+COBJS-$(CONFIG_CMD_ONENAND)	:= onenand_uboot.o onenand_base.o onenand_bbt.o
+COBJS-$(CONFIG_SAMSUNG_ONENAND)	+= samsung.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

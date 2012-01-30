@@ -81,6 +81,7 @@
 #endif /* CONFIG_ADSTYPE == CONFIG_SYS_8272ADS */
 
 #define CONFIG_BOARD_EARLY_INIT_F 1	/* Call board_early_init_f	*/
+#define CONFIG_RESET_PHY_R	1	/* Call reset_phy()		*/
 
 /* allow serial and ethaddr to be overwritten */
 #define CONFIG_ENV_OVERWRITE
@@ -149,6 +150,9 @@
  * GPIO pins used for bit-banged MII communications
  */
 #define MDIO_PORT	2		/* Port C */
+#define MDIO_DECLARE	volatile ioport_t *iop = ioport_addr ( \
+				(immap_t *) CONFIG_SYS_IMMR, MDIO_PORT )
+#define MDC_DECLARE	MDIO_DECLARE
 
 #if CONFIG_ADSTYPE == CONFIG_SYS_8272ADS
 #define CONFIG_SYS_MDIO_PIN	0x00002000	/* PC18 */
@@ -209,7 +213,6 @@
 #define CONFIG_OF_LIBFDT	1
 #define CONFIG_OF_BOARD_SETUP	1
 #if defined(CONFIG_OF_LIBFDT)
-#define OF_CPU			"cpu@0"
 #define OF_TBCLK		(bd->bi_busfreq / 4)
 #endif
 

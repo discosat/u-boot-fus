@@ -28,6 +28,7 @@
 #include <asm/mmu.h>
 #include <asm/4xx_pcie.h>
 #include <asm/gpio.h>
+#include <asm/errno.h>
 
 extern flash_info_t flash_info[CONFIG_SYS_MAX_FLASH_BANKS]; /* info for FLASH chips */
 
@@ -116,37 +117,37 @@ int board_early_init_f(void)
 	/*
 	 * Setup the interrupt controller polarities, triggers, etc.
 	 */
-	mtdcr(uic0sr, 0xffffffff);	/* clear all */
-	mtdcr(uic0er, 0x00000000);	/* disable all */
-	mtdcr(uic0cr, 0x00000005);	/* ATI & UIC1 crit are critical */
-	mtdcr(uic0pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr(uic0tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic0vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic0sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC0SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC0ER, 0x00000000);	/* disable all */
+	mtdcr(UIC0CR, 0x00000005);	/* ATI & UIC1 crit are critical */
+	mtdcr(UIC0PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr(UIC0TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC0VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC0SR, 0xffffffff);	/* clear all */
 
-	mtdcr(uic1sr, 0xffffffff);	/* clear all */
-	mtdcr(uic1er, 0x00000000);	/* disable all */
-	mtdcr(uic1cr, 0x00000000);	/* all non-critical */
-	mtdcr(uic1pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr(uic1tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic1vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic1sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC1SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC1ER, 0x00000000);	/* disable all */
+	mtdcr(UIC1CR, 0x00000000);	/* all non-critical */
+	mtdcr(UIC1PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr(UIC1TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC1VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC1SR, 0xffffffff);	/* clear all */
 
-	mtdcr(uic2sr, 0xffffffff);	/* clear all */
-	mtdcr(uic2er, 0x00000000);	/* disable all */
-	mtdcr(uic2cr, 0x00000000);	/* all non-critical */
-	mtdcr(uic2pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr(uic2tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic2vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic2sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC2SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC2ER, 0x00000000);	/* disable all */
+	mtdcr(UIC2CR, 0x00000000);	/* all non-critical */
+	mtdcr(UIC2PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr(UIC2TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC2VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC2SR, 0xffffffff);	/* clear all */
 
-	mtdcr(uic3sr, 0xffffffff);	/* clear all */
-	mtdcr(uic3er, 0x00000000);	/* disable all */
-	mtdcr(uic3cr, 0x00000000);	/* all non-critical */
-	mtdcr(uic3pr, 0xffffffff);	/* per ref-board manual */
-	mtdcr(uic3tr, 0x00000000);	/* per ref-board manual */
-	mtdcr(uic3vr, 0x00000000);	/* int31 highest, base=0x000 */
-	mtdcr(uic3sr, 0xffffffff);	/* clear all */
+	mtdcr(UIC3SR, 0xffffffff);	/* clear all */
+	mtdcr(UIC3ER, 0x00000000);	/* disable all */
+	mtdcr(UIC3CR, 0x00000000);	/* all non-critical */
+	mtdcr(UIC3PR, 0xffffffff);	/* per ref-board manual */
+	mtdcr(UIC3TR, 0x00000000);	/* per ref-board manual */
+	mtdcr(UIC3VR, 0x00000000);	/* int31 highest, base=0x000 */
+	mtdcr(UIC3SR, 0xffffffff);	/* clear all */
 
 #if !defined(CONFIG_ARCHES)
 	/* SDR Setting - enable NDFC */
@@ -338,27 +339,27 @@ void pci_target_init(struct pci_controller * hose )
 	/*
 	 * Disable everything
 	 */
-	out_le32((void *)PCIX0_PIM0SA, 0); /* disable */
-	out_le32((void *)PCIX0_PIM1SA, 0); /* disable */
-	out_le32((void *)PCIX0_PIM2SA, 0); /* disable */
-	out_le32((void *)PCIX0_EROMBA, 0); /* disable expansion rom */
+	out_le32((void *)PCIL0_PIM0SA, 0); /* disable */
+	out_le32((void *)PCIL0_PIM1SA, 0); /* disable */
+	out_le32((void *)PCIL0_PIM2SA, 0); /* disable */
+	out_le32((void *)PCIL0_EROMBA, 0); /* disable expansion rom */
 
 	/*
 	 * Map all of SDRAM to PCI address 0x0000_0000. Note that the 440
 	 * strapping options to not support sizes such as 128/256 MB.
 	 */
-	out_le32((void *)PCIX0_PIM0LAL, CONFIG_SYS_SDRAM_BASE);
-	out_le32((void *)PCIX0_PIM0LAH, 0);
-	out_le32((void *)PCIX0_PIM0SA, ~(gd->ram_size - 1) | 1);
-	out_le32((void *)PCIX0_BAR0, 0);
+	out_le32((void *)PCIL0_PIM0LAL, CONFIG_SYS_SDRAM_BASE);
+	out_le32((void *)PCIL0_PIM0LAH, 0);
+	out_le32((void *)PCIL0_PIM0SA, ~(gd->ram_size - 1) | 1);
+	out_le32((void *)PCIL0_BAR0, 0);
 
 	/*
 	 * Program the board's subsystem id/vendor id
 	 */
-	out_le16((void *)PCIX0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID);
-	out_le16((void *)PCIX0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID);
+	out_le16((void *)PCIL0_SBSYSVID, CONFIG_SYS_PCI_SUBSYS_VENDORID);
+	out_le16((void *)PCIL0_SBSYSID, CONFIG_SYS_PCI_SUBSYS_DEVICEID);
 
-	out_le16((void *)PCIX0_CMD, in16r(PCIX0_CMD) | PCI_COMMAND_MEMORY);
+	out_le16((void *)PCIL0_CMD, in16r(PCIL0_CMD) | PCI_COMMAND_MEMORY);
 }
 #endif	/* defined(CONFIG_PCI) && defined(CONFIG_SYS_PCI_TARGET_INIT) */
 
@@ -414,6 +415,8 @@ void pcie_setup_hoses(int busno)
 			ret = ppc4xx_init_pcie_endport(i);
 		else
 			ret = ppc4xx_init_pcie_rootport(i);
+		if (ret == -ENODEV)
+			continue;
 		if (ret) {
 			printf("PCIE%d: initialization as %s failed\n", i,
 			       is_end_point(i) ? "endpoint" : "root-complex");
@@ -475,9 +478,9 @@ int board_early_init_r (void)
 
 	/* Remap the NOR FLASH to 0xcc00.0000 ... 0xcfff.ffff */
 #if defined(CONFIG_NAND_U_BOOT) || defined(CONFIG_NAND_SPL)
-	mtebc(pb3cr, CONFIG_SYS_FLASH_BASE_PHYS_L | 0xda000);
+	mtebc(PB3CR, CONFIG_SYS_FLASH_BASE_PHYS_L | 0xda000);
 #else
-	mtebc(pb0cr, CONFIG_SYS_FLASH_BASE_PHYS_L | 0xda000);
+	mtebc(PB0CR, CONFIG_SYS_FLASH_BASE_PHYS_L | 0xda000);
 #endif
 
 	/* Remove TLB entry of boot EBC mapping */

@@ -17,6 +17,7 @@
 #include <net.h>
 #include <command.h>
 #include <tsec.h>
+#include <asm/errno.h>
 
 #include "miiphy.h"
 
@@ -33,8 +34,6 @@ typedef volatile struct rtxbd {
 } RTXBD;
 
 #define MAXCONTROLLERS	(8)
-
-static int relocated = 0;
 
 static struct tsec_private *privlist[MAXCONTROLLERS];
 static int num_tsecs = 0;
@@ -58,7 +57,6 @@ uint read_phy_reg(struct tsec_private *priv, uint regnum);
 struct phy_info *get_phy_info(struct eth_device *dev);
 void phy_run_commands(struct tsec_private *priv, struct phy_cmd *cmd);
 static void adjust_link(struct eth_device *dev);
-static void relocate_cmds(void);
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII) \
 	&& !defined(BITBANGMII)
 static int tsec_miiphy_write(char *devname, unsigned char addr,
@@ -320,9 +318,6 @@ static int init_phy(struct eth_device *dev)
 	asm("sync");
 	while (priv->phyregs->miimind & MIIMIND_BUSY) ;
 
-	if (0 == relocated)
-		relocate_cmds();
-
 	/* Get the cmd structure corresponding to the attached
 	 * PHY */
 	curphy = get_phy_info(dev);
@@ -378,6 +373,12 @@ uint mii_parse_sr(uint mii_reg, struct tsec_private * priv)
 				puts(" TIMEOUT !\n");
 				priv->link = 0;
 				return 0;
+			}
+
+			if (ctrlc()) {
+				puts("user interrupt!\n");
+				priv->link = 0;
+				return -EINTR;
 			}
 
 			if ((i++ % 1000) == 0) {
@@ -1791,49 +1792,6 @@ void phy_run_commands(struct tsec_private *priv, struct phy_cmd *cmd)
 		}
 		cmd++;
 	}
-}
-
-/* Relocate the function pointers in the phy cmd lists */
-static void relocate_cmds(void)
-{
-	struct phy_cmd **cmdlistptr;
-	struct phy_cmd *cmd;
-	int i, j, k;
-
-	for (i = 0; phy_info[i]; i++) {
-		/* First thing's first: relocate the pointers to the
-		 * PHY command structures (the structs were done) */
-		phy_info[i] = (struct phy_info *)((uint) phy_info[i]
-						  + gd->reloc_off);
-		phy_info[i]->name += gd->reloc_off;
-		phy_info[i]->config =
-		    (struct phy_cmd *)((uint) phy_info[i]->config
-				       + gd->reloc_off);
-		phy_info[i]->startup =
-		    (struct phy_cmd *)((uint) phy_info[i]->startup
-				       + gd->reloc_off);
-		phy_info[i]->shutdown =
-		    (struct phy_cmd *)((uint) phy_info[i]->shutdown
-				       + gd->reloc_off);
-
-		cmdlistptr = &phy_info[i]->config;
-		j = 0;
-		for (; cmdlistptr <= &phy_info[i]->shutdown; cmdlistptr++) {
-			k = 0;
-			for (cmd = *cmdlistptr;
-			     cmd->mii_reg != miim_end;
-			     cmd++) {
-				/* Only relocate non-NULL pointers */
-				if (cmd->funct)
-					cmd->funct += gd->reloc_off;
-
-				k++;
-			}
-			j++;
-		}
-	}
-
-	relocated = 1;
 }
 
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII) \

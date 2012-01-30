@@ -389,9 +389,6 @@ pci_init_board(void)
 			pci_arb ? "arbiter" : "external-arbiter"
 			);
 
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
-
 		/* outbound memory */
 		pci_set_region(r++,
 				CONFIG_SYS_PCI1_MEM_BUS,
@@ -409,9 +406,8 @@ pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno = first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 		first_free_busno = hose->last_busno+1;
 		printf ("PCI on bus %02x - %02x\n",hose->first_busno,hose->last_busno);
 	} else {
@@ -426,10 +422,10 @@ pci_init_board(void)
 {
 	volatile ccsr_fsl_pci_t *pci = (ccsr_fsl_pci_t *) CONFIG_SYS_PCIE1_ADDR;
 	struct pci_controller *hose = &pcie1_hose;
-	int pcie_ep =  (host_agent == 0) || (host_agent == 2 ) || (host_agent == 3);
+	int pcie_ep = is_fsl_pci_agent(LAW_TRGT_IF_PCIE_1, host_agent);
 	struct pci_region *r = hose->regions;
 
-	int pcie_configured  = io_sel >= 1;
+	int pcie_configured = is_fsl_pci_cfg(LAW_TRGT_IF_PCIE_1, io_sel);
 
 	if (pcie_configured && !(gur->devdisr & MPC85xx_DEVDISR_PCIE)){
 		printf ("\n    PCIE connected to slot as %s (base address %x)",
@@ -441,9 +437,6 @@ pci_init_board(void)
 			debug (" with errors.  Clearing.  Now 0x%08x",pci->pme_msg_det);
 		}
 		printf ("\n");
-
-		/* inbound */
-		r += fsl_pci_setup_inbound_windows(r);
 
 		/* outbound memory */
 		pci_set_region(r++,
@@ -462,9 +455,8 @@ pci_init_board(void)
 		hose->region_count = r - hose->regions;
 
 		hose->first_busno=first_free_busno;
-		pci_setup_indirect(hose, (int) &pci->cfg_addr, (int) &pci->cfg_data);
 
-		fsl_pci_init(hose);
+		fsl_pci_init(hose, (u32)&pci->cfg_addr, (u32)&pci->cfg_data);
 		printf ("PCIE on bus %02x - %02x\n",hose->first_busno,hose->last_busno);
 
 		first_free_busno=hose->last_busno+1;

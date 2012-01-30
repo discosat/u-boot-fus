@@ -1,3 +1,26 @@
+/*
+ * Copyright 2008-2009 Freescale Semiconductor, Inc.
+ * Kumar Gala <kumar.gala@freescale.com>
+ *
+ * See file CREDITS for list of people who contributed to this
+ * project.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
 #include <config.h>
 #include <mpc85xx.h>
 #include <version.h>
@@ -79,17 +102,22 @@ __secondary_start_page:
 #ifdef CONFIG_BACKSIDE_L2_CACHE
 	/* Enable/invalidate the L2 cache */
 	msync
-	lis	r3,L2CSR0_L2FI@h
-	mtspr	SPRN_L2CSR0,r3
+	lis	r2,(L2CSR0_L2FI|L2CSR0_L2LFC)@h
+	ori	r2,r2,(L2CSR0_L2FI|L2CSR0_L2LFC)@l
+	mtspr	SPRN_L2CSR0,r2
 1:
 	mfspr	r3,SPRN_L2CSR0
-	andis.	r1,r3,L2CSR0_L2FI@h
+	and.	r1,r3,r2
 	bne	1b
 
 	lis	r3,CONFIG_SYS_INIT_L2CSR0@h
 	ori	r3,r3,CONFIG_SYS_INIT_L2CSR0@l
 	mtspr	SPRN_L2CSR0,r3
 	isync
+2:
+	mfspr	r3,SPRN_L2CSR0
+	andis.	r1,r3,L2CSR0_L2E@h
+	beq	2b
 #endif
 
 #define EPAPR_MAGIC		(0x45504150)
@@ -114,23 +142,38 @@ __secondary_start_page:
 	stw	r3,ENTRY_R6_UPPER(r10)
 	stw	r3,ENTRY_R6_LOWER(r10)
 
+	/* load r13 with the address of the 'bootpg' in SDRAM */
+	lis	r13,toreset(__bootpg_addr)@h
+	ori	r13,r13,toreset(__bootpg_addr)@l
+	lwz	r13,0(r13)
+
 	/* setup mapping for AS = 1, and jump there */
 	lis	r11,(MAS0_TLBSEL(1)|MAS0_ESEL(1))@h
 	mtspr	SPRN_MAS0,r11
 	lis	r11,(MAS1_VALID|MAS1_IPROT)@h
 	ori	r11,r11,(MAS1_TS|MAS1_TSIZE(BOOKE_PAGESZ_4K))@l
 	mtspr	SPRN_MAS1,r11
-	lis	r11,(0xfffff000|MAS2_I)@h
-	ori	r11,r11,(0xfffff000|MAS2_I)@l
+	oris	r11,r13,(MAS2_I)@h
+	ori	r11,r13,(MAS2_I)@l
 	mtspr	SPRN_MAS2,r11
-	lis	r11,(0xfffff000|MAS3_SX|MAS3_SW|MAS3_SR)@h
-	ori	r11,r11,(0xfffff000|MAS3_SX|MAS3_SW|MAS3_SR)@l
+	oris	r11,r13,(MAS3_SX|MAS3_SW|MAS3_SR)@h
+	ori	r11,r13,(MAS3_SX|MAS3_SW|MAS3_SR)@l
 	mtspr	SPRN_MAS3,r11
 	tlbwe
 
 	bl	1f
 1:	mflr	r11
-	addi	r11,r11,28
+	/*
+	 * OR in 0xfff to create a mask of the bootpg SDRAM address.  We use
+	 * this mask to fixup the cpu spin table and the address that we want
+	 * to jump to, eg change them from 0xfffffxxx to 0x7ffffxxx if the
+	 * bootpg is at 0x7ffff000 in SDRAM.
+	 */
+	ori	r13,r13,0xfff
+	and	r11, r11, r13
+	and	r10, r10, r13
+
+	addi	r11,r11,(2f-1b)
 	mfmsr	r13
 	ori	r12,r13,MSR_IS|MSR_DS@l
 
@@ -144,6 +187,9 @@ __secondary_start_page:
 	andi.	r11,r4,1
 	bne	2b
 	isync
+
+	/* setup IVORs to match fixed offsets */
+#include "fixed_ivor.S"
 
 	/* get the upper bits of the addr */
 	lwz	r11,ENTRY_ADDR_UPPER(r10)
@@ -200,10 +246,19 @@ __secondary_start_page:
 	mtspr	SPRN_SRR1,r13
 	rfi
 
+	/*
+	 * Allocate some space for the SDRAM address of the bootpg.
+	 * This variable has to be in the boot page so that it can
+	 * be accessed by secondary cores when they come out of reset.
+	 */
+	.globl __bootpg_addr
+__bootpg_addr:
+	.long	0
+
 	.align L1_CACHE_SHIFT
 	.globl __spin_table
 __spin_table:
-	.space CONFIG_NUM_CPUS*ENTRY_SIZE
+	.space CONFIG_MAX_CPUS*ENTRY_SIZE
 
 	/* Fill in the empty space.  The actual reset vector is
 	 * the last word of the page */

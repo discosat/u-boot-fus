@@ -64,7 +64,7 @@ int get_cpu_num(void) __attribute__((weak, alias("__get_cpu_num")));
 static int pci_async_enabled(void)
 {
 #if defined(CONFIG_405GP)
-	return (mfdcr(strap) & PSR_PCI_ASYNC_EN);
+	return (mfdcr(CPC0_PSR) & PSR_PCI_ASYNC_EN);
 #endif
 
 #if defined(CONFIG_440EP) || defined(CONFIG_440GR) || \
@@ -72,7 +72,7 @@ static int pci_async_enabled(void)
     defined(CONFIG_460EX) || defined(CONFIG_460GT)
 	unsigned long val;
 
-	mfsdr(sdr_sdstp1, val);
+	mfsdr(SDR0_SDSTP1, val);
 	return (val & SDR0_SDSTP1_PAME_MASK);
 #endif
 }
@@ -84,21 +84,21 @@ static int pci_async_enabled(void)
 static int pci_arbiter_enabled(void)
 {
 #if defined(CONFIG_405GP)
-	return (mfdcr(strap) & PSR_PCI_ARBIT_EN);
+	return (mfdcr(CPC0_PSR) & PSR_PCI_ARBIT_EN);
 #endif
 
 #if defined(CONFIG_405EP)
-	return (mfdcr(cpc0_pci) & CPC0_PCI_ARBIT_EN);
+	return (mfdcr(CPC0_PCI) & CPC0_PCI_ARBIT_EN);
 #endif
 
 #if defined(CONFIG_440GP)
-	return (mfdcr(cpc0_strp1) & CPC0_STRP1_PAE_MASK);
+	return (mfdcr(CPC0_STRP1) & CPC0_STRP1_PAE_MASK);
 #endif
 
 #if defined(CONFIG_440GX) || defined(CONFIG_440SP) || defined(CONFIG_440SPE)
 	unsigned long val;
 
-	mfsdr(sdr_xcr, val);
+	mfsdr(SDR0_XCR, val);
 	return (val & 0x80000000);
 #endif
 #if defined(CONFIG_440EP) || defined(CONFIG_440GR) || \
@@ -106,7 +106,7 @@ static int pci_arbiter_enabled(void)
     defined(CONFIG_460EX) || defined(CONFIG_460GT)
 	unsigned long val;
 
-	mfsdr(sdr_pci0, val);
+	mfsdr(SDR0_PCI0, val);
 	return (val & 0x80000000);
 #endif
 }
@@ -118,11 +118,11 @@ static int pci_arbiter_enabled(void)
 static int i2c_bootrom_enabled(void)
 {
 #if defined(CONFIG_405EP)
-	return (mfdcr(cpc0_boot) & CPC0_BOOT_SEP);
+	return (mfdcr(CPC0_BOOT) & CPC0_BOOT_SEP);
 #else
 	unsigned long val;
 
-	mfsdr(sdr_sdcs, val);
+	mfsdr(SDR0_SDCS0, val);
 	return (val & SDR0_SDCS_SDD);
 #endif
 }
@@ -256,7 +256,7 @@ static int bootstrap_option(void)
 {
 	unsigned long val;
 
-	mfsdr(SDR_PINSTP, val);
+	mfsdr(SDR0_PINSTP, val);
 	return ((val & 0xf0000000) >> SDR0_PINSTP_SHIFT);
 }
 #endif /* SDR0_PINSTP_SHIFT */
@@ -265,13 +265,13 @@ static int bootstrap_option(void)
 #if defined(CONFIG_440)
 static int do_chip_reset (unsigned long sys0, unsigned long sys1)
 {
-	/* Changes to cpc0_sys0 and cpc0_sys1 require chip
+	/* Changes to CPC0_SYS0 and CPC0_SYS1 require chip
 	 * reset.
 	 */
-	mtdcr (cntrl0, mfdcr (cntrl0) | 0x80000000);	/* Set SWE */
-	mtdcr (cpc0_sys0, sys0);
-	mtdcr (cpc0_sys1, sys1);
-	mtdcr (cntrl0, mfdcr (cntrl0) & ~0x80000000);	/* Clr SWE */
+	mtdcr (CPC0_CR0, mfdcr (CPC0_CR0) | 0x80000000);	/* Set SWE */
+	mtdcr (CPC0_SYS0, sys0);
+	mtdcr (CPC0_SYS1, sys1);
+	mtdcr (CPC0_CR0, mfdcr (CPC0_CR0) & ~0x80000000);	/* Clr SWE */
 	mtspr (SPRN_DBCR0, 0x20000000);	/* Reset the chip */
 
 	return 1;
@@ -371,16 +371,6 @@ int checkcpu (void)
 		strcpy(addstr, "Security support");
 		break;
 
-	case PVR_405EX2_RA:
-		puts("EX Rev. A");
-		strcpy(addstr, "No Security support");
-		break;
-
-	case PVR_405EXR1_RA:
-		puts("EXr Rev. A");
-		strcpy(addstr, "Security support");
-		break;
-
 	case PVR_405EXR2_RA:
 		puts("EXr Rev. A");
 		strcpy(addstr, "No Security support");
@@ -406,17 +396,37 @@ int checkcpu (void)
 		strcpy(addstr, "No Security support");
 		break;
 
+	case PVR_405EX1_RD:
+		puts("EX Rev. D");
+		strcpy(addstr, "Security support");
+		break;
+
+	case PVR_405EX2_RD:
+		puts("EX Rev. D");
+		strcpy(addstr, "No Security support");
+		break;
+
+	case PVR_405EXR1_RD:
+		puts("EXr Rev. D");
+		strcpy(addstr, "Security support");
+		break;
+
+	case PVR_405EXR2_RD:
+		puts("EXr Rev. D");
+		strcpy(addstr, "No Security support");
+		break;
+
 #if defined(CONFIG_440)
 	case PVR_440GP_RB:
 		puts("GP Rev. B");
 		/* See errata 1.12: CHIP_4 */
-		if ((mfdcr(cpc0_sys0) != mfdcr(cpc0_strp0)) ||
-		    (mfdcr(cpc0_sys1) != mfdcr(cpc0_strp1)) ){
+		if ((mfdcr(CPC0_SYS0) != mfdcr(CPC0_STRP0)) ||
+		    (mfdcr(CPC0_SYS1) != mfdcr(CPC0_STRP1)) ){
 			puts (  "\n\t CPC0_SYSx DCRs corrupted. "
 				"Resetting chip ...\n");
 			udelay( 1000 * 1000 ); /* Give time for serial buf to clear */
-			do_chip_reset ( mfdcr(cpc0_strp0),
-					mfdcr(cpc0_strp1) );
+			do_chip_reset ( mfdcr(CPC0_STRP0),
+					mfdcr(CPC0_STRP1) );
 		}
 		break;
 
@@ -598,10 +608,17 @@ int checkcpu (void)
 		break;
 	}
 
-	printf (" at %s MHz (PLB=%lu, OPB=%lu, EBC=%lu MHz)\n", strmhz(buf, clock),
+	printf (" at %s MHz (PLB=%lu OPB=%lu EBC=%lu",
+		strmhz(buf, clock),
 		sys_info.freqPLB / 1000000,
 		get_OPB_freq() / 1000000,
 		sys_info.freqEBC / 1000000);
+#if defined(CONFIG_PCI) && \
+	(defined(CONFIG_440EP) || defined(CONFIG_440EPX) || \
+	 defined(CONFIG_440GR) || defined(CONFIG_440GRX))
+	printf(" PCI=%lu MHz", sys_info.freqPCI / 1000000);
+#endif
+	printf(")\n");
 
 	if (addstr[0] != 0)
 		printf("       %s\n", addstr);

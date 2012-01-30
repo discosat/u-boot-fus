@@ -24,6 +24,7 @@
 #ifndef	__ASM_GBL_DATA_H
 #define __ASM_GBL_DATA_H
 
+#include "config.h"
 #include "asm/types.h"
 
 /*
@@ -86,11 +87,12 @@ typedef	struct	global_data {
 	u32  mem_sec_clk;
 #endif /* CONFIG_MPC8360 */
 #endif
-#if defined(CONFIG_MPC837x) || defined(CONFIG_MPC8536)
+#if defined(CONFIG_FSL_ESDHC)
 	u32 sdhc_clk;
 #endif
 #if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
 	u32 lbc_clk;
+	void *cpu;
 #endif /* CONFIG_MPC85xx || CONFIG_MPC86xx */
 #if defined(CONFIG_MPC83xx) || defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
 	u32 i2c1_clk;
@@ -123,7 +125,6 @@ typedef	struct	global_data {
 	unsigned long   flb_clk;
 #endif
 	phys_size_t	ram_size;	/* RAM size */
-	unsigned long	reloc_off;	/* Relocation Offset */
 	unsigned long	reset_status;	/* reset status register at boot	*/
 #if defined(CONFIG_MPC83xx)
 	unsigned long	arbiter_event_attributes;

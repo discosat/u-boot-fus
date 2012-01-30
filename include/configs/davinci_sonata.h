@@ -19,7 +19,6 @@
 
 #ifndef __CONFIG_H
 #define __CONFIG_H
-#include <asm/sizes.h>
 
 /*
  * Define this to make U-Boot skip low level initialization when loaded
@@ -119,13 +118,14 @@
 #define CONFIG_SYS_NO_FLASH
 #define CONFIG_ENV_IS_IN_NAND		/* U-Boot env in NAND Flash  */
 #define CONFIG_ENV_SECT_SIZE	512	/* Env sector Size */
-#define CONFIG_ENV_SIZE		SZ_16K
+#define CONFIG_ENV_SIZE		(16 << 10)	/* 16 KiB */
 #define CONFIG_SKIP_LOWLEVEL_INIT	/* U-Boot is loaded by a bootloader */
 #define CONFIG_SKIP_RELOCATE_UBOOT	/* to a proper address, init done */
 #define CONFIG_SYS_NAND_BASE		0x02000000
 #define CONFIG_SYS_NAND_HW_ECC
 #define CONFIG_SYS_MAX_NAND_DEVICE	1	/* Max number of NAND devices */
 #define CONFIG_ENV_OFFSET		0x0	/* Block 0--not used by bootcode */
+#define CONFIG_SYS_64BIT_VSPRINTF	/* needed for nand_util.c */
 #define DEF_BOOTM		""
 #elif defined(CONFIG_SYS_USE_NOR)
 #ifdef CONFIG_NOR_UART_BOOT

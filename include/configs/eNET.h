@@ -86,6 +86,7 @@
 #define CONFIG_CMD_MISC		/* Misc functions like sleep etc*/
 #undef CONFIG_CMD_NET		/* bootp, tftpboot, rarpboot	*/
 #undef CONFIG_CMD_NFS		/* NFS support			*/
+#define CONFIG_CMD_PCI		/* PCI support			*/
 #define CONFIG_CMD_RUN		/* run command in env variable	*/
 #define CONFIG_CMD_SAVEENV	/* saveenv			*/
 #define CONFIG_CMD_SETGETDCR	/* DCR support on 4xx		*/
@@ -188,26 +189,24 @@
   * Environment configuration
   */
 #define CONFIG_ENV_IS_IN_FLASH		1
-#define CONFIG_ENV_OFFSET		0x20000 /*   Offset   of Environment Sector */
-#define CONFIG_ENV_SIZE			0x08000 /* Total Size of Environment Sector */
 #define CONFIG_ENV_SECT_SIZE		0x20000 /* Total Size of Environment Sector */
-#define CONFIG_ENV_ADDR			(CONFIG_SYS_FLASH_BASE_1 + \
-					 CONFIG_ENV_OFFSET)
-#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + \
+#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
+#define CONFIG_ENV_ADDR			CONFIG_SYS_FLASH_BASE_1
+/* Redundant Copy */
+#define CONFIG_ENV_ADDR_REDUND		(CONFIG_SYS_FLASH_BASE_1 + \
 					 CONFIG_ENV_SECT_SIZE)
-#define CONFIG_ENV_SIZE_REDUND		(CONFIG_ENV_SIZE)
+#define CONFIG_ENV_SIZE_REDUND		CONFIG_ENV_SECT_SIZE
 
 
  /*-----------------------------------------------------------------------
   * PCI configuration
   */
-#undef CONFIG_PCI                                /* include pci support */
-#undef CONFIG_PCI_PNP                            /* pci plug-and-play */
-#undef CONFIG_PCI_SCAN_SHOW
-#undef CONFIG_SYS_FIRST_PCI_IRQ
-#undef CONFIG_SYS_SECOND_PCI_IRQ
-#undef CONFIG_SYS_THIRD_PCI_IRQ
-#undef CONFIG_SYS_FORTH_PCI_IRQ
+#define CONFIG_PCI                                /* include pci support */
+#define CONFIG_PCI_PNP                            /* pci plug-and-play */
+#define CONFIG_SYS_FIRST_PCI_IRQ   10
+#define CONFIG_SYS_SECOND_PCI_IRQ  9
+#define CONFIG_SYS_THIRD_PCI_IRQ   11
+#define CONFIG_SYS_FORTH_PCI_IRQ   15
 
 /*-----------------------------------------------------------------------
  * Hardware watchdog configuration

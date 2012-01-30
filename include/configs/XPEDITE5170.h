@@ -34,10 +34,8 @@
 #define CONFIG_MPC8641		1	/* MPC8641 specific */
 #define CONFIG_XPEDITE5140	1	/* MPC8641HPCN board specific */
 #define CONFIG_SYS_BOARD_NAME	"XPedite5170"
-#define CONFIG_NUM_CPUS		1	/* Number of CPUs in the system */
 #define CONFIG_LINUX_RESET_VEC	0x100	/* Reset vector used by Linux */
 #define CONFIG_BOARD_EARLY_INIT_R	/* Call board_pre_init */
-#define CONFIG_RELOC_FIXUP_WORKS	/* Fully relocate to SDRAM */
 #define CONFIG_HIGH_BATS	1	/* High BATs supported and enabled */
 #define CONFIG_ALTIVEC		1
 
@@ -123,7 +121,7 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
  * 0xf800_0000	0xffff_ffff	NOR Flash 1		128M non-cacheable
  */
 
-#define CONFIG_SYS_LBC_LCRR		(LCRR_CLKDIV_2 | LCRR_EADC_3)
+#define CONFIG_SYS_LBC_LCRR		(LCRR_CLKDIV_4 | LCRR_EADC_3)
 
 /*
  * NAND flash configuration

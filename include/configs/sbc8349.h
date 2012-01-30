@@ -32,6 +32,21 @@
 #define __CONFIG_H
 
 /*
+ * Top level Makefile configuration choices
+ */
+#ifdef CONFIG_MK_PCI
+#define CONFIG_PCI
+#endif
+
+#ifdef CONFIG_MK_66
+#define PCI_66M
+#endif
+
+#ifdef CONFIG_MK_33
+#define PCI_33M
+#endif
+
+/*
  * High Level Configuration Options
  */
 #define CONFIG_E300		1	/* E300 Family */
@@ -143,7 +158,7 @@
 /* #define CONFIG_SYS_FLASH_USE_BUFFER_WRITE */
 
 #define CONFIG_SYS_BR0_PRELIM		(CONFIG_SYS_FLASH_BASE |	/* flash Base address */ \
-				(2 << BR_PS_SHIFT) |	/* 32 bit port size */	 \
+				(2 << BR_PS_SHIFT) |	/* 16 bit port size */	 \
 				BR_V)			/* valid */
 
 #define CONFIG_SYS_OR0_PRELIM		0xFF806FF7	/* 8 MB flash size */
@@ -182,7 +197,8 @@
  * External Local Bus rate is
  *    CLKIN * HRCWL_CSB_TO_CLKIN / HRCWL_LCL_BUS_TO_SCB_CLK / LCRR_CLKDIV
  */
-#define CONFIG_SYS_LCRR	(LCRR_DBYP | LCRR_CLKDIV_4)
+#define CONFIG_SYS_LCRR_DBYP	LCRR_DBYP
+#define CONFIG_SYS_LCRR_CLKDIV	LCRR_CLKDIV_4
 #define CONFIG_SYS_LBC_LBCR	0x00000000
 
 #undef CONFIG_SYS_LB_SDRAM	/* if board has SDRAM on local bus */
@@ -288,7 +304,7 @@
 #define CONFIG_SYS_I2C1_OFFSET		0x3000
 #define CONFIG_SYS_I2C2_OFFSET		0x3100
 #define CONFIG_SYS_I2C_OFFSET		CONFIG_SYS_I2C2_OFFSET
-/* could also use CONFIG_I2C_MULTI_BUS and CONFIG_SPD_BUS_NUM... */
+/* could also use CONFIG_I2C_MULTI_BUS and CONFIG_SYS_SPD_BUS_NUM... */
 
 /* TSEC */
 #define CONFIG_SYS_TSEC1_OFFSET 0x24000

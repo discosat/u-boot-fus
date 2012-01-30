@@ -53,9 +53,10 @@
 /*
  * Hardware drivers
  */
-#define CONFIG_DRIVER_CS8900	1	/* we have a CS8900 on-board */
-#define CS8900_BASE		0x19000300
-#define CS8900_BUS16		1 /* the Linux driver does accesses as shorts */
+#define CONFIG_NET_MULTI
+#define CONFIG_CS8900		/* we have a CS8900 on-board */
+#define CONFIG_CS8900_BASE	0x19000300
+#define CONFIG_CS8900_BUS16	/* the Linux driver does accesses as shorts */
 
 /*
  * select serial console configuration
@@ -123,9 +124,7 @@
 
 #define	CONFIG_SYS_LOAD_ADDR		0x33000000	/* default load address	*/
 
-/* the PWM TImer 4 uses a counter of 15625 for 10 ms, so we need */
-/* it to wrap 100 times (total 1562500) to get 1 sec. */
-#define	CONFIG_SYS_HZ			1562500
+#define	CONFIG_SYS_HZ			1000
 
 /* valid baudrates */
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }

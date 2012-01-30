@@ -36,9 +36,7 @@
 #define CONFIG_MPC8572		1
 #define CONFIG_XPEDITE5370	1
 #define CONFIG_SYS_BOARD_NAME	"XPedite5370"
-#define CONFIG_NUM_CPUS		2	/* 2 Cores */
 #define CONFIG_BOARD_EARLY_INIT_R	/* Call board_pre_init */
-#define CONFIG_RELOC_FIXUP_WORKS	/* Fully relocate to SDRAM */
 
 #define CONFIG_PCI		1	/* Enable PCI/PCIE */
 #define CONFIG_PCI_PNP		1	/* do pci plug-and-play */
@@ -49,6 +47,13 @@
 #define CONFIG_SYS_PCI_64BIT	1	/* enable 64-bit PCI resources */
 #define CONFIG_FSL_PCIE_RESET	1	/* need PCIe reset errata */
 #define CONFIG_FSL_LAW		1	/* Use common FSL init code */
+
+/*
+ * Multicore config
+ */
+#define CONFIG_MP
+#define CONFIG_BPTR_VIRT_ADDR	0xee000000	/* virt boot page address */
+#define CONFIG_MPC8xxx_DISABLE_BPTR		/* Don't leave BPTR enabled */
 
 /*
  * DDR config
@@ -111,13 +116,14 @@ extern unsigned long get_board_ddr_clk(unsigned long dummy);
  * 0xe000_0000	0xe7ff_ffff	SRAM/SSRAM/L1 Cache	128M non-cacheable
  * 0xe800_0000	0xe87f_ffff	PCIe1 IO		8M non-cacheable
  * 0xe880_0000	0xe8ff_ffff	PCIe2 IO		8M non-cacheable
+ * 0xee00_0000	0xee00_ffff	Boot page translation	4K non-cacheable
  * 0xef00_0000	0xef0f_ffff	CCSR/IMMR		1M non-cacheable
  * 0xef80_0000	0xef8f_ffff	NAND Flash		1M non-cacheable
  * 0xf000_0000	0xf7ff_ffff	NOR Flash 2		128M non-cacheable
  * 0xf800_0000	0xffff_ffff	NOR Flash 1		128M non-cacheable
  */
 
-#define CONFIG_SYS_LBC_LCRR	(LCRR_CLKDIV_4 | LCRR_EADC_3)
+#define CONFIG_SYS_LBC_LCRR	(LCRR_CLKDIV_8 | LCRR_EADC_3)
 
 /*
  * NAND flash configuration

@@ -215,8 +215,8 @@ typedef struct clk512x {
 #define CLOCK_SCCR2_DIU_EN		0x80000000
 #define CLOCK_SCCR2_AXE_EN		0x40000000
 #define CLOCK_SCCR2_MEM_EN		0x20000000
-#define CLOCK_SCCR2_USB2_EN		0x10000000
-#define CLOCK_SCCR2_USB1_EN		0x08000000
+#define CLOCK_SCCR2_USB1_EN		0x10000000
+#define CLOCK_SCCR2_USB2_EN		0x08000000
 #define CLOCK_SCCR2_I2C_EN		0x04000000
 #define CLOCK_SCCR2_BDLC_EN		0x02000000
 #define CLOCK_SCCR2_SDHC_EN		0x01000000
@@ -341,6 +341,20 @@ typedef struct ddr512x {
 	u32 res2[0x3AD];
 } ddr512x_t;
 
+/* MDDRC SYS CFG and Timing CFG0 Registers */
+#define MDDRC_SYS_CFG_EN	0xF0000000
+#define MDDRC_SYS_CFG_CMD_MASK	0x10000000
+#define MDDRC_REFRESH_ZERO_MASK	0x0000FFFF
+
+/*
+ * DDR Memory Controller Configuration settings
+ */
+typedef struct ddr512x_config {
+	u32 ddr_sys_config;	/* System Configuration Register */
+	u32 ddr_time_config0;	/* Timing Configuration Register */
+	u32 ddr_time_config1;	/* Timing Configuration Register */
+	u32 ddr_time_config2;	/* Timing Configuration Register */
+} ddr512x_config_t;
 
 /*
  * DMA/Messaging Unit

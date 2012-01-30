@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Freescale Semiconductor, Inc.
+ * Copyright 2008-2009 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -675,12 +675,12 @@ static void set_ddr_sdram_mode(fsl_ddr_cfg_regs_t *ddr,
 	esdmode = (0
 		| ((qoff & 0x1) << 12)
 		| ((tdqs_en & 0x1) << 11)
-		| ((rtt & 0x4) << 9)   /* rtt field is split */
+		| ((rtt & 0x4) << 7)   /* rtt field is split */
 		| ((wrlvl_en & 0x1) << 7)
-		| ((rtt & 0x2) << 6)   /* rtt field is split */
-		| ((dic & 0x2) << 5)   /* DIC field is split */
+		| ((rtt & 0x2) << 5)   /* rtt field is split */
+		| ((dic & 0x2) << 4)   /* DIC field is split */
 		| ((al & 0x3) << 3)
-		| ((rtt & 0x1) << 2)   /* rtt field is split */
+		| ((rtt & 0x1) << 2)  /* rtt field is split */
 		| ((dic & 0x1) << 1)   /* DIC field is split */
 		| ((dll_en & 0x1) << 0)
 		);
@@ -1066,28 +1066,6 @@ static void set_ddr_sr_cntr(fsl_ddr_cfg_regs_t *ddr, unsigned int sr_it)
 	ddr->ddr_sr_cntr = (sr_it & 0xF) << 16;
 }
 
-/* DDR Pre-Drive Conditioning Control (DDR_PD_CNTL) */
-static void set_ddr_pd_cntl(fsl_ddr_cfg_regs_t *ddr)
-{
-	/* Termination value during pre-drive conditioning */
-	unsigned int tvpd = 0;
-	unsigned int pd_en = 0;		/* Pre-Drive Conditioning Enable */
-	unsigned int pdar = 0;		/* Pre-Drive After Read */
-	unsigned int pdaw = 0;		/* Pre-Drive After Write */
-	unsigned int pd_on = 0;		/* Pre-Drive Conditioning On */
-	unsigned int pd_off = 0;	/* Pre-Drive Conditioning Off */
-
-	ddr->ddr_pd_cntl = (0
-			    | ((pd_en & 0x1) << 31)
-			    | ((tvpd & 0x7) << 28)
-			    | ((pdar & 0x7F) << 20)
-			    | ((pdaw & 0x7F) << 12)
-			    | ((pd_on & 0x1F) << 6)
-			    | ((pd_off & 0x1F) << 0)
-			    );
-}
-
-
 /* DDR SDRAM Register Control Word 1 (DDR_SDRAM_RCW_1) */
 static void set_ddr_sdram_rcw_1(fsl_ddr_cfg_regs_t *ddr)
 {
@@ -1355,7 +1333,6 @@ compute_fsl_memctl_config_regs(const memctl_options_t *popts,
 	set_ddr_zq_cntl(ddr, zq_en);
 	set_ddr_wrlvl_cntl(ddr, wrlvl_en);
 
-	set_ddr_pd_cntl(ddr);
 	set_ddr_sr_cntr(ddr, sr_it);
 
 	set_ddr_sdram_rcw_1(ddr);

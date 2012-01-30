@@ -25,7 +25,6 @@
 #include <mpc8260.h>
 #include <ioports.h>
 #include <malloc.h>
-#include <net.h>
 #include <asm/io.h>
 
 #if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_OF_LIBFDT)
@@ -313,22 +312,16 @@ int hush_init_var (void)
 
 #if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_OF_LIBFDT)
 /*
- * update "memory" property in the blob
+ * update "flash" property in the blob
  */
 void ft_blob_update (void *blob, bd_t *bd)
 {
-	ulong memory_data[2] = {0};
 	ulong *flash_data = NULL;
 	ulong	flash_reg[6] = {0};
 	flash_info_t	*info;
 	int	len;
 	int	size;
 	int	i = 0;
-
-	memory_data[0] = cpu_to_be32 (bd->bi_memstart);
-	memory_data[1] = cpu_to_be32 (bd->bi_memsize);
-	fdt_set_node_and_value (blob, "/memory", "reg", memory_data,
-				sizeof (memory_data));
 
 	len = fdt_get_node_and_value (blob, "/localbus", "ranges",
 					(void *)&flash_data);
@@ -373,10 +366,6 @@ void ft_blob_update (void *blob, bd_t *bd)
 	flash_reg[5] = cpu_to_be32 (info->size);
 	fdt_set_node_and_value (blob, "/localbus/flash@5,0", "reg", flash_reg,
 				sizeof (flash_reg));
-
-	/* MAC addr */
-	fdt_set_node_and_value (blob, "/soc/cpm/ethernet", "mac-address",
-				bd->bi_enetaddr, sizeof (u8) * 6);
 }
 
 void ft_board_setup (void *blob, bd_t *bd)

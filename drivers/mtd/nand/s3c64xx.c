@@ -416,7 +416,7 @@ void s3c_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf)
+			    uint8_t *buf, int page)
 {
 	int i, stat, eccsize = 512;
 	int eccbytes = 13;
@@ -459,22 +459,6 @@ int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 
 	return 0;
 }
-
-#if 0 //####
-void s3c_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			      const uint8_t *buf)
-{
-	puts("#####s3c_nand_write_page_8bit() not implemented\n");
-}
-
-int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			    uint8_t *buf)
-{
-	puts("#####s3c_nand_read_page_8bit() not implemented\n");
-	return -1;
-}
-#endif
-
 
 /*
  * Board-specific NAND initialization. The following members of the

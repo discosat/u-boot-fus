@@ -201,7 +201,7 @@ void s_init(void)
 	 * Right now flushing at low MPU speed.
 	 * Need to move after clock init
 	 */
-	v7_flush_dcache_all(get_device_type());
+	invalidate_dcache(get_device_type());
 #ifndef CONFIG_ICACHE_OFF
 	icache_enable();
 #endif
@@ -328,7 +328,7 @@ usage:
 
 U_BOOT_CMD(
 	nandecc, 2, 1,	do_switch_ecc,
-	"nandecc - switch OMAP3 NAND ECC calculation algorithm\n",
+	"switch OMAP3 NAND ECC calculation algorithm",
 	"[hw/sw] - Switch between NAND hardware (hw) or software (sw) ecc algorithm"
 );
 

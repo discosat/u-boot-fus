@@ -17,6 +17,10 @@
 #	Board		CPU						#
 #########################################################################
 
+Poonam Aggrwal <poonam.aggrwal@freescale.com>
+
+	P2020RDB	P2020
+
 Greg Allen <gallen@arlut.utexas.edu>
 
 	UTX8245		MPC8245
@@ -137,10 +141,10 @@ Jon Diekema <jon.diekema@smiths-aerospace.com>
 
 Dirk Eibach <eibach@gdsys.de>
 
-	compactcenter	PPC460EX
 	devconcenter	PPC460EX
 	dlvision        PPC405EP
 	gdppc440etx	PPC440EP/GR
+	intip		PPC460EX
 	neo		PPC405EP
 
 Dave Ellis <DGE@sixnetio.com>
@@ -273,7 +277,7 @@ Nye Liu <nyet@zumanetworks.com>
 
 	ZUMA		MPC7xx_74xx
 
-Jon Loeliger <jdl@freescale.com>
+Kumar Gala <kumar.gala@freescale.com>
 
 	MPC8540ADS	MPC8540
 	MPC8560ADS	MPC8560
@@ -521,6 +525,12 @@ Dirk Behme <dirk.behme@gmail.com>
 
 	omap3_beagle	ARM CORTEX-A8 (OMAP3530 SoC)
 
+Eric Benard <eric@eukrea.com>
+
+	cpuat91		ARM920T
+	cpu9260		ARM926EJS (AT91SAM9260 SoC)
+	cpu9G20		ARM926EJS (AT91SAM9G20 SoC)
+
 Rishi Bhattacharya <rishi@ti.com>
 
 	omap5912osk	ARM926EJS
@@ -539,6 +549,7 @@ George G. Davis <gdavis@mvista.com>
 	gcplus		SA1100
 
 Wolfgang Denk <wd@denx.de>
+	imx27lite	i.MX27
 	qong		i.MX31
 
 Thomas Elste <info@elste.org>
@@ -583,15 +594,30 @@ Gary Jennejohn <garyj@denx.de>
 Konstantin Kletschke <kletschke@synertronixx.de>
 	scb9328		ARM920T
 
+Simon Kagstrom <simon.kagstrom@netinsight.net>
+
+       openrd_base     ARM926EJS (Kirkwood SoC)
+
 Nishant Kamat <nskamat@ti.com>
 
 	omap1610h2	ARM926EJS
+
+Frederik Kriewitz <frederik@kriewitz.eu>
+
+	devkit8000	ARM CORTEX-A8 (OMAP3530 SoC)
 
 Sergey Kubushyn <ksi@koi8.net>
 
 	DV-EVM		ARM926EJS
 	SONATA		ARM926EJS
 	SCHMOOGIE	ARM926EJS
+
+Sandeep Paulraj <s-paulraj@ti.com>
+
+	davinci_dm355evm	ARM926EJS
+	davinci_dm355leopard	ARM926EJS
+	davinci_dm365evm	ARM926EJS
+	davinci_dm6467evm	ARM926EJS
 
 Prakash Kumar <prakash@embedx.com>
 
@@ -609,12 +635,17 @@ Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
 Nishanth Menon <nm@ti.com>
 
+	omap3_sdp3430	ARM CORTEX-A8 (OMAP3xx SoC)
 	omap3_zoom1	ARM CORTEX-A8 (OMAP3xx SoC)
 
 David Müller <d.mueller@elsoft.ch>
 
 	smdk2410	ARM920T
 	VCMA9		ARM920T
+
+Eric Millbrandt <emillbrandt@dekaresearch.com>
+
+	galaxy5200	mpc5200
 
 Rolf Offermanns <rof@sysgo.de>
 
@@ -681,6 +712,12 @@ Andrea Scian <andrea.scian@dave-tech.it>
 
 	B2		ARM7TDMI (S3C44B0X)
 
+Albin Tonnerre <albin.tonnerre@free-electrons.com>
+
+	sbc35_a9g20	ARM926EJS (AT91SAM9G20 SoC)
+	tny_a9260	ARM926EJS (AT91SAM9260 SoC)
+	tny_a9g20	ARM926EJS (AT91SAM9G20 SoC)
+
 Greg Ungerer <greg.ungerer@opengear.com>
 
 	cm4008		ks8695p
@@ -705,6 +742,10 @@ Alex Züpke <azu@sysgo.de>
 
 	lart		SA1100
 	dnp1110		SA1110
+
+Minkyu Kang <mk7.kang@samsung.com>
+
+	SMDKC100	ARM CORTEX-A8 (S5PC100 SoC)
 
 -------------------------------------------------------------------------
 
@@ -786,10 +827,6 @@ Scott McNutt <smcnutt@psyent.com>
 # Maintainer Name, Email Address					#
 #	Board		CPU						#
 #########################################################################
-
-Yasushi Shoji <yashi@atmark-techno.com>
-
-	SUZAKU		MicroBlaze
 
 Michal Simek <monstr@monstr.eu>
 
@@ -909,6 +946,7 @@ Blackfin Team <u-boot-devel@blackfin.uclinux.org>
 	CM-BF527	BF527
 	CM-BF533	BF533
 	CM-BF537E	BF537
+	CM-BF537U	BF537
 	CM-BF548	BF548
 	CM-BF561	BF561
 	TCM-BF537	BF537

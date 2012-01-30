@@ -244,24 +244,6 @@ U_BOOT_CMD(
 #endif
 );
 
-/*
- * Keep for now for backward compatibility;
- * remove later when support for "autoscr" goes away.
- */
-static int
-do_autoscr (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
-{
-	printf ("\n### WARNING ### "
-		"\"autoscr\" is deprecated, use \"source\" instead ###\n\n");
-	return do_source (cmdtp, flag, argc, argv);
-}
-
-U_BOOT_CMD(
-	autoscr, 2, 0,	do_autoscr,
-	"DEPRECATED - use \"source\" command instead",
-	""
-);
-
 static int try_autodevs(char *fname, char *devname, char *devmaskname,
 			unsigned long addr)
 {
