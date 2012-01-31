@@ -229,7 +229,7 @@
  * Display (LCD)
  ************************************************************************/
 #define CONFIG_LCD			  /* Use LCD */
-#define CONFIG_FSWINCE_COMPAT		  /* Support F&S WinCE compatibility */
+#undef  CONFIG_FSWINCE_COMPAT		  /* F&S WinCE compatibility */
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
 #define CONFIG_LCD_S3C64XX_PWM 1	  /* Use PWM1 for backlight */
 #define CONFIG_MULTIPLE_CONSOLES	  /* Use a console on each window */
