@@ -1,6 +1,6 @@
 /*
- * (C) Copyright 2002
- * Gary Jennejohn, DENX Software Engineering, <gj@denx.de>
+ * (C) Copyright 2002-2004
+ * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,7 +22,6 @@
  */
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
-/*OUTPUT_FORMAT("elf32-arm", "elf32-arm", "elf32-arm")*/
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 SECTIONS
@@ -30,11 +29,11 @@ SECTIONS
 	. = 0x00000000;
 
 	. = ALIGN(4);
-	.text      :
+	.text :
 	{
-	  cpu/arm1176/start.o	(.text)
-	  board/F+S/picomod6/lowlevel_init.o	(.text)
-	  *(.text)
+		arch/arm/cpu/arm1176/start.o	(.text)
+		board/F+S/picomod6/lowlevel_init.o	(.text)
+		*(.text)
 	}
 
 	. = ALIGN(4);
@@ -46,6 +45,7 @@ SECTIONS
 	. = ALIGN(4);
 	.got : { *(.got) }
 
+	. = .;
 	__u_boot_cmd_start = .;
 	.u_boot_cmd : { *(.u_boot_cmd) }
 	__u_boot_cmd_end = .;
@@ -55,6 +55,6 @@ SECTIONS
 
 	. = ALIGN(4);
 	__bss_start = .;
-	.bss : { *(.bss) . = ALIGN(4); }
+	.bss (NOLOAD) : { *(.bss) . = ALIGN(4); }
 	_end = .;
 }
