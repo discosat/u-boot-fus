@@ -614,7 +614,7 @@ static void lcd_set_bg(wininfo_t *pwi, RGBA rgba);
 static void relocbuffers(wininfo_t *pwi, u_long newaddr);
 
 /* Handle fbpool command */
-static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
 /* Parse a factor, i.e. a sub-expression in '('..')', a variable or a number */
 static int parse_factor(wininfo_t *pwi);
@@ -636,13 +636,13 @@ static int lcd_turtle(const wininfo_t *pwi, XYPOS *px, XYPOS *py, char *s,
 		      u_int count);
 
 /* Handle draw command */
-static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 
 /* Set the default color map */
 static void set_default_cmap(const wininfo_t *pwi);
 
 /* Handle cmap command */
-static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 
 /* Move offset if window would not fit within framebuffer */
 static void fix_offset(wininfo_t *wi);
@@ -664,7 +664,7 @@ static void show_wininfo(const wininfo_t *pwi);
 static void fade_alpha(void);
 
 /* Handle win command */
-static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 
 /* Increment all PONSEQ or POFFSEQ entries that come after the current one */
 static void set_delay(u_short *delays, int index, u_short value);
@@ -676,14 +676,14 @@ static int set_value(vidinfo_t *pvi, char *argv, u_int sc);
 static void show_vidinfo(const vidinfo_t *pvi);
 
 /* Handle lcd command */
-static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 
 #ifdef CONFIG_FSWINCE_COMPAT
 /* Handle reg command */
-static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 
 /* Handle contrast, display and reboot commands by ignoring them */
-static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
+static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]);
 #endif /*CONFIG_FSWINCE_COMPAT*/
 
 
@@ -940,7 +940,7 @@ static int cls(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 
 U_BOOT_CMD(
-	cls,	1,	1,	cls,
+	cls, 1, 1, cls,
 	"clear screen",
 	NULL
 );
@@ -989,7 +989,7 @@ static void relocbuffers(wininfo_t *pwi, u_long newaddr)
 
 
 /* Handle fbpool command */
-static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	fbpoolinfo_t *pfp = &fbpool;
 	WINDOW win;
@@ -1064,7 +1064,7 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	fbpool,	5,	1,	do_fbpool,
+	fbpool, 5, 1, do_fbpool,
 	"set framebuffer pool",
 	"<size> <address>\n"
 	"    - set framebuffer pool of <size> at <address>\n"
@@ -1465,7 +1465,7 @@ DONE:
 
 
 /* Handle draw command */
-static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	wininfo_t *pwi;
 	const vidinfo_t *pvi;
@@ -1752,7 +1752,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	draw, 9,	1,	do_draw,
+	draw, 9, 1, do_draw,
 	"draw to selected window",
 	"pixel x y [#rgba]\n"
 	"    - draw pixel at (x, y)\n"
@@ -1800,7 +1800,7 @@ U_BOOT_CMD(
 );
 
 U_BOOT_CMD(
-	adraw, 8,	1,	do_draw,
+	adraw, 8, 1, do_draw,
 	"draw to selected window, directly applying alpha",
 	"arguments\n"
 	"    - see 'help draw' for a description of the 'adraw' arguments\n"
@@ -1866,7 +1866,7 @@ static void set_default_cmap(const wininfo_t *pwi)
 
 
 /* Handle cmap command */
-static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	vidinfo_t *pvi;
 	wininfo_t *pwi;
@@ -2015,7 +2015,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	cmap,	7,	1,	do_cmap,
+	cmap, 7, 1, do_cmap,
 	"handle color map entries",
 	"set n #rgba\n"
 	"    - set color map entry n to new color\n"
@@ -2318,7 +2318,7 @@ static void fade_alpha(void)
 }
 
 /* Handle win command */
-static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	vidinfo_t *pvi;
 	wininfo_t *pwi;
@@ -2558,7 +2558,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	win,	7,	0,	do_win,
+	win, 7, 0, do_win,
 	"set framebuffer and overlay window parameters",
 	"n\n"
 	"    - Select window n\n"
@@ -2847,7 +2847,7 @@ static void show_vidinfo(const vidinfo_t *pvi)
 
 
 /* Handle lcd command */
-static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	vidinfo_t *pvi;
 	u_short sc;
@@ -3110,7 +3110,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	lcd,	7,	0,	do_lcd,
+	lcd, 7, 0, do_lcd,
 	"set or show lcd panel parameters",
 	"list [index [count]]\n"
 	"    - list predefined lcd panels\n"
@@ -3151,7 +3151,7 @@ U_BOOT_CMD(
    the type (dword or string) is ignored. Any other "reg" commands that may be
    present in F&S WinCE display configuration files are silently accepted, but
    ignored. */
-static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	if ((argc == 6)
 	    && (strcmp(argv[1], "set") == 0)
@@ -3223,7 +3223,7 @@ static int do_reg(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	reg,	6,	0,	do_reg,
+	reg, 6, 0, do_reg,
 	"set LCD panel parameters (F&S WinCE compatibility)",
 	"set value name string <name>\n"
 	"    - set the display name\n"
@@ -3240,27 +3240,27 @@ U_BOOT_CMD(
 /* This function silently accepts, but ignores "contrast", "display" or
    "reboot" commands that may be present in F&S WinCE display configuration
    files. */
-static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_ignore(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	return 0;			  /* Always succeed */
 }
 
 U_BOOT_CMD(
-	display,	4,	0,	do_ignore,
+	display, 4, 0, do_ignore,
 	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"
 );
 
 U_BOOT_CMD(
-	contrast,	3,	0,	do_ignore,
+	contrast, 3, 0, do_ignore,
 	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"
 );
 
 U_BOOT_CMD(
-	reboot,		2,	0,	do_ignore,
+	reboot, 2, 0, do_ignore,
 	"Ignored (F&S WinCE compatibility)",
 	"...\n"
 	"    - Ignored, but accepted for compatibility reasons\n"

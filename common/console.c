@@ -30,10 +30,6 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#ifdef CONFIG_AMIGAONEG3SE
-int console_changed = 0;
-#endif
-
 #ifdef CONFIG_SYS_CONSOLE_IS_IN_ENV
 /*
  * if overwrite_console returns 1, the stdin, stderr and stdout
@@ -210,7 +206,7 @@ static inline void console_doenv(int file, struct stdio_dev *dev)
 
 /** U-Boot INITIAL CONSOLE-NOT COMPATIBLE FUNCTIONS *************************/
 
-void serial_printf(const char *fmt, ...)
+int serial_printf(const char *fmt, ...)
 {
 	va_list args;
 	uint i;
@@ -225,6 +221,7 @@ void serial_printf(const char *fmt, ...)
 	va_end(args);
 
 	serial_puts(NULL, printbuffer);
+	return i;
 }
 
 int fgetc(int file)
@@ -278,7 +275,7 @@ void fputs(int file, const char *s)
 		console_puts(file, s);
 }
 
-void fprintf(int file, const char *fmt, ...)
+int fprintf(int file, const char *fmt, ...)
 {
 	va_list args;
 	uint i;
@@ -294,6 +291,7 @@ void fprintf(int file, const char *fmt, ...)
 
 	/* Send to desired file */
 	fputs(file, printbuffer);
+	return i;
 }
 
 /** U-Boot INITIAL CONSOLE-COMPATIBLE FUNCTION *****************************/
@@ -372,7 +370,7 @@ void puts(const char *s)
 	}
 }
 
-void printf(const char *fmt, ...)
+int printf(const char *fmt, ...)
 {
 	va_list args;
 	uint i;
@@ -388,9 +386,10 @@ void printf(const char *fmt, ...)
 
 	/* Print the string */
 	puts(printbuffer);
+	return i;
 }
 
-void vprintf(const char *fmt, va_list args)
+int vprintf(const char *fmt, va_list args)
 {
 	uint i;
 	char printbuffer[CONFIG_SYS_PBSIZE];
@@ -402,6 +401,7 @@ void vprintf(const char *fmt, va_list args)
 
 	/* Print the string */
 	puts(printbuffer);
+	return i;
 }
 
 /* test if ctrl-c was pressed */
@@ -710,12 +710,10 @@ int console_init_r(void)
 
 	stdio_print_current_devices();
 
-#ifndef	CONFIG_SMDKC110
 	/* Setting environment variables */
 	for (i = 0; i < 3; i++) {
 		setenv(stdio_names[i], stdio_devices[i]->name);
 	}
-#endif
 
 #if 0
 	/* If nothing usable installed, use only the initial console */

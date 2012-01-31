@@ -52,7 +52,7 @@ static int do_echo = 1;
 /* -------------------------------------------------------------------- */
 
 #if defined(CONFIG_CMD_LOADS)
-int do_load_serial (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_load_serial (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	long offset = 0;
 	ulong addr;
@@ -256,7 +256,7 @@ read_record (char *buf, ulong len)
 
 #if defined(CONFIG_CMD_SAVES)
 
-int do_save_serial (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_save_serial (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong offset = 0;
 	ulong size   = 0;
@@ -434,7 +434,7 @@ int  his_pad_count;  /* number of pad chars he needs */
 char his_pad_char;   /* pad chars he needs */
 char his_quote;      /* quote chars he'll use */
 
-int do_load_serial_bin (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_load_serial_bin (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong offset = 0;
 	ulong addr;
@@ -1092,7 +1092,7 @@ U_BOOT_CMD(
 /* -------------------------------------------------------------------- */
 
 #if defined(CONFIG_CMD_HWFLOW)
-int do_hwflow (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+int do_hwflow (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	extern int hwflow_onoff(int);
 
@@ -1103,7 +1103,7 @@ int do_hwflow (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			if (strcmp(argv[1], "on") == 0)
 				hwflow_onoff(1);
 			else
-				cmd_usage(cmdtp);
+				return cmd_usage(cmdtp);
 	}
 	printf("RTS/CTS hardware flow control: %s\n", hwflow_onoff(0) ? "on" : "off");
 	return 0;

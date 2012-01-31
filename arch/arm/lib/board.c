@@ -133,7 +133,7 @@ void blue_LED_off(void)__attribute__((weak, alias("__blue_LED_off")));
 static int init_baudrate (void)
 {
 	char tmp[64];	/* long enough for environment variables */
-	int i = getenv_r ("baudrate", tmp, sizeof (tmp));
+	int i = getenv_f("baudrate", tmp, sizeof (tmp));
 	gd->bd->bi_baudrate = gd->baudrate = (i > 0)
 			? (int) simple_strtoul (tmp, NULL, 10)
 			: CONFIG_BAUDRATE;
@@ -363,6 +363,16 @@ void start_armboot (void)
 	dataflash_print_info();
 #endif
 
+#ifdef CONFIG_GENERIC_MMC
+/*
+ * MMC initialization is called before relocating env.
+ * Thus It is required that operations like pin multiplexer
+ * be put in board_init.
+ */
+	puts ("MMC:   ");
+	mmc_initialize (gd->bd);
+#endif
+
 	/* initialize environment */
 	env_relocate ();
 
@@ -434,11 +444,6 @@ extern void davinci_eth_set_mac_addr (const u_int8_t *addr);
 
 #ifdef BOARD_LATE_INIT
 	board_late_init ();
-#endif
-
-#ifdef CONFIG_GENERIC_MMC
-	puts ("MMC:   ");
-	mmc_initialize (gd->bd);
 #endif
 
 #ifdef CONFIG_BITBANGMII

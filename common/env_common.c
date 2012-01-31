@@ -32,11 +32,6 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#ifdef CONFIG_AMIGAONEG3SE
-	extern void enable_nvram(void);
-	extern void disable_nvram(void);
-#endif
-
 #undef DEBUG_ENV
 #ifdef DEBUG_ENV
 #define DEBUGF(fmt,args...) printf(fmt ,##args)
@@ -162,20 +157,6 @@ static uchar env_get_char_init (int index)
 	return (c);
 }
 
-#ifdef CONFIG_AMIGAONEG3SE
-uchar env_get_char_memory (int index)
-{
-	uchar retval;
-	enable_nvram();
-	if (gd->env_valid) {
-		retval = ( *((uchar *)(gd->env_addr + index)) );
-	} else {
-		retval = ( default_environment[index] );
-	}
-	disable_nvram();
-	return retval;
-}
-#else
 uchar env_get_char_memory (int index)
 {
 	if (gd->env_valid) {
@@ -184,7 +165,6 @@ uchar env_get_char_memory (int index)
 		return ( default_environment[index] );
 	}
 }
-#endif
 
 uchar env_get_char (int index)
 {
@@ -232,10 +212,6 @@ void env_relocate (void)
 		gd->reloc_off);
 #endif
 
-#ifdef CONFIG_AMIGAONEG3SE
-	enable_nvram();
-#endif
-
 #ifdef ENV_IS_EMBEDDED
 	/*
 	 * The environment buffer is embedded with the text segment,
@@ -254,7 +230,7 @@ void env_relocate (void)
 #endif
 
 	if (gd->env_valid == 0) {
-#if defined(CONFIG_GTH)	|| defined(CONFIG_ENV_IS_NOWHERE)	/* Environment not changable */
+#if defined(CONFIG_ENV_IS_NOWHERE)	/* Environment not changable */
 		puts ("Using default environment\n\n");
 #else
 		puts ("*** Warning - bad CRC, using default environment\n\n");
@@ -266,10 +242,6 @@ void env_relocate (void)
 		env_relocate_spec ();
 	}
 	gd->env_addr = (ulong)&(env_ptr->data);
-
-#ifdef CONFIG_AMIGAONEG3SE
-	disable_nvram();
-#endif
 }
 
 #ifdef CONFIG_AUTO_COMPLETE

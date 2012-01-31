@@ -1685,7 +1685,7 @@ u_long lcd_scan_bitmap(u_long addr)
 /* Command bminfo							*/
 /************************************************************************/
 
-static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	u_int base, addr;
 	u_int i;
@@ -1745,7 +1745,7 @@ static int do_bminfo(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-	bminfo, 4,	1,	do_bminfo,
+	bminfo, 4, 1, do_bminfo,
 	"show (multi-)bitmap information in a list",
 	"addr [start [count]]\n"
 	"    - show information about bitmap(s) stored at addr\n"
