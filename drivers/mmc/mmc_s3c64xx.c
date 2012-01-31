@@ -14,7 +14,7 @@
 /*** File:     mmc_s3c64xx.c                                               ***/
 /*** Author:   Hartmut Keller                                              ***/
 /*** Created:  06.06.2011                                                  ***/
-/*** Modified: 25.01.2012 12:49:58 (HK)                                    ***/
+/*** Modified: 31.01.2012 12:31:30 (HK)                                    ***/
 /***                                                                       ***/
 /*** Description:                                                          ***/
 /*** SD-card driver for S3C64xx in U-Boot. Based on the SD-card driver for ***/
@@ -25,7 +25,7 @@
 /*****************************************************************************/
 
 #include <common.h>
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 #include <mmc.h>
 #include <mmc_s3c64xx.h>                  /* Own interface */
 

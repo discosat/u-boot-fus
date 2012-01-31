@@ -57,9 +57,12 @@
 #include <lzma/LzmaTools.h>
 #endif /* CONFIG_LZMA */
 
+#ifdef CONFIG_LZO
+#include <linux/lzo.h>
+#endif /* CONFIG_LZO */
+
 DECLARE_GLOBAL_DATA_PTR;
 
-extern int gunzip (void *dst, int dstlen, unsigned char *src, unsigned long *lenp);
 #ifndef CONFIG_SYS_BOOTM_LEN
 #define CONFIG_SYS_BOOTM_LEN	0x800000	/* use 8MByte as default max gunzip size */
 #endif
@@ -101,10 +104,6 @@ extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]);
  */
 typedef int boot_os_fn (int flag, int argc, char *argv[],
 			bootm_headers_t *images); /* pointers to os/initrd/fdt */
-
-#define CONFIG_BOOTM_LINUX 1
-#define CONFIG_BOOTM_NETBSD 1
-#define CONFIG_BOOTM_RTEMS 1
 
 #ifdef CONFIG_BOOTM_LINUX
 extern boot_os_fn do_bootm_linux;
@@ -154,18 +153,6 @@ static boot_os_fn *boot_os[] = {
 ulong load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
 static bootm_headers_t images;		/* pointers to os/initrd/fdt images */
 
-void __board_lmb_reserve(struct lmb *lmb)
-{
-	/* please define platform specific board_lmb_reserve() */
-}
-void board_lmb_reserve(struct lmb *lmb) __attribute__((weak, alias("__board_lmb_reserve")));
-
-void __arch_lmb_reserve(struct lmb *lmb)
-{
-	/* please define platform specific arch_lmb_reserve() */
-}
-void arch_lmb_reserve(struct lmb *lmb) __attribute__((weak, alias("__arch_lmb_reserve")));
-
 /* Allow for arch specific config before we boot */
 void __arch_preboot_os(void)
 {
@@ -201,16 +188,11 @@ void arch_preboot_os(void) __attribute__((weak, alias("__arch_preboot_os")));
 # error Unknown CPU type
 #endif
 
-static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static void bootm_start_lmb(void)
 {
+#ifdef CONFIG_LMB
 	ulong		mem_start;
 	phys_size_t	mem_size;
-	void		*os_hdr;
-	int		ret;
-	int		image_format;
-
-	memset ((void *)&images, 0, sizeof (images));
-	images.verify = getenv_yesno ("verify");
 
 	lmb_init(&images.lmb);
 
@@ -221,6 +203,21 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	arch_lmb_reserve(&images.lmb);
 	board_lmb_reserve(&images.lmb);
+#else
+# define lmb_reserve(lmb, base, size)
+#endif
+}
+
+static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	void		*os_hdr;
+	int		ret;
+	int		image_format;
+
+	memset ((void *)&images, 0, sizeof (images));
+	images.verify = getenv_yesno ("verify");
+
+	bootm_start_lmb();
 
 	/* get kernel image header, start address and length */
 	os_hdr = boot_get_kernel (cmdtp, flag, argc, argv,
@@ -288,46 +285,50 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		return 1;
 	}
 
-	/* find kernel entry point */
-	if (images.legacy_hdr_valid) {
-		images.ep = image_get_ep (&images.legacy_hdr_os_copy);
+	if (image_format != IMAGE_FORMAT_ZIMAGE) {
+		/* find kernel entry point */
+		if (images.legacy_hdr_valid) {
+			images.ep = image_get_ep (&images.legacy_hdr_os_copy);
 #if defined(CONFIG_FIT)
-	} else if (images.fit_uname_os) {
-		ret = fit_image_get_entry (images.fit_hdr_os,
-				images.fit_noffset_os, &images.ep);
-		if (ret) {
-			puts ("Can't get entry point property!\n");
-			return 1;
-		}
+		} else if (images.fit_uname_os) {
+			ret = fit_image_get_entry (images.fit_hdr_os,
+					   images.fit_noffset_os, &images.ep);
+			if (ret) {
+				puts ("Can't get entry point property!\n");
+				return 1;
+			}
 #endif
-	} else if (image_format != IMAGE_FORMAT_ZIMAGE) {
-		puts ("Could not find kernel entry point!\n");
-		return 1;
-	}
-
-	if ((images.os.os == IH_OS_LINUX)
-	    && (image_format != IMAGE_FORMAT_ZIMAGE)) {
-		/* find ramdisk */
-		ret = boot_get_ramdisk (argc, argv, &images, IH_INITRD_ARCH,
-				&images.rd_start, &images.rd_end);
-		if (ret) {
-			puts ("Ramdisk image is corrupt or invalid\n");
+		} else {
+			puts ("Could not find kernel entry point!\n");
 			return 1;
 		}
+
+		if (((images.os.type == IH_TYPE_KERNEL) ||
+		     (images.os.type == IH_TYPE_MULTI)) &&
+		    (images.os.os == IH_OS_LINUX)) {
+			/* find ramdisk */
+			ret = boot_get_ramdisk(argc, argv, &images,
+					       IH_INITRD_ARCH, &images.rd_start,
+					       &images.rd_end);
+			if (ret) {
+				puts ("Ramdisk image is corrupt or invalid\n");
+				return 1;
+			}
 
 #if defined(CONFIG_OF_LIBFDT)
 #if defined(CONFIG_PPC) || defined(CONFIG_M68K) || defined(CONFIG_SPARC)
-		/* find flattened device tree */
-		ret = boot_get_fdt (flag, argc, argv, &images,
-				    &images.ft_addr, &images.ft_len);
-		if (ret) {
-			puts ("Could not find a valid device tree\n");
-			return 1;
-		}
+			/* find flattened device tree */
+			ret = boot_get_fdt (flag, argc, argv, &images,
+					    &images.ft_addr, &images.ft_len);
+			if (ret) {
+				puts ("Could not find a valid device tree\n");
+				return 1;
+			}
 
-		set_working_fdt_addr(images.ft_addr);
+			set_working_fdt_addr(images.ft_addr);
 #endif
 #endif
+		}
 	}
 
 	images.os.start = (ulong)os_hdr;
@@ -365,6 +366,7 @@ static int bootm_load_os(image_info_t os, ulong *load_end, int boot_progress)
 		}
 		*load_end = load + image_len;
 		break;
+#ifdef CONFIG_GZIP
 	case IH_COMP_GZIP:
 		printf ("   Uncompressing %s ... ", type_name);
 		if (gunzip ((void *)load, unc_len,
@@ -378,6 +380,7 @@ static int bootm_load_os(image_info_t os, ulong *load_end, int boot_progress)
 
 		*load_end = load + image_len;
 		break;
+#endif /* CONFIG_GZIP */
 #ifdef CONFIG_BZIP2
 	case IH_COMP_BZIP2:
 		printf ("   Uncompressing %s ... ", type_name);
@@ -416,6 +419,24 @@ static int bootm_load_os(image_info_t os, ulong *load_end, int boot_progress)
 		*load_end = load + unc_len;
 		break;
 #endif /* CONFIG_LZMA */
+#ifdef CONFIG_LZO
+	case IH_COMP_LZO:
+		printf ("   Uncompressing %s ... ", type_name);
+
+		int ret = lzop_decompress((const unsigned char *)image_start,
+					  image_len, (unsigned char *)load,
+					  &unc_len);
+		if (ret != LZO_E_OK) {
+			printf ("LZO: uncompress or overwrite error %d "
+			      "- must RESET board to recover\n", ret);
+			if (boot_progress)
+				show_boot_progress (-6);
+			return BOOTM_ERR_RESET;
+		}
+
+		*load_end = load + unc_len;
+		break;
+#endif /* CONFIG_LZO */
 	default:
 		printf ("Unimplemented compression type %d\n", comp);
 		return BOOTM_ERR_UNIMPLEMENTED;
@@ -880,9 +901,6 @@ static void *boot_get_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[]
 			image_multi_getimg (hdr, 0, os_data, os_len);
 			break;
 		case IH_TYPE_STANDALONE:
-			if (argc >2) {
-				hdr->ih_load = htonl(simple_strtoul(argv[2], NULL, 16));
-			}
 			*os_data = image_get_data (hdr);
 			*os_len = image_get_data_size (hdr);
 			break;

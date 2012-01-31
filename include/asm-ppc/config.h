@@ -21,6 +21,8 @@
 #ifndef _ASM_CONFIG_H_
 #define _ASM_CONFIG_H_
 
+#define CONFIG_LMB
+
 #ifndef CONFIG_MAX_MEM_MAPPED
 #if defined(CONFIG_4xx) || defined(CONFIG_E500) || defined(CONFIG_MPC86xx)
 #define CONFIG_MAX_MEM_MAPPED	((phys_size_t)2 << 30)
@@ -55,6 +57,19 @@
 #ifndef CONFIG_BPTR_VIRT_ADDR
 #define CONFIG_BPTR_VIRT_ADDR	0xfffff000
 #endif
+#endif
+
+/* Enable TSEC2.0 for the platforms that have it if we are using TSEC */
+#if defined(CONFIG_TSEC_ENET) && \
+    (defined(CONFIG_P1020) || defined(CONFIG_P1011))
+#define CONFIG_TSECV2
+#endif
+
+/* Number of TLB CAM entries we have on FSL Book-E chips */
+#if defined(CONFIG_E500MC)
+#define CONFIG_SYS_NUM_TLBCAMS	64
+#elif defined(CONFIG_E500)
+#define CONFIG_SYS_NUM_TLBCAMS	16
 #endif
 
 /* Relocation to SDRAM works on all PPC boards */

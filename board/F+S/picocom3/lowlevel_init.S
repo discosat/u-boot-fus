@@ -31,7 +31,7 @@
 #include <config.h>
 #include <version.h>
 
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 _TEXT_BASE:
 	.word	TEXT_BASE

@@ -24,7 +24,7 @@
  */
 
 #include <config.h>
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 #if !defined(CONFIG_PICOMOD6) && !defined(CONFIG_PICOCOM3)
 	.globl mem_ctrl_asm_init
@@ -130,6 +130,7 @@ check_dmc1_ready:
 	cmp	r1, #0x1
 	bne	check_dmc1_ready
 	nop
+
 	mov	pc, lr
 #endif /* !CONFIG_PICOMOD6 && !CONFIG_PICOCOM3 */
 

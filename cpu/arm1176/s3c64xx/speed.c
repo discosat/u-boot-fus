@@ -30,7 +30,7 @@
  */
 
 #include <common.h>
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 #define APLL 0
 #define MPLL 1

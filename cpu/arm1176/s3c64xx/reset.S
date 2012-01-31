@@ -22,7 +22,7 @@
  */
 
 #include <config.h>
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 .globl reset_cpu
 reset_cpu:

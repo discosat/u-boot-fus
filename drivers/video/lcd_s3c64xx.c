@@ -35,8 +35,8 @@
 #include <lcd_s3c64xx.h>		  /* Own interface */
 #include <cmd_lcd.h>			  /* wininfo_t, kwinfo_t, ... */
 #include <lcd.h>			  /* lcd_rgbalookup() */
-#include <s3c-regs-lcd.h>		  /* S3C64XX LCD registers */
-#include <s3c64xx-regs.h>		  /* GPxDAT, GPxCON, ... */
+#include <asm/arch/s3c-regs-lcd.h>	  /* S3C64XX LCD registers */
+#include <asm/arch/s3c64xx-regs.h>	  /* GPxDAT, GPxCON, ... */
 
 /************************************************************************/
 /* DEFINITIONS								*/

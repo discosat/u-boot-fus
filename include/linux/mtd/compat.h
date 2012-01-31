@@ -48,9 +48,6 @@
 #define BUG_ON(condition) do { if (condition) BUG(); } while(0)
 #endif /* BUG */
 
-#define likely(x)	__builtin_expect(!!(x), 1)
-#define unlikely(x)	__builtin_expect(!!(x), 0)
-
 #define PAGE_SIZE	4096
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))

@@ -30,7 +30,7 @@
 
 #if defined(CONFIG_RTC_S3C64XX) && defined(CONFIG_CMD_DATE)
 
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 #include <rtc.h>
 

@@ -24,7 +24,7 @@
 #include <common.h>
 
 #include <serial.h>
-#include <s3c64xx-regs.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 #ifdef CONFIG_SERIAL1
 #define UART_NR	S3C64XX_UART0
