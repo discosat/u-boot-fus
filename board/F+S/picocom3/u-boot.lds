@@ -32,7 +32,7 @@ SECTIONS
 	.text :
 	{
 		arch/arm/cpu/arm1176/start.o	(.text)
-		board/F+S/picomod6/lowlevel_init.o	(.text)
+		/*board/F+S/picocom3/lowlevel_init.o	(.text)*/
 		*(.text)
 	}
 

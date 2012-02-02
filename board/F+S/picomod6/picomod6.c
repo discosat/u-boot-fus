@@ -130,8 +130,12 @@ int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 
+	/* Set RAM banks */
 	gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
 	gd->bd->bi_dram[0].size = PHYS_SDRAM_1_SIZE;
+
+	/* Set total RAM size */
+	gd->ram_size = PHYS_SDRAM_1_SIZE;
 
 	return 0;
 }

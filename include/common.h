@@ -37,6 +37,7 @@ typedef volatile unsigned short vu_short;
 typedef volatile unsigned char	vu_char;
 
 #include <config.h>
+#include <asm-offsets.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -98,7 +99,7 @@ typedef volatile unsigned char	vu_char;
 #include <asm/immap_83xx.h>
 #endif
 #ifdef	CONFIG_4xx
-#include <ppc4xx.h>
+#include <asm/ppc4xx.h>
 #endif
 #ifdef CONFIG_HYMOD
 #include <board/hymod/hymod.h>
@@ -191,6 +192,15 @@ typedef void (interrupt_handler_t)(void *);
 #define MIN(x, y)  min(x, y)
 #define MAX(x, y)  max(x, y)
 
+#if defined(CONFIG_ENV_IS_EMBEDDED)
+#define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
+#elif ( ((CONFIG_ENV_ADDR+CONFIG_ENV_SIZE) < CONFIG_SYS_MONITOR_BASE) || \
+	(CONFIG_ENV_ADDR >= (CONFIG_SYS_MONITOR_BASE + CONFIG_SYS_MONITOR_LEN)) ) || \
+      defined(CONFIG_ENV_IS_IN_NVRAM)
+#define	TOTAL_MALLOC_LEN	(CONFIG_SYS_MALLOC_LEN + CONFIG_ENV_SIZE)
+#else
+#define	TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
+#endif
 
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -256,9 +266,6 @@ int	saveenv	     (void);
 int inline setenv   (char *, char *);
 #else
 int	setenv	     (char *, char *);
-#ifdef CONFIG_HAS_UID
-void	forceenv     (char *, char *);
-#endif
 #endif /* CONFIG_PPC */
 #ifdef CONFIG_ARM
 # include <asm/mach-types.h>
@@ -507,6 +514,7 @@ ulong get_PERCLK2(void);
 ulong get_PERCLK3(void);
 #endif
 ulong	get_bus_freq  (ulong);
+int get_serial_clock(void);
 
 #if defined(CONFIG_MPC85xx)
 typedef MPC85xx_SYS_INFO sys_info_t;
@@ -606,6 +614,10 @@ static inline IPaddr_t getenv_IPaddr (char *var)
 {
 	return (string_to_ip(getenv(var)));
 }
+
+/* lib/qsort.c */
+void qsort(void *base, size_t nmemb, size_t size,
+	   int(*compar)(const void *, const void *));
 
 /* lib/time.c */
 void	udelay        (unsigned long);

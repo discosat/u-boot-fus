@@ -1012,7 +1012,7 @@ static int do_fbpool(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 			newbase = CONFIG_SYS_UBOOT_BASE - newsize;
 
 		/* Check if new values are valid */
-		if ((newbase < MEMORY_BASE_ADDRESS)
+		if ((newbase < CONFIG_SYS_SDRAM_BASE)
 		    || (newbase + newsize > CONFIG_SYS_UBOOT_BASE)) {
 			puts("Bad address or collision with U-Boot code\n");
 			return 1;
@@ -3579,4 +3579,9 @@ void drv_lcd_init(void)
 	console_init(lcd_get_wininfo_p(lcd_get_vidinfo_p(0), 0),
 		     DEFAULT_CON_FG, DEFAULT_CON_BG);
 #endif
+}
+
+ulong lcd_setmem(ulong addr)
+{
+	return (char)addr;
 }

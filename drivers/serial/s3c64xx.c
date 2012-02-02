@@ -26,6 +26,8 @@
 #include <serial.h>
 #include <asm/arch/s3c64xx-regs.h>
 
+DECLARE_GLOBAL_DATA_PTR;
+
 #ifdef CONFIG_SERIAL1
 #define UART_NR	S3C64XX_UART0
 
@@ -72,7 +74,6 @@ static const int udivslot[] = {
 
 void serial_setbrg(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
 	u32 pclk = get_PCLK();
 	u32 baudrate = gd->baudrate;

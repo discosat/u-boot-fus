@@ -33,25 +33,12 @@
 
 #include <asm/arch/s3c64xx-regs.h>
 
-_TEXT_BASE:
-	.word	TEXT_BASE
-
 	.globl lowlevel_init
 lowlevel_init:
 	mov	r12, lr
 
 #ifndef CONFIG_PICOCOM3
-	/* LED on only #8 */
-	ldr	r0, =ELFIN_GPIO_BASE
-	ldr	r1, =0x55540000
-	str	r1, [r0, #GPNCON_OFFSET]
-
-	ldr	r1, =0x55555555
-	str	r1, [r0, #GPNPUD_OFFSET]
-
-	ldr	r1, =0xf000
-	str	r1, [r0, #GPNDAT_OFFSET]
-
+	/* Set signal strength of memory port 1 to 10mA */
 	ldr	r1, =0x55555555
 	str	r1, [r0, #MEM1DRVCON_OFFSET]
 
@@ -85,87 +72,39 @@ lowlevel_init:
 	str	r3, [r1, #oVECTADDR]
 
 	/* init system clock */
-	bl system_clock_init
+	bl	system_clock_init
 
 #ifndef CONFIG_NAND_SPL
 	/* for UART */
-	bl uart_asm_init
+	bl	uart_asm_init
 #endif
 
 #ifdef CONFIG_BOOT_NAND
 	/* simple init for NAND */
-	bl nand_asm_init
+	bl	nand_asm_init
 #endif
 
 	bl	mem_ctrl_asm_init	/* Configure DRAM */
 #endif  /* !CONFIG_PICOCOM3 */
 
 /* Wakeup support. Don't know if it's going to be used, untested. */
-	ldr	r0, =(ELFIN_CLOCK_POWER_BASE + RST_STAT_OFFSET)
-	ldr	r1, [r0]
+	ldr	r0, =(ELFIN_CLOCK_POWER_BASE)
+	ldr	r1, [r0, #RST_STAT_OFFSET]
 	bic	r1, r1, #0xfffffff7
 	cmp	r1, #0x8
 	beq	wakeup_reset
 
-1:
-#ifdef CONFIG_ENABLE_MMU
-	/*  0x00000000 - 0x4FFFFFFF: 1:1, no caching
-	    0x50000000 - 0x57FFFFFF: 1:1, write-through
-	    0x58000000 - 0x5FFFFFFF: 1:1, no caching
-	    0x60000000 - 0x67FFFFFF -> 0x50000000 - 0x57FFFFFF, no caching
-	    0x68000000 - 0x9FFFFFFF: 1:1, no caching
-	    0xA0000000 - 0xFFFFFFFF: Invalid */
-setup_mmu_table:
-	ldr	r0, =mmu_table
-	mov	r1, #0			  // base
-1:	mov	r2, #0
-	cmp	r1, #0xA00
-	bhs	3f
-	lsl	r2, r1, #20
-	cmp	r1, #0x600
-	blo	2f
-	cmp	r1, #0x680
-	bhs	2f
-	sub	r2, r2, #0x10000000
-2:	orr	r2, r2, #(3<<10)	 // AP
-	orr	r2, r2, #(1<<4)|2	 // NX, 1MB Section entry
-	cmp	r1, #0x500
-	blo	3f
-	cmp	r1, #0x580
-	bhs	3f
-#if 0
-	/* Write-Back-Cache */
-	orr	r2, r2, #(3<<2)		  // RAM region: add read/write access 
-#else
-	/* Write-Through-Cache */
-	orr	r2, r2, #(2<<2)		  // RAM region: add read/write access 
-#endif
-3:	str	r2, [r0], #4		  // Store first level page table entry
-	add	r1, r1, #1		  // Next 1MB section
-	cmp	r1, #0x1000		  // After 4096 entries we are done
-	blo	1b
-#endif /* CONFIG_ENABLE_MMU */
-
-	
 	mov	lr, r12
 	mov	pc, lr
 
 wakeup_reset:
-
 	/* Clear wakeup status register */
-	ldr	r0, =(ELFIN_CLOCK_POWER_BASE + WAKEUP_STAT_OFFSET)
-	ldr	r1, [r0]
-	str	r1, [r0]
-
-	/* LED test */
-	ldr	r0, =ELFIN_GPIO_BASE
-	ldr	r1, =0x3000
-	str	r1, [r0, #GPNDAT_OFFSET]
+	ldr	r1, [r0, #WAKEUP_STAT_OFFSET]
+	str	r1, [r0, #WAKEUP_STAT_OFFSET]
 
 	/* Load return address and jump to kernel */
-	ldr	r0, =(ELFIN_CLOCK_POWER_BASE + INF_REG0_OFFSET)
 	/* r1 = physical address of s3c6400_cpu_resume function */
-	ldr	r1, [r0]
+	ldr	r1, [r0, #INF_REG0_OFFSET]
 	/* Jump to kernel (sleep-s3c6400.S) */
 	mov	pc, r1
 	nop
@@ -312,34 +251,69 @@ nand_asm_init:
 #endif
 
 #ifdef CONFIG_ENABLE_MMU
-/*
- * MMU Table for SMDK6400
- */
+	/*  0x00000000 - 0x4FFFFFFF: 1:1, no caching
+	    0x50000000 - 0x57FFFFFF: 1:1, write-through
+	    0x58000000 - 0x5FFFFFFF: 1:1, no caching
+	    0x60000000 - 0x67FFFFFF -> 0x50000000 - 0x57FFFFFF, no caching
+	    0x68000000 - 0x9FFFFFFF: 1:1, no caching
+	    0xA0000000 - 0xFFFFFFFF: Invalid */
+	/* void setup_mmu_table(ulong tlb_addr) */
+	.globl	setup_mmu_table
+setup_mmu_table:			/* r0: tlb_addr */
+	mcr	p15, 0, r7, c2, c0, 0	/* Set the TTB register */
 
-	/* form a first-level section entry */
+#ifdef CONFIG_SOFT_MMUTABLE
+	/* Create MMU table at tbl_addr by software */
+	mov	r1, #0			/* r1: upper 12 bits of address */
+1:	mov	r2, #0			/* r2: table entry */
+	cmp	r1, #0xA00
+	bhs	3f
+	lsl	r2, r1, #20
+	cmp	r1, #0x600
+	blo	2f
+	cmp	r1, #0x680
+	bhs	2f
+	sub	r2, r2, #0x10000000
+2:	orr	r2, r2, #(3<<10)	 // AP
+	orr	r2, r2, #(1<<4)|2	 // NX, 1MB Section entry
+	cmp	r1, #0x500
+	blo	3f
+	cmp	r1, #0x580
+	bhs	3f
+#if 0
+	/* Write-Back-Cache */
+	orr	r2, r2, #(3<<2)		  // RAM region: add read/write access
+#else
+	/* Write-Through-Cache */
+	orr	r2, r2, #(2<<2)		  // RAM region: add read/write access
+#endif
+3:	str	r2, [r0], #4		  // Store first level page table entry
+	add	r1, r1, #1		  // Next 1MB section
+	cmp	r1, #0x1000		  // After 4096 entries we are done
+	blo	1b
+	mov	pc, lr
+
+#else /* !CONFIG_SOFT_MMUTABLE */
+
+	/* Copy constant MMU table from mmu_table to tlb_addr */
+	adr	r1, mmu_table
+	mov	r2, #0x4000
+4:	ldmia	r1!, {r3, r12}		/* copy from source address [r1] */
+	subs	r2, #8			/* 2 registers are 8 bytes */
+	stmia	r0!, {r3, r12}		/* copy to   target address [r0] */
+	bne	4b
+	mov	pc, lr
+
+	/* Macro to form a first-level section entry */
 .macro FL_SECTION_ENTRY base,ap,d,c,b
 	.word (\base << 20) | (\ap << 10) | \
 	      (\d << 5) | (1<<4) | (\c << 3) | (\b << 2) | (1<<1)
 .endm
 
-#if 1
-	/* Reserve space for a run-time created mmu_table */
-	.section .mmudata, "a", %nobits
-	.align 14
-	/* the following alignment creates the mmu table at address 0x4000. */
-	.globl mmu_table
-mmu_table:
-	/* We just reserve some space for the mmu_table and fill it by software.
-	   A constant table would require 16kB of code!!! We don't use the bss
-	   section as bss is cleared *after* the mmu_table is set up. This would
-	   destroy our table again. */
-	.space 0x4000
-#else
 	/* Build a constant mmu_table */
-	.section .mmudata, "a"
-	.align 14
-
-	/* the following alignment creates the mmu table at address 0x4000. */
+//###	.section .mmudata, "a"
+	.section .data, "a"
+//###	.align 14 // not necessary anymore, content is copied to another place
 	.globl mmu_table
 mmu_table:
 	.set __base, 0
@@ -365,6 +339,6 @@ mmu_table:
 	.rept 0x1000 - 0xa00
 	.word 0x00000000
 	.endr
-#endif /* Run-time vs constant mmu_table */
-	
-#endif
+
+#endif /* CONFIG_SOFT_MMUTABLE */
+#endif /* CONFIG_ENABLE_MMU */

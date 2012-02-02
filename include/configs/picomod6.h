@@ -51,8 +51,39 @@
  * Offset 0x0050_0000 - 0x007F_FFFF: Linux Kernel zImage (3MB)
  * Offset 0x0080_0000 - 0x3FFF_FFFF: Linux Target System (1016MB)
  *
- * Memory layout within U-Boot (Base address CONFIG_SYS_PHY_UBOOT_BASE)
- * ----------------------------------------------------------------
+ * With the new ARM specific loader code introduced in u-boot-2010.12, u-boot
+ * now can be loaded to a rather low RAM address from NBoot. It only needs a
+ * rather small stack and some room for a (unitialized) gd_t structure behind
+ * the stack. Then u-boot automatically computes its size and relocates itself
+ * to the end of the available RAM. This only requires CONFIG_SYS_SDRAM_BASE
+ * and the board-specific dram_init() function has to set gd->ram_size
+ * correctly to the available RAM. That's all. So there is no need for
+ * different u-boot versions just because of differently mounted RAM sizes
+ * anymore.
+ *
+ * Memory layout within U-Boot (from top to bottom!). For more details see
+ * board_init_f() in arch/arm/lib/board.c.
+ *
+ * Addr             Size                      Comment
+ * ------------------------------------------------------------------------
+ * CONFIG_SYS_SDRAM_BASE
+ * + gd->ram_size   CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
+ *                  LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
+ *                  getenv("pram") (in KB)    Protected RAM set in env (unused)
+ * gd->tlb_addr     16KB (64KB aligned)       MMU page tables (TLB)
+ * gd->fb_base      lcd_setmen()              LCD framebuffer (unused?)
+ *                  gd->monlen (4KB aligned)  U-boot code, data and bss
+ *                  TOTAL_MALLOC_LEN          malloc heap
+ * bd               sizeof(bd_t)              Board info struct
+ * gd->irq_sp       sizeof(gd_t)              Global data
+ *                  CONFIG_STACKSIZE_IRQ      IRQ stack
+ *                  CONFIG_STACKSIZE_FIQ      FIQ stack
+ *                  12 (8-byte aligned)       Abort-stack
+ *
+ * Remark: TOTAL_MALLOC_LEN depends on CONFIG_SYS_MALLOC_LEN and CONFIG_ENV_SIZE
+ *
+ * Old layout (from bottom to top!)
+ * 
  * (Code size):              U-Boot code    
  * CONFIG_STACKSIZE_FIQ:     FIQ stack (if CONFIG_USE_IRQ is defined)
  * CONFIG_STACKSIZE_IRQ:     IRQ stack (if CONFIG_USE_IRQ is defined)
@@ -105,8 +136,11 @@
 #define CONFIG_IDENT_STRING	" for PicoMOD6"
 
 /* CPU, family and board defines */
-#define CONFIG_S3C6410		1	  /* SAMSUNG S3C6410 SoC */
-#define CONFIG_S3C64XX		1	  /* SAMSUNG S3C64XX Family */
+#define CONFIG_ARMV6		1	  /* This is an ARM v6 CPU core */
+#define CONFIG_SAMSUNG		1	  /* in a SAMSUNG core */
+#define CONFIG_S3C		1	  /* wich is in S3C family */
+#define CONFIG_S3C64XX		1	  /* more specific in S3C64XX family */
+#define CONFIG_S3C6410		1	  /* it's an S3C6410 SoC */
 #define CONFIG_PICOMOD6		1	  /* F&S PicoMOD6 Board */
 
 /* Architecture magic and machine type */
@@ -175,27 +209,41 @@
  * Memory layout
  ************************************************************************/
 /* Use MMU */
-#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
+//#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
+//#define CONFIG_SOFT_MMUTABLE
 
-#define MEMORY_BASE_ADDRESS	0x50000000      /* Physical RAM address */
+#define CONFIG_SYS_SDRAM_BASE	0x50000000      /* Physical RAM address */
 
 #define CONFIG_NR_DRAM_BANKS	1	        /* we have 1 bank of DRAM */
-#define PHYS_SDRAM_1		MEMORY_BASE_ADDRESS /* SDRAM Bank #1 */
+#define PHYS_SDRAM_1		CONFIG_SYS_SDRAM_BASE /* SDRAM Bank #1 */
 #define PHYS_SDRAM_1_SIZE	0x08000000      /* 128 MB */
 
 /* Total memory required by uboot: 1MB */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
 /* Locate U-Boot at 1MB below end of memory */
-#define OUR_UBOOT_OFFS          (PHYS_SDRAM_1_SIZE - CONFIG_SYS_UBOOT_SIZE)
+//#define OUR_UBOOT_OFFS          (PHYS_SDRAM_1_SIZE - CONFIG_SYS_UBOOT_SIZE)
+#define OUR_UBOOT_OFFS          0x00f00000
 
 /* This results in the following base address for uboot */
-#define CONFIG_SYS_PHY_UBOOT_BASE (MEMORY_BASE_ADDRESS + OUR_UBOOT_OFFS)
+#define CONFIG_SYS_PHY_UBOOT_BASE (CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+
 
 #if 0 //###def CONFIG_ENABLE_MMU
 #define CONFIG_SYS_UBOOT_BASE	(0xc0000000 + OUR_UBOOT_OFFS)
 #else
 #define CONFIG_SYS_UBOOT_BASE	CONFIG_SYS_PHY_UBOOT_BASE
+#endif
+
+/* Init value for stack pointer; we have the stack behind the u-boot code and
+   heap ate the end of the memory region reserved for u-boot; 12 bytes are
+   subtracted to leave 3 words for the abort-stack */
+#if 0
+#define CONFIG_SYS_INIT_SP_ADDR	\
+	(CONFIG_SYS_TEXT_BASE - CONFIG_SYS_GBL_DATA_SIZE)
+#else
+/* Set to internal SRAM (TCM), mapped from 0x0C000000-0x0C009FFF */
+#define CONFIG_SYS_INIT_SP_ADDR	(0x0C00A000 - CONFIG_SYS_GBL_DATA_SIZE)
 #endif
 
 /* Size of malloc() pool (heap) */
@@ -207,7 +255,7 @@
 /* Stack */
 
 /* The stack sizes are set up in start.S using the settings below */
-#define CONFIG_SYS_STACK_SIZE	128*1024  /* 128KB */
+#define CONFIG_SYS_STACK_SIZE	(128*1024)  /* 128KB */
 //#define CONFIG_STACKSIZE	0x20000	  /* (unused on S3C6410) */
 #ifdef CONFIG_USE_IRQ
 #define CONFIG_STACKSIZE_IRQ	(4*1024)  /* IRQ stack */
@@ -216,11 +264,11 @@
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) */
-#define CONFIG_SYS_MEMTEST_START MEMORY_BASE_ADDRESS
-#define CONFIG_SYS_MEMTEST_END	MEMORY_BASE_ADDRESS + OUR_UBOOT_OFFS
+#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
+#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
 
 /* Default load address */
-#define CONFIG_SYS_LOAD_ADDR	MEMORY_BASE_ADDRESS+0x8000
+#define CONFIG_SYS_LOAD_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x8000)
 
 
 
@@ -228,6 +276,8 @@
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
+
+#if 0
 #define CONFIG_LCD			  /* Use LCD */
 #undef  CONFIG_FSWINCE_COMPAT		  /* F&S WinCE compatibility */
 #define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
@@ -236,6 +286,7 @@
 #define CONFIG_CMD_PNG			  /* Support PNG images */
 #define CONFIG_CMD_BMP			  /* Support BMP images */
 //#define CONFIG_CMD_JPG		  /* Support JPG images */
+#endif
 
 /************************************************************************
  * Serial console (UART)
