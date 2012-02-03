@@ -516,7 +516,7 @@ static void genimg_print_time (time_t timestamp)
  *     long entry name if translation succeeds
  *     msg otherwise
  */
-char *get_table_entry_name (const table_entry_t *table, char *msg, int id)
+char *get_table_entry_name(const table_entry_t *table, char *msg, int id)
 {
 	for (; table->id >= 0; ++table) {
 		if (table->id == id)
@@ -563,7 +563,7 @@ const char *genimg_get_comp_name (uint8_t comp)
  *     entry id if translation succeeds
  *     -1 otherwise
  */
-int get_table_entry_id (const table_entry_t *table,
+int get_table_entry_id(const table_entry_t *table,
 		const char *table_name, const char *name)
 {
 	const table_entry_t *t;

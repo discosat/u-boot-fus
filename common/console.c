@@ -484,7 +484,7 @@ inline void dbg(const char *fmt, ...)
 
 /** U-Boot INIT FUNCTIONS *************************************************/
 
-struct stdio_dev *search_device(int flags, char *name)
+struct stdio_dev *search_device(int flags, const char *name)
 {
 	struct stdio_dev *dev;
 
@@ -496,7 +496,7 @@ struct stdio_dev *search_device(int flags, char *name)
 	return NULL;
 }
 
-int console_assign(int file, char *devname)
+int console_assign(int file, const char *devname)
 {
 	int flag;
 	struct stdio_dev *dev;

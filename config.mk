@@ -117,6 +117,7 @@ RANLIB	= $(CROSS_COMPILE)RANLIB
 
 # Load generated board configuration
 sinclude $(OBJTREE)/include/autoconf.mk
+sinclude $(OBJTREE)/include/config.mk
 
 # Some architecture config.mk files need to know what CPUDIR is set to,
 # so calculate CPUDIR before including ARCH/SOC/CPU config.mk files.
@@ -204,9 +205,12 @@ endif
 
 AFLAGS := $(AFLAGS_DEBUG) -D__ASSEMBLY__ $(CPPFLAGS)
 
-LDFLAGS += -Bstatic -T $(obj)u-boot.lds $(PLATFORM_LDFLAGS)
+LDFLAGS += $(PLATFORM_LDFLAGS)
+LDFLAGS_FINAL += -Bstatic
+
+LDFLAGS_u-boot += -T $(obj)u-boot.lds $(LDFLAGS_FINAL)
 ifneq ($(CONFIG_SYS_TEXT_BASE),)
-LDFLAGS += -Ttext $(CONFIG_SYS_TEXT_BASE)
+LDFLAGS_u-boot += -Ttext $(CONFIG_SYS_TEXT_BASE)
 endif
 
 # Location of a usable BFD library, where we define "usable" as
@@ -242,27 +246,24 @@ export	CONFIG_SYS_TEXT_BASE PLATFORM_CPPFLAGS PLATFORM_RELFLAGS CPPFLAGS CFLAGS 
 
 # Allow boards to use custom optimize flags on a per dir/file basis
 BCURDIR = $(subst $(SRCTREE)/,,$(CURDIR:$(obj)%=%))
+ALL_AFLAGS = $(AFLAGS) $(AFLAGS_$(BCURDIR)/$(@F)) $(AFLAGS_$(BCURDIR))
+ALL_CFLAGS = $(CFLAGS) $(CFLAGS_$(BCURDIR)/$(@F)) $(CFLAGS_$(BCURDIR))
 $(obj)%.s:	%.S
-	$(CPP) $(AFLAGS) $(AFLAGS_$(BCURDIR)/$(@F)) $(AFLAGS_$(BCURDIR)) \
-		-o $@ $<
+	$(CPP) $(ALL_AFLAGS) -o $@ $<
 $(obj)%.o:	%.S
-	$(CC)  $(AFLAGS) $(AFLAGS_$(BCURDIR)/$(@F)) $(AFLAGS_$(BCURDIR)) \
-		-o $@ $< -c
+	$(CC)  $(ALL_AFLAGS) -o $@ $< -c
 $(obj)%.o:	%.c
-	$(CC)  $(CFLAGS) $(CFLAGS_$(BCURDIR)/$(@F)) $(CFLAGS_$(BCURDIR)) \
-		-o $@ $< -c
+	$(CC)  $(ALL_CFLAGS) -o $@ $< -c
 $(obj)%.i:	%.c
-	$(CPP) $(CFLAGS) $(CFLAGS_$(BCURDIR)/$(@F)) $(CFLAGS_$(BCURDIR)) \
-		-o $@ $< -c
+	$(CPP) $(ALL_CFLAGS) -o $@ $< -c
 $(obj)%.s:	%.c
-	$(CC)  $(CFLAGS) $(CFLAGS_$(BCURDIR)/$(@F)) $(CFLAGS_$(BCURDIR)) \
-		-o $@ $< -c -S
+	$(CC)  $(ALL_CFLAGS) -o $@ $< -c -S
 
 #########################################################################
 
 # If the list of objects to link is empty, just create an empty built-in.o
 cmd_link_o_target = $(if $(strip $1),\
-		      $(LD) -r -o $@ $1 ,\
+		      $(LD) $(LDFLAGS) -r -o $@ $1,\
 		      rm -f $@; $(AR) rcs $@ )
 
 #########################################################################

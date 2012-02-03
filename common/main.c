@@ -50,12 +50,6 @@ DECLARE_GLOBAL_DATA_PTR;
 void __show_boot_progress (int val) {}
 void show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
 
-#if defined(CONFIG_BOOT_RETRY_TIME) && defined(CONFIG_RESET_TO_RETRY)
-extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);		/* for do_reset() prototype */
-#endif
-
-extern int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
-
 #if defined(CONFIG_UPDATE_TFTP)
 void update_tftp (void);
 #endif /* CONFIG_UPDATE_TFTP */
@@ -72,8 +66,8 @@ char        console_buffer[CONFIG_SYS_CBSIZE + 1];	/* console I/O buffer	*/
 
 #ifndef CONFIG_CMDLINE_EDITING
 static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen);
-static char erase_seq[] = "\b \b";		/* erase sequence	*/
-static char   tab_seq[] = "        ";		/* used to expand TABs	*/
+static const char erase_seq[] = "\b \b";		/* erase sequence	*/
+static const char   tab_seq[] = "        ";		/* used to expand TABs	*/
 #endif
 
 #ifdef CONFIG_BOOT_RETRY_TIME
@@ -342,10 +336,6 @@ void main_loop (void)
 
 #if defined(CONFIG_HUSH_INIT_VAR)
 	hush_init_var ();
-#endif
-
-#ifdef CONFIG_AUTO_COMPLETE
-	install_auto_complete();
 #endif
 
 #ifdef CONFIG_PREBOOT
