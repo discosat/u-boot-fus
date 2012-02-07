@@ -279,7 +279,7 @@ copy_loop:
 	cmp	r0, r2			/* until source end address [r2]    */
 	blo	copy_loop
 
-#ifndef CONFIG_PRELOADER
+#ifndef CONFIG_SPL_BUILD
 	/*
 	 * fix .rel.dyn relocations
 	 */
@@ -353,7 +353,7 @@ after_mmu_enable:
 #endif
 
 clear_bss:
-#ifndef CONFIG_PRELOADER
+#ifndef CONFIG_SPL_BUILD
 	ldr	r0, _bss_start_ofs
 	ldr	r1, _bss_end_ofs
 	add	r0, r0, r6		/* add reloc addr */
@@ -367,7 +367,7 @@ clbss_l:str	r2, [r0]		/* clear loop...		    */
 
 #ifndef CONFIG_NAND_SPL
 	bl coloured_LED_init
-	bl red_LED_on
+	bl red_led_on
 #endif
 #endif
 

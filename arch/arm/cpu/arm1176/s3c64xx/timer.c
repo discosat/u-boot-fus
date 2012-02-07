@@ -131,20 +131,6 @@ ulong get_tbclk(void)
 	return (ulong)(timers->TCNTB4 / 100);
 }
 
-void reset_timer_masked(void)
-{
-	s3c64xx_timers *const timers = s3c64xx_get_base_timers();
-
-	/* reset time */
-	lastdec = timers->TCNTO4;
-	timestamp = 0;
-}
-
-void reset_timer(void)
-{
-	reset_timer_masked();
-}
-
 ulong get_timer_masked(void)
 {
 	s3c64xx_timers *const timers = s3c64xx_get_base_timers();
@@ -157,13 +143,6 @@ ulong get_timer_masked(void)
 ulong get_timer(ulong base)
 {
 	return get_timer_masked() - base;
-}
-
-void set_timer(ulong t)
-{
-	s3c64xx_timers *const timers = s3c64xx_get_base_timers();
-
-	timestamp = t * (timers->TCNTB4 / (100 * CONFIG_SYS_HZ));
 }
 
 void __udelay(unsigned long usec)
