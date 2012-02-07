@@ -207,7 +207,7 @@ static __u32 get_fatent(fsdata *mydata, __u32 entry)
 
 	/* Read a new block of FAT entries into the cache. */
 	if (bufnum != mydata->fatbufnum) {
-		int getsize = FATBUFSIZE / FS_BLOCK_SIZE;
+		__u32 getsize = FATBUFSIZE / FS_BLOCK_SIZE;
 		__u8 *bufptr = mydata->fatbuf;
 		__u32 fatlength = mydata->fatlength;
 		__u32 startblock = bufnum * FATBUFBLOCKS;
@@ -277,7 +277,7 @@ static int
 get_cluster (fsdata *mydata, __u32 clustnum, __u8 *buffer,
 	     unsigned long size)
 {
-	int idx = 0;
+	__u32 idx = 0;
 	__u32 startsect;
 
 	if (clustnum > 0) {
@@ -430,6 +430,7 @@ static int slot2str(dir_slot *slotptr, char *l_name, int *idx)
  */
 __attribute__ ((__aligned__(__alignof__(dir_entry))))
 __u8 get_vfatname_block[MAX_CLUSTSIZE];
+
 static int
 get_vfatname(fsdata *mydata, int curclust, __u8 *cluster,
 	     dir_entry *retdent, char *l_name)
@@ -762,12 +763,13 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 	dir_entry *dentptr;
 	__u16 prevcksum = 0xffff;
 	char *subname = "";
-	int cursect;
+	__u32 cursect;
 	int idx, isdir = 0;
 	int files = 0, dirs = 0;
 	long ret = 0;
 	int firsttime;
-	int root_cluster;
+	__u32 root_cluster;
+	int rootdir_size = 0;
 	int j;
 
 	if (read_bootsectandvi(&bs, &volinfo, &mydata->fatsize)) {
@@ -793,8 +795,6 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 		mydata->data_begin = mydata->rootdir_sect -
 					(mydata->clust_size * 2);
 	} else {
-		int rootdir_size;
-
 		rootdir_size = ((bs.dir_entries[1]  * (int)256 +
 				 bs.dir_entries[0]) *
 				 sizeof(dir_entry)) /
@@ -1007,9 +1007,10 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 		 * root directory clusters when a cluster has been
 		 * completely processed.
 		 */
-		if ((mydata->fatsize == 32) && (++j == mydata->clust_size)) {
-			int nxtsect;
-			int nxt_clust;
+		++j;
+		if ((mydata->fatsize == 32) && (j == mydata->clust_size)) {
+			int nxtsect = 0;
+			int nxt_clust = 0;
 
 			nxt_clust = get_fatent(mydata, root_cluster);
 			if (CHECK_CLUST(nxt_clust, mydata->fatsize)) {
@@ -1024,11 +1025,6 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 
 			nxtsect = mydata->data_begin +
 				(nxt_clust * mydata->clust_size);
-
-			debug("END LOOP: sect=%d, root_clust=%d, "
-			      "n_sect=%d, n_clust=%d\n",
-			      cursect, root_cluster,
-			      nxtsect, nxt_clust);
 
 			root_cluster = nxt_clust;
 

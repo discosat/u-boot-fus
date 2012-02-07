@@ -68,6 +68,7 @@ COBJS-$(CONFIG_CMD_AMBAPP) += cmd_ambapp.o
 COBJS-$(CONFIG_CMD_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
 COBJS-$(CONFIG_CMD_BEDBUG) += bedbug.o cmd_bedbug.o
+COBJS-$(CONFIG_CMD_BMP) += cmd_bmp.o
 COBJS-$(CONFIG_CMD_BOOTLDR) += cmd_bootldr.o
 COBJS-$(CONFIG_CMD_CACHE) += cmd_cache.o
 COBJS-$(CONFIG_CMD_CONSOLE) += cmd_console.o
@@ -96,6 +97,7 @@ COBJS-$(CONFIG_CMD_FLASH) += cmd_flash.o
 ifdef CONFIG_FPGA
 COBJS-$(CONFIG_CMD_FPGA) += cmd_fpga.o
 endif
+COBJS-$(CONFIG_CMD_GPIO) += cmd_gpio.o
 COBJS-$(CONFIG_CMD_I2C) += cmd_i2c.o
 COBJS-$(CONFIG_CMD_IDE) += cmd_ide.o
 COBJS-$(CONFIG_CMD_IMMAP) += cmd_immap.o
@@ -103,20 +105,27 @@ COBJS-$(CONFIG_CMD_IRQ) += cmd_irq.o
 COBJS-$(CONFIG_CMD_ITEST) += cmd_itest.o
 COBJS-$(CONFIG_CMD_JFFS2) += cmd_jffs2.o
 COBJS-$(CONFIG_CMD_CRAMFS) += cmd_cramfs.o
+COBJS-$(CONFIG_CMD_LDRINFO) += cmd_ldrinfo.o
 COBJS-$(CONFIG_CMD_LICENSE) += cmd_license.o
 COBJS-$(CONFIG_CMD_LOADS) += cmd_load.o
 COBJS-$(CONFIG_CMD_LOADB) += cmd_load.o
 COBJS-$(CONFIG_LOGBUFFER) += cmd_log.o
 COBJS-$(CONFIG_ID_EEPROM) += cmd_mac.o
+COBJS-$(CONFIG_CMD_MD5SUM) += cmd_md5sum.o
 COBJS-$(CONFIG_CMD_MEMORY) += cmd_mem.o
 COBJS-$(CONFIG_CMD_MFSL) += cmd_mfsl.o
 COBJS-$(CONFIG_CMD_MG_DISK) += cmd_mgdisk.o
 COBJS-$(CONFIG_MII) += miiphyutil.o
 COBJS-$(CONFIG_CMD_MII) += miiphyutil.o
+COBJS-$(CONFIG_PHYLIB) += miiphyutil.o
 COBJS-$(CONFIG_CMD_MII) += cmd_mii.o
+ifdef CONFIG_PHYLIB
+COBJS-$(CONFIG_CMD_MII) += cmd_mdio.o
+endif
 COBJS-$(CONFIG_CMD_MISC) += cmd_misc.o
 COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
 COBJS-$(CONFIG_GENERIC_MMC) += cmd_mmc.o
+COBJS-$(CONFIG_CMD_MMC_SPI) += cmd_mmc_spi.o
 COBJS-$(CONFIG_MP) += cmd_mp.o
 COBJS-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
 COBJS-$(CONFIG_CMD_NAND) += cmd_nand.o
@@ -134,6 +143,7 @@ COBJS-$(CONFIG_CMD_REISER) += cmd_reiser.o
 COBJS-$(CONFIG_CMD_SATA) += cmd_sata.o
 COBJS-$(CONFIG_CMD_SF) += cmd_sf.o
 COBJS-$(CONFIG_CMD_SCSI) += cmd_scsi.o
+COBJS-$(CONFIG_CMD_SHA1SUM) += cmd_sha1sum.o
 COBJS-$(CONFIG_CMD_SETEXPR) += cmd_setexpr.o
 COBJS-$(CONFIG_CMD_SPI) += cmd_spi.o
 COBJS-$(CONFIG_CMD_SPIBOOTLDR) += cmd_spibootldr.o
@@ -144,6 +154,7 @@ COBJS-$(CONFIG_CMD_TSI148) += cmd_tsi148.o
 COBJS-$(CONFIG_CMD_UBI) += cmd_ubi.o
 COBJS-$(CONFIG_CMD_UBIFS) += cmd_ubifs.o
 COBJS-$(CONFIG_CMD_UNIVERSE) += cmd_universe.o
+COBJS-$(CONFIG_CMD_UNZIP) += cmd_unzip.o
 ifdef CONFIG_CMD_USB
 COBJS-y += cmd_usb.o
 COBJS-y += usb.o
@@ -153,7 +164,6 @@ COBJS-$(CONFIG_PICOMOD6) += cmd_usb.o
 COBJS-$(CONFIG_PICOCOM3) += cmd_usb.o
 COBJS-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 COBJS-$(CONFIG_YAFFS2) += cmd_yaffs2.o
-COBJS-$(CONFIG_VFD) += cmd_vfd.o
 
 # others
 COBJS-$(CONFIG_DDR_SPD) += ddr_spd.o
@@ -162,7 +172,13 @@ COBJS-$(CONFIG_CONSOLE_MUX) += iomux.o
 COBJS-y += flash.o
 COBJS-$(CONFIG_CMD_KGDB) += kgdb.o kgdb_stubs.o
 COBJS-$(CONFIG_KALLSYMS) += kallsyms.o
-COBJS-$(CONFIG_XLCD_BITMAP) += bitmap.o
+COBJS-$(CONFIG_LCD) += lcd.o
+COBJS-$(CONFIG_LYNXKDI) += lynxkdi.o
+COBJS-$(CONFIG_MODEM_SUPPORT) += modem.o
+COBJS-$(CONFIG_UPDATE_TFTP) += update.o
+COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
+
+# Extended LCD support
 COBJS-$(CONFIG_CMD_LCD) += cmd_lcd.o xlcd_panels.o
 COBJS-$(CONFIG_CMD_WIN) += cmd_win.o
 COBJS-$(CONFIG_CMD_CMAP) += cmd_cmap.o
@@ -172,10 +188,6 @@ COBJS-$(CONFIG_XLCD_CONSOLE) += xlcd_drawtext_ll.o
 COBJS-$(CONFIG_XLCD_PNG) += xlcd_png.o
 COBJS-$(CONFIG_XLCD_BMP) += xlcd_bmp.o
 COBJS-$(CONFIG_XLCD_JPG) += xlcd_jpg.o
-COBJS-$(CONFIG_LYNXKDI) += lynxkdi.o
-COBJS-$(CONFIG_MODEM_SUPPORT) += modem.o
-COBJS-$(CONFIG_UPDATE_TFTP) += update.o
-COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
 
 
 COBJS	:= $(sort $(COBJS-y))

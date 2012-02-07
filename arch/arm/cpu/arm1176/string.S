@@ -49,6 +49,9 @@
 *** one go. By using the preload instruction pld, the data should  ***
 *** already be available in cache, also improving speed.	   ***
 *********************************************************************/
+#if 0
+/* Starting with u-boot-2011.06, there is a new memcpy version available
+   in arch/arm/lib/memcpy.S, so we don't need our version anymore */
 	.globl	memcpy
 memcpy:
 	/* Return immediately if count is zero or dest == src */
@@ -370,6 +373,7 @@ memcpy:
 9:	ldreqb	lr, [r1], #1
 	streqb	lr, [r0]
 	pop	{r0, r4, pc}
+#endif
 
 
 /*********************************************************************
@@ -827,6 +831,9 @@ memset32:
 *** the big part of the region. Then again up to three bytes are   ***
 *** filled with single bytes until the start address is reached.   ***
 *********************************************************************/
+#if 0
+/* Starting with u-boot-2011.06, there is a new memset version available
+   in arch/arm/lib/memset.S, so we don't need our version anymore */
 	.globl	memset
 memset:
 	/* If count is less than four, just set as bytes */
@@ -866,3 +873,4 @@ memset:
 
 1:	streqb	r1, [r0, #-1]!		  //Set the last byte (if any)
 	bx	lr			  //Done
+#endif
