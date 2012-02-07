@@ -374,14 +374,16 @@ void board_init_f (ulong bootflag)
 	/*
 	 * reserve memory for VFD display (always full pages)
 	 */
-	addr -= vfd_setmem (addr);
-	gd->fb_base = addr;
+	gd->fb_base = vfd_setmem(addr);
+	gd->fb_size = addr - gd->fb_base;
+	addr = gd->fb_base;
 #endif /* CONFIG_VFD */
 
 #ifdef CONFIG_LCD
 	/* reserve memory for LCD display (always full pages) */
-	addr = lcd_setmem (addr);
-	gd->fb_base = addr;
+	gd->fb_base = lcd_setmem(addr);
+	gd->fb_size = addr - gd->fb_base;
+	addr = gd->fb_base;
 #endif /* CONFIG_LCD */
 
 	/*

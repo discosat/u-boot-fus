@@ -29,7 +29,7 @@
 #include <net.h>			  /* eth_init(), eth_halt() */
 #include <netdev.h>			  /* ne2000_initialize() */
 #endif
-#ifdef CONFIG_LCD
+#ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			  /* PON_*, POFF_* */
 #endif
 
@@ -208,7 +208,7 @@ void mmc_s3c64xx_board_power(unsigned int channel)
 }
 #endif
 
-#ifdef CONFIG_LCD
+#ifdef CONFIG_CMD_LCD
 void s3c64xx_lcd_board_init(void)
 {
 	/* Setup GPF15 to output 0 (backlight intensity 0) */

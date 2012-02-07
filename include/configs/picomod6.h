@@ -276,16 +276,33 @@
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
-
 #if 0
-#define CONFIG_LCD			  /* Use LCD */
-#undef  CONFIG_FSWINCE_COMPAT		  /* F&S WinCE compatibility */
-#define CONFIG_FBPOOL_SIZE 0x00100000	  /* 1 MB default framebuffer pool */
-#define CONFIG_LCD_S3C64XX_PWM 1	  /* Use PWM1 for backlight */
-#define CONFIG_MULTIPLE_CONSOLES	  /* Use a console on each window */
-#define CONFIG_CMD_PNG			  /* Support PNG images */
-#define CONFIG_CMD_BMP			  /* Support BMP images */
-//#define CONFIG_CMD_JPG		  /* Support JPG images */
+#define CONFIG_CMD_LCD			  /* Support lcd settings command */
+//#define CONFIG_CMD_WIN			  /* Window layers, alpha blending */
+//#define CONFIG_CMD_CMAP			  /* Support CLUT pixel formats */
+#define CONFIG_CMD_DRAW			  /* Support draw command */
+//#define CONFIG_CMD_ADRAW		  /* Support alpha draw commands */
+//#define CONFIG_CMD_BMINFO		  /* Provide bminfo command */
+//#define CONFIG_XLCD_PNG			  /* Support for PNG bitmaps */
+#define CONFIG_XLCD_BMP			  /* Support for BMP bitmaps */
+//#define CONFIG_XLCD_JPG			  /* Support for JPG bitmaps */
+#define CONFIG_XLCD_EXPR		  /* Allow expressions in coordinates */
+#define CONFIG_XLCD_CONSOLE		  /* Support console on LCD */
+#define CONFIG_XLCD_CONSOLE_MULTI	  /* Define a console on each window */
+#define CONFIG_XLCD_FBSIZE 0x00100000	  /* 1 MB default framebuffer pool */
+#define CONFIG_S3C64XX_XLCD		  /* Use S3C64XX lcd driver */
+#define CONFIG_S3C64XX_XLCD_PWM 1	  /* Use PWM1 for backlight */
+
+/* Supported draw commands (see inlcude/cmd_xlcd.h) */
+#define CONFIG_XLCD_DRAW \
+	(XLCD_DRAW_PIXEL | XLCD_DRAW_LINE | XLCD_DRAW_RECT	\
+	 | /*XLCD_DRAW_CIRC | XLCD_DRAW_TURTLE |*/ XLCD_DRAW_FILL	\
+	 | XLCD_DRAW_TEXT | XLCD_DRAW_BITMAP | XLCD_DRAW_PROG	\
+	 | XLCD_DRAW_TEST)
+
+/* Supported test images (see include/cmd_xlcd.h) */
+#define CONFIG_XLCD_TEST \
+	(XLCD_TEST_GRID /*| XLCD_TEST_COLORS | XLCD_TEST_D2B | XLCD_TEST_GRAD*/)
 #endif
 
 /************************************************************************

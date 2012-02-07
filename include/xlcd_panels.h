@@ -1,7 +1,7 @@
 /*
  * LCD Panel Database
  *
- * (C) Copyright 2011
+ * (C) Copyright 2012
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  *
@@ -24,8 +24,8 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _LCD_PANELS_H_
-#define _LCD_PANELS_H_
+#ifndef _XLCD_PANELS_H_
+#define _XLCD_PANELS_H_
 
 /************************************************************************/
 /* DEFINITIONS								*/
@@ -133,4 +133,4 @@ extern const lcdinfo_t *lcd_get_lcdinfo_p(u_int index);
 extern u_int lcd_search_lcd(char *s, u_int index);
 
 
-#endif /*!_LCD_PANELS_H_*/
+#endif /*!_XLCD_PANELS_H_*/

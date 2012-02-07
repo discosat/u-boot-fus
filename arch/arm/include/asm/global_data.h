@@ -41,6 +41,7 @@ typedef	struct	global_data {
 	unsigned long	env_addr;	/* Address  of Environment struct */
 	unsigned long	env_valid;	/* Checksum of Environment valid? */
 	unsigned long	fb_base;	/* base address of frame buffer */
+	unsigned long	fb_size;	/* Size of frame buffe */
 #ifdef CONFIG_VFD
 	unsigned char	vfd_type;	/* display type */
 #endif

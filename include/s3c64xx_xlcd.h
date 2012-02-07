@@ -23,12 +23,12 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _LCD_S3C64XX_H_
-#define _LCD_S3C64XX_H_
+#ifndef _S3C64XX_XLCD_H_
+#define _S3C64XX_XLCD_H_
 
 #include "cmd_lcd.h"			  /* vidinfo_t */
 
 /* Initialize controller hardware and fill in vidinfo */
-void s3c64xx_lcd_init(vidinfo_t *pvi);
+void s3c64xx_xlcd_init(vidinfo_t *pvi);
 
-#endif /*!_LCD_S3C64XX_H_*/
+#endif /*!_S3C64XX_XLCD_H_*/

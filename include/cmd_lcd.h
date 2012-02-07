@@ -1,7 +1,7 @@
 /*
- * Generic LCD commands
+ * Generic LCD declarations
  *
- * (C) Copyright 2011
+ * (C) Copyright 2012
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
@@ -34,15 +34,38 @@ typedef unsigned char WINDOW;
 typedef unsigned char PIX;
 typedef int XYPOS;
 
-#include <lcd_panels.h>			  /* vidinfo_t */
+#include <xlcd_panels.h>		  /* lcdinfo_t */
+#include "stdio_dev.h"			  /* struct stdio_dev */
 
 /************************************************************************/
 /* DEFINITIONS								*/
 /************************************************************************/
 
+/* Supported draw functions, combine with | in CONFIG_XLCD_DRAW */
+#define XLCD_DRAW_PIXEL  0x0001		  /* pixel */
+#define XLCD_DRAW_LINE   0x0002		  /* line */
+#define XLCD_DRAW_RECT   0x0004		  /* frame, rect */
+#define XLCD_DRAW_CIRC   0x0008		  /* circle, disc, rframe, rrect */
+#define XLCD_DRAW_TEXT   0x0010		  /* text */
+#define XLCD_DRAW_BITMAP 0x0020		  /* bm */
+#define XLCD_DRAW_TURTLE 0x0040		  /* turtle */
+#define XLCD_DRAW_FILL   0x0080		  /* fill, clear */
+#define XLCD_DRAW_PROG   0x0100		  /* pbr, pbt, prog */
+#define XLCD_DRAW_TEST   0x0200		  /* test */
+#define XLCD_DRAW_ALL    0xFFFF		  /* All of the above */
+
+/* Supported test images, combine with | in CONFIG_XLCD_TEST */
+#define XLCD_TEST_GRID   0x01		  /* Color grid */
+#define XLCD_TEST_COLORS 0x02		  /* Eight basic colors */
+#define XLCD_TEST_D2B    0x04		  /* All colors dark to bright */
+#define XLCD_TEST_GRAD   0x08		  /* Hue at edges to gray in center */
+#define XLCD_TEST_ALL    0xFF		  /* all of the above */
+
 /* Pixel info flags */
-#define PIF_CMAP     0x01		  /* Pixel format uses a color map */
-#define PIF_ALPHA    0x02		  /* Pixel have alpha value */
+#define PIF_TRUECOL   0x00		  /* Pixel format is true color */
+#define PIF_CMAP      0x01		  /* Pixel format uses a color map */
+#define PIF_NO_ALPHA  0x00		  // Pixel has no alpha value
+#define PIF_ALPHA     0x02		  /* Pixel has alpha value */
 
 /* Draw attributes */
 #define ATTR_HLEFT    0x0000		  /* Available for text + pbt + bm */
@@ -78,6 +101,10 @@ typedef int XYPOS;
 /* PWM value for maximum voltage */
 #define MAX_PWM 4096
 
+/* These appear so often that a macro seems appropriate */
+#define lcd_set_fg(pwi, rgba) lcd_set_col(pwi, rgba, &pwi->fg)
+#define lcd_set_bg(pwi, rgba) lcd_set_col(pwi, rgba, &pwi->bg)
+
 
 /************************************************************************/
 /* TYPES AND STRUCTURES							*/
@@ -109,11 +136,13 @@ typedef struct alphainfo {
 
 /* Pixel format information */
 typedef struct PIXEL_INFO {
+	char *name;			/* Format description */
 	u_char depth;			/* Actually used bits for the color */
 	u_char bpp_shift;		/* Bits per pixel as power of 2;
 					   0: 1 bpp, 1: 2 bpp, .. 5: 32bpp */
 	u_char flags;			/* Bit 0: 0: true color, 1: palettized
 					   Bit 1: 0: no alpha, 1: alpha */
+	u_char priv;			/* Private byte for the driver */
 
 	/* Function to convert RGBA to COLOR32 */
 	COLOR32 (*rgba2col)(const wininfo_t *pwi, RGBA rgba);
@@ -121,12 +150,11 @@ typedef struct PIXEL_INFO {
 	/* Function to convert COLOR32 to RGBA */
 	RGBA (*col2rgba)(const wininfo_t *pwi, COLOR32 color);
 
+#ifdef CONFIG_CMD_ADRAW
 	/* Function to apply Alpha and pre-multiplied pixel to COLOR32 value */
 	COLOR32 (*apply_alpha)(const wininfo_t *pwi, const colinfo_t *pci,
 			       COLOR32 oldcol);
-
-	char *name;			/* Format description */
-
+#endif
 } pixinfo_t;
 
 /* Console information */
@@ -257,6 +285,7 @@ struct wininfo
 	RGBA replace;			  /* Replacement color for window */
 	RGBA *cmap;			  /* If CLUT: Pointer to color map */
 
+#ifdef CONFIG_CMD_CMAP
 	/* Function to set the color map from index to end; this also updates
 	   pwi->cmap. Some hardware has restrictions of how and when setting
 	   new palette entries is possible (e.g. only between frames), so
@@ -264,8 +293,9 @@ struct wininfo
 	   possible. */
 	void (*set_cmap)(const wininfo_t *pwi, u_int index, u_int end,
 			 RGBA *prgba);
+#endif
 
-#ifdef CONFIG_MULTIPLE_CONSOLES
+#ifdef CONFIG_XLCD_CONSOLE_MULTI
 	coninfo_t ci;			  /* Console info for this window */
 #endif
 
@@ -286,22 +316,44 @@ typedef struct kwinfo
 } kwinfo_t;
 
 
-/* Framebuffer pool information */
-typedef struct FBPOOL_INFO {
-	u_long base;			  /* Base address of framebuffer pool */
-	u_long size;			  /* Size of framebuffer pool */
-	u_long used;			  /* Current usage */
-} fbpoolinfo_t;
-
-#ifdef CONFIG_WINDOW_EXT
-/* Table with additional keywords for window */
-extern const struct kwinfo winextkeywords[CONFIG_WINDOW_EXT];
-#endif /*CONFIG_WININFO_EXT*/
-
-
 /************************************************************************/
 /* PROTOTYPES OF EXPORTED FUNCTIONS					*/
 /************************************************************************/
+
+/* Console functions */
+#ifndef CONFIG_MULTIPLE_CONSOLES
+extern void console_init(wininfo_t *pwi, RGBA fg, RGBA bg);
+extern void console_update(wininfo_t *pwi, RGBA fg, RGBA bg);
+#endif
+
+extern void console_cls(const wininfo_t *pwi, COLOR32 col);
+extern void lcd_putc(const struct stdio_dev *pdev, const char c);
+extern void lcd_puts(const struct stdio_dev *pdev, const char *s);
+
+/* Set colinfo structure */
+extern void lcd_set_col(wininfo_t *pwi, RGBA rgba, colinfo_t *pci);
+
+/* Move offset if window would not fit within framebuffer */
+extern void fix_offset(wininfo_t *wi);
+
+/* Set new framebuffer resolution, pixel format, and/or framebuffer count */
+extern int setfbuf(wininfo_t *pwi, XYPOS hres, XYPOS vres,
+		   XYPOS fbhres, XYPOS fbvres, PIX pix, u_char fbcount);
+
+/* If not locked, update window hardware and set environment variable */
+extern void set_wininfo(const wininfo_t *pwi);
+
+/* Get a pointer to the wininfo structure */
+extern wininfo_t *lcd_get_wininfo_p(const vidinfo_t *pvi, WINDOW win);
+
+/* Get a pointer to currently selected lcd panel information */
+extern vidinfo_t *lcd_get_sel_vidinfo_p(void);
+
+/* Repeat color value so that it fills the whole 32 bits */
+extern COLOR32 col2col32(const wininfo_t *pwi, COLOR32 color);
+
+/* Lookup nearest possible color in given color map */
+extern COLOR32 lcd_rgbalookup(RGBA rgba, RGBA *cmap, unsigned count);
 
 /* Parse #rrggbb or #rrggbbaa value; return 1 on error, 0 on success */
 extern int parse_rgb(char *s, u_int *prgba);
@@ -312,9 +364,6 @@ extern u_short parse_sc(int argc, char *s, u_short sc,
 
 /* Find next delay entry in power-on/power-off sequence */
 extern int find_delay_index(const u_short *delays, int index, u_short value);
-
-/* Get pointer to the framebuffer pool info */
-extern const fbpoolinfo_t *lcd_get_fbpoolinfo_p(void);
 
 /* Initialize panel and window information */
 extern void drv_lcd_init(void);

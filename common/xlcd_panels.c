@@ -1,7 +1,7 @@
 /*
  * LCD Panel Database
  *
- * (C) Copyright 2011
+ * (C) Copyright 2012
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
@@ -25,7 +25,7 @@
 
 #include <config.h>
 #include <common.h>
-#include <lcd_panels.h>			  /* Own interface */
+#include <xlcd_panels.h>		  /* Own interface */
 
 /************************************************************************/
 /* LCD Panel Database 							*/
