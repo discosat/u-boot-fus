@@ -1748,15 +1748,11 @@ int find_delay_index(const u_short *delays, int index, u_short value)
    framebuffer size can be set with environment variable fbsize. */
 ulong lcd_setmem(ulong addr)
 {
-	char tmp[64];	/* long enough for environment variables */
-	int len;
-	ulong fbsize = CONFIG_XLCD_FBSIZE;
+	ulong fbsize;
 
 	/* If environment variable fbsize is set, use it as size for the
 	   framebuffer pool size (in KB, decimal) */
-	len = getenv_f("fbsize", tmp, sizeof(tmp));
-	if (len > 0)
-		fbsize = simple_strtoul(tmp, NULL, 10) << 10;
+	fbsize = getenv_ulong("fbsize", 10, CONFIG_XLCD_FBSIZE);
 
 	fbsize = (fbsize + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 

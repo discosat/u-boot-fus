@@ -630,33 +630,6 @@ static void dp83902a_halt(struct eth_device *dev)
 	dp->running = false;
 }
 
-#ifndef CONFIG_NET_MULTI
-
-struct eth_device *pdev;	 /* just one instance of the card supported */
-
-int eth_rx(void)
-{
-	dp83902a_poll(pdev);
-	return 0;
-}
-
-int eth_send(volatile void *packet, int length)
-{
-	return dp83902a_send(pdev, packet, length);
-}
-
-void eth_halt()
-{
-	dp83902a_halt(pdev);
-}
-
-int eth_init(bd_t *bd)
-{
-	return dp83902a_init(pdev, bd);
-}
-
-#endif
-
 int ne2000_initialize(u8 dev_num, int base_addr)
 {
 	struct eth_device *dev;
@@ -699,8 +672,6 @@ int ne2000_initialize(u8 dev_num, int base_addr)
 		free(dev);
 		return -1;
 	}
-#elif !defined(CONFIG_NET_MULTI)
-	eth_getenv_enetaddr("ethaddr", dev->enetaddr);
 #endif
 
 	/* Set up device structure */
@@ -712,11 +683,6 @@ int ne2000_initialize(u8 dev_num, int base_addr)
 	dev->recv = dp83902a_recv;
 	sprintf(dev->name, "%s-%hu", NE2000_DEV_NAME, dev_num);
 
-#ifdef CONFIG_NET_MULTI
 	/* Register the ethernet device */
 	return eth_register(dev);
-#else
-	pdev = dev;
-	return 0;
-#endif
 }

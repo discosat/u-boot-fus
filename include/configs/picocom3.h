@@ -424,7 +424,6 @@
  * Ethernet
  ************************************************************************/
 /* This board has a NE2000 compatible AX88769B ethernet chip */
-//#define CONFIG_NET_MULTI		  /* Works, but bigger code size */
 #define CONFIG_DRIVER_NE2000
 #define CONFIG_DRIVER_NE2000_BASE	0x18000000
 #define CONFIG_DRIVER_NE2000_SOFTMAC
@@ -631,7 +630,7 @@
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
-#define CONFIG_BOOTFILE         zImage
+#define CONFIG_BOOTFILE         "zImage"
 #define CONFIG_LOADADDR         50000000
 
 /* allow to overwrite serial and ethaddr */

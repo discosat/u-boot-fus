@@ -44,7 +44,7 @@
 
 #ifdef __NAND_64MB__
 /* 512+16 pages: ECC is in bytes 8..11 in OOB, bad block marker is in byte 5 */
-static struct nand_ecclayout picomod6_oob_16 = {
+static struct nand_ecclayout picocom3_oob_16 = {
 	.eccbytes = 4,
 	.eccpos = {8, 9, 10, 11},
 	.oobfree = {
@@ -58,7 +58,7 @@ static struct nand_ecclayout picomod6_oob_16 = {
 };
 #else
 /* 2048+64 pages: ECC is in bytes 1..4 in OOB, bad block marker is in byte 0 */
-static struct nand_ecclayout picomod6_oob_16 = {
+static struct nand_ecclayout picocom3_oob_16 = {
 	.eccbytes = 4,
 	.eccpos = {1, 2, 3, 4},
 	.oobfree = {
@@ -174,9 +174,9 @@ extern int s3c64xx_nand_init(struct nand_chip *nand);
 int board_nand_init(struct nand_chip *nand)
 {
 #ifdef __NAND_64MB__
-	nand->ecc.layout = &picomod6_oob_16;
+	nand->ecc.layout = &picocom3_oob_16;
 #else
-	nand->ecc.layout = &picomod6_oob_64;
+	nand->ecc.layout = &picocom3_oob_64;
 #endif
 
 	/* Call CPU specific init */

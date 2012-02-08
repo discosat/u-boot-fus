@@ -40,6 +40,7 @@
 #endif
 
 #include <post.h>
+#include <linux/ctype.h>
 
 #if defined(CONFIG_SILENT_CONSOLE) || defined(CONFIG_POST) || defined(CONFIG_CMDLINE_EDITING)
 DECLARE_GLOBAL_DATA_PTR;
@@ -85,12 +86,14 @@ extern void mdm_init(void); /* defined in board.c */
 
 /***************************************************************************
  * Watch for 'delay' seconds for autoboot stop or autoboot delay string.
- * returns: 0 -  no key string, allow autoboot
- *          1 - got key string, abort
+ * returns: 0 -  no key string, allow autoboot 1 - got key string, abort
  */
 #if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
 # if defined(CONFIG_AUTOBOOT_KEYED)
-static inline int abortboot(int bootdelay)
+#ifndef CONFIG_MENU
+static inline
+#endif
+int abortboot(int bootdelay)
 {
 	int abort = 0;
 	uint64_t etime = endtick(bootdelay);
@@ -204,7 +207,10 @@ static inline int abortboot(int bootdelay)
 static int menukey = 0;
 #endif
 
-static inline int abortboot(int bootdelay)
+#ifndef CONFIG_MENU
+static inline
+#endif
+int abortboot(int bootdelay)
 {
 	int abort = 0;
 
@@ -261,6 +267,28 @@ static inline int abortboot(int bootdelay)
 }
 # endif	/* CONFIG_AUTOBOOT_KEYED */
 #endif	/* CONFIG_BOOTDELAY >= 0  */
+
+/*
+ * Return 0 on success, or != 0 on error.
+ */
+#ifndef CONFIG_CMD_PXE
+static inline
+#endif
+int run_command2(const char *cmd, int flag)
+{
+#ifndef CONFIG_SYS_HUSH_PARSER
+	/*
+	 * run_command can return 0 or 1 for success, so clean up its result.
+	 */
+	if (run_command(cmd, flag) == -1)
+		return 1;
+
+	return 0;
+#else
+	return parse_string_outer(cmd,
+			FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+#endif
+}
 
 /****************************************************************************/
 
@@ -328,12 +356,7 @@ void main_loop (void)
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 # endif
 
-# ifndef CONFIG_SYS_HUSH_PARSER
-		run_command (p, 0);
-# else
-		parse_string_outer(p, FLAG_PARSE_SEMICOLON |
-				    FLAG_EXIT_FROM_LOOP);
-# endif
+		run_command2(p, 0);
 
 # ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
@@ -378,12 +401,7 @@ void main_loop (void)
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 # endif
 
-# ifndef CONFIG_SYS_HUSH_PARSER
-		run_command (s, 0);
-# else
-		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
-				    FLAG_EXIT_FROM_LOOP);
-# endif
+		run_command2(s, 0);
 
 # ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
@@ -393,14 +411,8 @@ void main_loop (void)
 # ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {
 		s = getenv("menucmd");
-		if (s) {
-# ifndef CONFIG_SYS_HUSH_PARSER
-			run_command(s, 0);
-# else
-			parse_string_outer(s, FLAG_PARSE_SEMICOLON |
-						FLAG_EXIT_FROM_LOOP);
-# endif
-		}
+		if (s)
+			run_command2(s, 0);
 	}
 #endif /* CONFIG_MENUKEY */
 #endif /* CONFIG_BOOTDELAY */
@@ -1408,14 +1420,9 @@ int do_run (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			printf ("## Error: \"%s\" not defined\n", argv[i]);
 			return 1;
 		}
-#ifndef CONFIG_SYS_HUSH_PARSER
-		if (run_command (arg, flag) == -1)
+
+		if (run_command2(arg, flag) != 0)
 			return 1;
-#else
-		if (parse_string_outer(arg,
-		    FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP) != 0)
-			return 1;
-#endif
 	}
 	return 0;
 }
