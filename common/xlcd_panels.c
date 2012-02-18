@@ -287,14 +287,14 @@ const lcdinfo_t lcdlist[] = {
 /* Find predefined lcd panel by index (NULL on bad index) */
 const lcdinfo_t *lcd_get_lcdinfo_p(u_int index)
 {
-	return (index < ARRAYSIZE(lcdlist)) ? &lcdlist[index] : NULL;
+	return (index < ARRAY_SIZE(lcdlist)) ? &lcdlist[index] : NULL;
 }
 
 /* Return index of next lcd panel matching string s (or 0 if no match); start
-   search at given index */ 
+   search at given index */
 u_int lcd_search_lcd(char *s, u_int index)
 {
-	for ( ; index < ARRAYSIZE(lcdlist); index++) {
+	for ( ; index < ARRAY_SIZE(lcdlist); index++) {
 		if (strstr(lcdlist[index].name, s))
 		    return index;	  /* match */
 	}

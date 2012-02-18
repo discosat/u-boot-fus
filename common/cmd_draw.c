@@ -1255,12 +1255,12 @@ static void lcd_get_bminfo(bminfo_t *pbi, u_long addr)
 {
 	int i;
 
-	for (i = 1; i < ARRAYSIZE(bmtype_tab); i++) {
+	for (i = 1; i < ARRAY_SIZE(bmtype_tab); i++) {
 		if (bmtype_tab[i].get_bminfo(pbi, addr))
 			break;
 	}
 
-	if (i >= ARRAYSIZE(bmtype_tab)) {
+	if (i >= ARRAY_SIZE(bmtype_tab)) {
 		/* Unknown format */
 		pbi->type = BT_UNKNOWN;
 		pbi->colortype = CT_UNKNOWN;
@@ -1282,7 +1282,7 @@ static u_long lcd_scan_bitmap(u_long addr)
 	u_long newaddr;
 	int i;
 
-	for (i = 1; i < ARRAYSIZE(bmtype_tab); i++) {
+	for (i = 1; i < ARRAY_SIZE(bmtype_tab); i++) {
 		newaddr = bmtype_tab[i].scan_bm(addr);
 		if (newaddr)
 			return newaddr;
@@ -1775,7 +1775,7 @@ static int lcd_test(const wininfo_t *pwi, u_int pattern)
 	const struct testinfo *pti;
 
 	/* Get info to the given pattern */
-	if (pattern > ARRAYSIZE(ti))
+	if (pattern > ARRAY_SIZE(ti))
 		pattern = 0;
 	pti = &ti[pattern];
 
@@ -1838,7 +1838,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 #endif
 
 	/* Search for keyword in draw keyword list */
-	sc = parse_sc(argc, argv[1], DI_HELP, draw_kw, ARRAYSIZE(draw_kw));
+	sc = parse_sc(argc, argv[1], DI_HELP, draw_kw, ARRAY_SIZE(draw_kw));
 
 	/* Print usage if command not valid */
 	if (sc == DI_HELP) {
@@ -2111,7 +2111,7 @@ static int do_draw(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 				pat = simple_strtoul(argv[2], NULL, 0);
 			} else {
 				/* Parse pattern name */
-				for (pat = 0; pat < ARRAYSIZE(ti); pat++) {
+				for (pat = 0; pat < ARRAY_SIZE(ti); pat++) {
 					if (!strcmp(argv[2], ti[pat].kw))
 						break;
 				}

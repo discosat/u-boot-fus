@@ -302,7 +302,7 @@ static int do_win(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	}
 
 	/* Search for regular window sub-commands */
-	sc = parse_sc(argc, argv[1], WI_HELP, win_kw, ARRAYSIZE(win_kw));
+	sc = parse_sc(argc, argv[1], WI_HELP, win_kw, ARRAY_SIZE(win_kw));
 
 	/* If not recognized, print usage and return */
 	if (sc == WI_HELP) {

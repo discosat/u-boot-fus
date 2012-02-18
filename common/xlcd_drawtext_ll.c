@@ -32,6 +32,7 @@
 #include <xlcd_draw_ll.h>		 /* Own interface */
 #include <cmd_lcd.h>			 /* wininfo_t */
 #include <video_font.h>			 /* Get font data, width and height */
+#include <video_font_data.h>		 /* video_fontdata */
 
 #if defined(CONFIG_XLCD_CONSOLE) \
 	|| (CONFIG_XLCD_DRAW & (XLCD_DRAW_TEXT | XLCD_DRAW_PROG))

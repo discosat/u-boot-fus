@@ -209,7 +209,7 @@ static int do_cmap(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 			sc = CI_VIEW;
 		else
 			sc = parse_sc(argc, argv[1], CI_HELP, cmap_kw,
-				      ARRAYSIZE(cmap_kw));
+				      ARRAY_SIZE(cmap_kw));
 	}
 
 	if (sc == CI_HELP) {

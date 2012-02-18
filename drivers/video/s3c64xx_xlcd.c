@@ -1149,7 +1149,7 @@ static const pixinfo_t *s3c64xx_get_pixinfo_p(WINDOW win, u_char pix)
 {
 	const pixinfo_t *ppi = NULL;
 
-	if ((pix < ARRAYSIZE(pixel_info))
+	if ((pix < ARRAY_SIZE(pixel_info))
 	    && (valid_pixels[win] & (1<<pix)))
 		ppi = &pixel_info[pix];
 	return ppi;
@@ -1657,7 +1657,7 @@ static void s3c64xx_disable(const vidinfo_t *pvi)
 static const vidinfo_t s3c64xx_vidinfo = {
 	driver_name: DRIVER_NAME,
 	wincount: MAX_WINDOWS,
-	pixcount: ARRAYSIZE(pixel_info),
+	pixcount: ARRAY_SIZE(pixel_info),
 	pwi: s3c64xx_wininfo,
 	frc: 0,
 	drive: 9,

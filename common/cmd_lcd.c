@@ -1116,7 +1116,7 @@ static int do_lcd(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 #endif /* CONFIG_XLCD_DISPLAYS > 1 */
 
 	/* Search for regular lcd sub-commands */
-	sc = parse_sc(argc, argv[1], LI_HELP, lcd_kw, ARRAYSIZE(lcd_kw));
+	sc = parse_sc(argc, argv[1], LI_HELP, lcd_kw, ARRAY_SIZE(lcd_kw));
 
 	/* If not recognized, print usage and return */
 	if (sc == LI_HELP) {
