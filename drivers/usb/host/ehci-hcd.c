@@ -460,7 +460,11 @@ ehci_submit_async(struct usb_device *dev, unsigned long pipe, void *buffer,
 	/* Wait for TDs to be processed. */
 	ts = get_timer(0);
 	vtd = td;
-	timeout = USB_TIMEOUT_MS(pipe);
+	/* When we are using the timer ourselves instead of udelay(), we must
+	   convert milliseconds to timer ticks; USB_TIMEOUT_MS() returns 1000
+	   or 5000, i.e. 1s or 5s. So it is OK to divide by 1000 first to
+	   avoid a 32-bit overflow during computation. */
+	timeout = USB_TIMEOUT_MS(pipe)/1000 * CONFIG_SYS_HZ;
 	do {
 		/* Invalidate dcache */
 		ehci_invalidate_dcache(&qh_list);

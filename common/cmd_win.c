@@ -250,7 +250,7 @@ static void fade_alpha(void)
 		} /* for (win) */
 
 		/* Wait the remaining time to 1ms */
-		while (get_timer(timer) < 1000)
+		while (get_timer(timer) < CONFIG_SYS_HZ/1000)
 			;
 
 		WATCHDOG_RESET();
