@@ -67,6 +67,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef CONFIG_SYS_TLB_ALIGN
+#define CONFIG_SYS_TLB_ALIGN 0xFFFF0000	  /* Align to next 64kB limit */
+#endif
+
 ulong monitor_flash_len;
 
 #ifdef CONFIG_HAS_DATAFLASH
@@ -355,8 +359,8 @@ void board_init_f(ulong bootflag)
 	/* reserve TLB table */
 	addr -= (4096 * 4);
 
-	/* round down to next 64 kB limit */
-	addr &= ~(0x10000 - 1);
+	/* round down to next allowed TLB alignment limit */
+	addr &= CONFIG_SYS_TLB_ALIGN;
 
 	gd->tlb_addr = addr;
 	debug("TLB table at: %08lx\n", addr);

@@ -258,6 +258,9 @@
 /* Size in bytes reserved for initial data */
 #define CONFIG_SYS_GBL_DATA_SIZE	128
 
+/* Alignment mask for MMU pagetable: 16kB */
+#define CONFIG_SYS_TLB_ALIGN 0xFFFFC000
+
 /* Stack */
 
 /* The stack sizes are set up in start.S using the settings below */
