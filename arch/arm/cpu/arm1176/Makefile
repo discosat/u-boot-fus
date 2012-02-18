@@ -30,7 +30,6 @@ LIB	= $(obj)lib$(CPU).o
 
 START	= start.o
 COBJS	= cpu.o
-SOBJS	= string.o
 
 SRCS	:= $(START:.o=.S) $(SOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS) $(SOBJS))

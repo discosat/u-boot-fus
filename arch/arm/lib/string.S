@@ -23,6 +23,12 @@
  * MA 02111-1307 USA
  */
 
+#include <asm/assembler.h>		  // PLD()
+
+/* We don't want the strange macros for push and pull from assembler.h */
+#undef push
+#undef pull
+
 /*********************************************************************
 *** Function:    void *memcpy(void *dest, void *src, size_t count) ***
 *** 								   ***
@@ -88,7 +94,7 @@ memcpy:
 	push	{r5-r8}
 0:	ldmia	r1!, {r3-r8, ip, lr}
 	sub	r2, r2, #32
-	pld	[r1, #32]
+PLD(	pld	[r1, #32] )
 	strb	r3, [r0], #1		  //Now r0 is word aligned
 	mov	r3, r3, lsr #8
 	orr	r3, r3, r4, lsl #24
@@ -131,7 +137,7 @@ memcpy:
 	mov	ip, lr, lsr #16
 	strh	lr, [r0], #2		  //Store 2 of the 3 bytes as halfword
 	strb	ip, [r0], #1		  //Store last byte
-	
+
 1:	cmp	r2, #7
 	bls	6f
 
@@ -159,7 +165,7 @@ memcpy:
 	push	{r5-r8}
 0:	ldmia	r1!, {r3-r8, ip, lr}
 	sub	r2, r2, #32
-	pld	[r1, #32]
+PLD(	pld	[r1, #32] )
 	strh	r3, [r0], #2		  //Now r0 is word aligned
 	mov	r3, r3, lsr #16
 	orr	r3, r3, r4, lsl #16
@@ -198,7 +204,7 @@ memcpy:
 	mov	lr, lr, lsr #16
 	stmia	r0!, {r3, r4, ip}	  //Store 3 full words
 	strh	lr, [r0], #2		  //Store final halfword
-	
+
 1:	cmp	r2, #7
 	bls	1f
 
@@ -224,7 +230,7 @@ memcpy:
 	b	8f
 
 	/* ----- */
-	
+
 3:	tst	r0, #1
 	beq	4f			  //Offset 0
 
@@ -240,7 +246,7 @@ memcpy:
 	sub	r2, r2, #32
 	strb	r3, [r0], #1		  //r0 is now halfword aligned
 	mov	r3, r3, lsr #8
-	pld	[r1, #32]
+PLD(	pld	[r1, #32] )
 	strh	r3, [r0], #2		  //r0 is now word aligned
 	mov	r3, r3, lsr #16
 	orr	r3, r3, r4, lsl #8
@@ -281,7 +287,7 @@ memcpy:
 	mov	lr, lr, lsr #24
 	stmia	r0!, {r3, r4, ip}	  //Store 3 full words
 	strb	lr, [r0], #1		  //Store last byte
-	
+
 1:	cmp	r2, #7
 	bls	6f
 
@@ -319,7 +325,7 @@ memcpy:
 	strb	ip, [r0], #1
 	strb	lr, [r0], #1
 	b	9f
-	
+
 	/* ----- */
 
 	/* Destination pointer has alignment offset 0: when reading a src word,
@@ -331,7 +337,7 @@ memcpy:
 	push	{r5-r8}
 0:	ldmia	r1!, {r3-r8, ip, lr}
 	sub	r2, r2, #32
-	pld	[r1, #32]
+PLD(	pld	[r1, #32] )
 	cmp	r2, #31
 	stmia	r0!, {r3-r8, ip, lr}
 	bhi	0b
@@ -401,7 +407,7 @@ memmove:
 	/* Return immediately if count is zero */
 	cmp	r2, #0
 	bxeq	lr
-	
+
 	push	{r4, lr}
 	add	r0, r0, r2		  //Move pointers to end
 	add	r1, r1, r2
@@ -435,7 +441,7 @@ memmove:
 0:	ldmdb	r1!, {r3-r8, ip, lr}
 	sub	r0, r0, #32
 	sub	r2, r2, #32
-	pld	[r1, #-32]
+PLD(	pld	[r1, #-32] )
 	strb	r3, [r0, #-1]
 	mov	r3, r3, lsr #8
 	orr	r3, r3, r4, lsl #24
@@ -479,7 +485,7 @@ memmove:
 	mov	ip, lr, lsr #16
 	strh	lr, [r0, #12]		  //Store 2 of the 3 bytes as halfword
 	strb	ip, [r0, #14]		  //Store last byte
-	
+
 1:	cmp	r2, #7
 	sub	r0, r0, #1	          //Go back to old alignment offset 3
 	bls	6f
@@ -497,7 +503,7 @@ memmove:
 	strh	lr, [r0, #5]		  //Store 2 of the 3 bytes as halfword
 	strb	ip, [r0, #7]		  //Store last byte
 	b	6f
-	
+
 	/* ----- */
 
 	/* Destination pointer has alignment offset 2: when reading a src word,
@@ -511,7 +517,7 @@ memmove:
 0:	ldmdb	r1!, {r3-r8, ip, lr}
 	sub	r0, r0, #32
 	sub	r2, r2, #32
-	pld	[r1, #-32]
+PLD(	pld	[r1, #-32] )
 	strh	r3, [r0, #-2]
 	mov	r3, r3, lsr #16
 	orr	r3, r3, r4, lsl #16
@@ -551,7 +557,7 @@ memmove:
 	mov	lr, lr, lsr #16
 	stmia	r0, {r3, r4, ip}	  //Store 3 full words
 	strh	lr, [r0, #12]		  //Store final halfword
-	
+
 1:	cmp	r2, #7
 	bls	1f
 
@@ -580,7 +586,7 @@ memmove:
 	b	8f
 
 	/* ----- */
-	
+
 3:	tst	r0, #1
 	beq	4f			  //Offset 0
 
@@ -598,7 +604,7 @@ memmove:
 	sub	r2, r2, #32
 	strb	r3, [r0, #-3]
 	mov	r3, r3, lsr #8
-	pld	[r1, #-32]
+PLD(	pld	[r1, #-32] )
 	strh	r3, [r0, #-2]
 	mov	r3, r3, lsr #16
 	orr	r3, r3, r4, lsl #8
@@ -640,7 +646,7 @@ memmove:
 	mov	lr, lr, lsr #24
 	stmia	r0, {r3, r4, ip}	  //Store 3 full words
 	strb	lr, [r0, #12]		  //Store last byte
-	
+
 1:	cmp	r2, #7
 	sub	r0, r0, #3		  //Go back to old alignment offset 1
 	bls	6f
@@ -682,7 +688,7 @@ memmove:
 	strb	ip, [r0]
 	strb	lr, [r0, #1]
 	b	9f
-	
+
 	/* ----- */
 
 	/* Destination pointer has alignment offset 0: when reading a src word,
@@ -694,7 +700,7 @@ memmove:
 	push	{r5-r8}
 0:	ldmdb	r1!, {r3-r8, ip, lr}
 	sub	r2, r2, #32
-	pld	[r1, #-32]
+PLD(	pld	[r1, #-32] )
 	cmp	r2, #31
 	stmdb	r0!, {r3-r8, ip, lr}
 	bhi	0b
@@ -863,7 +869,7 @@ memset:
 	sub	r0, r0, r2, lsl #2
 	bl	memset32
 	pop	{r1, r2, lr}		  //Get back remaining count in r2
-	
+
 	/* Set the remaining bytes (up to 3) */
 2:	cmp	r2, #1
 	bls	1f
