@@ -361,7 +361,7 @@ BOARD_SIZE_CHECK =
 endif
 
 # Always append ALL so that arch config.mk's can add custom ones
-ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(obj)uboot.nb0 $(obj)u-boot.dis
+ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(obj)uboot.nb0 uboot.fs $(obj)u-boot.dis
 
 ALL-$(CONFIG_NAND_U_BOOT) += $(obj)u-boot-nand.bin
 ALL-$(CONFIG_ONENAND_U_BOOT) += $(obj)u-boot-onenand.bin
@@ -422,8 +422,12 @@ $(obj)u-boot.dis:	$(obj)u-boot
 		$(OBJDUMP) -d $< > $@
 
 $(obj)uboot.nb0:	$(obj)u-boot.bin
-		dd if=/dev/zero bs=1K count=256 | tr '\000' '\377' >$@
+		dd if=/dev/zero bs=1K count=$(CONFIG_UBOOTNB0_SIZE) \
+			 | tr '\000' '\377' >$@
 		dd if=$< of=$@ conv=notrunc bs=1K
+
+$(obj)uboot.fs:	$(obj)u-boot.bin
+		$(obj)tools/addfsheader $< $@
 
 $(obj)u-boot.ubl:       $(obj)spl/u-boot-spl.bin $(obj)u-boot.bin
 		$(OBJCOPY) ${OBJCFLAGS} --pad-to=$(PAD_TO) -O binary $(obj)spl/u-boot-spl $(obj)spl/u-boot-spl-pad.bin

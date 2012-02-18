@@ -2,9 +2,13 @@
  * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
- * Configuation settings for the F&S PicoCOM3 board.
- * Activate with "make picocom3_config"
- *
+ * Configuation settings for the F&S PicoCOM3 board. Activate with
+ * one of the following targets:
+ *   make picocom3_config         Configure for 64MB flash
+ *   make picocom3                Configure for 64MB flash and build
+ *   make picocom3_1gb_config     Configure for 1GB flash
+ *   make picocom3_1gb            Configure for 1GB flash and build
+ * 
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -70,7 +74,7 @@
  * + gd->ram_size   CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
  *                  LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
  *                  getenv("pram") (in KB)    Protected RAM set in env (unused)
- * gd->tlb_addr     16KB (64KB aligned)       MMU page tables (TLB)
+ * gd->tlb_addr     16KB (16KB aligned)       MMU page tables (TLB)
  * gd->fb_base      lcd_setmen()              LCD framebuffer (unused?)
  *                  gd->monlen (4KB aligned)  U-boot code, data and bss
  *                  TOTAL_MALLOC_LEN          malloc heap
@@ -128,9 +132,9 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-/* Define extactly one of the two following lines */
-#define __NAND_64MB__			  /* Compile U-Boot for 64MB flash */
-#undef __NAND_1GB__			  /* Compile U-Boot for 1GB flash */
+/* Define extactly one of the two following lines, now done from boards.cfg */
+//#define CONFIG_NAND_64MB		  /* Compile U-Boot for 64MB flash */
+//#undef CONFIG_NAND_1GB		  /* Compile U-Boot for 1GB flash */
 
 /* We are on a PicoCOM3 */
 #define CONFIG_IDENT_STRING	" for PicoCOM3"
@@ -174,6 +178,7 @@
 #define CONFIG_SYS_PBSIZE	384	   /* Print Buffer Size */
 #define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
+#define CONFIG_UBOOTNB0_SIZE    256	   /* size of uboot.nb0 (in kB) */
 
 /* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
 #define CONFIG_MEMORY_UPPER_CODE
@@ -212,17 +217,18 @@
 //#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
 //#define CONFIG_SOFT_MMUTABLE
 
-#define CONFIG_SYS_SDRAM_BASE	0x50000000      /* Physical RAM address */
-
+/* Physical RAM addresses */
 #define CONFIG_NR_DRAM_BANKS	1	        /* we have 1 bank of DRAM */
-#define PHYS_SDRAM_1		CONFIG_SYS_SDRAM_BASE /* SDRAM Bank #1 */
-#define PHYS_SDRAM_1_SIZE	0x04000000      /* 64 MB */
+#define PHYS_SDRAM_0		0x50000000	/* SDRAM Bank #0 */
+#define PHYS_SDRAM_0_SIZE	0x04000000      /* 64 MB */
+
+#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_0    /* Physical RAM address */
 
 /* Total memory required by uboot: 1MB */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
 /* Locate U-Boot at 1MB below end of memory */
-//#define OUR_UBOOT_OFFS          (PHYS_SDRAM_1_SIZE - CONFIG_SYS_UBOOT_SIZE)
+//#define OUR_UBOOT_OFFS          (PHYS_SDRAM_0_SIZE - CONFIG_SYS_UBOOT_SIZE)
 #define OUR_UBOOT_OFFS          0x00f00000
 
 /* This results in the following base address for uboot */
@@ -541,7 +547,7 @@
 #define CONFIG_SYS_NAND_BASE	(0x70200010)
 
 #define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
-#ifdef __NAND_64MB__
+#ifdef CONFIG_NAND_64MB
 #define CONFIG_SYS_NAND_NBOOT_SIZE 0x08000 /* 32KB NBoot, uses ECC8 */
 #define CONFIG_SYS_NAND_PAGE_SIZE  512
 #define CONFIG_SYS_NAND_PAGE_COUNT 32
@@ -575,7 +581,7 @@
 
 #define CONFIG_ENV_ADDR		0	  /* Only needed for NOR flash */
 
-#ifdef __NAND_64MB__
+#ifdef CONFIG_NAND_64MB
 /* The environment is 16KB and can use a region of 32KB, allowing for one bad
    block. */
 #define CONFIG_ENV_SIZE    0x00004000	  /* 16KB actual environment */
@@ -602,7 +608,7 @@
 
 /* Define the default partitions on this NAND chip; we have a version for
    64MB and 1GB flash (see comment at head of file) */
-#ifdef __NAND_64MB__
+#ifdef CONFIG_NAND_64MB
 #define MTDPARTS_DEFAULT	"mtdparts=pc3nand0:32k(NBoot)ro,448k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
 //#define MTDPARTS_DEFAULT	"mtdparts=pc3nand0:32k@0x78000(UBootEnv),512k(UserDef),3m(Kernel),-(TargetFS)"
 #else

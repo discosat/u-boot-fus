@@ -42,7 +42,7 @@
 #define CS8900_Tacp	(0x6)	// 6clk		page mode access cycle
 #define CS8900_PMC	(0x0)	// normal(1data)page mode configuration
 
-#ifdef __NAND_64MB__
+#ifdef CONFIG_NAND_64MB
 /* 512+16 pages: ECC is in bytes 8..11 in OOB, bad block marker is in byte 5 */
 static struct nand_ecclayout picomod6_oob_16 = {
 	.eccbytes = 4,
@@ -113,7 +113,7 @@ int board_init(void)
 	DECLARE_GLOBAL_DATA_PTR;
 
 	gd->bd->bi_arch_number = MACH_TYPE;
-	gd->bd->bi_boot_params = (PHYS_SDRAM_1+0x100);
+	gd->bd->bi_boot_params = (PHYS_SDRAM_0+0x100);
 
 #if 1
 	icache_enable();
@@ -131,11 +131,11 @@ int dram_init(void)
 	DECLARE_GLOBAL_DATA_PTR;
 
 	/* Set RAM banks */
-	gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
-	gd->bd->bi_dram[0].size = PHYS_SDRAM_1_SIZE;
+	gd->bd->bi_dram[0].start = PHYS_SDRAM_0;
+	gd->bd->bi_dram[0].size = PHYS_SDRAM_0_SIZE;
 
 	/* Set total RAM size */
-	gd->ram_size = PHYS_SDRAM_1_SIZE;
+	gd->ram_size = PHYS_SDRAM_0_SIZE;
 
 	return 0;
 }
@@ -173,7 +173,7 @@ ulong virt_to_phy_picomod6(ulong addr)
 extern int s3c64xx_nand_init(struct nand_chip *nand);
 int board_nand_init(struct nand_chip *nand)
 {
-#ifdef __NAND_64MB__
+#ifdef CONFIG_NAND_64MB
 	nand->ecc.layout = &picomod6_oob_16;
 #else
 	nand->ecc.layout = &picomod6_oob_64;
