@@ -341,6 +341,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 	}
 
 #ifdef CONFIG_NAND_NBOOT
+	/* Consider NBoot blocks as not bad */
 	if (ofs < CONFIG_SYS_NAND_NBOOT_SIZE)
 		res = 0;
 	else
@@ -878,7 +879,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint3
 	int datafrag_len, eccfrag_len, aligned_len, aligned_pos;
 	int busw = (chip->options & NAND_BUSWIDTH_16) ? 2 : 1;
 
-	/* Column address wihin the page aligned to ECC size (256bytes). */
+	/* Column address within the page aligned to ECC size (256bytes). */
 	start_step = data_offs / chip->ecc.size;
 	end_step = (data_offs + readlen - 1) / chip->ecc.size;
 	num_steps = end_step - start_step + 1;
@@ -1026,8 +1027,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 		chip->ecc.hwctl(mtd, NAND_ECC_READ);
 		chip->read_buf(mtd, p, eccsize);
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
-
-		stat = chip->ecc.correct(mtd, p, &ecc_code[i], NULL);
+		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
 		if (stat < 0)
 			mtd->ecc_stats.failed++;
 		else
@@ -1161,9 +1161,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	uint32_t oobreadlen = ops->ooblen;
 	uint8_t *bufpoi, *oob, *buf;
 #ifdef CONFIG_NAND_NBOOT
-	int n_chipnr = (int)(CONFIG_SYS_NAND_NBOOT_SIZE >> chip->chip_shift);
-	int n_page = (int)(CONFIG_SYS_NAND_NBOOT_SIZE >> chip->page_shift)
-							& chip->pagemask;
+	int n_realpage = (int)(CONFIG_SYS_NAND_NBOOT_SIZE >> chip->page_shift);
 #endif
 
 	stats = mtd->ecc_stats;
@@ -1199,8 +1197,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				ret = chip->ecc.read_page_raw(mtd, chip,
 						bufpoi, page);
 #ifdef CONFIG_NAND_NBOOT
-			else if ((chipnr < n_chipnr)
-				 || ((chipnr == n_chipnr) && (page < n_page)))
+			else if (realpage < n_realpage)
 				ret = chip->ecc.read_page_nboot(mtd, chip,
 								bufpoi, page);
 #endif
@@ -1867,6 +1864,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 			memcpy(chip->oob_poi + boffs, oob, bytes);
 			oob += bytes;
 		}
+
 		return oob;
 	}
 	default:
@@ -2047,7 +2045,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	/* Do not allow reads past end of device */
+	/* Do not allow writes past end of device */
 	if (unlikely(to >= mtd->size ||
 		     ops->ooboffs + ops->ooblen >
 			((mtd->size >> chip->page_shift) -
@@ -2109,7 +2107,7 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 	/* Do not allow writes past end of device */
 	if (ops->datbuf && (to + ops->len) > mtd->size) {
 		MTDDEBUG (MTD_DEBUG_LEVEL0, "nand_write_oob: "
-			  "Attempt read beyond end of device\n");
+			  "Attempt write beyond end of device\n");
 		return -EINVAL;
 	}
 

@@ -1044,9 +1044,6 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 		USB_HUB_PRINTF("port %d returns %lX\n", i + 1, dev->status);
 		wait_ms(hub->desc.bPwrOn2PwrGood * 2);
 	}
-#ifdef CONFIG_S3C64XX
-	wait_ms(200);			  /* Seems to be necessary */
-#endif
 }
 
 void usb_hub_reset(void)
@@ -1313,6 +1310,10 @@ int usb_hub_configure(struct usb_device *dev)
 		(le16_to_cpu(hubsts->wHubStatus) & HUB_STATUS_OVERCURRENT) ? \
 		"" : "no ");
 	usb_hub_power_on(hub);
+
+#if defined(CONFIG_S5P) || defined(CONFIG_S3C64XX)
+	wait_ms(100); //###
+#endif
 
 	for (i = 0; i < dev->maxchild; i++) {
 		struct usb_port_status portsts;

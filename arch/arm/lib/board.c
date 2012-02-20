@@ -96,24 +96,24 @@ extern void setup_mmu_table(ulong tlb_addr);
  ************************************************************************
  * May be supplied by boards if desired
  */
-void __coloured_LED_init(void) {}
+inline void __coloured_LED_init(void) {}
 void coloured_LED_init(void)
 	__attribute__((weak, alias("__coloured_LED_init")));
-void __red_led_on(void) {}
+inline void __red_led_on(void) {}
 void red_led_on(void) __attribute__((weak, alias("__red_led_on")));
-void __red_led_off(void) {}
+inline void __red_led_off(void) {}
 void red_led_off(void) __attribute__((weak, alias("__red_led_off")));
-void __green_led_on(void) {}
+inline void __green_led_on(void) {}
 void green_led_on(void) __attribute__((weak, alias("__green_led_on")));
-void __green_led_off(void) {}
+inline void __green_led_off(void) {}
 void green_led_off(void) __attribute__((weak, alias("__green_led_off")));
-void __yellow_led_on(void) {}
+inline void __yellow_led_on(void) {}
 void yellow_led_on(void) __attribute__((weak, alias("__yellow_led_on")));
-void __yellow_led_off(void) {}
+inline void __yellow_led_off(void) {}
 void yellow_led_off(void) __attribute__((weak, alias("__yellow_led_off")));
-void __blue_led_on(void) {}
+inline void __blue_led_on(void) {}
 void blue_led_on(void) __attribute__((weak, alias("__blue_led_on")));
-void __blue_led_off(void) {}
+inline void __blue_led_off(void) {}
 void blue_led_off(void) __attribute__((weak, alias("__blue_led_off")));
 
 /*
@@ -237,7 +237,7 @@ void __dram_init_banksize(void)
 void dram_init_banksize(void)
 	__attribute__((weak, alias("__dram_init_banksize")));
 
-init_fnc_t *init_sequence[] = {
+init_fnc_t *const init_sequence[] = {
 #if defined(CONFIG_ARCH_CPU_INIT)
 	arch_cpu_init,		/* basic arch cpu dependent setup */
 #endif
@@ -272,7 +272,7 @@ init_fnc_t *init_sequence[] = {
 void board_init_f(ulong bootflag)
 {
 	bd_t *bd;
-	init_fnc_t **init_fnc_ptr;
+	init_fnc_t *const *init_fnc_ptr;
 	gd_t *id;
 	ulong addr, addr_sp;
 #ifdef CONFIG_PRAM
@@ -299,15 +299,15 @@ void board_init_f(ulong bootflag)
 						(uintptr_t)gd->fdt_blob);
 
 #if 0
-        /* #### Zeichen auf Schnittstelle ausgeben */
-        {
-            volatile int __iii;
-            *(volatile unsigned int *)0x7F005820 = 0x2a;
-            *(volatile unsigned int *)0x7F005820 = 0x41;
-            for (__iii=1000000; __iii; __iii--)
-                ;
-        }
-        /* ####################### */
+	/* #### Zeichen auf Schnittstelle ausgeben */
+	{
+	    volatile int __iii;
+	    *(volatile unsigned int *)0x7F005820 = 0x2a;
+	    *(volatile unsigned int *)0x7F005820 = 0x41;
+	    for (__iii=1000000; __iii; __iii--)
+		;
+	}
+	/* ####################### */
 #endif
 
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
@@ -628,9 +628,7 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	bb_miiphy_init();
 #endif
 #if defined(CONFIG_CMD_NET)
-//### #if defined(CONFIG_NET_MULTI)
 	puts("Net:   ");
-//### #endif
 	eth_initialize(gd->bd);
 #if defined(CONFIG_RESET_PHY_R)
 	debug("Reset Ethernet PHY\n");

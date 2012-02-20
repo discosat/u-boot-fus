@@ -70,6 +70,7 @@ COBJS-$(CONFIG_RTC_S3C24XX) += s3c24xx_rtc.o
 COBJS-$(CONFIG_RTC_S3C64XX) += s3c64xx_rtc.o
 COBJS-$(CONFIG_RTC_S5P64XX) += s5p64xx_rtc.o
 COBJS-$(CONFIG_RTC_S3C44B0) += s3c44b0_rtc.o
+COBJS-$(CONFIG_RTC_S5P) += s5p_rtc.o
 COBJS-$(CONFIG_RTC_X1205) += x1205.o
 
 COBJS	:= $(sort $(COBJS-y))

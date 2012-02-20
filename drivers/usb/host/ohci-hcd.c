@@ -64,6 +64,10 @@
 #include <asm/arch/hardware.h>	/* needed for AT91_USB_HOST_BASE */
 #endif
 
+#ifdef CONFIG_USB_S5P
+#include <asm/arch/cpu.h>		  /* samsung_get_base_ohci() */
+#endif
+
 #if defined(CONFIG_ARM920T) || \
     defined(CONFIG_S3C24X0) || \
     defined(CONFIG_S3C64XX) || \
@@ -1575,7 +1579,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 
 #ifdef DEBUG
 	pkt_print(transfer_len, dev, pipe, buffer, transfer_len,
-		  setup, "RET(ctlr)", *usb_pipein(pipe));
+		  setup, "RET(ctlr)", usb_pipein(pipe));
 #else
 	wait_ms(1);
 #endif

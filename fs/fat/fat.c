@@ -898,50 +898,59 @@ do_fat_read (const char *filename, void *buffer, unsigned long maxsize,
 			}
 			if ((dentptr->attr & ATTR_VOLUME)) {
 #ifdef CONFIG_SUPPORT_VFAT
-				if ((dentptr->attr & ATTR_VFAT) == ATTR_VFAT &&
-				    (dentptr->name[0] & LAST_LONG_ENTRY_MASK)) {
-					prevcksum =
-						((dir_slot *)dentptr)->alias_checksum;
-
-					get_vfatname(mydata,
-						     root_cluster,
-						     do_fat_read_block,
-						     dentptr, l_name);
-
-					if (dols == LS_ROOT) {
-						char dirc;
-						int doit = 0;
-						int isdir =
-							(dentptr->attr & ATTR_DIR);
-
-						if (isdir) {
-							dirs++;
-							dirc = '/';
-							doit = 1;
-						} else {
-							dirc = ' ';
-							if (l_name[0] != 0) {
-								files++;
-								doit = 1;
-							}
-						}
-						if (doit) {
-							if (dirc == ' ') {
-								printf(" %8ld   %s%c\n",
-									(long)FAT2CPU32(dentptr->size),
-									l_name,
-									dirc);
-							} else {
-								printf("            %s%c\n",
-									l_name,
-									dirc);
-							}
-						}
+				if ((dentptr->attr & ATTR_VFAT) == ATTR_VFAT) {
+					if (dentptr->name[0] & DELETED_LONG_ENTRY) {
+						/* Deleted VFAT entry */
 						dentptr++;
 						continue;
 					}
-					debug("Rootvfatname: |%s|\n",
-					       l_name);
+
+					if (dentptr->name[0] & LAST_LONG_ENTRY_MASK) {
+						prevcksum =
+							((dir_slot *)dentptr)->alias_checksum;
+
+						get_vfatname(mydata,
+							     root_cluster,
+							     do_fat_read_block,
+							     dentptr, l_name);
+
+						if (dols == LS_ROOT) {
+							char dirc;
+							int doit = 0;
+							int isdir =
+								(dentptr->attr & ATTR_DIR);
+
+							if (isdir) {
+								dirs++;
+								dirc = '/';
+								doit = 1;
+							} else {
+								dirc = ' ';
+								if (l_name[0] != 0) {
+									files++;
+									doit = 1;
+								}
+							}
+							if (doit) {
+								if (dirc == ' ') {
+									printf(" %8ld   %s%c\n",
+										(long)FAT2CPU32(dentptr->size),
+										l_name,
+										dirc);
+								} else {
+									printf("            %s%c\n",
+										l_name,
+										dirc);
+								}
+							}
+							dentptr++;
+							continue;
+						}
+						debug("Rootvfatname: |%s|\n",
+						      l_name);
+					}
+					dentptr++;
+					continue;
 				} else
 #endif
 				{

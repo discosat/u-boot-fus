@@ -267,6 +267,19 @@ static int try_autodevs(char *fname, char *devname, char *devmaskname,
 		/* Show what we try to load */
 		printf(" %s %u:1: ", devname, dev_num);
 
+#ifdef CONFIG_MMC
+		if (strcmp(devname, "mmc") == 0) {
+			struct mmc *mmc;
+
+			mmc = find_mmc_device(dev_num);
+			if (!mmc) {
+				puts("no device\n");
+				continue;
+			}
+			mmc_init(mmc);
+		}
+#endif
+
 		/* If the device is valid and we can open partition 1, try to
 		   load the autoload file */
 		dev_desc = get_dev(devname, dev_num);
@@ -305,11 +318,9 @@ void autoload_script(void)
 	printf("Trying to autoload '%s', address 0x%08lx\n", fname, addr);
 
 #ifdef CONFIG_MMC
-	if (mmc_legacy_init(1) == 0) {
-		/* Try to load from MMC devices */
-		if (try_autodevs(fname, "mmc", "autommc", addr))
-			return;
-	}
+	/* Try to load from MMC devices */
+	if (try_autodevs(fname, "mmc", "autommc", addr))
+		return;
 #endif
 
 #if defined(CONFIG_USB_STORAGE)

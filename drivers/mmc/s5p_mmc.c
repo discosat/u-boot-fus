@@ -23,6 +23,7 @@
 #include <asm/io.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/clk.h>
+#include <asm/arch/cpu.h>		  /* samsung_get_base_mmc() */
 
 /* support 4 mmc hosts */
 struct mmc mmc_dev[4];

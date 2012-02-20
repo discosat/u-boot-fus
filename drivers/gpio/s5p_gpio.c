@@ -21,6 +21,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/cpu.h>		  /* samsung_get_base_gpio() */
 
 #define CON_MASK(x)		(0xf << ((x) << 2))
 #define CON_SFR(x, v)		((v) << ((x) << 2))
@@ -147,7 +148,7 @@ struct s5p_gpio_bank *s5p_gpio_get_bank(int nr)
 	int bank = nr / GPIO_PER_BANK;
 	bank *= sizeof(struct s5p_gpio_bank);
 
-	return (struct s5p_gpio_bank *) (s5p_gpio_base(nr) + bank);
+	return (struct s5p_gpio_bank *) (samsung_get_base_gpio() + bank);
 }
 
 int s5p_gpio_get_pin(int nr)

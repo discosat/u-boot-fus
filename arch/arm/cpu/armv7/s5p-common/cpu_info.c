@@ -23,11 +23,13 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/clk.h>
+#include <asm/arch/cpu.h>		  /* cpu_is_*() */
 
-/* Default is s5pc100 */
-unsigned int s5p_cpu_id = 0xC100;
-/* Default is EVT1 */
-unsigned int s5p_cpu_rev = 1;
+char const *s5pc110_dev_id[] = {
+	"S5PV210",
+	"S5PC110",
+	"S5PC111",
+};
 
 #ifdef CONFIG_ARCH_CPU_INIT
 int arch_cpu_init(void)
@@ -40,7 +42,9 @@ int arch_cpu_init(void)
 
 u32 get_device_type(void)
 {
-	return s5p_cpu_id;
+	DECLARE_GLOBAL_DATA_PTR;
+
+	return gd->cpu_id;
 }
 
 #ifdef CONFIG_DISPLAY_CPUINFO
@@ -48,8 +52,23 @@ int print_cpuinfo(void)
 {
 	char buf[32];
 
-	printf("CPU:\tS5P%X@%sMHz\n",
-			s5p_cpu_id, strmhz(buf, get_arm_clk()));
+	puts("CPU:   ");
+	if (cpu_is_s5pc100())
+		puts("S5PC100");
+	else if (cpu_is_s5pc110())	  /* Device ID in [3:0] */
+		puts(s5pc110_dev_id[readl(S5PC100_PRO_ID) & 0x0f]);
+	else
+		puts("(unknown)");
+
+	printf("@%sMHz\n", strmhz(buf, get_arm_clk()));
+
+#if 0 //####
+	printf("###ACLK=%sMHz ", strmhz(buf, get_pll_clk(APLL)));
+	printf("MCLK=%sMHz ", strmhz(buf, get_pll_clk(MPLL)));
+	printf("ECLK=%sMHz ", strmhz(buf, get_pll_clk(EPLL)));
+	printf("VCLK=%sMHz ", strmhz(buf, get_pll_clk(VPLL)));
+	printf("PWM_CLK=%sMHz\n", strmhz(buf, get_pwm_clk()));
+#endif //####
 
 	return 0;
 }

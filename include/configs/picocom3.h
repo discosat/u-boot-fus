@@ -195,15 +195,8 @@
 #define CONFIG_DISPLAY_CPUINFO		  /* Show CPU type and speed */
 #define CONFIG_DISPLAY_BOARDINFO	  /* Show board information */
 
-/* Skip relocation, we are already loaded at the correct position by NBoot */
-//#undef CONFIG_SKIP_RELOCATE_UBOOT /* no big difference */
-#define CONFIG_SKIP_RELOCATE_UBOOT
-
 /* No need for IRQ/FIQ stuff; this also obsoletes the IRQ/FIQ stacks */
 #undef CONFIG_USE_IRQ
-
-/* Strange -- not used anywhere, but everybody and its dog undefines it */
-#undef CONFIG_SYS_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
 /* The PWM Timer 4 uses a prescaler of 167 and a divider of 4. This results in
    100kHz or one tick every 10us at PCLK=66.5MHz. */
@@ -348,18 +341,6 @@
 #define CONFIG_SETUP_MEMORY_TAGS
 #define CONFIG_CMDLINE_TAG
 //#define CONFIG_INITRD_TAG
-
-
-/************************************************************************
- * I2C
- ************************************************************************/
-/* No need to access I2C from U-Boot on this board */
-#undef CONFIG_S3C64XX_I2C
-#ifdef CONFIG_S3C64XX_I2C
-#define CONFIG_HARD_I2C		1
-#define CONFIG_SYS_I2C_SPEED	50000
-#define CONFIG_SYS_I2C_SLAVE	0xFE
-#endif
 
 
 /************************************************************************
@@ -624,8 +605,6 @@
 #define CONFIG_BOOTDELAY	3
 #define CONFIG_BOOTARGS    	"console=ttySAC1,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read.jffs2 51000000 Kernel ; bootm 51000000"
-//#define CONFIG_BOOTCOMMAND	"setenv bootargs $(bootargs) root=/dev/mtd5 rw rootfstype=jffs2 ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ; bootm 51000000"
-//#define CONFIG_NFSBOOTCOMMAND	"setenv bootargs $(bootargs) root=/dev/nfs rw nfsroot=rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ; bootm 51000000"
 #define CONFIG_EXTRA_ENV_SETTINGS \
         "bootlocal=setenv bootargs console=ttySAC1,38400 $(mtdparts) init=linuxrc root=/dev/mtdblock5 ro rootfstype=jffs2\0" \
         "bootnfs=setenv bootargs console=ttySAC1,38400 $(mtdparts) init=linuxrc root=/dev/nfs rw nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)\0" \

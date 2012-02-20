@@ -1,9 +1,6 @@
 #
-# (C) Copyright 2000-2003
+# (C) Copyright 2000, 2001, 2002
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
-#
-# (C) Copyright 2008
-# Guennadi Liakhovetki, DENX Software Engineering, <lg@denx.de>
 #
 # See file CREDITS for list of people who contributed to this
 # project.
@@ -26,19 +23,23 @@
 
 include $(TOPDIR)/config.mk
 
-LIB	= $(obj)lib$(SOC).o
+LIB	= $(obj)lib$(BOARD).o
 
-SOBJS	= reset.o
+COBJS-y += armstonea8.o
+SOBJS	:= lowlevel_init.o
 
-COBJS-$(CONFIG_S3C64XX)	+= cpu_init.o speed.o
-COBJS-y	+= timer.o
+SRCS    := $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
+OBJS	:= $(addprefix $(obj),$(COBJS-y))
+SOBJS	:= $(addprefix $(obj),$(SOBJS))
 
-OBJS	:= $(addprefix $(obj),$(SOBJS) $(COBJS-y))
+$(LIB):	$(obj).depend $(SOBJS) $(OBJS)
+	$(call cmd_link_o_target, $(SOBJS) $(OBJS))
 
-all:	$(obj).depend $(START) $(LIB)
+clean:
+	rm -f $(SOBJS) $(OBJS)
 
-$(LIB):	$(OBJS)
-	$(call cmd_link_o_target, $(OBJS))
+distclean:	clean
+	rm -f $(LIB) core *.bak $(obj).depend
 
 #########################################################################
 

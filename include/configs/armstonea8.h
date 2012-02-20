@@ -2,13 +2,11 @@
  * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
- * Configuation settings for the F&S PicoMOD6 board. Activate with
+ * Configuation settings for the F&S armStoneA8 board. Activate with
  * one of the following targets:
- *   make picomod6_config         Configure for 64MB flash
- *   make picomod6                Configure for 64MB flash and build
- *   make picomod6_1gb_config     Configure for 1GB flash
- *   make picomod6_1gb            Configure for 1GB flash and build
- * 
+ *   make amstonea8_config      Configure for armStoneA8
+ *   make amstonea8             Configure for armStoneA8 and build
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -28,8 +26,8 @@
  * MA 02111-1307 USA
  *
  *
- * RAM layout of PicoMOD6 (RAM starts at 0x50000000) (128MB)
- * ---------------------------------------------------------
+ * RAM layout of armStoneA8 (RAM starts at 0x40000000) (128MB)
+ * -----------------------------------------------------------
  * Offset 0x0000_0000 - 0x0000_00FF:
  * Offset 0x0000_0100 - 0x0000_7FFF: bi_boot_params
  * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
@@ -37,16 +35,10 @@
  * Offset 0x0100_0000 - 0x07EF_FFFF: (unused, e.g. INITRD)
  * Offset 0x07F0_0000 - 0x07FF_FFFF: U-Boot (inkl. malloc area)
  *
- * NAND flash layout of PicoMOD6 (64MB) (Block size 16KB)
- * --------------------------------------------------------
- * Offset 0x0000_0000 - 0x0000_7FFF: NBoot (32KB)
- * Offset 0x0000_8000 - 0x0007_7FFF: U-Boot (448KB)
- * Offset 0x0007_8000 - 0x0007_FFFF: U-Boot environment (32KB)
- * Offset 0x0008_0000 - 0x000F_FFFF: Space for user defined data (512KB)
- * Offset 0x0010_0000 - 0x003F_FFFF: Linux Kernel zImage (3MB)
- * Offset 0x0040_0000 - 0x03FF_FFFF: Linux Target System (60MB)
+ * Remark: Additional 128MB of RAM are unused @ 0x20000000)
+ * 
  *
- * NAND flash layout of PicoMOD6 (1GB) (Block size 128KB)
+ * NAND flash layout of armStoneA8 (1GB) (Block size 128KB)
  * --------------------------------------------------------
  * Offset 0x0000_0000 - 0x0003_FFFF: NBoot (256KB)
  * Offset 0x0004_0000 - 0x000B_FFFF: U-Boot (512KB)
@@ -86,17 +78,6 @@
  *
  * Remark: TOTAL_MALLOC_LEN depends on CONFIG_SYS_MALLOC_LEN and CONFIG_ENV_SIZE
  *
- * Old layout (from bottom to top!)
- * 
- * (Code size):              U-Boot code    
- * CONFIG_STACKSIZE_FIQ:     FIQ stack (if CONFIG_USE_IRQ is defined)
- * CONFIG_STACKSIZE_IRQ:     IRQ stack (if CONFIG_USE_IRQ is defined)
- * CONFIG_SYS_GBL_DATA_SIZE: Gobal data
- * CONFIG_SYS_MALLOC_LEN:    Heap
- * CONFIG_SYS_STACK_SIZE:    (128K) Stack
- * ----------------------------------------------------------------
- * CONFIG_SYS_UBOOT_SIZE:    Sum is size of U-Boot 
- *
  */
 
 #ifndef __CONFIG_H
@@ -132,28 +113,27 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-/* Define extactly one of the two following lines, now done from boards.cfg */
-//#define CONFIG_NAND_64MB		  /* Compile U-Boot for 64MB flash */
-//#undef CONFIG_NAND_1GB		  /* Compile U-Boot for 1GB flash */
 
-/* We are on a PicoMOD6 */
-#define CONFIG_IDENT_STRING	" for PicoMOD6"
+/* We are on an armStoneA8 */
+#define CONFIG_IDENT_STRING	" for armStoneA8"
 
 /* CPU, family and board defines */
-#define CONFIG_ARMV6		1	  /* This is an ARM v6 CPU core */
+#define CONFIG_ARMV7		1	  /* This is an ARM v7 CPU core */
 #define CONFIG_SAMSUNG		1	  /* in a SAMSUNG core */
-#define CONFIG_S3C		1	  /* wich is in S3C family */
-#define CONFIG_S3C64XX		1	  /* more specific in S3C64XX family */
-#define CONFIG_S3C6410		1	  /* it's an S3C6410 SoC */
-#define CONFIG_PICOMOD6		1	  /* F&S PicoMOD6 Board */
+#define CONFIG_S5P		1	  /* wich is in S5P family */
+#define CONFIG_S5PC1XX		1	  /* more specific in S5PC1XX family */
+#define CONFIG_S5PV210		1	  /* it's an S5PV210 SoC */
+#define CONFIG_ARMSTONEA8	1	  /* F&S armStoneA8 Board */
 
 /* Architecture magic and machine type */
-#define MACH_TYPE		0x9BE	  /* PicoMOD6/Linux */
+#define MACH_TYPE		0x9BE	  /* PicoMOD6/Linux #### TODO */
 #define UBOOT_MAGIC		(0x43090000 | MACH_TYPE)
 
 /* Input clock of PLL */
-#define CONFIG_SYS_CLK_FREQ	12000000  /* 12MHz */
+#define CONFIG_SYS_CLK_FREQ	12000000  /* 12MHz (only on Rev 1.0) */
 
+/* We do need to set our CPU type rather early */
+#define CONFIG_ARCH_CPU_INIT
 
 /************************************************************************
  * Command line editor (shell)
@@ -164,7 +144,7 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CONFIG_SYS_PROMPT	"PicoMOD6 # " /* Monitor Command Prompt */
+#define CONFIG_SYS_PROMPT	"armStoneA8 # " /* Monitor Command Prompt */
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
@@ -178,7 +158,7 @@
 #define CONFIG_SYS_PBSIZE	384	   /* Print Buffer Size */
 #define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
-#define CONFIG_UBOOTNB0_SIZE    256	   /* size of uboot.nb0 (in kB) */
+#define CONFIG_UBOOTNB0_SIZE    384	   /* size of uboot.nb0 (in kB) */
 
 /* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
 #define CONFIG_MEMORY_UPPER_CODE
@@ -198,9 +178,9 @@
 /* No need for IRQ/FIQ stuff; this also obsoletes the IRQ/FIQ stacks */
 #undef CONFIG_USE_IRQ
 
-/* The PWM Timer 4 uses a prescaler of 167 and a divider of 4. This results in
-   100kHz or one tick every 10us at PCLK=66.5MHz. */
-#define CONFIG_SYS_HZ		100000
+/* The PWM Timer 4 uses a prescaler of 16 and a divider of 2 for PCLK; this
+   results in the following value for PCLK=66.7MHz */
+#define CONFIG_SYS_HZ		2084375
 
 
 /************************************************************************
@@ -210,12 +190,19 @@
 //#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
 //#define CONFIG_SOFT_MMUTABLE
 
-/* Physical RAM addresses */
-#define CONFIG_NR_DRAM_BANKS	1	        /* We have 1 bank of DRAM */
-#define PHYS_SDRAM_0		0x50000000	/* SDRAM Bank #0 */
-#define PHYS_SDRAM_0_SIZE	0x08000000      /* 128 MB */
+/* Physical RAM addresses; ATTENTION: the two banks have a gap inbetween; they
+   only become a continuous region when using the MMU */
+#ifdef CONFIG_ENABLE_MMU
+#define CONFIG_NR_DRAM_BANKS	2	        /* we use 2 banks of DRAM */
+#else
+#define CONFIG_NR_DRAM_BANKS	1	        /* we use 1 bank of DRAM */
+#endif
+#define PHYS_SDRAM_0		0x20000000	/* SDRAM Bank #0 */
+#define PHYS_SDRAM_0_SIZE	0x10000000      /* 256 MB */
+#define PHYS_SDRAM_1		0x40000000	/* SDRAM Bank #1 */
+#define PHYS_SDRAM_1_SIZE	0x10000000      /* 256 MB */
 
-#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_0    /* Physical RAM address */
+#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_1    /* Physical RAM address */
 
 /* Total memory required by uboot: 1MB */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
@@ -241,15 +228,15 @@
 #define CONFIG_SYS_INIT_SP_ADDR	\
 	(CONFIG_SYS_TEXT_BASE - CONFIG_SYS_GBL_DATA_SIZE)
 #else
-/* Set to internal SRAM (TCM), mapped from 0x0C000000-0x0C009FFF */
-#define CONFIG_SYS_INIT_SP_ADDR	(0x0C00A000 - CONFIG_SYS_GBL_DATA_SIZE)
+/* Set to internal RAM (IRAM), mapped from 0xD002000-0xD0037FFF */
+#define CONFIG_SYS_INIT_SP_ADDR	(0xD0038000 - CONFIG_SYS_GBL_DATA_SIZE)
 #endif
 
 /* Size of malloc() pool (heap) */
 #define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 512*1024)
 
 /* Size in bytes reserved for initial data */
-#define CONFIG_SYS_GBL_DATA_SIZE	128
+#define CONFIG_SYS_GBL_DATA_SIZE	256
 
 /* Alignment mask for MMU pagetable: 16kB */
 #define CONFIG_SYS_TLB_ALIGN 0xFFFFC000
@@ -310,7 +297,9 @@
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/
-#define CONFIG_SERIAL3          1	  /* SERIAL 3 (UART2) on PicoMOD6 */
+#define CONFIG_SERIAL0          1	  /* UART0 on armStoneA8 */
+#define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
+//#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
 
 #define CONFIG_BAUDRATE		38400
 
@@ -346,8 +335,7 @@
 /************************************************************************
  * Real Time Clock (RTC)
  ************************************************************************/
-#define CONFIG_RTC_S3C64XX	1
-
+#define CONFIG_RTC_S5P	1
 
 /************************************************************************
  * Command definition
@@ -382,7 +370,7 @@
 
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_USB
-#define CONFIG_CMD_MMC
+//#####define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
 #undef CONFIG_CMD_REGINFO		  /* No register info on ARM */
 #define	CONFIG_CMD_NAND
@@ -415,12 +403,13 @@
  ************************************************************************/
 /* This board has a NE2000 compatible AX88769B ethernet chip */
 #define CONFIG_DRIVER_NE2000
-#define CONFIG_DRIVER_NE2000_BASE	0x18000000
+#define CONFIG_DRIVER_NE2000_BASE	0x80000000
+#define CONFIG_DRIVER_NE2000_BASE2	0x88000000
 #define CONFIG_DRIVER_NE2000_SOFTMAC
 #define CONFIG_DRIVER_AX88796L
 
 
-#ifndef CONFIG_PICOMOD6 /* Already done in NBoot */
+#ifndef CONFIG_ARMSTONEA8 /* Already done in NBoot */
 /************************************************************************
  * CPU (PLL) timings
  ************************************************************************/
@@ -430,10 +419,10 @@
 #define CONFIG_CLK_532_133_66
 //#define CONFIG_CLK_400_133_66
 //#define CONFIG_CLK_400_100_50
-#endif /* !CONFIG_PICOMOD6 */
+#endif /* !CONFIG_ARMSTONEA8 */
 
 
-#ifndef CONFIG_PICOMOD6 /* Already done in NBoot */
+#ifndef CONFIG_ARMSTONEA8 /* Already done in NBoot */
 /************************************************************************
  * RAM timing
  ************************************************************************/
@@ -456,20 +445,34 @@
 #define DDR_tWR 		15		/* ns (min: 15ns)*/
 #define DDR_tXSR		120		/* ns (min: 120ns)*/
 #define DDR_CASL		3		/* CAS Latency 3 */
-#endif /* !CONFIG_PICOMOD6 */
+#endif /* !CONFIG_ARMSTONEA8 */
 
 
 /************************************************************************
  * USB host
  ************************************************************************/
-#define CONFIG_USB_STORAGE
-//#define CONFIG_USB_OHCI
-#define CONFIG_USB_OHCI_NEW
-#define CONFIG_USB_S3C64XX
-#define CONFIG_SYS_USB_OHCI_REGS_BASE 0x74300000
-#define CONFIG_SYS_USB_OHCI_BOARD_INIT
-#define CONFIG_SYS_USB_OHCI_SLOT_NAME "F+S USB Host"
+
+/* Define one of the following two lines to select the USB host driver */
+#undef CONFIG_USB_OHCI_NEW		  /* Use OHCI (only USB 1.1) */
+#define CONFIG_USB_EHCI			  /* Use EHCI (USB 2.0 capable) */
+
+/* Settings for OHCI driver */
+#ifdef CONFIG_USB_OHCI_NEW
+#define CONFIG_USB_S5P			  /* Include S5P specific stuff */
+#define CONFIG_SYS_USB_OHCI_REGS_BASE samsung_get_base_ohci()
+#define CONFIG_SYS_USB_OHCI_CPU_INIT	  /* Call S5P specific stuff */
+#define CONFIG_SYS_USB_OHCI_SLOT_NAME "s5p"
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 2
+#endif
+
+/* Settings for EHCI driver */
+#ifdef CONFIG_USB_EHCI
+#define CONFIG_USB_EHCI_S5P		  /* Use S5P driver for EHCI */
+#endif
+
+/* In both cases activate storage devices */
+#define CONFIG_USB_STORAGE
+
 
 /************************************************************************
  * Keyboard
@@ -506,22 +509,22 @@
  * NOR Flash
  ************************************************************************/
 /* No support for NOR flash */
-#define CONFIG_SYS_NO_FLASH	1	/* no NOR flash */     
+#define CONFIG_SYS_NO_FLASH	1	  /* no NOR flash */     
 
 
 /************************************************************************
  * SD/MMC card support
  ************************************************************************/
-/* We have support for SD/MMC card */
-#define CONFIG_MMC
-#define CONFIG_MMC_S3C64XX		  /* Use F&S S3C64XX MMC driver */
+#define CONFIG_MMC			  /* Support for SD/MMC card */
+#define CONFIG_GENERIC_MMC		  /* Using the generic driver */
+#define CONFIG_S5P_MMC			  /* with support for S5P */
 
 
 /************************************************************************
  * NAND flash organization
  ************************************************************************/
 /* We have one NAND device */
-#define CONFIG_NAND_S3C64XX     1
+#define CONFIG_NAND_S5P    1
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 
 /* One chip per device */
@@ -531,24 +534,18 @@
 #define CONFIG_SYS_NAND_BASE	(0x70200010)
 
 #define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
-#ifdef CONFIG_NAND_64MB
-#define CONFIG_SYS_NAND_NBOOT_SIZE 0x08000 /* 32KB NBoot, uses ECC8 */
-#define CONFIG_SYS_NAND_PAGE_SIZE  512
-#define CONFIG_SYS_NAND_PAGE_COUNT 32
-#define CONFIG_SYS_NAND_ECCSIZE    512	  /* Full page in one ECC cycle */
-#define CONFIG_SYS_NAND_ECCBYTES   4
-#else
+
 #define CONFIG_SYS_NAND_NBOOT_SIZE 0x40000 /* 256KB NBoot, uses ECC8 */
-#define CONFIG_SYS_NAND_PAGE_SIZE  2048
-#define CONFIG_SYS_NAND_PAGE_COUNT 64
-#define CONFIG_SYS_NAND_ECCSIZE    2048	  /* Full page in one ECC cycle */
-#define CONFIG_SYS_NAND_ECCBYTES   4
-#endif
+#define CONFIG_SYS_NAND_PAGE_SIZE  2048	  /* 2048 bytes per page */
+#define CONFIG_SYS_NAND_PAGE_COUNT 64	  /* Pages per block */
+#define CONFIG_SYS_NAND_ECCSIZE    512	  /* Full page in one ECC cycle */
+#define CONFIG_SYS_NAND_ECCBYTES   4	  /* 4 ECC bytes per 512 data bytes */
+
 #define CONFIG_SYS_NAND_BLOCK_SIZE \
 		(CONFIG_SYS_NAND_PAGE_COUNT * CONFIG_SYS_NAND_PAGE_SIZE)
 
 /* Use hardware ECC */
-#define CONFIG_SYS_S3C_NAND_HWECC
+#define CONFIG_SYS_S5P_NAND_HWECC
 
 /* Support JFFS2 in NAND (commands: fsload, ls, fsinfo) */
 #define CONFIG_JFFS2_NAND
@@ -565,19 +562,11 @@
 
 #define CONFIG_ENV_ADDR		0	  /* Only needed for NOR flash */
 
-#ifdef CONFIG_NAND_64MB
-/* The environment is 16KB and can use a region of 32KB, allowing for one bad
-   block. */
-#define CONFIG_ENV_SIZE    0x00004000	  /* 16KB actual environment */
-#define CONFIG_ENV_RANGE   0x00008000	  /* 32KB region for environment */
-#define CONFIG_ENV_OFFSET  0x00078000
-#else
 /* The environment is 128KB and can use a region of 256KB, allowing for one
    bad block. */
 #define CONFIG_ENV_SIZE	   0x00020000	  /* 128KB actual environment */
 #define CONFIG_ENV_RANGE   0x00040000	  /* 256KB region for environment */
 #define CONFIG_ENV_OFFSET  0x000C0000
-#endif
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
@@ -590,36 +579,30 @@
 /* We have one NAND chip, give it a name */
 #define MTDIDS_DEFAULT		"nand0=pm6nand0"
 
-/* Define the default partitions on this NAND chip; we have a version for
-   64MB and 1GB flash (see comment at head of file) */
-#ifdef CONFIG_NAND_64MB
-#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:32k(NBoot)ro,448k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
-//#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:32k@0x78000(UBootEnv),512k(UserDef),3m(Kernel),-(TargetFS)"
-#else
+/* Define the default partitions on this NAND chip */
 #define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
-#endif
 
 #define CONFIG_MTD_DEVICE
 //#define CONFIG_MTD_PARTITIONS  /* For UBI */
 
 #define CONFIG_BOOTDELAY	3
-#define CONFIG_BOOTARGS    	"console=ttySAC2,38400 init=linuxrc"
-#define CONFIG_BOOTCOMMAND      "nand read.jffs2 51000000 Kernel ; bootm 51000000"
+#define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
+#define CONFIG_BOOTCOMMAND      "nand read.jffs2 41000000 Kernel ; bootm 41000000"
 #define CONFIG_EXTRA_ENV_SETTINGS \
         "bootlocal=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/mtdblock5 ro rootfstype=jffs2\0" \
         "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/nfs rw nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)\0" \
-	"r=tftp 51000000 zImage ; bootm 51000000\0" \
-	"autoload=PicoMOD6/autoload.scr\0" \
-	"autommc=3\0" \
+	"r=tftp 41000000 zImage ; bootm 41000000\0" \
+	"autoload=armStoneA8/autoload.scr\0" \
+	"autommc=1\0" \
 	"autousb=3\0" \
-	"autoaddr=50000000\0"
-#define CONFIG_ETHADDR		00:05:51:02:69:19
+	"autoaddr=40000000\0"
+#define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE         "zImage"
-#define CONFIG_LOADADDR         50000000
+#define CONFIG_LOADADDR         40000000
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
