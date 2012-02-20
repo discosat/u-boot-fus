@@ -1,25 +1,20 @@
 #ifndef __SERIAL_H__
 #define __SERIAL_H__
 
-#include <stdio_dev.h>			  /* struct stdio_devt */
+#include <stdio_dev.h>			  /* struct stdio_dev */
 #include <post.h>
 
-#define NAMESIZE 16
-
 struct serial_device {
-	char name[NAMESIZE];
+	/* Standard functions start(), stop(), tstc(), getc(), putc(), puts()
+	   are defined in the embedded stdio_dev */
+	struct stdio_dev dev;
 
-	int  (*init) (void);
-	int  (*uninit) (void);
-	void (*setbrg) (void);
-	int (*getc) (void);
-	int (*tstc) (void);
-	void (*putc) (const char c);
-	void (*puts) (const char *s);
+	/* Additional serial specific functions and fields are defined here */
+	void (*setbrg) (const struct serial_device *);
 #if CONFIG_POST & CONFIG_SYS_POST_UART
-	void (*loop) (int);
+	void (*loop) (const struct serial_device *, int);
 #endif
-
+	void *serpriv;
 	struct serial_device *next;
 };
 
@@ -66,10 +61,7 @@ extern struct serial_device s3c24xx_serial2_device;
 #endif
 
 #if defined(CONFIG_S5P)
-extern struct serial_device s5p_serial0_device;
-extern struct serial_device s5p_serial1_device;
-extern struct serial_device s5p_serial2_device;
-extern struct serial_device s5p_serial3_device;
+extern void s5p_serial_register(int, const char *);
 #endif
 
 #if defined(CONFIG_OMAP3_ZOOM2)
@@ -132,7 +124,7 @@ int	serial_buffered_getc (const struct stdio_dev *pdev);
 int	serial_buffered_tstc (const struct stdio_dev *pdev);
 #endif /* CONFIG_SERIAL_SOFTWARE_FIFO */
 
-/* arch/$(ARCH)/$(CPU)/serial.c */
+/* arch/$(ARCH)/cpu/$(CPU)/$(SOC)/serial.c */
 int	serial_init   (void);
 void	serial_addr   (unsigned int);
 void	serial_setbrg (void);

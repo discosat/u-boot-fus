@@ -28,32 +28,37 @@
 #include <command.h>
 #include <stdio_dev.h>
 
-extern void _do_coninfo (void);
 int do_coninfo (cmd_tbl_t * cmd, int flag, int argc, char * const argv[])
 {
 	int l;
-	struct list_head *list = stdio_get_list();
-	struct list_head *pos;
-	struct stdio_dev *dev;
+	struct stdio_dev *pdev;
 
 	/* Scan for valid output and input devices */
 
 	puts ("List of available devices:\n");
 
-	list_for_each(pos, list) {
-		dev = list_entry(pos, struct stdio_dev, list);
-
-		printf ("%-8s %08x %c%c%c ",
-			dev->name,
-			dev->flags,
-			(dev->flags & DEV_FLAGS_SYSTEM) ? 'S' : '.',
-			(dev->flags & DEV_FLAGS_INPUT) ? 'I' : '.',
-			(dev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
+	for (pdev = stdio_get_list(); pdev; pdev = pdev->next) {
+		printf("%-8s %08x %c%c%c ",
+		       pdev->name,
+		       pdev->flags,
+		       (pdev->flags & DEV_FLAGS_SYSTEM) ? 'S' : '.',
+		       (pdev->flags & DEV_FLAGS_INPUT) ? 'I' : '.',
+		       (pdev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
 
 		for (l = 0; l < MAX_FILES; l++) {
-			if (stdio_devices[l] == dev) {
-				printf ("%s ", stdio_names[l]);
+#ifdef CONFIG_CONSOLE_MUX
+			struct stdio_dev *p;
+
+			for (p = stdio_devices[l]; p; p = p->file_next[l]) {
+				if (p == pdev) {
+					printf("%s ", stdio_names[l]);
+					break;
+				}
 			}
+#else
+			if (stdio_devices[l] == pdev)
+				printf("%s ", stdio_names[l]);
+#endif
 		}
 		putc ('\n');
 	}

@@ -35,13 +35,14 @@
 #define DEV_FLAGS_SYSTEM 0x80000000	/* Device is a system device		*/
 #define DEV_EXT_VIDEO	 0x00000001	/* Video extensions supported		*/
 
+#define DEV_NAME_SIZE 16
+
 /* Device information */
 typedef struct stdio_dev stdio_dev_t;
 
 struct stdio_dev {
 	int	flags;			/* Device flags: input/output/system */
-	int	ext;			/* Supported extensions */
-	char	name[16];		/* Device name */
+	char	name[DEV_NAME_SIZE];	/* Device name */
 
 /* GENERAL functions */
 	/* To start the device */
@@ -66,8 +67,12 @@ struct stdio_dev {
 
 /* Other functions */
 
-	void *priv;			/* Private extensions			*/
-	struct list_head list;
+	void *priv;			/* Private extensions */
+//###	int	ext;			/* Supported extensions */
+	struct stdio_dev *next;		/* Next device */
+#ifdef CONFIG_CONSOLE_MUX
+	struct stdio_dev *file_next[MAX_FILES];	/* Next device in file list */
+#endif
 };
 
 /*
@@ -103,7 +108,7 @@ void	stdio_print_current_devices(void);
 #ifdef CONFIG_SYS_STDIO_DEREGISTER
 int	stdio_deregister(const char *devname);
 #endif
-struct list_head* stdio_get_list(void);
+struct stdio_dev *stdio_get_list(void);
 struct stdio_dev* stdio_get_by_name(const char* name);
 struct stdio_dev* stdio_clone(struct stdio_dev *dev);
 

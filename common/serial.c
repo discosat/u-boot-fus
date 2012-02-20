@@ -32,130 +32,125 @@ DECLARE_GLOBAL_DATA_PTR;
 static struct serial_device *serial_devices;
 static struct serial_device *serial_current;
 
-void serial_register(struct serial_device *dev)
+void serial_register(struct serial_device *sdev)
 {
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
-	dev->init += gd->reloc_off;
-	dev->setbrg += gd->reloc_off;
-	dev->getc += gd->reloc_off;
-	dev->tstc += gd->reloc_off;
-	dev->putc += gd->reloc_off;
-	dev->puts += gd->reloc_off;
+	sdev->dev.start += gd->reloc_off;
+	sdev->dev.getc += gd->reloc_off;
+	sdev->dev.tstc += gd->reloc_off;
+	sdev->dev.putc += gd->reloc_off;
+	sdev->dev.puts += gd->reloc_off;
+	sdev->setbrg += gd->reloc_off;
 #endif
 
-	dev->next = serial_devices;
-	serial_devices = dev;
+	sdev->next = serial_devices;
+	serial_devices = sdev;
 }
+
+static int __board_serial_init(void)
+{
+	return -1;
+}
+int board_serial_init(void) __attribute__((weak, alias("__board_serial_init")));
 
 void serial_initialize(void)
 {
+	/* The board may initialize only a few ports of some SOC. */
+	if (board_serial_init() < 0) {
 #if defined(CONFIG_8xx_CONS_SMC1) || defined(CONFIG_8xx_CONS_SMC2)
-	serial_register(&serial_smc_device);
+		serial_register(&serial_smc_device);
 #endif
 #if	defined(CONFIG_8xx_CONS_SCC1) || defined(CONFIG_8xx_CONS_SCC2) || \
 	defined(CONFIG_8xx_CONS_SCC3) || defined(CONFIG_8xx_CONS_SCC4)
-	serial_register(&serial_scc_device);
+		serial_register(&serial_scc_device);
 #endif
 
 #if defined(CONFIG_SYS_NS16550_SERIAL)
 #if defined(CONFIG_SYS_NS16550_COM1)
-	serial_register(&eserial1_device);
+		serial_register(&eserial1_device);
 #endif
 #if defined(CONFIG_SYS_NS16550_COM2)
-	serial_register(&eserial2_device);
+		serial_register(&eserial2_device);
 #endif
 #if defined(CONFIG_SYS_NS16550_COM3)
-	serial_register(&eserial3_device);
+		serial_register(&eserial3_device);
 #endif
 #if defined(CONFIG_SYS_NS16550_COM4)
-	serial_register(&eserial4_device);
+		serial_register(&eserial4_device);
 #endif
 #endif /* CONFIG_SYS_NS16550_SERIAL */
 #if defined(CONFIG_FFUART)
-	serial_register(&serial_ffuart_device);
+		serial_register(&serial_ffuart_device);
 #endif
 #if defined(CONFIG_BTUART)
-	serial_register(&serial_btuart_device);
+		serial_register(&serial_btuart_device);
 #endif
 #if defined(CONFIG_STUART)
-	serial_register(&serial_stuart_device);
+		serial_register(&serial_stuart_device);
 #endif
 #if defined(CONFIG_S3C2410)
-	serial_register(&s3c24xx_serial0_device);
-	serial_register(&s3c24xx_serial1_device);
-	serial_register(&s3c24xx_serial2_device);
+		serial_register(&s3c24xx_serial0_device);
+		serial_register(&s3c24xx_serial1_device);
+		serial_register(&s3c24xx_serial2_device);
 #endif
 #if defined(CONFIG_S5P)
-	serial_register(&s5p_serial0_device);
-	serial_register(&s5p_serial1_device);
-	serial_register(&s5p_serial2_device);
-	serial_register(&s5p_serial3_device);
+		s5p_serial_register(0, NULL);
+		s5p_serial_register(1, NULL);
+		s5p_serial_register(2, NULL);
+		s5p_serial_register(3, NULL);
 #endif
 #if defined(CONFIG_MPC512X)
 #if defined(CONFIG_SYS_PSC1)
-	serial_register(&serial1_device);
+		serial_register(&serial1_device);
 #endif
 #if defined(CONFIG_SYS_PSC3)
-	serial_register(&serial3_device);
+		serial_register(&serial3_device);
 #endif
 #if defined(CONFIG_SYS_PSC4)
-	serial_register(&serial4_device);
+		serial_register(&serial4_device);
 #endif
 #if defined(CONFIG_SYS_PSC6)
-	serial_register(&serial6_device);
+		serial_register(&serial6_device);
 #endif
 #endif
 #if defined(CONFIG_SYS_BFIN_UART)
-	serial_register_bfin_uart();
+		serial_register_bfin_uart();
 #endif
 #if defined(CONFIG_XILINX_UARTLITE)
 # ifdef XILINX_UARTLITE_BASEADDR
-	serial_register(&uartlite_serial0_device);
+		serial_register(&uartlite_serial0_device);
 # endif /* XILINX_UARTLITE_BASEADDR */
 # ifdef XILINX_UARTLITE_BASEADDR1
-	serial_register(&uartlite_serial1_device);
+		serial_register(&uartlite_serial1_device);
 # endif /* XILINX_UARTLITE_BASEADDR1 */
 # ifdef XILINX_UARTLITE_BASEADDR2
-	serial_register(&uartlite_serial2_device);
+		serial_register(&uartlite_serial2_device);
 # endif /* XILINX_UARTLITE_BASEADDR2 */
 # ifdef XILINX_UARTLITE_BASEADDR3
-	serial_register(&uartlite_serial3_device);
+		serial_register(&uartlite_serial3_device);
 # endif /* XILINX_UARTLITE_BASEADDR3 */
 #endif /* CONFIG_XILINX_UARTLITE */
-	serial_assign(default_serial_console()->name);
+	}
+
+	serial_current = default_serial_console();
 }
 
 void serial_stdio_init(void)
 {
-	struct stdio_dev dev;
-	struct serial_device *s = serial_devices;
+	struct serial_device *sdev;
 
-	while (s) {
-		memset(&dev, 0, sizeof(dev));
-
-		strcpy(dev.name, s->name);
-		dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
-
-		dev.start = s->init;
-		dev.stop = s->uninit;
-		dev.putc = s->putc;
-		dev.puts = s->puts;
-		dev.getc = s->getc;
-		dev.tstc = s->tstc;
-
-		stdio_register(&dev);
-
-		s = s->next;
-	}
+	/* Register a stdio_dev for every serial_device */
+	for (sdev = serial_devices; sdev; sdev = sdev->next)
+		stdio_register(&sdev->dev);
 }
 
 int serial_assign(const char *name)
 {
-	struct serial_device *s;
+	struct serial_device *sdev;
 
-	for (s = serial_devices; s; s = s->next) {
-		if (strcmp(s->name, name) == 0) {
-			serial_current = s;
+	for (sdev = serial_devices; sdev; sdev = sdev->next) {
+		if (strcmp(sdev->dev.name, name) == 0) {
+			serial_current = sdev;
 			return 0;
 		}
 	}
@@ -165,55 +160,68 @@ int serial_assign(const char *name)
 
 void serial_reinit_all(void)
 {
-	struct serial_device *s;
+	struct serial_device *sdev;
 
-	for (s = serial_devices; s; s = s->next)
-		s->init();
+	for (sdev = serial_devices; sdev; sdev = sdev->next)
+		sdev->dev.start(&sdev->dev);
 }
 
 static struct serial_device *get_current(void)
 {
-	struct serial_device *dev;
+	struct serial_device *sdev;
 
 	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		dev = default_serial_console();
+		sdev = default_serial_console();
 
 		/* We must have a console device */
-		if (!dev)
+		if (!sdev) 
 			panic("Cannot find console");
 	} else
-		dev = serial_current;
-	return dev;
+		sdev = serial_current;
+
+	return sdev;
 }
 
 int serial_init(void)
 {
-	return get_current()->init();
-{
+	const struct serial_device *sdev = get_current();
+
+	return sdev->dev.start(&sdev->dev);
+}
 
 void serial_setbrg(void)
 {
-	get_current()->setbrg();
+	const struct serial_device *sdev = get_current();
+
+	sdev->setbrg(sdev);
 }
 
-int serial_getc(const device_t *pdev)
+int serial_getc(const struct stdio_dev *pdev)
 {
-	return get_current()->getc();
+	const struct serial_device *sdev = get_current();
+
+	return sdev->dev.getc(&sdev->dev);
 }
 
-int serial_tstc(const device_t *pdev)
+int serial_tstc(const struct stdio_dev *pdev)
 {
-	return get_current()->tstc();
+	const struct serial_device *sdev = get_current();
+
+	return sdev->dev.tstc(&sdev->dev);
 }
 
-void serial_putc(const device_t *pdev, const char c)
+void serial_putc(const struct stdio_dev *pdev, const char c)
 {
-	get_current()->putc(c);
+	const struct serial_device *sdev = get_current();
+
+	sdev->dev.putc(&sdev->dev, c);
 }
 
-void serial_puts(const device_t *pdev, const char *s)
+void serial_puts(const struct stdio_dev *pdev, const char *s)
 {
-	get_current()->puts(s);
+	const struct serial_device *sdev = get_current();
+	
+	sdev->dev.puts(&sdev->dev, s);
 }
 
 #if CONFIG_POST & CONFIG_SYS_POST_UART
