@@ -693,7 +693,7 @@ ulong genimg_get_image(ulong img_addr)
 
 	if (addr_dataflash(img_addr)) {
 		/* ger RAM address */
-		ram_addr = CONFIG_SYS_LOAD_ADDR;
+		ram_addr = get_loadaddr();
 
 		/* get header size */
 		h_size = image_get_header_size();

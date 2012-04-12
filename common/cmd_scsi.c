@@ -218,7 +218,7 @@ int do_scsiboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	switch (argc) {
 	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		boot_device = getenv ("bootdevice");
 		break;
 	case 2:

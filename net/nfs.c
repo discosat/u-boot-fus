@@ -65,19 +65,21 @@ static __inline__ int
 store_block (uchar * src, unsigned offset, unsigned len)
 {
 	ulong newsize = offset + len;
+	ulong startaddr = get_loadaddr() + offset;
+
 #ifdef CONFIG_SYS_DIRECT_FLASH_NFS
 	int i, rc = 0;
 
 	for (i=0; i<CONFIG_SYS_MAX_FLASH_BANKS; i++) {
 		/* start address in flash? */
-		if (load_addr + offset >= flash_info[i].start[0]) {
+		if (startaddr >= flash_info[i].start[0]) {
 			rc = 1;
 			break;
 		}
 	}
 
 	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write ((uchar *)src, (ulong)(load_addr+offset), len);
+		rc = flash_write ((uchar *)src, startaddr, len);
 		if (rc) {
 			flash_perror (rc);
 			return -1;
@@ -85,7 +87,7 @@ store_block (uchar * src, unsigned offset, unsigned len)
 	} else
 #endif /* CONFIG_SYS_DIRECT_FLASH_NFS */
 	{
-		(void)memcpy ((void *)(load_addr + offset), src, len);
+		(void)memcpy ((void *)startaddr, src, len);
 	}
 
 	if (NetBootFileXferSize < (offset+len))
@@ -734,7 +736,7 @@ NfsStart (void)
 		print_size (NetBootFileSize<<9, "");
 	}
 	printf ("\nLoad address: 0x%lx\n"
-		"Loading: *\b", load_addr);
+		"Loading: *\b", get_loadaddr());
 
 	NetSetTimeout (NFS_TIMEOUT, NfsTimeout);
 	NetSetHandler (NfsHandler);

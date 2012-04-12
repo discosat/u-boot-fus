@@ -78,7 +78,7 @@ SPI_FLASH|MG_DISK|NVRAM|MMC} or CONFIG_ENV_IS_NOWHERE
  */
 #define	MAX_ENV_SIZE	(1 << 20)	/* 1 MiB */
 
-ulong load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
+ulong load_addr;			/* Default Load Address */
 ulong save_addr;			/* Default Save Address */
 ulong save_size;			/* Default Save Size (in bytes) */
 
@@ -408,6 +408,14 @@ int setenv_addr(const char *varname, const void *addr)
 	return setenv(varname, str);
 }
 
+void set_loadaddr(ulong addr)
+{
+	if (addr != load_addr) {
+		load_addr = addr;
+		setenv_addr("loadaddr", (void *)addr);
+	}
+}
+
 int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc < 2)
@@ -590,6 +598,11 @@ ulong getenv_ulong(const char *name, int base, ulong default_val)
 	const char *str = getenv(name);
 
 	return str ? simple_strtoul(str, NULL, base) : default_val;
+}
+
+ulong get_loadaddr(void)
+{
+	return load_addr;
 }
 
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)

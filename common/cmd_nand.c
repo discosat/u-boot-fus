@@ -885,8 +885,7 @@ static int nand_load_image(cmd_tbl_t *cmdtp, nand_info_t *nand,
 #endif
 
 	/* Loading ok, update default load address */
-
-	load_addr = addr;
+	set_loadaddr(addr);
 
 	return bootm_maybe_autostart(cmdtp, cmd);
 }
@@ -914,7 +913,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			if (argc == 3)
 				addr = simple_strtoul(argv[1], NULL, 16);
 			else
-				addr = CONFIG_SYS_LOAD_ADDR;
+				addr = get_loadaddr();
 			return nand_load_image(cmdtp, &nand_info[dev->id->num],
 					       part->offset, addr, argv[0]);
 		}
@@ -924,7 +923,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	show_boot_progress(52);
 	switch (argc) {
 	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		boot_device = getenv("bootdevice");
 		break;
 	case 2:

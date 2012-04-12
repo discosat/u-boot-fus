@@ -248,9 +248,12 @@
 //####define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
 //####define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
 
-/* Default load address */
-#define CONFIG_SYS_LOAD_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x8000)
-
+/* For the default load address, use an offset of 8MB. The final kernel (after
+   decompressing the zImage) must be at offset 0x8000. But if we load the
+   zImage there, the loader code will move it away to make room for the
+   uncompressed image at this position. So we'll load it directly to a higher
+   address to avoid this additional copying. */
+#define CONFIG_SYS_LOAD_OFFS 0x00800000
 
 
 
@@ -586,15 +589,13 @@
 	"r=tftp 41000000 zImage ; bootm 41000000\0" \
 	"autoload=armStoneA8/autoload.scr\0" \
 	"autommc=1\0" \
-	"autousb=3\0" \
-	"autoaddr=40000000\0"
+	"autousb=3\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE         "zImage"
-#define CONFIG_LOADADDR         40000000
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE

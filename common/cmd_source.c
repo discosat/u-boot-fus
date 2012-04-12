@@ -214,7 +214,7 @@ do_source (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Find script image */
 	if (argc < 2) {
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		debug ("*  source: default load address = 0x%08lx\n", addr);
 #if defined(CONFIG_FIT)
 	} else if (fit_parse_subimage (argv[1], load_addr, &addr, &fit_uname)) {
@@ -301,7 +301,6 @@ static int try_autodevs(char *fname, char *devname, char *devmaskname,
 void autoload_script(void)
 {
 	char *fname;
-	char *s;
 	unsigned long addr;
 
 	/* Load filename to autoload */
@@ -310,11 +309,7 @@ void autoload_script(void)
 		return;
 
 	/* Load address where to load to */
-	s = getenv("autoaddr");
-	if (!s)
-		return;
-
-	addr = simple_strtoul(s, NULL, 16);
+	addr = getenv_ulong("autoaddr", 16, get_loadaddr());
 	printf("Trying to autoload '%s', address 0x%08lx\n", fname, addr);
 
 #ifdef CONFIG_MMC

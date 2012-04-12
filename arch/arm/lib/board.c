@@ -71,6 +71,10 @@ DECLARE_GLOBAL_DATA_PTR;
 #define CONFIG_SYS_TLB_ALIGN 0xFFFF0000	  /* Align to next 64kB limit */
 #endif
 
+#ifndef CONFIG_SYS_LOAD_OFFS
+#define CONFIG_SYS_LOAD_OFFS 0
+#endif
+
 ulong monitor_flash_len;
 
 #ifdef CONFIG_HAS_DATAFLASH
@@ -616,8 +620,16 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	}
 #endif /* CONFIG_DRIVER_SMC91111 || CONFIG_DRIVER_LAN91C96 */
 
-	/* Initialize from environment */
-	load_addr = getenv_ulong("loadaddr", 16, load_addr);
+	/* Initialize load address from environment */
+#ifdef CONFIG_SYS_LOAD_ADDR
+	/* Default is configured load address */
+	set_loadaddr(getenv_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
+#else
+	/* Default is start of RAM plus configured offset */
+	set_loadaddr(getenv_ulong("loadaddr", 16,
+				  gd->ram_base + CONFIG_SYS_LOAD_OFFS));
+#endif
+
 #if defined(CONFIG_CMD_NET)
 	{
 		char *s = getenv("bootfile");

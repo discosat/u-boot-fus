@@ -162,6 +162,7 @@ store_block(unsigned block, uchar *src, unsigned len)
 {
 	ulong offset = block * TftpBlkSize + TftpBlockWrapOffset;
 	ulong newsize = offset + len;
+	ulong startaddr = get_loadaddr() + offset;
 #ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
 	int i, rc = 0;
 
@@ -169,14 +170,14 @@ store_block(unsigned block, uchar *src, unsigned len)
 		/* start address in flash? */
 		if (flash_info[i].flash_id == FLASH_UNKNOWN)
 			continue;
-		if (load_addr + offset >= flash_info[i].start[0]) {
+		if (startaddr >= flash_info[i].start[0]) {
 			rc = 1;
 			break;
 		}
 	}
 
 	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write((char *)src, (ulong)(load_addr+offset), len);
+		rc = flash_write((char *)src, startaddr, len);
 		if (rc) {
 			flash_perror(rc);
 			NetState = NETLOOP_FAIL;
@@ -186,7 +187,7 @@ store_block(unsigned block, uchar *src, unsigned len)
 	else
 #endif /* CONFIG_SYS_DIRECT_FLASH_TFTP */
 	{
-		(void)memcpy((void *)(load_addr + offset), src, len);
+		(void)memcpy((void *)startaddr, src, len);
 	}
 #ifdef CONFIG_MCAST_TFTP
 	if (Multicast)
@@ -772,7 +773,7 @@ void TftpStart(enum proto_t protocol)
 	} else
 #endif
 	{
-		printf("Load address: 0x%lx\n", load_addr);
+		printf("Load address: 0x%lx\n", get_loadaddr());
 		puts("Loading: *\b");
 		TftpState = STATE_SEND_RRQ;
 	}
@@ -822,7 +823,7 @@ TftpStartServer(void)
 
 	printf("Using %s device\n", eth_get_name());
 	printf("Listening for TFTP transfer on %pI4\n", &NetOurIP);
-	printf("Load address: 0x%lx\n", load_addr);
+	printf("Load address: 0x%lx\n", get_loadaddr());
 
 	puts("Loading: *\b");
 

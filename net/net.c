@@ -591,7 +591,7 @@ restart:
 				sprintf(buf, "%lX", NetBootFileXferSize);
 				setenv("filesize", buf);
 
-				sprintf(buf, "%lX", (unsigned long)load_addr);
+				sprintf(buf, "%lX", get_loadaddr());
 				setenv("fileaddr", buf);
 			}
 			eth_halt();

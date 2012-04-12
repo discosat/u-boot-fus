@@ -726,7 +726,8 @@ int bootm_maybe_autostart(cmd_tbl_t *cmdtp, const char *cmd)
 		char *local_args[2];
 		local_args[0] = (char *)cmd;
 		local_args[1] = NULL;
-		printf("Automatic boot of image at addr 0x%08lX ...\n", load_addr);
+		printf("Automatic boot of image at addr 0x%08lX ...\n",
+		       get_loadaddr());
 		return do_bootm(cmdtp, 0, 1, local_args);
 	}
 
@@ -862,9 +863,9 @@ static void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* find out kernel image address */
 	if (argc < 2) {
-		img_addr = load_addr;
+		img_addr = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				load_addr);
+				img_addr);
 #if defined(CONFIG_FIT)
 	} else if (fit_parse_conf(argv[1], load_addr, &img_addr,
 							&fit_uname_config)) {
@@ -1105,7 +1106,7 @@ int do_iminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int	rcode = 0;
 
 	if (argc < 2) {
-		return image_info(load_addr);
+		return image_info(get_loadaddr());
 	}
 
 	for (arg = 1; arg < argc; ++arg) {

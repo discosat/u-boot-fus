@@ -606,6 +606,7 @@ static int dp83902a_init(struct eth_device *dev, bd_t *bd)
 		 * 0x1400)) = enaddr[i];*/
 		DP_OUT(base, DP_P1_PAR0+i, dev->enetaddr[i]);
 	}
+
 	/* Enable and start device */
 	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
 	DP_OUT(base, DP_TCR, DP_TCR_NORMAL); /* Normal transmit operations */

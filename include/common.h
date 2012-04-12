@@ -298,7 +298,7 @@ void flash_perror (int);
 /* common/cmd_source.c */
 int	source (ulong addr, const char *fit_uname);
 
-extern ulong load_addr;		/* Default Load Address */
+//###extern ulong load_addr;		/* Default Load Address */
 extern ulong save_addr;		/* Default Save Address */
 extern ulong save_size;		/* Default Save Size */
 
@@ -315,6 +315,8 @@ int	envmatch     (uchar *, int);
 char	*getenv	     (const char *);
 int	getenv_f     (const char *name, char *buf, unsigned len);
 ulong getenv_ulong(const char *name, int base, ulong default_val);
+ulong get_loadaddr(void);
+void set_loadaddr(ulong addr);
 int	saveenv	     (void);
 #ifdef CONFIG_PPC		/* ARM version to be fixed! */
 int inline setenv    (const char *, const char *);

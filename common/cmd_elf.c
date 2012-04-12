@@ -81,7 +81,7 @@ int do_bootelf (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (saddr)
 		addr = simple_strtoul(saddr, NULL, 16);
 	else
-		addr = load_addr;
+		addr = get_loadaddr();
 
 	if (!valid_elf_image (addr))
 		return 1;
@@ -125,7 +125,7 @@ int do_bootvx (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	 */
 
 	if (argc < 2)
-		addr = load_addr;
+		addr = get_loadaddr();
 	else
 		addr = simple_strtoul (argv[1], NULL, 16);
 
@@ -223,7 +223,7 @@ int do_bootvx (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		addr = load_elf_image_shdr (addr);
 	} else {
 		puts ("## Not an ELF image, assuming binary\n");
-		/* leave addr as load_addr */
+		/* leave addr as default load address */
 	}
 
 	printf ("## Using bootline (@ 0x%lx): %s\n", bootaddr,

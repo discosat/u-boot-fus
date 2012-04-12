@@ -186,16 +186,11 @@ static void netboot_update_env (void)
 static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		char * const argv[])
 {
-	char *s;
 	char *end;
 	int   rcode = 0;
 	int   size;
 	ulong addr;
-
-	/* pre-set load_addr */
-	if ((s = getenv("loadaddr")) != NULL) {
-		load_addr = simple_strtoul(s, NULL, 16);
-	}
+	ulong loadaddr = get_loadaddr();
 
 	switch (argc) {
 	case 1:
@@ -209,12 +204,12 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		 */
 		addr = simple_strtoul(argv[1], &end, 16);
 		if (end == (argv[1] + strlen(argv[1])))
-			load_addr = addr;
+			loadaddr = addr;
 		else
 			copy_filename(BootFile, argv[1], sizeof(BootFile));
 		break;
 
-	case 3:	load_addr = simple_strtoul(argv[1], NULL, 16);
+	case 3:	loadaddr = simple_strtoul(argv[1], NULL, 16);
 		copy_filename (BootFile, argv[2], sizeof(BootFile));
 
 		break;
@@ -233,6 +228,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		show_boot_progress (-80);
 		return cmd_usage(cmdtp);
 	}
+	set_loadaddr(loadaddr);
 
 	show_boot_progress (80);
 	if ((size = NetLoop(proto)) < 0) {
@@ -251,7 +247,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 	}
 
 	/* flush cache */
-	flush_cache(load_addr, size);
+	flush_cache(loadaddr, size);
 
 	show_boot_progress(82);
 	rcode = bootm_maybe_autostart(cmdtp, argv[0]);
