@@ -1,5 +1,47 @@
-History of Changes for U-Boot on PicoMOD6/PicoCOM3
---------------------------------------------------
+History of Changes for U-Boot on PicoMOD6/PicoCOM3/armStoneA8
+-------------------------------------------------------------
+
+armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
+-----------------------------------------------------
+This is an interim release targeted to armStoneA8 only (PicoMOD6 and
+PicoCOM3 won't work). It is based on V1.2 with many improvements
+already in place, but many of these features are not yet complete.
+They will be mentioned in the next regular release.
+
+- Rebase to u-boot-2011.12
+- Enable NE2000 ethernet driver to use CONFIG_NET_MULTI; improve DP_*
+  macros to support S5P
+- Add delay after powering USB root hub to detect USB storage devices
+  more reliably 
+- Make size of uboot.nb0 configurable by platform configuration header
+  file; on armStoneA8, the size of uboot.nb0 is 384K
+- Add drivers/mtd/nand/s5p_nand.c to support NAND on S5P
+- Add drivers/usb/host/{ehci,ohci}-s5p.c to support EHCI and OHCI USB
+  drivers on S5P 
+- Add drivers/rtc/s5p_rtc.c to support real time clock on S5P
+- New timer module arch/arm/cpu/armv7/s5p-common/timer.c that counts
+  from 0xffffffff down; is simpler, creates less code
+- Fix timing computation in drivers/usb/host/ehci-hcd.c and net/net.c
+  that silently assumed a timer tick time of 1ms
+- Extended info in arc/arm/cpu/armv7/s5p-common/cpu_info.c;
+  arch_cpu_init() must not use variables, store in global data instead
+- Improve definition of registers, cpu detection, gpio pin numbers,
+  include files to better support S5P
+- Add check for deleted long dir entries in fs/fat/fat.c
+- Make autoload_script() work with CONFIG_GENERIC_MMC; however this
+  feature will be reworked and is disabled by default in this version
+- Use mach=armv6 instead mach=armv5 as in default u-boot
+- New stdio_dev system to support LCD output better; change serial
+  lines to support this
+- LCD configuration and output is heavily reworked; however it is not
+  yet complete and therefore disabled in this version
+- Support armStoneA8, NetDCU14 (and EASYsom1) in one binary: detect
+  board type and RAM size at runtime, set prompt string, RAM base
+  and default loadaddr accordingly
+- Make loading functions load at address given in environment variable
+  loadaddr, not at fix address CONFIG_SYS_LOAD_ADDR
+- Support UBI and UBIFS, activate appropriate commands
+
 
 V1.2 (05.09.2011)
 ------------------
