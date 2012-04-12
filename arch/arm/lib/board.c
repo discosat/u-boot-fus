@@ -159,6 +159,7 @@ static int display_banner(void)
  * gives a simple yet clear indication which part of the
  * initialization if failing.
  */
+
 static int display_dram_config(void)
 {
 	int i;
@@ -231,7 +232,7 @@ int print_cpuinfo(void);
 
 void __dram_init_banksize(void)
 {
-	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].start = gd->ram_base;
 	gd->bd->bi_dram[0].size =  gd->ram_size;
 }
 void dram_init_banksize(void)
@@ -252,7 +253,7 @@ init_fnc_t *const init_sequence[] = {
 	get_clocks,
 #endif
 	env_init,		/* initialize environment */
-	init_baudrate,		/* initialze baudrate settings */
+	init_baudrate,		/* initialize baudrate settings */
 	serial_init,		/* serial communications setup */
 	console_init_f,		/* stage 1 init of console */
 	display_banner,		/* say that we are here */
@@ -335,7 +336,13 @@ void board_init_f(ulong bootflag)
 	gd->ram_size -= CONFIG_SYS_MEM_TOP_HIDE;
 #endif
 
-	addr = CONFIG_SYS_SDRAM_BASE + gd->ram_size;
+
+#ifdef CONFIG_SYS_SDRAM_BASE
+	/* If CONFIG_SYS_SDRAM_BASE is not set, function dram_init() must set
+	   gd->ram_base */
+	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
+#endif
+	addr = gd->ram_base + gd->ram_size;
 
 #ifdef CONFIG_LOGBUFFER
 #ifndef CONFIG_ALT_LB_ADDR

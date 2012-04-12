@@ -138,6 +138,7 @@ static int nand_is_bad_block(struct mtd_info *mtd, int block)
 #if defined(CONFIG_SYS_NAND_4BIT_HW_ECC_OOBFIRST)
 static int nand_read_page(struct mtd_info *mtd, int block, int page, uchar *dst)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	struct nand_chip *this = mtd->priv;
 	u_char *ecc_calc;
 	u_char *ecc_code;
@@ -152,7 +153,7 @@ static int nand_read_page(struct mtd_info *mtd, int block, int page, uchar *dst)
 	 * No malloc available for now, just use some temporary locations
 	 * in SDRAM
 	 */
-	ecc_calc = (u_char *)(CONFIG_SYS_SDRAM_BASE + 0x10000);
+	ecc_calc = (u_char *)(gd->ram_base + 0x10000);
 	ecc_code = ecc_calc + 0x100;
 	oob_data = ecc_calc + 0x200;
 
@@ -177,6 +178,7 @@ static int nand_read_page(struct mtd_info *mtd, int block, int page, uchar *dst)
 #else
 static int nand_read_page(struct mtd_info *mtd, int block, int page, uchar *dst)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	struct nand_chip *this = mtd->priv;
 	u_char *ecc_calc;
 	u_char *ecc_code;
@@ -192,7 +194,7 @@ static int nand_read_page(struct mtd_info *mtd, int block, int page, uchar *dst)
 	/* No malloc available for now, just use some temporary locations
 	 * in SDRAM
 	 */
-	ecc_calc = (u_char *)(CONFIG_SYS_SDRAM_BASE + 0x10000);
+	ecc_calc = (u_char *)(gd->ram_base + 0x10000);
 	ecc_code = ecc_calc + 0x100;
 	oob_data = ecc_calc + 0x200;
 

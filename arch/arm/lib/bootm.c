@@ -176,6 +176,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 
 	announce_and_cleanup();
 
+//	printf("#### Boot with machid=%d\n", machid);
 	kernel_entry(0, machid, bd->bi_boot_params);
 	/* does not return */
 
@@ -271,7 +272,7 @@ static void setup_memory_tags (bd_t *bd)
 {
 	int i;
 
-	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
+	for (i = 0; (i < CONFIG_NR_DRAM_BANKS) && bd->bi_dram[i].size; i++) {
 		params->hdr.tag = ATAG_MEM;
 		params->hdr.size = tag_size (tag_mem32);
 

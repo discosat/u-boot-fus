@@ -115,7 +115,7 @@
  ************************************************************************/
 
 /* We are on an armStoneA8 */
-#define CONFIG_IDENT_STRING	" for armStoneA8"
+#define CONFIG_IDENT_STRING	" for F&S"
 
 /* CPU, family and board defines */
 #define CONFIG_ARMV7		1	  /* This is an ARM v7 CPU core */
@@ -125,8 +125,12 @@
 #define CONFIG_S5PV210		1	  /* it's an S5PV210 SoC */
 #define CONFIG_ARMSTONEA8	1	  /* F&S armStoneA8 Board */
 
-/* Architecture magic and machine type */
-#define MACH_TYPE		0x9BE	  /* PicoMOD6/Linux #### TODO */
+/* Architecture magic and machine types; we don't have a separate value for
+   EASYsom1 */
+#define MACH_TYPE_ARMSTONEA8	4077
+#define MACH_TYPE_NETDCU14	4078
+#define MACH_TYPE_QBLISSA8B	MACH_TYPE_ARMSTONEA8 /* ###TODO, if ever */
+#define MACH_TYPE_EASYSOM1	MACH_TYPE_ARMSTONEA8 /* no extra number */
 #define UBOOT_MAGIC		(0x43090000 | MACH_TYPE)
 
 /* Input clock of PLL */
@@ -144,7 +148,7 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CONFIG_SYS_PROMPT	"armStoneA8 # " /* Monitor Command Prompt */
+#define CONFIG_SYS_PROMPT	fs_board_prompt /* Monitor Command Prompt */
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
@@ -190,29 +194,17 @@
 //#define CONFIG_ENABLE_MMU //#### MMU 1:1 Test
 //#define CONFIG_SOFT_MMUTABLE
 
-/* Physical RAM addresses; ATTENTION: the two banks have a gap inbetween; they
-   only become a continuous region when using the MMU */
-#ifdef CONFIG_ENABLE_MMU
+/* Physical RAM addresses; however we compute the base address in function
+   checkboard() */
 #define CONFIG_NR_DRAM_BANKS	2	        /* we use 2 banks of DRAM */
-#else
-#define CONFIG_NR_DRAM_BANKS	1	        /* we use 1 bank of DRAM */
-#endif
 #define PHYS_SDRAM_0		0x20000000	/* SDRAM Bank #0 */
-#define PHYS_SDRAM_0_SIZE	0x10000000      /* 256 MB */
 #define PHYS_SDRAM_1		0x40000000	/* SDRAM Bank #1 */
-#define PHYS_SDRAM_1_SIZE	0x10000000      /* 256 MB */
-
-#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_1    /* Physical RAM address */
 
 /* Total memory required by uboot: 1MB */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
-/* Locate U-Boot at 1MB below end of memory */
-//#define OUR_UBOOT_OFFS          (PHYS_SDRAM_0_SIZE - CONFIG_SYS_UBOOT_SIZE)
-#define OUR_UBOOT_OFFS          0x00f00000
-
 /* This results in the following base address for uboot */
-#define CONFIG_SYS_PHY_UBOOT_BASE (CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+#define CONFIG_SYS_PHY_UBOOT_BASE 0x40f00000
 
 
 #if 0 //###def CONFIG_ENABLE_MMU
@@ -252,9 +244,9 @@
 #endif
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
-   untested) */
-#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+   untested) ### If not set, test from beginning of RAM to before stack. */
+//####define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
+//####define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
 
 /* Default load address */
 #define CONFIG_SYS_LOAD_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x8000)
@@ -621,5 +613,12 @@
 #define CONFIG_USE_ARCH_MEMMOVE
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
+
+/************************************************************************
+ * Some definitions
+ ************************************************************************/
+#ifndef __ASSEMBLY__
+extern char fs_board_prompt[];
+#endif
 
 #endif /* !__CONFIG_H */

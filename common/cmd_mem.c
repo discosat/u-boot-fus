@@ -656,13 +656,31 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	if (argc > 1)
 		start = (ulong *)simple_strtoul(argv[1], NULL, 16);
-	else
+	else {
+#ifdef CONFIG_SYS_MEMTEST_START
+		/* Start at configured address */
 		start = (ulong *)CONFIG_SYS_MEMTEST_START;
+#else
+		DECLARE_GLOBAL_DATA_PTR;
+
+		/* Start at beginning of RAM */
+		start = (ulong *)gd->ram_base;
+#endif
+	}
 
 	if (argc > 2)
 		end = (ulong *)simple_strtoul(argv[2], NULL, 16);
-	else
+	else {
+#ifdef CONFIG_SYS_MEMTEST_END
+		/* End at configured address */
 		end = (ulong *)(CONFIG_SYS_MEMTEST_END);
+#else
+		DECLARE_GLOBAL_DATA_PTR;
+
+		/* End before stack that is before u-boot code at end of RAM */
+		end = (ulong *)(gd->start_addr_sp - CONFIG_SYS_STACK_SIZE);
+#endif
+	}
 
 	if (argc > 3)
 		pattern = (ulong)simple_strtoul(argv[3], NULL, 16);
@@ -674,8 +692,8 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	else
 		iteration_limit = 0;
 
+	printf ("Testing %08x - %08x:\n", (uint)start, (uint)end);
 #if defined(CONFIG_SYS_ALT_MEMTEST)
-	printf ("Testing %08x ... %08x:\n", (uint)start, (uint)end);
 	PRINTF("%s:%d: start 0x%p end 0x%p\n",
 		__FUNCTION__, __LINE__, start, end);
 
