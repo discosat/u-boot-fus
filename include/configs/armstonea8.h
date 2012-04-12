@@ -516,7 +516,7 @@
 
 
 /************************************************************************
- * NAND flash organization
+ * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
 /* We have one NAND device */
 #define CONFIG_NAND_S5P    1
@@ -548,6 +548,19 @@
 /* Support mtd partitions (commands: mtdparts, chpart) */
 #define CONFIG_CMD_MTDPARTS
 
+/* We have one NAND chip, give it a name */
+#define MTDIDS_DEFAULT		"nand0=fsnand0"
+
+/* Define the default partitions on this NAND chip */
+#define MTDPARTS_DEFAULT	"mtdparts=fsnand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
+
+#define CONFIG_MTD_DEVICE
+#define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
+#define CONFIG_RBTREE			  /* Required for UBI */
+#define CONFIG_LZO			  /* Required for UBI */
+
+#define CONFIG_CMD_UBI
+#define CONFIG_CMD_UBIFS
 
 /************************************************************************
  * Environment
@@ -570,26 +583,17 @@
    environments is always valid. Currently we don't use this feature. */
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
-
-/* We have one NAND chip, give it a name */
-#define MTDIDS_DEFAULT		"nand0=pm6nand0"
-
-/* Define the default partitions on this NAND chip */
-#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
-
-#define CONFIG_MTD_DEVICE
-//#define CONFIG_MTD_PARTITIONS  /* For UBI */
-
 #define CONFIG_BOOTDELAY	3
 #define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read.jffs2 41000000 Kernel ; bootm 41000000"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-        "bootlocal=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/mtdblock5 ro rootfstype=jffs2\0" \
-        "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/nfs rw nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)\0" \
-	"r=tftp 41000000 zImage ; bootm 41000000\0" \
 	"autoload=armStoneA8/autoload.scr\0" \
 	"autommc=1\0" \
-	"autousb=3\0"
+	"autousb=3\0" \
+        "bootubi=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+        "bootjffs2=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+        "bootnfs=setenv bootargs console=ttySAC0,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
+	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
