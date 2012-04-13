@@ -1311,7 +1311,7 @@ int usb_hub_configure(struct usb_device *dev)
 		"" : "no ");
 	usb_hub_power_on(hub);
 
-#if defined(CONFIG_S5P) || defined(CONFIG_S3C64XX)
+#if defined(CONFIG_S3C64XX)
 	wait_ms(100); //###
 #endif
 

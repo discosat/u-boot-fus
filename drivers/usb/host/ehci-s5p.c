@@ -28,6 +28,7 @@
 #include "ehci.h"			  /* struct ehci_{hccr,hcor} */
 #include "ehci-core.h"			  /* hccr, hcor */
 #include <asm/arch/cpu.h>		  /* samsung_get_base_ehci() */
+#include <asm/arch/clock.h>		  /* struct s5pc110_clock */
 
 /*
  * Create the appropriate control structures to manage
@@ -46,9 +47,12 @@ struct s5p_usb_phy {			  /* Offset */
 int ehci_hcd_init(void)
 {
 	unsigned int ehci_base = samsung_get_base_ehci();
+	struct s5pc110_clock *clock = 
+		(struct s5pc110_clock *)samsung_get_base_clock();
 	volatile unsigned int *phy_control;
 	struct s5p_usb_phy *phy;
 	unsigned int rstcon;
+	unsigned int gate_ip1;
 
 	/* EHCI is only available on S5PC110 */
 	if (!ehci_base)
@@ -57,28 +61,32 @@ int ehci_hcd_init(void)
 	hccr = (struct ehci_hccr *)ehci_base;
 	hcor = (struct ehci_hcor *)(ehci_base + 0x10);
 
+	/* Enable OTG clock while changing PHY registers */
+	gate_ip1 = readl(&clock->gate_ip1);
+	writel(gate_ip1 | (1 << 16), &clock->gate_ip1);
+
 	/* Enable PHY1 (USB Host) */
 	phy_control = (unsigned int *)samsung_get_base_phy_control();
 	writel(readl(phy_control) | (1<<1), phy_control);
 
-	udelay(30000);
+	phy = (struct s5p_usb_phy *)samsung_get_base_phy();
+
+	/* Configure UPHYCLK for 24 MHz crystal. */
+	writel(readl(&phy->uphyclk) | (3<<0), &phy->uphyclk);
 
 	/* Enable PHY1, activate analog power. Remark: bit 8 of UPHYPWR must
 	   be set or PHY1 won't work! */
-	phy = (struct s5p_usb_phy *)samsung_get_base_phy();
 	writel((readl(&phy->uphypwr) & ~(3<<6)) | 0x100, &phy->uphypwr);
-
-	udelay(30000);
 
 	/* Reset PHY1 */
 	rstcon = readl(&phy->urstcon);
-	rstcon |= (1<<3);
-	writel(rstcon, &phy->urstcon);
+	writel(rstcon | (1<<3), &phy->urstcon);
 	udelay(20);
-	rstcon &= ~(1<<3);
-	writel(rstcon, &phy->urstcon);
+	writel(rstcon & ~(1<<3), &phy->urstcon);
+	udelay(1000);
 
-	udelay(30000);
+	/* Restore gate_ip1; this may switch off OTG clock again */
+	writel(gate_ip1, &clock->gate_ip1);
 
 	return 0;
 }
@@ -92,18 +100,26 @@ int ehci_hcd_stop(void)
 	unsigned int *phy_control =
 		(unsigned int *)samsung_get_base_phy_control();
 	struct s5p_usb_phy *phy = (struct s5p_usb_phy *)samsung_get_base_phy();
+	struct s5pc110_clock *clock = 
+		(struct s5pc110_clock *)samsung_get_base_clock();
 	unsigned int rstcon;
+	unsigned int gate_ip1;
+
+	/* Enable OTG clock while changing PHY registers */
+	gate_ip1 = readl(&clock->gate_ip1);
+	writel(gate_ip1 | (1 << 16), &clock->gate_ip1);
 
 	/* Reset PHY1 */
-	rstcon = readl(&phy->urstcon);
-	rstcon |= (1<<3);
-	writel(rstcon, &phy->urstcon);
+	writel(readl(&phy->urstcon) | (1<<3), &phy->urstcon);
 
 	/* PHY1: analog power down, suspend */
 	writel(readl(&phy->uphypwr) | (3<<6), &phy->uphypwr);
 
 	/* Disable PHY1 (USB Host) */
 	writel(readl(phy_control) & ~(1<<1), phy_control);
+
+	/* Restore gate_ip1; this may switch off OTG clock again */
+	writel(gate_ip1, &clock->gate_ip1);
 
 	return 0;
 }
