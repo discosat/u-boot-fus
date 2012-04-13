@@ -1,4 +1,4 @@
-# On armStoneA8 we use two SDRAM banks:
+# On fss5pv210 we use two SDRAM banks:
 #  DMC0: 256 MB SDRAM bank at 0x20000000 to 0x30000000
 #  DMC1: 256 MB SDRAM bank at 0x40000000 to 0x50000000
 #

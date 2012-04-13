@@ -89,7 +89,7 @@ const struct board_info fs_board_info[8] = {
 /* 2048+64 pages: We compute 4 bytes ECC for each 512 bytes of the page; ECC
    is in bytes 16..31 in OOB, bad block marker in byte 0, but two bytes are
    checked; so our first free byte is at offset 2. */
-static struct nand_ecclayout armstonea8_oob_64 = {
+static struct nand_ecclayout fss5pv210_oob_64 = {
 	.eccbytes = 16,
 	.eccpos = {16, 17, 18, 19, 20, 21, 22, 23,
 		   24, 25, 26, 27, 28, 29, 30, 31},
@@ -114,11 +114,11 @@ struct nboot_args fs_nboot_args;
  * Nr. File             Function        Comment
  * -----------------------------------------------------------------
  *  1.  start.S         reset()                 Init CPU, invalidate cache
- *  2.  armstonea8.c    save_boot_params()      (unused)
+ *  2.  fss5pv210.c     save_boot_params()      (unused)
  *  3.  lowlevel_init.S lowlevel_init()         Init clocks, etc.
  *  4.  board.c         board_init_f()          Init from flash (without RAM)
  *  5.  cpu_info.c      arch_cpu_init()         CPU type (PC100, PC110/PV210)
- *  6.  armstonea8.c    board_early_init_f()    (unused)
+ *  6.  fss5pv210.c     board_early_init_f()    (unused)
  *  7.  timer.c         timer_init()            Init timer for udelay()
  *  8.  env_nand.c      env_init()              Prepare to read env from NAND
  *  9.  board.c         init_baudrate()         Get the baudrate from env
@@ -126,23 +126,23 @@ struct nboot_args fs_nboot_args;
  * 11.  console.c       console_init_f()        Early console on serial port
  * 12.  board.c         display_banner()        Show U-Boot version
  * 13.  cpu_info.c      print_cpuinfo()         Show CPU type
- * 14.  armstonea8.c    checkboard()            Check NBoot params, show board
- * 15.  armstonea8.c    dram_init()             Set DRAM size to global data
+ * 14.  fss5pv210.c     checkboard()            Check NBoot params, show board
+ * 15.  fss5pv210.c     dram_init()             Set DRAM size to global data
  * 16.  cmd_lcd.c       lcd_setmem()            Reserve framebuffer region
- * 17.  armstonea8.c    dram_init_banksize()    Set ram banks to board desc.
+ * 17.  fss5pv210.c     dram_init_banksize()    Set ram banks to board desc.
  * 18.  board.c         display_dram_config()   Show DRAM info
  * 19.  lowlevel_init.S setup_mmu_table()       Init MMU table
  * 20.  start.S         relocate_code()         Relocate U-Boot to end of RAM,
  * 21.  board.c         board_init_r()          Init from RAM
  * 22.  cache.c         enable_caches()         Switch on caches
- * 23.  armstonea8.c    board_init()            Set boot params, config CS
+ * 23.  fss5pv210.c     board_init()            Set boot params, config CS
  * 24.  serial.c        serial_initialize()     Register serial devices
- * 24a. armstonea8.c    board_serial_init()     (unused)
+ * 24a. fss5pv210.c     board_serial_init()     (unused)
  * 25.  dlmalloc.c      mem_malloc_init()       Init heap for malloc()
  * 26.  nand.c          nand_init()             Scan NAND devices
- * 26a. armstonea8.c    board_nand_init()       Set armStoneA8 NAND config
+ * 26a. fss5pv210.c     board_nand_init()       Set fss5pv210 NAND config
  * 27.  mmc.c           mmc_initialize()        Scan MMC slots
- * 27a. armstonea8.c    board_mmc_init()        Set armStoneA8 MMC config
+ * 27a. fss5pv210.c     board_mmc_init()        Set fss5pv210 MMC config
  * 28.  env_common.c    env_relocate()          Copy env to RAM
  * 29.  stdio_init.c    stdio_init()            Set I/O devices
  * 30.  cmd_lcd.c       drv_lcd_init()          Register LCD devices
@@ -150,13 +150,13 @@ struct nboot_args fs_nboot_args;
  * 32.  exports.c       jumptable_init()        Table for exported functions
  * 33.  api.c           api_init()              (unused)
  * 34.  console.c       console_init_r()        Start full console
- * 35.  armstonea8.c    arch_misc_init()        (unused)
- * 36.  armstonea8.c    misc_init_r()           (unused)
+ * 35.  fss5pv210.c     arch_misc_init()        (unused)
+ * 36.  fss5pv210.c     misc_init_r()           (unused)
  * 37.  interrupts.c    interrupt_init()        (unused)
  * 38.  interrupts.c    enable_interrupts()     (unused)
- * 39.  armstonea8.c    board_late_init()       (unused)
+ * 39.  fss5pv210.c     board_late_init()       (unused)
  * 40.  eth.c           eth_initialize()        Register eth devices
- * 40a. armstonea8.c    board_eth_init()        Set armStoneA8 eth config
+ * 40a. fss5pv210.c     board_eth_init()        Set fss5pv210 eth config
  * 41.  cmd_source.c    autoload_script()       Run autoload script
  * 42.  main.c          main_loop()             Handle user commands
  *
@@ -311,7 +311,7 @@ int board_serial_init(void)
 extern int s5p_nand_init(struct nand_chip *nand);
 int board_nand_init(struct nand_chip *nand)
 {
-	nand->ecc.layout = &armstonea8_oob_64;
+	nand->ecc.layout = &fss5pv210_oob_64;
 
 	/* Call CPU specific init */
 	return s5p_nand_init(nand);

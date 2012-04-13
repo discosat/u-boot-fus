@@ -2,10 +2,11 @@
  * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
- * Configuation settings for the F&S armStoneA8 board. Activate with
- * one of the following targets:
- *   make amstonea8_config      Configure for armStoneA8
- *   make amstonea8             Configure for armStoneA8 and build
+ * Configuation settings for all F&S boards based on S5PV210. This is
+ * armStoneA8, NetDCU14, EASYsom1, QBlissA8B. Activate with one of
+ * the following targets:
+ *   make fss5pv210_config      Configure for S5PV210 boards
+ *   make fss5pv210_config      Configure for S5PV210 boards and build
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -114,7 +115,7 @@
  * High Level Configuration Options
  ************************************************************************/
 
-/* We are on an armStoneA8 */
+/* We are on an F&S board */
 #define CONFIG_IDENT_STRING	" for F&S"
 
 /* CPU, family and board defines */
@@ -123,7 +124,7 @@
 #define CONFIG_S5P		1	  /* wich is in S5P family */
 #define CONFIG_S5PC1XX		1	  /* more specific in S5PC1XX family */
 #define CONFIG_S5PV210		1	  /* it's an S5PV210 SoC */
-#define CONFIG_ARMSTONEA8	1	  /* F&S armStoneA8 Board */
+#define CONFIG_FSS5PV210	1	  /* F&S S5PV210 Board */
 
 /* Architecture magic and machine types; we don't have a separate value for
    EASYsom1 */
@@ -404,7 +405,7 @@
 #define CONFIG_DRIVER_AX88796L
 
 
-#ifndef CONFIG_ARMSTONEA8 /* Already done in NBoot */
+#ifndef CONFIG_FSS5PV210 /* Already done in NBoot */
 /************************************************************************
  * CPU (PLL) timings
  ************************************************************************/
@@ -414,10 +415,10 @@
 #define CONFIG_CLK_532_133_66
 //#define CONFIG_CLK_400_133_66
 //#define CONFIG_CLK_400_100_50
-#endif /* !CONFIG_ARMSTONEA8 */
+#endif /* !CONFIG_FSS5PV210 */
 
 
-#ifndef CONFIG_ARMSTONEA8 /* Already done in NBoot */
+#ifndef CONFIG_FSS5PV210 /* Already done in NBoot */
 /************************************************************************
  * RAM timing
  ************************************************************************/
@@ -440,7 +441,7 @@
 #define DDR_tWR 		15		/* ns (min: 15ns)*/
 #define DDR_tXSR		120		/* ns (min: 120ns)*/
 #define DDR_CASL		3		/* CAS Latency 3 */
-#endif /* !CONFIG_ARMSTONEA8 */
+#endif /* !CONFIG_FSS5PV210 */
 
 
 /************************************************************************
@@ -587,7 +588,7 @@
 #define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read.jffs2 41000000 Kernel ; bootm 41000000"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-  /*	"autoload=armStoneA8/autoload.scr\0" */	\
+  /*	"autoload=armStoneA8/autoload.scr\0" */	/*### use board name!!!*/ \
   /*	"autommc=1\0" */ \
   /*	"autousb=3\0" */ \
         "bootubi=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \

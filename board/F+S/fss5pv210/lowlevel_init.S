@@ -40,7 +40,7 @@ lowlevel_init:
 	/* For now do nothing */
 	mov	pc, lr
 
-#ifndef CONFIG_ARMSTONEA8
+#ifndef CONFIG_FSS5PV210
 	mov	r12, lr
 
 	/* Set signal strength of memory port 1 to 10mA */
@@ -114,9 +114,9 @@ wakeup_reset:
 	nop
 	nop
 
-#endif  /* !CONFIG_ARMSTONEA8 */
+#endif  /* !CONFIG_FSS5PV210 */
 
-#ifndef CONFIG_ARMSTONEA8  /* System clock already configured by NBoot */
+#ifndef CONFIG_FSS5PV210  /* System clock already configured by NBoot */
 /*
  * system_clock_init: Initialize core clock and bus clock.
  * void system_clock_init(void)
@@ -255,7 +255,7 @@ nand_asm_init:
 	mov	pc, lr
 #endif
 
-#endif /* !CONFIG_ARMSTONEA8 */
+#endif /* !CONFIG_FSS5PV210 */
 
 #ifdef CONFIG_ENABLE_MMU
 	/*  0x00000000 - 0x4FFFFFFF: 1:1, no caching
