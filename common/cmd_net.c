@@ -183,6 +183,17 @@ static void netboot_update_env (void)
 #endif
 }
 
+int autoload_net(enum proto_t proto, unsigned long addr, char *fname)
+{
+	char argv0[] = "autoload";
+	char argv1[10];
+	char *argv[3] = {argv0, argv1, NULL};
+
+	sprintf(argv1, "%lx", addr);
+	argv[2] = fname;
+	return netboot_common(proto, NULL, 3, argv) ? -1 : 0;
+}
+
 static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		char * const argv[])
 {

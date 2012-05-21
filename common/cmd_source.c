@@ -244,92 +244,193 @@ U_BOOT_CMD(
 #endif
 );
 
-static int try_autodevs(char *fname, char *devname, char *devmaskname,
-			unsigned long addr)
-{
-	unsigned int devmask;
-	unsigned int dev_num;
-	char *s;
-
-	/* Get the devicemask from the environment and convert it to number */
-	s = getenv(devmaskname);
-	if (!s)
-		return 0;
-	devmask = simple_strtoul(s, NULL, 16);
-
-	/* Try all devices that are enabled in the devmask */
-	for (dev_num=0; dev_num<32; dev_num++) {
-		block_dev_desc_t *dev_desc;
-
-		if (!(devmask & (1<<dev_num)))
-			continue;
-
-		/* Show what we try to load */
-		printf(" %s %u:1: ", devname, dev_num);
-
 #ifdef CONFIG_MMC
-		if (strcmp(devname, "mmc") == 0) {
-			struct mmc *mmc;
+static int autoload_mmc(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	struct mmc *mmc;
+	block_dev_desc_t *dev_desc;
 
-			mmc = find_mmc_device(dev_num);
-			if (!mmc) {
-				puts("no device\n");
-				continue;
-			}
-			mmc_init(mmc);
-		}
-#endif
+	mmc = find_mmc_device(devnum);
+	if (!mmc)
+		return -1;
 
-		/* If the device is valid and we can open partition 1, try to
-		   load the autoload file */
-		dev_desc = get_dev(devname, dev_num);
-		if (dev_desc && (fat_register_device(dev_desc, 1) == 0)) {
-			long size;
-			size = file_fat_read(fname, (unsigned char *)addr, 0);
-			if (size != -1) {
-				/* Seems to have worked, execute the script */
-				puts("Found autoload script, executing...\n");
-				source(addr, NULL);
-				return 1;
-			}
-		}
-	}
+	mmc_init(mmc);
+
+	/* If the device is valid and we can open the partition, try to
+	   load the autoload file */
+	dev_desc = get_dev("mmc", devnum);
+	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+		return -1;		  /* Device or partition not valid */
+
+	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+		return -1;		  /* File not found or I/O error */
 
 	return 0;
 }
+#endif /* CONFIG_MMC */
 
+#ifdef CONFIG_USB_STORAGE
+static int autoload_usb(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	static int usb_init_done = 0;
+	block_dev_desc_t *dev_desc;
+
+	/* Init USB only once during autoload */
+	if (!usb_init_done) {
+	        if (usb_init() < 0)
+			return -1;
+
+		/* Try to recognize storage devices immediately */
+		usb_stor_scan(1);
+		usb_init_done = 1;
+	}
+
+	/* If the device is valid and we can open the partition, try to
+	   load the autoload file */
+	dev_desc = get_dev("usb", devnum);
+	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+		return -1;		  /* Device or partition not valid */
+
+	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+		return -1;		  /* File not found or I/O error */
+
+	return 0;
+}
+#endif /* CONFIG_USB_STORAGE */
+
+#ifdef CONFIG_CMD_NET
+extern int autoload_net(enum proto_t proto, unsigned long addr, char *fname);
+static int autoload_tftp(unsigned long addr, int devnum, int partnum,
+			 char *fname)
+{
+	return autoload_net(TFTPGET, addr, fname);
+}
+
+static int autoload_nfs(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	return autoload_net(NFS, addr, fname);
+}
+
+static int autoload_dhcp(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	return autoload_net(DHCP, addr, fname);
+}
+#endif /* CONFIG_CMD_NET */
+
+struct autoloadinfo {
+	char *devname;
+	int (*autoload)(unsigned long addr, int devnum, int partnum,
+			char *fname);
+};
+
+static struct autoloadinfo alinfo[] = {
+#ifdef CONFIG_MMC
+	{"mmc", autoload_mmc},
+#endif
+#ifdef CONFIG_USB_STORAGE
+	{"usb", autoload_usb},
+#endif
+#ifdef CONFIG_CMD_NET
+	{"tftp", autoload_tftp},
+	{"nfs", autoload_nfs},
+	{"dhcp", autoload_dhcp},
+#endif
+};
+
+
+/* Autoload function. This checks the following environment variables:
+   autoload: comma separated list of devices: e.g. "mmc0,usb0"
+   autoname: filename of a u-Boot autoscript to load (default: autoload.scr)
+   autoaddr: address where to load the script (default: loadaddr) */
 void autoload_script(void)
 {
+	char *autoload;
+	char c;
+	char *devname;
+	int devnamelen;
+	int devnum;
+	int partnum;
+	int i;
 	char *fname;
 	unsigned long addr;
+	struct autoloadinfo *p;
 
 	/* Load filename to autoload */
-	fname = getenv("autoload");
-	if (!fname)
+	autoload = getenv("autoload");
+	if (!autoload)
 		return;
 
 	/* Load address where to load to */
 	addr = getenv_ulong("autoaddr", 16, get_loadaddr());
-	printf("Trying to autoload '%s', address 0x%08lx\n", fname, addr);
 
-#ifdef CONFIG_MMC
-	/* Try to load from MMC devices */
-	if (try_autodevs(fname, "mmc", "autommc", addr))
-		return;
-#endif
+	fname = getenv("autoname");
+	if (!fname)
+		fname = "autoload.scr";
 
-#if defined(CONFIG_USB_STORAGE)
-	if (usb_init() >= 0) {
-		/* Try to recognize storage devices immediately */
-		usb_stor_scan(1);
+	c = *autoload;
+	do {
+		/* Skip any commas */
+		while (c == ',')
+		       c = *(++autoload);
+		if (!c)
+			break;
 
-		/* Try to load from USB devices */
-		if (try_autodevs(fname, "usb", "autousb", addr))
-			return;
-	}
-#endif
+		/* Scan device name */
+		devname = autoload;
+		while ((c >= 'a') && (c <= 'z'))
+		       c = *(++autoload);
+		devnamelen = autoload - devname;
 
-	printf("Could not autoload '%s'\n", fname);
+		/* Scan device number */
+		devnum = 0;
+		while ((c >= '0') && (c <= '9')) {
+			devnum = 10*devnum + c - '0';
+			c = *(++autoload);
+		}
+
+		/* Scan optional partition number */
+		if (c != ':')
+			partnum = 1;
+		else {
+			partnum = 0;
+			c = *(++autoload);
+			while ((c >= '0') && (c <= '9')) {
+				partnum = 10*partnum + c - '0';
+				c = *(++autoload);
+			}
+		}
+
+		/* Search if device name known */
+		for (i = 0, p = alinfo; i < ARRAY_SIZE(alinfo); i++, p++) {
+			if ((devnamelen == strlen(p->devname)) &&
+			    !strncmp(devname, p->devname, devnamelen))
+				break;
+		}
+		puts("---- Trying autoload from ");
+		if ((i < ARRAY_SIZE(alinfo)) && (!c || (c == ','))) {
+			printf("%s%d:%d ----\n", p->devname, devnum, partnum);
+			if (p->autoload(addr, devnum, partnum, fname) < 0)
+				puts("Failed!\n");
+			else {
+				puts("Success!\n");
+				source(addr, NULL);
+				return;
+			}
+		} else {
+			autoload = devname;
+			c = *autoload;
+			while (c && (c != ',')) {
+				putc(c);
+				c = *(++autoload);
+			}
+			puts(" ----\nUnknown device, ignored\n");
+		}
+	} while (c);
+	puts("---- No autoload script found ----\n");
 }
 
 #endif
