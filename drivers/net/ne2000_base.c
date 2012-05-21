@@ -562,26 +562,29 @@ static int dp83902a_init(struct eth_device *dev, bd_t *bd)
 {
 	dp83902a_priv_data_t *dp = dev->priv;
 	u8* base;
-	int i;
 
 	base = dp->base;
 	if (!base)
 		return -1;		  /* No device found */
 
 #if defined(NE2000_BASIC_INIT)		  /* AX88796L doesn't need */
-	/* Prepare ESA, select page 1 */
-	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1);
+	{
+		int i;
 
-	/* Use the address from the serial EEPROM */
-	for (i = 0; i < 6; i++)
-		DP_IN(base, DP_P1_PAR0+i, dp->esa[i]);
+		/* Prepare ESA, select page 1 */
+		DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1);
 
-	/* Select page 0 */
-	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);
+		/* Use the address from the serial EEPROM */
+		for (i = 0; i < 6; i++)
+			DP_IN(base, DP_P1_PAR0+i, dp->esa[i]);
 
-	printf("NE2000 - %s ESA: %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       "eeprom", dp->esa[0], dp->esa[1], dp->esa[2],
-	       dp->esa[3], dp->esa[4], dp->esa[5]);
+		/* Select page 0 */
+		DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);
+
+		printf("NE2000 - %s ESA: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       "eeprom", dp->esa[0], dp->esa[1], dp->esa[2],
+		       dp->esa[3], dp->esa[4], dp->esa[5]);
+	}
 #endif	/* NE2000_BASIC_INIT */
 
 	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_STOP); /* Brutal */
@@ -599,19 +602,11 @@ static int dp83902a_init(struct eth_device *dev, bd_t *bd)
 	DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1); /* Receive ring boundary */
 	DP_OUT(base, DP_PSTOP, dp->rx_buf_end);	/* Receive ring end page */
 	dp->rx_next = dp->rx_buf_start - 1;
-	dp->running = true;
+
 	DP_OUT(base, DP_ISR, 0xFF);		/* Clear any pending interrupts */
 	DP_OUT(base, DP_IMR, DP_IMR_All);	/* Enable all interrupts */
 	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1 | DP_CR_STOP);	/* Select page 1 */
 	DP_OUT(base, DP_P1_CURP, dp->rx_buf_start);	/* Current page - next free page for Rx */
-	dp->running = true;
-
-	for (i = 0; i < 6; i++) {
-		/* FIXME */
-		/*((vu_short*)( base + ((DP_P1_PAR0 + i) * 2) +
-		 * 0x1400)) = enaddr[i];*/
-		DP_OUT(base, DP_P1_PAR0+i, dev->enetaddr[i]);
-	}
 
 	/* Enable and start device */
 	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
@@ -635,6 +630,28 @@ static void dp83902a_halt(struct eth_device *dev)
 	DP_OUT(base, DP_IMR, 0x00);		/* Disable all interrupts */
 
 	dp->running = false;
+}
+
+int dp83902a_write_hwaddr(struct eth_device *dev)
+{
+	dp83902a_priv_data_t *dp = dev->priv;
+	u8 *base = dp->base;
+	int i;
+
+	if (!base)
+		return -1;		  /* No device found */
+
+	/* Stop transfer, select page 1 */
+	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1 | DP_CR_STOP);
+
+	/* Set ethernet address */
+	for (i = 0; i < 6; i++)
+		DP_OUT(base, DP_P1_PAR0+i, dev->enetaddr[i]);
+
+	/* Select page 0 again */
+	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);
+
+	return 0;
 }
 
 int ne2000_initialize(u8 dev_num, int base_addr)
@@ -688,6 +705,7 @@ int ne2000_initialize(u8 dev_num, int base_addr)
 	dev->halt = dp83902a_halt;
 	dev->send = dp83902a_send;
 	dev->recv = dp83902a_recv;
+	dev->write_hwaddr = dp83902a_write_hwaddr;
 	sprintf(dev->name, "%s-%hu", NE2000_DEV_NAME, dev_num);
 
 	/* Register the ethernet device */

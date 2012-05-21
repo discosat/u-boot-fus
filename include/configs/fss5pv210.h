@@ -605,6 +605,7 @@
 	"bootnfs=setenv bootargs console=ttySAC0,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
+#define CONFIG_ETH1ADDR		00:05:51:05:2a:74
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122

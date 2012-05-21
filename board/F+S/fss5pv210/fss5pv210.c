@@ -378,51 +378,36 @@ int board_late_init (void)
 /* Register the available ethernet controller(s) */
 int board_eth_init(bd_t *bis)
 {
-	int res;
-	struct s5pc110_gpio *gpio = 
+	struct s5pc110_gpio *gpio =
 		(struct s5pc110_gpio *)samsung_get_base_gpio();
 
-	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us) */
+	/* Reset AX88796 ethernet chip (toggle nRST line for min 200us). If
+	   there are two ethernet chips, they are both reset by this because
+	   they share the reset line. */
 	s5p_gpio_direction_output(&gpio->h0, 3, 0);
 	udelay(200);
 	s5p_gpio_set_value(&gpio->h0, 3, 1);
 
-	/* Activate pull-up on IRQ pin; by default this pin is configured as
-	   open-drain, i.e. it is not actively driven high */
+	/* Activate pull-up on IRQ pin of ethernet 0; by default this pin is
+	   configured as open-drain on the AX8888796, i.e. it is not actively
+	   driven high */
 	s5p_gpio_direction_input(&gpio->h1, 2);
 	s5p_gpio_set_pull(&gpio->h1, 2, GPIO_PULL_UP);
 
-#if 0
-	unsigned int gph0_3 = s5pc110_gpio_get_nr(h0, 3);
+	/* Activate ethernet 0 in any case */
+	if (ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE) < 0)
+		return -1;
 
-	/* Reset AX88796 ethernet chip (Toggle nRST line for min 200us) */
-	gpio_set_value(gph0_3, 0);
-	udelay(200);
-	gpio_set_value(gph0_3, 1);
-#endif
+	/* Activate ethernet 1 only if reported as available by NBoot */
+	if (fs_nboot_args.chFeatures1 & FEAT_2NDLAN) {
+		/* Activate pull-up on IRQ pin of ethernet 1 */
+		s5p_gpio_direction_input(&gpio->h0, 0);
+		s5p_gpio_set_pull(&gpio->h0, 0, GPIO_PULL_UP);
 
-#if 0 /* Already done in NBoot */
-	/* Set correct CS timing for ethernet access */
-	SROM_BW_REG &= ~(0xf << 4);
-	SROM_BW_REG |= (1<<7) | (1<<6) | (1<<4);
-	SROM_BC1_REG = ((CS8900_Tacs<<28) + (CS8900_Tcos<<24) +
-			(CS8900_Tacc<<16) + (CS8900_Tcoh<<12) +
-			(CS8900_Tah<<8) + (CS8900_Tacp<<4) + (CS8900_PMC));
-#endif
-
-	/* Check for ethernet chip and register it */
-	res = ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
-	if (res >= 0) {
-		eth_init(bis);		 /* Set MAC-Address in any case */
-		eth_halt();
-
-#if 0 //#### Only rev 1.1
-		/* Check for second ethernet chip and register it */
-		res = ne2000_initialize(1, CONFIG_DRIVER_NE2000_BASE2);
-#endif
+		ne2000_initialize(1, CONFIG_DRIVER_NE2000_BASE2);
 	}
 
-	return res;
+	return 0;
 }
 #endif /* CONFIG_CMD_NET */
 
