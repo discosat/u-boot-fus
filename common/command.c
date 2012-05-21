@@ -342,7 +342,7 @@ int cmd_auto_complete(const char *const prompt, char *buf, int *np, int *colp)
 	int cnt;
 	char last_char;
 
-	if (strcmp(prompt, CONFIG_SYS_PROMPT) != 0)
+	if (strcmp(prompt, get_sys_prompt()) != 0)
 		return 0;	/* not in normal console */
 
 	cnt = strlen(buf);

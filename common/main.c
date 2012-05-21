@@ -84,6 +84,36 @@ int do_mdm_init = 0;
 extern void mdm_init(void); /* defined in board.c */
 #endif
 
+
+/* You can either define CONFIG_SYS_BOARDNAME in your config header file or
+   provide your own function get_board_name(). If neither is given, assume
+   "u-boot" as board name. */
+#ifndef CONFIG_SYS_BOARDNAME
+#define CONFIG_SYS_BOARDNAME "u-boot"
+#endif
+
+inline char *__get_board_name(void)
+{
+	return CONFIG_SYS_BOARDNAME;
+}
+char *get_board_name(void) __attribute__((weak, alias("__get_board_name")));
+
+
+/* You can either define CONFIG_SYS_PROMPT in your config header file or
+   provide your own function get_sys_prompt(). If neither is given, assume
+   board name followed by " # " as system prompt. */
+#ifndef CONFIG_SYS_PROMPT
+#define CONFIG_SYS_PROMPT CONFIG_SYS_BOARDNAME " # "
+#endif
+
+inline char *__get_sys_prompt(void)
+{
+	return CONFIG_SYS_PROMPT;
+}
+
+char *get_sys_prompt(void) __attribute__((weak, alias("__get_sys_prompt")));
+
+
 /***************************************************************************
  * Watch for 'delay' seconds for autoboot stop or autoboot delay string.
  * returns: 0 -  no key string, allow autoboot 1 - got key string, abort
@@ -434,7 +464,7 @@ void main_loop (void)
 			reset_cmd_timeout();
 		}
 #endif
-		len = readline (CONFIG_SYS_PROMPT);
+		len = readline (get_sys_prompt());
 
 		flag = 0;	/* assume no special flags for now */
 		if (len > 0)

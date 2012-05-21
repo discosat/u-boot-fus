@@ -149,8 +149,6 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CONFIG_SYS_PROMPT	fs_board_prompt /* Monitor Command Prompt */
-
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
 
@@ -619,12 +617,5 @@
 #define CONFIG_USE_ARCH_MEMMOVE
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
-
-/************************************************************************
- * Some definitions
- ************************************************************************/
-#ifndef __ASSEMBLY__
-extern char fs_board_prompt[];
-#endif
 
 #endif /* !__CONFIG_H */

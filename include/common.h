@@ -272,6 +272,8 @@ void	reset_cmd_timeout(void);
 #ifdef CONFIG_MENU
 int	abortboot(int bootdelay);
 #endif
+char	*get_board_name(void);
+char	*get_sys_prompt(void);
 extern char console_buffer[];
 
 /* arch/$(ARCH)/lib/board.c */

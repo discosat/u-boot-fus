@@ -101,8 +101,8 @@ static struct nand_ecclayout fss5pv210_oob_64 = {
 };
 
 
-/* String used for command prompt */
-char fs_board_prompt[20];
+/* String used for system prompt */
+char fs_sys_prompt[20];
 
 /* Copy of the NBoot args */
 struct nboot_args fs_nboot_args;
@@ -272,7 +272,7 @@ int board_init(void)
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
 
 	/* Prepare the command prompt */
-	sprintf(fs_board_prompt, "%s # ", fs_board_info[board_type].name);
+	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
 
 #if 0
 	/* ### Audio subsystem: set audio_clock to EPLL */
@@ -434,6 +434,22 @@ ulong virt_to_phy_picomod6(ulong addr)
 }
 #endif
 #endif //0####
+
+
+/* Return the board name; we have different boards that use this file, so we
+   can not define the board name with CONFIG_SYS_BOARDNAME */
+char *get_board_name(void)
+{
+	return fs_board_info[fs_nboot_args.chBoardType].name;
+}
+
+
+/* Return the system prompt; we can not define it with CONFIG_SYS_PROMPT
+   because we want to include the board name, which is variable (see above) */
+char *get_sys_prompt(void)
+{
+	return fs_sys_prompt;
+}
 
 
 #ifdef CONFIG_CMD_LCD
