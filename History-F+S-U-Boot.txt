@@ -1,5 +1,29 @@
-History of Changes for U-Boot on PicoMOD6/PicoCOM3/armStoneA8
--------------------------------------------------------------
+History of Changes for U-Boot on F&S Boards and Modules
+-------------------------------------------------------
+
+Supported boards: PicoMOD6, PicoCOM3, armStoneA8
+
+
+armStoneA8 V1.1 (22.05.2012, based on u-boot-2011.12)
+-----------------------------------------------------
+This is another interim release targeted to armStoneA8 only (PicoMOD6
+and PicoCOM3 won't work).
+
+- New autoload mechanism to support automatic installation and
+  updates; check on mmc0:1 and usb0:1 by default
+- Increase malloc heap (ubi part failed with large MTD partitions)
+- Don't add CONFIG_ENV_SIZE twice to final heap size
+- Support second LAN port, set pull-up for IRQ, set default eth1addr
+- New function for setting the MAC address on AX88796 LAN chip; this
+  allows for simpler code to set the MAC addresses on F&S boards
+- Recognize all the feature settings that are reported by NBoot
+- Show number of DRAM chips, LAN ports and CPU speed on startup
+- Fix ID for NetDCU14, add some NetDCU14 specific features
+- Add get_board_name() and get_sys_prompt() to allow for dynamic
+  strings (instead of only fix strings from the configuration)
+- Fix some warnings that appeared with new toolchain (GCC 4.6.3)
+
+
 
 armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
 -----------------------------------------------------
