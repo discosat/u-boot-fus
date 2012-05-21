@@ -102,7 +102,6 @@ int ehci_hcd_stop(void)
 	struct s5p_usb_phy *phy = (struct s5p_usb_phy *)samsung_get_base_phy();
 	struct s5pc110_clock *clock = 
 		(struct s5pc110_clock *)samsung_get_base_clock();
-	unsigned int rstcon;
 	unsigned int gate_ip1;
 
 	/* Enable OTG clock while changing PHY registers */

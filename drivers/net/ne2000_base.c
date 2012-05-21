@@ -210,6 +210,7 @@ static void dp83902a_RxEvent(struct eth_device *dev)
 	DEBUG_FUNCTION();
 
 	DP_IN(base, DP_RSR, rsr);
+	(void)rsr;			  /* Avoid compiler warning */
 	while (true) {
 		/* Read incoming packet header */
 		DP_OUT(base, DP_CR, DP_CR_PAGE1 | DP_CR_NODMA | DP_CR_START);
@@ -278,6 +279,7 @@ static void dp83902a_TxEvent(struct eth_device *dev)
 	u32 key;
 
 	DP_IN(base, DP_TSR, tsr);
+	(void)tsr;			  /* Avoid compiler warning */
 	if (dp->tx_int == 1) {
 		key = dp->tx1_key;
 		dp->tx1 = 0;
@@ -364,8 +366,11 @@ static void dp83902a_poll(struct eth_device *dev)
 
 			/* Read the tally counters to clear them. */
 			DP_IN(base, DP_FER, cnt1);
+			(void)cnt1;	  /* Avoid compiler warning */
 			DP_IN(base, DP_CER, cnt2);
+			(void)cnt2;	  /* Avoid compiler warning */
 			DP_IN(base, DP_MISSED, cnt3);
+			(void)cnt3;	  /* Avoid compiler warning */
 			DP_OUT(base, DP_ISR, DP_ISR_CNT);
 		}
 		/*
@@ -455,6 +460,7 @@ static int dp83902a_send(struct eth_device *dev, volatile void *packet,
 		DP_OUT(base, DP_RBCH, 0);
 		DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_RDMA | DP_CR_START);
 		DP_IN_DATA(dp->data, tmp);
+		(void)tmp;		  /* Avoid compiler warning */
 	}
 
 #ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA
