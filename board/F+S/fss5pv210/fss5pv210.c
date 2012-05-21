@@ -45,9 +45,14 @@
 #define BOOT_PARAMS_BASE (PHYS_SDRAM_1 + 0x100)	    /* Arguments to Linux */
 
 #define BT_ARMSTONEA8 0
-#define BT_NETDCU14   1
 #define BT_QBLISSA8   2
+#define BT_NETDCU14   4
 #define BT_EASYSOM1   7
+
+#define FEAT_CPU800   (1<<0)		  /* 0: 1000 MHz, 1: 800 MHz CPU */
+#define FEAT_NOUART2  (1<<2)		  /* 0: UART2, 1: no UART2 (NetDCU14) */
+#define FEAT_DIGITALRGB (1<<3)		  /* 0: LVDS, 1: RGB (NetDCU14) */
+#define FEAT_2NDLAN   (1<<4)		  /* 0: 1x LAN, 1: 2x LAN */
 
 
 /* NBoot arguments that are passed from NBoot to us */
@@ -57,7 +62,7 @@ struct nboot_args
 	unsigned int dwSize;		  /* 16*4 */
 	unsigned int dwNBOOT_VER;
 	unsigned int dwMemSize;		  /* size of SDRAM in MB */
-	unsigned int dwFlashSize;	  /* size of NAND flash in MB */    
+	unsigned int dwFlashSize;	  /* size of NAND flash in MB */
 	unsigned int dwDbgSerPortPA;	  /* Phys addr of serial debug port */
 	unsigned int dwNumDram;		  /* Installed memory chips */
 	unsigned int dwAction;		  /* (unused in U-Boot) */
@@ -77,10 +82,10 @@ struct board_info {
 
 const struct board_info fs_board_info[8] = {
 	{"armStoneA8", MACH_TYPE_ARMSTONEA8}, /* 0 */
-	{"NetDCU14",   MACH_TYPE_NETDCU14},   /* 1 */
+	{"???", 0},			      /* 1 */
 	{"QBlissA8B",  MACH_TYPE_QBLISSA8B},  /* 2 */
 	{"???", 0},			      /* 3 */
-	{"???", 0},			      /* 4 */
+	{"NetDCU14",   MACH_TYPE_NETDCU14},   /* 4 */
 	{"???", 0},			      /* 5 */
 	{"???", 0},			      /* 6 */
 	{"EASYsom1",   MACH_TYPE_EASYSOM1},   /* 7 */
@@ -179,10 +184,11 @@ int checkboard(void)
 {
 	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
 
-	printf("Board: %s Rev %u.%02u (%uMB DRAM/%d chips, %uMB NAND flash)\n",
+	printf("Board: %s Rev %u.%02u (%dx DRAM, %dx LAN, %d MHz)\n",
 	       fs_board_info[pargs->chBoardType].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->dwMemSize, pargs->dwNumDram, pargs->dwFlashSize);
+	       pargs->dwNumDram, pargs->chFeatures1 & FEAT_2NDLAN ? 2 : 1,
+	       pargs->chFeatures1 & FEAT_CPU800 ? 800 : 1000);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
@@ -278,8 +284,8 @@ int board_init(void)
 	/* ### Audio subsystem: set audio_clock to EPLL */
 	*(volatile unsigned *)0xEEE10000 |= 1;
 	printf("### ASS_CLK_SRC %08x, ASS_CLK_DIV %08x, ASS_CLK_GATE %08x\n",
-	       *(volatile unsigned *)0xEEE10000, 
-	       *(volatile unsigned *)0xEEE10004, 
+	       *(volatile unsigned *)0xEEE10000,
+	       *(volatile unsigned *)0xEEE10004,
 	       *(volatile unsigned *)0xEEE10008);
 #endif
 
@@ -321,9 +327,9 @@ int board_nand_init(struct nand_chip *nand)
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_init(bd_t *bis)
 {
-	struct s5pc110_gpio *gpio = 
+	struct s5pc110_gpio *gpio =
 		(struct s5pc110_gpio *)samsung_get_base_gpio();
-	struct s5pc110_clock *clock = 
+	struct s5pc110_clock *clock =
 		(struct s5pc110_clock *)samsung_get_base_clock();
 	unsigned int div;
 
