@@ -27,26 +27,37 @@
  * MA 02111-1307 USA
  *
  *
- * RAM layout of armStoneA8 (RAM starts at 0x40000000) (128MB)
- * -----------------------------------------------------------
+ * RAM layout of armStoneA8
+ * (RAM starts at 0x40000000 with 256MB and 0x30000000 with 512MB)
+ * ---------------------------------------------------------------
  * Offset 0x0000_0000 - 0x0000_00FF:
  * Offset 0x0000_0100 - 0x0000_7FFF: bi_boot_params
  * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
  * Offset 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
- * Offset 0x0100_0000 - 0x07EF_FFFF: (unused, e.g. INITRD)
- * Offset 0x07F0_0000 - 0x07FF_FFFF: U-Boot (inkl. malloc area)
+ * Offset 0x0100_0000 - 0x?FDF_FFFF: (unused, e.g. INITRD)
+ * Offset 0x?FE0_0000 - 0x?FFF_FFFF: U-Boot (inkl. malloc area)
+ * ?=0 for 256MB, ?=1 for 512MB
  *
- * Remark: Additional 128MB of RAM are unused @ 0x20000000)
- * 
+ * Remark:
+ * Actually the lower RAM bank starts at 0x20000000. But as it is only 256MB,
+ * it is mirrored at 0x30000000. When using the region starting at 0x30000000
+ * instead, we get a continuous memory region of 512MB without gap.
  *
- * NAND flash layout of armStoneA8 (1GB) (Block size 128KB)
+ * NAND flash layout of armStoneA8 (Block size 128KB)
  * --------------------------------------------------------
- * Offset 0x0000_0000 - 0x0003_FFFF: NBoot (256KB)
- * Offset 0x0004_0000 - 0x000B_FFFF: U-Boot (512KB)
- * Offset 0x000C_0000 - 0x000F_FFFF: U-Boot environment (256KB)
- * Offset 0x0010_0000 - 0x004F_FFFF: Space for user defined data (4MB)
- * Offset 0x0050_0000 - 0x007F_FFFF: Linux Kernel zImage (3MB)
- * Offset 0x0080_0000 - 0x3FFF_FFFF: Linux Target System (1016MB)
+ * Offset 0x0000_0000 - 0x0003_FFFF: NBoot: NBoot image (256KB)
+ * Offset 0x0004_0000 - 0x000B_FFFF: UBoot: U-Boot image (512KB)
+ * Offset 0x000C_0000 - 0x000F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * Offset 0x0010_0000 - 0x004F_FFFF: UserDef: user defined data (4MB)
+ * Offset 0x0050_0000 - 0x007F_FFFF: Kernel: Linux kernel zImage (3MB)
+ * Offset 0x0080_0000 - 0x07FF_FFFF: TargetFS: Target System (120MB) with 128MB
+ * Offset 0x0080_0000 - 0x3FFF_FFFF: TargetFS: Target System (1016MB) with 1GB
+ *
+ * Remark:
+ * All partition sizes have been chosen to allow for at least one bad block in
+ * addition to the required size of the partition. E.g. UBoot is 384KB, but
+ * the UBoot partition is 512KB to allow for one bad block (128KB) in this
+ * memory region.
  *
  * With the new ARM specific loader code introduced in u-boot-2010.12, u-boot
  * now can be loaded to a rather low RAM address from NBoot. It only needs a
@@ -56,7 +67,7 @@
  * and the board-specific dram_init() function has to set gd->ram_size
  * correctly to the available RAM. That's all. So there is no need for
  * different u-boot versions just because of differently mounted RAM sizes
- * anymore.
+ * anymore. The starting address varies, depending on malloc heap size, etc.
  *
  * Memory layout within U-Boot (from top to bottom!). For more details see
  * board_init_f() in arch/arm/lib/board.c.
@@ -223,8 +234,10 @@
 #define CONFIG_SYS_INIT_SP_ADDR	(0xD0038000 - CONFIG_SYS_GBL_DATA_SIZE)
 #endif
 
-/* Size of malloc() pool (heap) */
-#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 512*1024)
+/* Size of malloc() pool (heap), CONFIG_ENV_SIZE is automatically added to
+   build TOTAL_MALLOC_LEN; command "ubi part" needs quite a large heap if the
+   source MTD partition is large */
+#define CONFIG_SYS_MALLOC_LEN	(1024*1024)
 
 /* Size in bytes reserved for initial data */
 #define CONFIG_SYS_GBL_DATA_SIZE	256
