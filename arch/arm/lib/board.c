@@ -82,10 +82,6 @@ extern int  AT91F_DataflashInit(void);
 extern void dataflash_print_info(void);
 #endif
 
-#ifdef CONFIG_CMD_SOURCE
-extern void autoload_script(void);
-#endif
-
 #ifdef CONFIG_ENABLE_MMU
 extern void setup_mmu_table(ulong tlb_addr);
 #endif
@@ -680,10 +676,6 @@ void board_init_r(gd_t *id, ulong dest_addr)
 		sprintf((char *)memsz, "%ldk", (gd->ram_size / 1024) - pram);
 		setenv("mem", (char *)memsz);
 	}
-#endif
-
-#ifdef CONFIG_CMD_SOURCE
-	autoload_script();
 #endif
 
 	/* main_loop() can return to retry autoboot, if so just run it again. */

@@ -599,7 +599,8 @@
 #define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read.jffs2 41000000 Kernel ; bootm 41000000"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"autoload=mmc,usb\0" \
+	"instcheck=mmc,usb\0" \
+	"updcheck=mmc,usb\0" \
 	"bootubi=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootjffs2=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
 	"bootnfs=setenv bootargs console=ttySAC0,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \

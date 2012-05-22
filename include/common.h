@@ -299,6 +299,7 @@ void flash_perror (int);
 
 /* common/cmd_source.c */
 int	source (ulong addr, const char *fit_uname);
+int autoload_script(int update);
 
 //###extern ulong load_addr;		/* Default Load Address */
 extern ulong save_addr;		/* Default Save Address */

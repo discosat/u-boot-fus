@@ -427,15 +427,32 @@ void main_loop (void)
 	debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (bootdelay >= 0 && s && !abortboot (bootdelay)) {
+#ifdef CONFIG_CMD_SOURCE
+		/* Before the boot command is executed, check if we should
+		   load a system update script */
+		if (autoload_script(1))	  /* Try to load update script */
+#endif
+		{
 # ifdef CONFIG_AUTOBOOT_KEYED
-		int prev = disable_ctrlc(1);	/* disable Control C checking */
+			/* Disable Control C checking */
+			int prev = disable_ctrlc(1);
 # endif
 
-		run_command2(s, 0);
+			/* Run bootcmd */
+			run_command2(s, 0);
 
 # ifdef CONFIG_AUTOBOOT_KEYED
-		disable_ctrlc(prev);	/* restore Control C checking */
+			/* Restore Control C checking */
+			disable_ctrlc(prev);
 # endif
+
+#ifdef CONFIG_CMD_SOURCE
+			/* The bootcmd usually only returns if booting failed.
+			   Then we assume that the system is not correctly
+			   installed and try to load an install script */
+			autoload_script(0);
+#endif
+		}
 	}
 
 # ifdef CONFIG_MENUKEY

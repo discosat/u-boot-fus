@@ -341,12 +341,33 @@ static struct autoloadinfo alinfo[] = {
 #endif
 };
 
+struct autoloadvars {
+	char *checkvar;			  /* Var name with devices to check */
+	char *addrvar;			  /* Var name with load address */
+	char *scriptvar;		  /* Var name with script name */
+	char *scriptdef;		  /* Default script name */
+};
 
-/* Autoload function. This checks the following environment variables:
-   autoload: comma separated list of devices: e.g. "mmc0,usb0"
-   autoname: filename of a u-Boot autoscript to load (default: autoload.scr)
-   autoaddr: address where to load the script (default: loadaddr) */
-void autoload_script(void)
+static struct autoloadvars alvars[] = {
+	{"instcheck", "instscript", "instaddr", "install.scr"}, /* 0 */
+	{"updcheck",  "updscript",  "updaddr",  "update.scr"},  /* 1 */
+};
+	
+
+/*
+ * Autoload function. This checks the following environment variables:
+ *
+ *   xxxcheck:  comma separated list of devices to check: e.g. "mmc0,usb0"
+ *   xxxaddr:   address where to load the script (default: loadaddr)
+ *   xxxscript: filename of a u-boot autoscript to load (default: install.scr)
+ *
+ * The xxx part and the default script name depend on the given index (see
+ * alvars above). Return:
+ *
+ *   0:   Script successfully loaded and executed
+ *   !=0: Check-variable not set or script not found or execution
+ */
+int autoload_script(int index)
 {
 	char *autoload;
 	char c;
@@ -358,18 +379,24 @@ void autoload_script(void)
 	char *fname;
 	unsigned long addr;
 	struct autoloadinfo *p;
+	struct autoloadvars *v;
 
-	/* Load filename to autoload */
-	autoload = getenv("autoload");
+	if (index >= ARRAY_SIZE(alvars))
+		return 1;		  /* Error */
+
+	v = &alvars[index];
+
+	/* Get script filename to autoload */
+	autoload = getenv(v->checkvar);
 	if (!autoload)
-		return;
+		return 1;		  /* Variable not set */
 
-	/* Load address where to load to */
-	addr = getenv_ulong("autoaddr", 16, get_loadaddr());
+	/* Load address where to load to, default: loadaddr */
+	addr = getenv_ulong(v->addrvar, 16, get_loadaddr());
 
-	fname = getenv("autoname");
+	fname = getenv(v->scriptvar);
 	if (!fname)
-		fname = "autoload.scr";
+		fname = v->scriptdef;
 
 	c = *autoload;
 	do {
@@ -418,7 +445,11 @@ void autoload_script(void)
 			else {
 				puts("Success!\n");
 				source(addr, NULL);
-				return;
+
+				/* If the script fails due to an error, we
+				   return 0 nonetheless because otherwise we
+				   might unintentionally boot the system */
+				return 0;
 			}
 		} else {
 			autoload = devname;
@@ -431,6 +462,8 @@ void autoload_script(void)
 		}
 	} while (c);
 	puts("---- No autoload script found ----\n");
+
+	return 1;
 }
 
 #endif
