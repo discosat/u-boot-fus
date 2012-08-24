@@ -566,12 +566,19 @@
 #define CONFIG_CMD_MTDPARTS
 
 /* We have one NAND chip, give it a name */
-#define MTDIDS_DEFAULT		"nand0=fsnand0"
+#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
 
-/* Define the default partitions on this NAND chip */
-#define MTDPARTS_DEFAULT	"mtdparts=fsnand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
+/* We don't define settings for mtdparts default. Instead in fss3c64xx.c
+   board_late_init() we set variables mtdids, mtdparts and partition; We have
+   mtdparts settings for 16K and for 128K block size. The correct one is set
+   depending on the installed NAND flash type. */
+#define MTDPARTS_DEF_SMALL	"mtdparts=fsnand1:32k(NBoot)ro;fsnand0:448k@32k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
+#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:512k@256k(UBoot)ro,256k(UBootEnv)ro,4m(UserDef),3m(Kernel)ro,-(TargetFS)"
 
-#define CONFIG_MTD_DEVICE
+/* Set UserDef as default partition */
+#define MTDPART_DEFAULT "nand0,2"
+
+#define CONFIG_MTD_DEVICE		  /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
 #define CONFIG_RBTREE			  /* Required for UBI */
 #define CONFIG_LZO			  /* Required for UBI */

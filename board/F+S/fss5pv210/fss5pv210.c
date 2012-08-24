@@ -429,7 +429,12 @@ int board_mmc_init(bd_t *bis)
 #endif
 
 
+const char *board_get_mtdparts_default(void)
 {
+	return (nand_blocksize > 16*1024)
+		? MTDPARTS_DEF_LARGE : MTDPARTS_DEF_SMALL;
+}
+
 #ifdef CONFIG_BOARD_LATE_INIT
 /* Use this slot to init some final things before the network is started. We
    set up some environment variables for things that are board dependent and
@@ -457,6 +462,14 @@ int board_late_init(void)
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME, '0'+i);
 		setenv("sercon", sercon);
 	}
+
+	/* Set mtdids, mtdparts and partition if not already set */
+	if (!getenv("mtdids"))
+		setenv("mtdids", MTDIDS_DEFAULT);
+	if (!getenv("mtdparts"))
+		setenv("mtdparts", board_get_mtdparts_default());
+	if (!getenv("partition"))
+		setenv("partition", MTDPART_DEFAULT);
 
 	/* instcheck and updcheck are allowed to be empty, so we can't check
 	   for empty here. On the other hand they depend on the board, so we

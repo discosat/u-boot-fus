@@ -162,6 +162,15 @@ static struct part_info* mtd_part_info(struct mtd_device *dev, unsigned int part
 static struct mtdids* id_find_by_mtd_id(const char *mtd_id, unsigned int mtd_id_len);
 static int device_del(struct mtd_device *dev);
 
+
+static inline const char *__board_get_mtdparts_default(void)
+{
+	return NULL;
+}
+
+const char *board_get_mtdparts_default(void)
+	__attribute__((weak, alias("__board_get_mtdparts_default")));
+
 /**
  * Parses a string into a number.  The number stored at ptr is
  * potentially suffixed with K (for kilobytes, or 1024 bytes),
@@ -1305,6 +1314,7 @@ static void print_partition_table(void)
 static void list_partitions(void)
 {
 	struct part_info *part;
+	const char *mtdparts;
 
 	debug("\n---list_partitions---\n");
 	print_partition_table();
@@ -1331,7 +1341,10 @@ static void list_partitions(void)
 	 * printbuffer. Use puts() to prevent system crashes.
 	 */
 	puts("mtdparts: ");
-	puts(mtdparts_default ? mtdparts_default : "none");
+	mtdparts = mtdparts_default;
+	if (!mtdparts)
+		mtdparts = board_get_mtdparts_default();
+	puts(mtdparts ? mtdparts : "none");
 	puts("\n");
 }
 
@@ -1926,8 +1939,11 @@ int do_mtdparts(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc == 2) {
 		if (strcmp(argv[1], "default") == 0) {
+			const char *mtdparts = mtdparts_default;
+			if (!mtdparts)
+				mtdparts = board_get_mtdparts_default();
 			setenv("mtdids", (char *)mtdids_default);
-			setenv("mtdparts", (char *)mtdparts_default);
+			setenv("mtdparts", mtdparts);
 			setenv("partition", NULL);
 
 			mtdparts_init();
