@@ -67,6 +67,10 @@ extern struct serial_device s3c24xx_serial1_device;
 extern struct serial_device s3c24xx_serial2_device;
 #endif
 
+#if defined(CONFIG_S3C64XX)
+extern void s3c64xx_serial_register(int, const char *);
+#endif
+
 #if defined(CONFIG_S5P)
 extern void s5p_serial_register(int, const char *);
 #endif

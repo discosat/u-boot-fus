@@ -104,6 +104,12 @@ void serial_initialize(void)
 		serial_register(&s3c24xx_serial1_device);
 		serial_register(&s3c24xx_serial2_device);
 #endif
+#if defined(CONFIG_S3C64XX)
+		s3c64xx_serial_register(0, NULL);
+		s3c64xx_serial_register(1, NULL);
+		s3c64xx_serial_register(2, NULL);
+		s3c64xx_serial_register(3, NULL);
+#endif
 #if defined(CONFIG_S5P)
 		s5p_serial_register(0, NULL);
 		s5p_serial_register(1, NULL);
