@@ -15,7 +15,14 @@ struct serial_device {
 	void (*loop) (const struct serial_device *, int);
 #endif
 	void *serpriv;
+
+	/* The serial devices are stored in a ring structure. So the last
+	   element points with its next pointer back again to the first
+	   element and the first element points with its prev pointer back
+	   again to the last element. The beginning of the ring is stored in
+	   variable serial_devices. */
 	struct serial_device *next;
+	struct serial_device *prev;
 };
 
 extern struct serial_device serial_smc_device;

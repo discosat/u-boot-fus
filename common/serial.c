@@ -42,9 +42,20 @@ void serial_register(struct serial_device *sdev)
 	sdev->dev.puts += gd->reloc_off;
 	sdev->setbrg += gd->reloc_off;
 #endif
-
-	sdev->next = serial_devices;
-	serial_devices = sdev;
+	if (!serial_devices) {
+		/* First element, loop back to itself */
+		sdev->next = sdev;
+		sdev->prev = sdev;
+		serial_devices = sdev;
+	} else {
+		/* Add at end; serial_devices points to the first element in
+		   the serial devices ring, so serial_devices->prev points to
+		   the last element. */
+		sdev->prev = serial_devices->prev;
+		sdev->prev->next = sdev;
+		sdev->next = serial_devices;
+		sdev->next->prev = sdev;
+	}
 }
 
 static int __board_serial_init(void)
@@ -137,22 +148,29 @@ void serial_initialize(void)
 
 void serial_stdio_init(void)
 {
-	struct serial_device *sdev;
+	struct serial_device *sdev = serial_devices;
 
 	/* Register a stdio_dev for every serial_device */
-	for (sdev = serial_devices; sdev; sdev = sdev->next)
-		stdio_register(&sdev->dev);
+	if (sdev) {
+		do {
+			stdio_register(&sdev->dev);
+			sdev = sdev->next;
+		} while (sdev != serial_devices);
+	}
 }
 
 int serial_assign(const char *name)
 {
-	struct serial_device *sdev;
+	struct serial_device *sdev = serial_devices;
 
-	for (sdev = serial_devices; sdev; sdev = sdev->next) {
-		if (strcmp(sdev->dev.name, name) == 0) {
-			serial_current = sdev;
-			return 0;
-		}
+	if (sdev) {
+		do {
+			if (strcmp(sdev->dev.name, name) == 0) {
+				serial_current = sdev;
+				return 0;
+			}
+			sdev = sdev->next;
+		} while (sdev != serial_devices);
 	}
 
 	return 1;
@@ -160,10 +178,14 @@ int serial_assign(const char *name)
 
 void serial_reinit_all(void)
 {
-	struct serial_device *sdev;
+	struct serial_device *sdev = serial_devices;
 
-	for (sdev = serial_devices; sdev; sdev = sdev->next)
-		sdev->dev.start(&sdev->dev);
+	if (sdev) {
+		do {
+			sdev->dev.start(&sdev->dev);
+			sdev = sdev->next;
+		} while (sdev != serial_devices);
+	}
 }
 
 static struct serial_device *get_current(void)
@@ -233,7 +255,7 @@ int uart_post_test(int flags)
 {
 	unsigned char c;
 	int ret, saved_baud, b;
-	struct serial_device *saved_dev, *s;
+	struct serial_device *saved_dev, *sdev;
 	bd_t *bd = gd->bd;
 
 	/* Save current serial state */
@@ -241,24 +263,28 @@ int uart_post_test(int flags)
 	saved_dev = serial_current;
 	saved_baud = bd->bi_baudrate;
 
-	for (s = serial_devices; s; s = s->next) {
+	sdev = serial_devices;
+	if (!sdev)
+		goto done;
+
+	do {
 		/* If this driver doesn't support loop back, skip it */
-		if (!s->loop)
+		if (!sdev->loop)
 			continue;
 
 		/* Test the next device */
-		serial_current = s;
+		serial_current = sdev;
 
 		ret = serial_init();
 		if (ret)
 			goto done;
 
 		/* Consume anything that happens to be queued */
-		while (serial_tstc())
-			serial_getc();
+		while (serial_tstc(&sdev->dev))
+			serial_getc(&sdev->dev);
 
 		/* Enable loop back */
-		s->loop(1);
+		sdev->loop(sdev, 1);
 
 		/* Test every available baud rate */
 		for (b = 0; b < ARRAY_SIZE(bauds); ++b) {
@@ -274,32 +300,28 @@ int uart_post_test(int flags)
 			 */
 			for (c = 0x20; c < 0x7f; ++c) {
 				/* Send it out */
-				serial_putc(c);
+				serial_putc(&sdev->dev, c);
 
 				/* Make sure it's the same one */
-				ret = (c != serial_getc());
+				ret = (c != serial_getc(&sdev->dev));
 				if (ret) {
-					s->loop(0);
+					sdev->loop(sdev, 0);
 					goto done;
 				}
 
 				/* Clean up the output in case it was sent */
-				serial_putc('\b');
-				ret = ('\b' != serial_getc());
+				serial_putc(&sdev->dev, '\b');
+				ret = ('\b' != serial_getc(&sdev->dev));
 				if (ret) {
-					s->loop(0);
+					sdev->loop(sdev, 0);
 					goto done;
 				}
 			}
 		}
 
 		/* Disable loop back */
-		s->loop(0);
-
-		/* XXX: There is no serial_uninit() !? */
-		if (s->uninit)
-			s->uninit();
-	}
+		sdev->loop(sdev, 0);
+	} while (sdev != serial_devices);
 
  done:
 	/* Restore previous serial state */
