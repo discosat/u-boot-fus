@@ -76,19 +76,20 @@ struct nboot_args
 };
 
 struct board_info {
-	char *name;
-	unsigned int mach_type;
+	char *name;			  /* Device name */
+	unsigned int mach_type;		  /* Device machine ID */
+	char *autoload;			  /* Default devices for upd/inst */
 };
 
 const struct board_info fs_board_info[8] = {
-	{"armStoneA8", MACH_TYPE_ARMSTONEA8}, /* 0 */
-	{"???", 0},			      /* 1 */
-	{"QBlissA8B",  MACH_TYPE_QBLISSA8B},  /* 2 */
-	{"???", 0},			      /* 3 */
-	{"NetDCU14",   MACH_TYPE_NETDCU14},   /* 4 */
-	{"???", 0},			      /* 5 */
-	{"???", 0},			      /* 6 */
-	{"EASYsom1",   MACH_TYPE_EASYSOM1},   /* 7 */
+	{"armStoneA8", MACH_TYPE_ARMSTONEA8, "mmc,usb"},	/* 0 */
+	{"???",	       0,		     NULL},		/* 1 */
+	{"QBlissA8B",  MACH_TYPE_QBLISSA8B,  "mmc,usb"},	/* 2 */
+	{"???",	       0,		     NULL},		/* 3 */
+	{"NetDCU14",   MACH_TYPE_NETDCU14,   "mmc,usb"},	/* 4 */
+	{"???",	       0,		     NULL},		/* 5 */
+	{"???",	       0,		     NULL},		/* 6 */
+	{"EASYsom1",   MACH_TYPE_EASYSOM1,   "mmc,usb"},	/* 7 */
 };
 
 /* 2048+64 pages: We compute 4 bytes ECC for each 512 bytes of the page; ECC
@@ -159,7 +160,7 @@ struct nboot_args fs_nboot_args;
  * 36.  fss5pv210.c     misc_init_r()           (unused)
  * 37.  interrupts.c    interrupt_init()        (unused)
  * 38.  interrupts.c    enable_interrupts()     (unused)
- * 39.  fss5pv210.c     board_late_init()       (unused)
+ * 39.  fss5pv210.c     board_late_init()       Set additional environment
  * 40.  eth.c           eth_initialize()        Register eth devices
  * 40a. fss5pv210.c     board_eth_init()        Set fss5pv210 eth config
  * 41.  cmd_source.c    autoload_script()       Run autoload script
@@ -365,10 +366,24 @@ int board_mmc_init(bd_t *bis)
 #endif
 
 
-#ifdef BOARD_LATE_INIT
-/* Use this slot to init some final things before the network is started */
-int board_late_init (void)
 {
+#ifdef CONFIG_BOARD_LATE_INIT
+/* Use this slot to init some final things before the network is started. We
+   set up some environment variables for things that are board dependent and
+   can't be defined as a fix value in fss5pv210.h. */
+int board_late_init(void)
+{
+	unsigned int boardtype = fs_nboot_args.chBoardType;
+
+	/* instcheck and updcheck are allowed to be empty, so we can't check
+	   for empty here. On the other hand they depend on the board, so we
+	   can't define them as fix value. The trick that we do here is that
+	   they are set to the string "default" in the default environment and
+	   then we replace this string with the board specific value here */
+	if (strcmp(getenv("instcheck"), "default") == 0)
+	    setenv("instcheck", fs_board_info[boardtype].autoload);
+	if (strcmp(getenv("updcheck"), "default") == 0)
+	    setenv("updcheck", fs_board_info[boardtype].autoload);
 	return 0;
 }
 #endif

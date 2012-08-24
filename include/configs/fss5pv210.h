@@ -177,8 +177,9 @@
 /* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
 #define CONFIG_MEMORY_UPPER_CODE
 
-/* No need to call special board_late_init() function */
-#undef BOARD_LATE_INIT
+/* We use special board_late_init() function to set board specific
+   environment variables that can't be set with a fix value here */
+#define CONFIG_BOARD_LATE_INIT
 
 /* Power Management is enabled */
 #define CONFIG_PM
@@ -599,11 +600,11 @@
 #define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"instcheck=mmc,usb\0" \
-	"updcheck=mmc,usb\0" \
 	"bootubi=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootjffs2=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
 	"bootnfs=setenv bootargs console=ttySAC0,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
+	"instcheck=default\0" \
+	"updcheck=default\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_ETH1ADDR		00:05:51:05:2a:74
