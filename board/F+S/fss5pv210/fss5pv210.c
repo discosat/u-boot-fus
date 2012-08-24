@@ -30,6 +30,8 @@
 #ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			  /* PON_*, POFF_* */
 #endif
+#include <serial.h>			  /* struct serial_device */
+#include <asm/arch/uart.h>		  /* samsung_get_base_uart(), ... */
 #include <asm/arch/cpu.h>		  /* samsung_get_base_gpio() */
 #include <asm/gpio.h>			  /* gpio_set_value(), ... */
 #ifdef CONFIG_GENERIC_MMC
@@ -114,6 +116,9 @@ char fs_sys_prompt[20];
 /* Copy of the NBoot args */
 struct nboot_args fs_nboot_args;
 
+/* Serial devices, defined in serial driver */
+extern struct serial_device s5p_serial_device[];
+
 
 /*
  * Miscellaneous platform dependent initialisations. Boot Sequence:
@@ -130,6 +135,7 @@ struct nboot_args fs_nboot_args;
  *  8.  env_nand.c      env_init()              Prepare to read env from NAND
  *  9.  board.c         init_baudrate()         Get the baudrate from env
  * 10.  serial.c        serial_init()           Start default serial port
+ * 10a. fss5pv210.c     default_serial_console() Get serial debug port
  * 11.  console.c       console_init_f()        Early console on serial port
  * 12.  board.c         display_banner()        Show U-Boot version
  * 13.  cpu_info.c      print_cpuinfo()         Show CPU type
@@ -180,6 +186,31 @@ struct nboot_args fs_nboot_args;
  *            this in turn calls eth_register(). Then we return.
  *          - eth_initialize() continues and lists all registered eth devices
  */
+
+struct serial_device *default_serial_console(void)
+{
+	DECLARE_GLOBAL_DATA_PTR;
+	struct s5p_uart *uart = (struct s5p_uart *)samsung_get_base_uart();
+	struct s5p_uart *dbg;
+	struct nboot_args *pargs;
+	int i;
+
+	if (gd->flags & GD_FLG_RELOC)
+		pargs = &fs_nboot_args;
+	else
+		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+
+	dbg = (struct s5p_uart *)pargs->dwDbgSerPortPA;
+
+	i = 4;
+	do {
+		i--;
+		if (dbg == uart + i)
+			break;
+	} while (i);
+	
+	return s5p_serial_device + i;
+}
 
 /* Check board type */
 int checkboard(void)
@@ -311,6 +342,8 @@ int board_serial_init(void)
 	s5p_serial_register(1, "fs_ser1");
 	s5p_serial_register(2, "fs_ser2");
 	s5p_serial_register(3, "fs_ser3");
+
+	return 0;
 }
 #endif
 
@@ -376,6 +409,26 @@ int board_late_init(void)
 {
 	unsigned int boardtype = fs_nboot_args.chBoardType;
 
+	/* Set sercon variable if not already set */
+	if (!getenv("sercon")) {
+		struct s5p_uart *uart;
+		struct s5p_uart *dbg;
+		int i;
+		char sercon[DEV_NAME_SIZE];
+
+		uart = (struct s5p_uart *)samsung_get_base_uart();
+		dbg = (struct s5p_uart *)fs_nboot_args.dwDbgSerPortPA;
+
+		i = 4;
+		do {
+			i--;
+			if (dbg == uart + i)
+				break;
+		} while (i);
+		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME, '0'+i);
+		setenv("sercon", sercon);
+	}
+
 	/* instcheck and updcheck are allowed to be empty, so we can't check
 	   for empty here. On the other hand they depend on the board, so we
 	   can't define them as fix value. The trick that we do here is that
@@ -385,6 +438,15 @@ int board_late_init(void)
 	    setenv("instcheck", fs_board_info[boardtype].autoload);
 	if (strcmp(getenv("updcheck"), "default") == 0)
 	    setenv("updcheck", fs_board_info[boardtype].autoload);
+
+	/* If bootargs is not set, run variable bootubi as default setting */
+	if (!getenv("bootargs")) {
+		char *s;
+		s = getenv("bootubi");
+		if (s)
+			run_command(s, 0);
+	}
+
 	return 0;
 }
 #endif

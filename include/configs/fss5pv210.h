@@ -305,7 +305,8 @@
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/
-#define CONFIG_SERIAL0          1	  /* UART0 on armStoneA8 */
+#define CONFIG_SERIAL0          1	  /* We don't use it anymore, but we
+					     have to define one setting */
 #define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
 //#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
 
@@ -599,14 +600,14 @@
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
 #define CONFIG_BOOTDELAY	3
-#define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
+//####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"bootubi=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootjffs2=setenv bootargs console=ttySAC0,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
-	"bootnfs=setenv bootargs console=ttySAC0,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
 	"instcheck=default\0" \
 	"updcheck=default\0" \
+	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_ETH1ADDR		00:05:51:05:2a:74
