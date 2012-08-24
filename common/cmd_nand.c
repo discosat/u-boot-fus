@@ -25,6 +25,7 @@
 #include <watchdog.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
+#include <asm/errno.h>
 #include <jffs2/jffs2.h>
 #include <nand.h>
 
@@ -369,11 +370,13 @@ static void nand_print_and_set_info(int idx)
 	const int bufsz = 32;
 	char buf[bufsz];
 
-	printf("Device %d: ", idx);
+	printf("Device %d (%s): ", idx, nand->name);
 	if (chip->numchips > 1)
-		printf("%dx ", chip->numchips);
-	printf("%s, erase size %u KiB\n",
-	       nand->name, nand->erasesize >> 10);
+		printf("%d chips, ", chip->numchips);
+	if (nand->skip)
+		printf("skip first %llu KiB, remaining ", nand->skip >> 10);
+	printf("size %llu KiB, %swrite protected\n", nand->size >> 10,
+	       nand_is_swprotected(nand) ? "" : "not ");
 	printf("  Page size  %8d b\n", nand->writesize);
 	printf("  OOB size   %8d b\n", nand->oobsize);
 	printf("  Erase size %8d b\n", nand->erasesize);
@@ -388,12 +391,6 @@ static void nand_print_and_set_info(int idx)
 	sprintf(buf, "%x", nand->erasesize);
 	setenv("nand_erasesize", buf);
 }
-
-#ifdef CONFIG_NAND_NBOOT
-/* Define prototypes for nboot protection functions */
-extern void nand_protect_nboot(int bProtected);
-extern int nand_is_nboot_protected(void);
-#endif
 
 int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
@@ -450,31 +447,6 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		return 0;
 	}
 
-#ifdef CONFIG_NAND_NBOOT
-	/* Check for special NBoot protection functions
-	 * Syntax is:
-	 *   0    1     2
-	 *   nand nboot [protect | unprotect]
-	 */
-	if (strcmp(cmd, "nboot") == 0)
-	{
-		if (argc > 3)
-			goto usage;
-		if (argc == 3)
-		{
-			if (strcmp(argv[2], "protect") == 0)
-				nand_protect_nboot(1);
-			else if (strcmp(argv[2], "unprotect") == 0)
-				nand_protect_nboot(0);
-			else
-				goto usage;
-		}
-		printf("NBoot region is %sprotected\n",
-		       nand_is_nboot_protected() ? "software-" : "un");
-		return 0;
-	}
-#endif
-
 #ifdef CONFIG_ENV_OFFSET_OOB
 	/* this command operates only on the first nand device */
 	if (strcmp(cmd, "env.oob") == 0)
@@ -493,6 +465,13 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	}
 	nand = &nand_info[dev];
+
+	if ((strcmp(cmd, "protect") == 0) || (strcmp(cmd, "unprotect") == 0)) {
+		nand_swprotect(nand, (cmd[0] == 'p'));
+		printf("Device %d is %swrite protected\n", dev,
+		       nand_is_swprotected(nand) ? "" : "not ");
+		return 0;
+	}
 
 	if (strcmp(cmd, "bad") == 0) {
 		printf("\nDevice %d bad blocks:\n", dev);
@@ -581,7 +560,12 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			}
 		}
 		ret = nand_erase_opts(nand, &opts);
-		printf("%s\n", ret ? "ERROR" : "OK");
+		if (!ret)
+			printf("OK");
+		else if (ret == -EROFS)
+			printf("ERROR: Read-only\n");
+		else
+			printf("ERROR %d\n", ret);
 
 		return ret == 0 ? 0 : 1;
 	}
@@ -782,9 +766,8 @@ U_BOOT_CMD(
 	"    'size' includes skipped bad blocks.\n"
 	"nand erase.part [clean] partition - erase entire mtd partition'\n"
 	"nand erase.chip [clean] - erase entire chip'\n"
-#ifdef CONFIG_NAND_NBOOT
-	"nand nboot [[un]protect] - show or set Nboot software-protection\n"
-#endif
+	"nand protect - set software write protection\n"
+	"nand unprotect - clear software write protection\n"
 	"nand bad - show bad blocks\n"
 	"nand dump[.oob] off - dump page\n"
 	"nand scrub [-y] off size | scrub.part partition | scrub.chip\n"

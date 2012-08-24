@@ -418,12 +418,12 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	for (i = startblock; i < numblocks;) {
 		int ret;
 
-#ifdef CONFIG_NAND_NBOOT
-		if (from < CONFIG_SYS_NAND_NBOOT_SIZE)
+		/* If device has no bad block markers, all blocks are valid by
+		   definition. If we are within the skip area, we don't access
+		   the blocks anyway, so we can mark them valid, too. */
+		if ((this->options & NAND_NO_BADBLOCK) || (from < mtd->skip))
 			ret = 0;
-		else
-#endif
-		if (bd->options & NAND_BBT_SCANALLPAGES)
+		else if (bd->options & NAND_BBT_SCANALLPAGES)
 			ret = scan_block_full(mtd, bd, from, buf, readlen,
 					      scanlen, len);
 		else

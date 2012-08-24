@@ -32,8 +32,65 @@
 #include <asm/errno.h>
 #include <asm/arch/cpu.h>		  /* samsung_get_base_nfcon */
 
-#define MAX_CHIPS	4
-static int nand_cs[MAX_CHIPS] = {0, 1, 2, 3};
+/* OOB layout for NAND flashes with 512 byte pages and 16 bytes OOB */
+/* 1-bit ECC: ECC is in bytes 8..11 in OOB, bad block marker is in byte 5 */
+static struct nand_ecclayout s5p_layout_ecc1_oob16 = {
+	.eccbytes = 4,
+	.eccpos = {8, 9, 10, 11},
+	.oobfree = {
+		{.offset = 0,
+		 . length = 5},		  /* Before bad block marker */
+		{.offset = 6,
+		 . length = 2},		  /* Between bad block marker and ECC */
+		{.offset = 12,
+		 . length = 4},		  /* Behind ECC */
+	}
+};
+
+/* 8-bit ECC: ECC is in bytes 0..12 in OOB. This means the bad block marker in
+   byte 5 can't be used! However if there are more than 8 bad bits in the
+   page, the flash is in serious trouble anyway. */
+static struct nand_ecclayout s5p_layout_ecc8_oob16 = {
+	.eccbytes = 13,
+	.eccpos = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+	.oobfree = {
+		{.offset = 13,
+		 . length = 3}		  /* Behind ECC */
+	}
+};
+
+/* OOB layout for NAND flashes with 2048 byte pages and 64 bytes OOB */
+/* 1-bit ECC:  We compute 4 bytes ECC for each 512 bytes of the page; ECC
+   is in bytes 16..31 in OOB, bad block marker in byte 0, but two bytes are
+   checked; so our first free byte is at offset 2. */
+static struct nand_ecclayout s5p_layout_ecc1_oob64 = {
+	.eccbytes = 16,
+	.eccpos = {16, 17, 18, 19, 20, 21, 22, 23,
+		   24, 25, 26, 27, 28, 29, 30, 31},
+	.oobfree = {
+		{.offset = 2,		  /* Between bad block marker and ECC */
+		 .length = 14},
+		{.offset = 32,		  /* Behind ECC */
+		 .length = 32}}
+};
+
+/* 8-bit ECC: ECC is 13 bytes for each 512 bytes of data, in bytes 0..51 in
+   OOB. This means the bad block marker in byte 0 can't be used! However if
+   there are more than 8 bad bits in the page, the flash is in serious trouble
+   anyway. */
+static struct nand_ecclayout s5p_layout_ecc8_oob64 = {
+	.eccbytes = 13,
+	.eccpos = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+		   10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+		   20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+		   30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+		   40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+		   50, 51},
+	.oobfree = {
+		{.offset = 52,
+		 . length = 12}		  /* Behind ECC */
+	}
+};
 
 #ifdef CONFIG_NAND_SPL
 #define printf(arg...) do {} while (0)
@@ -148,10 +205,12 @@ static void s5p_nand_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 			this->IO_ADDR_W = (void __iomem *)&nfcon->nfaddr;
 		else
 			this->IO_ADDR_W = (void __iomem *)&nfcon->nfdata;
+#if 0 //###
 		if (ctrl & NAND_NCE)
 			s5p_nand_select_chip(mtd, *(int *)this->priv);
 		else
 			s5p_nand_select_chip(mtd, -1);
+#endif //###
 	}
 
 	if (cmd != NAND_CMD_NONE)
@@ -291,6 +350,11 @@ static int s5p_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 
 #if 0 //###
 static int cur_ecc_mode = 0;
+
+static void s5p_nand_wait_ecc_busy_8bit(void)
+{
+	while (readl(NF8ECCERR0) & NFESTAT0_ECCBUSY) {}
+}
 
 void s5p_nand_enable_hwecc_8bit(struct mtd_info *mtd, int mode)
 {
@@ -523,15 +587,11 @@ int s5p_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
  * Members with a "?" were not set in the merged testing-NAND branch,
  * so they are not set here either.
  */
-int s5p_nand_init(struct nand_chip *chip)
+int board_nand_init(struct nand_chip *chip)
 {
-	static int chip_n;
 	unsigned int nfcont;
 	struct s5p_nfcon *const nfcon =
 		(struct s5p_nfcon *)samsung_get_base_nfcon();
-
-	if (chip_n >= MAX_CHIPS)
-		return -ENODEV;
 
 	s5p_nand_select_chip(NULL, -1);
 
@@ -553,27 +613,70 @@ int s5p_nand_init(struct nand_chip *chip)
 	chip->read_buf		= nand_read_buf;
 #endif
 
+	return 0;
+}
+
+static int __board_nand_setup_s5p(struct mtd_info *mtd,
+					struct nand_chip *chip, int id)
+{
+	return 0;
+}
+
+int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *chip, int id)
+	__attribute__((weak, alias("__board_nand_setup_s5p")));
+
+/* The s5p nand driver is capable of using up to 4 chips per NAND device
+   (CONFIG_SYS_NAND_MAX_CHIPS) that are selected with s5p_nand_select_chip().
+   If more than one flash device (with up to 4 chips each) is required, the
+   chip addressing must be implemented externally (board-specific). */
+int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
+{
+	int ret;
+
+	/* Despite the name, board_nand_setup() is basically arch-specific, so
+	   first set things that are really board-specific */
+	ret = board_nand_setup_s5p(mtd, chip, id);
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_SYS_S5P_NAND_HWECC
-#ifdef CONFIG_NAND_NBOOT
-	chip->ecc.read_page_nboot	= s5p_nand_read_page_8bit;
-	chip->ecc.write_page_nboot	= s5p_nand_write_page_8bit;
+	if (chip->ecc.mode == -8) {
+		/* Use 8-bit ECC */
+		if (mtd->oobsize == 16)
+			chip->ecc.layout = &s5p_layout_ecc8_oob16;
+		else
+			chip->ecc.layout = &s5p_layout_ecc8_oob64;
+		chip->ecc.size = 512;
+		chip->ecc.read_page = s5p_nand_read_page_8bit;
+		chip->ecc.write_page = s5p_nand_write_page_8bit;
+	} else {
+		/* By default use 1-bit ECC, this will work up to 2048 bytes */
+		if (mtd->oobsize == 16)
+			chip->ecc.layout = &s5p_layout_ecc1_oob16;
+		else
+			chip->ecc.layout = &s5p_layout_ecc1_oob64;
+		chip->ecc.size = mtd->writesize;
+#if 0
+		/* The default functions nand_read_page_hwecc() and
+		   nand_write_page_hwecc() from nand_base.c, that get
+		   automatically selected if we don't set anything different
+		   here, happen to work if eccsteps is 1, which is the case if
+		   we don't have pages with more than 2048 bytes. If this
+		   situation changes in the future, we have to implement our
+		   own 1-bit ECC functions and set them here. */
+		chip->ecc.read_page = s5p_nand_read_page_1bit;
+		chip->ecc.write_page = s5p_nand_write_page_1bit;
 #endif
+	}
 	chip->ecc.hwctl		= s5p_nand_enable_hwecc;
 	chip->ecc.calculate	= s5p_nand_calculate_ecc;
 	chip->ecc.correct	= s5p_nand_correct_data;
 
-	/*
-	 * If you get more than 1 NAND-chip with different page-sizes on the
-	 * board one day, it will get more complicated...
-	 */
 	chip->ecc.mode		= NAND_ECC_HW_OOB_FIRST;
-	chip->ecc.size		= CONFIG_SYS_NAND_ECCSIZE;
-	chip->ecc.bytes		= CONFIG_SYS_NAND_ECCBYTES;
+	chip->ecc.bytes		= chip->ecc.layout->eccbytes;
 #else
 	chip->ecc.mode		= NAND_ECC_SOFT;
-#endif /* ! CONFIG_SYS_S3C_NAND_HWECC */
-
-	chip->priv		= nand_cs + chip_n++;
+#endif /* ! CONFIG_SYS_S5P_NAND_HWECC */
 
 	return 0;
 }

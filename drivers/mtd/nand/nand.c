@@ -39,6 +39,15 @@ static ulong base_address[CONFIG_SYS_MAX_NAND_DEVICE] = CONFIG_SYS_NAND_BASE_LIS
 static const char default_nand_name[] = "nand";
 static __attribute__((unused)) char dev_name[CONFIG_SYS_MAX_NAND_DEVICE][8];
 
+static int __board_nand_setup(struct mtd_info *mtd,
+			      struct nand_chip *nand, int id)
+{
+	return 0;
+}
+
+int board_nand_setup(struct mtd_info *mtd, struct nand_chip *nand, int id)
+	__attribute__((weak, alias("__board_nand_setup")));
+
 static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 			   ulong base_addr)
 {
@@ -48,33 +57,50 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 	if (maxchips < 1)
 		maxchips = 1;
 	mtd->priv = nand;
+	mtd->name = NULL;
+	mtd->size = 0;
 
 	nand->IO_ADDR_R = nand->IO_ADDR_W = (void  __iomem *)base_addr;
-	if (board_nand_init(nand) == 0) {
-		if (nand_scan(mtd, maxchips) == 0) {
-			if (!mtd->name)
-				mtd->name = (char *)default_nand_name;
+
+	/* Set up functions to access the NAND chip. This may include the OOB
+	   layout and ECC mode in entry .ecc, but you can also delay this
+	   setting until board_nand_setup() later is called after the NAND
+	   chip is identified. */
+	if (board_nand_init(nand))
+		return;
+
+	/* Scan NAND chip type, set ECC mode and OOB layout, init the device */
+	if (nand_scan_ident(mtd, maxchips, NULL)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	if (board_nand_setup(mtd, nand, i)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	if (nand_scan_tail(mtd)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	if (!mtd->name)
+		mtd->name = (char *)default_nand_name;
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
-			else
-				mtd->name += gd->reloc_off;
+	else
+		mtd->name += gd->reloc_off;
 #endif
 
 #ifdef CONFIG_MTD_DEVICE
-			/*
-			 * Add MTD device so that we can reference it later
-			 * via the mtdcore infrastructure (e.g. ubi).
-			 */
-			sprintf(dev_name[i], "nand%d", i);
-			mtd->name = dev_name[i++];
-			add_mtd_device(mtd);
+	/*
+	 * Add MTD device so that we can reference it later
+	 * via the mtdcore infrastructure (e.g. ubi).
+	 */
+	sprintf(dev_name[i], "nand%d", i);
+	mtd->name = dev_name[i++];
+	add_mtd_device(mtd);
 #endif
-		} else
-			mtd->name = NULL;
-	} else {
-		mtd->name = NULL;
-		mtd->size = 0;
-	}
-
 }
 
 void nand_init(void)

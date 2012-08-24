@@ -106,19 +106,22 @@ static struct nand_ecclayout nand_oob_128 = {
 		 .length = 78}}
 };
 
-#ifdef CONFIG_NAND_NBOOT
-int m_bNBootProtected = 1;
-
-void nand_protect_nboot(int bProtected)
+void nand_swprotect(struct mtd_info *mtd, int bProtected)
 {
-	m_bNBootProtected = bProtected;
+	struct nand_chip *chip = mtd->priv;
+
+	if (bProtected)
+		chip->options |= NAND_SW_WRITE_PROTECT;
+	else
+		chip->options &= ~NAND_SW_WRITE_PROTECT;
 }
 
-int nand_is_nboot_protected(void)
+int nand_is_swprotected(struct mtd_info *mtd)
 {
-	return m_bNBootProtected;
+	struct nand_chip *chip = mtd->priv;
+
+	return ((chip->options & NAND_SW_WRITE_PROTECT) != 0);
 }
-#endif
 
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
 			   int new_state);
@@ -340,13 +343,6 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		chip->select_chip(mtd, chipnr);
 	}
 
-#ifdef CONFIG_NAND_NBOOT
-	/* Consider NBoot blocks as not bad */
-	if (ofs < CONFIG_SYS_NAND_NBOOT_SIZE)
-		res = 0;
-	else
-#endif
-
 	if (chip->options & NAND_BUSWIDTH_16) {
 		chip->cmdfunc(mtd, NAND_CMD_READOOB, chip->badblockpos & 0xFE,
 			      page);
@@ -438,6 +434,14 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 			       int allowbbt)
 {
 	struct nand_chip *chip = mtd->priv;
+
+	/* If NAND_NO_BADBLOCK is set, the bad block marker is not valid. In
+	   this case we assume a block to be valid. For example Samsungs 8-bit
+	   ECC overwrites the bad block marker. This ECC is supposed to be
+	   good enough to handle most cases and if a page has more than 8 bit
+	   errors, the whole flash has serious problems anyway. */
+	if (chip->options & NAND_NO_BADBLOCK)
+		return 0;
 
 	if (!(chip->options & NAND_BBT_SCANNED)) {
 		chip->options |= NAND_BBT_SCANNED;
@@ -1160,9 +1164,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	uint32_t readlen = ops->len;
 	uint32_t oobreadlen = ops->ooblen;
 	uint8_t *bufpoi, *oob, *buf;
-#ifdef CONFIG_NAND_NBOOT
-	int n_realpage = (int)(CONFIG_SYS_NAND_NBOOT_SIZE >> chip->page_shift);
-#endif
+	int skippage = (int)(mtd->skip >> chip->page_shift);
 
 	stats = mtd->ecc_stats;
 
@@ -1192,15 +1194,13 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				sndcmd = 0;
 			}
 
-			/* Now read the page into the buffer */
-			if (unlikely(ops->mode == MTD_OOB_RAW))
+			/* Now read the page into the buffer: if we are at
+			   the beginning in the skip region, read as empty */
+			if (realpage < skippage)
+				memset(bufpoi, 0xFF, mtd->writesize);
+			else if (unlikely(ops->mode == MTD_OOB_RAW))
 				ret = chip->ecc.read_page_raw(mtd, chip,
 						bufpoi, page);
-#ifdef CONFIG_NAND_NBOOT
-			else if (realpage < n_realpage)
-				ret = chip->ecc.read_page_nboot(mtd, chip,
-								bufpoi, page);
-#endif
 			else if (!aligned && NAND_SUBPAGE_READ(chip) && !oob)
 				ret = chip->ecc.read_subpage(mtd, chip, col, bytes, bufpoi);
 			else
@@ -1775,16 +1775,6 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	if (unlikely(raw))
 		chip->ecc.write_page_raw(mtd, chip, buf);
-#ifdef CONFIG_NAND_NBOOT
-	else if (page < ((CONFIG_SYS_NAND_NBOOT_SIZE & chip->page_shift)
-			 & chip->pagemask)) {
-		if (m_bNBootProtected) {
-			printf("NBoot region is software-protected\n");
-			return -EROFS;
-		}
-		chip->ecc.write_page_nboot(mtd, chip, buf);
-	}
-#endif
 	else
 		chip->ecc.write_page(mtd, chip, buf);
 
@@ -1897,6 +1887,9 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	if (!writelen)
 		return 0;
 
+	if (chip->options & NAND_SW_WRITE_PROTECT)
+		return -EROFS;
+
 	column = to & (mtd->writesize - 1);
 	subpage = column || (writelen & (mtd->writesize - 1));
 
@@ -1912,7 +1905,11 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		return -EIO;
 	}
 
+	/* Don't allow writing into skip area */
 	realpage = (int)(to >> chip->page_shift);
+	if (realpage < (int)(mtd->skip >> chip->page_shift))
+		return -EROFS;
+
 	page = realpage & chip->pagemask;
 	blockmask = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 
@@ -2201,6 +2198,10 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		 "len = %llu\n", (unsigned long long) instr->addr,
 		 (unsigned long long) instr->len);
 
+	/* Don't erase if device is software write-protected */
+	if (chip->options & NAND_SW_WRITE_PROTECT)
+		return -EROFS;
+
 	/* Start address must align on block boundary */
 	if (instr->addr & ((1 << chip->phys_erase_shift) - 1)) {
 		MTDDEBUG (MTD_DEBUG_LEVEL0, "nand_erase: Unaligned address\n");
@@ -2221,12 +2222,9 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_NAND_NBOOT
-	if ((instr->addr < CONFIG_SYS_NAND_NBOOT_SIZE) && m_bNBootProtected) {
-		printf("NBoot region is software-protected\n");
+	/* Don't erase within skip region */
+	if (instr->addr < mtd->skip)
 		return -EROFS;
-	}
-#endif
 
 	instr->fail_addr = 0xffffffff;
 
@@ -2412,6 +2410,9 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
+	if (chip->options & NAND_NO_BADBLOCK)
+		return 0;
+
 	if ((ret = nand_block_isbad(mtd, ofs))) {
 		/* If it was bad already, return success and do nothing. */
 		if (ret > 0)
@@ -2553,6 +2554,16 @@ static void nand_flash_detect_non_onfi(struct mtd_info *mtd,
 					const struct nand_flash_dev *type,
 					int *busw)
 {
+#ifdef CONFIG_SYS_NAND_ONFI_DETECTION
+	/* ONFI detection read the ONFI ID with NAND_CMD_READID and parameter
+	   0x20; we have to get back to the standard ID (parameter 0x00) */
+	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
+
+	/* Skip manufacturer and device IDs */
+	chip->read_byte(mtd);
+	chip->read_byte(mtd);
+#endif
+
 	/* Newer devices have all the information in additional id bytes */
 	if (!type->pagesize) {
 		int extid;
@@ -2859,12 +2870,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 			chip->ecc.read_page_raw = nand_read_page_raw;
 		if (!chip->ecc.write_page_raw)
 			chip->ecc.write_page_raw = nand_write_page_raw;
-#ifdef CONFIG_NAND_NBOOT
-		if (!chip->ecc.read_page_nboot)
-			chip->ecc.read_page_nboot = nand_read_page_hwecc;
-		if (!chip->ecc.write_page_nboot)
-			chip->ecc.write_page_nboot = nand_write_page_hwecc;
-#endif
 		if (!chip->ecc.read_oob)
 			chip->ecc.read_oob = nand_read_oob_std;
 		if (!chip->ecc.write_oob)

@@ -23,6 +23,7 @@
 
 #include <common.h>
 #include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
+#include <asm/errno.h>			  /* ENODEV */
 #ifdef CONFIG_CMD_NET
 #include <net.h>			  /* eth_init(), eth_halt() */
 #include <netdev.h>			  /* ne2000_initialize() */
@@ -95,21 +96,6 @@ const struct board_info fs_board_info[8] = {
 	{"EASYsom1",   MACH_TYPE_EASYSOM1,   "mmc,usb"},	/* 7 */
 };
 
-/* 2048+64 pages: We compute 4 bytes ECC for each 512 bytes of the page; ECC
-   is in bytes 16..31 in OOB, bad block marker in byte 0, but two bytes are
-   checked; so our first free byte is at offset 2. */
-static struct nand_ecclayout fss5pv210_oob_64 = {
-	.eccbytes = 16,
-	.eccpos = {16, 17, 18, 19, 20, 21, 22, 23,
-		   24, 25, 26, 27, 28, 29, 30, 31},
-	.oobfree = {
-		{.offset = 2,		  /* Between bad block marker and ECC */
-		 .length = 14},
-		{.offset = 32,		  /* Behind ECC */
-		 .length = 32}}
-};
-
-
 /* String used for system prompt */
 char fs_sys_prompt[20];
 
@@ -153,7 +139,9 @@ extern struct serial_device s5p_serial_device[];
  * 24a. fss5pv210.c     board_serial_init()     (unused)
  * 25.  dlmalloc.c      mem_malloc_init()       Init heap for malloc()
  * 26.  nand.c          nand_init()             Scan NAND devices
- * 26a. fss5pv210.c     board_nand_init()       Set fss5pv210 NAND config
+ * 26a. s5p_nand.c      board_nand_init()       Set fss5pv210 NAND config
+ * 26b. s5p_nand.c      board_nand_setup()      Set OOB layout and ECC mode
+ * 26c. fss5pv210.c     board_nand_setup_s3c()  Set OOB layout and ECC mode
  * 27.  mmc.c           mmc_initialize()        Scan MMC slots
  * 27a. fss5pv210.c     board_mmc_init()        Set fss5pv210 MMC config
  * 28.  env_common.c    env_relocate()          Copy env to RAM
@@ -347,15 +335,33 @@ int board_serial_init(void)
 }
 #endif
 
-
-/* Initialize some board specific nand chip settings */
-extern int s5p_nand_init(struct nand_chip *nand);
-int board_nand_init(struct nand_chip *nand)
+int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *nand, int id)
 {
-	nand->ecc.layout = &fss5pv210_oob_64;
+	/* NBoot is two blocks in size, independent of the block size. */
+	switch (id) {
+	case 0:
+		/* nand0: everything but NBoot, use 1-bit ECC */
+		mtd->size -= 2*mtd->erasesize;
+		mtd->skip = 2*mtd->erasesize;
+		break;
 
-	/* Call CPU specific init */
-	return s5p_nand_init(nand);
+	case 1:
+		/* nand1: only NBoot, use 8-bit ECC, software wtrite
+		   protection and mark device as not using bad block markers */
+		mtd->size = 2*mtd->erasesize;
+		nand->ecc.mode = -8;
+		nand->options |= NAND_SW_WRITE_PROTECT | NAND_NO_BADBLOCK;
+		break;
+
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+{
+
 }
 
 

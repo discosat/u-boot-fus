@@ -537,26 +537,24 @@
 /************************************************************************
  * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
-/* We have one NAND device */
+/* S5PV210 only has one NAND flash controller, so we can only have one
+   physical NAND device; however as NBOOT needs 8-bit-ECC and everything else
+   1-bit-ECC, we split the NAND up into two virtual devices to allow these two
+   different ECC strategies and OOB layouts. */
 #define CONFIG_NAND_S5P    1
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
+#define CONFIG_SYS_MAX_NAND_DEVICE	2
 
-/* One chip per device */
+/* Chips per device; all chips must be the same type; if different types
+   are necessary, they must be implemented as different NAND devices */
 #define CONFIG_SYS_NAND_MAX_CHIPS	1
 
-/* Address of the DATA register for reading and writing data */
-#define CONFIG_SYS_NAND_BASE	(0x70200010)
+/* Define if you want to support nand chips that comply to ONFI spec */
+#define CONFIG_SYS_NAND_ONFI_DETECTION
 
-#define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
-
-#define CONFIG_SYS_NAND_NBOOT_SIZE 0x40000 /* 256KB NBoot, uses ECC8 */
-#define CONFIG_SYS_NAND_PAGE_SIZE  2048	  /* 2048 bytes per page */
-#define CONFIG_SYS_NAND_PAGE_COUNT 64	  /* Pages per block */
-#define CONFIG_SYS_NAND_ECCSIZE    512	  /* Full page in one ECC cycle */
-#define CONFIG_SYS_NAND_ECCBYTES   4	  /* 4 ECC bytes per 512 data bytes */
-
-#define CONFIG_SYS_NAND_BLOCK_SIZE \
-		(CONFIG_SYS_NAND_PAGE_COUNT * CONFIG_SYS_NAND_PAGE_SIZE)
+/* Address of the DATA register for reading and writing data; we need an
+   entry for each device. As we only virtually split our flash into two
+   devices, they both have the same address. */
+#define CONFIG_SYS_NAND_BASE_LIST {0x70200010, 0x70200010}
 
 /* Use hardware ECC */
 #define CONFIG_SYS_S5P_NAND_HWECC

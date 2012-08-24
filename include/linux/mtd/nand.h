@@ -178,6 +178,12 @@ typedef enum {
 /* Chip does not allow subpage writes */
 #define NAND_NO_SUBPAGE_WRITE	0x00000200
 
+/* F&S Extensions */
+/* Chip is software write-protected */
+#define NAND_SW_WRITE_PROTECT	0x80000000
+/* Chip can't use bad block marker because of special type of ECC */
+#define NAND_NO_BADBLOCK	0x40000000
+
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \
@@ -358,14 +364,6 @@ struct nand_ecc_ctrl {
 	int			(*write_oob)(struct mtd_info *mtd,
 					     struct nand_chip *chip,
 					     int page);
-#ifdef CONFIG_NAND_NBOOT
-	int			(*read_page_nboot)(struct mtd_info *mtd,
-						   struct nand_chip *chip,
-						   uint8_t *buf, int page);
-	void			(*write_page_nboot)(struct mtd_info *mtd,
-						    struct nand_chip *chip,
-						    const uint8_t *buf);
-#endif
 };
 
 /**
@@ -637,5 +635,9 @@ void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len);
 void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len);
 void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len);
 uint8_t nand_read_byte(struct mtd_info *mtd);
+
+/* F&S Extensions */
+void nand_swprotect(struct mtd_info *mtd, int bProtected);
+int nand_is_swprotected(struct mtd_info *mtd);
 
 #endif /* __LINUX_MTD_NAND_H */
