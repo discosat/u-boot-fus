@@ -572,8 +572,10 @@
 #define ENV_RANGE_DEF_SMALL  0x00008000   /* 2 blocks = 32KB */
 #define ENV_OFFSET_DEF_SMALL 0x00078000	  /* See NAND layout above */
 
-/* Environment settings for large blocks (128KB) */
-#define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+/* Environment settings for large blocks (128KB); we keep the size as more
+   just wastes malloc space (the environment is held in the heap) */
+//####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+#define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
 #define ENV_OFFSET_DEF_LARGE 0x000C0000	  /* See NAND layout above */
 
