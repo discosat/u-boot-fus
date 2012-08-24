@@ -933,9 +933,32 @@ static void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		break;
 
 	case IMAGE_FORMAT_ZIMAGE:
+	{
+#ifdef CONFIG_SYS_PATCH_TTY
+		char *p = (char *)img_addr;
+		char *end_addr = (char *)img_addr + CONFIG_SYS_PATCH_TTY;
+		int len = strlen(CONFIG_SYS_SERCON_NAME);
+
+		/* Patch serial output port */
+		do {
+			if (strncmp(p, CONFIG_SYS_SERCON_NAME, len) == 0) {
+				char *s = getenv("sercon");
+				if (!s || (s[len] == p[len]))
+					break;
+
+				printf("## Patching %s at Offset 0x%lx", p,
+				       (ulong)p - img_addr);
+				p[len] = s[len];
+				printf(" to %s\n", p);
+				break;
+			}
+		} while (++p < end_addr);
+#endif
+		
 		printf ("## Booting kernel from zImage at %08lx\n", img_addr);
 		show_boot_progress(100);
 		break;
+	}
 
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:

@@ -338,6 +338,9 @@
 #define CONFIG_ZIMAGE_BOOT
 #define CONFIG_IMAGE_BOOT
 
+/* Try to patch serial debug port in image within first 16KB of zImage */
+#define CONFIG_SYS_PATCH_TTY 0x4000
+
 #define CONFIG_SETUP_MEMORY_TAGS
 #define CONFIG_CMDLINE_TAG
 //#define CONFIG_INITRD_TAG
