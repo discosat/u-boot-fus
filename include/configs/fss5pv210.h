@@ -3,10 +3,10 @@
  * F&S Elektronik Systeme GmbH
  *
  * Configuation settings for all F&S boards based on S5PV210. This is
- * armStoneA8, NetDCU14, EASYsom1, QBlissA8B. Activate with one of
- * the following targets:
+ * armStoneA8 (and its predecessor EASYsom1), PicoMOD7A and NetDCU14.
+ * Activate with one of the following targets:
  *   make fss5pv210_config      Configure for S5PV210 boards
- *   make fss5pv210_config      Configure for S5PV210 boards and build
+ *   make fss5pv210             Configure for S5PV210 boards and build
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -26,32 +26,26 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  *
+ * The following addresses are given as offsets of the device.
  *
- * RAM layout of armStoneA8
- * (RAM starts at 0x40000000 with 256MB and 0x30000000 with 512MB)
- * ---------------------------------------------------------------
- * Offset 0x0000_0000 - 0x0000_00FF:
- * Offset 0x0000_0100 - 0x0000_7FFF: bi_boot_params
- * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
- * Offset 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
- * Offset 0x0100_0000 - 0x?FDF_FFFF: (unused, e.g. INITRD)
- * Offset 0x?FE0_0000 - 0x?FFF_FFFF: U-Boot (inkl. malloc area)
- * ?=0 for 256MB, ?=1 for 512MB
+ * NAND flash layout (Block size 16KB) (64MB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0000_7FFF: NBoot: NBoot image (32KB)
+ * 0x0000_8000 - 0x0007_7FFF: UBoot: U-Boot image (448KB)
+ * 0x0007_8000 - 0x0007_FFFF: UBootEnv: U-Boot environment (32KB)
+ * 0x0008_0000 - 0x000F_FFFF: UserDef: User defined data (512KB)
+ * 0x0010_0000 - 0x003F_FFFF: Kernel: Linux Kernel zImage (3MB)
+ * 0x0040_0000 - 0x03FF_FFFF: TargetFS: Root filesystem (60MB)
  *
- * Remark:
- * Actually the lower RAM bank starts at 0x20000000. But as it is only 256MB,
- * it is mirrored at 0x30000000. When using the region starting at 0x30000000
- * instead, we get a continuous memory region of 512MB without gap.
- *
- * NAND flash layout of armStoneA8 (Block size 128KB)
- * --------------------------------------------------------
- * Offset 0x0000_0000 - 0x0003_FFFF: NBoot: NBoot image (256KB)
- * Offset 0x0004_0000 - 0x000B_FFFF: UBoot: U-Boot image (512KB)
- * Offset 0x000C_0000 - 0x000F_FFFF: UBootEnv: U-Boot environment (256KB)
- * Offset 0x0010_0000 - 0x004F_FFFF: UserDef: user defined data (4MB)
- * Offset 0x0050_0000 - 0x007F_FFFF: Kernel: Linux kernel zImage (3MB)
- * Offset 0x0080_0000 - 0x07FF_FFFF: TargetFS: Target System (120MB) with 128MB
- * Offset 0x0080_0000 - 0x3FFF_FFFF: TargetFS: Target System (1016MB) with 1GB
+ * NAND flash layout (Block size 128KB) (128MB, 1GB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0003_FFFF: NBoot: NBoot image (256KB)
+ * 0x0004_0000 - 0x000B_FFFF: UBoot: U-Boot image (512KB)
+ * 0x000C_0000 - 0x000F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * 0x0010_0000 - 0x004F_FFFF: UserDef: User defined data (4MB)
+ * 0x0050_0000 - 0x007F_FFFF: Kernel: Linux Kernel zImage (3MB)
+ * 0x0080_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (120MB if 128MB)
+ * 0x0080_0000 - 0x3FFF_FFFF: TargetFS: Root filesystem (1016MB if 1GB)
  *
  * Remark:
  * All partition sizes have been chosen to allow for at least one bad block in
@@ -59,34 +53,45 @@
  * the UBoot partition is 512KB to allow for one bad block (128KB) in this
  * memory region.
  *
- * With the new ARM specific loader code introduced in u-boot-2010.12, u-boot
- * now can be loaded to a rather low RAM address from NBoot. It only needs a
- * rather small stack and some room for a (unitialized) gd_t structure behind
- * the stack. Then u-boot automatically computes its size and relocates itself
- * to the end of the available RAM. This only requires CONFIG_SYS_SDRAM_BASE
- * and the board-specific dram_init() function has to set gd->ram_size
- * correctly to the available RAM. That's all. So there is no need for
- * different u-boot versions just because of differently mounted RAM sizes
- * anymore. The starting address varies, depending on malloc heap size, etc.
+ * RAM layout
+ * (RAM starts at 0x40000000 with 256MB and 0x30000000 with 512MB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0000_00FF: Free RAM
+ * 0x0000_0100 - 0x0000_7FFF: bi_boot_params
+ * 0x0000_8000 - 0x007F_FFFF: Linux zImage
+ * 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
+ * 0x0100_0000 - 0x0FFF_FFFF: Free RAM + U-Boot (if 256MB)
+ * 0x0100_0000 - 0x1FFF_FFFF: Free RAM + U-Boot (if 512MB)
  *
- * Memory layout within U-Boot (from top to bottom!). For more details see
- * board_init_f() in arch/arm/lib/board.c.
+ * Remark:
+ * Actually the lower RAM bank starts at 0x20000000. But as it is only 256MB,
+ * it is mirrored at 0x30000000. When using the region starting at 0x30000000
+ * instead, we get a continuous memory region of 512MB without gap.
+
+ * NBoot loads U-Boot to a rather low RAM address. Then U-Boot computes its
+ * final size and relocates itself to the end of RAM. This new ARM specific
+ * loader scheme was introduced in u-boot-2010.12. It only requires to set
+ * CONFIG_SYS_SDRAM_BASE correctly and to privide a board-specific function
+ * dram_init() that sets gd->ram_size to the actually available RAM. For more
+ * details see arch/arm/lib/board.c.
  *
- * Addr             Size                      Comment
- * ------------------------------------------------------------------------
- * CONFIG_SYS_SDRAM_BASE
- * + gd->ram_size   CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
- *                  LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
- *                  getenv("pram") (in KB)    Protected RAM set in env (unused)
- * gd->tlb_addr     16KB (16KB aligned)       MMU page tables (TLB)
- * gd->fb_base      lcd_setmen()              LCD framebuffer (unused?)
- *                  gd->monlen (4KB aligned)  U-boot code, data and bss
- *                  TOTAL_MALLOC_LEN          malloc heap
- * bd               sizeof(bd_t)              Board info struct
- * gd->irq_sp       sizeof(gd_t)              Global data
- *                  CONFIG_STACKSIZE_IRQ      IRQ stack
- *                  CONFIG_STACKSIZE_FIQ      FIQ stack
- *                  12 (8-byte aligned)       Abort-stack
+ * Memory layout within U-Boot (from top to bottom, starting at
+ * RAM-Top = CONFIG_SYS_SDRAM_BASE + gd->ram_size)
+ *
+ * Addr          Size                      Comment
+ * -------------------------------------------------------------------------
+ * RAM-Top       CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
+ *               LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
+ *               getenv("pram") (in KB)    Protected RAM set in env (unused)
+ * gd->tlb_addr  16KB (16KB aligned)       MMU page tables (TLB)
+ * gd->fb_base   lcd_setmen()              LCD framebuffer (unused?)
+ *               gd->monlen (4KB aligned)  U-boot code, data and bss
+ *               TOTAL_MALLOC_LEN          malloc heap
+ * bd            sizeof(bd_t)              Board info struct
+ * gd->irq_sp    sizeof(gd_t)              Global data
+ *               CONFIG_STACKSIZE_IRQ      IRQ stack
+ *               CONFIG_STACKSIZE_FIQ      FIQ stack
+ *               12 (8-byte aligned)       Abort-stack
  *
  * Remark: TOTAL_MALLOC_LEN depends on CONFIG_SYS_MALLOC_LEN and CONFIG_ENV_SIZE
  *
@@ -97,7 +102,7 @@
 
 /* ### TODO: Files/Switches, die noch zu testen und ggf. einzubinden sind:
    Define              File           Kommentar
-   -------------------------------------------------------------------- 
+   -------------------------------------------------------------------------
    CONFIG_CMD_DIAG     cmd_diag.c     Selbsttests
    CONFIG_CMD_FAT      cmd_fat.c      fatls, fatinfo, fatload
    CONFIG_CMD_SAVES    cmd_load.c     Upload (save)
@@ -109,14 +114,14 @@
                                       früh I/Os setzen müssen)
    CONFIG_CMD_REISER   cmd_reiser.c   reiserload, reiserls (Support für reiserfs)
    CONFIG_CMD_SETEXPR  cmd_setexpr.c  Environmentvariable als Ergebnis einer
-                                      Berechnung setzen 
+                                      Berechnung setzen
    CONFIG_CMD_SF       cmd_sf.c       SPI-Flash-Support
    CONFIG_CMD_SPI      cmd_spi.c      SPI-Daten senden
    CONFIG_CMD_STRINGS  cmd_strings.c  Strings im Speicher anzeigen
    CONFIG_CMD_TERMINAL cmd_terminal.c In einen Terminalmodus schalten
    CONFIG_CMD_USB      cmd_usbd.c     Download als USB-Device; vielleicht kann
                                       man diesen Modus so ändern, dass
-				      Downloads mit NetDCU-USBLoader möglich 
+				      Downloads mit NetDCU-USBLoader möglich
 				      werden
    CONFIG_USB_KEYBOARD usb_kbd.c      Unterstützung für USB-Tastaturen
  */
@@ -125,25 +130,20 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-
-/* We are on an F&S board */
-#define CONFIG_IDENT_STRING	" for F&S"
+#define CONFIG_IDENT_STRING " for F&S"	  /* We are on an F&S board */
 
 /* CPU, family and board defines */
 #define CONFIG_ARMV7		1	  /* This is an ARM v7 CPU core */
 #define CONFIG_SAMSUNG		1	  /* in a SAMSUNG core */
-#define CONFIG_S5P		1	  /* wich is in S5P family */
+#define CONFIG_S5P		1	  /* which is in S5P family */
 #define CONFIG_S5PC1XX		1	  /* more specific in S5PC1XX family */
 #define CONFIG_S5PV210		1	  /* it's an S5PV210 SoC */
 #define CONFIG_FSS5PV210	1	  /* F&S S5PV210 Board */
 
-/* Architecture magic and machine types; we don't have a separate value for
-   EASYsom1 */
-#define MACH_TYPE_ARMSTONEA8	4077
-#define MACH_TYPE_NETDCU14	4078
+/* The machine IDs are already set in include/asm/mach-types.h, but we may
+   need some additional settings */
 #define MACH_TYPE_QBLISSA8B	MACH_TYPE_ARMSTONEA8 /* ###TODO, if ever */
 #define MACH_TYPE_EASYSOM1	MACH_TYPE_ARMSTONEA8 /* no extra number */
-#define UBOOT_MAGIC		(0x43090000 | MACH_TYPE)
 
 /* Input clock of PLL */
 #define CONFIG_SYS_CLK_FREQ	12000000  /* 12MHz (only on Rev 1.0) */
@@ -207,14 +207,16 @@
 
 /* Physical RAM addresses; however we compute the base address in function
    checkboard() */
-#define CONFIG_NR_DRAM_BANKS	2	        /* we use 2 banks of DRAM */
+#define CONFIG_NR_DRAM_BANKS	2	        /* We use 2 banks of DRAM */
 #define PHYS_SDRAM_0		0x20000000	/* SDRAM Bank #0 */
 #define PHYS_SDRAM_1		0x40000000	/* SDRAM Bank #1 */
 
-/* Total memory required by uboot: 1MB */
+/* Total memory required by uboot: 1MB #### noch gebraucht? */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
-/* This results in the following base address for uboot */
+/* The load address of U-Boot is now indepentent from the size. Just load it
+   at some rather low address in RAM. It will relocate itself to the end of
+   RAM automatically when executed. */
 #define CONFIG_SYS_PHY_UBOOT_BASE 0x40f00000
 
 
@@ -423,43 +425,16 @@
 #define CONFIG_DRIVER_AX88796L
 
 
-#ifndef CONFIG_FSS5PV210 /* Already done in NBoot */
 /************************************************************************
  * CPU (PLL) timings
  ************************************************************************/
-
-//#define CONFIG_CLK_800_133_66
-//#define CONFIG_CLK_666_133_66
-#define CONFIG_CLK_532_133_66
-//#define CONFIG_CLK_400_133_66
-//#define CONFIG_CLK_400_100_50
-#endif /* !CONFIG_FSS5PV210 */
+/* Already done in NBoot */
 
 
-#ifndef CONFIG_FSS5PV210 /* Already done in NBoot */
 /************************************************************************
  * RAM timing
  ************************************************************************/
-#define DMC1_MEM_CFG		0x00010012	/* Supports one CKE control,
-						   Chip1, Burst4, Row/Column
-						   bit */
-#define DMC1_MEM_CFG2		0xB45
-#define DMC1_CHIP0_CFG		0x150F8
-#define DMC_DDR_32_CFG		0x0 		/* 32bit, DDR */
-
-/* Memory Parameters */
-/* DDR Parameters */
-#define DDR_tREFRESH		7800		/* ns */
-#define DDR_tRAS		45		/* ns (min: 45ns)*/
-#define DDR_tRC 		68		/* ns (min: 67.5ns)*/
-#define DDR_tRCD		23		/* ns (min: 22.5ns)*/
-#define DDR_tRFC		80		/* ns (min: 80ns)*/
-#define DDR_tRP 		23		/* ns (min: 22.5ns)*/
-#define DDR_tRRD		15		/* ns (min: 15ns)*/
-#define DDR_tWR 		15		/* ns (min: 15ns)*/
-#define DDR_tXSR		120		/* ns (min: 120ns)*/
-#define DDR_CASL		3		/* CAS Latency 3 */
-#endif /* !CONFIG_FSS5PV210 */
+/* Already done in NBoot */
 
 
 /************************************************************************
@@ -523,7 +498,7 @@
  * NOR Flash
  ************************************************************************/
 /* No support for NOR flash */
-#define CONFIG_SYS_NO_FLASH	1	  /* no NOR flash */     
+#define CONFIG_SYS_NO_FLASH	1	  /* no NOR flash */
 
 
 /************************************************************************

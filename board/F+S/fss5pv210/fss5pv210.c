@@ -172,10 +172,10 @@ extern struct serial_device s5p_serial_device[];
  * devices can be listed.
  *
  * Example: - board.c calls eth_initialize()
- *          - eth_initialize() calls board_eth_init() here; we reset one or
- *            two AX88796 devices and register them with ne2000_initialize();
- *            this in turn calls eth_register(). Then we return.
- *          - eth_initialize() continues and lists all registered eth devices
+ *	    - eth_initialize() calls board_eth_init() here; we reset one or
+ *	      two AX88796 devices and register them with ne2000_initialize();
+ *	      this in turn calls eth_register(). Then we return.
+ *	    - eth_initialize() continues and lists all registered eth devices
  */
 
 struct serial_device *default_serial_console(void)
@@ -225,7 +225,7 @@ int checkboard(void)
 	printf("chFeatures2 = 0x%02x\n", pargs->chFeatures2);
 #endif
 
-	return (0);
+	return 0;
 }
 
 
@@ -534,7 +534,7 @@ int board_eth_init(bd_t *bis)
 
 #if 0//#### MMU-Test mit 1:1-Mapping
 #ifdef CONFIG_ENABLE_MMU
-ulong virt_to_phy_picomod6(ulong addr)
+ulong virt_to_phy_fss5pv210(ulong addr)
 {
 	if ((0xc0000000 <= addr) && (addr < 0xc8000000))
 		return (addr - 0xc0000000 + 0x50000000);
