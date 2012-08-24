@@ -79,7 +79,7 @@ static struct nand_ecclayout s5p_layout_ecc1_oob64 = {
    there are more than 8 bad bits in the page, the flash is in serious trouble
    anyway. */
 static struct nand_ecclayout s5p_layout_ecc8_oob64 = {
-	.eccbytes = 13,
+	.eccbytes = 52,
 	.eccpos = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		   10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
 		   20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
@@ -647,6 +647,7 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 		else
 			chip->ecc.layout = &s5p_layout_ecc8_oob64;
 		chip->ecc.size = 512;
+		chip->ecc.bytes = 13;
 		chip->ecc.read_page = s5p_nand_read_page_8bit;
 		chip->ecc.write_page = s5p_nand_write_page_8bit;
 	} else {
@@ -655,7 +656,8 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 			chip->ecc.layout = &s5p_layout_ecc1_oob16;
 		else
 			chip->ecc.layout = &s5p_layout_ecc1_oob64;
-		chip->ecc.size = mtd->writesize;
+		chip->ecc.size = 512;
+		chip->ecc.bytes = 4;
 #if 0
 		/* The default functions nand_read_page_hwecc() and
 		   nand_write_page_hwecc() from nand_base.c, that get
@@ -673,7 +675,6 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 	chip->ecc.correct	= s5p_nand_correct_data;
 
 	chip->ecc.mode		= NAND_ECC_HW_OOB_FIRST;
-	chip->ecc.bytes		= chip->ecc.layout->eccbytes;
 #else
 	chip->ecc.mode		= NAND_ECC_SOFT;
 #endif /* ! CONFIG_SYS_S5P_NAND_HWECC */
