@@ -47,6 +47,7 @@
 #define BT_ARMSTONEA8 0
 #define BT_QBLISSA8   2
 #define BT_NETDCU14   4
+#define BT_PICOMOD7A  6
 #define BT_EASYSOM1   7
 
 #define FEAT_CPU800   (1<<0)		  /* 0: 1000 MHz, 1: 800 MHz CPU */
@@ -88,7 +89,7 @@ const struct board_info fs_board_info[8] = {
 	{"???",	       0,		     NULL},		/* 3 */
 	{"NetDCU14",   MACH_TYPE_NETDCU14,   "mmc,usb"},	/* 4 */
 	{"???",	       0,		     NULL},		/* 5 */
-	{"???",	       0,		     NULL},		/* 6 */
+	{"PicoMOD7A",  MACH_TYPE_PICOMOD7,   "mmc0,mmc1, usb"}, /* 6 */
 	{"EASYsom1",   MACH_TYPE_EASYSOM1,   "mmc,usb"},	/* 7 */
 };
 
