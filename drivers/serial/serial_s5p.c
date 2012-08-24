@@ -22,14 +22,12 @@
  */
 
 #include <common.h>
-#include <linux/compiler.h>
-#include <asm/io.h>
-#include <asm/arch/uart.h>
-#include <asm/arch/clk.h>
-#include <serial.h>
-#include <asm/arch/cpu.h>
-
-DECLARE_GLOBAL_DATA_PTR;
+#include <linux/compiler.h>		  /* __weak */
+#include <asm/io.h>			  /* writel(), readl(), ... */
+#include <asm/arch/uart.h>		  /* struct s5p_uart */
+#include <asm/arch/clk.h>		  /* get_uart_clk() */
+#include <serial.h>			  /* struct serial_device */
+#include <asm/arch/cpu.h>		  /* samsung_get_base_uart() */
 
 static inline struct s5p_uart *s5p_get_base_uart(int port)
 {
@@ -64,6 +62,7 @@ static const int udivslot[] = {
 
 static void s5p_serial_setbrg(const struct serial_device *sdev)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	int port = (int)sdev->serpriv;
 	struct s5p_uart *const uart = s5p_get_base_uart(port);
 	u32 uclk = get_uart_clk(port);
@@ -84,7 +83,7 @@ static void s5p_serial_setbrg(const struct serial_device *sdev)
  * Initialise the serial port with the given baudrate. The settings
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  */
-int s5p_serial_start(const struct stdio_dev *pdev)
+static int s5p_serial_start(const struct stdio_dev *pdev)
 {
 	struct serial_device *sdev = pdev->priv;
 	int port = (int)sdev->serpriv;
@@ -145,9 +144,7 @@ static void s5p_serial_puts(const struct stdio_dev *pdev, const char *s)
 }
 
 /*
- * Read a single byte from the serial port. Returns 1 on success, 0
- * otherwise. When the function is successful, the character read is
- * written into its argument c.
+ * Read a single byte from the serial port. 
  */
 static int s5p_serial_getc(const struct stdio_dev *pdev)
 {
@@ -177,9 +174,10 @@ static int s5p_serial_tstc(const struct stdio_dev *pdev)
 	return (int)(readl(&uart->utrstat) & 0x1);
 }
 
-#define INIT_S5P_SERIAL_STRUCTURE(_port, _name) {	\
+#define INIT_S5P_SERIAL_STRUCTURE(_port, _name, _hwname) {	\
 	{       /* stdio_dev part */		\
 		.name = _name,			\
+		.hwname = _hwname,		\
 		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
 		.start = s5p_serial_start,	\
 		.stop = NULL,			\
@@ -194,10 +192,10 @@ static int s5p_serial_tstc(const struct stdio_dev *pdev)
 }
 
 struct serial_device s5p_serial_device[] = {
-	INIT_S5P_SERIAL_STRUCTURE(0, "s5pser0"),
-	INIT_S5P_SERIAL_STRUCTURE(1, "s5pser1"),
-	INIT_S5P_SERIAL_STRUCTURE(2, "s5pser2"),
-	INIT_S5P_SERIAL_STRUCTURE(3, "s5pser3"),
+	INIT_S5P_SERIAL_STRUCTURE(0, CONFIG_SYS_SERCON_NAME "0", "s5p_uart0"),
+	INIT_S5P_SERIAL_STRUCTURE(1, CONFIG_SYS_SERCON_NAME "1", "s5p_uart1"),
+	INIT_S5P_SERIAL_STRUCTURE(2, CONFIG_SYS_SERCON_NAME "2", "s5p_uart2"),
+	INIT_S5P_SERIAL_STRUCTURE(3, CONFIG_SYS_SERCON_NAME "3", "s5p_uart3"),
 };
 
 __weak struct serial_device *default_serial_console(void)

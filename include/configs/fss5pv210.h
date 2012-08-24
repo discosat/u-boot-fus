@@ -309,6 +309,8 @@
 #define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
 //#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
 
+#define CONFIG_SYS_SERCON_NAME "ttySAC"	  /* Base name for serial devices */
+
 #define CONFIG_BAUDRATE		38400
 
 /* valid baudrates */
