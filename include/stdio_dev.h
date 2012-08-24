@@ -69,8 +69,17 @@ struct stdio_dev {
 
 	void *priv;			/* Private extensions */
 //###	int	ext;			/* Supported extensions */
+
+	/* The stdio devices are stored in a ring structure. So the last
+	   element points with its next pointer back again to the first
+	   element and the first element points with its prev pointer back
+	   again to the last element. The beginning of the ring is stored in
+	   variable devs. */
 	struct stdio_dev *next;		/* Next device */
+	struct stdio_dev *prev;		/* Next device */
 #ifdef CONFIG_CONSOLE_MUX
+	/* Each of these pointers is part of a linked list; the head of the
+	   list is in variable stdio_devices[i]. */
 	struct stdio_dev *file_next[MAX_FILES];	/* Next device in file list */
 #endif
 };

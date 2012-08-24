@@ -106,13 +106,14 @@ struct stdio_dev *stdio_get_list(void)
 
 struct stdio_dev* stdio_get_by_name(const char *name)
 {
-	struct stdio_dev *dev;
+	struct stdio_dev *dev = devs;
 
-	if (name) {
-		for (dev = devs; dev; dev = dev->next) {
+	if (name && devs) {
+		do {
 			if(strcmp(dev->name, name) == 0)
 				return dev;
-		}
+			dev = dev->next;
+		} while (dev != devs);
 	}
 
 	return NULL;
@@ -120,8 +121,6 @@ struct stdio_dev* stdio_get_by_name(const char *name)
 
 int stdio_register (struct stdio_dev *dev)
 {
-	struct stdio_dev *tmp;
-
 #ifdef CONFIG_CONSOLE_MUX
 	int i;
 
@@ -129,21 +128,20 @@ int stdio_register (struct stdio_dev *dev)
 	for (i = 0; i < MAX_FILES; i++)
 		dev->file_next[i] = NULL;
 #endif
-	dev->next = NULL;
 
 	if (!devs) {
+		/* First element, loop back to itself */
+		dev->next = dev;
+		dev->prev = dev;
 		devs = dev;
-		return 0;
+	} else {
+		/* Add at end; devs points to the first element in the device
+		   ring, so devs->prev points to the last element */
+		dev->prev = devs->prev;
+		dev->prev->next = dev;
+		dev->next = devs;
+		dev->next->prev = dev;
 	}
-
-	/* Find last entry */
-	tmp = devs;
-	while (tmp->next)
-		tmp = tmp->next;
-
-	/* Add new device at tail */
-	tmp->next = dev;
-
 	return 0;
 }
 
@@ -157,35 +155,44 @@ int stdio_deregister(const char *devname)
 	struct stdio_dev *dev;
 	struct stdio_dev *tmp;
 
-	char temp_names[3][16];
-
 	dev = stdio_get_by_name(devname);
 	if (!dev) /* device not found */
 		return -1;
 
 	/* Check if device is assigned */
 	for (i=0 ; i< MAX_FILES; i++) {
+#ifdef CONFIG_CONSOLE_MUX
 		tmp = stdio_devices[i];
-		do {
+
+		while (tmp) {
 			if (tmp == dev)
-				return -1;
+				return -1; /* in use */
 			tmp = tmp->file_next[i];
 		}
+#else
 		if (stdio_devices[i] == dev)
-			return -1;    /* in use */
+			return -1;	  /* in use */
+#endif
 	}
 
-	/* The device is not part of any of the active stdio devices */
-	if (devs == dev) {
-		devs = dev->next;	  /* Remove at beginning of list */
-		return 0;
-	}
-
-	/* Find object and unlink it from list */
+	/* The device is not part of any of the active stdio devices. Now
+	   find device in the device list */
 	tmp = devs;
-	while (tmp->next != dev)
+	while (tmp != dev)
 		tmp = tmp->next;
-	tmp->next = dev->next;
+
+	/* Unlink device from device ring list */
+	if (tmp->next == tmp)
+		devs = NULL;		  /* It was the last device */
+	else {
+		/* Update head if this is the first element */
+		if (tmp == devs)
+			devs = tmp->next;
+
+		tmp->prev->next = tmp->next;
+		tmp->next->prev = tmp->prev;
+
+	}
 
 	return 0;
 }
