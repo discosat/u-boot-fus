@@ -342,6 +342,7 @@ static struct autoloadinfo alinfo[] = {
 };
 
 struct autoloadvars {
+	char *action;			  /* Action performed (upd/inst) */
 	char *checkvar;			  /* Var name with devices to check */
 	char *addrvar;			  /* Var name with load address */
 	char *scriptvar;		  /* Var name with script name */
@@ -349,10 +350,10 @@ struct autoloadvars {
 };
 
 static struct autoloadvars alvars[] = {
-	{"instcheck", "instscript", "instaddr", "install.scr"}, /* 0 */
-	{"updcheck",  "updscript",  "updaddr",  "update.scr"},  /* 1 */
+	{"installation", "instcheck", "instscript", "instaddr", "install.scr"},
+	{"update",       "updcheck",  "updscript",  "updaddr",  "update.scr"},
 };
-	
+
 
 /*
  * Autoload function. This checks the following environment variables:
@@ -367,17 +368,14 @@ static struct autoloadvars alvars[] = {
  *   0:   Script successfully loaded and executed
  *   !=0: Check-variable not set or script not found or execution
  */
-int autoload_script(int index)
+int autoload_script(int index, char *autocheck, char *fname, unsigned long addr)
 {
-	char *autoload;
 	char c;
 	char *devname;
 	int devnamelen;
 	int devnum;
 	int partnum;
 	int i;
-	char *fname;
-	unsigned long addr;
 	struct autoloadinfo *p;
 	struct autoloadvars *v;
 
@@ -386,37 +384,44 @@ int autoload_script(int index)
 
 	v = &alvars[index];
 
-	/* Get script filename to autoload */
-	autoload = getenv(v->checkvar);
-	if (!autoload)
-		return 1;		  /* Variable not set */
+	/* If called without devices argument, get autoload devices from
+	   environment */
+	if (!autocheck) {
+		autocheck = getenv(v->checkvar);
+		if (!autocheck)
+			return 1;	  /* Variable not set */
+	}
 
-	/* Load address where to load to, default: loadaddr */
-	addr = getenv_ulong(v->addrvar, 16, get_loadaddr());
+	/* If called without load address argument, get address where to load
+	   to from environment, default: loadaddr */
+	if (!addr)
+		addr = getenv_ulong(v->addrvar, 16, get_loadaddr());
 
+	/* If called without script filename argument, get filename from
+	   environment or take default from table */
 	fname = getenv(v->scriptvar);
 	if (!fname)
 		fname = v->scriptdef;
 
-	c = *autoload;
+	c = *autocheck;
 	do {
 		/* Skip any commas */
 		while (c == ',')
-		       c = *(++autoload);
+		       c = *(++autocheck);
 		if (!c)
 			break;
 
 		/* Scan device name */
-		devname = autoload;
+		devname = autocheck;
 		while ((c >= 'a') && (c <= 'z'))
-		       c = *(++autoload);
-		devnamelen = autoload - devname;
+		       c = *(++autocheck);
+		devnamelen = autocheck - devname;
 
 		/* Scan device number */
 		devnum = 0;
 		while ((c >= '0') && (c <= '9')) {
 			devnum = 10*devnum + c - '0';
-			c = *(++autoload);
+			c = *(++autocheck);
 		}
 
 		/* Scan optional partition number */
@@ -424,10 +429,10 @@ int autoload_script(int index)
 			partnum = 1;
 		else {
 			partnum = 0;
-			c = *(++autoload);
+			c = *(++autocheck);
 			while ((c >= '0') && (c <= '9')) {
 				partnum = 10*partnum + c - '0';
-				c = *(++autoload);
+				c = *(++autocheck);
 			}
 		}
 
@@ -437,7 +442,7 @@ int autoload_script(int index)
 			    !strncmp(devname, p->devname, devnamelen))
 				break;
 		}
-		puts("---- Trying autoload from ");
+		printf("---- Trying %s with %s from ", v->action, fname);
 		if ((i < ARRAY_SIZE(alinfo)) && (!c || (c == ','))) {
 			printf("%s%d:%d ----\n", p->devname, devnum, partnum);
 			if (p->autoload(addr, devnum, partnum, fname) < 0)
@@ -452,18 +457,66 @@ int autoload_script(int index)
 				return 0;
 			}
 		} else {
-			autoload = devname;
-			c = *autoload;
+			autocheck = devname;
+			c = *autocheck;
 			while (c && (c != ',')) {
 				putc(c);
-				c = *(++autoload);
+				c = *(++autocheck);
 			}
 			puts(" ----\nUnknown device, ignored\n");
 		}
 	} while (c);
-	puts("---- No autoload script found ----\n");
+	printf("---- No %s script found ----\n", v->action);
 
 	return 1;
 }
 
-#endif
+int do_autoload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	int index = 0;
+	char *autocheck = NULL;
+	char *fname = NULL;
+	unsigned long addr = 0;
+
+	if (strcmp(argv[0], "update") == 0)
+		index = 1;
+
+	/* Take arguments if given */
+	if (argc > 1) {
+		fname = argv[1];
+		if (argc > 2) {
+			autocheck = argv[2];
+			if (argc > 3)
+				addr = simple_strtoul(argv[3], NULL, 16);
+		}
+	}
+
+	/* Try autoload */
+	return autoload_script(index, autocheck, fname, addr);
+}
+
+
+U_BOOT_CMD(
+	update, 4, 0,	do_autoload,
+	"update system from external device",
+	"[updscript [updcheck [updaddr]]]\n"
+	" - Look for scriptfile updscript by checking devices updcheck.\n"
+	"   If found anywhere, load it to address updaddr and update the\n"
+	"   system by executing it. If an argument is not given, the\n"
+	"   environment variable of the same name is used instead, or by\n"
+	"   default 'update.scr' for updscript and loadaddr for updaddr.\n"
+);
+
+U_BOOT_CMD(
+	install, 4, 0,	do_autoload,
+	"install system from external device",
+	"[instscript [instcheck [instaddr]]]\n"
+	" - Look for scriptfile instscript by checking devices instcheck.\n"
+	"   If found anywhere, load it to address instaddr and install the\n"
+	"   system by executing it. If an argument is not given, the\n"
+	"   environment variable of the same name is used instead, or by\n"
+	"   default 'install.scr' for instscript and loadaddr for instaddr.\n"
+);
+
+
+#endif /* CONFIG_CMD_SOURCE */

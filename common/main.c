@@ -430,7 +430,7 @@ void main_loop (void)
 #ifdef CONFIG_CMD_SOURCE
 		/* Before the boot command is executed, check if we should
 		   load a system update script */
-		if (autoload_script(1))	  /* Try to load update script */
+		if (autoload_script(1, NULL, NULL, 0))
 #endif
 		{
 # ifdef CONFIG_AUTOBOOT_KEYED
@@ -450,7 +450,7 @@ void main_loop (void)
 			/* The bootcmd usually only returns if booting failed.
 			   Then we assume that the system is not correctly
 			   installed and try to load an install script */
-			autoload_script(0);
+			autoload_script(0, NULL, NULL, 0);
 #endif
 		}
 	}
