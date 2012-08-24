@@ -48,6 +48,7 @@
 #  define	CONFIG_ENV_ADDR_REDUND	\
 		(CONFIG_SYS_FLASH_BASE + CONFIG_ENV_OFFSET_REDUND)
 # endif
+
 # if defined(CONFIG_ENV_SECT_SIZE) || defined(CONFIG_ENV_SIZE)
 #  ifndef	CONFIG_ENV_SECT_SIZE
 #   define	CONFIG_ENV_SECT_SIZE	CONFIG_ENV_SIZE
@@ -55,9 +56,10 @@
 #  ifndef	CONFIG_ENV_SIZE
 #   define	CONFIG_ENV_SIZE	CONFIG_ENV_SECT_SIZE
 #  endif
-# else
-#  error "Both CONFIG_ENV_SECT_SIZE and CONFIG_ENV_SIZE undefined"
+//### # else
+//### #  error "Both CONFIG_ENV_SECT_SIZE and CONFIG_ENV_SIZE undefined"
 # endif
+
 # if defined(CONFIG_ENV_ADDR_REDUND) && !defined(CONFIG_ENV_SIZE_REDUND)
 #  define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
 # endif
@@ -84,25 +86,25 @@
 extern unsigned long nand_env_oob_offset;
 #  define CONFIG_ENV_OFFSET nand_env_oob_offset
 # else
-#  ifndef CONFIG_ENV_OFFSET
-#   error "Need to define CONFIG_ENV_OFFSET when using CONFIG_ENV_IS_IN_NAND"
-#  endif
+//### #  ifndef CONFIG_ENV_OFFSET
+//### #   error "Need to define CONFIG_ENV_OFFSET when using CONFIG_ENV_IS_IN_NAND"
+//### #  endif
 #  ifdef CONFIG_ENV_OFFSET_REDUND
 #   define CONFIG_SYS_REDUNDAND_ENVIRONMENT
 #  endif
 # endif /* CONFIG_ENV_OFFSET_OOB */
-# ifndef CONFIG_ENV_SIZE
-#  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_NAND"
-# endif
+//### # ifndef CONFIG_ENV_SIZE
+//### #  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_NAND"
+//### # endif
 #endif /* CONFIG_ENV_IS_IN_NAND */
 
 #if defined(CONFIG_ENV_IS_IN_MG_DISK)
 # ifndef CONFIG_ENV_ADDR
 #  error "Need to define CONFIG_ENV_ADDR when using CONFIG_ENV_IS_IN_MG_DISK"
 # endif
-# ifndef CONFIG_ENV_SIZE
-#  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_MG_DISK"
-# endif
+//### # ifndef CONFIG_ENV_SIZE
+//### #  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_MG_DISK"
+//### # endif
 #endif /* CONFIG_ENV_IS_IN_MG_DISK */
 
 /* Embedded env is only supported for some flash types */
@@ -135,34 +137,50 @@ extern unsigned long nand_env_oob_offset;
 #include "compiler.h"
 
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
-# define ENV_HEADER_SIZE	(sizeof(uint32_t) + 1)
-
 # define ACTIVE_FLAG   1
 # define OBSOLETE_FLAG 0
+#endif
+#define ENV_HEADER_SIZE	sizeof(env_t)
+
+#ifdef CONFIG_ENV_SIZE
+/* We may define our own get_env_size() or use the default one here */
+inline size_t __get_env_size(void) {return CONFIG_ENV_SIZE;}
+size_t get_env_size(void) __attribute__((weak, alias("__get_env_size")));
 #else
-# define ENV_HEADER_SIZE	(sizeof(uint32_t))
+/* We must have get_env_size() */
+size_t get_env_size(void);
+#endif
+
+#ifdef CONFIG_ENV_OFFSET
+/* We may define our own get_env_offset() or use the default one here */
+inline size_t __get_env_offset(void) {return CONFIG_ENV_SIZE;}
+size_t get_env_offset(void) __attribute__((weak, alias("__get_env_offset")));
+#else
+/* We must have get_env_offset() */
+size_t get_env_offset(void);
 #endif
 
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)
 extern char *env_name_spec;
 #endif
 
-#define ENV_SIZE (CONFIG_ENV_SIZE - ENV_HEADER_SIZE)
+//### #define ENV_SIZE (CONFIG_ENV_SIZE - ENV_HEADER_SIZE)
 
 typedef struct environment_s {
 	uint32_t	crc;		/* CRC32 over data bytes	*/
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
-	unsigned char	flags;		/* active/obsolete flags	*/
+	uint32_t	flags;		/* active/obsolete flags	*/
 #endif
-	unsigned char	data[ENV_SIZE]; /* Environment data		*/
 } env_t;
 
-#ifdef ENV_IS_EMBEDDED
-extern env_t environment;
-#endif /* ENV_IS_EMBEDDED */
+extern env_t *get_env_ptr(void);
+extern size_t get_default_env_size(void);
+
+# ifdef CONFIG_ENV_ADDR_REDUND
+extern env_t *get_redundand_env_ptr(void);
+# endif
 
 extern const unsigned char default_environment[];
-extern env_t *env_ptr;
 
 extern void env_relocate_spec(void);
 extern unsigned char env_get_char_spec(int);
@@ -191,7 +209,7 @@ void env_crc_update(void);
 void set_default_env(const char *s);
 
 /* Import from binary representation into hash table */
-int env_import(const char *buf, int check);
+int env_import(const char *buf, int check, size_t env_size);
 
 #endif /* DO_DEPS_ONLY */
 

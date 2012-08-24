@@ -222,6 +222,9 @@ typedef void (interrupt_handler_t)(void *);
 #define MIN(x, y)  min(x, y)
 #define MAX(x, y)  max(x, y)
 
+#if 1 //###
+#define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
+#else //###
 #if defined(CONFIG_ENV_IS_EMBEDDED)
 #define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #elif ( ((CONFIG_ENV_ADDR+CONFIG_ENV_SIZE) < CONFIG_SYS_MONITOR_BASE) || \
@@ -231,6 +234,7 @@ typedef void (interrupt_handler_t)(void *);
 #else
 #define	TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #endif
+#endif //1/0 ###
 
 /**
  * container_of - cast a member of a structure out to the containing structure

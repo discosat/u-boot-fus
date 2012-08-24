@@ -29,6 +29,12 @@
 #undef	__ASSEMBLY__
 #include <environment.h>
 
+/* Setting an embedded environment requires a constant CONFIG_ENV_SIZE */
+typedef struct full_env_s {
+	env_t header;
+	unsigned char data[CONFIG_ENV_SIZE - ENV_HEADER_SIZE];
+} full_env_t;
+
 /* Handle HOSTS that have prepended crap on symbol names, not TARGETS. */
 #if defined(__APPLE__)
 /* Leading underscore on symbols */
@@ -95,11 +101,13 @@
 #  define ENV_CRC	(~0)
 #endif
 
-env_t environment __PPCENV__ = {
-	ENV_CRC,	/* CRC Sum */
+full_env_t environment __PPCENV__ = {
+	{
+		ENV_CRC,	/* CRC Sum */
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
-	1,		/* Flags: valid */
+		1,		/* Flags: valid */
 #endif
+	},
 	{
 #if defined(CONFIG_BOOTARGS)
 	"bootargs="	CONFIG_BOOTARGS			"\0"
@@ -185,14 +193,27 @@ env_t environment __PPCENV__ = {
 	"\0"		/* Term. env_t.data with 2 NULs */
 	}
 };
+
+env_t *get_env_ptr(void)
+{
+	return (env_t *)&environment;
+}
+
 #ifdef CONFIG_ENV_ADDR_REDUND
-env_t redundand_environment __PPCENV__ = {
-	0,		/* CRC Sum: invalid */
-	0,		/* Flags:   invalid */
+full_env_t redundand_environment __PPCENV__ = {
+	{
+		0,		/* CRC Sum: invalid */
+		0,		/* Flags:   invalid */
+	},
 	{
 	"\0"
 	}
 };
+
+env_t *get_redundand_env_ptr(void)
+{
+	return (env_t *)&redundand_environment;
+}
 #endif	/* CONFIG_ENV_ADDR_REDUND */
 
 /*

@@ -99,6 +99,9 @@ const struct board_info fs_board_info[8] = {
 /* String used for system prompt */
 char fs_sys_prompt[20];
 
+/* NAND blocksize determines environment and mtdparts settings */
+unsigned int nand_blocksize;
+
 /* Copy of the NBoot args */
 struct nboot_args fs_nboot_args;
 
@@ -337,6 +340,12 @@ int board_serial_init(void)
 
 int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *nand, int id)
 {
+	/* Now that we know the NAND type, save the blocksize for functions
+	   get_env_offset(), get_env_size() and get_env_range(). We also would
+	   like to set the MTD partition layout now, but as the environment is
+	   not yet loaded, we do this later in board_late_init(). */
+	nand_blocksize = mtd->erasesize;
+
 	/* NBoot is two blocks in size, independent of the block size. */
 	switch (id) {
 	case 0:
@@ -360,10 +369,24 @@ int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *nand, int id)
 	return 0;
 }
 
-{
 
+size_t get_env_size(void)
+{
+	return (nand_blocksize > 16*1024)
+		? ENV_SIZE_DEF_LARGE : ENV_SIZE_DEF_SMALL;
 }
 
+size_t get_env_range(void)
+{
+	return (nand_blocksize > 16*1024)
+		? ENV_RANGE_DEF_LARGE : ENV_RANGE_DEF_SMALL;
+}
+
+size_t get_env_offset(void)
+{
+	return (nand_blocksize > 16*1024)
+		? ENV_OFFSET_DEF_LARGE : ENV_OFFSET_DEF_SMALL;
+}
 
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_init(bd_t *bis)

@@ -235,9 +235,9 @@
 #define CONFIG_SYS_INIT_SP_ADDR	(0xD0038000 - CONFIG_SYS_GBL_DATA_SIZE)
 #endif
 
-/* Size of malloc() pool (heap), CONFIG_ENV_SIZE is automatically added to
-   build TOTAL_MALLOC_LEN; command "ubi part" needs quite a large heap if the
-   source MTD partition is large */
+/* Size of malloc() pool (heap). Command "ubi part" needs quite a large heap
+   if the source MTD partition is large. The size should be large enough to
+   also contain a copy of the environment. */
 #define CONFIG_SYS_MALLOC_LEN	(1024*1024)
 
 /* Size in bytes reserved for initial data */
@@ -582,16 +582,18 @@
 /************************************************************************
  * Environment
  ************************************************************************/
-/* Use this if the environment should be in the NAND flash */
-#define CONFIG_ENV_IS_IN_NAND
+#define CONFIG_ENV_IS_IN_NAND		  /* Environment is in NAND flash */
+#define CONFIG_ENV_ADDR	   0		  /* Only needed for NOR flash */
 
-#define CONFIG_ENV_ADDR		0	  /* Only needed for NOR flash */
+/* Environment settings for small blocks (16KB) */
+#define ENV_SIZE_DEF_SMALL   0x00004000	  /* 1 block = 16KB */
+#define ENV_RANGE_DEF_SMALL  0x00008000   /* 2 blocks = 32KB */
+#define ENV_OFFSET_DEF_SMALL 0x00078000	  /* See NAND layout above */
 
-/* The environment is 128KB and can use a region of 256KB, allowing for one
-   bad block. */
-#define CONFIG_ENV_SIZE	   0x00020000	  /* 128KB actual environment */
-#define CONFIG_ENV_RANGE   0x00040000	  /* 256KB region for environment */
-#define CONFIG_ENV_OFFSET  0x000C0000
+/* Environment settings for large blocks (128KB) */
+#define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+#define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
+#define ENV_OFFSET_DEF_LARGE 0x000C0000	  /* See NAND layout above */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment

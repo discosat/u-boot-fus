@@ -127,6 +127,11 @@ const uchar default_environment[] = {
 
 struct hsearch_data env_htab;
 
+size_t get_default_env_size(void)
+{
+	return sizeof(default_environment) + ENV_HEADER_SIZE;
+}
+
 static uchar env_get_char_init(int index)
 {
 	/* if crc was bad, use the default environment */
@@ -160,7 +165,7 @@ const uchar *env_get_addr(int index)
 
 void set_default_env(const char *s)
 {
-	if (sizeof(default_environment) > ENV_SIZE) {
+	if (sizeof(default_environment) > get_env_size() - ENV_HEADER_SIZE) {
 		puts("*** Error - default environment is too large\n\n");
 		return;
 	}
@@ -188,22 +193,23 @@ void set_default_env(const char *s)
  * Check if CRC is valid and (if yes) import the environment.
  * Note that "buf" may or may not be aligned.
  */
-int env_import(const char *buf, int check)
+int env_import(const char *buf, int check, size_t env_size)
 {
 	env_t *ep = (env_t *)buf;
 
+	env_size -= ENV_HEADER_SIZE;
 	if (check) {
 		uint32_t crc;
 
 		memcpy(&crc, &ep->crc, sizeof(crc));
 
-		if (crc32(0, ep->data, ENV_SIZE) != crc) {
+		if (crc32(0, (unsigned char *)(ep + 1), env_size) != crc) {
 			set_default_env("!bad CRC");
 			return 0;
 		}
 	}
 
-	if (himport_r(&env_htab, (char *)ep->data, ENV_SIZE, '\0', 0)) {
+	if (himport_r(&env_htab, (char *)(ep + 1), env_size, '\0', 0)) {
 		gd->flags |= GD_FLG_ENV_READY;
 		return 1;
 	}
