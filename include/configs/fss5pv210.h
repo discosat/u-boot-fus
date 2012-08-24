@@ -597,7 +597,7 @@
 
 #define CONFIG_BOOTDELAY	3
 #define CONFIG_BOOTARGS    	"console=ttySAC0,38400 init=linuxrc"
-#define CONFIG_BOOTCOMMAND      "nand read.jffs2 41000000 Kernel ; bootm 41000000"
+#define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"instcheck=mmc,usb\0" \
 	"updcheck=mmc,usb\0" \
