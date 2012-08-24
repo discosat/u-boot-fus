@@ -60,7 +60,6 @@ int rtc_get (struct rtc_time *tmp)
 {
 	s3c64xx_rtc * const rtc = S3C64XX_GetBase_RTC();
 	uchar sec, min, hour, mday, wday, mon, year;
-	uchar a_sec,a_min, a_hour, a_date, a_mon, a_year, a_armed;
 
 	/* enable access to RTC registers */
 	SetRTC_Access(RTC_ENABLE);
@@ -76,15 +75,6 @@ int rtc_get (struct rtc_time *tmp)
 		year	= rtc->BCDYEAR;
 	} while (sec != rtc->BCDSEC);
 
-	/* read ALARM registers */
-	a_sec	= rtc->ALMSEC;
-	a_min	= rtc->ALMMIN;
-	a_hour	= rtc->ALMHOUR;
-	a_date	= rtc->ALMDATE;
-	a_mon	= rtc->ALMMON;
-	a_year	= rtc->ALMYEAR;
-	a_armed	= rtc->RTCALM;
-
 	/* disable access to RTC registers */
 	SetRTC_Access(RTC_DISABLE);
 
@@ -93,10 +83,6 @@ int rtc_get (struct rtc_time *tmp)
 		"hr: %02x min: %02x sec: %02x\n",
 		year, mon, mday, wday,
 		hour, min, sec);
-	printf ( "Alarms: %02x: year: %02x month: %02x date: %02x hour: %02x min: %02x sec: %02x\n",
-		a_armed,
-		a_year, a_mon, a_date,
-		a_hour, a_min, a_sec);
 #endif
 
 	tmp->tm_sec  = bcd2bin(sec  & 0x7F);
