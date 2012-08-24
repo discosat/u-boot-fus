@@ -415,7 +415,7 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-/* This board has a NE2000 compatible AX88769B ethernet chip */
+/* This board has one or two NE2000 compatible AX88769B ethernet chips */
 #define CONFIG_DRIVER_NE2000
 #define CONFIG_DRIVER_NE2000_BASE	0x80000000
 #define CONFIG_DRIVER_NE2000_BASE2	0x88000000
@@ -616,8 +616,11 @@
 	"instcheck=default\0" \
 	"updcheck=default\0" \
 	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootubidhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
-	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
+	"bootjffs2dhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
+	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs o init=linuxrc\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_ETH1ADDR		00:05:51:05:2a:74
