@@ -42,7 +42,8 @@ typedef struct stdio_dev stdio_dev_t;
 
 struct stdio_dev {
 	int	flags;			/* Device flags: input/output/system */
-	char	name[DEV_NAME_SIZE];	/* Device name */
+	char	name[DEV_NAME_SIZE];	/* Device name, e.g. ttySAC1 */
+	char	hwname[DEV_NAME_SIZE];	/* Hardware name, e.g. s5p_uart1 */
 
 /* GENERAL functions */
 	/* To start the device */
