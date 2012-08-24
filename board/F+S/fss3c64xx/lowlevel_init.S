@@ -4,7 +4,7 @@
  * Copyright (C) 1999 2000 2001 Erik Mouw (J.A.K.Mouw@its.tudelft.nl) and
  *                     Jan-Derk Bakker (J.D.Bakker@its.tudelft.nl)
  *
- * Modified for the F&S PicoCOM3 by
+ * Modified for the F&S S3C64XX by
  * (C) Copyright 2012
  * H. Keller, F&S Elektronik Systeme GmbH (keller@fs-net.de)
  *
@@ -37,7 +37,7 @@
 lowlevel_init:
 	mov	r12, lr
 
-#ifndef CONFIG_PICOCOM3
+#ifndef CONFIG_FSS3C64XX
 	/* Set signal strength of memory port 1 to 10mA */
 	ldr	r1, =0x55555555
 	str	r1, [r0, #MEM1DRVCON_OFFSET]
@@ -85,7 +85,7 @@ lowlevel_init:
 #endif
 
 	bl	mem_ctrl_asm_init	/* Configure DRAM */
-#endif  /* !CONFIG_PICOCOM3 */
+#endif  /* !CONFIG_FSS3C64XX */
 
 /* Wakeup support. Don't know if it's going to be used, untested. */
 	ldr	r0, =(ELFIN_CLOCK_POWER_BASE)
@@ -110,7 +110,7 @@ wakeup_reset:
 	nop
 	nop
 
-#ifndef CONFIG_PICOCOM3  /* System clock already configured by NBoot */
+#ifndef CONFIG_FSS3C64XX  /* System clock already configured by NBoot */
 /*
  * system_clock_init: Initialize core clock and bus clock.
  * void system_clock_init(void)
@@ -217,7 +217,7 @@ wait_for_async:
 	str	r1, [r0, #OTHERS_OFFSET]
 #endif
 	mov	pc, lr
-#endif /* !CONFIG_PICOCOM3 */
+#endif /* !CONFIG_FSS3C64XX */
 
 
 #ifndef CONFIG_NAND_SPL
@@ -323,6 +323,19 @@ mmu_table:
 	.set __base, __base + 1
 	.endr
 
+#if 1
+	/* 128MB for SDRAM at 0x50000000-0x57ffffff */
+	.rept 0x580 - 0x500
+	FL_SECTION_ENTRY __base, 3, 0, 1, 1
+	.set __base, __base + 1
+	.endr
+
+	/* 1152MB 1:1 mapping 0x58000000-0x9fffffff */
+	.rept 0xA00 - 0x580
+	FL_SECTION_ENTRY __base, 3, 0, 0, 0
+	.set __base,__base + 1
+	.endr
+#else
 	/* 64MB for SDRAM at 0x50000000-0x53ffffff */
 	.rept 0x540 - 0x500
 	FL_SECTION_ENTRY __base, 3, 0, 1, 1
@@ -334,7 +347,7 @@ mmu_table:
 	FL_SECTION_ENTRY __base, 3, 0, 0, 0
 	.set __base,__base + 1
 	.endr
-
+#endif
 	/* 1536MB access is not allowed 0xa0000000-ffffffff */
 	.rept 0x1000 - 0xa00
 	.word 0x00000000

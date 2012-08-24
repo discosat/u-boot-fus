@@ -25,7 +25,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).o
 
-COBJS-y += picomod6.o
+COBJS-y += fss3c64xx.o
 SOBJS	:= lowlevel_init.o
 
 SRCS    := $(SOBJS:.o=.S) $(COBJS-y:.o=.c)

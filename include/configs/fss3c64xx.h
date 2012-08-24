@@ -2,12 +2,11 @@
  * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
- * Configuation settings for the F&S PicoMOD6 board. Activate with
- * one of the following targets:
- *   make picomod6_config         Configure for 64MB flash
- *   make picomod6                Configure for 64MB flash and build
- *   make picomod6_1gb_config     Configure for 1GB flash
- *   make picomod6_1gb            Configure for 1GB flash and build
+ * Configuation settings for all F&S boards based on S3C64xx. This is
+ * PicoMOD6 and PicoCOM3. NetDCU12 is also included, but not tested.
+ * Activate with one of the following targets:
+ *   make fss3c64xx_config      Configure for S3C64XX boards
+ *   make fss3c64xx             Configure for S3C64XX boards and build
  * 
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -27,75 +26,68 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  *
+ * The following addresses are given as offsets of the device.
  *
- * RAM layout of PicoMOD6 (RAM starts at 0x50000000) (128MB)
- * ---------------------------------------------------------
- * Offset 0x0000_0000 - 0x0000_00FF:
- * Offset 0x0000_0100 - 0x0000_7FFF: bi_boot_params
- * Offset 0x0000_8000 - 0x007F_FFFF: Linux zImage
- * Offset 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
- * Offset 0x0100_0000 - 0x07EF_FFFF: (unused, e.g. INITRD)
- * Offset 0x07F0_0000 - 0x07FF_FFFF: U-Boot (inkl. malloc area)
+ * NAND flash layout (Block size 16KB) (64MB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0000_7FFF: NBoot: NBoot image (32KB)
+ * 0x0000_8000 - 0x0007_7FFF: UBoot: U-Boot image (448KB)
+ * 0x0007_8000 - 0x0007_FFFF: UBootEnv: U-Boot environment (32KB)
+ * 0x0008_0000 - 0x000F_FFFF: UserDef: User defined data (512KB)
+ * 0x0010_0000 - 0x003F_FFFF: Kernel: Linux Kernel zImage (3MB)
+ * 0x0040_0000 - 0x03FF_FFFF: TargetFS: Root filesystem (60MB)
  *
- * NAND flash layout of PicoMOD6 (64MB) (Block size 16KB)
- * --------------------------------------------------------
- * Offset 0x0000_0000 - 0x0000_7FFF: NBoot (32KB)
- * Offset 0x0000_8000 - 0x0007_7FFF: U-Boot (448KB)
- * Offset 0x0007_8000 - 0x0007_FFFF: U-Boot environment (32KB)
- * Offset 0x0008_0000 - 0x000F_FFFF: Space for user defined data (512KB)
- * Offset 0x0010_0000 - 0x003F_FFFF: Linux Kernel zImage (3MB)
- * Offset 0x0040_0000 - 0x03FF_FFFF: Linux Target System (60MB)
+ * NAND flash layout (Block size 128KB) (128MB, 1GB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0003_FFFF: NBoot: NBoot image (256KB)
+ * 0x0004_0000 - 0x000B_FFFF: UBoot: U-Boot image (512KB)
+ * 0x000C_0000 - 0x000F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * 0x0010_0000 - 0x004F_FFFF: UserDef: User defined data (4MB)
+ * 0x0050_0000 - 0x007F_FFFF: Kernel: Linux Kernel zImage (3MB)
+ * 0x0080_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (120MB if 128MB)
+ * 0x0080_0000 - 0x3FFF_FFFF: TargetFS: Root filesystem (1016MB if 1GB)
  *
- * NAND flash layout of PicoMOD6 (1GB) (Block size 128KB)
- * --------------------------------------------------------
- * Offset 0x0000_0000 - 0x0003_FFFF: NBoot (256KB)
- * Offset 0x0004_0000 - 0x000B_FFFF: U-Boot (512KB)
- * Offset 0x000C_0000 - 0x000F_FFFF: U-Boot environment (256KB)
- * Offset 0x0010_0000 - 0x004F_FFFF: Space for user defined data (4MB)
- * Offset 0x0050_0000 - 0x007F_FFFF: Linux Kernel zImage (3MB)
- * Offset 0x0080_0000 - 0x3FFF_FFFF: Linux Target System (1016MB)
+ * Remark:
+ * All partition sizes have been chosen to allow for at least one bad block in
+ * addition to the required size of the partition. E.g. UBoot is 384KB, but
+ * the UBoot partition is 512KB to allow for one bad block (128KB) in this
+ * memory region.
  *
- * With the new ARM specific loader code introduced in u-boot-2010.12, u-boot
- * now can be loaded to a rather low RAM address from NBoot. It only needs a
- * rather small stack and some room for a (unitialized) gd_t structure behind
- * the stack. Then u-boot automatically computes its size and relocates itself
- * to the end of the available RAM. This only requires CONFIG_SYS_SDRAM_BASE
- * and the board-specific dram_init() function has to set gd->ram_size
- * correctly to the available RAM. That's all. So there is no need for
- * different u-boot versions just because of differently mounted RAM sizes
- * anymore.
+ * RAM layout (RAM starts at 0x50000000) (128MB)
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0000_00FF: Free RAM
+ * 0x0000_0100 - 0x0000_7FFF: bi_boot_params
+ * 0x0000_8000 - 0x007F_FFFF: Linux zImage
+ * 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
+ * 0x0100_0000 - 0x03FF_FFFF: Free RAM + U-Boot (if 64MB)
+ * 0x0100_0000 - 0x07FF_FFFF: Free RAM + U-Boot (if 128MB)
  *
- * Memory layout within U-Boot (from top to bottom!). For more details see
- * board_init_f() in arch/arm/lib/board.c.
+ * NBoot loads U-Boot to a rather low RAM address. Then U-Boot computes its
+ * final size and relocates itself to the end of RAM. This new ARM specific
+ * loader scheme was introduced in u-boot-2010.12. It only requires to set
+ * CONFIG_SYS_SDRAM_BASE correctly and to privide a board-specific function
+ * dram_init() that sets gd->ram_size to the actually available RAM. For more
+ * details see arch/arm/lib/board.c.
  *
- * Addr             Size                      Comment
- * ------------------------------------------------------------------------
- * CONFIG_SYS_SDRAM_BASE
- * + gd->ram_size   CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
- *                  LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
- *                  getenv("pram") (in KB)    Protected RAM set in env (unused)
- * gd->tlb_addr     16KB (16KB aligned)       MMU page tables (TLB)
- * gd->fb_base      lcd_setmen()              LCD framebuffer (unused?)
- *                  gd->monlen (4KB aligned)  U-boot code, data and bss
- *                  TOTAL_MALLOC_LEN          malloc heap
- * bd               sizeof(bd_t)              Board info struct
- * gd->irq_sp       sizeof(gd_t)              Global data
- *                  CONFIG_STACKSIZE_IRQ      IRQ stack
- *                  CONFIG_STACKSIZE_FIQ      FIQ stack
- *                  12 (8-byte aligned)       Abort-stack
+ * Memory layout within U-Boot (from top to bottom, starting at
+ * RAM-Top = CONFIG_SYS_SDRAM_BASE + gd->ram_size)
+ *
+ * Addr          Size                      Comment
+ * -------------------------------------------------------------------------
+ * RAM-Top       CONFIG_SYS_MEM_TOP_HIDE   Hidden memory (unused)
+ *               LOGBUFF_RESERVE           Linux kernel logbuffer (unused)
+ *               getenv("pram") (in KB)    Protected RAM set in env (unused)
+ * gd->tlb_addr  16KB (16KB aligned)       MMU page tables (TLB)
+ * gd->fb_base   lcd_setmen()              LCD framebuffer (unused?)
+ *               gd->monlen (4KB aligned)  U-boot code, data and bss
+ *               TOTAL_MALLOC_LEN          malloc heap
+ * bd            sizeof(bd_t)              Board info struct
+ * gd->irq_sp    sizeof(gd_t)              Global data
+ *               CONFIG_STACKSIZE_IRQ      IRQ stack
+ *               CONFIG_STACKSIZE_FIQ      FIQ stack
+ *               12 (8-byte aligned)       Abort-stack
  *
  * Remark: TOTAL_MALLOC_LEN depends on CONFIG_SYS_MALLOC_LEN and CONFIG_ENV_SIZE
- *
- * Old layout (from bottom to top!)
- * 
- * (Code size):              U-Boot code    
- * CONFIG_STACKSIZE_FIQ:     FIQ stack (if CONFIG_USE_IRQ is defined)
- * CONFIG_STACKSIZE_IRQ:     IRQ stack (if CONFIG_USE_IRQ is defined)
- * CONFIG_SYS_GBL_DATA_SIZE: Gobal data
- * CONFIG_SYS_MALLOC_LEN:    Heap
- * CONFIG_SYS_STACK_SIZE:    (128K) Stack
- * ----------------------------------------------------------------
- * CONFIG_SYS_UBOOT_SIZE:    Sum is size of U-Boot 
  *
  */
 
@@ -104,7 +96,7 @@
 
 /* ### TODO: Files/Switches, die noch zu testen und ggf. einzubinden sind:
    Define              File           Kommentar
-   -------------------------------------------------------------------- 
+   -------------------------------------------------------------------------
    CONFIG_CMD_DIAG     cmd_diag.c     Selbsttests
    CONFIG_CMD_FAT      cmd_fat.c      fatls, fatinfo, fatload
    CONFIG_CMD_SAVES    cmd_load.c     Upload (save)
@@ -116,14 +108,14 @@
                                       früh I/Os setzen müssen)
    CONFIG_CMD_REISER   cmd_reiser.c   reiserload, reiserls (Support für reiserfs)
    CONFIG_CMD_SETEXPR  cmd_setexpr.c  Environmentvariable als Ergebnis einer
-                                      Berechnung setzen 
+                                      Berechnung setzen
    CONFIG_CMD_SF       cmd_sf.c       SPI-Flash-Support
    CONFIG_CMD_SPI      cmd_spi.c      SPI-Daten senden
    CONFIG_CMD_STRINGS  cmd_strings.c  Strings im Speicher anzeigen
    CONFIG_CMD_TERMINAL cmd_terminal.c In einen Terminalmodus schalten
    CONFIG_CMD_USB      cmd_usbd.c     Download als USB-Device; vielleicht kann
                                       man diesen Modus so ändern, dass
-				      Downloads mit NetDCU-USBLoader möglich 
+				      Downloads mit NetDCU-USBLoader möglich
 				      werden
    CONFIG_USB_KEYBOARD usb_kbd.c      Unterstützung für USB-Tastaturen
  */
@@ -132,24 +124,19 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-/* Define extactly one of the two following lines, now done from boards.cfg */
-//#define CONFIG_NAND_64MB		  /* Compile U-Boot for 64MB flash */
-//#undef CONFIG_NAND_1GB		  /* Compile U-Boot for 1GB flash */
-
-/* We are on a PicoMOD6 */
-#define CONFIG_IDENT_STRING	" for PicoMOD6"
+#define CONFIG_IDENT_STRING " for F&S"	  /* We are on an F&S board */
 
 /* CPU, family and board defines */
 #define CONFIG_ARMV6		1	  /* This is an ARM v6 CPU core */
 #define CONFIG_SAMSUNG		1	  /* in a SAMSUNG core */
-#define CONFIG_S3C		1	  /* wich is in S3C family */
+#define CONFIG_S3C		1	  /* which is in S3C family */
 #define CONFIG_S3C64XX		1	  /* more specific in S3C64XX family */
 #define CONFIG_S3C6410		1	  /* it's an S3C6410 SoC */
-#define CONFIG_PICOMOD6		1	  /* F&S PicoMOD6 Board */
+#define CONFIG_FSS3C64XX	1	  /* F&S S3C64XX Board */
 
-/* Architecture magic and machine type */
-#define MACH_TYPE		0x9BE	  /* PicoMOD6/Linux */
-#define UBOOT_MAGIC		(0x43090000 | MACH_TYPE)
+/* The machine IDs are already set in include/asm/mach-types.h, but we may
+   need some additional settings */
+#define MACH_TYPE_NETDCU12	MACH_TYPE_PICOMOD6 /* ### TODO, if ever */
 
 /* Input clock of PLL */
 #define CONFIG_SYS_CLK_FREQ	12000000  /* 12MHz */
@@ -164,8 +151,6 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CONFIG_SYS_PROMPT	"PicoMOD6 # " /* Monitor Command Prompt */
-
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
 
@@ -178,13 +163,14 @@
 #define CONFIG_SYS_PBSIZE	384	   /* Print Buffer Size */
 #define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
-#define CONFIG_UBOOTNB0_SIZE    256	   /* size of uboot.nb0 (in kB) */
+#define CONFIG_UBOOTNB0_SIZE    384	   /* size of uboot.nb0 (in kB) */
 
 /* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
 #define CONFIG_MEMORY_UPPER_CODE
 
-/* No need to call special board_late_init() function */
-#undef BOARD_LATE_INIT
+/* We use special board_late_init() function to set board specific
+   environment variables that can't be set with a fix value here */
+#define CONFIG_BOARD_LATE_INIT
 
 /* Power Management is enabled */
 #define CONFIG_PM
@@ -213,19 +199,14 @@
 /* Physical RAM addresses */
 #define CONFIG_NR_DRAM_BANKS	1	        /* We have 1 bank of DRAM */
 #define PHYS_SDRAM_0		0x50000000	/* SDRAM Bank #0 */
-#define PHYS_SDRAM_0_SIZE	0x08000000      /* 128 MB */
 
-#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_0    /* Physical RAM address */
-
-/* Total memory required by uboot: 1MB */
+/* Total memory required by uboot: 1MB #### noch gebraucht? */
 #define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
 
-/* Locate U-Boot at 1MB below end of memory */
-//#define OUR_UBOOT_OFFS          (PHYS_SDRAM_0_SIZE - CONFIG_SYS_UBOOT_SIZE)
-#define OUR_UBOOT_OFFS          0x00f00000
-
-/* This results in the following base address for uboot */
-#define CONFIG_SYS_PHY_UBOOT_BASE (CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+/* The load address of U-Boot is now indepentent from the size. Just load it
+   at some rather low address in RAM. It will relocate itself to the end of
+   RAM automatically when executed. */
+#define CONFIG_SYS_PHY_UBOOT_BASE 0x50f00000
 
 
 #if 0 //###def CONFIG_ENABLE_MMU
@@ -245,11 +226,13 @@
 #define CONFIG_SYS_INIT_SP_ADDR	(0x0C00A000 - CONFIG_SYS_GBL_DATA_SIZE)
 #endif
 
-/* Size of malloc() pool (heap) */
-#define CONFIG_SYS_MALLOC_LEN	(CONFIG_ENV_SIZE + 512*1024)
+/* Size of malloc() pool (heap). Command "ubi part" needs quite a large heap
+   if the source MTD partition is large. The size should be large enough to
+   also contain a copy of the environment. */
+#define CONFIG_SYS_MALLOC_LEN	(1024*1024)
 
 /* Size in bytes reserved for initial data */
-#define CONFIG_SYS_GBL_DATA_SIZE	128
+#define CONFIG_SYS_GBL_DATA_SIZE	256
 
 /* Alignment mask for MMU pagetable: 16kB */
 #define CONFIG_SYS_TLB_ALIGN 0xFFFFC000
@@ -265,13 +248,16 @@
 #endif
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
-   untested) */
-#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+   untested) ### If not set, test from beginning of RAM to before stack. */
+//####define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
+//####define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
 
-/* Default load address */
-#define CONFIG_SYS_LOAD_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x8000)
-
+/* For the default load address, use an offset of 8MB. The final kernel (after
+   decompressing the zImage) must be at offset 0x8000. But if we load the
+   zImage there, the loader code will move it away to make room for the
+   uncompressed image at this position. So we'll load it directly to a higher
+   address to avoid this additional copying. */
+#define CONFIG_SYS_LOAD_OFFS 0x00800000
 
 
 
@@ -310,7 +296,12 @@
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/
-#define CONFIG_SERIAL3          1	  /* SERIAL 3 (UART2) on PicoMOD6 */
+#define CONFIG_SERIAL2          1	  /* We don't use it anymore, but we
+					     have to define one setting */
+#define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
+//#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
+
+#define CONFIG_SYS_SERCON_NAME "ttySAC"	  /* Base name for serial devices */
 
 #define CONFIG_BAUDRATE		38400
 
@@ -337,6 +328,9 @@
  ************************************************************************/
 #define CONFIG_ZIMAGE_BOOT
 #define CONFIG_IMAGE_BOOT
+
+/* Try to patch serial debug port in image within first 16KB of zImage */
+#define CONFIG_SYS_PATCH_TTY 0x4000
 
 #define CONFIG_SETUP_MEMORY_TAGS
 #define CONFIG_CMDLINE_TAG
@@ -382,7 +376,6 @@
 
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_USB
-#define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
 #undef CONFIG_CMD_REGINFO		  /* No register info on ARM */
 #define	CONFIG_CMD_NAND
@@ -413,50 +406,24 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-/* This board has a NE2000 compatible AX88769B ethernet chip */
+/* This board has one or two NE2000 compatible AX88769B ethernet chips */
 #define CONFIG_DRIVER_NE2000
 #define CONFIG_DRIVER_NE2000_BASE	0x18000000
+#define CONFIG_DRIVER_NE2000_BASE2	0x18008000
 #define CONFIG_DRIVER_NE2000_SOFTMAC
 #define CONFIG_DRIVER_AX88796L
 
 
-#ifndef CONFIG_PICOMOD6 /* Already done in NBoot */
 /************************************************************************
  * CPU (PLL) timings
  ************************************************************************/
-
-//#define CONFIG_CLK_800_133_66
-//#define CONFIG_CLK_666_133_66
-#define CONFIG_CLK_532_133_66
-//#define CONFIG_CLK_400_133_66
-//#define CONFIG_CLK_400_100_50
-#endif /* !CONFIG_PICOMOD6 */
+/* Already done in NBoot */
 
 
-#ifndef CONFIG_PICOMOD6 /* Already done in NBoot */
 /************************************************************************
  * RAM timing
  ************************************************************************/
-#define DMC1_MEM_CFG		0x00010012	/* Supports one CKE control,
-						   Chip1, Burst4, Row/Column
-						   bit */
-#define DMC1_MEM_CFG2		0xB45
-#define DMC1_CHIP0_CFG		0x150F8
-#define DMC_DDR_32_CFG		0x0 		/* 32bit, DDR */
-
-/* Memory Parameters */
-/* DDR Parameters */
-#define DDR_tREFRESH		7800		/* ns */
-#define DDR_tRAS		45		/* ns (min: 45ns)*/
-#define DDR_tRC 		68		/* ns (min: 67.5ns)*/
-#define DDR_tRCD		23		/* ns (min: 22.5ns)*/
-#define DDR_tRFC		80		/* ns (min: 80ns)*/
-#define DDR_tRP 		23		/* ns (min: 22.5ns)*/
-#define DDR_tRRD		15		/* ns (min: 15ns)*/
-#define DDR_tWR 		15		/* ns (min: 15ns)*/
-#define DDR_tXSR		120		/* ns (min: 120ns)*/
-#define DDR_CASL		3		/* CAS Latency 3 */
-#endif /* !CONFIG_PICOMOD6 */
+/* Already done in NBoot */
 
 
 /************************************************************************
@@ -468,7 +435,7 @@
 #define CONFIG_USB_S3C64XX
 #define CONFIG_SYS_USB_OHCI_REGS_BASE 0x74300000
 #define CONFIG_SYS_USB_OHCI_BOARD_INIT
-#define CONFIG_SYS_USB_OHCI_SLOT_NAME "F+S USB Host"
+#define CONFIG_SYS_USB_OHCI_SLOT_NAME "s3c"
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 2
 
 /************************************************************************
@@ -506,46 +473,43 @@
  * NOR Flash
  ************************************************************************/
 /* No support for NOR flash */
-#define CONFIG_SYS_NO_FLASH	1	/* no NOR flash */     
+#define CONFIG_SYS_NO_FLASH	1	  /* no NOR flash */
 
 
 /************************************************************************
  * SD/MMC card support
  ************************************************************************/
+#if 0
 /* We have support for SD/MMC card */
 #define CONFIG_MMC
 #define CONFIG_MMC_S3C64XX		  /* Use F&S S3C64XX MMC driver */
-
+#else
+//####define CONFIG_MMC			  /* Support for SD/MMC card */
+//####define CONFIG_GENERIC_MMC		  /* Using the generic driver */
+//####define CONFIG_S3C_HSMMC		  /* with support for S3C */
+#endif
 
 /************************************************************************
- * NAND flash organization
+ * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
-/* We have one NAND device */
+/* S3C64XX only has one NAND flash controller, so we can only have one
+   physical NAND device; however as NBOOT needs 8-bit-ECC and everything else
+   1-bit-ECC, we split the NAND up into two virtual devices to allow these two
+   different ECC strategies and OOB layouts. */
 #define CONFIG_NAND_S3C64XX     1
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
+#define CONFIG_SYS_MAX_NAND_DEVICE	2
 
-/* One chip per device */
+/* Chips per device; all chips must be the same type; if different types
+   are necessary, they must be implemented as different NAND devices */
 #define CONFIG_SYS_NAND_MAX_CHIPS	1
 
-/* Address of the DATA register for reading and writing data */
-#define CONFIG_SYS_NAND_BASE	(0x70200010)
+/* Define if you want to support nand chips that comply to ONFI spec */
+#define CONFIG_SYS_NAND_ONFI_DETECTION
 
-#define CONFIG_NAND_NBOOT	1	  /* Support NBoot with ECC8 */
-#ifdef CONFIG_NAND_64MB
-#define CONFIG_SYS_NAND_NBOOT_SIZE 0x08000 /* 32KB NBoot, uses ECC8 */
-#define CONFIG_SYS_NAND_PAGE_SIZE  512
-#define CONFIG_SYS_NAND_PAGE_COUNT 32
-#define CONFIG_SYS_NAND_ECCSIZE    512	  /* Full page in one ECC cycle */
-#define CONFIG_SYS_NAND_ECCBYTES   4
-#else
-#define CONFIG_SYS_NAND_NBOOT_SIZE 0x40000 /* 256KB NBoot, uses ECC8 */
-#define CONFIG_SYS_NAND_PAGE_SIZE  2048
-#define CONFIG_SYS_NAND_PAGE_COUNT 64
-#define CONFIG_SYS_NAND_ECCSIZE    2048	  /* Full page in one ECC cycle */
-#define CONFIG_SYS_NAND_ECCBYTES   4
-#endif
-#define CONFIG_SYS_NAND_BLOCK_SIZE \
-		(CONFIG_SYS_NAND_PAGE_COUNT * CONFIG_SYS_NAND_PAGE_SIZE)
+/* Address of the DATA register for reading and writing data; we need an
+   entry for each device. As we only virtually split our flash into two
+   devices, they both have the same address. */
+#define CONFIG_SYS_NAND_BASE_LIST {0x70200010, 0x70200010}
 
 /* Use hardware ECC */
 #define CONFIG_SYS_S3C_NAND_HWECC
@@ -556,28 +520,42 @@
 /* Support mtd partitions (commands: mtdparts, chpart) */
 #define CONFIG_CMD_MTDPARTS
 
+/* We have one NAND chip, give it a name */
+#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
+
+/* We don't define settings for mtdparts default. Instead in fss3c64xx.c
+   board_late_init() we set variables mtdids, mtdparts and partition; We have
+   mtdparts settings for 16K and for 128K block size. The correct one is set
+   depending on the installed NAND flash type. */
+#define MTDPARTS_DEF_SMALL	"mtdparts=fsnand1:32k(NBoot)ro;fsnand0:448k@32k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
+#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:512k@256k(UBoot)ro,256k(UBootEnv)ro,4m(UserDef),3m(Kernel)ro,-(TargetFS)"
+
+/* Set UserDef as default partition */
+#define MTDPART_DEFAULT "nand0,2"
+
+#define CONFIG_MTD_DEVICE		  /* Create MTD device */
+#define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
+#define CONFIG_RBTREE			  /* Required for UBI */
+#define CONFIG_LZO			  /* Required for UBI */
+
+#define CONFIG_CMD_UBI
+#define CONFIG_CMD_UBIFS
 
 /************************************************************************
  * Environment
  ************************************************************************/
-/* Use this if the environment should be in the NAND flash */
-#define CONFIG_ENV_IS_IN_NAND
+#define CONFIG_ENV_IS_IN_NAND		  /* Environment is in NAND flash */
+#define CONFIG_ENV_ADDR	   0		  /* Only needed for NOR flash */
 
-#define CONFIG_ENV_ADDR		0	  /* Only needed for NOR flash */
+/* Environment settings for small blocks (16KB) */
+#define ENV_SIZE_DEF_SMALL   0x00004000	  /* 1 block = 16KB */
+#define ENV_RANGE_DEF_SMALL  0x00008000   /* 2 blocks = 32KB */
+#define ENV_OFFSET_DEF_SMALL 0x00078000	  /* See NAND layout above */
 
-#ifdef CONFIG_NAND_64MB
-/* The environment is 16KB and can use a region of 32KB, allowing for one bad
-   block. */
-#define CONFIG_ENV_SIZE    0x00004000	  /* 16KB actual environment */
-#define CONFIG_ENV_RANGE   0x00008000	  /* 32KB region for environment */
-#define CONFIG_ENV_OFFSET  0x00078000
-#else
-/* The environment is 128KB and can use a region of 256KB, allowing for one
-   bad block. */
-#define CONFIG_ENV_SIZE	   0x00020000	  /* 128KB actual environment */
-#define CONFIG_ENV_RANGE   0x00040000	  /* 256KB region for environment */
-#define CONFIG_ENV_OFFSET  0x000C0000
-#endif
+/* Environment settings for large blocks (128KB) */
+#define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+#define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
+#define ENV_OFFSET_DEF_LARGE 0x000C0000	  /* See NAND layout above */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
@@ -586,40 +564,22 @@
    environments is always valid. Currently we don't use this feature. */
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
-
-/* We have one NAND chip, give it a name */
-#define MTDIDS_DEFAULT		"nand0=pm6nand0"
-
-/* Define the default partitions on this NAND chip; we have a version for
-   64MB and 1GB flash (see comment at head of file) */
-#ifdef CONFIG_NAND_64MB
-#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:32k(NBoot)ro,448k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
-//#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:32k@0x78000(UBootEnv),512k(UserDef),3m(Kernel),-(TargetFS)"
-#else
-#define MTDPARTS_DEFAULT	"mtdparts=pm6nand0:256k(NBoot)ro,512k(UBoot),256k(UBootEnv),4m(UserDef),3m(Kernel),-(TargetFS)"
-#endif
-
-#define CONFIG_MTD_DEVICE
-//#define CONFIG_MTD_PARTITIONS  /* For UBI */
-
 #define CONFIG_BOOTDELAY	3
-#define CONFIG_BOOTARGS    	"console=ttySAC2,38400 init=linuxrc"
-#define CONFIG_BOOTCOMMAND      "nand read.jffs2 51000000 Kernel ; bootm 51000000"
+//####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
+#define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-        "bootlocal=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/mtdblock5 ro rootfstype=jffs2\0" \
-        "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) init=linuxrc root=/dev/nfs rw nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)\0" \
-	"r=tftp 51000000 zImage ; bootm 51000000\0" \
-	"autoload=PicoMOD6/autoload.scr\0" \
-	"autommc=3\0" \
-	"autousb=3\0" \
-	"autoaddr=50000000\0"
+	"instcheck=mmc0,mmc1,usb\0" \
+	"updcheck=mmc0,mmc1,usb\0" \
+	"bootubi=setenv bootargs console=ttySAC2,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+        "bootjffs2=setenv bootargs console=ttySAC2,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+        "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
+	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:02:69:19
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE         "zImage"
-#define CONFIG_LOADADDR         50000000
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
