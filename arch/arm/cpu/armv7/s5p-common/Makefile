@@ -28,6 +28,7 @@ LIB	= $(obj)libs5p-common.o
 COBJS-y		+= cpu_info.o
 COBJS-y		+= timer.o
 COBJS-y		+= sromc.o
+COBJS-y		+= wdt.o
 COBJS-y         += pwm.o
 #COBJS-$(CONFIG_PWM)	+= pwm.o
 

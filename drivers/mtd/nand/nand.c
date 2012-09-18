@@ -23,6 +23,7 @@
 
 #include <common.h>
 #include <nand.h>
+#include <errno.h>
 
 #ifndef CONFIG_SYS_NAND_BASE_LIST
 #define CONFIG_SYS_NAND_BASE_LIST { CONFIG_SYS_NAND_BASE }
@@ -31,14 +32,49 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 int nand_curr_device = -1;
+
+
 nand_info_t nand_info[CONFIG_SYS_MAX_NAND_DEVICE];
 
+#ifndef CONFIG_SYS_NAND_SELF_INIT
 static struct nand_chip nand_chip[CONFIG_SYS_MAX_NAND_DEVICE];
 static ulong base_address[CONFIG_SYS_MAX_NAND_DEVICE] = CONFIG_SYS_NAND_BASE_LIST;
+#endif
 
-static const char default_nand_name[] = "nand";
-static __attribute__((unused)) char dev_name[CONFIG_SYS_MAX_NAND_DEVICE][8];
+static char dev_name[CONFIG_SYS_MAX_NAND_DEVICE][8];
 
+static unsigned long total_nand_size; /* in kiB */
+
+/* Register an initialized NAND mtd device with the U-Boot NAND command. */
+int nand_register(int devnum)
+{
+	struct mtd_info *mtd;
+
+	if (devnum >= CONFIG_SYS_MAX_NAND_DEVICE)
+		return -EINVAL;
+
+	mtd = &nand_info[devnum];
+
+	sprintf(dev_name[devnum], "nand%d", devnum);
+	mtd->name = dev_name[devnum];
+
+#ifdef CONFIG_MTD_DEVICE
+	/*
+	 * Add MTD device so that we can reference it later
+	 * via the mtdcore infrastructure (e.g. ubi).
+	 */
+	add_mtd_device(mtd);
+#endif
+
+	total_nand_size += mtd->size / 1024;
+
+	if (nand_curr_device == -1)
+		nand_curr_device = devnum;
+
+	return 0;
+}
+
+#ifndef CONFIG_SYS_NAND_SELF_INIT
 static int __board_nand_setup(struct mtd_info *mtd,
 			      struct nand_chip *nand, int id)
 {
@@ -48,18 +84,19 @@ static int __board_nand_setup(struct mtd_info *mtd,
 int board_nand_setup(struct mtd_info *mtd, struct nand_chip *nand, int id)
 	__attribute__((weak, alias("__board_nand_setup")));
 
-static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
-			   ulong base_addr)
+static void nand_init_chip(int i)
 {
+	struct mtd_info *mtd = &nand_info[i];
+	struct nand_chip *nand = &nand_chip[i];
+	ulong base_addr = base_address[i];
 	int maxchips = CONFIG_SYS_NAND_MAX_CHIPS;
-	static int __attribute__((unused)) i = 0;
 
 	if (maxchips < 1)
 		maxchips = 1;
+
 	mtd->priv = nand;
 	mtd->name = NULL;
 	mtd->size = 0;
-
 	nand->IO_ADDR_R = nand->IO_ADDR_W = (void  __iomem *)base_addr;
 
 	/* Set up functions to access the NAND chip. This may include the OOB
@@ -85,36 +122,22 @@ static void nand_init_chip(struct mtd_info *mtd, struct nand_chip *nand,
 		return;
 	}
 
-	if (!mtd->name)
-		mtd->name = (char *)default_nand_name;
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	else
-		mtd->name += gd->reloc_off;
-#endif
-
-#ifdef CONFIG_MTD_DEVICE
-	/*
-	 * Add MTD device so that we can reference it later
-	 * via the mtdcore infrastructure (e.g. ubi).
-	 */
-	sprintf(dev_name[i], "nand%d", i);
-	mtd->name = dev_name[i++];
-	add_mtd_device(mtd);
-#endif
+	nand_register(i);
 }
+#endif
 
 void nand_init(void)
 {
+#ifdef CONFIG_SYS_NAND_SELF_INIT
+	board_nand_init();
+#else
 	int i;
-	unsigned int size = 0;
 
-	for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++) {
-		nand_init_chip(&nand_info[i], &nand_chip[i], base_address[i]);
-		size += nand_info[i].size / 1024;
-		if (nand_curr_device == -1)
-			nand_curr_device = i;
-	}
-	printf("%u MiB\n", size / 1024);
+	for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++)
+		nand_init_chip(i);
+#endif
+
+	printf("%lu MiB\n", total_nand_size / 1024);
 
 #ifdef CONFIG_SYS_NAND_SELECT_DEVICE
 	/*

@@ -95,7 +95,7 @@ int serial_printf(const char *fmt, ...)
 	/* For this to work, printbuffer must be larger than
 	 * anything we ever want to print.
 	 */
-	i = vsprintf(printbuffer, fmt, args);
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 	va_end(args);
 
 	serial_puts(NULL, printbuffer);
@@ -165,7 +165,7 @@ int fprintf(int file, const char *fmt, ...)
 	/* For this to work, printbuffer must be larger than
 	 * anything we ever want to print.
 	 */
-	i = vsprintf(printbuffer, fmt, args);
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 	va_end(args);
 
 	/* Send to desired file */
@@ -215,19 +215,14 @@ int tstc(void)
 	return serial_tstc(NULL);
 }
 
-#if defined(CONFIG_PRE_CONSOLE_BUFFER) || defined(CONFIG_PRE_CONSOLE_PUTC)
+#ifdef CONFIG_PRE_CONSOLE_BUFFER
 #define CIRC_BUF_IDX(idx) ((idx) % (unsigned long)CONFIG_PRE_CON_BUF_SZ)
 
 static void pre_console_putc(const char c)
 {
-#ifdef CONFIG_PRE_CONSOLE_BUFFER
 	char *buffer = (char *)CONFIG_PRE_CON_BUF_ADDR;
 
 	buffer[CIRC_BUF_IDX(gd->precon_buf_idx++)] = c;
-#endif
-#ifdef CONFIG_PRE_CONSOLE_PUTC
-	board_pre_console_putc(c);
-#endif
 }
 
 static void pre_console_puts(const char *s)
@@ -238,7 +233,6 @@ static void pre_console_puts(const char *s)
 
 static void print_pre_console_buffer(void)
 {
-#ifdef CONFIG_PRE_CONSOLE_BUFFER
 	unsigned long i = 0;
 	char *buffer = (char *)CONFIG_PRE_CON_BUF_ADDR;
 
@@ -247,9 +241,7 @@ static void print_pre_console_buffer(void)
 
 	while (i < gd->precon_buf_idx)
 		putc(buffer[CIRC_BUF_IDX(i++)]);
-#endif
 }
-
 #else
 static inline void pre_console_putc(const char c) {}
 static inline void pre_console_puts(const char *s) {}
@@ -312,7 +304,7 @@ int printf(const char *fmt, ...)
 	/* For this to work, printbuffer must be larger than
 	 * anything we ever want to print.
 	 */
-	i = vsprintf(printbuffer, fmt, args);
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 	va_end(args);
 
 	/* Print the string */
@@ -334,7 +326,7 @@ int vprintf(const char *fmt, va_list args)
 	/* For this to work, printbuffer must be larger than
 	 * anything we ever want to print.
 	 */
-	i = vsprintf(printbuffer, fmt, args);
+	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 
 	/* Print the string */
 	puts(printbuffer);
@@ -401,7 +393,7 @@ inline void dbg(const char *fmt, ...)
 	/* For this to work, printbuffer must be larger than
 	 * anything we ever want to print.
 	 */
-	i = vsprintf(printbuffer, fmt, args);
+	i = vsnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 	va_end(args);
 
 	if ((screen + sizeof(screen) - 1 - cursor)
