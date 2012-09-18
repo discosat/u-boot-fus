@@ -597,7 +597,7 @@
 	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
 	"bootjffs2dhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
 	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
-	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs o init=linuxrc\0" \
+	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs ro init=linuxrc\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:05:2a:73
 #define CONFIG_ETH1ADDR		00:05:51:05:2a:74

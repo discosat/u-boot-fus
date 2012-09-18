@@ -552,8 +552,10 @@
 #define ENV_RANGE_DEF_SMALL  0x00008000   /* 2 blocks = 32KB */
 #define ENV_OFFSET_DEF_SMALL 0x00078000	  /* See NAND layout above */
 
-/* Environment settings for large blocks (128KB) */
-#define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+/* Environment settings for large blocks (128KB); we keep the size as more
+   just wastes malloc space (the environment is held in the heap) */
+//####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
+#define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
 #define ENV_OFFSET_DEF_LARGE 0x000C0000	  /* See NAND layout above */
 
@@ -565,14 +567,17 @@
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
 #define CONFIG_BOOTDELAY	3
-//####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
 #define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
+//####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"instcheck=mmc0,mmc1,usb\0" \
-	"updcheck=mmc0,mmc1,usb\0" \
-	"bootubi=setenv bootargs console=ttySAC2,38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-        "bootjffs2=setenv bootargs console=ttySAC2,38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
-        "bootnfs=setenv bootargs console=ttySAC2,38400 $(mtdparts) root=/dev/nfs nfsroot=/rootfs ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask) ro init=linuxrc\0" \
+	"instcheck=default\0" \
+	"updcheck=default\0" \
+	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootubidhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+	"bootjffs2dhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
+	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
+	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs ro init=linuxrc\0" \
 	"r=tftp zImage ; bootm\0"
 #define CONFIG_ETHADDR		00:05:51:02:69:19
 #define CONFIG_NETMASK          255.255.255.0
