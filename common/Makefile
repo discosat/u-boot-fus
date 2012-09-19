@@ -32,9 +32,7 @@ COBJS-y += command.o
 COBJS-y += exports.o
 COBJS-$(CONFIG_SYS_HUSH_PARSER) += hush.o
 COBJS-y += image.o
-COBJS-$(CONFIG_CMD_LOADS) += s_record.o
 COBJS-$(CONFIG_SERIAL_MULTI) += serial.o
-COBJS-y += xyzModem.o
 
 # core command
 COBJS-y += cmd_boot.o
@@ -107,8 +105,8 @@ COBJS-$(CONFIG_CMD_CRAMFS) += cmd_cramfs.o
 COBJS-$(CONFIG_CMD_LDRINFO) += cmd_ldrinfo.o
 COBJS-$(CONFIG_CMD_LED) += cmd_led.o
 COBJS-$(CONFIG_CMD_LICENSE) += cmd_license.o
-COBJS-$(CONFIG_CMD_LOADS) += cmd_load.o
-COBJS-$(CONFIG_CMD_LOADB) += cmd_load.o
+COBJS-$(CONFIG_CMD_LOADS) += cmd_load.o s_record.o
+COBJS-$(CONFIG_CMD_LOADB) += cmd_load.o xyzModem.o
 COBJS-$(CONFIG_LOGBUFFER) += cmd_log.o
 COBJS-$(CONFIG_ID_EEPROM) += cmd_mac.o
 COBJS-$(CONFIG_CMD_MD5SUM) += cmd_md5sum.o
