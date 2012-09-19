@@ -379,6 +379,7 @@
 #define CONFIG_CMD_NFS		/* NFS support			*/
 #undef CONFIG_CMD_SETGETDCR	/* DCR support on 4xx		*/
 #undef CONFIG_CMD_XIMG		/* Load part of Multi Image	*/
+#define CONFIG_CMD_UPDATE	/* support automatic update/install */
 
 
 #undef CONFIG_CMD_FLASH
@@ -590,8 +591,8 @@
 #define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootm $(loadaddr)"
 //####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"instcheck=default\0" \
-	"updcheck=default\0" \
+	"installcheck=default\0" \
+	"updatecheck=default\0" \
 	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootubidhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \

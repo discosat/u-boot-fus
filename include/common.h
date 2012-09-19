@@ -295,8 +295,8 @@ void flash_perror (int);
 
 /* common/cmd_source.c */
 int	source (ulong addr, const char *fit_uname);
-int autoload_script(int index, char *autocheck, char *fname,
-		    unsigned long addr);
+int update_script(const char *action, const char *autocheck, const char *fname,
+		  unsigned long addr);
 
 //###extern ulong load_addr;		/* Default Load Address */
 extern ulong save_addr;		/* Default Save Address */

@@ -1,4 +1,7 @@
 /*
+ * (C) Copyright 2012
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
+ *
  * (C) Copyright 2001
  * Kyle Harris, kharris@nexus-tech.net
  *
@@ -36,6 +39,9 @@
 #include <image.h>
 #include <malloc.h>
 #include <fat.h>			  /* fat_register_device(), ... */
+#ifdef CONFIG_CMD_UPDATE
+#include <net.h>			  /* proto_t, NetLoop() */
+#endif
 #ifdef CONFIG_MMC
 #include <mmc.h>			  /* mmc_init() */
 #endif
@@ -244,9 +250,12 @@ U_BOOT_CMD(
 #endif
 );
 
+
+#ifdef CONFIG_CMD_UPDATE
+
 #ifdef CONFIG_MMC
-static int autoload_mmc(unsigned long addr, int devnum, int partnum,
-			char *fname)
+static int update_mmc(unsigned long addr, int devnum, int partnum,
+		      const char *fname)
 {
 	struct mmc *mmc;
 	block_dev_desc_t *dev_desc;
@@ -258,7 +267,7 @@ static int autoload_mmc(unsigned long addr, int devnum, int partnum,
 	mmc_init(mmc);
 
 	/* If the device is valid and we can open the partition, try to
-	   load the autoload file */
+	   load the update file */
 	dev_desc = get_dev("mmc", devnum);
 	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
 		return -1;		  /* Device or partition not valid */
@@ -271,13 +280,13 @@ static int autoload_mmc(unsigned long addr, int devnum, int partnum,
 #endif /* CONFIG_MMC */
 
 #ifdef CONFIG_USB_STORAGE
-static int autoload_usb(unsigned long addr, int devnum, int partnum,
-			char *fname)
+static int update_usb(unsigned long addr, int devnum, int partnum,
+		      const char *fname)
 {
 	static int usb_init_done = 0;
 	block_dev_desc_t *dev_desc;
 
-	/* Init USB only once during autoload */
+	/* Init USB only once during update */
 	if (!usb_init_done) {
 	        if (usb_init() < 0)
 			return -1;
@@ -288,7 +297,7 @@ static int autoload_usb(unsigned long addr, int devnum, int partnum,
 	}
 
 	/* If the device is valid and we can open the partition, try to
-	   load the autoload file */
+	   load the update file */
 	dev_desc = get_dev("usb", devnum);
 	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
 		return -1;		  /* Device or partition not valid */
@@ -301,151 +310,165 @@ static int autoload_usb(unsigned long addr, int devnum, int partnum,
 #endif /* CONFIG_USB_STORAGE */
 
 #ifdef CONFIG_CMD_NET
-extern int autoload_net(enum proto_t proto, unsigned long addr, char *fname);
-static int autoload_tftp(unsigned long addr, int devnum, int partnum,
-			 char *fname)
+static int update_net(enum proto_t proto, unsigned long addr, const char *fname)
 {
-	return autoload_net(TFTPGET, addr, fname);
+	int size;
+
+	copy_filename(BootFile, fname, sizeof(BootFile));
+	set_loadaddr(addr);
+	size = NetLoop(proto);
+	if (size < 0)
+		return -1;
+
+	/* flush cache */
+	flush_cache(addr, size);
+
+	return 0;
 }
 
-static int autoload_nfs(unsigned long addr, int devnum, int partnum,
-			char *fname)
+static int update_tftp(unsigned long addr, int devnum, int partnum,
+		       const char *fname)
 {
-	return autoload_net(NFS, addr, fname);
+	return update_net(TFTPGET, addr, fname);
 }
 
-static int autoload_dhcp(unsigned long addr, int devnum, int partnum,
-			char *fname)
+static int update_nfs(unsigned long addr, int devnum, int partnum,
+		      const char *fname)
 {
-	return autoload_net(DHCP, addr, fname);
+	return update_net(NFS, addr, fname);
+}
+
+static int update_dhcp(unsigned long addr, int devnum, int partnum,
+		       const char *fname)
+{
+	return update_net(DHCP, addr, fname);
 }
 #endif /* CONFIG_CMD_NET */
 
-struct autoloadinfo {
+
+#define UPDATE_FLAGS_NET 0x01	/* Network device, ignore devnum & partnum */
+struct updateinfo {
 	char *devname;
-	int (*autoload)(unsigned long addr, int devnum, int partnum,
-			char *fname);
+	unsigned int flags;
+	int (*update)(unsigned long addr, int devnum, int partnum,
+		      const char *fname);
 };
 
-static struct autoloadinfo alinfo[] = {
+static struct updateinfo upinfo[] = {
 #ifdef CONFIG_MMC
-	{"mmc", autoload_mmc},
+	{"mmc", 0, update_mmc},
 #endif
 #ifdef CONFIG_USB_STORAGE
-	{"usb", autoload_usb},
+	{"usb", 0, update_usb},
 #endif
 #ifdef CONFIG_CMD_NET
-	{"tftp", autoload_tftp},
-	{"nfs", autoload_nfs},
-	{"dhcp", autoload_dhcp},
+	{"tftp", UPDATE_FLAGS_NET, update_tftp},
+	{"nfs", UPDATE_FLAGS_NET, update_nfs},
+	{"dhcp", UPDATE_FLAGS_NET, update_dhcp},
 #endif
-};
-
-struct autoloadvars {
-	char *action;			  /* Action performed (upd/inst) */
-	char *checkvar;			  /* Var name with devices to check */
-	char *addrvar;			  /* Var name with load address */
-	char *scriptvar;		  /* Var name with script name */
-	char *scriptdef;		  /* Default script name */
-};
-
-static struct autoloadvars alvars[] = {
-	{"installation", "instcheck", "instscript", "instaddr", "install.scr"},
-	{"update",       "updcheck",  "updscript",  "updaddr",  "update.scr"},
 };
 
 
 /*
- * Autoload function. This checks the following environment variables:
- *
- *   xxxcheck:  comma separated list of devices to check: e.g. "mmc0,usb0"
- *   xxxaddr:   address where to load the script (default: loadaddr)
- *   xxxscript: filename of a u-boot autoscript to load (default: install.scr)
- *
- * The xxx part and the default script name depend on the given index (see
- * alvars above). Return:
- *
- *   0:   Script successfully loaded and executed
- *   !=0: Check-variable not set or script not found or execution
+ * Check the devices given as comma separated list in check whether they
+ * contain an update script with name given in fname. If yes, load it to the
+ * address given in addr and execute it (by sourcing it). If not, check next
+ * device. The action is usually "update" or "install". It is shown to the
+ * user and is also used to determine the names of the environment variables
+ * and/or the script name that are used as defaults if the arguments are zero.
  */
-int autoload_script(int index, char *autocheck, char *fname, unsigned long addr)
+int update_script(const char *action, const char *check, const char *fname,
+		  unsigned long addr)
 {
 	char c;
-	char *devname;
+	const char *devname;
 	int devnamelen;
 	int devnum;
 	int partnum;
 	int i;
-	struct autoloadinfo *p;
-	struct autoloadvars *v;
+	struct updateinfo *p;
+	char varname[20];
 
-	if (index >= ARRAY_SIZE(alvars))
-		return 1;		  /* Error */
-
-	v = &alvars[index];
-
-	/* If called without devices argument, get autoload devices from
-	   environment */
-	if (!autocheck) {
-		autocheck = getenv(v->checkvar);
-		if (!autocheck)
+	/* If called without devices argument, get devices to check from
+	   environment variable "<action>check", i.e. "updatecheck" or
+	   "installcheck". */
+	if (!check) {
+		sprintf(varname, "%scheck", action);
+		check = getenv(varname);
+		if (!check)
 			return 1;	  /* Variable not set */
 	}
 
-	/* If called without load address argument, get address where to load
-	   to from environment, default: loadaddr */
-	if (!addr)
-		addr = getenv_ulong(v->addrvar, 16, get_loadaddr());
+	/* If called without load address argument, get address from
+	   environment variable "<action>addr, i.e. "updateaddr" or
+	   "installaddr". If the variable does not exist, use $(loadaddr) */
+	if (!addr) {
+		sprintf(varname, "%saddr", action);
+		addr = getenv_ulong(varname, 16, get_loadaddr());
+	}
 
 	/* If called without script filename argument, get filename from
-	   environment or take default from table */
-	fname = getenv(v->scriptvar);
-	if (!fname)
-		fname = v->scriptdef;
+	   environment variable "<action>script", i.e. "updatescript" or
+	   "installscript". If the variable does not exist, use
+	   "<action>.scr" as default script name, i.e. "update.scr" or
+	   "install.scr". */
+	if (!fname) {
+		sprintf(varname, "%sscript", action);
+		fname = getenv(varname);
+		if (!fname) {
+			sprintf(varname, "%s.scr", action);
+			fname = varname;
+		}
+	}
 
-	c = *autocheck;
+	/* Parse devices and check for script */
+	c = *check;
 	do {
 		/* Skip any commas */
 		while (c == ',')
-		       c = *(++autocheck);
+		       c = *(++check);
 		if (!c)
 			break;
 
 		/* Scan device name */
-		devname = autocheck;
+		devname = check;
 		while ((c >= 'a') && (c <= 'z'))
-		       c = *(++autocheck);
-		devnamelen = autocheck - devname;
+		       c = *(++check);
+		devnamelen = check - devname;
 
-		/* Scan device number */
+		/* Scan optional device number, default 0 */
 		devnum = 0;
 		while ((c >= '0') && (c <= '9')) {
 			devnum = 10*devnum + c - '0';
-			c = *(++autocheck);
+			c = *(++check);
 		}
 
-		/* Scan optional partition number */
+		/* Scan optional partition number, default 1 */
 		if (c != ':')
 			partnum = 1;
 		else {
 			partnum = 0;
-			c = *(++autocheck);
+			c = *(++check);
 			while ((c >= '0') && (c <= '9')) {
 				partnum = 10*partnum + c - '0';
-				c = *(++autocheck);
+				c = *(++check);
 			}
 		}
 
-		/* Search if device name known */
-		for (i = 0, p = alinfo; i < ARRAY_SIZE(alinfo); i++, p++) {
+		/* Search if device name is known */
+		for (i = 0, p = upinfo; i < ARRAY_SIZE(upinfo); i++, p++) {
 			if ((devnamelen == strlen(p->devname)) &&
 			    !strncmp(devname, p->devname, devnamelen))
 				break;
 		}
-		printf("---- Trying %s with %s from ", v->action, fname);
-		if ((i < ARRAY_SIZE(alinfo)) && (!c || (c == ','))) {
-			printf("%s%d:%d ----\n", p->devname, devnum, partnum);
-			if (p->autoload(addr, devnum, partnum, fname) < 0)
+		printf("---- Trying %s with %s from ", action, fname);
+		if ((i < ARRAY_SIZE(upinfo)) && (!c || (c == ','))) {
+			if (p->flags & UPDATE_FLAGS_NET)
+				printf("%s%d ----\n", p->devname, devnum);
+			else
+				printf("%s%d:%d ----\n", p->devname, devnum,
+				       partnum);
+			if (p->update(addr, devnum, partnum, fname) < 0)
 				puts("Failed!\n");
 			else {
 				puts("Success!\n");
@@ -457,66 +480,72 @@ int autoload_script(int index, char *autocheck, char *fname, unsigned long addr)
 				return 0;
 			}
 		} else {
-			autocheck = devname;
-			c = *autocheck;
+			check = devname;
+			c = *check;
 			while (c && (c != ',')) {
 				putc(c);
-				c = *(++autocheck);
+				c = *(++check);
 			}
 			puts(" ----\nUnknown device, ignored\n");
 		}
 	} while (c);
-	printf("---- No %s script found ----\n", v->action);
+	printf("---- No %s script found ----\n", action);
 
 	return 1;
 }
 
-int do_autoload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_update(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	int index = 0;
-	char *autocheck = NULL;
+	char *check = NULL;
 	char *fname = NULL;
 	unsigned long addr = 0;
 
-	if (strcmp(argv[0], "update") == 0)
-		index = 1;
-
 	/* Take arguments if given */
 	if (argc > 1) {
-		fname = argv[1];
+		if (strcmp(argv[1], ".") != 0)
+			check = argv[1];
 		if (argc > 2) {
-			autocheck = argv[2];
+			if (strcmp(argv[2], ".") != 0)
+				fname = argv[2];
 			if (argc > 3)
 				addr = simple_strtoul(argv[3], NULL, 16);
 		}
 	}
 
-	/* Try autoload */
-	return autoload_script(index, autocheck, fname, addr);
+	/* Try update */
+	return update_script((argv[0][0] == 'u') ? "update" : "install",
+			     check, fname, addr);
 }
 
 
 U_BOOT_CMD(
-	update, 4, 0,	do_autoload,
+	update, 4, 0,	do_update,
 	"update system from external device",
-	"[updscript [updcheck [updaddr]]]\n"
-	" - Look for scriptfile updscript by checking devices updcheck.\n"
-	"   If found anywhere, load it to address updaddr and update the\n"
-	"   system by executing it. If an argument is not given, the\n"
-	"   environment variable of the same name is used instead, or by\n"
-	"   default 'update.scr' for updscript and loadaddr for updaddr.\n"
+	"[updatecheck [updatescript [updateaddr]]]\n"
+	" - Check the devices given in updatecheck whether they contain a\n"
+	"   scriptfile as given in updatescript. If the script is found\n"
+	"   anywhere, load it to the address given in updateaddr and update\n"
+	"   the system by sourcing (executing) it. Any missing argument is\n"
+	"   replaced by the environment variable of the same name or, if no\n"
+	"   such variable exists, by the default values 'mmc,usb' for\n"
+	"   updatecheck, 'update.scr' for updatescript and $(loadaddr) for\n"
+	"   updateaddr. You can use '.' to skip an argument.\n"
 );
 
 U_BOOT_CMD(
-	install, 4, 0,	do_autoload,
+	install, 4, 0,	do_update,
 	"install system from external device",
-	"[instscript [instcheck [instaddr]]]\n"
-	" - Look for scriptfile instscript by checking devices instcheck.\n"
-	"   If found anywhere, load it to address instaddr and install the\n"
-	"   system by executing it. If an argument is not given, the\n"
-	"   environment variable of the same name is used instead, or by\n"
-	"   default 'install.scr' for instscript and loadaddr for instaddr.\n"
+	"[installcheck [installscript [installaddr]]]\n"
+	" - Check the devices given in installcheck whether they contain a\n"
+	"   scriptfile as given in installscript. If the script is found\n"
+	"   anywhere, load it to the address given in installaddr and install\n"
+	"   the system by sourcing (executing) it. Any missing argument is\n"
+	"   replaced by the environment variable of the same name or, if no\n"
+	"   such variable exists, by the default values 'mmc,usb' for\n"
+	"   installcheck, 'install.scr' for installscript and $(loadaddr) for\n"
+	"   installaddr. You can use '.' to skip an argument.\n"
 );
 
+#endif /* CONFIG_CMD_UPDATE */
 
 #endif /* CONFIG_CMD_SOURCE */

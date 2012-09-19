@@ -71,7 +71,7 @@ struct nboot_args
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
-	char *autoload;			  /* Default devices for upd/inst */
+	char *updinstcheck;		  /* Default devices for upd/inst */
 };
 
 const struct board_info fs_board_info[8] = {
@@ -146,7 +146,7 @@ extern struct serial_device s3c64xx_serial_device[];
  * 39.  fss3c64xx.c     board_late_init()       (unused)
  * 40.  eth.c           eth_initialize()        Register eth devices
  * 40a. fss3c64xx.c     board_eth_init()        Set fss3c64xx eth config
- * 41.  cmd_source.c    autoload_script()       Run autoload script
+ * 41.  cmd_source.c    update_script()         Run update script
  * 42.  main.c          main_loop()             Handle user commands
  *
  * The basic idea is to call some protocol specific driver_init() function in
@@ -437,15 +437,16 @@ int board_late_init(void)
 	if (!getenv("partition"))
 		setenv("partition", MTDPART_DEFAULT);
 
-	/* instcheck and updcheck are allowed to be empty, so we can't check
-	   for empty here. On the other hand they depend on the board, so we
-	   can't define them as fix value. The trick that we do here is that
-	   they are set to the string "default" in the default environment and
-	   then we replace this string with the board specific value here */
-	if (strcmp(getenv("instcheck"), "default") == 0)
-	    setenv("instcheck", fs_board_info[boardtype].autoload);
-	if (strcmp(getenv("updcheck"), "default") == 0)
-	    setenv("updcheck", fs_board_info[boardtype].autoload);
+	/* installcheck and updatecheck are allowed to be empty, so we can't
+	   check for empty here. On the other hand they depend on the board,
+	   so we can't define them as fix value. The trick that we do here is
+	   that they are set to the string "default" in the default
+	   environment and then we replace this string with the board specific
+	   value here */
+	if (strcmp(getenv("installcheck"), "default") == 0)
+	    setenv("installcheck", fs_board_info[boardtype].updinstcheck);
+	if (strcmp(getenv("updatecheck"), "default") == 0)
+	    setenv("updatecheck", fs_board_info[boardtype].updinstcheck);
 
 	/* If bootargs is not set, run variable bootubi as default setting */
 	if (!getenv("bootargs")) {
