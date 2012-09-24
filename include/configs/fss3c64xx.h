@@ -373,10 +373,9 @@
 #undef CONFIG_CMD_MD5SUM	/* no support for md5sum checksums */
 #define CONFIG_CMD_MEMORY	/* md mm nm mw cp cmp crc base loop mtest */
 #undef CONFIG_CMD_MFSL		/* no support for Microblaze FSL */
-#undef CONFIG_CMD_MG_DISK	/* no support for mgine mflash */
 #undef CONFIG_CMD_MII		/* no support for listing MDIO busses */
 #define CONFIG_CMD_MISC		/* miscellaneous commands (sleep) */
-#undef CONFIG_CMD_MMC		/* use CONFIG_GENERIC_MMC instead */
+#define CONFIG_CMD_MMC		/* support for SD/MMC cards */
 #undef CONFIG_CMD_MMC_SPI	/* no access of MMC cards in SPI mode */
 #undef CONFIG_CMD_MOVI		/* no support for MOVI NAND flash memories */
 #undef CONIFG_CMD_MP		/* no multi processor support */

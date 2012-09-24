@@ -467,7 +467,6 @@ static int bootm_start_standalone(ulong iflag, int argc, char * const argv[])
 	}
 	appl = (int (*)(int, char * const []))(ulong)ntohl(images.ep);
 	(*appl)(argc-1, &argv[1]);
-
 	return 0;
 }
 

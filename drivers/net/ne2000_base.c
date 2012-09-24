@@ -407,8 +407,7 @@ static void dp83902a_poll(struct eth_device *dev)
  * This routine is called to send data to the hardware. It is known a-priori
  * that there is free buffer space (dp->tx_next).
  */
-static int dp83902a_send(struct eth_device *dev, volatile void *packet,
-			 int length)
+static int dp83902a_send(struct eth_device *dev, void *packet, int length)
 {
 	struct dp83902a_priv_data *dp = dev->priv;
 	volatile u8 *data = (volatile u8 *)packet;

@@ -8,7 +8,7 @@
 #define __MTD_ABI_H__
 
 #if 1
-#include <linux/mtd/compat.h>
+#include <linux/compat.h>
 #endif
 
 struct erase_info_user {
@@ -40,12 +40,6 @@ struct mtd_oob_buf {
 #define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_NO_ERASE)
 #define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
-
-
-// Types of automatic ECC/Checksum available
-#define MTD_ECC_NONE		0 	// No automatic ECC available
-#define MTD_ECC_RS_DiskOnChip	1	// Automatic ECC on DiskOnChip
-#define MTD_ECC_SW		2	// SW ECC for Toshiba & Samsung devices
 
 /* ECC byte placement */
 #define MTD_NANDECC_OFF		0	/* Switch off ECC (Not recommended) */
