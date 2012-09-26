@@ -67,14 +67,15 @@ static void sdhci_cmd_done(struct sdhci_host *host, struct mmc_cmd *cmd)
 
 static void sdhci_transfer_pio(struct sdhci_host *host, struct mmc_data *data)
 {
-	int i;
-	char *offs;
-	for (i = 0; i < data->blocksize; i += 4) {
-		offs = data->dest + i;
-		if (data->flags == MMC_DATA_READ)
-			*(u32 *)offs = sdhci_readl(host, SDHCI_BUFFER);
-		else
-			sdhci_writel(host, *(u32 *)offs, SDHCI_BUFFER);
+	u32 *p = (u32 *)data->dest;
+	u32 *end = p + data->blocksize/4;
+
+	if (data->flags == MMC_DATA_READ) {
+		while (p < end)
+			*p++ = sdhci_readl(host, SDHCI_BUFFER);
+	} else {
+		while (p < end)
+			sdhci_writel(host, *p++, SDHCI_BUFFER);
 	}
 }
 
@@ -83,7 +84,7 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data,
 {
 	unsigned int stat, rdy, mask, timeout, block = 0;
 
-	timeout = 10000;
+	timeout = 0;
 	rdy = SDHCI_INT_SPACE_AVAIL | SDHCI_INT_DATA_AVAIL;
 	mask = SDHCI_DATA_AVAILABLE | SDHCI_SPACE_AVAILABLE;
 	do {
@@ -95,11 +96,15 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data,
 		if (stat & rdy) {
 			if (!(sdhci_readl(host, SDHCI_PRESENT_STATE) & mask))
 				continue;
+			if (block >= data->blocks) {
+				puts("Too much data\n");
+				return 0; /* This will send STOP as next cmd */
+			}
 			sdhci_writel(host, rdy, SDHCI_INT_STATUS);
 			sdhci_transfer_pio(host, data);
+			timeout = 0;	  /* restart timeout */
 			data->dest += data->blocksize;
-			if (++block >= data->blocks)
-				break;
+			block++;
 		}
 #ifdef CONFIG_MMC_SDMA
 		if (stat & SDHCI_INT_DMA_END) {
@@ -107,15 +112,25 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data,
 			start_addr &= ~(SDHCI_DEFAULT_BOUNDARY_SIZE - 1);
 			start_addr += SDHCI_DEFAULT_BOUNDARY_SIZE;
 			sdhci_writel(host, start_addr, SDHCI_DMA_ADDRESS);
+			timeout = 0;	  /* restart timeout */
 		}
 #endif
-		if (timeout-- > 0)
+		
+		/* When using DMA, the maximum transferred block is up to
+		   512KB. The slowest SD cards are about 2MB/s. This results
+		   in a transfer time of about 512/2048 = 1/4s. We double the
+		   time again and therefore come to a timeout of 500ms. We
+		   are waiting for 10us per cycle, so this is 50000 cycles. */
+		if (timeout++ < 50000)
 			udelay(10);
 		else {
-			printf("Transfer data timeout\n");
+			puts("Transfer data timeout\n");
 			return -1;
 		}
 	} while (!(stat & SDHCI_INT_DATA_END));
+
+	sdhci_writel(host, SDHCI_INT_DATA_END, SDHCI_INT_STATUS);
+
 	return 0;
 }
 
@@ -128,37 +143,40 @@ int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 	int trans_bytes = 0, is_aligned = 1;
 	u32 mask, flags, mode;
 	unsigned int timeout, start_addr = 0;
-	unsigned int retry = 10000;
+	unsigned int retry;
 
-	/* Wait max 10 ms */
-	timeout = 10;
-
-	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
-	mask = SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT;
+	/* Determine for which bits to wait */
+	mask = SDHCI_CMD_INHIBIT;
 
 	/* We shouldn't wait for data inihibit for stop commands, even
 	   though they might use busy signaling */
-	if (cmd->cmdidx == MMC_CMD_STOP_TRANSMISSION)
-		mask &= ~SDHCI_DATA_INHIBIT;
+	if ((cmd->cmdidx != MMC_CMD_STOP_TRANSMISSION)
+	    && (data || (cmd->resp_type & MMC_RSP_BUSY)))
+		mask |= SDHCI_DATA_INHIBIT;
 
+	/* Wait max 10 ms */
+	timeout = 10;
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) & mask) {
 		if (timeout == 0) {
 			printf("Controller never released inhibit bit(s).\n");
-			return COMM_ERR;
+			ret = COMM_ERR;
+			goto reset;
 		}
 		timeout--;
 		udelay(1000);
 	}
+
+	/* Clear any pending interrupts */
+	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
 
 	mask = SDHCI_INT_RESPONSE;
 	if (!(cmd->resp_type & MMC_RSP_PRESENT))
 		flags = SDHCI_CMD_RESP_NONE;
 	else if (cmd->resp_type & MMC_RSP_136)
 		flags = SDHCI_CMD_RESP_LONG;
-	else if (cmd->resp_type & MMC_RSP_BUSY) {
+	else if (cmd->resp_type & MMC_RSP_BUSY)
 		flags = SDHCI_CMD_RESP_SHORT_BUSY;
-		mask |= SDHCI_INT_DATA_END;
-	} else
+	else
 		flags = SDHCI_CMD_RESP_SHORT;
 
 	if (cmd->resp_type & MMC_RSP_CRC)
@@ -206,48 +224,44 @@ int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 #ifdef CONFIG_MMC_SDMA
 	flush_cache(start_addr, trans_bytes);
 #endif
+	/* Activate command by writing command register */
 	sdhci_writew(host, SDHCI_MAKE_CMD(cmd->cmdidx, flags), SDHCI_COMMAND);
+
+	/* Wait for command response */
+	retry = 10000;
 	do {
 		stat = sdhci_readl(host, SDHCI_INT_STATUS);
-		if (stat & SDHCI_INT_ERROR)
-			break;
-		if (--retry == 0)
-			break;
-	} while ((stat & mask) != mask);
+	} while (!(stat & (SDHCI_INT_ERROR | SDHCI_INT_RESPONSE)) && --retry);
 
-	if (retry == 0) {
-		if (host->quirks & SDHCI_QUIRK_BROKEN_R1B)
-			return 0;
-		else {
-			printf("Timeout for status update!\n");
-			return TIMEOUT;
-		}
-	}
+	if (stat & SDHCI_INT_ERROR)
+		ret = (stat & SDHCI_INT_TIMEOUT) ? TIMEOUT : COMM_ERR;
+	else if (stat & SDHCI_INT_RESPONSE)
+		sdhci_writel(host, SDHCI_INT_RESPONSE, SDHCI_INT_STATUS);
+	else if (!(host->quirks & SDHCI_QUIRK_BROKEN_R1B))
+		ret = TIMEOUT;
 
-	if ((stat & (SDHCI_INT_ERROR | mask)) == mask) {
-		sdhci_cmd_done(host, cmd);
-		sdhci_writel(host, mask, SDHCI_INT_STATUS);
-	} else
-		ret = -1;
+	if (ret)
+		goto reset;
 
-	if (!ret && data)
-		ret = sdhci_transfer_data(host, data, start_addr);
+	/* Get response */
+	sdhci_cmd_done(host, cmd);
+	if (!data)
+		return ret;
 
-	stat = sdhci_readl(host, SDHCI_INT_STATUS);
-	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
-	if (!ret) {
-		if ((host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
-				!is_aligned && (data->flags == MMC_DATA_READ))
-			memcpy(data->dest, aligned_buffer, trans_bytes);
-		return 0;
-	}
+	/* Read or write data */
+	ret = sdhci_transfer_data(host, data, start_addr);
+	if ((host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
+	    !is_aligned && (data->flags == MMC_DATA_READ))
+		memcpy(data->dest, aligned_buffer, trans_bytes);
 
-	sdhci_reset(host, SDHCI_RESET_CMD);
-	sdhci_reset(host, SDHCI_RESET_DATA);
-	if (stat & SDHCI_INT_TIMEOUT)
-		return TIMEOUT;
-	else
-		return COMM_ERR;
+	if (!ret)
+		return ret;
+
+reset:
+	/* Error */
+	printf("mmc reset on error %d\n", ret);
+	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+	return ret;
 }
 
 static int sdhci_set_clock(struct mmc *mmc, unsigned int clock)

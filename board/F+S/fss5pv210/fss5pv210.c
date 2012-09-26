@@ -36,6 +36,7 @@
 #include <asm/arch/cpu.h>		  /* samsung_get_base_gpio() */
 #include <asm/gpio.h>			  /* gpio_set_value(), ... */
 #ifdef CONFIG_GENERIC_MMC
+#include <sdhci.h>			  /* SDHCI_QUIRK_* */
 #include <asm/arch/mmc.h>		  /* s5p_mmc_init() */
 #include <asm/arch/clock.h>		  /* struct s5pc110_clock */
 #include <asm/arch/clk.h>		  /* get_pll_clk(), MPLL */
@@ -409,7 +410,7 @@ int board_mmc_init(bd_t *bis)
 	writel((readl(&clock->src4) & ~(15 << 0)) | (6 << 0), &clock->src4);
 
 	/* MMC clock must not exceed 52 MHz, the MMC driver expects it to be
-	   between 40 an 50 MHz. So we'll compute a divider that generates a
+	   between 40 and 50 MHz. So we'll compute a divider that generates a
 	   value below 50 MHz; the result would have to be rounded up, i.e. we
 	   would have to add 1. However we also have to subtract 1 again when
 	   we store div in the CLK_DIV4 register, so we can skip this +1-1. */

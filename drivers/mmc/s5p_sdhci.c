@@ -84,12 +84,16 @@ int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
 	host->ioaddr = (void *)regbase;
 	host->quirks = quirks;
 
-	host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE;
-	host->voltages = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195;
+	//###24.09.2012 HK: No such quirks seem to be required on S5PV210
+	//host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE;
+	//host->voltages = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195;
 	if (quirks & SDHCI_QUIRK_REG32_RW)
 		host->version = sdhci_readl(host, SDHCI_HOST_VERSION - 2) >> 16;
 	else
 		host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
+
+	/* Throw away manufacturer info, just keep host controller version */
+	host->version &= 0x00ff;
 
 	host->set_control_reg = &s5p_sdhci_set_control_reg;
 
