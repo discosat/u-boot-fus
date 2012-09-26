@@ -186,7 +186,15 @@ struct serial_device *default_serial_console(void)
 	struct nboot_args *pargs;
 	int i;
 
-	if (gd->flags & GD_FLG_RELOC)
+	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
+	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
+	   However GD_FLG_RELOC may be set before the NBoot arguments are
+	   copied from NBOOT_ARGS_BASE to fs_nboot_args (see board_init()
+	   below). But then at least the .bss section and therefore
+	   fs_nboot_args is cleared. So if fs_nboot_args.dwDbgSerPortPA is 0,
+	   the structure is not yet copied and we still have to look at
+	   NBOOT_ARGS_BASE. Otherwise we can (and must) use fs_nboot_args. */
+	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
 		pargs = &fs_nboot_args;
 	else
 		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
