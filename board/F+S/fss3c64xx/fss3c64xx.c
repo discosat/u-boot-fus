@@ -24,6 +24,7 @@
 #include <common.h>
 #include <asm/arch/s3c64xx-regs.h>
 #include <asm/arch/s3c64x0.h>
+#include <asm/arch/mmc.h>		  /* s3c_mmc_init() */
 #include <asm/errno.h>			  /* ENODEV */
 #include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
 #ifdef CONFIG_CMD_NET
@@ -341,64 +342,88 @@ size_t get_env_offset(void)
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_init(bd_t *bis)
 {
-	struct s5pc110_gpio *gpio =
-		(struct s5pc110_gpio *)samsung_get_base_gpio();
-	struct s5pc110_clock *clock =
-		(struct s5pc110_clock *)samsung_get_base_clock();
 	unsigned int div;
+	unsigned int boardtype = fs_nboot_args.chBoardType;
+	int ret;
 
-	/* We want to use MCLK (667 MHz) as MMC0 clock source */
-	writel((readl(&clock->src4) & ~(15 << 0)) | (6 << 0), &clock->src4);
+	/* Activate 48MHz clock, this is not only required for USB OTG, but
+	   also for MMC */
+	OTHERS_REG |= 1<<16;		  /* Enable USB signal */
+	__REG(S3C_OTG_PHYPWR) = 0x00;
+	__REG(S3C_OTG_PHYCTRL) = 0x00;
+	__REG(S3C_OTG_RSTCON) = 1;
+	udelay(10);
+	__REG(S3C_OTG_RSTCON) = 0;
+
+	/* We want to use EPLL (84,67MHz) as MMC0..MMC2 clock source:
+	   CLK_SRC[23:22]: MMC2_SEL
+	   CLK_SRC[21:20]: MMC1_SEL
+	   CLK_SRC[19:18]: MMC0_SEL
+	     00: MOUT_EPLL, 01: DOUT_MPLL, 10: FIN_EPLL, 11: 27MHz */
+	CLK_SRC_REG = (CLK_SRC_REG & ~(0x3F << 18)) | (0 << 18);
 
 	/* MMC clock must not exceed 52 MHz, the MMC driver expects it to be
-	   between 40 an 50 MHz. So we'll compute a divider that generates a
+	   between 40 and 50 MHz. So we'll compute a divider that generates a
 	   value below 50 MHz; the result would have to be rounded up, i.e. we
 	   would have to add 1. However we also have to subtract 1 again when
-	   we store div in the CLK_DIV4 register, so we can skip this +1-1. */
-	div = get_pll_clk(MPLL)/49999999;
+	   we store div in the CLK_DIV4 register, so we can skip this +1-1.
+	   CLK_DIV1[11:8]: MMC2_RATIO
+	   CLK_DIV1[7:4]:  MMC1_RATIO
+	   CLK_DIV1[3:0]:  MMC0_RATIO */
+	div = get_UCLK()/49999999;
 	if (div > 15)
 		div = 15;
-	writel((readl(&clock->div4) & ~(15 << 0)) | (div << 0), &clock->div4);
+	div |= (div << 4) | (div << 8);
+	CLK_DIV1_REG = (CLK_DIV1_REG & ~(0xFFF << 0)) | (div << 0);
 
-	/* All clocks are enabled in CLK_SRC_MASK0 and CLK_GATE_IP2 after reset
-	   and NBoot does not change this; so MMC0 clock should be enabled and
+	/* All clocks are enabled in HCLK_GATE and SCLK_GATE after reset and
+	   NBoot does not change this; so all MMC clocks should be enabled and
 	   there is no need to set anything there */
 
-	/* Configure GPG0 pins for MMC/SD */
-	s5p_gpio_cfg_pin(&gpio->g0, 0, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 1, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 2, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 3, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 4, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 5, 2);
-	s5p_gpio_cfg_pin(&gpio->g0, 6, 2);
-
-	/* We have mmc0 with 4 bit bus width */
-	return s5p_mmc_init(0, 4);
-}
-#endif
-
-
-#ifdef CONFIG_MMC
-void mmc_s3c64xx_board_power(unsigned int channel)
-{
-	switch (channel) {
-	case 0:
-		/* Set GPN6 (GPIO6) as output low for SD card power, disable
-		   any pull-up/down */
-		GPNDAT_REG &= ~0x40;
-		GPNCON_REG = (GPNCON_REG & ~0x3000) | 0x1000;
-		GPNPUD_REG &= ~0x3000;
+	/* We have MMC0 in any case: it is on-board on NetDCU12 and external on
+	   PicoMOD6 and PicoCOM3. Pins in use:
+	   GPG[6]: CD, GPG[5:2]: DATA[3:0], GPG[1]: CMD, GPG[0]: CLK
+	   NetDCU12: GPL[9]: Power
+	   PicoMOD6: GPN[6]: Power
+	   PicoCOM3: No Power pin */
+	GPGCON_REG = 0x02222222;
+	GPGPUD_REG = 0;
+	switch (boardtype) {
+	case BT_NETDCU12:
+		GPLDAT_REG &= ~(1 << 9);
+		GPLCON1_REG = (GPLCON1_REG & ~(0xF << 4)) | (0x1 << 4);
+		GPLPUD_REG &= ~(0x3 << 18);
 		break;
 
-	case 1:
-		/* There is no power switch on this slot, power is always on. */
+	case BT_PICOMOD6:
+		GPNDAT_REG &= ~(1 << 6);
+		GPNCON_REG = (GPNCON_REG & (0x3 << 12)) | (0x1 << 12);
+		GPNPUD_REG &= ~(0x3 << 12);
 		break;
 
-	case 2:
-		/* Not used */
+	default:
 		break;
 	}
+
+	/* Add MMC0 with 4 bit bus width */
+	ret = s3c_mmc_init(0, 4);
+
+	if (!ret && (boardtype == BT_PICOMOD6)) {
+		/* On PicoMOD6, we also have MMC1 (on-board Micro-SD slot).
+		   This port is theoretically capable of 1, 4, and 8 bit bus
+		   width, but our slot uses only 4 bits, the upper 4 bits are
+		   fixed to high. Pins in use:
+		   GPH[5:2]: DATA[3:0], GPH[1]: CMD, GPH[0]: CLK
+		   There is no CD and no power pin associated with this port */
+		GPHCON0_REG = 0x22222222;
+		GPHCON1_REG = 0x22;
+		GPHPUD_REG = 0;
+
+		/* ADD MMC1 with 4 bit bus width */
+		ret = s3c_mmc_init(1, 4);
+	}
+
+	return ret;
 }
 #endif
 
