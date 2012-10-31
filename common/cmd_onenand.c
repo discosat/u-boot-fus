@@ -396,7 +396,7 @@ static int do_onenand_read(cmd_tbl_t * cmdtp, int flag, int argc, char * const a
 	if ((s != NULL) && (!strcmp(s, ".oob")))
 		oob = 1;
 
-	addr = (ulong)simple_strtoul(argv[1], NULL, 16);
+	addr = (ulong)parse_loadaddr(argv[1], NULL);
 
 	printf("\nOneNAND read: ");
 	if (arg_off_size(argc - 2, argv + 2, &ofs, &len) != 0)
@@ -422,7 +422,7 @@ static int do_onenand_write(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 	if (strncmp(argv[0] + 6, "yaffs", 5) == 0)
 		withoob = 1;
 
-	addr = (ulong)simple_strtoul(argv[1], NULL, 16);
+	addr = (ulong)parse_loadaddr(argv[1], NULL);
 
 	printf("\nOneNAND write: ");
 	if (arg_off_size(argc - 2, argv + 2, &ofs, &len) != 0)
@@ -519,7 +519,7 @@ static int do_onenand_dump(cmd_tbl_t * cmdtp, int flag, int argc, char * const a
 static int do_onenand_markbad(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	int ret = 0;
-	ulong addr;
+	ulong ofs;
 
 	argc -= 2;
 	argv += 2;
@@ -528,17 +528,17 @@ static int do_onenand_markbad(cmd_tbl_t * cmdtp, int flag, int argc, char * cons
 		return CMD_RET_USAGE;
 
 	while (argc > 0) {
-		addr = simple_strtoul(*argv, NULL, 16);
+		ofs = simple_strtoul(*argv, NULL, 16);
 
 		if (mtd->block_markbad(mtd, addr)) {
 			printf("block 0x%08lx NOT marked "
 				"as bad! ERROR %d\n",
-				addr, ret);
+				ofs, ret);
 			ret = 1;
 		} else {
 			printf("block 0x%08lx successfully "
 				"marked as bad\n",
-				addr);
+				ofs);
 		}
 		--argc;
 		++argv;

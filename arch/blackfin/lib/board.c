@@ -386,8 +386,15 @@ void board_init_r(gd_t * id, ulong dest_addr)
 	status_led_set(STATUS_LED_CRASH, STATUS_LED_OFF);
 #endif
 
-	/* Initialize from environment */
-	load_addr = getenv_ulong("loadaddr", 16, load_addr);
+	/* Initialize load address from environment */
+#ifdef CONFIG_SYS_LOAD_ADDR
+	/* Default is configured load address */
+	set_loadaddr(getenv_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
+#else
+	/* Default is start of RAM plus configured offset */
+	set_loadaddr(getenv_ulong("loadaddr", 16,
+				  gd->ram_base + CONFIG_SYS_LOAD_OFFS));
+#endif
 
 #if defined(CONFIG_MISC_INIT_R)
 	/* miscellaneous platform dependent initialisations */

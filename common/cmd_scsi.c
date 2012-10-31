@@ -216,28 +216,16 @@ int do_scsiboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	const void *fit_hdr = NULL;
 #endif
 
-	switch (argc) {
-	case 1:
-		addr = get_loadaddr();
-		boot_device = getenv ("bootdevice");
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = getenv ("bootdevice");
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		break;
-	default:
+	if (argc < 3)
 		return CMD_RET_USAGE;
-	}
-
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	boot_device = (argc > 2) ? argv[2] : getenv("bootdevice");
 	if (!boot_device) {
 		puts ("\n** No boot device **\n");
 		return 1;
 	}
 
+	set_loadaddr(addr);
 	dev = simple_strtoul(boot_device, &ep, 16);
 	printf("booting from dev %d\n",dev);
 	if (scsi_dev_desc[dev].type == DEV_TYPE_UNKNOWN) {
@@ -321,9 +309,6 @@ int do_scsiboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		fit_print_contents (fit_hdr);
 	}
 #endif
-
-	/* Loading ok, update default load address */
-	load_addr = addr;
 
 	flush_cache (addr, (cnt+1)*info.blksz);
 
@@ -417,7 +402,7 @@ int do_scsi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     default:
 			/* at least 4 args */
 			if (strcmp(argv[1],"read") == 0) {
-				ulong addr = simple_strtoul(argv[2], NULL, 16);
+				ulong addr = parse_loadaddr(argv[2], NULL, 16);
 				ulong blk  = simple_strtoul(argv[3], NULL, 16);
 				ulong cnt  = simple_strtoul(argv[4], NULL, 16);
 				ulong n;

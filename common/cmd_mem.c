@@ -79,7 +79,7 @@ int do_mem_md ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		/* Address is specified since argc > 1
 		*/
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		addr += base_address;
 
 		/* If another parameter, it is the length to display.
@@ -171,7 +171,7 @@ int do_mem_mw ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Address is specified since argc > 1
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	addr += base_address;
 
 	/* Get the value to write.
@@ -269,10 +269,10 @@ int do_mem_cmp (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	type = size == 4 ? "word" : size == 2 ? "halfword" : "byte";
 
-	addr1 = simple_strtoul(argv[1], NULL, 16);
+	addr1 = parse_loadaddr(argv[1], NULL);
 	addr1 += base_address;
 
-	addr2 = simple_strtoul(argv[2], NULL, 16);
+	addr2 = parse_loadaddr(argv[2], NULL);
 	addr2 += base_address;
 
 	count = simple_strtoul(argv[3], NULL, 16);
@@ -336,7 +336,7 @@ int do_mem_cp ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if ((size = cmd_get_data_size(argv[0], 4)) < 0)
 		return 1;
 
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	addr += base_address;
 
 	dest = simple_strtoul(argv[2], NULL, 16);
@@ -438,7 +438,7 @@ int do_mem_base (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc > 1) {
 		/* Set new base address.
 		*/
-		base_address = simple_strtoul(argv[1], NULL, 16);
+		base_address = parse_loadaddr(argv[1], NULL);
 	}
 	/* Print the current base address.
 	*/
@@ -465,7 +465,7 @@ int do_mem_loop (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Address is always specified.
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 
 	/* Length is the number of objects, not number of bytes.
 	*/
@@ -534,7 +534,7 @@ int do_mem_loopw (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Address is always specified.
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 
 	/* Length is the number of objects, not number of bytes.
 	*/
@@ -632,7 +632,7 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #endif
 
 	if (argc > 1)
-		start = (ulong *)simple_strtoul(argv[1], NULL, 16);
+		start = (ulong *)parse_loadaddr(argv[1], NULL);
 	else {
 #ifdef CONFIG_SYS_MEMTEST_START
 		/* Start at configured address */
@@ -646,7 +646,7 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	if (argc > 2)
-		end = (ulong *)simple_strtoul(argv[2], NULL, 16);
+		end = (ulong *)parse_loadaddr(argv[2], NULL);
 	else {
 #ifdef CONFIG_SYS_MEMTEST_END
 		/* End at configured address */
@@ -994,7 +994,7 @@ mod_mem(cmd_tbl_t *cmdtp, int incrflag, int flag, int argc, char * const argv[])
 
 		/* Address is specified since argc > 1
 		*/
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		addr += base_address;
 	}
 
@@ -1081,7 +1081,7 @@ int do_mem_crc (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc < 3)
 		return CMD_RET_USAGE;
 
-	addr = simple_strtoul (argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	addr += base_address;
 
 	length = simple_strtoul (argv[2], NULL, 16);
@@ -1127,7 +1127,7 @@ usage:
 	} else
 		verify = 0;
 
-	addr = simple_strtoul(*av++, NULL, 16);
+	addr = parse_loadaddr(*av++, NULL);
 	addr += base_address;
 	length = simple_strtoul(*av++, NULL, 16);
 

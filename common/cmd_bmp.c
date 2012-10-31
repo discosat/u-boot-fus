@@ -94,11 +94,11 @@ static int do_bmp_info(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	ulong addr;
 
 	switch (argc) {
-	case 1:		/* use load_addr as default address */
-		addr = load_addr;
+	case 1:		/* use default address */
+		addr = get_loadaddr();
 		break;
 	case 2:		/* use argument */
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		break;
 	default:
 		return CMD_RET_USAGE;
@@ -113,14 +113,14 @@ static int do_bmp_display(cmd_tbl_t * cmdtp, int flag, int argc, char * const ar
 	int x = 0, y = 0;
 
 	switch (argc) {
-	case 1:		/* use load_addr as default address */
-		addr = load_addr;
+	case 1:		/* use default address */
+		addr = get_loadaddr();
 		break;
 	case 2:		/* use argument */
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		break;
 	case 4:
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	        x = simple_strtoul(argv[2], NULL, 10);
 	        y = simple_strtoul(argv[3], NULL, 10);
 	        break;

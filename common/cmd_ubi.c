@@ -433,8 +433,8 @@ static int ubi_dev_scan(struct mtd_info *info, char *ubidev,
 
 static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	size_t size = 0;
-	ulong addr = 0;
+	size_t size;
+	ulong addr;
 	int err = 0;
 
 	if (argc < 2)
@@ -445,7 +445,7 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	}
 
-	if (strcmp(argv[1], "part") == 0) {
+	if (!strcmp(argv[1], "part") && (argc >= 2) && (argc <= 4)) {
 		char mtd_dev[16];
 		struct mtd_device *dev;
 		struct part_info *part;
@@ -454,18 +454,12 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 		/* Print current partition */
 		if (argc == 2) {
-			if (!ubi_dev.selected) {
-				printf("Error, no UBI device/partition selected!\n");
-				return 1;
-			}
-
-			printf("Device %d: %s, partition %s\n",
-			       ubi_dev.nr, ubi_dev.mtd_info->name, ubi_dev.part_name);
+			if (!ubi_dev.selected)
+				goto no_dev;
+			printf("Device %d: %s, partition %s\n", ubi_dev.nr,
+			       ubi_dev.mtd_info->name, ubi_dev.part_name);
 			return 0;
 		}
-
-		if (argc < 3)
-			return CMD_RET_USAGE;
 
 #ifdef CONFIG_CMD_UBIFS
 		/*
@@ -521,84 +515,57 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		return 0;
 	}
 
-	if ((strcmp(argv[1], "part") != 0) && (!ubi_dev.selected)) {
+	if (!ubi_dev.selected) {
+	no_dev:
 		printf("Error, no UBI device/partition selected!\n");
 		return 1;
 	}
 
-	if (strcmp(argv[1], "info") == 0) {
+	if (!strcmp(argv[1], "info") && (argc >= 2) && (argc <= 3)) {
 		int layout = 0;
-		if (argc > 2 && !strncmp(argv[2], "l", 1))
+		if ((argc > 2) && (argv[2][0] == 'l'))
 			layout = 1;
 		return ubi_info(layout);
 	}
 
-	if (strncmp(argv[1], "create", 6) == 0) {
+	if (!strncmp(argv[1], "create", 6) && (argc >= 3) && (argc <= 5)) {
 		int dynamic = 1;	/* default: dynamic volume */
 
-		/* Use maximum available size */
-		size = 0;
-
-		/* E.g., create volume size type */
-		if (argc == 5) {
-			if (strncmp(argv[4], "s", 1) == 0)
+		/* Get type */
+		if (argc > 4) {
+			if (argv[4][0] == 's')
 				dynamic = 0;
-			else if (strncmp(argv[4], "d", 1) != 0) {
+			else if (argv[4][0] != 'd') {
 				printf("Incorrect type\n");
 				return 1;
 			}
-			argc--;
-		}
-		/* E.g., create volume size */
-		if (argc == 4) {
-			size = simple_strtoul(argv[3], NULL, 16);
-			argc--;
-		}
-		/* Use maximum available size */
+		}				
+
+		/* Get size */
+		size = (argc > 3) ? simple_strtoul(argv[3], NULL, 16) : 0;
 		if (!size) {
+			/* Use maximum available size */
 			size = ubi->avail_pebs * ubi->leb_size;
-			printf("No size specified -> Using max size (%u)\n", size);
-		}
-		/* E.g., create volume */
-		if (argc == 3)
-			return ubi_create_vol(argv[2], size, dynamic);
-	}
-
-	if (strncmp(argv[1], "remove", 6) == 0) {
-		/* E.g., remove volume */
-		if (argc == 3)
-			return ubi_remove_vol(argv[2]);
-	}
-
-	if (strncmp(argv[1], "write", 5) == 0) {
-		if (argc < 5) {
-			printf("Please see usage\n");
-			return 1;
+			printf("No size specified -> Using max size (%u)\n",
+			       size);
 		}
 
-		addr = simple_strtoul(argv[2], NULL, 16);
+		return ubi_create_vol(argv[2], size, dynamic);
+	}
+
+	if (!strncmp(argv[1], "remove", 6) && (argc == 3))
+		return ubi_remove_vol(argv[2]);
+
+	if (!strncmp(argv[1], "write", 5) && (argc == 5)) {
+		addr = parse_loadaddr(argv[2], NULL);
 		size = simple_strtoul(argv[4], NULL, 16);
-
 		return ubi_volume_write(argv[3], (void *)addr, size);
 	}
 
-	if (strncmp(argv[1], "read", 4) == 0) {
-		size = 0;
-
-		/* E.g., read volume size */
-		if (argc == 5) {
-			size = simple_strtoul(argv[4], NULL, 16);
-			argc--;
-		}
-
-		/* E.g., read volume */
-		if (argc == 4) {
-			addr = simple_strtoul(argv[2], NULL, 16);
-			argc--;
-		}
-
-		if (argc == 3)
-			return ubi_volume_read(argv[3], (char *)addr, size);
+	if (!strncmp(argv[1], "read", 4) && (argc >= 4) && (argc <= 5)) {
+		addr = parse_loadaddr(argv[2], NULL);
+		size = (argc > 4) ? simple_strtoul(argv[4], NULL, 16) : 0;
+		return ubi_volume_read(argv[3], (char *)addr, size);
 	}
 
 	printf("Please see usage\n");
@@ -608,12 +575,12 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	ubi, 6, 1, do_ubi,
 	"ubi commands",
-	"part [part] [offset]\n"
+	"part [part [offset]]\n"
 		" - Show or set current partition (with optional VID"
 		" header offset)\n"
 	"ubi info [l[ayout]]"
 		" - Display volume and ubi layout information\n"
-	"ubi create[vol] volume [size] [type]"
+	"ubi create[vol] volume [size [type]]"
 		" - create volume name with size\n"
 	"ubi write[vol] address volume size"
 		" - Write volume from address with size\n"

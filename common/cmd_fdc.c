@@ -730,22 +730,16 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	const void *fit_hdr = NULL;
 #endif
 
-	switch (argc) {
-	case 1:
+	if (argc > 1)
+		addr = parse_loadaddr(argv[1], NULL);
+	else
 		addr = get_loadaddr();
-		boot_drive=CONFIG_SYS_FDC_DRIVE_NUMBER;
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_drive=CONFIG_SYS_FDC_DRIVE_NUMBER;
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_drive=simple_strtoul(argv[2], NULL, 10);
-		break;
-	default:
-		return CMD_RET_USAGE;
-	}
+	if (argc > 2)
+		boot_drive = simple_strtoul(argv[2], NULL, 10);
+	else
+		addr = CONFIG_SYS_FDC_DRIVE_NUMBER;
+	set_loadaddr(addr);
+
 	/* setup FDC and scan for drives  */
 	if(fdc_setup(boot_drive,pCMD,pFG)==FALSE) {
 		printf("\n** Error in setup FDC **\n");
@@ -823,8 +817,6 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 #endif
 
-	/* Loading ok, update default load address */
-	load_addr = addr;
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

@@ -45,7 +45,7 @@
 int
 do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	ulong		addr = load_addr;
+	ulong		addr;
 	ulong		dest = 0;
 	ulong		data, len, count;
 	int		verify;
@@ -64,9 +64,7 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 	verify = getenv_yesno("verify");
 
-	if (argc > 1) {
-		addr = simple_strtoul(argv[1], NULL, 16);
-	}
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
 	if (argc > 2) {
 		part = simple_strtoul(argv[2], NULL, 16);
 #if defined(CONFIG_FIT)
@@ -74,7 +72,7 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 #endif
 	}
 	if (argc > 3) {
-		dest = simple_strtoul(argv[3], NULL, 16);
+		dest = parse_loadaddr(argv[3], NULL);
 	}
 
 	switch (genimg_get_format((void *)addr)) {

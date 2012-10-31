@@ -182,7 +182,7 @@ int do_fpga (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		} else
 #endif
 		{
-			fpga_data = (void *) simple_strtoul (argv[3], NULL, 16);
+			fpga_data = (void *)parse_loadaddr(argv[3], NULL);
 			debug("*  fpga: cmdline image address = 0x%08lx\n",
 				(ulong)fpga_data);
 		}

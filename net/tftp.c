@@ -222,7 +222,7 @@ static int load_block(unsigned block, uchar *dst, unsigned len)
 	ulong tosend = len;
 
 	tosend = min(NetBootFileXferSize - offset, tosend);
-	(void)memcpy(dst, (void *)(save_addr + offset), tosend);
+	(void)memcpy(dst, (void *)(get_loadaddr() + offset), tosend);
 	debug("%s: block=%d, offset=%ld, len=%d, tosend=%ld\n", __func__,
 		block, offset, len, tosend);
 	return tosend;
@@ -762,9 +762,8 @@ void TftpStart(enum proto_t protocol)
 #ifdef CONFIG_CMD_TFTPPUT
 	TftpWriting = (protocol == TFTPPUT);
 	if (TftpWriting) {
-		printf("Save address: 0x%lx\n", save_addr);
-		printf("Save size:    0x%lx\n", save_size);
-		NetBootFileXferSize = save_size;
+		printf("Save address: 0x%lx\n", get_loadaddr());
+		printf("Save size:    0x%lx\n", NetBootFileXferSize);
 		puts("Saving: *\b");
 		TftpState = STATE_SEND_WRQ;
 		new_transfer();

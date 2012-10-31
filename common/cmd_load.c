@@ -266,14 +266,13 @@ int do_save_serial (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	save_baudrate = current_baudrate = gd->baudrate;
 #endif
 
-	if (argc >= 2) {
-		offset = simple_strtoul(argv[1], NULL, 16);
-	}
-#ifdef	CONFIG_SYS_LOADS_BAUD_CHANGE
-	if (argc >= 3) {
+	offset = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	set_loadaddr(offset);
+	if (argc > 2)
 		size = simple_strtoul(argv[2], NULL, 16);
-	}
-	if (argc == 4) {
+
+#ifdef	CONFIG_SYS_LOADS_BAUD_CHANGE
+	if (argc > 3) {
 		save_baudrate = (int)simple_strtoul(argv[3], NULL, 10);
 
 		/* default to current baudrate */
@@ -291,10 +290,6 @@ int do_save_serial (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			if (getc() == '\r')
 				break;
 		}
-	}
-#else	/* ! CONFIG_SYS_LOADS_BAUD_CHANGE */
-	if (argc == 3) {
-		size = simple_strtoul(argv[2], NULL, 16);
 	}
 #endif	/* CONFIG_SYS_LOADS_BAUD_CHANGE */
 
@@ -436,19 +431,14 @@ char his_quote;      /* quote chars he'll use */
 
 int do_load_serial_bin (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	ulong offset = 0;
+	ulong offset;
 	ulong addr;
 	int load_baudrate, current_baudrate;
 	int rcode = 0;
 
-	/* pre-set offset from default load address */
-	offset = get_loadaddr();
-
 	load_baudrate = current_baudrate = gd->baudrate;
-
-	if (argc >= 2) {
-		offset = simple_strtoul(argv[1], NULL, 16);
-	}
+	offset = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	set_loadaddr(offset);
 	if (argc == 3) {
 		load_baudrate = (int)simple_strtoul(argv[2], NULL, 10);
 
@@ -486,15 +476,12 @@ int do_load_serial_bin (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 			load_baudrate);
 		addr = load_serial_bin (offset);
 
-		if (addr == ~0) {
-			set_loadaddr(0);
-			printf ("## Binary (kermit) download aborted\n");
-			rcode = 1;
-		} else {
-			printf ("## Start Addr      = 0x%08lX\n", addr);
-			set_loadaddr(addr);
-		}
 	}
+	if (addr == ~0) {
+		printf ("## Binary download aborted\n");
+		rcode = 1;
+	} else
+		printf ("## Start Addr      = 0x%08lX\n", addr);
 	if (load_baudrate != current_baudrate) {
 		printf ("## Switch baudrate to %d bps and press ESC ...\n",
 			current_baudrate);

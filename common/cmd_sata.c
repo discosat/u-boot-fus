@@ -154,7 +154,7 @@ int do_sata(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	default: /* at least 4 args */
 		if (strcmp(argv[1], "read") == 0) {
-			ulong addr = simple_strtoul(argv[2], NULL, 16);
+			ulong addr = parse_loadaddr(argv[2], NULL);
 			ulong cnt = simple_strtoul(argv[4], NULL, 16);
 			ulong n;
 			lbaint_t blk = simple_strtoul(argv[3], NULL, 16);
@@ -171,7 +171,7 @@ int do_sata(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				n, (n==cnt) ? "OK" : "ERROR");
 			return (n == cnt) ? 0 : 1;
 		} else if (strcmp(argv[1], "write") == 0) {
-			ulong addr = simple_strtoul(argv[2], NULL, 16);
+			ulong addr = parse_loadaddr(argv[2], NULL);
 			ulong cnt = simple_strtoul(argv[4], NULL, 16);
 			ulong n;
 

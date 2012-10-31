@@ -355,7 +355,7 @@ void usb_show_tree(struct usb_device *dev)
 #ifdef CONFIG_USB_STORAGE
 int do_usbboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	char *boot_device = NULL;
+	char *boot_device;
 	char *ep;
 	int dev, part = 1;
 	ulong addr, cnt;
@@ -366,23 +366,8 @@ int do_usbboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	const void *fit_hdr = NULL;
 #endif
 
-	switch (argc) {
-	case 1:
-		addr = get_loadaddr();
-		boot_device = getenv("bootdevice");
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = getenv("bootdevice");
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		break;
-	default:
-		return CMD_RET_USAGE;
-	}
-
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	boot_device = (argc > 2) ? argv[2] : getenv("bootdevice");
 	if (!boot_device) {
 		puts("\n** No boot device **\n");
 		return 1;
@@ -631,7 +616,7 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return 1;
 		}
 		if (argc == 5) {
-			unsigned long addr = simple_strtoul(argv[2], NULL, 16);
+			unsigned long addr = parse_loadaddr(argv[2], NULL);
 			unsigned long blk  = simple_strtoul(argv[3], NULL, 16);
 			unsigned long cnt  = simple_strtoul(argv[4], NULL, 16);
 			unsigned long n;
@@ -653,7 +638,7 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return 1;
 		}
 		if (argc == 5) {
-			unsigned long addr = simple_strtoul(argv[2], NULL, 16);
+			unsigned long addr = parse_loadaddr(argv[2], NULL);
 			unsigned long blk  = simple_strtoul(argv[3], NULL, 16);
 			unsigned long cnt  = simple_strtoul(argv[4], NULL, 16);
 			unsigned long n;

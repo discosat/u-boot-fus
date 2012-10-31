@@ -38,15 +38,10 @@
 int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
     char *name;
-    char *ep;
     int size;
     char buf [12];
     int drive = CONFIG_SYS_FDC_DRIVE_NUMBER;
-
-    /* pre-set load_addr */
-    if ((ep = getenv("loadaddr")) != NULL) {
-	load_addr = simple_strtoul(ep, NULL, 16);
-    }
+    ulong addr = get_loadaddr();
 
     /* pre-set Boot file name */
     if ((name = getenv("bootfile")) == NULL) {
@@ -64,16 +59,17 @@ int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argv[1][0] == '"') {	/* just boot filename */
 	    name = argv [1];
 	} else {			/* load address	*/
-	    load_addr = simple_strtoul(argv[1], NULL, 16);
+	    addr = parse_loadaddr(argv[1], NULL);
 	}
 	break;
     case 3:
-	load_addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	name = argv [2];
 	break;
     default:
 	return CMD_RET_USAGE;
     }
+    set_loadaddr(addr);
 
     /* Init physical layer                                                   */
     if (!fdc_fdos_init (drive)) {
@@ -85,17 +81,17 @@ int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	printf ("Unable to open %s\n", name);
 	return 1;
     }
-    if ((size = dos_read (load_addr)) < 0) {
+    if ((size = dos_read (addr)) < 0) {
 	printf ("boot error\n");
 	return 1;
     }
-    flush_cache (load_addr, size);
+    flush_cache (addr, size);
 
     sprintf(buf, "%x", size);
     setenv("filesize", buf);
 
     printf("Floppy DOS load complete: %d bytes loaded to 0x%lx\n",
-	   size, load_addr);
+	   size, addr);
 
     return bootm_maybe_autostart(cmdtp, argv[0]);
 }

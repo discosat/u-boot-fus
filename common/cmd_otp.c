@@ -116,7 +116,7 @@ int do_otp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	} else
 		goto usage;
 
-	uint64_t *addr = (uint64_t *)simple_strtoul(argv[2], NULL, 16);
+	uint64_t *addr = (uint64_t *)parse_loadaddr(argv[2], NULL, 16);
 	uint32_t page = simple_strtoul(argv[3], NULL, 16);
 	uint32_t flags;
 	size_t i, count;

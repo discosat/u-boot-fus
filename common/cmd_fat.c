@@ -36,19 +36,17 @@
 int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	long size;
-	unsigned long offset;
+	unsigned long addr;
 	unsigned long count;
 	char buf [12];
+	const char *filename;
 	block_dev_desc_t *dev_desc=NULL;
 	int dev=0;
 	int part=1;
 	char *ep;
 
-	if (argc < 5) {
-		printf( "usage: fatload <interface> <dev[:part]> "
-			"<addr> <filename> [bytes]\n");
-		return 1;
-	}
+	if (argc < 3)
+		return CMD_RET_USAGE;
 
 	dev = (int)simple_strtoul(argv[2], &ep, 16);
 	dev_desc = get_dev(argv[1],dev);
@@ -68,12 +66,13 @@ int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			argv[1], dev, part);
 		return 1;
 	}
-	offset = simple_strtoul(argv[3], NULL, 16);
-	if (argc == 6)
-		count = simple_strtoul(argv[5], NULL, 16);
-	else
-		count = 0;
-	size = file_fat_read(argv[4], (unsigned char *)offset, count);
+
+	addr = (argc > 3) ? parse_loadaddr(argv[3], NULL) : get_loadaddr();
+	filename = (argc > 4) ? parse_bootfile(argv[4]) : get_bootfile();
+	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
+	set_loadaddr(addr);
+
+	size = file_fat_read(filename, (unsigned char *)addr, count);
 
 	if(size==-1) {
 		printf("\n** Unable to read \"%s\" from %s %d:%d **\n",
@@ -107,10 +106,9 @@ int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	char *ep;
 	block_dev_desc_t *dev_desc=NULL;
 
-	if (argc < 3) {
-		printf("usage: fatls <interface> <dev[:part]> [directory]\n");
-		return 0;
-	}
+	if (argc < 3)
+		return CMD_RET_USAGE;
+
 	dev = (int)simple_strtoul(argv[2], &ep, 16);
 	dev_desc = get_dev(argv[1],dev);
 	if (dev_desc == NULL) {
@@ -190,8 +188,6 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
 	long size;
-	unsigned long addr;
-	unsigned long count;
 	block_dev_desc_t *dev_desc = NULL;
 	int dev = 0;
 	int part = 1;
@@ -218,10 +214,8 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 			argv[1], dev, part);
 		return 1;
 	}
-	addr = simple_strtoul(argv[3], NULL, 16);
-	count = simple_strtoul(argv[5], NULL, 16);
-
-	size = file_fat_write(argv[4], (void *)addr, count);
+	size = file_fat_write(argv[4], (void *)parse_loadaddr(argv[3], NULL),
+			      simple_strtoul(argv[5], NULL, 16);
 	if (size == -1) {
 		printf("\n** Unable to write \"%s\" from %s %d:%d **\n",
 			argv[4], argv[1], dev, part);

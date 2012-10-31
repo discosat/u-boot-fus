@@ -491,20 +491,18 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	char *filename;
 	int size;
 	struct part_info *part;
-	ulong offset = get_loadaddr();
+	ulong addr;
 
-	/* pre-set Boot file name */
-	if ((filename = getenv("bootfile")) == NULL) {
-		filename = "uImage";
-	}
+	addr = get_loadaddr();
+	filename = get_bootfile();
 
 	if (argc == 2) {
-		filename = argv[1];
+		filename = parse_bootfile(argv[1]);
 	}
 	if (argc == 3) {
-		offset = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		set_loadaddr(offset);
-		filename = argv[2];
+		filename = parse_bootfile(argv[2]);
 	}
 
 	/* make sure we are in sync with env variables */

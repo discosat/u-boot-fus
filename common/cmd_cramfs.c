@@ -108,7 +108,7 @@ int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *filename;
 	int size;
-	ulong offset = load_addr;
+	ulong offset;
 
 	struct part_info part;
 	struct mtd_device dev;
@@ -127,18 +127,17 @@ int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	/* fake the address offset */
 	part.offset = addr - OFFSET_ADJUSTMENT;
 
-	/* pre-set Boot file name */
-	if ((filename = getenv("bootfile")) == NULL) {
-		filename = "uImage";
-	}
+	/* pre-set Boot file name and offset */
+	offset = get_loadaddr();
+	filename = get_bootfile();
 
 	if (argc == 2) {
-		filename = argv[1];
+		filename = parse_bootfile(argv[1]);
 	}
 	if (argc == 3) {
-		offset = simple_strtoul(argv[1], NULL, 0);
-		load_addr = offset;
-		filename = argv[2];
+		offset = parse_loadaddr(argv[1], NULL);
+		set_loadaddr(offset);
+		filename = parse_bootfile(argv[2]);
 	}
 
 	size = 0;

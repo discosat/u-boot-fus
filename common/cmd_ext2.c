@@ -124,41 +124,21 @@ U_BOOT_CMD(
  */
 int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	char *filename = NULL;
+	const char *filename;
 	char *ep;
 	int dev, part = 1;
-	ulong addr = 0, part_length;
+	ulong addr, part_length;
 	int filelen;
 	disk_partition_t info;
 	block_dev_desc_t *dev_desc = NULL;
 	char buf [12];
 	unsigned long count;
 
-	switch (argc) {
-	case 3:
-		addr = get_loadaddr();
-		filename = getenv ("bootfile");
-		count = 0;
-		break;
-	case 4:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = getenv ("bootfile");
-		count = 0;
-		break;
-	case 5:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = argv[4];
-		count = 0;
-		break;
-	case 6:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = argv[4];
-		count = simple_strtoul (argv[5], NULL, 16);
-		break;
-
-	default:
+	if (argc < 3)
 		return CMD_RET_USAGE;
-	}
+	addr = (argc > 3) ? parse_loadaddr(argv[3], NULL) : get_loadaddr();
+	filename = (argc > 4) ? parse_bootfile(argv[4]) : get_bootfile();
+	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
 
 	if (!filename) {
 		puts ("** No boot file defined **\n");

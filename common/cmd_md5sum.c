@@ -34,7 +34,7 @@ static int do_md5sum(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc < 3)
 		return CMD_RET_USAGE;
 
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	len = simple_strtoul(argv[2], NULL, 16);
 
 	md5_wd((unsigned char *) addr, len, output, CHUNKSZ_MD5);

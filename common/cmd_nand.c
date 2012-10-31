@@ -623,7 +623,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		if (argc < 4)
 			goto usage;
 
-		addr = (ulong)simple_strtoul(argv[2], NULL, 16);
+		addr = parse_loadaddr(argv[2], NULL);
 
 		read = strncmp(cmd, "read", 4) == 0; /* 1 = read, 0 = write */
 		printf("\nNAND %s: ", read ? "read" : "write");
@@ -937,10 +937,12 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 				puts("Not a NAND device\n");
 				return 1;
 			}
-			if (argc > 3)
-				goto usage;
+			if (argc > 3) {
+				bootstage_error(BOOTSTAGE_ID_NAND_SUFFIX);
+				return CMD_RET_USAGE;
+			}
 			if (argc == 3)
-				addr = simple_strtoul(argv[1], NULL, 16);
+				addr = parse_loadaddr(argv[1], NULL);
 			else
 				addr = get_loadaddr();
 			return nand_load_image(cmdtp, &nand_info[dev->id->num],
@@ -950,31 +952,9 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 #endif
 
 	bootstage_mark(BOOTSTAGE_ID_NAND_PART);
-	switch (argc) {
-	case 1:
-		addr = get_loadaddr();
-		boot_device = getenv("bootdevice");
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = getenv("bootdevice");
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		break;
-	case 4:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		offset = simple_strtoul(argv[3], NULL, 16);
-		break;
-	default:
-#if defined(CONFIG_CMD_MTDPARTS)
-usage:
-#endif
-		bootstage_error(BOOTSTAGE_ID_NAND_SUFFIX);
-		return CMD_RET_USAGE;
-	}
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	boot_device = (argc > 2) ? argv[2] : getenv("bootdevice");
+	offset = (argc > 3) ? simple_strtoul(argv[3], NULL, 16) : 0;
 	bootstage_mark(BOOTSTAGE_ID_NAND_SUFFIX);
 
 	if (!boot_device) {
@@ -997,6 +977,11 @@ usage:
 }
 
 U_BOOT_CMD(nboot, 4, 1, do_nandboot,
-	"boot from NAND device",
-	"[partition] | [[[loadAddr] dev] offset]"
+	   "boot from NAND device",
+#ifdef CONFIG_CMD_MTDPARTS
+	   "[loadaddr] partition - load entire partition to loadaddr\n"
+	   "nboot "
+#endif
+	   "[loadaddr [dev [offs]]]\n"
+	   "    - load from offset offs of NAND device dev to loadaddr\n"
 );

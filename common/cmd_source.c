@@ -223,12 +223,13 @@ do_source (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		addr = get_loadaddr();
 		debug ("*  source: default load address = 0x%08lx\n", addr);
 #if defined(CONFIG_FIT)
-	} else if (fit_parse_subimage (argv[1], load_addr, &addr, &fit_uname)) {
+	} else if (fit_parse_subimage(argv[1], get_loadaddr(), &addr,
+				       &fit_uname)) {
 		debug ("*  source: subimage '%s' from FIT image at 0x%08lx\n",
 				fit_uname, addr);
 #endif
 	} else {
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		debug ("*  source: cmdline image address = 0x%08lx\n", addr);
 	}
 
@@ -508,7 +509,7 @@ int do_update(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			if (strcmp(argv[2], ".") != 0)
 				fname = argv[2];
 			if (argc > 3)
-				addr = simple_strtoul(argv[3], NULL, 16);
+				addr = parse_loadaddr(argv[3], NULL);
 		}
 	}
 

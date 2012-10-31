@@ -54,6 +54,10 @@
 #include <net.h>
 #endif
 
+#ifndef CONFIG_BOOTFILE
+#define CONFIG_BOOTFILE "uImage"
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if	!defined(CONFIG_ENV_IS_IN_EEPROM)	&& \
@@ -79,9 +83,7 @@ SPI_FLASH|NVRAM|MMC|FAT|REMOTE} or CONFIG_ENV_IS_NOWHERE
  */
 #define	MAX_ENV_SIZE	(1 << 20)	/* 1 MiB */
 
-ulong load_addr;			/* Default Load Address */
-ulong save_addr;			/* Default Save Address */
-ulong save_size;			/* Default Save Size (in bytes) */
+static ulong load_addr;			/* Default Load Address */
 
 /*
  * Table with supported baudrates (defined in config_xyz.h)
@@ -590,8 +592,35 @@ ulong getenv_ulong(const char *name, int base, ulong default_val)
 	return str ? simple_strtoul(str, NULL, base) : default_val;
 }
 
+const char *get_bootfile(void)
+{
+	const char *p;
+
+	p = getenv("bootfile");
+	if (p)
+		return p;
+	return CONFIG_BOOTFILE;
+}
+
+const char *parse_bootfile(const char *buffer)
+{
+	if ((buffer[0] == '.') && (buffer[1] == 0))
+		return get_bootfile();
+	return buffer;
+}
+
 ulong get_loadaddr(void)
 {
+	return load_addr;
+}
+
+/* If string starts with '.', return current load_addr, else parse address */
+ulong parse_loadaddr(const char *buffer, char ** endp)
+{
+	if (*buffer != '.')
+		return simple_strtoul(buffer, endp, 16);
+	if (endp)
+		*endp = (char *)(buffer + 1);
 	return load_addr;
 }
 
@@ -743,7 +772,7 @@ NXTARG:		;
 	if (argc < 1)
 		return CMD_RET_USAGE;
 
-	addr = (char *)simple_strtoul(argv[0], NULL, 16);
+	addr = (char *)parse_loadaddr(argv[0], NULL);
 
 	if (size)
 		memset(addr, '\0', size);
@@ -854,7 +883,7 @@ static int do_env_import(cmd_tbl_t *cmdtp, int flag,
 	if (!fmt)
 		printf("## Warning: defaulting to text format\n");
 
-	addr = (char *)simple_strtoul(argv[0], NULL, 16);
+	addr = (char *)parse_loadaddr(argv[0], NULL);
 
 	if (argc == 2) {
 		size = simple_strtoul(argv[1], NULL, 16);

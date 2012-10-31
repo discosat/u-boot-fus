@@ -676,7 +676,7 @@ error:
 	return err;
 }
 
-int ubifs_load(char *filename, u32 addr, u32 size)
+int ubifs_load(const char *filename, u32 addr, u32 size)
 {
 	struct ubifs_info *c = ubifs_sb->s_fs_info;
 	unsigned long inum;

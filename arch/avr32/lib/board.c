@@ -319,8 +319,15 @@ void board_init_r(gd_t *new_gd, ulong dest_addr)
 	jumptable_init();
 	console_init_r();
 
-	/* Initialize from environment */
-	load_addr = getenv_ulong("loadaddr", 16, load_addr);
+	/* Initialize load address from environment */
+#ifdef CONFIG_SYS_LOAD_ADDR
+	/* Default is configured load address */
+	set_loadaddr(getenv_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
+#else
+	/* Default is start of RAM plus configured offset */
+	set_loadaddr(getenv_ulong("loadaddr", 16,
+				  gd->ram_base + CONFIG_SYS_LOAD_OFFS));
+#endif
 
 #ifdef CONFIG_BITBANGMII
 	bb_miiphy_init();

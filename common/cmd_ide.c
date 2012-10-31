@@ -271,7 +271,7 @@ int do_ide(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		/* at least 4 args */
 
 		if (strcmp(argv[1], "read") == 0) {
-			ulong addr = simple_strtoul(argv[2], NULL, 16);
+			ulong addr = parse_loadaddr(argv[2], NULL);
 			ulong cnt = simple_strtoul(argv[4], NULL, 16);
 			ulong n;
 
@@ -301,7 +301,7 @@ int do_ide(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 			else
 				return 1;
 		} else if (strcmp(argv[1], "write") == 0) {
-			ulong addr = simple_strtoul(argv[2], NULL, 16);
+			ulong addr = parse_loadaddr(argv[2], NULL);
 			ulong cnt = simple_strtoul(argv[4], NULL, 16);
 			ulong n;
 
@@ -346,23 +346,9 @@ int do_diskboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 #endif
 
 	bootstage_mark(BOOTSTAGE_ID_IDE_START);
-	switch (argc) {
-	case 1:
-		addr = get_loadaddr();
-		boot_device = getenv("bootdevice");
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = getenv("bootdevice");
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		break;
-	default:
-		bootstage_error(BOOTSTAGE_ID_IDE_ADDR);
-		return CMD_RET_USAGE;
-	}
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	boot_device = (argc > 2) ? argv[2] : getenv("bootdevice");
+	set_loadaddr(addr);
 	bootstage_mark(BOOTSTAGE_ID_IDE_ADDR);
 
 	if (!boot_device) {
@@ -478,10 +464,6 @@ int do_diskboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		fit_print_contents(fit_hdr);
 	}
 #endif
-
-	/* Loading ok, update default load address */
-
-	load_addr = addr;
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

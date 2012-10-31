@@ -345,12 +345,13 @@ restart:
 
 	case 0:
 		NetDevExists = 1;
-		NetBootFileXferSize = 0;
+
+		/* In case of TFTPPUT, NetBootFileXferSize is the send size */
+		if (protocol != TFTPPUT)
+			NetBootFileXferSize = 0;
 		switch (protocol) {
 		case TFTPGET:
-#ifdef CONFIG_CMD_TFTPPUT
 		case TFTPPUT:
-#endif
 			/* always use ARP to get server ethernet address */
 			TftpStart(protocol);
 			break;

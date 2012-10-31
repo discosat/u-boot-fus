@@ -195,10 +195,9 @@ static void netboot_update_env (void)
 static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		char * const argv[])
 {
-	char *end;
-	int   rcode = 0;
+	int   rcode;
 	int   size;
-	ulong addr;
+	char  *filename = NULL;
 	ulong loadaddr = get_loadaddr();
 
 	switch (argc) {
@@ -211,32 +210,48 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		 * form must be written in a format which can not be
 		 * mis-interpreted as a valid number.
 		 */
-		addr = simple_strtoul(argv[1], &end, 16);
-		if (end == (argv[1] + strlen(argv[1])))
-			loadaddr = addr;
-		else
-			copy_filename(BootFile, argv[1], sizeof(BootFile));
+		if (argv[1][0]) {
+			char *end;
+			ulong addr;
+
+			addr = simple_strtoul(argv[1], &end, 16);
+			if (*end == 0) {
+				loadaddr = addr;
+				break;
+			}
+		}
+		filename = argv[1];
 		break;
 
-	case 3:	loadaddr = simple_strtoul(argv[1], NULL, 16);
-		copy_filename (BootFile, argv[2], sizeof(BootFile));
-
+	case 3:	loadaddr = parse_loadaddr(argv[1], NULL);
+		filename = argv[2];
 		break;
 
 #ifdef CONFIG_CMD_TFTPPUT
 	case 4:
-		if (strict_strtoul(argv[1], 16, &save_addr) < 0 ||
-			strict_strtoul(argv[2], 16, &save_size) < 0) {
-			printf("Invalid address/size\n");
-			return cmd_usage(cmdtp);
+		loadaddr = parse_loadaddr(argv[1], NULL);
+		if (argv[2][0] == '.')
+			NetBootFileXferSize = getenv_ulong("filesize", 16, 0);
+		else
+			NetBootFileXferSize = simple_strtoul(argv[2], NULL, 16);
+		if (NetBootFileXferSize == 0) {
+			puts("Invalid size\n");
+			return CMD_RET_USAGE;
 		}
-		copy_filename(BootFile, argv[3], sizeof(BootFile));
+		filename = argv[3];
 		break;
 #endif
 	default:
 		bootstage_error(BOOTSTAGE_ID_NET_START);
 		return CMD_RET_USAGE;
 	}
+	if (filename && (filename[0] == '.') && (filename[1] == 0))
+		filename = getenv("bootfile");
+	if (filename)
+		copy_filename(BootFile, filename, sizeof(BootFile));
+	else
+		BootFile[0] = 0;  /* Use default name made from IP address */
+
 	set_loadaddr(loadaddr);
 
 	bootstage_mark(BOOTSTAGE_ID_NET_START);

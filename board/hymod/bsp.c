@@ -197,7 +197,7 @@ do_fpga (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	case 4:
 		if (strcmp (argv[1], "tftp") == 0) {
 			copy_filename (BootFile, argv[2], sizeof (BootFile));
-			load_addr = simple_strtoul (argv[3], NULL, 16);
+			set_loadaddr(simple_strtoul(argv[3], NULL, 16));
 			NetBootFileXferSize = 0;
 
 			if (NetLoop(TFTPGET) <= 0) {
@@ -215,7 +215,7 @@ do_fpga (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			printf ("File transfer succeeded - "
 				"beginning fpga load...");
 
-			result = fpga_load (0, (uchar *) load_addr,
+			result = fpga_load (0, (uchar *) get_loadaddr(),
 				NetBootFileXferSize);
 
 			if (result == LOAD_SUCCESS) {

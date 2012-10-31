@@ -612,7 +612,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc > 1) {
 		char *endp;
 
-		simple_strtoul(argv[1], &endp, 16);
+		parse_loadaddr(argv[1], &endp);
 		/* endp pointing to NULL means that argv[1] was just a
 		 * valid number, pass it along to the normal bootm processing
 		 *
@@ -868,17 +868,17 @@ static void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		debug("*  kernel: default image load address = 0x%08lx\n",
 				img_addr);
 #if defined(CONFIG_FIT)
-	} else if (fit_parse_conf(argv[1], load_addr, &img_addr,
+	} else if (fit_parse_conf(argv[1], get_loadaddr(), &img_addr,
 							&fit_uname_config)) {
 		debug("*  kernel: config '%s' from image at 0x%08lx\n",
 				fit_uname_config, img_addr);
-	} else if (fit_parse_subimage(argv[1], load_addr, &img_addr,
+	} else if (fit_parse_subimage(argv[1], get_loadaddr(), &img_addr,
 							&fit_uname_kernel)) {
 		debug("*  kernel: subimage '%s' from image at 0x%08lx\n",
 				fit_uname_kernel, img_addr);
 #endif
 	} else {
-		img_addr = simple_strtoul(argv[1], NULL, 16);
+		img_addr = parse_loadaddr(argv[1], NULL);
 		debug("*  kernel: cmdline image address = 0x%08lx\n", img_addr);
 	}
 
@@ -1057,7 +1057,7 @@ U_BOOT_CMD(
 	"\ta third argument is required which is the address of the\n"
 	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
 	"\tuse a '-' for the second argument. If you do not pass a third\n"
-	"\ta bd_info struct will be passed instead\n"
+	"\targument, a bd_info struct will be passed instead\n"
 #endif
 #if defined(CONFIG_FIT)
 	"\t\nFor the new multi component uImage format (FIT) addresses\n"
@@ -1128,7 +1128,7 @@ int do_iminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	for (arg = 1; arg < argc; ++arg) {
-		addr = simple_strtoul(argv[arg], NULL, 16);
+		addr = parse_loadaddr(argv[arg], NULL);
 		if (image_info(addr) != 0)
 			rcode = 1;
 	}
@@ -1684,7 +1684,7 @@ U_BOOT_CMD(
 	"\ta third argument is required which is the address of the\n"
 	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
 	"\tuse a '-' for the second argument. If you do not pass a third\n"
-	"\ta bd_info struct will be passed instead\n"
+	"\targument, a bd_info struct will be passed instead\n"
 #endif
 );
 #endif	/* CONFIG_CMD_BOOTZ */

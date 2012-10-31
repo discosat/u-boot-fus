@@ -830,7 +830,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 			if (images->fit_uname_os)
 				default_addr = (ulong)images->fit_hdr_os;
 			else
-				default_addr = load_addr;
+				default_addr = get_loadaddr();
 
 			if (fit_parse_conf(argv[2], default_addr,
 						&rd_addr, &fit_uname_config)) {
@@ -845,7 +845,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 			} else
 #endif
 			{
-				rd_addr = simple_strtoul(argv[2], NULL, 16);
+				rd_addr = parse_loadaddr(argv[2], NULL);
 				debug("*  ramdisk: cmdline image address = "
 						"0x%08lx\n",
 						rd_addr);
@@ -1416,7 +1416,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[],
 			else if (images->fit_uname_os)
 				default_addr = (ulong)images->fit_hdr_os;
 			else
-				default_addr = load_addr;
+				default_addr = get_loadaddr();
 
 			if (fit_parse_conf(argv[3], default_addr,
 						&fdt_addr, &fit_uname_config)) {
@@ -1431,7 +1431,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[],
 			} else
 #endif
 			{
-				fdt_addr = simple_strtoul(argv[3], NULL, 16);
+				fdt_addr = parse_loadaddr(argv[3], NULL);
 				debug("*  fdt: cmdline image address = "
 						"0x%08lx\n",
 						fdt_addr);
@@ -1796,7 +1796,7 @@ static int fit_parse_spec(const char *spec, char sepc, ulong addr_curr,
 	sep = strchr(spec, sepc);
 	if (sep) {
 		if (sep - spec > 0)
-			*addr = simple_strtoul(spec, NULL, 16);
+			*addr = parse_loadaddr(spec, NULL);
 
 		*name = sep + 1;
 		return 1;

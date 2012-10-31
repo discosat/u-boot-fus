@@ -214,7 +214,7 @@ static int do_i2c_read ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 	/*
 	 * memaddr is the address where to store things in memory
 	 */
-	memaddr = (u_char *)simple_strtoul(argv[4], NULL, 16);
+	memaddr = (u_char *)parse_loadaddr(argv[4], NULL);
 
 	if (i2c_read(chip, devaddr, alen, memaddr, length) != 0) {
 		puts ("Error reading the chip.\n");

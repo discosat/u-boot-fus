@@ -79,7 +79,7 @@ int do_bootelf (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	if (saddr)
-		addr = simple_strtoul(saddr, NULL, 16);
+		addr = parse_loadaddr(saddr, NULL);
 	else
 		addr = get_loadaddr();
 
@@ -127,7 +127,7 @@ int do_bootvx (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc < 2)
 		addr = get_loadaddr();
 	else
-		addr = simple_strtoul (argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 
 #if defined(CONFIG_CMD_NET)
 	/* Check to see if we need to tftp the image ourselves before starting */

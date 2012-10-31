@@ -68,13 +68,13 @@ int do_eeprom ( cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 #if defined(CONFIG_SYS_I2C_MULTI_EEPROMS)
 	if (argc == 6) {
 		ulong dev_addr = simple_strtoul (argv[2], NULL, 16);
-		ulong addr = simple_strtoul (argv[3], NULL, 16);
+		ulong addr = parse_loadaddr(argv[3], NULL);
 		ulong off  = simple_strtoul (argv[4], NULL, 16);
 		ulong cnt  = simple_strtoul (argv[5], NULL, 16);
 #else
 	if (argc == 5) {
 		ulong dev_addr = CONFIG_SYS_DEF_EEPROM_ADDR;
-		ulong addr = simple_strtoul (argv[2], NULL, 16);
+		ulong addr = parse_loadaddr(argv[2], NULL);
 		ulong off  = simple_strtoul (argv[3], NULL, 16);
 		ulong cnt  = simple_strtoul (argv[4], NULL, 16);
 #endif /* CONFIG_SYS_I2C_MULTI_EEPROMS */

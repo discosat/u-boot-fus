@@ -143,9 +143,9 @@ int do_bootldr(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Get the address */
 	if (argc < 2)
-		addr = (void *)load_addr;
+		addr = (void *)get_loadaddr();
 	else
-		addr = (void *)simple_strtoul(argv[1], NULL, 16);
+		addr = (void *)parse_loadaddr(argv[1], NULL);
 
 	/* Check if it is a LDR file */
 	if (ldr_valid_signature(addr)) {

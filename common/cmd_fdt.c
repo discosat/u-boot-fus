@@ -84,7 +84,7 @@ int do_fdt (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			return 0;
 		}
 
-		addr = simple_strtoul(argv[2], NULL, 16);
+		addr = parse_loadaddr(argv[2], NULL);
 		set_working_fdt_addr((void *)addr);
 
 		if (!fdt_valid()) {
@@ -133,7 +133,7 @@ int do_fdt (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			return 1;
 		}
 
-		newaddr = (struct fdt_header *)simple_strtoul(argv[3],NULL,16);
+		newaddr = (struct fdt_header *)parse_loadaddr(argv[3], NULL);
 
 		/*
 		 * If the user specifies a length, use that.  Otherwise use the
@@ -425,8 +425,8 @@ int do_fdt (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			return CMD_RET_USAGE;
 
 		if (argc == 4) {
-			initrd_start = simple_strtoul(argv[2], NULL, 16);
-			initrd_end = simple_strtoul(argv[3], NULL, 16);
+			initrd_start = parse_loadaddr(argv[2], NULL);
+			initrd_end = parse_loadaddr(argv[3], NULL);
 		}
 
 		fdt_chosen(working_fdt, 1);

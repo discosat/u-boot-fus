@@ -323,10 +323,9 @@ int	source (ulong addr, const char *fit_uname);
 int update_script(const char *action, const char *autocheck, const char *fname,
 		  unsigned long addr);
 
-/* Use get_loadaddr() and set_loadaddr() instead of variable load_addr */
+/* Use get_loadaddr() and set_loadaddr() instead of variable load_addr; use
+   get_loadaddr() also for saving (in tftpput) */
 //###extern ulong load_addr;		/* Default Load Address */
-extern ulong save_addr;		/* Default Save Address */
-extern ulong save_size;		/* Default Save Size */
 
 /* common/cmd_doc.c */
 void	doc_probe(unsigned long physadr);
@@ -347,7 +346,10 @@ int	envmatch     (uchar *, int);
 char	*getenv	     (const char *);
 int	getenv_f     (const char *name, char *buf, unsigned len);
 ulong getenv_ulong(const char *name, int base, ulong default_val);
+const char *get_bootfile(void);
+const char *parse_bootfile(const char *buffer);
 ulong get_loadaddr(void);
+ulong parse_loadaddr(const char *buffer, char **endp);
 void set_loadaddr(ulong addr);
 int	saveenv	     (void);
 #ifdef CONFIG_PPC		/* ARM version to be fixed! */

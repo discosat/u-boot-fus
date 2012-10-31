@@ -65,20 +65,17 @@ U_BOOT_CMD(
 int do_loadpci (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
     char *s;
-    ulong addr = 0, count = 0;
+    ulong addr, count = 0;
     u32 off;
     int cmd, rcode = 0;
 
-    /* pre-set load_addr */
-    if ((s = getenv("loadaddr")) != NULL) {
-	addr = simple_strtoul(s, NULL, 16);
-    }
+    addr = get_loadaddr();
 
     switch (argc) {
     case 1:
 	break;
     case 2:
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	break;
     default:
 	return cmd_usage(cmdtp);
@@ -133,7 +130,7 @@ int do_loadpci (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     /* Repoint to the default shared memory */
     i2155x_set_bar_base(3, PN62_SMEM_DEFAULT);
 
-    load_addr = addr;
+    set_loadaddr(addr);
     printf ("## Start Addr      = 0x%08lx\n", addr);
 
     show_startup_phase(15);
@@ -145,7 +142,7 @@ int do_loadpci (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	local_args[1] = NULL;
 
 	printf ("Automatic boot of image at addr 0x%08lX ...\n",
-		load_addr);
+		get_loadaddr());
 	rcode = do_bootm (cmdtp, 0, 1, local_args);
     }
 

@@ -52,7 +52,7 @@ fetch_and_parse (char *fn, ulong addr, int (*cback)(uchar *, uchar *))
 	}
 
 	copy_filename (BootFile, fn, sizeof (BootFile));
-	load_addr = addr;
+	set_loadaddr(addr);
 	NetBootFileXferSize = 0;
 
 	if (NetLoop(TFTPGET) == 0) {
@@ -65,7 +65,7 @@ fetch_and_parse (char *fn, ulong addr, int (*cback)(uchar *, uchar *))
 		return (0);
 	}
 
-	fp = (uchar *)load_addr;
+	fp = (uchar *)get_loadaddr();
 	efp = fp + NetBootFileXferSize;
 
 	do {

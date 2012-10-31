@@ -58,7 +58,6 @@
 extern ulong TftpRRQTimeoutMSecs;
 extern int TftpRRQTimeoutCountMax;
 extern flash_info_t flash_info[];
-extern ulong load_addr;
 
 static uchar *saved_prot_info;
 
@@ -84,7 +83,7 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	setenv("netretry", "no");
 
 	/* download the update file */
-	load_addr = addr;
+	set_loadaddr(addr);
 	copy_filename(BootFile, filename, sizeof(BootFile));
 	size = NetLoop(TFTPGET);
 
@@ -240,7 +239,7 @@ static int update_fit_getparams(const void *fit, int noffset, ulong *addr,
 
 int update_tftp(ulong addr)
 {
-	char *filename, *env_addr;
+	char *filename;
 	int images_noffset, ndepth, noffset;
 	ulong update_addr, update_fladdr, update_size;
 	void *fit;
@@ -263,11 +262,8 @@ int update_tftp(ulong addr)
 	printf("trying update file '%s'\n", filename);
 
 	/* get load address of downloaded update file */
-	if ((env_addr = getenv("loadaddr")) != NULL)
-		addr = simple_strtoul(env_addr, NULL, 16);
-	else
-		addr = CONFIG_UPDATE_LOAD_ADDR;
-
+	/* ### shouldn't this be addr = get_loadaddr()? ### */
+	addr = getenv_ulong("loadaddr", 16, CONFIG_UPDATE_LOAD_ADDR);
 
 	if (update_load(filename, CONFIG_UPDATE_TFTP_MSEC_MAX,
 					CONFIG_UPDATE_TFTP_CNT_MAX, addr)) {

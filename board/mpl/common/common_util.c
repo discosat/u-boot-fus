@@ -620,7 +620,7 @@ int do_mplcommon(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				ld_addr=simple_strtoul(argv[3], NULL, 16);
 			}
 			else {
-				ld_addr=load_addr;
+				ld_addr=get_loadaddr();
 			}
 			printf ("\nupdating bootloader image from memory at %lX\n",ld_addr);
 			result=mpl_prg_image((uchar *)ld_addr);
