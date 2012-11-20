@@ -451,6 +451,7 @@ const char *board_get_mtdparts_default(void)
 int board_late_init(void)
 {
 	unsigned int boardtype = fs_nboot_args.chBoardType;
+	const struct board_info *bi = &fs_board_info[boardtype];
 
 	/* Set sercon variable if not already set */
 	if (!getenv("sercon")) {
@@ -472,6 +473,12 @@ int board_late_init(void)
 		setenv("sercon", sercon);
 	}
 
+	/* Set platform and arch variables if not already set */
+	if (!getenv("platform"))
+		setenv("platform", bi->name);
+	if (!getenv("arch"))
+		setenv("arch", "fss5pv210");
+
 	/* Set mtdids, mtdparts and partition if not already set */
 	if (!getenv("mtdids"))
 		setenv("mtdids", MTDIDS_DEFAULT);
@@ -487,9 +494,9 @@ int board_late_init(void)
 	   environment and then we replace this string with the board specific
 	   value here */
 	if (strcmp(getenv("installcheck"), "default") == 0)
-	    setenv("installcheck", fs_board_info[boardtype].updinstcheck);
+	    setenv("installcheck", bi->updinstcheck);
 	if (strcmp(getenv("updatecheck"), "default") == 0)
-	    setenv("updatecheck", fs_board_info[boardtype].updinstcheck);
+	    setenv("updatecheck", bi->updinstcheck);
 
 	/* If bootargs is not set, run variable bootubi as default setting */
 	if (!getenv("bootargs")) {
