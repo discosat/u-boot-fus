@@ -35,7 +35,7 @@
 
 int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	long size;
+	unsigned long size;
 	unsigned long addr;
 	unsigned long count;
 	char buf [12];
@@ -72,15 +72,15 @@ int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
 	set_loadaddr(addr);
 
-	size = file_fat_read(filename, (unsigned char *)addr, count);
+	size = file_fat_read(filename, (void *)addr, count);
 
-	if(size==-1) {
+	if (size == -1) {
 		printf("\n** Unable to read \"%s\" from %s %d:%d **\n",
 			argv[4], argv[1], dev, part);
 		return 1;
 	}
 
-	printf("\n%ld bytes read\n", size);
+	printf("\n%lu bytes read\n", size);
 
 	sprintf(buf, "%lX", size);
 	setenv("filesize", buf);
@@ -99,8 +99,6 @@ U_BOOT_CMD(
 
 int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	char *filename = "/";
-	int ret;
 	int dev=0;
 	int part=1;
 	char *ep;
@@ -127,14 +125,8 @@ int do_fat_ls (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			argv[1], dev, part);
 		return 1;
 	}
-	if (argc == 4)
-		ret = file_fat_ls(argv[3]);
-	else
-		ret = file_fat_ls(filename);
 
-	if(ret!=0)
-		printf("No Fat FS detected\n");
-	return ret;
+	return file_fat_ls((argc == 4) ? argv[3] : "/");
 }
 
 U_BOOT_CMD(
