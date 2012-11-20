@@ -1,11 +1,60 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
-Supported boards: PicoMOD6, PicoCOM3, armStoneA8
+U-Boot V2.0 (20.11.2012, based on u-boot-2012.07)
+-------------------------------------------------
+Supported boards: PicoMOD6, PicoCOM3, armStoneA8, NetDCU14, PicoMOD7A
+
+- Rebase to u-boot-2012.07
+- Add support for PicoMOD7A
+- New environment variables 'platform' and 'arch' that contain the
+  current board type and architecture
+- Completely new FAT/VFAT implementation (write support still missing)
+- New wildcard module to allow for '*' and '?' in path and file names;
+  currently only working in combination with FAT (fatls, fatload)
+- Improve output of device descriptions (indendation, interface)
+- Patch serial port in zImage (use by zImage decompressor), so the
+  same zImage can be used on boards with different default serial port
+- Allow different ECC modes by virtually splitting NAND; one for NBoot,
+  one for the rest; remove old nboot protection as the new scheme
+  allows a more generic protection per device
+- Fix ecc.bytes and ecc.layout->eccbytes settings
+- Allow a dynamic environment size depending on NAND blocksize
+- Reduce environment size on large NAND blocksizes
+- Allow different default mtdparts sizes depending on NAND blocksize
+- Allow using '.' as default argument in commands with addresses or
+  bootfiles; it is replaced by $(loadaddr) or $(bootfile) respectively
+- Combine PicoMOD6 and PicoCOM3 to a common fss3c64xx platform
+- Bring fss3c64xx in line with fss5pv210 platform
+- Allow board specific default serial port, set sercon variable to it
+- Improve serial driver for S3C64XX to allow CONFIG_SERIAL_MULTI
+- Use ttySACx (instead of s5p_uartx) as name for serial devices
+- Fix early access to serial port
+- Fix serial download
+- Fix generic SDHC driver on S5P
+- Add similar SDHC infrastructure for S3C64XX as for S5P and switch
+  from F&S NBoot MMC driver to generic SDHC driver
+- Add commands update and install to manually trigger installation
+- Improve update command, unused arguments can be skipped with '.'
+- Use NetLoop() instead of netboot_common() for network update/install
+- Allow board specific defaults for updcheck/instcheck
+- Change environment to use new bootz command for loading zImages
+- Remove support to access single files within UBIFS and JFFS2 images
+- Enable device tree support and fdt command
+- Enable unzip command
+- Disable bootelf, bootvx and itest commands
+- Add new default variables bootnfsdhcp, bootubidhcp, bootjffs2dhcp;
+  if called with run, Linux initializes the network devices with DHCP
+- Fix bootcmd to load to dynamic loadaddr instead of fix 0x41000000
+- Fix ethernet settings for boards with more than one port
+- RTC: remove reading of alarm values, they are not used anyway
 
 
-armStoneA8 V1.1 (22.05.2012, based on u-boot-2011.12)
------------------------------------------------------
+
+U-Boot armStoneA8 V1.1 (22.05.2012, based on u-boot-2011.12)
+------------------------------------------------------------
+Supported boards: armStoneA8
+
 This is another interim release targeted to armStoneA8 only (PicoMOD6
 and PicoCOM3 won't work).
 
@@ -25,8 +74,10 @@ and PicoCOM3 won't work).
 
 
 
-armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
------------------------------------------------------
+U-Boot armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
+------------------------------------------------------------
+Supported boards: armStoneA8
+
 This is an interim release targeted to armStoneA8 only (PicoMOD6 and
 PicoCOM3 won't work). It is based on V1.2 with many improvements
 already in place, but many of these features are not yet complete.
@@ -36,12 +87,12 @@ They will be mentioned in the next regular release.
 - Enable NE2000 ethernet driver to use CONFIG_NET_MULTI; improve DP_*
   macros to support S5P
 - Add delay after powering USB root hub to detect USB storage devices
-  more reliably 
+  more reliably
 - Make size of uboot.nb0 configurable by platform configuration header
   file; on armStoneA8, the size of uboot.nb0 is 384K
 - Add drivers/mtd/nand/s5p_nand.c to support NAND on S5P
 - Add drivers/usb/host/{ehci,ohci}-s5p.c to support EHCI and OHCI USB
-  drivers on S5P 
+  drivers on S5P
 - Add drivers/rtc/s5p_rtc.c to support real time clock on S5P
 - New timer module arch/arm/cpu/armv7/s5p-common/timer.c that counts
   from 0xffffffff down; is simpler, creates less code
@@ -67,8 +118,10 @@ They will be mentioned in the next regular release.
 - Support UBI and UBIFS, activate appropriate commands
 
 
-V1.2 (05.09.2011)
-------------------
+U-Boot V1.2 (05.09.2011)
+------------------------
+Supported boards: PicoMOD6, PicoCOM3
+
 - Add support for PicoCOM3
 - Fix display power-on/power-off sequence
 - Fix display buffer enable signal (BUF_ENA)
@@ -77,8 +130,10 @@ V1.2 (05.09.2011)
 - Remove some unneeded code
 
 
-V1.1 (07.06.2011)
------------------
+U-Boot V1.1 (07.06.2011)
+------------------------
+Supported boards: PicoMOD6
+
 - New MMC driver for MMC/SD-Cards, supports external SD-Slot (mmc 0)
   and on-board Micro-SD-Slot (mmc 1); use after mmcinit
 - New environment variables autoload, autoaddr, autommc and autousb to
@@ -136,8 +191,10 @@ V1.1 (07.06.2011)
 
 
 
-V1.0 (18.10.2010)
------------------
+U-Boot V1.0 (18.10.2010)
+------------------------
+Supported boards: PicoMOD6
+
 - Added support for USB host (USB hubs and mass storage devices)
 - Added support for FAT filesystems (ported back from u-boot-2010.09
   and enhanced)
@@ -169,12 +226,16 @@ V1.0 (18.10.2010)
   releases
 
 
-V0.2 (05.02.2010)
------------------
+U-Boot V0.2 (05.02.2010)
+------------------------
+Supported boards: PicoMOD6
+
 - Activate ethernet once to set MAC address
 
 
-V0.1 (22.01.2010)
------------------
+U-Boot V0.1 (22.01.2010)
+------------------------
+Supported boards: PicoMOD6
+
 - First working version
 - Update of U-Boot only possible from NBoot
