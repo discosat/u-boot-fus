@@ -655,28 +655,24 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 	}
 	if (strncmp(argv[1], "dev", 3) == 0) {
+		int dev;
+
+		if (argc == 3)
+			dev = (int)simple_strtoul(argv[2], NULL, 10);
+		else
+			dev = usb_stor_curr_dev;
+		printf("\nUSB device %d:\n", dev);
+		stor_dev = usb_stor_get_dev(usb_stor_curr_dev);
+		if (stor_dev == NULL) {
+			printf("  -> unknown device\n");
+			return 1;
+		}
+		dev_print(stor_dev);
+		if (stor_dev->type == DEV_TYPE_UNKNOWN)
+			return 1;
 		if (argc == 3) {
-			int dev = (int)simple_strtoul(argv[2], NULL, 10);
-			printf("\nUSB device %d: ", dev);
-			stor_dev = usb_stor_get_dev(dev);
-			if (stor_dev == NULL) {
-				printf("unknown device\n");
-				return 1;
-			}
-			printf("\n    Device %d: ", dev);
-			dev_print(stor_dev);
-			if (stor_dev->type == DEV_TYPE_UNKNOWN)
-				return 1;
 			usb_stor_curr_dev = dev;
 			printf("... is now current device\n");
-			return 0;
-		} else {
-			printf("\nUSB device %d: ", usb_stor_curr_dev);
-			stor_dev = usb_stor_get_dev(usb_stor_curr_dev);
-			dev_print(stor_dev);
-			if (stor_dev->type == DEV_TYPE_UNKNOWN)
-				return 1;
-			return 0;
 		}
 		return 0;
 	}

@@ -198,7 +198,7 @@ int do_ide(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 			for (i = 0; i < CONFIG_SYS_IDE_MAXDEVICE; ++i) {
 				if (ide_dev_desc[i].type == DEV_TYPE_UNKNOWN)
 					continue;  /* list only known devices */
-				printf("IDE device %d: ", i);
+				printf("IDE device %d:\n", i);
 				dev_print(&ide_dev_desc[i]);
 			}
 			return 0;
@@ -209,7 +209,7 @@ int do_ide(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 				puts("\nno IDE devices available\n");
 				return 1;
 			}
-			printf("\nIDE device %d: ", curr_device);
+			printf("\nIDE device %d:\n", curr_device);
 			dev_print(&ide_dev_desc[curr_device]);
 			return 0;
 		} else if (strncmp(argv[1], "part", 4) == 0) {
@@ -237,9 +237,9 @@ int do_ide(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		if (strncmp(argv[1], "dev", 3) == 0) {
 			int dev = (int) simple_strtoul(argv[2], NULL, 10);
 
-			printf("\nIDE device %d: ", dev);
+			printf("\nIDE device %d:\n", dev);
 			if (dev >= CONFIG_SYS_IDE_MAXDEVICE) {
-				puts("unknown device\n");
+				puts("  -> unknown device\n");
 				return 1;
 			}
 			dev_print(&ide_dev_desc[dev]);

@@ -201,7 +201,7 @@ int usb_stor_info(void)
 
 	if (usb_max_devs > 0) {
 		for (i = 0; i < usb_max_devs; i++) {
-			printf("  Device %d: ", i);
+			printf("Device %d:\n", i);
 			dev_print(&usb_dev_desc[i]);
 		}
 		return 0;

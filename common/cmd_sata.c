@@ -90,7 +90,7 @@ int do_sata(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			for (i = 0; i < CONFIG_SYS_SATA_MAX_DEVICE; ++i) {
 				if (sata_dev_desc[i].type == DEV_TYPE_UNKNOWN)
 					continue;
-				printf ("SATA device %d: ", i);
+				printf("SATA device %d:\n", i);
 				dev_print(&sata_dev_desc[i]);
 			}
 			return 0;
@@ -99,7 +99,7 @@ int do_sata(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				puts("\nno SATA devices available\n");
 				return 1;
 			}
-			printf("\nSATA device %d: ", sata_curr_device);
+			printf("\nSATA device %d:\n", sata_curr_device);
 			dev_print(&sata_dev_desc[sata_curr_device]);
 			return 0;
 		} else if (strncmp(argv[1],"part",4) == 0) {
@@ -126,7 +126,7 @@ int do_sata(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 			printf("\nSATA device %d: ", dev);
 			if (dev >= CONFIG_SYS_SATA_MAX_DEVICE) {
-				puts ("unknown device\n");
+				puts("  -> unknown device\n");
 				return 1;
 			}
 			dev_print(&sata_dev_desc[dev]);

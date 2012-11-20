@@ -162,7 +162,7 @@ void scsi_scan(int mode)
 			init_part(&scsi_dev_desc[scsi_max_devs]);
 removable:
 			if(mode==1) {
-				printf ("  Device %d: ", scsi_max_devs);
+				printf ("Device %d:\n", scsi_max_devs);
 				dev_print(&scsi_dev_desc[scsi_max_devs]);
 			} /* if mode */
 			scsi_max_devs++;
@@ -337,7 +337,7 @@ int do_scsi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				for (i=0; i<CONFIG_SYS_SCSI_MAX_DEVICE; ++i) {
 					if(scsi_dev_desc[i].type==DEV_TYPE_UNKNOWN)
 						continue; /* list only known devices */
-					printf ("SCSI dev. %d:  ", i);
+					printf("SCSI device %d:\n", i);
 					dev_print(&scsi_dev_desc[i]);
 				}
 				return 0;
@@ -347,7 +347,7 @@ int do_scsi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 					printf("\nno SCSI devices available\n");
 					return 1;
 				}
-				printf ("\n    Device %d: ", scsi_curr_dev);
+				printf("\nDevice %d:\n", scsi_curr_dev);
 				dev_print(&scsi_dev_desc[scsi_curr_dev]);
 				return 0;
 			}
@@ -379,7 +379,7 @@ int do_scsi (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 					printf("unknown device\n");
 					return 1;
 				}
-				printf ("\n    Device %d: ", dev);
+				printf("\nDevice %d:\n", dev);
 				dev_print(&scsi_dev_desc[dev]);
 				if(scsi_dev_desc[dev].type == DEV_TYPE_UNKNOWN) {
 					return 1;

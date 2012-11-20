@@ -138,67 +138,86 @@ static lba512_t lba512_muldiv (lba512_t block_count, lba512_t mul_by, lba512_t d
 void dev_print (block_dev_desc_t *dev_desc)
 {
 	lba512_t lba512; /* number of blocks if 512bytes block size */
+	int if_type = dev_desc->if_type;
+	static const char const *if_type_table[] = {
+		[IF_TYPE_UNKNOWN] = "Unknown",
+		[IF_TYPE_IDE] = "IDE",
+		[IF_TYPE_SCSI] = "SCSI",
+		[IF_TYPE_ATAPI] = "ATAPI",
+		[IF_TYPE_USB] = "USB",
+		[IF_TYPE_DOC] = "DOC",
+		[IF_TYPE_MMC] = "MMC",
+		[IF_TYPE_SD] = "SD",
+		[IF_TYPE_SATA] = "SATA",
+	};
 
 	if (dev_desc->type == DEV_TYPE_UNKNOWN) {
-		puts ("not available\n");
+		printf("  --> not available\n");
 		return;
 	}
 
-	switch (dev_desc->if_type) {
+	if_type = dev_desc->if_type;
+	if (if_type > IF_TYPE_SATA)
+		if_type = IF_TYPE_UNKNOWN;
+	printf("  Interface: %s\n", if_type_table[if_type]);
+
+	switch (if_type) {
 	case IF_TYPE_SCSI:
-		printf ("(%d:%d) Vendor: %s Prod.: %s Rev: %s\n",
-			dev_desc->target,dev_desc->lun,
-			dev_desc->vendor,
-			dev_desc->product,
-			dev_desc->revision);
+		printf("  Target/LUN: (%d:%d)\n"
+		       "  Vendor: %s\n"
+		       "  Product: %s\n"
+		       "  Rev: %s\n",
+		       dev_desc->target, dev_desc->lun,
+		       dev_desc->vendor,
+		       dev_desc->product,
+		       dev_desc->revision);
 		break;
 	case IF_TYPE_ATAPI:
 	case IF_TYPE_IDE:
 	case IF_TYPE_SATA:
-		printf ("Model: %s Firm: %s Ser#: %s\n",
-			dev_desc->vendor,
-			dev_desc->revision,
-			dev_desc->product);
+		printf("  Model: %s\n"
+		       "  Serial number: %s\n"
+		       "  Firm: %s\n",
+		       dev_desc->vendor,
+		       dev_desc->product,
+		       dev_desc->revision);
 		break;
 	case IF_TYPE_SD:
 	case IF_TYPE_MMC:
 	case IF_TYPE_USB:
-		printf ("Vendor: %s Rev: %s Prod: %s\n",
-			dev_desc->vendor,
-			dev_desc->revision,
-			dev_desc->product);
+		printf("  Vendor: %s\n"
+		       "  Product: %s\n"
+		       "  Revision: %s\n",
+		       dev_desc->vendor,
+		       dev_desc->product,
+		       dev_desc->revision);
 		break;
 	case IF_TYPE_DOC:
-		puts("device type DOC\n");
-		return;
 	case IF_TYPE_UNKNOWN:
-		puts("device type unknown\n");
-		return;
 	default:
-		printf("Unhandled device type: %i\n", dev_desc->if_type);
 		return;
 	}
-	puts ("            Type: ");
+	puts("  Type: ");
 	if (dev_desc->removable)
-		puts ("Removable ");
+		puts("Removable ");
 	switch (dev_desc->type & 0x1F) {
 	case DEV_TYPE_HARDDISK:
-		puts ("Hard Disk");
+		puts("Hard Disk");
 		break;
 	case DEV_TYPE_CDROM:
-		puts ("CD ROM");
+		puts("CD ROM");
 		break;
 	case DEV_TYPE_OPDISK:
-		puts ("Optical Device");
+		puts("Optical Device");
 		break;
 	case DEV_TYPE_TAPE:
-		puts ("Tape");
+		puts("Tape");
 		break;
 	default:
-		printf ("# %02X #", dev_desc->type & 0x1F);
+		printf("# %02X #", dev_desc->type & 0x1F);
 		break;
 	}
-	puts ("\n");
+	puts("\n  Capacity: ");
 	if ((dev_desc->lba * dev_desc->blksz)>0L) {
 		ulong mb, mb_quot, mb_rem, gb, gb_quot, gb_rem;
 		lbaint_t lba;
@@ -215,25 +234,25 @@ void dev_print (block_dev_desc_t *dev_desc)
 		gb = mb / 1024;
 		gb_quot	= gb / 10;
 		gb_rem	= gb - (10 * gb_quot);
-#ifdef CONFIG_LBA48
-		if (dev_desc->lba48)
-			printf ("            Supports 48-bit addressing\n");
-#endif
 #if defined(CONFIG_SYS_64BIT_LBA)
-		printf ("            Capacity: %ld.%ld MB = %ld.%ld GB (%Ld x %ld)\n",
-			mb_quot, mb_rem,
-			gb_quot, gb_rem,
-			lba,
-			dev_desc->blksz);
+		printf("%ld.%ld MB = %ld.%ld GB (%Ld x %ld)\n",
+		       mb_quot, mb_rem,
+		       gb_quot, gb_rem,
+		       lba,
+		       dev_desc->blksz);
 #else
-		printf ("            Capacity: %ld.%ld MB = %ld.%ld GB (%ld x %ld)\n",
-			mb_quot, mb_rem,
-			gb_quot, gb_rem,
-			(ulong)lba,
-			dev_desc->blksz);
+		printf("%ld.%ld MB = %ld.%ld GB (%ld x %ld)\n",
+		       mb_quot, mb_rem,
+		       gb_quot, gb_rem,
+		       (ulong)lba,
+		       dev_desc->blksz);
+#endif
+#ifdef CONFIG_LBA48
+		printf("  48-bit addressing: %s\n",
+		       def_desc->lba48 ? "yes" : "no");
 #endif
 	} else {
-		puts ("            Capacity: not available\n");
+		puts ("not available\n");
 	}
 }
 #endif
