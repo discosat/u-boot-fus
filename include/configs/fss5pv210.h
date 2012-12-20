@@ -2,7 +2,7 @@
  * (C) Copyright 2012
  * F&S Elektronik Systeme GmbH
  *
- * Configuation settings for all F&S boards based on S5PV210. This is
+ * Configuration settings for all F&S boards based on S5PV210. This is
  * armStoneA8 (and its predecessor EASYsom1), PicoMOD7A and NetDCU14.
  * Activate with one of the following targets:
  *   make fss5pv210_config      Configure for S5PV210 boards
@@ -142,8 +142,8 @@
  * Miscellaneous configurable options
  ************************************************************************/
 #define CONFIG_SYS_LONGHELP		   /* undef to save memory */
-#define CONFIG_SYS_CBSIZE	256	   /* Console I/O Buffer Size */
-#define CONFIG_SYS_PBSIZE	384	   /* Print Buffer Size */
+#define CONFIG_SYS_CBSIZE	512	   /* Console I/O Buffer Size */
+#define CONFIG_SYS_PBSIZE	640	   /* Print Buffer Size */
 #define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 #define CONFIG_UBOOTNB0_SIZE    384	   /* size of uboot.nb0 (in kB) */
@@ -644,8 +644,6 @@
 	"updatecheck=default\0" \
 	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootubidhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootjffs2=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
-	"bootjffs2dhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=jffs2 root=/dev/mtdblock5 ro init=linuxrc\0" \
 	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
 	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs ro init=linuxrc\0" \
 	"r=tftp zImage ; bootz\0"
