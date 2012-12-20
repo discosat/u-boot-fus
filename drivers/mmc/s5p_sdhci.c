@@ -49,12 +49,13 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 
 	/*
 	 * FCSEL3[31] FCSEL2[23] FCSEL1[15] FCSEL0[7]
+	 * FCSel[3:2] : Tx Feedback Clock Delay Control
 	 * FCSel[1:0] : Rx Feedback Clock Delay Control
-	 *	Inverter delay means10ns delay if SDCLK 50MHz setting
-	 *	01 = Delay1 (basic delay)
-	 *	11 = Delay2 (basic delay + 2ns)
-	 *	00 = Delay3 (inverter delay)
-	 *	10 = Delay4 (inverter delay + 2ns)
+	 *      00, 01: Inverter delay: output with rising edge of CLK, i.e.
+	 *              about +10ns @50MHz as one full clock cycle is 20ns
+	 *      10, 11: Basic delay: output with falling edge of CLK, plus
+	 *              about 2ns @50MHz
+	 * ### 19.12.2012 HK: Settings above are verified on S5PV210!
 	 */
 	val = SDHCI_CTRL3_FCSEL3 | SDHCI_CTRL3_FCSEL1;
 	sdhci_writel(host, val, SDHCI_CONTROL3);
@@ -62,8 +63,8 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 	/*
 	 * SELBASECLK[5:4]
 	 * 00/01 = HCLK
-	 * 10 = EPLL
-	 * 11 = XTI or XEXTCLK
+	 * 10 = SCLK_MMC from SYSCON
+	 * 11 = reserved
 	 */
 	ctrl = sdhci_readl(host, SDHCI_CONTROL2);
 	ctrl &= ~SDHCI_CTRL2_SELBASECLK_MASK(0x3);
@@ -84,13 +85,15 @@ int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
 	host->ioaddr = (void *)regbase;
 	host->quirks = quirks;
 
-	//###24.09.2012 HK: No such quirks seem to be required on S5PV210
+	//### 19.12.2012 HK: We actually do have the HISPD bit (even if it is
+	//### called OUTEDGEINV in the Samsung docu), but it does not make
+	//### sense (and does not work) if it is set. Everything is OK if the
+	//### HISPD bit stays 0 even on clocks > 25MHz. The voltages look
+	//### perfectly right, so no reason to have a quirk here.
+	host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT;
 	//host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE;
 	//host->voltages = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195;
-	if (quirks & SDHCI_QUIRK_REG32_RW)
-		host->version = sdhci_readl(host, SDHCI_HOST_VERSION - 2) >> 16;
-	else
-		host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
+	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
 
 	/* Throw away manufacturer info, just keep host controller version */
 	host->version &= 0x00ff;

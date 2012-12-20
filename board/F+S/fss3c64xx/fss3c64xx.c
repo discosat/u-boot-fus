@@ -345,6 +345,7 @@ int board_mmc_init(bd_t *bis)
 	unsigned int div;
 	unsigned int boardtype = fs_nboot_args.chBoardType;
 	int ret;
+	unsigned int base_clock;
 
 	/* Activate 48MHz clock, this is not only required for USB OTG, but
 	   also for MMC */
@@ -370,9 +371,11 @@ int board_mmc_init(bd_t *bis)
 	   CLK_DIV1[11:8]: MMC2_RATIO
 	   CLK_DIV1[7:4]:  MMC1_RATIO
 	   CLK_DIV1[3:0]:  MMC0_RATIO */
-	div = get_UCLK()/49999999;
+	base_clock = get_UCLK();
+	div = base_clock/49999999;
 	if (div > 15)
 		div = 15;
+	base_clock /= div + 1;
 	div |= (div << 4) | (div << 8);
 	CLK_DIV1_REG = (CLK_DIV1_REG & ~(0xFFF << 0)) | (div << 0);
 
@@ -405,8 +408,9 @@ int board_mmc_init(bd_t *bis)
 		break;
 	}
 
-	/* Add MMC0 with 4 bit bus width */
-	ret = s3c_mmc_init(0, 4);
+	/* Add MMC0 (4 bit bus width) */
+	ret = s3c_sdhci_init(ELFIN_HSMMC_0_BASE + (0x100000 * 0),
+			     base_clock, base_clock/256, 0);
 
 	if (!ret && (boardtype == BT_PICOMOD6)) {
 		/* On PicoMOD6, we also have MMC1 (on-board Micro-SD slot).
@@ -419,8 +423,9 @@ int board_mmc_init(bd_t *bis)
 		GPHCON1_REG = 0x22;
 		GPHPUD_REG = 0;
 
-		/* ADD MMC1 with 4 bit bus width */
-		ret = s3c_mmc_init(1, 4);
+		/* ADD MMC1 (4 bit bus width) */
+		ret = s3c_sdhci_init(ELFIN_HSMMC_0_BASE + (0x100000 * 1),
+			     base_clock, base_clock/256, 0);
 	}
 
 	return ret;

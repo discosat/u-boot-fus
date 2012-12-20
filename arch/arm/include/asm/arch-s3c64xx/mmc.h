@@ -70,6 +70,6 @@ static inline unsigned int s3c_mmc_init(int index, int bus_width)
 {
 	unsigned int base = ELFIN_HSMMC_0_BASE + (0x100000 * index);
 
-	return s3c_sdhci_init(base, 52000000, 400000, 0);
+	return s3c_sdhci_init(base, 50000000, 400000, 0);
 }
 #endif
