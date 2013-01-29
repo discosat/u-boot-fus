@@ -33,6 +33,8 @@
 #include <asm/immap.h>
 #endif
 
+//#define ECC_30
+
 #define	DRV_NAME		"fsl_nfc"
 #define	DRV_VERSION		"0.5"
 
@@ -104,6 +106,28 @@ static struct nand_ecclayout fsl_nfc_ecc45 = {
 		{.offset = 8,
 		.length = 11} }
 };
+
+static struct nand_ecclayout fsl_nfc_ecc30 = {
+	.eccbytes = 30,
+	.eccpos = {34, 35, 36, 37, 38, 39,
+		   40, 41, 42, 43, 44, 45, 46, 47,
+		   48, 49, 50, 51, 52, 53, 54, 55,
+		   56, 57, 58, 59, 60, 61, 62, 63},
+	.oobfree = {
+		{.offset = 8,
+		.length = 26} }
+};
+
+/* OOB layout for NAND flashes with 2048 byte pages and 64 bytes OOB */
+/* 1-bit ECC: ECC is in bytes 1..4 in OOB, bad block marker is in byte 0 */
+static struct nand_ecclayout s3c_layout_ecc1_oob64 = {
+   .eccbytes = 4,
+   .eccpos = {1, 2, 3, 4},
+   .oobfree = {
+            {.offset = 5,         /* Behind bad block marker and ECC */
+             .length = 59}}
+};
+
 
 static inline u32 nfc_read(struct mtd_info *mtd, uint reg)
 {
@@ -361,7 +385,7 @@ fsl_nfc_command(struct mtd_info *mtd, unsigned command,
 		if (hardware_ecc)
 			nfc_set_field(mtd, NFC_FLASH_CONFIG,
 				CONFIG_ECC_MODE_MASK,
-				CONFIG_ECC_MODE_SHIFT, ECC_45_BYTE);
+				CONFIG_ECC_MODE_SHIFT, /*ECC_45_BYTE*/ ECC_30_BYTE);
 		else
 			/* set ECC BY_PASS */
 			nfc_set_field(mtd, NFC_FLASH_CONFIG,
@@ -730,8 +754,13 @@ int board_nand_init(struct nand_chip *chip)
 	chip->read_buf = fsl_nfc_read_buf;
 	chip->write_buf = fsl_nfc_write_buf;
 	chip->verify_buf = fsl_nfc_verify_buf;
-	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
+#if 0
+    chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
 		NAND_BUSWIDTH_16 | NAND_CACHEPRG;
+#else
+    chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
+		/*NAND_BUSWIDTH_16 |*/ NAND_CACHEPRG;
+#endif
 
 	chip->select_chip = nfc_select_chip;
 
@@ -740,7 +769,11 @@ int board_nand_init(struct nand_chip *chip)
 		chip->ecc.write_page = fsl_nfc_write_page;
 		chip->ecc.read_oob = fsl_nfc_read_oob;
 		chip->ecc.write_oob = fsl_nfc_write_oob;
+#ifdef ECC_30
+		chip->ecc.layout = &fsl_nfc_ecc30;
+#else
 		chip->ecc.layout = &fsl_nfc_ecc45;
+#endif
 
 		/* propagate ecc.layout to mtd_info */
 		mtd->ecclayout = chip->ecc.layout;
@@ -750,12 +783,21 @@ int board_nand_init(struct nand_chip *chip)
 		chip->ecc.mode = NAND_ECC_HW;
 		/* RS-ECC is applied for both MAIN+SPARE not MAIN alone */
 		chip->ecc.steps = 1;
-		chip->ecc.bytes = 45;
+#ifdef ECC_30
+	        chip->ecc.bytes = 30;
+#else
+	        chip->ecc.bytes = 45;
+#endif
 		chip->ecc.size = 0x800;
-
+#ifdef ECC_30
+		nfc_set_field(mtd, NFC_FLASH_CONFIG,
+				CONFIG_ECC_MODE_MASK,
+				CONFIG_ECC_MODE_SHIFT, ECC_30_BYTE);
+#else
 		nfc_set_field(mtd, NFC_FLASH_CONFIG,
 				CONFIG_ECC_MODE_MASK,
 				CONFIG_ECC_MODE_SHIFT, ECC_45_BYTE);
+#endif
 		/* set ECC_STATUS write position */
 		nfc_set_field(mtd, NFC_FLASH_CONFIG,
 				CONFIG_ECC_SRAM_ADDR_MASK,
@@ -787,16 +829,17 @@ int board_nand_init(struct nand_chip *chip)
 	nfc_set_field(mtd, NFC_FLASH_CONFIG,
 			CONFIG_BUFNO_AUTO_INCR_MASK,
 			CONFIG_BUFNO_AUTO_INCR_SHIFT, 0);
-
+#if 0
 	nfc_set_field(mtd, NFC_FLASH_CONFIG,
 			CONFIG_16BIT_MASK,
 			CONFIG_16BIT_SHIFT, 1);
-
+#endif
+#if 0
 	/* SET FAST_FLASH = 1 */
 	nfc_set_field(mtd, NFC_FLASH_CONFIG,
 			CONFIG_BOOT_MODE_MASK,
 			CONFIG_BOOT_MODE_SHIFT, 0);
-
+#endif
 	return 0;
 }
 

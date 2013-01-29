@@ -48,7 +48,7 @@
 
 #undef CONFIG_OF_LIBFDT
 
-#define CONFIG_MACH_TYPE		MACH_TYPE_VYBRID_VF6XX
+#define CONFIG_MACH_TYPE		5555 /*TODO*//*MACH_TYPE_VYBRID_VF6XX*/
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + 2 * 1024 * 1024)
 
@@ -111,9 +111,21 @@
  * NAND FLASH
  */
 #ifdef CONFIG_CMD_NAND
-#define CONFIG_MTD_NAND_FSL_NFC_SWECC	1
+#define CONFIG_CMD_MTDPARTS
+#define MTDIDS_DEFAULT "nand0=NAND"
+#define CONFIG_MTD_DEVICE         /* Create MTD device */
+#define CONFIG_MTD_PARTITIONS         /* Required for UBI */
+#define CONFIG_RBTREE             /* Required for UBI */
+#define CONFIG_LZO            /* Required for UBI */
+#define CONFIG_CMD_UBI
+#define CONFIG_CMD_UBIFS
 #define CONFIG_JFFS2_NAND
+#if 1
+#define CONFIG_MTD_NAND_FSL_NFC_SWECC	1
 #define CONFIG_NAND_FSL_NFC
+#else
+#define CONFIG_NAND_MXC
+#endif
 #define CONFIG_SYS_NAND_BASE		0x400E0000
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define NAND_MAX_CHIPS			CONFIG_SYS_MAX_NAND_DEVICE
