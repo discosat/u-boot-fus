@@ -111,7 +111,8 @@
  * NAND FLASH
  */
 #ifdef CONFIG_CMD_NAND
-#define CONFIG_CMD_MTDPARTS
+#define CONFIG_CMD_MTDPARTS 
+#define MTDPARTS_DEFAULT "mtdparts=NAND:256k(Nboot)ro,512k(Uboot)ro,256k(UbootEnv),4m(Kernel),-(TargetFS)"
 #define MTDIDS_DEFAULT "nand0=NAND"
 #define CONFIG_MTD_DEVICE         /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS         /* Required for UBI */
@@ -158,7 +159,7 @@
 #	define CONFIG_ETHPRIME		"FEC0"
 #	define CONFIG_IPADDR		10.0.0.27
 #	define CONFIG_NETMASK		255.255.255.0
-#	define CONFIG_SERVERIP		10.81.64.153
+#	define CONFIG_SERVERIP		10.0.0.126
 #	define CONFIG_GATEWAYIP		10.81.67.254
 /*
 #	define CONFIG_IPADDR		192.162.1.2
@@ -179,6 +180,7 @@
 #	endif			/* CONFIG_SYS_DISCOVER_PHY */
 #endif
 
+#define CONFIG_BOOTCOMMAND      "nand read $loadaddr Kernel ; bootm $loadaddr"
 #define CONFIG_BOOTDELAY		3
 #define CONFIG_ETHPRIME			"FEC0"
 #define CONFIG_LOADADDR			0x80010000	/* loadaddr env var */
@@ -284,9 +286,18 @@
 /* FLASH and environment organization */
 #define CONFIG_SYS_NO_FLASH
 
+#if 0
 #define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
 #define CONFIG_ENV_SIZE			(8 * 1024)
 #define CONFIG_ENV_IS_IN_MMC
 #define CONFIG_SYS_MMC_ENV_DEV		0
+#else
+#define CONFIG_ENV_SIZE (256 * 1024)
+#define CONFIG_ENV_OFFSET 0xC0000
+#define CONFIG_ENV_IS_IN_NAND
+#endif
+
+#define CONFIG_EXTRA_ENV_SETTINGS \
+    "bootubi=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0"
 
 #endif
