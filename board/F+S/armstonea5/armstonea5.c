@@ -36,6 +36,8 @@
 #include <fsl_esdhc.h>
 #include <usb/ehci-fsl.h>
 
+#define ARMSTONE_1_0
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #ifdef CONFIG_FSL_ESDHC
@@ -49,7 +51,6 @@ void setup_iomux_ddr(void)
 {
 #define DDR_IOMUX	0x00000180
 #define DDR_IOMUX1	0x00010180
-    puts("-->iomux_ddr");
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A15);
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A14);
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A13);
@@ -96,7 +97,6 @@ void setup_iomux_ddr(void)
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_WE);
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT1);
 	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT0);
-    puts("<--iomux_ddr");
 }
 
 void ddr_phy_init(void)
@@ -143,7 +143,6 @@ void ddr_phy_init(void)
 unsigned long ddr_ctrl_init(void)
 {
 	int dram_size, rows, cols, banks, port;
-puts("-->ddr_ctrl_init");
 #if 0
 	__raw_writel(0x00000600, DDR_CR000);	/* LPDDR2 or DDR3 */
 	__raw_writel(0x00000020, DDR_CR002);	/* TINIT */
@@ -302,14 +301,11 @@ puts("-->ddr_ctrl_init");
 
 	dram_size = (1 << (rows + cols)) * banks * port;
 
-    puts("<--ddr_ctrl_init");
-
 	return dram_size;
 }
 
 int dram_init(void)
 {
-	puts("dram_init");
 	setup_iomux_ddr();
 #ifdef CONFIG_SYS_UBOOT_IN_GPURAM
 	gd->ram_size = 0x80000;
@@ -322,7 +318,6 @@ int dram_init(void)
 
 void setup_iomux_uart(void)
 {
-    puts("iomux_uart");
 	__raw_writel(0x002011a2, IOMUXC_PAD_026);
 	__raw_writel(0x002011a1, IOMUXC_PAD_027);
 	__raw_writel(0x002011a2, IOMUXC_PAD_028);
@@ -335,7 +330,11 @@ void setup_iomux_uart(void)
 int fecpin_setclear(struct eth_device *dev, int setclear)
 {
 	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
+#ifdef ARMSTONE_1_0
 	__raw_writel(0x00203191, IOMUXC_PAD_000);	/* RMII_CLK */
+#else
+    __raw_writel(0x001039c2, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+#endif
 
 	if (setclear) {
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
@@ -398,7 +397,6 @@ void setup_iomux_spi(void)
 #ifdef CONFIG_QUAD_SPI
 void setup_iomux_quadspi(void)
 {
-	puts("quadspi");
     __raw_writel(0x001030C3, IOMUXC_PAD_079);	/* SCK */
 	__raw_writel(0x001030FF, IOMUXC_PAD_080);	/* CS0 */
 	__raw_writel(0x001030C3, IOMUXC_PAD_081);	/* D3 */
@@ -420,7 +418,6 @@ int board_mmc_getcd(struct mmc *mmc)
 {
 	/*struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;*/
 	int ret;
-    puts("-->mmc_getcd");
 #if 1
 #if 0
 	__raw_writel(0x005031e2, IOMUXC_PAD_045);	/* clk */
@@ -438,7 +435,6 @@ int board_mmc_getcd(struct mmc *mmc)
 	__raw_writel(0x005031ef, IOMUXC_PAD_019);	/* dat3 */
 #endif
 	ret = 1;
-    puts("<--mmc_getcd");
 	return ret;
 }
 
@@ -479,7 +475,6 @@ int board_mmc_init(bd_t *bis)
 		}
 	}
 #endif
-    puts("mmc_init");
 #if 1
 	status |= fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 #endif
@@ -490,7 +485,6 @@ int board_mmc_init(bd_t *bis)
 #ifdef CONFIG_NAND_FSL_NFC
 void setup_iomux_nfc(void)
 {
-    puts("setup_iomux_nfc");
 	__raw_writel(0x002038df, IOMUXC_PAD_063);
 	__raw_writel(0x002038df, IOMUXC_PAD_064);
 	__raw_writel(0x002038df, IOMUXC_PAD_065);
@@ -518,7 +512,6 @@ void setup_iomux_nfc(void)
 #endif
 int board_early_init_f(void)
 {
-    puts("early_init_f");
 	setup_iomux_uart();
 #ifdef CONFIG_NAND_FSL_NFC
 	setup_iomux_nfc();
@@ -531,7 +524,6 @@ int board_init(void)
 	u32 temp;
 	struct vybrid_scsc_reg *scsc = (struct vybrid_scsc_reg *)SCSCM_BASE_ADDR;
 
-    puts("board_init");
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 
@@ -546,13 +538,25 @@ int board_init(void)
 	temp |= VYBRID_SCSC_SICR_CTR_SOSC_EN;
 	__raw_writel(temp, &scsc->sosc_ctr);
 
+#ifndef ARMSTONE_1_0 //ETHERNET 1_1
+    temp = __raw_readl(0x4006B020);
+    temp = temp | (2<<4); //[5:4]
+    __raw_writel(temp, 0x4006B020);
+    temp = __raw_readl(0x4006B014);
+    temp = temp | (1<<24); //[24]
+    __raw_writel(temp, 0x4006B014);
+    temp = __raw_readl(0x400500E0);
+    temp = 0x2001; //temp | (1<<0) | (1<<13); //[0,13]
+    __raw_writel(temp, 0x400500E0);
+#endif
+
 	return 0;
 }
 
 #ifdef CONFIG_BOARD_LATE_INIT
 int board_late_init(void)
 {
-    puts("board_late_init");
+    u32 temp;
 #ifdef CONFIG_MXC_SPI
 	setup_iomux_spi();
 #endif

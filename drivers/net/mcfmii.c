@@ -218,6 +218,11 @@ int mii_discover_phy(struct eth_device *dev)
 	if (phyaddr < 0)
 		printf("No PHY device found.\n");
 
+#if 1 //TODO
+    phytype = mii_send(mk_mii_read(phyaddr, MII_BMCR));
+    phytype = phytype | (1<<15);
+    mii_send(mk_mii_write(phyaddr, MII_BMCR, phytype));
+#endif
 	return phyaddr;
 }
 #endif				/* CONFIG_SYS_DISCOVER_PHY */
