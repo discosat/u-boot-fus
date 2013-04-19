@@ -36,8 +36,6 @@
 #include <fsl_esdhc.h>
 #include <usb/ehci-fsl.h>
 
-#define ARMSTONE_1_0
-
 DECLARE_GLOBAL_DATA_PTR;
 
 #ifdef CONFIG_FSL_ESDHC
@@ -330,10 +328,10 @@ void setup_iomux_uart(void)
 int fecpin_setclear(struct eth_device *dev, int setclear)
 {
 	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
-#ifdef ARMSTONE_1_0
-	__raw_writel(0x00203191, IOMUXC_PAD_000);	/* RMII_CLK */
+#ifndef CONFIG_FS_VYBRID_PLL_ETH
+	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLK */
 #else
-    __raw_writel(0x001039c2, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+	__raw_writel(0x001039c2, IOMUXC_PAD_000);   /* RMII_CLKOUT */
 #endif
 
 	if (setclear) {
@@ -538,18 +536,18 @@ int board_init(void)
 	temp |= VYBRID_SCSC_SICR_CTR_SOSC_EN;
 	__raw_writel(temp, &scsc->sosc_ctr);
 
-#ifndef ARMSTONE_1_0 //ETHERNET 1_1
-    temp = __raw_readl(0x4006B020);
-    temp = temp | (2<<4); //[5:4]
-    __raw_writel(temp, 0x4006B020);
-    temp = __raw_readl(0x4006B014);
-    temp = temp | (1<<24); //[24]
-    __raw_writel(temp, 0x4006B014);
-    temp = __raw_readl(0x400500E0);
-    temp = 0x2001; //temp | (1<<0) | (1<<13); //[0,13]
-    __raw_writel(temp, 0x400500E0);
+#ifdef CONFIG_FS_VYBRID_PLL_ETH
+	printf("%s: using internal PLL. \n",__func__);
+	temp = __raw_readl(0x4006B020);
+	temp = temp | (2<<4); //[5:4]
+	__raw_writel(temp, 0x4006B020);
+	temp = __raw_readl(0x4006B014);
+	temp = temp | (1<<24); //[24]
+	__raw_writel(temp, 0x4006B014);
+	temp = __raw_readl(0x400500E0);
+	temp = 0x2001;
+	__raw_writel(temp, 0x400500E0);
 #endif
-
 	return 0;
 }
 

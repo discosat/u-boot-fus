@@ -27,6 +27,8 @@
 #define CONFIG_VYBRID
 #define CONFIG_ARMSTONEA5
 
+#define CONFIG_FS_VYBRID_PLL_ETH    // undefine if external quartz is used for ETH clock
+
 #define CONFIG_SYS_VYBRID_HCLK		24000000
 #define CONFIG_SYS_VYBRID_CLK32		32768
 #define CONFIG_DISPLAY_CPUINFO

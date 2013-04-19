@@ -82,7 +82,7 @@ phy_info_t phyinfo[] = {
 	{0x001378e0, "LXT971"},		/* LXT971 and 972 */
 	{0x00221619, "KS8721BL"},	/* Micrel KS8721BL/SL */
 	{0x00221512, "KSZ8041NL"},	/* Micrel KSZ8041NL */
-    {0x00221556, "KSZ8021RNL"},	/* Micrel KSZ8021RNL */ /*ARMSTONEA5*/
+	{0x00221556, "KSZ8021RNL"},	/* Micrel KSZ8021RNL */ /*ARMSTONEA5*/
 	{0x20005CE1, "N83640"},		/* National 83640 */
 	{0x20005C90, "N83848"},		/* National 83848 */
 	{0x20005CA2, "N83849"},		/* National 83849 */
@@ -140,7 +140,7 @@ uint mii_send(uint mii_cmd)
 
 	mii_reply = ep->mmfr;	/* result from phy */
 	ep->eir = FEC_EIR_MII;	/* clear MII complete */
-#ifdef ET_DEBUG*/
+#ifdef ET_DEBUG
 	printf("%s[%d] %s: sent=0x%8.8x, reply=0x%8.8x\n",
 	       __FILE__, __LINE__, __FUNCTION__, mii_cmd, mii_reply);
 #endif
@@ -219,9 +219,9 @@ int mii_discover_phy(struct eth_device *dev)
 		printf("No PHY device found.\n");
 
 #if 1 //TODO
-    phytype = mii_send(mk_mii_read(phyaddr, MII_BMCR));
-    phytype = phytype | (1<<15);
-    mii_send(mk_mii_write(phyaddr, MII_BMCR, phytype));
+	phytype = mii_send(mk_mii_read(phyaddr, MII_BMCR));
+	phytype = phytype | (1<<15);
+	mii_send(mk_mii_write(phyaddr, MII_BMCR, phytype));
 #endif
 	return phyaddr;
 }
@@ -265,6 +265,11 @@ void __mii_init(void)
         int tmp;
         miiphy_read(dev->name,info->phy_addr,0x1F,&tmp);
         miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+        /* fix strapping pin options, strapping pin floating */
+        miiphy_read(dev->name,info->phy_addr,MII_BMCR,&tmp);
+        miiphy_write(dev->name,info->phy_addr,MII_BMCR,tmp | BMCR_ANENABLE | BMCR_SPEED100);
+        miiphy_read(dev->name,info->phy_addr,MII_ADVERTISE,&tmp);
+        miiphy_write(dev->name,info->phy_addr,MII_ADVERTISE,tmp | ADVERTISE_100FULL | ADVERTISE_100HALF);
     }
 #endif
 
