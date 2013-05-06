@@ -502,7 +502,6 @@ int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg)
 
 	voltage_caps = 0;
 	caps = regs->hostcapblt;
-    printf("-->MMC-CAPS: 0x%x \n",caps);
 
 #ifdef CONFIG_SYS_FSL_ERRATUM_ESDHC135
 	caps = caps & ~(ESDHC_HOSTCAPBLT_SRS |
@@ -535,7 +534,6 @@ int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg)
 
 	mmc->b_max = 0;
 	mmc_register(mmc);
-    printf("<--MMC-CAPS \n");
 	return 0;
 }
 
