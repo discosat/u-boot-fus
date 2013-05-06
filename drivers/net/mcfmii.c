@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+#include <asm/io.h>
 
 #include <common.h>
 #include <config.h>
@@ -239,7 +240,12 @@ void __mii_init(void)
 	u16 linkgood = 0;
 
 	/* retrieve from register structure */
+#if 0
 	dev = eth_get_dev();
+#else
+	dev = eth_get_dev_by_name("FEC0");
+#endif
+
 	info = dev->priv;
 
 	fecp = (FEC_T *) info->miibase;
@@ -264,7 +270,7 @@ void __mii_init(void)
     if(!strcmp(info->phy_name,"KSZ8021RNL")) {
         int tmp;
         miiphy_read(dev->name,info->phy_addr,0x1F,&tmp);
-        miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+//        miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
         /* fix strapping pin options, strapping pin floating */
         miiphy_read(dev->name,info->phy_addr,MII_BMCR,&tmp);
         miiphy_write(dev->name,info->phy_addr,MII_BMCR,tmp | BMCR_ANENABLE | BMCR_SPEED100);
