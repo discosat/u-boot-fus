@@ -299,6 +299,7 @@
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-    "bootubi=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0"
+    "bootubi=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+    "bootnfs=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts root=/dev/nfs rw nfsroot=$serverip:/rootfs ip=dhcp init=linuxrc\0"
 
 #endif
