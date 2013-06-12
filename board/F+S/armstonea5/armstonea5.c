@@ -331,7 +331,7 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 #ifndef CONFIG_FS_VYBRID_PLL_ETH
 	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLK */
 #else
-	__raw_writel(0x001039c2, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+	__raw_writel(0x00101902, IOMUXC_PAD_000);   /* RMII_CLKOUT */
 #endif
 
 	if (setclear) {
