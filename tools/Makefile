@@ -72,6 +72,7 @@ BIN_FILES-$(CONFIG_SMDK5250) += mksmdk5250spl$(SFX)
 BIN_FILES-$(CONFIG_MX28) += mxsboot$(SFX)
 BIN_FILES-$(CONFIG_NETCONSOLE) += ncb$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
+BIN_FILES-$(CONFIG_ADDFSHEADER) += addfsheader$(SFX)
 
 # Source files which exist outside the tools directory
 EXT_OBJ_FILES-$(CONFIG_BUILD_ENVCRC) += common/env_embedded.o
@@ -100,6 +101,7 @@ OBJ_FILES-$(CONFIG_MX28) += mxsboot.o
 OBJ_FILES-$(CONFIG_NETCONSOLE) += ncb.o
 NOPED_OBJ_FILES-y += os_support.o
 OBJ_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1.o
+OBJ_FILES-$(CONFIG_ADDFSHEADER) += addfsheader.o
 NOPED_OBJ_FILES-y += ublimage.o
 
 # Don't build by default
@@ -220,6 +222,10 @@ $(obj)mk$(BOARD)spl$(SFX):	$(obj)mkexynosspl.o
 	$(HOSTSTRIP) $@
 
 $(obj)mpc86x_clk$(SFX):	$(obj)mpc86x_clk.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+	$(HOSTSTRIP) $@
+
+$(obj)addfsheader$(SFX):	$(obj)addfsheader.o
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
 	$(HOSTSTRIP) $@
 

@@ -201,6 +201,7 @@
 #define CONFIG_SYS_MAXARGS		16	/* max number of command args */
 /* Boot Argument Buffer Size */
 #define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
+#define CONFIG_UBOOTNB0_SIZE    384        /* size of uboot.nb0 (in kB) */
 
 #define CONFIG_SYS_MEMTEST_START	0x80010000
 #define CONFIG_SYS_MEMTEST_END		0x87C00000
@@ -302,5 +303,10 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
     "bootubi=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc fec_mac=$ethaddr ip=dhcp\0" \
     "bootnfs=setenv bootargs mem=256M console=ttymxc1,115200 $mtdparts root=/dev/nfs rw nfsroot=$serverip:/rootfs init=linuxrc fec_mac=$ethaddr ip=dhcp\0"
+
+/************************************************************************
+ * Tools
+ ************************************************************************/
+#define CONFIG_ADDFSHEADER      1
 
 #endif

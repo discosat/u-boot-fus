@@ -10,6 +10,7 @@
 /ncp
 /ubsha1
 /inca-swap-bytes
+/addfsheader
 /*.exe
 /easylogo/easylogo
 /env/crc32.c

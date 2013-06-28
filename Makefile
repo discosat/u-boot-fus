@@ -364,7 +364,8 @@ BOARD_SIZE_CHECK =
 endif
 
 # Always append ALL so that arch config.mk's can add custom ones
-ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map
+ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(obj)uboot.nb0 $(obj)u-boot.dis
+ALL-$(CONFIG_ADDFSHEADER) += $(obj)uboot.fs
 
 ALL-$(CONFIG_NAND_U_BOOT) += $(obj)u-boot-nand.bin
 ALL-$(CONFIG_ONENAND_U_BOOT) += $(obj)u-boot-onenand.bin
@@ -373,10 +374,6 @@ ALL-$(CONFIG_SPL) += $(obj)spl/u-boot-spl.bin
 ALL-$(CONFIG_OF_SEPARATE) += $(obj)u-boot.dtb $(obj)u-boot-dtb.bin
 
 all:		$(ALL-y) $(SUBDIR_EXAMPLES)
-
-$(obj)uboot.nb0:    $(obj)u-boot.bin
-	        dd if=/dev/zero bs=1K count=384 | tr '\000' '\377' >$@
-			        dd if=$< of=$@ conv=notrunc bs=1K
 
 $(obj)u-boot.dtb:	$(obj)u-boot
 		$(MAKE) -C dts binary
@@ -426,6 +423,14 @@ $(obj)u-boot.sha1:	$(obj)u-boot.bin
 
 $(obj)u-boot.dis:	$(obj)u-boot
 		$(OBJDUMP) -d $< > $@
+
+$(obj)uboot.nb0:	$(obj)u-boot.bin
+		dd if=/dev/zero bs=1K count=$(CONFIG_UBOOTNB0_SIZE) \
+			 | tr '\000' '\377' >$@
+		dd if=$< of=$@ conv=notrunc bs=1K
+
+$(obj)uboot.fs:	$(obj)u-boot.bin
+		$(obj)tools/addfsheader $< $@
 
 $(obj)u-boot.ubl:       $(obj)spl/u-boot-spl.bin $(obj)u-boot.bin
 		$(OBJCOPY) ${OBJCFLAGS} --pad-to=$(PAD_TO) -O binary $(obj)spl/u-boot-spl $(obj)spl/u-boot-spl-pad.bin
@@ -764,6 +769,7 @@ tidy:	clean
 
 clobber:	tidy
 	@find $(OBJTREE) -type f \( -name '*.srec' \
+		-o -name uboot.nb0 -o -name uboot.fs -o -name u-boot.dis \
 		-o -name '*.bin' -o -name u-boot.img \) \
 		-print0 | xargs -0 rm -f
 	@rm -f $(OBJS) $(obj)*.bak $(obj)ctags $(obj)etags $(obj)TAGS \
@@ -775,6 +781,7 @@ clobber:	tidy
 	@rm -f $(obj)u-boot.ais
 	@rm -f $(obj)u-boot.dtb
 	@rm -f $(obj)u-boot.sb
+	@rm -f $(obj)tools/addfsheader
 	@rm -f $(obj)tools/inca-swap-bytes
 	@rm -f $(obj)arch/powerpc/cpu/mpc824x/bedbug_603e.c
 	@rm -f $(obj)arch/powerpc/cpu/mpc83xx/ddr-gen?.c

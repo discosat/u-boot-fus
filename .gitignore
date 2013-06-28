@@ -26,6 +26,9 @@
 /u-boot.imx
 /u-boot.map
 /u-boot.srec
+/u-boot.dis
+/uboot.nb0
+/uboot.fs
 /u-boot.ldr
 /u-boot.ldr.hex
 /u-boot.ldr.srec
