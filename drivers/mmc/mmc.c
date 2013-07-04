@@ -40,11 +40,11 @@
 static struct list_head mmc_devices;
 static int cur_dev_num = -1;
 
-int __board_mmc_getcd(u8 *cd, struct mmc *mmc) {
+int __board_mmc_getcd(struct mmc *mmc) {
 	return -1;
 }
 
-int board_mmc_getcd(u8 *cd, struct mmc *mmc)__attribute__((weak,
+int board_mmc_getcd(struct mmc *mmc)__attribute__((weak,
 	alias("__board_mmc_getcd")));
 
 int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
@@ -108,7 +108,7 @@ int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
 int mmc_send_status(struct mmc *mmc, int timeout)
 {
 	struct mmc_cmd cmd;
-	int err;
+	int err, retries = 5;
 #ifdef CONFIG_MMC_TRACE
 	int status;
 #endif
@@ -121,17 +121,21 @@ int mmc_send_status(struct mmc *mmc, int timeout)
 
 	do {
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-		if (err)
+		if (!err) {
+			if ((cmd.response[0] & MMC_STATUS_RDY_FOR_DATA) &&
+			    (cmd.response[0] & MMC_STATUS_CURR_STATE) !=
+			     MMC_STATE_PRG)
+				break;
+			else if (cmd.response[0] & MMC_STATUS_MASK) {
+				printf("Status Error: 0x%08X\n",
+					cmd.response[0]);
+				return COMM_ERR;
+			}
+		} else if (--retries < 0)
 			return err;
-		else if (cmd.response[0] & MMC_STATUS_RDY_FOR_DATA)
-			break;
 
 		udelay(1000);
 
-		if (cmd.response[0] & MMC_STATUS_MASK) {
-			printf("Status Error: 0x%08X\n", cmd.response[0]);
-			return COMM_ERR;
-		}
 	} while (timeout--);
 
 #ifdef CONFIG_MMC_TRACE
@@ -305,10 +309,11 @@ mmc_write_blocks(struct mmc *mmc, ulong start, lbaint_t blkcnt, const void*src)
 			printf("mmc fail to send stop cmd\n");
 			return 0;
 		}
-
-		/* Waiting for the ready status */
-		mmc_send_status(mmc, timeout);
 	}
+
+	/* Waiting for the ready status */
+	if (mmc_send_status(mmc, timeout))
+		return 0;
 
 	return blkcnt;
 }
@@ -341,7 +346,6 @@ int mmc_read_blocks(struct mmc *mmc, void *dst, ulong start, lbaint_t blkcnt)
 {
 	struct mmc_cmd cmd;
 	struct mmc_data data;
-	int timeout = 1000;
 
 	if (blkcnt > 1)
 		cmd.cmdidx = MMC_CMD_READ_MULTIPLE_BLOCK;
@@ -373,9 +377,6 @@ int mmc_read_blocks(struct mmc *mmc, void *dst, ulong start, lbaint_t blkcnt)
 			printf("mmc fail to send stop cmd\n");
 			return 0;
 		}
-
-		/* Waiting for the ready status */
-		mmc_send_status(mmc, timeout);
 	}
 
 	return blkcnt;
@@ -417,7 +418,7 @@ int mmc_go_idle(struct mmc* mmc)
 {
 	struct mmc_cmd cmd;
 	int err;
-
+printf("-->%s",__func__);
 	udelay(1000);
 
 	cmd.cmdidx = MMC_CMD_GO_IDLE_STATE;
@@ -431,6 +432,7 @@ int mmc_go_idle(struct mmc* mmc)
 		return err;
 
 	udelay(2000);
+printf("<--%s",__func__);
 
 	return 0;
 }
@@ -610,7 +612,8 @@ int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value)
 	ret = mmc_send_cmd(mmc, &cmd, NULL);
 
 	/* Waiting for the ready status */
-	mmc_send_status(mmc, timeout);
+	if (!ret)
+		ret = mmc_send_status(mmc, timeout);
 
 	return ret;
 
@@ -672,6 +675,20 @@ int mmc_switch_part(int dev_num, unsigned int part_num)
 	return mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_PART_CONF,
 			  (mmc->part_config & ~PART_ACCESS_MASK)
 			  | (part_num & PART_ACCESS_MASK));
+}
+
+int mmc_getcd(struct mmc *mmc)
+{
+	int cd;
+
+	cd = board_mmc_getcd(mmc);
+    printf("mmc_getcd: 0x%x \n",cd);
+
+	if ((cd < 0) && mmc->getcd)
+		cd = mmc->getcd(mmc);
+
+    printf("mmc_getcd: 0x%x \n",cd);
+	return cd;
 }
 
 int sd_switch(struct mmc *mmc, int mode, int group, u8 value, u8 *resp)
@@ -783,6 +800,16 @@ retry_scr:
 
 	/* If high-speed isn't supported, we return */
 	if (!(__be32_to_cpu(switch_status[3]) & SD_HIGHSPEED_SUPPORTED))
+		return 0;
+
+	/*
+	 * If the host doesn't support SD_HIGHSPEED, do not switch card to
+	 * HIGHSPEED mode even if the card support SD_HIGHSPPED.
+	 * This can avoid furthur problem when the card runs in different
+	 * mode between the host.
+	 */
+	if (!((mmc->host_caps & MMC_MODE_HS_52MHz) &&
+		(mmc->host_caps & MMC_MODE_HS)))
 		return 0;
 
 	err = sd_switch(mmc, SD_SWITCH_SWITCH, 0, 1, (u8 *)switch_status);
@@ -1192,31 +1219,46 @@ int mmc_init(struct mmc *mmc)
 {
 	int err;
 
+	if (mmc_getcd(mmc) == 0) {
+		mmc->has_init = 0;
+		printf("MMC: no card present\n");
+		return NO_CARD_ERR;
+	}
+    printf("%s: LN:%u",__func__,__LINE__);
 	if (mmc->has_init)
 		return 0;
 
 	err = mmc->init(mmc);
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	if (err)
 		return err;
+   
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	mmc_set_bus_width(mmc, 1);
 	mmc_set_clock(mmc, 1);
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* Reset the Card */
 	err = mmc_go_idle(mmc);
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	if (err)
 		return err;
 
-	/* The internal partition reset to user partition(0) at every CMD0*/
+    printf("%s: LN:%u",__func__,__LINE__);
+
+    /* The internal partition reset to user partition(0) at every CMD0*/
 	mmc->part_num = 0;
 
 	/* Test for SD version 2 */
 	err = mmc_send_if_cond(mmc);
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* Now try to get the SD card's operating condition */
 	err = sd_send_op_cond(mmc);
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* If the command timed out, we check for an MMC card */
 	if (err == TIMEOUT) {
@@ -1227,8 +1269,12 @@ int mmc_init(struct mmc *mmc)
 			return UNUSABLE_ERR;
 		}
 	}
+    printf("%s: LN:%u",__func__,__LINE__);
 
 	err = mmc_startup(mmc);
+    
+    printf("%s: LN:%u (0x%x)",__func__,__LINE__,err);
+
 	if (err)
 		mmc->has_init = 0;
 	else

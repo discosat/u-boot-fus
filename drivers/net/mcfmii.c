@@ -31,7 +31,9 @@
 #else
 #include <asm/fec.h>
 #endif
+#ifdef CONFIG_COLDFIRE
 #include <asm/immap.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -80,9 +82,11 @@ phy_info_t phyinfo[] = {
 	{0x001378e0, "LXT971"},		/* LXT971 and 972 */
 	{0x00221619, "KS8721BL"},	/* Micrel KS8721BL/SL */
 	{0x00221512, "KSZ8041NL"},	/* Micrel KSZ8041NL */
+    {0x00221556, "KSZ8021RNL"},	/* Micrel KSZ8021RNL */ /*ARMSTONEA5*/
 	{0x20005CE1, "N83640"},		/* National 83640 */
 	{0x20005C90, "N83848"},		/* National 83848 */
 	{0x20005CA2, "N83849"},		/* National 83849 */
+	{0x0007C0F1, "SMSC8720A"},	/* SMSC 8720a */
 	{0x01814400, "QS6612"},		/* QS6612 */
 #if defined(CONFIG_SYS_UNSPEC_PHYID) && defined(CONFIG_SYS_UNSPEC_STRID)
 	{CONFIG_SYS_UNSPEC_PHYID, CONFIG_SYS_UNSPEC_STRID},
@@ -122,7 +126,6 @@ uint mii_send(uint mii_cmd)
 	info = dev->priv;
 
 	ep = (FEC_T *) info->miibase;
-
 	ep->mmfr = mii_cmd;	/* command to phy */
 
 	/* wait for mii complete */
@@ -137,7 +140,7 @@ uint mii_send(uint mii_cmd)
 
 	mii_reply = ep->mmfr;	/* result from phy */
 	ep->eir = FEC_EIR_MII;	/* clear MII complete */
-#ifdef ET_DEBUG
+#ifdef ET_DEBUG*/
 	printf("%s[%d] %s: sent=0x%8.8x, reply=0x%8.8x\n",
 	       __FILE__, __LINE__, __FUNCTION__, mii_cmd, mii_reply);
 #endif
@@ -252,12 +255,19 @@ void __mii_init(void)
 
 	info->phy_addr = mii_discover_phy(dev);
 
-	while (i < MCFFEC_TOUT_LOOP) {
+#if 1 //ARMSTONEA5
+    if(!strcmp(info->phy_name,"KSZ8021RNL")) {
+        int tmp;
+        miiphy_read(dev->name,info->phy_addr,0x1F,&tmp);
+        miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+    }
+#endif
+
+    while (i < MCFFEC_TOUT_LOOP) {
 		status = 0;
 		i++;
 		/* Read PHY control register */
 		miiphy_read(dev->name, info->phy_addr, MII_BMCR, &status);
-
 		/* If phy set to autonegotiate, wait for autonegotiation done,
 		 * if phy is not autonegotiating, just wait for link up.
 		 */
@@ -281,7 +291,6 @@ void __mii_init(void)
 	info->dup_spd = miiphy_duplex(dev->name, info->phy_addr) << 16;
 	info->dup_spd |= miiphy_speed(dev->name, info->phy_addr);
 }
-
 /*
  * Read and write a MII PHY register, routines used by MII Utilities
  *
