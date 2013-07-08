@@ -315,6 +315,9 @@ endif
 ifeq ($(SOC),mx6)
 LIBS += $(CPUDIR)/imx-common/libimx-common.o
 endif
+ifeq ($(SOC),vybrid)
+LIBS += $(CPUDIR)/vybrid-common/libvybrid-common.o
+endif
 
 ifeq ($(SOC),s5pc1xx)
 LIBS += $(CPUDIR)/s5p-common/libs5p-common.o
@@ -373,7 +376,8 @@ BOARD_SIZE_CHECK =
 endif
 
 # Always append ALL so that arch config.mk's can add custom ones
-ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(obj)uboot.nb0 uboot.fs $(obj)u-boot.dis
+ALL-y += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(obj)uboot.nb0 $(obj)u-boot.dis
+ALL-$(CONFIG_ADDFSHEADER) += $(obj)uboot.fs
 
 ALL-$(CONFIG_NAND_U_BOOT) += $(obj)u-boot-nand.bin
 ALL-$(CONFIG_ONENAND_U_BOOT) += $(obj)u-boot-onenand.bin
@@ -788,6 +792,7 @@ tidy:	clean
 
 clobber:	tidy
 	@find $(OBJTREE) -type f \( -name '*.srec' \
+		-o -name uboot.nb0 -o -name uboot.fs -o -name u-boot.dis \
 		-o -name '*.bin' -o -name u-boot.img \) \
 		-print0 | xargs -0 rm -f
 	@rm -f $(OBJS) $(obj)*.bak $(obj)ctags $(obj)etags $(obj)TAGS \

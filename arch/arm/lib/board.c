@@ -253,10 +253,8 @@ init_fnc_t *const init_sequence[] = {
 #ifdef CONFIG_OF_CONTROL
 	fdtdec_check_fdt,
 #endif
-	timer_init,		/* initialize timer */
-#ifdef CONFIG_FSL_ESDHC
 	get_clocks,
-#endif
+	timer_init,		/* initialize timer */
 	env_init,		/* initialize environment */
 	init_baudrate,		/* initialize baudrate settings */
 	serial_init,		/* serial communications setup */
@@ -319,7 +317,7 @@ void board_init_f(ulong bootflag)
 #endif
 
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
-		if ((*init_fnc_ptr)() != 0) {
+        if ((*init_fnc_ptr)() != 0) {
 			hang ();
 		}
 	}
@@ -470,6 +468,11 @@ void board_init_f(ulong bootflag)
 	gd->relocaddr = addr;
 	gd->start_addr_sp = addr_sp;
 	gd->reloc_off = addr - _TEXT_BASE;
+
+#ifdef CONFIG_SYS_UBOOT_IN_GPURAM
+	gd->reloc_off += _TEXT_BASE;
+#endif
+
 	debug("relocation Offset is: %08lx\n", gd->reloc_off);
 	memcpy(id, (void *)gd, sizeof(gd_t));
 

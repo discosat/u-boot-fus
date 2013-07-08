@@ -92,6 +92,12 @@
 
 #define CONFIG_SYS_LOAD_ADDR		0x800000
 
+#define CONFIG_EXTRA_ENV_SETTINGS	\
+		"fdtaddr_r=0x600000\0" \
+		"pxefile_addr_r=0x700000\0" \
+		"kernel_addr_r=0x800000\0" \
+		"ramdisk_addr_r=0x01000000\0" \
+
 /*-----------------------------------------------------------------------
  * Stack sizes
  *

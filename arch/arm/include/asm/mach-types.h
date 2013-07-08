@@ -4027,6 +4027,11 @@ extern unsigned int __machine_arch_type;
 #define MACH_TYPE_ARMSTONEA8           4077
 #define MACH_TYPE_NETDCU14             4078
 
+#define MACH_TYPE_VYBRID_VF7XX         4145
+#define MACH_TYPE_VYBRID_VF6XX         4146
+#define MACH_TYPE_VYBRID_VF5XX         4147
+#define MACH_TYPE_VYBRID_VF4XX         4148
+
 #ifdef CONFIG_ARCH_EBSA110
 # ifdef machine_arch_type
 #  undef machine_arch_type
@@ -52193,6 +52198,54 @@ extern unsigned int __machine_arch_type;
 # define machine_is_netdcu14()	(machine_arch_type == MACH_TYPE_NETDCU14)
 #else
 # define machine_is_netdcu14()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VYBRID_VF7XX
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VYBRID_VF7XX
+# endif
+# define machine_is_vybrid_vf7xx()	(machine_arch_type == MACH_TYPE_VYBRID_VF7XX)
+#else
+# define machine_is_vybrid_vf7xx()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VYBRID_VF6XX
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VYBRID_VF6XX
+# endif
+# define machine_is_vybrid_vf6xx()	(machine_arch_type == MACH_TYPE_VYBRID_VF6XX)
+#else
+# define machine_is_vybrid_vf6xx()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VYBRID_VF5XX
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VYBRID_VF5XX
+# endif
+# define machine_is_vybrid_vf5xx()	(machine_arch_type == MACH_TYPE_VYBRID_VF5XX)
+#else
+# define machine_is_vybrid_vf5xx()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VYBRID_VF4XX
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VYBRID_VF4XX
+# endif
+# define machine_is_vybrid_vf4xx()	(machine_arch_type == MACH_TYPE_VYBRID_VF4XX)
+#else
+# define machine_is_vybrid_vf4xx()	(0)
 #endif
 
 /*

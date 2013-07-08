@@ -33,7 +33,11 @@
 #include <miiphy.h>
 
 #include <asm/fec.h>
+#ifdef CONFIG_COLDFIRE
 #include <asm/immap.h>
+#endif
+#ifdef CONFIG_VYBRID
+#endif
 
 #undef	ET_DEBUG
 #undef	MII_DEBUG
@@ -115,7 +119,7 @@ void setFecDuplexSpeed(volatile fec_t * fecp, bd_t * bd, int dup_spd)
 	}
 
 	if ((dup_spd & 0xFFFF) == _100BASET) {
-#ifdef CONFIG_MCF5445x
+#if defined(CONFIG_MCF5445x) || defined(CONFIG_VYBRID)
 		fecp->rcr &= ~0x200;	/* disabled 10T base */
 #endif
 #ifdef MII_DEBUG
@@ -123,7 +127,7 @@ void setFecDuplexSpeed(volatile fec_t * fecp, bd_t * bd, int dup_spd)
 #endif
 		bd->bi_ethspeed = 100;
 	} else {
-#ifdef CONFIG_MCF5445x
+#if defined(CONFIG_MCF5445x) || defined(CONFIG_VYBRID)
 		fecp->rcr |= 0x200;	/* enabled 10T base */
 #endif
 #ifdef MII_DEBUG
@@ -181,7 +185,7 @@ static int fec_send(struct eth_device *dev, void *packet, int length)
 	j = 0;
 	while ((info->txbd[info->txIdx].cbd_sc & BD_ENET_TX_READY) &&
 	       (j < MCFFEC_TOUT_LOOP)) {
-		udelay(1);
+		udelay(10);
 		j++;
 	}
 	if (j >= MCFFEC_TOUT_LOOP) {
@@ -514,7 +518,12 @@ int fec_init(struct eth_device *dev, bd_t * bd)
 	fecp->etdsr = (unsigned int)(&info->txbd[0]);
 
 	/* Now enable the transmit and receive processing */
+#ifdef CONFIG_VYBRID
+	/*Big Endian*/
+	fecp->ecr |= FEC_ECR_ETHER_EN | 0x100;
+#else
 	fecp->ecr |= FEC_ECR_ETHER_EN;
+#endif
 
 	/* And last, try to fill Rx Buffer Descriptors */
 	fecp->rdar = 0x01000000;	/* Descriptor polling active    */
@@ -620,6 +629,7 @@ int mcffec_initialize(bd_t * bis)
 
 	/* default speed */
 	bis->bi_ethspeed = 10;
-
+	/*Ugly workaround for FEC to work in kernel, TODO Jason*/
+	mii_init();
 	return 0;
 }

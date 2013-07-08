@@ -295,6 +295,10 @@ int board_eth_init(bd_t *bis)
 	if (ret)
 		printf("FEC MXC: %s:failed\n", __func__);
 
+#ifdef CONFIG_MXC_SPI
+	setup_spi();
+#endif
+
 	return 0;
 }
 

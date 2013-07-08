@@ -138,6 +138,13 @@ const uchar default_environment[] = {
 
 struct hsearch_data env_htab;
 
+static uchar __env_get_char_spec(int index)
+{
+	return *((uchar *)(gd->env_addr + index));
+}
+uchar env_get_char_spec(int)
+	__attribute__((weak, alias("__env_get_char_spec")));
+
 size_t get_default_env_size(void)
 {
 	return sizeof(default_environment) + ENV_HEADER_SIZE;
