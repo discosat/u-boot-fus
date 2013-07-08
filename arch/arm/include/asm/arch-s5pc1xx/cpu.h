@@ -23,6 +23,7 @@
 #ifndef _S5PC1XX_CPU_H
 #define _S5PC1XX_CPU_H
 
+#define S5P_CPU_NAME		"S5P"
 #define S5PC1XX_ADDR_BASE	0xE0000000
 
 /* S5PC100 */
@@ -90,6 +91,21 @@ static inline int cpu_is_##type(void)			\
 
 IS_SAMSUNG_TYPE(s5pc100, 0x100)		  /* S5PC100 */
 IS_SAMSUNG_TYPE(s5pc110, 0x110)		  /* S5PC110, S5PC111, S5PV210 */
+
+static inline const char *s5p_get_cpu_name(void)
+{
+	const char const *s5pc110_dev_id[] = {
+		"S5PV210",
+		"S5PC110",
+		"S5PC111",
+	};
+
+	if (cpu_is_s5pc100())
+		return "S5PC100";
+	if (cpu_is_s5pc110())
+		return s5pc110_dev_id[readl(S5PC100_PRO_ID) & 0x0f];
+	return S5P_CPU_NAME;
+}
 
 #define SAMSUNG_BASE(device, base)			\
 static inline unsigned int samsung_get_base_##device(void)	\

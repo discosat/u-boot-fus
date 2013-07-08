@@ -28,12 +28,10 @@ extern void * memmove(void *, const void *, __kernel_size_t);
 extern void * memchr(const void *, int, __kernel_size_t);
 
 #undef __HAVE_ARCH_MEMZERO
-
 #ifdef CONFIG_USE_ARCH_MEMSET
 #define __HAVE_ARCH_MEMSET
 #endif
 extern void * memset(void *, int, __kernel_size_t);
-
 
 /* This one is new: fill count words starting at dest with data */
 #ifdef CONFIG_USE_ARCH_MEMSET32

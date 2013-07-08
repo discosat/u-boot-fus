@@ -25,12 +25,6 @@
 #include <asm/arch/clk.h>
 #include <asm/arch/cpu.h>		  /* cpu_is_*() */
 
-char const *s5pc110_dev_id[] = {
-	"S5PV210",
-	"S5PC110",
-	"S5PC111",
-};
-
 #ifdef CONFIG_ARCH_CPU_INIT
 int arch_cpu_init(void)
 {
@@ -52,16 +46,8 @@ int print_cpuinfo(void)
 {
 	char buf[32];
 
-	puts("CPU:   ");
-	if (cpu_is_s5pc100())
-		puts("S5PC100");
-	else if (cpu_is_s5pc110())	  /* Device ID in [3:0] */
-		puts(s5pc110_dev_id[readl(S5PC100_PRO_ID) & 0x0f]);
-	else
-		puts("(unknown)");
-
-	printf("@%sMHz\n", strmhz(buf, get_arm_clk()));
-
+	printf("CPU:\t%s@%sMHz\n",
+		s5p_get_cpu_name(), strmhz(buf, get_arm_clk()));
 #if 0 //####
 	printf("###ACLK=%sMHz ", strmhz(buf, get_pll_clk(APLL)));
 	printf("MCLK=%sMHz ", strmhz(buf, get_pll_clk(MPLL)));

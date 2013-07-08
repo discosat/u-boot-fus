@@ -42,10 +42,10 @@ COBJS-$(CONFIG_S3C_HSMMC) += s3c_hsmmc.o
 # F&S version of mmc
 COBJS-$(CONFIG_MMC_S3C64XX) += mmc_s3c64xx.o
 COBJS-$(CONFIG_PXA_MMC_GENERIC) += pxa_mmc_gen.o
-COBJS-$(CONFIG_S5P_MMC) += s5p_mmc.o
 COBJS-$(CONFIG_SDHCI) += sdhci.o
+COBJS-$(CONFIG_S5P_SDHCI) += s5p_sdhci.o
 COBJS-$(CONFIG_SH_MMCIF) += sh_mmcif.o
-COBJS-$(CONFIG_TEGRA2_MMC) += tegra2_mmc.o
+COBJS-$(CONFIG_TEGRA_MMC) += tegra_mmc.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

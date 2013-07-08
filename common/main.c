@@ -409,10 +409,10 @@ void main_loop (void)
 	debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (bootdelay >= 0 && s && !abortboot (bootdelay)) {
-#ifdef CONFIG_CMD_SOURCE
+#ifdef CONFIG_CMD_UPDATE
 		/* Before the boot command is executed, check if we should
 		   load a system update script */
-		if (autoload_script(1, NULL, NULL, 0))
+		if (update_script("update", NULL, NULL, 0))
 #endif
 		{
 # ifdef CONFIG_AUTOBOOT_KEYED
@@ -427,11 +427,11 @@ void main_loop (void)
 			disable_ctrlc(prev);
 # endif
 
-#ifdef CONFIG_CMD_SOURCE
+#ifdef CONFIG_CMD_UPDATE
 			/* The bootcmd usually only returns if booting failed.
 			   Then we assume that the system is not correctly
 			   installed and try to load an install script */
-			autoload_script(0, NULL, NULL, 0);
+			update_script("install", NULL, NULL, 0);
 #endif
 		}
 	}
@@ -1022,7 +1022,6 @@ int readline_into_buffer(const char *const prompt, char *buffer, int timeout)
 
 #ifdef CONFIG_SHOW_ACTIVITY
 		while (!tstc()) {
-			extern void show_activity(int arg);
 			show_activity(0);
 			WATCHDOG_RESET();
 		}
