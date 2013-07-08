@@ -348,7 +348,7 @@ int do_diskboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	bootstage_mark(BOOTSTAGE_ID_IDE_START);
 	switch (argc) {
 	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		boot_device = getenv("bootdevice");
 		break;
 	case 2:

@@ -115,6 +115,7 @@ struct mtd_info {
 	u_char type;
 	u_int32_t flags;
 	uint64_t size;	 /* Total size of the MTD */
+	uint64_t skip;   /* F&S: Skip these many bytes at start of device */
 
 	/* "Major" erase size for the device. Naïve users may take this
 	 * to be the only erase size available, or may use the more detailed

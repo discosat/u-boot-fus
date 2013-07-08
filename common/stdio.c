@@ -36,7 +36,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct stdio_dev devs;
+static struct stdio_dev *devs;
 struct stdio_dev *stdio_devices[] = { NULL, NULL, NULL };
 char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 
@@ -45,22 +45,40 @@ char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 #endif
 
 
+struct stdio_dev serial_dev = {
+	.name = "serial",
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM,
+	.putc = serial_putc,
+	.puts = serial_puts,
+	.getc = serial_getc,
+	.tstc = serial_tstc
+};
+
 #ifdef CONFIG_SYS_DEVICE_NULLDEV
-void nulldev_putc(const char c)
+void nulldev_putc(const device_t *pdev, const char c)
 {
 	/* nulldev is empty! */
 }
 
-void nulldev_puts(const char *s)
+void nulldev_puts(const device_t *pdev, const char *s)
 {
 	/* nulldev is empty! */
 }
 
-int nulldev_input(void)
+int nulldev_input(const device_t *pdev)
 {
 	/* nulldev is empty! */
 	return 0;
 }
+
+struct stdio_dev null_dev = {
+	.name = "nulldev",
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM,
+	.putc = nulldev_putc,
+	.puts = nulldev_puts,
+	.getc = nulldev_input,
+	.tstc = nulldev_input
+};
 #endif
 
 /**************************************************************************
@@ -70,29 +88,10 @@ int nulldev_input(void)
 
 static void drv_system_init (void)
 {
-	struct stdio_dev dev;
-
-	memset (&dev, 0, sizeof (dev));
-
-	strcpy (dev.name, "serial");
-	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM;
-	dev.putc = serial_putc;
-	dev.puts = serial_puts;
-	dev.getc = serial_getc;
-	dev.tstc = serial_tstc;
-	stdio_register (&dev);
+	stdio_register(&serial_dev);
 
 #ifdef CONFIG_SYS_DEVICE_NULLDEV
-	memset (&dev, 0, sizeof (dev));
-
-	strcpy (dev.name, "nulldev");
-	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM;
-	dev.putc = nulldev_putc;
-	dev.puts = nulldev_puts;
-	dev.getc = nulldev_input;
-	dev.tstc = nulldev_input;
-
-	stdio_register (&dev);
+	stdio_register(&null_dev);
 #endif
 }
 
@@ -100,54 +99,49 @@ static void drv_system_init (void)
  * DEVICES
  **************************************************************************
  */
-struct list_head* stdio_get_list(void)
+struct stdio_dev *stdio_get_list(void)
 {
-	return &(devs.list);
+	return devs;
 }
 
 struct stdio_dev* stdio_get_by_name(const char *name)
 {
-	struct list_head *pos;
-	struct stdio_dev *dev;
+	struct stdio_dev *dev = devs;
 
-	if(!name)
-		return NULL;
-
-	list_for_each(pos, &(devs.list)) {
-		dev = list_entry(pos, struct stdio_dev, list);
-		if(strcmp(dev->name, name) == 0)
-			return dev;
+	if (name && devs) {
+		do {
+			if(strcmp(dev->name, name) == 0)
+				return dev;
+			dev = dev->next;
+		} while (dev != devs);
 	}
 
 	return NULL;
 }
 
-struct stdio_dev* stdio_clone(struct stdio_dev *dev)
+int stdio_register (struct stdio_dev *dev)
 {
-	struct stdio_dev *_dev;
+#ifdef CONFIG_CONSOLE_MUX
+	int i;
 
-	if(!dev)
-		return NULL;
+	/* Clear all links that represent lists */
+	for (i = 0; i < MAX_FILES; i++)
+		dev->file_next[i] = NULL;
+#endif
 
-	_dev = calloc(1, sizeof(struct stdio_dev));
-
-	if(!_dev)
-		return NULL;
-
-	memcpy(_dev, dev, sizeof(struct stdio_dev));
-	strncpy(_dev->name, dev->name, 16);
-
-	return _dev;
-}
-
-int stdio_register (struct stdio_dev * dev)
-{
-	struct stdio_dev *_dev;
-
-	_dev = stdio_clone(dev);
-	if(!_dev)
-		return -1;
-	list_add_tail(&(_dev->list), &(devs.list));
+	if (!devs) {
+		/* First element, loop back to itself */
+		dev->next = dev;
+		dev->prev = dev;
+		devs = dev;
+	} else {
+		/* Add at end; devs points to the first element in the device
+		   ring, so devs->prev points to the last element */
+		dev->prev = devs->prev;
+		dev->prev->next = dev;
+		dev->next = devs;
+		dev->next->prev = dev;
+	}
 	return 0;
 }
 
@@ -157,36 +151,49 @@ int stdio_register (struct stdio_dev * dev)
 #ifdef	CONFIG_SYS_STDIO_DEREGISTER
 int stdio_deregister(const char *devname)
 {
-	int l;
-	struct list_head *pos;
+	int i;
 	struct stdio_dev *dev;
-	char temp_names[3][16];
+	struct stdio_dev *tmp;
 
 	dev = stdio_get_by_name(devname);
-
-	if(!dev) /* device not found */
+	if (!dev) /* device not found */
 		return -1;
-	/* get stdio devices (ListRemoveItem changes the dev list) */
-	for (l=0 ; l< MAX_FILES; l++) {
-		if (stdio_devices[l] == dev) {
-			/* Device is assigned -> report error */
-			return -1;
+
+	/* Check if device is assigned */
+	for (i=0 ; i< MAX_FILES; i++) {
+#ifdef CONFIG_CONSOLE_MUX
+		tmp = stdio_devices[i];
+
+		while (tmp) {
+			if (tmp == dev)
+				return -1; /* in use */
+			tmp = tmp->file_next[i];
 		}
-		memcpy (&temp_names[l][0],
-			stdio_devices[l]->name,
-			sizeof(temp_names[l]));
+#else
+		if (stdio_devices[i] == dev)
+			return -1;	  /* in use */
+#endif
 	}
 
-	list_del(&(dev->list));
+	/* The device is not part of any of the active stdio devices. Now
+	   find device in the device list */
+	tmp = devs;
+	while (tmp != dev)
+		tmp = tmp->next;
 
-	/* reassign Device list */
-	list_for_each(pos, &(devs.list)) {
-		dev = list_entry(pos, struct stdio_dev, list);
-		for (l=0 ; l< MAX_FILES; l++) {
-			if(strcmp(dev->name, temp_names[l]) == 0)
-				stdio_devices[l] = dev;
-		}
+	/* Unlink device from device ring list */
+	if (tmp->next == tmp)
+		devs = NULL;		  /* It was the last device */
+	else {
+		/* Update head if this is the first element */
+		if (tmp == devs)
+			devs = tmp->next;
+
+		tmp->prev->next = tmp->next;
+		tmp->next->prev = tmp->prev;
+
 	}
+
 	return 0;
 }
 #endif	/* CONFIG_SYS_STDIO_DEREGISTER */
@@ -205,8 +212,7 @@ int stdio_init (void)
 	}
 #endif /* CONFIG_NEEDS_MANUAL_RELOC */
 
-	/* Initialize the list */
-	INIT_LIST_HEAD(&(devs.list));
+	devs = NULL;
 
 #ifdef CONFIG_ARM_DCC_MULTI
 	drv_arm_dcc_init ();
@@ -214,7 +220,7 @@ int stdio_init (void)
 #if defined(CONFIG_HARD_I2C) || defined(CONFIG_SOFT_I2C)
 	i2c_init (CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
 #endif
-#ifdef CONFIG_LCD
+#if defined(CONFIG_LCD) || defined(CONFIG_CMD_LCD)
 	drv_lcd_init ();
 #endif
 #if defined(CONFIG_VIDEO) || defined(CONFIG_CFB_CONSOLE)

@@ -31,6 +31,8 @@
 #ifndef __S3C6400_H__
 #define __S3C6400_H__
 
+#define CPU_NAME		"S3C6400"
+
 #define S3C64XX_UART_CHANNELS	3
 #define S3C64XX_SPI_CHANNELS	2
 
@@ -371,16 +373,6 @@
 #define GPQCONSLP_REG		__REG(ELFIN_GPIO_BASE + GPQCONSLP_OFFSET)
 #define GPQPUDSLP_REG		__REG(ELFIN_GPIO_BASE + GPQPUDSLP_OFFSET)
 
-/*
- * Bus Matrix
- */
-#define ELFIN_MEM_SYS_CFG	0x7e00f120
-
-#define S3C64XX_MEM_SYS_CFG_16BIT	(1 << 12)
-
-#define S3C64XX_MEM_SYS_CFG_NAND	0x0008
-#define S3C64XX_MEM_SYS_CFG_ONENAND	S3C64XX_MEM_SYS_CFG_16BIT
-
 #define GPACON		(ELFIN_GPIO_BASE + GPACON_OFFSET)
 #define GPADAT		(ELFIN_GPIO_BASE + GPADAT_OFFSET)
 #define GPAPUD		(ELFIN_GPIO_BASE + GPAPUD_OFFSET)
@@ -463,6 +455,16 @@
 #define GPQPUDSLP	(ELFIN_GPIO_BASE + GPQPUDSLP_OFFSET)
 
 /*
+ * Bus Matrix
+ */
+#define ELFIN_MEM_SYS_CFG	0x7e00f120
+
+#define S3C64XX_MEM_SYS_CFG_16BIT	(1 << 12)
+
+#define S3C64XX_MEM_SYS_CFG_NAND	0x0008
+#define S3C64XX_MEM_SYS_CFG_ONENAND	S3C64XX_MEM_SYS_CFG_16BIT
+
+/*
  * Memory controller
  */
 #define ELFIN_SROM_BASE		0x70000000
@@ -527,7 +529,7 @@
 #define DMC_mSDR_EMR1	0x1a0000
 #define DMC_DDR_EMR0	0x090000
 #define DMC_DDR_EMR1	0x190000
-#define DMC_mDDR_EMR0	0x0a0000	/*  DS:Full, PASR:Full Array */
+#define DMC_mDDR_EMR0	0x0a0000	/* DS:Full, PASR:Full Array */
 #define DMC_mDDR_EMR1	0x1a0000
 
 /*
@@ -639,7 +641,8 @@
 #define oINTUNMSK		0x10	/* VIC INT EN (write 1 to unmask) */
 #define oINTMSK			0x14	/* VIC INT EN CLEAR (write 1 to mask) */
 #define oINTSUBMSK		0x1C	/* VIC SOFT INT CLEAR */
-#define oVECTADDR		0xF00 /* VIC ADDRESS */
+#define oVECTADDR		0xF00	/* VIC ADDRESS */
+
 
 /*
  * Watchdog timer
@@ -756,7 +759,7 @@
 #define TIMER3_IVT_ON		(TCON_3_INVERT * 1)
 #define TIMER3_IVT_OFF		(FClrBit(TCON, TCON_3_INVERT))
 #define TCON_3_MAN		(1 << 17)  /* manual Update TCNTB3,TCMPB3 */
-#define TIMER3_MANUP		(TCON_3_MAN*1)
+#define TIMER3_MANUP		(TCON_3_MAN * 1)
 #define TIMER3_NOP		(FClrBit(TCON, TCON_3_MAN))
 #define TCON_3_ONOFF		(1 << 16)  /* 0: Stop, 1: start Timer 3 */
 #define TIMER3_ON		(TCON_3_ONOFF * 1)
@@ -877,6 +880,8 @@
 /* 2b01 : mDDR */
 #define DMC_DDR_USER_CONFIG	1
 
+
+/* include common stuff */
 #ifndef __ASSEMBLY__
 enum s3c64xx_uarts_nr {
 	S3C64XX_UART0,

@@ -495,7 +495,7 @@ int arch_memory_test_prepare(u32 *vstart, u32 *size, phys_addr_t *phys_offset)
 {
 	bd_t *bd = gd->bd;
 
-	*vstart = CONFIG_SYS_SDRAM_BASE;
+	*vstart = gd->ram_base;
 	*size = (gd->ram_size >= 256 << 20 ?
 			256 << 20 : gd->ram_size) - (1 << 20);
 

@@ -41,6 +41,12 @@ struct mtd_oob_buf {
 #define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
 
+
+// Types of automatic ECC/Checksum available
+#define MTD_ECC_NONE		0 	// No automatic ECC available
+#define MTD_ECC_RS_DiskOnChip	1	// Automatic ECC on DiskOnChip
+#define MTD_ECC_SW		2	// SW ECC for Toshiba & Samsung devices
+
 /* ECC byte placement */
 #define MTD_NANDECC_OFF		0	/* Switch off ECC (Not recommended) */
 #define MTD_NANDECC_PLACE	1	/* Use the given placement in the structure (YAFFS1 legacy mode) */

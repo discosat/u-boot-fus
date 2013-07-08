@@ -586,13 +586,13 @@ restart:
 		case NETLOOP_SUCCESS:
 			if (NetBootFileXferSize > 0) {
 				char buf[20];
-				printf("Bytes transferred = %ld (%lx hex)\n",
+				printf("Bytes transferred = %ld (0x%lx)\n",
 					NetBootFileXferSize,
 					NetBootFileXferSize);
 				sprintf(buf, "%lX", NetBootFileXferSize);
 				setenv("filesize", buf);
 
-				sprintf(buf, "%lX", (unsigned long)load_addr);
+				sprintf(buf, "%lX", get_loadaddr());
 				setenv("fileaddr", buf);
 			}
 			eth_halt();
@@ -699,7 +699,9 @@ NetSetTimeout(ulong iv, thand_f *f)
 	} else {
 		timeHandler = f;
 		timeStart = get_timer(0);
-		timeDelta = iv;
+		/* As the timeout is done by get_timer(), we have to convert
+		   the timeout value from ms to timer ticks ourselves */
+		timeDelta = iv * (CONFIG_SYS_HZ / 1000);
 	}
 }
 

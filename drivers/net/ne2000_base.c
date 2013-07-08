@@ -76,11 +76,6 @@ Add SNMP
 #include <command.h>
 #include <net.h>
 #include <malloc.h>
-#include <linux/compiler.h>
-
-/* forward definition of function used for the uboot interface */
-void uboot_push_packet_len(int len);
-void uboot_push_tx_done(int key, int val);
 
 /* NE2000 base header file */
 #include "ne2000_base.h"
@@ -88,136 +83,26 @@ void uboot_push_tx_done(int key, int val);
 #if defined(CONFIG_DRIVER_AX88796L)
 /* AX88796L support */
 #include "ax88796.h"
+#define NE2000_DEV_NAME "AX88796"
 #else
 /* Basic NE2000 chip support */
 #include "ne2000.h"
+#define NE2000_DEV_NAME "NE2000"
 #endif
 
-static dp83902a_priv_data_t nic; /* just one instance of the card supported */
+#define RX_BUFFER_SIZE 2000
 
-/**
- * This function reads the MAC address from the serial EEPROM,
- * used if PROM read fails. Does nothing for ax88796 chips (sh boards)
- */
-static bool
-dp83902a_init(unsigned char *enetaddr)
-{
-	dp83902a_priv_data_t *dp = &nic;
-	u8* base;
-#if defined(NE2000_BASIC_INIT)
-	int i;
-#endif
 
-	DEBUG_FUNCTION();
-
-	base = dp->base;
-	if (!base)
-		return false;	/* No device found */
-
-	DEBUG_LINE();
-
-#if defined(NE2000_BASIC_INIT)
-	/* AX88796L doesn't need */
-	/* Prepare ESA */
-	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1);	/* Select page 1 */
-	/* Use the address from the serial EEPROM */
-	for (i = 0; i < 6; i++)
-		DP_IN(base, DP_P1_PAR0+i, dp->esa[i]);
-	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);	/* Select page 0 */
-
-	printf("NE2000 - %s ESA: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		"eeprom",
-		dp->esa[0],
-		dp->esa[1],
-		dp->esa[2],
-		dp->esa[3],
-		dp->esa[4],
-		dp->esa[5] );
-
-	memcpy(enetaddr, dp->esa, 6); /* Use MAC from serial EEPROM */
-#endif	/* NE2000_BASIC_INIT */
-	return true;
-}
-
-static void
-dp83902a_stop(void)
-{
-	dp83902a_priv_data_t *dp = &nic;
-	u8 *base = dp->base;
-
-	DEBUG_FUNCTION();
-
-	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_STOP);	/* Brutal */
-	DP_OUT(base, DP_ISR, 0xFF);		/* Clear any pending interrupts */
-	DP_OUT(base, DP_IMR, 0x00);		/* Disable all interrupts */
-
-	dp->running = false;
-}
-
-/*
- * This function is called to "start up" the interface. It may be called
- * multiple times, even when the hardware is already running. It will be
- * called whenever something "hardware oriented" changes and should leave
- * the hardware ready to send/receive packets.
- */
-static void
-dp83902a_start(u8 * enaddr)
-{
-	dp83902a_priv_data_t *dp = &nic;
-	u8 *base = dp->base;
-	int i;
-
-	debug("The MAC is %pM\n", enaddr);
-
-	DEBUG_FUNCTION();
-
-	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_STOP); /* Brutal */
-	DP_OUT(base, DP_DCR, DP_DCR_INIT);
-	DP_OUT(base, DP_RBCH, 0);		/* Remote byte count */
-	DP_OUT(base, DP_RBCL, 0);
-	DP_OUT(base, DP_RCR, DP_RCR_MON);	/* Accept no packets */
-	DP_OUT(base, DP_TCR, DP_TCR_LOCAL);	/* Transmitter [virtually] off */
-	DP_OUT(base, DP_TPSR, dp->tx_buf1);	/* Transmitter start page */
-	dp->tx1 = dp->tx2 = 0;
-	dp->tx_next = dp->tx_buf1;
-	dp->tx_started = false;
-	dp->running = true;
-	DP_OUT(base, DP_PSTART, dp->rx_buf_start); /* Receive ring start page */
-	DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1); /* Receive ring boundary */
-	DP_OUT(base, DP_PSTOP, dp->rx_buf_end);	/* Receive ring end page */
-	dp->rx_next = dp->rx_buf_start - 1;
-	dp->running = true;
-	DP_OUT(base, DP_ISR, 0xFF);		/* Clear any pending interrupts */
-	DP_OUT(base, DP_IMR, DP_IMR_All);	/* Enable all interrupts */
-	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1 | DP_CR_STOP);	/* Select page 1 */
-	DP_OUT(base, DP_P1_CURP, dp->rx_buf_start);	/* Current page - next free page for Rx */
-	dp->running = true;
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		/* FIXME */
-		/*((vu_short*)( base + ((DP_P1_PAR0 + i) * 2) +
-		 * 0x1400)) = enaddr[i];*/
-		DP_OUT(base, DP_P1_PAR0+i, enaddr[i]);
-	}
-	/* Enable and start device */
-	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
-	DP_OUT(base, DP_TCR, DP_TCR_NORMAL); /* Normal transmit operations */
-	DP_OUT(base, DP_RCR, DP_RCR_AB); /* Accept broadcast, no errors, no multicast */
-	dp->running = true;
-}
 
 /*
  * This routine is called to start the transmitter. It is split out from the
  * data handling routine so it may be called either when data becomes first
  * available or when an Tx interrupt occurs
  */
-
-static void
-dp83902a_start_xmit(int start_page, int len)
+static void dp83902a_start_xmit(struct eth_device *dev, int start_page, int len)
 {
-	dp83902a_priv_data_t *dp = (dp83902a_priv_data_t *) &nic;
+	dp83902a_priv_data_t *dp = dev->priv;
 	u8 *base = dp->base;
-
-	DEBUG_FUNCTION();
 
 #if DEBUG & 1
 	printf("Tx pkt %d len %d\n", start_page, len);
@@ -236,216 +121,17 @@ dp83902a_start_xmit(int start_page, int len)
 }
 
 /*
- * This routine is called to send data to the hardware. It is known a-priori
- * that there is free buffer space (dp->tx_next).
- */
-static void
-dp83902a_send(u8 *data, int total_len, u32 key)
-{
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
-	u8 *base = dp->base;
-	int len, start_page, pkt_len, i, isr;
-#if DEBUG & 4
-	int dx;
-#endif
-
-	DEBUG_FUNCTION();
-
-	len = pkt_len = total_len;
-	if (pkt_len < IEEE_8023_MIN_FRAME)
-		pkt_len = IEEE_8023_MIN_FRAME;
-
-	start_page = dp->tx_next;
-	if (dp->tx_next == dp->tx_buf1) {
-		dp->tx1 = start_page;
-		dp->tx1_len = pkt_len;
-		dp->tx1_key = key;
-		dp->tx_next = dp->tx_buf2;
-	} else {
-		dp->tx2 = start_page;
-		dp->tx2_len = pkt_len;
-		dp->tx2_key = key;
-		dp->tx_next = dp->tx_buf1;
-	}
-
-#if DEBUG & 5
-	printf("TX prep page %d len %d\n", start_page, pkt_len);
-#endif
-
-	DP_OUT(base, DP_ISR, DP_ISR_RDC);	/* Clear end of DMA */
-	{
-		/*
-		 * Dummy read. The manual sez something slightly different,
-		 * but the code is extended a bit to do what Hitachi's monitor
-		 * does (i.e., also read data).
-		 */
-
-		__maybe_unused u16 tmp;
-		int len = 1;
-
-		DP_OUT(base, DP_RSAL, 0x100 - len);
-		DP_OUT(base, DP_RSAH, (start_page - 1) & 0xff);
-		DP_OUT(base, DP_RBCL, len);
-		DP_OUT(base, DP_RBCH, 0);
-		DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_RDMA | DP_CR_START);
-		DP_IN_DATA(dp->data, tmp);
-	}
-
-#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA
-	/*
-	 * Stall for a bit before continuing to work around random data
-	 * corruption problems on some platforms.
-	 */
-	CYGACC_CALL_IF_DELAY_US(1);
-#endif
-
-	/* Send data to device buffer(s) */
-	DP_OUT(base, DP_RSAL, 0);
-	DP_OUT(base, DP_RSAH, start_page);
-	DP_OUT(base, DP_RBCL, pkt_len & 0xFF);
-	DP_OUT(base, DP_RBCH, pkt_len >> 8);
-	DP_OUT(base, DP_CR, DP_CR_WDMA | DP_CR_START);
-
-	/* Put data into buffer */
-#if DEBUG & 4
-	printf(" sg buf %08lx len %08x\n ", (u32)data, len);
-	dx = 0;
-#endif
-	while (len > 0) {
-#if DEBUG & 4
-		printf(" %02x", *data);
-		if (0 == (++dx % 16)) printf("\n ");
-#endif
-
-		DP_OUT_DATA(dp->data, *data++);
-		len--;
-	}
-#if DEBUG & 4
-	printf("\n");
-#endif
-	if (total_len < pkt_len) {
-#if DEBUG & 4
-		printf("  + %d bytes of padding\n", pkt_len - total_len);
-#endif
-		/* Padding to 802.3 length was required */
-		for (i = total_len; i < pkt_len;) {
-			i++;
-			DP_OUT_DATA(dp->data, 0);
-		}
-	}
-
-#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA
-	/*
-	 * After last data write, delay for a bit before accessing the
-	 * device again, or we may get random data corruption in the last
-	 * datum (on some platforms).
-	 */
-	CYGACC_CALL_IF_DELAY_US(1);
-#endif
-
-	/* Wait for DMA to complete */
-	do {
-		DP_IN(base, DP_ISR, isr);
-	} while ((isr & DP_ISR_RDC) == 0);
-
-	/* Then disable DMA */
-	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
-
-	/* Start transmit if not already going */
-	if (!dp->tx_started) {
-		if (start_page == dp->tx1) {
-			dp->tx_int = 1; /* Expecting interrupt from BUF1 */
-		} else {
-			dp->tx_int = 2; /* Expecting interrupt from BUF2 */
-		}
-		dp83902a_start_xmit(start_page, pkt_len);
-	}
-}
-
-/*
- * This function is called when a packet has been received. It's job is
- * to prepare to unload the packet from the hardware. Once the length of
- * the packet is known, the upper layer of the driver can be told. When
- * the upper layer is ready to unload the packet, the internal function
- * 'dp83902a_recv' will be called to actually fetch it from the hardware.
- */
-static void
-dp83902a_RxEvent(void)
-{
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
-	u8 *base = dp->base;
-	__maybe_unused u8 rsr;
-	u8 rcv_hdr[4];
-	int i, len, pkt, cur;
-
-	DEBUG_FUNCTION();
-
-	DP_IN(base, DP_RSR, rsr);
-	while (true) {
-		/* Read incoming packet header */
-		DP_OUT(base, DP_CR, DP_CR_PAGE1 | DP_CR_NODMA | DP_CR_START);
-		DP_IN(base, DP_P1_CURP, cur);
-		DP_OUT(base, DP_P1_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
-		DP_IN(base, DP_BNDRY, pkt);
-
-		pkt += 1;
-		if (pkt == dp->rx_buf_end)
-			pkt = dp->rx_buf_start;
-
-		if (pkt == cur) {
-			break;
-		}
-		DP_OUT(base, DP_RBCL, sizeof(rcv_hdr));
-		DP_OUT(base, DP_RBCH, 0);
-		DP_OUT(base, DP_RSAL, 0);
-		DP_OUT(base, DP_RSAH, pkt);
-		if (dp->rx_next == pkt) {
-			if (cur == dp->rx_buf_start)
-				DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1);
-			else
-				DP_OUT(base, DP_BNDRY, cur - 1); /* Update pointer */
-			return;
-		}
-		dp->rx_next = pkt;
-		DP_OUT(base, DP_ISR, DP_ISR_RDC); /* Clear end of DMA */
-		DP_OUT(base, DP_CR, DP_CR_RDMA | DP_CR_START);
-#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_RX_DMA
-		CYGACC_CALL_IF_DELAY_US(10);
-#endif
-
-		/* read header (get data size)*/
-		for (i = 0; i < sizeof(rcv_hdr);) {
-			DP_IN_DATA(dp->data, rcv_hdr[i++]);
-		}
-
-#if DEBUG & 5
-		printf("rx hdr %02x %02x %02x %02x\n",
-			rcv_hdr[0], rcv_hdr[1], rcv_hdr[2], rcv_hdr[3]);
-#endif
-		len = ((rcv_hdr[3] << 8) | rcv_hdr[2]) - sizeof(rcv_hdr);
-
-		/* data read */
-		uboot_push_packet_len(len);
-
-		if (rcv_hdr[1] == dp->rx_buf_start)
-			DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1);
-		else
-			DP_OUT(base, DP_BNDRY, rcv_hdr[1] - 1); /* Update pointer */
-	}
-}
-
-/*
- * This function is called as a result of the "eth_drv_recv()" call above.
+ * This function is called as a result of the dp83902a_RxEvent call below.
  * It's job is to actually fetch data for a packet from the hardware once
  * memory buffers have been allocated for the packet. Note that the buffers
  * may come in pieces, using a scatter-gather list. This allows for more
  * efficient processing in the upper layers of the stack.
  */
-static void
-dp83902a_recv(u8 *data, int len)
+static void dp83902a_fetch(struct eth_device *dev, int len)
 {
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
+	struct dp83902a_priv_data *dp = dev->priv;
 	u8 *base = dp->base;
+	u8 *data = dp->pbuf;
 	int i, mlen;
 	u8 saved_char = 0;
 	bool saved;
@@ -506,17 +192,94 @@ dp83902a_recv(u8 *data, int len)
 	}
 }
 
-static void
-dp83902a_TxEvent(void)
+/*
+ * This function is called when a packet has been received. It's job is
+ * to prepare to unload the packet from the hardware. Once the length of
+ * the packet is known, the upper layer of the driver can be told. When
+ * the upper layer is ready to unload the packet, the internal function
+ * 'dp83902a_recv' will be called to actually fetch it from the hardware.
+ */
+static void dp83902a_RxEvent(struct eth_device *dev)
 {
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
+	struct dp83902a_priv_data *dp = dev->priv;
 	u8 *base = dp->base;
-	__maybe_unused u8 tsr;
-	u32 key;
+	u8 rsr;
+	u8 rcv_hdr[4];
+	int i, len, pkt, cur;
 
 	DEBUG_FUNCTION();
 
+	DP_IN(base, DP_RSR, rsr);
+	(void)rsr;			  /* Avoid compiler warning */
+	while (true) {
+		/* Read incoming packet header */
+		DP_OUT(base, DP_CR, DP_CR_PAGE1 | DP_CR_NODMA | DP_CR_START);
+		DP_IN(base, DP_P1_CURP, cur);
+		DP_OUT(base, DP_P1_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
+		DP_IN(base, DP_BNDRY, pkt);
+
+		pkt += 1;
+		if (pkt == dp->rx_buf_end)
+			pkt = dp->rx_buf_start;
+
+		if (pkt == cur) {
+			break;
+		}
+		DP_OUT(base, DP_RBCL, sizeof(rcv_hdr));
+		DP_OUT(base, DP_RBCH, 0);
+		DP_OUT(base, DP_RSAL, 0);
+		DP_OUT(base, DP_RSAH, pkt);
+		if (dp->rx_next == pkt) {
+			if (cur == dp->rx_buf_start)
+				DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1);
+			else
+				DP_OUT(base, DP_BNDRY, cur - 1); /* Update pointer */
+			return;
+		}
+		dp->rx_next = pkt;
+		DP_OUT(base, DP_ISR, DP_ISR_RDC); /* Clear end of DMA */
+		DP_OUT(base, DP_CR, DP_CR_RDMA | DP_CR_START);
+#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_RX_DMA
+		CYGACC_CALL_IF_DELAY_US(10);
+#endif
+
+		/* read header (get data size)*/
+		for (i = 0; i < sizeof(rcv_hdr);) {
+			DP_IN_DATA(dp->data, rcv_hdr[i++]);
+		}
+
+#if DEBUG & 5
+		printf("rx hdr %02x %02x %02x %02x\n",
+			rcv_hdr[0], rcv_hdr[1], rcv_hdr[2], rcv_hdr[3]);
+#endif
+		len = ((rcv_hdr[3] << 8) | rcv_hdr[2]) - sizeof(rcv_hdr);
+
+		/* data read */
+		if (len > RX_BUFFER_SIZE)
+			puts("NE2000: packet too big\n");
+
+		/* Fetch data to local receive buffer */
+		dp83902a_fetch(dev, len);
+
+		/*Just pass it to the upper layer*/
+		NetReceive(dp->pbuf, len);
+
+		if (rcv_hdr[1] == dp->rx_buf_start)
+			DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1);
+		else
+			DP_OUT(base, DP_BNDRY, rcv_hdr[1] - 1); /* Update pointer */
+	}
+}
+
+static void dp83902a_TxEvent(struct eth_device *dev)
+{
+	struct dp83902a_priv_data *dp = dev->priv;
+	u8 *base = dp->base;
+	u8 tsr;
+	u32 key;
+
 	DP_IN(base, DP_TSR, tsr);
+	(void)tsr;			  /* Avoid compiler warning */
 	if (dp->tx_int == 1) {
 		key = dp->tx1_key;
 		dp->tx1 = 0;
@@ -527,43 +290,26 @@ dp83902a_TxEvent(void)
 	/* Start next packet if one is ready */
 	dp->tx_started = false;
 	if (dp->tx1) {
-		dp83902a_start_xmit(dp->tx1, dp->tx1_len);
+		dp83902a_start_xmit(dev, dp->tx1, dp->tx1_len);
 		dp->tx_int = 1;
 	} else if (dp->tx2) {
-		dp83902a_start_xmit(dp->tx2, dp->tx2_len);
+		dp83902a_start_xmit(dev, dp->tx2, dp->tx2_len);
 		dp->tx_int = 2;
 	} else {
 		dp->tx_int = 0;
 	}
+
 	/* Tell higher level we sent this packet */
-	uboot_push_tx_done(key, 0);
-}
-
-/*
- * Read the tally counters to clear them. Called in response to a CNT
- * interrupt.
- */
-static void
-dp83902a_ClearCounters(void)
-{
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
-	u8 *base = dp->base;
-	__maybe_unused u8 cnt1, cnt2, cnt3;
-
-	DP_IN(base, DP_FER, cnt1);
-	DP_IN(base, DP_CER, cnt2);
-	DP_IN(base, DP_MISSED, cnt3);
-	DP_OUT(base, DP_ISR, DP_ISR_CNT);
+	dp->pkey = key;
 }
 
 /*
  * Deal with an overflow condition. This code follows the procedure set
  * out in section 7.0 of the datasheet.
  */
-static void
-dp83902a_Overflow(void)
+static void dp83902a_Overflow(struct eth_device *dev)
 {
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *)&nic;
+	struct dp83902a_priv_data *dp = dev->priv;
 	u8 *base = dp->base;
 	u8 isr;
 
@@ -584,7 +330,7 @@ dp83902a_Overflow(void)
 	 * interrupts. Since the buffer has overflowed, a receive event of
 	 * some kind will have occured.
 	 */
-	dp83902a_RxEvent();
+	dp83902a_RxEvent(dev);
 	DP_OUT(base, DP_ISR, DP_ISR_RxP|DP_ISR_RxE);
 
 	/* Clear the overflow condition and leave loopback mode. */
@@ -601,10 +347,9 @@ dp83902a_Overflow(void)
 	}
 }
 
-static void
-dp83902a_poll(void)
+static void dp83902a_poll(struct eth_device *dev)
 {
-	struct dp83902a_priv_data *dp = (struct dp83902a_priv_data *) &nic;
+	struct dp83902a_priv_data *dp = dev->priv;
 	u8 *base = dp->base;
 	u8 isr;
 
@@ -617,7 +362,16 @@ dp83902a_poll(void)
 		 * we should read their values to reset them.
 		 */
 		if (isr & DP_ISR_CNT) {
-			dp83902a_ClearCounters();
+			u8 cnt1, cnt2, cnt3;
+
+			/* Read the tally counters to clear them. */
+			DP_IN(base, DP_FER, cnt1);
+			(void)cnt1;	  /* Avoid compiler warning */
+			DP_IN(base, DP_CER, cnt2);
+			(void)cnt2;	  /* Avoid compiler warning */
+			DP_IN(base, DP_MISSED, cnt3);
+			(void)cnt3;	  /* Avoid compiler warning */
+			DP_OUT(base, DP_ISR, DP_ISR_CNT);
 		}
 		/*
 		 * Check for overflow. It's a special case, since there's a
@@ -625,7 +379,7 @@ dp83902a_poll(void)
 		 * a running state.a
 		 */
 		if (isr & DP_ISR_OFLW) {
-			dp83902a_Overflow();
+			dp83902a_Overflow(dev);
 		} else {
 			/*
 			 * Other kinds of interrupts can be acknowledged simply by
@@ -635,166 +389,325 @@ dp83902a_poll(void)
 			DP_OUT(base, DP_ISR, isr);	/* Clear set bits */
 			if (!dp->running) break;	/* Is this necessary? */
 			/*
-			 * Check for tx_started on TX event since these may happen
-			 * spuriously it seems.
+			 * Check for tx_started on TX event since these may
+			 * happen spuriously it seems.
 			 */
 			if (isr & (DP_ISR_TxP|DP_ISR_TxE) && dp->tx_started) {
-				dp83902a_TxEvent();
+				dp83902a_TxEvent(dev);
 			}
 			if (isr & (DP_ISR_RxP|DP_ISR_RxE)) {
-				dp83902a_RxEvent();
+				dp83902a_RxEvent(dev);
 			}
 		}
 		DP_IN(base, DP_ISR, isr);
 	}
 }
 
-
-/* U-boot specific routines */
-static u8 *pbuf = NULL;
-
-static int pkey = -1;
-static int initialized = 0;
-
-void uboot_push_packet_len(int len) {
-	PRINTK("pushed len = %d\n", len);
-	if (len >= 2000) {
-		printf("NE2000: packet too big\n");
-		return;
-	}
-	dp83902a_recv(&pbuf[0], len);
-
-	/*Just pass it to the upper layer*/
-	NetReceive(&pbuf[0], len);
-}
-
-void uboot_push_tx_done(int key, int val) {
-	PRINTK("pushed key = %d\n", key);
-	pkey = key;
-}
-
-/**
- * Setup the driver and init MAC address according to doc/README.enetaddr
- * Called by ne2k_register() before registering the driver @eth layer
- *
- * @param struct ethdevice of this instance of the driver for dev->enetaddr
- * @return 0 on success, -1 on error (causing caller to print error msg)
+/*
+ * This routine is called to send data to the hardware. It is known a-priori
+ * that there is free buffer space (dp->tx_next).
  */
-static int ne2k_setup_driver(struct eth_device *dev)
+static int dp83902a_send(struct eth_device *dev, volatile void *packet,
+			 int length)
 {
-	PRINTK("### ne2k_setup_driver\n");
+	struct dp83902a_priv_data *dp = dev->priv;
+	volatile u8 *data = (volatile u8 *)packet;
+	u8 *base = dp->base;
+	u32 key = 666;
+	int len, start_page, pkt_len, i, isr;
 
-	if (!pbuf) {
-		pbuf = malloc(2000);
-		if (!pbuf) {
-			printf("Cannot allocate rx buffer\n");
-			return -1;
+#if DEBUG & 4
+	int dx;
+#endif
+	int tmo;
+	dp->pkey = -1;
+
+	len = pkt_len = length;
+	if (pkt_len < IEEE_8023_MIN_FRAME)
+		pkt_len = IEEE_8023_MIN_FRAME;
+
+	start_page = dp->tx_next;
+	if (dp->tx_next == dp->tx_buf1) {
+		dp->tx1 = start_page;
+		dp->tx1_len = pkt_len;
+		dp->tx1_key = key;
+		dp->tx_next = dp->tx_buf2;
+	} else {
+		dp->tx2 = start_page;
+		dp->tx2_len = pkt_len;
+		dp->tx2_key = key;
+		dp->tx_next = dp->tx_buf1;
+	}
+
+#if DEBUG & 5
+	printf("TX prep page %d len %d\n", start_page, pkt_len);
+#endif
+
+	DP_OUT(base, DP_ISR, DP_ISR_RDC);	/* Clear end of DMA */
+	{
+		/*
+		 * Dummy read. The manual sez something slightly different,
+		 * but the code is extended a bit to do what Hitachi's monitor
+		 * does (i.e., also read data).
+		 */
+
+		u16 tmp;
+		int len = 1;
+
+		DP_OUT(base, DP_RSAL, 0x100 - len);
+		DP_OUT(base, DP_RSAH, (start_page - 1) & 0xff);
+		DP_OUT(base, DP_RBCL, len);
+		DP_OUT(base, DP_RBCH, 0);
+		DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_RDMA | DP_CR_START);
+		DP_IN_DATA(dp->data, tmp);
+		(void)tmp;		  /* Avoid compiler warning */
+	}
+
+#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA
+	/*
+	 * Stall for a bit before continuing to work around random data
+	 * corruption problems on some platforms.
+	 */
+	CYGACC_CALL_IF_DELAY_US(1);
+#endif
+
+	/* Send data to device buffer(s) */
+	DP_OUT(base, DP_RSAL, 0);
+	DP_OUT(base, DP_RSAH, start_page);
+	DP_OUT(base, DP_RBCL, pkt_len & 0xFF);
+	DP_OUT(base, DP_RBCH, pkt_len >> 8);
+	DP_OUT(base, DP_CR, DP_CR_WDMA | DP_CR_START);
+
+	/* Put data into buffer */
+#if DEBUG & 4
+	printf(" sg buf %08lx len %08x\n ", (u32)data, len);
+	dx = 0;
+#endif
+	while (len > 0) {
+#if DEBUG & 4
+		printf(" %02x", *data);
+		if (0 == (++dx % 16)) printf("\n ");
+#endif
+
+		DP_OUT_DATA(dp->data, *data++);
+		len--;
+	}
+#if DEBUG & 4
+	printf("\n");
+#endif
+	if (length < pkt_len) {
+#if DEBUG & 4
+		printf("  + %d bytes of padding\n", pkt_len - length);
+#endif
+		/* Padding to 802.3 length was required */
+		for (i = length; i < pkt_len;) {
+			i++;
+			DP_OUT_DATA(dp->data, 0);
 		}
 	}
 
-#ifdef CONFIG_DRIVER_NE2000_CCR
-	{
-		vu_char *p = (vu_char *) CONFIG_DRIVER_NE2000_CCR;
-
-		PRINTK("CCR before is %x\n", *p);
-		*p = CONFIG_DRIVER_NE2000_VAL;
-		PRINTK("CCR after is %x\n", *p);
-	}
+#ifdef CYGHWR_NS_DP83902A_PLF_BROKEN_TX_DMA
+	/*
+	 * After last data write, delay for a bit before accessing the
+	 * device again, or we may get random data corruption in the last
+	 * datum (on some platforms).
+	 */
+	CYGACC_CALL_IF_DELAY_US(1);
 #endif
 
-	nic.base = (u8 *) CONFIG_DRIVER_NE2000_BASE;
+	/* Wait for DMA to complete */
+	do {
+		DP_IN(base, DP_ISR, isr);
+	} while ((isr & DP_ISR_RDC) == 0);
 
-	nic.data = nic.base + DP_DATA;
-	nic.tx_buf1 = START_PG;
-	nic.tx_buf2 = START_PG2;
-	nic.rx_buf_start = RX_START;
-	nic.rx_buf_end = RX_END;
+	/* Then disable DMA */
+	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
 
-	/*
-	 * According to doc/README.enetaddr, drivers shall give priority
-	 * to the MAC address value in the environment, so we do not read
-	 * it from the prom or eeprom if it is specified in the environment.
-	 */
-	if (!eth_getenv_enetaddr("ethaddr", dev->enetaddr)) {
-		/* If the MAC address is not in the environment, get it: */
-		if (!get_prom(dev->enetaddr, nic.base)) /* get MAC from prom */
-			dp83902a_init(dev->enetaddr);   /* fallback: seeprom */
-		/* And write it into the environment otherwise eth_write_hwaddr
-		 * returns -1 due to eth_getenv_enetaddr_by_index() failing,
-		 * and this causes "Warning: failed to set MAC address", and
-		 * cmd_bdinfo has no ethaddr value which it can show: */
-		eth_setenv_enetaddr("ethaddr", dev->enetaddr);
+	/* Start transmit if not already going */
+	if (!dp->tx_started) {
+		if (start_page == dp->tx1) {
+			dp->tx_int = 1; /* Expecting interrupt from BUF1 */
+		} else {
+			dp->tx_int = 2; /* Expecting interrupt from BUF2 */
+		}
+		dp83902a_start_xmit(dev, start_page, pkt_len);
 	}
-	return 0;
-}
 
-static int ne2k_init(struct eth_device *dev, bd_t *bd)
-{
-	dp83902a_start(dev->enetaddr);
-	initialized = 1;
-	return 0;
-}
-
-static void ne2k_halt(struct eth_device *dev)
-{
-	debug("### ne2k_halt\n");
-	if(initialized)
-		dp83902a_stop();
-	initialized = 0;
-}
-
-static int ne2k_recv(struct eth_device *dev)
-{
-	dp83902a_poll();
-	return 1;
-}
-
-static int ne2k_send(struct eth_device *dev, volatile void *packet, int length)
-{
-	int tmo;
-
-	debug("### ne2k_send\n");
-
-	pkey = -1;
-
-	dp83902a_send((u8 *) packet, length, 666);
-	tmo = get_timer (0) + TOUT * CONFIG_SYS_HZ;
-	while(1) {
-		dp83902a_poll();
-		if (pkey != -1) {
+	/* Wait for packet to transmit */
+	tmo = get_timer(0) + TOUT * CONFIG_SYS_HZ;
+	do {
+		dp83902a_poll(dev);
+		if (dp->pkey != -1) {
 			PRINTK("Packet sucesfully sent\n");
 			return 0;
 		}
-		if (get_timer (0) >= tmo) {
-			printf("transmission error (timoeut)\n");
-			return 0;
-		}
+	} while (get_timer(0) < tmo);
 
-	}
+	printf("transmission error (timeout)\n");
+	return -1;
+}
+
+static int dp83902a_recv(struct eth_device *dev)
+{
+	dp83902a_poll(dev);
 	return 0;
 }
 
-/**
- * Setup the driver for use and register it with the eth layer
- * @return 0 on success, -1 on error (causing caller to print error msg)
+/*
+ * This function is called to "start up" the interface. It will be
+ * called whenever something "hardware oriented" changes and should leave
+ * the hardware ready to send/receive packets.
  */
-int ne2k_register(void)
+static int dp83902a_init(struct eth_device *dev, bd_t *bd)
+{
+	dp83902a_priv_data_t *dp = dev->priv;
+	u8* base;
+
+	base = dp->base;
+	if (!base)
+		return -1;		  /* No device found */
+
+#if defined(NE2000_BASIC_INIT)		  /* AX88796L doesn't need */
+	{
+		int i;
+
+		/* Prepare ESA, select page 1 */
+		DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1);
+
+		/* Use the address from the serial EEPROM */
+		for (i = 0; i < 6; i++)
+			DP_IN(base, DP_P1_PAR0+i, dp->esa[i]);
+
+		/* Select page 0 */
+		DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);
+
+		printf("NE2000 - %s ESA: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       "eeprom", dp->esa[0], dp->esa[1], dp->esa[2],
+		       dp->esa[3], dp->esa[4], dp->esa[5]);
+	}
+#endif	/* NE2000_BASIC_INIT */
+
+	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_STOP); /* Brutal */
+	DP_OUT(base, DP_DCR, DP_DCR_INIT);
+	DP_OUT(base, DP_RBCH, 0);		/* Remote byte count */
+	DP_OUT(base, DP_RBCL, 0);
+	DP_OUT(base, DP_RCR, DP_RCR_MON);	/* Accept no packets */
+	DP_OUT(base, DP_TCR, DP_TCR_LOCAL);	/* Transmitter [virtually] off */
+	DP_OUT(base, DP_TPSR, dp->tx_buf1);	/* Transmitter start page */
+	dp->tx1 = dp->tx2 = 0;
+	dp->tx_next = dp->tx_buf1;
+	dp->tx_started = false;
+	dp->running = true;
+	DP_OUT(base, DP_PSTART, dp->rx_buf_start); /* Receive ring start page */
+	DP_OUT(base, DP_BNDRY, dp->rx_buf_end - 1); /* Receive ring boundary */
+	DP_OUT(base, DP_PSTOP, dp->rx_buf_end);	/* Receive ring end page */
+	dp->rx_next = dp->rx_buf_start - 1;
+
+	DP_OUT(base, DP_ISR, 0xFF);		/* Clear any pending interrupts */
+	DP_OUT(base, DP_IMR, DP_IMR_All);	/* Enable all interrupts */
+	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1 | DP_CR_STOP);	/* Select page 1 */
+	DP_OUT(base, DP_P1_CURP, dp->rx_buf_start);	/* Current page - next free page for Rx */
+
+	/* Enable and start device */
+	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_START);
+	DP_OUT(base, DP_TCR, DP_TCR_NORMAL); /* Normal transmit operations */
+	DP_OUT(base, DP_RCR, DP_RCR_AB); /* Accept broadcast, no errors, no multicast */
+	dp->running = true;
+
+	return 0;
+}
+
+/*
+ * This function is called to stop the interface.
+ */
+static void dp83902a_halt(struct eth_device *dev)
+{
+	dp83902a_priv_data_t *dp = dev->priv;
+	u8 *base = dp->base;
+
+	DP_OUT(base, DP_CR, DP_CR_PAGE0 | DP_CR_NODMA | DP_CR_STOP);	/* Brutal */
+	DP_OUT(base, DP_ISR, 0xFF);		/* Clear any pending interrupts */
+	DP_OUT(base, DP_IMR, 0x00);		/* Disable all interrupts */
+
+	dp->running = false;
+}
+
+int dp83902a_write_hwaddr(struct eth_device *dev)
+{
+	dp83902a_priv_data_t *dp = dev->priv;
+	u8 *base = dp->base;
+	int i;
+
+	if (!base)
+		return -1;		  /* No device found */
+
+	/* Stop transfer, select page 1 */
+	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE1 | DP_CR_STOP);
+
+	/* Set ethernet address */
+	for (i = 0; i < 6; i++)
+		DP_OUT(base, DP_P1_PAR0+i, dev->enetaddr[i]);
+
+	/* Select page 0 again */
+	DP_OUT(base, DP_CR, DP_CR_NODMA | DP_CR_PAGE0);
+
+	return 0;
+}
+
+int ne2000_initialize(u8 dev_num, int base_addr)
 {
 	struct eth_device *dev;
+	dp83902a_priv_data_t *dp; 
 
-	dev = calloc(sizeof(*dev), 1);
-	if (dev == NULL)
+	/* Allocate device */
+	dev = malloc(sizeof(*dev));
+	if (!dev)
 		return -1;
+	memset(dev, 0, sizeof(*dev));
 
-	if (ne2k_setup_driver(dev))
+	/* Allocate private data structure */
+	dp = malloc(sizeof(dp83902a_priv_data_t));
+	if (!dp) {
+		free(dev);
 		return -1;
+	}
 
-	dev->init = ne2k_init;
-	dev->halt = ne2k_halt;
-	dev->send = ne2k_send;
-	dev->recv = ne2k_recv;
+	/* Allocate receive buffer */
+	dp->pbuf = malloc(RX_BUFFER_SIZE);
+	if (!dp->pbuf) {
+		free(dp);
+		free(dev);
+		return -1;
+	}
 
-	sprintf(dev->name, "NE2000");
+	/* Set up private data structure */
+	dp->base = (u8 *)base_addr;
+	dp->data = dp->base + DP_DATA;
+	dp->tx_buf1 = START_PG;
+	dp->tx_buf2 = START_PG2;
+	dp->rx_buf_start = RX_START;
+	dp->rx_buf_end = RX_END;
 
+#ifndef CONFIG_DRIVER_NE2000_SOFTMAC 
+	/* Get hardware MAC address from PROM */
+	if (!get_prom(dev->enetaddr)) {
+		free(dp->pbuf);
+		free(dp);
+		free(dev);
+		return -1;
+	}
+#endif
+
+	/* Set up device structure */
+	dev->priv = dp;
+	dev->iobase = (int)base_addr;
+	dev->init = dp83902a_init;
+	dev->halt = dp83902a_halt;
+	dev->send = dp83902a_send;
+	dev->recv = dp83902a_recv;
+	dev->write_hwaddr = dp83902a_write_hwaddr;
+	sprintf(dev->name, "%s-%hu", NE2000_DEV_NAME, dev_num);
+
+	/* Register the ethernet device */
 	return eth_register(dev);
 }

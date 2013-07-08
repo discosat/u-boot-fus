@@ -24,14 +24,13 @@
  * MA 02111-1307 USA
  */
 
-/*
- * This code should work for both the S3C2400 and the S3C2410
+/* This code should work for S3C6400, S3C6410 and S3C6430
  * as they seem to have the same PLL and clock machinery inside.
- * The different address mapping is handled by the s3c24xx.h files below.
+ * However S3C6400 does not support SYNC_MODE.
  */
 
 #include <common.h>
-#include <asm/arch/s3c6400.h>
+#include <asm/arch/s3c64xx-regs.h>
 
 #define APLL 0
 #define MPLL 1
@@ -97,11 +96,8 @@ ulong get_HCLK(void)
 	uint hclkx2_div = ((CLK_DIV0_REG >> 9) & 0x7) + 1;
 	uint hclk_div = ((CLK_DIV0_REG >> 8) & 0x1) + 1;
 
-	/*
-	 * Bit 7 exists on s3c6410, and not on s3c6400, it is reserved on
-	 * s3c6400 and is always 0, and it is indeed running in ASYNC mode
-	 */
-	if (OTHERS_REG & 0x80)
+	/* S3C6400 has no SYNC mode, bit 7 is always 0 */
+	if(OTHERS_REG & 0x80)
 		fclk = get_FCLK();		/* SYNC Mode	*/
 	else
 		fclk = get_PLLCLK(MPLL);	/* ASYNC Mode	*/
@@ -116,6 +112,7 @@ ulong get_PCLK(void)
 	uint hclkx2_div = ((CLK_DIV0_REG >> 9) & 0x7) + 1;
 	uint pre_div = ((CLK_DIV0_REG >> 12) & 0xf) + 1;
 
+	/* S3C6400 has no SYNC mode, bit 7 is always 0 */
 	if (OTHERS_REG & 0x80)
 		fclk = get_FCLK();		/* SYNC Mode	*/
 	else
@@ -130,13 +127,20 @@ ulong get_UCLK(void)
 	return get_PLLCLK(EPLL);
 }
 
+/* return MCLK frequency */
+ulong get_MCLK(void)
+{
+	return get_PLLCLK(MPLL);
+}
+
 int print_cpuinfo(void)
 {
-	printf("\nCPU:     S3C6400@%luMHz\n", get_ARMCLK() / 1000000);
-	printf("         Fclk = %luMHz, Hclk = %luMHz, Pclk = %luMHz ",
+	printf("CPU:   " CPU_NAME "@%luMHz\n", get_ARMCLK() / 1000000);
+	printf("       Fclk = %luMHz, Hclk = %luMHz, Pclk = %luMHz ",
 	       get_FCLK() / 1000000, get_HCLK() / 1000000,
 	       get_PCLK() / 1000000);
 
+	/* S3C6400 has no SYNC mode, bit 7 is always 0 */
 	if (OTHERS_REG & 0x80)
 		printf("(SYNC Mode) \n");
 	else

@@ -44,7 +44,7 @@ are GPL, so this is, of course, GPL.
 #define n2k_inb(port)   (*((volatile unsigned char *)(port+CONFIG_DRIVER_NE2000_BASE)))
 #define n2k_outb(val,port)  (*((volatile unsigned char *)(port+CONFIG_DRIVER_NE2000_BASE)) = val)
 
-#define EI_SHIFT(x)	(x)
+#define EI_SHIFT(x)	(x<<1)
 
 #define E8390_CMD	EI_SHIFT(0x00)  /* The command register (for all pages) */
 /* Page 0 register offsets. */

@@ -175,11 +175,11 @@ static int get_partition_info_extended (block_dev_desc_t *dev_desc, int ext_part
 			dev_desc->dev, ext_part_sector);
 		return -1;
 	}
-	if (buffer[DOS_PART_MAGIC_OFFSET] != 0x55 ||
-		buffer[DOS_PART_MAGIC_OFFSET + 1] != 0xaa) {
-		printf ("bad MBR sector signature 0x%02x%02x\n",
-			buffer[DOS_PART_MAGIC_OFFSET],
-			buffer[DOS_PART_MAGIC_OFFSET + 1]);
+	i = test_block_type(buffer);
+	if(i == -1) {
+		return -1;
+	}
+	if(i == DOS_PBR) {
 		return -1;
 	}
 

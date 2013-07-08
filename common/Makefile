@@ -32,7 +32,7 @@ COBJS-y += command.o
 COBJS-y += exports.o
 COBJS-$(CONFIG_SYS_HUSH_PARSER) += hush.o
 COBJS-y += image.o
-COBJS-y += s_record.o
+COBJS-$(CONFIG_CMD_LOADS) += s_record.o
 COBJS-$(CONFIG_SERIAL_MULTI) += serial.o
 COBJS-y += xyzModem.o
 
@@ -54,6 +54,7 @@ COBJS-$(CONFIG_ENV_IS_IN_NVRAM) += env_embedded.o
 COBJS-$(CONFIG_ENV_IS_IN_FLASH) += env_flash.o
 COBJS-$(CONFIG_ENV_IS_IN_MG_DISK) += env_mgdisk.o
 COBJS-$(CONFIG_ENV_IS_IN_MMC) += env_mmc.o
+COBJS-$(CONFIG_ENV_IS_IN_FAT) += env_fat.o
 COBJS-$(CONFIG_ENV_IS_IN_NAND) += env_nand.o
 COBJS-$(CONFIG_ENV_IS_IN_NVRAM) += env_nvram.o
 COBJS-$(CONFIG_ENV_IS_IN_ONENAND) += env_onenand.o
@@ -62,7 +63,6 @@ COBJS-$(CONFIG_ENV_IS_NOWHERE) += env_nowhere.o
 
 # command
 COBJS-$(CONFIG_CMD_AMBAPP) += cmd_ambapp.o
-COBJS-$(CONFIG_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
 COBJS-$(CONFIG_CMD_BEDBUG) += bedbug.o cmd_bedbug.o
@@ -107,7 +107,8 @@ COBJS-$(CONFIG_CMD_CRAMFS) += cmd_cramfs.o
 COBJS-$(CONFIG_CMD_LDRINFO) += cmd_ldrinfo.o
 COBJS-$(CONFIG_CMD_LED) += cmd_led.o
 COBJS-$(CONFIG_CMD_LICENSE) += cmd_license.o
-COBJS-y += cmd_load.o
+COBJS-$(CONFIG_CMD_LOADS) += cmd_load.o
+COBJS-$(CONFIG_CMD_LOADB) += cmd_load.o
 COBJS-$(CONFIG_LOGBUFFER) += cmd_log.o
 COBJS-$(CONFIG_ID_EEPROM) += cmd_mac.o
 COBJS-$(CONFIG_CMD_MD5SUM) += cmd_md5sum.o
@@ -123,12 +124,14 @@ COBJS-$(CONFIG_CMD_MII) += cmd_mdio.o
 endif
 COBJS-$(CONFIG_CMD_MISC) += cmd_misc.o
 COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
+COBJS-$(CONFIG_GENERIC_MMC) += cmd_mmc.o
 COBJS-$(CONFIG_CMD_MMC_SPI) += cmd_mmc_spi.o
 COBJS-$(CONFIG_MP) += cmd_mp.o
 COBJS-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
 COBJS-$(CONFIG_CMD_NAND) += cmd_nand.o
 COBJS-$(CONFIG_CMD_NET) += cmd_net.o
 COBJS-$(CONFIG_CMD_ONENAND) += cmd_onenand.o
+COBJS-$(CONFIG_CMD_MOVI) += cmd_movi.o
 COBJS-$(CONFIG_CMD_OTP) += cmd_otp.o
 ifdef CONFIG_PCI
 COBJS-$(CONFIG_CMD_PCI) += cmd_pci.o
@@ -160,8 +163,22 @@ COBJS-y += cmd_usb.o
 COBJS-y += usb.o usb_hub.o
 COBJS-$(CONFIG_USB_STORAGE) += usb_storage.o
 endif
+COBJS-$(CONFIG_PICOMOD6) += cmd_usb.o
+COBJS-$(CONFIG_PICOCOM3) += cmd_usb.o
 COBJS-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 COBJS-$(CONFIG_YAFFS2) += cmd_yaffs2.o
+COBJS-$(CONFIG_CMD_SPL) += cmd_spl.o
+
+# Extended LCD support
+COBJS-$(CONFIG_CMD_LCD) += cmd_lcd.o xlcd_panels.o
+COBJS-$(CONFIG_CMD_WIN) += cmd_win.o
+COBJS-$(CONFIG_CMD_CMAP) += cmd_cmap.o
+COBJS-$(CONFIG_CMD_DRAW) += cmd_draw.o xlcd_draw_ll.o xlcd_drawtext_ll.o
+COBJS-$(CONFIG_CMD_ADRAW) += cmd_draw.o xlcd_adraw_ll.o
+COBJS-$(CONFIG_XLCD_CONSOLE) += xlcd_drawtext_ll.o
+COBJS-$(CONFIG_XLCD_PNG) += xlcd_png.o
+COBJS-$(CONFIG_XLCD_BMP) += xlcd_bmp.o
+COBJS-$(CONFIG_XLCD_JPG) += xlcd_jpg.o
 
 # others
 ifdef CONFIG_DDR_SPD
@@ -185,6 +202,9 @@ COBJS-$(CONFIG_UPDATE_TFTP) += update.o
 COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
 endif
 
+ifdef CONFIG_SPL_BUILD
+COBJS-$(CONFIG_SPL_YMODEM_SUPPORT) += xyzModem.o
+endif
 COBJS-y += console.o
 COBJS-y += dlmalloc.o
 COBJS-y += memsize.o

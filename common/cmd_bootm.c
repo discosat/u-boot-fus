@@ -169,48 +169,54 @@ void arch_preboot_os(void) __attribute__((weak, alias("__arch_preboot_os")));
 
 #define IH_INITRD_ARCH IH_ARCH_DEFAULT
 
-static void bootm_start_lmb(void)
-{
 #ifdef CONFIG_LMB
+static void boot_start_lmb(bootm_headers_t *images)
+{
 	ulong		mem_start;
 	phys_size_t	mem_size;
 
-	lmb_init(&images.lmb);
+	lmb_init(&images->lmb);
 
 	mem_start = getenv_bootm_low();
 	mem_size = getenv_bootm_size();
 
-	lmb_add(&images.lmb, (phys_addr_t)mem_start, mem_size);
+	lmb_add(&images->lmb, (phys_addr_t)mem_start, mem_size);
 
-	arch_lmb_reserve(&images.lmb);
-	board_lmb_reserve(&images.lmb);
-#else
-# define lmb_reserve(lmb, base, size)
-#endif
+	arch_lmb_reserve(&images->lmb);
+	board_lmb_reserve(&images->lmb);
 }
+#else
+#define lmb_reserve(lmb, base, size)
+static inline void boot_start_lmb(bootm_headers_t *images) { }
+#endif
 
 static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	void		*os_hdr;
 	int		ret;
+	int		image_format;
 
 	memset((void *)&images, 0, sizeof(images));
 	images.verify = getenv_yesno("verify");
 
-	bootm_start_lmb();
+	boot_start_lmb(&images);
+
+	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_START, "bootm_start");
 
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_START, "bootm_start");
 
 	/* get kernel image header, start address and length */
 	os_hdr = boot_get_kernel(cmdtp, flag, argc, argv,
 			&images, &images.os.image_start, &images.os.image_len);
-	if (images.os.image_len == 0) {
-		puts("ERROR: can't get kernel image!\n");
+	image_format = genimg_get_format(os_hdr);
+	if ((image_format != IMAGE_FORMAT_ZIMAGE)
+	    && (images.os.image_len == 0)) {
+		puts ("ERROR: can't get kernel image!\n");
 		return 1;
 	}
 
 	/* get image parameters */
-	switch (genimg_get_format(os_hdr)) {
+	switch (image_format) {
 	case IMAGE_FORMAT_LEGACY:
 		images.os.type = image_get_type(os_hdr);
 		images.os.comp = image_get_comp(os_hdr);
@@ -218,6 +224,14 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 
 		images.os.end = image_get_image_end(os_hdr);
 		images.os.load = image_get_load(os_hdr);
+		break;
+	case IMAGE_FORMAT_ZIMAGE:
+		images.os.type = IH_TYPE_KERNEL;
+		images.os.comp = IH_COMP_NONE;
+		images.os.os = IH_OS_LINUX;
+		images.os.load = (ulong)os_hdr;
+		images.os.end = (ulong)os_hdr;
+		images.ep = (ulong)os_hdr;
 		break;
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:
@@ -257,51 +271,54 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		return 1;
 	}
 
-	/* find kernel entry point */
-	if (images.legacy_hdr_valid) {
-		images.ep = image_get_ep(&images.legacy_hdr_os_copy);
+	if (image_format != IMAGE_FORMAT_ZIMAGE) {
+		/* find kernel entry point */
+		if (images.legacy_hdr_valid) {
+			images.ep = image_get_ep(&images.legacy_hdr_os_copy);
 #if defined(CONFIG_FIT)
-	} else if (images.fit_uname_os) {
-		ret = fit_image_get_entry(images.fit_hdr_os,
-				images.fit_noffset_os, &images.ep);
-		if (ret) {
-			puts("Can't get entry point property!\n");
-			return 1;
-		}
+		} else if (images.fit_uname_os) {
+			ret = fit_image_get_entry(images.fit_hdr_os,
+					   images.fit_noffset_os, &images.ep);
+			if (ret) {
+				puts("Can't get entry point property!\n");
+				return 1;
+			}
 #endif
-	} else {
-		puts("Could not find kernel entry point!\n");
-		return 1;
-	}
-
-	if (images.os.type == IH_TYPE_KERNEL_NOLOAD) {
-		images.os.load = images.os.image_start;
-		images.ep += images.os.load;
-	}
-
-	if (((images.os.type == IH_TYPE_KERNEL) ||
-	     (images.os.type == IH_TYPE_KERNEL_NOLOAD) ||
-	     (images.os.type == IH_TYPE_MULTI)) &&
-	    (images.os.os == IH_OS_LINUX)) {
-		/* find ramdisk */
-		ret = boot_get_ramdisk(argc, argv, &images, IH_INITRD_ARCH,
-				&images.rd_start, &images.rd_end);
-		if (ret) {
-			puts("Ramdisk image is corrupt or invalid\n");
+		} else {
+			puts("Could not find kernel entry point!\n");
 			return 1;
 		}
+
+		if (images.os.type == IH_TYPE_KERNEL_NOLOAD) {
+			images.os.load = images.os.image_start;
+			images.ep += images.os.load;
+		}
+
+		if (((images.os.type == IH_TYPE_KERNEL) ||
+		     (images.os.type == IH_TYPE_KERNEL_NOLOAD) ||
+		     (images.os.type == IH_TYPE_MULTI)) &&
+		    (images.os.os == IH_OS_LINUX)) {
+			/* find ramdisk */
+			ret = boot_get_ramdisk(argc, argv, &images,
+					       IH_INITRD_ARCH, &images.rd_start,
+					       &images.rd_end);
+			if (ret) {
+				puts("Ramdisk image is corrupt or invalid\n");
+				return 1;
+			}
 
 #if defined(CONFIG_OF_LIBFDT)
-		/* find flattened device tree */
-		ret = boot_get_fdt(flag, argc, argv, &images,
-				   &images.ft_addr, &images.ft_len);
-		if (ret) {
-			puts("Could not find a valid device tree\n");
-			return 1;
-		}
+			/* find flattened device tree */
+			ret = boot_get_fdt(flag, argc, argv, &images,
+					    &images.ft_addr, &images.ft_len);
+			if (ret) {
+				puts("Could not find a valid device tree\n");
+				return 1;
+			}
 
-		set_working_fdt_addr(images.ft_addr);
+			set_working_fdt_addr(images.ft_addr);
 #endif
+		}
 	}
 
 	images.os.start = (ulong)os_hdr;
@@ -340,7 +357,6 @@ static int bootm_load_os(image_info_t os, ulong *load_end, int boot_progress)
 					image_len, CHUNKSZ);
 		}
 		*load_end = load + image_len;
-		puts("OK\n");
 		break;
 #ifdef CONFIG_GZIP
 	case IH_COMP_GZIP:
@@ -453,6 +469,7 @@ static int bootm_start_standalone(ulong iflag, int argc, char * const argv[])
 	}
 	appl = (int (*)(int, char * const []))(ulong)ntohl(images.ep);
 	(*appl)(argc-1, &argv[1]);
+
 	return 0;
 }
 
@@ -662,7 +679,9 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 	}
 
-	lmb_reserve(&images.lmb, images.os.load, (load_end - images.os.load));
+	if (load_end - images.os.load > 0)
+		lmb_reserve(&images.lmb, images.os.load,
+			    (load_end - images.os.load));
 
 	if (images.os.type == IH_TYPE_STANDALONE) {
 		if (iflag)
@@ -711,7 +730,8 @@ int bootm_maybe_autostart(cmd_tbl_t *cmdtp, const char *cmd)
 		char *local_args[2];
 		local_args[0] = (char *)cmd;
 		local_args[1] = NULL;
-		printf("Automatic boot of image at addr 0x%08lX ...\n", load_addr);
+		printf("Automatic boot of image at addr 0x%08lX ...\n",
+		       get_loadaddr());
 		return do_bootm(cmdtp, 0, 1, local_args);
 	}
 
@@ -847,9 +867,9 @@ static void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* find out kernel image address */
 	if (argc < 2) {
-		img_addr = load_addr;
+		img_addr = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				load_addr);
+				img_addr);
 #if defined(CONFIG_FIT)
 	} else if (fit_parse_conf(argv[1], load_addr, &img_addr,
 							&fit_uname_config)) {
@@ -915,6 +935,35 @@ static void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		images->legacy_hdr_valid = 1;
 		bootstage_mark(BOOTSTAGE_ID_DECOMP_IMAGE);
 		break;
+
+	case IMAGE_FORMAT_ZIMAGE:
+	{
+#ifdef CONFIG_SYS_PATCH_TTY
+		char *p = (char *)img_addr;
+		char *end_addr = (char *)img_addr + CONFIG_SYS_PATCH_TTY;
+		int len = strlen(CONFIG_SYS_SERCON_NAME);
+
+		/* Patch serial output port */
+		do {
+			if (strncmp(p, CONFIG_SYS_SERCON_NAME, len) == 0) {
+				char *s = getenv("sercon");
+				if (!s || (s[len] == p[len]))
+					break;
+
+				printf("## Patching %s at Offset 0x%lx", p,
+				       (ulong)p - img_addr);
+				p[len] = s[len];
+				printf(" to %s\n", p);
+				break;
+			}
+		} while (++p < end_addr);
+#endif
+		
+		printf ("## Booting kernel from zImage at %08lx\n", img_addr);
+		show_boot_progress(100);
+		break;
+	}
+
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:
 		fit_hdr = (void *)img_addr;
@@ -1078,7 +1127,7 @@ int do_iminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int	rcode = 0;
 
 	if (argc < 2) {
-		return image_info(load_addr);
+		return image_info(get_loadaddr());
 	}
 
 	for (arg = 1; arg < argc; ++arg) {
@@ -1518,3 +1567,127 @@ static int do_bootm_integrity(int flag, int argc, char * const argv[],
 	return 1;
 }
 #endif
+
+#ifdef CONFIG_CMD_BOOTZ
+
+static int __bootz_setup(void *image, void **start, void **end)
+{
+	/* Please define bootz_setup() for your platform */
+
+	puts("Your platform's zImage format isn't supported yet!\n");
+	return -1;
+}
+int bootz_setup(void *image, void **start, void **end)
+	__attribute__((weak, alias("__bootz_setup")));
+
+/*
+ * zImage booting support
+ */
+static int bootz_start(cmd_tbl_t *cmdtp, int flag, int argc,
+			char * const argv[], bootm_headers_t *images)
+{
+	int ret;
+	void *zi_start, *zi_end;
+
+	memset(images, 0, sizeof(bootm_headers_t));
+
+	boot_start_lmb(images);
+
+	/* Setup Linux kernel zImage entry point */
+	if (argc < 2) {
+		images->ep = get_loadaddr();
+		debug("*  kernel: default image load address = 0x%08lx\n",
+				images->ep);
+	} else {
+		images->ep = simple_strtoul(argv[1], NULL, 16);
+		debug("*  kernel: cmdline image address = 0x%08lx\n",
+			images->ep);
+	}
+
+	ret = bootz_setup((void *)images->ep, &zi_start, &zi_end);
+	if (ret != 0)
+		return 1;
+
+	lmb_reserve(&images->lmb, images->ep, zi_end - zi_start);
+
+	/* Find ramdisk */
+	ret = boot_get_ramdisk(argc, argv, images, IH_INITRD_ARCH,
+			&images->rd_start, &images->rd_end);
+	if (ret) {
+		puts("Ramdisk image is corrupt or invalid\n");
+		return 1;
+	}
+
+#if defined(CONFIG_OF_LIBFDT)
+	/* find flattened device tree */
+	ret = boot_get_fdt(flag, argc, argv, images,
+			   &images->ft_addr, &images->ft_len);
+	if (ret) {
+		puts("Could not find a valid device tree\n");
+		return 1;
+	}
+
+	set_working_fdt_addr(images->ft_addr);
+#endif
+
+	return 0;
+}
+
+static int do_bootz(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	bootm_headers_t	images;
+
+	if (bootz_start(cmdtp, flag, argc, argv, &images))
+		return 1;
+
+	/*
+	 * We have reached the point of no return: we are going to
+	 * overwrite all exception vector code, so we cannot easily
+	 * recover from any failures any more...
+	 */
+	disable_interrupts();
+
+#if defined(CONFIG_CMD_USB)
+	/*
+	 * turn off USB to prevent the host controller from writing to the
+	 * SDRAM while Linux is booting. This could happen (at least for OHCI
+	 * controller), because the HCCA (Host Controller Communication Area)
+	 * lies within the SDRAM and the host controller writes continously to
+	 * this area (as busmaster!). The HccaFrameNumber is for example
+	 * updated every 1 ms within the HCCA structure in SDRAM! For more
+	 * details see the OpenHCI specification.
+	 */
+	usb_stop();
+#endif
+
+#ifdef CONFIG_SILENT_CONSOLE
+	fixup_silent_linux();
+#endif
+	arch_preboot_os();
+
+	do_bootm_linux(0, argc, argv, &images);
+#ifdef DEBUG
+	puts("\n## Control returned to monitor - resetting...\n");
+#endif
+	do_reset(cmdtp, flag, argc, argv);
+
+	return 1;
+}
+
+U_BOOT_CMD(
+	bootz,	CONFIG_SYS_MAXARGS,	1,	do_bootz,
+	"boot Linux zImage image from memory",
+	"[addr [initrd[:size]] [fdt]]\n"
+	"    - boot Linux zImage stored in memory\n"
+	"\tThe argument 'initrd' is optional and specifies the address\n"
+	"\tof the initrd in memory. The optional argument ':size' allows\n"
+	"\tspecifying the size of RAW initrd.\n"
+#if defined(CONFIG_OF_LIBFDT)
+	"\tWhen booting a Linux kernel which requires a flat device-tree\n"
+	"\ta third argument is required which is the address of the\n"
+	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
+	"\tuse a '-' for the second argument. If you do not pass a third\n"
+	"\ta bd_info struct will be passed instead\n"
+#endif
+);
+#endif	/* CONFIG_CMD_BOOTZ */

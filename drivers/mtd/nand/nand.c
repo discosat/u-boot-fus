@@ -75,6 +75,15 @@ int nand_register(int devnum)
 }
 
 #ifndef CONFIG_SYS_NAND_SELF_INIT
+static int __board_nand_setup(struct mtd_info *mtd,
+			      struct nand_chip *nand, int id)
+{
+	return 0;
+}
+
+int board_nand_setup(struct mtd_info *mtd, struct nand_chip *nand, int id)
+	__attribute__((weak, alias("__board_nand_setup")));
+
 static void nand_init_chip(int i)
 {
 	struct mtd_info *mtd = &nand_info[i];
@@ -86,13 +95,32 @@ static void nand_init_chip(int i)
 		maxchips = 1;
 
 	mtd->priv = nand;
+	mtd->name = NULL;
+	mtd->size = 0;
 	nand->IO_ADDR_R = nand->IO_ADDR_W = (void  __iomem *)base_addr;
 
+	/* Set up functions to access the NAND chip. This may include the OOB
+	   layout and ECC mode in entry .ecc, but you can also delay this
+	   setting until board_nand_setup() later is called after the NAND
+	   chip is identified. */
 	if (board_nand_init(nand))
 		return;
 
-	if (nand_scan(mtd, maxchips))
+	/* Scan NAND chip type, set ECC mode and OOB layout, init the device */
+	if (nand_scan_ident(mtd, maxchips, NULL)) {
+		mtd->name = NULL;
 		return;
+	}
+
+	if (board_nand_setup(mtd, nand, i)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	if (nand_scan_tail(mtd)) {
+		mtd->name = NULL;
+		return;
+	}
 
 	nand_register(i);
 }

@@ -71,11 +71,10 @@
 #define DP_OUT_DATA(_b_, _d_)	*( (vu_short *) ((_b_)+ISA_OFFSET)) = (_d_)
 #else
 /* Please change for your target boards */
-#define ISA_OFFSET	0x0000
-#define DP_IN(_b_, _o_, _d_)	(_d_) = *( (vu_short *)((_b_)+(_o_ )+ISA_OFFSET))
-#define DP_OUT(_b_, _o_, _d_)	*((vu_short *)((_b_)+(_o_)+ISA_OFFSET)) = (_d_)
-#define DP_IN_DATA(_b_, _d_)	(_d_) = *( (vu_short *) ((_b_)+ISA_OFFSET))
-#define DP_OUT_DATA(_b_, _d_)	*( (vu_short *) ((_b_)+ISA_OFFSET)) = (_d_)
+#define DP_IN(_b_, _o_, _d_)	(_d_) = (u8)*((vu_short *)(_b_) + (_o_))
+#define DP_OUT(_b_, _o_, _d_)	*((vu_short *)(_b_) + (_o_)) = (_d_)
+#define DP_IN_DATA(_b_, _d_)	(_d_) = *((vu_short *)(_b_))
+#define DP_OUT_DATA(_b_, _d_)	*((vu_short *)(_b_)) = (_d_)
 #endif
 
 #endif /* __DRIVERS_AX88796L_H__ */

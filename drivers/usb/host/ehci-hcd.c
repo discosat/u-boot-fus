@@ -255,6 +255,13 @@ static int ehci_reset(void)
 #endif
 		ehci_writel(reg_ptr, tmp);
 	}
+
+#ifdef CONFIG_USB_EHCI_TXFIFO_THRESH
+	cmd = ehci_readl(&hcor->or_txfilltuning);
+	cmd &= ~TXFIFO_THRESH(0x3f);
+	cmd |= TXFIFO_THRESH(CONFIG_USB_EHCI_TXFIFO_THRESH);
+	ehci_writel(&hcor->or_txfilltuning, cmd);
+#endif
 out:
 	return ret;
 }
@@ -456,7 +463,11 @@ ehci_submit_async(struct usb_device *dev, unsigned long pipe, void *buffer,
 	/* Wait for TDs to be processed. */
 	ts = get_timer(0);
 	vtd = td;
-	timeout = USB_TIMEOUT_MS(pipe);
+	/* When we are using the timer ourselves instead of udelay(), we must
+	   convert milliseconds to timer ticks; USB_TIMEOUT_MS() returns 1000
+	   or 5000, i.e. 1s or 5s. So it is OK to divide by 1000 first to
+	   avoid a 32-bit overflow during computation. */
+	timeout = USB_TIMEOUT_MS(pipe)/1000 * CONFIG_SYS_HZ;
 	do {
 		/* Invalidate dcache */
 		ehci_invalidate_dcache(&qh_list);
@@ -905,4 +916,3 @@ submit_int_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	      dev, pipe, buffer, length, interval);
 	return ehci_submit_async(dev, pipe, buffer, length, NULL);
 }
-

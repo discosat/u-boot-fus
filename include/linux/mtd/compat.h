@@ -49,4 +49,7 @@
 #endif /* BUG */
 
 #define PAGE_SIZE	4096
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #endif

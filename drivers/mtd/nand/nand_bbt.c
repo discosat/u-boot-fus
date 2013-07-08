@@ -555,7 +555,12 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		BUG_ON(bd->options & NAND_BBT_NO_OOB);
 
-		if (bd->options & NAND_BBT_SCANALLPAGES)
+		/* If device has no bad block markers, all blocks are valid by
+		   definition. If we are within the skip area, we don't access
+		   the blocks anyway, so we can mark them valid, too. */
+		if ((this->options & NAND_NO_BADBLOCK) || (from < mtd->skip))
+			ret = 0;
+		else if (bd->options & NAND_BBT_SCANALLPAGES)
 			ret = scan_block_full(mtd, bd, from, buf, readlen,
 					      scanlen, len);
 		else

@@ -30,6 +30,7 @@
 #include <net.h>
 #include <exports.h>
 #include <xyzModem.h>
+#include <serial.h>			  /* serial_setbrg() */
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -439,15 +440,9 @@ int do_load_serial_bin (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	ulong addr;
 	int load_baudrate, current_baudrate;
 	int rcode = 0;
-	char *s;
 
-	/* pre-set offset from CONFIG_SYS_LOAD_ADDR */
-	offset = CONFIG_SYS_LOAD_ADDR;
-
-	/* pre-set offset from $loadaddr */
-	if ((s = getenv("loadaddr")) != NULL) {
-		offset = simple_strtoul(s, NULL, 16);
-	}
+	/* pre-set offset from default load address */
+	offset = get_loadaddr();
 
 	load_baudrate = current_baudrate = gd->baudrate;
 

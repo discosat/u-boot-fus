@@ -35,31 +35,54 @@
 #define DEV_FLAGS_SYSTEM 0x80000000	/* Device is a system device		*/
 #define DEV_EXT_VIDEO	 0x00000001	/* Video extensions supported		*/
 
+#define DEV_NAME_SIZE 16
+
 /* Device information */
+typedef struct stdio_dev stdio_dev_t;
+
 struct stdio_dev {
-	int	flags;			/* Device flags: input/output/system	*/
-	int	ext;			/* Supported extensions			*/
-	char	name[16];		/* Device name				*/
+	int	flags;			/* Device flags: input/output/system */
+	char	name[DEV_NAME_SIZE];	/* Device name, e.g. ttySAC1 */
+	char	hwname[DEV_NAME_SIZE];	/* Hardware name, e.g. s5p_uart1 */
 
 /* GENERAL functions */
+	/* To start the device */
+	int (*start) (const struct stdio_dev *pdev);
 
-	int (*start) (void);		/* To start the device			*/
-	int (*stop) (void);		/* To stop the device			*/
+	/* To stop the device */
+	int (*stop) (const struct stdio_dev *pdev);
 
 /* OUTPUT functions */
+	/* To put a char */
+	void (*putc) (const struct stdio_dev *pdev, const char c);
 
-	void (*putc) (const char c);	/* To put a char			*/
-	void (*puts) (const char *s);	/* To put a string (accelerator)	*/
+	/* To put a string (accelerator) */
+	void (*puts) (const struct stdio_dev *pdev, const char *s);
 
 /* INPUT functions */
+	/* To test if a char is ready */
+	int (*tstc) (const struct stdio_dev *pdev);
 
-	int (*tstc) (void);		/* To test if a char is ready...	*/
-	int (*getc) (void);		/* To get that char			*/
+	/* To get that char */
+	int (*getc) (const struct stdio_dev *pdev);
 
 /* Other functions */
 
-	void *priv;			/* Private extensions			*/
-	struct list_head list;
+	void *priv;			/* Private extensions */
+//###	int	ext;			/* Supported extensions */
+
+	/* The stdio devices are stored in a ring structure. So the last
+	   element points with its next pointer back again to the first
+	   element and the first element points with its prev pointer back
+	   again to the last element. The beginning of the ring is stored in
+	   variable devs. */
+	struct stdio_dev *next;		/* Next device */
+	struct stdio_dev *prev;		/* Next device */
+#ifdef CONFIG_CONSOLE_MUX
+	/* Each of these pointers is part of a linked list; the head of the
+	   list is in variable stdio_devices[i]. */
+	struct stdio_dev *file_next[MAX_FILES];	/* Next device in file list */
+#endif
 };
 
 /*
@@ -95,7 +118,7 @@ void	stdio_print_current_devices(void);
 #ifdef CONFIG_SYS_STDIO_DEREGISTER
 int	stdio_deregister(const char *devname);
 #endif
-struct list_head* stdio_get_list(void);
+struct stdio_dev *stdio_get_list(void);
 struct stdio_dev* stdio_get_by_name(const char* name);
 struct stdio_dev* stdio_clone(struct stdio_dev *dev);
 
@@ -103,7 +126,7 @@ struct stdio_dev* stdio_clone(struct stdio_dev *dev);
 int drv_arm_dcc_init(void);
 #endif
 #ifdef CONFIG_LCD
-int	drv_lcd_init (void);
+void	drv_lcd_init(void);
 #endif
 #if defined(CONFIG_VIDEO) || defined(CONFIG_CFB_CONSOLE)
 int	drv_video_init (void);

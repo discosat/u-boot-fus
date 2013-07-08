@@ -64,9 +64,13 @@
 #include <asm/arch/hardware.h>	/* needed for AT91_USB_HOST_BASE */
 #endif
 
+#ifdef CONFIG_USB_S5P
+#include <asm/arch/cpu.h>		  /* samsung_get_base_ohci() */
+#endif
+
 #if defined(CONFIG_ARM920T) || \
     defined(CONFIG_S3C24X0) || \
-    defined(CONFIG_S3C6400) || \
+    defined(CONFIG_S3C64XX) || \
     defined(CONFIG_440EP) || \
     defined(CONFIG_PCI_OHCI) || \
     defined(CONFIG_MPC5200) || \
@@ -184,21 +188,20 @@ static int sohci_get_current_frame_number(struct usb_device *dev);
 /* debug| print the main components of an URB
  * small: 0) header + data packets 1) just header */
 
-static void pkt_print(urb_priv_t *purb, struct usb_device *dev,
-		      unsigned long pipe, void *buffer, int transfer_len,
-		      struct devrequest *setup, char *str, int small)
+static void pkt_print (int actual_length, struct usb_device * dev,
+	unsigned long pipe, void * buffer,
+	int transfer_len, struct devrequest * setup, char * str, int small)
 {
-	dbg("%s URB:[%4x] dev:%2lu,ep:%2lu-%c,type:%s,len:%d/%d stat:%#lx",
-			str,
-			sohci_get_current_frame_number(dev),
-			usb_pipedevice(pipe),
-			usb_pipeendpoint(pipe),
-			usb_pipeout(pipe)? 'O': 'I',
-			usb_pipetype(pipe) < 2 ? \
-				(usb_pipeint(pipe)? "INTR": "ISOC"): \
-				(usb_pipecontrol(pipe)? "CTRL": "BULK"),
-			(purb ? purb->actual_length : 0),
-			transfer_len, dev->status);
+	dbg("%s URB:[%4x] dev:%2ld,ep:%2ld-%c,type:%s,len:%d/%d stat:%#lx",
+		str,
+		sohci_get_current_frame_number(dev),
+		usb_pipedevice(pipe),
+		usb_pipeendpoint(pipe),
+		usb_pipeout (pipe) ? 'O': 'I',
+		usb_pipetype(pipe) < 2 \
+			? (usb_pipeint(pipe) ? "INTR" : "ISOC") \
+			: (usb_pipecontrol(pipe) ? "CTRL" : "BULK"),
+		actual_length, transfer_len, dev->status);
 #ifdef	OHCI_VERBOSE_DEBUG
 	if (!small) {
 		int i, len;
@@ -210,14 +213,13 @@ static void pkt_print(urb_priv_t *purb, struct usb_device *dev,
 			printf("\n");
 		}
 		if (transfer_len > 0 && buffer) {
-			printf(__FILE__ ": data(%d/%d):",
-				(purb ? purb->actual_length : 0),
+			printf(__FILE__ ": data(%d/%d):", actual_length,
 				transfer_len);
-			len = usb_pipeout(pipe)? transfer_len:
-					(purb ? purb->actual_length : 0);
-			for (i = 0; i < 16 && i < len; i++)
-				printf(" %02x", ((__u8 *) buffer) [i]);
-			printf("%s\n", i < len? "...": "");
+			len = usb_pipeout (pipe)?
+					transfer_len : actual_length;
+			for (i = 0; i < 32 && i < len; i++)
+				printf (" %02x", ((__u8 *) buffer) [i]);
+			printf ("%s\n", i < len? "...": "");
 		}
 	}
 #endif
@@ -1276,8 +1278,8 @@ static int ohci_submit_rh_msg(struct usb_device *dev, unsigned long pipe,
 	databuf.u32 = (__u32 *)datab;
 
 #ifdef DEBUG
-pkt_print(NULL, dev, pipe, buffer, transfer_len,
-	  cmd, "SUB(rh)", usb_pipein(pipe));
+	pkt_print(0, dev, pipe, buffer, transfer_len,
+		  cmd, "SUB(rh)", usb_pipein(pipe));
 #else
 	mdelay(1);
 #endif
@@ -1475,7 +1477,7 @@ pkt_print(NULL, dev, pipe, buffer, transfer_len,
 	dev->status = stat;
 
 #ifdef DEBUG
-	pkt_print(NULL, dev, pipe, buffer,
+	pkt_print(len, dev, pipe, buffer,
 		  transfer_len, cmd, "RET(rh)", 0/*usb_pipein(pipe)*/);
 #else
 	mdelay(1);
@@ -1512,8 +1514,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	}
 
 #ifdef DEBUG
-	urb->actual_length = 0;
-	pkt_print(urb, dev, pipe, buffer, transfer_len,
+	pkt_print(0, dev, pipe, buffer, transfer_len,
 		  setup, "SUB", usb_pipein(pipe));
 #else
 	mdelay(1);
@@ -1577,7 +1578,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	dev->act_len = transfer_len;
 
 #ifdef DEBUG
-	pkt_print(urb, dev, pipe, buffer, transfer_len,
+	pkt_print(transfer_len, dev, pipe, buffer, transfer_len,
 		  setup, "RET(ctlr)", usb_pipein(pipe));
 #else
 	mdelay(1);
@@ -1604,7 +1605,7 @@ int submit_control_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 
 	info("submit_control_msg");
 #ifdef DEBUG
-	pkt_print(NULL, dev, pipe, buffer, transfer_len,
+	pkt_print(0, dev, pipe, buffer, transfer_len,
 		  setup, "SUB", usb_pipein(pipe));
 #else
 	mdelay(1);

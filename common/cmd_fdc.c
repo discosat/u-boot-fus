@@ -732,7 +732,7 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	switch (argc) {
 	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		boot_drive=CONFIG_SYS_FDC_DRIVE_NUMBER;
 		break;
 	case 2:

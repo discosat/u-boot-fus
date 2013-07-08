@@ -127,7 +127,7 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		if (addr_str != NULL) {
 			addr = simple_strtoul (addr_str, NULL, 16);
 		} else {
-			addr = CONFIG_SYS_LOAD_ADDR;
+			addr = get_loadaddr();
 		}
 		filename = getenv ("bootfile");
 		count = 0;

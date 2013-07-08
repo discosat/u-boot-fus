@@ -81,7 +81,7 @@
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 /* Point initial SP in SRAM so SPL can use it too. */
 
-#define CONFIG_SYS_INIT_RAM_ADDR	0x00002000
+#define CONFIG_SYS_INIT_RAM_ADDR	0x00000000
 #define CONFIG_SYS_INIT_RAM_SIZE	(128 * 1024)
 
 #define CONFIG_SYS_INIT_SP_OFFSET \
@@ -126,6 +126,11 @@
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
 
 /*
+ * DMA
+ */
+#define CONFIG_APBH_DMA
+
+/*
  * MMC Driver
  */
 #define CONFIG_ENV_IS_IN_MMC
@@ -138,6 +143,7 @@
 #ifdef	CONFIG_CMD_MMC
 #define CONFIG_MMC
 #define CONFIG_GENERIC_MMC
+#define CONFIG_MMC_BOUNCE_BUFFER
 #define CONFIG_MXS_MMC
 #endif
 
@@ -186,6 +192,8 @@
 /* SPI Flash */
 #ifdef CONFIG_CMD_SF
 #define CONFIG_SPI_FLASH
+#define CONFIG_SF_DEFAULT_BUS	2
+#define CONFIG_SF_DEFAULT_CS	0
 /* this may vary and depends on the installed chip */
 #define CONFIG_SPI_FLASH_SST
 #define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0

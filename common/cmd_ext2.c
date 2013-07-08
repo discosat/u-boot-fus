@@ -133,16 +133,10 @@ int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	block_dev_desc_t *dev_desc = NULL;
 	char buf [12];
 	unsigned long count;
-	char *addr_str;
 
 	switch (argc) {
 	case 3:
-		addr_str = getenv("loadaddr");
-		if (addr_str != NULL)
-			addr = simple_strtoul (addr_str, NULL, 16);
-		else
-			addr = CONFIG_SYS_LOAD_ADDR;
-
+		addr = get_loadaddr();
 		filename = getenv ("bootfile");
 		count = 0;
 		break;
@@ -242,7 +236,7 @@ int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	ext2fs_close();
 
 	/* Loading ok, update default load address */
-	load_addr = addr;
+	set_loadaddr(addr);
 
 	printf ("%d bytes read\n", filelen);
 	sprintf(buf, "%X", filelen);

@@ -35,6 +35,13 @@
 #include <command.h>
 #include <image.h>
 #include <malloc.h>
+#include <fat.h>			  /* fat_register_device(), ... */
+#ifdef CONFIG_MMC
+#include <mmc.h>			  /* mmc_init() */
+#endif
+#ifdef CONFIG_USB_STORAGE
+#include <usb.h>			  /* usb_init(), usb_stor_scan() */
+#endif
 #include <asm/byteorder.h>
 #if defined(CONFIG_8xx)
 #include <mpc8xx.h>
@@ -207,7 +214,7 @@ do_source (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Find script image */
 	if (argc < 2) {
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		debug ("*  source: default load address = 0x%08lx\n", addr);
 #if defined(CONFIG_FIT)
 	} else if (fit_parse_subimage (argv[1], load_addr, &addr, &fit_uname)) {
@@ -236,4 +243,280 @@ U_BOOT_CMD(
 	"unit name in the form of addr:<subimg_uname>"
 #endif
 );
+
+#ifdef CONFIG_MMC
+static int autoload_mmc(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	struct mmc *mmc;
+	block_dev_desc_t *dev_desc;
+
+	mmc = find_mmc_device(devnum);
+	if (!mmc)
+		return -1;
+
+	mmc_init(mmc);
+
+	/* If the device is valid and we can open the partition, try to
+	   load the autoload file */
+	dev_desc = get_dev("mmc", devnum);
+	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+		return -1;		  /* Device or partition not valid */
+
+	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+		return -1;		  /* File not found or I/O error */
+
+	return 0;
+}
+#endif /* CONFIG_MMC */
+
+#ifdef CONFIG_USB_STORAGE
+static int autoload_usb(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	static int usb_init_done = 0;
+	block_dev_desc_t *dev_desc;
+
+	/* Init USB only once during autoload */
+	if (!usb_init_done) {
+	        if (usb_init() < 0)
+			return -1;
+
+		/* Try to recognize storage devices immediately */
+		usb_stor_scan(1);
+		usb_init_done = 1;
+	}
+
+	/* If the device is valid and we can open the partition, try to
+	   load the autoload file */
+	dev_desc = get_dev("usb", devnum);
+	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+		return -1;		  /* Device or partition not valid */
+
+	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+		return -1;		  /* File not found or I/O error */
+
+	return 0;
+}
+#endif /* CONFIG_USB_STORAGE */
+
+#ifdef CONFIG_CMD_NET
+extern int autoload_net(enum proto_t proto, unsigned long addr, char *fname);
+static int autoload_tftp(unsigned long addr, int devnum, int partnum,
+			 char *fname)
+{
+	return autoload_net(TFTPGET, addr, fname);
+}
+
+static int autoload_nfs(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	return autoload_net(NFS, addr, fname);
+}
+
+static int autoload_dhcp(unsigned long addr, int devnum, int partnum,
+			char *fname)
+{
+	return autoload_net(DHCP, addr, fname);
+}
+#endif /* CONFIG_CMD_NET */
+
+struct autoloadinfo {
+	char *devname;
+	int (*autoload)(unsigned long addr, int devnum, int partnum,
+			char *fname);
+};
+
+static struct autoloadinfo alinfo[] = {
+#ifdef CONFIG_MMC
+	{"mmc", autoload_mmc},
 #endif
+#ifdef CONFIG_USB_STORAGE
+	{"usb", autoload_usb},
+#endif
+#ifdef CONFIG_CMD_NET
+	{"tftp", autoload_tftp},
+	{"nfs", autoload_nfs},
+	{"dhcp", autoload_dhcp},
+#endif
+};
+
+struct autoloadvars {
+	char *action;			  /* Action performed (upd/inst) */
+	char *checkvar;			  /* Var name with devices to check */
+	char *addrvar;			  /* Var name with load address */
+	char *scriptvar;		  /* Var name with script name */
+	char *scriptdef;		  /* Default script name */
+};
+
+static struct autoloadvars alvars[] = {
+	{"installation", "instcheck", "instscript", "instaddr", "install.scr"},
+	{"update",       "updcheck",  "updscript",  "updaddr",  "update.scr"},
+};
+
+
+/*
+ * Autoload function. This checks the following environment variables:
+ *
+ *   xxxcheck:  comma separated list of devices to check: e.g. "mmc0,usb0"
+ *   xxxaddr:   address where to load the script (default: loadaddr)
+ *   xxxscript: filename of a u-boot autoscript to load (default: install.scr)
+ *
+ * The xxx part and the default script name depend on the given index (see
+ * alvars above). Return:
+ *
+ *   0:   Script successfully loaded and executed
+ *   !=0: Check-variable not set or script not found or execution
+ */
+int autoload_script(int index, char *autocheck, char *fname, unsigned long addr)
+{
+	char c;
+	char *devname;
+	int devnamelen;
+	int devnum;
+	int partnum;
+	int i;
+	struct autoloadinfo *p;
+	struct autoloadvars *v;
+
+	if (index >= ARRAY_SIZE(alvars))
+		return 1;		  /* Error */
+
+	v = &alvars[index];
+
+	/* If called without devices argument, get autoload devices from
+	   environment */
+	if (!autocheck) {
+		autocheck = getenv(v->checkvar);
+		if (!autocheck)
+			return 1;	  /* Variable not set */
+	}
+
+	/* If called without load address argument, get address where to load
+	   to from environment, default: loadaddr */
+	if (!addr)
+		addr = getenv_ulong(v->addrvar, 16, get_loadaddr());
+
+	/* If called without script filename argument, get filename from
+	   environment or take default from table */
+	fname = getenv(v->scriptvar);
+	if (!fname)
+		fname = v->scriptdef;
+
+	c = *autocheck;
+	do {
+		/* Skip any commas */
+		while (c == ',')
+		       c = *(++autocheck);
+		if (!c)
+			break;
+
+		/* Scan device name */
+		devname = autocheck;
+		while ((c >= 'a') && (c <= 'z'))
+		       c = *(++autocheck);
+		devnamelen = autocheck - devname;
+
+		/* Scan device number */
+		devnum = 0;
+		while ((c >= '0') && (c <= '9')) {
+			devnum = 10*devnum + c - '0';
+			c = *(++autocheck);
+		}
+
+		/* Scan optional partition number */
+		if (c != ':')
+			partnum = 1;
+		else {
+			partnum = 0;
+			c = *(++autocheck);
+			while ((c >= '0') && (c <= '9')) {
+				partnum = 10*partnum + c - '0';
+				c = *(++autocheck);
+			}
+		}
+
+		/* Search if device name known */
+		for (i = 0, p = alinfo; i < ARRAY_SIZE(alinfo); i++, p++) {
+			if ((devnamelen == strlen(p->devname)) &&
+			    !strncmp(devname, p->devname, devnamelen))
+				break;
+		}
+		printf("---- Trying %s with %s from ", v->action, fname);
+		if ((i < ARRAY_SIZE(alinfo)) && (!c || (c == ','))) {
+			printf("%s%d:%d ----\n", p->devname, devnum, partnum);
+			if (p->autoload(addr, devnum, partnum, fname) < 0)
+				puts("Failed!\n");
+			else {
+				puts("Success!\n");
+				source(addr, NULL);
+
+				/* If the script fails due to an error, we
+				   return 0 nonetheless because otherwise we
+				   might unintentionally boot the system */
+				return 0;
+			}
+		} else {
+			autocheck = devname;
+			c = *autocheck;
+			while (c && (c != ',')) {
+				putc(c);
+				c = *(++autocheck);
+			}
+			puts(" ----\nUnknown device, ignored\n");
+		}
+	} while (c);
+	printf("---- No %s script found ----\n", v->action);
+
+	return 1;
+}
+
+int do_autoload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	int index = 0;
+	char *autocheck = NULL;
+	char *fname = NULL;
+	unsigned long addr = 0;
+
+	if (strcmp(argv[0], "update") == 0)
+		index = 1;
+
+	/* Take arguments if given */
+	if (argc > 1) {
+		fname = argv[1];
+		if (argc > 2) {
+			autocheck = argv[2];
+			if (argc > 3)
+				addr = simple_strtoul(argv[3], NULL, 16);
+		}
+	}
+
+	/* Try autoload */
+	return autoload_script(index, autocheck, fname, addr);
+}
+
+
+U_BOOT_CMD(
+	update, 4, 0,	do_autoload,
+	"update system from external device",
+	"[updscript [updcheck [updaddr]]]\n"
+	" - Look for scriptfile updscript by checking devices updcheck.\n"
+	"   If found anywhere, load it to address updaddr and update the\n"
+	"   system by executing it. If an argument is not given, the\n"
+	"   environment variable of the same name is used instead, or by\n"
+	"   default 'update.scr' for updscript and loadaddr for updaddr.\n"
+);
+
+U_BOOT_CMD(
+	install, 4, 0,	do_autoload,
+	"install system from external device",
+	"[instscript [instcheck [instaddr]]]\n"
+	" - Look for scriptfile instscript by checking devices instcheck.\n"
+	"   If found anywhere, load it to address instaddr and install the\n"
+	"   system by executing it. If an argument is not given, the\n"
+	"   environment variable of the same name is used instead, or by\n"
+	"   default 'install.scr' for instscript and loadaddr for instaddr.\n"
+);
+
+
+#endif /* CONFIG_CMD_SOURCE */

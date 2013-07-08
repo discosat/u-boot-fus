@@ -28,21 +28,23 @@
 #include <asm/arch/pwm.h>
 #include <asm/arch/clk.h>
 #include <pwm.h>
+#include <asm/arch/cpu.h>		  /* samsung_get_base_timer() */
 
 DECLARE_GLOBAL_DATA_PTR;
 
-/* macro to read the 16 bit timer */
-static inline struct s5p_timer *s5p_get_base_timer(void)
-{
-	return (struct s5p_timer *)samsung_get_base_timer();
-}
-
 int timer_init(void)
 {
-	/* PWM Timer 4 */
+	struct s5p_timer *const timer =
+		(struct s5p_timer *)samsung_get_base_timer();
+
+	/* PWM Timer 4; init counter to PCLK/16/2 */
 	pwm_init(4, MUX_DIV_2, 0);
-	pwm_config(4, 0, 0);
+	writel(0xFFFFFFFF, &timer->tcntb4);
+	pwm_config(4, 1, 1);
 	pwm_enable(4);
+
+	gd->ticks = 0;
+	gd->lastinc = 0;
 
 	return 0;
 }
@@ -52,16 +54,41 @@ int timer_init(void)
  */
 unsigned long get_timer(unsigned long base)
 {
-	return get_timer_masked() - base;
+	unsigned long now;
+	struct s5p_timer *const timer =
+		(struct s5p_timer *)samsung_get_base_timer();
+
+	/* The timer is configured to count from 0xFFFFFFFF down to 0.
+	   We want a timer value that counts up. So just compute the
+	   difference 0xFFFFFFFF - timer value. It would be better to count
+	   from 0 (as 2^32) down to 0 again, but when setting 0 into the
+	   tcntb4, the timer will not count anymore. So 0xFFFFFFFF is the
+	   maximum value that we can get. */
+	now = 0xFFFFFFFF - readl(&timer->tcnto4);
+
+	/* Increment ticks. By subtracting gd->lastinc, we make up for
+	   overwrapping of the timer value.
+	   REMARK: As we are not exactly counting from 2^32 down, but instead
+	   from 2^32-1 (see above), we make an error of one tick at every wrap
+	   around (about every 34 minutes @PCLK=67MHz). As other factors like
+	   the execution time of the surrounding code that is not accounted
+	   for result in far more bigger timing divergences, we can neglect
+	   this little off-by-one error with a clear conscience. This keeps
+	   the code clean and short. */
+	gd->ticks += (unsigned long long)(now - gd->lastinc);
+	gd->lastinc = now;
+
+	return now - base;
 }
 
 /* delay x useconds */
 void __udelay(unsigned long usec)
 {
-	struct s5p_timer *const timer = s5p_get_base_timer();
-	unsigned long tmo, tmp, count_value;
+	unsigned long tmo, start;
 
-	count_value = readl(&timer->tcntb4);
+	/* get current timestamp right here so that the tmo computation does
+	   not add to the delay */
+	start = get_timer(0);
 
 	if (usec >= 1000) {
 		/*
@@ -72,54 +99,20 @@ void __udelay(unsigned long usec)
 		 * 3. finish normalize.
 		 */
 		tmo = usec / 1000;
-		tmo *= (CONFIG_SYS_HZ * count_value / 10);
+		tmo *= CONFIG_SYS_HZ;
 		tmo /= 1000;
 	} else {
 		/* else small number, don't kill it prior to HZ multiply */
-		tmo = usec * CONFIG_SYS_HZ * count_value / 10;
+		tmo = usec * CONFIG_SYS_HZ;
 		tmo /= (1000 * 1000);
 	}
 
-	/* get current timestamp */
-	tmp = get_timer(0);
-
-	/* if setting this fordward will roll time stamp */
-	/* reset "advancing" timestamp to 0, set lastinc value */
-	/* else, set advancing stamp wake up time */
-	if ((tmo + tmp + 1) < tmp)
-		reset_timer_masked();
-	else
-		tmo += tmp;
 
 	/* loop till event */
-	while (get_timer_masked() < tmo)
+	while (get_timer(start) < tmo)
 		;	/* nop */
 }
 
-void reset_timer_masked(void)
-{
-	struct s5p_timer *const timer = s5p_get_base_timer();
-
-	/* reset time */
-	gd->lastinc = readl(&timer->tcnto4);
-	gd->tbl = 0;
-}
-
-unsigned long get_timer_masked(void)
-{
-	struct s5p_timer *const timer = s5p_get_base_timer();
-	unsigned long now = readl(&timer->tcnto4);
-	unsigned long count_value = readl(&timer->tcntb4);
-
-	if (gd->lastinc >= now)
-		gd->tbl += gd->lastinc - now;
-	else
-		gd->tbl += gd->lastinc + count_value - now;
-
-	gd->lastinc = now;
-
-	return gd->tbl;
-}
 
 /*
  * This function is derived from PowerPC code (read timebase as long long).
@@ -127,7 +120,7 @@ unsigned long get_timer_masked(void)
  */
 unsigned long long get_ticks(void)
 {
-	return get_timer(0);
+	return gd->ticks;
 }
 
 /*

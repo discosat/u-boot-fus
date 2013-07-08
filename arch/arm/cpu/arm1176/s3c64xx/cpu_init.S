@@ -24,8 +24,9 @@
  */
 
 #include <config.h>
-#include <asm/arch/s3c6400.h>
+#include <asm/arch/s3c64xx-regs.h>
 
+#if !defined(CONFIG_FSS3C64XX)
 	.globl mem_ctrl_asm_init
 mem_ctrl_asm_init:
 	/* DMC1 base address 0x7e001000 */
@@ -131,5 +132,6 @@ check_dmc1_ready:
 	nop
 
 	mov	pc, lr
+#endif /* !CONFIG_FSS3C64XX */
 
 	.ltorg

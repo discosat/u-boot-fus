@@ -229,6 +229,9 @@ ulong timer_get_boot_us(void);
 #define MIN(x, y)  min(x, y)
 #define MAX(x, y)  max(x, y)
 
+#if 1 //###
+#define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
+#else //###
 #if defined(CONFIG_ENV_IS_EMBEDDED)
 #define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #elif ( ((CONFIG_ENV_ADDR+CONFIG_ENV_SIZE) < CONFIG_SYS_MONITOR_BASE) || \
@@ -238,6 +241,7 @@ ulong timer_get_boot_us(void);
 #else
 #define	TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #endif
+#endif //1/0 ###
 
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -277,6 +281,8 @@ void	reset_cmd_timeout(void);
 #ifdef CONFIG_MENU
 int	abortboot(int bootdelay);
 #endif
+char	*get_board_name(void);
+char	*get_sys_prompt(void);
 extern char console_buffer[];
 
 /* arch/$(ARCH)/lib/board.c */
@@ -291,20 +297,15 @@ int mac_read_from_eeprom(void);
 extern u8 _binary_dt_dtb_start[];	/* embedded device tree blob */
 int set_cpu_clk_info(void);
 
-/*
- * Called when console output is requested before the console is available.
- * The board should do its best to get the character out to the user any way
- * it can.
- */
-void board_pre_console_putc(int ch);
-
 /* common/flash.c */
 void flash_perror (int);
 
 /* common/cmd_source.c */
 int	source (ulong addr, const char *fit_uname);
+int autoload_script(int index, char *autocheck, char *fname,
+		    unsigned long addr);
 
-extern ulong load_addr;		/* Default Load Address */
+//###extern ulong load_addr;		/* Default Load Address */
 extern ulong save_addr;		/* Default Save Address */
 extern ulong save_size;		/* Default Save Size */
 
@@ -321,6 +322,8 @@ int	envmatch     (uchar *, int);
 char	*getenv	     (const char *);
 int	getenv_f     (const char *name, char *buf, unsigned len);
 ulong getenv_ulong(const char *name, int base, ulong default_val);
+ulong get_loadaddr(void);
+void set_loadaddr(ulong addr);
 int	saveenv	     (void);
 #ifdef CONFIG_PPC		/* ARM version to be fixed! */
 int inline setenv    (const char *, const char *);
@@ -558,22 +561,6 @@ void ft_pci_setup(void *blob, bd_t *bd);
 #endif
 
 
-/* $(CPU)/serial.c */
-int	serial_init   (void);
-void	serial_setbrg (void);
-void	serial_putc   (const char);
-void	serial_putc_raw(const char);
-void	serial_puts   (const char *);
-int	serial_getc   (void);
-int	serial_tstc   (void);
-
-void	_serial_setbrg (const int);
-void	_serial_putc   (const char, const int);
-void	_serial_putc_raw(const char, const int);
-void	_serial_puts   (const char *, const int);
-int	_serial_getc   (const int);
-int	_serial_tstc   (const int);
-
 /* $(CPU)/speed.c */
 int	get_clocks (void);
 int	get_clocks_866 (void);
@@ -596,12 +583,13 @@ ulong	get_PCI_freq (void);
 #endif
 #if defined(CONFIG_S3C24X0) || \
     defined(CONFIG_LH7A40X) || \
-    defined(CONFIG_S3C6400) || \
+    defined(CONFIG_S3C64XX) || \
     defined(CONFIG_EP93XX)
 ulong	get_FCLK (void);
 ulong	get_HCLK (void);
 ulong	get_PCLK (void);
 ulong	get_UCLK (void);
+ulong	get_MCLK (void);
 #endif
 #if defined(CONFIG_LH7A40X)
 ulong	get_PLLCLK (void);

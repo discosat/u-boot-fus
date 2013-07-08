@@ -61,13 +61,14 @@ DECLARE_GLOBAL_DATA_PTR;
 	!defined(CONFIG_ENV_IS_IN_DATAFLASH)	&& \
 	!defined(CONFIG_ENV_IS_IN_MG_DISK)	&& \
 	!defined(CONFIG_ENV_IS_IN_MMC)		&& \
+	!defined(CONFIG_ENV_IS_IN_FAT)		&& \
 	!defined(CONFIG_ENV_IS_IN_NAND)		&& \
 	!defined(CONFIG_ENV_IS_IN_NVRAM)	&& \
 	!defined(CONFIG_ENV_IS_IN_ONENAND)	&& \
 	!defined(CONFIG_ENV_IS_IN_SPI_FLASH)	&& \
 	!defined(CONFIG_ENV_IS_NOWHERE)
 # error Define one of CONFIG_ENV_IS_IN_{EEPROM|FLASH|DATAFLASH|ONENAND|\
-SPI_FLASH|MG_DISK|NVRAM|MMC} or CONFIG_ENV_IS_NOWHERE
+SPI_FLASH|MG_DISK|NVRAM|MMC|FAT} or CONFIG_ENV_IS_NOWHERE
 #endif
 
 #define XMK_STR(x)	#x
@@ -78,7 +79,7 @@ SPI_FLASH|MG_DISK|NVRAM|MMC} or CONFIG_ENV_IS_NOWHERE
  */
 #define	MAX_ENV_SIZE	(1 << 20)	/* 1 MiB */
 
-ulong load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
+ulong load_addr;			/* Default Load Address */
 ulong save_addr;			/* Default Save Address */
 ulong save_size;			/* Default Save Size (in bytes) */
 
@@ -148,7 +149,7 @@ int do_env_print (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		if (!rcode)
 			return 1;
 		printf("\nEnvironment size: %d/%ld bytes\n",
-			rcode, (ulong)ENV_SIZE);
+		       rcode, (ulong)get_env_size() - ENV_HEADER_SIZE);
 		return 0;
 	}
 
@@ -408,6 +409,14 @@ int setenv_addr(const char *varname, const void *addr)
 	return setenv(varname, str);
 }
 
+void set_loadaddr(ulong addr)
+{
+	if (addr != load_addr) {
+		load_addr = addr;
+		setenv_addr("loadaddr", (void *)addr);
+	}
+}
+
 int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc < 2)
@@ -540,12 +549,16 @@ char *getenv(const char *name)
 int getenv_f(const char *name, char *buf, unsigned len)
 {
 	int i, nxt;
+	size_t env_size;
+
+	/* As long as we are not using the relocated env, size is set in gd */
+	env_size = gd->env_size;
 
 	for (i = 0; env_get_char(i) != '\0'; i = nxt + 1) {
 		int val, n;
 
 		for (nxt = i; env_get_char(nxt) != '\0'; ++nxt) {
-			if (nxt >= CONFIG_ENV_SIZE)
+			if (nxt >= env_size)
 				return -1;
 		}
 
@@ -590,6 +603,11 @@ ulong getenv_ulong(const char *name, int base, ulong default_val)
 	const char *str = getenv(name);
 
 	return str ? simple_strtoul(str, NULL, base) : default_val;
+}
+
+ulong get_loadaddr(void)
+{
+	return load_addr;
 }
 
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)
@@ -701,6 +719,7 @@ static int do_env_export(cmd_tbl_t *cmdtp, int flag,
 	char	sep = '\n';
 	int	chk = 0;
 	int	fmt = 0;
+	size_t  env_size;
 
 	cmd = *argv;
 
@@ -762,23 +781,24 @@ NXTARG:		;
 	envp = (env_t *)addr;
 
 	if (chk)		/* export as checksum protected block */
-		res = (char *)envp->data;
+		res = (char *)(envp + 1);
 	else			/* export as raw binary data */
 		res = addr;
 
-	len = hexport_r(&env_htab, '\0', &res, ENV_SIZE, argc, argv);
+	env_size = get_env_size() - ENV_HEADER_SIZE;
+	len = hexport_r(&env_htab, '\0', &res, env_size, argc, argv);
 	if (len < 0) {
 		error("Cannot export environment: errno = %d\n", errno);
 		return 1;
 	}
 
 	if (chk) {
-		envp->crc = crc32(0, envp->data, ENV_SIZE);
+		envp->crc = crc32(0, (unsigned char *)(envp + 1), env_size);
 #ifdef CONFIG_ENV_ADDR_REDUND
 		envp->flags = ACTIVE_FLAG;
 #endif
 	}
-	sprintf(buf, "%zX", (size_t)(len + offsetof(env_t, data)));
+	sprintf(buf, "%zX", (size_t)(len + ENV_HEADER_SIZE));
 	setenv("filesize", buf);
 
 	return 0;
@@ -876,14 +896,14 @@ static int do_env_import(cmd_tbl_t *cmdtp, int flag,
 		uint32_t crc;
 		env_t *ep = (env_t *)addr;
 
-		size -= offsetof(env_t, data);
+		size -= ENV_HEADER_SIZE;
 		memcpy(&crc, &ep->crc, sizeof(crc));
 
-		if (crc32(0, ep->data, size) != crc) {
+		if (crc32(0, (unsigned char *)(ep + 1), size) != crc) {
 			puts("## Error: bad CRC, import failed\n");
 			return 1;
 		}
-		addr = (char *)ep->data;
+		addr = (char *)(ep + 1);
 	}
 
 	if (himport_r(&env_htab, addr, size, sep, del ? 0 : H_NOCLEAR) == 0) {

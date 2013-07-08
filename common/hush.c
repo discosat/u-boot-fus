@@ -1011,7 +1011,7 @@ static void get_user_input(struct in_str *i)
 #endif
 	i->__promptme = 1;
 	if (i->promptmode == 1) {
-		n = readline(CONFIG_SYS_PROMPT);
+		n = readline(get_sys_prompt());
 	} else {
 		n = readline(CONFIG_SYS_PROMPT_HUSH_PS2);
 	}

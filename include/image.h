@@ -175,6 +175,7 @@
 #define IH_COMP_LZO		4	/* lzo   Compression Used	*/
 
 #define IH_MAGIC	0x27051956	/* Image Magic Number		*/
+#define IH_ZMAGIC	0x016f2818	/* Magic number for zImages	*/
 #define IH_NMLEN		32	/* Image Name Length		*/
 
 /*
@@ -268,6 +269,8 @@ typedef struct bootm_headers {
 #endif
 } bootm_headers_t;
 
+extern bootm_headers_t images;
+
 /*
  * Some systems (for example LWMON) have very short watchdog periods;
  * we must make sure to split long operations like memmove() or
@@ -331,6 +334,7 @@ void genimg_print_size(uint32_t size);
 #define IMAGE_FORMAT_INVALID	0x00
 #define IMAGE_FORMAT_LEGACY	0x01	/* legacy image_header based format */
 #define IMAGE_FORMAT_FIT	0x02	/* new, libfdt based format */
+#define IMAGE_FORMAT_ZIMAGE	0x03    /* Linux zImage format */
 
 int genimg_get_format(void *img_addr);
 int genimg_has_config(bootm_headers_t *images);

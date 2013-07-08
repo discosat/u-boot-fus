@@ -24,6 +24,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/watchdog.h>
+#include <asm/arch/cpu.h>		  /* samsung_get_base_watchdog() */
 
 #define PRESCALER_VAL 255
 

@@ -205,29 +205,37 @@ struct tag_memclk {
 	u32 fmemclk;
 };
 
+#define ATAG_MTDPART    0x41001099
+
+struct tag_mtdpart {
+        u32 mtd_part_size[3];
+};
+
 struct tag {
-	struct tag_header hdr;
-	union {
-		struct tag_core		core;
-		struct tag_mem32	mem;
-		struct tag_videotext	videotext;
-		struct tag_ramdisk	ramdisk;
-		struct tag_initrd	initrd;
-		struct tag_serialnr	serialnr;
-		struct tag_revision	revision;
-		struct tag_videolfb	videolfb;
-		struct tag_cmdline	cmdline;
-
-		/*
-		 * Acorn specific
-		 */
-		struct tag_acorn	acorn;
-
-		/*
-		 * DC21285 specific
-		 */
-		struct tag_memclk	memclk;
-	} u;
+        struct tag_header hdr;
+        union { 
+                struct tag_core         core;
+                struct tag_mem32        mem;
+                struct tag_videotext    videotext;
+                struct tag_ramdisk      ramdisk;
+                struct tag_initrd       initrd;
+                struct tag_serialnr     serialnr;
+                struct tag_revision     revision;
+                struct tag_videolfb     videolfb;
+                struct tag_cmdline      cmdline;
+                
+                /*
+                * Acorn specific
+                */
+                struct tag_acorn        acorn;
+                
+                /*
+                 * DC21285 specific
+                 */
+                struct tag_memclk       memclk;
+                
+                struct tag_mtdpart      mtdpart_info;
+        } u;
 };
 
 struct tagtable {

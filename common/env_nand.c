@@ -50,21 +50,42 @@
 #error CONFIG_ENV_SIZE_REDUND should be the same as CONFIG_ENV_SIZE
 #endif
 
-#ifndef CONFIG_ENV_RANGE
-#define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
-#endif
-
 char *env_name_spec = "NAND";
 
-#if defined(ENV_IS_EMBEDDED)
-env_t *env_ptr = &environment;
-#elif defined(CONFIG_NAND_ENV_DST)
-env_t *env_ptr = (env_t *)CONFIG_NAND_ENV_DST;
-#else /* ! ENV_IS_EMBEDDED */
-env_t *env_ptr;
-#endif /* ENV_IS_EMBEDDED */
+#ifdef CONFIG_NAND_ENV_DST
+static env_t *get_env_ptr(void)
+{
+	return  (env_t *)CONFIG_NAND_ENV_DST;
+}
+
+static env_t *get_redundand_env_ptr(void)
+{
+	return (env_t *)(CONFIG_NAND_ENV_DST + get_env_size());
+}
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#if defined(CONFIG_ENV_RANGE) || defined(CONFIG_ENV_SIZE)
+inline size_t __get_env_range(void)
+{
+#ifdef CONFIG_ENV_RANGE
+	return CONFIG_ENV_RANGE;
+#else
+	return CONIG_ENV_SIZE;
+#endif
+}
+/* We may define our own get_env_range() or use the default one here */
+size_t get_env_range(void) __attribute__((weak, alias("__get_env_range")));
+#else
+/* We must have get_env_range() */
+size_t get_env_range(void);
+#endif
+
+uchar env_get_char_spec(int index)
+{
+	return *((uchar *)(gd->env_addr + index));
+}
 
 /*
  * This is called before nand_init() so we can't read NAND to
@@ -81,55 +102,52 @@ DECLARE_GLOBAL_DATA_PTR;
 int env_init(void)
 {
 #if defined(ENV_IS_EMBEDDED) || defined(CONFIG_NAND_ENV_DST)
-	int crc1_ok = 0, crc2_ok = 0;
-	env_t *tmp_env1;
+	size_t env_size = get_env_size();
+	env_t *env1 = get_env_ptr();
+	int crc1_ok;
+
+	gd->env_size = env_size;
+	env_size -= ENV_HEADER_SIZE;
+	crc1_ok = (crc32(0, (u_char *)(env1 + 1), env_size) == env1->crc);
 
 #ifdef CONFIG_ENV_OFFSET_REDUND
-	env_t *tmp_env2;
+	{
+		env_t *env2 = get_redundand_env_ptr();
+		int crc2_ok =
+		       (crc32(0, (u_char *)(env2 + 1), env_size) == env2->crc);
 
-	tmp_env2 = (env_t *)((ulong)env_ptr + CONFIG_ENV_SIZE);
-	crc2_ok = crc32(0, tmp_env2->data, ENV_SIZE) == tmp_env2->crc;
+		if (crc1_ok && crc2_ok) {
+			/* both ok - check serial */
+			if ((env1->flags < env2->flags)
+			    || (env1->flags == 255 && env2->flags == 0)) {
+				/* env2 is newer */
+				gd->env_valid = 2;
+				gd->env_addr = env2;
+			} else {
+				/* env1 is newer (or same age) */
+				gd->env_valid = 1;
+				gd->env_addr = env1;
+			}
+			return 0;
+		} else if (crc2_ok) {
+			gd->env_valid = 2;
+			gd->env_addr = env2;
+			return 0;
+		}
+	}
 #endif
-	tmp_env1 = env_ptr;
-	crc1_ok = crc32(0, tmp_env1->data, ENV_SIZE) == tmp_env1->crc;
-
-	if (!crc1_ok && !crc2_ok) {
-		gd->env_addr	= 0;
-		gd->env_valid	= 0;
-
-		return 0;
-	} else if (crc1_ok && !crc2_ok) {
+	if (crc1_ok) {
 		gd->env_valid = 1;
-	}
-#ifdef CONFIG_ENV_OFFSET_REDUND
-	else if (!crc1_ok && crc2_ok) {
-		gd->env_valid = 2;
+		gd->env_addr = env1;
 	} else {
-		/* both ok - check serial */
-		if (tmp_env1->flags == 255 && tmp_env2->flags == 0)
-			gd->env_valid = 2;
-		else if (tmp_env2->flags == 255 && tmp_env1->flags == 0)
-			gd->env_valid = 1;
-		else if (tmp_env1->flags > tmp_env2->flags)
-			gd->env_valid = 1;
-		else if (tmp_env2->flags > tmp_env1->flags)
-			gd->env_valid = 2;
-		else /* flags are equal - almost impossible */
-			gd->env_valid = 1;
+		gd->env_valid = 0;
+		gd->env_addr = NULL;
 	}
-
-	if (gd->env_valid == 2)
-		env_ptr = tmp_env2;
-	else
-#endif
-	if (gd->env_valid == 1)
-		env_ptr = tmp_env1;
-
-	gd->env_addr = (ulong)env_ptr->data;
 
 #else /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
 	gd->env_addr	= (ulong)&default_environment[0];
 	gd->env_valid	= 1;
+	gd->env_size	= get_default_env_size();
 #endif /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
 
 	return 0;
@@ -140,29 +158,28 @@ int env_init(void)
  * The legacy NAND code saved the environment in the first NAND device i.e.,
  * nand_dev_desc + 0. This is also the behaviour using the new NAND code.
  */
-int writeenv(size_t offset, u_char *buf)
+static int writeenv(size_t offset, u_char *buf, size_t env_size)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + get_env_range();
 	size_t amount_saved = 0;
 	size_t blocksize, len;
-	u_char *char_ptr;
 
 	blocksize = nand_info[0].erasesize;
-	len = min(blocksize, CONFIG_ENV_SIZE);
+	len = min(blocksize, env_size);
 
-	while (amount_saved < CONFIG_ENV_SIZE && offset < end) {
+	while (amount_saved < env_size && offset < end) {
 		if (nand_block_isbad(&nand_info[0], offset)) {
 			offset += blocksize;
 		} else {
-			char_ptr = &buf[amount_saved];
-			if (nand_write(&nand_info[0], offset, &len, char_ptr))
+			if (nand_write(&nand_info[0], offset, &len, buf))
 				return 1;
 
 			offset += blocksize;
+			buf += len;
 			amount_saved += len;
 		}
 	}
-	if (amount_saved != CONFIG_ENV_SIZE)
+	if (amount_saved != env_size)
 		return 1;
 
 	return 0;
@@ -173,98 +190,113 @@ static unsigned char env_flags;
 
 int saveenv(void)
 {
-	env_t	env_new;
-	ssize_t	len;
-	char	*res;
-	int	ret = 0;
 	nand_erase_options_t nand_erase_options;
+	env_t *env_new;
+	char *data;
+	size_t env_offset;
+	size_t env_range = get_env_range();
+	size_t env_size = get_env_size();
+	size_t env_offset;
 
-	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
-	nand_erase_options.length = CONFIG_ENV_RANGE;
-
-	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+	if (env_range < env_size)
 		return 1;
 
-	res = (char *)&env_new.data;
-	len = hexport_r(&env_htab, '\0', &res, ENV_SIZE, 0, NULL);
-	if (len < 0) {
-		error("Cannot export environment: errno = %d\n", errno);
-		return 1;
+	env_new = (env_t *)malloc(env_size);
+	if (!env_new) {
+		puts("malloc ");
+		goto FAILED;
 	}
-	env_new.crc	= crc32(0, env_new.data, ENV_SIZE);
+
+	data = (char *)(env_new + 1);
+	env_size -= ENV_HEADER_SIZE;
+	if (hexport_r(&env_htab, '\0', data, env_size, 0, NULL) < 0) {
+		printf("Export environment: errno = %d ", errno);
+		goto FAILED;
+	}
+	env_new.crc	= crc32(0, (u_char *)data, env_size);
 	env_new.flags	= ++env_flags; /* increase the serial */
 
 	if (gd->env_valid == 1) {
+		env_offset = CONFIG_ENV_OFFSET_REDUND;;
 		puts("Erasing redundant NAND...\n");
-		nand_erase_options.offset = CONFIG_ENV_OFFSET_REDUND;
-		if (nand_erase_opts(&nand_info[0], &nand_erase_options))
-			return 1;
-
-		puts("Writing to redundant NAND... ");
-		ret = writeenv(CONFIG_ENV_OFFSET_REDUND, (u_char *)&env_new);
 	} else {
+		env_offset = get_env_offset();
 		puts("Erasing NAND...\n");
-		nand_erase_options.offset = CONFIG_ENV_OFFSET;
-		if (nand_erase_opts(&nand_info[0], &nand_erase_options))
-			return 1;
-
-		puts("Writing to NAND... ");
-		ret = writeenv(CONFIG_ENV_OFFSET, (u_char *)&env_new);
 	}
-	if (ret) {
-		puts("FAILED!\n");
-		return 1;
+	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
+	nand_erase_options.length = env_range;
+	nand_erase_options.offset = env_offset;
+	if (!nand_erase_opts(&nand_info[0], &nand_erase_options)) {
+		puts(gd->env_valid == 1 ?
+		     "Writing to redundant NAND... " : "Writing to NAND... ");
+		if (!writeenv(env_offset, (u_char *)env_new)) {
+			gd->env_valid = (gd->env_valid == 2) ? 1 : 2;
+			puts("done\n");
+			free(env_new);
+
+			return 0;
+		}
 	}
 
-	puts("done\n");
+FAILED:
+	free(env_new);
+	puts("FAILED!\n");
 
-	gd->env_valid = gd->env_valid == 2 ? 1 : 2;
-
-	return ret;
+	return 1;
 }
 #else /* ! CONFIG_ENV_OFFSET_REDUND */
 int saveenv(void)
 {
-	int	ret = 0;
-	env_t	env_new;
-	ssize_t	len;
-	char	*res;
+	env_t	*env_new;
+	char *data;
 	nand_erase_options_t nand_erase_options;
+	size_t env_size = get_env_size();
+	size_t env_offset;
+	size_t env_range = get_env_range();
 
-	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
-	nand_erase_options.length = CONFIG_ENV_RANGE;
-	nand_erase_options.offset = CONFIG_ENV_OFFSET;
-
-	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+	if (env_range < env_size)
 		return 1;
 
-	res = (char *)&env_new.data;
-	len = hexport_r(&env_htab, '\0', &res, ENV_SIZE, 0, NULL);
-	if (len < 0) {
-		error("Cannot export environment: errno = %d\n", errno);
-		return 1;
+	env_new = (env_t *)malloc(env_size);
+	if (!env_new) {
+		puts("malloc ");
+		goto FAILED;
 	}
-	env_new.crc = crc32(0, env_new.data, ENV_SIZE);
+
+	data = (char *)(env_new + 1);
+	if (hexport_r(&env_htab, '\0', &data, env_size - ENV_HEADER_SIZE, 0,
+		      NULL) < 0) {
+		printf("Export environment: errno = %d ", errno);
+		goto FAILED;
+	}
+	env_new->crc = crc32(0, (u_char *)data, env_size - ENV_HEADER_SIZE);
 
 	puts("Erasing Nand...\n");
-	if (nand_erase_opts(&nand_info[0], &nand_erase_options))
-		return 1;
-
-	puts("Writing to Nand... ");
-	if (writeenv(CONFIG_ENV_OFFSET, (u_char *)&env_new)) {
-		puts("FAILED!\n");
-		return 1;
+	env_offset = get_env_offset();
+	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
+	nand_erase_options.length = env_range;
+	nand_erase_options.offset = env_offset;
+	if (!nand_erase_opts(&nand_info[0], &nand_erase_options)) {
+		puts("Writing to Nand... ");
+		if (!writeenv(env_offset, (u_char *)env_new, env_size)) {
+			puts("done\n");
+			free(env_new);
+			return 0;
+		}
 	}
 
-	puts("done\n");
-	return ret;
+FAILED:
+	free(env_new);
+	puts("FAILED!\n");
+
+	return 1;
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */
 #endif /* CMD_SAVEENV */
 
-int readenv(size_t offset, u_char *buf)
+static int readenv(size_t offset, u_char *buf, size_t env_size)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + get_env_range();
 	size_t amount_loaded = 0;
 	size_t blocksize, len;
 	u_char *char_ptr;
@@ -273,9 +305,9 @@ int readenv(size_t offset, u_char *buf)
 	if (!blocksize)
 		return 1;
 
-	len = min(blocksize, CONFIG_ENV_SIZE);
+	len = min(blocksize, env_size);
 
-	while (amount_loaded < CONFIG_ENV_SIZE && offset < end) {
+	while (amount_loaded < env_size && offset < end) {
 		if (nand_block_isbad(&nand_info[0], offset)) {
 			offset += blocksize;
 		} else {
@@ -289,7 +321,7 @@ int readenv(size_t offset, u_char *buf)
 		}
 	}
 
-	if (amount_loaded != CONFIG_ENV_SIZE)
+	if (amount_loaded != env_size)
 		return 1;
 
 	return 0;
@@ -332,59 +364,58 @@ void env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
 	int crc1_ok = 0, crc2_ok = 0;
-	env_t *ep, *tmp_env1, *tmp_env2;
+	env_t *ep, *env1, *env2;
+	env_size = get_env_size();
 
-	tmp_env1 = (env_t *)malloc(CONFIG_ENV_SIZE);
-	tmp_env2 = (env_t *)malloc(CONFIG_ENV_SIZE);
-	if (tmp_env1 == NULL || tmp_env2 == NULL) {
+	env1 = (env_t *)malloc(env_size);
+	env2 = (env_t *)malloc(env_size);
+	if (env1 == NULL || env2 == NULL) {
 		puts("Can't allocate buffers for environment\n");
 		set_default_env("!malloc() failed");
 		goto done;
 	}
 
-	if (readenv(CONFIG_ENV_OFFSET, (u_char *) tmp_env1))
+	if (readenv(CONFIG_ENV_OFFSET, (u_char *)env1, env_size))
 		puts("No Valid Environment Area found\n");
 
-	if (readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *) tmp_env2))
+	if (readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *)env2, env_size))
 		puts("No Valid Redundant Environment Area found\n");
 
-	crc1_ok = crc32(0, tmp_env1->data, ENV_SIZE) == tmp_env1->crc;
-	crc2_ok = crc32(0, tmp_env2->data, ENV_SIZE) == tmp_env2->crc;
+	gd->env_size = env_size;
+	env_size -= ENV_HEADER_SIZE;
+	crc1_ok = (crc32(0, (u_char *)(env1 + 1), env_size) == env1->crc);
+	crc2_ok = (crc32(0, (u_char *)(env2 + 1), env_size) == env2->crc);
 
-	if (!crc1_ok && !crc2_ok) {
+	if (crc1_ok && crc2_ok) {
+		/* both ok - check serial */
+		if ((env1->flags < env2->flags)
+		    || (env1->flags == 255 && env2->flags == 0)) {
+			/* env2 is newer */
+			gd->env_valid = 2;
+		} else {
+			/* env1 is newer (or same age) */
+			gd->env_valid = 1;
+		}
+	} else if (crc2_ok) {
+		gd->env_valid = 2;
+	} else if (crc2_ok) {
+		gd->env_valid = 1;
+	} else {
 		set_default_env("!bad CRC");
 		goto done;
-	} else if (crc1_ok && !crc2_ok) {
-		gd->env_valid = 1;
-	} else if (!crc1_ok && crc2_ok) {
-		gd->env_valid = 2;
-	} else {
-		/* both ok - check serial */
-		if (tmp_env1->flags == 255 && tmp_env2->flags == 0)
-			gd->env_valid = 2;
-		else if (tmp_env2->flags == 255 && tmp_env1->flags == 0)
-			gd->env_valid = 1;
-		else if (tmp_env1->flags > tmp_env2->flags)
-			gd->env_valid = 1;
-		else if (tmp_env2->flags > tmp_env1->flags)
-			gd->env_valid = 2;
-		else /* flags are equal - almost impossible */
-			gd->env_valid = 1;
 	}
 
-	free(env_ptr);
+        if (gd->env_valid == 1)
+                ep = env1;
+        else
+                ep = env2;
 
-	if (gd->env_valid == 1)
-		ep = tmp_env1;
-	else
-		ep = tmp_env2;
-
-	env_flags = ep->flags;
-	env_import((char *)ep, 0);
+        env_flags = ep->flags;
+        env_import((char *)ep, 0);
 
 done:
-	free(tmp_env1);
-	free(tmp_env2);
+	free(env1);
+	free(env2);
 
 #endif /* ! ENV_IS_EMBEDDED */
 }
@@ -397,8 +428,8 @@ done:
 void env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
-	int ret;
-	char buf[CONFIG_ENV_SIZE];
+	char *buf;
+	size_t env_size;
 
 #if defined(CONFIG_ENV_OFFSET_OOB)
 	ret = get_nand_env_oob(&nand_info[0], &nand_env_oob_offset);
@@ -414,13 +445,13 @@ void env_relocate_spec(void)
 	}
 #endif
 
-	ret = readenv(CONFIG_ENV_OFFSET, (u_char *)buf);
-	if (ret) {
+	env_size = get_env_size();
+	buf = malloc(env_size);
+	if (buf && (readenv(get_env_offset(), (u_char *)buf, env_size) == 0))
+		env_import(buf, 1, env_size);
+	else
 		set_default_env("!readenv() failed");
-		return;
-	}
-
-	env_import(buf, 1);
+	free(buf);
 #endif /* ! ENV_IS_EMBEDDED */
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */

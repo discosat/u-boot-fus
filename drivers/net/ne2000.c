@@ -75,6 +75,8 @@ Add SNMP
 #include <common.h>
 #include <command.h>
 
+#ifndef CONFIG_DRIVER_NE2000_SOFTMAC 
+
 /* NE2000 base header file */
 #include "ne2000_base.h"
 
@@ -186,7 +188,7 @@ static void pcnet_reset_8390(u8* addr)
 	PRINTK("cmd (at %lx) is %x\n", addr + E8390_CMD, n2k_inb(E8390_CMD));
 	n2k_outb(E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD);
 
-	n2k_outb(n2k_inb(PCNET_RESET), PCNET_RESET);
+	n2k_outb(n2k_inb(PCNET_RESET) | 0x01 /*###HK*/, PCNET_RESET);
 
 	for (i = 0; i < 100; i++) {
 		if ((r = (n2k_inb(EN0_ISR) & ENISR_RESET)) != 0)
@@ -257,3 +259,5 @@ int get_prom(u8* mac_addr, u8* base_addr)
 	}
 	return 0;
 }
+
+#endif /* !CONFIG_DRIVER_NE2000_SOFTMAC */

@@ -42,8 +42,10 @@ typedef	struct	global_data {
 	unsigned long	precon_buf_idx;	/* Pre-Console buffer index */
 #endif
 	unsigned long	env_addr;	/* Address  of Environment struct */
+	unsigned long	env_size;	/* Total size of environment */
 	unsigned long	env_valid;	/* Checksum of Environment valid? */
 	unsigned long	fb_base;	/* base address of frame buffer */
+	unsigned long	fb_size;	/* Size of frame buffe */
 #ifdef CONFIG_VYBRID
 	unsigned long	cpu_clk;
 	unsigned long	ipg_clk;
@@ -66,13 +68,15 @@ typedef	struct	global_data {
 	unsigned long	timer_rate_hz;
 	unsigned long	tbl;
 	unsigned long	tbu;
-	unsigned long long	timer_reset_value;
+	unsigned long long	ticks;
 	unsigned long	lastinc;
+	unsigned int	cpu_id;
 #endif
 #ifdef CONFIG_IXP425
 	unsigned long	timestamp;
 #endif
 	unsigned long	relocaddr;	/* Start address of U-Boot in RAM */
+	unsigned long	ram_base;	/* Start address of RAM */
 	phys_size_t	ram_size;	/* RAM size */
 	unsigned long	mon_len;	/* monitor len */
 	unsigned long	irq_sp;		/* irq stack pointer */

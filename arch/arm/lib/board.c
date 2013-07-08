@@ -37,6 +37,7 @@
  * IRQ Stack: 00ebff7c
  * FIQ Stack: 00ebef7c
  */
+#undef DEBUG
 
 #include <common.h>
 #include <command.h>
@@ -66,11 +67,23 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef CONFIG_SYS_TLB_ALIGN
+#define CONFIG_SYS_TLB_ALIGN 0xFFFF0000	  /* Align to next 64kB limit */
+#endif
+
+#ifndef CONFIG_SYS_LOAD_OFFS
+#define CONFIG_SYS_LOAD_OFFS 0
+#endif
+
 ulong monitor_flash_len;
 
 #ifdef CONFIG_HAS_DATAFLASH
 extern int  AT91F_DataflashInit(void);
 extern void dataflash_print_info(void);
+#endif
+
+#ifdef CONFIG_ENABLE_MMU
+extern void setup_mmu_table(ulong tlb_addr);
 #endif
 
 #if defined(CONFIG_HARD_I2C) || \
@@ -146,6 +159,7 @@ static int display_banner(void)
  * gives a simple yet clear indication which part of the
  * initialization if failing.
  */
+
 static int display_dram_config(void)
 {
 	int i;
@@ -218,13 +232,13 @@ int print_cpuinfo(void);
 
 void __dram_init_banksize(void)
 {
-	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].start = gd->ram_base;
 	gd->bd->bi_dram[0].size =  gd->ram_size;
 }
 void dram_init_banksize(void)
 	__attribute__((weak, alias("__dram_init_banksize")));
 
-init_fnc_t *init_sequence[] = {
+init_fnc_t *const init_sequence[] = {
 #if defined(CONFIG_ARCH_CPU_INIT)
 	arch_cpu_init,		/* basic arch cpu dependent setup */
 #endif
@@ -237,7 +251,7 @@ init_fnc_t *init_sequence[] = {
 	get_clocks,
 	timer_init,		/* initialize timer */
 	env_init,		/* initialize environment */
-	init_baudrate,		/* initialze baudrate settings */
+	init_baudrate,		/* initialize baudrate settings */
 	serial_init,		/* serial communications setup */
 	console_init_f,		/* stage 1 init of console */
 	display_banner,		/* say that we are here */
@@ -257,7 +271,7 @@ init_fnc_t *init_sequence[] = {
 void board_init_f(ulong bootflag)
 {
 	bd_t *bd;
-	init_fnc_t **init_fnc_ptr;
+	init_fnc_t *const *init_fnc_ptr;
 	gd_t *id;
 	ulong addr, addr_sp;
 #ifdef CONFIG_PRAM
@@ -285,11 +299,31 @@ void board_init_f(ulong bootflag)
 	gd->fdt_blob = (void *)getenv_ulong("fdtcontroladdr", 16,
 						(uintptr_t)gd->fdt_blob);
 
+#if 0
+	/* #### Zeichen auf Schnittstelle ausgeben */
+	{
+	    volatile int __iii;
+	    *(volatile unsigned int *)0x7F005820 = 0x2a;
+	    *(volatile unsigned int *)0x7F005820 = 0x41;
+	    for (__iii=1000000; __iii; __iii--)
+		;
+	}
+	/* ####################### */
+#endif
+
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
         if ((*init_fnc_ptr)() != 0) {
 			hang ();
 		}
 	}
+
+#ifdef CONFIG_OF_CONTROL
+	/* For now, put this check after the console is ready */
+	if (fdtdec_prepare_fdt()) {
+		panic("** CONFIG_OF_CONTROL defined but no FDT - please see "
+			"doc/README.fdt-control");
+	}
+#endif
 
 	debug("monitor len: %08lX\n", gd->mon_len);
 	/*
@@ -310,7 +344,13 @@ void board_init_f(ulong bootflag)
 	gd->ram_size -= CONFIG_SYS_MEM_TOP_HIDE;
 #endif
 
-	addr = CONFIG_SYS_SDRAM_BASE + gd->ram_size;
+
+#ifdef CONFIG_SYS_SDRAM_BASE
+	/* If CONFIG_SYS_SDRAM_BASE is not set, function dram_init() must set
+	   gd->ram_base */
+	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
+#endif
+	addr = gd->ram_base + gd->ram_size;
 
 #ifdef CONFIG_LOGBUFFER
 #ifndef CONFIG_ALT_LB_ADDR
@@ -334,8 +374,8 @@ void board_init_f(ulong bootflag)
 	/* reserve TLB table */
 	addr -= (4096 * 4);
 
-	/* round down to next 64 kB limit */
-	addr &= ~(0x10000 - 1);
+	/* round down to next allowed TLB alignment limit */
+	addr &= CONFIG_SYS_TLB_ALIGN;
 
 	gd->tlb_addr = addr;
 	debug("TLB table at: %08lx\n", addr);
@@ -345,15 +385,16 @@ void board_init_f(ulong bootflag)
 	addr &= ~(4096 - 1);
 	debug("Top of RAM usable for U-Boot at: %08lx\n", addr);
 
-#ifdef CONFIG_LCD
+#if defined(CONFIG_LCD) || defined(CONFIG_CMD_LCD)
 #ifdef CONFIG_FB_ADDR
 	gd->fb_base = CONFIG_FB_ADDR;
 #else
 	/* reserve memory for LCD display (always full pages) */
-	addr = lcd_setmem(addr);
-	gd->fb_base = addr;
+	gd->fb_base = lcd_setmem(addr);
+	gd->fb_size = addr - gd->fb_base;
+	addr = gd->fb_base;
 #endif /* CONFIG_FB_ADDR */
-#endif /* CONFIG_LCD */
+#endif /* CONFIG_LCD || CONFIG_CMD_LCD */
 
 	/*
 	 * reserve memory for U-Boot code, data & bss
@@ -429,6 +470,15 @@ void board_init_f(ulong bootflag)
 
 	debug("relocation Offset is: %08lx\n", gd->reloc_off);
 	memcpy(id, (void *)gd, sizeof(gd_t));
+
+#if defined(CONFIG_SYS_NO_ICACHE) || defined(CONFIG_SYS_NO_DCACHE)
+	/* This function either copies the mmu_table from the rodata section
+	   to the region reserved above at tlb_addr or creates the mmu_table
+	   there directly in software. This is often preferable because the
+	   code for this usually only takes a few bytes, compared to full 16KB
+	   of a fix mmu_table. */
+	setup_mmu_table(gd->tlb_addr);
+#endif
 
 	relocate_code(addr_sp, id, addr);
 
@@ -588,8 +638,16 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	}
 #endif /* CONFIG_DRIVER_SMC91111 || CONFIG_DRIVER_LAN91C96 */
 
-	/* Initialize from environment */
-	load_addr = getenv_ulong("loadaddr", 16, load_addr);
+	/* Initialize load address from environment */
+#ifdef CONFIG_SYS_LOAD_ADDR
+	/* Default is configured load address */
+	set_loadaddr(getenv_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
+#else
+	/* Default is start of RAM plus configured offset */
+	set_loadaddr(getenv_ulong("loadaddr", 16,
+				  gd->ram_base + CONFIG_SYS_LOAD_OFFS));
+#endif
+
 #if defined(CONFIG_CMD_NET)
 	{
 		char *s = getenv("bootfile");

@@ -107,6 +107,23 @@ static struct nand_ecclayout nand_oob_128 = {
 		 .length = 78} }
 };
 
+void nand_swprotect(struct mtd_info *mtd, int bProtected)
+{
+	struct nand_chip *chip = mtd->priv;
+
+	if (bProtected)
+		chip->options |= NAND_SW_WRITE_PROTECT;
+	else
+		chip->options &= ~NAND_SW_WRITE_PROTECT;
+}
+
+int nand_is_swprotected(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+
+	return ((chip->options & NAND_SW_WRITE_PROTECT) != 0);
+}
+
 static int nand_get_device(struct nand_chip *chip, struct mtd_info *mtd,
 			   int new_state);
 
@@ -478,6 +495,14 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 			       int allowbbt)
 {
 	struct nand_chip *chip = mtd->priv;
+
+	/* If NAND_NO_BADBLOCK is set, the bad block marker is not valid. In
+	   this case we assume a block to be valid. For example Samsungs 8-bit
+	   ECC overwrites the bad block marker. This ECC is supposed to be
+	   good enough to handle most cases and if a page has more than 8 bit
+	   errors, the whole flash has serious problems anyway. */
+	if (chip->options & NAND_NO_BADBLOCK)
+		return 0;
 
 	if (!(chip->options & NAND_BBT_SCANNED)) {
 		chip->options |= NAND_BBT_SCANNED;
@@ -923,7 +948,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	int busw = (chip->options & NAND_BUSWIDTH_16) ? 2 : 1;
 	int index = 0;
 
-	/* Column address wihin the page aligned to ECC size (256bytes). */
+	/* Column address within the page aligned to ECC size (256bytes). */
 	start_step = data_offs / chip->ecc.size;
 	end_step = (data_offs + readlen - 1) / chip->ecc.size;
 	num_steps = end_step - start_step + 1;
@@ -1075,8 +1100,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 		chip->ecc.hwctl(mtd, NAND_ECC_READ);
 		chip->read_buf(mtd, p, eccsize);
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
-
-		stat = chip->ecc.correct(mtd, p, &ecc_code[i], NULL);
+		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
 		if (stat < 0)
 			mtd->ecc_stats.failed++;
 		else
@@ -1212,6 +1236,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		mtd->oobavail : mtd->oobsize;
 
 	uint8_t *bufpoi, *oob, *buf;
+	int skippage = (int)(mtd->skip >> chip->page_shift);
 
 	stats = mtd->ecc_stats;
 
@@ -1241,8 +1266,11 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				sndcmd = 0;
 			}
 
-			/* Now read the page into the buffer */
-			if (unlikely(ops->mode == MTD_OOB_RAW))
+			/* Now read the page into the buffer: if we are at
+			   the beginning in the skip region, read as empty */
+			if (realpage < skippage)
+				memset(bufpoi, 0xFF, mtd->writesize);
+			else if (unlikely(ops->mode == MTD_OOB_RAW))
 				ret = chip->ecc.read_page_raw(mtd, chip,
 							      bufpoi, page);
 			else if (!aligned && NAND_SUBPAGE_READ(chip) && !oob)
@@ -1701,6 +1729,7 @@ static void nand_write_page_raw_syndrome(struct mtd_info *mtd,
 	if (size)
 		chip->write_buf(mtd, oob, size);
 }
+
 /**
  * nand_write_page_swecc - [REPLACABLE] software ecc based page write function
  * @mtd:	mtd info structure
@@ -1895,6 +1924,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
 			memcpy(chip->oob_poi + boffs, oob, bytes);
 			oob += bytes;
 		}
+
 		return oob;
 	}
 	default:
@@ -1932,6 +1962,9 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	if (!writelen)
 		return 0;
 
+	if (chip->options & NAND_SW_WRITE_PROTECT)
+		return -EROFS;
+
 	column = to & (mtd->writesize - 1);
 	subpage = column || (writelen & (mtd->writesize - 1));
 
@@ -1947,7 +1980,11 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		return -EIO;
 	}
 
+	/* Don't allow writing into skip area */
 	realpage = (int)(to >> chip->page_shift);
+	if (realpage < (int)(mtd->skip >> chip->page_shift))
+		return -EROFS;
+
 	page = realpage & chip->pagemask;
 	blockmask = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 
@@ -2243,8 +2280,16 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 				__func__, (unsigned long long)instr->addr,
 				(unsigned long long)instr->len);
 
+	/* Don't erase if device is software write-protected */
+	if (chip->options & NAND_SW_WRITE_PROTECT)
+		return -EROFS;
+
 	if (check_offs_len(mtd, instr->addr, instr->len))
 		return -EINVAL;
+
+	/* Don't erase within skip region */
+	if (instr->addr < mtd->skip)
+		return -EROFS;
 
 	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
@@ -2430,6 +2475,9 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	int ret;
+
+	if (chip->options & NAND_NO_BADBLOCK)
+		return 0;
 
 	ret = nand_block_isbad(mtd, ofs);
 	if (ret) {

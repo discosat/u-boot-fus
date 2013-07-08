@@ -25,6 +25,7 @@
 #include <watchdog.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
+#include <asm/errno.h>
 #include <jffs2/jffs2.h>
 #include <nand.h>
 
@@ -370,11 +371,13 @@ static void nand_print_and_set_info(int idx)
 	const int bufsz = 32;
 	char buf[bufsz];
 
-	printf("Device %d: ", idx);
+	printf("Device %d (%s): ", idx, nand->name);
 	if (chip->numchips > 1)
-		printf("%dx ", chip->numchips);
-	printf("%s, sector size %u KiB\n",
-	       nand->name, nand->erasesize >> 10);
+		printf("%d chips, ", chip->numchips);
+	if (nand->skip)
+		printf("skip first %llu KiB, remaining ", nand->skip >> 10);
+	printf("size %llu KiB, %swrite protected\n", nand->size >> 10,
+	       nand_is_swprotected(nand) ? "" : "not ");
 	printf("  Page size  %8d b\n", nand->writesize);
 	printf("  OOB size   %8d b\n", nand->oobsize);
 	printf("  Erase size %8d b\n", nand->erasesize);
@@ -464,6 +467,13 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	}
 	nand = &nand_info[dev];
 
+	if ((strcmp(cmd, "protect") == 0) || (strcmp(cmd, "unprotect") == 0)) {
+		nand_swprotect(nand, (cmd[0] == 'p'));
+		printf("Device %d is %swrite protected\n", dev,
+		       nand_is_swprotected(nand) ? "" : "not ");
+		return 0;
+	}
+
 	if (strcmp(cmd, "bad") == 0) {
 		printf("\nDevice %d bad blocks:\n", dev);
 		for (off = 0; off < nand->size; off += nand->erasesize)
@@ -551,7 +561,12 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			}
 		}
 		ret = nand_erase_opts(nand, &opts);
-		printf("%s\n", ret ? "ERROR" : "OK");
+		if (!ret)
+			printf("OK");
+		else if (ret == -EROFS)
+			printf("ERROR: Read-only\n");
+		else
+			printf("ERROR %d\n", ret);
 
 		return ret == 0 ? 0 : 1;
 	}
@@ -752,6 +767,8 @@ U_BOOT_CMD(
 	"    'size' includes skipped bad blocks.\n"
 	"nand erase.part [clean] partition - erase entire mtd partition'\n"
 	"nand erase.chip [clean] - erase entire chip'\n"
+	"nand protect - set software write protection\n"
+	"nand unprotect - clear software write protection\n"
 	"nand bad - show bad blocks\n"
 	"nand dump[.oob] off - dump page\n"
 	"nand scrub [-y] off size | scrub.part partition | scrub.chip\n"
@@ -812,6 +829,9 @@ static int nand_load_image(cmd_tbl_t *cmdtp, nand_info_t *nand,
 
 		cnt = image_get_image_size (hdr);
 		break;
+	case IMAGE_FORMAT_ZIMAGE:
+		puts ("zImage detected\n");
+		break;
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:
 		fit_hdr = (const void *)addr;
@@ -849,8 +869,7 @@ static int nand_load_image(cmd_tbl_t *cmdtp, nand_info_t *nand,
 #endif
 
 	/* Loading ok, update default load address */
-
-	load_addr = addr;
+	set_loadaddr(addr);
 
 	return bootm_maybe_autostart(cmdtp, cmd);
 }
@@ -878,7 +897,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			if (argc == 3)
 				addr = simple_strtoul(argv[1], NULL, 16);
 			else
-				addr = CONFIG_SYS_LOAD_ADDR;
+				addr = get_loadaddr();
 			return nand_load_image(cmdtp, &nand_info[dev->id->num],
 					       part->offset, addr, argv[0]);
 		}
@@ -888,7 +907,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	bootstage_mark(BOOTSTAGE_ID_NAND_PART);
 	switch (argc) {
 	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		boot_device = getenv("bootdevice");
 		break;
 	case 2:

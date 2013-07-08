@@ -1,0 +1,180 @@
+History of Changes for U-Boot on F&S Boards and Modules
+-------------------------------------------------------
+
+Supported boards: PicoMOD6, PicoCOM3, armStoneA8
+
+
+armStoneA8 V1.1 (22.05.2012, based on u-boot-2011.12)
+-----------------------------------------------------
+This is another interim release targeted to armStoneA8 only (PicoMOD6
+and PicoCOM3 won't work).
+
+- New autoload mechanism to support automatic installation and
+  updates; check on mmc0:1 and usb0:1 by default
+- Increase malloc heap (ubi part failed with large MTD partitions)
+- Don't add CONFIG_ENV_SIZE twice to final heap size
+- Support second LAN port, set pull-up for IRQ, set default eth1addr
+- New function for setting the MAC address on AX88796 LAN chip; this
+  allows for simpler code to set the MAC addresses on F&S boards
+- Recognize all the feature settings that are reported by NBoot
+- Show number of DRAM chips, LAN ports and CPU speed on startup
+- Fix ID for NetDCU14, add some NetDCU14 specific features
+- Add get_board_name() and get_sys_prompt() to allow for dynamic
+  strings (instead of only fix strings from the configuration)
+- Fix some warnings that appeared with new toolchain (GCC 4.6.3)
+
+
+
+armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
+-----------------------------------------------------
+This is an interim release targeted to armStoneA8 only (PicoMOD6 and
+PicoCOM3 won't work). It is based on V1.2 with many improvements
+already in place, but many of these features are not yet complete.
+They will be mentioned in the next regular release.
+
+- Rebase to u-boot-2011.12
+- Enable NE2000 ethernet driver to use CONFIG_NET_MULTI; improve DP_*
+  macros to support S5P
+- Add delay after powering USB root hub to detect USB storage devices
+  more reliably 
+- Make size of uboot.nb0 configurable by platform configuration header
+  file; on armStoneA8, the size of uboot.nb0 is 384K
+- Add drivers/mtd/nand/s5p_nand.c to support NAND on S5P
+- Add drivers/usb/host/{ehci,ohci}-s5p.c to support EHCI and OHCI USB
+  drivers on S5P 
+- Add drivers/rtc/s5p_rtc.c to support real time clock on S5P
+- New timer module arch/arm/cpu/armv7/s5p-common/timer.c that counts
+  from 0xffffffff down; is simpler, creates less code
+- Fix timing computation in drivers/usb/host/ehci-hcd.c and net/net.c
+  that silently assumed a timer tick time of 1ms
+- Extended info in arc/arm/cpu/armv7/s5p-common/cpu_info.c;
+  arch_cpu_init() must not use variables, store in global data instead
+- Improve definition of registers, cpu detection, gpio pin numbers,
+  include files to better support S5P
+- Add check for deleted long dir entries in fs/fat/fat.c
+- Make autoload_script() work with CONFIG_GENERIC_MMC; however this
+  feature will be reworked and is disabled by default in this version
+- Use mach=armv6 instead mach=armv5 as in default u-boot
+- New stdio_dev system to support LCD output better; change serial
+  lines to support this
+- LCD configuration and output is heavily reworked; however it is not
+  yet complete and therefore disabled in this version
+- Support armStoneA8, NetDCU14 (and EASYsom1) in one binary: detect
+  board type and RAM size at runtime, set prompt string, RAM base
+  and default loadaddr accordingly
+- Make loading functions load at address given in environment variable
+  loadaddr, not at fix address CONFIG_SYS_LOAD_ADDR
+- Support UBI and UBIFS, activate appropriate commands
+
+
+V1.2 (05.09.2011)
+------------------
+- Add support for PicoCOM3
+- Fix display power-on/power-off sequence
+- Fix display buffer enable signal (BUF_ENA)
+- Fix "lcd ponseq" and "lcd poffseq" commands
+- Optimize udelay() function
+- Remove some unneeded code
+
+
+V1.1 (07.06.2011)
+-----------------
+- New MMC driver for MMC/SD-Cards, supports external SD-Slot (mmc 0)
+  and on-board Micro-SD-Slot (mmc 1); use after mmcinit
+- New environment variables autoload, autoaddr, autommc and autousb to
+  allow automatic start of an autoscript file from SD-Card or USB
+  stick; this can be used to automatically install software and is
+  therefore enabled by default (clear variables if not wanted)
+- New command line parser to allow quoting with "..." and '...'; this
+  also keeps several words grouped as one argument
+- New LCD driver with up to five overlay windows with arbitrary size,
+  position; support for alpha blending and color keying and 14
+  different pixel formats (1, 2, 4, 8 bpp with color map, and up to 28
+  bits per pixel RGBA-8884 truecolor)
+- New command "lcd" to set and show all display parameters
+- New command "win" to set and show all window parameters
+- List of predefined LCD panels (rather short now, but will be
+  expanded in the future)
+- New command "cmap" to handle color maps
+- New command "fbpool" to handle the framebuffers of the windows
+- New commands "draw" and "adraw" to draw pixels, lines, frames, filled
+  rectangles, circles, filled discs, turtle polygons, text, bitmaps
+  and four different test images; draw simply stores the alpha value
+  to the window, adraw directly applys alpha to the current window
+  content.
+- Support for BMP and PNG bitmaps; bitmaps can be grouped to
+  "multi-bitmaps" and each individual bitmap can be accessed; bitmaps
+  can be drawn with double width and/or double height
+- Text can have attributes bold, inverse, underline, strike-through,
+  double width, double height and transparent; however only one font
+  with 8x16 pixels is available
+- New command "bminfo" to list infos of the bitmaps in a multi-bitmap
+- New automatically generated environment variables "lcd" and "win0"
+  to "win4" holding the current LCD and window configuration. These
+  can be used to permanently store the display settings.
+- New environment variable "splashcmd" that is executed after
+  initalizing the display, e.g. to show a splash screen (boot logo)
+- Improved console devices to support different consoles; e.g. there
+  can be a console on each LCD window
+- Console settings (stdin, stdout, stderr) can be stored in the
+  environment; useful if the console should not appear on the LCD
+- Using the MMU now; however the data cache is not enabled by default
+  as the USB driver will not work then; you can say "dcache on" to
+  enable the data cache manually
+- Support for FAT media without partition table; handle FAT16 root
+  directory correctly
+- Timing is now correct (was way too fast); this also improves USB
+  stick recognition
+- New highly optimized memory functions in assembler (memcpy, memmove,
+  memset, memset32)
+- Compiler now optimizes code for ARMv6 (ARM11)
+- Several small fixes, no compiler warnings anymore
+- Several fixes to reduce memory footprint
+- Removed some unnecessary debug messages
+- Removed serial download (loadb and loads); this was necessary to
+  keep the U-Boot binary size below 256KB.
+
+
+
+V1.0 (18.10.2010)
+-----------------
+- Added support for USB host (USB hubs and mass storage devices)
+- Added support for FAT filesystems (ported back from u-boot-2010.09
+  and enhanced)
+- Changed spare area layout to match the layout of NBoot, added ECC-8
+  support for NBoot region
+- Access to NBoot and U-Boot regions now actually works
+- Added new default partitions NBoot, UBoot and UBootEnv; this moves
+  the TargetFS to /dev/mtdblock5 in Linux
+- Increased Kernel partition from 2MB to 3MB
+- Added software protection for NBoot partition to avoid accidental
+  erasing, e.g. when calling "nand erase" without further parameters:
+    nand nboot [protect | unprotect]
+- Placed environment fix in NAND, removed support for MoviNand and
+  OneNand (not required on PicoMOD6); this reduced the image size
+  considerably
+- Reduced environment to 16KB; this allows for a bad block
+- Added support for sntp command (time synching with time server)
+- Removed command "reginfo" as it only produces empty output on ARM
+- Aligned strings when calling "help"
+- Added new environment variables for easy switching between NFS and
+  local boot and for testing kernels:
+    run bootnfs   --> switch to NFS boot (TargetFS mounted via NFS)
+    run bootlocal --> switch to local boot (TargetFS loaded from NAND)
+    run r         --> download & start kernel without storing to NAND
+- Added target "make uboot.nb0" to create image file that is padded to
+  256KB (required for NBoot); this target is also automatically built
+  when calling "make" without any arguments
+- Removed some debug strings that accidently slipped into the previus
+  releases
+
+
+V0.2 (05.02.2010)
+-----------------
+- Activate ethernet once to set MAC address
+
+
+V0.1 (22.01.2010)
+-----------------
+- First working version
+- Update of U-Boot only possible from NBoot

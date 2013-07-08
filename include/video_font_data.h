@@ -24,7 +24,7 @@
 #ifndef _VIDEO_FONT_DATA_
 #define _VIDEO_FONT_DATA_
 
-static unsigned char video_fontdata[VIDEO_FONT_SIZE] = {
+static VIDEO_FONT_TYPE video_fontdata[VIDEO_FONT_SIZE] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */

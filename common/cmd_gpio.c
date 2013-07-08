@@ -11,15 +11,15 @@
 
 #include <asm/gpio.h>
 
-#ifndef name_to_gpio
-#define name_to_gpio(name) simple_strtoul(name, NULL, 10)
+#ifndef NAME_TO_GPIO
+#define NAME_TO_GPIO(name) simple_strtoul(name, NULL, 10)
 #endif
 
 enum gpio_cmd {
-	GPIO_INPUT,
-	GPIO_SET,
-	GPIO_CLEAR,
-	GPIO_TOGGLE,
+	GPIO_CMD_INPUT,
+	GPIO_CMD_SET,
+	GPIO_CMD_CLEAR,
+	GPIO_CMD_TOGGLE,
 };
 
 static int do_gpio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -44,15 +44,15 @@ static int do_gpio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* parse the behavior */
 	switch (*str_cmd) {
-		case 'i': sub_cmd = GPIO_INPUT;  break;
-		case 's': sub_cmd = GPIO_SET;    break;
-		case 'c': sub_cmd = GPIO_CLEAR;  break;
-		case 't': sub_cmd = GPIO_TOGGLE; break;
+		case 'i': sub_cmd = GPIO_CMD_INPUT;  break;
+		case 's': sub_cmd = GPIO_CMD_SET;    break;
+		case 'c': sub_cmd = GPIO_CMD_CLEAR;  break;
+		case 't': sub_cmd = GPIO_CMD_TOGGLE; break;
 		default:  goto show_usage;
 	}
 
 	/* turn the gpio name into a gpio number */
-	gpio = name_to_gpio(str_gpio);
+	gpio = NAME_TO_GPIO(str_gpio);
 	if (gpio < 0)
 		goto show_usage;
 
@@ -63,15 +63,22 @@ static int do_gpio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	/* finally, let's do it: set direction and exec command */
-	if (sub_cmd == GPIO_INPUT) {
+	if (sub_cmd == GPIO_CMD_INPUT) {
 		gpio_direction_input(gpio);
 		value = gpio_get_value(gpio);
 	} else {
 		switch (sub_cmd) {
-			case GPIO_SET:    value = 1; break;
-			case GPIO_CLEAR:  value = 0; break;
-			case GPIO_TOGGLE: value = !gpio_get_value(gpio); break;
-			default:          goto show_usage;
+			case GPIO_CMD_SET:
+				value = 1;
+				break;
+			case GPIO_CMD_CLEAR:
+				value = 0;
+				break;
+			case GPIO_CMD_TOGGLE:
+				value = !gpio_get_value(gpio);
+				break;
+			default:
+				goto show_usage;
 		}
 		gpio_direction_output(gpio, value);
 	}

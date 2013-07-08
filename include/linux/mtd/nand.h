@@ -192,6 +192,12 @@ typedef enum {
 /* Device behaves just like nand, but is readonly */
 #define NAND_ROM		0x00000800
 
+/* F&S Extensions */
+/* Chip is software write-protected */
+#define NAND_SW_WRITE_PROTECT	0x80000000
+/* Chip can't use bad block marker because of special type of ECC */
+#define NAND_NO_BADBLOCK	0x40000000
+
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \
 	(NAND_NO_PADDING | NAND_CACHEPRG | NAND_COPYBACK)
@@ -677,5 +683,9 @@ void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len);
 void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len);
 void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len);
 uint8_t nand_read_byte(struct mtd_info *mtd);
+
+/* F&S Extensions */
+void nand_swprotect(struct mtd_info *mtd, int bProtected);
+int nand_is_swprotected(struct mtd_info *mtd);
 
 #endif /* __LINUX_MTD_NAND_H */

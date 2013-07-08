@@ -141,7 +141,8 @@ reset:
 	 * set the cpu to SVC32 mode
 	 */
 	mrs	r0, cpsr
-	bic	r0, r0, #0x3f
+//###	bic	r0, r0, #0x3f
+	bic	r0, r0, #0x1f
 	orr	r0, r0, #0xd3
 	msr	cpsr, r0
 
@@ -182,8 +183,8 @@ cpu_init_crit:
 	orr	r0, r0, #0x00001000	@ set bit 12 (I) I-Cache
 
 	/* Prepare to disable the MMU */
-	adr	r2, mmu_disable_phys
-	sub	r2, r2, #(CONFIG_SYS_PHY_UBOOT_BASE - CONFIG_SYS_TEXT_BASE)
+	adr	lr, mmu_disable_phys
+	sub	lr, lr, #(CONFIG_SYS_PHY_UBOOT_BASE - CONFIG_SYS_TEXT_BASE)
 	b	mmu_disable
 
 	.align 5
@@ -192,7 +193,7 @@ mmu_disable:
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
-	mov	pc, r2
+	mov	pc, lr
 mmu_disable_phys:
 
 #ifdef CONFIG_DISABLE_TCM
@@ -219,6 +220,20 @@ skip_tcmdisable:
 	mcr	p15,0,r0,c15,c2,4
 #endif
 
+#if 0  //#####HK
+	/* #####HK: Send character to UART ###### */
+	//ldr	r0, =0x7F005420		/* UART1 */
+	ldr	r0, =0x7F005820		/* UART2 */
+	mov	r1, #0x43
+	str	r1, [r0]
+	mov	r1, #0x43
+	str	r1, [r0]
+	mov	r0, #0x01000000		/* Wait */
+9:	subs	r0, r0,#1
+	bne	9b
+	/* ########### */
+#endif //#####HK
+
 	/*
 	 * Go setup Memory and board specific bits prior to relocation.
 	 */
@@ -231,7 +246,8 @@ call_board_init_f:
 	ldr	r0,=0x00000000
 	bl	board_init_f
 
-/*------------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
 
 /*
  * void relocate_code (addr_sp, gd, addr_moni)
@@ -242,9 +258,9 @@ call_board_init_f:
  */
 	.globl	relocate_code
 relocate_code:
-	mov	r4, r0	/* save addr_sp */
-	mov	r5, r1	/* save addr of gd */
-	mov	r6, r2	/* save addr of destination */
+	mov	r4, r0			/* save addr_sp */
+	mov	r5, r1			/* save addr of gd */
+	mov	r6, r2			/* save addr of destination */
 
 	/* Set up the stack						    */
 stack_setup:
@@ -283,9 +299,7 @@ fixloop:
 	cmp	r7, #23			/* relative fixup? */
 	beq	fixrel
 	cmp	r7, #2			/* absolute fixup? */
-	beq	fixabs
-	/* ignore unknown type of fixup */
-	b	fixnext
+	bne	fixnext		        /* ignore unknown type of fixup */
 fixabs:
 	/* absolute fix: set location to (offset) symbol value */
 	mov	r1, r1, LSR #4		/* r1 <- symbol index in .dynsym */
@@ -307,23 +321,19 @@ fixnext:
 #ifdef CONFIG_ENABLE_MMU
 enable_mmu:
 	/* enable domain access */
-	ldr	r5, =0x0000ffff
-	mcr	p15, 0, r5, c3, c0, 0	/* load domain access register */
+	ldr	r0, =0x0000ffff
+	mcr	p15, 0, r0, c3, c0, 0	/* load domain access register */
 
 	/* Set the TTB register */
-	ldr	r0, _mmu_table_base
-	ldr	r1, =CONFIG_SYS_PHY_UBOOT_BASE
-	ldr	r2, =0xfff00000
-	bic	r0, r0, r2
-	orr	r1, r0, r1
-	mcr	p15, 0, r1, c2, c0, 0
+// Must already be done in setup_mmu_table()
+//	mcr	p15, 0, r0, c2, c0, 0	/* tlb_addr */
 
 	/* Enable the MMU */
 	mrc	p15, 0, r0, c1, c0, 0
 	orr	r0, r0, #1		/* Set CR_M to enable MMU */
 
 	/* Prepare to enable the MMU */
-	adr	r1, skip_hw_init
+	adr	r1, after_mmu_enable
 	and	r1, r1, #0x3fc
 	ldr	r2, _TEXT_BASE
 	ldr	r3, =0xfff00000
@@ -339,16 +349,15 @@ mmu_enable:
 	nop
 	nop
 	mov	pc, r2
-skip_hw_init:
+after_mmu_enable:
 #endif
 
 clear_bss:
 #ifndef CONFIG_SPL_BUILD
 	ldr	r0, _bss_start_ofs
 	ldr	r1, _bss_end_ofs
-	mov	r4, r6			/* reloc addr */
-	add	r0, r0, r4
-	add	r1, r1, r4
+	add	r0, r0, r6		/* add reloc addr */
+	add	r1, r1, r6
 	mov	r2, #0x00000000		/* clear			    */
 
 clbss_l:str	r2, [r0]		/* clear loop...		    */
@@ -381,6 +390,136 @@ _nand_boot: .word nand_boot
 	/* jump to it ... */
 	mov	pc, lr
 
+/*---------------------------------------------------------------------------*/
+
+#if 0 //######HK
+	.globl	showpc
+showpc:
+	push	{r11, lr}
+	ldr	r11,=0x7F005800		/* UART2 */
+	mov	r12, #'p'
+	str	r12, [r11, #0x20]
+	mov	r12, #'c'
+	str	r12, [r11, #0x20]
+	mov	r12, #':'
+	str	r12, [r11, #0x20]
+	mov	r0, pc
+	bl	phexr0
+	mov	r12, #' '
+	str	r12, [r11, #0x20]
+	mov	r12, #'s'
+	str	r12, [r11, #0x20]
+	mov	r12, #'p'
+	str	r12, [r11, #0x20]
+	mov	r12, #':'
+	str	r12, [r11, #0x20]
+	mov	r0, sp
+	bl	phexr0
+	mov	r12, #' '
+	str	r12, [r11, #0x20]
+	pop	{r11, pc}
+
+phexr0:	/* print r0 as hex using r11 as UART pointer and r12 as scratch */
+	ldr	r11,=0x7F005800		/* UART2 */
+	mov	r12, r0, lsr #28
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #24
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #20
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #16
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #12
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #8
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r0, lsr #4
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	and	r12, r0, #15
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	pc, lr
+	
+phexr1:	/* print r1 as hex using r11 as UART pointer and r12 as scratch */
+	ldr	r11,=0x7F005800		/* UART2 */
+	mov	r12, r1, lsr #28
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #24
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #20
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #16
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #12
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #8
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	r12, #15
+	and	r12, r12, r1, lsr #4
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	and	r12, r1, #15
+	cmp	r12, #9
+	addgt	r12, r12, #7
+	add	r12, r12, #'0'
+	str	r12, [r11, #0x20]
+	mov	pc, lr
+#endif //####HK
+
 _board_init_r_ofs:
 	.word board_init_r - _start
 #endif
@@ -392,10 +531,10 @@ _rel_dyn_end_ofs:
 _dynsym_start_ofs:
 	.word __dynsym_start - _start
 
-#ifdef CONFIG_ENABLE_MMU
-_mmu_table_base:
-	.word mmu_table
-#endif
+//### #ifdef CONFIG_ENABLE_MMU
+//### _mmu_table_base:
+//###	.word mmu_table
+//### #endif
 
 #ifndef CONFIG_NAND_SPL
 /*

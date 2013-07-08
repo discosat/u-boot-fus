@@ -39,14 +39,16 @@ GLCOBJS	+= div0.o
 
 COBJS-y	+= board.o
 COBJS-y	+= bootm.o
-COBJS-y	+= cache.o
-COBJS-y	+= cache-cp15.o
 COBJS-$(CONFIG_SYS_L2_PL310) += cache-pl310.o
 COBJS-y	+= interrupts.o
 COBJS-y	+= reset.o
 SOBJS-$(CONFIG_USE_ARCH_MEMSET) += memset.o
 SOBJS-$(CONFIG_USE_ARCH_MEMCPY) += memcpy.o
+SOBJS-y += string.o
 endif
+
+COBJS-y	+= cache.o
+COBJS-y	+= cache-cp15.o
 
 SRCS	:= $(GLSOBJS:.o=.S) $(GLCOBJS:.o=.c) \
 	   $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)

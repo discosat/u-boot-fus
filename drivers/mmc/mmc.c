@@ -47,10 +47,105 @@ int __board_mmc_getcd(struct mmc *mmc) {
 int board_mmc_getcd(struct mmc *mmc)__attribute__((weak,
 	alias("__board_mmc_getcd")));
 
+#ifdef CONFIG_MMC_BOUNCE_BUFFER
+static int mmc_bounce_need_bounce(struct mmc_data *orig)
+{
+	ulong addr, len;
+
+	if (orig->flags & MMC_DATA_READ)
+		addr = (ulong)orig->dest;
+	else
+		addr = (ulong)orig->src;
+
+	if (addr % ARCH_DMA_MINALIGN) {
+		debug("MMC: Unaligned data destination address %08lx!\n", addr);
+		return 1;
+	}
+
+	len = (ulong)(orig->blocksize * orig->blocks);
+	if (len % ARCH_DMA_MINALIGN) {
+		debug("MMC: Unaligned data destination length %08lx!\n", len);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int mmc_bounce_buffer_start(struct mmc_data *backup,
+					struct mmc_data *orig)
+{
+	ulong origlen, len;
+	void *buffer;
+
+	if (!orig)
+		return 0;
+
+	if (!mmc_bounce_need_bounce(orig))
+		return 0;
+
+	memcpy(backup, orig, sizeof(struct mmc_data));
+
+	origlen = orig->blocksize * orig->blocks;
+	len = roundup(origlen, ARCH_DMA_MINALIGN);
+	buffer = memalign(ARCH_DMA_MINALIGN, len);
+	if (!buffer) {
+		puts("MMC: Error allocating MMC bounce buffer!\n");
+		return 1;
+	}
+
+	if (orig->flags & MMC_DATA_READ) {
+		orig->dest = buffer;
+	} else {
+		memcpy(buffer, orig->src, origlen);
+		orig->src = buffer;
+	}
+
+	return 0;
+}
+
+static void mmc_bounce_buffer_stop(struct mmc_data *backup,
+					struct mmc_data *orig)
+{
+	ulong len;
+
+	if (!orig)
+		return;
+
+	if (!mmc_bounce_need_bounce(backup))
+		return;
+
+	if (backup->flags & MMC_DATA_READ) {
+		len = backup->blocksize * backup->blocks;
+		memcpy(backup->dest, orig->dest, len);
+		free(orig->dest);
+		orig->dest = backup->dest;
+	} else {
+		free((void *)orig->src);
+		orig->src = backup->src;
+	}
+
+	return;
+
+}
+#else
+static inline int mmc_bounce_buffer_start(struct mmc_data *backup,
+					struct mmc_data *orig) { return 0; }
+static inline void mmc_bounce_buffer_stop(struct mmc_data *backup,
+					struct mmc_data *orig) { }
+#endif
+
 int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
 {
-#ifdef CONFIG_MMC_TRACE
+	struct mmc_data backup;
 	int ret;
+
+	memset(&backup, 0, sizeof(backup));
+
+	ret = mmc_bounce_buffer_start(&backup, data);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_MMC_TRACE
 	int i;
 	u8 *ptr;
 
@@ -84,7 +179,7 @@ int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
 			for (i = 0; i < 4; i++) {
 				int j;
 				printf("\t\t\t\t\t%03d - ", i*4);
-				ptr = &cmd->response[i];
+				ptr = (u8 *)&cmd->response[i];
 				ptr += 3;
 				for (j = 0; j < 4; j++)
 					printf("%02X ", *ptr--);
@@ -99,10 +194,11 @@ int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
 			printf("\t\tERROR MMC rsp not supported\n");
 			break;
 	}
-	return ret;
 #else
-	return mmc->send_cmd(mmc, cmd, data);
+	ret = mmc->send_cmd(mmc, cmd, data);
 #endif
+	mmc_bounce_buffer_stop(&backup, data);
+	return ret;
 }
 
 int mmc_send_status(struct mmc *mmc, int timeout)
@@ -418,7 +514,7 @@ int mmc_go_idle(struct mmc* mmc)
 {
 	struct mmc_cmd cmd;
 	int err;
-printf("-->%s",__func__);
+
 	udelay(1000);
 
 	cmd.cmdidx = MMC_CMD_GO_IDLE_STATE;
@@ -432,7 +528,6 @@ printf("-->%s",__func__);
 		return err;
 
 	udelay(2000);
-printf("<--%s",__func__);
 
 	return 0;
 }
@@ -682,12 +777,10 @@ int mmc_getcd(struct mmc *mmc)
 	int cd;
 
 	cd = board_mmc_getcd(mmc);
-    printf("mmc_getcd: 0x%x \n",cd);
 
 	if ((cd < 0) && mmc->getcd)
 		cd = mmc->getcd(mmc);
 
-    printf("mmc_getcd: 0x%x \n",cd);
 	return cd;
 }
 
@@ -1224,41 +1317,32 @@ int mmc_init(struct mmc *mmc)
 		printf("MMC: no card present\n");
 		return NO_CARD_ERR;
 	}
-    printf("%s: LN:%u",__func__,__LINE__);
+
 	if (mmc->has_init)
 		return 0;
 
 	err = mmc->init(mmc);
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	if (err)
 		return err;
-   
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	mmc_set_bus_width(mmc, 1);
 	mmc_set_clock(mmc, 1);
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* Reset the Card */
 	err = mmc_go_idle(mmc);
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	if (err)
 		return err;
 
-    printf("%s: LN:%u",__func__,__LINE__);
-
-    /* The internal partition reset to user partition(0) at every CMD0*/
+	/* The internal partition reset to user partition(0) at every CMD0*/
 	mmc->part_num = 0;
 
 	/* Test for SD version 2 */
 	err = mmc_send_if_cond(mmc);
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* Now try to get the SD card's operating condition */
 	err = sd_send_op_cond(mmc);
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	/* If the command timed out, we check for an MMC card */
 	if (err == TIMEOUT) {
@@ -1269,12 +1353,8 @@ int mmc_init(struct mmc *mmc)
 			return UNUSABLE_ERR;
 		}
 	}
-    printf("%s: LN:%u",__func__,__LINE__);
 
 	err = mmc_startup(mmc);
-    
-    printf("%s: LN:%u (0x%x)",__func__,__LINE__,err);
-
 	if (err)
 		mmc->has_init = 0;
 	else

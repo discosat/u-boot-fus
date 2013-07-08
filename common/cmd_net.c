@@ -188,19 +188,25 @@ static void netboot_update_env (void)
 #endif
 }
 
+int autoload_net(enum proto_t proto, unsigned long addr, char *fname)
+{
+	char argv0[] = "autoload";
+	char argv1[10];
+	char *argv[3] = {argv0, argv1, NULL};
+
+	sprintf(argv1, "%lx", addr);
+	argv[2] = fname;
+	return netboot_common(proto, NULL, 3, argv) ? -1 : 0;
+}
+
 static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		char * const argv[])
 {
-	char *s;
 	char *end;
 	int   rcode = 0;
 	int   size;
 	ulong addr;
-
-	/* pre-set load_addr */
-	if ((s = getenv("loadaddr")) != NULL) {
-		load_addr = simple_strtoul(s, NULL, 16);
-	}
+	ulong loadaddr = get_loadaddr();
 
 	switch (argc) {
 	case 1:
@@ -214,12 +220,12 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		 */
 		addr = simple_strtoul(argv[1], &end, 16);
 		if (end == (argv[1] + strlen(argv[1])))
-			load_addr = addr;
+			loadaddr = addr;
 		else
 			copy_filename(BootFile, argv[1], sizeof(BootFile));
 		break;
 
-	case 3:	load_addr = simple_strtoul(argv[1], NULL, 16);
+	case 3:	loadaddr = simple_strtoul(argv[1], NULL, 16);
 		copy_filename (BootFile, argv[2], sizeof(BootFile));
 
 		break;
@@ -238,6 +244,8 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		bootstage_error(BOOTSTAGE_ID_NET_START);
 		return CMD_RET_USAGE;
 	}
+	set_loadaddr(loadaddr);
+
 	bootstage_mark(BOOTSTAGE_ID_NET_START);
 
 	if ((size = NetLoop(proto)) < 0) {
@@ -256,7 +264,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 	}
 
 	/* flush cache */
-	flush_cache(load_addr, size);
+	flush_cache(loadaddr, size);
 
 	bootstage_mark(BOOTSTAGE_ID_NET_LOADED);
 

@@ -22,25 +22,9 @@
  */
 
 #include <common.h>
-
-#include <asm/arch/s3c6400.h>
-
-DECLARE_GLOBAL_DATA_PTR;
-
-#ifdef CONFIG_SERIAL1
-#define UART_NR	S3C64XX_UART0
-
-#elif defined(CONFIG_SERIAL2)
-#define UART_NR	S3C64XX_UART1
-
-#elif defined(CONFIG_SERIAL3)
-#define UART_NR	S3C64XX_UART2
-
-#else
-#error "Bad: you didn't configure serial ..."
-#endif
-
-#define barrier() asm volatile("" ::: "memory")
+#include <linux/compiler.h>		  /* barrier, __weak */
+#include <serial.h>			  /* struct serial_device */
+#include <asm/arch/s3c64xx-regs.h>
 
 /*
  * The coefficient, used to calculate the baudrate on S3C6400 UARTs is
@@ -68,17 +52,18 @@ static const int udivslot[] = {
 	0xffdf,
 };
 
-void serial_setbrg(void)
+static void s3c64xx_serial_setbrg(const struct serial_device *sdev)
 {
-	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
+	DECLARE_GLOBAL_DATA_PTR;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
 	u32 pclk = get_PCLK();
 	u32 baudrate = gd->baudrate;
 	int i;
 
-	i = (pclk / baudrate) % 16;
-
-	uart->UBRDIV = pclk / baudrate / 16 - 1;
-	uart->UDIVSLOT = udivslot[i];
+	pclk /= baudrate;
+	uart->UBRDIV = pclk / 16 - 1;
+	uart->UDIVSLOT = udivslot[pclk % 16];
 
 	for (i = 0; i < 100; i++)
 		barrier();
@@ -88,86 +73,138 @@ void serial_setbrg(void)
  * Initialise the serial port with the given baudrate. The settings
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  */
-int serial_init(void)
+static int s3c64xx_serial_start(const struct stdio_dev *pdev)
 {
-	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
+	struct serial_device *sdev = pdev->priv;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
 
 	/* reset and enable FIFOs, set triggers to the maximum */
 	uart->UFCON = 0xff;
 	uart->UMCON = 0;
 	/* 8N1 */
 	uart->ULCON = 3;
-	/* No interrupts, no DMA, pure polling */
-	uart->UCON = 5;
+	/* No interrupts, no DMA, pure polling, PCLK as clock source */
+	uart->UCON = 0x0805;
 
-	serial_setbrg();
+	s3c64xx_serial_setbrg(sdev);
 
 	return 0;
 }
 
-/*
- * Read a single byte from the serial port. Returns 1 on success, 0
- * otherwise. When the function is succesfull, the character read is
- * written into its argument c.
- */
-int serial_getc(void)
+static void s3c64xx_ll_putc(s3c64xx_uart *const uart, const char c)
 {
-	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
-
-	/* wait for character to arrive */
-	while (!(uart->UTRSTAT & 0x1));
-
-	return uart->URXH & 0xff;
-}
-
-#ifdef CONFIG_MODEM_SUPPORT
-static int be_quiet;
-void disable_putc(void)
-{
-	be_quiet = 1;
-}
-
-void enable_putc(void)
-{
-	be_quiet = 0;
-}
-#endif
-
-
-/*
- * Output a single byte to the serial port.
- */
-void serial_putc(const char c)
-{
-	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
-
-#ifdef CONFIG_MODEM_SUPPORT
-	if (be_quiet)
-		return;
-#endif
-
 	/* wait for room in the tx FIFO */
-	while (!(uart->UTRSTAT & 0x2));
+	while (!(uart->UTRSTAT & 0x2))
+		;
 
 	uart->UTXH = c;
 
 	/* If \n, also do \r */
 	if (c == '\n')
-		serial_putc('\r');
+		s3c64xx_ll_putc(uart, '\r');
+}
+
+/*
+ * Output a single byte to the serial port.
+ */
+void s3c64xx_serial_putc(const struct stdio_dev *pdev, const char c)
+{
+	struct serial_device *sdev = pdev->priv;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
+
+	s3c64xx_ll_putc(uart, c);
+}
+
+/*
+ * Output a string to the serial port.
+ */
+static void s3c64xx_serial_puts(const struct stdio_dev *pdev, const char *s)
+{
+	struct serial_device *sdev = pdev->priv;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
+
+	while (*s)
+		s3c64xx_ll_putc(uart, *s++);
+}
+
+/*
+ * Read a single byte from the serial port. 
+ */
+static int s3c64xx_serial_getc(const struct stdio_dev *pdev)
+{
+	struct serial_device *sdev = pdev->priv;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
+
+	/* wait for character to arrive */
+	while (!(uart->UTRSTAT & 0x1))
+		;
+
+	return uart->URXH & 0xff;
 }
 
 /*
  * Test whether a character is in the RX buffer
  */
-int serial_tstc(void)
+static int s3c64xx_serial_tstc(const struct stdio_dev *pdev)
 {
-	s3c64xx_uart *const uart = s3c64xx_get_base_uart(UART_NR);
+	struct serial_device *sdev = pdev->priv;
+	int port = (int)sdev->serpriv;
+	s3c64xx_uart *const uart = s3c64xx_get_base_uart(port);
 
 	return uart->UTRSTAT & 0x1;
 }
 
-void serial_puts(const char *s)
+#define INIT_S3C64XX_SERIAL_STRUCTURE(_port, _name, _hwname) {	\
+	{       /* stdio_dev part */		\
+		.name = _name,			\
+		.hwname = _hwname,		\
+		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
+		.start = s3c64xx_serial_start,	\
+		.stop = NULL,			\
+		.getc = s3c64xx_serial_getc,	\
+		.tstc =	s3c64xx_serial_tstc,	\
+		.putc = s3c64xx_serial_putc,	\
+		.puts = s3c64xx_serial_puts,	\
+		.priv = &s3c64xx_serial_device[_port],  \
+	},					\
+	.setbrg = s3c64xx_serial_setbrg,	\
+	.serpriv = (void *)_port		\
+}
+
+struct serial_device s3c64xx_serial_device[] = {
+	INIT_S3C64XX_SERIAL_STRUCTURE(0, CONFIG_SYS_SERCON_NAME "0", "s3c_uart0"),
+	INIT_S3C64XX_SERIAL_STRUCTURE(1, CONFIG_SYS_SERCON_NAME "1", "s3c_uart1"),
+	INIT_S3C64XX_SERIAL_STRUCTURE(2, CONFIG_SYS_SERCON_NAME "2", "s3c_uart2"),
+	INIT_S3C64XX_SERIAL_STRUCTURE(3, CONFIG_SYS_SERCON_NAME "3", "s3c_uart3"),
+};
+
+__weak struct serial_device *default_serial_console(void)
 {
-	while (*s)
-		serial_putc(*s++);
+#if defined(CONFIG_SERIAL0)
+	return &s3c64xx_serial_device[0];
+#elif defined(CONFIG_SERIAL1)
+	return &s3c64xx_serial_device[1];
+#elif defined(CONFIG_SERIAL2)
+	return &s3c64xx_serial_device[2];
+#elif defined(CONFIG_SERIAL3)
+	return &s3c64xx_serial_device[3];
+#else
+#error "CONFIG_SERIAL? missing."
+#endif
+}
+
+/* Register the given serial port; use new name if name != NULL */
+void s3c64xx_serial_register(int port, const char *name)
+{
+	if (port < 4) {
+		struct serial_device *sdev = &s3c64xx_serial_device[port];
+
+		if (name)
+			strcpy(sdev->dev.name, name);
+		serial_register(sdev);
+	}
 }
