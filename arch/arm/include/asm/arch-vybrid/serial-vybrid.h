@@ -210,4 +210,58 @@
 #define US4_ILCV	(1 << 1)
 #define US4_FE		(1 << 0)
 
+
+struct vybrid_uart {
+	u8 ubdh;			/* 0x00 */
+	u8 ubdl;			/* 0x01 */
+	u8 uc1;				/* 0x02 */
+	u8 uc2;				/* 0x03 */
+	u8 us1;				/* 0x04 */
+	u8 us2;				/* 0x05 */
+	u8 uc3;				/* 0x06 */
+	u8 ud;				/* 0x07 */
+	u8 uma1;			/* 0x08 */
+	u8 uma2;			/* 0x09 */
+	u8 uc4;				/* 0x0A */
+	u8 uc5;				/* 0x0B */
+	u8 ued;				/* 0x0C */
+	u8 umodem;			/* 0x0D */
+	u8 uir;				/* 0x0E */
+	u8 reserved1;
+	u8 upfifo;			/* 0x10 */
+	u8 ucfifo;			/* 0x11 */
+	u8 usfifo;			/* 0x12 */
+	u8 utwfifo;			/* 0x13 */
+	u8 utcfifo;			/* 0x14 */
+	u8 urwfifo;			/* 0x15 */
+	u8 urcfifo;			/* 0x16 */
+	u8 reserved2;
+	u8 uc7816;			/* 0x18 */
+	u8 uie7816;			/* 0x19 */
+	u8 uis7816;			/* 0x1A */
+	u8 uwp7816t0_t1;		/* 0x1B */
+	u8 uwn7816;			/* 0x1C */
+	u8 uwf7816;			/* 0x1D */
+	u8 uet78416;			/* 0x1E */
+	u8 utl7816;			/* 0x1F */
+	u8 reserved3;
+	u8 uc6;				/* 0x21 */
+	u8 upcth;			/* 0x22 */
+	u8 upctl;			/* 0x23 */
+	u8 ub1t;			/* 0x24 */
+	u8 usdth;			/* 0x25 */
+	u8 usdtl;			/* 0x26 */
+	u8 upre;			/* 0x27 */
+	u8 utpl;			/* 0x28 */
+	u8 uie;				/* 0x29 */
+	u8 uwb;				/* 0x2A */
+	u8 us3;				/* 0x2B */
+	u8 us4;				/* 0x2C */
+	u8 uprl;			/* 0x2D */
+	u8 urprel;			/* 0x2E */
+	u8 ucpw;			/* 0x2F */
+	u8 uridt;			/* 0x30 */
+	u8 utidt;			/* 0x31 */
+};
+
 #endif			/* __SERIAL_VYBRID_H__ */
