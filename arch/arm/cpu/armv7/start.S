@@ -164,7 +164,20 @@ call_board_init_f:
 	ldr	r0,=0x00000000
 	bl	board_init_f
 
-#if 0  //#####HK
+#if 0  //#####HK Vybrid
+	/* #####HK: Send character to UART ###### */
+	ldr	r0, =0x40028007		/* UART1 */
+	mov	r1, #0x46
+	strb	r1, [r0]
+	mov	r1, #0x46
+	strb	r1, [r0]
+	mov	r0, #0x01000000		/* Wait */
+9:	subs	r0, r0,#1
+	bne	9b
+	/* ########### */
+#endif //#####HK
+
+#if 0  //#####HK Samsung
 	/* #####HK: Send character to UART ###### */
 	ldr	r0, =0xE2900000		/* UART0 */
 	//ldr	r0, =0xE2900400		/* UART1 */

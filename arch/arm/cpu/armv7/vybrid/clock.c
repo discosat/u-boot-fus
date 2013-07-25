@@ -116,10 +116,10 @@ u32 get_mcu_main_clk(void)
 	return freq / (reg + 1);
 }
 
+#if 0
 /* Get the rate of peripheral's root clock. */
 static u32 get_periph_clk(void)
 {
-#if 0
 	u32 reg;
 
 	reg = __raw_readl(&mxc_ccm->cbcdr);
@@ -139,10 +139,9 @@ static u32 get_periph_clk(void)
 		return 0;
 	}
 	/* NOTREACHED */
-#else
 	return 0;
-#endif
 }
+#endif
 
 /* Get the rate of ahb clock. */
 static u32 get_ahb_clk(void)

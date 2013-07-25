@@ -20,7 +20,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
-#include <linux/mtd/compat.h>
 
 #include <mtd/fsl_nfc.h>
 
@@ -94,6 +93,18 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 	.pattern = mirror_pattern,
 };
 
+#ifdef ECC_30
+static struct nand_ecclayout fsl_nfc_ecc30 = {
+	.eccbytes = 30,
+	.eccpos = {34, 35, 36, 37, 38, 39,
+		   40, 41, 42, 43, 44, 45, 46, 47,
+		   48, 49, 50, 51, 52, 53, 54, 55,
+		   56, 57, 58, 59, 60, 61, 62, 63},
+	.oobfree = {
+		{.offset = 8,
+		.length = 26} }
+};
+#else
 static struct nand_ecclayout fsl_nfc_ecc45 = {
 	.eccbytes = 45,
 	.eccpos = {19, 20, 21, 22, 23,
@@ -106,28 +117,7 @@ static struct nand_ecclayout fsl_nfc_ecc45 = {
 		{.offset = 8,
 		.length = 11} }
 };
-
-static struct nand_ecclayout fsl_nfc_ecc30 = {
-	.eccbytes = 30,
-	.eccpos = {34, 35, 36, 37, 38, 39,
-		   40, 41, 42, 43, 44, 45, 46, 47,
-		   48, 49, 50, 51, 52, 53, 54, 55,
-		   56, 57, 58, 59, 60, 61, 62, 63},
-	.oobfree = {
-		{.offset = 8,
-		.length = 26} }
-};
-
-/* OOB layout for NAND flashes with 2048 byte pages and 64 bytes OOB */
-/* 1-bit ECC: ECC is in bytes 1..4 in OOB, bad block marker is in byte 0 */
-static struct nand_ecclayout s3c_layout_ecc1_oob64 = {
-   .eccbytes = 4,
-   .eccpos = {1, 2, 3, 4},
-   .oobfree = {
-            {.offset = 5,         /* Behind bad block marker and ECC */
-             .length = 59}}
-};
-
+#endif
 
 static inline u32 nfc_read(struct mtd_info *mtd, uint reg)
 {
@@ -846,7 +836,7 @@ int board_nand_init(struct nand_chip *chip)
 int do_nand_boot_update(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
-	ulong mem_addr;
+	ulong mem_addr, tmp;
 	size_t data_size;
 	int j;
 	struct mtd_info *mtd;
@@ -877,7 +867,8 @@ int do_nand_boot_update(cmd_tbl_t *cmdtp, int flag,
 	}
 
 	strict_strtoul(argv[1], 16, &mem_addr);
-	strict_strtoul(argv[2], 16, &data_size);
+	strict_strtoul(argv[2], 16, &tmp);
+	data_size = (size_t)tmp;
 
 	saved_cfg = nfc_read(mtd, NFC_FLASH_CONFIG);
 

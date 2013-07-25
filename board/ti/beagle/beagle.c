@@ -503,14 +503,6 @@ static struct omap_usbhs_board_data usbhs_bdata = {
 int ehci_hcd_init(void)
 {
 	return omap_ehci_hcd_init(&usbhs_bdata);
-<<<<<<< .merge_file_FqbSOp
-}
-
-int ehci_hcd_stop(void)
-{
-	return omap_ehci_hcd_stop();
-=======
->>>>>>> .merge_file_a227Zp
 }
 
 int ehci_hcd_stop(void)

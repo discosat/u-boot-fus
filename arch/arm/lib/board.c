@@ -253,7 +253,9 @@ init_fnc_t *const init_sequence[] = {
 #ifdef CONFIG_OF_CONTROL
 	fdtdec_check_fdt,
 #endif
+#ifdef CONFIG_FSL_ESDHC
 	get_clocks,
+#endif
 	timer_init,		/* initialize timer */
 	env_init,		/* initialize environment */
 	init_baudrate,		/* initialize baudrate settings */
@@ -308,8 +310,8 @@ void board_init_f(ulong bootflag)
 	/* #### Zeichen auf Schnittstelle ausgeben */
 	{
 	    volatile int __iii;
-	    *(volatile unsigned int *)0x7F005820 = 0x2a;
-	    *(volatile unsigned int *)0x7F005820 = 0x41;
+	    *(volatile unsigned char *)0x40028007 = 0x2a;
+	    *(volatile unsigned char *)0x40028007 = 0x41;
 	    for (__iii=1000000; __iii; __iii--)
 		;
 	}
@@ -317,7 +319,7 @@ void board_init_f(ulong bootflag)
 #endif
 
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
-        if ((*init_fnc_ptr)() != 0) {
+		if ((*init_fnc_ptr)() != 0) {
 			hang ();
 		}
 	}

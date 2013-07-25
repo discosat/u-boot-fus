@@ -267,19 +267,21 @@ void __mii_init(void)
 	info->phy_addr = mii_discover_phy(dev);
 
 #if 1 //ARMSTONEA5
-    if(!strcmp(info->phy_name,"KSZ8021RNL")) {
-        int tmp;
-        miiphy_read(dev->name,info->phy_addr,0x1F,&tmp);
-//        miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
-        /* fix strapping pin options, strapping pin floating */
-        miiphy_read(dev->name,info->phy_addr,MII_BMCR,&tmp);
-        miiphy_write(dev->name,info->phy_addr,MII_BMCR,tmp | BMCR_ANENABLE | BMCR_SPEED100);
-        miiphy_read(dev->name,info->phy_addr,MII_ADVERTISE,&tmp);
-        miiphy_write(dev->name,info->phy_addr,MII_ADVERTISE,tmp | ADVERTISE_100FULL | ADVERTISE_100HALF);
-    }
+	if(!strcmp(info->phy_name,"KSZ8021RNL")) {
+		u16 tmp;
+		miiphy_read(dev->name, info->phy_addr, 0x1F, &tmp);
+//              miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+		/* fix strapping pin options, strapping pin floating */
+		miiphy_read(dev->name, info->phy_addr, MII_BMCR, &tmp);
+		miiphy_write(dev->name, info->phy_addr, MII_BMCR,
+			     tmp | BMCR_ANENABLE | BMCR_SPEED100);
+		miiphy_read(dev->name, info->phy_addr, MII_ADVERTISE, &tmp);
+		miiphy_write(dev->name, info->phy_addr, MII_ADVERTISE,
+			     tmp | ADVERTISE_100FULL | ADVERTISE_100HALF);
+	}
 #endif
 
-    while (i < MCFFEC_TOUT_LOOP) {
+	while (i < MCFFEC_TOUT_LOOP) {
 		status = 0;
 		i++;
 		/* Read PHY control register */
@@ -307,6 +309,7 @@ void __mii_init(void)
 	info->dup_spd = miiphy_duplex(dev->name, info->phy_addr) << 16;
 	info->dup_spd |= miiphy_speed(dev->name, info->phy_addr);
 }
+
 /*
  * Read and write a MII PHY register, routines used by MII Utilities
  *
@@ -340,13 +343,11 @@ int mcffec_miiphy_read(const char *devname, unsigned char addr, unsigned char re
 int mcffec_miiphy_write(const char *devname, unsigned char addr, unsigned char reg,
 			unsigned short value)
 {
-	short rdreg;		/* register working value */
-
 #ifdef MII_DEBUG
 	printf("miiphy_write(0x%x) @ 0x%x = ", reg, addr);
 #endif
 
-	rdreg = mii_send(mk_mii_write(addr, reg, value));
+	mii_send(mk_mii_write(addr, reg, value));
 
 #ifdef MII_DEBUG
 	printf("0x%04x\n", value);

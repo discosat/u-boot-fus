@@ -36,8 +36,6 @@
 #ifdef CONFIG_COLDFIRE
 #include <asm/immap.h>
 #endif
-#ifdef CONFIG_VYBRID
-#endif
 
 #undef	ET_DEBUG
 #undef	MII_DEBUG
