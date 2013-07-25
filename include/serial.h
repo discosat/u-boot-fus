@@ -4,6 +4,8 @@
 #include <stdio_dev.h>			  /* struct stdio_dev */
 #include <post.h>
 
+#define to_serial_device(x) container_of((x), struct serial_device, dev)
+
 struct serial_device {
 	/* Standard functions start(), stop(), tstc(), getc(), putc(), puts()
 	   are defined in the embedded stdio_dev */
@@ -14,7 +16,6 @@ struct serial_device {
 #if CONFIG_POST & CONFIG_SYS_POST_UART
 	void (*loop) (const struct serial_device *, int);
 #endif
-	void *serpriv;
 
 	/* The serial devices are stored in a ring structure. So the last
 	   element points with its next pointer back again to the first
@@ -67,13 +68,7 @@ extern struct serial_device s3c24xx_serial1_device;
 extern struct serial_device s3c24xx_serial2_device;
 #endif
 
-#if defined(CONFIG_S3C64XX)
-extern void s3c64xx_serial_register(int, const char *);
-#endif
-
-#if defined(CONFIG_S5P)
-extern void s5p_serial_register(int, const char *);
-#endif
+extern struct serial_device *get_serial_device(unsigned int);
 
 #if defined(CONFIG_OMAP3_ZOOM2)
 extern struct serial_device zoom2_serial_device0;

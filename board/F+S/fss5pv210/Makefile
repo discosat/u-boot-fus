@@ -26,11 +26,11 @@ include $(TOPDIR)/config.mk
 LIB	= $(obj)lib$(BOARD).o
 
 COBJS-y += fss5pv210.o
-SOBJS	:= lowlevel_init.o
+SOBJS-y	:= lowlevel_init.o
 
-SRCS    := $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
+SRCS    := $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS-y))
-SOBJS	:= $(addprefix $(obj),$(SOBJS))
+SOBJS	:= $(addprefix $(obj),$(SOBJS-y))
 
 $(LIB):	$(obj).depend $(SOBJS) $(OBJS)
 	$(call cmd_link_o_target, $(SOBJS) $(OBJS))

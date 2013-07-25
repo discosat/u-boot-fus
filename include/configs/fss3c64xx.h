@@ -266,27 +266,19 @@
 	(XLCD_TEST_GRID /*| XLCD_TEST_COLORS | XLCD_TEST_D2B | XLCD_TEST_GRAD*/)
 #endif
 
+
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/
-#define CONFIG_SERIAL2          1	  /* We don't use it anymore, but we
-					     have to define one setting */
+#define CONFIG_SYS_UART_PORT    0	  /* Default UART port; however we
+					     always take the port from NBoot */
 #define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
 //#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
-
 #define CONFIG_SYS_SERCON_NAME "ttySAC"	  /* Base name for serial devices */
-
-#define CONFIG_BAUDRATE		38400
-
-/* valid baudrates */
+#define CONFIG_SYS_CONSOLE_IS_IN_ENV	  /* Console can be saved in env */
+#define CONFIG_BAUDRATE		38400	  /* default baudrate */
 #define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
-#if defined(CONFIG_CMD_KGDB)
-#define CONFIG_KGDB_BAUDRATE	115200	  /* speed to run kgdb serial port */
-#define CONFIG_KGDB_SER_INDEX	1	  /* which serial port to use */
-#endif
-
-#define CONFIG_SYS_CONSOLE_IS_IN_ENV	  /* Console can be saved in env */
 
 
 /************************************************************************

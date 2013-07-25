@@ -32,6 +32,13 @@ DECLARE_GLOBAL_DATA_PTR;
 static struct serial_device *serial_devices;
 static struct serial_device *serial_current;
 
+/* Return serial device for default port */
+__weak struct serial_device *default_serial_console(void)
+{
+	return get_serial_device(CONFIG_SYS_UART_PORT);
+}
+
+
 void serial_register(struct serial_device *sdev)
 {
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
@@ -105,16 +112,16 @@ void serial_initialize(void)
 		serial_register(&s3c24xx_serial2_device);
 #endif
 #if defined(CONFIG_S3C64XX)
-		s3c64xx_serial_register(0, NULL);
-		s3c64xx_serial_register(1, NULL);
-		s3c64xx_serial_register(2, NULL);
-		s3c64xx_serial_register(3, NULL);
+		serial_register(get_serial_device(0));
+		serial_register(get_serial_device(1));
+		serial_register(get_serial_device(2));
+		serial_register(get_serial_device(3));
 #endif
 #if defined(CONFIG_S5P)
-		s5p_serial_register(0, NULL);
-		s5p_serial_register(1, NULL);
-		s5p_serial_register(2, NULL);
-		s5p_serial_register(3, NULL);
+		serial_register(get_serial_device(0));
+		serial_register(get_serial_device(1));
+		serial_register(get_serial_device(2));
+		serial_register(get_serial_device(3));
 #endif
 #if defined(CONFIG_MPC512X)
 #if defined(CONFIG_SYS_PSC1)

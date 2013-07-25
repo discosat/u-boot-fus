@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2013
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
@@ -91,9 +91,6 @@ unsigned int nand_blocksize;
 /* Copy of the NBoot args */
 struct nboot_args fs_nboot_args;
 
-/* Serial devices, defined in serial driver */
-extern struct serial_device s3c64xx_serial_device[];
-
 
 /*
  * Miscellaneous platform dependent initialisations. Boot Sequence:
@@ -164,12 +161,25 @@ extern struct serial_device s3c64xx_serial_device[];
  *          - eth_initialize() continues and lists all registered eth devices
  */
 
+/* Get the number of the debug port reported by NBoot */
+static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
+{
+	unsigned int port = 4;
+	struct serial_device *sdev;
+
+	do {
+		sdev = get_serial_device(--port);
+		if (sdev && sdev->dev.priv == (void *)dwDbgSerPortPA)
+			return port;
+	} while (port);
+
+	return CONFIG_SYS_UART_PORT;
+} 
+
 struct serial_device *default_serial_console(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	s3c64xx_uart *dbg;
 	struct nboot_args *pargs;
-	int i;
 
 	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
 	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
@@ -184,16 +194,7 @@ struct serial_device *default_serial_console(void)
 	else
 		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
 
-	dbg = (s3c64xx_uart *)pargs->dwDbgSerPortPA;
-
-	i = 4;
-	do {
-		i--;
-		if (s3c64xx_get_base_uart(i) == dbg)
-			break;
-	} while (i);
-
-	return s3c64xx_serial_device + i;
+	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
 }
 
 /* Check board type */
@@ -276,13 +277,13 @@ int board_init(void)
 
 
 #if 0
-/* Register the available serial ports on this board */
+/* Register only those serial ports that are actually available on the board */
 int board_serial_init(void)
 {
-	s5p_serial_register(0, "fs_ser0");
-	s5p_serial_register(1, "fs_ser1");
-	s5p_serial_register(2, "fs_ser2");
-	s5p_serial_register(3, "fs_ser3");
+	serial_register(get_serial_device(0));
+	serial_register(get_serial_device(1));
+	serial_register(get_serial_device(2));
+	serial_register(get_serial_device(3));
 
 	return 0;
 }
@@ -444,21 +445,10 @@ int board_late_init(void)
 
 	/* Set sercon variable if not already set */
 	if (!getenv("sercon")) {
-		s3c64xx_uart *uart;
-		s3c64xx_uart *dbg;
-		int i;
 		char sercon[DEV_NAME_SIZE];
 
-		uart = s3c64xx_get_base_uart(0);
-		dbg = (s3c64xx_uart *)fs_nboot_args.dwDbgSerPortPA;
-
-		i = 4;
-		do {
-			i--;
-			if (dbg == uart + i)
-				break;
-		} while (i);
-		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME, '0'+i);
+		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
+			'0' + get_debug_port(fs_nboot_args.dwDbgSerPortPA));
 		setenv("sercon", sercon);
 	}
 
