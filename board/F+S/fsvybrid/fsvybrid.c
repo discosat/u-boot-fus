@@ -1,0 +1,973 @@
+/*
+ * (C) Copyright 2013
+ * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
+ *
+ * See file CREDITS for list of people who contributed to this
+ * project.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
+#include <common.h>
+#include <asm/errno.h>			  /* ENODEV */
+#ifdef CONFIG_CMD_NET
+#include <asm/fec.h>
+#include <net.h>			  /* eth_init(), eth_halt() */
+#include <netdev.h>			  /* ne2000_initialize() */
+#endif
+#ifdef CONFIG_CMD_LCD
+#include <cmd_lcd.h>			  /* PON_*, POFF_* */
+#endif
+#include <serial.h>			  /* struct serial_device */
+
+#ifdef CONFIG_GENERIC_MMC
+#include <mmc.h>
+#include <fsl_esdhc.h>
+#endif
+
+#include <asm/gpio.h>
+#include <asm/io.h>
+#include <asm/arch/vybrid-regs.h>	/* SCSCM_BASE_ADDR, ... */
+#include <asm/arch/vybrid-pins.h>
+#include <asm/arch/iomux.h>
+#include <asm/arch/sys_proto.h>
+#include <asm/arch/crm_regs.h>
+#include <asm/arch/scsc_regs.h>		/* struct vybrid_scsc_reg */
+#include <i2c.h>
+
+#include <usb/ehci-fsl.h>
+
+#ifdef CONFIG_FSL_ESDHC
+struct fsl_esdhc_cfg esdhc_cfg[2] = {
+	{CONFIG_SYS_ESDHC1_BASE, 1},
+	{ESDHC2_BASE_ADDR, 1},
+};
+#endif
+
+/* ------------------------------------------------------------------------- */
+
+#define NBOOT_PASSWDLEN 8
+#define NBOOT_ARGS_BASE (PHYS_SDRAM_0 + 0x00001000) /* Arguments from NBoot */
+#define BOOT_PARAMS_BASE (PHYS_SDRAM_0 + 0x100)	    /* Arguments to Linux */
+
+#define BT_ARMSTONEA5 0
+#define BT_PICOCOMA5  1
+#define BT_NETDCUA5   2
+#define BT_PICOMODA5  3
+
+#define FEAT_CPU400   (1<<0)		  /* 0: 500 MHz, 1: 400 MHz CPU */
+#define FEAT_2NDCAN   (1<<1)		  /* 0: 1x CAN, 1: 2x CAN */
+#define FEAT_2NDLAN   (1<<4)		  /* 0: 1x LAN, 1: 2x LAN */
+
+struct M4_ARGS
+{
+	unsigned int dwID;
+	unsigned int dwSize;
+	unsigned int dwCRC;
+	unsigned int dwLoadAddress;
+	unsigned int dwMCCAddress;
+	unsigned int dwReserved[3];
+};
+
+/* NBoot arguments that are passed from NBoot to us */
+struct nboot_args
+{
+	unsigned int dwID;		  /* ARGS_ID */
+	unsigned int dwSize;		  /* 16*4 + 8*4 */
+	unsigned int dwNBOOT_VER;
+	unsigned int dwMemSize;		  /* size of SDRAM in MB */
+	unsigned int dwFlashSize;	  /* size of NAND flash in MB */
+	unsigned int dwDbgSerPortPA;	  /* Phys addr of serial debug port */
+	unsigned int dwNumDram;		  /* Installed memory chips */
+	unsigned int dwAction;		  /* (unused in U-Boot) */
+	unsigned int dwCompat;		  /* (unused in U-Boot) */
+	char chPassword[NBOOT_PASSWDLEN]; /* (unused in U-Boot) */
+	unsigned char chBoardType;
+	unsigned char chBoardRev;
+	unsigned char chFeatures1;
+	unsigned char chFeatures2;
+	unsigned short wBootStartBlock;	  /* Start block number of bootloader */
+	unsigned short wReserved;
+	unsigned int dwReserved[3];
+	struct M4_ARGS m4_args;
+};
+
+struct board_info {
+	char *name;			  /* Device name */
+	unsigned int mach_type;		  /* Device machine ID */
+	char *updinstcheck;		  /* Default devices for upd/inst */
+};
+
+const struct board_info fs_board_info[8] = {
+	{"armStoneA5", MACH_TYPE_ARMSTONEA5, "mmc,usb"},	/* 0 */
+	{"PicoCOMA5",  MACH_TYPE_PICOCOMA5,  "mmc,usb"},	/* 1 */
+	{"NetDCUA5",   MACH_TYPE_NETDCUA5,   "mmc,usb"},	/* 2 */
+	{"PicoMODA5",  0/*####not yet registered*/, "mmc,usb"},	/* 3 */
+};
+
+/* String used for system prompt */
+char fs_sys_prompt[20];
+
+/* Copy of the NBoot args */
+struct nboot_args fs_nboot_args;
+
+
+/*
+ * Miscellaneous platform dependent initialisations. Boot Sequence:
+ *
+ * Nr. File             Function        Comment
+ * -----------------------------------------------------------------
+ *  1.  start.S         reset()                 Init CPU, invalidate cache
+ *  2.  fsvybrid.c      save_boot_params()      (unused)
+ *  3.  lowlevel_init.S lowlevel_init()         Init clocks, etc.
+ *  4.  board.c         board_init_f()          Init from flash (without RAM)
+ *  5.  cpu_info.c      arch_cpu_init()         CPU type (PC100, PC110/PV210)
+ *  6.  fsvybrid.c      board_early_init_f()    Set up NAND flash ###
+ *  7.  timer.c         timer_init()            Init timer for udelay()
+ *  8.  env_nand.c      env_init()              Prepare to read env from NAND
+ *  9.  board.c         init_baudrate()         Get the baudrate from env
+ * 10.  serial.c        serial_init()           Start default serial port
+ * 10a. fsvybrid.c      default_serial_console() Get serial debug port
+ * 11.  console.c       console_init_f()        Early console on serial port
+ * 12.  board.c         display_banner()        Show U-Boot version
+ * 13.  cpu_info.c      print_cpuinfo()         Show CPU type
+ * 14.  fsvybrid.c      checkboard()            Check NBoot params, show board
+ * 15.  fsvybrid.c      dram_init()             Set DRAM size to global data
+ * 16.  cmd_lcd.c       lcd_setmem()            Reserve framebuffer region
+ * 17.  fsvybrid.c      dram_init_banksize()    Set ram banks to board desc.
+ * 18.  board.c         display_dram_config()   Show DRAM info
+ * 19.  lowlevel_init.S setup_mmu_table()       Init MMU table
+ * 20.  start.S         relocate_code()         Relocate U-Boot to end of RAM,
+ * 21.  board.c         board_init_r()          Init from RAM
+ * 22.  cache.c         enable_caches()         Switch on caches
+ * 23.  fsvybrid.c      board_init()            Set boot params, config CS
+ * 24.  serial.c        serial_initialize()     Register serial devices
+ * 24a. fsvybrid.c      board_serial_init()     (unused)
+ * 25.  dlmalloc.c      mem_malloc_init()       Init heap for malloc()
+ * 26.  nand.c          nand_init()             Scan NAND devices
+ * 26a. s5p_nand.c ###     board_nand_init()       Set fss5pv210 NAND config
+ * 26b. s5p_nand.c ###     board_nand_setup()      Set OOB layout and ECC mode
+ * 26c. fsvybrid.c      board_nand_setup_s3c()  Set OOB layout and ECC mode
+ * 27.  mmc.c           mmc_initialize()        Scan MMC slots
+ * 27a. fsvybrid.c      board_mmc_init()        Set fss5pv210 MMC config
+ * 28.  env_common.c    env_relocate()          Copy env to RAM
+ * 29.  stdio_init.c    stdio_init()            Set I/O devices
+ * 30.  cmd_lcd.c       drv_lcd_init()          Register LCD devices
+ * 31.  serial.c        serial_stdio_init()     Register serial devices
+ * 32.  exports.c       jumptable_init()        Table for exported functions
+ * 33.  api.c           api_init()              (unused)
+ * 34.  console.c       console_init_r()        Start full console
+ * 35.  fsvybrid.c      arch_misc_init()        (unused)
+ * 36.  fsvybrid.c      misc_init_r()           (unused)
+ * 37.  interrupts.c    interrupt_init()        (unused)
+ * 38.  interrupts.c    enable_interrupts()     (unused)
+ * 39.  fsvybrid.c      board_late_init()       Set additional environment
+ * 40.  eth.c           eth_initialize()        Register eth devices
+ * 40a. fsvybrid.c      board_eth_init()        Set fss5pv210 eth config
+ * 41.  cmd_source.c    update_script()         Run update script
+ * 42.  main.c          main_loop()             Handle user commands
+ *
+ * The basic idea is to call some protocol specific driver_init() function in
+ * board.c. This calls a board_driver_init() function here where all required
+ * GPIOs and other initializations for this device are done. Then a device
+ * specific init function is called that registers the appropriate devices at
+ * the protocol driver. Then the local function returns and the registered
+ * devices can be listed.
+ *
+ * Example: - board.c calls eth_initialize()
+ *	    - eth_initialize() calls board_eth_init() here; we reset one or
+ *	      two AX88796 devices and register them with ne2000_initialize();
+ *	      this in turn calls eth_register(). Then we return.
+ *	    - eth_initialize() continues and lists all registered eth devices
+ */
+
+#if 0 //#### Already done in NBoot **REMOVEME**
+static void setup_iomux_uart(void)
+{
+	__raw_writel(0x002011a2, IOMUXC_PAD_026); /* UART1 on PTB4-7 */
+	__raw_writel(0x002011a1, IOMUXC_PAD_027);
+	__raw_writel(0x002011a2, IOMUXC_PAD_028);
+	__raw_writel(0x002011a1, IOMUXC_PAD_029);
+	__raw_writel(0x001011a2, IOMUXC_PAD_032); /* UART0 on PTB10/11 */
+	__raw_writel(0x001011a1, IOMUXC_PAD_033);
+}
+#endif
+
+
+#ifdef CONFIG_NAND_FSL_NFC
+static void setup_iomux_nfc(void)
+{
+	__raw_writel(0x002038df, IOMUXC_PAD_063);
+	__raw_writel(0x002038df, IOMUXC_PAD_064);
+	__raw_writel(0x002038df, IOMUXC_PAD_065);
+	__raw_writel(0x002038df, IOMUXC_PAD_066);
+	__raw_writel(0x002038df, IOMUXC_PAD_067);
+	__raw_writel(0x002038df, IOMUXC_PAD_068);
+	__raw_writel(0x002038df, IOMUXC_PAD_069);
+	__raw_writel(0x002038df, IOMUXC_PAD_070);
+	__raw_writel(0x002038df, IOMUXC_PAD_071);
+	__raw_writel(0x002038df, IOMUXC_PAD_072);
+	__raw_writel(0x002038df, IOMUXC_PAD_073);
+	__raw_writel(0x002038df, IOMUXC_PAD_074);
+	__raw_writel(0x002038df, IOMUXC_PAD_075);
+	__raw_writel(0x002038df, IOMUXC_PAD_076);
+	__raw_writel(0x002038df, IOMUXC_PAD_077);
+	__raw_writel(0x002038df, IOMUXC_PAD_078);
+
+	__raw_writel(0x005038d2, IOMUXC_PAD_094);
+	__raw_writel(0x005038d2, IOMUXC_PAD_095);
+	__raw_writel(0x006038d2, IOMUXC_PAD_097);
+	__raw_writel(0x005038dd, IOMUXC_PAD_099);
+	__raw_writel(0x006038d2, IOMUXC_PAD_100);
+	__raw_writel(0x006038d2, IOMUXC_PAD_101);
+}
+#endif
+
+int board_early_init_f(void)
+{
+//####	setup_iomux_uart();		/* Setup debug port (UART) */
+#ifdef CONFIG_NAND_FSL_NFC
+	setup_iomux_nfc();		/* Setup NAND flash controller */
+#endif
+	return 0;
+}
+
+/* Get the number of the debug port reported by NBoot */
+static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
+{
+	unsigned int port = 6;
+	struct serial_device *sdev;
+
+	do {
+		sdev = get_serial_device(--port);
+		if (sdev && sdev->dev.priv == (void *)dwDbgSerPortPA)
+			return port;
+	} while (port);
+
+	return CONFIG_SYS_UART_PORT;
+} 
+
+struct serial_device *default_serial_console(void)
+{
+ 	DECLARE_GLOBAL_DATA_PTR;
+	struct nboot_args *pargs;
+
+	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
+	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
+	   However GD_FLG_RELOC may be set before the NBoot arguments are
+	   copied from NBOOT_ARGS_BASE to fs_nboot_args (see board_init()
+	   below). But then at least the .bss section and therefore
+	   fs_nboot_args is cleared. So if fs_nboot_args.dwDbgSerPortPA is 0,
+	   the structure is not yet copied and we still have to look at
+	   NBOOT_ARGS_BASE. Otherwise we can (and must) use fs_nboot_args. */
+	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
+		pargs = &fs_nboot_args;
+	else
+		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+
+	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
+}
+
+/* Check board type */
+int checkboard(void)
+{
+	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+
+	printf("Board: %s Rev %u.%02u (%dx DRAM, %dx LAN, %dx CAN, %d MHz)\n",
+	       fs_board_info[pargs->chBoardType].name,
+	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
+	       pargs->dwNumDram, pargs->chFeatures1 & FEAT_2NDLAN ? 2 : 1,
+	       pargs->chFeatures1 & FEAT_2NDCAN ? 2 : 1,
+	       pargs->chFeatures1 & FEAT_CPU400 ? 400 : 500);
+
+#if 0 //###
+	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
+	printf("dwMemSize = 0x%08x\n", pargs->dwMemSize);
+	printf("dwFlashSize = 0x%08x\n", pargs->dwFlashSize);
+	printf("dwDbgSerPortPA = 0x%08x\n", pargs->dwDbgSerPortPA);
+	printf("chBoardType = 0x%02x\n", pargs->chBoardType);
+	printf("chBoardRev = 0x%02x\n", pargs->chBoardRev);
+	printf("chFeatures1 = 0x%02x\n", pargs->chFeatures1);
+	printf("chFeatures2 = 0x%02x\n", pargs->chFeatures2);
+#endif
+
+	return 0;
+}
+
+
+#if 0 //### Already done in NBoot **REMOVEME**
+void setup_iomux_ddr(void)
+{
+#define DDR_IOMUX	0x00000180
+#define DDR_IOMUX1	0x00010180
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A15);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A14);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A13);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A12);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A11);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A10);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A9);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A8);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A7);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A6);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A5);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A4);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A3);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A2);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A1);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA2);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA1);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA0);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CAS);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CKE);
+	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_CLK);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CS);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D15);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D14);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D13);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D12);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D11);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D10);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D9);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D8);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D7);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D6);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D5);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D4);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D3);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D2);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D1);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D0);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_DQM1);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_DQM0);
+	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_DQS1);
+	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_DQS0);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_RAS);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_WE);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT1);
+	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT0);
+}
+#endif //### 0
+
+#if 0 // ### Already done in NBoot **REMOVEME**
+static void ddr_phy_init(void)
+{
+#define PHY_DQ_TIMING		0x00002613
+#define PHY_DQS_TIMING		0x00002615
+#define PHY_CTRL		0x01210080
+#define PHY_MASTER_CTRL		0x0001012a
+#define PHY_SLAVE_CTRL		0x00012020
+
+	/* phy_dq_timing_reg freq set 0 */
+	__raw_writel(PHY_DQ_TIMING, DDR_PHY000);
+	__raw_writel(PHY_DQ_TIMING, DDR_PHY016);
+	__raw_writel(PHY_DQ_TIMING, DDR_PHY032);
+	__raw_writel(PHY_DQ_TIMING, DDR_PHY048);
+
+	/* phy_dqs_timing_reg freq set 0 */
+	__raw_writel(PHY_DQS_TIMING, DDR_PHY001);
+	__raw_writel(PHY_DQS_TIMING, DDR_PHY017);
+	__raw_writel(PHY_DQS_TIMING, DDR_PHY033);
+	__raw_writel(PHY_DQS_TIMING, DDR_PHY049);
+
+	/* phy_gate_lpbk_ctrl_reg freq set 0 */
+	__raw_writel(PHY_CTRL, DDR_PHY002);	/* read delay bit21:19 */
+	__raw_writel(PHY_CTRL, DDR_PHY018);	/* phase_detect_sel bit18:16 */
+	__raw_writel(PHY_CTRL, DDR_PHY034);	/* bit lpbk_ctrl bit12 */
+	__raw_writel(PHY_CTRL, DDR_PHY050);
+
+	/* phy_dll_master_ctrl_reg freq set 0 */
+	__raw_writel(PHY_MASTER_CTRL, DDR_PHY003);
+	__raw_writel(PHY_MASTER_CTRL, DDR_PHY019);
+	__raw_writel(PHY_MASTER_CTRL, DDR_PHY035);
+	__raw_writel(PHY_MASTER_CTRL, DDR_PHY051);
+
+	/* phy_dll_slave_ctrl_reg freq set 0 */
+	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY004);
+	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY020);
+	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY036);
+	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY052);
+
+	__raw_writel(0x00001105, DDR_PHY050);
+}
+#endif //#### 0
+
+#if 0 // ### Already done in NBoot **REMOVEME**
+static unsigned long ddr_ctrl_init(void)
+{
+	int dram_size, rows, cols, banks, port;
+	/* These settings would be for 256MB DDR */
+	__raw_writel(0x00000600, DDR_CR000);	/* LPDDR2 or DDR3 */
+	__raw_writel(0x00000020, DDR_CR002);	/* TINIT */
+	__raw_writel(0x0000007c, DDR_CR010);	/* reset during power on */
+						/* warm boot - 200ns */
+	__raw_writel(0x00013880, DDR_CR011);	/* 500us - 10ns */
+	__raw_writel(0x0000050c, DDR_CR012);	/* CASLAT_LIN, WRLAT */
+	__raw_writel(0x15040404, DDR_CR013);	/* trc, trrd, tccd
+						   tbst_int_interval */
+	__raw_writel(0x1406040F, DDR_CR014);	/* tfaw, tfp, twtr, tras_min */
+	__raw_writel(0x04040000, DDR_CR016);	/* tmrd, trtp */
+	__raw_writel(0x006DB00C, DDR_CR017);	/* tras_max, tmod */
+	__raw_writel(0x00000403, DDR_CR018);	/* tckesr, tcke */
+
+	__raw_writel(0x01000000, DDR_CR020);	/* ap, writrp */
+	__raw_writel(0x06060101, DDR_CR021);	/* trcd_int, tras_lockout
+						   ccAP */
+	__raw_writel(0x000C0000, DDR_CR022);	/* tdal */
+	__raw_writel(0x03000200, DDR_CR023);	/* bstlen, tmrr, tdll */
+	__raw_writel(0x00000006, DDR_CR024);	/* addr_mirror, reg_dimm
+						   trp_ab */
+	__raw_writel(0x00010000, DDR_CR025);	/* tref_enable, auto_refresh
+						   arefresh */
+	__raw_writel(0x0C280068, DDR_CR026);	/* tref, trfc */
+	__raw_writel(0x00000005, DDR_CR028);	/* tref_interval fixed at 5 */
+	__raw_writel(0x00000003, DDR_CR029);	/* tpdex */
+
+	__raw_writel(0x0000000A, DDR_CR030);	/* txpdll */
+	__raw_writel(0x00440200, DDR_CR031);	/* txsnr, txsr */
+	__raw_writel(0x00010000, DDR_CR033);	/* cke_dly, en_quick_srefresh
+						 * srefresh_exit_no_refresh,
+						 * pwr, srefresh_exit
+						 */
+	__raw_writel(0x00050500, DDR_CR034);	/* cksrx, */
+						/* cksre, lowpwr_ref_en */
+
+	/* Frequency change */
+	__raw_writel(0x00000100, DDR_CR038);	/* freq change... */
+	__raw_writel(0x04001002, DDR_CR039);
+
+	__raw_writel(0x00000001, DDR_CR041);	/* dfi_init_start */
+	__raw_writel(0x00000000, DDR_CR045);	/* wrmd */
+	__raw_writel(0x00000000, DDR_CR046);	/* rdmd */
+	__raw_writel(0x00000000, DDR_CR047);	/* REF_PER_AUTO_TEMPCHK:
+						 *   LPDDR2 set to 2, else 0
+						 */
+
+	/* DRAM device Mode registers */
+	__raw_writel(0x00460420, DDR_CR048);	/* mr0, ddr3 burst of 8 only
+						 * mr1, if freq < 125
+						 * dll_dis = 1, rtt = 0
+						 * if freq > 125, dll_dis = 0
+						 * rtt = 3
+						 */
+	__raw_writel(0x00000000, DDR_CR049);	/* mr2 */
+	__raw_writel(0x00000000, DDR_CR051);	/* mr3 & mrsingle_data_0 */
+
+	__raw_writel(0x00000000, DDR_CR057);	/* ctrl_raw */
+
+	/* ECC */
+	/*__raw_writel(0x00000000, DDR_CR058);*/
+
+	/* ZQ stuff */
+	__raw_writel(0x01000200, DDR_CR066);	/* zqcl, zqinit */
+	__raw_writel(0x02000040, DDR_CR067);	/* zqcs */
+	__raw_writel(0x00000200, DDR_CR069);	/* zq_on_sref_exit, qz_req */
+
+	__raw_writel(0x00000040, DDR_CR070);	/* ref_per_zq */
+	__raw_writel(0x00000000, DDR_CR071);	/* zqreset, ddr3 set to 0 */
+	__raw_writel(0x01000000, DDR_CR072);	/* zqcs_rotate, no_zq_init */
+
+	/* DRAM controller misc */
+	__raw_writel(0x0a010200, DDR_CR073);	/* arebit, col_diff, row_diff
+						   bank_diff */
+	__raw_writel(0x0101ffff, DDR_CR074);	/* bank_split, addr_cmp_en
+						   cmd/age cnt */
+	__raw_writel(0x01010101, DDR_CR075);	/* rw same pg, rw same en
+						   pri en, plen */
+	__raw_writel(0x03030101, DDR_CR076);	/* #q_entries_act_dis
+						 * (#cmdqueues
+						 * dis_rw_grp_w_bnk_conflict
+						 * w2r_split_en, cs_same_en */
+	__raw_writel(0x01000101, DDR_CR077);	/* cs_map, inhibit_dram_cmd
+						 * dis_interleave, swen */
+	__raw_writel(0x0000000C, DDR_CR078);	/* qfull, lpddr2_s4, reduc
+						   burst_on_fly */
+	__raw_writel(0x01000000, DDR_CR079);	/* ctrlupd_req_per aref en
+						 * ctrlupd_req
+						 * ctrller busy
+						 * in_ord_accept */
+	/* disable interrupts */
+	__raw_writel(0x1FFFFFFF, DDR_CR082);
+
+	/* ODT */
+	__raw_writel(0x01010000, DDR_CR087);	/* odt: wr_map_cs0
+						 * rd_map_cs0
+						 * port_data_err_id */
+	__raw_writel(0x00040000, DDR_CR088);	/* todtl_2cmd */
+	__raw_writel(0x00000002, DDR_CR089);	/* add_odt stuff */
+
+	__raw_writel(0x00020000, DDR_CR091);
+	__raw_writel(0x00000000, DDR_CR092);	/* tdqsck _min, max */
+
+	__raw_writel(0x00002819, DDR_CR096);	/* wlmrd, wldqsen */
+
+
+	/* AXI ports */
+	__raw_writel(0x00202000, DDR_CR105);
+	__raw_writel(0x20200000, DDR_CR106);
+	__raw_writel(0x00000202, DDR_CR110);
+	__raw_writel(0x00202000, DDR_CR114);
+	__raw_writel(0x20200000, DDR_CR115);
+
+	__raw_writel(0x00000101, DDR_CR117);	/* FIFO type (0-async, 1-2:1
+						 *	2-1:2, 3- sync, w_pri
+						 * r_pri
+						 */
+	__raw_writel(0x01010000, DDR_CR118);	/* w_pri, rpri, en */
+	__raw_writel(0x00000000, DDR_CR119);	/* fifo_type */
+
+	__raw_writel(0x02020000, DDR_CR120);
+	__raw_writel(0x00000202, DDR_CR121);
+	__raw_writel(0x01010064, DDR_CR122);
+	__raw_writel(0x00010101, DDR_CR123);
+	__raw_writel(0x00000064, DDR_CR124);
+
+	/* TDFI */
+	__raw_writel(0x00000000, DDR_CR125);
+	__raw_writel(0x00000B00, DDR_CR126);	/* PHY rdlat */
+	__raw_writel(0x00000000, DDR_CR127);	/* dram ck dis */
+
+	__raw_writel(0x00000000, DDR_CR131);
+	__raw_writel(0x00000506, DDR_CR132);	/* wrlat, rdlat */
+	__raw_writel(0x00020000, DDR_CR137);
+	__raw_writel(0x04070303, DDR_CR139);
+
+	__raw_writel(0x00000000, DDR_CR136);
+
+	__raw_writel(0x68200000, DDR_CR154);
+	__raw_writel(0x00000202, DDR_CR155);	/* pad_ibe, _sel */
+	__raw_writel(0x00000006, DDR_CR158);	/* twr */
+	__raw_writel(0x00000006, DDR_CR159);	/* todth */
+
+	ddr_phy_init();
+
+	__raw_writel(0x00000601, DDR_CR000);	/* LPDDR2 or DDR3, start */
+
+	udelay(200);
+
+	rows = (__raw_readl(DDR_CR001) & 0x1F) -
+	       ((__raw_readl(DDR_CR073) >> 8) & 3);
+	cols = ((__raw_readl(DDR_CR001) >> 8) & 0xF) -
+	       ((__raw_readl(DDR_CR073) >> 16) & 7);
+	banks = 1 << (3 - (__raw_readl(DDR_CR073) & 3));
+	port = ((__raw_readl(DDR_CR078) >> 8) & 1) ? 1 : 2;
+
+	dram_size = (1 << (rows + cols)) * banks * port;
+
+	return dram_size;
+}
+#endif //#### 0
+
+
+/* Set the available RAM size. We have a memory bank starting at 0x80000000
+   that can hold up to 1536MB of RAM. However up to now we only have 256MB or
+   512MB on F&S Vybrid boards. */
+int dram_init(void)
+{
+	DECLARE_GLOBAL_DATA_PTR;
+	struct nboot_args *pargs;
+
+	pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	gd->ram_size = pargs->dwMemSize << 20;
+	gd->ram_base = PHYS_SDRAM_0;
+
+	return 0;
+}
+
+
+/* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
+int board_init(void)
+{
+	DECLARE_GLOBAL_DATA_PTR;
+	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	unsigned int board_type = pargs->chBoardType;
+	u32 temp;
+	struct vybrid_scsc_reg *scsc;
+
+	/* Save a copy of the NBoot args */
+	memcpy(&fs_nboot_args, pargs, sizeof(struct nboot_args));
+
+	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
+	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
+
+	/* Prepare the command prompt */
+	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
+
+	/* The internal clock experiences significant drift so we must use the
+	   external oscillator in order to maintain correct time in the
+	   hwclock */
+	scsc = (struct vybrid_scsc_reg *)SCSCM_BASE_ADDR;
+	temp = __raw_readl(&scsc->sosc_ctr);
+	temp |= VYBRID_SCSC_SICR_CTR_SOSC_EN;
+	__raw_writel(temp, &scsc->sosc_ctr);
+
+#ifdef CONFIG_FS_VYBRID_PLL_ETH
+//###	printf("### %s: using internal PLL.\n",__func__);
+	//### FIXME: Use predefined address names
+	temp = __raw_readl(0x4006B020);
+	temp = temp | (2<<4); //[5:4]
+	__raw_writel(temp, 0x4006B020);
+	temp = __raw_readl(0x4006B014);
+	temp = temp | (1<<24); //[24]
+	__raw_writel(temp, 0x4006B014);
+	temp = __raw_readl(0x400500E0);
+	temp = 0x2001;
+	__raw_writel(temp, 0x400500E0);
+#endif
+	return 0;
+}
+
+
+size_t get_env_size(void)
+{
+	return ENV_SIZE_DEF_LARGE;
+}
+
+size_t get_env_range(void)
+{
+	return ENV_RANGE_DEF_LARGE;
+}
+
+size_t get_env_offset(void)
+{
+	return ENV_OFFSET_DEF_LARGE;
+}
+
+
+#ifdef CONFIG_QUAD_SPI
+void setup_iomux_quadspi(void)
+{
+    __raw_writel(0x001030C3, IOMUXC_PAD_079);	/* SCK */
+	__raw_writel(0x001030FF, IOMUXC_PAD_080);	/* CS0 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_081);	/* D3 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_082);	/* D2 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_083);	/* D1 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_084);	/* D0 */
+
+	__raw_writel(0x001030C3, IOMUXC_PAD_086);	/* SCK */
+	__raw_writel(0x001030FF, IOMUXC_PAD_087);	/* CS0 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_088);	/* D3 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_089);	/* D2 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_090);	/* D1 */
+	__raw_writel(0x001030C3, IOMUXC_PAD_091);	/* D0 */
+}
+#endif
+
+#ifdef CONFIG_GENERIC_MMC
+int board_mmc_getcd(struct mmc *mmc)
+{
+	/*struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;*/
+	int ret;
+#if 1
+#if 0
+	__raw_writel(0x005031e2, IOMUXC_PAD_045);	/* clk */
+	__raw_writel(0x005031e2, IOMUXC_PAD_046);	/* cmd */
+	__raw_writel(0x005031e3, IOMUXC_PAD_047);	/* dat0 */
+	__raw_writel(0x005031e3, IOMUXC_PAD_048);	/* dat1 */
+	__raw_writel(0x005031e3, IOMUXC_PAD_049);	/* dat2 */
+	__raw_writel(0x005031e3, IOMUXC_PAD_050);	/* dat3 */
+#endif
+	__raw_writel(0x005031ef, IOMUXC_PAD_014);	/* clk */
+	__raw_writel(0x005031ef, IOMUXC_PAD_015);	/* cmd */
+	__raw_writel(0x005031ef, IOMUXC_PAD_016);	/* dat0 */
+	__raw_writel(0x005031ef, IOMUXC_PAD_017);	/* dat1 */
+	__raw_writel(0x005031ef, IOMUXC_PAD_018);	/* dat2 */
+	__raw_writel(0x005031ef, IOMUXC_PAD_019);	/* dat3 */
+#endif
+	ret = 1;
+	return ret;
+}
+
+int board_mmc_init(bd_t *bis)
+{
+	u32 index = 0;
+	s32 status = 0;
+#if 0
+	printf("%s: ", __func__);
+	for (index = 0; index < CONFIG_SYS_FSL_ESDHC_NUM;
+			index++) {
+		switch (index) {
+		case 0:
+			printf("sd %d\n", index);
+			__raw_writel(0x005031e2, IOMUXC_PAD_045); /* clk */
+			__raw_writel(0x005031e2, IOMUXC_PAD_046); /* cmd */
+			__raw_writel(0x005031e3, IOMUXC_PAD_047); /* dat0 */
+			__raw_writel(0x005031e3, IOMUXC_PAD_048); /* dat1 */
+			__raw_writel(0x005031e3, IOMUXC_PAD_049); /* dat2 */
+			__raw_writel(0x005031e3, IOMUXC_PAD_050); /* dat3 */
+			__raw_writel(0x005031e2, IOMUXC_PAD_051); /* wp */
+			break;
+		case 1:
+			printf("sd %d\n", index);
+			__raw_writel(0x005031a2, IOMUXC_PAD_014); /* clk */
+			__raw_writel(0x005031a2, IOMUXC_PAD_015); /* cmd */
+			__raw_writel(0x005031a3, IOMUXC_PAD_016); /* dat0 */
+			__raw_writel(0x005031a3, IOMUXC_PAD_017); /* dat1 */
+			__raw_writel(0x005031a3, IOMUXC_PAD_018); /* dat2 */
+			__raw_writel(0x005031a3, IOMUXC_PAD_019); /* dat3 */
+			__raw_writel(0x005031a2, IOMUXC_PAD_068); /* wp */
+			break;
+		default:
+			printf("Warning: you configured more ESDHC controller"
+				"(%d) as supported by the board(2)\n",
+				CONFIG_SYS_FSL_ESDHC_NUM);
+			return status;
+		}
+	}
+#endif
+#if 1
+	status |= fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
+#endif
+	return status;
+}
+#endif
+
+
+const char *board_get_mtdparts_default(void)
+{
+	return MTDPARTS_DEF_LARGE;
+}
+
+#ifdef CONFIG_BOARD_LATE_INIT
+/* Use this slot to init some final things before the network is started. We
+   set up some environment variables for things that are board dependent and
+   can't be defined as a fix value in fsvybrid.h. */
+int board_late_init(void)
+{
+	unsigned int boardtype = fs_nboot_args.chBoardType;
+	const struct board_info *bi = &fs_board_info[boardtype];
+
+	/* Set sercon variable if not already set */
+	if (!getenv("sercon")) {
+		char sercon[DEV_NAME_SIZE];
+
+		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
+			'0' + get_debug_port(fs_nboot_args.dwDbgSerPortPA));
+		setenv("sercon", sercon);
+	}
+
+	/* Set platform and arch variables if not already set */
+	if (!getenv("platform"))
+		setenv("platform", bi->name);
+	if (!getenv("arch"))
+		setenv("arch", "fsvybrid");
+
+	/* Set mtdids, mtdparts and partition if not already set */
+	if (!getenv("mtdids"))
+		setenv("mtdids", MTDIDS_DEFAULT);
+	if (!getenv("mtdparts"))
+		setenv("mtdparts", board_get_mtdparts_default());
+	if (!getenv("partition"))
+		setenv("partition", MTDPART_DEFAULT);
+
+	/* installcheck and updatecheck are allowed to be empty, so we can't
+	   check for empty here. On the other hand they depend on the board,
+	   so we can't define them as fix value. The trick that we do here is
+	   that they are set to the string "default" in the default
+	   environment and then we replace this string with the board specific
+	   value here */
+	if (strcmp(getenv("installcheck"), "default") == 0)
+	    setenv("installcheck", bi->updinstcheck);
+	if (strcmp(getenv("updatecheck"), "default") == 0)
+	    setenv("updatecheck", bi->updinstcheck);
+
+	/* If bootargs is not set, run variable bootubi as default setting */
+	if (!getenv("bootargs")) {
+		char *s;
+		s = getenv("bootubi");
+		if (s)
+			run_command(s, 0);
+	}
+
+#if 0 //#### Debug  **REMOVEME**
+	{
+		int i;
+		printf("###Clock Gating\n");
+
+		for (i=0; i<12; i++) {
+			unsigned int addr = 0x4006b040 + 4*i;
+			printf("###CCGR%d (0x%08x) = 0x%08x\n", i, addr, __raw_readl(addr));
+		}
+		for (i=0; i<4; i++) {
+			unsigned int addr = 0x4006b090 + 4*i;
+			printf("###CCPGR%d (0x%08x) = 0x%08x\n", i, addr, __raw_readl(addr));
+		}
+		for (i=0; i<4; i++) {
+			unsigned int addr = IOMUXC_PAD_063 + 4*i;
+			printf("###IOMUXC_PAD_%03d (0x%08x) = 0x%08x\n", i+63, addr, __raw_readl(addr));
+		}
+	}
+#endif //#####
+
+	return 0;
+}
+#endif
+
+
+#ifdef CONFIG_CMD_NET
+/* Configure pins for ethernet (setclear=1) or back to GPIO (setclear=0);
+   this function is called by drivers/net/{mcffec.c,mcfmii.c} */
+int fecpin_setclear(struct eth_device *dev, int setclear)
+{
+	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
+#ifndef CONFIG_FS_VYBRID_PLL_ETH
+	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLK */
+#else
+	__raw_writel(0x00101902, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+#endif
+
+	if (setclear) {
+		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
+			__raw_writel(0x00103192, IOMUXC_PAD_045);	/*MDC*/
+			__raw_writel(0x00103193, IOMUXC_PAD_046);	/*MDIO*/
+			__raw_writel(0x00103191, IOMUXC_PAD_047);	/*RxDV*/
+			__raw_writel(0x00103191, IOMUXC_PAD_048);	/*RxD1*/
+			__raw_writel(0x00103191, IOMUXC_PAD_049);	/*RxD0*/
+			__raw_writel(0x00103191, IOMUXC_PAD_050);	/*RxER*/
+			__raw_writel(0x00103192, IOMUXC_PAD_051);	/*TxD1*/
+			__raw_writel(0x00103192, IOMUXC_PAD_052);	/*TxD0*/
+			__raw_writel(0x00103192, IOMUXC_PAD_053);	/*TxEn*/
+		}
+		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
+			__raw_writel(0x00103192, IOMUXC_PAD_054);	/*MDC*/
+			__raw_writel(0x00103193, IOMUXC_PAD_055);	/*MDIO*/
+			__raw_writel(0x00103191, IOMUXC_PAD_056);	/*RxDV*/
+			__raw_writel(0x00103191, IOMUXC_PAD_057);	/*RxD1*/
+			__raw_writel(0x00103191, IOMUXC_PAD_058);	/*RxD0*/
+			__raw_writel(0x00103191, IOMUXC_PAD_059);	/*RxER*/
+			__raw_writel(0x00103192, IOMUXC_PAD_060);	/*TxD1*/
+			__raw_writel(0x00103192, IOMUXC_PAD_061);	/*TxD0*/
+			__raw_writel(0x00103192, IOMUXC_PAD_062);	/*TxEn*/
+		}
+	} else {
+		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
+			__raw_writel(0x00003192, IOMUXC_PAD_045);	/*MDC*/
+			__raw_writel(0x00003193, IOMUXC_PAD_046);	/*MDIO*/
+			__raw_writel(0x00003191, IOMUXC_PAD_047);	/*RxDV*/
+			__raw_writel(0x00003191, IOMUXC_PAD_048);	/*RxD1*/
+			__raw_writel(0x00003191, IOMUXC_PAD_049);	/*RxD0*/
+			__raw_writel(0x00003191, IOMUXC_PAD_050);	/*RxER*/
+			__raw_writel(0x00003192, IOMUXC_PAD_051);	/*TxD1*/
+			__raw_writel(0x00003192, IOMUXC_PAD_052);	/*TxD0*/
+			__raw_writel(0x00003192, IOMUXC_PAD_053);	/*TxEn*/
+		}
+		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
+			__raw_writel(0x00003192, IOMUXC_PAD_054);	/*MDC*/
+			__raw_writel(0x00003193, IOMUXC_PAD_055);	/*MDIO*/
+			__raw_writel(0x00003191, IOMUXC_PAD_056);	/*RxDV*/
+			__raw_writel(0x00003191, IOMUXC_PAD_057);	/*RxD1*/
+			__raw_writel(0x00003191, IOMUXC_PAD_058);	/*RxD0*/
+			__raw_writel(0x00003191, IOMUXC_PAD_059);	/*RxER*/
+			__raw_writel(0x00003192, IOMUXC_PAD_060);	/*TxD1*/
+			__raw_writel(0x00003192, IOMUXC_PAD_061);	/*TxD0*/
+			__raw_writel(0x00003192, IOMUXC_PAD_062);	/*TxEn*/
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_CMD_NET */
+
+/* Return the board name; we have different boards that use this file, so we
+   can not define the board name with CONFIG_SYS_BOARDNAME */
+char *get_board_name(void)
+{
+	return fs_board_info[fs_nboot_args.chBoardType].name;
+}
+
+
+/* Return the system prompt; we can not define it with CONFIG_SYS_PROMPT
+   because we want to include the board name, which is variable (see above) */
+char *get_sys_prompt(void)
+{
+	return fs_sys_prompt;
+}
+
+
+#ifdef CONFIG_CMD_LCD
+// ####TODO
+void s3c64xx_lcd_board_init(void)
+{
+	/* Setup GPF15 to output 0 (backlight intensity 0) */
+	__REG(GPFDAT) &= ~(0x1<<15);
+	__REG(GPFCON) = (__REG(GPFCON) & ~(0x3<<30)) | (0x1<<30);
+	__REG(GPFPUD) &= ~(0x3<<30);
+
+	/* Setup GPK[3] to output 1 (Buffer enable off), GPK[2] to output 1
+	   (Display enable off), GPK[1] to output 0 (VCFL off), GPK[0] to
+	   output 0 (VLCD off), no pull-up/down */
+	__REG(GPKDAT) = (__REG(GPKDAT) & ~(0xf<<0)) | (0xc<<0);
+	__REG(GPKCON0) = (__REG(GPKCON0) & ~(0xFFFF<<0)) | (0x1111<<0);
+	__REG(GPKPUD) &= ~(0xFF<<0);
+}
+
+void s3c64xx_lcd_board_enable(int index)
+{
+	switch (index) {
+	case PON_LOGIC:			  /* Activate VLCD */
+		__REG(GPKDAT) |= (1<<0);
+		break;
+
+	case PON_DISP:			  /* Activate Display Enable signal */
+		__REG(GPKDAT) &= ~(1<<2);
+		break;
+
+	case PON_CONTR:			  /* Activate signal buffers */
+		__REG(GPKDAT) &= ~(1<<3);
+		break;
+
+	case PON_PWM:			  /* Activate VEEK*/
+		__REG(GPFDAT) |= (0x1<<15); /* full intensity
+					       #### TODO: actual PWM value */
+		break;
+
+	case PON_BL:			  /* Activate VCFL */
+		__REG(GPKDAT) |= (1<<1);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void s3c64xx_lcd_board_disable(int index)
+{
+	switch (index) {
+	case POFF_BL:			  /* Deactivate VCFL */
+		__REG(GPKDAT) &= ~(1<<1);
+		break;
+
+	case POFF_PWM:			  /* Deactivate VEEK*/
+		__REG(GPFDAT) &= ~(0x1<<15);
+		break;
+
+	case POFF_CONTR:		  /* Deactivate signal buffers */
+		__REG(GPKDAT) |= (1<<3);
+		break;
+
+	case POFF_DISP:			  /* Deactivate Display Enable signal */
+		__REG(GPKDAT) |= (1<<2);
+		break;
+
+	case POFF_LOGIC:		  /* Deactivate VLCD */
+		__REG(GPKDAT) &= ~(1<<0);
+		break;
+
+	default:
+		break;
+	}
+}
+#endif
