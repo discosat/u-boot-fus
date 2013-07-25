@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2013
  * F&S Elektronik Systeme GmbH
  *
  * Configuation settings for all F&S boards based on S3C64xx. This is
@@ -65,12 +65,12 @@
  * NBoot loads U-Boot to a rather low RAM address. Then U-Boot computes its
  * final size and relocates itself to the end of RAM. This new ARM specific
  * loader scheme was introduced in u-boot-2010.12. It only requires to set
- * CONFIG_SYS_SDRAM_BASE correctly and to privide a board-specific function
- * dram_init() that sets gd->ram_size to the actually available RAM. For more
- * details see arch/arm/lib/board.c.
+ * gd->ram_base correctly and to privide a board-specific function dram_init()
+ * that sets gd->ram_size to the actually available RAM. For more details see
+ * arch/arm/lib/board.c.
  *
  * Memory layout within U-Boot (from top to bottom, starting at
- * RAM-Top = CONFIG_SYS_SDRAM_BASE + gd->ram_size)
+ * RAM-Top = gd->ram_base + gd->ram_size)
  *
  * Addr          Size                      Comment
  * -------------------------------------------------------------------------
@@ -100,9 +100,7 @@
 #define CONFIG_IDENT_STRING " for F&S"	  /* We are on an F&S board */
 
 /* CPU, family and board defines */
-#define CONFIG_ARMV6		1	  /* This is an ARM v6 CPU core */
-#define CONFIG_SAMSUNG		1	  /* in a SAMSUNG core */
-#define CONFIG_S3C		1	  /* which is in S3C family */
+#define CONFIG_SAMSUNG		1	  /* We are on a SAMSUNG core */
 #define CONFIG_S3C64XX		1	  /* more specific in S3C64XX family */
 #define CONFIG_S3C6410		1	  /* it's an S3C6410 SoC */
 #define CONFIG_FSS3C64XX	1	  /* F&S S3C64XX Board */
@@ -138,15 +136,9 @@
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 #define CONFIG_UBOOTNB0_SIZE    384	   /* size of uboot.nb0 (in kB) */
 
-/* Stack is above U-Boot code, at the end of CONFIG_SYS_UBOOT_SIZE */
-#define CONFIG_MEMORY_UPPER_CODE
-
 /* We use special board_late_init() function to set board specific
    environment variables that can't be set with a fix value here */
 #define CONFIG_BOARD_LATE_INIT
-
-/* Power Management is enabled */
-#define CONFIG_PM
 
 /* Allow stopping of automatic booting even if boot delay is zero */
 #define CONFIG_ZERO_BOOTDELAY_CHECK
@@ -173,39 +165,27 @@
 #define CONFIG_NR_DRAM_BANKS	1	        /* We have 1 bank of DRAM */
 #define PHYS_SDRAM_0		0x50000000	/* SDRAM Bank #0 */
 
-/* Total memory required by uboot: 1MB #### noch gebraucht? */
-#define CONFIG_SYS_UBOOT_SIZE	(1*1024*1024)
-
 /* The load address of U-Boot is now indepentent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
-#define CONFIG_SYS_PHY_UBOOT_BASE 0x50f00000
+#define CONFIG_SYS_PHY_UBOOT_BASE	0x50f00000
+#define CONFIG_SYS_UBOOT_BASE		CONFIG_SYS_PHY_UBOOT_BASE
 
+/* 40KB internal SRAM (TCM) mapped from 0x0C000000-0x0C009FFF */
+#define CONFIG_SYS_INIT_RAM_ADDR	0x0C000000
+#define CONFIG_SYS_INIT_RAM_SIZE	0x0000A000
 
-#if 0 //###def CONFIG_ENABLE_MMU
-#define CONFIG_SYS_UBOOT_BASE	(0xc0000000 + OUR_UBOOT_OFFS)
-#else
-#define CONFIG_SYS_UBOOT_BASE	CONFIG_SYS_PHY_UBOOT_BASE
-#endif
-
-/* Init value for stack pointer; we have the stack behind the u-boot code and
-   heap ate the end of the memory region reserved for u-boot; 12 bytes are
-   subtracted to leave 3 words for the abort-stack */
-#if 0
-#define CONFIG_SYS_INIT_SP_ADDR	\
-	(CONFIG_SYS_TEXT_BASE - CONFIG_SYS_GBL_DATA_SIZE)
-#else
-/* Set to internal SRAM (TCM), mapped from 0x0C000000-0x0C009FFF */
-#define CONFIG_SYS_INIT_SP_ADDR	(0x0C00A000 - CONFIG_SYS_GBL_DATA_SIZE)
-#endif
+/* Init value for stack pointer, set at end of internal SRAM, keep room for
+   globale data behind stack. */
+#define CONFIG_SYS_INIT_SP_OFFSET \
+	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR \
+	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* Size of malloc() pool (heap). Command "ubi part" needs quite a large heap
    if the source MTD partition is large. The size should be large enough to
    also contain a copy of the environment. */
 #define CONFIG_SYS_MALLOC_LEN	(1024*1024)
-
-/* Size in bytes reserved for initial data */
-#define CONFIG_SYS_GBL_DATA_SIZE	256
 
 /* Alignment mask for MMU pagetable: 16kB */
 #define CONFIG_SYS_TLB_ALIGN 0xFFFFC000
@@ -214,11 +194,13 @@
 
 /* The stack sizes are set up in start.S using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)  /* 128KB */
-//#define CONFIG_STACKSIZE	0x20000	  /* (unused on S3C6410) */
 #ifdef CONFIG_USE_IRQ
 #define CONFIG_STACKSIZE_IRQ	(4*1024)  /* IRQ stack */
 #define CONFIG_STACKSIZE_FIQ	(4*1024)  /* FIQ stack */
 #endif
+
+/* Allocate 2048KB protected RAM at end of RAM */
+//#define CONFIG_PRAM		2048
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) ### If not set, test from beginning of RAM to before stack. */
@@ -231,7 +213,6 @@
    uncompressed image at this position. So we'll load it directly to a higher
    address to avoid this additional copying. */
 #define CONFIG_SYS_LOAD_OFFS 0x00800000
-
 
 
 /************************************************************************
@@ -270,7 +251,7 @@
 /************************************************************************
  * Serial console (UART)
  ************************************************************************/
-#define CONFIG_SYS_UART_PORT    0	  /* Default UART port; however we
+#define CONFIG_SYS_UART_PORT    2	  /* Default UART port; however we
 					     always take the port from NBoot */
 #define CONFIG_SERIAL_MULTI		  /* Support several serial lines */
 //#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
@@ -441,6 +422,7 @@
 #define CONFIG_DRIVER_NE2000_BASE2	0x18008000
 #define CONFIG_DRIVER_NE2000_SOFTMAC
 #define CONFIG_DRIVER_AX88796L
+#define CONFIG_HAS_ETH1
 
 
 /************************************************************************
@@ -466,6 +448,7 @@
 #define CONFIG_SYS_USB_OHCI_BOARD_INIT
 #define CONFIG_SYS_USB_OHCI_SLOT_NAME "s3c"
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS 2
+
 
 /************************************************************************
  * Keyboard
@@ -520,6 +503,7 @@
 #define CONFIG_MMC_SDMA			  /* use SDMA mode */
 #endif
 
+
 /************************************************************************
  * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
@@ -564,7 +548,7 @@
 /* Don't increase partition sizes to compensate for bad blocks */
 #undef CONFIG_CMD_MTDPARTS_SPREAD
 
-/* We have one NAND chip, give it a name */
+/* We have two virtual NAND chips, give them names */
 #define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
 
 /* We don't define settings for mtdparts default. Instead in fss3c64xx.c
@@ -587,7 +571,6 @@
  * Environment
  ************************************************************************/
 #define CONFIG_ENV_IS_IN_NAND		  /* Environment is in NAND flash */
-#define CONFIG_ENV_ADDR	   0		  /* Only needed for NOR flash */
 
 /* Environment settings for small blocks (16KB) */
 #define ENV_SIZE_DEF_SMALL   0x00004000	  /* 1 block = 16KB */
@@ -631,10 +614,12 @@
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
 
+
 /************************************************************************
  * Tools
  ************************************************************************/
 #define CONFIG_ADDFSHEADER	1
+
 
 /************************************************************************
  * Libraries
