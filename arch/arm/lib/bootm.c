@@ -41,14 +41,14 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if defined (CONFIG_SETUP_MEMORY_TAGS) || \
-	defined (CONFIG_CMDLINE_TAG) || \
-	defined (CONFIG_INITRD_TAG) || \
-	defined (CONFIG_SERIAL_TAG) || \
-	defined (CONFIG_REVISION_TAG) || \
-	defined (CONFIG_VFD) || \
-	defined (CONFIG_LCD) || \
-	defined (CONFIG_MTDPARTITION)
+#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
+	defined(CONFIG_CMDLINE_TAG) || \
+	defined(CONFIG_INITRD_TAG) || \
+	defined(CONFIG_SERIAL_TAG) || \
+	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_VFD) || \
+	defined(CONFIG_LCD) || \
+	defined(CONFIG_MTDPARTITION)
 static struct tag *params;
 #endif
 
@@ -113,14 +113,14 @@ static void announce_and_cleanup(void)
 	cleanup_before_linux();
 }
 
-#if defined (CONFIG_SETUP_MEMORY_TAGS) || \
-	defined (CONFIG_CMDLINE_TAG) || \
-	defined (CONFIG_INITRD_TAG) || \
-	defined (CONFIG_SERIAL_TAG) || \
-	defined (CONFIG_REVISION_TAG) || \
-	defined (CONFIG_LCD) || \
-	defined (CONFIG_VFD) || \
-	defined (CONFIG_MTDPARTITION)
+#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
+	defined(CONFIG_CMDLINE_TAG) || \
+	defined(CONFIG_INITRD_TAG) || \
+	defined(CONFIG_SERIAL_TAG) || \
+	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_LCD) || \
+	defined(CONFIG_VFD) || \
+	defined(CONFIG_MTDPARTITION)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *)bd->bi_boot_params;
@@ -197,7 +197,7 @@ static void setup_initrd_tag(bd_t *bd, ulong initrd_start, ulong initrd_end)
 #endif
 
 
-#if defined (CONFIG_VFD) || defined (CONFIG_LCD)
+#if defined(CONFIG_VFD) || defined(CONFIG_LCD)
 static void setup_videolfb_tag (gd_t *gd)
 {
 	const fbpoolinfo_t *pfpi = lcd_get_fbpoolinfo_p();
@@ -280,14 +280,14 @@ void setup_mtdpartition_tag(void)
 }
 #endif  /* CONFIG_MTDPARTITION */
 
-#if defined (CONFIG_SETUP_MEMORY_TAGS) || \
-	defined (CONFIG_CMDLINE_TAG) || \
-	defined (CONFIG_INITRD_TAG) || \
-	defined (CONFIG_SERIAL_TAG) || \
-	defined (CONFIG_REVISION_TAG) || \
-	defined (CONFIG_LCD) || \
-	defined (CONFIG_VFD) || \
-	defined (CONFIG_MTDPARTITION)
+#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
+	defined(CONFIG_CMDLINE_TAG) || \
+	defined(CONFIG_INITRD_TAG) || \
+	defined(CONFIG_SERIAL_TAG) || \
+	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_LCD) || \
+	defined(CONFIG_VFD) || \
+	defined(CONFIG_MTDPARTITION)
 static void setup_end_tag(bd_t *bd)
 {
 	params->hdr.tag = ATAG_NONE;
@@ -346,14 +346,14 @@ static void boot_prep_linux(bootm_headers_t *images)
 	} else
 #endif
 	{
-#if defined (CONFIG_SETUP_MEMORY_TAGS) || \
-	defined (CONFIG_CMDLINE_TAG) || \
-	defined (CONFIG_INITRD_TAG) || \
-	defined (CONFIG_SERIAL_TAG) || \
-	defined (CONFIG_REVISION_TAG) || \
-	defined (CONFIG_LCD) || \
-	defined (CONFIG_VFD) || \
-	defined (CONFIG_MTDPARTITION)
+#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
+	defined(CONFIG_CMDLINE_TAG) || \
+	defined(CONFIG_INITRD_TAG) || \
+	defined(CONFIG_SERIAL_TAG) || \
+	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_LCD) || \
+	defined(CONFIG_VFD) || \
+	defined(CONFIG_MTDPARTITION)
 		debug("using: ATAGS\n");
 		setup_start_tag(gd->bd);
 #ifdef CONFIG_SERIAL_TAG
@@ -373,7 +373,7 @@ static void boot_prep_linux(bootm_headers_t *images)
 			setup_initrd_tag(gd->bd, images->rd_start,
 			images->rd_end);
 #endif
-#if defined (CONFIG_VFD) || defined (CONFIG_LCD)
+#if defined(CONFIG_VFD) || defined(CONFIG_LCD)
 		setup_videolfb_tag((gd_t *)gd);
 #endif
 #ifdef CONFIG_MTDPARTITION

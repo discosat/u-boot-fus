@@ -96,8 +96,11 @@ ulong get_HCLK(void)
 	uint hclkx2_div = ((CLK_DIV0_REG >> 9) & 0x7) + 1;
 	uint hclk_div = ((CLK_DIV0_REG >> 8) & 0x1) + 1;
 
-	/* S3C6400 has no SYNC mode, bit 7 is always 0 */
-	if(OTHERS_REG & 0x80)
+	/*
+	 * Bit 7 exists on s3c6410, and not on s3c6400, it is reserved on
+	 * s3c6400 and is always 0, and it is indeed running in ASYNC mode
+	 */
+	if (OTHERS_REG & 0x80)
 		fclk = get_FCLK();		/* SYNC Mode	*/
 	else
 		fclk = get_PLLCLK(MPLL);	/* ASYNC Mode	*/
