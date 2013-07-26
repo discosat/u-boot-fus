@@ -491,17 +491,11 @@
 /************************************************************************
  * SD/MMC card support
  ************************************************************************/
-#if 0
-/* We have support for SD/MMC card */
-#define CONFIG_MMC
-#define CONFIG_MMC_S3C64XX		  /* Use F&S S3C64XX MMC driver */
-#else
 #define CONFIG_MMC			  /* SD/MMC support */
 #define CONFIG_GENERIC_MMC		  /* with the generic driver model */
 #define CONFIG_SDHCI			  /* use SDHCI driver */
 #define CONFIG_S3C_SDHCI		  /* with support for S3C */
 #define CONFIG_MMC_SDMA			  /* use SDMA mode */
-#endif
 
 
 /************************************************************************
