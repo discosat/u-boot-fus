@@ -1178,6 +1178,12 @@ int mmc_startup(struct mmc *mmc)
 	mmc->card_caps &= mmc->host_caps;
 
 	if (IS_SD(mmc)) {
+		if (mmc->card_caps & MMC_MODE_HS)
+			mmc->tran_speed = 50000000;
+		else
+			mmc->tran_speed = 25000000;
+		mmc_set_clock(mmc, mmc->tran_speed);
+
 		if (mmc->card_caps & MMC_MODE_4BIT) {
 			cmd.cmdidx = MMC_CMD_APP_CMD;
 			cmd.resp_type = MMC_RSP_R1;
@@ -1198,12 +1204,15 @@ int mmc_startup(struct mmc *mmc)
 
 			mmc_set_bus_width(mmc, 4);
 		}
-
-		if (mmc->card_caps & MMC_MODE_HS)
-			mmc->tran_speed = 50000000;
-		else
-			mmc->tran_speed = 25000000;
 	} else {
+		if (mmc->card_caps & MMC_MODE_HS) {
+			if (mmc->card_caps & MMC_MODE_HS_52MHz)
+				mmc->tran_speed = 52000000;
+			else
+				mmc->tran_speed = 26000000;
+		}
+		mmc_set_clock(mmc, mmc->tran_speed);
+
 		width = ((mmc->host_caps & MMC_MODE_MASK_WIDTH_BITS) >>
 			 MMC_MODE_WIDTH_BITS_SHIFT);
 		for (; width >= 0; width--) {
@@ -1236,16 +1245,7 @@ int mmc_startup(struct mmc *mmc)
 				break;
 			}
 		}
-
-		if (mmc->card_caps & MMC_MODE_HS) {
-			if (mmc->card_caps & MMC_MODE_HS_52MHz)
-				mmc->tran_speed = 52000000;
-			else
-				mmc->tran_speed = 26000000;
-		}
 	}
-
-	mmc_set_clock(mmc, mmc->tran_speed);
 
 	/* fill in device description */
 	mmc->block_dev.lun = 0;
@@ -1337,8 +1337,8 @@ int mmc_init(struct mmc *mmc)
 	if (err)
 		return err;
 
-	mmc_set_bus_width(mmc, 1);
 	mmc_set_clock(mmc, 1);
+	mmc_set_bus_width(mmc, 1);
 
 	/* Reset the Card */
 	err = mmc_go_idle(mmc);

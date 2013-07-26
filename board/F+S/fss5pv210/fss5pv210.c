@@ -407,6 +407,7 @@ int board_mmc_init(bd_t *bis)
 	struct s5pc110_clock *clock =
 		(struct s5pc110_clock *)samsung_get_base_clock();
 	unsigned int div;
+	unsigned int base_clock;
 
 	/* We want to use MCLK (667 MHz) as MMC0 clock source */
 	writel((readl(&clock->src4) & ~(15 << 0)) | (6 << 0), &clock->src4);
@@ -416,9 +417,11 @@ int board_mmc_init(bd_t *bis)
 	   value below 50 MHz; the result would have to be rounded up, i.e. we
 	   would have to add 1. However we also have to subtract 1 again when
 	   we store div in the CLK_DIV4 register, so we can skip this +1-1. */
-	div = get_pll_clk(MPLL)/49999999;
+	base_clock = get_pll_clk(MPLL);
+	div = base_clock / 49999999;
 	if (div > 15)
 		div = 15;
+	base_clock /= div + 1;
 	writel((readl(&clock->div4) & ~(15 << 0)) | (div << 0), &clock->div4);
 
 	/* All clocks are enabled in CLK_SRC_MASK0 and CLK_GATE_IP2 after reset
@@ -434,8 +437,9 @@ int board_mmc_init(bd_t *bis)
 	s5p_gpio_cfg_pin(&gpio->g0, 5, 2);
 	s5p_gpio_cfg_pin(&gpio->g0, 6, 2);
 
-	/* We have mmc0 with 4 bit bus width */
-	return s5p_mmc_init(0, 4);
+	/* We have mmc0 (4 bit bus width) */
+	return s5p_sdhci_init(samsung_get_base_mmc() + (0x10000 * 0),
+			      base_clock, base_clock/128, 0);
 }
 #endif
 
