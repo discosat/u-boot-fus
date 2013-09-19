@@ -760,8 +760,21 @@ int board_late_init(void)
 	}
 
 	/* Set platform and arch variables if not already set */
-	if (!getenv("platform"))
-		setenv("platform", bi->name);
+	if (!getenv("platform")) {
+		char lcasename[20];
+		char *p = bi->name;
+		char *l = lcasename;
+		char c;
+
+		do {
+			c = *p++;
+			if ((c >= 'A') && (c <= 'Z'))
+				c += 'a' - 'A';
+			*l++ = c;
+		} while (c);
+		
+		setenv("platform", lcasename);
+	}
 	if (!getenv("arch"))
 		setenv("arch", "fsvybrid");
 
