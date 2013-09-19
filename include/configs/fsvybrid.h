@@ -286,9 +286,11 @@
 /* Try to patch serial debug port in image within first 16KB of zImage */
 #define CONFIG_SYS_PATCH_TTY 0x4000
 
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_CMDLINE_TAG			/* enable passing of ATAGs */
-#undef CONFIG_INITRD_TAG
+/* ATAGs passed to Linux */
+#define CONFIG_SETUP_MEMORY_TAGS	  /* Memory setup */
+#define CONFIG_CMDLINE_TAG		  /* Command line */
+#undef CONFIG_INITRD_TAG		  /* No initrd */
+#define CONFIG_REVISION_TAG		  /* Board revision & features */
 
 
 /************************************************************************

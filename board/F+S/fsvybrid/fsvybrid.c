@@ -896,6 +896,20 @@ char *get_sys_prompt(void)
 	return fs_sys_prompt;
 }
 
+/* Return the board revision; this is called when Linux is started and the
+   value is passed to Linux */
+u32 get_board_rev(void)
+{
+	u32 rev;
+
+	/* In addition to the board revision in bits [7:0] we also encode the
+	   features in bits [31:16] */
+	rev = (fs_nboot_args.chFeatures1 << 24)
+		| (fs_nboot_args.chFeatures2 << 16)
+		| fs_nboot_args.chBoardRev;
+
+	return rev;
+}
 
 #ifdef CONFIG_CMD_LCD
 // ####TODO
