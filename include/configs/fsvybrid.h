@@ -681,8 +681,8 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"installcheck=default\0" \
 	"updatecheck=default\0" \
-	"bootubi=setenv bootargs console=ttymxc1,115200 fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootubidhcp=setenv bootargs console=ttymxc1,115200 ip=dhcp fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootubi=setenv bootargs console=$sercon,115200 fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootubidhcp=setenv bootargs console=$sercon,115200 ip=dhcp fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootnfs=setenv bootargs console=$sercon,115200 $mtdparts ip=$ipaddr:$serverip:$gatewayip:$netmask::eth0 fec_mac=$ethaddr root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
 	"bootnfsdhcp=setenv bootargs console=$sercon,115200 $mtdparts ip=dhcp fec_mac=$ethaddr root=/dev/nfs nfsroot=$serverip:/rootfs ro init=linuxrc\0"
 #define CONFIG_ETHADDR		00:05:51:07:55:83
