@@ -1,8 +1,38 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
-U-Boot V2.0 (20.11.2012, based on u-boot-2012.07)
--------------------------------------------------
+
+u-boot-2012.07-fsvybrid-V1.0 (19.09.2013)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5
+
+In this release, the Vybrid boards are merged with the Multi-Platform
+Linux. Therefore this release is mainly targeted for F&S Vybrid
+boards. The other boards also have improvements (e.g. some SD card
+issues are solved) and should work nonetheless, but they are not
+thoroughly tested in this release.
+
+- Merge fsvybrid branch for U-Boot with Multi-Platform-Linux branch;
+  this adds platforms PicoCOMA5, armStoneA5, NetDCUA5
+- On serial ports, switch from serial port numbers to addresses
+- Improve serial driver for Vybrid to allow CONFIG_SERIAL_MULTI
+- Re-implement output for reset cause on Vybrid
+- Fix compiler warnings when compiling for Vybrid
+- Add common fsvybrid platform for PicoCOMA5, armStoneA5, NetDCUA5
+- Make fss3c64xx.h, fss5pv210.h and fsvybrid.h as similar as possible
+- Activate hush parser for all boards; this allows for better scripting
+- Optimize speed for SD cards and fix high speed issues
+- Increase command buffer size, remove jffs2 boot variables
+- Remove some remaining stuff from obsolete F&S MMC driver
+- Remove unused Samsung stuff
+- Also patch serial port for zImage decompressor on Vybrid
+- On fsvybrid, pass board revision via ATAG to Linux kernel
+
+
+
+u-boot-2012.07-f+s-V2.0 (20.11.2012)
+------------------------------------
 Supported boards: PicoMOD6, PicoCOM3, armStoneA8, NetDCU14, PicoMOD7A
 
 - Rebase to u-boot-2012.07
@@ -51,8 +81,8 @@ Supported boards: PicoMOD6, PicoCOM3, armStoneA8, NetDCU14, PicoMOD7A
 
 
 
-U-Boot armStoneA8 V1.1 (22.05.2012, based on u-boot-2011.12)
-------------------------------------------------------------
+u-boot-2011.12-armstonea8-V1.1 (22.05.2012)
+-------------------------------------------
 Supported boards: armStoneA8
 
 This is another interim release targeted to armStoneA8 only (PicoMOD6
@@ -74,8 +104,8 @@ and PicoCOM3 won't work).
 
 
 
-U-Boot armStoneA8 V1.0 (13.04.2012, based on u-boot-2011.12)
-------------------------------------------------------------
+u-boot-2011.12-armstonea8-V1.0 (13.04.2012)
+-------------------------------------------
 Supported boards: armStoneA8
 
 This is an interim release targeted to armStoneA8 only (PicoMOD6 and
@@ -118,8 +148,8 @@ They will be mentioned in the next regular release.
 - Support UBI and UBIFS, activate appropriate commands
 
 
-U-Boot V1.2 (05.09.2011)
-------------------------
+u-boot-1.3.4-picomod6-picocom3-V1.2 (05.09.2011)
+------------------------------------------------
 Supported boards: PicoMOD6, PicoCOM3
 
 - Add support for PicoCOM3
@@ -130,8 +160,8 @@ Supported boards: PicoMOD6, PicoCOM3
 - Remove some unneeded code
 
 
-U-Boot V1.1 (07.06.2011)
-------------------------
+u-boot-1.3.4-picomod6-V1.1 (07.06.2011)
+---------------------------------------
 Supported boards: PicoMOD6
 
 - New MMC driver for MMC/SD-Cards, supports external SD-Slot (mmc 0)
@@ -191,8 +221,8 @@ Supported boards: PicoMOD6
 
 
 
-U-Boot V1.0 (18.10.2010)
-------------------------
+u-boot-1.3.4-picomod6-V1.0 (18.10.2010)
+---------------------------------------
 Supported boards: PicoMOD6
 
 - Added support for USB host (USB hubs and mass storage devices)
@@ -226,15 +256,15 @@ Supported boards: PicoMOD6
   releases
 
 
-U-Boot V0.2 (05.02.2010)
-------------------------
+u-boot-1.3.4-picomod6-V0.2 (05.02.2010)
+---------------------------------------
 Supported boards: PicoMOD6
 
 - Activate ethernet once to set MAC address
 
 
-U-Boot V0.1 (22.01.2010)
-------------------------
+u-boot-1.3.4-picomod6-V0.1 (22.01.2010)
+---------------------------------------
 Supported boards: PicoMOD6
 
 - First working version
