@@ -116,6 +116,10 @@ const struct board_info fs_board_info[8] = {
 	{"PicoCOMA5",  MACH_TYPE_PICOCOMA5,  "mmc,usb"},	/* 1 */
 	{"NetDCUA5",   MACH_TYPE_NETDCUA5,   "mmc,usb"},	/* 2 */
 	{"PicoMODA5",  0/*####not yet registered*/, "mmc,usb"},	/* 3 */
+	{"Unknown",    0,                    "mmc,usb"},	/* 4 */
+	{"Unknown",    0,                    "mmc,usb"},	/* 5 */
+	{"Unknown",    0,                    "mmc,usb"},	/* 6 */
+	{"CUBEA5",     MACH_TYPE_CUBEA5,     NULL},		/* 7 */
 };
 
 /* String used for system prompt */
@@ -194,19 +198,6 @@ struct nboot_args fs_nboot_args;
  *	    - eth_initialize() continues and lists all registered eth devices
  */
 
-#if 0 //#### Already done in NBoot **REMOVEME**
-static void setup_iomux_uart(void)
-{
-	__raw_writel(0x002011a2, IOMUXC_PAD_026); /* UART1 on PTB4-7 */
-	__raw_writel(0x002011a1, IOMUXC_PAD_027);
-	__raw_writel(0x002011a2, IOMUXC_PAD_028);
-	__raw_writel(0x002011a1, IOMUXC_PAD_029);
-	__raw_writel(0x001011a2, IOMUXC_PAD_032); /* UART0 on PTB10/11 */
-	__raw_writel(0x001011a1, IOMUXC_PAD_033);
-}
-#endif
-
-
 #ifdef CONFIG_NAND_FSL_NFC
 static void setup_iomux_nfc(void)
 {
@@ -238,7 +229,6 @@ static void setup_iomux_nfc(void)
 
 int board_early_init_f(void)
 {
-//####	setup_iomux_uart();		/* Setup debug port (UART) */
 #ifdef CONFIG_NAND_FSL_NFC
 	setup_iomux_nfc();		/* Setup NAND flash controller */
 #endif
@@ -285,13 +275,19 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	int nLAN = 0;
+	int nCAN = 0;
 
-	printf("Board: %s Rev %u.%02u (%dx DRAM, %dx LAN, %dx CAN, %d MHz)\n",
+	if (pargs->chBoardType != 7) {
+		nLAN = pargs->chFeatures1 & FEAT_2NDLAN ? 2 : 1;
+		nCAN = pargs->chFeatures1 & FEAT_2NDCAN ? 2 : 1;
+	}
+
+	printf("Board: %s Rev %u.%02u (%d MHz, %dx DRAM, %dx LAN, %dx CAN)\n",
 	       fs_board_info[pargs->chBoardType].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->dwNumDram, pargs->chFeatures1 & FEAT_2NDLAN ? 2 : 1,
-	       pargs->chFeatures1 & FEAT_2NDCAN ? 2 : 1,
-	       pargs->chFeatures1 & FEAT_CPU400 ? 400 : 500);
+	       pargs->chFeatures1 & FEAT_CPU400 ? 400 : 500,
+	       pargs->dwNumDram, nLAN, nCAN);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
@@ -306,270 +302,6 @@ int checkboard(void)
 
 	return 0;
 }
-
-
-#if 0 //### Already done in NBoot **REMOVEME**
-void setup_iomux_ddr(void)
-{
-#define DDR_IOMUX	0x00000180
-#define DDR_IOMUX1	0x00010180
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A15);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A14);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A13);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A12);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A11);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A10);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A9);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A8);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A7);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A6);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A5);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A4);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A3);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A2);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_A1);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA2);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA1);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_BA0);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CAS);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CKE);
-	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_CLK);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_CS);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D15);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D14);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D13);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D12);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D11);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D10);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D9);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D8);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D7);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D6);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D5);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D4);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D3);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D2);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D1);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_D0);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_DQM1);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_DQM0);
-	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_DQS1);
-	__raw_writel(DDR_IOMUX1, IOMUXC_DDR_DQS0);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_RAS);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_WE);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT1);
-	__raw_writel(DDR_IOMUX, IOMUXC_DDR_ODT0);
-}
-#endif //### 0
-
-#if 0 // ### Already done in NBoot **REMOVEME**
-static void ddr_phy_init(void)
-{
-#define PHY_DQ_TIMING		0x00002613
-#define PHY_DQS_TIMING		0x00002615
-#define PHY_CTRL		0x01210080
-#define PHY_MASTER_CTRL		0x0001012a
-#define PHY_SLAVE_CTRL		0x00012020
-
-	/* phy_dq_timing_reg freq set 0 */
-	__raw_writel(PHY_DQ_TIMING, DDR_PHY000);
-	__raw_writel(PHY_DQ_TIMING, DDR_PHY016);
-	__raw_writel(PHY_DQ_TIMING, DDR_PHY032);
-	__raw_writel(PHY_DQ_TIMING, DDR_PHY048);
-
-	/* phy_dqs_timing_reg freq set 0 */
-	__raw_writel(PHY_DQS_TIMING, DDR_PHY001);
-	__raw_writel(PHY_DQS_TIMING, DDR_PHY017);
-	__raw_writel(PHY_DQS_TIMING, DDR_PHY033);
-	__raw_writel(PHY_DQS_TIMING, DDR_PHY049);
-
-	/* phy_gate_lpbk_ctrl_reg freq set 0 */
-	__raw_writel(PHY_CTRL, DDR_PHY002);	/* read delay bit21:19 */
-	__raw_writel(PHY_CTRL, DDR_PHY018);	/* phase_detect_sel bit18:16 */
-	__raw_writel(PHY_CTRL, DDR_PHY034);	/* bit lpbk_ctrl bit12 */
-	__raw_writel(PHY_CTRL, DDR_PHY050);
-
-	/* phy_dll_master_ctrl_reg freq set 0 */
-	__raw_writel(PHY_MASTER_CTRL, DDR_PHY003);
-	__raw_writel(PHY_MASTER_CTRL, DDR_PHY019);
-	__raw_writel(PHY_MASTER_CTRL, DDR_PHY035);
-	__raw_writel(PHY_MASTER_CTRL, DDR_PHY051);
-
-	/* phy_dll_slave_ctrl_reg freq set 0 */
-	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY004);
-	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY020);
-	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY036);
-	__raw_writel(PHY_SLAVE_CTRL, DDR_PHY052);
-
-	__raw_writel(0x00001105, DDR_PHY050);
-}
-#endif //#### 0
-
-#if 0 // ### Already done in NBoot **REMOVEME**
-static unsigned long ddr_ctrl_init(void)
-{
-	int dram_size, rows, cols, banks, port;
-	/* These settings would be for 256MB DDR */
-	__raw_writel(0x00000600, DDR_CR000);	/* LPDDR2 or DDR3 */
-	__raw_writel(0x00000020, DDR_CR002);	/* TINIT */
-	__raw_writel(0x0000007c, DDR_CR010);	/* reset during power on */
-						/* warm boot - 200ns */
-	__raw_writel(0x00013880, DDR_CR011);	/* 500us - 10ns */
-	__raw_writel(0x0000050c, DDR_CR012);	/* CASLAT_LIN, WRLAT */
-	__raw_writel(0x15040404, DDR_CR013);	/* trc, trrd, tccd
-						   tbst_int_interval */
-	__raw_writel(0x1406040F, DDR_CR014);	/* tfaw, tfp, twtr, tras_min */
-	__raw_writel(0x04040000, DDR_CR016);	/* tmrd, trtp */
-	__raw_writel(0x006DB00C, DDR_CR017);	/* tras_max, tmod */
-	__raw_writel(0x00000403, DDR_CR018);	/* tckesr, tcke */
-
-	__raw_writel(0x01000000, DDR_CR020);	/* ap, writrp */
-	__raw_writel(0x06060101, DDR_CR021);	/* trcd_int, tras_lockout
-						   ccAP */
-	__raw_writel(0x000C0000, DDR_CR022);	/* tdal */
-	__raw_writel(0x03000200, DDR_CR023);	/* bstlen, tmrr, tdll */
-	__raw_writel(0x00000006, DDR_CR024);	/* addr_mirror, reg_dimm
-						   trp_ab */
-	__raw_writel(0x00010000, DDR_CR025);	/* tref_enable, auto_refresh
-						   arefresh */
-	__raw_writel(0x0C280068, DDR_CR026);	/* tref, trfc */
-	__raw_writel(0x00000005, DDR_CR028);	/* tref_interval fixed at 5 */
-	__raw_writel(0x00000003, DDR_CR029);	/* tpdex */
-
-	__raw_writel(0x0000000A, DDR_CR030);	/* txpdll */
-	__raw_writel(0x00440200, DDR_CR031);	/* txsnr, txsr */
-	__raw_writel(0x00010000, DDR_CR033);	/* cke_dly, en_quick_srefresh
-						 * srefresh_exit_no_refresh,
-						 * pwr, srefresh_exit
-						 */
-	__raw_writel(0x00050500, DDR_CR034);	/* cksrx, */
-						/* cksre, lowpwr_ref_en */
-
-	/* Frequency change */
-	__raw_writel(0x00000100, DDR_CR038);	/* freq change... */
-	__raw_writel(0x04001002, DDR_CR039);
-
-	__raw_writel(0x00000001, DDR_CR041);	/* dfi_init_start */
-	__raw_writel(0x00000000, DDR_CR045);	/* wrmd */
-	__raw_writel(0x00000000, DDR_CR046);	/* rdmd */
-	__raw_writel(0x00000000, DDR_CR047);	/* REF_PER_AUTO_TEMPCHK:
-						 *   LPDDR2 set to 2, else 0
-						 */
-
-	/* DRAM device Mode registers */
-	__raw_writel(0x00460420, DDR_CR048);	/* mr0, ddr3 burst of 8 only
-						 * mr1, if freq < 125
-						 * dll_dis = 1, rtt = 0
-						 * if freq > 125, dll_dis = 0
-						 * rtt = 3
-						 */
-	__raw_writel(0x00000000, DDR_CR049);	/* mr2 */
-	__raw_writel(0x00000000, DDR_CR051);	/* mr3 & mrsingle_data_0 */
-
-	__raw_writel(0x00000000, DDR_CR057);	/* ctrl_raw */
-
-	/* ECC */
-	/*__raw_writel(0x00000000, DDR_CR058);*/
-
-	/* ZQ stuff */
-	__raw_writel(0x01000200, DDR_CR066);	/* zqcl, zqinit */
-	__raw_writel(0x02000040, DDR_CR067);	/* zqcs */
-	__raw_writel(0x00000200, DDR_CR069);	/* zq_on_sref_exit, qz_req */
-
-	__raw_writel(0x00000040, DDR_CR070);	/* ref_per_zq */
-	__raw_writel(0x00000000, DDR_CR071);	/* zqreset, ddr3 set to 0 */
-	__raw_writel(0x01000000, DDR_CR072);	/* zqcs_rotate, no_zq_init */
-
-	/* DRAM controller misc */
-	__raw_writel(0x0a010200, DDR_CR073);	/* arebit, col_diff, row_diff
-						   bank_diff */
-	__raw_writel(0x0101ffff, DDR_CR074);	/* bank_split, addr_cmp_en
-						   cmd/age cnt */
-	__raw_writel(0x01010101, DDR_CR075);	/* rw same pg, rw same en
-						   pri en, plen */
-	__raw_writel(0x03030101, DDR_CR076);	/* #q_entries_act_dis
-						 * (#cmdqueues
-						 * dis_rw_grp_w_bnk_conflict
-						 * w2r_split_en, cs_same_en */
-	__raw_writel(0x01000101, DDR_CR077);	/* cs_map, inhibit_dram_cmd
-						 * dis_interleave, swen */
-	__raw_writel(0x0000000C, DDR_CR078);	/* qfull, lpddr2_s4, reduc
-						   burst_on_fly */
-	__raw_writel(0x01000000, DDR_CR079);	/* ctrlupd_req_per aref en
-						 * ctrlupd_req
-						 * ctrller busy
-						 * in_ord_accept */
-	/* disable interrupts */
-	__raw_writel(0x1FFFFFFF, DDR_CR082);
-
-	/* ODT */
-	__raw_writel(0x01010000, DDR_CR087);	/* odt: wr_map_cs0
-						 * rd_map_cs0
-						 * port_data_err_id */
-	__raw_writel(0x00040000, DDR_CR088);	/* todtl_2cmd */
-	__raw_writel(0x00000002, DDR_CR089);	/* add_odt stuff */
-
-	__raw_writel(0x00020000, DDR_CR091);
-	__raw_writel(0x00000000, DDR_CR092);	/* tdqsck _min, max */
-
-	__raw_writel(0x00002819, DDR_CR096);	/* wlmrd, wldqsen */
-
-
-	/* AXI ports */
-	__raw_writel(0x00202000, DDR_CR105);
-	__raw_writel(0x20200000, DDR_CR106);
-	__raw_writel(0x00000202, DDR_CR110);
-	__raw_writel(0x00202000, DDR_CR114);
-	__raw_writel(0x20200000, DDR_CR115);
-
-	__raw_writel(0x00000101, DDR_CR117);	/* FIFO type (0-async, 1-2:1
-						 *	2-1:2, 3- sync, w_pri
-						 * r_pri
-						 */
-	__raw_writel(0x01010000, DDR_CR118);	/* w_pri, rpri, en */
-	__raw_writel(0x00000000, DDR_CR119);	/* fifo_type */
-
-	__raw_writel(0x02020000, DDR_CR120);
-	__raw_writel(0x00000202, DDR_CR121);
-	__raw_writel(0x01010064, DDR_CR122);
-	__raw_writel(0x00010101, DDR_CR123);
-	__raw_writel(0x00000064, DDR_CR124);
-
-	/* TDFI */
-	__raw_writel(0x00000000, DDR_CR125);
-	__raw_writel(0x00000B00, DDR_CR126);	/* PHY rdlat */
-	__raw_writel(0x00000000, DDR_CR127);	/* dram ck dis */
-
-	__raw_writel(0x00000000, DDR_CR131);
-	__raw_writel(0x00000506, DDR_CR132);	/* wrlat, rdlat */
-	__raw_writel(0x00020000, DDR_CR137);
-	__raw_writel(0x04070303, DDR_CR139);
-
-	__raw_writel(0x00000000, DDR_CR136);
-
-	__raw_writel(0x68200000, DDR_CR154);
-	__raw_writel(0x00000202, DDR_CR155);	/* pad_ibe, _sel */
-	__raw_writel(0x00000006, DDR_CR158);	/* twr */
-	__raw_writel(0x00000006, DDR_CR159);	/* todth */
-
-	ddr_phy_init();
-
-	__raw_writel(0x00000601, DDR_CR000);	/* LPDDR2 or DDR3, start */
-
-	udelay(200);
-
-	rows = (__raw_readl(DDR_CR001) & 0x1F) -
-	       ((__raw_readl(DDR_CR073) >> 8) & 3);
-	cols = ((__raw_readl(DDR_CR001) >> 8) & 0xF) -
-	       ((__raw_readl(DDR_CR073) >> 16) & 7);
-	banks = 1 << (3 - (__raw_readl(DDR_CR073) & 3));
-	port = ((__raw_readl(DDR_CR078) >> 8) & 1) ? 1 : 2;
-
-	dram_size = (1 << (rows + cols)) * banks * port;
-
-	return dram_size;
-}
-#endif //#### 0
 
 
 /* Set the available RAM size. We have a memory bank starting at 0x80000000
@@ -647,91 +379,21 @@ size_t get_env_offset(void)
 }
 
 
-#ifdef CONFIG_QUAD_SPI
-void setup_iomux_quadspi(void)
-{
-    __raw_writel(0x001030C3, IOMUXC_PAD_079);	/* SCK */
-	__raw_writel(0x001030FF, IOMUXC_PAD_080);	/* CS0 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_081);	/* D3 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_082);	/* D2 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_083);	/* D1 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_084);	/* D0 */
-
-	__raw_writel(0x001030C3, IOMUXC_PAD_086);	/* SCK */
-	__raw_writel(0x001030FF, IOMUXC_PAD_087);	/* CS0 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_088);	/* D3 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_089);	/* D2 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_090);	/* D1 */
-	__raw_writel(0x001030C3, IOMUXC_PAD_091);	/* D0 */
-}
-#endif
-
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_getcd(struct mmc *mmc)
 {
-	/*struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;*/
-	int ret;
-#if 1
-#if 0
-	__raw_writel(0x005031e2, IOMUXC_PAD_045);	/* clk */
-	__raw_writel(0x005031e2, IOMUXC_PAD_046);	/* cmd */
-	__raw_writel(0x005031e3, IOMUXC_PAD_047);	/* dat0 */
-	__raw_writel(0x005031e3, IOMUXC_PAD_048);	/* dat1 */
-	__raw_writel(0x005031e3, IOMUXC_PAD_049);	/* dat2 */
-	__raw_writel(0x005031e3, IOMUXC_PAD_050);	/* dat3 */
-#endif
 	__raw_writel(0x005031ef, IOMUXC_PAD_014);	/* clk */
 	__raw_writel(0x005031ef, IOMUXC_PAD_015);	/* cmd */
 	__raw_writel(0x005031ef, IOMUXC_PAD_016);	/* dat0 */
 	__raw_writel(0x005031ef, IOMUXC_PAD_017);	/* dat1 */
 	__raw_writel(0x005031ef, IOMUXC_PAD_018);	/* dat2 */
 	__raw_writel(0x005031ef, IOMUXC_PAD_019);	/* dat3 */
-#endif
-	ret = 1;
-	return ret;
+	return 1;
 }
 
 int board_mmc_init(bd_t *bis)
 {
-	u32 index = 0;
-	s32 status = 0;
-#if 0
-	printf("%s: ", __func__);
-	for (index = 0; index < CONFIG_SYS_FSL_ESDHC_NUM;
-			index++) {
-		switch (index) {
-		case 0:
-			printf("sd %d\n", index);
-			__raw_writel(0x005031e2, IOMUXC_PAD_045); /* clk */
-			__raw_writel(0x005031e2, IOMUXC_PAD_046); /* cmd */
-			__raw_writel(0x005031e3, IOMUXC_PAD_047); /* dat0 */
-			__raw_writel(0x005031e3, IOMUXC_PAD_048); /* dat1 */
-			__raw_writel(0x005031e3, IOMUXC_PAD_049); /* dat2 */
-			__raw_writel(0x005031e3, IOMUXC_PAD_050); /* dat3 */
-			__raw_writel(0x005031e2, IOMUXC_PAD_051); /* wp */
-			break;
-		case 1:
-			printf("sd %d\n", index);
-			__raw_writel(0x005031a2, IOMUXC_PAD_014); /* clk */
-			__raw_writel(0x005031a2, IOMUXC_PAD_015); /* cmd */
-			__raw_writel(0x005031a3, IOMUXC_PAD_016); /* dat0 */
-			__raw_writel(0x005031a3, IOMUXC_PAD_017); /* dat1 */
-			__raw_writel(0x005031a3, IOMUXC_PAD_018); /* dat2 */
-			__raw_writel(0x005031a3, IOMUXC_PAD_019); /* dat3 */
-			__raw_writel(0x005031a2, IOMUXC_PAD_068); /* wp */
-			break;
-		default:
-			printf("Warning: you configured more ESDHC controller"
-				"(%d) as supported by the board(2)\n",
-				CONFIG_SYS_FSL_ESDHC_NUM);
-			return status;
-		}
-	}
-#endif
-#if 1
-	status |= fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
-#endif
-	return status;
+	return fsl_esdhc_initialize(bis, &esdhc_cfg[0]);
 }
 #endif
 

@@ -49,11 +49,12 @@
  * RAM layout (RAM starts at 0x80000000)
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0000_00FF: Free RAM
- * 0x0000_0100 - 0x0000_07FF: bi_boot_params
- * 0x0000_0800 - 0x0000_085F: NBoot Args
- * 0x0000_0860 - 0x0000_7FFF: Free RAM
+ * 0x0000_0100 - 0x0000_07FF: bi_boot_params (ATAGs)
+ * 0x0000_1000 - 0x0000_105F: NBoot Args
+ * 0x0000_1060 - 0x0000_7FFF: Free RAM
  * 0x0000_8000 - 0x007F_FFFF: Linux zImage
  * 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
+ * 0x0100_0000 - 0x07FF_FFFF: Free RAM + U-Boot (if 128MB)
  * 0x0100_0000 - 0x0FFF_FFFF: Free RAM + U-Boot (if 256MB)
  * 0x0100_0000 - 0x1FFF_FFFF: Free RAM + U-Boot (if 512MB)
  *
