@@ -2,6 +2,16 @@ History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
 
+u-boot-2012.07-fsvybrid-V1.0 (16.12.2013)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5, CUBEA5
+
+- Add support for CUBEA5
+- Skip blanks in device names in installcheck/updatecheck
+
+
+
 u-boot-2012.07-fsvybrid-V1.0 (19.09.2013)
 -----------------------------------------
 Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
