@@ -425,8 +425,8 @@ int update_script(const char *action, const char *check, const char *fname,
 	/* Parse devices and check for script */
 	c = *check;
 	do {
-		/* Skip any commas */
-		while (c == ',')
+		/* Skip any commas and whitespace */
+		while ((c == ',') || (c == ' ') || (c == '\t'))
 		       c = *(++check);
 		if (!c)
 			break;
