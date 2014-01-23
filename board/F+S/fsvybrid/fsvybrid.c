@@ -38,6 +38,10 @@
 #include <fsl_esdhc.h>
 #endif
 
+#ifdef CONFIG_CMD_LED
+#include <status_led.h>			/* led_id_t */
+#endif
+
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/vybrid-regs.h>	/* SCSCM_BASE_ADDR, ... */
@@ -67,6 +71,7 @@ struct fsl_esdhc_cfg esdhc_cfg[2] = {
 #define BT_PICOCOMA5  1
 #define BT_NETDCUA5   2
 #define BT_PICOMODA5  3
+#define BT_CUBEA5     7
 
 #define FEAT_CPU400   (1<<0)		  /* 0: 500 MHz, 1: 400 MHz CPU */
 #define FEAT_2NDCAN   (1<<1)		  /* 0: 1x CAN, 1: 2x CAN */
@@ -585,6 +590,36 @@ u32 get_board_rev(void)
 
 	return rev;
 }
+
+#ifdef CONFIG_CMD_LED
+/* We have LEDs on PTC30 (Pad 103) and PTC31 (Pad 104); on CUBEA5, the logic
+   is inverted */
+#if 0
+void __led_init (led_id_t mask, int state)
+{
+	printf("### __led_init()\n");
+}
+#endif
+void __led_set (led_id_t mask, int state)
+{
+	if (fs_nboot_args.chBoardType == BT_CUBEA5)
+		state = !state;
+
+	if (mask <= 1) {
+		/* Write to GPIO3_PSOR or GPIO3_PCOR */
+		mask += 7;
+		__raw_writel(1 << mask, state ? 0x400ff0c4 : 0x400ff0c8);
+	}
+}
+void __led_toggle (led_id_t mask)
+{
+	if (mask <= 1) {
+		/* Write to GPIO3_PTOR */
+		mask += 7;
+		__raw_writel(1 << mask, 0x400ff0cc);
+	}
+}
+#endif /* CONFIG_CMD_LED */
 
 #ifdef CONFIG_CMD_LCD
 // ####TODO

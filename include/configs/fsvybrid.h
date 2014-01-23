@@ -349,7 +349,7 @@
 #undef CONFIG_CMD_ITEST		/* no integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* no support for JFFS2 filesystem */
 #undef CONFIG_CMD_LDRINFO	/* no ldr support for blackfin */
-#undef CONFIG_CMD_LED		/* no LED support */
+#define CONFIG_CMD_LED		/* LED support */
 #undef CONFIG_CMD_LOADB		/* no serial load of binaries (loadb) */
 #undef CONFIG_CMD_LOADS		/* no serial load of s-records (loads) */
 #undef CONFIG_CMD_LICENSE	/* no support to show GPL license */
@@ -699,6 +699,13 @@
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
+
+/************************************************************************
+ * LEDs
+ ************************************************************************/
+#define CONFIG_BOARD_SPECIFIC_LED
+#define STATUS_LED_BIT 0
+#define STATUS_LED_BIT1 1
 
 
 /************************************************************************
