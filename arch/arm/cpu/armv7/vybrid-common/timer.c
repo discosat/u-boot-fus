@@ -23,6 +23,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <div64.h>
+#include <asm/arch/clock.h>
 #include <asm/arch/timer.h>
 #include <asm/arch/vybrid-regs.h>
 
@@ -49,6 +50,7 @@ int timer_init(void)
 	 * nsecs conversion = (1/ipg_clk) * 10^9
 	 * equivalent to 1000 / (ipg_clk / 10^6)
 	 */
+	gd->ipg_clk = vybrid_get_clock(VYBRID_IPG_CLK);
 	usecs = (gd->ipg_clk / 1000000);
 	ticks = 1000 / usecs;
 
@@ -120,15 +122,6 @@ void __udelay(unsigned long usec)
 	}
 }
 #endif			/* CONFIG_TMR_USEPIT */
-
-/*
- * This function is derived from PowerPC code (timebase clock frequency).
- * On ARM it returns the number of timer ticks per second.
- */
-unsigned long long _usec2ticks(unsigned long long usec)
-{
-	return usec;
-}
 
 unsigned long long get_ticks(void)
 {

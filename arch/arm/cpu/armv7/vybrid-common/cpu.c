@@ -104,7 +104,7 @@ int print_cpuinfo(void)
 	u32 cpurev;
 
 	cpurev = get_cpu_rev();
-	printf("CPU:   Freescale VyBrid %x family rev%d.%d at %d MHz\n",
+	printf("CPU:   Freescale Vybrid %x family rev%d.%d at %d MHz\n",
 		(cpurev & 0xFFF000) >> 12,
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
@@ -115,6 +115,7 @@ int print_cpuinfo(void)
 }
 #endif
 
+#ifdef CONFIG_CMD_NET
 int cpu_eth_init(bd_t *bis)
 {
 	int rc = -ENODEV;
@@ -123,6 +124,7 @@ int cpu_eth_init(bd_t *bis)
 
 	return rc;
 }
+#endif
 
 /* Initializes on-chip MMC controllers.
  * to override, implement board_mmc_init()

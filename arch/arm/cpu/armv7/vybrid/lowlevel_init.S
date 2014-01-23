@@ -91,8 +91,10 @@
 .macro init_clock
 	ldr r0, =CCM_BASE_ADDR
 
+#if 0
 	ldr r1, =CONFIG_SYS_CLKCTRL_CLPCR
 	str r1, [r0, #CLKCTL_CLPCR]
+#endif
 
 	/* Gate of clocks to the peripherals first */
 	ldr r1, =CONFIG_SYS_CLKCTL_CCGR0
@@ -120,13 +122,14 @@
 	ldr r1, =CONFIG_SYS_CLKCTL_CCGR11
 	str r1, [r0, #CLKCTL_CCGR11]
 
+#if 0
 	ldr r2, =ANATOP_BASE_ADDR
 	ldr r1, =CONFIG_SYS_ANADIG_528_CTRL
-	str r1, [r2, #0x30]
+	str r1, [r2, #0x30]		/* PLL2 */
 	ldr r1, =CONFIG_SYS_ANADIG_ENET_CTRL
-	str r1, [r2, #0xE0]
+	str r1, [r2, #0xE0]		/* PLL5 */
 	ldr r1, =CONFIG_SYS_ANADIG_SYS_CTRL
-	str r1, [r2, #0x270]
+	str r1, [r2, #0x270]		/* PLL1 */
 	/* check for lock */
 
 	ldr r1, =CONFIG_SYS_CLKCTRL_CCR
@@ -155,6 +158,7 @@
 
 	ldr r1, =CONFIG_SYS_CLKCTRL_CSCDR4
 	str r1, [r0, #CLKCTL_CSCDR4]
+#endif
 .endm
 
 .macro setup_wdog

@@ -30,7 +30,7 @@ static void vybrid_serial_setbrg(const struct serial_device *sdev)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 	struct vybrid_uart *uart = (struct vybrid_uart *)(sdev->dev.priv);
-	u32 clk = vybrid_get_uartclk();
+	u32 clk = vybrid_get_clock(VYBRID_IPG_CLK);
 	u16 sbr;
 
 	sbr = (u16)(clk / (16 * gd->baudrate));

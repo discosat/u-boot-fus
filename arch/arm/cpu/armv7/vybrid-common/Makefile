@@ -27,10 +27,11 @@ include $(TOPDIR)/config.mk
 
 LIB     = $(obj)libvybrid-common.o
 
-COBJS	= timer.o cpu.o speed.o
+COBJS-$(CONFIG_FSL_ESDHC) += speed.o
+COBJS-y	+= timer.o cpu.o
 
-SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)
-OBJS	:= $(addprefix $(obj),$(SOBJS) $(COBJS))
+SRCS	:= $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
+OBJS	:= $(addprefix $(obj),$(SOBJS) $(COBJS-y))
 
 all:	$(obj).depend $(LIB)
 

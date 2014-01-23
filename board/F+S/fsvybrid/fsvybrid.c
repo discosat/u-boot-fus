@@ -50,6 +50,7 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/scsc_regs.h>		/* struct vybrid_scsc_reg */
+#include <asm/arch/clock.h>		/* vybrid_get_esdhc_clk() */
 #include <i2c.h>
 
 #include <usb/ehci-fsl.h>
@@ -398,6 +399,10 @@ int board_mmc_getcd(struct mmc *mmc)
 
 int board_mmc_init(bd_t *bis)
 {
+	DECLARE_GLOBAL_DATA_PTR;
+
+	/* We use ESDHC1 */
+	gd->sdhc_clk = vybrid_get_esdhc_clk(1);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[0]);
 }
 #endif

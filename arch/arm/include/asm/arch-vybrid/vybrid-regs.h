@@ -105,75 +105,6 @@
 #define MACNET0_BASE_ADDR	(AIPS1_BASE_ADDR + 0x00050000)
 #define MACNET1_BASE_ADDR	(AIPS1_BASE_ADDR + 0x00051000)
 
-/* WEIM CSnGCR1 */
-#define CSEN			1
-#define SWR			(1 << 1)
-#define SRD			(1 << 2)
-#define MUM			(1 << 3)
-#define WFL			(1 << 4)
-#define RFL			(1 << 5)
-#define CRE			(1 << 6)
-#define CREP			(1 << 7)
-#define BL(x)			(((x) & 0x7) << 8)
-#define WC			(1 << 11)
-#define BCD(x)			(((x) & 0x3) << 12)
-#define BCS(x)			(((x) & 0x3) << 14)
-#define DSZ(x)			(((x) & 0x7) << 16)
-#define SP			(1 << 19)
-#define CSREC(x)		(((x) & 0x7) << 20)
-#define AUS			(1 << 23)
-#define GBC(x)			(((x) & 0x7) << 24)
-#define WP			(1 << 27)
-#define PSZ(x)			(((x) & 0x0f << 28)
-
-/* WEIM CSnGCR2 */
-#define ADH(x)			(((x) & 0x3))
-#define DAPS(x)			(((x) & 0x0f << 4)
-#define DAE			(1 << 8)
-#define DAP			(1 << 9)
-#define MUX16_BYP		(1 << 12)
-
-/* WEIM CSnRCR1 */
-#define RCSN(x)			(((x) & 0x7))
-#define RCSA(x)			(((x) & 0x7) << 4)
-#define OEN(x)			(((x) & 0x7) << 8)
-#define OEA(x)			(((x) & 0x7) << 12)
-#define RADVN(x)		(((x) & 0x7) << 16)
-#define RAL			(1 << 19)
-#define RADVA(x)		(((x) & 0x7) << 20)
-#define RWSC(x)			(((x) & 0x3f) << 24)
-
-/* WEIM CSnRCR2 */
-#define RBEN(x)			(((x) & 0x7))
-#define RBE			(1 << 3)
-#define RBEA(x)			(((x) & 0x7) << 4)
-#define RL(x)			(((x) & 0x3) << 8)
-#define PAT(x)			(((x) & 0x7) << 12)
-#define APR			(1 << 15)
-
-/* WEIM CSnWCR1 */
-#define WCSN(x)			(((x) & 0x7))
-#define WCSA(x)			(((x) & 0x7) << 3)
-#define WEN(x)			(((x) & 0x7) << 6)
-#define WEA(x)			(((x) & 0x7) << 9)
-#define WBEN(x)			(((x) & 0x7) << 12)
-#define WBEA(x)			(((x) & 0x7) << 15)
-#define WADVN(x)		(((x) & 0x7) << 18)
-#define WADVA(x)		(((x) & 0x7) << 21)
-#define WWSC(x)			(((x) & 0x3f) << 24)
-#define WBED1			(1 << 30)
-#define WAL			(1 << 31)
-
-/* WEIM CSnWCR2 */
-#define WBED			1
-
-/* WEIM WCR */
-#define BCM			1
-#define GBCD(x)			(((x) & 0x3) << 1)
-#define INTEN			(1 << 4)
-#define INTPOL			(1 << 5)
-#define WDOG_EN			(1 << 8)
-#define WDOG_LIMIT(x)		(((x) & 0x3) << 9)
 
 /* Number of GPIO pins per port */
 #define GPIO_NUM_PIN		32
@@ -242,92 +173,6 @@ struct clkctl {
 	u32 ccpgr1;	/* 0x94 */
 	u32 ccpgr2;	/* 0x98 */
 	u32 ccpgr3;	/* 0x9C */
-};
-
-/* WEIM registers */
-struct weim {
-	u32	cs0gcr1;
-	u32	cs0gcr2;
-	u32	cs0rcr1;
-	u32	cs0rcr2;
-	u32	cs0wcr1;
-	u32	cs0wcr2;
-	u32	cs1gcr1;
-	u32	cs1gcr2;
-	u32	cs1rcr1;
-	u32	cs1rcr2;
-	u32	cs1wcr1;
-	u32	cs1wcr2;
-	u32	cs2gcr1;
-	u32	cs2gcr2;
-	u32	cs2rcr1;
-	u32	cs2rcr2;
-	u32	cs2wcr1;
-	u32	cs2wcr2;
-	u32	cs3gcr1;
-	u32	cs3gcr2;
-	u32	cs3rcr1;
-	u32	cs3rcr2;
-	u32	cs3wcr1;
-	u32	cs3wcr2;
-	u32	cs4gcr1;
-	u32	cs4gcr2;
-	u32	cs4rcr1;
-	u32	cs4rcr2;
-	u32	cs4wcr1;
-	u32	cs4wcr2;
-	u32	cs5gcr1;
-	u32	cs5gcr2;
-	u32	cs5rcr1;
-	u32	cs5rcr2;
-	u32	cs5wcr1;
-	u32	cs5wcr2;
-	u32	wcr;
-	u32	wiar;
-	u32	ear;
-};
-
-struct anadig {
-	u32	usb1_pll_ctrl;
-	u32	usb2_pll_ctrl;
-	u32	pll_528_ctrl;
-	u32	pll_528_ss;
-	u32	pll_528_num;
-	u32	pll_528_denom;
-	u32	pll_aud_ctrl;
-	u32	pll_aud_num;
-	u32	pll_aud_denom;
-	u32	pll_vid_ctrl;
-	u32	pll_vid_num;
-	u32	pll_vid_denom;
-	u32	pll_enet_ctrl;
-	u32	pll_pfd_480_usb1;
-	u32	pll_pfd_528;
-	u32	reg_1p1;
-	u32	reg_3p0;
-	u32	reg_2p5;
-	u32	ana_misc0;
-	u32	ana_misc1;
-	u32	tempsens0;
-	u32	usb1_vbus_det;
-	u32	usb1_vbus_chrg_det;
-	u32	usb1_vbus_detsta;
-	u32	usb1_chrg_detsta;
-	u32	usb1_loopback;
-	u32	usb1_misc;
-	u32	usb2_vbus_det;
-	u32	usb2_vbus_chrg_det;
-	u32	usb2_vbus_detsta;
-	u32	usb2_chrg_detsta;
-	u32	usb2_loopback;
-	u32	usb2_misc;
-	u32	digprog;
-	u32	pll_sys_ctrl;
-	u32	pll_sys_ss;
-	u32	pll_sys_num;
-	u32	pll_sys_denom;
-	u32	pfd_528_sys;
-	u32	pll_lock;
 };
 
 struct iomuxc {
@@ -413,6 +258,60 @@ struct fuse_bank1_regs {
 #define ANADIG_PLL_SYS_DENOM	(0x2A0)
 #define ANADIG_PFD_528_SYS	(0x2B0)
 #define ANADIG_PLL_LOCK		(0x2C0)
+
+#define ANADIG_PLL_CTRL_BYPASS	(1 << 16)
+#define ANADIG_PLL_CTRL_ENABLE  (1 << 13)
+
+#define ANADIG_PLL_CTRL_DIV_SELECT_BIT 0x01
+#define ANADIG_PLL_CTRL_DIV_SELECT_MASK 0x7F
+
+#define ANADIG_PLL_PFD_CLKGATE	(1 << 7)
+#define ANADIG_PLL_PFD_FRAC_MASK 0x3F
+
+/* CCM Clock Switcher Register (CCSR) */
+#define CCSR_PLL3_PFD4_EN	(1u << 31)
+#define CCSR_PLL3_PFD3_EN	(1 << 30)
+#define CCSR_PLL3_PFD2_EN	(1 << 29)
+#define CCSR_PLL3_PFD1_EN	(1 << 28)
+#define CCSR_DAP_EN		(1 << 24)
+#define CCSR_PLL2_CLK_SEL_MASK	(0x7 << 19)
+#define CCSR_PLL2_CLK_SEL_SHIFT	19
+#define CCSR_PLL1_CLK_SEL_MASK	(0x7 << 16)
+#define CCSR_PLL1_CLK_SEL_SHIFT	16
+#define CCSR_PLL2_PFD4_EN	(1 << 15)
+#define CCSR_PLL2_PFD3_EN	(1 << 14)
+#define CCSR_PLL2_PFD2_EN	(1 << 13)
+#define CCSR_PLL2_PFD1_EN	(1 << 12)
+#define CCSR_PLL1_PFD4_EN	(1 << 11)
+#define CCSR_PLL1_PFD3_EN	(1 << 10)
+#define CCSR_PLL1_PFD2_EN	(1 << 9)
+#define CCSR_PLL1_PFD1_EN	(1 << 8)
+#define CCSR_DDRC_CLK_SEL	(1 << 6)
+#define CCSR_FAST_CLK_SEL	(1 << 5)
+#define CCSR_SLOW_CLK_SEL	(1 << 4)
+#define CCSR_SYS_CLK_SEL_MASK	(0x7 << 0)
+#define CCSR_SYS_CLK_SEL_SHIFT	0
+
+#define CACRR_IPG_CLK_DIV_MASK	(0x3 << 11)
+#define CACRR_IPG_CLK_DIV_SHIFT	11
+#define CACRR_PLL4_CLK_DIV_MASK	(0x7 << 6)
+#define CACRR_PLL4_CLK_DIV_SHIFT 6
+#define CACRR_BUS_CLK_DIV_MASK	(0x7 << 3)
+#define CACRR_BUS_CLK_DIV_SHIFT	3
+#define CACRR_ARM_CLK_DIV_MASK	(0x7 << 0)
+#define CACRR_ARM_CLK_DIV_SHIFT	0
+
+#define CSCMR1_ESDHC1_CLK_SEL_MASK	(0x3 << 18)
+#define CSCMR1_ESDHC1_CLK_SEL_SHIFT	18
+#define CSCMR1_ESDHC0_CLK_SEL_MASK	(0x3 << 16)
+#define CSCMR1_ESDHC0_CLK_SEL_SHIFT	16
+
+#define CSCDR2_ESDHC1_EN	(1 << 29)
+#define CSCDR2_ESDHC0_EN	(1 << 28)
+#define CSCDR2_ESDHC1_DIV_MASK	(0xF << 20)
+#define CSCDR2_ESDHC1_DIV_SHIFT	20
+#define CSCDR2_ESDHC0_DIV_MASK	(0xF << 16)
+#define CSCDR2_ESDHC0_DIV_SHIFT	16
 
 #define DDR_CR_BASE		DDR_BASE_ADDR
 #define DDR_PHY_BASE		(DDR_BASE_ADDR + 0x400)

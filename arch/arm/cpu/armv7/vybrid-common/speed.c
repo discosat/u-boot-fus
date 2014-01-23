@@ -32,10 +32,20 @@ DECLARE_GLOBAL_DATA_PTR;
 
 int get_clocks(void)
 {
-	gd->bus_clk = 66000000;
-	gd->ipg_clk = 66000000;
+	/* ###TODO### Remove all the following settings */
+	/* gd->bus_clk is used in the FEC driver. This should be moved there */
+	gd->bus_clk = vybrid_get_clock(VYBRID_IPG_CLK);
+
+	/* gd->ipg_clk will be set in timer.c:timer_init() */
+	//gd->ipg_clk = vybrid_get_clock(VYBRID_IPG_CLK);
+
 #ifdef CONFIG_FSL_ESDHC
-	gd->sdhc_clk = 132000000;
+	/* ### Remark: This file is only built if CONFIG_FSL_ESDHC is set
+	   anyway, so this define is a no-op. And it shows that it is
+	   completely wrong to init other values than gd->sdhc_clk here. */
+	/* gd->sdhc_clk will be set in fsvybrid.c:board_mmc_init() */
+	//gd->sdhc_clk = vybrid_get_esdhc_clk(1);
 #endif
+
 	return 0;
 }

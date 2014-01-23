@@ -27,23 +27,20 @@
 
 enum vybrid_clock {
 	VYBRID_ARM_CLK = 0,
-	VYBRID_AHB_CLK,
+	VYBRID_DDR_CLK,
 	VYBRID_IPG_CLK,
-	VYBRID_IPG_PERCLK,
-	VYBRID_UART_CLK,
-	VYBRID_CSPI_CLK,
 	VYBRID_FEC_CLK,
 };
 
-unsigned int vybrid_decode_pll(unsigned int pll, unsigned int f_ref);
-
-u32 vybrid_get_uartclk(void);
-u32 vybrid_get_fecclk(void);
 unsigned int vybrid_get_clock(enum vybrid_clock clk);
 
+unsigned int vybrid_get_esdhc_clk(int esdhc_num);
+
+#if 0 //####
 void set_usb_phy2_clk(void);
 void enable_usb_phy2_clk(unsigned char enable);
 void set_usboh3_clk(void);
 void enable_usboh3_clk(unsigned char enable);
+#endif //###
 
 #endif /* __ASM_ARCH_CLOCK_H */

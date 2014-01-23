@@ -47,7 +47,6 @@ typedef	struct	global_data {
 	unsigned long	fb_base;	/* base address of frame buffer */
 	unsigned long	fb_size;	/* Size of frame buffer */
 #ifdef CONFIG_VYBRID
-	unsigned long	cpu_clk;
 	unsigned long	ipg_clk;
 	unsigned long	bus_clk;
 #endif
