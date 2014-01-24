@@ -73,9 +73,11 @@ struct fsl_esdhc_cfg esdhc_cfg = {
 #define BT_PICOMODA5  3
 #define BT_CUBEA5     7
 
-#define FEAT_CPU400   (1<<0)		  /* 0: 500 MHz, 1: 400 MHz CPU */
-#define FEAT_2NDCAN   (1<<1)		  /* 0: 1x CAN, 1: 2x CAN */
-#define FEAT_2NDLAN   (1<<4)		  /* 0: 1x LAN, 1: 2x LAN */
+#define FEAT_CPU400   (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
+#define FEAT_2NDCAN   (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
+#define FEAT_2NDLAN   (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+
+#define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
 struct M4_ARGS
 {
@@ -113,18 +115,78 @@ struct nboot_args
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
-	char *updinstcheck;		  /* Default devices for upd/inst */
+	char *updatecheck;		  /* Default devices for update */
+	char *installcheck;		  /* Default devices for install */
+	char *recovercheck;		  /* Default devices for recover */
 };
 
+#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "mmc,usb"
+#elif defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "mmc"
+#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "usb"
+#else
+#define UPDATE_DEF NULL
+#endif
+
 const struct board_info fs_board_info[8] = {
-	{"armStoneA5", MACH_TYPE_ARMSTONEA5, "mmc,usb"},	/* 0 */
-	{"PicoCOMA5",  MACH_TYPE_PICOCOMA5,  "mmc,usb"},	/* 1 */
-	{"NetDCUA5",   MACH_TYPE_NETDCUA5,   "mmc,usb"},	/* 2 */
-	{"PicoMODA5",  0/*####not yet registered*/, "mmc,usb"},	/* 3 */
-	{"Unknown",    0,                    "mmc,usb"},	/* 4 */
-	{"Unknown",    0,                    "mmc,usb"},	/* 5 */
-	{"Unknown",    0,                    "mmc,usb"},	/* 6 */
-	{"CUBEA5",     MACH_TYPE_CUBEA5,     NULL},		/* 7 */
+	{
+		"armStoneA5",		/* 0 (BT_ARMSTONEA5) */
+		MACH_TYPE_ARMSTONEA5,
+		UPDATE_DEF,
+		UPDATE_DEF,
+		UPDATE_DEF,
+	},
+	{
+		"PicoCOMA5",		/* 1 (BT_PICOCOMA5)*/
+		MACH_TYPE_PICOCOMA5,
+		UPDATE_DEF,
+		UPDATE_DEF,
+		UPDATE_DEF,
+	},
+	{
+		"NetDCUA5",		/* 2 (BT_NETDCUA5) */
+		MACH_TYPE_NETDCUA5,
+		UPDATE_DEF,
+		UPDATE_DEF,
+		UPDATE_DEF,
+	},
+	{
+		"PicoMODA5",		/* 3 (BT_PICOMODA5) */
+		0,			/*####not yet registered*/
+		UPDATE_DEF,
+		UPDATE_DEF,
+		UPDATE_DEF,
+	},
+	{
+		"Unknown",		/* 4 */
+		0,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		"Unknown",		/* 5 */
+		0,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		"Unknown",		/* 6 */
+		0,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		"CUBEA5",		/* 7 (BT_CUBEA5) */
+		MACH_TYPE_CUBEA5,
+		"TargetFS.ubi(data)",
+		"ram@80300000",
+		"TargetFS.ubi(recovery)",
+	},
 };
 
 /* String used for system prompt */
@@ -383,6 +445,20 @@ size_t get_env_offset(void)
 	return ENV_OFFSET_DEF_LARGE;
 }
 
+#ifdef CONFIG_CMD_UPDATE
+enum update_action board_check_for_recover(void)
+{
+	/* If the board should do an automatic recovery is given in the
+	   dwAction value. Currently this is only defined for CUBEA5. If a
+	   special button is pressed for a defined time when power is
+	   supplied, the system should be reset to the default state, i.e.
+	   perform a complete recovery. The button is detected in NBoot, but
+	   recovery takes place in U-Boot. */
+	if (fs_nboot_args.dwAction & ACTION_RECOVER)
+		return UPDATE_ACTION_RECOVER;
+	return UPDATE_ACTION_UPDATE;
+}
+#endif
 
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_getcd(struct mmc *mmc)
@@ -463,10 +539,12 @@ int board_late_init(void)
 	   that they are set to the string "default" in the default
 	   environment and then we replace this string with the board specific
 	   value here */
-	if (strcmp(getenv("installcheck"), "default") == 0)
-	    setenv("installcheck", bi->updinstcheck);
 	if (strcmp(getenv("updatecheck"), "default") == 0)
-	    setenv("updatecheck", bi->updinstcheck);
+	    setenv("updatecheck", bi->updatecheck);
+	if (strcmp(getenv("installcheck"), "default") == 0)
+	    setenv("installcheck", bi->installcheck);
+	if (strcmp(getenv("recovercheck"), "default") == 0)
+	    setenv("recovercheck", bi->recovercheck);
 
 	/* If bootargs is not set, run variable bootubi as default setting */
 	if (!getenv("bootargs")) {
