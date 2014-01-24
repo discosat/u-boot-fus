@@ -835,41 +835,36 @@ U_BOOT_CMD(
 #endif
 );
 
-static int nand_load_image(cmd_tbl_t *cmdtp, nand_info_t *nand,
-			   ulong offset, ulong addr, char *cmd)
+int nand_load_image(int index, ulong offset, ulong addr, int show)
 {
 	int r;
-	char *s;
 	size_t cnt;
 	image_header_t *hdr;
+	nand_info_t *nand;
 #if defined(CONFIG_FIT)
 	const void *fit_hdr = NULL;
 #endif
 
-	s = strchr(cmd, '.');
-	if (s != NULL &&
-	    (strcmp(s, ".jffs2") && strcmp(s, ".e") && strcmp(s, ".i"))) {
-		printf("Unknown nand load suffix '%s'\n", s);
-		bootstage_error(BOOTSTAGE_ID_NAND_SUFFIX);
-		return 1;
-	}
-
+	nand = &nand_info[index];
 	printf("\nLoading from %s, offset 0x%lx\n", nand->name, offset);
 
 	cnt = nand->writesize;
 	r = nand_read_skip_bad(nand, offset, &cnt, (u_char *) addr);
 	if (r) {
 		puts("** Read error\n");
-		bootstage_error(BOOTSTAGE_ID_NAND_HDR_READ);
+		if (show)
+			bootstage_error(BOOTSTAGE_ID_NAND_HDR_READ);
 		return 1;
 	}
-	bootstage_mark(BOOTSTAGE_ID_NAND_HDR_READ);
+	if (show)
+		bootstage_mark(BOOTSTAGE_ID_NAND_HDR_READ);
 
 	switch (genimg_get_format ((void *)addr)) {
 	case IMAGE_FORMAT_LEGACY:
 		hdr = (image_header_t *)addr;
 
-		bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
+		if (show)
+			bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
 		image_print_contents (hdr);
 
 		cnt = image_get_image_size (hdr);
@@ -886,32 +881,47 @@ static int nand_load_image(cmd_tbl_t *cmdtp, nand_info_t *nand,
 		break;
 #endif
 	default:
-		bootstage_error(BOOTSTAGE_ID_NAND_TYPE);
+		if (show)
+			bootstage_error(BOOTSTAGE_ID_NAND_TYPE);
 		puts ("** Unknown image type\n");
 		return 1;
 	}
-	bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
+	if (show)
+		bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
 
 	r = nand_read_skip_bad(nand, offset, &cnt, (u_char *) addr);
 	if (r) {
 		puts("** Read error\n");
-		bootstage_error(BOOTSTAGE_ID_NAND_READ);
+		if (show)
+			bootstage_error(BOOTSTAGE_ID_NAND_READ);
 		return 1;
 	}
-	bootstage_mark(BOOTSTAGE_ID_NAND_READ);
+	if (show)
+		bootstage_mark(BOOTSTAGE_ID_NAND_READ);
 
 #if defined(CONFIG_FIT)
 	/* This cannot be done earlier, we need complete FIT image in RAM first */
 	if (genimg_get_format ((void *)addr) == IMAGE_FORMAT_FIT) {
 		if (!fit_check_format (fit_hdr)) {
-			bootstage_error(BOOTSTAGE_ID_NAND_FIT_READ);
+			if (show)
+				bootstage_error(BOOTSTAGE_ID_NAND_FIT_READ);
 			puts ("** Bad FIT image format\n");
 			return 1;
 		}
-		bootstage_mark(BOOTSTAGE_ID_NAND_FIT_READ_OK);
+		if (show)
+			bootstage_mark(BOOTSTAGE_ID_NAND_FIT_READ_OK);
 		fit_print_contents (fit_hdr);
 	}
 #endif
+
+	return 0;
+}
+
+static int nand_load_image_boot(cmd_tbl_t *cmdtp, int index, ulong offset,
+				ulong addr, char *cmd)
+{
+	if (nand_load_image(index, offset, addr, 1))
+		return 1;
 
 	/* Loading ok, update default load address */
 	set_loadaddr(addr);
@@ -923,14 +933,24 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	char *boot_device = NULL;
 	int idx;
+	char *s;
 	ulong addr, offset = 0;
-#if defined(CONFIG_CMD_MTDPARTS)
-	struct mtd_device *dev;
-	struct part_info *part;
-	u8 pnum;
 
+	s = strchr(argv[0], '.');
+	if (s != NULL &&
+	    (strcmp(s, ".jffs2") && strcmp(s, ".e") && strcmp(s, ".i"))) {
+		printf("Unknown nand load suffix '%s'\n", s);
+		bootstage_error(BOOTSTAGE_ID_NAND_SUFFIX);
+		return 1;
+	}
+
+#if defined(CONFIG_CMD_MTDPARTS)
 	if (argc >= 2) {
+		struct mtd_device *dev;
+		struct part_info *part;
+		u8 pnum;
 		char *p = (argc == 2) ? argv[1] : argv[2];
+
 		if (!(str2long(p, &addr)) && (mtdparts_init() == 0) &&
 		    (find_dev_and_part(p, &dev, &pnum, &part) == 0)) {
 			if (dev->id->type != MTD_DEV_TYPE_NAND) {
@@ -945,8 +965,8 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 				addr = parse_loadaddr(argv[1], NULL);
 			else
 				addr = get_loadaddr();
-			return nand_load_image(cmdtp, &nand_info[dev->id->num],
-					       part->offset, addr, argv[0]);
+			return nand_load_image_boot(cmdtp, dev->id->num,
+						   part->offset, addr, argv[0]);
 		}
 	}
 #endif
@@ -973,7 +993,7 @@ int do_nandboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	}
 	bootstage_mark(BOOTSTAGE_ID_NAND_AVAILABLE);
 
-	return nand_load_image(cmdtp, &nand_info[idx], offset, addr, argv[0]);
+	return nand_load_image_boot(cmdtp, idx, offset, addr, argv[0]);
 }
 
 U_BOOT_CMD(nboot, 4, 1, do_nandboot,
