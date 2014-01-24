@@ -326,9 +326,16 @@ int set_cpu_clk_info(void);
 void flash_perror (int);
 
 /* common/cmd_source.c */
+enum update_action {
+	UPDATE_ACTION_NONE,
+	UPDATE_ACTION_UPDATE,
+	UPDATE_ACTION_INSTALL,
+	UPDATE_ACTION_RECOVER
+};
+
 int	source (ulong addr, const char *fit_uname);
-int update_script(const char *action, const char *autocheck, const char *fname,
-		  unsigned long addr);
+int update_script(enum update_action action_id, const char *autocheck,
+		  const char *fname, unsigned long addr);
 
 /* Use get_loadaddr() and set_loadaddr() instead of variable load_addr; use
    get_loadaddr() also for saving (in tftpput) */
