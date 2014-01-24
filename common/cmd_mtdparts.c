@@ -138,7 +138,6 @@ static const char *const mtdparts_default = NULL;
 /* copies of last seen 'mtdids', 'mtdparts' and 'partition' env variables */
 #define MTDIDS_MAXLEN		128
 #define MTDPARTS_MAXLEN		512
-#define PARTITION_MAXLEN	16
 static char last_ids[MTDIDS_MAXLEN];
 static char last_parts[MTDPARTS_MAXLEN];
 static char last_partition[PARTITION_MAXLEN];
@@ -307,7 +306,7 @@ static void current_save(void)
  * @param mtd a pointer to an mtd_info instance (output)
  * @return 0 if device is valid, 1 otherwise
  */
-static int get_mtd_info(u8 type, u8 num, struct mtd_info **mtd)
+int get_mtd_info(u8 type, u8 num, struct mtd_info **mtd)
 {
 	char mtd_dev[16];
 
