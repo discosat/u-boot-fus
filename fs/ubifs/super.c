@@ -1083,6 +1083,10 @@ out_close:
 int __init ubifs_init(void)
 {
 	int err;
+	static int ubifs_initialized;
+
+	if (ubifs_initialized)
+		return 0;
 
 	BUILD_BUG_ON(sizeof(struct ubifs_ch) != 24);
 
@@ -1142,15 +1146,11 @@ int __init ubifs_init(void)
 		return -EINVAL;
 	}
 
-	err = -ENOMEM;
-
 	err = ubifs_compressors_init();
-	if (err)
-		goto out_shrinker;
 
-	return 0;
+	if (!err)
+		ubifs_initialized = 1;
 
-out_shrinker:
 	return err;
 }
 
@@ -1164,7 +1164,7 @@ static struct file_system_type ubifs_fs_type = {
 	.get_sb  = ubifs_get_sb,
 };
 
-int ubifs_mount(char *vol_name)
+int ubifs_mount(const char *vol_name)
 {
 	int flags;
 	char name[80] = "ubi:";

@@ -372,7 +372,7 @@ out:
 	return 0;
 }
 
-static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
+static unsigned long ubifs_findfile(struct super_block *sb, const char *filename)
 {
 	int ret;
 	char *next;

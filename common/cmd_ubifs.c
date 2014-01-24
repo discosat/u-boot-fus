@@ -35,41 +35,47 @@
 
 #include "../fs/ubifs/ubifs.h"
 
-static int ubifs_initialized;
 static int ubifs_mounted;
+static char vol_mounted[UBI_MAX_VOLUME_NAME];
 
 extern struct super_block *ubifs_sb;
 
 /* Prototypes */
 int ubifs_init(void);
-int ubifs_mount(char *vol_name);
+int ubifs_mount(const char *vol_name);
 void ubifs_umount(struct ubifs_info *c);
 int ubifs_ls(char *dir_name);
 int ubifs_load(const char *filename, u32 addr, u32 size);
 
-int do_ubifs_mount(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int cmd_ubifs_mount(const char *vol_name)
 {
-	char *vol_name;
 	int ret;
 
+	if (!ubifs_mounted
+	    || (strncmp(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME) != 0)) {
+		ubifs_mounted = 0;
+		ubifs_init();
+
+		ret = ubifs_mount(vol_name);
+		if (ret)
+			return -1;
+
+		strncpy(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME);
+		ubifs_mounted = 1;
+	}
+
+	return 0;
+}
+
+static int do_ubifs_mount(cmd_tbl_t *cmdtp, int flag, int argc,
+			  char *const argv[])
+{
 	if (argc != 2)
 		return CMD_RET_USAGE;
 
-	vol_name = argv[1];
-	debug("Using volume %s\n", vol_name);
+	debug("Using volume %s\n", argv[1]);
 
-	if (ubifs_initialized == 0) {
-		ubifs_init();
-		ubifs_initialized = 1;
-	}
-
-	ret = ubifs_mount(vol_name);
-	if (ret)
-		return -1;
-
-	ubifs_mounted = 1;
-
-	return 0;
+	return cmd_ubifs_mount(argv[1]);
 }
 
 int ubifs_is_mounted(void)
@@ -79,7 +85,6 @@ int ubifs_is_mounted(void)
 
 void cmd_ubifs_umount(void)
 {
-
 	if (ubifs_sb) {
 		printf("Unmounting UBIFS volume %s!\n",
 		       ((struct ubifs_info *)(ubifs_sb->s_fs_info))->vi.name);
@@ -88,12 +93,12 @@ void cmd_ubifs_umount(void)
 
 	ubifs_sb = NULL;
 	ubifs_mounted = 0;
-	ubifs_initialized = 0;
 }
 
-int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,
+			   char *const argv[])
 {
-	if (ubifs_initialized == 0) {
+	if (ubifs_mounted == 0) {
 		printf("No UBIFS volume mounted!\n");
 		return -1;
 	}
@@ -103,7 +108,7 @@ int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
-int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	char *filename = "/";
 	int ret;
@@ -124,10 +129,10 @@ int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return ret;
 }
 
-int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc,
+			 char *const argv[])
 {
 	const char *filename;
-	char *endp;
 	int ret;
 	u32 addr;
 	u32 size;
