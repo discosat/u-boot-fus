@@ -318,6 +318,7 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 	unsigned long long tmp;
 	struct ubi_volume *vol;
 	loff_t offp = 0;
+	size_t loaded = 0;
 
 	vol = ubi_find_volume(volume);
 	if (vol == NULL)
@@ -377,6 +378,7 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 
 		size -= len;
 		offp += len;
+		loaded += len;
 
 		memcpy(buf, tbuf, len);
 
@@ -385,6 +387,12 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 	} while (size);
 
 	free(tbuf);
+
+	if (!err) {
+		char fsizebuf[16];
+		sprintf(fsizebuf, "%X", loaded);
+		setenv("filesize", fsizebuf);
+	}
 	return err;
 }
 
