@@ -2,7 +2,39 @@ History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
 
-u-boot-2012.07-fsvybrid-V1.0 (16.12.2013)
+u-boot-2012.07-fsvybrid-V1.2 (23.02.2014)
+-----------------------------------------
+Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5
+Not tested:       PicoMOD6, PicoMOD7A, PicoCOM3, armStoneA8, NetDCU14
+
+- Add LED support for fsvybrid boards
+- Implement clock subsystem for Vybrid, add support for 500MHz CPUs
+  * Replace constants by actual PLL accesses
+  * Add new clock values for DDR, ESDHC
+  * Remove duplicated clock initialization that is already done in NBoot
+  * Remove unneeded clock values
+  * Remove i.MX6 code that does not make sense on Vybrid
+- On Vybrid, show meaningful values in clocks command
+- Fix ESDHC handling on Vybrid
+- Optimize ubi command to make it usable from update command
+- Set filesize variable when reading from UBI volume
+- On command "ubi part" only scan partition anew if partition actually changes
+- Optimize ubifs command to make it usable from update command
+- On command ubifsmount only remount ubi volume if volume name actually changes
+- Optimize nand command to make it usable from update command
+- Completely new implementation of F&S update feature
+  * Support new device ram[@addr] to execute a script already in RAM
+  * Support new device <part>[+<offs>] to load a script from MTD partition
+  * Support new device <part>.ubi(<vol>) to load a script from ubifs volume
+  * Don't create unnecessary code if CONFIG settings don't afford it
+  * Add recovery feature (like update, but use different set of variables)
+  * New update command, see help update; replaces old update/install commands
+  * Improve text output shown during update/install/recover procedure
+- Use new update feature on F&S boards (fsvybrid)
+- Add separate configuration file for CUBEA5
+
+
+u-boot-2012.07-fsvybrid-V1.1 (16.12.2013)
 -----------------------------------------
 Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
                   armStoneA8, NetDCU14, NetDCUA5, CUBEA5
