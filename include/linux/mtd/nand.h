@@ -194,9 +194,9 @@ typedef enum {
 
 /* F&S Extensions */
 /* Chip is software write-protected */
-#define NAND_SW_WRITE_PROTECT	0x80000000
+#define NAND_SW_WRITE_PROTECT	0x08000000
 /* Chip can't use bad block marker because of special type of ECC */
-#define NAND_NO_BADBLOCK	0x40000000
+#define NAND_NO_BADBLOCK	0x04000000
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \

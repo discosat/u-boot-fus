@@ -745,11 +745,12 @@ int board_nand_init(struct nand_chip *chip)
 	chip->write_buf = fsl_nfc_write_buf;
 	chip->verify_buf = fsl_nfc_verify_buf;
 #if 0
-    chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
+	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
 		NAND_BUSWIDTH_16 | NAND_CACHEPRG;
 #else
-    chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT |
-		/*NAND_BUSWIDTH_16 |*/ NAND_CACHEPRG;
+	chip->options = NAND_NO_AUTOINCR | /*NAND_USE_FLASH_BBT |*/
+		NAND_BBT_SCAN2NDPAGE | NAND_CACHEPRG;
+	chip->badblockpos = 0;
 #endif
 
 	chip->select_chip = nfc_select_chip;
