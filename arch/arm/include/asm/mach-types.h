@@ -4821,8 +4821,22 @@ extern unsigned int __machine_arch_type;
 #define MACH_TYPE_CDS_CTS              4871
 #define MACH_TYPE_AXELLITE             4872
 #define MACH_TYPE_ARNIE                4873
-#define MACH_TYPE_PCOMA5_ZENTA         4874
+#define MACH_TYPE_AGATEWAY             4874
 #define MACH_TYPE_PICOMODA9            4875
+#define MACH_TYPE_P_137_I6             4876
+#define MACH_TYPE_VVDN_MCAM            4877
+#define MACH_TYPE_MX6_INSIGHT          4878
+#define MACH_TYPE_VIPRINET_200         4879
+#define MACH_TYPE_ELLYPTO              4880
+#define MACH_TYPE_G7P                  4881
+#define MACH_TYPE_YSE5250              4882
+#define MACH_TYPE_NG500                4883
+#define MACH_TYPE_DTSC02               4884
+#define MACH_TYPE_MX6DL_SBB            4885
+#define MACH_TYPE_APALIS_IMX6Q         4886
+#define MACH_TYPE_WOMBAT6              4887
+#define MACH_TYPE_BALTO                4888
+#define MACH_TYPE_TNGSBL               4889
 
 #ifdef CONFIG_ARCH_EBSA110
 # ifdef machine_arch_type
@@ -62532,16 +62546,16 @@ extern unsigned int __machine_arch_type;
 # define machine_is_arnie()	(0)
 #endif
 
-#ifdef CONFIG_MACH_PCOMA5_ZENTA
+#ifdef CONFIG_MACH_AGATEWAY
 # ifdef machine_arch_type
 #  undef machine_arch_type
 #  define machine_arch_type	__machine_arch_type
 # else
-#  define machine_arch_type	MACH_TYPE_PCOMA5_ZENTA
+#  define machine_arch_type	MACH_TYPE_AGATEWAY
 # endif
-# define machine_is_pcoma5_zenta()	(machine_arch_type == MACH_TYPE_PCOMA5_ZENTA)
+# define machine_is_agateway()	(machine_arch_type == MACH_TYPE_AGATEWAY)
 #else
-# define machine_is_pcoma5_zenta()	(0)
+# define machine_is_agateway()	(0)
 #endif
 
 #ifdef CONFIG_MACH_PICOMODA9
@@ -62554,6 +62568,174 @@ extern unsigned int __machine_arch_type;
 # define machine_is_picomoda9()	(machine_arch_type == MACH_TYPE_PICOMODA9)
 #else
 # define machine_is_picomoda9()	(0)
+#endif
+
+#ifdef CONFIG_MACH_P_137_I6
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_P_137_I6
+# endif
+# define machine_is_p_137_i6()	(machine_arch_type == MACH_TYPE_P_137_I6)
+#else
+# define machine_is_p_137_i6()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VVDN_MCAM
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VVDN_MCAM
+# endif
+# define machine_is_vvdn_mcam()	(machine_arch_type == MACH_TYPE_VVDN_MCAM)
+#else
+# define machine_is_vvdn_mcam()	(0)
+#endif
+
+#ifdef CONFIG_MACH_MX6_INSIGHT
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_MX6_INSIGHT
+# endif
+# define machine_is_mx6_insight()	(machine_arch_type == MACH_TYPE_MX6_INSIGHT)
+#else
+# define machine_is_mx6_insight()	(0)
+#endif
+
+#ifdef CONFIG_MACH_VIPRINET_200
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_VIPRINET_200
+# endif
+# define machine_is_viprinet_200()	(machine_arch_type == MACH_TYPE_VIPRINET_200)
+#else
+# define machine_is_viprinet_200()	(0)
+#endif
+
+#ifdef CONFIG_MACH_ELLYPTO
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_ELLYPTO
+# endif
+# define machine_is_ellypto()	(machine_arch_type == MACH_TYPE_ELLYPTO)
+#else
+# define machine_is_ellypto()	(0)
+#endif
+
+#ifdef CONFIG_MACH_G7P
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_G7P
+# endif
+# define machine_is_g7p()	(machine_arch_type == MACH_TYPE_G7P)
+#else
+# define machine_is_g7p()	(0)
+#endif
+
+#ifdef CONFIG_MACH_YSE5250
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_YSE5250
+# endif
+# define machine_is_yse5250()	(machine_arch_type == MACH_TYPE_YSE5250)
+#else
+# define machine_is_yse5250()	(0)
+#endif
+
+#ifdef CONFIG_MACH_NG500
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_NG500
+# endif
+# define machine_is_ng500()	(machine_arch_type == MACH_TYPE_NG500)
+#else
+# define machine_is_ng500()	(0)
+#endif
+
+#ifdef CONFIG_MACH_DTSC02
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_DTSC02
+# endif
+# define machine_is_dtsc02()	(machine_arch_type == MACH_TYPE_DTSC02)
+#else
+# define machine_is_dtsc02()	(0)
+#endif
+
+#ifdef CONFIG_MACH_MX6DL_SBB
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_MX6DL_SBB
+# endif
+# define machine_is_mx6dl_sbb()	(machine_arch_type == MACH_TYPE_MX6DL_SBB)
+#else
+# define machine_is_mx6dl_sbb()	(0)
+#endif
+
+#ifdef CONFIG_MACH_APALIS_IMX6Q
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_APALIS_IMX6Q
+# endif
+# define machine_is_apalis_imx6q()	(machine_arch_type == MACH_TYPE_APALIS_IMX6Q)
+#else
+# define machine_is_apalis_imx6q()	(0)
+#endif
+
+#ifdef CONFIG_MACH_WOMBAT6
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_WOMBAT6
+# endif
+# define machine_is_wombat6()	(machine_arch_type == MACH_TYPE_WOMBAT6)
+#else
+# define machine_is_wombat6()	(0)
+#endif
+
+#ifdef CONFIG_MACH_BALTO
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_BALTO
+# endif
+# define machine_is_balto()	(machine_arch_type == MACH_TYPE_BALTO)
+#else
+# define machine_is_balto()	(0)
+#endif
+
+#ifdef CONFIG_MACH_TNGSBL
+# ifdef machine_arch_type
+#  undef machine_arch_type
+#  define machine_arch_type	__machine_arch_type
+# else
+#  define machine_arch_type	MACH_TYPE_TNGSBL
+# endif
+# define machine_is_tngsbl()	(machine_arch_type == MACH_TYPE_TNGSBL)
+#else
+# define machine_is_tngsbl()	(0)
 #endif
 
 /*
