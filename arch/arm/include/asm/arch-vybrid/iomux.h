@@ -247,13 +247,15 @@ typedef struct pad_iomux {
 	u8 ibe;
 } pad_iomux_t;
 
-#define PADIOMUX_SET(val, mod, spd, sre, ode, hys, dse, pus, pke, pue, obe, ibe)\
-		(val = (((mod & 7) << 20) | ((spd & 3) << 12) |		\
-		 ((sre & 1) << 11) | ((ode & 1) << 10) |		\
-		 ((hys & 1) << 9) | ((dse & 7) << 6) |			\
-		 ((pus & 3) << 4) | ((pke & 1) << 3) |			\
-		 ((pue & 1) << 2) | ((obe & 1) << 1) |			\
-		 (ibe & 1)))
+/*###
+#define PADIOMUX(mod, spd, sre, ode, hys, dse, pus, pke, pue, obe, ibe)	\
+	(((mod & 7) << 20) | ((spd & 3) << 12) |			\
+	 ((sre & 1) << 11) | ((ode & 1) << 10) |			\
+	 ((hys & 1) << 9) | ((dse & 7) << 6) |				\
+	 ((pus & 3) << 4) | ((pke & 1) << 3) |				\
+	 ((pue & 1) << 2) | ((obe & 1) << 1) |				\
+	 (ibe & 1))
+###*/
 
 #define DDRIOMUX_SET(inp, trim, hys, dse, pus, pke, pue)	\
 		(((inp & 1) << 16) | ((trim & 3) << 14) |	\
@@ -261,53 +263,98 @@ typedef struct pad_iomux {
 		 ((pus & 3) << 4) | ((pke & 1) << 3) |		\
 		 ((pue & 1) << 2))
 
-#define MUX_MODE_ALT0		0x00
-#define MUX_MODE_ALT1		0x01
-#define MUX_MODE_ALT2		0x02
-#define MUX_MODE_ALT3		0x03
-#define MUX_MODE_ALT4		0x04
-#define MUX_MODE_ALT5		0x05
-#define MUX_MODE_ALT6		0x06
-#define MUX_MODE_ALT7		0x07
+#if 1 //####
+#define PAD_CTL_MODE_ALT0	(0 << 20)
+#define PAD_CTL_MODE_ALT1	(1 << 20)
+#define PAD_CTL_MODE_ALT2	(2 << 20)
+#define PAD_CTL_MODE_ALT3	(3 << 20)
+#define PAD_CTL_MODE_ALT4	(4 << 20)
+#define PAD_CTL_MODE_ALT5	(5 << 20)
+#define PAD_CTL_MODE_ALT6	(6 << 20)
+#define PAD_CTL_MODE_ALT7	(7 << 20)
 
-#define MUX_SPD_50MHZ		0x00
-#define MUX_SPD_100MHZ		0x02
-#define MUX_SPD_200MHZ		0x03
+#define PAD_CTL_SPEED_LOW	(1 << 12)
+#define PAD_CTL_SPEED_MED	(2 << 12)
+#define PAD_CTL_SPEED_HIGH	(3 << 12)
 
-#define MUX_SRE_SLOW		0
-#define MUX_SRE_FAST		1
+#define PAD_CTL_SRE_FAST	(1 << 11)
+#define PAD_CTL_SRE_SLOW	(0 << 11)
 
-#define MUX_ODE_CMOS		0
-#define MUX_ODE_OPEN		1
+#define PAD_CTL_ODE		(1 << 10)
+#define PAD_CTL_HYS		(1 << 9)
 
-#define MUX_HYS_CMOS		0
-#define MUX_HYS_SCHMITT		1
+#define PAD_CTL_DSE_DISABLE	(0 << 6)
+#define PAD_CTL_DSE_150ohm	(1 << 6)
+#define PAD_CTL_DSE_75ohm	(2 << 6)
+#define PAD_CTL_DSE_50ohm	(3 << 6)
+#define PAD_CTL_DSE_37ohm	(4 << 6)
+#define PAD_CTL_DSE_30ohm	(5 << 6)
+#define PAD_CTL_DSE_25ohm	(6 << 6)
+#define PAD_CTL_DSE_20ohm	(7 << 6)
 
-#define MUX_DSE_20_OHM		7
-#define MUX_DSE_25_OHM		6
-#define MUX_DSE_30_OHM		5
-#define MUX_DSE_37_OHM		4
-#define MUX_DSE_50_OHM		3
-#define MUX_DSE_75_OHM		2
-#define MUX_DSE_150_OHM		1
-#define MUX_DSE_DIS		0
+#define PAD_CTL_PUS_100K_DOWN	(0 << 4)
+#define PAD_CTL_PUS_47K_UP	(1 << 4)
+#define PAD_CTL_PUS_100K_UP	(2 << 4)
+#define PAD_CTL_PUS_22K_UP	(3 << 4)
 
-#define MUX_PUS_22KOHM_UP	3
-#define MUX_PUS_100KOHM_UP	2
-#define MUX_PUS_47KOHM_UP	1
-#define MUX_PUS_100KOHM_DN	0
+#define PAD_CTL_PKE		(1 << 3)
+#define PAD_CTL_PUE		(1 << 2)
 
-#define MUX_PKE_EN		1
-#define MUX_PKE_DIS		0
+#define PAD_CTL_OBE_ENABLE	(1 << 1)
+#define PAD_CTL_IBE_ENABLE	(1 << 0)
+#define PAD_CTL_OBE_IBE_ENABLE	(3 << 0)
 
-#define MUX_PUE_PULLEN		1
-#define MUX_PUE_KEEPEREN	0
+#else //###
 
-#define MUX_OBE_EN		1
-#define MUX_OBE_DIS		0
+#define MUX_MODE_ALT0		(0x00 << 20)
+#define MUX_MODE_ALT1		(0x01 << 20)
+#define MUX_MODE_ALT2		(0x02 << 20)
+#define MUX_MODE_ALT3		(0x03 << 20)
+#define MUX_MODE_ALT4		(0x04 << 20)
+#define MUX_MODE_ALT5		(0x05 << 20)
+#define MUX_MODE_ALT6		(0x06 << 20)
+#define MUX_MODE_ALT7		(0x07 << 20)
 
-#define MUX_IBE_EN		1
-#define MUX_IBE_DIS		0
+#define MUX_SPD_50MHZ		(0x00 << 12)
+#define MUX_SPD_100MHZ		(0x02 << 12)
+#define MUX_SPD_200MHZ		(0x03 << 12)
+
+#define MUX_SRE_SLOW		(0 << 11)
+#define MUX_SRE_FAST		(1 << 11)
+
+#define MUX_ODE_CMOS		(0 << 10)
+#define MUX_ODE_OPEN		(1 << 10)
+
+#define MUX_HYS_CMOS		(0 << 9)
+#define MUX_HYS_SCHMITT		(1 << 9)
+
+#define MUX_DSE_20_OHM		(7 << 6)
+#define MUX_DSE_25_OHM		(6 << 6)
+#define MUX_DSE_30_OHM		(5 << 6)
+#define MUX_DSE_37_OHM		(4 << 6)
+#define MUX_DSE_50_OHM		(3 << 6)
+#define MUX_DSE_75_OHM		(2 << 6)
+#define MUX_DSE_150_OHM		(1 << 6)
+#define MUX_DSE_DIS		(0 << 6)
+
+#define MUX_PUS_22KOHM_UP	(3 << 4)
+#define MUX_PUS_100KOHM_UP	(2 << 4)
+#define MUX_PUS_47KOHM_UP	(1 << 4)
+#define MUX_PUS_100KOHM_DN	(0 << 4)
+
+#define MUX_PKE_EN		(1 << 3)
+#define MUX_PKE_DIS		(0 << 3)
+
+#define MUX_PUE_PULLEN		(1 << 2)
+#define MUX_PUE_KEEPEREN	(0 << 2)
+
+#define MUX_OBE_EN		(1 << 1)
+#define MUX_OBE_DIS		(0 << 1)
+
+#define MUX_IBE_EN		(1 << 0)
+#define MUX_IBE_DIS		(0 << 0)
+
+#endif //###
 
 #define MUX_DDR_INPUT_DIFF	1
 #define MUX_DDR_INPUT_CMOS	0
@@ -316,6 +363,15 @@ typedef struct pad_iomux {
 #define MUX_DDR_TRIM_100PS	2
 #define MUX_DDR_TRIM_50PS	1
 #define MUX_DDR_TRIM_MIN	0
+
+#define MVF600_SDHC_PAD_CTRL					      \
+	(PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_20ohm | PAD_CTL_PUS_100K_UP \
+	 | PAD_CTL_PKE | PAD_CTL_PUE | PAD_CTL_OBE_IBE_ENABLE)
+
+#define MVF600_GPIO_GENERAL_CTRL				    \
+	(PAD_CTL_SPEED_MED | PAD_CTL_DSE_25ohm | PAD_CTL_PUS_47K_UP \
+	 | PAD_CTL_PKE | PAD_CTL_PUE)
+
 
 void pad_iomux_set(u32 pad_addr, pad_iomux_t *padio);
 
