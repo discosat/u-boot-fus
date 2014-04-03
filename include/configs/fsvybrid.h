@@ -400,7 +400,7 @@
 #undef CONFIG_CMD_TPM		/* no support for TPM */
 #undef CONFIG_CMD_TSI148	/* no support for Turndra Tsi148 */
 #define CONFIG_CMD_UBI		/* support for unsorted block images (UBI) */
-#undef CONFIG_CMD_UBIFS		/* no support for UBIFS filesystem */
+#define CONFIG_CMD_UBIFS	/* support for UBIFS filesystem */
 #undef CONFIG_CMD_UNIVERSE	/* no support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* have unzip command */
 #define CONFIG_CMD_UPDATE	/* support automatic update/install */
@@ -509,7 +509,7 @@
 /************************************************************************
  * QUAD_SPI
  ************************************************************************/
-//#define CONFIG_QUAD_SPI
+/* No QSPI on fsvybrid */
 
 
 /************************************************************************
@@ -535,7 +535,6 @@
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC135
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC111
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
-
 
 
 
@@ -616,12 +615,6 @@
 
 /* Use board_nand_select_device() to switch to a device */
 #define CONFIG_SYS_NAND_SELECT_DEVICE
-
-
-
-
-
-
 
 
 /************************************************************************
