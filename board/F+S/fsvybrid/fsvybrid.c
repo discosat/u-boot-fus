@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2013
+ * (C) Copyright 2014
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
@@ -56,8 +56,9 @@
 #include <usb/ehci-fsl.h>
 
 #ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg esdhc_cfg = {
-	ESDHC1_BASE_ADDR, 1
+struct fsl_esdhc_cfg esdhc_cfg[] = {
+	{ESDHC0_BASE_ADDR, 1},
+	{ESDHC1_BASE_ADDR, 1},
 };
 #endif
 
@@ -464,22 +465,69 @@ enum update_action board_check_for_recover(void)
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_getcd(struct mmc *mmc)
 {
-	__raw_writel(0x005031ef, IOMUXC_PAD_014);	/* clk */
-	__raw_writel(0x005031ef, IOMUXC_PAD_015);	/* cmd */
-	__raw_writel(0x005031ef, IOMUXC_PAD_016);	/* dat0 */
-	__raw_writel(0x005031ef, IOMUXC_PAD_017);	/* dat1 */
-	__raw_writel(0x005031ef, IOMUXC_PAD_018);	/* dat2 */
-	__raw_writel(0x005031ef, IOMUXC_PAD_019);	/* dat3 */
-	return 1;
+	u32 val;
+
+	switch (fs_nboot_args.chBoardType) {
+	case BT_AGATEWAY:		/* PAD51 = GPIO1, Bit 19 */
+		val = __raw_readl(0x400FF050) & (1 << 19);
+		break;
+
+	case BT_ARMSTONEA5:
+	case BT_NETDCUA5:		/* PAD134 = GPIO4, Bit 6 */
+		/* #### Check if NetDCUA5 is working ### */
+		val = __raw_readl(0x400FF110) & (1 << 6);
+		break;
+
+	default:
+		return 1;		/* Assume card present */
+	}
+
+	return (val == 0);
 }
 
+#define MVF600_GPIO_SDHC_CD \
+	(PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_20ohm | PAD_CTL_IBE_ENABLE)
 int board_mmc_init(bd_t *bis)
 {
 	DECLARE_GLOBAL_DATA_PTR;
+	int index;
+	u32 val;
 
-	/* We use ESDHC1 */
-	gd->sdhc_clk = vybrid_get_esdhc_clk(1);
-	return fsl_esdhc_initialize(bis, &esdhc_cfg);
+	switch (fs_nboot_args.chBoardType) {
+	case BT_AGATEWAY:
+		__raw_writel(MVF600_GPIO_SDHC_CD, IOMUXC_PAD_051);
+		index = 0;
+		break;
+
+	case BT_ARMSTONEA5:
+	case BT_NETDCUA5:
+		__raw_writel(MVF600_GPIO_GENERAL_CTRL | PAD_CTL_IBE_ENABLE,
+			     IOMUXC_PAD_134);
+		/* fall through to default */
+	default:
+		index = 1;
+		break;
+	}
+
+	val = MVF600_SDHC_PAD_CTRL | PAD_CTL_MODE_ALT5;
+	if (!index) {				   /* ESDHC0 */
+		__raw_writel(val, IOMUXC_PAD_045); /* CLK */
+		__raw_writel(val, IOMUXC_PAD_046); /* CMD */
+		__raw_writel(val, IOMUXC_PAD_047); /* DAT0 */
+		__raw_writel(val, IOMUXC_PAD_048); /* DAT1 */
+		__raw_writel(val, IOMUXC_PAD_049); /* DAT2 */
+		__raw_writel(val, IOMUXC_PAD_050); /* DAT3 */
+	} else {				   /* ESDHC1 */
+		__raw_writel(val, IOMUXC_PAD_014); /* CLK */
+		__raw_writel(val, IOMUXC_PAD_015); /* CMD */
+		__raw_writel(val, IOMUXC_PAD_016); /* DAT0 */
+		__raw_writel(val, IOMUXC_PAD_017); /* DAT1 */
+		__raw_writel(val, IOMUXC_PAD_018); /* DAT2 */
+		__raw_writel(val, IOMUXC_PAD_019); /* DAT3 */
+	}
+
+	gd->sdhc_clk = vybrid_get_esdhc_clk(index);
+	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
 #endif
 
