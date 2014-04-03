@@ -81,6 +81,9 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
+#define XMK_STR(x)	#x
+#define MK_STR(x)	XMK_STR(x)
+
 struct M4_ARGS
 {
 	unsigned int dwID;
@@ -695,6 +698,94 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 
 extern struct fec_info_s fec_info[];
 
+/* Read a MAC address from OTP memory */
+int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
+{
+	u32 val;
+	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+	/* 
+	 * Read a MAC address from OTP memory on Vybrid; it is stored in the
+	 * following order:
+	 *
+	 *   Byte 1 in mac_h[7:0]
+	 *   Byte 2 in mac_h[15:8]
+	 *   Byte 3 in mac_h[23:16]
+	 *   Byte 4 in mac_h[31:24]
+	 *   Byte 5 in mac_l[23:16]
+	 *   Byte 6 in mac_l[31:24]
+	 *
+	 * The MAC address itself can be empty (all six bytes zero) or erased
+	 * (all six bytes 0xFF). In this case the whole address is ignored.
+	 *
+	 * In addition to the address itself, there may be a count stored in
+	 * mac_l[15:8]. 
+	 *
+	 *   count=0: only the address itself
+	 *   count=1: the address itself and the next address
+	 *   count=2: the address itself and the next two addresses
+	 *   etc.
+	 *
+	 * count=0xFF is a special case (erased count) and must be handled
+	 * like count=0. The count is only valid if the MAC address itself is
+	 * valid (not all zeroes and not all 0xFF).
+	 */
+	val = __raw_readl(otp_addr);
+	enetaddr[0] = val & 0xFF;
+	enetaddr[1] = (val >> 8) & 0xFF;
+	enetaddr[2] = (val >> 16) & 0xFF;
+	enetaddr[3] = val >> 24;
+
+	val = __raw_readl(otp_addr + 0x10);
+	enetaddr[4] = (val >> 16) & 0xFF;
+	enetaddr[5] = val >> 24;
+
+	if (!memcmp(enetaddr, empty1, 6) || !memcmp(enetaddr, empty2, 6))
+		return 0;
+
+	val >>= 8;
+	val &= 0xFF;
+	if (val == 0xFF)
+		val = 0;
+
+	return (int)(val + 1);
+}
+
+
+/* Set the ethaddr environment variable according to index */
+void set_fs_ethaddr(int index)
+{
+	uchar enetaddr[6];
+	int count, i;
+	int offs = index;
+
+	/* Try to fulfil the request in the following order:
+	 *   1. MAC0 from OTP
+	 *   2. MAC1 from OTP
+	 *   3. CONFIG_ETHADDR_BASE
+	 */
+	count = get_otp_mac(OTP_BASE_ADDR + 0x620, enetaddr);
+	if (count <= offs) {
+		offs -= count;
+		count = get_otp_mac(OTP_BASE_ADDR + 0x640, enetaddr);
+		if (count <= offs) {
+			offs -= count;
+			eth_parse_enetaddr(MK_STR(CONFIG_ETHADDR_BASE),
+					   enetaddr);
+		}
+	}
+
+	i = 6;
+	do {
+		offs += (int)enetaddr[--i];
+		enetaddr[i] = offs & 0xFF;
+		offs >>= 8;
+	} while (i);
+
+	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
+}
+
 /* Initialize ethernet by registering the available FEC devices */
 int board_eth_init(bd_t *bd)
 {
@@ -712,6 +803,7 @@ int board_eth_init(bd_t *bd)
 	case BT_PICOCOMA5:
 	case BT_ARMSTONEA5:
 	case BT_NETDCUA5:
+		set_fs_ethaddr(index);
 		ret = mcffec_register(bd, &fec_info[0]);
 		if (ret)
 			return ret;
@@ -729,6 +821,7 @@ int board_eth_init(bd_t *bd)
 			break;
 		/* Fall through to case BT_AGATEWAY */
 	case BT_AGATEWAY:
+		set_fs_ethaddr(index);
 #ifdef CONFIG_SYS_FEC0_IOBASE
 		ret = mcffec_register(bd, &fec_info[1]);
 #else

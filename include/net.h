@@ -122,6 +122,18 @@ extern int eth_setenv_enetaddr(char *name, const uchar *enetaddr);
 extern int eth_getenv_enetaddr_by_index(const char *base_name, int index,
 					uchar *enetaddr);
 
+/*
+ * Set the environment variable for an ethernet interface if not already set
+ * Args:
+ *	base_name - base name for device (normally "eth")
+ *	index - device index number (0 for first)
+ *	enetaddr - 6 byte hardware address
+ * Returns:
+ *	Return 0 if the variable could be set
+ */
+extern int eth_setenv_enetaddr_by_index(const char *base_name, int index,
+					uchar *enetaddr);
+
 #ifdef CONFIG_RANDOM_MACADDR
 /*
  * The u-boot policy does not allow hardcoded ethernet addresses. Under the

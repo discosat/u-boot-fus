@@ -611,9 +611,7 @@
 	"bootubi=setenv bootargs $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 	"bootubiconsole=setenv bootargs console=$sercon,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
 
-//####
-#define CONFIG_ETHADDR		00:05:51:07:55:83
-
+#define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122

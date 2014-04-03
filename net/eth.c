@@ -62,6 +62,16 @@ int eth_getenv_enetaddr_by_index(const char *base_name, int index,
 	return eth_getenv_enetaddr(enetvar, enetaddr);
 }
 
+int eth_setenv_enetaddr_by_index(const char *base_name, int index,
+				 uchar *enetaddr)
+{
+	char enetvar[32];
+	sprintf(enetvar, index ? "%s%daddr" : "%saddr", base_name, index);
+	if (getenv(enetvar))
+		return 1;		/* Already set, don't overwrite */
+	return eth_setenv_enetaddr(enetvar, enetaddr);
+}
+
 static int eth_mac_skip(int index)
 {
 	char enetvar[15];
