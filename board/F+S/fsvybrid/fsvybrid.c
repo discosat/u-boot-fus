@@ -419,13 +419,13 @@ int board_init(void)
 //###	printf("### %s: using internal PLL.\n",__func__);
 	//### FIXME: Use predefined address names
 	temp = __raw_readl(0x4006B020);
-	temp = temp | (2<<4); //[5:4]
+	temp = temp | (2<<4);		/* CSCMR2[5:4] Use PLL5 main clock */
 	__raw_writel(temp, 0x4006B020);
 	temp = __raw_readl(0x4006B014);
-	temp = temp | (1<<24); //[24]
+	temp = temp | (1<<24);		/* CSCDR1[24] Enable ENET RMII clock */
 	__raw_writel(temp, 0x4006B014);
 	temp = __raw_readl(0x400500E0);
-	temp = 0x2001;
+	temp = 0x2001;			/* ANADIG_PLL5_CTRL: Enable, 50MHz */
 	__raw_writel(temp, 0x400500E0);
 #endif
 	return 0;
@@ -634,13 +634,8 @@ int board_late_init(void)
 int fecpin_setclear(struct eth_device *dev, int setclear)
 {
 	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
-#ifndef CONFIG_FS_VYBRID_PLL_ETH
-	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLK */
-#else
-	__raw_writel(0x00101902, IOMUXC_PAD_000);   /* RMII_CLKOUT */
-#endif
-
 	if (setclear) {
+#ifdef CONFIG_SYS_FEC0_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
 			__raw_writel(0x00103192, IOMUXC_PAD_045);	/*MDC*/
 			__raw_writel(0x00103193, IOMUXC_PAD_046);	/*MDIO*/
@@ -652,6 +647,8 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 			__raw_writel(0x00103192, IOMUXC_PAD_052);	/*TxD0*/
 			__raw_writel(0x00103192, IOMUXC_PAD_053);	/*TxEn*/
 		}
+#endif
+#ifdef CONFIG_SYS_FEC1_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
 			__raw_writel(0x00103192, IOMUXC_PAD_054);	/*MDC*/
 			__raw_writel(0x00103193, IOMUXC_PAD_055);	/*MDIO*/
@@ -663,7 +660,9 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 			__raw_writel(0x00103192, IOMUXC_PAD_061);	/*TxD0*/
 			__raw_writel(0x00103192, IOMUXC_PAD_062);	/*TxEn*/
 		}
+#endif
 	} else {
+#ifdef CONFIG_SYS_FEC0_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
 			__raw_writel(0x00003192, IOMUXC_PAD_045);	/*MDC*/
 			__raw_writel(0x00003193, IOMUXC_PAD_046);	/*MDIO*/
@@ -675,6 +674,8 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 			__raw_writel(0x00003192, IOMUXC_PAD_052);	/*TxD0*/
 			__raw_writel(0x00003192, IOMUXC_PAD_053);	/*TxEn*/
 		}
+#endif
+#ifdef CONFIG_SYS_FEC1_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
 			__raw_writel(0x00003192, IOMUXC_PAD_054);	/*MDC*/
 			__raw_writel(0x00003193, IOMUXC_PAD_055);	/*MDIO*/
@@ -686,9 +687,57 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 			__raw_writel(0x00003192, IOMUXC_PAD_061);	/*TxD0*/
 			__raw_writel(0x00003192, IOMUXC_PAD_062);	/*TxEn*/
 		}
+#endif
 	}
 
 	return 0;
+}
+
+extern struct fec_info_s fec_info[];
+
+/* Initialize ethernet by registering the available FEC devices */
+int board_eth_init(bd_t *bd)
+{
+	int ret;
+	int index = 0;
+
+#ifdef CONFIG_FS_VYBRID_PLL_ETH
+	__raw_writel(0x00101902, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+#else
+	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLKIN */
+#endif
+
+#ifdef CONFIG_SYS_FEC0_IOBASE
+	switch (fs_nboot_args.chBoardType) {
+	case BT_PICOCOMA5:
+	case BT_ARMSTONEA5:
+	case BT_NETDCUA5:
+		ret = mcffec_register(bd, &fec_info[0]);
+		if (ret)
+			return ret;
+		index++;
+		break;
+	}
+#endif
+
+#ifdef CONFIG_SYS_FEC1_IOBASE
+	switch (fs_nboot_args.chBoardType) {
+	case BT_PICOCOMA5:
+	case BT_ARMSTONEA5:
+	case BT_NETDCUA5:
+		if (!(fs_nboot_args.chFeatures1 & FEAT_2NDLAN))
+			break;
+		/* Fall through to case BT_AGATEWAY */
+	case BT_AGATEWAY:
+#ifdef CONFIG_SYS_FEC0_IOBASE
+		ret = mcffec_register(bd, &fec_info[1]);
+#else
+		ret = mcffec_register(bd, &fec_info[0]);
+#endif
+		break;
+	}
+#endif
+	return ret;
 }
 #endif /* CONFIG_CMD_NET */
 

@@ -288,6 +288,7 @@ typedef struct fec {
 #define FEC_RX_TOUT			100
 
 int fecpin_setclear(struct eth_device *dev, int setclear);
+int mcffec_register(bd_t *bd, struct fec_info_s *fi);
 
 #ifdef CONFIG_SYS_DISCOVER_PHY
 void __mii_init(void);

@@ -417,7 +417,6 @@ int fec_init(struct eth_device *dev, bd_t * bd)
 	struct fec_info_s *info = dev->priv;
 	volatile fec_t *fecp = (fec_t *) (info->iobase);
 	int i;
-	uchar ea[6];
 
 	fecpin_setclear(dev, 1);
 
@@ -440,35 +439,6 @@ int fec_init(struct eth_device *dev, bd_t * bd)
 
 	/* Clear any pending interrupt */
 	fecp->eir = 0xffffffff;
-
-	/* Set station address   */
-	if ((u32) fecp == CONFIG_SYS_FEC0_IOBASE) {
-#ifdef CONFIG_SYS_FEC1_IOBASE
-		volatile fec_t *fecp1 = (fec_t *) (CONFIG_SYS_FEC1_IOBASE);
-		eth_getenv_enetaddr("eth1addr", ea);
-		fecp1->palr =
-		    (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
-		fecp1->paur = (ea[4] << 24) | (ea[5] << 16);
-#endif
-		eth_getenv_enetaddr("ethaddr", ea);
-		fecp->palr =
-		    (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
-		fecp->paur = (ea[4] << 24) | (ea[5] << 16);
-	} else {
-#ifdef CONFIG_SYS_FEC0_IOBASE
-		volatile fec_t *fecp0 = (fec_t *) (CONFIG_SYS_FEC0_IOBASE);
-		eth_getenv_enetaddr("ethaddr", ea);
-		fecp0->palr =
-		    (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
-		fecp0->paur = (ea[4] << 24) | (ea[5] << 16);
-#endif
-#ifdef CONFIG_SYS_FEC1_IOBASE
-		eth_getenv_enetaddr("eth1addr", ea);
-		fecp->palr =
-		    (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
-		fecp->paur = (ea[4] << 24) | (ea[5] << 16);
-#endif
-	}
 
 	/* Clear unicast address hash table */
 	fecp->iaur = 0;
@@ -529,6 +499,20 @@ int fec_init(struct eth_device *dev, bd_t * bd)
 	return 1;
 }
 
+static int fec_write_hwaddr(struct eth_device *dev)
+{
+	struct fec_info_s *info = dev->priv;
+	volatile fec_t *fecp = (fec_t *) (info->iobase);
+	uchar ea[6];
+
+	/* Set the station address */
+	eth_getenv_enetaddr_by_index("eth", dev->index, ea);
+	fecp->palr = (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
+	fecp->paur = (ea[4] << 24) | (ea[5] << 16);
+
+	return 0;
+}
+
 void fec_reset(struct eth_device *dev)
 {
 	struct fec_info_s *info = dev->priv;
@@ -542,6 +526,9 @@ void fec_reset(struct eth_device *dev)
 	if (i == FEC_RESET_DELAY) {
 		printf("FEC_RESET_DELAY timeout\n");
 	}
+
+	/* Reset clears the station address, set anew */
+	fec_write_hwaddr(dev);
 }
 
 void fec_halt(struct eth_device *dev)
@@ -558,75 +545,76 @@ void fec_halt(struct eth_device *dev)
 	memset(info->txbuf, 0, DBUF_LENGTH);
 }
 
-int mcffec_initialize(bd_t * bis)
+
+int mcffec_register(bd_t *bd, struct fec_info_s *fi)
 {
 	struct eth_device *dev;
-	int i;
 #ifdef CONFIG_SYS_FEC_BUF_USE_SRAM
 	u32 tmp = CONFIG_SYS_INIT_RAM_ADDR + 0x1000;
 #endif
 
-	for (i = 0; i < sizeof(fec_info) / sizeof(fec_info[0]); i++) {
+	/* default speed */
+	bd->bi_ethspeed = 10;
 
-		dev =
-		    (struct eth_device *)memalign(CONFIG_SYS_CACHELINE_SIZE,
-						  sizeof *dev);
-		if (dev == NULL)
-			hang();
+	dev = (struct eth_device *)memalign(CONFIG_SYS_CACHELINE_SIZE,
+					    sizeof *dev);
+	if (dev == NULL)
+		return -1;
 
-		memset(dev, 0, sizeof(*dev));
+	memset(dev, 0, sizeof(*dev));
 
-		sprintf(dev->name, "FEC%d", fec_info[i].index);
+	sprintf(dev->name, "FEC%d", fi->index);
 
-		dev->priv = &fec_info[i];
-		dev->init = fec_init;
-		dev->halt = fec_halt;
-		dev->send = fec_send;
-		dev->recv = fec_recv;
+	dev->priv = fi;
+	dev->init = fec_init;
+	dev->halt = fec_halt;
+	dev->send = fec_send;
+	dev->recv = fec_recv;
+	dev->write_hwaddr = fec_write_hwaddr;
 
-		/* setup Receive and Transmit buffer descriptor */
+	/* setup Receive and Transmit buffer descriptor */
 #ifdef CONFIG_SYS_FEC_BUF_USE_SRAM
-		fec_info[i].rxbd = (cbd_t *)((u32)fec_info[i].rxbd + tmp);
-		tmp = (u32)fec_info[i].rxbd;
-		fec_info[i].txbd =
-		    (cbd_t *)((u32)fec_info[i].txbd + tmp +
-		    (PKTBUFSRX * sizeof(cbd_t)));
-		tmp = (u32)fec_info[i].txbd;
-		fec_info[i].txbuf =
-		    (char *)((u32)fec_info[i].txbuf + tmp +
-		    (CONFIG_SYS_TX_ETH_BUFFER * sizeof(cbd_t)));
-		tmp = (u32)fec_info[i].txbuf;
+	fi->rxbd = (cbd_t *)((u32)fi->rxbd + tmp);
+	tmp = (u32)fi->rxbd;
+	fi->txbd = (cbd_t *)((u32)fi->txbd + tmp + (PKTBUFSRX * sizeof(cbd_t)));
+	tmp = (u32)fi->txbd;
+	fi->txbuf = (char *)((u32)fi->txbuf + tmp +
+			     (CONFIG_SYS_TX_ETH_BUFFER * sizeof(cbd_t)));
+	tmp = (u32)fi->txbuf;
 #else
-		fec_info[i].rxbd =
-		    (cbd_t *) memalign(CONFIG_SYS_CACHELINE_SIZE,
-				       (PKTBUFSRX * sizeof(cbd_t)));
-		fec_info[i].txbd =
-		    (cbd_t *) memalign(CONFIG_SYS_CACHELINE_SIZE,
-				       (TX_BUF_CNT * sizeof(cbd_t)));
-		fec_info[i].txbuf =
-		    (char *)memalign(CONFIG_SYS_CACHELINE_SIZE, DBUF_LENGTH);
+	fi->rxbd = (cbd_t *)memalign(CONFIG_SYS_CACHELINE_SIZE,
+				     (PKTBUFSRX * sizeof(cbd_t)));
+	fi->txbd = (cbd_t *)memalign(CONFIG_SYS_CACHELINE_SIZE,
+				     (TX_BUF_CNT * sizeof(cbd_t)));
+	fi->txbuf = (char *)memalign(CONFIG_SYS_CACHELINE_SIZE, DBUF_LENGTH);
 #endif
 
 #ifdef ET_DEBUG
-		printf("rxbd %x txbd %x\n",
-		       (int)fec_info[i].rxbd, (int)fec_info[i].txbd);
+	printf("rxbd %x txbd %x\n", (int)fi->rxbd, (int)fi->txbd);
 #endif
 
-		fec_info[i].phy_name = (char *)memalign(CONFIG_SYS_CACHELINE_SIZE, 32);
+	fi->phy_name = (char *)memalign(CONFIG_SYS_CACHELINE_SIZE, 32);
 
-		eth_register(dev);
+	eth_register(dev);
 
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
-		miiphy_register(dev->name,
-				mcffec_miiphy_read, mcffec_miiphy_write);
+	miiphy_register(dev->name, mcffec_miiphy_read, mcffec_miiphy_write);
 #endif
-		if (i > 0)
-			fec_info[i - 1].next = &fec_info[i];
-	}
-	fec_info[i - 1].next = &fec_info[0];
 
-	/* default speed */
-	bis->bi_ethspeed = 10;
+	/* Set station address in any case to make it work in kernel even if
+	   FEC is not used here in U-Boot */
+	fec_reset(dev);
+
+	return 0;
+}
+
+int mcffec_initialize(bd_t *bd)
+{
+	int i;
+
+	for (i = 0; i < sizeof(fec_info) / sizeof(fec_info[0]); i++)
+		mcffec_register(bd, &fec_info[i]);
+
 	/*Ugly workaround for FEC to work in kernel, TODO Jason*/
 	mii_init();
 	return 0;

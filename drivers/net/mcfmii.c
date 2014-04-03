@@ -240,11 +240,7 @@ void __mii_init(void)
 	u16 linkgood = 0;
 
 	/* retrieve from register structure */
-#if 0
 	dev = eth_get_dev();
-#else
-	dev = eth_get_dev_by_name("FEC0");
-#endif
 
 	info = dev->priv;
 
