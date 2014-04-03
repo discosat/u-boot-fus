@@ -32,10 +32,11 @@
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
- * 0x0004_0000 - 0x000F_FFFF: Cortex-M4 image (768KB)
- * 0x0010_0000 - 0x0017_FFFF: UBoot: U-Boot image (512KB)
- * 0x0018_0000 - 0x001B_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x001C_0000 - 0x003F_FFFF: UserDef: User defined data (2.25MB = 2304KB)
+ * 0x0004_0000 - 0x000F_FFFF: M4img: Cortex-M4 image (768KB)
+ * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
+ * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
+ * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * 0x0020_0000 - 0x003F_FFFF: UserDef: User defined data (2MB)
  * 0x0040_0000 - 0x007F_FFFF: Kernel: Linux Kernel uImage (4MB)
  * 0x0080_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (120MB if 128MB)
  * 0x0080_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (248MB if 256MB)
@@ -601,12 +602,12 @@
 /* We don't define settings for mtdparts default. Instead in fsvybrid.c
    board_late_init() we set variables mtdids, mtdparts and partition; We have
    mtdparts settings for 128K block size. ### TODO */
-#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(Nboot)ro,768k(M4img)ro,512k(Uboot)ro,256k(UbootEnv)ro,2304k(UserDef),4m(Kernel)ro,-(TargetFS)"
-//#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(M4img)ro,512k(UBoot)ro,256k(UBootEnv)ro,2304k(UserDef),4m(Kernel)ro,-(TargetFS)"
+#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(NBoot)ro,768k(M4img)ro,256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,2m(UserDef),4m(Kernel)ro,-(TargetFS)"
+//#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(M4img)ro,256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,2m(UserDef),4m(Kernel)ro,-(TargetFS)"
 
 /* Set UserDef as default partition */
-//#define MTDPART_DEFAULT "nand0,3"
-#define MTDPART_DEFAULT "nand0,4"
+//#define MTDPART_DEFAULT "nand0,4"
+#define MTDPART_DEFAULT "nand0,5"
 
 #define CONFIG_MTD_DEVICE		  /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
@@ -627,7 +628,7 @@
 //####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
 #define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
-#define ENV_OFFSET_DEF_LARGE 0x00180000   /* See NAND layout above */
+#define ENV_OFFSET_DEF_LARGE 0x001C0000   /* See NAND layout above */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment

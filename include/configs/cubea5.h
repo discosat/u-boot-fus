@@ -31,11 +31,11 @@
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
- * 0x0004_0000 - 0x000B_FFFF: UserDef/secondary U-Boot image (512KB)
- * 0x000C_0000 - 0x000F_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0010_0000 - 0x0017_FFFF: UBoot: (primary) U-Boot image (512KB)
- * 0x0018_0000 - 0x0057_FFFF: Kernel: Linux Kernel uImage (4MB)
- * 0x0058_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (250.5MB)
+ * 0x0004_0000 - 0x000F_FFFF: UserDef: User defined data (768KB)
+ * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
+ * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
+ * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * 0x0020_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (254MB)
  *
  * Remark:
  * All partition sizes have been chosen to allow for at least one bad block in
@@ -569,7 +569,7 @@
 /* We don't define settings for mtdparts default. Instead in fsvybrid.c
    board_late_init() we set variables mtdids, mtdparts and partition; We have
    mtdparts settings for 128K block size. */
-#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(Nboot)ro,512k(UserDef)ro,256k(UbootEnv),512k(Uboot)ro,512k(UbootBak)ro,-(TargetFS)"
+#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(NBoot)ro,768k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,-(TargetFS)"
 
 /* Set UserDef as default partition */
 #define MTDPART_DEFAULT "nand0,1"
@@ -593,7 +593,7 @@
 //####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
 #define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
-#define ENV_OFFSET_DEF_LARGE 0x000C0000   /* See NAND layout above */
+#define ENV_OFFSET_DEF_LARGE 0x001C0000   /* See NAND layout above */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
