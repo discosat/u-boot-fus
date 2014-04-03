@@ -71,6 +71,7 @@ struct fsl_esdhc_cfg esdhc_cfg = {
 #define BT_PICOCOMA5  1
 #define BT_NETDCUA5   2
 #define BT_PICOMODA5  3
+#define BT_AGATEWAY   6
 #define BT_CUBEA5     7
 
 #define FEAT_CPU400   (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
@@ -174,11 +175,11 @@ const struct board_info fs_board_info[8] = {
 		NULL,
 	},
 	{
-		"Unknown",		/* 6 */
-		0,
-		NULL,
-		NULL,
-		NULL,
+		"AGATEWAY",		/* 6 (BT_AGATEWAY) */
+		MACH_TYPE_AGATEWAY,
+		"TargetFS.ubi(data)",
+		"ram@80300000",
+		"TargetFS.ubi(recovery)",
 	},
 	{
 		"CUBEA5",		/* 7 (BT_CUBEA5) */
@@ -449,11 +450,11 @@ size_t get_env_offset(void)
 enum update_action board_check_for_recover(void)
 {
 	/* If the board should do an automatic recovery is given in the
-	   dwAction value. Currently this is only defined for CUBEA5. If a
-	   special button is pressed for a defined time when power is
-	   supplied, the system should be reset to the default state, i.e.
-	   perform a complete recovery. The button is detected in NBoot, but
-	   recovery takes place in U-Boot. */
+	   dwAction value. Currently this is only defined for CUBEA5 and
+	   AGATEWAY. If a special button is pressed for a defined time
+	   when power is supplied, the system should be reset to the default
+	   state, i.e. perform a complete recovery. The button is detected in
+	   NBoot, but recovery takes place in U-Boot. */
 	if (fs_nboot_args.dwAction & ACTION_RECOVER)
 		return UPDATE_ACTION_RECOVER;
 	return UPDATE_ACTION_UPDATE;
@@ -674,8 +675,8 @@ u32 get_board_rev(void)
 }
 
 #ifdef CONFIG_CMD_LED
-/* We have LEDs on PTC30 (Pad 103) and PTC31 (Pad 104); on CUBEA5, the logic
-   is inverted */
+/* We have LEDs on PTC30 (Pad 103) and PTC31 (Pad 104); on CUBEA5 and
+   AGATEWAY, the logic is inverted */
 #if 0
 void __led_init (led_id_t mask, int state)
 {
@@ -684,7 +685,8 @@ void __led_init (led_id_t mask, int state)
 #endif
 void __led_set (led_id_t mask, int state)
 {
-	if (fs_nboot_args.chBoardType == BT_CUBEA5)
+	if ((fs_nboot_args.chBoardType == BT_CUBEA5)
+	    || (fs_nboot_args.chBoardType == BT_AGATEWAY))
 		state = !state;
 
 	if (mask <= 1) {

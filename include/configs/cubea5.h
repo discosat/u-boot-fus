@@ -2,7 +2,7 @@
  * (C) Copyright 2014
  * F&S Elektronik Systeme GmbH
  *
- * Configuration settings for CUBEA5.
+ * Configuration settings for CUBEA5 (and AGATEWAY)
  * Activate with one of the following targets:
  *   make cubea5_config         Configure for CUBEA5
  *   make cubea5                Configure for CUBEA5 and build
@@ -291,7 +291,7 @@
 #undef CONFIG_CMD_CPLBINFO	/* no display of PPC CPLB tables */
 #undef CONFIG_CMD_CRAMFS	/* no support for CRAMFS filesystem */
 //####define CONFIG_CMD_DATE		/* no Date command */
-#undef CONFIG_CMD_DHCP		/* no support TFTP boot after DHCP request */
+#define CONFIG_CMD_DHCP		/* support TFTP boot after DHCP request */
 #undef CONFIG_CMD_DIAG		/* no support for board selftest */
 #undef CONFIG_CMD_DNS		/* no lookup of IP via a DNS name server */
 #undef CONFIG_CMD_DTT		/* no digital thermometer and thermostat */
@@ -299,8 +299,8 @@
 #define CONFIG_CMD_EDITENV	/* allow editing of environment variables */
 #undef CONFIG_CMD_EEPROM	/* no EEPROM support */
 #undef CONFIG_CMD_ELF		/* no support to boot ELF images */
-#undef CONFIG_CMD_EXT2		/* no support for EXT2 filesystem */
-#undef CONFIG_CMD_FAT		/* no support for FAT/VFAT filesystem */
+#define CONFIG_CMD_EXT2		/* support for EXT2 filesystem */
+#define CONFIG_CMD_FAT		/* support for FAT/VFAT filesystem */
 #undef CONFIG_CMD_FDC		/* no floppy disc controller */
 #undef CONFIG_CMD_FDOS		/* no support for DOS from floppy disc */
 #undef CONFIG_CMD_FITUPD	/* no update from FIT image */
@@ -325,22 +325,21 @@
 #undef CONFIG_CMD_MD5SUM	/* no support for md5sum checksums */
 #define CONFIG_CMD_MEMORY	/* md mm nm mw cp cmp crc base loop mtest */
 #undef CONFIG_CMD_MFSL		/* no support for Microblaze FSL */
-#undef CONFIG_CMD_MII		/* no support for listing MDIO busses */
+#define CONFIG_CMD_MII		/* support for listing MDIO busses */
 #define CONFIG_CMD_MISC		/* miscellaneous commands (sleep) */
-//#undef CONFIG_CMD_MMC		/* no support for SD/MMC cards */
-#define CONFIG_CMD_MMC		/* no support for SD/MMC cards */
+#define CONFIG_CMD_MMC		/* support for SD/MMC cards */
 #undef CONFIG_CMD_MMC_SPI	/* no access of MMC cards in SPI mode */
 #undef CONFIG_CMD_MOVI		/* no support for MOVI NAND flash memories */
 #undef CONIFG_CMD_MP		/* no multi processor support */
 #define CONFIG_CMD_MTDPARTS	/* support MTD partitions (mtdparts, chpart) */
 #define	CONFIG_CMD_NAND		/* support for common NAND flash memories */
-#undef CONFIG_CMD_NET		/* don't support BOOTP/TFTP (bootp, tftpboot) */
-#undef CONFIG_CMD_NFS		/* don't support download via NFS */
+#define CONFIG_CMD_NET		/* support BOOTP and TFTP (bootp, tftpboot) */
+#define CONFIG_CMD_NFS		/* support download via NFS */
 #undef CONFIG_CMD_ONENAND	/* no support for ONENAND flash memories */
 #undef CONFIG_CMD_OTP		/* no support for one-time-programmable mem */
 #undef CONFIG_CMD_PCI		/* no PCI support */
 #undef CONFIG_CMD_PCMCIA	/* no support for PCMCIA cards */
-#undef CONFIG_CMD_PING		/* don't support ping command */
+#define CONFIG_CMD_PING		/* support ping command */
 #undef CONFIG_CMD_PORTIO	/* no port commands (in, out) */
 #undef CONFIG_CMD_PXE		/* no support for PXE files from pxelinux */
 #undef CONFIG_CMD_RARP		/* no support for booting via RARP */
@@ -356,7 +355,7 @@
 #undef CONFIG_CMD_SETGETDCR	/* no support for PPC DCR register */
 #undef CONFIG_CMD_SF		/* no support for serial SPI flashs */
 #undef CONFIG_CMD_SHA1SUM	/* no support for sha1sum checksums */
-#undef CONFIG_CMD_SNTP		/* don't allow synchronizing RTC via network */
+//####define CONFIG_CMD_SNTP		/* allow synchronizing RTC via network */
 #define CONFIG_CMD_SOURCE	/* source support (was autoscr)	*/
 #undef CONFIG_CMD_SPI		/* no SPI support */
 #undef CONFIG_CMD_SPIBOOTLDR	/* no ldr support over SPI for blackfin */
@@ -373,7 +372,7 @@
 #undef CONFIG_CMD_UNIVERSE	/* no support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* have unzip command */
 #define CONFIG_CMD_UPDATE	/* support automatic update/install */
-#undef CONFIG_CMD_USB		/* no USB host support */
+//#####define CONFIG_CMD_USB		/* USB host support */
 #undef CONFIG_CMD_XIMG		/* no support to load part of Multi Image */
 
 //####define CONFIG_OF_LIBFDT	/* device tree support (fdt) */
@@ -387,11 +386,15 @@
 /************************************************************************
  * BOOTP options
  ************************************************************************/
+#define CONFIG_BOOTP_SUBNETMASK
+#define CONFIG_BOOTP_GATEWAY
+#define CONFIG_BOOTP_HOSTNAME
+#define CONFIG_BOOTP_BOOTPATH
+
 
 /************************************************************************
  * Ethernet
  ************************************************************************/
-#if 0 //####
 #define CONFIG_MCFFEC
 #define CONFIG_MII		1
 #define CONFIG_MII_INIT		1
@@ -423,7 +426,6 @@
 #endif	/* CONFIG_SYS_DISCOVER_PHY */
 
 #define CONFIG_ARP_TIMEOUT		200UL
-#endif //0 ###
 
 
 /************************************************************************
@@ -454,7 +456,7 @@
 /************************************************************************
  * USB host
  ************************************************************************/
-/* No USB host on CUBEA5 */
+//####TODO
 
 
 /************************************************************************
@@ -475,7 +477,7 @@
 /************************************************************************
  * QUAD_SPI
  ************************************************************************/
-/* No QSPI on CUBEA5 */
+/* No QSPI on CUBEA5/AGATEWAY */
 
 
 /************************************************************************
@@ -488,8 +490,6 @@
 /************************************************************************
  * SD/MMC card support
  ************************************************************************/
-#if 1 //#### Should be removed, but we need one filesystem for partitions
-      //#### swap with USB when USB host is implemented
 #define CONFIG_MMC			  /* SD/MMC support */
 #define CONFIG_GENERIC_MMC		  /* with the generic driver model */
   //#define CONFIG_SDHCI			  /* use SDHCI driver */
@@ -503,7 +503,6 @@
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC135
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC111
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
-#endif //0######
 
 
 
@@ -615,6 +614,7 @@
 //####
 #define CONFIG_ETHADDR		00:05:51:07:55:83
 
+#define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
