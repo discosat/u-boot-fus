@@ -642,10 +642,10 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"installcheck=default\0" \
 	"updatecheck=default\0" \
-	"bootubi=setenv bootargs console=$sercon,115200 fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootubidhcp=setenv bootargs console=$sercon,115200 ip=dhcp fec_mac=$ethaddr $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootnfs=setenv bootargs console=$sercon,115200 $mtdparts ip=$ipaddr:$serverip:$gatewayip:$netmask::eth0 fec_mac=$ethaddr root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
-	"bootnfsdhcp=setenv bootargs console=$sercon,115200 $mtdparts ip=dhcp fec_mac=$ethaddr root=/dev/nfs nfsroot=$serverip:/rootfs ro init=linuxrc\0"
+	"bootubi=setenv bootargs console=$sercon,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootubidhcp=setenv bootargs console=$sercon,115200 ip=dhcp $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
+	"bootnfs=setenv bootargs console=$sercon,115200 $mtdparts ip=$ipaddr:$serverip:$gatewayip:$netmask::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
+	"bootnfsdhcp=setenv bootargs console=$sercon,115200 $mtdparts ip=dhcp root=/dev/nfs nfsroot=$serverip:/rootfs ro init=linuxrc\0"
 #define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
 #define CONFIG_NETMASK          255.255.255.0
