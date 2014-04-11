@@ -602,12 +602,14 @@
 /* We don't define settings for mtdparts default. Instead in fsvybrid.c
    board_late_init() we set variables mtdids, mtdparts and partition; We have
    mtdparts settings for 128K block size. ### TODO */
-#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(NBoot)ro,768k(M4img)ro,256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,2m(UserDef),4m(Kernel)ro,-(TargetFS)"
-//#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(M4img)ro,256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,2m(UserDef),4m(Kernel)ro,-(TargetFS)"
+#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(NBoot)ro,768k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,4m(Kernel)ro,-(TargetFS)"
+#define MTDPARTS_DEF_UBIONLY	"mtdparts=NAND:256k(NBoot)ro,768k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,-(TargetFS)"
+//#define MTDPARTS_DEF_STD	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,4m(Kernel)ro,-(TargetFS)"
+//#define MTDPARTS_DEF_UBIONLY	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,-(TargetFS)"
 
 /* Set UserDef as default partition */
-//#define MTDPART_DEFAULT "nand0,4"
-#define MTDPART_DEFAULT "nand0,5"
+#define MTDPART_DEFAULT "nand0,1"
+//#define MTDPART_DEFAULT "nand0,0"
 
 #define CONFIG_MTD_DEVICE		  /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
@@ -637,15 +639,6 @@
    environments is always valid. Currently we don't use this feature. */
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000
 
-#define CONFIG_BOOTDELAY	3
-#define CONFIG_BOOTCOMMAND      "nand read $loadaddr Kernel ; bootm $loadaddr"
-#define CONFIG_EXTRA_ENV_SETTINGS \
-	"installcheck=default\0" \
-	"updatecheck=default\0" \
-	"bootubi=setenv bootargs console=$sercon,115200 $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootubidhcp=setenv bootargs console=$sercon,115200 ip=dhcp $mtdparts rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootnfs=setenv bootargs console=$sercon,115200 $mtdparts ip=$ipaddr:$serverip:$gatewayip:$netmask::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
-	"bootnfsdhcp=setenv bootargs console=$sercon,115200 $mtdparts ip=dhcp root=/dev/nfs nfsroot=$serverip:/rootfs ro init=linuxrc\0"
 #define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
 #define CONFIG_NETMASK          255.255.255.0
@@ -653,6 +646,69 @@
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE         "uImage"
+#define CONFIG_ROOTPATH		"/rootfs"
+#define CONFIG_MODE		"ro"
+#define CONFIG_BOOTDELAY	3
+#define CONFIG_BOOTARGS		"(dynamically generated, see var set_bootargs)"
+#define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
+
+/* Add some variables that are not predefined in U-Boot. All entries with
+   content "default" will be updated with a board-specific value in
+   board_late_init().
+
+   We use ${...} here to access variable names because this will work with the
+   simple command line parser, who accepts $(...) and ${...}, and also the
+   hush parser, who accepts ${...} and plain $... without any separator.
+
+   If a variable is meant to be called with "run" and wants to set an
+   environment variable that contains a ';', we can either enclose the whole
+   string to set in (escaped) double quotes, or we have to escape the ';' with
+   a backslash. However when U-Boot imports the environment from NAND into its
+   hash table in RAM, it interprets escape sequences, which will remove a
+   single backslash. So we actually need an escaped backslash, i.e. two
+   backslashes. Which finally results in having to type four backslashes here,
+   as each backslash must also be escaped with a backslash in C. */
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"console=default\0" \
+	"_console_none=setenv console\0" \
+	"_console_serial=setenv console console=${sercon},${baudrate}\0" \
+	"_console_display=setenv console console=/dev/tty1\0" \
+	"login=default\0" \
+	"_login_none=setenv login login_tty=null\0" \
+	"_login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
+	"_login_display=setenv login login_tty=/dev/tty1\0" \
+	"sercon=default\0" \
+	"mtdparts=default\0" \
+	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0" \
+	"_mtdparts_ubionly=setenv mtdparts " MTDPARTS_DEF_UBIONLY "\0" \
+	"network=default\0" \
+	"_network_off=setenv network\0"					\
+	"_network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
+	"_network_dhcp=setenv network ip=dhcp\0" \
+	"rootfs=default\0" \
+	"_rootfs_ubi=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
+	"_rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
+	"_rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
+	"_rootfs_usb=setenv rootfs root=/dev/sda1\0" \
+	"kernel=default\0" \
+	"_kernel_nand=setenv kernel nboot Kernel\\\\; bootm\0" \
+	"_kernel_tftp=setenv kernel tftpboot .\\\\; bootm\0" \
+	"_kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
+	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . ${bootfile}\\\\; bootm\0" \
+	"_kernel_mmc_fat=setenv kernel mmc rescan\\\\; fatload mmc0 . ${bootfile}\0" \
+	"_kernel_mmc_ext2=setenv kernel mmc rescan\\\\; ext2load mmc0 . ${bootfile}\0" \
+	"_kernel_usb_fat=setenv kernel usb start\\\\; fatload usb0 . ${bootfile}\0" \
+	"_kernel_usb_ext2=setenv kernel usb start\\\\; ext2load usb0 . ${bootfile}\0" \
+	"mode=default\0" \
+	"netdev=eth0\0" \
+	"init=default\0" \
+	"_init_init=setenv init\0" \
+	"_init_linuxrc=setenv init init=linuxrc\0" \
+	"installcheck=default\0" \
+	"updatecheck=default\0" \
+	"recovercheck=default\0" \
+	"arch=fsvybrid\0" \
+	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init}\0"
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE

@@ -120,9 +120,16 @@ struct nboot_args
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
-	char *updatecheck;		  /* Default devices for update */
-	char *installcheck;		  /* Default devices for install */
-	char *recovercheck;		  /* Default devices for recover */
+	char *updatecheck;		  /* Default value for updatecheck */
+	char *installcheck;		  /* Default value for installcheck */
+	char *recovercheck;		  /* Default value for recovercheck */
+	char *console;			  /* Default variable for console */
+	char *login;			  /* Default variable for login */
+	char *mtdparts;			  /* Default variable for mtdparts */
+	char *network;			  /* Default variable for network */
+	char *init;			  /* Default variable for init */
+	char *rootfs;			  /* Default variable for rootfs */
+	char *kernel;			  /* Default variable for kernel */
 };
 
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
@@ -136,61 +143,87 @@ struct board_info {
 #endif
 
 const struct board_info fs_board_info[8] = {
-	{
-		"armStoneA5",		/* 0 (BT_ARMSTONEA5) */
-		MACH_TYPE_ARMSTONEA5,
-		UPDATE_DEF,
-		UPDATE_DEF,
-		UPDATE_DEF,
+	{	/* 0 (BT_ARMSTONEA5) */
+		.name = "armStoneA5",
+		.mach_type = MACH_TYPE_ARMSTONEA5,
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubi",
+		.kernel = "_kernel_nand",
 	},
-	{
-		"PicoCOMA5",		/* 1 (BT_PICOCOMA5)*/
-		MACH_TYPE_PICOCOMA5,
-		UPDATE_DEF,
-		UPDATE_DEF,
-		UPDATE_DEF,
+	{	/* 1 (BT_PICOCOMA5)*/
+		.name = "PicoCOMA5",
+		.mach_type = MACH_TYPE_PICOCOMA5,
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubi",
+		.kernel = "_kernel_nand",
 	},
-	{
-		"NetDCUA5",		/* 2 (BT_NETDCUA5) */
-		MACH_TYPE_NETDCUA5,
-		UPDATE_DEF,
-		UPDATE_DEF,
-		UPDATE_DEF,
+	{	/* 2 (BT_NETDCUA5) */
+		.name = "NetDCUA5",
+		.mach_type = MACH_TYPE_NETDCUA5,
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubi",
+		.kernel = "_kernel_nand",
 	},
-	{
-		"PicoMODA5",		/* 3 (BT_PICOMODA5) */
-		0,			/*####not yet registered*/
-		UPDATE_DEF,
-		UPDATE_DEF,
-		UPDATE_DEF,
+	{	/* 3 (BT_PICOMODA5) */
+		.name = "PicoMODA5",
+		.mach_type = 0,		/*####not yet registered*/
 	},
-	{
-		"Unknown",		/* 4 */
-		0,
-		NULL,
-		NULL,
-		NULL,
+	{	/* 4 */
+		.name = "Unknown",
 	},
-	{
-		"Unknown",		/* 5 */
-		0,
-		NULL,
-		NULL,
-		NULL,
+	{	/* 5 */
+		.name = "Unknown",
 	},
-	{
-		"AGATEWAY",		/* 6 (BT_AGATEWAY) */
-		MACH_TYPE_AGATEWAY,
-		"TargetFS.ubi(data)",
-		"ram@80300000",
-		"TargetFS.ubi(recovery)",
+	{	/* 6 (BT_AGATEWAY) */
+		.name = "AGATEWAY",
+		.mach_type = MACH_TYPE_AGATEWAY,
+		.updatecheck = "TargetFS.ubi(data)",
+		.installcheck = "ram@80300000",
+		.recovercheck = "TargetFS.ubi(recovery)",
+//###		.console = "_console_serial",
+		.console = "_console_none",
+//###		.login = "_login_serial",
+		.login = "_login_none",
+		.mtdparts = "_mtdparts_ubionly",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubi",
+		.kernel = "_kernel_ubi",
 	},
-	{
-		"CUBEA5",		/* 7 (BT_CUBEA5) */
-		MACH_TYPE_CUBEA5,
-		"TargetFS.ubi(data)",
-		"ram@80300000",
-		"TargetFS.ubi(recovery)",
+	{	/* 7 (BT_CUBEA5) */
+		.name = "CUBEA5",
+		.mach_type = MACH_TYPE_CUBEA5,
+		.updatecheck = "TargetFS.ubi(data)",
+		.installcheck = "ram@80300000",
+		.recovercheck = "TargetFS.ubi(recovery)",
+		.console = "_console_none",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_ubionly",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubi",
+		.kernel = "_kernel_ubi",
 	},
 };
 
@@ -541,16 +574,37 @@ const char *board_get_mtdparts_default(void)
 }
 
 #ifdef CONFIG_BOARD_LATE_INIT
+void setup_var(const char *varname, const char *content, int runvar)
+{
+	/* If variable does not contain string "default", do not change it */
+	if (strcmp(getenv(varname), "default"))
+		return;
+
+	/* Either set variable directly with value ... */
+	if (!runvar) {
+		setenv(varname, content);
+		return;
+	}
+
+	/* ... or set variable by running the variable with name in content */
+	content = getenv(content);
+	if (content)
+		run_command(content, 0);
+}
+
 /* Use this slot to init some final things before the network is started. We
    set up some environment variables for things that are board dependent and
-   can't be defined as a fix value in fsvybrid.h. */
+   can't be defined as a fix value in fsvybrid.h. As an unset value is valid
+   for some of these variables, we check for the special value "default". Any
+   of these variables that holds this value will be replaced with the
+   board-specific value. */
 int board_late_init(void)
 {
 	unsigned int boardtype = fs_nboot_args.chBoardType;
 	const struct board_info *bi = &fs_board_info[boardtype];
 
 	/* Set sercon variable if not already set */
-	if (!getenv("sercon")) {
+	if (strcmp(getenv("sercon"), "default") == 0) {
 		char sercon[DEV_NAME_SIZE];
 
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
@@ -558,8 +612,8 @@ int board_late_init(void)
 		setenv("sercon", sercon);
 	}
 
-	/* Set platform and arch variables if not already set */
-	if (!getenv("platform")) {
+	/* Set platform variable if not already set */
+	if (strcmp(getenv("platform"), "default") == 0) {
 		char lcasename[20];
 		char *p = bi->name;
 		char *l = lcasename;
@@ -571,60 +625,26 @@ int board_late_init(void)
 				c += 'a' - 'A';
 			*l++ = c;
 		} while (c);
-		
+
 		setenv("platform", lcasename);
 	}
-	if (!getenv("arch"))
-		setenv("arch", "fsvybrid");
 
-	/* Set mtdids, mtdparts and partition if not already set */
-	if (!getenv("mtdids"))
-		setenv("mtdids", MTDIDS_DEFAULT);
-	if (!getenv("mtdparts"))
-		setenv("mtdparts", board_get_mtdparts_default());
-	if (!getenv("partition"))
-		setenv("partition", MTDPART_DEFAULT);
+	/* Set some variables with a direct value */
+	setup_var("updatecheck", bi->updatecheck, 0);
+	setup_var("installcheck", bi->installcheck, 0);
+	setup_var("recovercheck", bi->recovercheck, 0);
+	setup_var("mtdids", MTDIDS_DEFAULT, 0);
+	setup_var("partition", MTDPART_DEFAULT, 0);
+	setup_var("mode", CONFIG_MODE, 0);
 
-	/* installcheck and updatecheck are allowed to be empty, so we can't
-	   check for empty here. On the other hand they depend on the board,
-	   so we can't define them as fix value. The trick that we do here is
-	   that they are set to the string "default" in the default
-	   environment and then we replace this string with the board specific
-	   value here */
-	if (strcmp(getenv("updatecheck"), "default") == 0)
-	    setenv("updatecheck", bi->updatecheck);
-	if (strcmp(getenv("installcheck"), "default") == 0)
-	    setenv("installcheck", bi->installcheck);
-	if (strcmp(getenv("recovercheck"), "default") == 0)
-	    setenv("recovercheck", bi->recovercheck);
-
-	/* If bootargs is not set, run variable bootubi as default setting */
-	if (!getenv("bootargs")) {
-		char *s;
-		s = getenv("bootubi");
-		if (s)
-			run_command(s, 0);
-	}
-
-#if 0 //#### Debug  **REMOVEME**
-	{
-		int i;
-		printf("###Clock Gating\n");
-
-		for (i=0; i<12; i++) {
-			unsigned int addr = 0x4006b040 + 4*i;
-			printf("###CCGR%d (0x%08x) = 0x%08x\n", i, addr, __raw_readl(addr));
-		}
-		for (i=0; i<4; i++) {
-			unsigned int addr = 0x4006b090 + 4*i;
-			printf("###CCPGR%d (0x%08x) = 0x%08x\n", i, addr, __raw_readl(addr));
-		}
-		for (i=0; i<4; i++) {
-			unsigned int addr = IOMUXC_PAD_063 + 4*i;
-			printf("###IOMUXC_PAD_%03d (0x%08x) = 0x%08x\n", i+63, addr, __raw_readl(addr));
-		}
-	}
-#endif //#####
+	/* Set some variables by runnning another variable */
+	setup_var("console", bi->console, 1);
+	setup_var("login", bi->login, 1);
+	setup_var("mtdparts", bi->mtdparts, 1);
+	setup_var("network", bi->network, 1);
+	setup_var("init", bi->init, 1);
+	setup_var("rootfs", bi->rootfs, 1);
+	setup_var("kernel", bi->kernel, 1);
 
 	return 0;
 }
