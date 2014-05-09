@@ -600,6 +600,42 @@ struct fuse_bank1_regs {
 #define DDR_PHY067		(DDR_PHY_BASE + 0x10C)
 #define DDR_PHY068		(DDR_PHY_BASE + 0x110)
 
+/* Interrupts */
+#define N_IRQS			144
+#define IRQ_LPTimer0		72
+
+#define GICC_ICR		(CA5SCU_BASE_ADDR + 0x100)
+#define GICC_PMR		(CA5SCU_BASE_ADDR + 0x104)
+#define GICC_BPR		(CA5SCU_BASE_ADDR + 0x108)
+#define GICC_IAR		(CA5SCU_BASE_ADDR + 0x10c)
+#define GICC_EOIR		(CA5SCU_BASE_ADDR + 0x110)
+#define GICC_RPR		(CA5SCU_BASE_ADDR + 0x114)
+#define GICC_HPIR		(CA5SCU_BASE_ADDR + 0x118)
+#define GICC_ABPR		(CA5SCU_BASE_ADDR + 0x11C)
+
+#define GICD_DCR		(CA5_INTD_BASE_ADDR + 0x000)
+#define GICD_ICTR		(CA5_INTD_BASE_ADDR + 0x004)
+#define GICD_IIDR		(CA5_INTD_BASE_ADDR + 0x008)
+#define GICD_ISR		(CA5_INTD_BASE_ADDR + 0x080) /* 5 regs */
+#define GICD_ISER		(CA5_INTD_BASE_ADDR + 0x100) /* 5 regs */
+#define GICD_ICER		(CA5_INTD_BASE_ADDR + 0x180) /* 5 regs */
+#define GICD_ISPR		(CA5_INTD_BASE_ADDR + 0x200) /* 5 regs */
+#define GICD_ICPR		(CA5_INTD_BASE_ADDR + 0x280) /* 5 regs */
+#define GICD_ABR		(CA5_INTD_BASE_ADDR + 0x300) /* 5 regs */
+#define GICD_IPR		(CA5_INTD_BASE_ADDR + 0x400) /* 36 regs */
+#define GICD_IPTR		(CA5_INTD_BASE_ADDR + 0x800) /* 36 regs */
+#define GICD_ICFR		(CA5_INTD_BASE_ADDR + 0xC00) /* 9 regs */
+#define GICD_PPIS		(CA5_INTD_BASE_ADDR + 0xD00)
+#define GICD_SPIS		(CA5_INTD_BASE_ADDR + 0xD04) /* 5 regs */
+#define GICD_SGIR		(CA5_INTD_BASE_ADDR + 0xF00)
+
+#define MSCM_IRSPRC		(MSCM_BASE_ADDR + 0x880)     /* 112 regs */
+
+#define MSCM_IRSPRC_CP0E	(1 << 0)
+#define MSCM_IRSPRC_CP1E	(1 << 1)
+#define MSCM_IRSPRC_RO		(1 << 15)
+
+
 #endif /* __ASSEMBLER__*/
 
 #endif				/* __ASM_ARCH_VYBRID_REGS_H__ */

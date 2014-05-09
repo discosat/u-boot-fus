@@ -28,6 +28,7 @@ include $(TOPDIR)/config.mk
 LIB     = $(obj)libvybrid-common.o
 
 COBJS-$(CONFIG_FSL_ESDHC) += speed.o
+COBJS-$(CONFIG_USE_IRQ) += interrupts.o
 COBJS-y	+= timer.o cpu.o
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS-y:.o=.c)
