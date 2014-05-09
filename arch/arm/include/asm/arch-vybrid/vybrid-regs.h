@@ -320,6 +320,36 @@ struct fuse_bank1_regs {
 #define CSCDR2_ESDHC0_DIV_MASK	(0xF << 16)
 #define CSCDR2_ESDHC0_DIV_SHIFT	16
 
+/* Low Power Timer */
+#define LPTMR0_CSR		(LPTMR_BASE_ADDR + 0x000)
+#define LPTMR0_PSR		(LPTMR_BASE_ADDR + 0x004)
+#define LPTMR0_CMR		(LPTMR_BASE_ADDR + 0x008)
+#define LPTMR0_CNR		(LPTMR_BASE_ADDR + 0x00C)
+
+#define LPTMR_CSR_TCF		(1 << 7)
+#define LPTMR_CSR_TIE		(1 << 6)
+#define LPTMR_CSR_TPS_MASK	(0x3 << 4)
+#define LPTMR_CSR_TPS_SHIFT	4
+#define LPTMR_CSR_TPP		(1 << 3)
+#define LPTMR_CSR_TFC		(1 << 2)
+#define LPTMR_CSR_TMS		(1 << 1)
+#define LPTMR_CSR_TEN		(1 << 0)
+
+#define LPTMR_PSR_PRESCALE_MASK (0xF << 3)
+#define LPTMR_PSR_PRESCALE_SHIFT 3
+#define LPTMR_PSR_PBYP		(1 << 2)
+#define LPTMR_PSR_PCS_MASK	(0x3 << 0)
+#define LPTMR_PSR_PCS_SHIFT	0
+
+#define LPTMR_CMR_COMPARE_MASK  (0xFFFF << 0)
+#define LPTMR_CMR_COMPARE_SHIFT	0
+
+#define LPTMR_CNR_COUNTER_MASK  (0xFFFF << 0)
+#define LPTMR_CNR_COUNTER_SHIFT	0
+
+
+/* DDR */
+
 #define DDR_CR_BASE		DDR_BASE_ADDR
 #define DDR_PHY_BASE		(DDR_BASE_ADDR + 0x400)
 

@@ -148,8 +148,8 @@
 #define CONFIG_DISPLAY_CPUINFO		  /* Show CPU type and speed */
 #define CONFIG_DISPLAY_BOARDINFO	  /* Show board information */
 
-/* No need for IRQ/FIQ stuff; this also obsoletes the IRQ/FIQ stacks */
-#undef CONFIG_USE_IRQ
+/* We need IRQ for blinking LEDs */
+#define CONFIG_USE_IRQ
 
 /* ### Still to check */
 #define CONFIG_SYS_HZ		1000
@@ -205,8 +205,8 @@
 /* The stack sizes are set up in start.S using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)  /* 128KB */
 #ifdef CONFIG_USE_IRQ
-#define CONFIG_STACKSIZE_IRQ	(4*1024)  /* IRQ stack */
-#define CONFIG_STACKSIZE_FIQ	(4*1024)  /* FIQ stack */
+#define CONFIG_STACKSIZE_IRQ	(4*1024)    /* IRQ stack */
+#define CONFIG_STACKSIZE_FIQ	(128)       /* No FIQ required */
 #endif
 
 /* Allocate 2048KB protected RAM at end of RAM */
@@ -314,6 +314,7 @@
 #define CONFIG_CMD_ASKENV	/* ask user for variable */
 #define CONFIG_CMD_BDI		/* board information (bdinfo) */
 #undef CONFIG_CMD_BEDBUG	/* no PPC bedbug debugging support */
+#define CONFIG_CMD_BLINK	/* support for blinking LEDs */
 #undef CONFIG_CMD_BMP		/* no old BMP, use new display support */
 #define CONFIG_CMD_BOOTD	/* boot default target */
 #undef CONFIG_CMD_BOOTLDR	/* no ldr support for blackfin */
@@ -717,6 +718,7 @@
  * LEDs
  ************************************************************************/
 #define CONFIG_BOARD_SPECIFIC_LED
+#define CONFIG_BLINK_VYBRID
 #define STATUS_LED_BIT 0
 #define STATUS_LED_BIT1 1
 
