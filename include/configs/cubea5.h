@@ -616,6 +616,7 @@
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
 #define CONFIG_BOOTDELAY	0
+#define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"(dynamically generated, see var set_bootargs)"
 #define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
 
