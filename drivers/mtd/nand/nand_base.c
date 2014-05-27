@@ -1553,6 +1553,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	int readlen = ops->ooblen;
 	int len;
 	uint8_t *buf = ops->oobbuf;
+	int skippage = (int)(mtd->skip >> chip->page_shift);
 
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
@@ -1589,20 +1590,26 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		WATCHDOG_RESET();
 		len = min(len, readlen);
 		chip->ops.ooblen = len;
-		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
-		buf = nand_transfer_oob(chip, buf, ops, len);
+		if (realpage < skippage) {
+			/* If we are in the skip region, read as empty */
+			memset(buf, 0xFF, len);
+		} else {
+			sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
+			buf = nand_transfer_oob(chip, buf, ops, len);
 
-		if (!(chip->options & NAND_NO_READRDY)) {
-			/*
-			 * Apply delay or wait for ready/busy pin. Do this
-			 * before the AUTOINCR check, so no problems arise if a
-			 * chip which does auto increment is marked as
-			 * NOAUTOINCR by the board driver.
-			 */
-			if (!chip->dev_ready)
-				udelay(chip->chip_delay);
-			else
-				nand_wait_ready(mtd);
+			if (!(chip->options & NAND_NO_READRDY)) {
+				/*
+				 * Apply delay or wait for ready/busy pin. Do
+				 * this before the AUTOINCR check, so no
+				 * problems arise if a chip which does auto
+				 * increment is marked as NOAUTOINCR by the
+				 * board driver.
+				 */
+				if (!chip->dev_ready)
+					udelay(chip->chip_delay);
+				else
+					nand_wait_ready(mtd);
+			}
 		}
 
 		readlen -= len;
@@ -2145,6 +2152,9 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 
 	/* Shift to get page */
 	page = (int)(to >> chip->page_shift);
+
+	if (page < (int)(mtd->skip >> chip->page_shift))
+		return -EROFS;
 
 	/*
 	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
