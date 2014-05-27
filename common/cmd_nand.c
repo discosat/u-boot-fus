@@ -685,14 +685,21 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 						(u_char *)addr,
 						WITH_INLINE_OOB);
 #endif
-		} else if (!strcmp(s, ".oob")) {
+		} else if (!strncmp(s, ".oob", 3)) {
 			/* out-of-band data */
 			mtd_oob_ops_t ops = {
 				.oobbuf = (u8 *)addr,
 				.ooblen = rwsize,
+				.ooboffs = 0,
+				.datbuf = NULL,
 				.mode = MTD_OOB_RAW
 			};
-
+			if (!strcmp(s, ".oobauto"))
+				ops.mode = MTD_OOB_AUTO;
+			else if (strcmp(s, ".oob") && strcmp(s, ".oobraw")) {
+				printf("Unknown nand command suffix '%s'.\n", s);
+				return 1;
+			}
 			if (read)
 				ret = nand->read_oob(nand, off, &ops);
 			else
@@ -720,7 +727,8 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		while (argc > 0) {
 			addr = simple_strtoul(*argv, NULL, 16);
 
-			if (nand->block_markbad(nand, addr)) {
+			ret = nand->block_markbad(nand, addr);
+			if (ret) {
 				printf("block 0x%08lx NOT marked "
 					"as bad! ERROR %d\n",
 					addr, ret);
@@ -735,11 +743,12 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		}
 		return ret;
 	}
-
+#if 0
 	if (strcmp(cmd, "biterr") == 0) {
 		/* todo */
 		return 1;
 	}
+#endif
 
 #ifdef CONFIG_CMD_NAND_LOCK_UNLOCK
 	if (strcmp(cmd, "lock") == 0) {
@@ -788,8 +797,8 @@ U_BOOT_CMD(
 	"NAND sub-system",
 	"info - show available NAND devices\n"
 	"nand device [dev] - show or set current device\n"
-	"nand read - addr off|partition size\n"
-	"nand write - addr off|partition size\n"
+	"nand read[.oob[auto]] - addr off|partition size\n"
+	"nand write[.oob[auto]] - addr off|partition size\n"
 	"    read/write 'size' bytes starting at offset 'off'\n"
 	"    to/from memory address 'addr', skipping bad blocks.\n"
 	"nand read.raw - addr off|partition [count]\n"
@@ -819,7 +828,9 @@ U_BOOT_CMD(
 	"nand scrub [-y] off size | scrub.part partition | scrub.chip\n"
 	"    really clean NAND erasing bad blocks (UNSAFE)\n"
 	"nand markbad off [...] - mark bad block(s) at offset (UNSAFE)\n"
+#if 0
 	"nand biterr off - make a bit error at offset (UNSAFE)"
+#endif
 #ifdef CONFIG_CMD_NAND_LOCK_UNLOCK
 	"\n"
 	"nand lock [tight] [status]\n"
