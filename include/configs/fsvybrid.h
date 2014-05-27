@@ -28,19 +28,18 @@
  *
  * The following addresses are given as offsets of the device.
  *
- * NAND flash layout (Block size 128KB) (128MB, 1GB)
+ * NAND flash layout (Block size 128KB) (128MB, 256MB, 1GB)
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
- * 0x0004_0000 - 0x000F_FFFF: M4img: Cortex-M4 image (768KB)
+ * 0x0004_0000 - 0x000F_FFFF: UserDef: User defined data (768KB)
  * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
  * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
  * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0020_0000 - 0x003F_FFFF: UserDef: User defined data (2MB)
- * 0x0040_0000 - 0x007F_FFFF: Kernel: Linux Kernel uImage (4MB)
- * 0x0080_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (120MB if 128MB)
- * 0x0080_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (248MB if 256MB)
- * 0x0080_0000 - 0x3FFF_FFFF: TargetFS: Root filesystem (1016MB if 1GB)
+ * 0x0020_0000 - 0x005F_FFFF: Kernel: Linux Kernel uImage (4MB)
+ * 0x0060_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (122MB if 128MB)
+ * 0x0060_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (250MB if 256MB)
+ * 0x0060_0000 - 0x3FFF_FFFF: TargetFS: Root filesystem (1018MB if 1GB)
  *
  * Remark:
  * All partition sizes have been chosen to allow for at least one bad block in
@@ -553,12 +552,7 @@
    physical NAND device; however as NBOOT needs a different ECC as everything
    else, we split the NAND up into two virtual devices to allow these two
    different ECC strategies and OOB layouts. ### TODO */
-#if 1
-#define CONFIG_MTD_NAND_FSL_NFC_SWECC	1
-#define CONFIG_NAND_FSL_NFC
-#else
-#define CONFIG_NAND_MXC
-#endif
+#define CONFIG_NAND_FSL_NFC_FS
 
 //#define CONFIG_SYS_MAX_NAND_DEVICE	2
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -616,9 +610,6 @@
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
 #define CONFIG_RBTREE			  /* Required for UBI */
 #define CONFIG_LZO			  /* Required for UBI */
-
-/* Use board_nand_select_device() to switch to a device */
-#define CONFIG_SYS_NAND_SELECT_DEVICE
 
 
 /************************************************************************

@@ -520,12 +520,7 @@
    physical NAND device; however as NBOOT needs a different ECC as everything
    else, we split the NAND up into two virtual devices to allow these two
    different ECC strategies and OOB layouts. ### TODO */
-#if 1
-#define CONFIG_MTD_NAND_FSL_NFC_SWECC	1
-#define CONFIG_NAND_FSL_NFC
-#else
-#define CONFIG_NAND_MXC
-#endif
+#define CONFIG_NAND_FSL_NFC_FS
 
 //#define CONFIG_SYS_MAX_NAND_DEVICE	2
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -583,9 +578,6 @@
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
 #define CONFIG_RBTREE			  /* Required for UBI */
 #define CONFIG_LZO			  /* Required for UBI */
-
-/* Use board_nand_select_device() to switch to a device */
-#define CONFIG_SYS_NAND_SELECT_DEVICE
 
 
 /************************************************************************

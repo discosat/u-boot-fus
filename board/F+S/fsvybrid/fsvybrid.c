@@ -53,6 +53,8 @@
 #include <asm/arch/clock.h>		/* vybrid_get_esdhc_clk() */
 #include <i2c.h>
 
+#include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
+#include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_prv */
 #include <usb/ehci-fsl.h>
 
 #ifdef CONFIG_FSL_ESDHC
@@ -112,7 +114,8 @@ struct nboot_args
 	unsigned char chFeatures1;
 	unsigned char chFeatures2;
 	unsigned short wBootStartBlock;	  /* Start block number of bootloader */
-	unsigned short wReserved;
+	unsigned char chECCtype;	  /* ECC used */
+	unsigned char chECCImminentFail;  /* High ECC error but no swap block */
 	unsigned int dwReserved[3];
 	struct M4_ARGS m4_args;
 };
@@ -267,9 +270,9 @@ struct nboot_args fs_nboot_args;
  * 24a. fsvybrid.c      board_serial_init()     (unused)
  * 25.  dlmalloc.c      mem_malloc_init()       Init heap for malloc()
  * 26.  nand.c          nand_init()             Scan NAND devices
- * 26a. s5p_nand.c ###     board_nand_init()       Set fss5pv210 NAND config
- * 26b. s5p_nand.c ###     board_nand_setup()      Set OOB layout and ECC mode
- * 26c. fsvybrid.c      board_nand_setup_s3c()  Set OOB layout and ECC mode
+ * 26a. fsl_nfc_fus.c   board_nand_init()       Set fsvybrid NAND config
+ * 26b. fsl_nfc_fus.c   board_nand_setup()      Set OOB layout and ECC mode
+ * 26c. fsvybrid.c      board_nand_setup_vybrid()  Set OOB layout and ECC mode
  * 27.  mmc.c           mmc_initialize()        Scan MMC slots
  * 27a. fsvybrid.c      board_mmc_init()        Set fss5pv210 MMC config
  * 28.  env_common.c    env_relocate()          Copy env to RAM
@@ -467,6 +470,33 @@ int board_init(void)
 	return 0;
 }
 
+
+int board_nand_setup_vybrid(struct mtd_info *mtd, struct nand_chip *chip,
+			    struct fsl_nfc_fus_prv *prv, int id)
+{
+	/* NBoot is two blocks in size, independent of the block size. */
+	switch (id) {
+	case 0:
+		/* nand0: everything but NBoot, use ECC as given from NBoot */
+		mtd->size -= 2*mtd->erasesize;
+		mtd->skip = 2*mtd->erasesize;
+		prv->eccmode = fs_nboot_args.chECCtype;
+		break;
+
+	case 1:
+		/* nand1: only NBoot, use special write procedure with 32 bit
+		   ECC, and software write protection */
+		mtd->size = 2*mtd->erasesize;
+		chip->options |= NAND_SW_WRITE_PROTECT;
+		prv->eccmode = 7;
+		break;
+
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 size_t get_env_size(void)
 {
