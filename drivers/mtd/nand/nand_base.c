@@ -432,14 +432,14 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 		/* Write to first two pages and to byte 1 and 6 if necessary.
 		 * If we write to more than one location, the first error
-		 * encountered quits the procedure. We write two bytes per
-		 * location, so we dont have to mess with 16 bit access.
+		 * encountered quits the procedure.
 		 */
 		do {
-			chip->ops.len = chip->ops.ooblen = 2;
+			chip->ops.len = chip->ops.ooblen = 1;
 			chip->ops.datbuf = NULL;
 			chip->ops.oobbuf = buf;
 			chip->ops.ooboffs = chip->badblockpos & ~0x01;
+			chip->ops.mode = MTD_OOB_PLACE;
 
 			ret = nand_do_write_oob(mtd, ofs, &chip->ops);
 
@@ -1386,6 +1386,7 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	chip->ops.len = len;
 	chip->ops.datbuf = buf;
 	chip->ops.oobbuf = NULL;
+	chip->ops.mode = 0;
 
 	ret = nand_do_read_ops(mtd, from, &chip->ops);
 
@@ -1556,6 +1557,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
 
+	chip->ops = *ops;
 	if (ops->mode == MTD_OOB_AUTO)
 		len = chip->ecc.layout->oobavail;
 	else
@@ -1585,9 +1587,9 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	while (1) {
 		WATCHDOG_RESET();
-		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
-
 		len = min(len, readlen);
+		chip->ops.ooblen = len;
+		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
 		buf = nand_transfer_oob(chip, buf, ops, len);
 
 		if (!(chip->options & NAND_NO_READRDY)) {
@@ -1606,6 +1608,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		readlen -= len;
 		if (!readlen)
 			break;
+
+		chip->ops.ooboffs = 0;
 
 		/* Increment page address */
 		realpage++;
@@ -2079,6 +2083,7 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	chip->ops.len = len;
 	chip->ops.datbuf = (uint8_t *)buf;
 	chip->ops.oobbuf = NULL;
+	chip->ops.mode = 0;
 
 	ret = nand_do_write_ops(mtd, to, &chip->ops);
 
@@ -2106,6 +2111,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
+	chip->ops = *ops;
 	if (ops->mode == MTD_OOB_AUTO)
 		len = chip->ecc.layout->oobavail;
 	else
