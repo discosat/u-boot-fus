@@ -36,6 +36,10 @@
 #define ECC_ERR_COUNT		0x3F
 
 
+static const unsigned int bitflip_threshold[8] = {
+	1, 3, 5, 7, 11, 15, 22, 30
+};
+
 /* NAND layouts for all possible Vybrid ECC modes */
 static struct nand_ecclayout fus_nfc_ecclayout[8] =
 {
@@ -973,6 +977,8 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 
 	chip->ecc.read_page_raw = fus_nfc_read_page_raw;
 	chip->ecc.write_page_raw = fus_nfc_write_page_raw;
+
+	mtd->bitflip_threshold = bitflip_threshold[prv->eccmode];
 
 	return 0;
 }

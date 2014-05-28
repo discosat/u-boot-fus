@@ -1234,6 +1234,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	uint32_t oobreadlen = ops->ooblen;
 	uint32_t max_oobsize = ops->mode == MTD_OOB_AUTO ?
 		mtd->oobavail : mtd->oobsize;
+	unsigned int max_bitflips = 0;
 
 	uint8_t *bufpoi, *oob, *buf;
 	int skippage = (int)(mtd->skip >> chip->page_shift);
@@ -1259,6 +1260,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 		/* Is the current page in the buffer ? */
 		if (realpage != chip->pagebuf || oob) {
+			unsigned int prev_corrected = mtd->ecc_stats.corrected;
+
 			bufpoi = aligned ? buf : chip->buffers->databuf;
 
 			if (likely(sndcmd)) {
@@ -1316,6 +1319,9 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				else
 					nand_wait_ready(mtd);
 			}
+			max_bitflips = max(max_bitflips,
+					   mtd->ecc_stats.corrected -
+					   prev_corrected);
 		} else {
 			memcpy(buf, chip->buffers->databuf + col, bytes);
 			buf += bytes;
@@ -1356,7 +1362,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
 
-	return  mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
+	return max_bitflips >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 
 /**
@@ -1549,11 +1555,13 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 {
 	int page, realpage, chipnr, sndcmd = 1;
 	struct nand_chip *chip = mtd->priv;
+	struct mtd_ecc_stats stats;
 	int blkcheck = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 	int readlen = ops->ooblen;
 	int len;
 	uint8_t *buf = ops->oobbuf;
 	int skippage = (int)(mtd->skip >> chip->page_shift);
+	unsigned int max_bitflips = 0;
 
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
@@ -1579,6 +1587,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	}
 
+	stats = mtd->ecc_stats;
+
 	chipnr = (int)(from >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
 
@@ -1587,6 +1597,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	page = realpage & chip->pagemask;
 
 	while (1) {
+		unsigned int prev_corrected = mtd->ecc_stats.corrected;
+
 		WATCHDOG_RESET();
 		len = min(len, readlen);
 		chip->ops.ooblen = len;
@@ -1611,6 +1623,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 					nand_wait_ready(mtd);
 			}
 		}
+		max_bitflips = max(max_bitflips,
+				   mtd->ecc_stats.corrected - prev_corrected);
 
 		readlen -= len;
 		if (!readlen)
@@ -1637,7 +1651,11 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	}
 
 	ops->oobretlen = ops->ooblen;
-	return 0;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	return max_bitflips >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 
 /**
@@ -3233,6 +3251,17 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	/* propagate ecc.layout to mtd_info */
 	mtd->ecclayout = chip->ecc.layout;
+
+	/*
+	 * Initialize bitflip_threshold to its default prior scan_bbt() call.
+	 * scan_bbt() might invoke mtd_read(), thus bitflip_threshold must be
+	 * properly set. We set it to 1 as this is the default up to now in
+	 * all drivers that do not support bitflip_threshold yet. However
+	 * this should be changed to mtd->ecc_strength in the future as soon
+	 * as ecc_strength is supported in the driver.
+	 */
+	if (!mtd->bitflip_threshold)
+		mtd->bitflip_threshold = 1;
 
 	/* Check, if we should skip the bad block table scan */
 	if (chip->options & NAND_SKIP_BBTSCAN)
