@@ -7,6 +7,8 @@
 #ifndef __MTD_MTD_H__
 #define __MTD_MTD_H__
 
+#include "config.h"
+
 #include <linux/types.h>
 #include <div64.h>
 #include <linux/mtd/mtd-abi.h>
@@ -115,7 +117,7 @@ struct mtd_info {
 	u_char type;
 	uint32_t flags;
 	uint64_t size;	 /* Total size of the MTD */
-	uint64_t skip;   /* F&S: Skip these many bytes at start of device */
+	loff_t skip;     /* F&S: Skip these many bytes at start of device */
 
 	/* "Major" erase size for the device. Naïve users may take this
 	 * to be the only erase size available, or may use the more detailed
@@ -134,11 +136,22 @@ struct mtd_info {
 	uint32_t oobsize;   /* Amount of OOB data per block (e.g. 16) */
 	uint32_t oobavail;  /* Available OOB bytes per block */
 
+#ifdef CONFIG_NAND_REFRESH
+	/* Values for block refresh algorithm */
+#define MTD_EXTRA_REFRESHOFFS 0x01
+	unsigned extraflags; /* Flag what to read from/write to extra data */
+	loff_t extradata;    /* Value to read or write to page */
+	loff_t backupoffs;   /* Offset of block to be used as backup */
+	loff_t backupend;    /* Offset of last possible block for backup */
+	loff_t replaceoffs;  /* Offset of bad block replaced by backup */
+#endif
+
 	/*
 	 * read ops return -EUCLEAN if max number of bitflips corrected on any
 	 * one region comprising an ecc step equals or exceeds this value.
 	 */
 	unsigned int bitflip_threshold;
+	unsigned int max_bitflips; //### Debugging only
 
 	/* Kernel-only stuff starts here. */
 	const char *name;

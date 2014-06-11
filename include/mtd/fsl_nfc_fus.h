@@ -32,6 +32,12 @@ struct fsl_nfc_fus_platform_data {
 	unsigned int	flags;		/* See flag values above */
 	unsigned int	skipblocks;	/* Number of blocks to skip at
 					   beginning of device */
+#ifdef CONFIG_NAND_REFRESH
+	loff_t		backupstart;	/* Beginning of backup block region */
+	loff_t		backupend;	/* End of backup block region; if
+					   backupstart > backupend, the blocks
+					   are used in decreasing order */
+#endif
 };
 
 #endif /* !__FSL_NFC_FUS_H__ */

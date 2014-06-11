@@ -679,4 +679,21 @@ uint8_t nand_read_byte(struct mtd_info *mtd);
 void nand_swprotect(struct mtd_info *mtd, int bProtected);
 int nand_is_swprotected(struct mtd_info *mtd);
 
+#ifdef CONFIG_NAND_REFRESH
+#ifdef CONFIG_NAND_REFRESH_DEBUG
+#define nr_debug(args...) printf("--> " args)
+#else
+#define nr_debug(args...)
+#endif
+
+/* State of the NAND system; see nand_refresh.c for description */
+#define NAND_REFRESH_STATE_INSTABLE  0x01
+#define NAND_REFRESH_STATE_EMERGENCY 0x02
+#define NAND_REFRESH_STATE_DATALOSS  0x04
+extern loff_t nand_refresh_final_offset(struct mtd_info *mtd, loff_t offset);
+extern void nand_refresh_free_backup(struct mtd_info *mtd);
+extern int nand_refresh(struct mtd_info *mtd, loff_t refreshoffs);
+extern void nand_refresh_init(struct mtd_info *mtd);
+#endif /* CONFIG_NAND_REFRESH */
+
 #endif /* __LINUX_MTD_NAND_H */

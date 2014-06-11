@@ -114,8 +114,8 @@ struct nboot_args
 	unsigned char chFeatures1;
 	unsigned char chFeatures2;
 	unsigned short wBootStartBlock;	  /* Start block number of bootloader */
-	unsigned char chECCtype;	  /* ECC used */
-	unsigned char chECCImminentFail;  /* High ECC error but no swap block */
+	unsigned char chECCtype;	  /* ECC type used */
+	unsigned char chECCstate;	  /* NAND error state */
 	unsigned int dwReserved[3];
 	struct M4_ARGS m4_args;
 };
@@ -487,6 +487,11 @@ void board_nand_init(void)
 	pdata.eccmode = fs_nboot_args.chECCtype;
 	pdata.skipblocks = 2;
 	pdata.flags = 0;
+#ifdef CONFIG_NAND_REFRESH
+	pdata.backupstart = CONFIG_SYS_NAND_BACKUP_OFFS
+		+ CONFIG_SYS_NAND_BACKUP_SIZE - 1;
+	pdata.backupend = CONFIG_SYS_NAND_BACKUP_OFFS;
+#endif
 	vybrid_nand_register(0, &pdata);
 
 #if CONFIG_SYS_MAX_NAND_DEVICE > 1
@@ -497,8 +502,18 @@ void board_nand_init(void)
 	pdata.options |= NAND_SW_WRITE_PROTECT;
 	pdata.eccmode = ECC_60_BYTE;
 	pdata.flags = VYBRID_NFC_SKIP_INVERSE;
+#ifdef CONFIG_NAND_REFRESH
+	pdata.backupstart = 0;
+	pdata.backupend = 0;
+#endif
 	vybrid_nand_register(0, &pdata);
 #endif
+}
+
+void board_nand_state(struct mtd_info *mtd, unsigned int state)
+{
+	/* Save state to pass to pass it to Linux later */
+	fs_nboot_args.chECCstate |= (unsigned char)state;
 }
 
 size_t get_env_size(void)

@@ -1190,7 +1190,6 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		mtd->oobavail : mtd->oobsize;
 	unsigned int max_bitflips = 0;
 	uint8_t *bufpoi;
-	int skippage = (int)(mtd->skip >> chip->page_shift);
 
 	if (!readlen)
 		return 0;
@@ -1205,34 +1204,61 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 	stats = mtd->ecc_stats;
 
-	chipnr = (int)(from >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
+	chipnr = -1;
 
-	realpage = (int)(from >> chip->page_shift);
-	page = realpage & chip->pagemask;
-
-	col = (int)(from & (mtd->writesize - 1));
-
-	while (1) {
+	do {
+		loff_t finalfrom;
+#ifdef CONFIG_NAND_REFRESH
+		/*
+		 * If in EMERGENCY MODE and the page to read is within the
+		 * replaced block, read from the backup block instead. Please
+		 * note that the backup block may also be in a different chip
+		 * of this mtd.
+		 */
+		finalfrom = nand_refresh_final_offset(mtd, from);
+		if (finalfrom != from)
+			nr_debug("Redirect read from bad page at 0x%08llx "
+				 "to backup at 0x%08llx\n",
+				 from, finalfrom);
+#else
+		finalfrom = from;
+#endif
 		WATCHDOG_RESET();
 
-		bytes = min(mtd->writesize - col, readlen);
-		aligned = (bytes == mtd->writesize);
+		realpage = (int)(finalfrom >> chip->page_shift);
+		col = (int)(finalfrom & (mtd->writesize - 1));
+		bytes = mtd->writesize - col;
+		if (bytes > readlen)
+			bytes = readlen;
 
-		/* Is the current page in the buffer? */
-		if (realpage != chip->pagebuf || oobbuf) {
+		if (from < mtd->skip) {
+			/* Read data in skip region as empty (0xFF) */
+			memset(buf, 0xFF, bytes);
+		} else if ((realpage == chip->pagebuf) && !oobbuf) {
+			/* Read data from buffered page */
+			memcpy(buf, chip->buffers->databuf + col, bytes);
+		} else {
 			unsigned int prev_corrected = mtd->ecc_stats.corrected;
+			int newchipnr;
 
+			/* Select chip */
+			newchipnr = (int)(finalfrom >> chip->chip_shift);
+			if (newchipnr != chipnr) {
+				if (chipnr != -1)
+					chip->select_chip(mtd, -1);
+				chipnr = newchipnr;
+				chip->select_chip(mtd, newchipnr);
+			}
+
+			page = realpage & chip->pagemask;
+
+			aligned = (bytes == mtd->writesize);
 			bufpoi = aligned ? buf : chip->buffers->databuf;
 
 			chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
 
-			/* Now read the page into the buffer: if we are at
-			   the beginning in the skip region, read as empty */
-			if (realpage < skippage) {
-				memset(bufpoi, 0xFF, mtd->writesize);
-				memset(chip->oob_poi, 0xFF, mtd->oobsize);
-			} else if (unlikely(ops->mode == MTD_OOB_RAW))
+			/* Now read the page into the buffer */
+			if (unlikely(ops->mode == MTD_OOB_RAW))
 				ret = chip->ecc.read_page_raw(mtd, chip,
 							      bufpoi, page);
 			else if (!aligned && NAND_HAS_SUBPAGE_READ(chip) &&
@@ -1250,10 +1276,9 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				if (!NAND_HAS_SUBPAGE_READ(chip) && !oobbuf &&
 				    !(mtd->ecc_stats.failed - stats.failed))
 					chip->pagebuf = realpage;
-				memcpy(buf, chip->buffers->databuf + col, bytes);
+				memcpy(buf, chip->buffers->databuf + col,
+				       bytes);
 			}
-
-			buf += bytes;
 
 			if (unlikely(oobbuf)) {
 				int toread = oobmaxlen;
@@ -1277,34 +1302,19 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			max_bitflips = max(max_bitflips,
 					   mtd->ecc_stats.corrected -
 					   prev_corrected);
-		} else {
-			memcpy(buf, chip->buffers->databuf + col, bytes);
-			buf += bytes;
 		}
-
+		buf += bytes;
+		from += bytes;
 		readlen -= bytes;
+	} while (readlen);
 
-		if (!readlen)
-			break;
-
-		/* For subsequent reads align to page boundary */
-		col = 0;
-		/* Increment page address */
-		realpage++;
-
-		page = realpage & chip->pagemask;
-		/* Check, if we cross a chip boundary */
-		if (!page) {
-			chipnr++;
-			chip->select_chip(mtd, -1);
-			chip->select_chip(mtd, chipnr);
-		}
-	}
+	chip->select_chip(mtd, -1);
 
 	ops->retlen = ops->len - (size_t) readlen;
 	if (oobbuf)
 		ops->oobretlen = ops->ooblen - oobreadlen;
 
+	mtd->max_bitflips = max_bitflips; //### for debugging only
 	if (ret)
 		return ret;
 
@@ -1504,7 +1514,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	int readlen = ops->ooblen;
 	uint32_t max_oobsize;
 	uint8_t *buf = ops->oobbuf;
-	int skippage = (int)(mtd->skip >> chip->page_shift);
 	unsigned int max_bitflips = 0;
 
 	if (!readlen)
@@ -1543,29 +1552,56 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	stats = mtd->ecc_stats;
 
-	chipnr = (int)(from >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
+	chipnr = -1;
 
-	/* Shift to get page */
-	realpage = (int)(from >> chip->page_shift);
-	page = realpage & chip->pagemask;
-
-	while (1) {
-		unsigned int prev_corrected = mtd->ecc_stats.corrected;
-		int len = max_oobsize;
+	do {
+		loff_t finalfrom;
+		uint32_t len;
+#ifdef CONFIG_NAND_REFRESH
+		/*
+		 * If in EMERGENCY MODE and the page to read is within the
+		 * replaced block, read from the backup block instead. Please
+		 * note that the backup block may also be in another chip of
+		 * this mtd.
+		 */
+		finalfrom = nand_refresh_final_offset(mtd, from);
+		if (finalfrom != from)
+			nr_debug("Redirect OOB read from bad page at "
+				 "0x%08llx to backup at 0x%08llx\n",
+				 from, finalfrom);
+#else
+		finalfrom = from;
+#endif
 
 		WATCHDOG_RESET();
+
+		len = max_oobsize;
 		if (len > readlen)
 			len = readlen;
-		if (realpage < skippage) {
+		if (from < mtd->skip) {
 			/* If we are in the skip region, read as empty */
 			memset(buf, 0xFF, len);
 		} else {
+			unsigned int prev_corrected = mtd->ecc_stats.corrected;
+			int newchipnr;
+
+			/* Select chip */
+			newchipnr = (int)(finalfrom >> chip->chip_shift);
+			if (newchipnr != chipnr) {
+				if (chipnr != -1)
+					chip->select_chip(mtd, -1);
+				chipnr = newchipnr;
+				chip->select_chip(mtd, newchipnr);
+			}
+
+			realpage = (int)(finalfrom >> chip->page_shift);
+			page = realpage & chip->pagemask;
+
 			if (ops->mode == MTD_OOB_RAW)
 				chip->ecc.read_oob_raw(mtd, chip, page);
 			else
 				chip->ecc.read_oob(mtd, chip, page);
-			buf = nand_transfer_oob(chip, buf, ops, len);
+			nand_transfer_oob(chip, buf, ops, len);
 
 			if (chip->options & NAND_NEED_READRDY) {
 				/* Apply delay or wait for ready/busy pin. */
@@ -1574,28 +1610,20 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 				else
 					nand_wait_ready(mtd);
 			}
-		}
-		max_bitflips = max(max_bitflips,
+			max_bitflips = max(max_bitflips,
 				   mtd->ecc_stats.corrected - prev_corrected);
-
-		readlen -= len;
-		if (!readlen)
-			break;
-
-		/* Increment page address */
-		realpage++;
-
-		page = realpage & chip->pagemask;
-		/* Check, if we cross a chip boundary */
-		if (!page) {
-			chipnr++;
-			chip->select_chip(mtd, -1);
-			chip->select_chip(mtd, chipnr);
 		}
-	}
+
+		from += mtd->writesize;
+		buf += len;
+		readlen -= len;
+	} while (readlen);
+
+	chip->select_chip(mtd, -1);
 
 	ops->oobretlen = ops->ooblen;
 
+	mtd->max_bitflips = max_bitflips; //### debugging only
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
 
@@ -1929,19 +1957,19 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 
 	uint8_t *oob = ops->oobbuf;
 	uint8_t *buf = ops->datbuf;
-	int ret, subpage;
+	uint32_t pagemask = mtd->writesize - 1;
+	int ret;
 
 	ops->retlen = 0;
 	if (!writelen)
 		return 0;
 
-	if (chip->options & NAND_SW_WRITE_PROTECT)
+	/* Don't allow writing into skip area */
+	if ((chip->options & NAND_SW_WRITE_PROTECT) || (to < mtd->skip))
 		return -EROFS;
 
-	column = to & (mtd->writesize - 1);
-	subpage = column || (writelen & (mtd->writesize - 1));
-
-	if (subpage && oob)
+	/* Only allow unaligned writes if not also writing OOB */
+	if (oob && ((to & pagemask) || (writelen & pagemask)))
 		return -EINVAL;
 
 	chipnr = (int)(to >> chip->chip_shift);
@@ -1950,15 +1978,9 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
 		printk (KERN_NOTICE "nand_do_write_ops: Device is write protected\n");
-		return -EIO;
+		return -EROFS;
 	}
 
-	/* Don't allow writing into skip area */
-	realpage = (int)(to >> chip->page_shift);
-	if (realpage < (int)(mtd->skip >> chip->page_shift))
-		return -EROFS;
-
-	page = realpage & chip->pagemask;
 	blockmask = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 
 	/* Invalidate the page cache, when we write to the cached page */
@@ -1974,17 +1996,49 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	}
 	oobmaxlen -= ops->ooboffs;
 
-	while (1) {
+	do {
 		WATCHDOG_RESET();
 
-		int bytes = mtd->writesize;
-		int cached = writelen > bytes && page != blockmask;
+		uint32_t bytes = mtd->writesize;
+		int cached;
 		uint8_t *wbuf = buf;
+		int newchipnr;
+#ifdef CONFIG_NAND_REFRESH
+		/*
+		 * If in EMERGENCY MODE and the page to write is within the
+		 * replaced block, report failure. This is a chance to tell
+		 * the caller that this block does not work anymore and should
+		 * be marked bad, in which case we can leave EMERGENCY MODE
+		 * again. See nand_block_markbad().
+		 */
+		if (nand_refresh_final_offset(mtd, to) != to) {
+			nr_debug("Writing to redirected bad block at "
+				 "0x%08llx rejected\n", to);
+			ret = -EIO;
+			break;
+		}
+#endif
+
+		/* Select chip */
+		newchipnr = (int)(to >> chip->chip_shift);
+		if (newchipnr != chipnr) {
+			if (chipnr != -1)
+				chip->select_chip(mtd, -1);
+			chipnr = newchipnr;
+			chip->select_chip(mtd, newchipnr);
+		}
+
+		realpage = (int)(to >> chip->page_shift);
+		page = realpage & chip->pagemask;
+		column = to & (mtd->writesize - 1);
+		cached = writelen > bytes && page != blockmask;
 
 		/* Partial page write? */
-		if (unlikely(column || writelen < (mtd->writesize - 1))) {
+		if (unlikely(column || (writelen < mtd->writesize))) {
 			cached = 0;
-			bytes = min_t(int, bytes - column, (int) writelen);
+			bytes -= column;
+			if (bytes > writelen)
+				bytes = writelen;
 			chip->pagebuf = -1;
 			memset(chip->buffers->databuf, 0xff, mtd->writesize);
 			memcpy(&chip->buffers->databuf[column], buf, bytes);
@@ -2008,26 +2062,17 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		if (ret)
 			break;
 
-		writelen -= bytes;
-		if (!writelen)
-			break;
-
-		column = 0;
 		buf += bytes;
-		realpage++;
+		to += bytes;
+		writelen -= bytes;
+	} while (writelen);
 
-		page = realpage & chip->pagemask;
-		/* Check, if we cross a chip boundary */
-		if (!page) {
-			chipnr++;
-			chip->select_chip(mtd, -1);
-			chip->select_chip(mtd, chipnr);
-		}
-	}
+	chip->select_chip(mtd, -1);
 
 	ops->retlen = ops->len - writelen;
 	if (unlikely(oob))
-		ops->oobretlen = ops->ooblen;
+		ops->oobretlen = ops->ooblen - oobwritelen;
+
 	return ret;
 }
 
@@ -2087,6 +2132,9 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
+	if ((chip->options & NAND_SW_WRITE_PROTECT) || (to < mtd->skip))
+		return -EROFS;
+
 	if (ops->mode == MTD_OOB_AUTO)
 		len = chip->ecc.layout->oobavail;
 	else
@@ -2115,14 +2163,25 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_NAND_REFRESH
+	/*
+	 * If in EMERGENCY MODE and the page to write is within the replaced
+	 * block, report failure. This is a chance to tell the caller that
+	 * this block does not work anymore and should be marked bad, in which
+	 * case we can leave EMERGENCY MODE again. See nand_block_markbad().
+	 */
+	if (nand_refresh_final_offset(mtd, to) != to) {
+		nr_debug("Writing to redirected bad block at 0x%08llx "
+			 "rejected\n", to);
+		return -EIO;
+	}
+#endif
+
 	chipnr = (int)(to >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
 
 	/* Shift to get page */
 	page = (int)(to >> chip->page_shift);
-
-	if (page < (int)(mtd->skip >> chip->page_shift))
-		return -EROFS;
 
 	/*
 	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
@@ -2146,6 +2205,8 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		status = chip->ecc.write_oob_raw(mtd, chip, page & chip->pagemask);
 	else
 		status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
+
+	chip->select_chip(mtd, -1);
 
 	if (status)
 		return status;
@@ -2260,53 +2321,28 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 	loff_t rewrite_bbt[CONFIG_SYS_NAND_MAX_CHIPS] = {0};
 	unsigned int bbt_masked_page = 0xffffffff;
 	loff_t len;
+	loff_t addr = instr->addr;
 
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: start = 0x%012llx, len = %llu\n",
-				__func__, (unsigned long long)instr->addr,
+				__func__, (unsigned long long)addr,
 				(unsigned long long)instr->len);
 
-	/* Don't erase if device is software write-protected */
-	if (chip->options & NAND_SW_WRITE_PROTECT)
+	/* Don't erase in skip region or if software write-protected */
+	if ((chip->options & NAND_SW_WRITE_PROTECT) || (addr < mtd->skip))
 		return -EROFS;
 
-	if (check_offs_len(mtd, instr->addr, instr->len))
+	if (check_offs_len(mtd, addr, instr->len))
 		return -EINVAL;
-
-	/* Don't erase within skip region */
-	if (instr->addr < mtd->skip)
-		return -EROFS;
 
 	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
 	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_ERASING);
 
-	/* Shift to get first page */
-	page = (int)(instr->addr >> chip->page_shift);
-	chipnr = (int)(instr->addr >> chip->chip_shift);
+	chipnr = -1;
 
 	/* Calculate pages in each block */
 	pages_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
-
-	/* Select the NAND device */
-	chip->select_chip(mtd, chipnr);
-
-	/* Check, if it is write protected */
-	if (nand_check_wp(mtd)) {
-		MTDDEBUG(MTD_DEBUG_LEVEL0, "%s: Device is write protected!!!\n",
-					__func__);
-		instr->state = MTD_ERASE_FAILED;
-		goto erase_exit;
-	}
-
-	/*
-	 * If BBT requires refresh, set the BBT page mask to see if the BBT
-	 * should be rewritten. Otherwise the mask is set to 0xffffffff which
-	 * can not be matched. This is also done when the bbt is actually
-	 * erased to avoid recursive updates.
-	 */
-	if (chip->options & BBT_AUTO_REFRESH && !allowbbt)
-		bbt_masked_page = chip->bbt_td->pages[chipnr] & BBT_PAGE_MASK;
 
 	/* Loop through the pages */
 	len = instr->len;
@@ -2314,14 +2350,70 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 	instr->state = MTD_ERASING;
 
 	while (len) {
+		int newchipnr;
+
 		WATCHDOG_RESET();
+
+#ifdef CONFIG_NAND_REFRESH
+		/*
+		 * If in EMERGENCY MODE and the block to erase is the replaced
+		 * block, report failure. This is a chance to tell the caller
+		 * that this block does not work anymore, and should be marked
+		 * bad, in which case we can leave EMERGENCY MODE again. See
+		 * nand_block_markbad().
+		 */
+		if (nand_refresh_final_offset(mtd, addr) != addr) {
+			nr_debug("Erasing redirected bad block at 0x%08llx "
+				 "rejected\n", addr);
+			instr->state = MTD_ERASE_FAILED;
+			instr->fail_addr = addr;
+			break;
+		}
+#endif
+
+		page = (int)(addr >> chip->page_shift);
+
+		/* Select chip */
+		newchipnr = (int)(addr >> chip->chip_shift);
+		if (newchipnr != chipnr) {
+			if (chipnr != -1)
+				chip->select_chip(mtd, -1);
+			chipnr = newchipnr;
+			chip->select_chip(mtd, newchipnr);
+
+			/* Check, if it is write protected */
+			if (nand_check_wp(mtd)) {
+				MTDDEBUG(MTD_DEBUG_LEVEL0, "%s: "
+				       "Device is write protected\n", __func__);
+				instr->state = MTD_ERASE_FAILED;
+				instr->fail_addr = addr;
+				break;
+			}
+
+			/*
+			 * If BBT requires refresh, set the BBT page mask to
+			 * see if the BBT should be rewritten. Otherwise the
+			 * mask is set to 0xffffffff which can not be matched.
+			 * This is also done when the bbt is actually erased
+			 * to avoid recursive updates.
+			 */
+			if (((bbt_masked_page == 0xFFFFFFFF)
+			     && (chip->options & BBT_AUTO_REFRESH)
+			     && !allowbbt) ||
+			    ((bbt_masked_page != 0xffffffff) &&
+			     (chip->bbt_td->options & NAND_BBT_PERCHIP)))
+				bbt_masked_page = chip->bbt_td->pages[chipnr]
+					& BBT_PAGE_MASK;
+		}
+
 		/* Check if we have a bad block, we do not erase bad blocks! */
 		if (!instr->scrub && nand_block_checkbad(mtd, ((loff_t) page) <<
 					chip->page_shift, 0, allowbbt)) {
 			printk(KERN_WARNING "%s: attempt to erase a bad block "
-					"at page 0x%08x\n", __func__, page);
+					"at 0x%08llx\n", __func__, addr);
 			instr->state = MTD_ERASE_FAILED;
-			goto erase_exit;
+			instr->fail_addr = addr;
+			break;
 		}
 
 		/*
@@ -2347,11 +2439,10 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		/* See if block erase succeeded */
 		if (status & NAND_STATUS_FAIL) {
 			MTDDEBUG(MTD_DEBUG_LEVEL0, "%s: Failed erase, "
-					"page 0x%08x\n", __func__, page);
+					"page at 0x%08llx\n", __func__, addr);
 			instr->state = MTD_ERASE_FAILED;
-			instr->fail_addr =
-				((loff_t)page << chip->page_shift);
-			goto erase_exit;
+			instr->fail_addr = addr;
+			break;
 		}
 
 		/*
@@ -2360,32 +2451,18 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		 */
 		if (bbt_masked_page != 0xffffffff &&
 		    (page & BBT_PAGE_MASK) == bbt_masked_page)
-			rewrite_bbt[chipnr] =
-				((loff_t)page << chip->page_shift);
+			rewrite_bbt[chipnr] = addr;
 
 		/* Increment page address and decrement length */
 		len -= (1 << chip->phys_erase_shift);
-		page += pages_per_block;
+		addr += (1 << chip->phys_erase_shift);
 
-		/* Check, if we cross a chip boundary */
-		if (len && !(page & chip->pagemask)) {
-			chipnr++;
-			chip->select_chip(mtd, -1);
-			chip->select_chip(mtd, chipnr);
-
-			/*
-			 * If BBT requires refresh and BBT-PERCHIP, set the BBT
-			 * page mask to see if this BBT should be rewritten.
-			 */
-			if (bbt_masked_page != 0xffffffff &&
-			    (chip->bbt_td->options & NAND_BBT_PERCHIP))
-				bbt_masked_page = chip->bbt_td->pages[chipnr] &
-					BBT_PAGE_MASK;
-		}
+		if (!len)
+			instr->state = MTD_ERASE_DONE;
 	}
-	instr->state = MTD_ERASE_DONE;
+	if (chipnr != -1)
+		chip->select_chip(mtd, -1);
 
-erase_exit:
 	ret = instr->state == MTD_ERASE_DONE ? 0 : -EIO;
 
 	/* Deselect and wake up anyone waiting on the device */
@@ -2441,6 +2518,20 @@ static void nand_sync(struct mtd_info *mtd)
  */
 static int nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
+#ifdef CONFIG_NAND_REFRESH
+	loff_t newoffs;
+	/*
+	 * If in EMERGENCY MODE and the block to check is the replaced block,
+	 * then redirect this to the backup block.
+	 */
+	newoffs = nand_refresh_final_offset(mtd, offs);
+	if (newoffs != offs) {
+		nr_debug("Redirect BB query from bad block at 0x%08llx to "
+			 "backup at 0x%08llx\n", offs, newoffs);
+		offs = newoffs;
+	}
+#endif
+
 	/* Check for invalid offset */
 	if (offs > mtd->size)
 		return -EINVAL;
@@ -2453,7 +2544,7 @@ static int nand_block_isbad(struct mtd_info *mtd, loff_t offs)
  * @mtd: MTD device structure
  * @ofs: offset relative to mtd start
  */
-static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int nand_block_markbad(struct mtd_info *mtd, loff_t offs)
 {
 	struct nand_chip *chip = mtd->priv;
 	int ret;
@@ -2461,7 +2552,20 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (chip->options & NAND_NO_BADBLOCK)
 		return 0;
 
-	ret = nand_block_isbad(mtd, ofs);
+#ifdef CONFIG_NAND_REFRESH
+	/*
+	 * If in EMERGENCY MODE and the block to mark bad is the replaced
+	 * block, then we are lucky: as the block is already marked bad, we
+	 * can instead free our backup block and leave EMERGENCY MODE.
+	 */
+	if (nand_refresh_final_offset(mtd, offs) != offs) {
+		nand_refresh_free_backup(mtd);
+
+		return 0;
+	}
+#endif
+
+	ret = nand_block_isbad(mtd, offs);
 	if (ret) {
 		/* If it was bad already, return success and do nothing */
 		if (ret > 0)
@@ -2469,7 +2573,7 @@ static int nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return ret;
 	}
 
-	return chip->block_markbad(mtd, ofs);
+	return chip->block_markbad(mtd, offs);
 }
 
 /* Set default functions */

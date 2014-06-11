@@ -849,7 +849,22 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		   keep it this way. See also fus_nfc_write_page(). */
 		memcpy(buf, chip->IO_ADDR_R + NFC_MAIN_AREA(0), mtd->writesize);
 
-		// ### TODO: Read Refresh-Number
+#ifdef CONFIG_NAND_REFRESH
+		/* If requested, read refresh block number from the four bytes
+		   between main data and ECC and return it converted to an
+		   offset. The caller has to make sure that this flag is not
+		   set in the first two pages of a block, because there the
+		   Bad Block Marker is stored there. */
+		if (mtd->extraflags & MTD_EXTRA_REFRESHOFFS) {
+			u32 refresh;
+
+			memcpy(&refresh,
+		        chip->IO_ADDR_R + NFC_MAIN_AREA(0) + mtd->writesize, 4);
+			if (refresh == 0xFFFFFFFF)
+				refresh = 0;
+			mtd->extradata = refresh << chip->phys_erase_shift;
+		}
+#endif
 
 		/* Reload the user part of the OOB area to NFC RAM. We can use
 		   NAND_CMD_RNDOUT as the NAND flash still has the data in its
@@ -1000,7 +1015,20 @@ static void fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	   don't forget to write 0xFFFFFFFF to the BBM area. */
 	memcpy(chip->IO_ADDR_R + NFC_MAIN_AREA(0), buf, mtd->writesize);
 	nfc_write(chip, NFC_MAIN_AREA(0) + mtd->writesize, 0xFFFFFFFF);
-	// ### TODO: Write Refresh-Number
+
+#ifdef CONFIG_NAND_REFRESH
+	/* If requested, store refresh offset as block number in the four
+	   bytes between main data and ECC. The caller has to make sure that
+	   this flag is not set when writing to the first two pages of the
+	   block or the Bad Block Marker may be set unintentionally. */
+	if ((mtd->extraflags & MTD_EXTRA_REFRESHOFFS) && mtd->extradata) {
+		u32 refresh;
+
+		refresh = (u32)(mtd->extradata >> chip->phys_erase_shift);
+		memcpy(chip->IO_ADDR_R + NFC_MAIN_AREA(0) + mtd->writesize,
+		       &refresh, 4);
+	}
+#endif
 
 	/* Set number of bytes to transfer */
 	nfc_write(chip, NFC_SECTOR_SIZE, size + mtd->writesize);
@@ -1115,8 +1143,12 @@ void vybrid_nand_register(int nfc_hw_id,
 		return;
 	}
 
-	/* Set skipped region and fix size accordingly */
+	/* Set skipped region and fix size accordingly, set backup region */
 	if (pdata) {
+#ifdef CONFIG_NAND_REFRESH
+		mtd->backupoffs = pdata->backupstart;
+		mtd->backupend = pdata->backupend;
+#endif
 		mtd->skip = pdata->skipblocks * mtd->erasesize;
 		if (pdata->flags & VYBRID_NFC_SKIP_INVERSE) {
 			mtd->size = mtd->skip;

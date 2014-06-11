@@ -537,6 +537,12 @@
 /* Define if you want to support nand chips that comply to ONFI spec */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 
+/* Actually perform block refresh if pages degrade too much. Use the blocks of
+   the given region in decreasing order. */
+#define CONFIG_NAND_REFRESH
+#define CONFIG_SYS_NAND_BACKUP_OFFS	0x00100000
+#define CONFIG_SYS_NAND_BACKUP_SIZE	0x00040000
+
 /* Support JFFS2 in NAND (commands: fsload, ls, fsinfo) */
 #define CONFIG_JFFS2_NAND
 

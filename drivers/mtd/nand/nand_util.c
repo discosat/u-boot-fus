@@ -150,8 +150,10 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 
 		result = meminfo->erase(meminfo, &erase);
 		if (result != 0) {
-			printf("\n%s: MTD Erase failure: %d\n",
-			       mtd_device, result);
+			meminfo->block_markbad(meminfo, erase.addr);
+			printf("\r%s: MTD Erase failure at 0x%08llx: %d;\n"
+			       "block marked bad\n",
+			       mtd_device, erase.addr, result);
 			continue;
 		}
 
@@ -454,6 +456,7 @@ static size_t drop_ffs(const nand_info_t *nand, const u_char *buf,
 }
 #endif
 
+
 /**
  * nand_write_skip_bad:
  *
@@ -624,63 +627,70 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 {
 	int rval;
 	size_t left_to_read = *length;
-	u_char *p_buffer = buffer;
 	int need_skip;
 
 	if ((offset & (nand->writesize - 1)) != 0) {
-		printf ("Attempt to read non page aligned data\n");
+		printf("Attempt to read non page aligned data\n");
 		*length = 0;
 		return -EINVAL;
 	}
 
 	need_skip = check_skip_len(nand, offset, *length);
 	if (need_skip < 0) {
-		printf ("Attempt to read outside the flash area\n");
+		printf("Attempt to read outside the flash area\n");
 		*length = 0;
 		return -EINVAL;
 	}
 
+#ifndef CONFIG_NAND_REFRESH
 	if (!need_skip) {
 		rval = nand_read (nand, offset, length, buffer);
 		if (!rval || rval == -EUCLEAN)
 			return 0;
 
+		printf("NAND read from offset %llx failed %d\n", offset, rval);
 		*length = 0;
-		printf ("NAND read from offset %llx failed %d\n",
-			offset, rval);
 		return rval;
 	}
+#endif
 
+	printf("### bitflips:");	/* ### debugging only */
 	while (left_to_read > 0) {
 		size_t block_offset = offset & (nand->erasesize - 1);
 		size_t read_length;
 
 		WATCHDOG_RESET ();
 
-		if (nand_block_isbad (nand, offset & ~(nand->erasesize - 1))) {
+		if (need_skip
+		    && nand_block_isbad (nand, offset & ~(nand->erasesize - 1))) {
 			printf ("Skipping bad block 0x%08llx\n",
 				offset & ~(nand->erasesize - 1));
 			offset += nand->erasesize - block_offset;
 			continue;
 		}
 
-		if (left_to_read < (nand->erasesize - block_offset))
+		read_length = nand->erasesize - block_offset;
+		if (left_to_read < read_length)
 			read_length = left_to_read;
-		else
-			read_length = nand->erasesize - block_offset;
 
-		rval = nand_read (nand, offset, &read_length, p_buffer);
+		rval = nand_read(nand, offset, &read_length, buffer);
+		printf(" %llx:%02d", offset >> 17, nand->max_bitflips); /* ### debugging only */
+#ifdef CONFIG_NAND_REFRESH
+	        if (rval == -EUCLEAN)
+			rval = nand_refresh(nand, offset);
+#endif
 		if (rval && rval != -EUCLEAN) {
-			printf ("NAND read from offset %llx failed %d\n",
-				offset, rval);
+			printf("NAND read from offset %llx failed %d\n",
+			       offset, rval);
 			*length -= left_to_read;
 			return rval;
 		}
 
 		left_to_read -= read_length;
 		offset       += read_length;
-		p_buffer     += read_length;
+		buffer       += read_length;
 	}
+	putc('\n'); /* ### debugging only */
 
 	return 0;
 }

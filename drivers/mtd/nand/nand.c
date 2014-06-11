@@ -145,4 +145,13 @@ void nand_init(void)
 	 */
 	board_nand_select_device(nand_info[nand_curr_device].priv, nand_curr_device);
 #endif
+
+#ifdef CONFIG_NAND_REFRESH
+	{
+		int i;
+
+		for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++)
+			nand_refresh_init(&nand_info[i]);
+	}
+#endif
 }
