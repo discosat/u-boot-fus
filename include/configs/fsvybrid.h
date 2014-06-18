@@ -548,14 +548,19 @@
 /************************************************************************
  * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
-/* VYBRID only has one NAND flash controller, so we can only have one
-   physical NAND device; however as NBOOT needs a different ECC as everything
-   else, we split the NAND up into two virtual devices to allow these two
-   different ECC strategies and OOB layouts. ### TODO */
+/* Use F&S implementation of Vybrid NFC driver */
 #define CONFIG_NAND_FSL_NFC_FS
 
-//#define CONFIG_SYS_MAX_NAND_DEVICE	2
+/* Use our own initialization code */
+#define CONFIG_SYS_NAND_SELF_INIT
+
+/* To avoid that NBoot is erased inadvertently, we define a skip region in the
+   first NAND device that can not be written and always reads as 0xFF. However
+   if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
+   as a second NAND device with just that size. This makes it easier to have a
+   different ECC strategy and software write protection for NBoot. */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
+//#define CONFIG_SYS_MAX_NAND_DEVICE	2
 
 /* Chips per device; all chips must be the same type; if different types
    are necessary, they must be implemented as different NAND devices */
@@ -563,12 +568,6 @@
 
 /* Define if you want to support nand chips that comply to ONFI spec */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
-
-/* Address of the DATA register for reading and writing data; we need an
-   entry for each device. As we only virtually split our flash into two
-   devices, they both have the same address. ### TODO */
-#define CONFIG_SYS_NAND_BASE		0x400E0000
-//#define CONFIG_SYS_NAND_BASE_LIST {0x400E0000, 0x400E0000}
 
 /* Support JFFS2 in NAND (commands: fsload, ls, fsinfo) */
 #define CONFIG_JFFS2_NAND
@@ -592,7 +591,6 @@
 /* We have two virtual NAND chips, give them names ### TODO */
 #define MTDIDS_DEFAULT		"nand0=NAND"
 //#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
-//#define MTDIDS_DEFAULT "nand0=NAND"
 
 /* We don't define settings for mtdparts default. Instead in fsvybrid.c
    board_late_init() we set variables mtdids, mtdparts and partition; We have

@@ -12,11 +12,26 @@
 #ifndef __FSL_NFC_FUS_H__
 #define __FSL_NFC_FUS_H__
 
-struct fsl_nfc_fus_prv {
-	uint	column;		/* Column to read in read_byte() */
-	uint	last_command;	/* Previous command issued */
-	u32	timeout;	/* << CONFIG_CMD_TIMEOUT_SHIFT */
-	u32	eccmode;	/* ECC_BYPASS .. ECC_60_BYTE */
+/* Possible values for flags entry */
+#define VYBRID_NFC_SKIP_INVERSE 0x01	/* Use skip region only, skip rest */
+
+struct fsl_nfc_fus_platform_data {
+	unsigned int	options;	/* Basic set of options */
+	unsigned int	t_wb;		/* Wait cycles for T_WB and T_WHR
+					   (0: use current value from NFC) */
+	unsigned int	eccmode;	/* Mode  ECC Bytes  Correctable Errors
+					   -----------------------------------
+					   0:       0              0
+					   1:       8              4
+					   2:      12              6
+					   3:      15              8
+					   4:      23             12
+					   5:      30             16
+					   6:      45             24
+                                           7:      60             32  */
+	unsigned int	flags;		/* See flag values above */
+	unsigned int	skipblocks;	/* Number of blocks to skip at
+					   beginning of device */
 };
 
 #endif /* !__FSL_NFC_FUS_H__ */

@@ -157,15 +157,17 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 
 		/* format for JFFS2 ? */
 		if (opts->jffs2 && chip->ecc.layout->oobavail >= 8) {
-			chip->ops.ooblen = 8;
-			chip->ops.datbuf = NULL;
-			chip->ops.oobbuf = (uint8_t *)&cleanmarker;
-			chip->ops.ooboffs = 0;
-			chip->ops.mode = MTD_OOB_AUTO;
+			struct mtd_oob_ops ops;
+
+			ops.ooblen = 8;
+			ops.datbuf = NULL;
+			ops.oobbuf = (uint8_t *)&cleanmarker;
+			ops.ooboffs = 0;
+			ops.mode = MTD_OOB_AUTO;
 
 			result = meminfo->write_oob(meminfo,
 			                            erase.addr,
-			                            &chip->ops);
+			                            &ops);
 			if (result != 0) {
 				printf("\n%s: MTD writeoob failure: %d\n",
 				       mtd_device, result);

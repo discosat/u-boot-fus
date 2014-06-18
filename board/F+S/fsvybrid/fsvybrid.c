@@ -470,32 +470,35 @@ int board_init(void)
 	return 0;
 }
 
+extern void vybrid_nand_register(int nfc_hw_id,
+				 const struct fsl_nfc_fus_platform_data *pdata);
 
-int board_nand_setup_vybrid(struct mtd_info *mtd, struct nand_chip *chip,
-			    struct fsl_nfc_fus_prv *prv, int id)
+/* Register NAND devices. We actually split the NAND into two virtual devices
+   to allow different ECC strategies for NBoot and the rest. */
+void board_nand_init(void)
 {
-	/* NBoot is two blocks in size, independent of the block size. */
-	switch (id) {
-	case 0:
-		/* nand0: everything but NBoot, use ECC as given from NBoot */
-		mtd->size -= 2*mtd->erasesize;
-		mtd->skip = 2*mtd->erasesize;
-		prv->eccmode = fs_nboot_args.chECCtype;
-		break;
+	struct fsl_nfc_fus_platform_data pdata;
 
-	case 1:
-		/* nand1: only NBoot, use special write procedure with 32 bit
-		   ECC, and software write protection */
-		mtd->size = 2*mtd->erasesize;
-		chip->options |= NAND_SW_WRITE_PROTECT;
-		prv->eccmode = 7;
-		break;
+	/* The first device skips the NBoot region (2 blocks) to protect it
+	   from inadvertent erasure. The skipped region can not be written
+	   and is always read as 0xFF. */
+	pdata.options = NAND_BBT_SCAN2NDPAGE;
+	pdata.t_wb = 0;
+	pdata.eccmode = fs_nboot_args.chECCtype;
+	pdata.skipblocks = 2;
+	pdata.flags = 0;
+	vybrid_nand_register(0, &pdata);
 
-	default:
-		return -ENODEV;
-	}
-
-	return 0;
+#if CONFIG_SYS_MAX_NAND_DEVICE > 1
+	/* The second device just consists of the NBoot region (2 blocks) and
+	   is software write-protected by default. It uses a different ECC
+	   strategy. ### TODO ### In fact we actually need special code to
+	   store the NBoot image. */
+	pdata.options |= NAND_SW_WRITE_PROTECT;
+	pdata.eccmode = ECC_60_BYTE;
+	pdata.flags = VYBRID_NFC_SKIP_INVERSE;
+	vybrid_nand_register(0, &pdata);
+#endif
 }
 
 size_t get_env_size(void)

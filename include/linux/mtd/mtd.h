@@ -18,10 +18,10 @@
 #define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04
-#define MTD_ERASE_DONE          0x08
-#define MTD_ERASE_FAILED        0x10
+#define MTD_ERASE_DONE		0x08
+#define MTD_ERASE_FAILED	0x10
 
-#define MTD_FAIL_ADDR_UNKNOWN	-1LL
+#define MTD_FAIL_ADDR_UNKNOWN -1LL
 
 /*
  * Enumeration for NAND/OneNAND flash chip state
@@ -49,8 +49,8 @@ struct erase_info {
 	uint64_t fail_addr;
 	u_long time;
 	u_long retries;
-	u_int dev;
-	u_int cell;
+	unsigned dev;
+	unsigned cell;
 	void (*callback) (struct erase_info *self);
 	u_long priv;
 	u_char state;
@@ -59,9 +59,9 @@ struct erase_info {
 };
 
 struct mtd_erase_region_info {
-	uint64_t offset;			/* At which this region starts, from the beginning of the MTD */
-	u_int32_t erasesize;		/* For this region */
-	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
+	uint64_t offset;		/* At which this region starts, from the beginning of the MTD */
+	uint32_t erasesize;		/* For this region */
+	uint32_t numblocks;		/* Number of blocks of erasesize in this region */
 	unsigned long *lockmap;		/* If keeping bitmap of locks */
 };
 
@@ -96,7 +96,7 @@ typedef enum {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, it is allowed to read more then one OOB area at one go, but not write.
+ * Note, it is allowed to read more than one OOB area at one go, but not write.
  * The interface assumes that the OOB write requests program only one page's
  * OOB area.
  */
@@ -113,7 +113,7 @@ struct mtd_oob_ops {
 
 struct mtd_info {
 	u_char type;
-	u_int32_t flags;
+	uint32_t flags;
 	uint64_t size;	 /* Total size of the MTD */
 	uint64_t skip;   /* F&S: Skip these many bytes at start of device */
 
@@ -121,7 +121,7 @@ struct mtd_info {
 	 * to be the only erase size available, or may use the more detailed
 	 * information below if they desire
 	 */
-	u_int32_t erasesize;
+	uint32_t erasesize;
 	/* Minimal writable flash unit size. In case of NOR flash it is 1 (even
 	 * though individual bits can be cleared), in case of NAND flash it is
 	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed NOR
@@ -129,10 +129,10 @@ struct mtd_info {
 	 * Any driver registering a struct mtd_info must ensure a writesize of
 	 * 1 or larger.
 	 */
-	u_int32_t writesize;
+	uint32_t writesize;
 
-	u_int32_t oobsize;   /* Amount of OOB data per block (e.g. 16) */
-	u_int32_t oobavail;  /* Available OOB bytes per block */
+	uint32_t oobsize;   /* Amount of OOB data per block (e.g. 16) */
+	uint32_t oobavail;  /* Available OOB bytes per block */
 
 	/*
 	 * read ops return -EUCLEAN if max number of bitflips corrected on any
@@ -144,7 +144,7 @@ struct mtd_info {
 	const char *name;
 	int index;
 
-	/* ecc layout structure pointer - read only ! */
+	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
 
 	/* Data for variable erase regions. If numeraseregions is zero,
