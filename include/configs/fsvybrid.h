@@ -292,7 +292,9 @@
 #define CONFIG_SETUP_MEMORY_TAGS	  /* Memory setup */
 #define CONFIG_CMDLINE_TAG		  /* Command line */
 #undef CONFIG_INITRD_TAG		  /* No initrd */
-#define CONFIG_REVISION_TAG		  /* Board revision & features */
+#define CONFIG_REVISION_TAG		  /* Board revision */
+#define CONFIG_FSHWCONFIG_TAG		  /* Hardware config (NBoot-Args) */
+#define CONFIG_FSM4CONFIG_TAG		  /* M4 image and config (M4-Args) */
 
 
 /************************************************************************

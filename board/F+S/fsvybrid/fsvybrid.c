@@ -86,40 +86,6 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
-struct M4_ARGS
-{
-	unsigned int dwID;
-	unsigned int dwSize;
-	unsigned int dwCRC;
-	unsigned int dwLoadAddress;
-	unsigned int dwMCCAddress;
-	unsigned int dwReserved[3];
-};
-
-/* NBoot arguments that are passed from NBoot to us */
-struct nboot_args
-{
-	unsigned int dwID;		  /* ARGS_ID */
-	unsigned int dwSize;		  /* 16*4 + 8*4 */
-	unsigned int dwNBOOT_VER;
-	unsigned int dwMemSize;		  /* size of SDRAM in MB */
-	unsigned int dwFlashSize;	  /* size of NAND flash in MB */
-	unsigned int dwDbgSerPortPA;	  /* Phys addr of serial debug port */
-	unsigned int dwNumDram;		  /* Installed memory chips */
-	unsigned int dwAction;		  /* (unused in U-Boot) */
-	unsigned int dwCompat;		  /* (unused in U-Boot) */
-	char chPassword[NBOOT_PASSWDLEN]; /* (unused in U-Boot) */
-	unsigned char chBoardType;
-	unsigned char chBoardRev;
-	unsigned char chFeatures1;
-	unsigned char chFeatures2;
-	unsigned short wBootStartBlock;	  /* Start block number of bootloader */
-	unsigned char chECCtype;	  /* ECC type used */
-	unsigned char chECCstate;	  /* NAND error state */
-	unsigned int dwReserved[3];
-	struct M4_ARGS m4_args;
-};
-
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
@@ -233,8 +199,9 @@ const struct board_info fs_board_info[8] = {
 /* String used for system prompt */
 char fs_sys_prompt[20];
 
-/* Copy of the NBoot args */
-struct nboot_args fs_nboot_args;
+/* Copy of the NBoot args, split into hwconfig and m4config */
+struct tag_fshwconfig fs_nboot_args;
+struct tag_fsm4config fs_m4_args;
 
 
 /*
@@ -361,7 +328,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 struct serial_device *default_serial_console(void)
 {
  	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs;
+	struct tag_fshwconfig *pargs;
 
 	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
 	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
@@ -374,7 +341,7 @@ struct serial_device *default_serial_console(void)
 	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
 		pargs = &fs_nboot_args;
 	else
-		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
 }
@@ -382,7 +349,7 @@ struct serial_device *default_serial_console(void)
 /* Check board type */
 int checkboard(void)
 {
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	int nLAN = 0;
 	int nCAN = 0;
 
@@ -418,9 +385,9 @@ int checkboard(void)
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs;
+	struct tag_fshwconfig *pargs;
 
-	pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	gd->ram_size = pargs->dwMemSize << 20;
 	gd->ram_base = PHYS_SDRAM_0;
 
@@ -432,13 +399,16 @@ int dram_init(void)
 int board_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int board_type = pargs->chBoardType;
 	u32 temp;
 	struct vybrid_scsc_reg *scsc;
 
 	/* Save a copy of the NBoot args */
-	memcpy(&fs_nboot_args, pargs, sizeof(struct nboot_args));
+	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));
+	fs_nboot_args.dwSize = sizeof(struct tag_fshwconfig);
+	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
+	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
 
 	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
@@ -919,17 +889,23 @@ char *get_sys_prompt(void)
 
 /* Return the board revision; this is called when Linux is started and the
    value is passed to Linux */
-u32 get_board_rev(void)
+unsigned int get_board_rev(void)
 {
-	u32 rev;
+	return fs_nboot_args.chBoardRev;
+}
 
-	/* In addition to the board revision in bits [7:0] we also encode the
-	   features in bits [31:16] */
-	rev = (fs_nboot_args.chFeatures1 << 24)
-		| (fs_nboot_args.chFeatures2 << 16)
-		| fs_nboot_args.chBoardRev;
+/* Return a pointer to the hardware configuration; this is called when Linux
+   is started and the structure is passed to Linux */
+struct tag_fshwconfig *get_board_fshwconfig(void)
+{
+	return &fs_nboot_args;
+}
 
-	return rev;
+/* Return a pointer to the M4 image and configuration; this is called when
+   Linux is started and the structure is passed to Linux */
+struct tag_fsm4config *get_board_fsm4config(void)
+{
+	return &fs_m4_args;
 }
 
 #ifdef CONFIG_CMD_LED

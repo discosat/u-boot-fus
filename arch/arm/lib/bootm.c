@@ -46,6 +46,8 @@ DECLARE_GLOBAL_DATA_PTR;
 	defined(CONFIG_INITRD_TAG) || \
 	defined(CONFIG_SERIAL_TAG) || \
 	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_FSHWCONFIG_TAG) || \
+	defined(CONFIG_FSM4CONFIG_TAG) || \
 	defined(CONFIG_VFD) || \
 	defined(CONFIG_LCD) || \
 	defined(CONFIG_MTDPARTITION)
@@ -118,6 +120,8 @@ static void announce_and_cleanup(void)
 	defined(CONFIG_INITRD_TAG) || \
 	defined(CONFIG_SERIAL_TAG) || \
 	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_FSHWCONFIG_TAG) || \
+	defined(CONFIG_FSM4CONFIG_TAG) || \
 	defined(CONFIG_LCD) || \
 	defined(CONFIG_VFD) || \
 	defined(CONFIG_MTDPARTITION)
@@ -250,6 +254,36 @@ void setup_revision_tag(struct tag **in_params)
 	params->u.revision.rev = rev;
 	params = tag_next (params);
 }
+#endif  /* CONFIG_REVISION_TAG */
+
+#ifdef CONFIG_FSHWCONFIG_TAG
+void setup_fshwconfig_tag(struct tag **in_params)
+{
+	struct tag_fshwconfig *get_board_fshwconfig(void);
+	struct tag_fshwconfig *fshwconfig;
+
+	fshwconfig = get_board_fshwconfig();
+
+	params->hdr.tag = ATAG_FSHWCONFIG;
+	params->hdr.size = tag_size(tag_fshwconfig);
+	params->u.fshwconfig = *fshwconfig;
+	params = tag_next (params);
+}
+#endif
+
+#ifdef CONFIG_FSM4CONFIG_TAG
+void setup_fsm4config_tag(struct tag **in_params)
+{
+	struct tag_fsm4config *get_board_fsm4config(void);
+	struct tag_fsm4config *fsm4config;
+
+	fsm4config = get_board_fsm4config();
+
+	params->hdr.tag = ATAG_FSM4CONFIG;
+	params->hdr.size = tag_size(tag_fsm4config);
+	params->u.fsm4config = *fsm4config;
+	params = tag_next (params);
+}
 #endif
 
 #ifdef CONFIG_MTDPARTITION
@@ -285,6 +319,8 @@ void setup_mtdpartition_tag(void)
 	defined(CONFIG_INITRD_TAG) || \
 	defined(CONFIG_SERIAL_TAG) || \
 	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_FSHWCONFIG_TAG) || \
+	defined(CONFIG_FSM4CONFIG_TAG) || \
 	defined(CONFIG_LCD) || \
 	defined(CONFIG_VFD) || \
 	defined(CONFIG_MTDPARTITION)
@@ -351,6 +387,8 @@ static void boot_prep_linux(bootm_headers_t *images)
 	defined(CONFIG_INITRD_TAG) || \
 	defined(CONFIG_SERIAL_TAG) || \
 	defined(CONFIG_REVISION_TAG) || \
+	defined(CONFIG_FSHWCONFIG_TAG) || \
+	defined(CONFIG_FSM4CONFIG_TAG) || \
 	defined(CONFIG_LCD) || \
 	defined(CONFIG_VFD) || \
 	defined(CONFIG_MTDPARTITION)
@@ -364,6 +402,12 @@ static void boot_prep_linux(bootm_headers_t *images)
 #endif
 #ifdef CONFIG_REVISION_TAG
 		setup_revision_tag(&params);
+#endif
+#ifdef CONFIG_FSHWCONFIG_TAG
+		setup_fshwconfig_tag(&params);
+#endif
+#ifdef CONFIG_FSM4CONFIG_TAG
+		setup_fsm4config_tag(&params);
 #endif
 #ifdef CONFIG_SETUP_MEMORY_TAGS
 		setup_memory_tags(gd->bd);
