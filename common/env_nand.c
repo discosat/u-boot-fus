@@ -305,20 +305,18 @@ static int readenv(size_t offset, u_char *buf, size_t env_size)
 	if (!blocksize)
 		return 1;
 
-	len = min(blocksize, env_size);
-
 	while (amount_loaded < env_size && offset < end) {
-		if (nand_block_isbad(&nand_info[0], offset)) {
-			offset += blocksize;
-		} else {
+		len = min(blocksize, env_size - amount_loaded);
+		if (!nand_block_isbad(&nand_info[0], offset)) {
 			char_ptr = &buf[amount_loaded];
 			if (nand_read_skip_bad(&nand_info[0], offset,
-					       &len, char_ptr))
+					       &len, NULL,
+					       nand_info[0].size, char_ptr))
 				return 1;
 
-			offset += blocksize;
 			amount_loaded += len;
 		}
+		offset += blocksize;
 	}
 
 	if (amount_loaded != env_size)

@@ -382,17 +382,17 @@ int setenv_ulong(const char *varname, ulong value)
 }
 
 /**
- * Set an environment variable to an address in hex
+ * Set an environment variable to an value in hex
  *
  * @param varname	Environmet variable to set
- * @param addr		Value to set it to
+ * @param value		Value to set it to
  * @return 0 if ok, 1 on error
  */
-int setenv_addr(const char *varname, const void *addr)
+int setenv_hex(const char *varname, ulong value)
 {
 	char str[17];
 
-	sprintf(str, "%lx", (uintptr_t)addr);
+	sprintf(str, "%lx", value);
 	return setenv(varname, str);
 }
 
@@ -400,7 +400,7 @@ void set_loadaddr(ulong addr)
 {
 	if (addr != load_addr) {
 		load_addr = addr;
-		setenv_addr("loadaddr", (void *)addr);
+		setenv_hex("loadaddr", addr);
 	}
 }
 

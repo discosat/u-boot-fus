@@ -59,7 +59,7 @@ typedef struct mtd_info	  mtd_info_t;
 
 /**
  * nand_erase_opts: - erase NAND flash with support for various options
- *		      (jffs2 formating)
+ *		      (jffs2 formatting)
  *
  * @param meminfo	NAND device to erase
  * @param opts		options,  @see struct nand_erase_options
@@ -83,8 +83,8 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 	if (chip->options & NAND_SW_WRITE_PROTECT)
 		return -EROFS;
 
-	if ((opts->offset & (meminfo->writesize - 1)) != 0) {
-		printf("Attempt to erase non page aligned data\n");
+	if ((opts->offset & (meminfo->erasesize - 1)) != 0) {
+		printf("Attempt to erase non block-aligned data\n");
 		return -1;
 	}
 
@@ -97,8 +97,8 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 	erase_length = lldiv(opts->length + meminfo->erasesize - 1,
 			     meminfo->erasesize);
 
-	cleanmarker.magic = cpu_to_je16 (JFFS2_MAGIC_BITMASK);
-	cleanmarker.nodetype = cpu_to_je16 (JFFS2_NODETYPE_CLEANMARKER);
+	cleanmarker.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
+	cleanmarker.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER);
 	cleanmarker.totlen = cpu_to_je32(8);
 
 	/* scrub option allows to erase badblock. To prevent internal
@@ -121,7 +121,7 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 	     erased_length < erase_length;
 	     erase.addr += meminfo->erasesize) {
 
-		WATCHDOG_RESET ();
+		WATCHDOG_RESET();
 
 		if (!opts->scrub && bbtest) {
 			int ret = meminfo->block_isbad(meminfo, erase.addr);
@@ -214,12 +214,6 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
  * Support for locking / unlocking operations of some NAND devices
  *****************************************************************************/
 
-#define NAND_CMD_LOCK		0x2a
-#define NAND_CMD_LOCK_TIGHT	0x2c
-#define NAND_CMD_UNLOCK1	0x23
-#define NAND_CMD_UNLOCK2	0x24
-#define NAND_CMD_LOCK_STATUS	0x7a
-
 /**
  * nand_lock: Set all pages of NAND flash chip to the LOCK or LOCK-TIGHT
  *	      state
@@ -250,6 +244,14 @@ int nand_lock(struct mtd_info *mtd, int tight)
 	/* select the NAND device */
 	chip->select_chip(mtd, 0);
 
+	/* check the Lock Tight Status */
+	chip->cmdfunc(mtd, NAND_CMD_LOCK_STATUS, -1, 0);
+	if (chip->read_byte(mtd) & NAND_LOCK_STATUS_TIGHT) {
+		printf("nand_lock: Device is locked tight!\n");
+		ret = -1;
+		goto out;
+	}
+
 	chip->cmdfunc(mtd,
 		      (tight ? NAND_CMD_LOCK_TIGHT : NAND_CMD_LOCK),
 		      -1, -1);
@@ -262,6 +264,7 @@ int nand_lock(struct mtd_info *mtd, int tight)
 		ret = -1;
 	}
 
+ out:
 	/* de-select the NAND device */
 	chip->select_chip(mtd, -1);
 	return ret;
@@ -272,13 +275,12 @@ int nand_lock(struct mtd_info *mtd, int tight)
  *			   flash
  *
  * @param mtd		nand mtd instance
- * @param offset	page address to query (muss be page aligned!)
+ * @param offset	page address to query (must be page-aligned!)
  *
  * @return		-1 in case of error
  *			>0 lock status:
  *			  bitfield with the following combinations:
  *			  NAND_LOCK_STATUS_TIGHT: page in tight state
- *			  NAND_LOCK_STATUS_LOCK:  page locked
  *			  NAND_LOCK_STATUS_UNLOCK: page unlocked
  *
  */
@@ -295,7 +297,7 @@ int nand_get_lock_status(struct mtd_info *mtd, loff_t offset)
 
 
 	if ((offset & (mtd->writesize - 1)) != 0) {
-		printf ("nand_get_lock_status: "
+		printf("nand_get_lock_status: "
 			"Start address must be beginning of "
 			"nand page!\n");
 		ret = -1;
@@ -307,7 +309,6 @@ int nand_get_lock_status(struct mtd_info *mtd, loff_t offset)
 	chip->cmdfunc(mtd, NAND_CMD_LOCK_STATUS, -1, page & chip->pagemask);
 
 	ret = chip->read_byte(mtd) & (NAND_LOCK_STATUS_TIGHT
-					  | NAND_LOCK_STATUS_LOCK
 					  | NAND_LOCK_STATUS_UNLOCK);
 
  out:
@@ -324,18 +325,21 @@ int nand_get_lock_status(struct mtd_info *mtd, loff_t offset)
  * @param start		start byte address
  * @param length	number of bytes to unlock (must be a multiple of
  *			page size nand->writesize)
+ * @param allexcept	if set, unlock everything not selected
  *
  * @return		0 on success, -1 in case of error
  */
-int nand_unlock(struct mtd_info *mtd, ulong start, ulong length)
+int nand_unlock(struct mtd_info *mtd, loff_t start, size_t length,
+	int allexcept)
 {
 	int ret = 0;
 	int chipnr;
 	int status;
 	int page;
 	struct nand_chip *chip = mtd->priv;
-	printf ("nand_unlock: start: %08x, length: %d!\n",
-		(int)start, (int)length);
+
+	debug("nand_unlock%s: start: %08llx, length: %d!\n",
+		allexcept ? " (allexcept)" : "", start, length);
 
 	/* select the NAND device */
 	chipnr = (int)(start >> chip->chip_shift);
@@ -344,20 +348,29 @@ int nand_unlock(struct mtd_info *mtd, ulong start, ulong length)
 	/* check the WP bit */
 	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
 	if (!(chip->read_byte(mtd) & NAND_STATUS_WP)) {
-		printf ("nand_unlock: Device is write protected!\n");
+		printf("nand_unlock: Device is write protected!\n");
+		ret = -1;
+		goto out;
+	}
+
+	/* check the Lock Tight Status */
+	page = (int)(start >> chip->page_shift);
+	chip->cmdfunc(mtd, NAND_CMD_LOCK_STATUS, -1, page & chip->pagemask);
+	if (chip->read_byte(mtd) & NAND_LOCK_STATUS_TIGHT) {
+		printf("nand_unlock: Device is locked tight!\n");
 		ret = -1;
 		goto out;
 	}
 
 	if ((start & (mtd->erasesize - 1)) != 0) {
-		printf ("nand_unlock: Start address must be beginning of "
+		printf("nand_unlock: Start address must be beginning of "
 			"nand block!\n");
 		ret = -1;
 		goto out;
 	}
 
 	if (length == 0 || (length & (mtd->erasesize - 1)) != 0) {
-		printf ("nand_unlock: Length must be a multiple of nand block "
+		printf("nand_unlock: Length must be a multiple of nand block "
 			"size %08x!\n", mtd->erasesize);
 		ret = -1;
 		goto out;
@@ -370,11 +383,19 @@ int nand_unlock(struct mtd_info *mtd, ulong start, ulong length)
 	length -= mtd->erasesize;
 
 	/* submit address of first page to unlock */
-	page = (int)(start >> chip->page_shift);
 	chip->cmdfunc(mtd, NAND_CMD_UNLOCK1, -1, page & chip->pagemask);
 
 	/* submit ADDRESS of LAST page to unlock */
 	page += (int)(length >> chip->page_shift);
+
+	/*
+	 * Page addresses for unlocking are supposed to be block-aligned.
+	 * At least some NAND chips use the low bit to indicate that the
+	 * page range should be inverted.
+	 */
+	if (allexcept)
+		page |= 1;
+
 	chip->cmdfunc(mtd, NAND_CMD_UNLOCK2, -1, page & chip->pagemask);
 
 	/* call wait ready function */
@@ -402,11 +423,13 @@ int nand_unlock(struct mtd_info *mtd, ulong start, ulong length)
  * @param nand NAND device
  * @param offset offset in flash
  * @param length image length
+ * @param used length of flash needed for the requested length
  * @return 0 if the image fits and there are no bad blocks
  *         1 if the image fits, but there are bad blocks
  *        -1 if the image does not fit
  */
-static int check_skip_len(nand_info_t *nand, loff_t offset, size_t length)
+static int check_skip_len(nand_info_t *nand, loff_t offset, size_t length,
+		size_t *used)
 {
 	size_t len_excl_bad = 0;
 	int ret = 0;
@@ -428,7 +451,12 @@ static int check_skip_len(nand_info_t *nand, loff_t offset, size_t length)
 			ret = 1;
 
 		offset += block_len;
+		*used += block_len;
 	}
+
+	/* If the length is not a multiple of block_len, adjust. */
+	if (len_excl_bad > length)
+		*used -= (len_excl_bad - length);
 
 	return ret;
 }
@@ -437,7 +465,8 @@ static int check_skip_len(nand_info_t *nand, loff_t offset, size_t length)
 static size_t drop_ffs(const nand_info_t *nand, const u_char *buf,
 			const size_t *len)
 {
-	size_t i, l = *len;
+	size_t l = *len;
+	ssize_t i;
 
 	for (i = l - 1; i >= 0; i--)
 		if (buf[i] != 0xFF)
@@ -456,29 +485,41 @@ static size_t drop_ffs(const nand_info_t *nand, const u_char *buf,
 }
 #endif
 
-
 /**
  * nand_write_skip_bad:
  *
  * Write image to NAND flash.
  * Blocks that are marked bad are skipped and the is written to the next
  * block instead as long as the image is short enough to fit even after
- * skipping the bad blocks.
+ * skipping the bad blocks.  Due to bad blocks we may not be able to
+ * perform the requested write.  In the case where the write would
+ * extend beyond the end of the NAND device, both length and actual (if
+ * not NULL) are set to 0.  In the case where the write would extend
+ * beyond the limit we are passed, length is set to 0 and actual is set
+ * to the required length.
  *
  * @param nand  	NAND device
  * @param offset	offset in flash
  * @param length	buffer length
+ * @param actual	set to size required to write length worth of
+ *			buffer or 0 on error, if not NULL
+ * @param lim		maximum size that actual may be in order to not
+ *			exceed the buffer
  * @param buffer        buffer to read from
  * @param flags		flags modifying the behaviour of the write to NAND
  * @return		0 in case of success
  */
 int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
-			u_char *buffer, int flags)
+		size_t *actual, loff_t lim, u_char *buffer, int flags)
 {
 	int rval = 0, blocksize;
 	size_t left_to_write = *length;
+	size_t used_for_write = 0;
 	u_char *p_buffer = buffer;
 	int need_skip;
+
+	if (actual)
+		*actual = 0;
 
 #ifdef CONFIG_CMD_NAND_YAFFS
 	if (flags & WITH_YAFFS_OOB) {
@@ -489,7 +530,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		pages = nand->erasesize / nand->writesize;
 		blocksize = (pages * nand->oobsize) + nand->erasesize;
 		if (*length % (nand->writesize + nand->oobsize)) {
-			printf ("Attempt to write incomplete page"
+			printf("Attempt to write incomplete page"
 				" in yaffs mode\n");
 			return -EINVAL;
 		}
@@ -511,25 +552,35 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 	 * partition boundary).  So don't try to handle that.
 	 */
 	if ((offset & (nand->writesize - 1)) != 0) {
-		printf ("Attempt to write non page aligned data\n");
+		printf("Attempt to write non page-aligned data\n");
 		*length = 0;
 		return -EINVAL;
 	}
 
-	need_skip = check_skip_len(nand, offset, *length);
+	need_skip = check_skip_len(nand, offset, *length, &used_for_write);
+
+	if (actual)
+		*actual = used_for_write;
+
 	if (need_skip < 0) {
-		printf ("Attempt to write outside the flash area\n");
+		printf("Attempt to write outside the flash area\n");
 		*length = 0;
 		return -EINVAL;
+	}
+
+	if (used_for_write > lim) {
+		puts("Size of write exceeds partition or device limit\n");
+		*length = 0;
+		return -EFBIG;
 	}
 
 	if (!need_skip && !(flags & WITH_DROP_FFS)) {
-		rval = nand_write (nand, offset, length, buffer);
+		rval = nand_write(nand, offset, length, buffer);
 		if (rval == 0)
 			return 0;
 
 		*length = 0;
-		printf ("NAND write to offset %llx failed %d\n",
+		printf("NAND write to offset %llx failed %d\n",
 			offset, rval);
 		return rval;
 	}
@@ -538,10 +589,10 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		size_t block_offset = offset & (nand->erasesize - 1);
 		size_t write_size, truncated_write_size;
 
-		WATCHDOG_RESET ();
+		WATCHDOG_RESET();
 
-		if (nand_block_isbad (nand, offset & ~(nand->erasesize - 1))) {
-			printf ("Skip bad block 0x%08llx\n",
+		if (nand_block_isbad(nand, offset & ~(nand->erasesize - 1))) {
+			printf("Skip bad block 0x%08llx\n",
 				offset & ~(nand->erasesize - 1));
 			offset += nand->erasesize - block_offset;
 			continue;
@@ -596,7 +647,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		}
 
 		if (rval != 0) {
-			printf ("NAND write to offset %llx failed %d\n",
+			printf("NAND write to offset %llx failed %d\n",
 				offset, rval);
 			*length -= left_to_write;
 			return rval;
@@ -612,39 +663,61 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
  * nand_read_skip_bad:
  *
  * Read image from NAND flash.
- * Blocks that are marked bad are skipped and the next block is readen
- * instead as long as the image is short enough to fit even after skipping the
- * bad blocks.
+ * Blocks that are marked bad are skipped and the next block is read
+ * instead as long as the image is short enough to fit even after
+ * skipping the bad blocks.  Due to bad blocks we may not be able to
+ * perform the requested read.  In the case where the read would extend
+ * beyond the end of the NAND device, both length and actual (if not
+ * NULL) are set to 0.  In the case where the read would extend beyond
+ * the limit we are passed, length is set to 0 and actual is set to the
+ * required length.
  *
  * @param nand NAND device
  * @param offset offset in flash
- * @param length buffer length, on return holds remaining bytes to read
+ * @param length buffer length, on return holds number of read bytes
+ * @param actual set to size required to read length worth of buffer or 0
+ * on error, if not NULL
+ * @param lim maximum size that actual may be in order to not exceed the
+ * buffer
  * @param buffer buffer to write to
  * @return 0 in case of success
  */
 int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
-		       u_char *buffer)
+		size_t *actual, loff_t lim, u_char *buffer)
 {
 	int rval;
 	size_t left_to_read = *length;
+	size_t used_for_read = 0;
 	int need_skip;
 
 	if ((offset & (nand->writesize - 1)) != 0) {
-		printf("Attempt to read non page aligned data\n");
+		printf("Attempt to read non page-aligned data\n");
 		*length = 0;
+		if (actual)
+			*actual = 0;
 		return -EINVAL;
 	}
 
-	need_skip = check_skip_len(nand, offset, *length);
+	need_skip = check_skip_len(nand, offset, *length, &used_for_read);
+
+	if (actual)
+		*actual = used_for_read;
+
 	if (need_skip < 0) {
 		printf("Attempt to read outside the flash area\n");
 		*length = 0;
 		return -EINVAL;
 	}
 
+	if (used_for_read > lim) {
+		puts("Size of read exceeds partition or device limit\n");
+		*length = 0;
+		return -EFBIG;
+	}
+
 #ifndef CONFIG_NAND_REFRESH
 	if (!need_skip) {
-		rval = nand_read (nand, offset, length, buffer);
+		rval = nand_read(nand, offset, length, buffer);
 		if (!rval || rval == -EUCLEAN)
 			return 0;
 
@@ -659,11 +732,11 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		size_t block_offset = offset & (nand->erasesize - 1);
 		size_t read_length;
 
-		WATCHDOG_RESET ();
+		WATCHDOG_RESET();
 
 		if (need_skip
-		    && nand_block_isbad (nand, offset & ~(nand->erasesize - 1))) {
-			printf ("Skipping bad block 0x%08llx\n",
+		    && nand_block_isbad(nand, offset & ~(nand->erasesize - 1))) {
+			printf("Skipping bad block 0x%08llx\n",
 				offset & ~(nand->erasesize - 1));
 			offset += nand->erasesize - block_offset;
 			continue;
@@ -681,7 +754,7 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 #endif
 		if (rval && rval != -EUCLEAN) {
 			printf("NAND read from offset %llx failed %d\n",
-			       offset, rval);
+				offset, rval);
 			*length -= left_to_read;
 			return rval;
 		}
@@ -694,3 +767,125 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 
 	return 0;
 }
+
+#ifdef CONFIG_CMD_NAND_TORTURE
+
+/**
+ * check_pattern:
+ *
+ * Check if buffer contains only a certain byte pattern.
+ *
+ * @param buf buffer to check
+ * @param patt the pattern to check
+ * @param size buffer size in bytes
+ * @return 1 if there are only patt bytes in buf
+ *         0 if something else was found
+ */
+static int check_pattern(const u_char *buf, u_char patt, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++)
+		if (buf[i] != patt)
+			return 0;
+	return 1;
+}
+
+/**
+ * nand_torture:
+ *
+ * Torture a block of NAND flash.
+ * This is useful to determine if a block that caused a write error is still
+ * good or should be marked as bad.
+ *
+ * @param nand NAND device
+ * @param offset offset in flash
+ * @return 0 if the block is still good
+ */
+int nand_torture(nand_info_t *nand, loff_t offset)
+{
+	u_char patterns[] = {0xa5, 0x5a, 0x00};
+	struct erase_info instr = {
+		.mtd = nand,
+		.addr = offset,
+		.len = nand->erasesize,
+	};
+	size_t retlen;
+	int err, ret = -1, i, patt_count;
+	u_char *buf;
+
+	if ((offset & (nand->erasesize - 1)) != 0) {
+		puts("Attempt to torture a block at a non block-aligned offset\n");
+		return -EINVAL;
+	}
+
+	if (offset + nand->erasesize > nand->size) {
+		puts("Attempt to torture a block outside the flash area\n");
+		return -EINVAL;
+	}
+
+	patt_count = ARRAY_SIZE(patterns);
+
+	buf = malloc(nand->erasesize);
+	if (buf == NULL) {
+		puts("Out of memory for erase block buffer\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < patt_count; i++) {
+		err = nand->erase(nand, &instr);
+		if (err) {
+			printf("%s: erase() failed for block at 0x%llx: %d\n",
+				nand->name, instr.addr, err);
+			goto out;
+		}
+
+		/* Make sure the block contains only 0xff bytes */
+		err = nand->read(nand, offset, nand->erasesize, &retlen, buf);
+		if ((err && err != -EUCLEAN) || retlen != nand->erasesize) {
+			printf("%s: read() failed for block at 0x%llx: %d\n",
+				nand->name, instr.addr, err);
+			goto out;
+		}
+
+		err = check_pattern(buf, 0xff, nand->erasesize);
+		if (!err) {
+			printf("Erased block at 0x%llx, but a non-0xff byte was found\n",
+				offset);
+			ret = -EIO;
+			goto out;
+		}
+
+		/* Write a pattern and check it */
+		memset(buf, patterns[i], nand->erasesize);
+		err = nand->write(nand, offset, nand->erasesize, &retlen, buf);
+		if (err || retlen != nand->erasesize) {
+			printf("%s: write() failed for block at 0x%llx: %d\n",
+				nand->name, instr.addr, err);
+			goto out;
+		}
+
+		err = nand->read(nand, offset, nand->erasesize, &retlen, buf);
+		if ((err && err != -EUCLEAN) || retlen != nand->erasesize) {
+			printf("%s: read() failed for block at 0x%llx: %d\n",
+				nand->name, instr.addr, err);
+			goto out;
+		}
+
+		err = check_pattern(buf, patterns[i], nand->erasesize);
+		if (!err) {
+			printf("Pattern 0x%.2x checking failed for block at "
+					"0x%llx\n", patterns[i], offset);
+			ret = -EIO;
+			goto out;
+		}
+	}
+
+	ret = 0;
+
+out:
+	free(buf);
+	return ret;
+}
+
+#endif
