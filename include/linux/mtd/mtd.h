@@ -151,7 +151,6 @@ struct mtd_info {
 	 * one region comprising an ecc step equals or exceeds this value.
 	 */
 	unsigned int bitflip_threshold;
-	unsigned int max_bitflips; //### Debugging only
 
 	/* Kernel-only stuff starts here. */
 	const char *name;

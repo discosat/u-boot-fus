@@ -727,7 +727,6 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 	}
 #endif
 
-	printf("### bitflips:");	/* ### debugging only */
 	while (left_to_read > 0) {
 		size_t block_offset = offset & (nand->erasesize - 1);
 		size_t read_length;
@@ -747,7 +746,6 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 			read_length = left_to_read;
 
 		rval = nand_read(nand, offset, &read_length, buffer);
-		printf(" %llx:%02d", offset >> 17, nand->max_bitflips); /* ### debugging only */
 #ifdef CONFIG_NAND_REFRESH
 	        if (rval == -EUCLEAN)
 			rval = nand_refresh(nand, offset);
@@ -763,7 +761,6 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		offset       += read_length;
 		buffer       += read_length;
 	}
-	putc('\n'); /* ### debugging only */
 
 	return 0;
 }

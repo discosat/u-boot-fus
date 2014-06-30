@@ -1314,7 +1314,6 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	if (oobbuf)
 		ops->oobretlen = ops->ooblen - oobreadlen;
 
-	mtd->max_bitflips = max_bitflips; //### for debugging only
 	if (ret)
 		return ret;
 
@@ -1623,7 +1622,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	ops->oobretlen = ops->ooblen;
 
-	mtd->max_bitflips = max_bitflips; //### debugging only
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
 
