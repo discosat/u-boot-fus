@@ -83,7 +83,8 @@ phy_info_t phyinfo[] = {
 	{0x001378e0, "LXT971"},		/* LXT971 and 972 */
 	{0x00221619, "KS8721BL"},	/* Micrel KS8721BL/SL */
 	{0x00221512, "KSZ8041NL"},	/* Micrel KSZ8041NL */
-	{0x00221556, "KSZ8021RNL"},	/* Micrel KSZ8021RNL */ /*ARMSTONEA5*/
+	{0x00221556, "KSZ8021RNL"},	/* Micrel KSZ8021RNL */
+	{0x00221560, "KSZ8081RNA"},	/* Micrel KSZ8081RNA */
 	{0x20005CE1, "N83640"},		/* National 83640 */
 	{0x20005C90, "N83848"},		/* National 83848 */
 	{0x20005CA2, "N83849"},		/* National 83849 */
@@ -262,11 +263,27 @@ void __mii_init(void)
 
 	info->phy_addr = mii_discover_phy(dev);
 
-#if 1 //ARMSTONEA5
+#if 1 // F&S Vybrid boards
 	if(!strcmp(info->phy_name,"KSZ8021RNL")) {
 		u16 tmp;
-		miiphy_read(dev->name, info->phy_addr, 0x1F, &tmp);
+//		miiphy_read(dev->name, info->phy_addr, 0x1F, &tmp);
 //              miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+
+		/* fix strapping pin options, strapping pin floating */
+		miiphy_read(dev->name, info->phy_addr, MII_BMCR, &tmp);
+		miiphy_write(dev->name, info->phy_addr, MII_BMCR,
+			     tmp | BMCR_ANENABLE | BMCR_SPEED100);
+		miiphy_read(dev->name, info->phy_addr, MII_ADVERTISE, &tmp);
+		miiphy_write(dev->name, info->phy_addr, MII_ADVERTISE,
+			     tmp | ADVERTISE_100FULL | ADVERTISE_100HALF);
+	}
+	if(!strcmp(info->phy_name,"KSZ8081RNA")) {
+		u16 tmp;
+
+		/* Switch to 50MHz mode */
+		miiphy_read(dev->name, info->phy_addr, 0x1F, &tmp);
+		miiphy_write(dev->name,info->phy_addr,0x1F,tmp | 1<<7);
+
 		/* fix strapping pin options, strapping pin floating */
 		miiphy_read(dev->name, info->phy_addr, MII_BMCR, &tmp);
 		miiphy_write(dev->name, info->phy_addr, MII_BMCR,
