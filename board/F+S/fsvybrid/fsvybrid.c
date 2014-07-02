@@ -676,33 +676,39 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 {
 	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
 	if (setclear) {
+		/* Configure as ethernet. There is a hardware problem on
+		   Vybrid because the data is sampled on the wrong edge. To
+		   avoid having a problem, when data changes on the same edge,
+		   we set the edge speed of the data signals to low and of the
+		   clock signal to high. This gains about 2ns difference. */
 #ifdef CONFIG_SYS_FEC0_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
-			__raw_writel(0x00103192, IOMUXC_PAD_045);	/*MDC*/
-			__raw_writel(0x00103193, IOMUXC_PAD_046);	/*MDIO*/
-			__raw_writel(0x00103191, IOMUXC_PAD_047);	/*RxDV*/
-			__raw_writel(0x00103191, IOMUXC_PAD_048);	/*RxD1*/
-			__raw_writel(0x00103191, IOMUXC_PAD_049);	/*RxD0*/
-			__raw_writel(0x00103191, IOMUXC_PAD_050);	/*RxER*/
-			__raw_writel(0x00103192, IOMUXC_PAD_051);	/*TxD1*/
-			__raw_writel(0x00103192, IOMUXC_PAD_052);	/*TxD0*/
-			__raw_writel(0x00103192, IOMUXC_PAD_053);	/*TxEn*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_045);	/*MDC*/
+			__raw_writel(0x001000c3, IOMUXC_PAD_046);	/*MDIO*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_047);	/*RxDV*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_048);	/*RxD1*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_049);	/*RxD0*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_050);	/*RxER*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_051);	/*TxD1*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_052);	/*TxD0*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_053);	/*TxEn*/
 		}
 #endif
 #ifdef CONFIG_SYS_FEC1_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
-			__raw_writel(0x00103192, IOMUXC_PAD_054);	/*MDC*/
-			__raw_writel(0x00103193, IOMUXC_PAD_055);	/*MDIO*/
-			__raw_writel(0x00103191, IOMUXC_PAD_056);	/*RxDV*/
-			__raw_writel(0x00103191, IOMUXC_PAD_057);	/*RxD1*/
-			__raw_writel(0x00103191, IOMUXC_PAD_058);	/*RxD0*/
-			__raw_writel(0x00103191, IOMUXC_PAD_059);	/*RxER*/
-			__raw_writel(0x00103192, IOMUXC_PAD_060);	/*TxD1*/
-			__raw_writel(0x00103192, IOMUXC_PAD_061);	/*TxD0*/
-			__raw_writel(0x00103192, IOMUXC_PAD_062);	/*TxEn*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_054);	/*MDC*/
+			__raw_writel(0x001000c3, IOMUXC_PAD_055);	/*MDIO*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_056);	/*RxDV*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_057);	/*RxD1*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_058);	/*RxD0*/
+			__raw_writel(0x001000c1, IOMUXC_PAD_059);	/*RxER*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_060);	/*TxD1*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_061);	/*TxD0*/
+			__raw_writel(0x001000c2, IOMUXC_PAD_062);	/*TxEn*/
 		}
 #endif
 	} else {
+		/* Configure as GPIO */
 #ifdef CONFIG_SYS_FEC0_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
 			__raw_writel(0x00003192, IOMUXC_PAD_045);	/*MDC*/
@@ -831,7 +837,8 @@ int board_eth_init(bd_t *bd)
 	int index = 0;
 
 #ifdef CONFIG_FS_VYBRID_PLL_ETH
-	__raw_writel(0x00101902, IOMUXC_PAD_000);   /* RMII_CLKOUT */
+	/* Set clock signal edge to high, see comment in fecpin_setclear() */
+	__raw_writel(0x00103942, IOMUXC_PAD_000);   /* RMII_CLKOUT */
 #else
 	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLKIN */
 #endif
