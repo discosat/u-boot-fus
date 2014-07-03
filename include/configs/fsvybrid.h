@@ -3,7 +3,7 @@
  * F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on Vybrid. This is
- * armStoneA5, PicoCOMA5 and NetDCUA5.
+ * armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5 and AGATEWAY.
  * Activate with one of the following targets:
  *   make fsvybrid_config       Configure for Vybrid boards
  *   make fsvybrid              Configure for Vybrid boards and build
@@ -28,7 +28,7 @@
  *
  * The following addresses are given as offsets of the device.
  *
- * NAND flash layout (Block size 128KB) (128MB, 256MB, 1GB)
+ * NAND flash layout with separate Kernel MTD partition 
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -37,15 +37,25 @@
  * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
  * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
  * 0x0020_0000 - 0x005F_FFFF: Kernel: Linux Kernel uImage (4MB)
- * 0x0060_0000 - 0x07FF_FFFF: TargetFS: Root filesystem (122MB if 128MB)
- * 0x0060_0000 - 0x0FFF_FFFF: TargetFS: Root filesystem (250MB if 256MB)
- * 0x0060_0000 - 0x3FFF_FFFF: TargetFS: Root filesystem (1018MB if 1GB)
+ * 0x0060_0000 -         END: TargetFS: Root filesystem (Size - 6MB)
+ *
+ * NAND flash layout with UBI only, Kernel in rootfs or kernel volume
+ * -------------------------------------------------------------------------
+ * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
+ * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
+ * 0x0004_0000 - 0x000F_FFFF: UserDef: User defined data (768KB)
+ * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
+ * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
+ * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
+ * 0x0020_0000 -         END: TargetFS: Root filesystem (Size - 2MB)
+ *
+ * END: 0x07FF_FFFF for 128MB, 0x0FFF_FFFF for 256MB, 0x3FFF_FFFF for 1GB
  *
  * Remark:
- * All partition sizes have been chosen to allow for at least one bad block in
- * addition to the required size of the partition. E.g. UBoot is 384KB, but
- * the UBoot partition is 512KB to allow for one bad block (128KB) in this
- * memory region.
+ * Block size is 128KB. All partition sizes have been chosen to allow for at
+ * least one bad block in addition to the required size of the partition. E.g.
+ * UBoot is 384KB, but the UBoot partition is 512KB to allow for one bad block
+ * (128KB) in this memory region.
  *
  * RAM layout (RAM starts at 0x80000000)
  * -------------------------------------------------------------------------
@@ -646,13 +656,13 @@
 #define CONFIG_BOOTFILE         "uImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
-#define CONFIG_BOOTDELAY	3
+#define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"(dynamically generated, see var set_bootargs)"
 #define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
 
 /* Add some variables that are not predefined in U-Boot. All entries with
-   content "default" will be updated with a board-specific value in
+   content "undef" will be updated with a board-specific value in
    board_late_init().
 
    We use ${...} here to access variable names because this will work with the
@@ -667,45 +677,62 @@
    single backslash. So we actually need an escaped backslash, i.e. two
    backslashes. Which finally results in having to type four backslashes here,
    as each backslash must also be escaped with a backslash in C. */
+#ifdef CONFIG_CMD_UBI
+#ifdef CONFIG_CMD_UBIFS
+#define EXTRA_UBIFS \
+	"_kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootm\0"
+#else
+#define EXTRA_UBIFS
+#endif
+#define EXTRA_UBI EXTRA_UBIFS \
+	"mtdparts=undef\0" \
+	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0" \
+	"_mtdparts_ubionly=setenv mtdparts " MTDPARTS_DEF_UBIONLY "\0" \
+	"_rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
+	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\\\\; bootm\0" \
+	"_ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
+	"_ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
+#else
+#define EXTRA_UBI \
+	"mtdparts=" MTDPARTS_DEF_LARGE "\0" \
+	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0"
+#endif
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"console=default\0" \
+	"console=undef\0" \
 	"_console_none=setenv console\0" \
 	"_console_serial=setenv console console=${sercon},${baudrate}\0" \
 	"_console_display=setenv console console=/dev/tty1\0" \
-	"login=default\0" \
+	"login=undef\0" \
 	"_login_none=setenv login login_tty=null\0" \
 	"_login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
 	"_login_display=setenv login login_tty=/dev/tty1\0" \
-	"sercon=default\0" \
-	"mtdparts=default\0" \
-	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0" \
-	"_mtdparts_ubionly=setenv mtdparts " MTDPARTS_DEF_UBIONLY "\0" \
-	"network=default\0" \
+	"sercon=undef\0" \
+	"mtdparts=undef\0" \
 	"_network_off=setenv network\0"					\
 	"_network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	"_network_dhcp=setenv network ip=dhcp\0" \
-	"rootfs=default\0" \
-	"_rootfs_ubi=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
+	"rootfs=undef\0" \
 	"_rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
 	"_rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
 	"_rootfs_usb=setenv rootfs root=/dev/sda1\0" \
-	"kernel=default\0" \
+	"kernel=undef\0" \
 	"_kernel_nand=setenv kernel nboot Kernel\\\\; bootm\0" \
 	"_kernel_tftp=setenv kernel tftpboot .\\\\; bootm\0" \
 	"_kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . ${bootfile}\\\\; bootm\0" \
 	"_kernel_mmc_fat=setenv kernel mmc rescan\\\\; fatload mmc0 . ${bootfile}\0" \
 	"_kernel_mmc_ext2=setenv kernel mmc rescan\\\\; ext2load mmc0 . ${bootfile}\0" \
 	"_kernel_usb_fat=setenv kernel usb start\\\\; fatload usb0 . ${bootfile}\0" \
 	"_kernel_usb_ext2=setenv kernel usb start\\\\; ext2load usb0 . ${bootfile}\0" \
-	"mode=default\0" \
+	EXTRA_UBI \
+	"mode=undef\0" \
 	"netdev=eth0\0" \
-	"init=default\0" \
+	"init=undef\0" \
 	"_init_init=setenv init\0" \
 	"_init_linuxrc=setenv init init=linuxrc\0" \
-	"installcheck=default\0" \
-	"updatecheck=default\0" \
-	"recovercheck=default\0" \
+	"installcheck=undef\0" \
+	"updatecheck=undef\0" \
+	"recovercheck=undef\0" \
 	"arch=fsvybrid\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init}\0"
 

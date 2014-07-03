@@ -47,6 +47,9 @@
 DECLARE_GLOBAL_DATA_PTR;
 #endif
 
+#define XMK_STR(x)	#x
+#define MK_STR(x)	XMK_STR(x)
+
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
@@ -389,7 +392,8 @@ void main_loop (void)
 
 #if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
 	s = getenv ("bootdelay");
-	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
+	bootdelay = (int)simple_strtol(s ? s : MK_STR(CONFIG_BOOTDELAY),
+				       NULL, 10);
 
 	debug ("### main_loop entered: bootdelay=%d\n\n", bootdelay);
 

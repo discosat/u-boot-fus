@@ -73,7 +73,8 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define BT_ARMSTONEA5 0
 #define BT_PICOCOMA5  1
 #define BT_NETDCUA5   2
-#define BT_PICOMODA5  3
+#define BT_PICOMODA5  4
+#define BT_PICOMOD1_2 5
 #define BT_AGATEWAY   6
 #define BT_CUBEA5     7
 
@@ -89,6 +90,7 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
+	char *bootdelay;		  /* Default value for bootdelay */
 	char *updatecheck;		  /* Default value for updatecheck */
 	char *installcheck;		  /* Default value for installcheck */
 	char *recovercheck;		  /* Default value for recovercheck */
@@ -115,6 +117,7 @@ const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_ARMSTONEA5) */
 		.name = "armStoneA5",
 		.mach_type = MACH_TYPE_ARMSTONEA5,
+		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
@@ -123,12 +126,13 @@ const struct board_info fs_board_info[8] = {
 		.mtdparts = "_mtdparts_std",
 		.network = "_network_off",
 		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubi",
+		.rootfs = "_rootfs_ubifs",
 		.kernel = "_kernel_nand",
 	},
 	{	/* 1 (BT_PICOCOMA5)*/
 		.name = "PicoCOMA5",
 		.mach_type = MACH_TYPE_PICOCOMA5,
+		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
@@ -137,12 +141,13 @@ const struct board_info fs_board_info[8] = {
 		.mtdparts = "_mtdparts_std",
 		.network = "_network_off",
 		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubi",
+		.rootfs = "_rootfs_ubifs",
 		.kernel = "_kernel_nand",
 	},
 	{	/* 2 (BT_NETDCUA5) */
 		.name = "NetDCUA5",
 		.mach_type = MACH_TYPE_NETDCUA5,
+		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
@@ -151,22 +156,24 @@ const struct board_info fs_board_info[8] = {
 		.mtdparts = "_mtdparts_std",
 		.network = "_network_off",
 		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubi",
+		.rootfs = "_rootfs_ubifs",
 		.kernel = "_kernel_nand",
 	},
-	{	/* 3 (BT_PICOMODA5) */
+	{	/* 3 */
+		.name = "Unknown",
+	},
+	{	/* 4 (BT_PICOMODA5) */
 		.name = "PicoMODA5",
 		.mach_type = 0,		/*####not yet registered*/
 	},
-	{	/* 4 */
-		.name = "Unknown",
-	},
-	{	/* 5 */
-		.name = "Unknown",
+	{	/* 5 (BT_PICOMOD1_2) */
+		.name = "PicoMOD1.2",
+		.mach_type = 0,		/*####not yet registered*/
 	},
 	{	/* 6 (BT_AGATEWAY) */
 		.name = "AGATEWAY",
 		.mach_type = MACH_TYPE_AGATEWAY,
+		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(data)",
 		.installcheck = "ram@80300000",
 		.recovercheck = "TargetFS.ubi(recovery)",
@@ -177,12 +184,13 @@ const struct board_info fs_board_info[8] = {
 		.mtdparts = "_mtdparts_ubionly",
 		.network = "_network_off",
 		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubi",
-		.kernel = "_kernel_ubi",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_ubifs",
 	},
 	{	/* 7 (BT_CUBEA5) */
 		.name = "CUBEA5",
 		.mach_type = MACH_TYPE_CUBEA5,
+		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(data)",
 		.installcheck = "ram@80300000",
 		.recovercheck = "TargetFS.ubi(recovery)",
@@ -191,8 +199,8 @@ const struct board_info fs_board_info[8] = {
 		.mtdparts = "_mtdparts_ubionly",
 		.network = "_network_off",
 		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubi",
-		.kernel = "_kernel_ubi",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_ubifs",
 	},
 };
 
@@ -594,8 +602,8 @@ const char *board_get_mtdparts_default(void)
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)
 {
-	/* If variable does not contain string "default", do not change it */
-	if (strcmp(getenv(varname), "default"))
+	/* If variable does not contain string "undef", do not change it */
+	if (strcmp(getenv(varname), "undef"))
 		return;
 
 	/* Either set variable directly with value ... */
@@ -613,7 +621,7 @@ void setup_var(const char *varname, const char *content, int runvar)
 /* Use this slot to init some final things before the network is started. We
    set up some environment variables for things that are board dependent and
    can't be defined as a fix value in fsvybrid.h. As an unset value is valid
-   for some of these variables, we check for the special value "default". Any
+   for some of these variables, we check for the special value "undef". Any
    of these variables that holds this value will be replaced with the
    board-specific value. */
 int board_late_init(void)
@@ -622,7 +630,7 @@ int board_late_init(void)
 	const struct board_info *bi = &fs_board_info[boardtype];
 
 	/* Set sercon variable if not already set */
-	if (strcmp(getenv("sercon"), "default") == 0) {
+	if (strcmp(getenv("sercon"), "undef") == 0) {
 		char sercon[DEV_NAME_SIZE];
 
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
@@ -631,7 +639,7 @@ int board_late_init(void)
 	}
 
 	/* Set platform variable if not already set */
-	if (strcmp(getenv("platform"), "default") == 0) {
+	if (strcmp(getenv("platform"), "undef") == 0) {
 		char lcasename[20];
 		char *p = bi->name;
 		char *l = lcasename;
@@ -648,6 +656,7 @@ int board_late_init(void)
 	}
 
 	/* Set some variables with a direct value */
+	setup_var("bootdelay", bi->bootdelay, 0);
 	setup_var("updatecheck", bi->updatecheck, 0);
 	setup_var("installcheck", bi->installcheck, 0);
 	setup_var("recovercheck", bi->recovercheck, 0);
