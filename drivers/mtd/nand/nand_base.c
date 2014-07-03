@@ -1191,6 +1191,9 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	unsigned int max_bitflips = 0;
 	uint8_t *bufpoi;
 
+	ops->retlen = 0;
+	if (oobbuf)
+		ops->oobretlen = 0;
 	if (!readlen)
 		return 0;
 
@@ -1339,6 +1342,8 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct nand_chip *chip = mtd->priv;
 	struct mtd_oob_ops ops;
 	int ret;
+
+	*retlen = 0;
 
 	/* Do not allow reads past end of device */
 	if ((from + len) > mtd->size)
@@ -1515,6 +1520,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	uint8_t *buf = ops->oobbuf;
 	unsigned int max_bitflips = 0;
 
+	ops->oobretlen = 0;
 	if (!readlen)
 		return 0;
 
@@ -1643,6 +1649,8 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	int ret = -ENOTSUPP;
 
 	ops->retlen = 0;
+	if (ops->oobbuf)
+		ops->oobretlen = 0;
 
 	/* Do not allow reads past end of device */
 	if (ops->datbuf && (from + ops->len) > mtd->size) {
@@ -1959,6 +1967,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	int ret;
 
 	ops->retlen = 0;
+	if (oob)
+		ops->oobretlen = 0;
 	if (!writelen)
 		return 0;
 
@@ -2091,6 +2101,8 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct mtd_oob_ops ops;
 	int ret;
 
+	*retlen = 0;
+
 	/* Do not allow writes past end of device */
 	if ((to + len) > mtd->size)
 		return -EINVAL;
@@ -2130,6 +2142,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	MTDDEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
+	ops->oobretlen = 0;
 	if ((chip->options & NAND_SW_WRITE_PROTECT) || (to < mtd->skip))
 		return -EROFS;
 
@@ -2227,6 +2240,8 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 	int ret = -ENOTSUPP;
 
 	ops->retlen = 0;
+	if (ops->oobbuf)
+		ops->oobretlen = 0;
 
 	/* Do not allow writes past end of device */
 	if (ops->datbuf && (to + ops->len) > mtd->size) {

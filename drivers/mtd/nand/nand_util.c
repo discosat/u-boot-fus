@@ -76,7 +76,6 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 	int bbtest = 1;
 	int result;
 	int percent_complete = -1;
-	const char *mtd_device = meminfo->name;
 	struct mtd_oob_ops oob_opts;
 	struct nand_chip *chip = meminfo->priv;
 
@@ -127,10 +126,10 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 			int ret = meminfo->block_isbad(meminfo, erase.addr);
 			if (ret > 0) {
 				if (!opts->quiet)
-					printf("\rSkipping bad block at  "
+					printf("\rSkipping bad block at "
 					       "0x%08llx                 "
 					       "                         "
-					       "        \n",
+					       "         \n",
 					       erase.addr);
 
 				if (!opts->spread)
@@ -139,9 +138,8 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 				continue;
 
 			} else if (ret < 0) {
-				printf("\n%s: MTD get bad block failed: %d\n",
-				       mtd_device,
-				       ret);
+				printf("\nNAND get bad block failed with "
+				       "error %d\n", ret);
 				return -1;
 			}
 		}
@@ -150,10 +148,14 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 
 		result = meminfo->erase(meminfo, &erase);
 		if (result != 0) {
+			if (result == -EROFS) {
+				printf("\rNAND erase failed at 0x%08llx: "
+				       "read-only device\n", erase.addr);
+				return -1;
+			}
 			meminfo->block_markbad(meminfo, erase.addr);
-			printf("\r%s: MTD Erase failure at 0x%08llx: %d;\n"
-			       "block marked bad\n",
-			       mtd_device, erase.addr, result);
+			printf("\rNAND erase failed at 0x%08llx with error %d; "
+			       "block marked bad!\n", erase.addr, result);
 			continue;
 		}
 
@@ -171,8 +173,8 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 			                            erase.addr,
 			                            &ops);
 			if (result != 0) {
-				printf("\n%s: MTD writeoob failure: %d\n",
-				       mtd_device, result);
+				printf("\nNAND writeoob failed with error %d\n",
+				       result);
 				continue;
 			}
 		}
@@ -579,10 +581,8 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		if (rval == 0)
 			return 0;
 
-		*length = 0;
-		printf("NAND write to offset %llx failed %d\n",
-			offset, rval);
-		return rval;
+		offset += *length;
+		goto failed;
 	}
 
 	while (left_to_write > 0) {
@@ -592,7 +592,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		WATCHDOG_RESET();
 
 		if (nand_block_isbad(nand, offset & ~(nand->erasesize - 1))) {
-			printf("Skip bad block 0x%08llx\n",
+			printf("Skipping bad block at 0x%08llx\n",
 				offset & ~(nand->erasesize - 1));
 			offset += nand->erasesize - block_offset;
 			continue;
@@ -647,16 +647,27 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		}
 
 		if (rval != 0) {
-			printf("NAND write to offset %llx failed %d\n",
-				offset, rval);
 			*length -= left_to_write;
-			return rval;
+			break;
 		}
 
 		left_to_write -= write_size;
 	}
 
-	return 0;
+failed:
+	if (rval) {
+		if (rval == -EROFS) {
+			printf("NAND write failed at 0x%08llx: "
+			       "read-only device\n", offset);
+		} else {
+			printf("NAND write failed at 0x%08llx with error %d\n"
+			       "Please check block at 0x%08llx and consider "
+			       "marking it bad\n",
+			       offset, rval, offset & ~(nand->erasesize - 1));
+		}
+	}
+
+	return rval;
 }
 
 /**
@@ -721,7 +732,8 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		if (!rval || rval == -EUCLEAN)
 			return 0;
 
-		printf("NAND read from offset %llx failed %d\n", offset, rval);
+		printf("NAND read failed at 0x%08llx with error %d\n",
+		       offset, rval);
 		*length = 0;
 		return rval;
 	}
@@ -735,7 +747,7 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 
 		if (need_skip
 		    && nand_block_isbad(nand, offset & ~(nand->erasesize - 1))) {
-			printf("Skipping bad block 0x%08llx\n",
+			printf("Skipping bad block at 0x%08llx\n",
 				offset & ~(nand->erasesize - 1));
 			offset += nand->erasesize - block_offset;
 			continue;
@@ -751,7 +763,7 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 			rval = nand_refresh(nand, offset);
 #endif
 		if (rval && rval != -EUCLEAN) {
-			printf("NAND read from offset %llx failed %d\n",
+			printf("NAND read failed at 0x%08llx with error %d\n",
 				offset, rval);
 			*length -= left_to_read;
 			return rval;
@@ -832,23 +844,23 @@ int nand_torture(nand_info_t *nand, loff_t offset)
 	for (i = 0; i < patt_count; i++) {
 		err = nand->erase(nand, &instr);
 		if (err) {
-			printf("%s: erase() failed for block at 0x%llx: %d\n",
-				nand->name, instr.addr, err);
+			printf("%s: NAND erase failed at 0x%08llx with "
+			       "error %d\n", nand->name, instr.addr, err);
 			goto out;
 		}
 
 		/* Make sure the block contains only 0xff bytes */
 		err = nand->read(nand, offset, nand->erasesize, &retlen, buf);
 		if ((err && err != -EUCLEAN) || retlen != nand->erasesize) {
-			printf("%s: read() failed for block at 0x%llx: %d\n",
-				nand->name, instr.addr, err);
+			printf("%s: NAND read failed at 0x%08llx with "
+			       "error %d\n", nand->name, instr.addr, err);
 			goto out;
 		}
 
 		err = check_pattern(buf, 0xff, nand->erasesize);
 		if (!err) {
-			printf("Erased block at 0x%llx, but a non-0xff byte was found\n",
-				offset);
+			printf("Erased block at 0x%08llx, but a non-0xff "
+			       "byte was found\n", offset);
 			ret = -EIO;
 			goto out;
 		}
@@ -857,22 +869,22 @@ int nand_torture(nand_info_t *nand, loff_t offset)
 		memset(buf, patterns[i], nand->erasesize);
 		err = nand->write(nand, offset, nand->erasesize, &retlen, buf);
 		if (err || retlen != nand->erasesize) {
-			printf("%s: write() failed for block at 0x%llx: %d\n",
-				nand->name, instr.addr, err);
+			printf("%s: Write pattern failed at 0x%08llx with "
+			       "error %d\n", nand->name, instr.addr, err);
 			goto out;
 		}
 
 		err = nand->read(nand, offset, nand->erasesize, &retlen, buf);
 		if ((err && err != -EUCLEAN) || retlen != nand->erasesize) {
-			printf("%s: read() failed for block at 0x%llx: %d\n",
-				nand->name, instr.addr, err);
+			printf("%s: Read pattern failed at 0x%08llx with "
+			       "error %d\n", nand->name, instr.addr, err);
 			goto out;
 		}
 
 		err = check_pattern(buf, patterns[i], nand->erasesize);
 		if (!err) {
-			printf("Pattern 0x%.2x checking failed for block at "
-					"0x%llx\n", patterns[i], offset);
+			printf("Pattern 0x%.2x checking failed at 0x%08llx\n",
+			       patterns[i], offset);
 			ret = -EIO;
 			goto out;
 		}
