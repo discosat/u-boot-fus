@@ -2,6 +2,52 @@ History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
 
+u-boot-2012.07-fsvybrid-V2.0 (04.07.2014)
+-----------------------------------------
+Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5, AGATEWAY
+Not tested:       PicoMOD6, PicoMOD7A, PicoCOM3, armStoneA8, NetDCU14
+
+- Activate UBIFS on fsvybrid
+- Update mtdparts layout on Vybrid to support newer NBoot versions >= VN08
+- Add UBI-only mtdparts layout to fsvybrid
+- Do not use flash based bad block table on Vybrid anymore
+- Speed up creation of RAM based bad block table by just reading OOB on Vybrid
+- Also scan second page of a block for bad block marker
+- Completely new Vybrid NAND driver that uses hardware ECC with 16 correctable
+  bit errors now; the previous Freescale version only used software ECC with
+  a single correctable bit error; the new version is also faster
+- Bitflips are only reported with -EUCLEAN if their count exceeds a threshold
+- Add completely new block refresh procedure for blocks with many bitflips
+- Pass NBoot and M4 args to Linux, especially the NAND state from block refresh
+- Read ONFI data on ONFI capable NAND flashs
+- Improve handling of skip region, now also works in OOB-only reads/writes
+- Handle NBoot as skip region on fsvybrid (=no writes, reads as 0xff)
+- Don't let nand read/write exceed into next partition when bad blocks exist,
+  this would be fatal
+- Mark a block as bad when it can not be erased
+- Improve many NAND error messages, suggest marking block as bad if writes fail
+- Show precise error position when writes to NAND fail
+- Add nand read/write.oobauto to just load/store the user part of the OOB
+- Add optional nand torture command to intensely check a block for errors
+- Add support for second ESDHC port on Vybrid
+- Allow using FEC0 and FEC1 separately on Vybrid, improve MAC handling
+- Only start FEC if actually accessed; this speeds up the boot process
+- Improve PHY timing on Vybrid to make ethernet more robust
+- Add support for Micrel KSZ8081RNA Ethernet PHY
+- Add support for OTP fuses on Vybrid
+- If set, read MAC address(es) from OTP fuses on Vybrid
+- Remove setting of fec_mac from fsvybrid bootargs, not required anymore
+- Use a completely new and more flexible system for boot strategies
+- Improve system for board specific settings on fsvybrid
+- Add basic interrupt support for Vybrid
+- Add blink support and blink timer for Vybrid
+- Enhance LED support with blinking
+- Activate preboot command for fsvybrid (executed before boot delay)
+- Improve IOMUX handling on Vybrid
+- Add support for customer specific board AGATEWAY
+- Drop cubea5.h, fsvybrid.h can also be used for CUBEA5 and AGATEWAY now
+
+
 u-boot-2012.07-fsvybrid-V1.2 (23.02.2014)
 -----------------------------------------
 Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5
