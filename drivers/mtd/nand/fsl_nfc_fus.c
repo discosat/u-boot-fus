@@ -1143,7 +1143,7 @@ void vybrid_nand_register(int nfc_hw_id,
 		return;
 	}
 
-	/* Set skipped region and fix size accordingly, set backup region */
+	/* Set skipped region and backup region */
 	if (pdata) {
 #ifdef CONFIG_NAND_REFRESH
 		mtd->backupoffs = pdata->backupstart;
@@ -1153,8 +1153,7 @@ void vybrid_nand_register(int nfc_hw_id,
 		if (pdata->flags & VYBRID_NFC_SKIP_INVERSE) {
 			mtd->size = mtd->skip;
 			mtd->skip = 0;
-		} else
-			mtd->size -= mtd->skip;
+		}
 	}
 
 	/* Set up ECC configuration */
