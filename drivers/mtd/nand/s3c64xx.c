@@ -246,8 +246,8 @@ static int s3c_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	u_char err_type, repaired;
 
 	/* SLC: Write ecc to compare */
-	nfmeccdata0 = (calc_ecc[1] << 16) | calc_ecc[0];
-	nfmeccdata1 = (calc_ecc[3] << 16) | calc_ecc[2];
+	nfmeccdata0 = (read_ecc[1] << 16) | read_ecc[0];
+	nfmeccdata1 = (read_ecc[3] << 16) | read_ecc[2];
 	writel(nfmeccdata0, NFMECCDATA0);
 	writel(nfmeccdata1, NFMECCDATA1);
 
