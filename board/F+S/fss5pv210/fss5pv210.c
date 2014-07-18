@@ -358,14 +358,18 @@ int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *nand, int id)
 	/* NBoot is two blocks in size, independent of the block size. */
 	switch (id) {
 	case 0:
-		/* nand0: everything but NBoot, use 1-bit ECC */
-		mtd->size -= 2*mtd->erasesize;
+		/* nand0: everything but NBoot, use 1-bit ECC. Don't reduce
+		   size by the skip region because this would make the last
+		   MTD partition (TargetFS) smaller than necessary. */
 		mtd->skip = 2*mtd->erasesize;
 		break;
 
 	case 1:
-		/* nand1: only NBoot, use 8-bit ECC, software wtrite
-		   protection and mark device as not using bad block markers */
+		/* nand1: only NBoot, use 8-bit ECC, software write protection
+		   and mark device as not using bad block markers. The size
+		   will add to the overall size as we compute the NBoot region
+		   twice. But as this is only 256K at max and the NAND size is
+		   shown in MB, it will not change the reported value. */
 		mtd->size = 2*mtd->erasesize;
 		nand->ecc.mode = -8;
 		nand->options |= NAND_SW_WRITE_PROTECT | NAND_NO_BADBLOCK;
