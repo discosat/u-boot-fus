@@ -304,8 +304,8 @@ static int s5p_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 		(struct s5p_nfcon *)samsung_get_base_nfcon();
 
 	/* SLC: Write ecc to compare */
-	nfmeccdata0 = (calc_ecc[1] << 16) | calc_ecc[0];
-	nfmeccdata1 = (calc_ecc[3] << 16) | calc_ecc[2];
+	nfmeccdata0 = (read_ecc[1] << 16) | read_ecc[0];
+	nfmeccdata1 = (read_ecc[3] << 16) | read_ecc[2];
 	writel(nfmeccdata0, &nfcon->nfmeccd0);
 	writel(nfmeccdata1, &nfcon->nfmeccd1);
 
@@ -659,13 +659,11 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 		chip->ecc.size = 512;
 		chip->ecc.bytes = 4;
 #if 0
-		/* The default functions nand_read_page_hwecc() and
+		/* The default functions nand_read_page_hwecc_oob_first() and
 		   nand_write_page_hwecc() from nand_base.c, that get
 		   automatically selected if we don't set anything different
-		   here, happen to work if eccsteps is 1, which is the case if
-		   we don't have pages with more than 2048 bytes. If this
-		   situation changes in the future, we have to implement our
-		   own 1-bit ECC functions and set them here. */
+		   here, happen to work for our 1-bit ECC case. So we don't
+		   need our own versions here. */
 		chip->ecc.read_page = s5p_nand_read_page_1bit;
 		chip->ecc.write_page = s5p_nand_write_page_1bit;
 #endif
