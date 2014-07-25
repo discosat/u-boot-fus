@@ -18,7 +18,7 @@
 #include <linux/mtd/nand_ecc.h>
 
 #include <mtd/fsl_nfc.h>
-#include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_prv */
+#include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_platform_data */
 
 #include <nand.h>
 #include <errno.h>
@@ -337,6 +337,22 @@ static int nfc_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 	printf("Timeout waiting for Ready\n");
 
 	return 1;
+}
+
+
+/* Count the number of zero bits in a value; start at the LSB to be fast in
+   case of 8-bit values */
+static uint count_zeroes(u32 value)
+{
+	uint count = 0;
+
+	while (value != 0xFFFFFFFF) {
+		if (!(value & 1))
+			count++;
+		value = (value >> 1) | 0x80000000;
+	}
+
+	return count;
 }
 
 
@@ -807,6 +823,8 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 ecc_status;
 	uint i;
 	uint size;
+	uint zerobits;
+	uint limit;
 	struct fsl_nfc_fus_prv *prv = chip->priv;
 
 	/* This code assumes that the NAND_CMD_READ0 command was
@@ -932,10 +950,16 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	   case. This may or may not be empty. Here we do swap the bytes. */
 	nfc_copy_from_nfc(chip, chip->oob_poi + size, mtd->oobavail, size);
 
-	/* By checking the ECC area we can quickly detect a non-empty page. */
+	/* By checking the ECC area we can quickly detect a non-empty page.
+	   Because also an empty page may show bitflips (e.g. by write
+	   disturbs caused by writes to a nearby page), we accept up to
+	   bitflip_threshold non-empty bits. */
+	zerobits = 0;
+	limit = mtd->bitflip_threshold;
 	i = size;
 	do {
-		if (nfc_read_ram(chip, i - 1) != 0xFF)
+		zerobits += count_zeroes(nfc_read_ram(chip, i-1) | 0xFFFFFF00);
+		if (zerobits > limit)
 			break;
 	} while (--i);
 
@@ -971,17 +995,32 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->cmdfunc(mtd, NAND_CMD_RNDOUTSTART, -1, -1);
 
 		/* Do 4-byte compares to be faster; byte order does not matter
-		   when comparing to 0xFFFFFFFF */
+		   when comparing to 0xFFFFFFFF or when counting zero bits. */
 		i = mtd->writesize;
 		do {
-			if (nfc_read(chip, NFC_MAIN_AREA(0) + i - 4)
-			    != 0xFFFFFFFF)
+			u32 data = nfc_read(chip, NFC_MAIN_AREA(0) + i - 4);
+
+			zerobits += count_zeroes(data);
+			if (zerobits > limit)
 				break;
 			i -= 4;
 		} while (i);
 		if (!i) {
 			/* Main area is empty, too, fill with 0xFF */
 			memset(buf, 0xFF, mtd->writesize);
+
+			/* FIXME: If we had bitflips, we finally want to
+			   return -EUCLEAN from the read call, to make the
+			   filesystem aware of this fact. But we must not
+			   return -EUCLEAN here, because then reading will be
+			   stopped after this page with an error. Instead we
+			   must trigger the calling function to return
+			   -EUCLEAN after the whole read is done. We do this
+			   by (incorrectly) increasing the stats.corrected
+			   count by at least bitflip_threshold. In reality we
+			   only have corrected zerobits bits. */
+			if (zerobits)
+				mtd->ecc_stats.corrected += limit;
 
 			return 0;
 		}
