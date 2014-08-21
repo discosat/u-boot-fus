@@ -101,8 +101,6 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-/* High Level Configuration Options */
-
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
@@ -134,7 +132,6 @@
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
-//### #undef CONFIG_CMDLINE_EDITING !??!?!
 #undef CONFIG_AUTO_COMPLETE
 
 /************************************************************************
@@ -179,7 +176,7 @@
 #define PHYS_GPURAM			0x3F400000 /* GPURAM */
 #define PHYS_GPURAM_SIZE		(512 * 1024)
 
-/* The load address of U-Boot is now independend from the size. Just load it
+/* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
 #define CONFIG_SYS_PHY_UBOOT_BASE	0x80f00000
@@ -617,10 +614,9 @@
  ************************************************************************/
 #define CONFIG_ENV_IS_IN_NAND		  /* Environment is in NAND flash */
 
-/* Environment settings for large blocks (128KB); we keep the size as more
-   just wastes malloc space (the environment is held in the heap) */
-//####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
-#define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
+/* Environment settings for large blocks (128KB). The environment is held in
+   the heap, so keep the real env size small to not waste malloc space. */
+#define ENV_SIZE_DEF_LARGE   0x00004000	  /* 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
 #define ENV_OFFSET_DEF_LARGE 0x001C0000   /* See NAND layout above */
 
@@ -642,7 +638,7 @@
 #define CONFIG_MODE		"ro"
 #define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
-#define CONFIG_BOOTARGS		"(dynamically generated, see var set_bootargs)"
+#define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
 
 /* Define MTD partition info */
@@ -703,7 +699,6 @@
 	"_login_none=setenv login login_tty=null\0" \
 	"_login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
 	"_login_display=setenv login login_tty=/dev/tty1\0" \
-	"sercon=undef\0" \
 	"mtdparts=undef\0" \
 	"_mtdparts_std=" MTDPARTS_STD "\0" \
 	"_network_off=setenv network\0"					\
@@ -723,13 +718,17 @@
 	"_kernel_usb_ext2=setenv kernel usb start\\\\; ext2load usb0 . ${bootfile}\0" \
 	EXTRA_UBI \
 	"mode=undef\0" \
+	"_mode_rw=setenv mode rw\0" \
+	"_mode_ro=setenv mode ro\0" \
 	"netdev=eth0\0" \
 	"init=undef\0" \
 	"_init_init=setenv init\0" \
 	"_init_linuxrc=setenv init init=linuxrc\0" \
+	"sercon=undef\0" \
 	"installcheck=undef\0" \
 	"updatecheck=undef\0" \
 	"recovercheck=undef\0" \
+	"platform=undef\0" \
 	"arch=fsvybrid\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init}\0"
 
@@ -748,7 +747,8 @@
 /************************************************************************
  * Tools
  ************************************************************************/
-#define CONFIG_ADDFSHEADER      1
+#define CONFIG_ADDFSHEADER	1
+
 
 /************************************************************************
  * Libraries
@@ -760,4 +760,4 @@
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
 
-#endif /*!__CONFIG_H */
+#endif /* !__CONFIG_H */

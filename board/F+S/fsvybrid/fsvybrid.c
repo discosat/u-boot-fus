@@ -22,16 +22,16 @@
  */
 
 #include <common.h>
-#include <asm/errno.h>			  /* ENODEV */
+#include <asm/errno.h>			/* ENODEV */
 #ifdef CONFIG_CMD_NET
 #include <asm/fec.h>
-#include <net.h>			  /* eth_init(), eth_halt() */
-#include <netdev.h>			  /* ne2000_initialize() */
+#include <net.h>			/* eth_init(), eth_halt() */
+#include <netdev.h>			/* ne2000_initialize() */
 #endif
 #ifdef CONFIG_CMD_LCD
-#include <cmd_lcd.h>			  /* PON_*, POFF_* */
+#include <cmd_lcd.h>			/* PON_*, POFF_* */
 #endif
-#include <serial.h>			  /* struct serial_device */
+#include <serial.h>			/* struct serial_device */
 
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
@@ -44,6 +44,7 @@
 
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <asm/setup.h>			/* struct tag_fshwconfig, ... */
 #include <asm/arch/vybrid-regs.h>	/* SCSCM_BASE_ADDR, ... */
 #include <asm/arch/vybrid-pins.h>
 #include <asm/arch/iomux.h>
@@ -54,7 +55,7 @@
 #include <i2c.h>
 
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
-#include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_prv */
+#include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_platform_data */
 #include <usb/ehci-fsl.h>
 
 #ifdef CONFIG_FSL_ESDHC
@@ -66,7 +67,6 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 
 /* ------------------------------------------------------------------------- */
 
-#define NBOOT_PASSWDLEN 8
 #define NBOOT_ARGS_BASE (PHYS_SDRAM_0 + 0x00001000) /* Arguments from NBoot */
 #define BOOT_PARAMS_BASE (PHYS_SDRAM_0 + 0x100)	    /* Arguments to Linux */
 
@@ -335,7 +335,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 
 struct serial_device *default_serial_console(void)
 {
- 	DECLARE_GLOBAL_DATA_PTR;
+	DECLARE_GLOBAL_DATA_PTR;
 	struct tag_fshwconfig *pargs;
 
 	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
@@ -386,7 +386,6 @@ int checkboard(void)
 	return 0;
 }
 
-
 /* Set the available RAM size. We have a memory bank starting at 0x80000000
    that can hold up to 1536MB of RAM. However up to now we only have 256MB or
    512MB on F&S Vybrid boards. */
@@ -401,7 +400,6 @@ int dram_init(void)
 
 	return 0;
 }
-
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 int board_init(void)
@@ -662,6 +660,7 @@ int board_late_init(void)
 	setup_var("init", bi->init, 1);
 	setup_var("rootfs", bi->rootfs, 1);
 	setup_var("kernel", bi->kernel, 1);
+	setup_var("bootargs", "set_bootargs", 1);
 
 	return 0;
 }
