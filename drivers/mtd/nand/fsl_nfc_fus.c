@@ -1185,8 +1185,8 @@ void vybrid_nand_register(int nfc_hw_id,
 	/* Set skipped region and backup region */
 	if (pdata) {
 #ifdef CONFIG_NAND_REFRESH
-		mtd->backupoffs = pdata->backupstart;
-		mtd->backupend = pdata->backupend;
+		mtd->backupoffs = pdata->backup_sblock * mtd->erasesize;
+		mtd->backupend = pdata->backup_eblock * mtd->erasesize;
 #endif
 		mtd->skip = pdata->skipblocks * mtd->erasesize;
 		if (pdata->flags & VYBRID_NFC_SKIP_INVERSE) {

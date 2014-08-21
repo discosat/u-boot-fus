@@ -581,11 +581,11 @@
 /* Define if you want to support nand chips that comply to ONFI spec */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 
-/* Actually perform block refresh if pages degrade too much. Use the blocks of
-   the given region in decreasing order. */
+/* Actually perform block refresh if pages degrade too much. Use the given
+   blocks in decreasing order. */
 #define CONFIG_NAND_REFRESH
-#define CONFIG_SYS_NAND_BACKUP_OFFS	0x00100000
-#define CONFIG_SYS_NAND_BACKUP_SIZE	0x00040000
+#define CONFIG_SYS_NAND_BACKUP_START_BLOCK	9
+#define CONFIG_SYS_NAND_BACKUP_END_BLOCK	8
 
 /* Support JFFS2 in NAND (commands: fsload, ls, fsinfo) */
 #define CONFIG_JFFS2_NAND
@@ -605,22 +605,6 @@
 
 /* Don't increase partition sizes to compensate for bad blocks */
 #undef CONFIG_CMD_MTDPARTS_SPREAD
-
-/* We have two virtual NAND chips, give them names ### TODO */
-#define MTDIDS_DEFAULT		"nand0=NAND"
-//#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
-
-/* We don't define settings for mtdparts default. Instead in fsvybrid.c
-   board_late_init() we set variables mtdids, mtdparts and partition; We have
-   mtdparts settings for 128K block size. ### TODO */
-#define MTDPARTS_DEF_LARGE	"mtdparts=NAND:256k(NBoot)ro,768k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,4m(Kernel)ro,-(TargetFS)"
-#define MTDPARTS_DEF_UBIONLY	"mtdparts=NAND:256k(NBoot)ro,768k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,-(TargetFS)"
-//#define MTDPARTS_DEF_STD	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,4m(Kernel)ro,-(TargetFS)"
-//#define MTDPARTS_DEF_UBIONLY	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:768k@256k(UserDef),256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro,-(TargetFS)"
-
-/* Set UserDef as default partition */
-#define MTDPART_DEFAULT "nand0,1"
-//#define MTDPART_DEFAULT "nand0,0"
 
 #define CONFIG_MTD_DEVICE		  /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
@@ -661,6 +645,22 @@
 #define CONFIG_BOOTARGS		"(dynamically generated, see var set_bootargs)"
 #define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
 
+/* Define MTD partition info */
+#if CONFIG_SYS_MAX_NAND_DEVICE > 1
+#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
+#define MTDPART_DEFAULT		"nand0,0"
+#define MTDPARTS_PART1		"fsnand1:256k(NBoot)ro\\\\;fsnand0:768k@256k(UserDef)"
+#else
+#define MTDIDS_DEFAULT		"nand0=NAND"
+#define MTDPART_DEFAULT		"nand0,1"
+#define MTDPARTS_PART1		"NAND:256k(NBoot)ro,768k(UserDef)"
+#endif
+#define MTDPARTS_PART2		"256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro"
+#define MTDPARTS_PART3		"4m(Kernel)ro"
+#define MTDPARTS_PART4		"-(TargetFS)"
+#define MTDPARTS_STD		"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define MTDPARTS_UBIONLY	"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
+
 /* Add some variables that are not predefined in U-Boot. All entries with
    content "undef" will be updated with a board-specific value in
    board_late_init().
@@ -685,17 +685,13 @@
 #define EXTRA_UBIFS
 #endif
 #define EXTRA_UBI EXTRA_UBIFS \
-	"mtdparts=undef\0" \
-	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0" \
-	"_mtdparts_ubionly=setenv mtdparts " MTDPARTS_DEF_UBIONLY "\0" \
+	"_mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	"_rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\\\\; bootm\0" \
 	"_ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
 	"_ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
 #else
-#define EXTRA_UBI \
-	"mtdparts=" MTDPARTS_DEF_LARGE "\0" \
-	"_mtdparts_std=setenv mtdparts " MTDPARTS_DEF_LARGE "\0"
+#define EXTRA_UBI
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -709,6 +705,7 @@
 	"_login_display=setenv login login_tty=/dev/tty1\0" \
 	"sercon=undef\0" \
 	"mtdparts=undef\0" \
+	"_mtdparts_std=" MTDPARTS_STD "\0" \
 	"_network_off=setenv network\0"					\
 	"_network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	"_network_dhcp=setenv network ip=dhcp\0" \

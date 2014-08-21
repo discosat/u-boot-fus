@@ -448,9 +448,6 @@ int board_init(void)
 	return 0;
 }
 
-extern void vybrid_nand_register(int nfc_hw_id,
-				 const struct fsl_nfc_fus_platform_data *pdata);
-
 /* Register NAND devices. We actually split the NAND into two virtual devices
    to allow different ECC strategies for NBoot and the rest. */
 void board_nand_init(void)
@@ -466,9 +463,8 @@ void board_nand_init(void)
 	pdata.skipblocks = 2;
 	pdata.flags = 0;
 #ifdef CONFIG_NAND_REFRESH
-	pdata.backupstart = CONFIG_SYS_NAND_BACKUP_OFFS
-		+ CONFIG_SYS_NAND_BACKUP_SIZE - 1;
-	pdata.backupend = CONFIG_SYS_NAND_BACKUP_OFFS;
+	pdata.backup_sblock = CONFIG_SYS_NAND_BACKUP_START_BLOCK;
+	pdata.backup_eblock = CONFIG_SYS_NAND_BACKUP_END_BLOCK;
 #endif
 	vybrid_nand_register(0, &pdata);
 
@@ -490,7 +486,7 @@ void board_nand_init(void)
 
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {
-	/* Save state to pass to pass it to Linux later */
+	/* Save state to pass it to Linux later */
 	fs_nboot_args.chECCstate |= (unsigned char)state;
 }
 
@@ -592,12 +588,6 @@ int board_mmc_init(bd_t *bis)
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
 #endif
-
-
-const char *board_get_mtdparts_default(void)
-{
-	return MTDPARTS_DEF_LARGE;
-}
 
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)
