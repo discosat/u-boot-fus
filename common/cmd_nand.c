@@ -946,6 +946,8 @@ int nand_load_image(int index, ulong offset, ulong addr, int show)
 		break;
 	case IMAGE_FORMAT_ZIMAGE:
 		puts ("zImage detected\n");
+		/* Get zImage length from _edata - start */
+		cnt = *(ulong *)(addr + 11*4) - *(ulong *)(addr + 10*4);
 		break;
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:
