@@ -366,7 +366,7 @@ clbss_l:cmp	r0, r1			/* clear loop... */
 	add	r0, r0, #4
 	b	clbss_l
 clbss_e:
-#ifndef CONFIG_NAND_SPL
+#if defined(CONFIG_CMD_LED) && !defined(CONFIG_NAND_SPL)
 	bl coloured_LED_init
 	bl red_led_on
 #endif

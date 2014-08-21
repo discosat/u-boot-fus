@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2013
+ * (C) Copyright 2014
  * F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on S3C64xx. This is
@@ -7,7 +7,7 @@
  * Activate with one of the following targets:
  *   make fss3c64xx_config      Configure for S3C64XX boards
  *   make fss3c64xx             Configure for S3C64XX boards and build
- * 
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -52,6 +52,9 @@
  * addition to the required size of the partition. E.g. UBoot is 384KB, but
  * the UBoot partition is 512KB to allow for one bad block (128KB) in this
  * memory region.
+ *
+ * In case of a UBIONLY environment, the Kernel partition is dropped and the
+ * space for it is added to the TargetFS.
  *
  * RAM layout (RAM starts at 0x50000000) (128MB)
  * -------------------------------------------------------------------------
@@ -116,15 +119,15 @@
 /************************************************************************
  * Command line editor (shell)
  ************************************************************************/
-/* Use standard command line parser */
-#undef CONFIG_SYS_HUSH_PARSER		  /* use "hush" command parser */
+/* Use hush command line parser */
+#define CONFIG_SYS_HUSH_PARSER		  /* use "hush" command parser */
 #ifdef CONFIG_SYS_HUSH_PARSER
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
-
+#undef CONFIG_AUTO_COMPLETE
 
 /************************************************************************
  * Miscellaneous configurable options
@@ -257,9 +260,8 @@
 //#define CONFIG_CONSOLE_MUX		  /* Allow several consoles at once */
 #define CONFIG_SYS_SERCON_NAME "ttySAC"	  /* Base name for serial devices */
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV	  /* Console can be saved in env */
-#define CONFIG_BAUDRATE		38400	  /* default baudrate */
+#define CONFIG_BAUDRATE		38400	  /* Default baudrate */
 #define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
-
 
 
 /************************************************************************
@@ -278,9 +280,10 @@
 /* Try to patch serial debug port in image within first 16KB of zImage */
 #define CONFIG_SYS_PATCH_TTY 0x4000
 
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_CMDLINE_TAG
-//#define CONFIG_INITRD_TAG
+/* ATAGs passed to Linux */
+#define CONFIG_SETUP_MEMORY_TAGS	  /* Memory setup */
+#define CONFIG_CMDLINE_TAG		  /* Command line */
+#undef CONFIG_INITRD_TAG		  /* No initrd */
 
 
 /************************************************************************
@@ -501,12 +504,19 @@
 /************************************************************************
  * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
-/* S3C64XX only has one NAND flash controller, so we can only have one
-   physical NAND device; however as NBOOT needs 8-bit-ECC and everything else
-   1-bit-ECC, we split the NAND up into two virtual devices to allow these two
-   different ECC strategies and OOB layouts. */
-#define CONFIG_NAND_S3C64XX     1
-#define CONFIG_SYS_MAX_NAND_DEVICE	2
+/* Use S3C64XX NAND driver */
+#define CONFIG_NAND_S3C64XX	1
+
+/* Use our own initialization code */
+#define CONFIG_SYS_NAND_SELF_INIT
+
+/* To avoid that NBoot is erased inadvertently, we define a skip region in the
+   first NAND device that can not be written and always reads as 0xFF. However
+   if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
+   as a second NAND device with just that size. This makes it easier to have a
+   different ECC strategy and software write protection for NBoot. */
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
+//#define CONFIG_SYS_MAX_NAND_DEVICE	2
 
 /* Chips per device; all chips must be the same type; if different types
    are necessary, they must be implemented as different NAND devices */
@@ -514,11 +524,6 @@
 
 /* Define if you want to support nand chips that comply to ONFI spec */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
-
-/* Address of the DATA register for reading and writing data; we need an
-   entry for each device. As we only virtually split our flash into two
-   devices, they both have the same address. */
-#define CONFIG_SYS_NAND_BASE_LIST {0x70200010, 0x70200010}
 
 /* Use hardware ECC */
 #define CONFIG_SYS_S3C_NAND_HWECC
@@ -542,19 +547,6 @@
 /* Don't increase partition sizes to compensate for bad blocks */
 #undef CONFIG_CMD_MTDPARTS_SPREAD
 
-/* We have two virtual NAND chips, give them names */
-#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
-
-/* We don't define settings for mtdparts default. Instead in fss3c64xx.c
-   board_late_init() we set variables mtdids, mtdparts and partition; We have
-   mtdparts settings for 16K and for 128K block size. The correct one is set
-   depending on the installed NAND flash type. */
-#define MTDPARTS_DEF_SMALL	"mtdparts=fsnand1:32k(NBoot)ro;fsnand0:448k@32k(UBoot)ro,32k(UBootEnv)ro,512k(UserDef),3m(Kernel)ro,-(TargetFS)"
-#define MTDPARTS_DEF_LARGE	"mtdparts=fsnand1:256k(NBoot)ro;fsnand0:512k@256k(UBoot)ro,256k(UBootEnv)ro,4m(UserDef),3m(Kernel)ro,-(TargetFS)"
-
-/* Set UserDef as default partition */
-#define MTDPART_DEFAULT "nand0,2"
-
 #define CONFIG_MTD_DEVICE		  /* Create MTD device */
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
 #define CONFIG_RBTREE			  /* Required for UBI */
@@ -573,7 +565,6 @@
 
 /* Environment settings for large blocks (128KB); we keep the size as more
    just wastes malloc space (the environment is held in the heap) */
-//####define ENV_SIZE_DEF_LARGE   0x00020000	  /* 1 block = 128KB */
 #define ENV_SIZE_DEF_LARGE   0x00004000	  /* Also 16KB */
 #define ENV_RANGE_DEF_LARGE  0x00040000   /* 2 blocks = 256KB */
 #define ENV_OFFSET_DEF_LARGE 0x000C0000	  /* See NAND layout above */
@@ -585,23 +576,114 @@
    environments is always valid. Currently we don't use this feature. */
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x0007c000
 
-#define CONFIG_BOOTDELAY	3
-#define CONFIG_BOOTCOMMAND      "nand read $(loadaddr) Kernel ; bootz"
-//####define CONFIG_BOOTARGS    	"console=$(sercon),38400 init=linuxrc"
-#define CONFIG_EXTRA_ENV_SETTINGS \
-	"installcheck=default\0" \
-	"updatecheck=default\0" \
-	"bootubi=setenv bootargs console=$(sercon),38400 $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootubidhcp=setenv bootargs console=$(sercon),38400 ip=dhcp $(mtdparts) rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs ro init=linuxrc\0" \
-	"bootnfs=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=$(ipaddr):$(serverip):$(gatewayip):$(netmask)::eth0 root=/dev/nfs nfsroot=/rootfs ro init=linuxrc\0" \
-	"bootnfsdhcp=setenv bootargs console=$(sercon),38400 $(mtdparts) ip=dhcp root=/dev/nfs nfsroot=$(serverip):/rootfs ro init=linuxrc\0" \
-	"r=tftp zImage ; bootz\0"
 #define CONFIG_ETHADDR		00:05:51:02:69:19
 #define CONFIG_NETMASK          255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE         "zImage"
+#define CONFIG_ROOTPATH		"/rootfs"
+#define CONFIG_MODE		"ro"
+#define CONFIG_BOOTDELAY	undef
+#define CONFIG_PREBOOT
+#define CONFIG_BOOTARGS		"undef"
+#define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
+
+/* Define MTD partition info */
+#if CONFIG_SYS_MAX_NAND_DEVICE > 1
+#define MTDIDS_DEFAULT		"nand0=fsnand0,nand1=fsnand1"
+#define MTDPART_DEFAULT		"nand0,2"
+#define MTDPARTS_PART1_SMALL	"fsnand1:32k(NBoot)ro\\\\;fsnand0:448k@32k(UBoot)ro"
+#define MTDPARTS_PART1_LARGE	"fsnand1:256k(NBoot)ro\\\\;fsnand0:512k@256k(UBoot)ro"
+#else
+#define MTDIDS_DEFAULT		"nand0=fsnand0"
+#define MTDPART_DEFAULT		"nand0,3"
+#define MTDPARTS_PART1_SMALL	"fsnand0:32k(NBoot)ro,448k(UBoot)ro"
+#define MTDPARTS_PART1_LARGE	"fsnand0:256k(NBoot)ro,512k(UBoot)ro"
+#endif
+#define MTDPARTS_PART2_SMALL	"32k(UBootEnv)ro,512k(UserDef)"
+#define MTDPARTS_PART2_LARGE	"256k(UBootEnv)ro,4m(UserDef)"
+#define MTDPARTS_PART3		"3m(Kernel)ro"
+#define MTDPARTS_PART4		"-(TargetFS)"
+#define MTDPARTS_STD_SMALL	"setenv mtdparts mtdparts=" MTDPARTS_PART1_SMALL "," MTDPARTS_PART2_SMALL "," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define MTDPARTS_STD_LARGE	"setenv mtdparts mtdparts=" MTDPARTS_PART1_LARGE "," MTDPARTS_PART2_LARGE "," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define MTDPARTS_UBIONLY_SMALL	"setenv mtdparts mtdparts=" MTDPARTS_PART1_SMALL "," MTDPARTS_PART2_SMALL "," MTDPARTS_PART4
+#define MTDPARTS_UBIONLY_LARGE	"setenv mtdparts mtdparts=" MTDPARTS_PART1_LARGE "," MTDPARTS_PART2_LARGE "," MTDPARTS_PART4
+
+/* Add some variables that are not predefined in U-Boot. All entries with
+   content "undef" will be updated with a board-specific value in
+   board_late_init().
+
+   We use ${...} here to access variable names because this will work with the
+   simple command line parser, who accepts $(...) and ${...}, and also the
+   hush parser, who accepts ${...} and plain $... without any separator.
+
+   If a variable is meant to be called with "run" and wants to set an
+   environment variable that contains a ';', we can either enclose the whole
+   string to set in (escaped) double quotes, or we have to escape the ';' with
+   a backslash. However when U-Boot imports the environment from NAND into its
+   hash table in RAM, it interprets escape sequences, which will remove a
+   single backslash. So we actually need an escaped backslash, i.e. two
+   backslashes. Which finally results in having to type four backslashes here,
+   as each backslash must also be escaped with a backslash in C. */
+#ifdef CONFIG_CMD_UBI
+#ifdef CONFIG_CMD_UBIFS
+#define EXTRA_UBIFS \
+	"_kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootz\0"
+#else
+#define EXTRA_UBIFS
+#endif
+#define EXTRA_UBI EXTRA_UBIFS \
+	"_mtdparts_ubionly=undef\0" \
+	"_rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
+	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\\\\; bootz\0" \
+	"_ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
+	"_ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
+#else
+#define EXTRA_UBI
+#endif
+
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"console=undef\0" \
+	"_console_none=setenv console\0" \
+	"_console_serial=setenv console console=${sercon},${baudrate}\0" \
+	"_console_display=setenv console console=/dev/tty1\0" \
+	"login=undef\0" \
+	"_login_none=setenv login login_tty=null\0" \
+	"_login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
+	"_login_display=setenv login login_tty=/dev/tty1\0" \
+	"mtdparts=undef\0" \
+	"_mtdparts_std=undef\0" \
+	"_network_off=setenv network\0"					\
+	"_network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
+	"_network_dhcp=setenv network ip=dhcp\0" \
+	"rootfs=undef\0" \
+	"_rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
+	"_rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
+	"_rootfs_usb=setenv rootfs root=/dev/sda1\0" \
+	"kernel=undef\0" \
+	"_kernel_nand=setenv kernel nboot Kernel\\\\; bootz\0" \
+	"_kernel_tftp=setenv kernel tftpboot .\\\\; bootz\0" \
+	"_kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
+	"_kernel_mmc_fat=setenv kernel mmc rescan\\\\; fatload mmc0 . ${bootfile}\0" \
+	"_kernel_mmc_ext2=setenv kernel mmc rescan\\\\; ext2load mmc0 . ${bootfile}\0" \
+	"_kernel_usb_fat=setenv kernel usb start\\\\; fatload usb0 . ${bootfile}\0" \
+	"_kernel_usb_ext2=setenv kernel usb start\\\\; ext2load usb0 . ${bootfile}\0" \
+	EXTRA_UBI \
+	"mode=undef\0" \
+	"_mode_rw=setenv mode rw\0" \
+	"_mode_ro=setenv mode ro\0" \
+	"netdev=eth0\0" \
+	"init=undef\0" \
+	"_init_init=setenv init\0" \
+	"_init_linuxrc=setenv init init=linuxrc\0" \
+	"sercon=undef\0" \
+	"installcheck=undef\0" \
+	"updatecheck=undef\0" \
+	"recovercheck=undef\0" \
+	"platform=undef\0" \
+	"arch=fss3c64xx\0" \
+	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init}\0"
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE

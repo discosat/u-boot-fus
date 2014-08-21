@@ -34,6 +34,7 @@
 
 #include <asm/io.h>
 #include <asm/errno.h>
+#include <mtd/s3c_nfc.h>		  /* struct s3c_nfc_platform_data */
 
 /* OOB layout for NAND flashes with 512 byte pages and 16 bytes OOB */
 /* 1-bit ECC: ECC is in bytes 8..11 in OOB, bad block marker is in byte 5 */
@@ -91,6 +92,12 @@ static struct nand_ecclayout s3c_layout_ecc8_oob64 = {
 };
 
 static int cur_ecc_mode = 0;
+
+static struct nand_chip nfc_infos[CONFIG_SYS_MAX_NAND_DEVICE];
+
+static ulong nfc_base_addresses[] = {
+	0x70200010
+};
 
 #ifdef CONFIG_NAND_SPL
 #define printf(arg...) do {} while (0)
@@ -487,81 +494,78 @@ int s3c_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-/*
- * Board-specific NAND initialization. The following members of the
- * argument are board-specific (per include/linux/mtd/nand.h):
- * - IO_ADDR_R?: address to read the 8 I/O lines of the flash device
- * - IO_ADDR_W?: address to write the 8 I/O lines of the flash device
- * - hwcontrol: hardwarespecific function for accesing control-lines
- * - dev_ready: hardwarespecific function for  accesing device ready/busy line
- * - enable_hwecc?: function to enable (reset)  hardware ecc generator. Must
- *   only be provided if a hardware ECC is available
- * - eccmode: mode of ecc, see defines
- * - chip_delay: chip dependent delay for transfering data from array to
- *   read regs (tR)
- * - options: various chip options. They can partly be set to inform
- *   nand_scan about special functionality. See the defines for further
- *   explanation
- * Members with a "?" were not set in the merged testing-NAND branch,
- * so they are not set here either.
- */
-int board_nand_init(struct nand_chip *chip)
-{
-	NFCONT_REG = (NFCONT_REG & ~NFCONT_WP) | NFCONT_ENABLE | 0x6;
-
-	s3c_nand_select_chip(NULL, -1);
-
-	chip->IO_ADDR_R		= (void __iomem *)NFDATA;
-	chip->IO_ADDR_W		= (void __iomem *)NFDATA;
-	chip->cmd_ctrl		= s3c_nand_hwcontrol;
-	chip->dev_ready		= s3c_nand_device_ready;
-	chip->select_chip	= s3c_nand_select_chip;
-	chip->options		= 0;
-#ifdef CONFIG_NAND_SPL
-	chip->read_byte		= nand_read_byte;
-	chip->write_buf		= nand_write_buf;
-	chip->read_buf		= nand_read_buf;
-#endif
-
-	return 0;
-}
-
-static int __board_nand_setup_s3c(struct mtd_info *mtd,
-					struct nand_chip *chip, int id)
-{
-	return 0;
-}
-
-int board_nand_setup_s3c(struct mtd_info *mtd, struct nand_chip *chip, int id)
-	__attribute__((weak, alias("__board_nand_setup_s3c")));
-
 /* The s3c64xx nand driver is capable of using up to 2 chips per NAND device
    (CONFIG_SYS_NAND_MAX_CHIPS) that are selected with s3c_nand_select_chip().
    If more than one flash device (with up to 2 chips each) is required, the
    chip addressing must be implemented externally (board-specific). */
-int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
+void s3c_nand_register(int nfc_hw_id,
+			  const struct s3c_nfc_platform_data *pdata)
 {
-	int ret;
+	static int index = 0;
+	struct nand_chip *chip;
+	struct mtd_info *mtd;
 
-	/* Despite the name, board_nand_setup() is basically arch-specific, so
-	   first set things that are really board-specific */
-	ret = board_nand_setup_s3c(mtd, chip, id);
-	if (ret)
-		return ret;
+	if (index >= CONFIG_SYS_MAX_NAND_DEVICE)
+		return;
 
+	if (nfc_hw_id > ARRAY_SIZE(nfc_base_addresses))
+		return;
+
+	if (pdata && (pdata->eccmode != S3C_NFC_ECCMODE_1BIT)
+	    && (pdata->eccmode != S3C_NFC_ECCMODE_8BIT))
+		return;
+
+	mtd = &nand_info[index];
+	chip = &nfc_infos[index];
+
+	/* Init the mtd device, most of it is done in nand_scan_ident() */
+	mtd->priv = chip;
+	mtd->size = 0;
+	mtd->name = NULL;
+
+	/* Setup all things required to detect the chip */
+	chip->IO_ADDR_R = (void __iomem *)NFDATA;
+	chip->IO_ADDR_W = (void __iomem *)NFDATA;
+	chip->select_chip = s3c_nand_select_chip;
+	chip->dev_ready = s3c_nand_device_ready;
+	chip->cmd_ctrl = s3c_nand_hwcontrol;
+#ifdef CONFIG_NAND_SPL
+	chip->read_byte = nand_read_byte;
+	chip->write_buf = nand_write_buf;
+	chip->read_buf = nand_read_buf;
+#endif
+	chip->options = pdata ? pdata->options : 0;
+	chip->options |= NAND_BBT_SCAN2NDPAGE;
+	chip->badblockpos = 0;
+
+	NFCONT_REG = (NFCONT_REG & ~NFCONT_WP) | NFCONT_ENABLE | 0x6;
+
+	s3c_nand_select_chip(NULL, -1);
+
+	/* Identify the device, set page and block sizes, etc. */
+	if (nand_scan_ident(mtd, CONFIG_SYS_NAND_MAX_CHIPS, NULL)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	/* Set skipped region and backup region */
+	if (pdata) {
+#ifdef CONFIG_NAND_REFRESH
+		mtd->backupoffs = pdata->backup_sblock * mtd->erasesize;
+		mtd->backupend = pdata->backup_eblock * mtd->erasesize;
+#endif
+		mtd->skip = pdata->skipblocks * mtd->erasesize;
+		if (pdata->flags & S3C_NFC_SKIP_INVERSE) {
+			mtd->size = mtd->skip;
+			mtd->skip = 0;
+		}
+	}
+
+	/* Set up ECC configuration */
 #ifdef CONFIG_SYS_S3C_NAND_HWECC
-	if (chip->ecc.mode == -8) {
-		/* Use 8-bit ECC */
-		if (mtd->oobsize == 16)
-			chip->ecc.layout = &s3c_layout_ecc8_oob16;
-		else
-			chip->ecc.layout = &s3c_layout_ecc8_oob64;
-		chip->ecc.size = 512;
-		chip->ecc.bytes = 13;
-		chip->ecc.read_page = s3c_nand_read_page_8bit;
-		chip->ecc.write_page = s3c_nand_write_page_8bit;
-	} else {
+	if (!pdata || pdata->eccmode == S3C_NFC_ECCMODE_1BIT) {
 		/* By default use 1-bit ECC, this will work up to 2048 bytes */
+		mtd->bitflip_threshold = 1;
 		if (mtd->oobsize == 16)
 			chip->ecc.layout = &s3c_layout_ecc1_oob16;
 		else
@@ -579,15 +583,34 @@ int board_nand_setup(struct mtd_info *mtd, struct nand_chip *chip, int id)
 		chip->ecc.read_page = s3c_nand_read_page_1bit;
 		chip->ecc.write_page = s3c_nand_write_page_1bit;
 #endif
+		chip->ecc.hwctl = s3c_nand_enable_hwecc;
+		chip->ecc.calculate = s3c_nand_calculate_ecc;
+		chip->ecc.correct = s3c_nand_correct_data;
+	} else {
+		/* Use 8-bit ECC */
+		mtd->bitflip_threshold = 7;
+		if (mtd->oobsize == 16)
+			chip->ecc.layout = &s3c_layout_ecc8_oob16;
+		else
+			chip->ecc.layout = &s3c_layout_ecc8_oob64;
+		chip->ecc.size = 512;
+		chip->ecc.bytes = 13;
+		chip->ecc.read_page = s3c_nand_read_page_8bit;
+		chip->ecc.write_page = s3c_nand_write_page_8bit;
+		chip->ecc.hwctl = s3c_nand_enable_hwecc_8bit;
+		chip->ecc.calculate = s3c_nand_calculate_ecc_8bit;
+		chip->ecc.correct = s3c_nand_correct_data_8bit;
 	}
-	chip->ecc.hwctl		= s3c_nand_enable_hwecc;
-	chip->ecc.calculate	= s3c_nand_calculate_ecc;
-	chip->ecc.correct	= s3c_nand_correct_data;
-
 	chip->ecc.mode		= NAND_ECC_HW;
 #else
 	chip->ecc.mode		= NAND_ECC_SOFT;
+	mtd->bitflip_threshold = 1;
 #endif /* ! CONFIG_SYS_S3C_NAND_HWECC */
 
-	return 0;
+	if (nand_scan_tail(mtd)) {
+		mtd->name = NULL;
+		return;
+	}
+
+	nand_register(index++);
 }
