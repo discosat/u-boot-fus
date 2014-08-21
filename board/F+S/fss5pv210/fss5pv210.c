@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2013
+ * (C) Copyright 2014
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
  * See file CREDITS for list of people who contributed to this
@@ -22,34 +22,38 @@
  */
 
 #include <common.h>
-#include <linux/mtd/nand.h>		  /* struct nand_ecclayout, ... */
-#include <asm/errno.h>			  /* ENODEV */
+#include <asm/errno.h>			/* ENODEV */
 #ifdef CONFIG_CMD_NET
-#include <net.h>			  /* eth_init(), eth_halt() */
-#include <netdev.h>			  /* ne2000_initialize() */
+#include <net.h>			/* eth_init(), eth_halt() */
+#include <netdev.h>			/* ne2000_initialize() */
 #endif
 #ifdef CONFIG_CMD_LCD
-#include <cmd_lcd.h>			  /* PON_*, POFF_* */
+#include <cmd_lcd.h>			/* PON_*, POFF_* */
 #endif
-#include <serial.h>			  /* struct serial_device */
-#include <asm/arch/uart.h>		  /* samsung_get_base_uart(), ... */
-#include <asm/arch/cpu.h>		  /* samsung_get_base_gpio() */
-#include <asm/gpio.h>			  /* gpio_set_value(), ... */
+#include <serial.h>			/* struct serial_device */
+#include <asm/arch/uart.h>		/* samsung_get_base_uart(), ... */
+#include <asm/arch/cpu.h>		/* samsung_get_base_gpio() */
+#include <asm/gpio.h>			/* gpio_set_value(), ... */
+#include <asm/setup.h>			/* struct tag_fshwconfig, ... */
+
 #ifdef CONFIG_GENERIC_MMC
-#include <sdhci.h>			  /* SDHCI_QUIRK_* */
-#include <asm/arch/mmc.h>		  /* s5p_mmc_init() */
-#include <asm/arch/clock.h>		  /* struct s5pc110_clock */
-#include <asm/arch/clk.h>		  /* get_pll_clk(), MPLL */
+#include <sdhci.h>			/* SDHCI_QUIRK_* */
+#include <asm/arch/mmc.h>		/* s5p_mmc_init() */
+#include <asm/arch/clock.h>		/* struct s5pc110_clock */
+#include <asm/arch/clk.h>		/* get_pll_clk(), MPLL */
 #endif
+
+#include <nand.h>			/* nand_info[] */
+#include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
+#include <mtd/s5p_nfc.h>		/* struct s5p_nfc_platform_data */
 
 /* ------------------------------------------------------------------------- */
 
-#define NBOOT_PASSWDLEN 8
 #define NBOOT_ARGS_BASE (PHYS_SDRAM_1 + 0x00000800) /* Arguments from NBoot */
 #define BOOT_PARAMS_BASE (PHYS_SDRAM_1 + 0x100)	    /* Arguments to Linux */
 
 #define BT_ARMSTONEA8 0
-#define BT_QBLISSA8   2
+#define BT_QBLISSA8B  2
 #define BT_NETDCU14   4
 #define BT_PICOMOD7A  6
 #define BT_EASYSOM1   7
@@ -59,52 +63,132 @@
 #define FEAT_DIGITALRGB (1<<3)		  /* 0: LVDS, 1: RGB (NetDCU14) */
 #define FEAT_2NDLAN   (1<<4)		  /* 0: 1x LAN, 1: 2x LAN */
 
+#define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
-/* NBoot arguments that are passed from NBoot to us */
-struct nboot_args
-{
-	unsigned int dwID;		  /* ARGS_ID */
-	unsigned int dwSize;		  /* 16*4 */
-	unsigned int dwNBOOT_VER;
-	unsigned int dwMemSize;		  /* size of SDRAM in MB */
-	unsigned int dwFlashSize;	  /* size of NAND flash in MB */
-	unsigned int dwDbgSerPortPA;	  /* Phys addr of serial debug port */
-	unsigned int dwNumDram;		  /* Installed memory chips */
-	unsigned int dwAction;		  /* (unused in U-Boot) */
-	unsigned int dwCompat;		  /* (unused in U-Boot) */
-	char chPassword[NBOOT_PASSWDLEN]; /* (unused in U-Boot) */
-	unsigned char chBoardType;
-	unsigned char chBoardRev;
-	unsigned char chFeatures1;
-	unsigned char chFeatures2;
-	unsigned int dwReserved[4];
-};
+#define XMK_STR(x)	#x
+#define MK_STR(x)	XMK_STR(x)
 
 struct board_info {
 	char *name;			  /* Device name */
 	unsigned int mach_type;		  /* Device machine ID */
-	char *updinstcheck;		  /* Default devices for upd/inst */
+	char *bootdelay;		  /* Default value for bootdelay */
+	char *updatecheck;		  /* Default value for updatecheck */
+	char *installcheck;		  /* Default value for installcheck */
+	char *recovercheck;		  /* Default value for recovercheck */
+	char *console;			  /* Default variable for console */
+	char *login;			  /* Default variable for login */
+	char *mtdparts;			  /* Default variable for mtdparts */
+	char *network;			  /* Default variable for network */
+	char *init;			  /* Default variable for init */
+	char *rootfs;			  /* Default variable for rootfs */
+	char *kernel;			  /* Default variable for kernel */
 };
 
+#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "mmc,usb"
+#define UPDATE_PM7A "mmc1,mmc2,usb"
+#elif defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "mmc"
+#define UPDATE_PM7A "mmc1,mmc2"
+#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#define UPDATE_DEF "usb"
+#define UPDATE_PM7A "usb"
+#else
+#define UPDATE_DEF NULL
+#endif
+
 const struct board_info fs_board_info[8] = {
-	{"armStoneA8", MACH_TYPE_ARMSTONEA8, "mmc,usb"},	/* 0 */
-	{"???",	       0,		     NULL},		/* 1 */
-	{"QBlissA8B",  MACH_TYPE_QBLISSA8B,  "mmc,usb"},	/* 2 */
-	{"???",	       0,		     NULL},		/* 3 */
-	{"NetDCU14",   MACH_TYPE_NETDCU14,   "mmc,usb"},	/* 4 */
-	{"???",	       0,		     NULL},		/* 5 */
-	{"PicoMOD7A",  MACH_TYPE_PICOMOD7,   "mmc0,mmc1, usb"}, /* 6 */
-	{"EASYsom1",   MACH_TYPE_EASYSOM1,   "mmc,usb"},	/* 7 */
+	{	/* 0 (BT_ARMSTONEA8) */
+		.name = "armStoneA8",
+		.mach_type = MACH_TYPE_ARMSTONEA8,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_nand",
+	},
+	{	/* 1 */
+		.name = "Unknown",
+	},
+	{	/* 2 (BT_QBLISSA8B) */
+		.name = "QBlissA8B",
+		.mach_type = MACH_TYPE_QBLISSA8B,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_nand",
+	},
+	{	/* 3 */
+		.name = "Unknown",
+	},
+	{	/* 4 (BT_NETDCU14) */
+		.name = "NetDCU14",
+		.mach_type = MACH_TYPE_NETDCU14,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_nand",
+	},
+	{	/* 5 */
+		.name = "Unknown",
+	},
+	{	/* 6 (BT_PICOMOD7A) */
+		.name = "PicoMOD7A",
+		.mach_type = MACH_TYPE_PICOMOD7A,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_PM7A,
+		.installcheck = UPDATE_PM7A,
+		.recovercheck = UPDATE_PM7A,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_nand",
+	},
+	{	/* 7 (BT_EASYSOM1) */
+		.name = "EASYsom1",
+		.mach_type = MACH_TYPE_EASYSOM1,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = "_console_serial",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_std",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_nand",
+	},
 };
 
 /* String used for system prompt */
 char fs_sys_prompt[20];
 
-/* NAND blocksize determines environment and mtdparts settings */
-unsigned int nand_blocksize;
-
 /* Copy of the NBoot args */
-struct nboot_args fs_nboot_args;
+struct tag_fshwconfig fs_nboot_args;
 
 
 /*
@@ -194,7 +278,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 struct serial_device *default_serial_console(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs;
+	struct tag_fshwconfig *pargs;
 
 	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
 	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
@@ -207,7 +291,7 @@ struct serial_device *default_serial_console(void)
 	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
 		pargs = &fs_nboot_args;
 	else
-		pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
 }
@@ -215,7 +299,7 @@ struct serial_device *default_serial_console(void)
 /* Check board type */
 int checkboard(void)
 {
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 
 	printf("Board: %s Rev %u.%02u (%dx DRAM, %dx LAN, %d MHz)\n",
 	       fs_board_info[pargs->chBoardType].name,
@@ -265,7 +349,7 @@ int checkboard(void)
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int ram_size = pargs->dwMemSize << 20;
 
 	gd->ram_size = ram_size;
@@ -281,7 +365,7 @@ int dram_init(void)
 void dram_init_banksize(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int total_size = pargs->dwMemSize << 20;
 	unsigned int bank_size = total_size;
 
@@ -301,11 +385,11 @@ void dram_init_banksize(void)
 int board_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct nboot_args *pargs = (struct nboot_args *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int board_type = pargs->chBoardType;
 
 	/* Save a copy of the NBoot args */
-	memcpy(&fs_nboot_args, pargs, sizeof(struct nboot_args));
+	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));
 
 	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
@@ -349,59 +433,72 @@ int board_serial_init(void)
 }
 #endif
 
-int board_nand_setup_s5p(struct mtd_info *mtd, struct nand_chip *nand, int id)
+/* Register NAND devices. We actually split the NAND into two virtual devices
+   to allow different ECC strategies for NBoot and the rest. */
+void board_nand_init(void)
 {
-	/* Now that we know the NAND type, save the blocksize for functions
-	   get_env_offset(), get_env_size() and get_env_range(). We also would
-	   like to set the MTD partition layout now, but as the environment is
-	   not yet loaded, we do this later in board_late_init(). */
-	nand_blocksize = mtd->erasesize;
+	struct s5p_nfc_platform_data pdata;
 
-	/* NBoot is two blocks in size, independent of the block size. */
-	switch (id) {
-	case 0:
-		/* nand0: everything but NBoot, use 1-bit ECC. Don't reduce
-		   size by the skip region because this would make the last
-		   MTD partition (TargetFS) smaller than necessary. */
-		mtd->skip = 2*mtd->erasesize;
-		break;
+	/* The first device skips the NBoot region (2 blocks) to protect it
+	   from inadvertent erasure. The skipped region can not be written
+	   and is always read as 0xFF. */
+	pdata.options = NAND_BBT_SCAN2NDPAGE;
+	pdata.t_wb = 0;
+	pdata.eccmode = S5P_NFC_ECCMODE_1BIT;
+	pdata.skipblocks = 2;
+	pdata.flags = 0;
 
-	case 1:
-		/* nand1: only NBoot, use 8-bit ECC, software write protection
-		   and mark device as not using bad block markers. The size
-		   will add to the overall size as we compute the NBoot region
-		   twice. But as this is only 256K at max and the NAND size is
-		   shown in MB, it will not change the reported value. */
-		mtd->size = 2*mtd->erasesize;
-		nand->ecc.mode = -8;
-		nand->options |= NAND_SW_WRITE_PROTECT | NAND_NO_BADBLOCK;
-		break;
+	s5p_nand_register(0, &pdata);
 
-	default:
-		return -ENODEV;
-	}
+#if CONFIG_SYS_MAX_NAND_DEVICE > 1
+	/* The second device just consists of the NBoot region (2 blocks) and
+	   is software write-protected by default. It uses a different ECC
+	   strategy. */
+	pdata.options |= NAND_SW_WRITE_PROTECT | NAND_NO_BADBLOCK;
+	pdata.eccmode = S5P_NFC_ECCMODE_8BIT;
+	pdata.flags = S5P_NFC_SKIP_INVERSE;
 
-	return 0;
+	s5p_nand_register(0, &pdata);
+#endif
 }
 
+static inline int is_large_block_nand(void)
+{
+	return (nand_info[0].erasesize > 16*1024);
+}
 
 size_t get_env_size(void)
 {
-	return (nand_blocksize > 16*1024)
+	return is_large_block_nand()
 		? ENV_SIZE_DEF_LARGE : ENV_SIZE_DEF_SMALL;
 }
 
 size_t get_env_range(void)
 {
-	return (nand_blocksize > 16*1024)
+	return is_large_block_nand()
 		? ENV_RANGE_DEF_LARGE : ENV_RANGE_DEF_SMALL;
 }
 
 size_t get_env_offset(void)
 {
-	return (nand_blocksize > 16*1024)
+	return is_large_block_nand()
 		? ENV_OFFSET_DEF_LARGE : ENV_OFFSET_DEF_SMALL;
 }
+
+#ifdef CONFIG_CMD_UPDATE
+enum update_action board_check_for_recover(void)
+{
+	/* If the board should do an automatic recovery is given in the
+	   dwAction value. Currently this is only defined for CUBEA5 and
+	   AGATEWAY. If a special button is pressed for a defined time
+	   when power is supplied, the system should be reset to the default
+	   state, i.e. perform a complete recovery. The button is detected in
+	   NBoot, but recovery takes place in U-Boot. */
+	if (fs_nboot_args.dwAction & ACTION_RECOVER)
+		return UPDATE_ACTION_RECOVER;
+	return UPDATE_ACTION_UPDATE;
+}
+#endif
 
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_init(bd_t *bis)
@@ -447,24 +544,38 @@ int board_mmc_init(bd_t *bis)
 }
 #endif
 
-
-const char *board_get_mtdparts_default(void)
+#ifdef CONFIG_BOARD_LATE_INIT
+void setup_var(const char *varname, const char *content, int runvar)
 {
-	return (nand_blocksize > 16*1024)
-		? MTDPARTS_DEF_LARGE : MTDPARTS_DEF_SMALL;
+	/* If variable does not contain string "undef", do not change it */
+	if (strcmp(getenv(varname), "undef"))
+		return;
+
+	/* Either set variable directly with value ... */
+	if (!runvar) {
+		setenv(varname, content);
+		return;
+	}
+
+	/* ... or set variable by running the variable with name in content */
+	content = getenv(content);
+	if (content)
+		run_command(content, 0);
 }
 
-#ifdef CONFIG_BOARD_LATE_INIT
 /* Use this slot to init some final things before the network is started. We
    set up some environment variables for things that are board dependent and
-   can't be defined as a fix value in fss5pv210.h. */
+   can't be defined as a fix value in fss5pv210.h. As an unset value is valid
+   for some of these variables, we check for the special value "undef". Any
+   of these variables that holds this value will be replaced with the
+   board-specific value. */
 int board_late_init(void)
 {
 	unsigned int boardtype = fs_nboot_args.chBoardType;
 	const struct board_info *bi = &fs_board_info[boardtype];
 
 	/* Set sercon variable if not already set */
-	if (!getenv("sercon")) {
+	if (strcmp(getenv("sercon"), "undef") == 0) {
 		char sercon[DEV_NAME_SIZE];
 
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
@@ -472,8 +583,8 @@ int board_late_init(void)
 		setenv("sercon", sercon);
 	}
 
-	/* Set platform and arch variables if not already set */
-	if (!getenv("platform")) {
+	/* Set platform variable if not already set */
+	if (strcmp(getenv("platform"), "undef") == 0) {
 		char lcasename[20];
 		char *p = bi->name;
 		char *l = lcasename;
@@ -485,38 +596,32 @@ int board_late_init(void)
 				c += 'a' - 'A';
 			*l++ = c;
 		} while (c);
-		
+
 		setenv("platform", lcasename);
 	}
-	if (!getenv("arch"))
-		setenv("arch", "fss5pv210");
 
-	/* Set mtdids, mtdparts and partition if not already set */
-	if (!getenv("mtdids"))
-		setenv("mtdids", MTDIDS_DEFAULT);
-	if (!getenv("mtdparts"))
-		setenv("mtdparts", board_get_mtdparts_default());
-	if (!getenv("partition"))
-		setenv("partition", MTDPART_DEFAULT);
+	/* Set some variables with a direct value */
+	setup_var("bootdelay", bi->bootdelay, 0);
+	setup_var("updatecheck", bi->updatecheck, 0);
+	setup_var("installcheck", bi->installcheck, 0);
+	setup_var("recovercheck", bi->recovercheck, 0);
+	setup_var("mtdids", MTDIDS_DEFAULT, 0);
+	setup_var("_mtdparts_std", is_large_block_nand() ? MTDPARTS_STD_LARGE : MTDPARTS_STD_SMALL, 0);
+#ifdef CONFIG_CMD_UBI
+	setup_var("_mtdparts_ubionly", is_large_block_nand() ? MTDPARTS_UBIONLY_LARGE : MTDPARTS_UBIONLY_SMALL, 0);
+#endif
+	setup_var("partition", MTDPART_DEFAULT, 0);
+	setup_var("mode", CONFIG_MODE, 0);
 
-	/* installcheck and updatecheck are allowed to be empty, so we can't
-	   check for empty here. On the other hand they depend on the board,
-	   so we can't define them as fix value. The trick that we do here is
-	   that they are set to the string "default" in the default
-	   environment and then we replace this string with the board specific
-	   value here */
-	if (strcmp(getenv("installcheck"), "default") == 0)
-	    setenv("installcheck", bi->updinstcheck);
-	if (strcmp(getenv("updatecheck"), "default") == 0)
-	    setenv("updatecheck", bi->updinstcheck);
-
-	/* If bootargs is not set, run variable bootubi as default setting */
-	if (!getenv("bootargs")) {
-		char *s;
-		s = getenv("bootubi");
-		if (s)
-			run_command(s, 0);
-	}
+	/* Set some variables by runnning another variable */
+	setup_var("console", bi->console, 1);
+	setup_var("login", bi->login, 1);
+	setup_var("mtdparts", bi->mtdparts, 1);
+	setup_var("network", bi->network, 1);
+	setup_var("init", bi->init, 1);
+	setup_var("rootfs", bi->rootfs, 1);
+	setup_var("kernel", bi->kernel, 1);
+	setup_var("bootargs", "set_bootargs", 1);
 
 	return 0;
 }
