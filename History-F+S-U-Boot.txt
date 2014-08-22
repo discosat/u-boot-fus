@@ -2,6 +2,30 @@ History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
 
+u-boot-2012.07-fsvybrid-V2.1 (22.08.2014)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5, CUBEA5, AGATEWAY
+
+- Fix NAND ECC correction on fss3c64xx and fss5pv210
+- Do not reduce NAND size by skip size on fss3c64xx, fss5pv210 and fsvybrid
+- Handle empty NAND pages with bitflips on fsvybrid
+- Further improve NAND implementation on fsvybrid
+- Make _mtdparts_std/_mtdparts_ubionly work with more than one NAND device
+- Add _mode_rw/_mode_ro to make read/write similar to other boot strategies
+- Set bootargs value on start-up to allow simple calls of bootm, nboot, etc.
+- Add platform to fsvybrid environment
+- Switch NAND handling on fss3c64xx and fss5pv210 to fsvybrid style
+- Fix command nboot to allow loading a zImage
+- Switch environment handling on fss3c64xx and fss5pv210 to fsvybrid style
+- Use boot strategies from fsvybrid also on fss3c64xx and fss5pv210
+- Switch command line parsing to hush parser on fss3c64xx and fss5pv210
+- Fully support update/install/recover system on fss3c64xx and fss5pv210
+
+Remark: Architecture fss3c64xx is obsolete now; support for PicoMOD6
+        and PicoCOM3 will therefore be dropped in one of the next relases.
+
+
 u-boot-2012.07-fsvybrid-V2.0 (04.07.2014)
 -----------------------------------------
 Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5, AGATEWAY
