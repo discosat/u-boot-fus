@@ -78,9 +78,16 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define BT_AGATEWAY   6
 #define BT_CUBEA5     7
 
-#define FEAT_CPU400   (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
-#define FEAT_2NDCAN   (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
-#define FEAT_2NDLAN   (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+/* Features set in tag_fshwconfig.chFeature1 */
+#define FEAT1_CPU400  (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
+#define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
+#define FEAT1_2NDLAN  (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+
+/* Features set in tag_fshwconfig.chFeature2 */
+#define FEAT2_M4      (1<<0)		/* CPU has Cortex-M4 core */
+#define FEAT2_L2      (1<<1)		/* CPU has Level 2 cache */
+#define FEAT2_RMIICLK_CKO1 (1<<2)	/* RMIICLK (PTA6) 0: output, 1: input
+					   CKO1 (PTB10) 0: unused, 1: output */
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -362,14 +369,14 @@ int checkboard(void)
 	int nCAN = 0;
 
 	if (pargs->chBoardType != 7) {
-		nLAN = pargs->chFeatures1 & FEAT_2NDLAN ? 2 : 1;
-		nCAN = pargs->chFeatures1 & FEAT_2NDCAN ? 2 : 1;
+		nLAN = pargs->chFeatures1 & FEAT1_2NDLAN ? 2 : 1;
+		nCAN = pargs->chFeatures1 & FEAT1_2NDCAN ? 2 : 1;
 	}
 
 	printf("Board: %s Rev %u.%02u (%d MHz, %dx DRAM, %dx LAN, %dx CAN)\n",
 	       fs_board_info[pargs->chBoardType].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->chFeatures1 & FEAT_CPU400 ? 400 : 500,
+	       pargs->chFeatures1 & FEAT1_CPU400 ? 400 : 500,
 	       pargs->dwNumDram, nLAN, nCAN);
 
 #if 0 //###
@@ -430,19 +437,54 @@ int board_init(void)
 	temp |= VYBRID_SCSC_SICR_CTR_SOSC_EN;
 	__raw_writel(temp, &scsc->sosc_ctr);
 
+#ifdef CONFIG_CMD_NET
+	if (pargs->chBoardType == BT_CUBEA5)
+		return 0;		/* CUBEA5 has no ethernet at all */
+
+	if ((pargs->chBoardType == BT_AGATEWAY) && (pargs->chBoardRev >= 110)) {
+		/* Starting with board Rev 1.10, AGATEWAY has an external
+		   oscillator and needs RMIICLK (PTA6) as input */
+		__raw_writel(0x00203191, IOMUXC_PAD_000);
+	} else {
 #ifdef CONFIG_FS_VYBRID_PLL_ETH
-//###	printf("### %s: using internal PLL.\n",__func__);
-	//### FIXME: Use predefined address names
-	temp = __raw_readl(0x4006B020);
-	temp = temp | (2<<4);		/* CSCMR2[5:4] Use PLL5 main clock */
-	__raw_writel(temp, 0x4006B020);
-	temp = __raw_readl(0x4006B014);
-	temp = temp | (1<<24);		/* CSCDR1[24] Enable ENET RMII clock */
-	__raw_writel(temp, 0x4006B014);
-	temp = __raw_readl(0x400500E0);
-	temp = 0x2001;			/* ANADIG_PLL5_CTRL: Enable, 50MHz */
-	__raw_writel(temp, 0x400500E0);
-#endif
+		struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
+
+		/* Configure PLL5 man clock for RMII clock. */
+		temp = __raw_readl(&ccm->cscmr2);
+		temp = temp | (2<<4);	/* CSCMR2[5:4] Use PLL5 main clock */
+		__raw_writel(temp, &ccm->cscmr2);
+		temp = __raw_readl(&ccm->cscdr1);
+		temp = temp | (1<<24);  /* CSCDR1[24] Enable ENET RMII clock */
+		__raw_writel(temp, &ccm->cscdr1);
+		temp = __raw_readl(0x400500E0);
+		temp = 0x2001;		/* ANADIG_PLL5_CTRL: Enable, 50MHz */
+		__raw_writel(temp, 0x400500E0);
+
+		if (pargs->chFeatures2 & FEAT2_RMIICLK_CKO1) {
+			/* We have a board revision with a direct connection
+			   between PTB10 and PTA6, so we will use CKO1 (PTB10)
+			   to output the RMII clock signal and use RMIICLK
+			   (PTA6) as input. */
+			temp = __raw_readl(&ccm->ccosr);
+			temp &= ~(0x7FF << 0);
+			temp |= (0x2F << 0) | (0 << 6) | (1 << 10);
+			__raw_writel(temp, &ccm->ccosr);
+			__raw_writel(0x00203191, IOMUXC_PAD_000);
+		} else {
+			/* We do not have a connection between PTB10 and PTA6
+			   and we also don't have an external oscillator. We
+			   must use RMIICLK (PTA6) as RMII clock output. This
+			   is not stable and may not work with all PHYs! See
+			   the comment in function fecpin_setclear(). */
+			__raw_writel(0x00103942, IOMUXC_PAD_000);
+		}
+#else
+		/* We have an external oscillator for RMII clock */
+		__raw_writel(0x00203191, IOMUXC_PAD_000);
+#endif /* CONFIG_FS_VYBRID_PLL_ETH */
+	}
+#endif /* CONFIG_CMD_NET */
+
 	return 0;
 }
 
@@ -674,11 +716,22 @@ int fecpin_setclear(struct eth_device *dev, int setclear)
 {
 	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
 	if (setclear) {
-		/* Configure as ethernet. There is a hardware problem on
-		   Vybrid because the data is sampled on the wrong edge. To
-		   avoid having a problem, when data changes on the same edge,
-		   we set the edge speed of the data signals to low and of the
-		   clock signal to high. This gains about 2ns difference. */
+		/*
+		 * Configure as ethernet. There is a hardware bug on Vybrid
+		 * when RMIICLK (PTA6) is used as RMII clock output. Then
+		 * outgoing data changes value on the wrong edge, i.e. when it
+		 * is latched in the PHY. Unfortunately we have some board
+		 * revisions where this configuration is used. To reduce the
+		 * risk that the PHY latches the wrong data, we set the edge
+		 * speed of the data signals to low and of the clock signal to
+		 * high. This gains about 2ns difference but is unstable and
+		 * does not work with all PHYs.
+		 *
+		 * In our newer board revisions we either use an external
+		 * oscillator (AGATEWAY) or we have connected CKO1 (PTB10) to
+		 * PTA6 and output the RMII clock on CKO1. Then PTA6 is a
+		 * clock input and everything works as expected.
+		 */
 #ifdef CONFIG_SYS_FEC0_IOBASE
 		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
 			__raw_writel(0x001000c2, IOMUXC_PAD_045);	/*MDC*/
@@ -834,13 +887,6 @@ int board_eth_init(bd_t *bd)
 	int ret;
 	int index = 0;
 
-#ifdef CONFIG_FS_VYBRID_PLL_ETH
-	/* Set clock signal edge to high, see comment in fecpin_setclear() */
-	__raw_writel(0x00103942, IOMUXC_PAD_000);   /* RMII_CLKOUT */
-#else
-	__raw_writel(0x00203191, IOMUXC_PAD_000);   /* RMII_CLKIN */
-#endif
-
 #ifdef CONFIG_SYS_FEC0_IOBASE
 	switch (fs_nboot_args.chBoardType) {
 	case BT_PICOCOMA5:
@@ -860,7 +906,7 @@ int board_eth_init(bd_t *bd)
 	case BT_PICOCOMA5:
 	case BT_ARMSTONEA5:
 	case BT_NETDCUA5:
-		if (!(fs_nboot_args.chFeatures1 & FEAT_2NDLAN))
+		if (!(fs_nboot_args.chFeatures1 & FEAT1_2NDLAN))
 			break;
 		/* Fall through to case BT_AGATEWAY */
 	case BT_AGATEWAY:
