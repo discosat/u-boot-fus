@@ -469,6 +469,7 @@ int board_init(void)
 			temp &= ~(0x7FF << 0);
 			temp |= (0x2F << 0) | (0 << 6) | (1 << 10);
 			__raw_writel(temp, &ccm->ccosr);
+			__raw_writel(0x00601992, IOMUXC_PAD_032);
 			__raw_writel(0x00203191, IOMUXC_PAD_000);
 		} else {
 			/* We do not have a connection between PTB10 and PTA6
@@ -479,7 +480,8 @@ int board_init(void)
 			__raw_writel(0x00103942, IOMUXC_PAD_000);
 		}
 #else
-		/* We have an external oscillator for RMII clock */
+		/* We have an external oscillator for RMII clock, configure
+		   RMIICLK (PTA6) as input */
 		__raw_writel(0x00203191, IOMUXC_PAD_000);
 #endif /* CONFIG_FS_VYBRID_PLL_ETH */
 	}
