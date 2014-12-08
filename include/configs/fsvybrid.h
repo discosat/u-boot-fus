@@ -3,7 +3,7 @@
  * F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on Vybrid. This is
- * armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5 and AGATEWAY.
+ * armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5, AGATEWAY and HGATEWAY
  * Activate with one of the following targets:
  *   make fsvybrid_config       Configure for Vybrid boards
  *   make fsvybrid              Configure for Vybrid boards and build

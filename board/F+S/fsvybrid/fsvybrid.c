@@ -77,6 +77,7 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define BT_PICOMOD1_2 5
 #define BT_AGATEWAY   6
 #define BT_CUBEA5     7
+#define BT_HGATEWAY   8
 
 /* Features set in tag_fshwconfig.chFeature1 */
 #define FEAT1_CPU400  (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
@@ -120,7 +121,7 @@ struct board_info {
 #define UPDATE_DEF NULL
 #endif
 
-const struct board_info fs_board_info[8] = {
+const struct board_info fs_board_info[16] = {
 	{	/* 0 (BT_ARMSTONEA5) */
 		.name = "armStoneA5",
 		.mach_type = MACH_TYPE_ARMSTONEA5,
@@ -208,6 +209,43 @@ const struct board_info fs_board_info[8] = {
 		.init = "_init_linuxrc",
 		.rootfs = "_rootfs_ubifs",
 		.kernel = "_kernel_ubifs",
+	},
+	{	/* 8 (BT_HGATEWAY) */
+		.name = "HGATEWAY",
+		.mach_type = MACH_TYPE_HGATEWAY,
+		.bootdelay = "0",
+		.updatecheck = "TargetFS.ubi(data)",
+		.installcheck = "ram@80300000",
+		.recovercheck = "TargetFS.ubi(recovery)",
+//###		.console = "_console_serial",
+		.console = "_console_none",
+		.login = "_login_serial",
+		.mtdparts = "_mtdparts_ubionly",
+		.network = "_network_off",
+		.init = "_init_linuxrc",
+		.rootfs = "_rootfs_ubifs",
+		.kernel = "_kernel_ubifs",
+	},
+	{	/* 9 */
+		.name = "Unknown",
+	},
+	{	/* 10 */
+		.name = "Unknown",
+	},
+	{	/* 11 */
+		.name = "Unknown",
+	},
+	{	/* 12 */
+		.name = "Unknown",
+	},
+	{	/* 13 */
+		.name = "Unknown",
+	},
+	{	/* 14 */
+		.name = "Unknown",
+	},
+	{	/* 15 */
+		.name = "Unknown",
 	},
 };
 
@@ -551,8 +589,8 @@ size_t get_env_offset(void)
 enum update_action board_check_for_recover(void)
 {
 	/* If the board should do an automatic recovery is given in the
-	   dwAction value. Currently this is only defined for CUBEA5 and
-	   AGATEWAY. If a special button is pressed for a defined time
+	   dwAction value. Currently this is only defined for CUBEA5, AGATEWAY
+	   and HGATEWAY. If a special button is pressed for a defined time
 	   when power is supplied, the system should be reset to the default
 	   state, i.e. perform a complete recovery. The button is detected in
 	   NBoot, but recovery takes place in U-Boot. */
@@ -912,6 +950,7 @@ int board_eth_init(bd_t *bd)
 			break;
 		/* Fall through to case BT_AGATEWAY */
 	case BT_AGATEWAY:
+	case BT_HGATEWAY:
 		set_fs_ethaddr(index);
 #ifdef CONFIG_SYS_FEC0_IOBASE
 		ret = mcffec_register(bd, &fec_info[1]);
