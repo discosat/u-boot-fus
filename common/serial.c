@@ -131,6 +131,13 @@ void serial_initialize(void)
 		serial_register(get_serial_device(4));
 		serial_register(get_serial_device(5));
 #endif
+#if defined(CONFIG_MX6)
+		serial_register(get_serial_device(0));
+		serial_register(get_serial_device(1));
+		serial_register(get_serial_device(2));
+		serial_register(get_serial_device(3));
+		serial_register(get_serial_device(4));
+#endif
 #if defined(CONFIG_MPC512X)
 #if defined(CONFIG_SYS_PSC1)
 		serial_register(&serial1_device);

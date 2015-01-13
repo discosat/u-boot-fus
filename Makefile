@@ -441,6 +441,10 @@ $(obj)uboot.nb0:	$(obj)u-boot.bin
 			 | tr '\000' '\377' >$@
 		dd if=$< of=$@ conv=notrunc bs=1K
 
+# Version for i.MX6 old F&S NBoot (<VN20), add header with 1824 (0x720) bytes
+$(obj)uboot-fsimx6.nb0:	$(obj)u-boot.bin
+		cat fsheader.data $< > $@
+
 $(obj)uboot.fs:	$(obj)u-boot.bin
 		$(obj)tools/addfsheader $< $@
 
@@ -792,7 +796,7 @@ tidy:	clean
 
 clobber:	tidy
 	@find $(OBJTREE) -type f \( -name '*.srec' \
-		-o -name uboot.nb0 -o -name uboot.fs -o -name u-boot.dis \
+		-o -name uboot.nb0 -o -name uboot-fsimx6.nb0 -o -name uboot.fs -o -name u-boot.dis \
 		-o -name '*.bin' -o -name u-boot.img \) \
 		-print0 | xargs -0 rm -f
 	@rm -f $(OBJS) $(obj)*.bak $(obj)ctags $(obj)etags $(obj)TAGS \

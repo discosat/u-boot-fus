@@ -18,21 +18,11 @@
  */
 
 #include <common.h>
-#include <watchdog.h>
-#include <asm/arch/imx-regs.h>
-#include <asm/arch/clock.h>
-
-#define __REG(x)     (*((volatile u32 *)(x)))
-
-#ifndef CONFIG_MXC_UART_BASE
-#error "define CONFIG_MXC_UART_BASE to use the MXC UART driver"
-#endif
-
-#define UART_PHYS	CONFIG_MXC_UART_BASE
-
-#ifdef CONFIG_SERIAL_MULTI
-#warning "MXC driver does not support MULTI serials."
-#endif
+#include <serial.h>			/* struct serial_device */
+#include <watchdog.h>		        /* WATCHDOG_RESET() */
+#include <asm/io.h>			/* __raw_readl(), __raw_writel() */
+#include <asm/arch/imx-regs.h>		/* UART?_BASE */
+#include <asm/arch/clock.h>		/* imx_get_uartclk() */
 
 /* Register definitions */
 #define URXD  0x0  /* Receiver Register */
@@ -143,58 +133,16 @@
 #define  UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
-DECLARE_GLOBAL_DATA_PTR;
-
-void serial_setbrg (void)
+static void mxc_serial_setbrg(const struct serial_device *sdev)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	u32 clk = imx_get_uartclk();
+	void *uart_phys = sdev->dev.priv;
 
-	if (!gd->baudrate)
-		gd->baudrate = CONFIG_BAUDRATE;
+	__raw_writel(4 << 7, uart_phys + UFCR); /* divide input clock by 2 */
+	__raw_writel(0xF, uart_phys + UBIR);
+	__raw_writel(clk / (2 * gd->baudrate), uart_phys + UBMR);
 
-	__REG(UART_PHYS + UFCR) = 4 << 7; /* divide input clock by 2 */
-	__REG(UART_PHYS + UBIR) = 0xf;
-	__REG(UART_PHYS + UBMR) = clk / (2 * gd->baudrate);
-
-}
-
-int serial_getc (void)
-{
-	while (__REG(UART_PHYS + UTS) & UTS_RXEMPTY)
-		WATCHDOG_RESET();
-	return (__REG(UART_PHYS + URXD) & URXD_RX_DATA); /* mask out status from upper word */
-}
-
-void serial_putc (const char c)
-{
-	__REG(UART_PHYS + UTXD) = c;
-
-	/* wait for transmitter to be ready */
-	while (!(__REG(UART_PHYS + UTS) & UTS_TXEMPTY))
-		WATCHDOG_RESET();
-
-	/* If \n, also do \r */
-	if (c == '\n')
-		serial_putc ('\r');
-}
-
-/*
- * Test whether a character is in the RX buffer
- */
-int serial_tstc (void)
-{
-	/* If receive fifo is empty, return false */
-	if (__REG(UART_PHYS + UTS) & UTS_RXEMPTY)
-		return 0;
-	return 1;
-}
-
-void
-serial_puts (const char *s)
-{
-	while (*s) {
-		serial_putc (*s++);
-	}
 }
 
 /*
@@ -202,25 +150,133 @@ serial_puts (const char *s)
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  *
  */
-int serial_init (void)
+static int mxc_serial_start(const struct stdio_dev *pdev)
 {
-	__REG(UART_PHYS + UCR1) = 0x0;
-	__REG(UART_PHYS + UCR2) = 0x0;
+	struct serial_device *sdev = to_serial_device(pdev);
+	void *uart_phys = sdev->dev.priv;
 
-	while (!(__REG(UART_PHYS + UCR2) & UCR2_SRST));
+	__raw_writel(0x0, uart_phys + UCR1);
+	__raw_writel(0x0, uart_phys + UCR2);
 
-	__REG(UART_PHYS + UCR3) = 0x0704;
-	__REG(UART_PHYS + UCR4) = 0x8000;
-	__REG(UART_PHYS + UESC) = 0x002b;
-	__REG(UART_PHYS + UTIM) = 0x0;
+	while (!(__raw_readl(uart_phys + UCR2) & UCR2_SRST))
+		; /* Do nothing */
 
-	__REG(UART_PHYS + UTS) = 0x0;
+	__raw_writel(0x0704, uart_phys + UCR3);
+	__raw_writel(0x8000, uart_phys + UCR4);
+	__raw_writel(0x002B, uart_phys + UESC);
+	__raw_writel(0x0, uart_phys + UTIM);
 
-	serial_setbrg();
+	__raw_writel(0x0, uart_phys + UTS);
 
-	__REG(UART_PHYS + UCR2) = UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST;
+	mxc_serial_setbrg(sdev);
 
-	__REG(UART_PHYS + UCR1) = UCR1_UARTEN;
+	__raw_writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
+		     uart_phys + UCR2);
+
+	__raw_writel(UCR1_UARTEN, uart_phys + UCR1);
 
 	return 0;
+}
+
+static void mxc_ll_putc(void *uart_phys, const char c)
+{
+	/* If \n, do \r first */
+	if (c == '\n')
+		mxc_ll_putc(uart_phys, '\r');
+
+	/* wait for room in the tx FIFO */
+	while (!(__raw_readl(uart_phys + UTS) & UTS_TXEMPTY))
+		WATCHDOG_RESET();
+
+	/* Send character */
+	__raw_writel(c, uart_phys + UTXD);
+}
+
+/*
+ * Output a single byte to the serial port.
+ */
+static void mxc_serial_putc(const struct stdio_dev *pdev, const char c)
+{
+	struct serial_device *sdev = to_serial_device(pdev);
+	void *uart_phys = sdev->dev.priv;
+
+	mxc_ll_putc(uart_phys, c);
+}
+
+/*
+ * Output a string to the serial port.
+ */
+static void mxc_serial_puts(const struct stdio_dev *pdev, const char *s)
+{
+	struct serial_device *sdev = to_serial_device(pdev);
+	void *uart_phys = sdev->dev.priv;
+
+	while (*s)
+		mxc_ll_putc(uart_phys, *s++);
+}
+
+
+/*
+ * Read a single byte from the serial port. 
+ */
+static int mxc_serial_getc(const struct stdio_dev *pdev)
+{
+	struct serial_device *sdev = to_serial_device(pdev);
+	void *uart_phys = sdev->dev.priv;
+
+	/* Wait for character to arrive */
+	while (__raw_readl(uart_phys + UTS) & UTS_RXEMPTY)
+		WATCHDOG_RESET();
+
+	/* mask out status from upper word */
+	return (__raw_readl(uart_phys + URXD) & URXD_RX_DATA);
+}
+
+/*
+ * Test whether a character is in the RX buffer
+ */
+static int mxc_serial_tstc(const struct stdio_dev *pdev)
+{
+	struct serial_device *sdev = to_serial_device(pdev);
+	void *uart_phys = sdev->dev.priv;
+
+	/* If receive fifo is empty, return false */
+	if (__raw_readl(uart_phys + UTS) & UTS_RXEMPTY)
+		return 0;
+
+	return 1;
+}
+
+
+#define INIT_MXC_SERIAL(_addr, _name, _hwname) {	\
+	{       /* stdio_dev part */		\
+		.name = _name,			\
+		.hwname = _hwname,		\
+		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
+		.start = mxc_serial_start,	\
+		.stop = NULL,			\
+		.getc = mxc_serial_getc,	\
+		.tstc =	mxc_serial_tstc,	\
+		.putc = mxc_serial_putc,	\
+		.puts = mxc_serial_puts,	\
+		.priv = (void *)_addr,	\
+	},					\
+	.setbrg = mxc_serial_setbrg,		\
+}
+
+struct serial_device mxc_serial_device[] = {
+	INIT_MXC_SERIAL(UART1_BASE, CONFIG_SYS_SERCON_NAME "0", "mxc_uart0"),
+	INIT_MXC_SERIAL(UART2_BASE, CONFIG_SYS_SERCON_NAME "1", "mxc_uart1"),
+	INIT_MXC_SERIAL(UART3_BASE, CONFIG_SYS_SERCON_NAME "2", "mxc_uart2"),
+	INIT_MXC_SERIAL(UART4_BASE, CONFIG_SYS_SERCON_NAME "3", "mxc_uart3"),
+	INIT_MXC_SERIAL(UART5_BASE, CONFIG_SYS_SERCON_NAME "4", "mxc_uart4"),
+};
+
+/* Get pointer to n-th serial device */
+struct serial_device *get_serial_device(unsigned int n)
+{
+	if (n < 6)
+		return &mxc_serial_device[n];
+
+	return NULL;
 }

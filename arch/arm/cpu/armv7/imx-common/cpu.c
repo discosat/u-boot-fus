@@ -96,7 +96,7 @@ int print_cpuinfo(void)
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
 		mxc_get_clock(MXC_ARM_CLK) / 1000000);
-	printf("Reset cause: %s\n", get_reset_cause());
+	printf("Reset: %s\n", get_reset_cause());
 	return 0;
 }
 #endif
