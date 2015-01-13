@@ -98,17 +98,19 @@
  *
  */
 
-#ifndef __CONFIG_H
-#define __CONFIG_H
+#ifndef __FSVYBRID_CONFIG_H
+#define __FSVYBRID_CONFIG_H
 
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-#define CONFIG_IDENT_STRING " for F&S"	  /* We are on an F&S board */
+#define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
 /* CPU, family and board defines */
-#define CONFIG_VYBRID			  /* Freescale Vybrid */
-#define CONFIG_FSVYBRID			  /* on an F&S Vybrid Board */
+#define CONFIG_VYBRID			/* Freescale Vybrid */
+#define CONFIG_FSVYBRID			/* on an F&S Vybrid board */
+
+#include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
 
 /* Basic input clocks */
 #define CONFIG_SYS_VYBRID_HCLK		24000000
@@ -117,8 +119,6 @@
 /* Timer */
 #define FTM_BASE_ADDR			FTM0_BASE_ADDR
 #define CONFIG_TMR_USEPIT
-
-#define CONFIG_BOARD_EARLY_INIT_F //####kann evtl. wieder weg
 
 
 /************************************************************************
@@ -143,6 +143,8 @@
 #define CONFIG_SYS_MAXARGS	16	   /* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 #define CONFIG_UBOOTNB0_SIZE    384	   /* size of uboot.nb0 (in kB) */
+
+#define CONFIG_BOARD_EARLY_INIT_F //####kann evtl. wieder weg
 
 /* We use special board_late_init() function to set board specific
    environment variables that can't be set with a fix value here */
@@ -203,8 +205,6 @@
 
 //####define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_CACHELINE_SIZE	64
-
-#include <asm/arch/vybrid-regs.h> //####notwendig?
 
 /* Stack */
 
@@ -357,7 +357,7 @@
 #undef CONFIG_CMD_IMLS		/* no support to list all found images */
 #undef CONFIG_CMD_IMMAP		/* no support for PPC immap table */
 #undef CONFIG_CMD_IRQ		/* no interrupt support */
-#undef CONFIG_CMD_ITEST		/* no integer (and string) test */
+#define CONFIG_CMD_ITEST	/* Integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* no support for JFFS2 filesystem */
 #undef CONFIG_CMD_LDRINFO	/* no ldr support for blackfin */
 #define CONFIG_CMD_LED		/* LED support */
@@ -374,7 +374,7 @@
 #undef CONFIG_CMD_MOVI		/* no support for MOVI NAND flash memories */
 #undef CONIFG_CMD_MP		/* no multi processor support */
 #define CONFIG_CMD_MTDPARTS	/* support MTD partitions (mtdparts, chpart) */
-#define	CONFIG_CMD_NAND		/* support for common NAND flash memories */
+#define CONFIG_CMD_NAND		/* support for common NAND flash memories */
 #define CONFIG_CMD_NET		/* support BOOTP and TFTP (bootp, tftpboot) */
 #define CONFIG_CMD_NFS		/* support download via NFS */
 #undef CONFIG_CMD_ONENAND	/* no support for ONENAND flash memories */
@@ -387,7 +387,7 @@
 #undef CONFIG_CMD_RARP		/* no support for booting via RARP */
 #undef CONFIG_CMD_REGINFO	/* no register support on ARM, only PPC */
 #undef CONFIG_CMD_REISER	/* no support for reiserfs filesystem */
-#define CONFIG_CMD_RUN		/* run command in env variable	*/
+#define CONFIG_CMD_RUN		/* run command in env variable */
 #undef CONFIG_CMD_SATA		/* no support for SATA disks */
 #define CONFIG_CMD_SAVEENV	/* allow saving environment to NAND */
 #undef CONFIG_CMD_SAVES		/* no support for serial uploads (saving) */
@@ -629,17 +629,17 @@
 
 #define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
-#define CONFIG_NETMASK          255.255.255.0
+#define CONFIG_NETMASK		255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
-#define CONFIG_BOOTFILE         "uImage"
+#define CONFIG_BOOTFILE		"uImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
 #define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
-#define CONFIG_BOOTCOMMAND      "run set_bootargs; run kernel"
+#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; bootm"
 
 /* Define MTD partition info */
 #if CONFIG_SYS_MAX_NAND_DEVICE > 1
@@ -676,14 +676,14 @@
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
-	"_kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootm\0"
+	"_kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\0"
 #else
 #define EXTRA_UBIFS
 #endif
 #define EXTRA_UBI EXTRA_UBIFS \
 	"_mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	"_rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
-	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\\\\; bootm\0" \
+	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
 	"_ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
 	"_ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
 #else
@@ -708,14 +708,15 @@
 	"_rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
 	"_rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
 	"_rootfs_usb=setenv rootfs root=/dev/sda1\0" \
+	"fsload=undef\0" \
+	"_fsload_fat=setenv fsload fatload\0" \
+	"_fsload_ext2=setenv fsload ext2load\0" \
 	"kernel=undef\0" \
-	"_kernel_nand=setenv kernel nboot Kernel\\\\; bootm\0" \
-	"_kernel_tftp=setenv kernel tftpboot .\\\\; bootm\0" \
+	"_kernel_nand=setenv kernel nboot Kernel\0" \
+	"_kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
 	"_kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	"_kernel_mmc_fat=setenv kernel mmc rescan\\\\; fatload mmc0 . ${bootfile}\0" \
-	"_kernel_mmc_ext2=setenv kernel mmc rescan\\\\; ext2load mmc0 . ${bootfile}\0" \
-	"_kernel_usb_fat=setenv kernel usb start\\\\; fatload usb0 . ${bootfile}\0" \
-	"_kernel_usb_ext2=setenv kernel usb start\\\\; ext2load usb0 . ${bootfile}\0" \
+	"_kernel_mmc=setenv kernel mmc rescan\\\\; ${fsload} mmc 0 . ${bootfile}\0" \
+	"_kernel_usb=setenv kernel usb start\\\\; ${fsload} usb 0 . ${bootfile}\0" \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	"_mode_rw=setenv mode rw\0" \
@@ -760,4 +761,4 @@
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
 
-#endif /* !__CONFIG_H */
+#endif /* !__FSVYBRID_CONFIG_H */

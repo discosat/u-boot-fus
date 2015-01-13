@@ -35,7 +35,7 @@
 
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
 #endif
 
 #ifdef CONFIG_CMD_LED
@@ -250,7 +250,7 @@ const struct board_info fs_board_info[16] = {
 };
 
 /* String used for system prompt */
-char fs_sys_prompt[20];
+static char fs_sys_prompt[20];
 
 /* Copy of the NBoot args, split into hwconfig and m4config */
 struct tag_fshwconfig fs_nboot_args;
@@ -403,12 +403,27 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	int nLAN = 0;
-	int nCAN = 0;
+	int nLAN;
+	int nCAN;
 
-	if (pargs->chBoardType != 7) {
+	switch (pargs->chBoardType) {
+	case BT_CUBEA5:
+		nLAN = 0;
+		break;
+	default:
 		nLAN = pargs->chFeatures1 & FEAT1_2NDLAN ? 2 : 1;
+		break;
+	}
+
+	switch (pargs->chBoardType) {
+	case BT_CUBEA5:
+	case BT_AGATEWAY:
+	case BT_HGATEWAY:
+		nCAN = 0;
+		break;
+	default:
 		nCAN = pargs->chFeatures1 & FEAT1_2NDCAN ? 2 : 1;
+		break;
 	}
 
 	printf("Board: %s Rev %u.%02u (%d MHz, %dx DRAM, %dx LAN, %dx CAN)\n",
@@ -476,6 +491,7 @@ int board_init(void)
 	__raw_writel(temp, &scsc->sosc_ctr);
 
 #ifdef CONFIG_CMD_NET
+	//#### nach board_eth_init()???
 	if (pargs->chBoardType == BT_CUBEA5)
 		return 0;		/* CUBEA5 has no ethernet at all */
 
