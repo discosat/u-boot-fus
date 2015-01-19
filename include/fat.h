@@ -203,6 +203,8 @@ extern const char *file_getfsname(int idx);
 extern int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
 
 extern int file_fat_ls(const char *pattern);
+extern long file_fat_read_at(const char *filename, unsigned long pos,
+			     void *buffer, unsigned long maxsize);
 extern long file_fat_read(const char *pattern, void *buffer,
 			  unsigned long maxsize);
 extern int file_fat_write(const char *pattern, void *buffer,

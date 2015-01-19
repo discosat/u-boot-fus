@@ -86,7 +86,7 @@ const int slot_index_table[13] = {
 	1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30
 };
 
-/* 
+/*
  * Calculate checksum of a short.
  *
  * Parameter:
@@ -108,7 +108,7 @@ __u8 fat_checksum(const char *dirname)
 #endif
 
 
-/* 
+/*
  * Load consecutive blocks from block device.
  *
  * Parameters:
@@ -125,8 +125,9 @@ static __u32 disk_read(__u32 sector, __u32 count, void *buffer)
 	if (!cur_dev || !cur_dev->block_read)
 		return 0;
 
-	return cur_dev->block_read(cur_dev->dev, cur_part_info.start + sector,
-				   count, buffer);
+	sector += cur_part_info.start;
+
+	return cur_dev->block_read(cur_dev->dev, sector, count, buffer);
 }
 
 static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
@@ -135,7 +136,7 @@ static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
 }
 
 /*
- * Get a short filename from a 8+3 directory entry. 
+ * Get a short filename from a 8+3 directory entry.
  *
  * A FAT short name may not contain leading blanks, as any blank in the first
  * positon of the basename or extension is interpreted as an empty basename or
@@ -353,7 +354,7 @@ static void fat_free_dir(struct wc_dirinfo *wdi)
 	free(TO_FAT_DIRINFO(wdi));
 }
 
-/* 
+/*
  * Get next directory entry and return the type, size and name of the file.
  *
  * Parameters:
@@ -485,45 +486,52 @@ static int fat_get_fileinfo(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 	return 1;
 }
 
-/* 
+/*
  * Read the file given in wfistarting at cluster wfi->reference.
  *
+ * ATTENTION: We are re-using the directory preload buffer here. This should
+ * be no problem as long as we don't require the directory content anymore.
+ *
  * Parameters:
- *   wdi:     Pointer to current directory entry 
+ *   wdi:     Pointer to current directory entry
  *   wfi:     Information of file to load; especially wfi->reference is the
  *            start cluster of the file
+ *   skip:    Number of bytes to skip at beginning of file
  *   buffer:  Pointer to buffer where to store data
  *   maxsize: Maximum number of bytes to read (0: whole file)
  *
  * Return:
  *   Number of read bytes
  */
-static unsigned long fat_read(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
-			      void *buffer, unsigned long maxsize)
+static unsigned long fat_read_at(struct wc_dirinfo *wdi,
+				 struct wc_fileinfo *wfi, unsigned long skip,
+				 void *buffer, unsigned long maxsize)
 {
 	unsigned long bytes_next_chunk;
 	unsigned long total_bytes_loaded;
 	unsigned long remaining;
 	struct fsdata *mydata = &myfsdata;
 	unsigned long bytes_per_cluster;
+	unsigned long sect_size;
+	int warning = 0;
 	__u32 cluster;
 	__u32 tmp;
 	__u32 sector_count;
 	__u32 sector;
 
 	remaining = (unsigned long)wfi->file_size;
-	if (!maxsize)
-		maxsize = remaining;
-	else if (remaining > maxsize)
-		remaining = maxsize;
+	if (!remaining || (skip >= remaining))
+		return 0;		/* Empty file or seek past EOF */
+	if (maxsize && (remaining > skip + maxsize))
+		remaining = skip + maxsize;
 
-	if (!remaining)
-		return remaining;		/* maxsize 0 or empty file */
-
-	bytes_per_cluster = mydata->clust_size * mydata->sect_size;
+	sect_size = mydata->sect_size;
+	bytes_per_cluster = mydata->clust_size * sect_size;
 	cluster = wfi->reference;
 	total_bytes_loaded = 0;
+
 	do {
+		/* Combine sectors to a long chunk if they are in sequence */
 		sector = clust2sect(mydata, cluster);
 		bytes_next_chunk = 0;
 		do {
@@ -543,29 +551,98 @@ static unsigned long fat_read(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
 				return total_bytes_loaded;
 		} while (cluster == tmp + 1);
 
-		debug("Loading 0x%lx bytes at sector 0x%x\n", bytes_next_chunk,
-		      sector);
+		debug("Next chunk: 0x%lx bytes at sector 0x%x\n",
+		      bytes_next_chunk, sector);
 
-		/* Load full sectors */
-		sector_count = bytes_next_chunk / mydata->sect_size;
-		if (sector_count) {
-			__u32 read = disk_read(sector, sector_count, buffer);
-			unsigned long bytes_loaded = read * mydata->sect_size;
-			total_bytes_loaded += bytes_loaded;
-			if (read != sector_count)
-				break;
-			sector += sector_count;
-			buffer += bytes_loaded;
-			bytes_next_chunk -= bytes_loaded;
+		/* Number of full sectors in this chunk */
+		sector_count = bytes_next_chunk / sect_size;
+
+		/* Skip unwanted full sectors at beginning of chunk */
+		if (skip) {
+			__u32 sectors_to_skip;
+			unsigned long bytes_to_skip;
+
+			sectors_to_skip = skip / sect_size;
+			if (sectors_to_skip > sector_count)
+				sectors_to_skip = sector_count;
+			sector_count -= sectors_to_skip;
+			bytes_to_skip = sectors_to_skip * sect_size;
+			bytes_next_chunk -= bytes_to_skip;
+			skip -= bytes_to_skip;
+			debug("Skip 0x%lx bytes (=%u full sectors) at sector "
+			      "0x%x\n", bytes_to_skip, sectors_to_skip, sector);
+			sector += sectors_to_skip;
+		}
+		
+		/* Skip part of a sector and read part of a sector if the
+		   beginning is not at a sector boundary. */
+		if (skip && bytes_next_chunk) {
+			unsigned long bytes_to_copy;
+			bytes_to_copy = sect_size;
+			if (bytes_to_copy > bytes_next_chunk)
+				bytes_to_copy = bytes_next_chunk;
+			bytes_next_chunk -= bytes_to_copy;
+			bytes_to_copy -= skip;
+			debug("Skip 0x%lx bytes and read 0x%lx bytes at"
+			      " sector 0x%x\n", skip, bytes_to_copy, sector);
+			if (disk_read(sector, 1, mydata->dirbuf) != 1)
+				return total_bytes_loaded;
+			memcpy(buffer, mydata->dirbuf + skip, bytes_to_copy);
+			total_bytes_loaded += bytes_to_copy;
+			buffer += bytes_to_copy;
+			skip = 0;
+			sector++;
+			if (sector_count > 0)
+				sector_count--;
 		}
 
-		/* Load final bytes from last sector. ATTENTION: We are
-		   re-using the directory preload buffer here. This should be
-		   no problem as long as we don't require the directory content
-		   anymore. */
+		/* Load full sectors */
+		if (sector_count) {
+			debug("Load 0x%lx bytes (=%d full sectors) at sector "
+			      "0x%x\n", sector_count * sect_size, sector_count,
+			      sector);
+			if ((unsigned long)buffer & (ARCH_DMA_MINALIGN - 1)) {
+				void *temp = mydata->dirbuf;
+				__u32 i;
+
+				/* Read sectors with single reads */
+				if (!warning) {
+					puts("Buffer unaligned, using slow"
+					     " single-sector reads\n");
+					warning = 1;
+				}
+				for (i = 0; i < sector_count; i++) {
+					if (disk_read(sector, 1, temp) != 1)
+						return total_bytes_loaded;
+					sector++;
+					memcpy(buffer, temp, sect_size);
+					buffer += sect_size;
+					total_bytes_loaded += sect_size;
+					bytes_next_chunk -= sect_size;
+				}
+			} else {
+				unsigned long bytes_loaded;
+				__u32 read;
+
+				/* Read sectors in one go */
+				read = disk_read(sector, sector_count, buffer);
+				sector += sector_count;
+				bytes_loaded = read * sect_size;
+				buffer += bytes_loaded;
+				bytes_next_chunk -= bytes_loaded;
+				total_bytes_loaded += bytes_loaded;
+				if (read != sector_count)
+					return total_bytes_loaded;
+			}
+		}
+
+		/* Load final bytes from last sector. */
 		if (bytes_next_chunk) {
+			debug("Load 0x%lx bytes and ignore 0x%lx bytes"
+			      " from sector 0x%x\n", bytes_next_chunk,
+			      sect_size - bytes_next_chunk, sector);
 			if (disk_read(sector, 1, mydata->dirbuf) != 1)
-				break;
+				return total_bytes_loaded;
 			memcpy(buffer, mydata->dirbuf, bytes_next_chunk);
 			total_bytes_loaded += bytes_next_chunk;
 			buffer += bytes_next_chunk;
@@ -586,7 +663,7 @@ const struct wc_filesystem_ops fat_ops = {
 	fat_alloc_dir,
 	fat_free_dir,
 	fat_get_fileinfo,
-	fat_read,
+	fat_read_at,
 #ifdef CONFIG_FAT_WRITE
 	fat_write,
 #else
@@ -643,7 +720,35 @@ long file_fat_read(const char *pattern, void *buffer, unsigned long maxsize)
 	wfi.pattern = pattern;
 	wfi.file_name[0] = '\0';
 
-	return (long)wildcard_read(&wfi, &fat_ops, buffer, maxsize);
+	return (long)wildcard_read_at(&wfi, &fat_ops, 0, buffer, maxsize);
+}
+
+/*
+ * Read the given file with up to maxsize bytes.
+ *
+ * Parameters:
+ *   pattern: file name; may contain wildcards, but must match uniquely
+ *   pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
+ *   buffer:  Pointer to buffer where to store data
+ *   maxsize: Maximum number of bytes to read (0: whole file)
+ *
+ * Return:
+ *   Number of read bytes or -1 (0xFFFFFFFF) on error (e.g. while loading data
+ *   from device, non-existent file, etc.)
+ */
+long file_fat_read_at(const char *pattern, unsigned long pos, void *buffer,
+		      unsigned long maxsize)
+{
+	struct wc_fileinfo wfi;
+
+	/* Prepare file info for root directory */
+	wfi.reference = 0;
+	wfi.file_size = 0;
+	wfi.file_type = WC_TYPE_DIRECTORY;
+	wfi.pattern = pattern;
+	wfi.file_name[0] = '\0';
+
+	return (long)wildcard_read_at(&wfi, &fat_ops, pos, buffer, maxsize);
 }
 
 /*
@@ -684,14 +789,14 @@ int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 
 	/* Otherwise it might be a superfloppy (whole-disk FAT filesystem) */
 	if (!cur_dev) {
-		if (part_no != 1) {
+		if (part_no != 0) {
 			printf("** Partition %d not valid on device %d **\n",
 					part_no, dev_desc->dev);
 			return -1;
 		}
 
 		cur_dev = dev_desc;
-		cur_part_nr = 1;
+		cur_part_nr = 0;
 		cur_part_info.start = 0;
 		cur_part_info.size = dev_desc->lba;
 		cur_part_info.blksz = dev_desc->blksz;
@@ -750,7 +855,7 @@ int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 	   bs->dir_entries (and therefore rootdir_length) will be zero as the
 	   root directory is located in the data region and can grow
 	   arbitrarily. */
-	mydata->rootdir_length = 
+	mydata->rootdir_length =
 		((bs->dir_entries[1] << 8) + bs->dir_entries[0])
 		* sizeof(struct dir_entry) / mydata->sect_size;
 

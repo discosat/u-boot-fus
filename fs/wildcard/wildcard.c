@@ -603,6 +603,7 @@ int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_filesystem_ops *ops)
  *   wfi:     Pointer to fileinfo for root directory, wfi->pattern is the
  *            pattern for the filename to search for
  *   ops:     Pointer to the filesystem functions doing the data access
+ *   pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
  *   buffer:  Pointer to buffer where to store data
  *   maxsize: Maximum number of bytes to read (0: whole file)
  *
@@ -610,9 +611,10 @@ int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_filesystem_ops *ops)
  *   Number of read bytes or -1 (0xFFFFFFFF) on error, e.g. if path or file is
  *   not found or while reading data from the device
  */
-unsigned long wildcard_read(struct wc_fileinfo *wfi,
-			    const struct wc_filesystem_ops *ops,
-			    void *buffer, unsigned long maxsize)
+unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
+			       const struct wc_filesystem_ops *ops,
+			       unsigned long pos, void *buffer,
+			       unsigned long maxsize)
 {
 	struct wc_dirinfo *wdi;
 	unsigned long loaded_size = (unsigned long)-1;
@@ -635,7 +637,7 @@ unsigned long wildcard_read(struct wc_fileinfo *wfi,
 		wildcard_print_pathfile(wdi, wfi);
 		puts(" ... ");
 
-		loaded_size = ops->read_file(wdi, wfi, buffer, maxsize);
+		loaded_size = ops->read_file_at(wdi, wfi, pos, buffer, maxsize);
 		if (loaded_size == (unsigned long)-1)
 			printf("failed!\n");
 		else

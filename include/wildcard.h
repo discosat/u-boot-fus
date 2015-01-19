@@ -84,9 +84,10 @@ struct wc_filesystem_ops {
 	struct wc_dirinfo *(*alloc_dir)(void);
 	void (*free_dir)(struct wc_dirinfo *wdi);
 	int (*get_fileinfo)(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi);
-	unsigned long (*read_file)(struct wc_dirinfo *wdi,
-				   struct wc_fileinfo *wfi, void *buffer,
-				   unsigned long maxsize);
+	unsigned long (*read_file_at)(struct wc_dirinfo *wdi,
+				      struct wc_fileinfo *wfi, 
+				      unsigned long pos, void *buffer,
+				      unsigned long maxsize);
 	unsigned long (*write_file)(struct wc_dirinfo *wdi,
 				    struct wc_fileinfo *wfi, void *buffer,
 				    unsigned long maxsize);
@@ -102,9 +103,10 @@ extern int wildcard_ls(struct wc_fileinfo *wfi,
 		       const struct wc_filesystem_ops *ops);
 
 /* Read a file */
-extern unsigned long wildcard_read(struct wc_fileinfo *wfi,
-				   const struct wc_filesystem_ops *ops,
-				   void *buffer, unsigned long maxsize);
+extern unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
+				      const struct wc_filesystem_ops *ops,
+				      unsigned long pos, void *buffer,
+				      unsigned long maxsize);
 
 /* Write a file */
 extern unsigned long wildcard_write(struct wc_fileinfo *wfi,
