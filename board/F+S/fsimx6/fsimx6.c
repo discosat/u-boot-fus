@@ -283,6 +283,11 @@ iomux_v3_cfg_t /*const###*/ usdhc3_pads[] = {
 //###	MX6Q_PAD_SD3_RST__USDHC3_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 };
 
+/* USB Host pads definition */
+iomux_v3_cfg_t const usb_pads[] = {
+        MX6Q_PAD_GPIO_17__GPIO_7_12 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 static void setup_gpmi_nand(void)
 {
 	int reg;
@@ -496,6 +501,20 @@ int board_mmc_init(bd_t *bis)
 	}
 
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
+}
+#endif
+
+#ifdef CONFIG_USB_EHCI_MX6
+int board_ehci_hcd_init(int port)
+{
+        imx_iomux_v3_setup_multiple_pads(usb_pads, ARRAY_SIZE(usb_pads));
+
+        /* Reset USB hub */
+        gpio_direction_output(IMX_GPIO_NR(7, 12), 0);
+        mdelay(2);
+        gpio_set_value(IMX_GPIO_NR(7, 12), 1);
+
+        return 0;
 }
 #endif
 

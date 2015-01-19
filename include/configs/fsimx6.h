@@ -357,7 +357,7 @@
 #undef CONFIG_CMD_UNIVERSE	/* no support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* have unzip command */
 #define CONFIG_CMD_UPDATE	/* support automatic update/install */
-//#####define CONFIG_CMD_USB		/* USB host support */
+#define CONFIG_CMD_USB		/* USB host support */
 #define CONFIG_CMD_XIMG		/* Load part of Multi Image */
 #undef CONFIG_CMD_ZFS		/* no support for ZFS filesystem */
 #undef CONFIG_CMD_ZIP		/* no support to zip memory region */
@@ -411,8 +411,12 @@
 /************************************************************************
  * USB host
  ************************************************************************/
-//####TODO
-
+#define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
+#define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
+#define CONFIG_MXC_USB_PORT 1		/* Use USB port 1 */
+#define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS 0
+#define CONFIG_USB_STORAGE
 
 /************************************************************************
  * USB device
