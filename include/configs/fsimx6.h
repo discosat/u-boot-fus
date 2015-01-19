@@ -5,7 +5,7 @@
  * armStoneA9, QBlissA9, PicoMODA9 and efusA9.
  * Activate with one of the following targets:
  *   make fsimx6_config       Configure for i.MX6 boards
- *   make fsimx6              Configure for i.MX6 boards and build
+ *   make uboot-fsimx6.nb0    Build uboot-fsimx6.nb0
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -272,6 +272,7 @@
 #undef CONFIG_CMD_CPLBINFO	/* no display of PPC CPLB tables */
 #undef CONFIG_CMD_CRAMFS	/* no support for CRAMFS filesystem */
 //####define CONFIG_CMD_DATE		/* no Date command */
+#undef CONFIG_CMD_DFU		/* no support for device firmware update */ 
 #define CONFIG_CMD_DHCP		/* support TFTP boot after DHCP request */
 #undef CONFIG_CMD_DIAG		/* no support for board selftest */
 #undef CONFIG_CMD_DNS		/* no lookup of IP via a DNS name server */
@@ -281,6 +282,7 @@
 #undef CONFIG_CMD_EEPROM	/* no EEPROM support */
 #undef CONFIG_CMD_ELF		/* no support to boot ELF images */
 #define CONFIG_CMD_EXT2		/* support for EXT2 filesystem */
+#define CONFIG_CMD_EXT4		/* support for EXT4 filesystem */
 #define CONFIG_CMD_FAT		/* support for FAT/VFAT filesystem */
 #undef CONFIG_CMD_FDC		/* no floppy disc controller */
 #undef CONFIG_CMD_FDOS		/* no support for DOS from floppy disc */
@@ -295,14 +297,15 @@
 #define CONFIG_CMD_IMI		/* image information (iminfo) */
 #undef CONFIG_CMD_IMLS		/* no support to list all found images */
 #undef CONFIG_CMD_IMMAP		/* no support for PPC immap table */
+#define CONFIG_CMD_INI		/* support INI files to init environment */
 #undef CONFIG_CMD_IRQ		/* no interrupt support */
 #define CONFIG_CMD_ITEST	/* Integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* no support for JFFS2 filesystem */
 #undef CONFIG_CMD_LDRINFO	/* no ldr support for blackfin */
 #undef CONFIG_CMD_LED		/* no LED support */
+#undef CONFIG_CMD_LICENSE	/* no support to show GPL license */
 #undef CONFIG_CMD_LOADB		/* no serial load of binaries (loadb) */
 #undef CONFIG_CMD_LOADS		/* no serial load of s-records (loads) */
-#undef CONFIG_CMD_LICENSE	/* no support to show GPL license */
 #undef CONFIG_CMD_MD5SUM	/* no support for md5sum checksums */
 #define CONFIG_CMD_MEMORY	/* md mm nm mw cp cmp crc base loop mtest */
 #undef CONFIG_CMD_MFSL		/* no support for Microblaze FSL */
@@ -311,13 +314,13 @@
 #define CONFIG_CMD_MMC		/* support for SD/MMC cards */
 #undef CONFIG_CMD_MMC_SPI	/* no access of MMC cards in SPI mode */
 #undef CONFIG_CMD_MOVI		/* no support for MOVI NAND flash memories */
-#undef CONIFG_CMD_MP		/* no multi processor support */
 #define CONFIG_CMD_MTDPARTS	/* support MTD partitions (mtdparts, chpart) */
 #define CONFIG_CMD_NAND		/* support for common NAND flash memories */
 #define CONFIG_CMD_NET		/* support BOOTP and TFTP (bootp, tftpboot) */
 #define CONFIG_CMD_NFS		/* support download via NFS */
 #undef CONFIG_CMD_ONENAND	/* no support for ONENAND flash memories */
 #undef CONFIG_CMD_OTP		/* no support for one-time-programmable mem */
+#undef CONFIG_CMD_PART		/* no support for partition info */
 #undef CONFIG_CMD_PCI		/* no PCI support */
 #undef CONFIG_CMD_PCMCIA	/* no support for PCMCIA cards */
 #define CONFIG_CMD_PING		/* support ping command */
@@ -346,6 +349,7 @@
 #undef CONFIG_CMD_TFTPPUT	/* no sending of TFTP files (tftpput) */
 #undef CONFIG_CMD_TFTPSRV	/* no acting as TFTP server (tftpsrv) */
 #undef CONFIG_CMD_TIME		/* no support to time command execution */
+#define CONFIG_CMD_TIMER	/* support system timer access */
 #undef CONFIG_CMD_TPM		/* no support for TPM */
 #undef CONFIG_CMD_TSI148	/* no support for Turndra Tsi148 */
 #define CONFIG_CMD_UBI		/* support for unsorted block images (UBI) */
@@ -355,9 +359,12 @@
 #define CONFIG_CMD_UPDATE	/* support automatic update/install */
 //#####define CONFIG_CMD_USB		/* USB host support */
 #define CONFIG_CMD_XIMG		/* Load part of Multi Image */
+#undef CONFIG_CMD_ZFS		/* no support for ZFS filesystem */
+#undef CONFIG_CMD_ZIP		/* no support to zip memory region */
 
 //####define CONFIG_OF_LIBFDT	/* device tree support (fdt) */
 #undef CONFIG_LOGBUFFER		/* no support for log files */
+#undef CONFIG_MP		/* no multi processor support */
 #undef CONFIG_ID_EEPROM		/* no EEPROM for ethernet MAC */
 #undef CONFIG_DATAFLASH_MMC_SELECT /* no dataflash support */
 #undef CONFIG_S3C_USBD		/* no USB device support */
@@ -392,6 +399,7 @@
 /************************************************************************
  * CPU (PLL) timings
  ************************************************************************/
+/* Already done in NBoot */
 
 
 /************************************************************************
@@ -665,4 +673,4 @@
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
 
-#endif				/* __FSIMX6_CONFIG_H */
+#endif /* !__FSIMX6_CONFIG_H */
