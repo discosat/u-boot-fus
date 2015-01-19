@@ -25,12 +25,7 @@
 #ifndef __ASM_ARCH_MX6_GPIO_H
 #define __ASM_ARCH_MX6_GPIO_H
 
-/* GPIO registers */
-struct gpio_regs {
-	u32	gpio_dr;
-	u32	gpio_dir;
-	u32	gpio_psr;
-};
+#include <asm/imx-common/gpio.h>
 
 #define IMX_GPIO_NR(port, index)		((((port)-1)*32)+((index)&31))
 

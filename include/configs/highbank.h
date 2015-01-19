@@ -41,6 +41,8 @@
 #define CONFIG_BAUDRATE			38400
 
 #define CONFIG_BOOTCOUNT_LIMIT
+#define CONFIG_SYS_BOOTCOUNT_SINGLEWORD
+#define CONFIG_SYS_BOOTCOUNT_LE		/* Use little-endian accessors */
 #define CONFIG_SYS_BOOTCOUNT_ADDR	0xfff3cf0c
 
 #define CONFIG_MISC_INIT_R
@@ -97,17 +99,6 @@
 		"pxefile_addr_r=0x700000\0" \
 		"kernel_addr_r=0x800000\0" \
 		"ramdisk_addr_r=0x01000000\0" \
-
-/*-----------------------------------------------------------------------
- * Stack sizes
- *
- * The stack sizes are set up in start.S using the settings below
- */
-#define CONFIG_STACKSIZE		(128*1024)	/* regular stack */
-#ifdef CONFIG_USE_IRQ
-#define CONFIG_STACKSIZE_IRQ		(4*1024)	/* IRQ stack */
-#define CONFIG_STACKSIZE_FIQ		(4*1024)	/* FIQ stack */
-#endif
 
 /*-----------------------------------------------------------------------
  * Physical Memory Map

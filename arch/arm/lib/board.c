@@ -228,10 +228,13 @@ init_fnc_t *const init_sequence[] = {
 #ifdef CONFIG_OF_CONTROL
 	fdtdec_check_fdt,
 #endif
+	timer_init,		/* initialize timer */
+#ifdef CONFIG_BOARD_POSTCLK_INIT
+	board_postclk_init,
+#endif
 #ifdef CONFIG_FSL_ESDHC
 	get_clocks,
 #endif
-	timer_init,		/* initialize timer */
 	env_init,		/* initialize environment */
 	init_baudrate,		/* initialize baudrate settings */
 	serial_init,		/* serial communications setup */

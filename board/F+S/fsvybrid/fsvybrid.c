@@ -60,8 +60,8 @@
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{ESDHC0_BASE_ADDR, 1},
-	{ESDHC1_BASE_ADDR, 1},
+	{ESDHC0_BASE_ADDR},
+	{ESDHC1_BASE_ADDR},
 };
 #endif
 

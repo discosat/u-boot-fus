@@ -48,7 +48,7 @@
 //#include <asm/arch/mx6-pins.h>
 #include <asm/arch/mx6x_pins.h>
 #include <asm/arch/iomux.h>
-#include <asm/arch/iomux-v3.h>
+#include <asm/imx-common/iomux-v3.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h> /* nandf clock settings */
 #include <asm/arch/clock.h>
@@ -58,10 +58,10 @@
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{USDHC1_BASE_ADDR, 1},
-	{USDHC2_BASE_ADDR, 1},
-	{USDHC3_BASE_ADDR, 1},
-	{USDHC4_BASE_ADDR, 1},
+	{USDHC1_BASE_ADDR},
+	{USDHC2_BASE_ADDR},
+	{USDHC3_BASE_ADDR},
+	{USDHC4_BASE_ADDR},
 };
 #endif
 
@@ -403,8 +403,6 @@ int board_init(void)
 	DECLARE_GLOBAL_DATA_PTR;
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int board_type = pargs->chBoardType;
-
-	printf("### board_init()\n");
 
 	/* Save a copy of the NBoot args */
 	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));

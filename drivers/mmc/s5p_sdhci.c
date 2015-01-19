@@ -22,6 +22,7 @@
 #include <sdhci.h>
 #include <asm/arch/cpu.h>		  /* samsung_get_base_mmc() */
 #include <asm/arch/mmc.h>
+#include <asm/arch/clk.h>
 
 //static char *S5P_NAME = "SAMSUNG SDHCI";
 static char *S5P_NAME = "s5p_sdhci";
@@ -57,7 +58,7 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 	 *              about 2ns @50MHz
 	 * ### 19.12.2012 HK: Settings above are verified on S5PV210!
 	 */
-	val = SDHCI_CTRL3_FCSEL3 | SDHCI_CTRL3_FCSEL1;
+	val = SDHCI_CTRL3_FCSEL0 | SDHCI_CTRL3_FCSEL1;
 	sdhci_writel(host, val, SDHCI_CONTROL3);
 
 	/*
@@ -72,7 +73,7 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 	sdhci_writel(host, ctrl, SDHCI_CONTROL2);
 }
 
-int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
+int s5p_sdhci_init(u32 regbase, int index, int bus_width)
 {
 	struct sdhci_host *host = NULL;
 	host = (struct sdhci_host *)malloc(sizeof(struct sdhci_host));
@@ -83,7 +84,6 @@ int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
 
 	host->name = S5P_NAME;
 	host->ioaddr = (void *)regbase;
-	host->quirks = quirks;
 
 	//### 19.12.2012 HK: We actually do have the HISPD bit (even if it is
 	//### called OUTEDGEINV in the Samsung docu), but it does not make
@@ -91,7 +91,8 @@ int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
 	//### HISPD bit stays 0 even on clocks > 25MHz. The voltages look
 	//### perfectly right, so no reason to have a quirk here.
 	host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT;
-	//host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE;
+	//host->quirks = SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE |
+	//	SDHCI_QUIRK_BROKEN_R1B | SDHCI_QUIRK_32BIT_DMA_ADDR;
 	//host->voltages = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195;
 	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
 
@@ -99,9 +100,11 @@ int s5p_sdhci_init(u32 regbase, u32 max_clk, u32 min_clk, u32 quirks)
 	host->version &= 0x00ff;
 
 	host->set_control_reg = &s5p_sdhci_set_control_reg;
+	host->set_clock = set_mmc_clk;
+	host->index = index;
 
 	host->host_caps = MMC_MODE_HC;
 
-	add_sdhci(host, max_clk, min_clk);
+	add_sdhci(host, 52000000, 400000);
 	return 0;
 }

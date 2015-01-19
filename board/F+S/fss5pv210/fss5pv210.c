@@ -539,8 +539,7 @@ int board_mmc_init(bd_t *bis)
 	s5p_gpio_cfg_pin(&gpio->g0, 6, 2);
 
 	/* We have mmc0 (4 bit bus width) */
-	return s5p_sdhci_init(samsung_get_base_mmc() + (0x10000 * 0),
-			      base_clock, base_clock/128, 0);
+	return s5p_sdhci_init(samsung_get_base_mmc() + (0x10000 * 0), 0, 4);
 }
 #endif
 

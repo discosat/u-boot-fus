@@ -479,12 +479,10 @@ static int esdhc_init(struct mmc *mmc)
 	while ((esdhc_read32(&regs->sysctl) & SYSCTL_RSTA) && --timeout)
 		udelay(1000);
 
+#if !defined(ARCH_MXC) && !defined(CONFIG_VYBRID)
 	/* Enable cache snooping */
-
-	if (cfg && !cfg->no_snoop) {
-		asm volatile("" ::: "memory");
-		esdhc_write32(&regs->scr, 0x00000040);
-	}
+	esdhc_write32(&regs->scr, 0x00000040);
+#endif
 
 	esdhc_write32(&regs->sysctl, SYSCTL_HCKEN | SYSCTL_IPGEN);
 
@@ -589,6 +587,7 @@ int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg)
 
 	mmc->b_max = 0;
 	mmc_register(mmc);
+
 	return 0;
 }
 
@@ -599,9 +598,7 @@ int fsl_esdhc_mmc_init(bd_t *bis)
 	cfg = malloc(sizeof(struct fsl_esdhc_cfg));
 	memset(cfg, 0, sizeof(struct fsl_esdhc_cfg));
 	cfg->esdhc_base = CONFIG_SYS_FSL_ESDHC_ADDR;
-#ifdef CONFIG_ESDHC_NO_SNOOP
-	cfg->no_snoop = 1;
-#endif
+
 	return fsl_esdhc_initialize(bis, cfg);
 }
 

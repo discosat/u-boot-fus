@@ -430,12 +430,11 @@ void env_relocate_spec(void)
 	size_t env_size;
 
 #if defined(CONFIG_ENV_OFFSET_OOB)
-	ret = get_nand_env_oob(&nand_info[0], &nand_env_oob_offset);
 	/*
 	 * If unable to read environment offset from NAND OOB then fall through
 	 * to the normal environment reading code below
 	 */
-	if (!ret) {
+	if (!get_nand_env_oob(&nand_info[0], &nand_env_oob_offset)) {
 		printf("Found Environment offset in OOB..\n");
 	} else {
 		set_default_env("!no env offset in OOB");
