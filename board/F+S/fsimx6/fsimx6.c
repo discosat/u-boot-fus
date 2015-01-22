@@ -124,11 +124,11 @@ struct board_info {
 	char *fsload;			/* Default variable for load command */
 };
 
-#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
-#elif defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc"
-#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "usb"
 #else
 #define UPDATE_DEF NULL

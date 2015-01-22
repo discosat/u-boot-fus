@@ -169,3 +169,15 @@ struct serial_device *get_serial_device(unsigned int n)
 
 	return NULL;
 }
+
+/* Register all serial ports; if you only want to register a subset, implement
+   function board_serial_init() and call serial_register() there. */
+void vybrid_serial_initialize(void)
+{
+	serial_register(&vybrid_serial_device[0]);
+	serial_register(&vybrid_serial_device[1]);
+	serial_register(&vybrid_serial_device[2]);
+	serial_register(&vybrid_serial_device[3]);
+	serial_register(&vybrid_serial_device[4]);
+	serial_register(&vybrid_serial_device[5]);
+}

@@ -107,6 +107,34 @@ __u8 fat_checksum(const char *dirname)
 }
 #endif
 
+int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
+{
+	disk_partition_t info;
+
+	/* First close any currently found FAT filesystem */
+	cur_dev = NULL;
+
+	/* Read the partition table, if present */
+	if (get_partition_info(dev_desc, part_no, &info)) {
+		if (part_no != 0) {
+			printf("** Partition %d not valid on device %d **\n",
+					part_no, dev_desc->dev);
+			return -1;
+		}
+
+		info.start = 0;
+		info.size = dev_desc->lba;
+		info.blksz = dev_desc->blksz;
+		info.name[0] = 0;
+		info.type[0] = 0;
+		info.bootable = 0;
+#ifdef CONFIG_PARTITION_UUIDS
+		info.uuid[0] = 0;
+#endif
+	}
+
+	return fat_set_blk_dev(dev_desc, &info);
+}
 
 /*
  * Load consecutive blocks from block device.
@@ -762,7 +790,7 @@ long file_fat_read_at(const char *pattern, unsigned long pos, void *buffer,
  *   0:  OK, FAT filesystem initialized
  *   -1: Error, e.g. no FAT filesystem, error reading data from device, etc.
  */
-int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
+int fat_set_blk_dev(block_dev_desc_t *dev_desc, disk_partition_t *info)
 {
 	struct boot_sector *bs;
 	__u32 clusters;
@@ -770,39 +798,8 @@ int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 	struct fsdata *mydata = &myfsdata;
 	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, buffer, dev_desc->blksz);
 
-	/* First close any currently found FAT filesystem */
-	cur_dev = NULL;
-
-#if (defined(CONFIG_CMD_IDE) || \
-     defined(CONFIG_CMD_SATA) || \
-     defined(CONFIG_CMD_SCSI) || \
-     defined(CONFIG_CMD_USB) || \
-     defined(CONFIG_MMC) || \
-     defined(CONFIG_SYSTEMACE) )
-
-	/* Read the partition table, if present */
-	if (!get_partition_info(dev_desc, part_no, &cur_part_info)) {
-		cur_dev = dev_desc;
-		cur_part_nr = part_no;
-	}
-#endif
-
-	/* Otherwise it might be a superfloppy (whole-disk FAT filesystem) */
-	if (!cur_dev) {
-		if (part_no != 0) {
-			printf("** Partition %d not valid on device %d **\n",
-					part_no, dev_desc->dev);
-			return -1;
-		}
-
-		cur_dev = dev_desc;
-		cur_part_nr = 0;
-		cur_part_info.start = 0;
-		cur_part_info.size = dev_desc->lba;
-		cur_part_info.blksz = dev_desc->blksz;
-		memset(cur_part_info.name, 0, sizeof(cur_part_info.name));
-		memset(cur_part_info.type, 0, sizeof(cur_part_info.type));
-	}
+	cur_dev = dev_desc;
+	cur_part_info = *info;
 
 	/* Make sure it has a valid FAT header */
 	if (disk_read(0, 1, buffer) != 1) {

@@ -23,7 +23,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)libwildcard.o
 
-COBJS-$(CONFIG_CMD_FAT)	:= wildcard.o
+COBJS-$(CONFIG_FS_FAT)	:= wildcard.o
 
 SRCS	:= $(COBJS-y:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS-y))

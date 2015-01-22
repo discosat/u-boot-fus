@@ -84,13 +84,13 @@ struct board_info {
 	char *kernel;			  /* Default variable for kernel */
 };
 
-#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
 #define UPDATE_PM7A "mmc1,mmc2,usb"
-#elif defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc"
 #define UPDATE_PM7A "mmc1,mmc2"
-#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "usb"
 #define UPDATE_PM7A "usb"
 #else

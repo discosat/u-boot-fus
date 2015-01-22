@@ -217,3 +217,20 @@ struct serial_device *get_serial_device(unsigned int n)
 
 	return NULL;
 }
+
+/* Register all serial ports; if you only want to register a subset, implement
+   function board_serial_init() and call serial_register() there. */
+void s5p_serial_initialize(void)
+{
+	if (cpu_is_s5pc100()) {
+		serial_register(&s5pc100_serial_device[0]);
+		serial_register(&s5pc100_serial_device[1]);
+		serial_register(&s5pc100_serial_device[2]);
+		serial_register(&s5pc100_serial_device[3]);
+	} else if (cpu_is_s5pc110()) {
+		serial_register(&s5pc110_serial_device[0]);
+		serial_register(&s5pc110_serial_device[1]);
+		serial_register(&s5pc110_serial_device[2]);
+		serial_register(&s5pc110_serial_device[3]);
+	}
+}

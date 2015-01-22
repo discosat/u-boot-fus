@@ -209,7 +209,7 @@ int saveenv(void)
 
 	data = (char *)(env_new + 1);
 	env_size -= ENV_HEADER_SIZE;
-	if (hexport_r(&env_htab, '\0', data, env_size, 0, NULL) < 0) {
+	if (hexport_r(&env_htab, '\0', 0, data, env_size, 0, NULL) < 0) {
 		printf("Export environment: errno = %d ", errno);
 		goto FAILED;
 	}
@@ -264,7 +264,7 @@ int saveenv(void)
 	}
 
 	data = (char *)(env_new + 1);
-	if (hexport_r(&env_htab, '\0', &data, env_size - ENV_HEADER_SIZE, 0,
+	if (hexport_r(&env_htab, '\0', 0, &data, env_size - ENV_HEADER_SIZE, 0,
 		      NULL) < 0) {
 		printf("Export environment: errno = %d ", errno);
 		goto FAILED;

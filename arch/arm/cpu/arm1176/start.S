@@ -239,12 +239,7 @@ skip_tcmdisable:
 	 */
 	bl	lowlevel_init		/* go setup pll,mux,memory */
 
-/* Set stackpointer in internal RAM to call board_init_f */
-call_board_init_f:
-	ldr	sp, =(CONFIG_SYS_INIT_SP_ADDR)
-	bic	sp, sp, #7 /* 8-byte alignment for ABI compliance */
-	ldr	r0,=0x00000000
-	bl	board_init_f
+	bl	_main
 
 
 /*---------------------------------------------------------------------------*/
@@ -262,14 +257,10 @@ relocate_code:
 	mov	r5, r1			/* save addr of gd */
 	mov	r6, r2			/* save addr of destination */
 
-	/* Set up the stack						    */
-stack_setup:
-	mov	sp, r4
-
 	adr	r0, _start
 	cmp	r0, r6
 	moveq	r9, #0		/* no relocation. relocation offset(r9) = 0 */
-	beq	clear_bss		/* skip relocation */
+	beq	relocate_done		/* skip relocation */
 	mov	r1, r6			/* r1 <- scratch for copy_loop */
 	ldr	r3, _bss_start_ofs
 	add	r2, r0, r3		/* r2 <- source end address	    */
@@ -352,45 +343,6 @@ mmu_enable:
 	mov	pc, r2
 after_mmu_enable:
 #endif
-
-clear_bss:
-#ifndef CONFIG_SPL_BUILD
-	ldr	r0, _bss_start_ofs
-	ldr	r1, _bss_end_ofs
-	add	r0, r0, r6		/* add reloc addr */
-	add	r1, r1, r6
-	mov	r2, #0x00000000		/* clear			    */
-
-clbss_l:cmp	r0, r1			/* clear loop... */
-	bhs	clbss_e			/* if reached end of bss, exit */
-	str	r2, [r0]
-	add	r0, r0, #4
-	b	clbss_l
-clbss_e:
-#if defined(CONFIG_CMD_LED) && !defined(CONFIG_NAND_SPL)
-	bl coloured_LED_init
-	bl red_led_on
-#endif
-#endif
-
-/*
- * We are done. Do not return, instead branch to second part of board
- * initialization, now running from RAM.
- */
-#ifdef CONFIG_NAND_SPL
-	ldr     pc, _nand_boot
-
-_nand_boot: .word nand_boot
-#else
-	ldr	r0, _board_init_r_ofs
-	adr	r1, _start
-	add	lr, r0, r1
-	add     lr, lr, r9
-	/* setup parameters for board_init_r */
-	mov	r0, r5		/* gd_t */
-	mov	r1, r6		/* dest_addr */
-	/* jump to it ... */
-	mov	pc, lr
 
 /*---------------------------------------------------------------------------*/
 
@@ -522,9 +474,9 @@ phexr1:	/* print r1 as hex using r11 as UART pointer and r12 as scratch */
 	mov	pc, lr
 #endif //####HK
 
-_board_init_r_ofs:
-	.word board_init_r - _start
-#endif
+relocate_done:
+
+	bx	lr
 
 _rel_dyn_start_ofs:
 	.word __rel_dyn_start - _start
@@ -537,6 +489,11 @@ _dynsym_start_ofs:
 //### _mmu_table_base:
 //###	.word mmu_table
 //### #endif
+
+	.globl	c_runtime_cpu_setup
+c_runtime_cpu_setup:
+
+	mov	pc, lr
 
 #ifndef CONFIG_NAND_SPL
 /*

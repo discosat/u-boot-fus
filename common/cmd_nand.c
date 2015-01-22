@@ -852,9 +852,8 @@ usage:
 	return CMD_RET_USAGE;
 }
 
-U_BOOT_CMD(
-	nand, CONFIG_SYS_MAXARGS, 1, do_nand,
-	"NAND sub-system",
+#ifdef CONFIG_SYS_LONGHELP
+static char nand_help_text[] =
 	"info - show available NAND devices\n"
 	"nand device [dev] - show or set current device\n"
 	"nand read[.oob[auto]] - addr off|partition size\n"
@@ -907,6 +906,12 @@ U_BOOT_CMD(
 	"nand env.oob set off|partition - set enviromnent offset\n"
 	"nand env.oob get - get environment offset"
 #endif
+	"";
+#endif
+
+U_BOOT_CMD(
+	nand, CONFIG_SYS_MAXARGS, 1, do_nand,
+	"NAND sub-system", nand_help_text
 );
 
 int nand_load_image(int index, ulong offset, ulong addr, int show)

@@ -189,3 +189,15 @@ struct serial_device *get_serial_device(unsigned int n)
 
 	return NULL;
 }
+
+/* Register all serial ports; if you only want to register a subset, implement
+   function board_serial_init() and call serial_register() there. */
+void s3c64xx_serial_initialize(void)
+{
+	serial_register(&s3c64xx_serial_device[0]);
+	serial_register(&s3c64xx_serial_device[1]);
+	serial_register(&s3c64xx_serial_device[2]);
+#if (S3C64XX_UART_CHANNELS > 3)
+	serial_register(&s3c64xx_serial_device[3]);
+#endif
+}

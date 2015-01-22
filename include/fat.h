@@ -198,16 +198,15 @@ file_ls_func		file_fat_ls;
 file_read_func		file_fat_read;
 
 /* Currently this doesn't check if the dir exists or is valid... */
-extern int file_fat_detectfs(void);
-extern const char *file_getfsname(int idx);
-extern int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
+int file_cd(const char *path);
+int file_fat_detectfs(void);
+int file_fat_ls(const char *pattern);
+long file_fat_read_at(const char *filename, unsigned long pos,
+		      void *buffer, unsigned long maxsize);
+long file_fat_read(const char *pattern, void *buffer, unsigned long maxsize);
+const char *file_getfsname(int idx);
+int fat_set_blk_dev(block_dev_desc_t *rbdd, disk_partition_t *info);
+int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
 
-extern int file_fat_ls(const char *pattern);
-extern long file_fat_read_at(const char *filename, unsigned long pos,
-			     void *buffer, unsigned long maxsize);
-extern long file_fat_read(const char *pattern, void *buffer,
-			  unsigned long maxsize);
-extern int file_fat_write(const char *pattern, void *buffer,
-			  unsigned long maxsize);
-
+int file_fat_write(const char *pattern, void *buffer, unsigned long maxsize);
 #endif /* _FAT_H_ */

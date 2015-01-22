@@ -26,6 +26,8 @@ struct serial_device {
 	struct serial_device *prev;
 };
 
+void default_serial_puts(const struct stdio_dev *pdev, const char *s);
+
 extern struct serial_device serial_smc_device;
 extern struct serial_device serial_scc_device;
 extern struct serial_device *default_serial_console(void);
@@ -40,59 +42,6 @@ extern struct serial_device *default_serial_console(void);
 	defined(CONFIG_MICROBLAZE)
 extern struct serial_device serial0_device;
 extern struct serial_device serial1_device;
-#if defined(CONFIG_SYS_NS16550_SERIAL)
-extern struct serial_device eserial1_device;
-extern struct serial_device eserial2_device;
-extern struct serial_device eserial3_device;
-extern struct serial_device eserial4_device;
-#endif /* CONFIG_SYS_NS16550_SERIAL */
-
-#endif
-
-#if defined(CONFIG_MPC512X)
-extern struct serial_device serial1_device;
-extern struct serial_device serial3_device;
-extern struct serial_device serial4_device;
-extern struct serial_device serial6_device;
-#endif
-
-#if defined(CONFIG_XILINX_UARTLITE)
-extern struct serial_device uartlite_serial0_device;
-extern struct serial_device uartlite_serial1_device;
-extern struct serial_device uartlite_serial2_device;
-extern struct serial_device uartlite_serial3_device;
-#endif
-
-#if defined(CONFIG_S3C2410)
-extern struct serial_device s3c24xx_serial0_device;
-extern struct serial_device s3c24xx_serial1_device;
-extern struct serial_device s3c24xx_serial2_device;
-#endif
-
-extern struct serial_device *get_serial_device(unsigned int);
-
-#if defined(CONFIG_OMAP3_ZOOM2)
-extern struct serial_device zoom2_serial_device0;
-extern struct serial_device zoom2_serial_device1;
-extern struct serial_device zoom2_serial_device2;
-extern struct serial_device zoom2_serial_device3;
-#endif
-
-extern struct serial_device serial_ffuart_device;
-extern struct serial_device serial_btuart_device;
-extern struct serial_device serial_stuart_device;
-
-#if defined(CONFIG_SYS_BFIN_UART)
-extern void serial_register_bfin_uart(void);
-extern struct serial_device bfin_serial0_device;
-extern struct serial_device bfin_serial1_device;
-extern struct serial_device bfin_serial2_device;
-extern struct serial_device bfin_serial3_device;
-#endif
-
-#if defined(CONFIG_ZYNQ_SERIAL)
-extern struct serial_device uart_zynq_serial0_device;
-extern struct serial_device uart_zynq_serial1_device;
 #endif
 
 extern void serial_register(struct serial_device *);
@@ -100,6 +49,7 @@ extern void serial_initialize(void);
 extern void serial_stdio_init(void);
 extern int serial_assign(const char *name);
 extern void serial_reinit_all(void);
+extern struct serial_device *get_serial_device(unsigned int);
 
 /* For usbtty */
 #ifdef CONFIG_USB_TTY
@@ -119,7 +69,7 @@ extern int usbtty_tstc(void);
 
 #endif /* CONFIG_USB_TTY */
 
-#if defined(CONFIG_MPC512X) &&  defined(CONFIG_SERIAL_MULTI)
+#if defined(CONFIG_MPC512X)
 extern struct stdio_dev *open_port(int num, int baudrate);
 extern int close_port(int num);
 extern int write_port(struct stdio_dev *port, char *buf);

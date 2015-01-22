@@ -233,9 +233,7 @@ int stdio_init (void)
 	drv_logbuff_init ();
 #endif
 	drv_system_init ();
-#ifdef CONFIG_SERIAL_MULTI
 	serial_stdio_init ();
-#endif
 #ifdef CONFIG_USB_TTY
 	drv_usbtty_init ();
 #endif
@@ -245,6 +243,8 @@ int stdio_init (void)
 #ifdef CONFIG_JTAG_CONSOLE
 	drv_jtag_console_init ();
 #endif
-
+#ifdef CONFIG_CBMEM_CONSOLE
+	cbmemc_init();
+#endif
 	return (0);
 }

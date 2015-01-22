@@ -42,7 +42,7 @@
 #define CONFIG_SYS_XIMG_LEN	0x800000
 #endif
 
-int
+static int
 do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong		addr;
@@ -262,9 +262,8 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
-U_BOOT_CMD(
-	imxtract, 4, 1, do_imgextract,
-	"extract a part of a multi-image",
+#ifdef CONFIG_SYS_LONGHELP
+static char imgextract_help_text[] =
 	"addr part [dest]\n"
 	"    - extract <part> from legacy image at <addr> and copy to <dest>"
 #if defined(CONFIG_FIT)
@@ -272,4 +271,10 @@ U_BOOT_CMD(
 	"addr uname [dest]\n"
 	"    - extract <uname> subimage from FIT image at <addr> and copy to <dest>"
 #endif
+	"";
+#endif
+
+U_BOOT_CMD(
+	imxtract, 4, 1, do_imgextract,
+	"extract a part of a multi-image", imgextract_help_text
 );

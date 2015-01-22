@@ -135,13 +135,18 @@ void s5p_gpio_set_pull(struct s5p_gpio_bank *bank, int gpio, int mode);
 void s5p_gpio_set_drv(struct s5p_gpio_bank *bank, int gpio, int mode);
 void s5p_gpio_set_rate(struct s5p_gpio_bank *bank, int gpio, int mode);
 
+static inline unsigned int s5p_gpio_part_max(int nr)
+{
+	return 0;
+}
+
 #if 0 //#####
 static inline unsigned int s5p_gpio_base(int nr)
 {
 	return S5PC110_GPIO_BASE;
 }
 
-#define s5pc110_gpio_get_nr(bank, pin) \
+#define s5pc110_gpio_get_nr(bank, pin)	  \
 	((((((unsigned int)&(((struct s5pc110_gpio *)S5PC110_GPIO_BASE)->bank))\
 	    - S5PC110_GPIO_BASE) / sizeof(struct s5p_gpio_bank)) \
 	  * GPIO_PER_BANK) + pin)

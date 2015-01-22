@@ -222,9 +222,7 @@ int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 U_BOOT_CMD(
 	led, 3, 1, do_led,
-	"set, clear or toggle led(s)",
-	"<led> [on|off|toggle|blink] - set, clear, toggle or blink <led>\n"
-	"\n<led> is one of: "
+	"["
 #ifdef CONFIG_BOARD_SPECIFIC_LED
 #ifdef STATUS_LED_BIT
 	"0, "
@@ -251,5 +249,14 @@ U_BOOT_CMD(
 #ifdef STATUS_LED_BLUE
 	"blue, "
 #endif
-	"all\n"
+	"all] [on|off|toggle"
+#ifdef CONFIG_CMD_BLINK
+	"|blink"
+#endif
+	"]",
+	"[led_name] [on|off|toggle"
+#ifdef CONFIG_CMD_BLINK
+	"|blink"
+#endif
+	"] sets or clears led(s)"
 );

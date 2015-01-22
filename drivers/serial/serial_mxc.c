@@ -275,8 +275,19 @@ struct serial_device mxc_serial_device[] = {
 /* Get pointer to n-th serial device */
 struct serial_device *get_serial_device(unsigned int n)
 {
-	if (n < 6)
+	if (n < 5)
 		return &mxc_serial_device[n];
 
 	return NULL;
+}
+
+/* Register all serial ports; if you only want to register a subset, implement
+   function board_serial_init() and call serial_register() there. */
+void mxc_serial_initialize(void)
+{
+	serial_register(&mxc_serial_device[0]);
+	serial_register(&mxc_serial_device[1]);
+	serial_register(&mxc_serial_device[2]);
+	serial_register(&mxc_serial_device[3]);
+	serial_register(&mxc_serial_device[4]);
 }

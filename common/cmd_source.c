@@ -199,9 +199,8 @@ do_source (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return rcode;
 }
 
-U_BOOT_CMD(
-	source, 2, 0,	do_source,
-	"run script from memory",
+#ifdef CONFIG_SYS_LONGHELP
+static char source_help_text[] =
 	"[addr]\n"
 	"\t- run script starting at addr\n"
 	"\t- A valid image header must be present"
@@ -210,6 +209,12 @@ U_BOOT_CMD(
 	"For FIT format uImage addr must include subimage\n"
 	"unit name in the form of addr:<subimg_uname>"
 #endif
+	"";
+#endif
+
+U_BOOT_CMD(
+	source, 2, 0,	do_source,
+	"run script from memory", source_help_text
 );
 
 
@@ -350,7 +355,7 @@ static int update_mtd(const char *action, const char **check, const char *fname,
 #endif /* CONFIG_CMD_MTDPARTS */
 
 
-#if defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 static int update_mmc(const char *action, const char **check, const char *fname,
 		      unsigned long addr)
 {
@@ -390,9 +395,9 @@ static int update_mmc(const char *action, const char **check, const char *fname,
 
 	return 0;
 }
-#endif /* CONFIG_MMC && CONFIG_CMD_FAT */
+#endif /* CONFIG_MMC && CONFIG_FS_FAT */
 
-#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 static int update_usb(const char *action, const char **check, const char *fname,
 		      unsigned long addr)
 {
@@ -436,7 +441,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 
 	return 0;
 }
-#endif /* CONFIG_USB_STORAGE && CONFIG_CMD_FAT */
+#endif /* CONFIG_USB_STORAGE && CONFIG_FS_FAT */
 
 #ifdef CONFIG_CMD_NET
 static int update_net(const char *action, const char **check, const char *fname,
@@ -542,11 +547,11 @@ int update_script(enum update_action action_id, const char *check,
 			ret = 1;
 		else if (strncmp(check, "ram", 3) == 0)
 			ret = update_ram(action, &check, &addr);
-#if defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 		else if (strncmp(check, "mmc", 3) == 0)
 			ret = update_mmc(action, &check, fname, addr);
 #endif
-#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 		else if (strncmp(check, "usb", 3) == 0)
 			ret = update_usb(action, &check, fname, addr);
 #endif
@@ -662,11 +667,11 @@ U_BOOT_CMD(
 	"   device specifications:\n\n"
 	"   ram[@addr]\n"
 	"      Execute script from RAM at address <addr>\n"
-#if defined(CONFIG_MMC) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 	"   mmc[<dev_num>[:<part_num>]]\n"
 	"      Load script from MMC device <dev_num>, partition <part_num>\n"
 #endif
-#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_CMD_FAT)
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 	"   usb{<dev_num>[:<part_num>]]\n"
 	"      Load script from USB device <dev_num>, partition <part_num>\n"
 #endif

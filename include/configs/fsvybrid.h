@@ -341,9 +341,9 @@
 #define CONFIG_CMD_EDITENV	/* allow editing of environment variables */
 #undef CONFIG_CMD_EEPROM	/* no EEPROM support */
 #undef CONFIG_CMD_ELF		/* no support to boot ELF images */
-#define CONFIG_CMD_EXT2		/* support for EXT2 filesystem */
-#define CONFIG_CMD_EXT4		/* support for EXT4 filesystem */
-#define CONFIG_CMD_FAT		/* support for FAT/VFAT filesystem */
+#define CONFIG_CMD_EXT2		/* support for EXT2 commands */
+#define CONFIG_CMD_EXT4		/* support for EXT4 commands */
+#define CONFIG_CMD_FAT		/* support for FAT commands */
 #undef CONFIG_CMD_FDC		/* no floppy disc controller */
 #undef CONFIG_CMD_FDOS		/* no support for DOS from floppy disc */
 #undef CONFIG_CMD_FITUPD	/* no update from FIT image */
@@ -430,6 +430,10 @@
 #undef CONFIG_S3C_USBD		/* no USB device support */
 #undef CONFIG_YAFFS2		/* no support for YAFFS2 filesystem commands */
 
+/* Supported Filesystems; this is independent from the supported commands */
+#define CONFIG_FS_FAT		/* support for FAT/VFAT filesystem */
+#define CONFIG_FS_EXT4		/* support for EXT2/3/4 filesystem */
+
 
 /************************************************************************
  * BOOTP options
@@ -480,6 +484,19 @@
  * CPU (PLL) timings
  ************************************************************************/
 /* Already done in NBoot */
+/* ##### TODO: Activate some devices; for now: activate all devices */
+#define CONFIG_SYS_CLKCTL_CCGR0		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR1		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR2		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR3		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR4		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR5		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR6		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR7		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR8		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR9		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR10	0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR11	0xFFFFFFFF
 
 
 /************************************************************************

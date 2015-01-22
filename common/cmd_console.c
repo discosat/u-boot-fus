@@ -28,7 +28,8 @@
 #include <command.h>
 #include <stdio_dev.h>
 
-int do_coninfo (cmd_tbl_t * cmd, int flag, int argc, char * const argv[])
+extern void _do_coninfo (void);
+static int do_coninfo(cmd_tbl_t *cmd, int flag, int argc, char * const argv[])
 {
 	int l;
 	struct stdio_dev *pdev;

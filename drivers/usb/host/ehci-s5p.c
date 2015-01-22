@@ -26,7 +26,6 @@
 #include <asm/io.h>
 #include <usb.h>
 #include "ehci.h"			  /* struct ehci_{hccr,hcor} */
-#include "ehci-core.h"			  /* hccr, hcor */
 #include <asm/arch/cpu.h>		  /* samsung_get_base_ehci() */
 #include <asm/arch/clock.h>		  /* struct s5pc110_clock */
 
@@ -44,10 +43,10 @@ struct s5p_usb_phy {			  /* Offset */
 };
 
 
-int ehci_hcd_init(void)
+int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
 	unsigned int ehci_base = samsung_get_base_ehci();
-	struct s5pc110_clock *clock = 
+	struct s5pc110_clock *clock =
 		(struct s5pc110_clock *)samsung_get_base_clock();
 	volatile unsigned int *phy_control;
 	struct s5p_usb_phy *phy;
@@ -58,8 +57,8 @@ int ehci_hcd_init(void)
 	if (!ehci_base)
 		return -1;
 
-	hccr = (struct ehci_hccr *)ehci_base;
-	hcor = (struct ehci_hcor *)(ehci_base + 0x10);
+	*hccr = (struct ehci_hccr *)ehci_base;
+	*hcor = (struct ehci_hcor *)(ehci_base + 0x10);
 
 	/* Enable OTG clock while changing PHY registers */
 	gate_ip1 = readl(&clock->gate_ip1);
@@ -95,7 +94,7 @@ int ehci_hcd_init(void)
  * Destroy the appropriate control structures corresponding
  * the the EHCI host controller.
  */
-int ehci_hcd_stop(void)
+int ehci_hcd_stop(int index)
 {
 	unsigned int *phy_control =
 		(unsigned int *)samsung_get_base_phy_control();

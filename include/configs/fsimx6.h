@@ -281,9 +281,9 @@
 #define CONFIG_CMD_EDITENV	/* allow editing of environment variables */
 #undef CONFIG_CMD_EEPROM	/* no EEPROM support */
 #undef CONFIG_CMD_ELF		/* no support to boot ELF images */
-#define CONFIG_CMD_EXT2		/* support for EXT2 filesystem */
-#define CONFIG_CMD_EXT4		/* support for EXT4 filesystem */
-#define CONFIG_CMD_FAT		/* support for FAT/VFAT filesystem */
+#define CONFIG_CMD_EXT2		/* support for EXT2 commands */
+#define CONFIG_CMD_EXT4		/* support for EXT4 commands */
+#define CONFIG_CMD_FAT		/* support for FAT commands */
 #undef CONFIG_CMD_FDC		/* no floppy disc controller */
 #undef CONFIG_CMD_FDOS		/* no support for DOS from floppy disc */
 #undef CONFIG_CMD_FITUPD	/* no update from FIT image */
@@ -369,6 +369,10 @@
 #undef CONFIG_DATAFLASH_MMC_SELECT /* no dataflash support */
 #undef CONFIG_S3C_USBD		/* no USB device support */
 #undef CONFIG_YAFFS2		/* no support for YAFFS2 filesystem commands */
+
+/* Supported Filesystems; this is independent from the supported commands */
+#define CONFIG_FS_FAT		/* support for FAT/VFAT filesystem */
+#define CONFIG_FS_EXT4		/* support for EXT2/3/4 filesystem */
 
 
 /************************************************************************

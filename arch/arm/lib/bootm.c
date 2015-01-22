@@ -34,6 +34,7 @@
 #include <libfdt.h>
 #include <fdt_support.h>
 #include <asm/bootm.h>
+#include <linux/compiler.h>
 
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)
 #include <cmd_lcd.h>			  /* lcd_getfbpoolinfo() */
@@ -105,6 +106,9 @@ static void announce_and_cleanup(void)
 {
 	printf("\nStarting kernel ...\n\n");
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
+#ifdef CONFIG_BOOTSTAGE_FDT
+	bootstage_fdt_add_report();
+#endif
 #ifdef CONFIG_BOOTSTAGE_REPORT
 	bootstage_report();
 #endif
@@ -368,6 +372,8 @@ static int create_fdt(bootm_headers_t *images)
 }
 #endif
 
+__weak void setup_board_tags(struct tag **in_params) {}
+
 /* Subcommand: PREP */
 static void boot_prep_linux(bootm_headers_t *images)
 {
@@ -426,6 +432,7 @@ static void boot_prep_linux(bootm_headers_t *images)
 #ifdef CONFIG_MTDPARTITION
 		setup_mtdpartition_tag();
 #endif
+		setup_board_tags(&params);
 		setup_end_tag(gd->bd);
 #else /* all tags */
 		printf("FDT and ATAGS support not compiled in - hanging\n");
