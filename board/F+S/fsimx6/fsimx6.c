@@ -58,10 +58,10 @@
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{USDHC1_BASE_ADDR},
-	{USDHC2_BASE_ADDR},
-	{USDHC3_BASE_ADDR},
-	{USDHC4_BASE_ADDR},
+	{USDHC1_BASE_ADDR, MXC_ESDHC_CLK},
+	{USDHC2_BASE_ADDR, MXC_ESDHC2_CLK},
+	{USDHC3_BASE_ADDR, MXC_ESDHC3_CLK},
+	{USDHC4_BASE_ADDR, MXC_ESDHC4_CLK},
 };
 #endif
 
@@ -500,6 +500,7 @@ int board_mmc_init(bd_t *bis)
 						 ARRAY_SIZE(usdhc3_pads));
 	}
 
+	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
 #endif

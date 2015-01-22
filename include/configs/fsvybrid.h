@@ -541,14 +541,10 @@
  ************************************************************************/
 #define CONFIG_MMC			  /* SD/MMC support */
 #define CONFIG_GENERIC_MMC		  /* with the generic driver model */
-  //#define CONFIG_SDHCI			  /* use SDHCI driver */
-#define CONFIG_FSL_ESDHC		  /* use Freescale ESDHC */
-
-#define CONFIG_SYS_FSL_ESDHC_ADDR	0
-#define CONFIG_ESDHC_NO_SNOOP		1
+#define CONFIG_FSL_ESDHC		  /* use Freescale ESDHC driver */
+#define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 /*#define CONFIG_MMC_TRACE*/
 
-/*#define CONFIG_ESDHC_DETECT_USE_EXTERN_IRQ1*/
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC135
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC111
 #define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001

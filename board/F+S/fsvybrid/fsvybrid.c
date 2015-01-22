@@ -60,8 +60,8 @@
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{ESDHC0_BASE_ADDR},
-	{ESDHC1_BASE_ADDR},
+	{ESDHC0_BASE_ADDR, 0},
+	{ESDHC1_BASE_ADDR, 0},
 };
 #endif
 
@@ -643,7 +643,6 @@ int board_mmc_getcd(struct mmc *mmc)
 	(PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_20ohm | PAD_CTL_IBE_ENABLE)
 int board_mmc_init(bd_t *bis)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	int index;
 	u32 val;
 
@@ -680,7 +679,7 @@ int board_mmc_init(bd_t *bis)
 		__raw_writel(val, IOMUXC_PAD_019); /* DAT3 */
 	}
 
-	gd->sdhc_clk = vybrid_get_esdhc_clk(index);
+	esdhc_cfg[index].sdhc_clk = vybrid_get_esdhc_clk(index);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
 #endif
