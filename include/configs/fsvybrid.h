@@ -325,8 +325,10 @@
 #undef CONFIG_CMD_BMP		/* no old BMP, use new display support */
 #define CONFIG_CMD_BOOTD	/* boot default target */
 #undef CONFIG_CMD_BOOTLDR	/* no ldr support for blackfin */
+#undef CONFIG_CMD_BOOTSTAGE	/* no bootstage command */
 #define CONFIG_CMD_BOOTZ	/* boot zImage */
 #define CONFIG_CMD_CACHE	/* switch cache on and off */
+#undef CONFIG_CMD_CBFS		/* no support for coreboot filesystem */
 #undef CONFIG_CMD_CDP		/* no support for CISCOs CDP network config */
 #define CONFIG_CMD_CONSOLE	/* console information (coninfo) */
 #undef CONFIG_CMD_CPLBINFO	/* no display of PPC CPLB tables */
@@ -349,8 +351,12 @@
 #undef CONFIG_CMD_FITUPD	/* no update from FIT image */
 #undef CONFIG_CMD_FLASH		/* no NOR flash (flinfo, erase, protect) */
 #undef CONFIG_CMD_FPGA		/* no FPGA configuration support */
+#define CONFIG_CMD_FS_GENERIC	/* filesystem independent ls and load */
+#define CONFIG_CMD_GETTIME	/* have gettime command */
 #undef CONFIG_CMD_GPIO		/* no support to set GPIO pins */
+#undef CONFIG_CMD_GPT		/* no support for GPT partition tables */
 #undef CONFIG_CMD_GREPENV	/* no support to search in environment */
+#undef CONFIG_CMD_HASH		/* no hash command */
 #undef CONFIG_CMD_HWFLOW	/* no switching of serial flow control */
 #undef CONFIG_CMD_I2C		/* no I2C support */
 #undef CONFIG_CMD_IDE		/* no IDE disk support */
@@ -358,6 +364,7 @@
 #undef CONFIG_CMD_IMLS		/* no support to list all found images */
 #undef CONFIG_CMD_IMMAP		/* no support for PPC immap table */
 #define CONFIG_CMD_INI		/* support INI files to init environment */
+#undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* no interrupt support */
 #define CONFIG_CMD_ITEST	/* Integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* no support for JFFS2 filesystem */
@@ -387,6 +394,7 @@
 #undef CONFIG_CMD_PORTIO	/* no port commands (in, out) */
 #undef CONFIG_CMD_PXE		/* no support for PXE files from pxelinux */
 #undef CONFIG_CMD_RARP		/* no support for booting via RARP */
+#define CONFIG_CMD_READ		/* raw read from media without filesystem */
 #undef CONFIG_CMD_REGINFO	/* no register support on ARM, only PPC */
 #undef CONFIG_CMD_REISER	/* no support for reiserfs filesystem */
 #define CONFIG_CMD_RUN		/* run command in env variable */
@@ -400,6 +408,7 @@
 #undef CONFIG_CMD_SF		/* no support for serial SPI flashs */
 #undef CONFIG_CMD_SHA1SUM	/* no support for sha1sum checksums */
 //####define CONFIG_CMD_SNTP		/* allow synchronizing RTC via network */
+#undef CONFIG_CMD_SOUND		/* no sound command */
 #define CONFIG_CMD_SOURCE	/* source support (was autoscr)	*/
 #undef CONFIG_CMD_SPI		/* no SPI support */
 #undef CONFIG_CMD_SPIBOOTLDR	/* no ldr support over SPI for blackfin */
