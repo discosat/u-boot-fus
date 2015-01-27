@@ -9,13 +9,18 @@
  *
  *  ASM optimised string functions
  */
+#include <config.h>
 #include <asm/assembler.h>
+#include <linux/linkage.h>
 
 	.text
 	.align	5
 	.word	0
+ENTRY(memset)
+	ands	r3, r0, #3		@ 1 unaligned?
+	beq	1f			@ 1
 
-1:	subs	r2, r2, #4		@ 1 do we have enough
+	subs	r2, r2, #4		@ 1 do we have enough
 	blt	5f			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
 	strltb	r1, [r0], #1		@ 1
@@ -27,14 +32,10 @@
  * memset again.
  */
 
-.globl memset
-memset:
-	ands	r3, r0, #3		@ 1 unaligned?
-	bne	1b			@ 1
 /*
  * we know that the pointer in r0 is aligned to a word boundary.
  */
-	orr	r1, r1, r1, lsl #8
+1:	orr	r1, r1, r1, lsl #8
 	orr	r1, r1, r1, lsl #16
 	mov	r3, r1
 	cmp	r2, #16
@@ -124,3 +125,4 @@ memset:
 	tst	r2, #1
 	strneb	r1, [r0], #1
 	mov	pc, lr
+ENDPROC(memset)

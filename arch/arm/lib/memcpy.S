@@ -10,7 +10,9 @@
  *  published by the Free Software Foundation.
  */
 
+#include <config.h>
 #include <asm/assembler.h>
+#include <linux/linkage.h>
 
 #define W(instr)	instr
 
@@ -57,9 +59,7 @@
 
 /* Prototype: void *memcpy(void *dest, const void *src, size_t n); */
 
-.globl memcpy
-memcpy:
-
+ENTRY(memcpy)
 		cmp	r0, r1
 		moveq	pc, lr
 
@@ -241,3 +241,4 @@ memcpy:
 17:		forward_copy_shift	pull=16	push=16
 
 18:		forward_copy_shift	pull=24	push=8
+ENDPROC(memcpy)

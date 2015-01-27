@@ -112,7 +112,8 @@ _main:
 	bic	sp, sp, #7	/* 8-byte alignment for ABI compliance */
 	mov	r8, sp		/* GD is above SP */
 	mov	r0, #0
-	bl	board_init_f
+	ldr	lr, =board_init_f
+	blx	lr		/* board_init_f may be thumb mode */
 
 #if ! defined(CONFIG_SPL_BUILD)
 
@@ -151,9 +152,11 @@ clbss_l:cmp	r0, r1			/* while not at end of BSS */
 	blo	clbss_l
 
 #ifdef CONFIG_CMD_LED
-	bl coloured_LED_init
+	ldr	lr, =coloured_LED_init
+	blx	lr
 #ifdef STATUS_LED_RED
-	bl red_led_on
+	ldr	lr, =red_led_on
+	blx	lr
 #endif
 #endif
 

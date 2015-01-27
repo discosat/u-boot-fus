@@ -23,7 +23,9 @@
  * MA 02111-1307 USA
  */
 
+#include <config.h>
 #include <asm/assembler.h>		  // PLD()
+#include <linux/linkage.h>
 
 /* We don't want the strange macros for push and pull from assembler.h */
 #undef push
@@ -58,8 +60,7 @@
 #if 0
 /* Starting with u-boot-2011.06, there is a new memcpy version available
    in arch/arm/lib/memcpy.S, so we don't need our version anymore */
-	.globl	memcpy
-memcpy:
+ENTRY(memcpy)
 	/* Return immediately if count is zero or dest == src */
 	cmp	r2, #0
 	bxeq	lr
@@ -379,6 +380,7 @@ PLD(	pld	[r1, #32] )
 9:	ldreqb	lr, [r1], #1
 	streqb	lr, [r0]
 	pop	{r0, r4, pc}
+ENDPROC(memcpy)
 #endif
 
 
@@ -398,8 +400,7 @@ PLD(	pld	[r1, #32] )
 *** low addresses. This allows for overlapping memory regions. The ***
 *** optimization works similar to memcpy() (see above).            ***
 *********************************************************************/
-	.globl	memmove
-memmove:
+ENTRY(memmove)
 	/* If copy can be done from low to high, use memcpy() */
 	cmp	r0, r1
 	bls	memcpy
@@ -742,6 +743,7 @@ PLD(	pld	[r1, #-32] )
 9:	ldreqb	lr, [r1, #-1]!
 	streqb	lr, [r0, #-1]!
 	pop	{r4, pc}
+ENDPROC(memmove)
 
 
 /*********************************************************************
@@ -760,8 +762,7 @@ PLD(	pld	[r1, #-32] )
 *** 32 words (128 bytes) per cycle to reduce loop control overhead.***
 *** The remaining words are filled in steps of 8/4/2/1 word units. ***
 *********************************************************************/
-	.globl	memset32
-memset32:
+ENTRY(memset32)
 	/* If count is less than 8 words, we don't need more registers */
 	cmp	r2, #7
 	push	{lr}
@@ -818,6 +819,7 @@ memset32:
 	/* Store last word (if any) */
 1:	stmeqdb	r0!, {ip}		  //r0 is now back at original dest
 	pop	{pc}
+ENDPROC(memset32)
 
 
 /*********************************************************************
@@ -840,8 +842,7 @@ memset32:
 #if 0
 /* Starting with u-boot-2011.06, there is a new memset version available
    in arch/arm/lib/memset.S, so we don't need our version anymore */
-	.globl	memset
-memset:
+ENTRY(memset)
 	/* If count is less than four, just set as bytes */
 	cmp	r2, #3
 	add	r0, r0, r2		  //Move pointer to end
@@ -879,4 +880,5 @@ memset:
 
 1:	streqb	r1, [r0, #-1]!		  //Set the last byte (if any)
 	bx	lr			  //Done
+ENDPROC(memset)
 #endif
