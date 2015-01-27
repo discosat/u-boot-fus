@@ -684,6 +684,27 @@ int board_mmc_init(bd_t *bis)
 }
 #endif
 
+#ifdef CONFIG_USB_EHCI_VYBRID
+int board_ehci_hcd_init(int port)
+{
+	if (!port) {
+		/* Configure USB0_PWR (PTE5) as GPIO output and set to 1 by
+		   writing to GPIO3_PSOR[14] */
+		__raw_writel(MVF600_GPIO_GENERAL_CTRL | PAD_CTL_OBE_ENABLE,
+			     IOMUXC_PAD_110);
+		__raw_writel(1 << (110 & 0x1F), 0x400ff0c4);
+	} else {
+		/* Configure USB1_PWR (PTE6) as GPIO output and set to 1 by
+		   writing to GPIO3_PSOR[15] */
+		__raw_writel(MVF600_GPIO_GENERAL_CTRL | PAD_CTL_OBE_ENABLE,
+			     IOMUXC_PAD_111);
+		__raw_writel(1 << (111 & 0x1F), 0x400ff0c4);
+	}
+
+        return 0;
+}
+#endif
+
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)
 {

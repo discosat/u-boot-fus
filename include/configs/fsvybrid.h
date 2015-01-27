@@ -426,7 +426,7 @@
 #undef CONFIG_CMD_UNIVERSE	/* no support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* have unzip command */
 #define CONFIG_CMD_UPDATE	/* support automatic update/install */
-//#####define CONFIG_CMD_USB		/* USB host support */
+#define CONFIG_CMD_USB		/* USB host support */
 #undef CONFIG_CMD_XIMG		/* no support to load part of Multi Image */
 #undef CONFIG_CMD_ZFS		/* no support for ZFS filesystem */
 #undef CONFIG_CMD_ZIP		/* no support to zip memory region */
@@ -475,7 +475,6 @@
 
 #define CONFIG_OVERWRITE_ETHADDR_ONCE
 
-
 /* If CONFIG_SYS_DISCOVER_PHY is not defined - hardcoded */
 #ifndef CONFIG_SYS_DISCOVER_PHY
 #define FECDUPLEX	FULL
@@ -517,7 +516,12 @@
 /************************************************************************
  * USB host
  ************************************************************************/
-//####TODO
+#define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
+#define CONFIG_USB_EHCI_VYBRID		/* This is Vybrid EHCI */
+#define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
+#define CONFIG_USB_STORAGE
+/* Activate the following entry if 2x USB Host is available */
+//#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 
 /************************************************************************
