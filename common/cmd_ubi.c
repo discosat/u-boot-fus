@@ -264,15 +264,17 @@ out_err:
 	return err;
 }
 
-static int ubi_volume_write(char *volume, void *buf, size_t size)
+int ubi_volume_write(char *volume, void *buf, size_t size)
 {
 	int err = 1;
 	int rsvd_bytes = 0;
 	struct ubi_volume *vol;
 
 	vol = ubi_find_volume(volume);
-	if (vol == NULL)
+	if (vol == NULL) {
+		printf("No such volume\n");
 		return ENODEV;
+	}
 
 	rsvd_bytes = vol->reserved_pebs * (ubi->leb_size - vol->data_pad);
 	if (size < 0 || size > rsvd_bytes) {
@@ -288,7 +290,7 @@ static int ubi_volume_write(char *volume, void *buf, size_t size)
 
 	err = ubi_more_update_data(ubi, vol, buf, size);
 	if (err < 0) {
-		printf("Couldnt or partially wrote data\n");
+		printf("Write error %d\n", err);
 		return -err;
 	}
 
@@ -312,37 +314,37 @@ static int ubi_volume_write(char *volume, void *buf, size_t size)
 	return 0;
 }
 
-static int ubi_volume_read(char *volume, char *buf, size_t size)
+int ubi_volume_read(char *volume, char *buf, size_t size, size_t *loaded)
 {
 	int err, lnum, off, len, tbuf_size;
 	void *tbuf;
 	unsigned long long tmp;
 	struct ubi_volume *vol;
 	loff_t offp = 0;
-	size_t loaded = 0;
 
+	*loaded = 0;
 	vol = ubi_find_volume(volume);
-	if (vol == NULL)
+	if (vol == NULL) {
+		printf("No such volume\n");
 		return ENODEV;
+	}
 
 	if (vol->updating) {
-		printf("updating");
+		printf("Volume busy (updating)\n");
 		return EBUSY;
 	}
 	if (vol->upd_marker) {
-		printf("damaged volume, update marker is set");
+		printf("Damaged volume, update marker is set\n");
 		return EBADF;
 	}
 	if (offp == vol->used_bytes)
 		return 0;
 
-	if (size == 0) {
-		printf("No size specified -> Using max size (%lld)\n", vol->used_bytes);
+	if (size == 0)
 		size = vol->used_bytes;
-	}
 
 	if (vol->corrupted)
-		printf("read from corrupted volume %d", vol->vol_id);
+		printf("(Volume %d is corrupted!) ", vol->vol_id);
 	if (offp + size > vol->used_bytes)
 		size = vol->used_bytes - offp;
 
@@ -365,7 +367,7 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 
 		err = ubi_eba_read_leb(ubi, vol, lnum, tbuf, off, len, 0);
 		if (err) {
-			printf("read err %x\n", err);
+			printf("Read error %d\n", err);
 			err = -err;
 			break;
 		}
@@ -377,7 +379,7 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 
 		size -= len;
 		offp += len;
-		loaded += len;
+		*loaded += len;
 
 		memcpy(buf, tbuf, len);
 
@@ -387,8 +389,6 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 
 	free(tbuf);
 
-	if (!err)
-		setenv_hex("filesize", loaded);
 	return err;
 }
 
@@ -403,6 +403,11 @@ int set_ubi_part(const char *part_name, const char *vid_header_offset)
 	char ubi_mtd_param_buffer[PARTITION_MAXLEN];
 	u8 pnum;
 	int err;
+
+	if (mtdparts_init() != 0) {
+		printf("Error initializing mtdparts!\n");
+		return 1;
+	}
 
 	if (ubi_initialized) {
 		/* If this is the partition that is already set, we're done */
@@ -474,14 +479,10 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	size_t size;
 	ulong addr;
+	int ret;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
-
-	if (mtdparts_init() != 0) {
-		printf("Error initializing mtdparts!\n");
-		return 1;
-	}
 
 	if (!strcmp(argv[1], "part") && (argc >= 2) && (argc <= 4)) {
 		/* Print current partition */
@@ -541,22 +542,30 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		addr = parse_loadaddr(argv[2], NULL);
 		size = simple_strtoul(argv[4], NULL, 16);
 
+		printf("Writing to volume %s ... ", argv[3]);
 		ret = ubi_volume_write(argv[3], (void *)addr, size);
-		if (!ret) {
-			printf("%d bytes written to volume %s\n", size,
-			       argv[3]);
-		}
+		if (!ret)
+			printf("OK, %d bytes stored\n", size);
 
 		return ret;
 	}
 
 	if (!strncmp(argv[1], "read", 4) && (argc >= 3) && (argc <= 5)) {
-		addr = (argc > 3) ? parse_loadaddr(argv[2], NULL) : get_loadaddr();
+		size_t loaded;
+		if (argc > 3)
+			addr = parse_loadaddr(argv[2], NULL);
+		else
+			addr = get_loadaddr();
 		size = (argc > 4) ? simple_strtoul(argv[4], NULL, 16) : 0;
-		printf("Read %d bytes from volume %s to %lx\n", size,
-			argv[3], addr);
 
-		return ubi_volume_read(argv[3], (char *)addr, size);
+		printf("Reading from volume %s ... ", argv[3]);
+		ret = ubi_volume_read(argv[3], (char *)addr, size, &loaded);
+		if (!ret) {
+			setenv_hex("filesize", loaded);
+			printf("OK, %d bytes loaded to 0x%lx\n", loaded, addr);
+		}
+
+		return ret;
 	}
 
 	return CMD_RET_USAGE;
