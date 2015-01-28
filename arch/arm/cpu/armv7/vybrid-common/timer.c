@@ -29,9 +29,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define timestamp (gd->tbl)
-#define timerticks (gd->tbu)
-#define lastinc	(gd->lastinc)
+#define timestamp (gd->arch.tbl)
+#define timerticks (gd->arch.tbu)
+#define lastinc	(gd->arch.lastinc)
 static unsigned long ltmstamp = 0;
 
 #define CONFIG_TMR_USEPIT
@@ -50,8 +50,8 @@ int timer_init(void)
 	 * nsecs conversion = (1/ipg_clk) * 10^9
 	 * equivalent to 1000 / (ipg_clk / 10^6)
 	 */
-	gd->ipg_clk = vybrid_get_clock(VYBRID_IPG_CLK);
-	usecs = (gd->ipg_clk / 1000000);
+	gd->arch.ipg_clk = vybrid_get_clock(VYBRID_IPG_CLK);
+	usecs = (gd->arch.ipg_clk / 1000000);
 	ticks = 1000 / usecs;
 
 	clrbits_le32(PIT_MCR, 2);	/* enable PIT */
@@ -99,7 +99,7 @@ void __udelay(unsigned long usec)
 	if (usec < 5)
 		usec = 10;
 
-	nsecs = gd->ipg_clk / 1000000;
+	nsecs = gd->arch.ipg_clk / 1000000;
 	nsecs = 1000 / nsecs;
 
 	/* 1 us per ticks = 1000 ns / nsecs = cycles time */

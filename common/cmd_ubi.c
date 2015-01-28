@@ -23,6 +23,9 @@
 #include <asm/errno.h>
 #include <jffs2/load_kernel.h>
 
+#undef ubi_msg
+#define ubi_msg(fmt, ...) printf("UBI: " fmt "\n", ##__VA_ARGS__)
+
 #define DEV_TYPE_NONE		0
 #define DEV_TYPE_NAND		1
 #define DEV_TYPE_ONENAND	2
@@ -306,8 +309,6 @@ static int ubi_volume_write(char *volume, void *buf, size_t size)
 		ubi_gluebi_updated(vol);
 	}
 
-	printf("%d bytes written to volume %s\n", size, volume);
-
 	return 0;
 }
 
@@ -323,8 +324,6 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 	vol = ubi_find_volume(volume);
 	if (vol == NULL)
 		return ENODEV;
-
-	printf("Read %d bytes from volume %s to %p\n", size, volume, buf);
 
 	if (vol->updating) {
 		printf("updating");
@@ -388,11 +387,8 @@ static int ubi_volume_read(char *volume, char *buf, size_t size)
 
 	free(tbuf);
 
-	if (!err) {
-		char fsizebuf[16];
-		sprintf(fsizebuf, "%X", loaded);
-		setenv("filesize", fsizebuf);
-	}
+	if (!err)
+		setenv_hex("filesize", loaded);
 	return err;
 }
 
@@ -544,17 +540,26 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	if (!strncmp(argv[1], "write", 5) && (argc == 5)) {
 		addr = parse_loadaddr(argv[2], NULL);
 		size = simple_strtoul(argv[4], NULL, 16);
-		return ubi_volume_write(argv[3], (void *)addr, size);
+
+		ret = ubi_volume_write(argv[3], (void *)addr, size);
+		if (!ret) {
+			printf("%d bytes written to volume %s\n", size,
+			       argv[3]);
+		}
+
+		return ret;
 	}
 
-	if (!strncmp(argv[1], "read", 4) && (argc >= 4) && (argc <= 5)) {
-		addr = parse_loadaddr(argv[2], NULL);
+	if (!strncmp(argv[1], "read", 4) && (argc >= 3) && (argc <= 5)) {
+		addr = (argc > 3) ? parse_loadaddr(argv[2], NULL) : get_loadaddr();
 		size = (argc > 4) ? simple_strtoul(argv[4], NULL, 16) : 0;
+		printf("Read %d bytes from volume %s to %lx\n", size,
+			argv[3], addr);
+
 		return ubi_volume_read(argv[3], (char *)addr, size);
 	}
 
-	printf("Please see usage\n");
-	return 1;
+	return CMD_RET_USAGE;
 }
 
 U_BOOT_CMD(

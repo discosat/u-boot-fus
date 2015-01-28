@@ -54,6 +54,7 @@
 #include <fdtdec.h>
 #include <post.h>
 #include <logbuff.h>
+#include <asm/sections.h>
 
 #ifdef CONFIG_BITBANGMII
 #include <miiphy.h>
@@ -361,14 +362,14 @@ void board_init_f(ulong bootflag)
 
 #if !(defined(CONFIG_SYS_ICACHE_OFF) && defined(CONFIG_SYS_DCACHE_OFF))
 	/* reserve TLB table */
-	gd->tlb_size = 4096 * 4;
-	addr -= gd->tlb_size;
+	gd->arch.tlb_size = 4096 * 4;
+	addr -= gd->arch.tlb_size;
 
 	/* round down to next allowed TLB alignment limit */
 	addr &= CONFIG_SYS_TLB_ALIGN;
 
-	gd->tlb_addr = addr;
-	debug("TLB table from %08lx to %08lx\n", addr, addr + gd->tlb_size);
+	gd->arch.tlb_addr = addr;
+	debug("TLB table from %08lx to %08lx\n", addr, addr + gd->arch.tlb_size);
 #endif
 
 	/* round down to next 4 kB limit */
@@ -509,7 +510,7 @@ static char *failed = "*** failed ***\n";
 static int should_load_env(void)
 {
 #ifdef CONFIG_OF_CONTROL
-	return fdtdec_get_config_int(gd->fdt_blob, "load-environment", 0);
+	return fdtdec_get_config_int(gd->fdt_blob, "load-environment", 1);
 #elif defined CONFIG_DELAY_ENVIRONMENT
 	return 0;
 #else

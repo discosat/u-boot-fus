@@ -140,7 +140,7 @@ char *get_sys_prompt(void) __attribute__((weak, alias("__get_sys_prompt")));
  * Watch for 'delay' seconds for autoboot stop or autoboot delay string.
  * returns: 0 -  no key string, allow autoboot 1 - got key string, abort
  */
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
+#if defined(CONFIG_BOOTDELAY)
 # if defined(CONFIG_AUTOBOOT_KEYED)
 #ifndef CONFIG_MENU
 static inline
@@ -270,6 +270,7 @@ static inline
 int abortboot(int bootdelay)
 {
 	int abort = 0;
+	unsigned long ts;
 
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
@@ -293,11 +294,10 @@ int abortboot(int bootdelay)
 #endif
 
 	while ((bootdelay > 0) && (!abort)) {
-		int i;
-
 		--bootdelay;
-		/* delay 100 * 10ms */
-		for (i=0; !abort && i<100; ++i) {
+		/* delay 1000 ms */
+		ts = get_timer(0);
+		do {
 			if (tstc()) {	/* we got a key press	*/
 				abort  = 1;	/* don't auto boot	*/
 				bootdelay = 0;	/* no more delay	*/
@@ -309,7 +309,7 @@ int abortboot(int bootdelay)
 				break;
 			}
 			udelay(10000);
-		}
+		} while (!abort && get_timer(ts) < 1000);
 
 		printf("\b\b\b%2d ", bootdelay);
 	}
@@ -324,7 +324,7 @@ int abortboot(int bootdelay)
 	return abort;
 }
 # endif	/* CONFIG_AUTOBOOT_KEYED */
-#endif	/* CONFIG_BOOTDELAY >= 0  */
+#endif	/* CONFIG_BOOTDELAY */
 
 /*
  * Runs the given boot command securely.  Specifically:
@@ -340,8 +340,7 @@ int abortboot(int bootdelay)
  * printing the error message to console.
  */
 
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0) && \
-	defined(CONFIG_OF_CONTROL)
+#if defined(CONFIG_BOOTDELAY) && defined(CONFIG_OF_CONTROL)
 static void secure_boot_cmd(char *cmd)
 {
 	cmd_tbl_t *cmdtp;
@@ -403,11 +402,10 @@ void main_loop (void)
 	int rc = 1;
 	int flag;
 #endif
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0) && \
-		defined(CONFIG_OF_CONTROL)
+#if defined(CONFIG_BOOTDELAY) && defined(CONFIG_OF_CONTROL)
 	char *env;
 #endif
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
+#if defined(CONFIG_BOOTDELAY)
 	char *s;
 	int bootdelay;
 #endif
@@ -422,6 +420,10 @@ void main_loop (void)
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
 
 	bootstage_mark_name(BOOTSTAGE_ID_MAIN_LOOP, "main_loop");
+
+#if defined CONFIG_OF_CONTROL
+       set_working_fdt_addr((void *)gd->fdt_blob);
+#endif /* CONFIG_OF_CONTROL */
 
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	bootcount = bootcount_load();
@@ -476,7 +478,7 @@ void main_loop (void)
 	update_tftp (0UL);
 #endif /* CONFIG_UPDATE_TFTP */
 
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
+#if defined(CONFIG_BOOTDELAY)
 	s = getenv ("bootdelay");
 	bootdelay = (int)simple_strtol(s ? s : MK_STR(CONFIG_BOOTDELAY),
 				       NULL, 10);
@@ -565,10 +567,6 @@ void main_loop (void)
 	}
 #endif /* CONFIG_MENUKEY */
 #endif /* CONFIG_BOOTDELAY */
-
-#if defined CONFIG_OF_CONTROL
-	set_working_fdt_addr((void *)gd->fdt_blob);
-#endif /* CONFIG_OF_CONTROL */
 
 	/*
 	 * Main Loop for Monitor Command Processing
@@ -1529,7 +1527,7 @@ static int builtin_run_command(const char *cmd, int flag)
 		}
 
 		/* Find and execute the command */
-		if (cmd_process(flag, argc, argv, &repeatable))
+		if (cmd_process(flag, argc, argv, &repeatable, NULL))
 			rc = -1;
 
 		/* Did the user stop this? */

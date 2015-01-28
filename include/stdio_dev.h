@@ -122,7 +122,7 @@ struct stdio_dev *stdio_get_list(void);
 struct stdio_dev* stdio_get_by_name(const char* name);
 struct stdio_dev* stdio_clone(struct stdio_dev *dev);
 
-#ifdef CONFIG_ARM_DCC_MULTI
+#ifdef CONFIG_ARM_DCC
 int drv_arm_dcc_init(void);
 #endif
 #ifdef CONFIG_LCD

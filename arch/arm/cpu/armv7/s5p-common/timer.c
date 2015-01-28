@@ -24,6 +24,7 @@
  */
 
 #include <common.h>
+#include <div64.h>
 #include <asm/io.h>
 #include <asm/arch/pwm.h>
 #include <asm/arch/clk.h>
@@ -32,19 +33,42 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+unsigned long get_current_tick(void);
+
+/* macro to read the 16 bit timer */
+static inline struct s5p_timer *s5p_get_base_timer(void)
+{
+	return (struct s5p_timer *)samsung_get_base_timer();
+}
+
+/**
+ * Read the countdown timer.
+ *
+ * This operates at 1MHz and counts downwards. It will wrap about every
+ * hour (2^32 microseconds).
+ *
+ * @return current value of timer
+ */
+static unsigned long timer_get_us_down(void)
+{
+	struct s5p_timer *const timer = s5p_get_base_timer();
+
+	return readl(&timer->tcnto4);
+}
+
 int timer_init(void)
 {
-	struct s5p_timer *const timer =
-		(struct s5p_timer *)samsung_get_base_timer();
-
-	/* PWM Timer 4; init counter to PCLK/16/2 */
-	pwm_init(4, MUX_DIV_2, 0);
-	writel(0xFFFFFFFF, &timer->tcntb4);
-	pwm_config(4, 1, 1);
+	/* PWM Timer 4 */
+	pwm_init(4, MUX_DIV_4, 0);
+	pwm_config(4, 100000, 100000);
 	pwm_enable(4);
 
-	gd->ticks = 0;
-	gd->lastinc = 0;
+	/* Use this as the current monotonic time in us */
+	gd->arch.timer_reset_value = 0;
+
+	/* Use this as the last timer value we saw */
+	gd->arch.lastinc = timer_get_us_down();
+	reset_timer_masked();
 
 	return 0;
 }
@@ -54,65 +78,57 @@ int timer_init(void)
  */
 unsigned long get_timer(unsigned long base)
 {
-	unsigned long now;
+	unsigned long long time_ms;
+
+	ulong now = timer_get_us_down();
+
+	/*
+	 * Increment the time by the amount elapsed since the last read.
+	 * The timer may have wrapped around, but it makes no difference to
+	 * our arithmetic here.
+	 */
+	gd->arch.timer_reset_value += gd->arch.lastinc - now;
+	gd->arch.lastinc = now;
+
+	/* Divide by 1000 to convert from us to ms */
+	time_ms = gd->arch.timer_reset_value;
+	do_div(time_ms, 1000);
+	return time_ms - base;
+}
+
+unsigned long timer_get_us(void)
+{
+	static unsigned long base_time_us;
+
 	struct s5p_timer *const timer =
 		(struct s5p_timer *)samsung_get_base_timer();
+	unsigned long now_downward_us = readl(&timer->tcnto4);
 
-	/* The timer is configured to count from 0xFFFFFFFF down to 0.
-	   We want a timer value that counts up. So just compute the
-	   difference 0xFFFFFFFF - timer value. It would be better to count
-	   from 0 (as 2^32) down to 0 again, but when setting 0 into the
-	   tcntb4, the timer will not count anymore. So 0xFFFFFFFF is the
-	   maximum value that we can get. */
-	now = 0xFFFFFFFF - readl(&timer->tcnto4);
+	if (!base_time_us)
+		base_time_us = now_downward_us;
 
-	/* Increment ticks. By subtracting gd->lastinc, we make up for
-	   overwrapping of the timer value.
-	   REMARK: As we are not exactly counting from 2^32 down, but instead
-	   from 2^32-1 (see above), we make an error of one tick at every wrap
-	   around (about every 34 minutes @PCLK=67MHz). As other factors like
-	   the execution time of the surrounding code that is not accounted
-	   for result in far more bigger timing divergences, we can neglect
-	   this little off-by-one error with a clear conscience. This keeps
-	   the code clean and short. */
-	gd->ticks += (unsigned long long)(now - gd->lastinc);
-	gd->lastinc = now;
-
-	return now - base;
+	/* Note that this timer counts downward. */
+	return base_time_us - now_downward_us;
 }
 
 /* delay x useconds */
 void __udelay(unsigned long usec)
 {
-	unsigned long tmo, start;
+	unsigned long count_value;
 
-	/* get current timestamp right here so that the tmo computation does
-	   not add to the delay */
-	start = get_timer(0);
-
-	if (usec >= 1000) {
-		/*
-		 * if "big" number, spread normalization
-		 * to seconds
-		 * 1. start to normalize for usec to ticks per sec
-		 * 2. find number of "ticks" to wait to achieve target
-		 * 3. finish normalize.
-		 */
-		tmo = usec / 1000;
-		tmo *= CONFIG_SYS_HZ;
-		tmo /= 1000;
-	} else {
-		/* else small number, don't kill it prior to HZ multiply */
-		tmo = usec * CONFIG_SYS_HZ;
-		tmo /= (1000 * 1000);
-	}
-
-
-	/* loop till event */
-	while (get_timer(start) < tmo)
-		;	/* nop */
+	count_value = timer_get_us_down();
+	while ((int)(count_value - timer_get_us_down()) < (int)usec)
+		;
 }
 
+void reset_timer_masked(void)
+{
+	struct s5p_timer *const timer = s5p_get_base_timer();
+
+	/* reset time */
+	gd->arch.lastinc = readl(&timer->tcnto4);
+	gd->arch.tbl = 0;
+}
 
 /*
  * This function is derived from PowerPC code (read timebase as long long).
@@ -120,7 +136,7 @@ void __udelay(unsigned long usec)
  */
 unsigned long long get_ticks(void)
 {
-	return gd->ticks;
+	return get_timer(0);
 }
 
 /*

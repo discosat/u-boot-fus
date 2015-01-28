@@ -529,15 +529,11 @@ restart:
 		case NETLOOP_SUCCESS:
 			net_cleanup_loop();
 			if (NetBootFileXferSize > 0) {
-				char buf[20];
 				printf("Bytes transferred = %ld (0x%lx)\n",
 					NetBootFileXferSize,
 					NetBootFileXferSize);
-				sprintf(buf, "%lX", NetBootFileXferSize);
-				setenv("filesize", buf);
-
-				sprintf(buf, "%lX", get_loadaddr());
-				setenv("fileaddr", buf);
+				setenv_hex("filesize", NetBootFileXferSize);
+				setenv_hex("fileaddr", get_loadaddr());
 			}
 			if (protocol != NETCONS)
 				eth_halt();

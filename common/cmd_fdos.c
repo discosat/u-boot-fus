@@ -39,7 +39,6 @@ int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
     char *name;
     int size;
-    char buf [12];
     int drive = CONFIG_SYS_FDC_DRIVE_NUMBER;
     ulong addr = get_loadaddr();
 
@@ -87,8 +86,7 @@ int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     }
     flush_cache (addr, size);
 
-    sprintf(buf, "%x", size);
-    setenv("filesize", buf);
+    setenv_hex("filesize", size);
 
     printf("Floppy DOS load complete: %d bytes loaded to 0x%lx\n",
 	   size, addr);

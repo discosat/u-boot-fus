@@ -44,6 +44,7 @@ COBJS-$(CONFIG_OMAP_HSMMC) += omap_hsmmc.o
 COBJS-$(CONFIG_S3C_HSMMC) += s3c_hsmmc.o
 COBJS-$(CONFIG_PXA_MMC_GENERIC) += pxa_mmc_gen.o
 COBJS-$(CONFIG_SDHCI) += sdhci.o
+COBJS-$(CONFIG_BCM2835_SDHCI) += bcm2835_sdhci.o
 COBJS-$(CONFIG_S3C_SDHCI) += s3c_sdhci.o
 COBJS-$(CONFIG_S5P_SDHCI) += s5p_sdhci.o
 COBJS-$(CONFIG_SH_MMCIF) += sh_mmcif.o

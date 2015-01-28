@@ -75,22 +75,17 @@
 #include <asm/io.h>
 /* CPU detection macros */
 
-/* RAM is not initialized yet, so don't use a variable for cpu_id */
-static inline void s5p_set_cpu_id(void)
+#define GET_S5P_CPU_ID() ((readl(S5PC100_PRO_ID) & 0x00FFFFFF) >> 12)
+
+static inline int cpu_is_s5pc100(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-	gd->cpu_id = (readl(S5PC100_PRO_ID) & 0x00FFFFFF) >> 12;
+	return (GET_S5P_CPU_ID() == 0x100);	/* S5PC100 */
 }
 
-#define IS_SAMSUNG_TYPE(type, id)			\
-static inline int cpu_is_##type(void)			\
-{							\
-        DECLARE_GLOBAL_DATA_PTR;			\
-	return (gd->cpu_id == id);			\
+static inline int cpu_is_s5pc110(void)
+{
+	return (GET_S5P_CPU_ID() == 0x110);	/* S5PC110, S5PC111, S5PV210 */
 }
-
-IS_SAMSUNG_TYPE(s5pc100, 0x100)		  /* S5PC100 */
-IS_SAMSUNG_TYPE(s5pc110, 0x110)		  /* S5PC110, S5PC111, S5PV210 */
 
 static inline const char *s5p_get_cpu_name(void)
 {

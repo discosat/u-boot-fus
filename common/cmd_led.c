@@ -178,11 +178,13 @@ int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			switch (cmd) {
 			case LED_OFF:
 				led_state[led] = cmd;
-				led_command->off();
+				if (led_command->off)
+					led_command->off();
 				break;
 			case LED_ON:
 				led_state[led] = cmd;
-				led_command->on();
+				if (led_command->on)
+					led_command->on();
 				break;
 			case LED_TOGGLE:
 				led_state[led] &= LED_ON;

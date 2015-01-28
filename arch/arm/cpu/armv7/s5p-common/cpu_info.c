@@ -28,17 +28,13 @@
 #ifdef CONFIG_ARCH_CPU_INIT
 int arch_cpu_init(void)
 {
-	s5p_set_cpu_id();
-
 	return 0;
 }
 #endif
 
 u32 get_device_type(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-
-	return gd->cpu_id;
+	return GET_S5P_CPU_ID();
 }
 
 #ifdef CONFIG_DISPLAY_CPUINFO

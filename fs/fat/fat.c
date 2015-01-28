@@ -936,3 +936,12 @@ int file_fat_detectfs(void)
 
 	return 0;
 }
+
+int fat_read_file(const char *filename, void *buf, int offset, int len)
+{
+	return file_fat_read_at(filename, offset, buf, len);
+}
+
+void fat_close(void)
+{
+}
