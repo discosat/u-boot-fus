@@ -72,8 +72,11 @@
 #define CONFIG_SYS_PL310_BASE	L2_PL310_BASE
 #endif
 
+#define CONFIG_ARM_ERRATA_742230
+#define CONFIG_ARM_ERRATA_743622
+#define CONFIG_ARM_ERRATA_751472
+
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
-//#include "mx6_common.h"			/* Errata, cache handling */
 
 /* Basic input clocks */
 #define CONFIG_SYS_MX6_HCLK		24000000
