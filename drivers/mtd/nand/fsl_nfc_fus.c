@@ -54,6 +54,10 @@ static const uint bitflip_threshold[8] = {
 	1, 3, 5, 7, 11, 15, 22, 30
 };
 
+static const uint ecc_strength[8] = {
+	0, 4, 6, 8, 12, 16, 24, 32
+};
+
 /* NAND page layouts for all possible Vybrid ECC modes. The OOB area has the
    following appearance:
 
@@ -735,7 +739,7 @@ static int fus_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 
 /* Read the whole main and the whole OOB area in one go (without ECC) */
 static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 uint8_t *buf, int page)
+				 uint8_t *buf, int oob_required, int page)
 {
 	struct fsl_nfc_fus_prv *prv = chip->priv;
 
@@ -776,8 +780,8 @@ static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 
 /* Write the whole main and the whole OOB area without ECC in one go */
-static void fus_nfc_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf)
+static int fus_nfc_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+				  const uint8_t *buf, int oob_required)
 {
 	struct fsl_nfc_fus_prv *prv = chip->priv;
 	uint size;
@@ -812,13 +816,14 @@ static void fus_nfc_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* The actual programming will take place in fus_nfc_command() when
 	   command NAND_CMD_PAGEPROG is sent */
+	return 0;
 }
 
 
 /* Read main data of page with ECC enabled; if there is an ECC error, don't
    change the related data areas of the buffers. */
 static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			     uint8_t *buf, int page)
+			     uint8_t *buf, int oob_required, int page)
 {
 	u8 ecc_status;
 	uint i;
@@ -1038,8 +1043,8 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 
 /* Write main data of page with ECC enabled */
-static void fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf)
+static int fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+			      const uint8_t *buf, int oob_required)
 {
 	struct fsl_nfc_fus_prv *prv = chip->priv;
 	uint size = mtd->oobsize - mtd->oobavail;
@@ -1087,6 +1092,9 @@ static void fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		  | (0 << CONFIG_BUFNO_AUTO_INCR_SHIFT)
 		  | (1 << CONFIG_PAGE_CNT_SHIFT));
 
+	if (!oob_required)
+		return 0;
+
 	/* Check if user OOB area is empty */
 	oob = chip->oob_poi + size;
 	for (i = mtd->oobavail; i > 0; i--) {
@@ -1122,6 +1130,7 @@ static void fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* The actual programming will take place in fus_nfc_command() when
 	   command NAND_CMD_PAGEPROG is sent */
+	return 0;
 }
 
 
@@ -1210,6 +1219,7 @@ void vybrid_nand_register(int nfc_hw_id,
 	chip->ecc.write_page_raw = fus_nfc_write_page_raw;
 	chip->ecc.read_oob_raw = fus_nfc_read_oob_raw;
 	chip->ecc.write_oob_raw = fus_nfc_write_oob_raw;
+	chip->ecc.strength = ecc_strength[prv->eccmode];
 
 	mtd->bitflip_threshold = bitflip_threshold[prv->eccmode];
 

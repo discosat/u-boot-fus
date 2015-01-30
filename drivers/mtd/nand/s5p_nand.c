@@ -494,8 +494,8 @@ int s5p_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat,
 	return ret;
 }
 
-void s5p_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			      const uint8_t *buf)
+int s5p_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
+			      const uint8_t *buf, int oob_required)
 {
 	int i, eccsize = 512;
 	int eccbytes = 13;
@@ -513,10 +513,12 @@ void s5p_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->oob_poi[i] = ecc_calc[i];
 
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
 }
 
 int s5p_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			    uint8_t *buf, int page)
+			    uint8_t *buf, int oob_required, int page)
 {
 	int i, stat, eccsize = 512;
 	int eccbytes = 13;
@@ -561,14 +563,16 @@ int s5p_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
 }
 #endif
 
-void s5p_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			      const uint8_t *buf)
+int s5p_nand_write_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
+			      const uint8_t *buf, int oob_required)
 {
 	puts("### s5p_nand_write_page_8bit() not yet implemented\n");
+
+	return 0;
 }
 
 int s5p_nand_read_page_8bit(struct mtd_info *mtd, struct nand_chip *chip,
-			    uint8_t *buf, int page)
+			    uint8_t *buf, int oob_required, int page)
 {
 	puts("### s5p_nand_read_page_8bit() not yet implemented\n");
 	return -1;

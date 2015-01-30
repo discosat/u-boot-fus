@@ -50,6 +50,7 @@
 /u-boot.ais
 /u-boot.dtb
 /u-boot.sb
+/u-boot.bd
 /u-boot.geany
 
 #
@@ -82,6 +83,12 @@ cscope.*
 /tags
 /ctags
 /etags
+
+# gnu global files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
 
 # spl ais files
 /spl/*.ais

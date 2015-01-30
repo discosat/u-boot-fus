@@ -22,7 +22,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
- *
  */
 
 #include <common.h>
@@ -41,18 +40,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
-	defined(CONFIG_CMDLINE_TAG) || \
-	defined(CONFIG_INITRD_TAG) || \
-	defined(CONFIG_SERIAL_TAG) || \
-	defined(CONFIG_REVISION_TAG) || \
-	defined(CONFIG_FSHWCONFIG_TAG) || \
-	defined(CONFIG_FSM4CONFIG_TAG) || \
-	defined(CONFIG_VFD) || \
-	defined(CONFIG_LCD) || \
-	defined(CONFIG_MTDPARTITION)
 static struct tag *params;
-#endif
 
 static ulong get_sp(void)
 {
@@ -84,29 +72,19 @@ void arch_lmb_reserve(struct lmb *lmb)
 		    gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size - sp);
 }
 
-#ifdef CONFIG_OF_LIBFDT
-static int fixup_memory_node(void *blob)
+/**
+ * announce_and_cleanup() - Print message and prepare for kernel boot
+ *
+ * @fake: non-zero to do everything except actually boot
+ */
+static void announce_and_cleanup(int fake)
 {
-	bd_t	*bd = gd->bd;
-	int bank;
-	u64 start[CONFIG_NR_DRAM_BANKS];
-	u64 size[CONFIG_NR_DRAM_BANKS];
-
-	for (bank = 0; bank < CONFIG_NR_DRAM_BANKS; bank++) {
-		start[bank] = bd->bi_dram[bank].start;
-		size[bank] = bd->bi_dram[bank].size;
-	}
-
-	return fdt_fixup_memory_banks(blob, start, size, CONFIG_NR_DRAM_BANKS);
-}
-#endif
-
-static void announce_and_cleanup(void)
-{
-	printf("\nStarting kernel ...\n\n");
+	printf("\nStarting kernel ...%s\n\n", fake ?
+		"(fake run for tracing)" : "");
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
 #ifdef CONFIG_BOOTSTAGE_FDT
-	bootstage_fdt_add_report();
+	if (flag == BOOTM_STATE_OS_FAKE_GO)
+		bootstage_fdt_add_report();
 #endif
 #ifdef CONFIG_BOOTSTAGE_REPORT
 	bootstage_report();
@@ -118,16 +96,6 @@ static void announce_and_cleanup(void)
 	cleanup_before_linux();
 }
 
-#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
-	defined(CONFIG_CMDLINE_TAG) || \
-	defined(CONFIG_INITRD_TAG) || \
-	defined(CONFIG_SERIAL_TAG) || \
-	defined(CONFIG_REVISION_TAG) || \
-	defined(CONFIG_FSHWCONFIG_TAG) || \
-	defined(CONFIG_FSM4CONFIG_TAG) || \
-	defined(CONFIG_LCD) || \
-	defined(CONFIG_VFD) || \
-	defined(CONFIG_MTDPARTITION)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *)bd->bi_boot_params;
@@ -141,9 +109,7 @@ static void setup_start_tag (bd_t *bd)
 
 	params = tag_next (params);
 }
-#endif
 
-#ifdef CONFIG_SETUP_MEMORY_TAGS
 static void setup_memory_tags(bd_t *bd)
 {
 	int i;
@@ -158,9 +124,7 @@ static void setup_memory_tags(bd_t *bd)
 		params = tag_next (params);
 	}
 }
-#endif
 
-#ifdef CONFIG_CMDLINE_TAG
 static void setup_commandline_tag(bd_t *bd, char *commandline)
 {
 	char *p;
@@ -185,9 +149,7 @@ static void setup_commandline_tag(bd_t *bd, char *commandline)
 
 	params = tag_next (params);
 }
-#endif
 
-#ifdef CONFIG_INITRD_TAG
 static void setup_initrd_tag(bd_t *bd, ulong initrd_start, ulong initrd_end)
 {
 	/* an ATAG_INITRD node tells the kernel where the compressed
@@ -201,39 +163,11 @@ static void setup_initrd_tag(bd_t *bd, ulong initrd_start, ulong initrd_end)
 
 	params = tag_next (params);
 }
-#endif
 
-
-#if defined(CONFIG_VFD) || defined(CONFIG_LCD)
-static void setup_videolfb_tag (gd_t *gd)
-{
-	const fbpoolinfo_t *pfpi = lcd_get_fbpoolinfo_p();
-
-	/* An ATAG_VIDEOLFB node tells the kernel where and how large
-	 * the framebuffer for video was allocated (among other things).
-	 * Note that a _physical_ address is passed !
-	 *
-	 * We only use it to pass the address and size, the other entries
-	 * in the tag_videolfb are not of interest.
-	 */
-	params->hdr.tag = ATAG_VIDEOLFB;
-	params->hdr.size = tag_size (tag_videolfb);
-
-	params->u.videolfb.lfb_base = (u32)pfpi->base;
-	/* Fb size is calculated according to parameters for our panel
-	 */
-	params->u.videolfb.lfb_size = (u32)pfpi->size;
-
-	params = tag_next (params);
-}
-#endif /* CONFIG_VFD || CONFIG_LCD */
-
-#ifdef CONFIG_SERIAL_TAG
-void setup_serial_tag(struct tag **tmp)
+static void setup_serial_tag(struct tag **tmp)
 {
 	struct tag *params = *tmp;
 	struct tag_serialnr serialnr;
-	void get_board_serial(struct tag_serialnr *serialnr);
 
 	get_board_serial(&serialnr);
 	params->hdr.tag = ATAG_SERIAL;
@@ -243,13 +177,10 @@ void setup_serial_tag(struct tag **tmp)
 	params = tag_next (params);
 	*tmp = params;
 }
-#endif
 
-#ifdef CONFIG_REVISION_TAG
-void setup_revision_tag(struct tag **in_params)
+static void setup_revision_tag(struct tag **in_params)
 {
 	u32 rev = 0;
-	u32 get_board_rev(void);
 
 	rev = get_board_rev();
 	params->hdr.tag = ATAG_REVISION;
@@ -257,196 +188,93 @@ void setup_revision_tag(struct tag **in_params)
 	params->u.revision.rev = rev;
 	params = tag_next (params);
 }
-#endif  /* CONFIG_REVISION_TAG */
 
-#ifdef CONFIG_FSHWCONFIG_TAG
 void setup_fshwconfig_tag(struct tag **in_params)
 {
-	struct tag_fshwconfig *get_board_fshwconfig(void);
 	struct tag_fshwconfig *fshwconfig;
 
 	fshwconfig = get_board_fshwconfig();
 
-	params->hdr.tag = ATAG_FSHWCONFIG;
-	params->hdr.size = tag_size(tag_fshwconfig);
-	params->u.fshwconfig = *fshwconfig;
-	params = tag_next (params);
+	if (fshwconfig) {
+		params->hdr.tag = ATAG_FSHWCONFIG;
+		params->hdr.size = tag_size(tag_fshwconfig);
+		params->u.fshwconfig = *fshwconfig;
+		params = tag_next (params);
+	}
 }
-#endif
 
-#ifdef CONFIG_FSM4CONFIG_TAG
 void setup_fsm4config_tag(struct tag **in_params)
 {
-	struct tag_fsm4config *get_board_fsm4config(void);
 	struct tag_fsm4config *fsm4config;
 
 	fsm4config = get_board_fsm4config();
 
-	params->hdr.tag = ATAG_FSM4CONFIG;
-	params->hdr.size = tag_size(tag_fsm4config);
-	params->u.fsm4config = *fsm4config;
-	params = tag_next (params);
-}
-#endif
-
-#ifdef CONFIG_MTDPARTITION
-void setup_mtdpartition_tag(void)
-{
-	char *p, *temp;
-	int i = 0;
-
-	p = getenv("mtdpart");
-
-	params->hdr.tag = ATAG_MTDPART;
-	params->hdr.size = tag_size (tag_mtdpart);
-
-	for(temp = p; *temp != '\0'; temp++)
-	{
-		if(*temp == ' ')
-		{
-			*temp = '\0';
-			params->u.mtdpart_info.mtd_part_size[i] = simple_strtoul(p, NULL, 16);
-
-			p = ++temp;
-			i++;
-		}
+	if (fsm4config) {
+		params->hdr.tag = ATAG_FSM4CONFIG;
+		params->hdr.size = tag_size(tag_fsm4config);
+		params->u.fsm4config = *fsm4config;
+		params = tag_next (params);
 	}
-	params->u.mtdpart_info.mtd_part_size[i] = simple_strtoul(p, NULL, 16);
-
-	params = tag_next (params);
 }
-#endif  /* CONFIG_MTDPARTITION */
 
-#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
-	defined(CONFIG_CMDLINE_TAG) || \
-	defined(CONFIG_INITRD_TAG) || \
-	defined(CONFIG_SERIAL_TAG) || \
-	defined(CONFIG_REVISION_TAG) || \
-	defined(CONFIG_FSHWCONFIG_TAG) || \
-	defined(CONFIG_FSM4CONFIG_TAG) || \
-	defined(CONFIG_LCD) || \
-	defined(CONFIG_VFD) || \
-	defined(CONFIG_MTDPARTITION)
 static void setup_end_tag(bd_t *bd)
 {
 	params->hdr.tag = ATAG_NONE;
 	params->hdr.size = 0;
 }
-#endif
-
-#ifdef CONFIG_OF_LIBFDT
-static int create_fdt(bootm_headers_t *images)
-{
-	ulong of_size = images->ft_len;
-	char **of_flat_tree = &images->ft_addr;
-	ulong *initrd_start = &images->initrd_start;
-	ulong *initrd_end = &images->initrd_end;
-	struct lmb *lmb = &images->lmb;
-	ulong rd_len;
-	int ret;
-
-	debug("using: FDT\n");
-
-	boot_fdt_add_mem_rsv_regions(lmb, *of_flat_tree);
-
-	rd_len = images->rd_end - images->rd_start;
-	ret = boot_ramdisk_high(lmb, images->rd_start, rd_len,
-			initrd_start, initrd_end);
-	if (ret)
-		return ret;
-
-	ret = boot_relocate_fdt(lmb, of_flat_tree, &of_size);
-	if (ret)
-		return ret;
-
-	fdt_chosen(*of_flat_tree, 1);
-	fixup_memory_node(*of_flat_tree);
-	fdt_fixup_ethernet(*of_flat_tree);
-	fdt_initrd(*of_flat_tree, *initrd_start, *initrd_end, 1);
-#ifdef CONFIG_OF_BOARD_SETUP
-	ft_board_setup(*of_flat_tree, gd->bd);
-#endif
-
-	return 0;
-}
-#endif
 
 __weak void setup_board_tags(struct tag **in_params) {}
 
 /* Subcommand: PREP */
 static void boot_prep_linux(bootm_headers_t *images)
 {
-#ifdef CONFIG_CMDLINE_TAG
 	char *commandline = getenv("bootargs");
-#endif
 
+	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len) {
 #ifdef CONFIG_OF_LIBFDT
-	if (images->ft_len) {
 		debug("using: FDT\n");
-		if (create_fdt(images)) {
+		if (image_setup_linux(images)) {
 			printf("FDT creation failed! hanging...");
 			hang();
 		}
-	} else
 #endif
-	{
-#if defined(CONFIG_SETUP_MEMORY_TAGS) || \
-	defined(CONFIG_CMDLINE_TAG) || \
-	defined(CONFIG_INITRD_TAG) || \
-	defined(CONFIG_SERIAL_TAG) || \
-	defined(CONFIG_REVISION_TAG) || \
-	defined(CONFIG_FSHWCONFIG_TAG) || \
-	defined(CONFIG_FSM4CONFIG_TAG) || \
-	defined(CONFIG_LCD) || \
-	defined(CONFIG_VFD) || \
-	defined(CONFIG_MTDPARTITION)
+	} else if (BOOTM_ENABLE_TAGS) {
 		debug("using: ATAGS\n");
 		setup_start_tag(gd->bd);
-#ifdef CONFIG_SERIAL_TAG
-		setup_serial_tag(&params);
-#endif
-#ifdef CONFIG_CMDLINE_TAG
-		setup_commandline_tag(gd->bd, commandline);
-#endif
-#ifdef CONFIG_REVISION_TAG
-		setup_revision_tag(&params);
-#endif
-#ifdef CONFIG_FSHWCONFIG_TAG
-		setup_fshwconfig_tag(&params);
-#endif
-#ifdef CONFIG_FSM4CONFIG_TAG
-		setup_fsm4config_tag(&params);
-#endif
-#ifdef CONFIG_SETUP_MEMORY_TAGS
-		setup_memory_tags(gd->bd);
-#endif
-#ifdef CONFIG_INITRD_TAG
-		if (images->rd_start && images->rd_end)
-			setup_initrd_tag(gd->bd, images->rd_start,
-			images->rd_end);
-#endif
-#if defined(CONFIG_VFD) || defined(CONFIG_LCD)
-		setup_videolfb_tag((gd_t *)gd);
-#endif
-#ifdef CONFIG_MTDPARTITION
-		setup_mtdpartition_tag();
-#endif
+		if (BOOTM_ENABLE_SERIAL_TAG)
+			setup_serial_tag(&params);
+		if (BOOTM_ENABLE_CMDLINE_TAG)
+			setup_commandline_tag(gd->bd, commandline);
+		if (BOOTM_ENABLE_REVISION_TAG)
+			setup_revision_tag(&params);
+		if (BOOTM_ENABLE_MEMORY_TAGS)
+			setup_memory_tags(gd->bd);
+		if (BOOTM_ENABLE_FSHWCONFIG_TAG)
+			setup_fshwconfig_tag(&params);
+		if (BOOTM_ENABLE_FSM4CONFIG_TAG)
+			setup_fsm4config_tag(&params);
+		if (BOOTM_ENABLE_INITRD_TAG) {
+			if (images->rd_start && images->rd_end) {
+				setup_initrd_tag(gd->bd, images->rd_start,
+						 images->rd_end);
+			}
+		}
 		setup_board_tags(&params);
 		setup_end_tag(gd->bd);
-#else /* all tags */
+	} else {
 		printf("FDT and ATAGS support not compiled in - hanging\n");
 		hang();
-#endif /* all tags */
 	}
 }
 
 /* Subcommand: GO */
-static void boot_jump_linux(bootm_headers_t *images)
+static void boot_jump_linux(bootm_headers_t *images, int flag)
 {
 	unsigned long machid = gd->bd->bi_arch_number;
 	char *s;
 	void (*kernel_entry)(int zero, int arch, uint params);
 	unsigned long r2;
+	int fake = (flag & BOOTM_STATE_OS_FAKE_GO);
 
 	kernel_entry = (void (*)(int, int, uint))images->ep;
 
@@ -459,16 +287,15 @@ static void boot_jump_linux(bootm_headers_t *images)
 	debug("## Transferring control to Linux (at address %08lx)" \
 		"...\n", (ulong) kernel_entry);
 	bootstage_mark(BOOTSTAGE_ID_RUN_OS);
-	announce_and_cleanup();
+	announce_and_cleanup(fake);
 
-#ifdef CONFIG_OF_LIBFDT
-	if (images->ft_len)
+	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len)
 		r2 = (unsigned long)images->ft_addr;
 	else
-#endif
 		r2 = gd->bd->bi_boot_params;
 
-	kernel_entry(0, machid, r2);
+	if (!fake)
+		kernel_entry(0, machid, r2);
 }
 
 /* Main Entry point for arm bootm implementation
@@ -488,13 +315,13 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 		return 0;
 	}
 
-	if (flag & BOOTM_STATE_OS_GO) {
-		boot_jump_linux(images);
+	if (flag & (BOOTM_STATE_OS_GO | BOOTM_STATE_OS_FAKE_GO)) {
+		boot_jump_linux(images, flag);
 		return 0;
 	}
 
 	boot_prep_linux(images);
-	boot_jump_linux(images);
+	boot_jump_linux(images, flag);
 	return 0;
 }
 
@@ -509,21 +336,23 @@ struct zimage_header {
 
 #define	LINUX_ARM_ZIMAGE_MAGIC	0x016f2818
 
-int bootz_setup(void *image, void **start, void **end)
+int bootz_setup(ulong image, ulong *start, ulong *end)
 {
-	struct zimage_header *zi = (struct zimage_header *)image;
+	struct zimage_header *zi;
 
+	zi = (struct zimage_header *)map_sysmem(image, 0);
 	if (zi->zi_magic != LINUX_ARM_ZIMAGE_MAGIC) {
 		puts("Bad Linux ARM zImage magic!\n");
 		return 1;
 	}
 
-	*start = (void *)zi->zi_start;
-	*end = (void *)zi->zi_end;
+	*start = zi->zi_start;
+	*end = zi->zi_end;
 
-	debug("Kernel image @ 0x%08x [ 0x%08x - 0x%08x ]\n",
-		(uint32_t)image, (uint32_t)*start, (uint32_t)*end);
+	printf("Kernel image @ %#08lx [ %#08lx - %#08lx ]\n", image, *start,
+	      *end);
 
 	return 0;
 }
+
 #endif	/* CONFIG_CMD_BOOTZ */

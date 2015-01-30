@@ -63,8 +63,8 @@ static int nand_dump(nand_info_t *nand, ulong off, int only_oob, int repeat)
 	ops.oobbuf = oobbuf;
 	ops.len = nand->writesize;
 	ops.ooblen = nand->oobsize;
-	ops.mode = MTD_OOB_RAW;
-	i = nand->read_oob(nand, addr, &ops);
+	ops.mode = MTD_OPS_RAW;
+	i = mtd_read_oob(nand, addr, &ops);
 	if (i < 0) {
 		printf("Error (%d) reading page %08lx\n", i, off);
 		free(datbuf);
@@ -335,7 +335,7 @@ int do_nand_env_oob(cmd_tbl_t *cmdtp, int argc, char *const argv[])
 		}
 
 		ops.datbuf = NULL;
-		ops.mode = MTD_OOB_AUTO;
+		ops.mode = MTD_OPS_AUTO_OOB;
 		ops.ooboffs = 0;
 		ops.ooblen = ENV_OFFSET_SIZE;
 		ops.oobbuf = (void *) oob_buf;
@@ -407,13 +407,13 @@ static int raw_access(nand_info_t *nand, ulong addr, loff_t off, ulong count,
 			.oobbuf = ((u8 *)addr) + nand->writesize,
 			.len = nand->writesize,
 			.ooblen = nand->oobsize,
-			.mode = MTD_OOB_RAW
+			.mode = MTD_OPS_RAW
 		};
 
 		if (read)
-			ret = nand->read_oob(nand, off, &ops);
+			ret = mtd_read_oob(nand, off, &ops);
 		else
-			ret = nand->write_oob(nand, off, &ops);
+			ret = mtd_write_oob(nand, off, &ops);
 
 		if (ret) {
 			printf("%s: error at offset %llx, ret %d\n",
@@ -725,18 +725,18 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				.ooblen = rwsize,
 				.ooboffs = 0,
 				.datbuf = NULL,
-				.mode = MTD_OOB_RAW
+				.mode = MTD_OPS_RAW
 			};
 			if (!strcmp(s, ".oobauto"))
-				ops.mode = MTD_OOB_AUTO;
+				ops.mode = MTD_OPS_AUTO_OOB;
 			else if (strcmp(s, ".oob") && strcmp(s, ".oobraw")) {
 				printf("Unknown nand command suffix '%s'.\n", s);
 				return 1;
 			}
 			if (read)
-				ret = nand->read_oob(nand, off, &ops);
+				ret = mtd_read_oob(nand, off, &ops);
 			else
-				ret = nand->write_oob(nand, off, &ops);
+				ret = mtd_write_oob(nand, off, &ops);
 		} else if (raw) {
 			ret = raw_access(nand, addr, off, pagecount, read);
 		} else {
@@ -779,7 +779,7 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		while (argc > 0) {
 			addr = simple_strtoul(*argv, NULL, 16);
 
-			ret = nand->block_markbad(nand, addr);
+			ret = mtd_block_markbad(nand, addr);
 			if (ret) {
 				printf("block 0x%08lx NOT marked "
 					"as bad! ERROR %d\n",

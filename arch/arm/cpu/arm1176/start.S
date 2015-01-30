@@ -112,10 +112,6 @@ _TEXT_BASE:
 _bss_start_ofs:
 	.word __bss_start - _start
 
-.globl _image_copy_end_ofs
-_image_copy_end_ofs:
-	.word __image_copy_end - _start
-
 .globl _bss_end_ofs
 _bss_end_ofs:
 	.word __bss_end - _start
@@ -138,8 +134,7 @@ reset:
 	 * set the cpu to SVC32 mode
 	 */
 	mrs	r0, cpsr
-//###	bic	r0, r0, #0x3f
-	bic	r0, r0, #0x1f
+	bic	r0, r0, #0x3f
 	orr	r0, r0, #0xd3
 	msr	cpsr, r0
 
@@ -180,8 +175,8 @@ cpu_init_crit:
 	orr	r0, r0, #0x00001000	@ set bit 12 (I) I-Cache
 
 	/* Prepare to disable the MMU */
-	adr	lr, mmu_disable_phys
-	sub	lr, lr, #(CONFIG_SYS_PHY_UBOOT_BASE - CONFIG_SYS_TEXT_BASE)
+	adr	r2, mmu_disable_phys
+	sub	r2, r2, #(CONFIG_SYS_PHY_UBOOT_BASE - CONFIG_SYS_TEXT_BASE)
 	b	mmu_disable
 
 	.align 5
@@ -190,7 +185,7 @@ mmu_disable:
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
-	mov	pc, lr
+	mov	pc, r2
 mmu_disable_phys:
 
 #ifdef CONFIG_DISABLE_TCM
@@ -217,20 +212,6 @@ skip_tcmdisable:
 	mcr	p15,0,r0,c15,c2,4
 #endif
 
-#if 0  //#####HK
-	/* #####HK: Send character to UART ###### */
-	//ldr	r0, =0x7F005420		/* UART1 */
-	ldr	r0, =0x7F005820		/* UART2 */
-	mov	r1, #0x43
-	str	r1, [r0]
-	mov	r1, #0x43
-	str	r1, [r0]
-	mov	r0, #0x01000000		/* Wait */
-9:	subs	r0, r0,#1
-	bne	9b
-	/* ########### */
-#endif //#####HK
-
 	/*
 	 * Go setup Memory and board specific bits prior to relocation.
 	 */
@@ -238,79 +219,7 @@ skip_tcmdisable:
 
 	bl	_main
 
-
-/*---------------------------------------------------------------------------*/
-
-/*
- * void relocate_code(addr_moni)
- *
- * This function relocates the monitor code.
- */
-	.globl	relocate_code
-relocate_code:
-	mov	r6, r0	/* save addr of destination */
-
-	adr	r0, _start
-	subs	r9, r6, r0		/* r9 <- relocation offset */
-	beq	relocate_done		/* skip relocation */
-	mov	r1, r6			/* r1 <- scratch for copy_loop */
-	ldr	r3, _image_copy_end_ofs
-	add	r2, r0, r3		/* r2 <- source end address	    */
-
-copy_loop:
-	ldmia	r0!, {r10-r11}		/* copy from source address [r0]    */
-	stmia	r1!, {r10-r11}		/* copy to   target address [r1]    */
-	cmp	r0, r2			/* until source end address [r2]    */
-	blo	copy_loop
-
-#ifndef CONFIG_SPL_BUILD
-	/*
-	 * fix .rel.dyn relocations
-	 */
-	ldr	r0, _TEXT_BASE		/* r0 <- Text base */
-	ldr	r10, _dynsym_start_ofs	/* r10 <- sym table ofs */
-	add	r10, r10, r0		/* r10 <- sym table in FLASH */
-	ldr	r2, _rel_dyn_start_ofs	/* r2 <- rel dyn start ofs */
-	add	r2, r2, r0		/* r2 <- rel dyn start in FLASH */
-	ldr	r3, _rel_dyn_end_ofs	/* r3 <- rel dyn end ofs */
-	add	r3, r3, r0		/* r3 <- rel dyn end in FLASH */
-fixloop:
-	ldr	r0, [r2]		/* r0 <- location to fix up, IN FLASH! */
-	add	r0, r0, r9		/* r0 <- location to fix up in RAM */
-	ldr	r1, [r2, #4]
-	and	r7, r1, #0xff
-	cmp	r7, #23			/* relative fixup? */
-	beq	fixrel
-	cmp	r7, #2			/* absolute fixup? */
-	bne	fixnext		        /* ignore unknown type of fixup */
-fixabs:
-	/* absolute fix: set location to (offset) symbol value */
-	mov	r1, r1, LSR #4		/* r1 <- symbol index in .dynsym */
-	add	r1, r10, r1		/* r1 <- address of symbol in table */
-	ldr	r1, [r1, #4]		/* r1 <- symbol value */
-	add	r1, r1, r9		/* r1 <- relocated sym addr */
-	b	fixnext
-fixrel:
-	/* relative fix: increase location by offset */
-	ldr	r1, [r0]
-	add	r1, r1, r9
-fixnext:
-	str	r1, [r0]
-	add	r2, r2, #8		/* each rel.dyn entry is 8 bytes */
-	cmp	r2, r3
-	blo	fixloop
-#endif
-
-relocate_done:
-
-	bx	lr
-
-_rel_dyn_start_ofs:
-	.word __rel_dyn_start - _start
-_rel_dyn_end_ofs:
-	.word __rel_dyn_end - _start
-_dynsym_start_ofs:
-	.word __dynsym_start - _start
+/*------------------------------------------------------------------------------*/
 
 	.globl	c_runtime_cpu_setup
 c_runtime_cpu_setup:

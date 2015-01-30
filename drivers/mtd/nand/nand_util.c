@@ -122,8 +122,12 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 
 		WATCHDOG_RESET();
 
+		if (opts->lim && (erase.addr >= (opts->offset + opts->lim))) {
+			puts("Size of erase exceeds limit\n");
+			return -EFBIG;
+		}
 		if (!opts->scrub && bbtest) {
-			int ret = meminfo->block_isbad(meminfo, erase.addr);
+			int ret = mtd_block_isbad(meminfo, erase.addr);
 			if (ret > 0) {
 				if (!opts->quiet)
 					printf("\rSkipping bad block at "
@@ -146,14 +150,14 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 
 		erased_length++;
 
-		result = meminfo->erase(meminfo, &erase);
+		result = mtd_erase(meminfo, &erase);
 		if (result != 0) {
 			if (result == -EROFS) {
 				printf("\rNAND erase failed at 0x%08llx: "
 				       "read-only device\n", erase.addr);
 				return -1;
 			}
-			meminfo->block_markbad(meminfo, erase.addr);
+			mtd_block_markbad(meminfo, erase.addr);
 			printf("\rNAND erase failed at 0x%08llx with error %d; "
 			       "block marked bad!\n", erase.addr, result);
 			continue;
@@ -167,9 +171,9 @@ int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts)
 			ops.datbuf = NULL;
 			ops.oobbuf = (uint8_t *)&cleanmarker;
 			ops.ooboffs = 0;
-			ops.mode = MTD_OOB_AUTO;
+			ops.mode = MTD_OPS_AUTO_OOB;
 
-			result = meminfo->write_oob(meminfo,
+			result = mtd_write_oob(meminfo,
 			                            erase.addr,
 			                            &ops);
 			if (result != 0) {
@@ -612,7 +616,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 
 			ops.len = pagesize;
 			ops.ooblen = nand->oobsize;
-			ops.mode = MTD_OOB_AUTO;
+			ops.mode = MTD_OPS_AUTO_OOB;
 			ops.ooboffs = 0;
 
 			pages = write_size / pagesize_oob;
@@ -622,7 +626,7 @@ int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 				ops.datbuf = p_buffer;
 				ops.oobbuf = ops.datbuf + pagesize;
 
-				rval = nand->write_oob(nand, offset, &ops);
+				rval = mtd_write_oob(nand, offset, &ops);
 				if (rval != 0)
 					break;
 

@@ -152,11 +152,11 @@ static int erase_block(struct mtd_info *mtd, loff_t offset)
 	erase.len = mtd->erasesize;
 	erase.addr = offset;
 
-	rval = mtd->erase(mtd, &erase);
+	rval = mtd_erase(mtd, &erase);
 	if (rval == -EIO) {
 		printf("%s: Erasing block at 0x%08llx failed, marking bad\n",
 		       mtd->name, offset);
-		mtd->block_markbad(mtd, offset);
+		mtd_block_markbad(mtd, offset);
 	}
 
 	return rval;
@@ -203,7 +203,7 @@ static int erase_copy_block(struct mtd_info *mtd, loff_t refreshoffs,
 	ops.len = mtd->writesize;
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobavail;
-	ops.mode = MTD_OOB_AUTO;
+	ops.mode = MTD_OPS_AUTO_OOB;
 
 	/* Read page by page from source and write to destination block. */
 	for (offs = 0; offs < mtd->erasesize; offs += mtd->writesize) {
@@ -212,7 +212,7 @@ static int erase_copy_block(struct mtd_info *mtd, loff_t refreshoffs,
 		ops.oobbuf = mtd->oobavail ? oobbuf : NULL;
 		nr_debug("Reading page at 0x%08llx -> MAIN%s\n", from + offs,
 			 ops.oobbuf ? " OOB" : "");
-		rval = mtd->read_oob(mtd, from + offs, &ops);
+		rval = mtd_read_oob(mtd, from + offs, &ops);
 
 		/* If we have read errors while copying to backup block, we can
 		   return immediately as we can not read the original block
@@ -263,7 +263,7 @@ static int erase_copy_block(struct mtd_info *mtd, loff_t refreshoffs,
 			mtd->extradata = from;
 			mtd->extraflags = MTD_EXTRA_REFRESHOFFS;
 		}
-		rval = mtd->write_oob(mtd, to + offs, &ops);
+		rval = mtd_write_oob(mtd, to + offs, &ops);
 		mtd->extraflags = 0;
 
 		/* If we have write errors, we can stop immediately and mark
@@ -274,7 +274,7 @@ static int erase_copy_block(struct mtd_info *mtd, loff_t refreshoffs,
 			printf("%s: Writing page at 0x%08llx failed, marking "
 			       "block at 0x%08llx bad\n",
 			       mtd->name, to + offs, to);
-			mtd->block_markbad(mtd, to);
+			mtd_block_markbad(mtd, to);
 			return rval;
 		}
 		if (rval == -EROFS)
@@ -301,7 +301,7 @@ static int get_backupblock(struct mtd_info *mtd)
 	loff_t backupoffs = mtd->backupoffs & ~(mtd->erasesize - 1);
 	loff_t backupend = mtd->backupend & ~(mtd->erasesize - 1);
 
-	while (backupoffs && mtd->block_isbad(mtd, backupoffs)) {
+	while (backupoffs && mtd_block_isbad(mtd, backupoffs)) {
 		if (backupoffs > backupend)
 			backupoffs -= mtd->erasesize;
 		else if (backupoffs < backupend)
@@ -392,9 +392,9 @@ void nand_refresh_free_backup(struct mtd_info *mtd)
 	ops.oobbuf = oobbuf;
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobsize;
-	ops.mode = MTD_OOB_RAW;
-	mtd->write_oob(mtd, mtd->backupoffs + mtd->erasesize - mtd->writesize,
-		       &ops);
+	ops.mode = MTD_OPS_RAW;
+	mtd_write_oob(mtd, mtd->backupoffs + mtd->erasesize - mtd->writesize,
+		      &ops);
 
 	nr_debug("Refresh offset in backup block invalidated\n");
 
@@ -538,10 +538,10 @@ void nand_refresh_init(struct mtd_info *mtd)
 	ops.oobbuf = mtd->oobavail ? oobbuf : NULL;
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobavail;
-	ops.mode = MTD_OOB_AUTO;
+	ops.mode = MTD_OPS_AUTO_OOB;
 	mtd->extraflags = MTD_EXTRA_REFRESHOFFS;
-	rval = mtd->read_oob(mtd, mtd->backupoffs + mtd->erasesize
-			     - mtd->writesize, &ops);
+	rval = mtd_read_oob(mtd, mtd->backupoffs + mtd->erasesize
+			    - mtd->writesize, &ops);
 	mtd->extraflags = 0;
 	if (rval && (rval != -EUCLEAN)) {
 		/* If the last page of the backup block could not be read
@@ -564,7 +564,7 @@ void nand_refresh_init(struct mtd_info *mtd)
 	   progress that was interrupted. But if the original block is bad
 	   then we could neither write back the data the last time, nor can we
 	   now. Enter EMERGENCY MODE. */
-	if (mtd->block_isbad(mtd, refreshoffs)) {
+	if (mtd_block_isbad(mtd, refreshoffs)) {
 		enter_emergency_mode(mtd, refreshoffs);
 		return;
 	}
