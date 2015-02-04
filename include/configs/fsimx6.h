@@ -475,22 +475,14 @@
  * NAND flash organization (incl. JFFS2 and UBIFS)
  ************************************************************************/
 
-#ifdef CONFIG_CMD_NAND
-
-/* NAND stuff */
-//#####define CONFIG_NAND_MXS
+/* Use Freescale GPMI NFC NAND Flash Driver (MXS) */
+#define CONFIG_NAND_MXS
 #define CONFIG_SYS_NAND_BASE		0x40000000
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
-//####define CONFIG_APBH_DMA
-//####define CONFIG_APBH_DMA_BURST
-//####define CONFIG_APBH_DMA_BURST8
-
-#define CONFIG_SYS_USE_NANDFLASH
-
-#endif
-
-#ifdef CONFIG_SYS_USE_NANDFLASH
+#define CONFIG_APBH_DMA
+#define CONFIG_APBH_DMA_BURST
+#define CONFIG_APBH_DMA_BURST8
 
 /* To avoid that NBoot is erased inadvertently, we define a skip region in the
    first NAND device that can not be written and always reads as 0xFF. However
@@ -536,7 +528,6 @@
 #define CONFIG_MTD_PARTITIONS		  /* Required for UBI */
 #define CONFIG_RBTREE			  /* Required for UBI */
 #define CONFIG_LZO			  /* Required for UBI */
-#endif
 
 //#define CONFIG_FLASH_HEADER
 //#define CONFIG_FLASH_HEADER_OFFSET 0x400

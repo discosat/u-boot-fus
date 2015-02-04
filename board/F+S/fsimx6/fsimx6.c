@@ -316,7 +316,7 @@ static void setup_gpmi_nand(void)
 
 int board_early_init_f(void)
 {
-//###	setup_gpmi_nand();
+	setup_gpmi_nand();
 
 	return 0;
 }
@@ -423,12 +423,14 @@ int board_init(void)
 	return 0;
 }
 
+#if 0
 /* Register NAND devices. We actually split the NAND into two virtual devices
    to allow different ECC strategies for NBoot and the rest. */
 void board_nand_init(void)
 {
 	//### TODO ###
 }
+#endif
 
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {
