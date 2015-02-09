@@ -54,6 +54,7 @@
 //#####include <asm/imx-common/boot_mode.h>
 
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
+#include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
@@ -316,8 +317,6 @@ static void setup_gpmi_nand(void)
 
 int board_early_init_f(void)
 {
-	setup_gpmi_nand();
-
 	return 0;
 }
 
@@ -423,14 +422,44 @@ int board_init(void)
 	return 0;
 }
 
-#if 0
 /* Register NAND devices. We actually split the NAND into two virtual devices
    to allow different ECC strategies for NBoot and the rest. */
 void board_nand_init(void)
 {
-	//### TODO ###
-}
+	struct mxs_nand_fus_platform_data pdata;
+
+	setup_gpmi_nand();
+
+	/* The first device skips the NBoot region (2 blocks) to protect it
+	   from inadvertent erasure. The skipped region can not be written
+	   and is always read as 0xFF. */
+	pdata.options = NAND_BBT_SCAN2NDPAGE;
+	pdata.t_wb = 0;
+//###	pdata.ecc_strength = fs_nboot_args.chECCtype;
+	pdata.ecc_strength = 8;		/* 8-bit ECC */
+	pdata.skipblocks = 2;
+	pdata.flags = 0;
+#ifdef CONFIG_NAND_REFRESH
+	pdata.backup_sblock = CONFIG_SYS_NAND_BACKUP_START_BLOCK;
+	pdata.backup_eblock = CONFIG_SYS_NAND_BACKUP_END_BLOCK;
 #endif
+	mxs_nand_register(0, &pdata);
+
+#if CONFIG_SYS_MAX_NAND_DEVICE > 1
+	/* The second device just consists of the NBoot region (2 blocks) and
+	   is software write-protected by default. It uses a different ECC
+	   strategy. ### TODO ### In fact we actually need special code to
+	   store the NBoot image. */
+	pdata.options |= NAND_SW_WRITE_PROTECT;
+	pdata.ecc_strength = 40;
+	pdata.flags = MXS_NAND_SKIP_INVERSE;
+#ifdef CONFIG_NAND_REFRESH
+	pdata.backupstart = 0;
+	pdata.backupend = 0;
+#endif
+	mxs_nand_register(0, &pdata);
+#endif
+}
 
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {

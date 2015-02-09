@@ -74,6 +74,7 @@ COBJS-$(CONFIG_NAND_FSL_NFC) += fsl_nfc.o
 COBJS-$(CONFIG_NAND_FSL_NFC_FS) += fsl_nfc_fus.o
 COBJS-$(CONFIG_NAND_MXC) += mxc_nand.o
 COBJS-$(CONFIG_NAND_MXS) += mxs_nand.o
+COBJS-$(CONFIG_NAND_MXS_FUS) += mxs_nand_fus.o
 COBJS-$(CONFIG_NAND_NDFC) += ndfc.o
 COBJS-$(CONFIG_NAND_NOMADIK) += nomadik.o
 COBJS-$(CONFIG_NAND_S3C2410) += s3c2410_nand.o
