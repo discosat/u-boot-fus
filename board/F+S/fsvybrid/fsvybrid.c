@@ -570,7 +570,7 @@ void board_nand_init(void)
 	   strategy. ### TODO ### In fact we actually need special code to
 	   store the NBoot image. */
 	pdata.options |= NAND_SW_WRITE_PROTECT;
-	pdata.eccmode = ECC_60_BYTE;
+	pdata.eccmode = VYBRID_NFC_ECCMODE_32BIT;
 	pdata.flags = VYBRID_NFC_SKIP_INVERSE;
 #ifdef CONFIG_NAND_REFRESH
 	pdata.backupstart = 0;
