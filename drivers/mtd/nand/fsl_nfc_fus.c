@@ -346,9 +346,9 @@ static int nfc_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 
 /* Count the number of zero bits in a value; start at the LSB to be fast in
    case of 8-bit values */
-static uint count_zeroes(u32 value)
+static int count_zeroes(u32 value)
 {
-	uint count = 0;
+	int count = 0;
 
 	while (value != 0xFFFFFFFF) {
 		if (!(value & 1))
@@ -828,8 +828,8 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u8 ecc_status;
 	uint i;
 	uint size;
-	uint zerobits;
-	uint limit;
+	int zerobits;
+	int limit;
 	struct fsl_nfc_fus_prv *prv = chip->priv;
 
 	/* This code assumes that the NAND_CMD_READ0 command was
@@ -863,8 +863,10 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Get the ECC status */
 	ecc_status = nfc_read_ram(chip, ECC_STATUS_OFFS + 7);
 	if (!(ecc_status & ECC_STATUS_MASK)) {
+		int bitflips = ecc_status & ECC_ERR_COUNT;
+
 		/* Correctable error or no error at all: update ecc_stats */
-		mtd->ecc_stats.corrected += ecc_status & ECC_ERR_COUNT;
+		mtd->ecc_stats.corrected += bitflips;
 
 		/* Copy main data from NFC RAM. Please note that we don't swap
 		   the data from Big Endian byte order. DMA does not swap data
@@ -919,7 +921,7 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		   data is at the beginning of the NFC RAM */
 		nfc_copy_from_nfc(chip, chip->oob_poi + size, mtd->oobsize, 0);
 
-		return 0;
+		return bitflips;
 	}
 
 	/* The page is uncorrectable; however this can also happen with a
@@ -960,7 +962,7 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	   disturbs caused by writes to a nearby page), we accept up to
 	   bitflip_threshold non-empty bits. */
 	zerobits = 0;
-	limit = mtd->bitflip_threshold;
+	limit = (int)mtd->bitflip_threshold;
 	i = size;
 	do {
 		zerobits += count_zeroes(nfc_read_ram(chip, i-1) | 0xFFFFFF00);
@@ -1014,20 +1016,7 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			/* Main area is empty, too, fill with 0xFF */
 			memset(buf, 0xFF, mtd->writesize);
 
-			/* FIXME: If we had bitflips, we finally want to
-			   return -EUCLEAN from the read call, to make the
-			   filesystem aware of this fact. But we must not
-			   return -EUCLEAN here, because then reading will be
-			   stopped after this page with an error. Instead we
-			   must trigger the calling function to return
-			   -EUCLEAN after the whole read is done. We do this
-			   by (incorrectly) increasing the stats.corrected
-			   count by at least bitflip_threshold. In reality we
-			   only have corrected zerobits bits. */
-			if (zerobits)
-				mtd->ecc_stats.corrected += limit;
-
-			return 0;
+			return zerobits;
 		}
 	}
 

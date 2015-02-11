@@ -166,6 +166,9 @@ static inline uint32_t mxs_nand_get_ecc_strength(uint32_t page_data_size,
 
 		if (page_oob_size == 218)
 			return 16;
+
+		if (page_oob_size == 224)
+			return 16;
 	}
 
 	return 0;
@@ -660,6 +663,7 @@ static int mxs_nand_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Propagate ECC status to the owning MTD. */
 	mtd->ecc_stats.failed += failed;
 	mtd->ecc_stats.corrected += corrected;
+	ret = corrected;		/* Return number of bitflips */
 
 	/*
 	 * It's time to deliver the OOB bytes. See mxs_nand_ecc_read_oob() for

@@ -1071,6 +1071,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 	uint8_t *ecc_code = chip->buffers->ecccode;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
+	int corrected = 0;
 
 	/* Read the OOB area first */
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
@@ -1089,10 +1090,12 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
 		stat = chip->ecc.correct(mtd, p, &ecc_code[i], &ecc_calc[i]);
 		if (stat < 0)
 			mtd->ecc_stats.failed++;
-		else
+		else {
 			mtd->ecc_stats.corrected += stat;
+			corrected += stat;
+		}
 	}
-	return 0;
+	return corrected;
 }
 
 /**
