@@ -50,8 +50,8 @@ static env_t *get_redundand_env_ptr(void)
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if defined(CONFIG_ENV_RANGE) || defined(CONFIG_ENV_SIZE)
-inline size_t __get_env_range(void)
+#ifdef CONFIG_ENV_SIZE
+inline size_t get_env_range(void)
 {
 #ifdef CONFIG_ENV_RANGE
 	return CONFIG_ENV_RANGE;
@@ -59,11 +59,33 @@ inline size_t __get_env_range(void)
 	return CONIG_ENV_SIZE;
 #endif
 }
-/* We may define our own get_env_range() or use the default one here */
-size_t get_env_range(void) __attribute__((weak, alias("__get_env_range")));
+
+inline size_t get_env_size(void)
+{
+	return CONIG_ENV_SIZE;
+}
 #else
-/* We must have get_env_range() */
-size_t get_env_range(void);
+extern size_t get_env_range(void);
+extern size_t get_env_size(void);
+#endif
+
+#ifdef CONFIG_ENV_OFFSET
+inline size_t get_env_offset(void)
+{
+	return CONFIG_ENV_OFFSET;
+}
+
+#ifdef CONFIG_ENV_OFFSET_REDUND
+inline size_t __get_env_offset_redund(void)
+{
+	return CONFIG_ENV_OFFSET_REDUND;
+}
+#endif
+#else
+extern size_t get_env_offset(void);
+#ifdef CONFIG_ENV_OFFSET_REDUND
+extern size_t get_env_offset_redund(void);
+#endif
 #endif
 
 uchar env_get_char_spec(int index)
@@ -138,20 +160,28 @@ int env_init(void)
 }
 
 #ifdef CMD_SAVEENV
+struct env_location {
+	const char *name;
+	size_t env_size;
+	nand_erase_options_t erase_opts;
+};
+
 /*
  * The legacy NAND code saved the environment in the first NAND device i.e.,
  * nand_dev_desc + 0. This is also the behaviour using the new NAND code.
  */
-static int writeenv(size_t offset, u_char *buf, size_t env_size)
+static int writeenv(const struct env_location *location, u_char *buf)
 {
-	size_t end = offset + get_env_range();
+	size_t offset = location->erase_opts.offset;
+	size_t end = offset + location->erase_opts.length;
+	size_t env_size = location->env_size;
 	size_t amount_saved = 0;
 	size_t blocksize, len;
 
 	blocksize = nand_info[0].erasesize;
 	len = min(blocksize, env_size);
 
-	while (amount_saved < env_size && offset < end) {
+	while ((amount_saved < env_size) && (offset < end)) {
 		if (nand_block_isbad(&nand_info[0], offset)) {
 			offset += blocksize;
 		} else {
@@ -169,29 +199,21 @@ static int writeenv(size_t offset, u_char *buf, size_t env_size)
 	return 0;
 }
 
-struct env_location {
-	const char *name;
-	const nand_erase_options_t erase_opts;
-};
-
 static int erase_and_write_env(const struct env_location *location,
-		u_char *env_new)
+			       u_char *env_new)
 {
-	int ret = 0;
+	int ret;
 
-	printf("Erasing %s...\n", location->name);
-	if (nand_erase_opts(&nand_info[0], &location->erase_opts))
-		return 1;
-
-	printf("Writing to %s... ", location->name);
-	ret = writeenv(location->erase_opts.offset, env_new);
+	printf("Erasing %s... ", location->name);
+	ret = nand_erase_opts(&nand_info[0], &location->erase_opts);
+	if (!ret) {
+		printf("OK\n"
+		       "Writing to %s... ", location->name);
+		ret = writeenv(location, env_new);
+	}
 	puts(ret ? "FAILED!\n" : "OK\n");
 
 	return ret;
-}
-
-
-	return 1;
 }
 
 #ifdef CONFIG_ENV_OFFSET_REDUND
@@ -202,31 +224,18 @@ int saveenv(void)
 {
 	int	ret = 0;
 	env_t *env_new;
-	nand_erase_options_t nand_erase_options;
 	int env_idx = 0;
 	ssize_t	len;
 	char *res;
 	size_t env_size = get_env_size();
 	size_t env_range = get_env_range();
-	size_t env_offset = get_env_offset();
-#ifdef CONFIG_ENV_OFFSET_REDUND
-	size_t env_offset_redund = get_env_offset_redund();
-#endif
 	static struct env_location location[] = {
 		{
 			.name = "NAND",
-			.erase_opts = {
-				.length = env_range,
-				.offset = env_offset,
-			},
 		},
 #ifdef CONFIG_ENV_OFFSET_REDUND
 		{
 			.name = "redundant NAND",
-			.erase_opts = {
-				.length = env_range,
-				.offset = env_offset_redund,
-			},
 		},
 #endif
 	};
@@ -234,20 +243,29 @@ int saveenv(void)
 	if (env_range < env_size)
 		return 1;
 
-	env_new = (env_t *)malloc(env_size);
+	env_new = (env_t *)malloc(env_size + ENV_HEADER_SIZE);
 	if (!env_new) {
-		printf("Malloc failed\n");
-		goto DONE;
+		printf("Cannot export environment: malloc() failed\n");
+		return -1;
+	}
 
 	res = (char *)(env_new + 1);
-	len = hexport_r(&env_htab, '\0', 0, &data, env_size - ENV_HEADER_SIZE, 0,
-		      NULL);
+	len = hexport_r(&env_htab, '\0', 0, &res, env_size, 0, NULL);
 	if (len < 0) {
 		error("Cannot export environment: errno = %d\n", errno);
-		goto DONE;
+		free(env_new);
+		return -1;
 	}
-	env_new->crc = crc32(0, (u_char *)data, env_size - ENV_HEADER_SIZE);
+	env_new->crc = crc32(0, (u_char *)res, env_size);
+
+	location[0].env_size = env_size;
+	location[0].erase_opts.length = env_range;
+	location[0].erase_opts.offset = get_env_offset();
+
 #ifdef CONFIG_ENV_OFFSET_REDUND
+	location[1].env_size = env_size;
+	location[1].erase_opts-length = env_range;
+	location[1].erase_opts.offset = get_env_offset_redund();
 	env_new->flags = ++env_flags; /* increase the serial */
 	env_idx = (gd->env_valid == 1);
 #endif
@@ -258,7 +276,7 @@ int saveenv(void)
 	if (!ret) {
 		/* preset other copy for next write */
 		gd->env_valid = gd->env_valid == 2 ? 1 : 2;
-		return ret;
+		goto DONE;
 	}
 
 	env_idx = (env_idx + 1) & 1;
@@ -266,9 +284,9 @@ int saveenv(void)
 	if (!ret)
 		printf("Warning: primary env write failed,"
 				" redundancy is lost!\n");
+DONE:
 #endif
 
-DONE:
 	free(env_new);
 
 	return ret;
@@ -355,8 +373,8 @@ void env_relocate_spec(void)
 		goto done;
 	}
 
-	read1_fail = readenv(CONFIG_ENV_OFFSET, (u_char *)env1, env_size);
-	read2_fail = readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *)env2, env_size);
+	read1_fail = readenv(get_env_offset(), (u_char *)env1, env_size);
+	read2_fail = readenv(get_env_offset_redund(), (u_char *)env2, env_size);
 
 	gd->env_size = env_size;
 	env_size -= ENV_HEADER_SIZE;
