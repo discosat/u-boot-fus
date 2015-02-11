@@ -11,23 +11,7 @@
  * (C) Copyright 2001 Sysgo Real-Time Solutions, GmbH <www.elinos.com>
  * Andreas Heppel <aheppel@sysgo.de>
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -185,113 +169,110 @@ static int writeenv(size_t offset, u_char *buf, size_t env_size)
 	return 0;
 }
 
+struct env_location {
+	const char *name;
+	const nand_erase_options_t erase_opts;
+};
+
+static int erase_and_write_env(const struct env_location *location,
+		u_char *env_new)
+{
+	int ret = 0;
+
+	printf("Erasing %s...\n", location->name);
+	if (nand_erase_opts(&nand_info[0], &location->erase_opts))
+		return 1;
+
+	printf("Writing to %s... ", location->name);
+	ret = writeenv(location->erase_opts.offset, env_new);
+	puts(ret ? "FAILED!\n" : "OK\n");
+
+	return ret;
+}
+
+
+	return 1;
+}
+
 #ifdef CONFIG_ENV_OFFSET_REDUND
 static unsigned char env_flags;
+#endif
 
 int saveenv(void)
 {
-	nand_erase_options_t nand_erase_options;
+	int	ret = 0;
 	env_t *env_new;
-	char *data;
-	size_t env_offset;
-	size_t env_range = get_env_range();
-	size_t env_size = get_env_size();
-	size_t env_offset;
-
-	if (env_range < env_size)
-		return 1;
-
-	env_new = (env_t *)malloc(env_size);
-	if (!env_new) {
-		puts("malloc ");
-		goto FAILED;
-	}
-
-	data = (char *)(env_new + 1);
-	env_size -= ENV_HEADER_SIZE;
-	if (hexport_r(&env_htab, '\0', 0, data, env_size, 0, NULL) < 0) {
-		printf("Export environment: errno = %d ", errno);
-		goto FAILED;
-	}
-	env_new.crc	= crc32(0, (u_char *)data, env_size);
-	env_new.flags	= ++env_flags; /* increase the serial */
-
-	if (gd->env_valid == 1) {
-		env_offset = CONFIG_ENV_OFFSET_REDUND;;
-		puts("Erasing redundant NAND...\n");
-	} else {
-		env_offset = get_env_offset();
-		puts("Erasing NAND...\n");
-	}
-	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
-	nand_erase_options.length = env_range;
-	nand_erase_options.offset = env_offset;
-	if (!nand_erase_opts(&nand_info[0], &nand_erase_options)) {
-		puts(gd->env_valid == 1 ?
-		     "Writing to redundant NAND... " : "Writing to NAND... ");
-		if (!writeenv(env_offset, (u_char *)env_new)) {
-			gd->env_valid = (gd->env_valid == 2) ? 1 : 2;
-			puts("done\n");
-			free(env_new);
-
-			return 0;
-		}
-	}
-
-FAILED:
-	free(env_new);
-	puts("FAILED!\n");
-
-	return 1;
-}
-#else /* ! CONFIG_ENV_OFFSET_REDUND */
-int saveenv(void)
-{
-	env_t	*env_new;
-	char *data;
 	nand_erase_options_t nand_erase_options;
+	int env_idx = 0;
+	ssize_t	len;
+	char *res;
 	size_t env_size = get_env_size();
-	size_t env_offset;
 	size_t env_range = get_env_range();
+	size_t env_offset = get_env_offset();
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	size_t env_offset_redund = get_env_offset_redund();
+#endif
+	static struct env_location location[] = {
+		{
+			.name = "NAND",
+			.erase_opts = {
+				.length = env_range,
+				.offset = env_offset,
+			},
+		},
+#ifdef CONFIG_ENV_OFFSET_REDUND
+		{
+			.name = "redundant NAND",
+			.erase_opts = {
+				.length = env_range,
+				.offset = env_offset_redund,
+			},
+		},
+#endif
+	};
 
 	if (env_range < env_size)
 		return 1;
 
 	env_new = (env_t *)malloc(env_size);
 	if (!env_new) {
-		puts("malloc ");
-		goto FAILED;
-	}
+		printf("Malloc failed\n");
+		goto DONE;
 
-	data = (char *)(env_new + 1);
-	if (hexport_r(&env_htab, '\0', 0, &data, env_size - ENV_HEADER_SIZE, 0,
-		      NULL) < 0) {
-		printf("Export environment: errno = %d ", errno);
-		goto FAILED;
+	res = (char *)(env_new + 1);
+	len = hexport_r(&env_htab, '\0', 0, &data, env_size - ENV_HEADER_SIZE, 0,
+		      NULL);
+	if (len < 0) {
+		error("Cannot export environment: errno = %d\n", errno);
+		goto DONE;
 	}
 	env_new->crc = crc32(0, (u_char *)data, env_size - ENV_HEADER_SIZE);
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	env_new->flags = ++env_flags; /* increase the serial */
+	env_idx = (gd->env_valid == 1);
+#endif
 
-	puts("Erasing Nand...\n");
-	env_offset = get_env_offset();
-	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
-	nand_erase_options.length = env_range;
-	nand_erase_options.offset = env_offset;
-	if (!nand_erase_opts(&nand_info[0], &nand_erase_options)) {
-		puts("Writing to Nand... ");
-		if (!writeenv(env_offset, (u_char *)env_new, env_size)) {
-			puts("done\n");
-			free(env_new);
-			return 0;
-		}
+	ret = erase_and_write_env(&location[env_idx], (u_char *)env_new);
+
+#ifdef CONFIG_ENV_OFFSET_REDUND
+	if (!ret) {
+		/* preset other copy for next write */
+		gd->env_valid = gd->env_valid == 2 ? 1 : 2;
+		return ret;
 	}
 
-FAILED:
-	free(env_new);
-	puts("FAILED!\n");
+	env_idx = (env_idx + 1) & 1;
+	ret = erase_and_write_env(&location[env_idx], (u_char *)env_new);
+	if (!ret)
+		printf("Warning: primary env write failed,"
+				" redundancy is lost!\n");
+#endif
 
-	return 1;
+DONE:
+	free(env_new);
+
+	return ret;
 }
-#endif /* CONFIG_ENV_OFFSET_REDUND */
 #endif /* CMD_SAVEENV */
 
 static int readenv(size_t offset, u_char *buf, size_t env_size)

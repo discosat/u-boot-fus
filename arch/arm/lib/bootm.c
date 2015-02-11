@@ -9,19 +9,7 @@
  *
  * Copyright (C) 2001  Erik Mouw (J.A.K.Mouw@its.tudelft.nl)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -36,6 +24,10 @@
 
 #if defined (CONFIG_VFD) || defined (CONFIG_LCD)
 #include <cmd_lcd.h>			  /* lcd_getfbpoolinfo() */
+#endif
+
+#if defined(CONFIG_ARMV7_NONSEC) || defined(CONFIG_ARMV7_VIRT)
+#include <asm/armv7.h>
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -225,6 +217,19 @@ static void setup_end_tag(bd_t *bd)
 
 __weak void setup_board_tags(struct tag **in_params) {}
 
+static void do_nonsec_virt_switch(void)
+{
+#if defined(CONFIG_ARMV7_NONSEC) || defined(CONFIG_ARMV7_VIRT)
+	if (armv7_switch_nonsec() == 0)
+#ifdef CONFIG_ARMV7_VIRT
+		if (armv7_switch_hyp() == 0)
+			debug("entered HYP mode\n");
+#else
+		debug("entered non-secure state\n");
+#endif
+#endif
+}
+
 /* Subcommand: PREP */
 static void boot_prep_linux(bootm_headers_t *images)
 {
@@ -265,6 +270,7 @@ static void boot_prep_linux(bootm_headers_t *images)
 		printf("FDT and ATAGS support not compiled in - hanging\n");
 		hang();
 	}
+	do_nonsec_virt_switch();
 }
 
 /* Subcommand: GO */

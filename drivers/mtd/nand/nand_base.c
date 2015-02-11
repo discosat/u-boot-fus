@@ -1221,7 +1221,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	uint32_t oobreadlen = oobbuf ? ops->ooblen : 0;
 	uint32_t oobmaxlen = ops->mode == MTD_OPS_AUTO_OOB ?
 		mtd->oobavail : mtd->oobsize;
-	unsigned int max_bitflips = 0;
+	int max_bitflips = 0;
 	uint8_t *bufpoi;
 
 	ops->retlen = 0;
@@ -1274,8 +1274,9 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		} else if ((realpage == chip->pagebuf) && !oobbuf) {
 			/* Read data from buffered page */
 			memcpy(buf, chip->buffers->databuf + col, bytes);
+			if (chip->pagebuf_bitflips > max_bitflips)
+				max_bitflips = chip->pagebuf_bitflips;
 		} else {
-			unsigned int prev_corrected = mtd->ecc_stats.corrected;
 			int newchipnr;
 
 			/* Select chip */
@@ -1294,7 +1295,10 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 			chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
 
-			/* Now read the page into the buffer */
+			/*
+			 * Now read the page into the buffer.  Absent an error,
+			 * the read methods return max bitflips per ecc step.
+			 */
 			if (unlikely(ops->mode == MTD_OPS_RAW))
 				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi,
 							      oob_required,
@@ -1313,11 +1317,20 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				break;
 			}
 
+			if (ret > max_bitflips)
+				max_bitflips = ret;
+
 			/* Transfer not aligned data */
 			if (!aligned) {
 				if (!NAND_HAS_SUBPAGE_READ(chip) && !oobbuf &&
-				    !(mtd->ecc_stats.failed - stats.failed))
+				    !(mtd->ecc_stats.failed - stats.failed) &&
+				    (ops->mode != MTD_OPS_RAW)) {
 					chip->pagebuf = realpage;
+					chip->pagebuf_bitflips = ret;
+				} else {
+					/* Invalidate page cache */
+					chip->pagebuf = -1;
+				}
 				memcpy(buf, chip->buffers->databuf + col,
 				       bytes);
 			}
@@ -1333,9 +1346,6 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 					oobreadlen -= toread;
 				}
 			}
-			max_bitflips = max(max_bitflips,
-					   mtd->ecc_stats.corrected -
-					   prev_corrected);
 		}
 		buf += bytes;
 		from += bytes;
@@ -1354,7 +1364,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
 
-	return max_bitflips >= mtd->bitflip_threshold ? -EUCLEAN : 0;
+	return max_bitflips;
 }
 
 /**
@@ -3442,7 +3452,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	case NAND_ECC_NONE:
 		pr_warn("NAND_ECC_NONE selected by board driver. "
-		        "This is not recommended !!\n");
+			"This is not recommended !!\n");
 		chip->ecc.read_page = nand_read_page_raw;
 		chip->ecc.write_page = nand_write_page_raw;
 		chip->ecc.read_oob = nand_read_oob_std;
