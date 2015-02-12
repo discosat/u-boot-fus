@@ -106,6 +106,30 @@ int arch_cpu_init(void)
 }
 #endif /* CONFIG_ARCH_CPU_INIT */
 
+#ifdef CONFIG_SPL_BUILD
+static void arm_errata_798870(void)
+{
+	u32 val;
+
+	val = cortex_rev();
+	val = (val >> 4);
+	val &= 0xf;
+	/*
+	* L2ACTLR[7]: Enable hazard detect timeout for A15.
+	*/
+	if (val == 0xf) {
+		val = get_l2_aux_ctrl_reg();
+		/*
+		* Set L2ACTLR[7] to reissue any memory transaction in the L2
+		* that has been stalled for 1024 cycles to verify that its
+		* hazard condition still exists.
+		*/
+		val |= (1 << 7);
+		set_l2_aux_ctrl_reg(val);
+	}
+}
+#endif
+
 /*
  * Routine: s_init
  * Description: Does early system init of watchdog, muxing,  andclocks
@@ -129,9 +153,11 @@ void s_init(void)
 	 */
 #ifdef CONFIG_SPL_BUILD
 	save_omap_boot_params();
+	arm_errata_798870();
 #endif
 	init_omap_revision();
 	hw_data_init();
+	prcm_init();
 
 #ifdef CONFIG_SPL_BUILD
 	if (warm_reset() && (omap_revision() <= OMAP5430_ES1_0))
@@ -148,7 +174,7 @@ void s_init(void)
 	preloader_console_init();
 	do_io_settings();
 #endif
-	prcm_init();
+
 #ifdef CONFIG_SPL_BUILD
 	/* For regular u-boot sdram_init() is called from dram_init() */
 	sdram_init();

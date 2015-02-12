@@ -273,9 +273,15 @@ int spi_flash_cmd_read_ops(struct spi_flash *flash, u32 offset,
 
 	/* Handle memory-mapped SPI */
 	if (flash->memory_map) {
+		ret = spi_claim_bus(flash->spi);
+		if (ret) {
+			debug("SF: unable to claim SPI bus\n");
+			return ret;
+		}
 		spi_xfer(flash->spi, 0, NULL, NULL, SPI_XFER_MMAP);
 		memcpy(data, flash->memory_map + offset, len);
 		spi_xfer(flash->spi, 0, NULL, NULL, SPI_XFER_MMAP_END);
+		spi_release_bus(flash->spi);
 		return 0;
 	}
 
@@ -310,6 +316,36 @@ int spi_flash_cmd_read_ops(struct spi_flash *flash, u32 offset,
 		offset += read_len;
 		len -= read_len;
 		data += read_len;
+	}
+
+	return ret;
+}
+
+int spi_flash_set_qeb_mxic(struct spi_flash *flash)
+{
+	u8 qeb_status;
+	u8 cmd;
+	int ret;
+
+	cmd = CMD_READ_STATUS;
+	ret = spi_flash_read_common(flash, &cmd, 1, &qeb_status, 1);
+	if (ret < 0) {
+		debug("SF: fail to read status register\n");
+		return ret;
+	}
+
+	if (qeb_status & STATUS_QEB_MXIC) {
+		printf("SF: Quad enable bit is already set\n");
+	} else {
+		ret = spi_flash_cmd_write_status(flash, STATUS_QEB_MXIC);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = spi_flash_read_common(flash, &cmd, 1, &qeb_status, 1);
+	if (ret < 0) {
+		debug("SF: fail to read status register\n");
+		return ret;
 	}
 
 	return ret;

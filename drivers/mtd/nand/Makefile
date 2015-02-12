@@ -67,6 +67,7 @@ COBJS-$(CONFIG_NAND_S5P) += s5p_nand.o
 COBJS-$(CONFIG_NAND_SPEAR) += spr_nand.o
 COBJS-$(CONFIG_TEGRA_NAND) += tegra_nand.o
 COBJS-$(CONFIG_NAND_OMAP_GPMC) += omap_gpmc.o
+COBJS-$(CONFIG_NAND_OMAP_ELM) += omap_elm.o
 COBJS-$(CONFIG_NAND_PLAT) += nand_plat.o
 COBJS-$(CONFIG_NAND_DOCG4) += docg4.o
 

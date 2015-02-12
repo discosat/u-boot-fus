@@ -66,7 +66,42 @@
 
 #define CONSOLEDEV		"ttyO2"
 
+#ifdef CONFIG_MMC
+#define BOOT_TARGETS_MMC "mmc0"
+#else
+#define BOOT_TARGETS_MMC ""
+#endif
+
+#ifdef CONFIG_USB_HOST
+#define BOOT_TARGETS_USB "usb"
+#else
+#define BOOT_TARGETS_USB ""
+#endif
+
+#ifdef CONFIG_NAND
+#define BOOT_TARGETS_NAND "nand"
+#else
+#define BOOT_TARGETS_NAND ""
+#endif
+
+#define FIND_FDT_FILE \
+	"findfdt="\
+		"if test $board_name = omap5_uevm; then " \
+			"setenv fdtfile omap5-uevm.dtb; fi; " \
+		"if test $fdtfile = undefined; then " \
+			"echo WARNING: Could not determine device tree to use; fi; \0" \
+
 /* Max time to hold reset on this board, see doc/README.omap-reset-time */
 #define CONFIG_OMAP_PLATFORM_RESET_TIME_MAX_USEC	16296
+
+#define CONFIG_BOARD_LATE_INIT
+#define CONFIG_CMD_SCSI
+#define CONFIG_LIBATA
+#define CONFIG_SCSI_AHCI
+#define CONFIG_SCSI_AHCI_PLAT
+#define CONFIG_SYS_SCSI_MAX_SCSI_ID	1
+#define CONFIG_SYS_SCSI_MAX_LUN		1
+#define CONFIG_SYS_SCSI_MAX_DEVICE	(CONFIG_SYS_SCSI_MAX_SCSI_ID * \
+						CONFIG_SYS_SCSI_MAX_LUN)
 
 #endif /* __CONFIG_OMAP5_EVM_H */

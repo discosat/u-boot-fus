@@ -101,6 +101,10 @@ LIBS-$(CONFIG_SPL_MUSB_NEW_SUPPORT) += drivers/usb/musb-new/libusb_musb-new.o
 LIBS-$(CONFIG_SPL_USBETH_SUPPORT) += drivers/usb/gadget/libusb_gadget.o
 LIBS-$(CONFIG_SPL_WATCHDOG_SUPPORT) += drivers/watchdog/libwatchdog.o
 
+# SPL USB Support
+LIBS-$(CONFIG_SPL_USB_HOST_SUPPORT) += drivers/usb/host/libusb_host.o
+LIBS-$(CONFIG_OMAP_USB_PHY) += drivers/usb/phy/libusb_phy.o
+
 ifneq ($(CONFIG_OMAP_COMMON),)
 LIBS-y += $(CPUDIR)/omap-common/libomap-common.o
 endif
@@ -165,8 +169,13 @@ LDPPFLAGS += \
 	  sed -ne 's/GNU ld version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/-DLD_MAJOR=\1 -DLD_MINOR=\2/p')
 
 $(OBJTREE)/MLO:	$(obj)u-boot-spl.bin
+ifdef CONFIG_CH_QSPI
+	$(OBJTREE)/tools/mkimage -T omapimage -n ch_qspi\
+		-a $(CONFIG_SPL_TEXT_BASE) -d $< $@
+else
 	$(OBJTREE)/tools/mkimage -T omapimage \
 		-a $(CONFIG_SPL_TEXT_BASE) -d $< $@
+endif
 
 $(OBJTREE)/MLO.byteswap: $(obj)u-boot-spl.bin
 	$(OBJTREE)/tools/mkimage -T omapimage -n byteswap \

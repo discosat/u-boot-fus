@@ -44,6 +44,7 @@
 #define OMAP5432_CONTROL_ID_CODE_ES1_0		0x0B99802F
 #define OMAP5432_CONTROL_ID_CODE_ES2_0          0x1B99802F
 #define DRA752_CONTROL_ID_CODE_ES1_0		0x0B99002F
+#define DRA752_CONTROL_ID_CODE_ES1_1		0x1B99002F
 
 /* UART */
 #define UART1_BASE		(OMAP54XX_L4_PER_BASE + 0x6a000)
@@ -58,11 +59,11 @@
 /* Watchdog Timer2 - MPU watchdog */
 #define WDT2_BASE		(OMAP54XX_L4_WKUP_BASE + 0x14000)
 
-/* GPMC */
-#define OMAP54XX_GPMC_BASE	0x50000000
-
 /* QSPI */
 #define QSPI_BASE		0x4B300000
+
+/* SATA */
+#define DWC_AHSATA_BASE		0x4A140000
 
 /*
  * Hardware Register Details
@@ -145,9 +146,9 @@ struct s32ktimer {
 #define DDR_IO_2_VREF_CELLS_DDR3_VALUE				0x0
 
 #define DDR_IO_I_40OHM_SR_SLOWEST_WD_DQ_NO_PULL_DQS_NO_PULL_ES2 0x7C7C7C7C
-#define DDR_IO_I_40OHM_SR_FAST_WD_DQ_NO_PULL_DQS_NO_PULL_ES2 0x64656465
+#define DDR_IO_I_40OHM_SR_FAST_WD_DQ_NO_PULL_DQS_NO_PULL_ES2 0x64646464
 #define DDR_IO_0_VREF_CELLS_DDR3_VALUE_ES2 0xBAE8C631
-#define DDR_IO_1_VREF_CELLS_DDR3_VALUE_ES2 0xB46318D8
+#define DDR_IO_1_VREF_CELLS_DDR3_VALUE_ES2 0xBC6318DC
 #define DDR_IO_2_VREF_CELLS_DDR3_VALUE_ES2 0x84210000
 
 #define EFUSE_1 0x45145100
@@ -239,6 +240,7 @@ struct ctrl_ioregs {
 	u32 ctrl_ddrio_1;
 	u32 ctrl_ddrio_2;
 	u32 ctrl_emif_sdram_config_ext;
+	u32 ctrl_emif_sdram_config_ext_final;
 	u32 ctrl_ddr_ctrl_ext_0;
 };
 

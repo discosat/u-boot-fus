@@ -143,6 +143,8 @@ struct prcm_regs {
 	u32 cm_div_m2_dpll_unipro;
 	u32 cm_ssc_deltamstep_dpll_unipro;
 	u32 cm_ssc_modfreqdiv_dpll_unipro;
+	u32 cm_coreaon_usb_phy_core_clkctrl;
+	u32 cm_coreaon_usb_phy2_core_clkctrl;
 
 	/* cm2.core */
 	u32 cm_coreaon_bandgap_clkctrl;
@@ -224,8 +226,11 @@ struct prcm_regs {
 	u32 cm_l3init_hsusbotg_clkctrl;
 	u32 cm_l3init_hsusbtll_clkctrl;
 	u32 cm_l3init_p1500_clkctrl;
+	u32 cm_l3init_sata_clkctrl;
 	u32 cm_l3init_fsusb_clkctrl;
 	u32 cm_l3init_ocp2scp1_clkctrl;
+	u32 cm_l3init_ocp2scp3_clkctrl;
+	u32 cm_l3init_usb_otg_ss_clkctrl;
 
 	u32 prm_irqstatus_mpu_2;
 
@@ -339,6 +344,7 @@ struct prcm_regs {
 	/* GMAC Clk Ctrl */
 	u32 cm_gmac_gmac_clkctrl;
 	u32 cm_gmac_clkstctrl;
+	u32 prm_io_pmctrl;
 };
 
 struct omap_sys_ctrl_regs {
@@ -348,6 +354,7 @@ struct omap_sys_ctrl_regs {
 	u32 control_core_mac_id_1_lo;
 	u32 control_core_mac_id_1_hi;
 	u32 control_std_fuse_opp_vdd_mpu_2;
+	u32 control_phy_power_usb;
 	u32 control_core_mmr_lock1;
 	u32 control_core_mmr_lock2;
 	u32 control_core_mmr_lock3;
@@ -361,6 +368,7 @@ struct omap_sys_ctrl_regs {
 	u32 control_ldosram_mpu_voltage_ctrl;
 	u32 control_ldosram_core_voltage_ctrl;
 	u32 control_usbotghs_ctrl;
+	u32 control_phy_power_sata;
 	u32 control_padconf_core_base;
 	u32 control_paconf_global;
 	u32 control_paconf_mode;
@@ -444,6 +452,16 @@ struct omap_sys_ctrl_regs {
 	u32 control_efuse_12;
 	u32 control_efuse_13;
 	u32 control_padconf_wkup_base;
+	u32 iodelay_config_reg_0;
+	u32 iodelay_config_reg_1;
+	u32 iodelay_config_reg_2;
+	u32 iodelay_config_reg_3;
+	u32 iodelay_config_reg_4;
+	u32 iodelay_config_reg_5;
+	u32 iodelay_config_reg_6;
+	u32 iodelay_config_reg_7;
+	u32 iodelay_config_reg_8;
+	u32 ctrl_core_sma_sw_0;
 };
 
 struct dpll_params {
@@ -499,6 +517,7 @@ struct pmic_data {
 	u32 i2c_slave_addr;
 	void (*pmic_bus_init)(void);
 	int (*pmic_write)(u8 sa, u8 reg_addr, u8 reg_data);
+	void (*recalib)(void);
 };
 
 /**
@@ -567,6 +586,8 @@ void do_scale_vcore(u32 vcore_reg, u32 volt_mv, struct pmic_data *pmic);
 void abb_setup(u32 fuse, u32 ldovbb, u32 setup, u32 control,
 	       u32 txdone, u32 txdone_mask, u32 opp);
 s8 abb_setup_ldovbb(u32 fuse, u32 ldovbb);
+u32 get_l2_aux_ctrl_reg(void);
+void set_l2_aux_ctrl_reg(u32 val);
 
 /* HW Init Context */
 #define OMAP_INIT_CONTEXT_SPL			0
@@ -600,6 +621,14 @@ static inline u8 is_omap54xx(void)
 	extern u32 *const omap_si_rev;
 	return ((*omap_si_rev & 0xFF000000) == OMAP54xx);
 }
+
+#define DRA7XX		0x07000000
+
+static inline u8 is_dra7xx(void)
+{
+	extern u32 *const omap_si_rev;
+	return ((*omap_si_rev & 0xFF000000) == DRA7XX);
+}
 #endif
 
 /*
@@ -628,6 +657,7 @@ static inline u8 is_omap54xx(void)
 
 /* DRA7XX */
 #define DRA752_ES1_0	0x07520100
+#define DRA752_ES1_1	0x07520110
 
 /*
  * SRAM scratch space entries

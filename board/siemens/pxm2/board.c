@@ -58,19 +58,14 @@ struct ddr_data pxm2_ddr3_data = {
 	.datawdsratio0 = 0,
 	.datafwsratio0 = 0x8020080,
 	.datawrsratio0 = 0x4010040,
-	.datauserank0delay = 1,
-	.datadldiff0 = PHY_DLL_LOCK_DIFF,
 };
 
 struct cmd_control pxm2_ddr3_cmd_ctrl_data = {
 	.cmd0csratio = 0x80,
-	.cmd0dldiff = 0,
 	.cmd0iclkout = 0,
 	.cmd1csratio = 0x80,
-	.cmd1dldiff = 0,
 	.cmd1iclkout = 0,
 	.cmd2csratio = 0x80,
-	.cmd2dldiff = 0,
 	.cmd2iclkout = 0,
 };
 
@@ -178,13 +173,13 @@ static struct cpsw_slave_data cpsw_slaves[] = {
 	{
 		.slave_reg_ofs	= 0x208,
 		.sliver_reg_ofs	= 0xd80,
-		.phy_id		= 0,
+		.phy_addr	= 0,
 		.phy_if		= PHY_INTERFACE_MODE_RMII,
 	},
 	{
 		.slave_reg_ofs	= 0x308,
 		.sliver_reg_ofs	= 0xdc0,
-		.phy_id		= 1,
+		.phy_addr	= 1,
 		.phy_if		= PHY_INTERFACE_MODE_RMII,
 	},
 };

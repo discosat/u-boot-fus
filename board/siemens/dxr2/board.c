@@ -139,13 +139,9 @@ struct emif_regs dxr2_ddr3_emif_reg_data = {
 };
 
 struct ddr_data dxr2_ddr3_data = {
-	.datadldiff0 = PHY_DLL_LOCK_DIFF,
 };
 
 struct cmd_control dxr2_ddr3_cmd_ctrl_data = {
-	.cmd0dldiff = 0,
-	.cmd1dldiff = 0,
-	.cmd2dldiff = 0,
 };
 	/* pass values from eeprom */
 	dxr2_ddr3_emif_reg_data.sdram_tim1 = settings.ddr3.sdram_tim1;
@@ -191,7 +187,7 @@ static struct cpsw_slave_data cpsw_slaves[] = {
 	{
 		.slave_reg_ofs	= 0x208,
 		.sliver_reg_ofs	= 0xd80,
-		.phy_id		= 0,
+		.phy_addr	= 0,
 		.phy_if		= PHY_INTERFACE_MODE_MII,
 	},
 };
