@@ -78,58 +78,7 @@
 
 #ifndef __KERNEL_STRICT_NAMES
 #ifndef __ASSEMBLY__
-struct gpmc_cs {
-	u32 config1;		/* 0x00 */
-	u32 config2;		/* 0x04 */
-	u32 config3;		/* 0x08 */
-	u32 config4;		/* 0x0C */
-	u32 config5;		/* 0x10 */
-	u32 config6;		/* 0x14 */
-	u32 config7;		/* 0x18 */
-	u32 nand_cmd;		/* 0x1C */
-	u32 nand_adr;		/* 0x20 */
-	u32 nand_dat;		/* 0x24 */
-	u8 res[8];		/* blow up to 0x30 byte */
-};
 
-struct bch_res_0_3 {
-	u32 bch_result_x[4];
-};
-
-struct gpmc {
-	u8 res1[0x10];
-	u32 sysconfig;		/* 0x10 */
-	u8 res2[0x4];
-	u32 irqstatus;		/* 0x18 */
-	u32 irqenable;		/* 0x1C */
-	u8 res3[0x20];
-	u32 timeout_control;	/* 0x40 */
-	u8 res4[0xC];
-	u32 config;		/* 0x50 */
-	u32 status;		/* 0x54 */
-	u8 res5[0x8];		/* 0x58 */
-	struct gpmc_cs cs[8];	/* 0x60, 0x90, .. */
-	u8 res6[0x14];		/* 0x1E0 */
-	u32 ecc_config;		/* 0x1F4 */
-	u32 ecc_control;	/* 0x1F8 */
-	u32 ecc_size_config;	/* 0x1FC */
-	u32 ecc1_result;	/* 0x200 */
-	u32 ecc2_result;	/* 0x204 */
-	u32 ecc3_result;	/* 0x208 */
-	u32 ecc4_result;	/* 0x20C */
-	u32 ecc5_result;	/* 0x210 */
-	u32 ecc6_result;	/* 0x214 */
-	u32 ecc7_result;	/* 0x218 */
-	u32 ecc8_result;	/* 0x21C */
-	u32 ecc9_result;	/* 0x220 */
-	u8 res7[12];		/* 0x224 */
-	u32 testmomde_ctrl;	/* 0x230 */
-	u8 res8[12];		/* 0x234 */
-	struct bch_res_0_3 bch_result_0_3[2];	/* 0x240 */
-};
-
-/* Used for board specific gpmc initialization */
-extern struct gpmc *gpmc_cfg;
 
 #ifndef CONFIG_AM43XX
 /* Encapsulating core pll registers */
@@ -237,6 +186,14 @@ struct cm_perpll {
 	unsigned int cpswclkstctrl;	/* offset 0x144 */
 	unsigned int lcdcclkstctrl;	/* offset 0x148 */
 };
+
+/* Encapsulating Display pll registers */
+struct cm_dpll {
+	unsigned int resv1[2];
+	unsigned int clktimer2clk;	/* offset 0x08 */
+	unsigned int resv2[10];
+	unsigned int clklcdcpixelclk;	/* offset 0x34 */
+};
 #else
 /* Encapsulating core pll registers */
 struct cm_wkuppll {
@@ -324,7 +281,9 @@ struct cm_perpll {
 	unsigned int mcasp1clkctrl;	/* offset 0x240 */
 	unsigned int resv11;
 	unsigned int mmc2clkctrl;	/* offset 0x248 */
-	unsigned int resv12[5];
+	unsigned int resv12[3];
+	unsigned int qspiclkctrl;       /* offset 0x258 */
+	unsigned int resv121;
 	unsigned int usb0clkctrl;	/* offset 0x260 */
 	unsigned int resv13[103];
 	unsigned int l4lsclkstctrl;	/* offset 0x400 */
@@ -392,15 +351,17 @@ struct cm_perpll {
 	unsigned int resv40[7];
 	unsigned int cpgmac0clkctrl;	/* offset 0xB20 */
 };
-#endif /* CONFIG_AM43XX */
 
-/* Encapsulating Display pll registers */
-struct cm_dpll {
-	unsigned int resv1[2];
-	unsigned int clktimer2clk;	/* offset 0x08 */
-	unsigned int resv2[10];
-	unsigned int clklcdcpixelclk;	/* offset 0x34 */
+struct cm_device_inst {
+	unsigned int cm_clkout1_ctrl;
+	unsigned int cm_dll_ctrl;
 };
+
+struct cm_dpll {
+	unsigned int resv1;
+	unsigned int clktimer2clk;	/* offset 0x04 */
+};
+#endif /* CONFIG_AM43XX */
 
 /* Control Module RTC registers */
 struct cm_rtc {
@@ -506,6 +467,10 @@ struct ctrl_stat {
 #define OMAP_GPIO_SETDATAOUT		0x0194
 
 /* Control Device Register */
+#define MREQPRIO_0_SAB_INIT1_MASK	0xFFFFFF8F
+#define MREQPRIO_0_SAB_INIT0_MASK	0xFFFFFFF8
+#define MREQPRIO_1_DSS_MASK		0xFFFFFF8F
+
 struct ctrl_dev {
 	unsigned int deviceid;		/* offset 0x00 */
 	unsigned int resv1[7];
@@ -519,8 +484,23 @@ struct ctrl_dev {
 	unsigned int macid1h;		/* offset 0x3c */
 	unsigned int resv4[4];
 	unsigned int miisel;		/* offset 0x50 */
-	unsigned int resv5[106];
+	unsigned int resv5[7];
+	unsigned int mreqprio_0;	/* offset 0x70 */
+	unsigned int mreqprio_1;	/* offset 0x74 */
+	unsigned int resv6[97];
 	unsigned int efuse_sma;		/* offset 0x1FC */
+};
+
+/* Bandwidth Limiter Portion of the L3Fast Configuration Register */
+#define BW_LIMITER_BW_FRAC_MASK	0xFFFFFFE0
+#define BW_LIMITER_BW_INT_MASK		0xFFFFFFF0
+#define BW_LIMITER_BW_WATERMARK_MASK	0xFFFFF800
+
+struct l3f_cfg_bwlimiter {
+	u32 padding0[2];
+	u32 modena_init0_bw_fractional;
+	u32 modena_init0_bw_integer;
+	u32 modena_init0_watermark_0;
 };
 
 /* gmii_sel register defines */

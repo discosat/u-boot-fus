@@ -339,7 +339,7 @@ void configure_mpu_dpll(void)
 	debug("MPU DPLL locked\n");
 }
 
-#ifdef CONFIG_USB_EHCI_OMAP
+#if defined(CONFIG_USB_EHCI_OMAP) || defined(CONFIG_USB_XHCI_OMAP)
 static void setup_usb_dpll(void)
 {
 	const struct dpll_params *params;
@@ -404,7 +404,7 @@ static void setup_dplls(void)
 	/* MPU dpll */
 	configure_mpu_dpll();
 
-#ifdef CONFIG_USB_EHCI_OMAP
+#if defined(CONFIG_USB_EHCI_OMAP) || defined(CONFIG_USB_XHCI_OMAP)
 	setup_usb_dpll();
 #endif
 	params = get_ddr_dpll_params(*dplls_data);
@@ -436,7 +436,7 @@ static void setup_non_essential_dplls(void)
 #ifdef CONFIG_SYS_OMAP_ABE_SYSCK
 	abe_ref_clk = CM_ABE_PLL_REF_CLKSEL_CLKSEL_SYSCLK;
 
-	if (omap_revision() == DRA752_ES1_0)
+	if (is_dra7xx())
 		/* Select the sys clk for dpll_abe */
 		clrsetbits_le32((*prcm)->cm_abe_pll_sys_clksel,
 				CM_CLKSEL_ABE_PLL_SYS_CLKSEL_MASK,
@@ -750,6 +750,16 @@ void do_enable_clocks(u32 const *clk_domains,
 	}
 }
 
+void recalibrate_io(struct vcores_data const *vcores)
+{
+	void (*recalib)(void);
+
+	if (vcores->core.pmic->recalib) {
+		recalib = vcores->core.pmic->recalib;
+		recalib();
+	}
+}
+
 void prcm_init(void)
 {
 	switch (omap_hw_init_context()) {
@@ -759,6 +769,7 @@ void prcm_init(void)
 		enable_basic_clocks();
 		timer_init();
 		scale_vcores(*omap_vcores);
+		recalibrate_io(*omap_vcores);
 		setup_dplls();
 #ifdef CONFIG_SYS_CLOCKS_ENABLE_ALL
 		setup_non_essential_dplls();

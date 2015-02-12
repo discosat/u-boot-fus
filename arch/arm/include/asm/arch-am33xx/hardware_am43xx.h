@@ -13,11 +13,16 @@
 
 /* Module base addresses */
 
+/* L3 Fast Configuration Bandwidth Limiter Base Address */
+#define L3F_CFG_BWLIMITER		0x44005200
+
 /* UART Base Address */
 #define UART0_BASE			0x44E09000
 
 /* GPIO Base address */
+#define GPIO0_BASE			0x44E07000
 #define GPIO2_BASE			0x481AC000
+#define GPIO5_BASE			0x48322000
 
 /* Watchdog Timer */
 #define WDT_BASE			0x44E35000
@@ -30,6 +35,8 @@
 #define PRCM_BASE			0x44DF0000
 #define	CM_WKUP				0x44DF2800
 #define	CM_PER				0x44DF8800
+#define CM_DPLL				0x44DF4200
+#define CM_RTC				0x44df8500
 
 #define PRM_RSTCTRL			(PRCM_BASE + 0x4000)
 #define PRM_RSTST			(PRM_RSTCTRL + 4)
@@ -50,5 +57,16 @@
 
 /* RTC base address */
 #define RTC_BASE			0x44E3E000
+
+/* USB Clock Control */
+#define PRM_PER_USB_OTG_SS0_CLKCTRL (CM_PER + 0x260)
+#define PRM_PER_USB_OTG_SS1_CLKCTRL (CM_PER + 0x268)
+#define USBOTGSSX_CLKCTRL_MODULE_EN	(1 << 1)
+#define USBOTGSSX_CLKCTRL_OPTFCLKEN_REFCLK960 (1 << 8)
+
+#define PRM_PER_USBPHYOCP2SCP0_CLKCTRL (CM_PER + 0x5b8)
+#define PRM_PER_USBPHYOCP2SCP1_CLKCTRL (CM_PER + 0x5c0)
+#define USBPHYOCPSCP_MODULE_EN	(1 << 1)
+#define CM_DEVICE_INST			0x44df4100
 
 #endif /* __AM43XX_HARDWARE_AM43XX_H */

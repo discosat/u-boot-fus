@@ -21,16 +21,19 @@ COBJS	+= vc.o
 COBJS	+= abb.o
 endif
 
+ifneq ($(CONFIG_OMAP54XX),)
+COBJS	+= pipe3-phy.o
+ifeq ($(CONFIG_SCSI_AHCI_PLAT),y)
+COBJS	+= sata.o
+endif
+endif
+
 ifeq ($(CONFIG_OMAP34XX),)
 COBJS	+= boot-common.o
 SOBJS	+= lowlevel_init.o
 endif
 
-ifndef CONFIG_SPL_BUILD
-ifneq ($(CONFIG_OMAP44XX)$(CONFIG_OMAP54XX),)
 COBJS	+= mem-common.o
-endif
-endif
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(SOBJS) $(COBJS))

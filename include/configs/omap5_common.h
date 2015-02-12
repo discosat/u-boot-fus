@@ -70,26 +70,34 @@
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"loadaddr=0x82000000\0" \
+	"loadaddr=0x80200000\0" \
+	"fdtaddr=0x80F80000\0" \
+	"fdt_high=0xa0000000\0" \
+	"rdaddr=0x81000000\0" \
 	"console=" CONSOLEDEV ",115200n8\0" \
-	"fdt_high=0xffffffff\0" \
-	"fdtaddr=0x80f80000\0" \
 	"fdtfile=undefined\0" \
 	"bootpart=0:2\0" \
 	"bootdir=/boot\0" \
 	"bootfile=zImage\0" \
 	"usbtty=cdc_acm\0" \
-	"vram=16M\0" \
+	"vram=16M \0" \
 	"partitions=" PARTS_DEFAULT "\0" \
 	"optargs=\0" \
 	"mmcdev=0\0" \
 	"mmcroot=/dev/mmcblk1p2 rw\0" \
 	"mmcrootfstype=ext4 rootwait\0" \
+	"usbroot=/dev/sda2 rw\0" \
+	"usbrootfstype=ext4 rootwait\0" \
 	"mmcargs=setenv bootargs console=${console} " \
 		"${optargs} " \
 		"vram=${vram} " \
 		"root=${mmcroot} " \
 		"rootfstype=${mmcrootfstype}\0" \
+	"usbargs=setenv bootargs console=${console} " \
+		"${optargs} " \
+		"vram=${vram}" \
+		"root=${usbroot} " \
+		"rootfstype=${usbrootfstype}\0" \
 	"loadbootscript=fatload mmc ${mmcdev} ${loadaddr} boot.scr\0" \
 	"bootscript=echo Running bootscript from mmc${mmcdev} ...; " \
 		"source ${loadaddr}\0" \
@@ -115,23 +123,12 @@
 				"bootz ${loadaddr} - ${fdtaddr}; " \
 			"fi;" \
 		"fi;\0" \
-	"findfdt="\
-		"if test $board_name = omap5_uevm; then " \
-			"setenv fdtfile omap5-uevm.dtb; fi; " \
-		"if test $board_name = dra7xx; then " \
-			"setenv fdtfile dra7-evm.dtb; fi;" \
-		"if test $fdtfile = undefined; then " \
-			"echo WARNING: Could not determine device tree to use; fi; \0" \
-	"loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile};\0" \
-
-#define CONFIG_BOOTCOMMAND \
-	"run findfdt; " \
-	"run mmcboot;" \
-	"setenv mmcdev 1; " \
-	"setenv bootpart 1:2; " \
-	"setenv mmcroot /dev/mmcblk0p2 rw; " \
-	"run mmcboot;" \
-
+	"loadfdt=load ${devtype} ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile};\0" \
+	FIND_FDT_FILE \
+	BOOTCMD_COMMON \
+	BOOTCMD_MMC \
+	BOOTCMD_NAND \
+	BOOTCMD_USB
 
 /*
  * SPL related defines.  The Public RAM memory map the ROM defines the

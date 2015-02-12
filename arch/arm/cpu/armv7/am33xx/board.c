@@ -137,7 +137,8 @@ int arch_misc_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
+#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT) || \
+		defined(CONFIG_QSPI_BOOT)
 /*
  * This function is the place to do per-board things such as ramp up the
  * MPU clock frequency.
@@ -148,20 +149,8 @@ __weak void am33xx_spl_board_init(void)
 	do_setup_dpll(&dpll_mpu_regs, &dpll_mpu_opp100);
 }
 
-static void rtc32k_enable(void)
+__weak void rtc32k_enable(void)
 {
-	struct rtc_regs *rtc = (struct rtc_regs *)RTC_BASE;
-
-	/*
-	 * Unlock the RTC's registers.  For more details please see the
-	 * RTC_SS section of the TRM.  In order to unlock we need to
-	 * write these specific values (keys) in this order.
-	 */
-	writel(0x83e70b13, &rtc->kick0r);
-	writel(0x95a4f1e0, &rtc->kick1r);
-
-	/* Enable the RTC 32K OSC by setting bits 3 and 6. */
-	writel((1 << 3) | (1 << 6), &rtc->osc);
 }
 
 static void uart_soft_reset(void)
@@ -195,6 +184,8 @@ static void watchdog_disable(void)
 }
 #endif
 
+#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT) || \
+		defined(CONFIG_QSPI_BOOT)
 void s_init(void)
 {
 	/*
@@ -213,26 +204,33 @@ void s_init(void)
 #ifdef CONFIG_SPL_BUILD
 	save_omap_boot_params();
 #endif
-#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
 	watchdog_disable();
 	timer_init();
 	set_uart_mux_conf();
 	setup_clocks_for_console();
 	uart_soft_reset();
-#endif
+
 #ifdef CONFIG_NOR_BOOT
 	gd->baudrate = CONFIG_BAUDRATE;
 	serial_init();
 	gd->have_console = 1;
-#else
+#elif defined(CONFIG_SPL_BUILD)
 	gd = &gdata;
 	preloader_console_init();
 #endif
-#if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
+
 	prcm_init();
 	set_mux_conf_regs();
 	/* Enable RTC32K clock */
 	rtc32k_enable();
 	sdram_init();
-#endif
 }
+#endif
+
+#ifndef CONFIG_SYS_DCACHE_OFF
+void enable_caches(void)
+{
+	/* Enable D-cache. I-cache is already enabled in start.S */
+	dcache_enable();
+}
+#endif

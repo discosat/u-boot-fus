@@ -297,13 +297,17 @@ void srcomp_enable(void)
 
 void config_data_eye_leveling_samples(u32 emif_base)
 {
+	const struct ctrl_ioregs *ioregs;
+
+	get_ioregs(&ioregs);
+
 	/*EMIF_SDRAM_CONFIG_EXT-Read data eye leveling no of samples =4*/
 	if (emif_base == EMIF1_BASE)
-		writel(SDRAM_CONFIG_EXT_RD_LVL_4_SAMPLES,
-			(*ctrl)->control_emif1_sdram_config_ext);
+		writel(ioregs->ctrl_emif_sdram_config_ext_final,
+		       (*ctrl)->control_emif1_sdram_config_ext);
 	else if (emif_base == EMIF2_BASE)
-		writel(SDRAM_CONFIG_EXT_RD_LVL_4_SAMPLES,
-			(*ctrl)->control_emif2_sdram_config_ext);
+		writel(ioregs->ctrl_emif_sdram_config_ext_final,
+		       (*ctrl)->control_emif2_sdram_config_ext);
 }
 
 void init_omap_revision(void)
@@ -334,6 +338,9 @@ void init_omap_revision(void)
 		break;
 	case DRA752_CONTROL_ID_CODE_ES1_0:
 		*omap_si_rev = DRA752_ES1_0;
+		break;
+	case DRA752_CONTROL_ID_CODE_ES1_1:
+		*omap_si_rev = DRA752_ES1_1;
 		break;
 	default:
 		*omap_si_rev = OMAP5430_SILICON_ID_INVALID;

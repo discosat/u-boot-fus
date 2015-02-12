@@ -42,7 +42,7 @@
 /*
  * Default to a quick boot delay.
  */
-#define CONFIG_BOOTDELAY		1
+#define CONFIG_BOOTDELAY		3
 
 /*
  * DDR information.  We say (for simplicity) that we have 1 bank,
@@ -83,17 +83,6 @@
 #define CONFIG_CMD_GPIO
 
 /*
- * GPMC NAND block.  We support 1 device and the physical address to
- * access CS0 at is 0x8000000.
- */
-#ifdef CONFIG_NAND
-#define CONFIG_NAND_OMAP_GPMC
-#define CONFIG_SYS_NAND_BASE		0x8000000
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
-#define CONFIG_CMD_NAND
-#endif
-
-/*
  * The following are general good-enough settings for U-Boot.  We set a
  * large malloc pool as we generally have a lot of DDR, and we opt for
  * function over binary size in the main portion of U-Boot as this is
@@ -102,7 +91,7 @@
  * we are on so we do not need to rely on the command prompt.  We set a
  * console baudrate of 115200 and use the default baud rate table.
  */
-#define CONFIG_SYS_MALLOC_LEN		(1024 << 10)
+#define CONFIG_SYS_MALLOC_LEN		(4 << 20)
 #define CONFIG_SYS_HUSH_PARSER
 #define CONFIG_SYS_PROMPT		"U-Boot# "
 #define CONFIG_SYS_CONSOLE_INFO_QUIET
@@ -171,7 +160,8 @@
  * under common/spl/.  Given our generally common memory map, we set a
  * number of related defaults and sizes here.
  */
-#ifndef CONFIG_NOR_BOOT
+#if !defined(CONFIG_NOR_BOOT) && \
+	!(defined(CONFIG_QSPI_BOOT) && defined(CONFIG_AM43XX))
 #define CONFIG_SPL
 #define CONFIG_SPL_FRAMEWORK
 #define CONFIG_SPL_OS_BOOT
@@ -213,13 +203,6 @@
 #define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR	0x80	/* address 0x10000 */
 #define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTORS	0x80	/* 64KiB */
 
-/* NAND */
-#ifdef CONFIG_NAND
-#define CONFIG_CMD_SPL_NAND_OFS			0x240000 /* end of u-boot */
-#define CONFIG_SYS_NAND_SPL_KERNEL_OFFS		0x280000
-#define CONFIG_CMD_SPL_WRITE_SIZE		0x2000
-#endif
-
 /* spl export command */
 #define CONFIG_CMD_SPL
 #endif
@@ -237,16 +220,85 @@
 #define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
 #define CONFIG_SPL_BOARD_INIT
-
-#ifdef CONFIG_NAND
-#define CONFIG_SPL_NAND_AM33XX_BCH	/* OMAP4 and later ELM support */
-#define CONFIG_SPL_NAND_SUPPORT
-#define CONFIG_SPL_NAND_BASE
-#define CONFIG_SPL_NAND_DRIVERS
-#define CONFIG_SPL_NAND_ECC
-#define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
-#define CONFIG_SYS_NAND_U_BOOT_OFFS	0x80000
-#endif
 #endif /* !CONFIG_NOR_BOOT */
+
+/* Boot defines */
+#define BOOTCMD_COMMON \
+	"rootpart=2\0" \
+	"script_boot=" \
+		"if load ${devtype} ${devnum}:${rootpart} ${loadaddr} ${bootdir}/${bootfile}; then " \
+			"run findfdt; " \
+			"load ${devtype} ${devnum}:${rootpart} ${fdtaddr} ${bootdir}/${fdtfile};" \
+		"fi;\0" \
+	\
+	"scan_boot=" \
+		"echo Scanning ${devtype} ${devnum}...; " \
+		"for prefix in ${bootdir}; do " \
+			"for script in ${bootfile}; do " \
+				"run script_boot; " \
+			"done; " \
+		"done;\0" \
+	"boot_targets=" \
+		BOOT_TARGETS_USB " " \
+		BOOT_TARGETS_MMC " " \
+		BOOT_TARGETS_NAND " " \
+		"\0"
+
+/* USB MSD Boot */
+#define BOOTCMD_INIT_USB "run usb_init; "
+#define BOOTCMD_USB \
+	"usb_init=" \
+		"usb start 0;\0 " \
+	"usb_boot=" \
+		"setenv devtype usb; " \
+		BOOTCMD_INIT_USB \
+		"if usb dev 0; then " \
+			"run usbargs;" \
+			"run scan_boot; " \
+			"bootz ${loadaddr} - ${fdtaddr}; " \
+		"fi\0" \
+	"bootcmd_usb=setenv devnum 0; run usb_boot;\0"
+
+/* MMC Boot */
+#define BOOTCMD_MMC \
+	"mmc_boot=" \
+		"setenv devtype mmc; " \
+		"if mmc dev ${devnum}; then " \
+			"run mmcargs;" \
+			"run scan_boot; " \
+			"run mmcboot;" \
+			"setenv mmcdev 1; " \
+			"setenv bootpart 1:2; " \
+			"run mmcboot;" \
+		"fi\0" \
+	"bootcmd_mmc0=setenv devnum 0; setenv rootpart 2; run mmc_boot;\0" \
+
+/* NAND Boot */
+#define DFU_ALT_INFO_NAND ""
+#ifndef CONFIG_NAND
+#define MTDIDS_DEFAULT ""
+#define MTDPARTS_DEFAULT ""
+#endif
+
+#define BOOTCMD_NAND \
+	"mtdids=" MTDIDS_DEFAULT "\0" \
+	"mtdparts=" MTDPARTS_DEFAULT "\0" \
+	"nandargs=setenv bootargs console=${console} " \
+		"${optargs} " \
+		"root=${nandroot} " \
+		"rootfstype=${nandrootfstype}\0" \
+	"dfu_alt_info_nand=" DFU_ALT_INFO_NAND "\0" \
+	"nandroot=ubi0:rootfs rw ubi.mtd=NAND.file-system," \
+		__stringify(CONFIG_SYS_NAND_PAGE_SIZE) "\0" \
+	"nandrootfstype=ubifs rootwait=1\0" \
+	"nandboot=echo Booting from nand ...; " \
+		"run nandargs; " \
+		"nand read ${fdtaddr} NAND.u-boot-spl-os; " \
+		"nand read ${loadaddr} NAND.kernel; " \
+		"bootz ${loadaddr} - ${fdtaddr}\0" \
+	"bootcmd_nand=run nandboot;\0"
+
+#define CONFIG_BOOTCOMMAND \
+	"for target in ${boot_targets}; do run bootcmd_${target}; done"
 
 #endif	/* __CONFIG_TI_ARMV7_COMMON_H__ */

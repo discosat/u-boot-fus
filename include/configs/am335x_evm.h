@@ -31,34 +31,13 @@
 /* Always 128 KiB env size */
 #define CONFIG_ENV_SIZE			(128 << 10)
 
-#ifdef CONFIG_NAND
-#define NANDARGS \
-	"mtdids=" MTDIDS_DEFAULT "\0" \
-	"mtdparts=" MTDPARTS_DEFAULT "\0" \
-	"nandargs=setenv bootargs console=${console} " \
-		"${optargs} " \
-		"root=${nandroot} " \
-		"rootfstype=${nandrootfstype}\0" \
-	"dfu_alt_info_nand=" DFU_ALT_INFO_NAND "\0" \
-	"nandroot=ubi0:rootfs rw ubi.mtd=7,2048\0" \
-	"nandrootfstype=ubifs rootwait=1\0" \
-	"nandsrcaddr=0x280000\0" \
-		"nandboot=echo Booting from nand ...; " \
-		"run nandargs; " \
-		"nand read ${loadaddr} ${nandsrcaddr} ${nandimgsize}; " \
-		"bootz ${loadaddr}\0" \
-	"nandimgsize=0x500000\0"
-#else
-#define NANDARGS ""
-#endif
-
 #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x80200000\0" \
 	"fdtaddr=0x80F80000\0" \
-	"fdt_high=0xffffffff\0" \
+	"fdt_high=0xa0000000\0" \
 	"boot_fdt=try\0" \
 	"rdaddr=0x81000000\0" \
 	"bootpart=0:2\0" \
@@ -66,12 +45,17 @@
 	"bootfile=zImage\0" \
 	"fdtfile=undefined\0" \
 	"console=ttyO0,115200n8\0" \
+	"partitions=" \
+		"uuid_disk=${uuid_gpt_disk};" \
+		"name=rootfs,start=2MiB,size=-,uuid=${uuid_gpt_rootfs}\0" \
 	"optargs=\0" \
 	"dfu_alt_info_mmc=" DFU_ALT_INFO_MMC "\0" \
 	"dfu_alt_info_emmc=rawemmc mmc 0 3751936\0" \
 	"mmcdev=0\0" \
 	"mmcroot=/dev/mmcblk0p2 ro\0" \
 	"mmcrootfstype=ext4 rootwait\0" \
+	"usbroot=/dev/sda2 rw\0" \
+	"usbrootfstype=ext4 rootwait\0" \
 	"rootpath=/export/rootfs\0" \
 	"nfsopts=nolock\0" \
 	"static_ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}" \
@@ -82,6 +66,10 @@
 		"${optargs} " \
 		"root=${mmcroot} " \
 		"rootfstype=${mmcrootfstype}\0" \
+	"usbargs=setenv bootargs console=${console} " \
+		"${optargs} " \
+		"root=${usbroot} " \
+		"rootfstype=${usbrootfstype}\0" \
 	"spiroot=/dev/mtdblock4 rw\0" \
 	"spirootfstype=jffs2\0" \
 	"spisrcaddr=0xe0000\0" \
@@ -163,16 +151,11 @@
 			"setenv fdtfile am335x-evmsk.dtb; fi; " \
 		"if test $fdtfile = undefined; then " \
 			"echo WARNING: Could not determine device tree to use; fi; \0" \
-	NANDARGS
+	BOOTCMD_COMMON \
+	BOOTCMD_MMC \
+	BOOTCMD_NAND \
+	BOOTCMD_USB
 #endif
-
-#define CONFIG_BOOTCOMMAND \
-	"run findfdt; " \
-	"run mmcboot;" \
-	"setenv mmcdev 1; " \
-	"setenv bootpart 1:2; " \
-	"run mmcboot;" \
-	"run nandboot;"
 
 /* NS16550 Configuration */
 #define CONFIG_SYS_NS16550_COM1		0x44e09000	/* Base EVM has UART0 */
@@ -219,30 +202,82 @@
 #define CONFIG_SYS_SPI_U_BOOT_OFFS	0x20000
 
 #define CONFIG_SPL_LDSCRIPT		"$(CPUDIR)/am33xx/u-boot-spl.lds"
+#endif
 
+/* Enhance our eMMC support / experience. */
+#define CONFIG_CMD_GPT
+#define CONFIG_EFI_PARTITION
+#define CONFIG_PARTITION_UUIDS
+#define CONFIG_CMD_PART
+
+/* NAND support */
 #ifdef CONFIG_NAND
+/* NAND: device related configs */
+#define CONFIG_SYS_NAND_PAGE_SIZE		2048
+#define CONFIG_SYS_NAND_OOBSIZE			64
+#define CONFIG_SYS_NAND_BLOCK_SIZE		(128*1024)
+#define CONFIG_SPL_NAND_DEVICE_WIDTH		8
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
-#define CONFIG_SYS_NAND_PAGE_COUNT	(CONFIG_SYS_NAND_BLOCK_SIZE / \
-					 CONFIG_SYS_NAND_PAGE_SIZE)
-#define CONFIG_SYS_NAND_PAGE_SIZE	2048
-#define CONFIG_SYS_NAND_OOBSIZE		64
-#define CONFIG_SYS_NAND_BLOCK_SIZE	(128*1024)
-#define CONFIG_SYS_NAND_BAD_BLOCK_POS	NAND_LARGE_BADBLOCK_POS
-#define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
-					 10, 11, 12, 13, 14, 15, 16, 17, \
-					 18, 19, 20, 21, 22, 23, 24, 25, \
-					 26, 27, 28, 29, 30, 31, 32, 33, \
-					 34, 35, 36, 37, 38, 39, 40, 41, \
-					 42, 43, 44, 45, 46, 47, 48, 49, \
-					 50, 51, 52, 53, 54, 55, 56, 57, }
-
-#define CONFIG_SYS_NAND_ECCSIZE		512
-#define CONFIG_SYS_NAND_ECCBYTES	14
-
-#define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
-#define CONFIG_SYS_NAND_U_BOOT_OFFS	0x80000
+#define CONFIG_SYS_NAND_PAGE_COUNT		(CONFIG_SYS_NAND_BLOCK_SIZE / \
+						 CONFIG_SYS_NAND_PAGE_SIZE)
+/* NAND: driver related configs */
+#define CONFIG_NAND_OMAP_GPMC
+#define CONFIG_NAND_OMAP_ELM
+#define CONFIG_CMD_NAND
+#define CONFIG_SYS_NAND_BASE			0x8000000
+#define CONFIG_SYS_MAX_NAND_DEVICE		1
+#define CONFIG_SYS_NAND_ONFI_DETECTION
+#define CONFIG_SYS_NAND_BAD_BLOCK_POS		NAND_LARGE_BADBLOCK_POS
+#define CONFIG_SYS_NAND_ECCPOS		      { 2, 3, 4, 5, 6, 7, 8, 9, \
+					       10, 11, 12, 13, 14, 15, 16, 17, \
+					       18, 19, 20, 21, 22, 23, 24, 25, \
+					       26, 27, 28, 29, 30, 31, 32, 33, \
+					       34, 35, 36, 37, 38, 39, 40, 41, \
+					       42, 43, 44, 45, 46, 47, 48, 49, \
+					       50, 51, 52, 53, 54, 55, 56, 57, }
+#define CONFIG_SYS_NAND_ECCSIZE			512
+#define CONFIG_SYS_NAND_ECCBYTES		14
+#define CONFIG_NAND_OMAP_ECCSCHEME		OMAP_ECC_BCH8_CODE_HW
+#if !defined(CONFIG_SPI_BOOT) && !defined(CONFIG_NOR_BOOT) && \
+	!defined(CONFIG_EMMC_BOOT)
+  #define MTDIDS_DEFAULT		      "nand0=nand.0"
+  #define MTDPARTS_DEFAULT		      "mtdparts=nand.0:" \
+					      "128k(NAND.SPL)," \
+					      "128k(NAND.SPL.backup1)," \
+					      "128k(NAND.SPL.backup2)," \
+					      "128k(NAND.SPL.backup3)," \
+					      "256k(NAND.u-boot-spl-os)," \
+					      "1m(NAND.u-boot)," \
+					      "128k(NAND.u-boot-env)," \
+					      "128k(NAND.u-boot-env.backup1)," \
+					      "8m(NAND.kernel)," \
+					      "-(NAND.rootfs)"
+  #undef CONFIG_ENV_IS_NOWHERE
+  #define CONFIG_ENV_IS_IN_NAND
+  #define CONFIG_ENV_OFFSET			0x001C0000
+  #define CONFIG_ENV_OFFSET_REDUND		0x001E0000
+  #define CONFIG_SYS_ENV_SECT_SIZE		CONFIG_SYS_NAND_BLOCK_SIZE
 #endif
+/* NAND: SPL related configs */
+#if !defined(CONFIG_SPI_BOOT) && !defined(CONFIG_NOR_BOOT) && \
+	!defined(CONFIG_EMMC_BOOT)
+  #define CONFIG_SPL_NAND_AM33XX_BCH
+  #define CONFIG_SPL_NAND_SUPPORT
+  #define CONFIG_SPL_NAND_BASE
+  #define CONFIG_SPL_NAND_DRIVERS
+  #define CONFIG_SPL_NAND_ECC
+  #define CONFIG_SYS_NAND_U_BOOT_START		CONFIG_SYS_TEXT_BASE
+  #define CONFIG_SYS_NAND_U_BOOT_OFFS		0x000C0000
+/* NAND: SPL falcon mode related configs */
+  #ifdef CONFIG_SPL_OS_BOOT
+    #define CONFIG_CMD_SPL_NAND_OFS		0x00080000 /* os parameters */
+    #define CONFIG_SYS_NAND_SPL_KERNEL_OFFS	0x00A00000 /* kernel offset */
+    #define CONFIG_CMD_SPL_WRITE_SIZE		0x2000
+  #endif
 #endif
+#else
+#define NANDARGS ""
+#endif /* !CONFIG_NAND */
 
 /*
  * For NOR boot, we must set this to the start of where NOR is mapped
@@ -317,15 +352,21 @@
 	"uEnv.txt fat 0 1"
 #ifdef CONFIG_NAND
 #define CONFIG_DFU_NAND
+
+#ifdef DFU_ALT_INFO_NAND
+#undef DFU_ALT_INFO_NAND
+#endif
 #define DFU_ALT_INFO_NAND \
-	"SPL part 0 1;" \
-	"SPL.backup1 part 0 2;" \
-	"SPL.backup2 part 0 3;" \
-	"SPL.backup3 part 0 4;" \
-	"u-boot part 0 5;" \
-	"u-boot-spl-os part 0 6;" \
-	"kernel part 0 8;" \
-	"rootfs part 0 9"
+	"NAND.SPL part 0 1;" \
+	"NAND.SPL.backup1 part 0 2;" \
+	"NAND.SPL.backup2 part 0 3;" \
+	"NAND.SPL.backup3 part 0 4;" \
+	"NAND.u-boot-spl-os part 0 5;" \
+	"NAND.u-boot part 0 6;" \
+	"NAND.u-boot-env part 0 7;" \
+	"NAND.u-boot-env.backup1 part 0 8;" \
+	"NAND.kernel part 0 9;" \
+	"NAND.rootfs part 0 10"
 #endif
 #define CONFIG_DFU_RAM
 #define DFU_ALT_INFO_RAM \
@@ -349,7 +390,15 @@
 #define CONFIG_ENV_SECT_SIZE		(4 << 10) /* 4 KB sectors */
 #define CONFIG_ENV_OFFSET		(768 << 10) /* 768 KiB in */
 #define CONFIG_ENV_OFFSET_REDUND	(896 << 10) /* 896 KiB in */
+
+#ifdef MTDIDS_DEFAULT
+#undef MTDIDS_DEFAULT
+#endif
 #define MTDIDS_DEFAULT			"nor0=m25p80-flash.0"
+
+#ifdef MTDPARTS_DEFAULT
+#undef MTDPARTS_DEFAULT
+#endif
 #define MTDPARTS_DEFAULT		"mtdparts=m25p80-flash.0:128k(SPL)," \
 					"512k(u-boot),128k(u-boot-env1)," \
 					"128k(u-boot-env2),3464k(kernel)," \
@@ -373,26 +422,7 @@
 /* Network. */
 #define CONFIG_PHY_GIGE
 #define CONFIG_PHYLIB
-#define CONFIG_PHY_ADDR			0
 #define CONFIG_PHY_SMSC
-
-/* NAND support */
-#ifdef CONFIG_NAND
-#define CONFIG_CMD_NAND
-#define GPMC_NAND_ECC_LP_x16_LAYOUT	1
-#if !defined(CONFIG_SPI_BOOT) && !defined(CONFIG_NOR_BOOT)
-#define MTDIDS_DEFAULT			"nand0=omap2-nand.0"
-#define MTDPARTS_DEFAULT		"mtdparts=omap2-nand.0:128k(SPL)," \
-					"128k(SPL.backup1)," \
-					"128k(SPL.backup2)," \
-					"128k(SPL.backup3),1792k(u-boot)," \
-					"128k(u-boot-spl-os)," \
-					"128k(u-boot-env),5m(kernel),-(rootfs)"
-#define CONFIG_ENV_IS_IN_NAND
-#define CONFIG_ENV_OFFSET		0x260000 /* environment starts here */
-#define CONFIG_SYS_ENV_SECT_SIZE	(128 << 10)	/* 128 KiB */
-#endif
-#endif
 
 /*
  * NOR Size = 16 MiB
@@ -424,7 +454,14 @@
 #define CONFIG_ENV_SECT_SIZE		(128 << 10)	/* 128 KiB */
 #define CONFIG_ENV_OFFSET		(512 << 10)	/* 512 KiB */
 #define CONFIG_ENV_OFFSET_REDUND	(768 << 10)	/* 768 KiB */
+#ifdef MTDIDS_DEFAULT
+#undef MTDIDS_DEFAULT
+#endif
 #define MTDIDS_DEFAULT			"nor0=physmap-flash.0"
+
+#ifdef MTDPARTS_DEFAULT
+#undef MTDPARTS_DEFAULT
+#endif
 #define MTDPARTS_DEFAULT		"mtdparts=physmap-flash.0:" \
 					"512k(u-boot)," \
 					"128k(u-boot-env1)," \
@@ -432,5 +469,23 @@
 					"4m(kernel),-(rootfs)"
 #endif
 #endif  /* NOR support */
+
+#ifdef CONFIG_MMC
+#define BOOT_TARGETS_MMC "mmc0"
+#else
+#define BOOT_TARGETS_MMC ""
+#endif
+
+#ifdef CONFIG_USB_HOST
+#define BOOT_TARGETS_USB "usb"
+#else
+#define BOOT_TARGETS_USB ""
+#endif
+
+#ifdef CONFIG_NAND
+#define BOOT_TARGETS_NAND "nand"
+#else
+#define BOOT_TARGETS_NAND ""
+#endif
 
 #endif	/* ! __CONFIG_AM335X_EVM_H */

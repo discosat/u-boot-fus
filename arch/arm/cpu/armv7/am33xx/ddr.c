@@ -41,6 +41,23 @@ static struct ddr_cmdtctrl *ioctrl_reg = {
  */
 void config_sdram(const struct emif_regs *regs, int nr)
 {
+	__maybe_unused u32 int_config;
+
+	/*
+	 * Within the EMIF controller there is a register, often at
+	 * offset 0x54 which has a field named 'PR_OLD_COUNT' that is
+	 * used to determine when to move the the priority of the oldest
+	 * command in the FIFO.  The need to use a non default value
+	 * here is often seen in multimedia situations when you start to
+	 * see screen jitter, but other situations may also require
+	 * changes here.  We change from the default value to provide a
+	 * better general example.
+	 */
+	if (regs->int_config)
+		int_config = regs->int_config;
+	else
+		int_config = 0x00FFFF10;
+
 	if (regs->zq_config) {
 		/*
 		 * A value of 0x2800 for the REF CTRL will give us
@@ -54,6 +71,15 @@ void config_sdram(const struct emif_regs *regs, int nr)
 		writel(regs->ref_ctrl, &emif_reg[nr]->emif_sdram_ref_ctrl);
 		writel(regs->ref_ctrl, &emif_reg[nr]->emif_sdram_ref_ctrl_shdw);
 	}
+	
+#if defined(CONFIG_AM33XX) || defined(CONFIG_TI81XX)
+	/*
+	 * The INT_CONFIG register on AM335x or PBBPR on TI81XX serves
+	 * similar purposes to the L3_CONFIG register on OMAP4 and lower
+	 * (or OCP_CONFIG on OMAP5 and higher).
+	 */
+	writel(int_config, &emif_reg[nr]->emif_l3_config);
+#endif
 	writel(regs->ref_ctrl, &emif_reg[nr]->emif_sdram_ref_ctrl);
 	writel(regs->ref_ctrl, &emif_reg[nr]->emif_sdram_ref_ctrl_shdw);
 	writel(regs->sdram_config, &emif_reg[nr]->emif_sdram_config);
@@ -89,15 +115,12 @@ void config_ddr_phy(const struct emif_regs *regs, int nr)
 void config_cmd_ctrl(const struct cmd_control *cmd, int nr)
 {
 	writel(cmd->cmd0csratio, &ddr_cmd_reg[nr]->cm0csratio);
-	writel(cmd->cmd0dldiff, &ddr_cmd_reg[nr]->cm0dldiff);
 	writel(cmd->cmd0iclkout, &ddr_cmd_reg[nr]->cm0iclkout);
 
 	writel(cmd->cmd1csratio, &ddr_cmd_reg[nr]->cm1csratio);
-	writel(cmd->cmd1dldiff, &ddr_cmd_reg[nr]->cm1dldiff);
 	writel(cmd->cmd1iclkout, &ddr_cmd_reg[nr]->cm1iclkout);
 
 	writel(cmd->cmd2csratio, &ddr_cmd_reg[nr]->cm2csratio);
-	writel(cmd->cmd2dldiff, &ddr_cmd_reg[nr]->cm2dldiff);
 	writel(cmd->cmd2iclkout, &ddr_cmd_reg[nr]->cm2iclkout);
 }
 
@@ -121,10 +144,6 @@ void config_ddr_data(const struct ddr_data *data, int nr)
 			&(ddr_data_reg[nr]+i)->dt0fwsratio0);
 		writel(data->datawrsratio0,
 			&(ddr_data_reg[nr]+i)->dt0wrsratio0);
-		writel(data->datauserank0delay,
-			&(ddr_data_reg[nr]+i)->dt0rdelays0);
-		writel(data->datadldiff0,
-			&(ddr_data_reg[nr]+i)->dt0dldiff0);
 	}
 }
 
