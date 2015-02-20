@@ -19,7 +19,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-int dram_init(void)
+int __weak dram_init(void)
 {
 	/* dram_init must store complete ramsize in gd->ram_size */
 	gd->ram_size = get_ram_size(

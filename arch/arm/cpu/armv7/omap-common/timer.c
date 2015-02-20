@@ -23,8 +23,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct gptimer *timer_base = (struct gptimer *)CONFIG_SYS_TIMERBASE;
-
+extern unsigned int GetCycleCounter(void); //###
 /*
  * Nothing really to do with interrupts, just starts up a counter.
  */
@@ -35,11 +34,16 @@ static struct gptimer *timer_base = (struct gptimer *)CONFIG_SYS_TIMERBASE;
 
 int timer_init(void)
 {
+	struct gptimer *timer_base = (struct gptimer *)CONFIG_SYS_TIMERBASE;
+
 	/* start the counter ticking up, reload value on overflow */
 	writel(TIMER_LOAD_VAL, &timer_base->tldr);
 	/* enable timer */
 	writel((CONFIG_SYS_PTV << 2) | TCLR_PRE | TCLR_AR | TCLR_ST,
 		&timer_base->tclr);
+
+	writel(0x0, &timer_base->tcrr);
+
 
 	/* reset time, capture current incrementer value time */
 	gd->arch.lastinc = readl(&timer_base->tcrr) /
@@ -54,12 +58,17 @@ int timer_init(void)
  */
 ulong get_timer(ulong base)
 {
+#if 0
 	return get_timer_masked() - base;
+#else
+	return (GetCycleCounter()/( (1000000+32)/64) ) - base;
+#endif
 }
 
 /* delay x useconds */
 void __udelay(unsigned long usec)
 {
+#if 0
 	long tmo = usec * (TIMER_CLOCK / 1000) / 1000;
 	unsigned long now, last = readl(&timer_base->tcrr);
 
@@ -71,11 +80,21 @@ void __udelay(unsigned long usec)
 			tmo -= now - last;
 		last = now;
 	}
+#else
+	unsigned int start =GetCycleCounter(); // readl(&timer_base->tcrr);
+	unsigned int ticks = 0;
+
+	ticks = (usec * 1000 + 32) / 64;
+
+	while ((GetCycleCounter() - start) < ticks)
+		;
+#endif
 }
 
 ulong get_timer_masked(void)
 {
 	/* current tick value */
+	struct gptimer *timer_base = (struct gptimer *)CONFIG_SYS_TIMERBASE;
 	ulong now = readl(&timer_base->tcrr) / (TIMER_CLOCK / CONFIG_SYS_HZ);
 
 	if (now >= gd->arch.lastinc) {	/* normal mode (non roll) */
@@ -105,4 +124,16 @@ unsigned long long get_ticks(void)
 ulong get_tbclk(void)
 {
 	return CONFIG_SYS_HZ;
+}
+
+void msleep(unsigned long usec)
+{
+	unsigned int start =GetCycleCounter(); // readl(&timer_base->tcrr);
+	unsigned int ticks = 0;
+
+	ticks = (usec * 1000000 +32)/64;
+
+	while ((GetCycleCounter() - start) < ticks)
+		;
+
 }

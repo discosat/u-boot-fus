@@ -31,6 +31,7 @@ endif
 ifeq ($(CONFIG_OMAP34XX),)
 COBJS	+= boot-common.o
 SOBJS	+= lowlevel_init.o
+SOBJS	+= AUasm.o
 endif
 
 COBJS	+= mem-common.o
