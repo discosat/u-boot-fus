@@ -243,20 +243,21 @@ int saveenv(void)
 	if (env_range < env_size)
 		return 1;
 
-	env_new = (env_t *)malloc(env_size + ENV_HEADER_SIZE);
+	env_new = (env_t *)malloc(env_size);
 	if (!env_new) {
 		printf("Cannot export environment: malloc() failed\n");
 		return -1;
 	}
 
 	res = (char *)(env_new + 1);
-	len = hexport_r(&env_htab, '\0', 0, &res, env_size, 0, NULL);
+	len = hexport_r(&env_htab, '\0', 0, &res, env_size - ENV_HEADER_SIZE,
+			0, NULL);
 	if (len < 0) {
 		error("Cannot export environment: errno = %d\n", errno);
 		free(env_new);
 		return -1;
 	}
-	env_new->crc = crc32(0, (u_char *)res, env_size);
+	env_new->crc = crc32(0, (u_char *)res, env_size - ENV_HEADER_SIZE);
 
 	location[0].env_size = env_size;
 	location[0].erase_opts.length = env_range;
