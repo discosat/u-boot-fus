@@ -1,24 +1,12 @@
 /*
- * (C) Copyright 2014
+ * fss5pv210.c
+ *
+ * (C) Copyright 2015
  * Hartmut Keller, F&S Elektronik Systeme GmbH, keller@fs-net.de
  *
- * See file CREDITS for list of people who contributed to this
- * project.
+ * Board specific functions for F&S boards based on Samsung S5PV210 CPU
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -546,8 +534,11 @@ int board_mmc_init(bd_t *bis)
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)
 {
-	/* If variable does not contain string "undef", do not change it */
-	if (strcmp(getenv(varname), "undef"))
+	char *envvar = getenv(varname);
+
+	/* If variable is not set or does not contain string "undef", do not
+	   change it */
+	if (!envvar || strcmp(envvar, "undef"))
 		return;
 
 	/* Either set variable directly with value ... */
