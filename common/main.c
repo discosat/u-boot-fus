@@ -451,14 +451,14 @@ static void process_boot_delay(void)
 		if (update_script(board_check_for_recover(), NULL, NULL, 0))
 #endif
 		{
-# ifdef CONFIG_AUTOBOOT_KEYED
+#if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
 			/* Disable Control C checking */
 			int prev = disable_ctrlc(1);
 # endif
 
 			run_command_list(s, -1, 0);
 
-# ifdef CONFIG_AUTOBOOT_KEYED
+#if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
 			/* Restore Control C checking */
 			disable_ctrlc(prev);
 # endif

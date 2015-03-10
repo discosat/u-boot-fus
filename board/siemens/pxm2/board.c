@@ -69,7 +69,15 @@ struct cmd_control pxm2_ddr3_cmd_ctrl_data = {
 	.cmd2iclkout = 0,
 };
 
-	config_ddr(DDR_PLL_FREQ, DXR2_IOCTRL_VAL, &pxm2_ddr3_data,
+const struct ctrl_ioregs ioregs = {
+	.cm0ioctl		= DXR2_IOCTRL_VAL,
+	.cm1ioctl		= DXR2_IOCTRL_VAL,
+	.cm2ioctl		= DXR2_IOCTRL_VAL,
+	.dt0ioctl		= DXR2_IOCTRL_VAL,
+	.dt1ioctl		= DXR2_IOCTRL_VAL,
+};
+
+	config_ddr(DDR_PLL_FREQ, &ioregs, &pxm2_ddr3_data,
 		   &pxm2_ddr3_cmd_ctrl_data, &pxm2_ddr3_emif_reg_data, 0);
 }
 
@@ -408,8 +416,7 @@ static int conf_disp_pll(int m, int n)
 
 static int board_video_init(void)
 {
-	/* set 300 MHz */
-	conf_disp_pll(25, 2);
+	conf_disp_pll(24, 1);
 	if (factory_dat.pxm50)
 		da8xx_video_init(&lcd_panels[0], &lcd_cfg, lcd_cfg.bpp);
 	else

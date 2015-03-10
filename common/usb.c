@@ -75,7 +75,7 @@ int usb_init(void)
 	for (i = 0; i < CONFIG_USB_MAX_CONTROLLER_COUNT; i++) {
 		/* init low_level USB */
 		printf("USB%d:   ", i);
-		if (usb_lowlevel_init(i, &ctrl)) {
+		if (usb_lowlevel_init(i, USB_INIT_HOST, &ctrl)) {
 			puts("lowlevel init failed\n");
 			continue;
 		}
@@ -1068,7 +1068,7 @@ int usb_new_device(struct usb_device *dev)
 }
 
 __weak
-int board_usb_init(int index, enum board_usb_init_type init)
+int board_usb_init(int index, enum usb_init_type init)
 {
 	return 0;
 }

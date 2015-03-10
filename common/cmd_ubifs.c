@@ -106,8 +106,10 @@ static int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	debug("Using filename %s\n", filename);
 
 	ret = ubifs_ls(filename);
-	if (ret)
-		printf("%s not found!\n", filename);
+	if (ret) {
+		printf("** File not found %s **\n", filename);
+		ret = CMD_RET_FAILURE;
+	}
 
 	return ret;
 }
@@ -133,8 +135,10 @@ static int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc,
 	      filename, addr, size);
 
 	ret = ubifs_load(filename, addr, size);
-	if (ret)
-		printf("%s not found!\n", filename);
+	if (ret) {
+		printf("** File not found %s **\n", filename);
+		ret = CMD_RET_FAILURE;
+	}
 
 	return ret;
 }

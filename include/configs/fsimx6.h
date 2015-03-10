@@ -233,9 +233,9 @@
 /* Use USB1 as host */
 #define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
 #define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
-#define CONFIG_MXC_USB_PORT 1		/* Use USB port 1 */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS 0
+#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 #define CONFIG_USB_STORAGE
 

@@ -1,16 +1,9 @@
 /*
- * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
- * Copyright (C) 2010 Freescale Semiconductor, Inc.
+ * (C) Copyright 2015
+ * F&S Elektronik Systeme GmbH
+ * Written-by: H. Keller <keller@fs-net.de>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
- * for more details.
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -134,10 +127,14 @@ int __weak board_ehci_hcd_init(int port)
 	return 0;
 }
 
-int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
+int ehci_hcd_init(int index, enum usb_init_type init,
+		  struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
 	struct usb_ehci *ehci;
 	int id = index ? 0 : 1;		/* 1st call: USB1, 2nd call: USB0 */
+
+	if (init != USB_INIT_HOST)
+		return -ENODEV;
 
 	if (!id)
 		ehci = (struct usb_ehci *)USBC0_BASE_ADDR;

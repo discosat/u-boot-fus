@@ -85,6 +85,12 @@ int board_late_init(void)
 	return 0;
 }
 
+int board_late_init(void)
+{
+	omap_sata_init();
+	return 0;
+}
+
 /**
  * @brief misc_init_r - Configure EVM board specific configurations
  * such as power configurations, ethernet initialization as phase2 of

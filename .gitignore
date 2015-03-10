@@ -29,6 +29,7 @@
 /SPL
 /System.map
 /u-boot
+/u-boot.elf
 /u-boot.hex
 /u-boot.imx
 /u-boot-with-spl.imx
@@ -51,8 +52,6 @@
 /u-boot.ais
 /u-boot.dtb
 /u-boot.sb
-/u-boot.bd
-/u-boot.geany
 
 #
 # Generated files
@@ -62,6 +61,10 @@
 /LOG
 /errlog
 /reloc_off
+
+!/spl/Makefile
+/spl/*
+/tpl/
 
 /include/generated/
 /include/spl-autoconf.mk
@@ -92,6 +95,3 @@ GPATH
 GRTAGS
 GSYMS
 GTAGS
-
-# spl ais files
-/spl/*.ais

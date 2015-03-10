@@ -186,7 +186,8 @@ static struct omap_usbhs_board_data usbhs_bdata = {
 	.port_mode[2] = OMAP_EHCI_PORT_MODE_HSIC,
 };
 
-int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
+int ehci_hcd_init(int index, enum usb_init_type init,
+		struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
 	int ret;
 
@@ -227,7 +228,7 @@ void usb_hub_reset_devices(int port)
  *
  * @return 0
  */
-int board_usb_init(int index, enum board_usb_init_type init)
+int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret;
 #ifdef CONFIG_PALMAS_USB_SS_PWR

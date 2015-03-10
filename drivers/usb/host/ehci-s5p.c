@@ -3,28 +3,13 @@
  * F&S Elektronik Systeme GmbH
  * Written-by: H. Keller <keller@fs-net.de>
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <asm/io.h>
 #include <usb.h>
+#include <errno.h>
 #include "ehci.h"			  /* struct ehci_{hccr,hcor} */
 #include <asm/arch/cpu.h>		  /* samsung_get_base_ehci() */
 #include <asm/arch/clock.h>		  /* struct s5pc110_clock */
@@ -43,7 +28,8 @@ struct s5p_usb_phy {			  /* Offset */
 };
 
 
-int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
+int ehci_hcd_init(int index, enum usb_init_type init,
+		  struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
 	unsigned int ehci_base = samsung_get_base_ehci();
 	struct s5pc110_clock *clock =
@@ -52,6 +38,9 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 	struct s5p_usb_phy *phy;
 	unsigned int rstcon;
 	unsigned int gate_ip1;
+
+	if (init != USB_INIT_HOST)
+		return -ENODEV;
 
 	/* EHCI is only available on S5PC110 */
 	if (!ehci_base)

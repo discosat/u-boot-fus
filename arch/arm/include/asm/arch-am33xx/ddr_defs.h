@@ -18,7 +18,11 @@
 #define VTP_CTRL_READY		(0x1 << 5)
 #define VTP_CTRL_ENABLE		(0x1 << 6)
 #define VTP_CTRL_START_EN	(0x1)
+#ifdef CONFIG_AM43XX
+#define DDR_CKE_CTRL_NORMAL	0x3
+#else
 #define DDR_CKE_CTRL_NORMAL	0x1
+#endif
 #define PHY_EN_DYN_PWRDN	(0x1 << 20)
 
 /* Micron MT47H128M16RT-25E */
@@ -53,6 +57,12 @@
 #define MT41J128MJT125_PHY_WR_DATA		0xC1
 #define MT41J128MJT125_PHY_FIFO_WE		0x100
 #define MT41J128MJT125_IOCTRL_VALUE		0x18B
+
+/* Micron MT41J64M16JT-125 */
+#define MT41J64MJT125_EMIF_SDCFG		0x61C04A32
+
+/* Micron MT41J256M16JT-125 */
+#define MT41J256MJT125_EMIF_SDCFG		0x61C04B32
 
 /* Micron MT41J256M8HX-15E */
 #define MT41J256M8HX15E_EMIF_READ_LATENCY	0x100006
@@ -143,6 +153,7 @@ void config_dmm(const struct dmm_lisa_map_regs *regs);
  * Configure SDRAM
  */
 void config_sdram(const struct emif_regs *regs, int nr);
+void config_sdram_emif4d5(const struct emif_regs *regs, int nr);
 
 /**
  * Set SDRAM timings
@@ -308,7 +319,7 @@ struct ctrl_ioregs {
 /**
  * Configure DDR io control registers
  */
-void config_io_ctrl(unsigned long val);
+void config_io_ctrl(const struct ctrl_ioregs *ioregs);
 
 struct ddr_ctrl {
 	unsigned int ddrioctrl;
@@ -316,9 +327,10 @@ struct ddr_ctrl {
 	unsigned int ddrckectrl;
 };
 
-void config_ddr(unsigned int pll, unsigned int ioctrl,
+void config_ddr(unsigned int pll, const struct ctrl_ioregs *ioregs,
 		const struct ddr_data *data, const struct cmd_control *ctrl,
 		const struct emif_regs *regs, int nr);
+void emif_get_ext_phy_ctrl_const_regs(const u32 **regs, u32 *size);
 
 void do_sdram_init(const struct ctrl_ioregs *ioregs,
 		   const struct emif_regs *emif_regs,

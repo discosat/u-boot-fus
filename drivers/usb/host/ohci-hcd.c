@@ -1549,7 +1549,7 @@ int submit_common_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 	}
 
 	dev->status = stat;
-	dev->act_len = transfer_len;
+	dev->act_len = urb->actual_length;
 
 #ifdef DEBUG
 	pkt_print(transfer_len, dev, pipe, buffer, transfer_len,
@@ -1848,7 +1848,7 @@ static void hc_release_ohci(ohci_t *ohci)
  */
 static char ohci_inited = 0;
 
-int usb_lowlevel_init(int index, void **controller)
+int usb_lowlevel_init(int index, enum usb_init_type init, void **controller)
 {
 #ifdef CONFIG_PCI_OHCI
 	pci_dev_t pdev;
