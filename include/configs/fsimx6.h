@@ -12,7 +12,7 @@
  *
  * The following addresses are given as offsets of the device.
  *
- * NAND flash layout with separate Kernel/FTD MTD partition 
+ * NAND flash layout with separate Kernel MTD partition 
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -23,7 +23,7 @@
  * 0x0024_0000 - 0x007F_FFFF: Kernel: Linux Kernel uImage (5888KB)
  * 0x0080_0000 -         END: TargetFS: Root filesystem (Size - 8MB)
  *
- * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel volume
+ * NAND flash layout with UBI only, Kernel in rootfs or kernel volume
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -52,6 +52,7 @@
 
 /* CPU, family and board defines */
 #define CONFIG_MX6			/* Freescale i.MX6 CPU... */
+#define CONFIG_MX6QDL			/* ...Quad/Dual or DualLite/Solo... */
 #define CONFIG_FSIMX6			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
@@ -84,10 +85,11 @@
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
-#if 0
+#if 1
 /* For new NBoot >= VN20, use make to build */
-#define CONFIG_SYS_TEXT_BASE 0x27800000	/* Where NBoot loads U-Boot */
-#define CONFIG_UBOOTNB0_SIZE	384	/* Size of uboot.nb0 (in kB) */
+//#define CONFIG_SYS_TEXT_BASE 0x27800000	/* Where NBoot loads U-Boot */
+#define CONFIG_SYS_TEXT_BASE 0x10100000	/* Where NBoot loads U-Boot */
+#define CONFIG_UBOOTNB0_SIZE	512	/* Size of uboot.nb0 (in kB) */
 #else
 /* For old NBoot < VN20, the U-Boot size is not fix. Use make uboot-fsimx6.nb0
    to build. There we prepend a fix header (fsheader.data) of size 0x720 to
@@ -116,9 +118,9 @@
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
 
 /* MX6 has 128KB (Solo/DualLite) or 256KB (Dual/Quad) of internal SRAM,
-   mapped from 0x00900000-0x00901FFFFF/0x00903FFFF */
+   mapped from 0x00900000-0x0091FFFF/0x0093FFFF */
 #define CONFIG_SYS_INIT_RAM_ADDR	(IRAM_BASE_ADDR)
-#define CONFIG_SYS_INIT_RAM_SIZE	(IRAM_SIZE)
+#define CONFIG_SYS_INIT_RAM_SIZE	(0x20000/*###IRAM_SIZE###*/)
 
 /* Init value for stack pointer, set at end of internal SRAM, keep room for
    global data behind stack. */
