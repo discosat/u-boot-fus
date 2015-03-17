@@ -41,17 +41,18 @@
 #include <mtd/mxs_nand_fus.h>
 #include <nand.h>			/* nand_info[] */
 
-#define	MXS_NAND_DMA_DESCRIPTOR_COUNT		4
+#define	MXS_NAND_DMA_DESCRIPTOR_COUNT	4
 
-#define	MXS_NAND_CHUNK_DATA_CHUNK_SIZE		512
+#define MXS_NAND_CHUNK_SIZE_SHIFT	10
+#define	MXS_NAND_CHUNK_SIZE		(1 << MXS_NAND_CHUNK_SIZE_SHIFT)
 #if defined(CONFIG_MX6)
 #define	MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT	2
 #else
 #define	MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT	0
 #endif
-#define	MXS_NAND_METADATA_SIZE			10
+#define	MXS_NAND_METADATA_SIZE		32
 
-#define	MXS_NAND_COMMAND_BUFFER_SIZE		32
+#define	MXS_NAND_COMMAND_BUFFER_SIZE	32
 
 #define	MXS_NAND_BCH_TIMEOUT			10000
 
@@ -61,19 +62,77 @@ struct mxs_nand_priv {
 	uint32_t cmd_queue_len;		/* Current command queue length */
 	uint32_t desc_index;		/* Current DMA descriptor index */
 	uint8_t marking_block_bad;	/* Flag if currently marking bad */
-	uint32_t chunks;		/* Number of chunks per page */
 
 	/* Functions with altered behaviour */
 	int (*hooked_block_markbad)(struct mtd_info *mtd, loff_t ofs);
 };
+
+/*
+ * F&S NAND page layout for i.MX6. The OOB area is put first in the page. Then
+ * the main page data follows in chunks of 1024 bytes, interleaved with ECC.
+ * For 1024 bytes of data, we need GF14, i.e. 14 bits of ECC data per ECC
+ * step. The bad block marker will also be located at byte 0 of the (main)
+ * page, NOT on the first byte of the spare area anymore! We need at least 4
+ * bytes of OOB data for the bad block marker and the backup block number.
+ *
+ * Example 1:
+ * The NAND page size is 2048 + 64 bytes = 2112 bytes. NBoot reports ECC8,
+ * which means 14 bits * 8 = 112 bits ECC (14 bytes). So the main data will
+ * take 2x (1024+14) = 2076 bytes. So we will have 2112 - 2076 = 36 bytes free
+ * space for OOB, from which we need 4 bytes for internal purposes. So we have
+ * 32 bytes of free space for the user OOB data (mtd->oobavail).
+ *
+ *   Offset   Bytes     Meaning
+ *   ----------------------------------------------------------------
+ *      0        4      Bad Block Marker (BBM) + backup block number
+ *      4       32      Free OOB area (user part)
+ *     36     1024      Main data part #0
+ *   1060       14      ECC for part #0
+ *   1074     1024      Main data part #1
+ *   2098       14      ECC for part #1
+ *   ----------------------------------------------------------------
+ *            2112      Total
+ *
+ * Please note that ECC and main data are concatenated without gap. So if the
+ * ECC size is not a multiple of 8 bits, then the second and following parts
+ * of the main data as well as the subsequent ECC data may not start on a byte
+ * boundary.
+ *
+ * Example 2:
+ * The NAND page size is 4096 + 224 bytes = 4320 bytes. NBoot reports ECC30,
+ * which means 14 bits * 30 = 420 bits ECC (52.5 bytes). So the main data will
+ * take 4x (1024+52.5) = 4306 bytes. So we will have 4320 - 4306 = 14 bytes
+ * free space for OOB, from which we need 4 bytes for internal purposes. So we
+ * have 10 bytes of free space for the user OOB data (mtd->oobavail).
+ *
+ *   Offset   Bytes     Meaning
+ *   ----------------------------------------------------------------
+ *      0        4      Bad Block Marker (BBM) + backup block number
+ *      4       10      Free OOB area (user part)
+ *     14     1024      Main data part #0
+ *   1038       52.5    ECC for part #0
+ *   1090.5   1024      Main data part #1
+ *   2114.5     52.5    ECC for part #1
+ *   2167     1024      Main data part #2
+ *   3191       52.5    ECC for part #2
+ *   3243.5   1024      Main data part #3
+ *   4267.5     52.5    ECC for part #3
+ *   ----------------------------------------------------------------
+ *            4320      Total
+ *
+ * Remark:
+ * As we use GF14, i.e. 14 bits ECC per ECC step, and we have an even ECC step
+ * number (BCH restriction) and we have at least 2048 bytes per page, i.e. a
+ * multiple of 2 chunks, the resulting number of ECC bits across all chunks
+ * will always be a multiple of 8, i.e. full bytes.
+ */
+static struct nand_ecclayout fus_nfc_ecclayout;
 
 static ulong nfc_base_addresses[] = {
 	CONFIG_SYS_NAND_BASE
 };
 
 static struct mxs_nand_priv nfc_infos[CONFIG_SYS_MAX_NAND_DEVICE];
-
-static struct nand_ecclayout fake_ecc_layout;
 
 static uint8_t cmd_buf[MXS_NAND_COMMAND_BUFFER_SIZE]
 				__attribute__((aligned(MXS_DMA_ALIGNMENT)));
@@ -139,90 +198,31 @@ static void mxs_nand_return_dma_descs(struct mxs_nand_priv *priv)
 	priv->desc_index = 0;
 }
 
-static uint32_t mxs_nand_ecc_chunk_cnt(uint32_t page_data_size)
+static uint32_t mxs_nand_aux_status_offset(struct mtd_info *mtd)
 {
-	return page_data_size / MXS_NAND_CHUNK_DATA_CHUNK_SIZE;
+	return (mtd->oobavail + 4 + 0x3) & ~0x3;
 }
 
-static uint32_t mxs_nand_ecc_size_in_bits(uint32_t ecc_strength)
+static inline uint32_t mxs_nand_get_ecc_strength(struct mtd_info *mtd)
 {
-	return ecc_strength * 13;
+	uint32_t oobecc;
+	uint32_t eccsteps;
+
+	/* Get number of 1024 bytes chunks */
+	eccsteps = mtd->writesize >> MXS_NAND_CHUNK_SIZE_SHIFT;
+
+	/* Get available space for ECC, in bits */
+	oobecc = mtd->oobsize - MXS_NAND_METADATA_SIZE - 4;	   
+	oobecc <<= 3;
+
+	/* We need an even number of 14 bit entries, therefore divide by 28 */
+	oobecc /= 28 * eccsteps;
+
+	/* Compute the ECC strength as an even number */
+	oobecc <<= 1;
+
+	return oobecc;
 }
-
-static uint32_t mxs_nand_aux_status_offset(void)
-{
-	return (MXS_NAND_METADATA_SIZE + 0x3) & ~0x3;
-}
-
-static inline uint32_t mxs_nand_get_ecc_strength(uint32_t page_data_size,
-						uint32_t page_oob_size)
-{
-	if (page_data_size == 2048)
-		return 8;
-
-	if (page_data_size == 4096) {
-		if (page_oob_size == 128)
-			return 8;
-
-		if (page_oob_size == 218)
-			return 16;
-
-		if (page_oob_size == 224)
-			return 16;
-	}
-
-	return 0;
-}
-
-static inline uint32_t mxs_nand_get_mark_offset(uint32_t page_data_size,
-						uint32_t ecc_strength)
-{
-	uint32_t chunk_data_size_in_bits;
-	uint32_t chunk_ecc_size_in_bits;
-	uint32_t chunk_total_size_in_bits;
-	uint32_t block_mark_chunk_number;
-	uint32_t block_mark_chunk_bit_offset;
-	uint32_t block_mark_bit_offset;
-
-	chunk_data_size_in_bits = MXS_NAND_CHUNK_DATA_CHUNK_SIZE * 8;
-	chunk_ecc_size_in_bits  = mxs_nand_ecc_size_in_bits(ecc_strength);
-
-	chunk_total_size_in_bits =
-			chunk_data_size_in_bits + chunk_ecc_size_in_bits;
-
-	/* Compute the bit offset of the block mark within the physical page. */
-	block_mark_bit_offset = page_data_size * 8;
-
-	/* Subtract the metadata bits. */
-	block_mark_bit_offset -= MXS_NAND_METADATA_SIZE * 8;
-
-	/*
-	 * Compute the chunk number (starting at zero) in which the block mark
-	 * appears.
-	 */
-	block_mark_chunk_number =
-			block_mark_bit_offset / chunk_total_size_in_bits;
-
-	/*
-	 * Compute the bit offset of the block mark within its chunk, and
-	 * validate it.
-	 */
-	block_mark_chunk_bit_offset = block_mark_bit_offset -
-			(block_mark_chunk_number * chunk_total_size_in_bits);
-
-	if (block_mark_chunk_bit_offset > chunk_data_size_in_bits)
-		return 1;
-
-	/*
-	 * Now that we know the chunk number in which the block mark appears,
-	 * we can subtract all the ECC bits that appear before it.
-	 */
-	block_mark_bit_offset -=
-		block_mark_chunk_number * chunk_ecc_size_in_bits;
-
-	return block_mark_bit_offset;
-}
-
 
 /*
  * Wait for BCH complete IRQ and clear the IRQ
@@ -353,43 +353,6 @@ static void mxs_nand_select_chip(struct mtd_info *mtd, int cur_chip)
 	struct mxs_nand_priv *priv = chip->priv;
 
 	priv->cur_chip = cur_chip;
-}
-
-/*
- * Handle block mark swapping.
- *
- * Note that, when this function is called, it doesn't know whether it's
- * swapping the block mark, or swapping it *back* -- but it doesn't matter
- * because the the operation is the same.
- */
-static void mxs_nand_swap_block_mark(struct mtd_info *mtd)
-{
-
-	uint32_t src;
-	uint32_t dst;
-	uint32_t mark_offset = mxs_nand_get_mark_offset(mtd->writesize,
-							mtd->ecc_strength);
-	uint32_t bit_offset = mark_offset & 0x07;
-	uint32_t buf_offset = mark_offset >> 3;
-
-	/*
-	 * Get the byte from the data area that overlays the block mark. Since
-	 * the ECC engine applies its own view to the bits in the page, the
-	 * physical block mark won't (in general) appear on a byte boundary in
-	 * the data.
-	 */
-	src = data_buf[buf_offset] >> bit_offset;
-	src |= data_buf[buf_offset + 1] << (8 - bit_offset);
-
-	dst = data_buf[mtd->writesize];
-
-	data_buf[mtd->writesize] = src;
-
-	data_buf[buf_offset] &= ~(0xff << bit_offset);
-	data_buf[buf_offset + 1] &= 0xff << bit_offset;
-
-	data_buf[buf_offset] |= dst << bit_offset;
-	data_buf[buf_offset + 1] |= dst >> (8 - bit_offset);
 }
 
 /*
@@ -638,14 +601,13 @@ static int mxs_nand_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	/* Invalidate caches */
-	mxs_nand_inval_data_buf(mtd->writesize + mtd->oobsize + priv->chunks);
+	mxs_nand_inval_data_buf(mtd->writesize + mtd->oobsize + chip->ecc.steps);
 
-	/* Read DMA completed, now do the mark swapping. */
-	mxs_nand_swap_block_mark(mtd);
+	/* Read DMA completed */
 
 	/* Loop over status bytes, accumulating ECC status. */
-	status = data_buf + mtd->writesize + mxs_nand_aux_status_offset();
-	for (i = 0; i < priv->chunks; i++) {
+	status = data_buf + mtd->writesize + mxs_nand_aux_status_offset(mtd);
+	for (i = 0; i < chip->ecc.steps; i++) {
 		if (status[i] == 0x00)
 			continue;
 
@@ -698,9 +660,6 @@ static int mxs_nand_ecc_write_page(struct mtd_info *mtd,
 
 	memcpy(data_buf, buf, mtd->writesize);
 	memcpy(data_buf + mtd->writesize, chip->oob_poi, mtd->oobsize);
-
-	/* Handle block mark swapping. */
-	mxs_nand_swap_block_mark(mtd);
 
 	/* Compile the DMA descriptor - write data. */
 	d = mxs_nand_get_dma_desc(priv);
@@ -803,7 +762,9 @@ static int mxs_nand_ecc_read_oob_raw(struct mtd_info *mtd,
 	 * If control arrives here, we're doing a "raw" read. Send the
 	 * command to read the conventional OOB and read it.
 	 */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, mtd->writesize, page);
+	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	//### TODO: Just read mtd->oobavail + 4 bytes at offset 0, read ECC
+	//### bytes from all around the place, probably shift and combine
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	return 0;
@@ -815,8 +776,8 @@ static int mxs_nand_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Fill the OOB buffer with set bits and correct the block mark. */
 	memset(chip->oob_poi, 0xff, mtd->oobsize);
 
-	chip->cmdfunc(mtd, NAND_CMD_READ0, mtd->writesize, page);
-	mxs_nand_read_buf(mtd, chip->oob_poi, 1);
+	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	mxs_nand_read_buf(mtd, chip->oob_poi, mtd->oobavail + 4);
 
 	return 0;
 }
@@ -845,7 +806,7 @@ static int mxs_nand_ecc_write_oob_raw(struct mtd_info *mtd,
 	}
 
 	/* Write the block mark. */
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize, page);
+	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
 	chip->write_buf(mtd, &block_mark, 1);
 	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 
@@ -899,18 +860,17 @@ static void mxs_nand_init_cont(struct mtd_info *mtd)
 	mxs_reset_block(&bch_regs->hw_bch_ctrl_reg);
 
 	/* Configure layout 0 */
-	tmp = (priv->chunks - 1) << BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
-	tmp |= MXS_NAND_METADATA_SIZE << BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
-	tmp |= (mtd->ecc_strength >> 1) << BCH_FLASHLAYOUT0_ECC0_OFFSET;
-	tmp |= MXS_NAND_CHUNK_DATA_CHUNK_SIZE
-		>> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
+	tmp = chip->ecc.steps << BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
+	tmp |= (mtd->oobavail + 4) << BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT0_ECC0_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT0_DATA0_SIZE_OFFSET;
 	writel(tmp, &bch_regs->hw_bch_flash0layout0);
 
 	tmp = (mtd->writesize + mtd->oobsize)
 		<< BCH_FLASHLAYOUT1_PAGE_SIZE_OFFSET;
 	tmp |= (mtd->ecc_strength >> 1) << BCH_FLASHLAYOUT1_ECCN_OFFSET;
-	tmp |= MXS_NAND_CHUNK_DATA_CHUNK_SIZE
-		>> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
+	tmp |= BCH_FLASHLAYOUT1_GF13_0_GF14_1;
+	tmp |= MXS_NAND_CHUNK_SIZE >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
 	writel(tmp, &bch_regs->hw_bch_flash0layout1);
 
 	/* Set *all* chip selects to use layout 0 */
@@ -977,6 +937,7 @@ void mxs_nand_register(int nfc_hw_id,
 	struct mxs_nand_priv *priv;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
+	uint32_t i, oobavail;
 
 	if (index >= CONFIG_SYS_MAX_NAND_DEVICE)
 		return;
@@ -1046,15 +1007,21 @@ void mxs_nand_register(int nfc_hw_id,
 		}
 	}
 
-	/* Set up ECC configuration */
-	chip->ecc.layout = &fake_ecc_layout;
+	/* Set up ECC configuration and ECC layout */
+	chip->ecc.layout = &fus_nfc_ecclayout;
 	chip->ecc.mode = NAND_ECC_HW;
-	chip->ecc.steps = 1;
-	chip->ecc.bytes = 9;
-	chip->ecc.size = 512;
+	chip->ecc.steps = mtd->writesize >> MXS_NAND_CHUNK_SIZE_SHIFT;
+	chip->ecc.size = MXS_NAND_CHUNK_SIZE;
 	chip->ecc.strength =
-//###           pdata ? pdata->ecc_strength :
-		mxs_nand_get_ecc_strength(mtd->writesize, mtd->oobsize);
+		pdata ? pdata->ecc_strength : mxs_nand_get_ecc_strength(mtd);
+	chip->ecc.bytes = chip->ecc.strength * chip->ecc.steps * 14 / 8;
+	oobavail = mtd->oobsize - chip->ecc.bytes - 4;
+	chip->ecc.layout->oobfree[0].offset = 4;
+	chip->ecc.layout->oobfree[0].length = oobavail;
+	chip->ecc.layout->oobfree[1].length = 0; /* Sentinel */
+	chip->ecc.layout->eccbytes = chip->ecc.bytes;
+	for (i = 0; i < chip->ecc.bytes; i++)
+		chip->ecc.layout->eccpos[i] = oobavail + 4 + i;
 	mtd->ecc_strength = chip->ecc.strength;
 
 	chip->ecc.read_page = mxs_nand_ecc_read_page;
@@ -1071,7 +1038,6 @@ void mxs_nand_register(int nfc_hw_id,
 	else
 		mtd->bitflip_threshold = chip->ecc.strength - 1;
 
-	priv->chunks = mxs_nand_ecc_chunk_cnt(mtd->writesize);
 	mxs_nand_init_cont(mtd);
 
 	if (nand_scan_tail(mtd)) {
