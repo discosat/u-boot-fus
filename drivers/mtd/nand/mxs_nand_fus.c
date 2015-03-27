@@ -1437,6 +1437,22 @@ static int mxs_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		       mtd->oobavail);
 	}
 
+#ifdef CONFIG_NAND_REFRESH
+	/* If requested, read refresh block number from the four bytes at the
+	   beginning of the OOB area (that came from the beginningof the page)
+	   and return it converted to an offset. The caller has to make sure
+	   that this flag is not set in the first two pages of a block,
+	   because there the Bad Block Marker is stored in this place. */
+	if (mtd->extraflags & MTD_EXTRA_REFRESHOFFS) {
+		u32 refresh;
+
+		memcpy(&refresh, data_buf + mtd->writesize, 4);
+		if (refresh == 0xFFFFFFFF)
+			refresh = 0;
+		mtd->extradata = refresh << chip->phys_erase_shift;
+	}
+#endif
+
 	return ret;
 }
 
@@ -1463,6 +1479,20 @@ static int mxs_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (oob_required)
 		memcpy(data_buf + mtd->writesize + 4, chip->oob_poi + 4,
 		       mtd->oobavail);
+
+#ifdef CONFIG_NAND_REFRESH
+	/* If requested, store refresh offset as block number in the four
+	   bytes at the beginning of OOB area (that will go to the beginning
+	   of the page). The caller has to make sure that this flag is not set
+	   when writing to the first two pages of the block or the Bad Block
+	   Marker may be set unintentionally. */
+	if ((mtd->extraflags & MTD_EXTRA_REFRESHOFFS) && mtd->extradata) {
+		u32 refresh;
+
+		refresh = (u32)(mtd->extradata >> chip->phys_erase_shift);
+		memcpy(data_buf + mtd->writesize, &refresh, 4);
+	}
+#endif
 
 	/* Add DMA descriptor to enable BCH and write data */
 	d = mxs_nand_get_dma_desc(priv);

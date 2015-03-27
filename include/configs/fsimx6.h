@@ -330,8 +330,8 @@
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 
 /* Actually perform block refresh if pages degrade too much. Use the given
-   blocks in decreasing order. ### TODO ### */
-#undef CONFIG_NAND_REFRESH
+   blocks in decreasing order. */
+#define CONFIG_NAND_REFRESH
 #define CONFIG_SYS_NAND_BACKUP_START_BLOCK	9
 #define CONFIG_SYS_NAND_BACKUP_END_BLOCK	8
 
