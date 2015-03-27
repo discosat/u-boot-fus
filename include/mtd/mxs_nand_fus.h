@@ -19,7 +19,7 @@
    block size) are not yet known when this structure is filled in. */
 struct mxs_nand_fus_platform_data {
 	unsigned int	options;	/* Basic set of options */
-	unsigned int	t_wb;		/* Wait cycles for T_WB and T_WHR
+	unsigned int	timing0;	/* Wait cycles for T_WB and T_WHR
 					   (0: use current value from NFC) */
 	unsigned int	ecc_strength;
 	unsigned int	flags;		/* See flag values above */

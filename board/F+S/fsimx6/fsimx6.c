@@ -39,7 +39,6 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
-//#####include <asm/imx-common/boot_mode.h>
 
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
@@ -369,30 +368,30 @@ void board_nand_init(void)
 	/* config gpmi nand iomux */
 	imx_iomux_v3_setup_multiple_pads(nfc_pads, nfc_pad_count);
 
-	/* config gpmi and bch clock to 11Mhz*/
+#if 0 // ### Keep clock source as set by NBoot
+	/* Set GPMI clock source (enfc) to USB0 (480MHz) */
 	reg = readl(&mxc_ccm->cs2cdr);
-	reg &= 0xF800FFFF;
-	reg |= 0x01E40000;
+	reg &= ~(3 << 16);
+	reg |= (2 << 16);
 	writel(reg, &mxc_ccm->cs2cdr);
+#endif
 
-	/* enable gpmi and bch clock gating */
-
+	/* Enable GPMI and BCH clocks */
 	reg = readl(&mxc_ccm->CCGR4);
 	reg |= 0xFF003000;
 	writel(reg, &mxc_ccm->CCGR4);
 
-	/* enable apbh clock gating */
+	/* Enable APBH DMA clock*/
 	reg = readl(&mxc_ccm->CCGR0);
-	reg |= 0x0030;
+	reg |= 0x00000030;
 	writel(reg, &mxc_ccm->CCGR0);
 
 	/* The first device skips the NBoot region (2 blocks) to protect it
 	   from inadvertent erasure. The skipped region can not be written
 	   and is always read as 0xFF. */
 	pdata.options = NAND_BBT_SCAN2NDPAGE;
-	pdata.t_wb = 0;
-//###	pdata.ecc_strength = fs_nboot_args.chECCtype;
-	pdata.ecc_strength = 8;		/* 8-bit ECC */
+	pdata.timing0 = 0;
+	pdata.ecc_strength = fs_nboot_args.chECCtype;
 	pdata.skipblocks = 2;
 	pdata.flags = 0;
 #ifdef CONFIG_NAND_REFRESH
