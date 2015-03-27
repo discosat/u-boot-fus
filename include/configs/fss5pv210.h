@@ -650,55 +650,52 @@
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
-	"_kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootz\0"
+	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootz\0"
 #else
 #define EXTRA_UBIFS
 #endif
 #define EXTRA_UBI EXTRA_UBIFS \
-	"_mtdparts_ubionly=undef\0" \
-	"_rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
-	"_kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
-	"_ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
-	"_ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
+	".mtdparts_ubionly=undef\0" \
+	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
+	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
+	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
+	".ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"console=undef\0" \
-	"_console_none=setenv console\0" \
-	"_console_serial=setenv console console=${sercon},${baudrate}\0" \
-	"_console_display=setenv console console=/dev/tty1\0" \
+	".console_none=setenv console\0" \
+	".console_serial=setenv console console=${sercon},${baudrate}\0" \
+	".console_display=setenv console console=/dev/tty1\0" \
 	"login=undef\0" \
-	"_login_none=setenv login login_tty=null\0" \
-	"_login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
-	"_login_display=setenv login login_tty=/dev/tty1\0" \
+	".login_none=setenv login login_tty=null\0" \
+	".login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
+	".login_display=setenv login login_tty=/dev/tty1\0" \
 	"mtdparts=undef\0" \
-	"_mtdparts_std=undef\0" \
-	"_network_off=setenv network\0"					\
-	"_network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
-	"_network_dhcp=setenv network ip=dhcp\0" \
+	".mtdparts_std=undef\0" \
+	".network_off=setenv network\0"					\
+	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
+	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
-	"_rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
-	"_rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
-	"_rootfs_usb=setenv rootfs root=/dev/sda1\0" \
-	"fsload=undef\0" \
-	"_fsload_fat=setenv fsload fatload\0" \
-	"_fsload_ext2=setenv fsload ext2load\0" \
+	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
+	".rootfs_usb=setenv rootfs root=/dev/sda1\0" \
 	"kernel=undef\0" \
-	"_kernel_nand=setenv kernel nboot Kernel\0" \
-	"_kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
-	"_kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	"_kernel_mmc=setenv kernel mmc rescan\\\\; ${fsload} mmc 0 . ${bootfile}\0" \
-	"_kernel_usb=setenv kernel usb start\\\\; ${fsload} usb 0 . ${bootfile}\0" \
+	".kernel_nand=setenv kernel nboot Kernel\0" \
+	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
+	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
+	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
+	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
 	EXTRA_UBI \
 	"mode=undef\0" \
-	"_mode_rw=setenv mode rw\0" \
-	"_mode_ro=setenv mode ro\0" \
+	".mode_rw=setenv mode rw\0" \
+	".mode_ro=setenv mode ro\0" \
 	"netdev=eth0\0" \
 	"init=undef\0" \
-	"_init_init=setenv init\0" \
-	"_init_linuxrc=setenv init init=linuxrc\0" \
+	".init_init=setenv init\0" \
+	".init_linuxrc=setenv init init=linuxrc\0" \
 	"sercon=undef\0" \
 	"installcheck=undef\0" \
 	"updatecheck=undef\0" \

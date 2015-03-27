@@ -93,13 +93,13 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
-		.console = "_console_serial",
-		.login = "_login_serial",
-		.mtdparts = "_mtdparts_std",
-		.network = "_network_off",
-		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubifs",
-		.kernel = "_kernel_nand",
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_linuxrc",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
 	},
 	{	/* 1 */
 		.name = "Unknown",
@@ -111,13 +111,13 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
-		.console = "_console_serial",
-		.login = "_login_serial",
-		.mtdparts = "_mtdparts_std",
-		.network = "_network_off",
-		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubifs",
-		.kernel = "_kernel_nand",
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_linuxrc",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
 	},
 	{	/* 3 */
 		.name = "Unknown",
@@ -129,13 +129,13 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
-		.console = "_console_serial",
-		.login = "_login_serial",
-		.mtdparts = "_mtdparts_std",
-		.network = "_network_off",
-		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubifs",
-		.kernel = "_kernel_nand",
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_linuxrc",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
 	},
 	{	/* 5 */
 		.name = "Unknown",
@@ -147,13 +147,13 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_PM7A,
 		.installcheck = UPDATE_PM7A,
 		.recovercheck = UPDATE_PM7A,
-		.console = "_console_serial",
-		.login = "_login_serial",
-		.mtdparts = "_mtdparts_std",
-		.network = "_network_off",
-		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubifs",
-		.kernel = "_kernel_nand",
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_linuxrc",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
 	},
 	{	/* 7 (BT_EASYSOM1) */
 		.name = "EASYsom1",
@@ -162,13 +162,13 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
-		.console = "_console_serial",
-		.login = "_login_serial",
-		.mtdparts = "_mtdparts_std",
-		.network = "_network_off",
-		.init = "_init_linuxrc",
-		.rootfs = "_rootfs_ubifs",
-		.kernel = "_kernel_nand",
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_linuxrc",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
 	},
 };
 
@@ -596,9 +596,9 @@ int board_late_init(void)
 	setup_var("installcheck", bi->installcheck, 0);
 	setup_var("recovercheck", bi->recovercheck, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
-	setup_var("_mtdparts_std", is_large_block_nand() ? MTDPARTS_STD_LARGE : MTDPARTS_STD_SMALL, 0);
+	setup_var(".mtdparts_std", is_large_block_nand() ? MTDPARTS_STD_LARGE : MTDPARTS_STD_SMALL, 0);
 #ifdef CONFIG_CMD_UBI
-	setup_var("_mtdparts_ubionly", is_large_block_nand() ? MTDPARTS_UBIONLY_LARGE : MTDPARTS_UBIONLY_SMALL, 0);
+	setup_var(".mtdparts_ubionly", is_large_block_nand() ? MTDPARTS_UBIONLY_LARGE : MTDPARTS_UBIONLY_SMALL, 0);
 #endif
 	setup_var("partition", MTDPART_DEFAULT, 0);
 	setup_var("mode", CONFIG_MODE, 0);
