@@ -91,6 +91,7 @@ struct board_info {
 	char *updatecheck;		/* Default value for updatecheck */
 	char *installcheck;		/* Default value for installcheck */
 	char *recovercheck;		/* Default value for recovercheck */
+	char *earlyusbinit;		/* Default value for earlyusbinit */
 	char *console;			/* Default variable for console */
 	char *login;			/* Default variable for login */
 	char *mtdparts;			/* Default variable for mtdparts */
@@ -111,7 +112,11 @@ struct board_info {
 #else
 #define UPDATE_DEF NULL
 #endif
-
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#define EARLY_USB "1"
+#else
+#define EARLY_USB NULL
+#endif
 
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_EFUSA9) */
@@ -121,6 +126,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = EARLY_USB,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -138,6 +144,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -155,6 +162,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -172,6 +180,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -832,6 +841,7 @@ int board_late_init(void)
 	setup_var("updatecheck", bi->updatecheck, 0);
 	setup_var("installcheck", bi->installcheck, 0);
 	setup_var("recovercheck", bi->recovercheck, 0);
+	setup_var("earlyusbinit", bi->earlyusbinit, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
 	setup_var("mode", CONFIG_MODE, 0);

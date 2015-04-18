@@ -641,6 +641,7 @@
 	"installcheck=undef\0" \
 	"updatecheck=undef\0" \
 	"recovercheck=undef\0" \
+	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
 	"arch=fsimx6\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"

@@ -84,19 +84,20 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define MK_STR(x)	XMK_STR(x)
 
 struct board_info {
-	char *name;			  /* Device name */
-	unsigned int mach_type;		  /* Device machine ID */
-	char *bootdelay;		  /* Default value for bootdelay */
-	char *updatecheck;		  /* Default value for updatecheck */
-	char *installcheck;		  /* Default value for installcheck */
-	char *recovercheck;		  /* Default value for recovercheck */
-	char *console;			  /* Default variable for console */
-	char *login;			  /* Default variable for login */
-	char *mtdparts;			  /* Default variable for mtdparts */
-	char *network;			  /* Default variable for network */
-	char *init;			  /* Default variable for init */
-	char *rootfs;			  /* Default variable for rootfs */
-	char *kernel;			  /* Default variable for kernel */
+	char *name;			/* Device name */
+	unsigned int mach_type;		/* Device machine ID */
+	char *bootdelay;		/* Default value for bootdelay */
+	char *updatecheck;		/* Default value for updatecheck */
+	char *installcheck;		/* Default value for installcheck */
+	char *recovercheck;		/* Default value for recovercheck */
+	char *earlyusbinit;		/* Default value for earlyusbinit */
+	char *console;			/* Default variable for console */
+	char *login;			/* Default variable for login */
+	char *mtdparts;			/* Default variable for mtdparts */
+	char *network;			/* Default variable for network */
+	char *init;			/* Default variable for init */
+	char *rootfs;			/* Default variable for rootfs */
+	char *kernel;			/* Default variable for kernel */
 };
 
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -108,6 +109,11 @@ struct board_info {
 #else
 #define UPDATE_DEF NULL
 #endif
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#define EARLY_USB "1"
+#else
+#define EARLY_USB NULL
+#endif
 
 const struct board_info fs_board_info[16] = {
 	{	/* 0 (BT_ARMSTONEA5) */
@@ -117,6 +123,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -132,6 +139,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -147,6 +155,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -173,6 +182,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = "TargetFS.ubi(data)",
 		.installcheck = "ram@80300000",
 		.recovercheck = "TargetFS.ubi(recovery)",
+		.earlyusbinit = NULL,
 //###		.console = ".console_serial",
 		.console = ".console_none",
 //###		.login = ".login_serial",
@@ -190,6 +200,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = "TargetFS.ubi(data)",
 		.installcheck = "ram@80300000",
 		.recovercheck = "TargetFS.ubi(recovery)",
+		.earlyusbinit = NULL,
 		.console = ".console_none",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_ubionly",
@@ -205,6 +216,7 @@ const struct board_info fs_board_info[16] = {
 		.updatecheck = "TargetFS.ubi(data)",
 		.installcheck = "ram@80300000",
 		.recovercheck = "TargetFS.ubi(recovery)",
+		.earlyusbinit = NULL,
 //###		.console = ".console_serial",
 		.console = ".console_none",
 		.login = ".login_serial",
@@ -757,6 +769,7 @@ int board_late_init(void)
 	setup_var("updatecheck", bi->updatecheck, 0);
 	setup_var("installcheck", bi->installcheck, 0);
 	setup_var("recovercheck", bi->recovercheck, 0);
+	setup_var("earlyusbinit", bi->earlyusbinit, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
 	setup_var("mode", CONFIG_MODE, 0);

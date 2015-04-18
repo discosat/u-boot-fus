@@ -46,10 +46,10 @@
 #define BT_PICOMOD7A  6
 #define BT_EASYSOM1   7
 
-#define FEAT_CPU800   (1<<0)		  /* 0: 1000 MHz, 1: 800 MHz CPU */
-#define FEAT_NOUART2  (1<<2)		  /* 0: UART2, 1: no UART2 (NetDCU14) */
-#define FEAT_DIGITALRGB (1<<3)		  /* 0: LVDS, 1: RGB (NetDCU14) */
-#define FEAT_2NDLAN   (1<<4)		  /* 0: 1x LAN, 1: 2x LAN */
+#define FEAT_CPU800   (1<<0)		/* 0: 1000 MHz, 1: 800 MHz CPU */
+#define FEAT_NOUART2  (1<<2)		/* 0: UART2, 1: no UART2 (NetDCU14) */
+#define FEAT_DIGITALRGB (1<<3)		/* 0: LVDS, 1: RGB (NetDCU14) */
+#define FEAT_2NDLAN   (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -57,19 +57,20 @@
 #define MK_STR(x)	XMK_STR(x)
 
 struct board_info {
-	char *name;			  /* Device name */
-	unsigned int mach_type;		  /* Device machine ID */
-	char *bootdelay;		  /* Default value for bootdelay */
-	char *updatecheck;		  /* Default value for updatecheck */
-	char *installcheck;		  /* Default value for installcheck */
-	char *recovercheck;		  /* Default value for recovercheck */
-	char *console;			  /* Default variable for console */
-	char *login;			  /* Default variable for login */
-	char *mtdparts;			  /* Default variable for mtdparts */
-	char *network;			  /* Default variable for network */
-	char *init;			  /* Default variable for init */
-	char *rootfs;			  /* Default variable for rootfs */
-	char *kernel;			  /* Default variable for kernel */
+	char *name;			/* Device name */
+	unsigned int mach_type;		/* Device machine ID */
+	char *bootdelay;		/* Default value for bootdelay */
+	char *updatecheck;		/* Default value for updatecheck */
+	char *installcheck;		/* Default value for installcheck */
+	char *recovercheck;		/* Default value for recovercheck */
+	char *earlyusbinit;		/* Default value for earlyusbinit */
+	char *console;			/* Default variable for console */
+	char *login;			/* Default variable for login */
+	char *mtdparts;			/* Default variable for mtdparts */
+	char *network;			/* Default variable for network */
+	char *init;			/* Default variable for init */
+	char *rootfs;			/* Default variable for rootfs */
+	char *kernel;			/* Default variable for kernel */
 };
 
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -84,6 +85,11 @@ struct board_info {
 #else
 #define UPDATE_DEF NULL
 #endif
+#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#define EARLY_USB "1"
+#else
+#define EARLY_USB NULL
+#endif
 
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_ARMSTONEA8) */
@@ -93,6 +99,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -111,6 +118,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -129,6 +137,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -147,6 +156,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_PM7A,
 		.installcheck = UPDATE_PM7A,
 		.recovercheck = UPDATE_PM7A,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -162,6 +172,7 @@ const struct board_info fs_board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
 		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -595,6 +606,7 @@ int board_late_init(void)
 	setup_var("updatecheck", bi->updatecheck, 0);
 	setup_var("installcheck", bi->installcheck, 0);
 	setup_var("recovercheck", bi->recovercheck, 0);
+	setup_var("earlyusbinit", bi->earlyusbinit, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var(".mtdparts_std", is_large_block_nand() ? MTDPARTS_STD_LARGE : MTDPARTS_STD_SMALL, 0);
 #ifdef CONFIG_CMD_UBI
