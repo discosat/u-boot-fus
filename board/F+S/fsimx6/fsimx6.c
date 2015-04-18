@@ -648,7 +648,7 @@ int board_late_init(void)
 
 #ifdef CONFIG_CMD_NET
 /* enet pads definition */
-static iomux_v3_cfg_t const enet_pads_q[] = {
+static iomux_v3_cfg_t const enet_pads_rgmii_q[] = {
 	MX6Q_PAD_ENET_MDIO__ENET_MDIO	 	| MUX_PAD_CTRL(ENET_PAD_CTRL),
 	MX6Q_PAD_ENET_MDC__ENET_MDC  		| MUX_PAD_CTRL(ENET_PAD_CTRL),
 	MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL),
@@ -670,7 +670,7 @@ static iomux_v3_cfg_t const enet_pads_q[] = {
 	MX6Q_PAD_ENET_CRS_DV__GPIO1_IO25	| MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
-static iomux_v3_cfg_t const enet_pads_dl[] = {
+static iomux_v3_cfg_t const enet_pads_rgmii_dl[] = {
 	MX6DL_PAD_ENET_MDIO__ENET_MDIO	 	| MUX_PAD_CTRL(ENET_PAD_CTRL),
 	MX6DL_PAD_ENET_MDC__ENET_MDC  		| MUX_PAD_CTRL(ENET_PAD_CTRL),
 	MX6DL_PAD_ENET_REF_CLK__ENET_TX_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL),
@@ -692,15 +692,88 @@ static iomux_v3_cfg_t const enet_pads_dl[] = {
 	MX6DL_PAD_ENET_CRS_DV__GPIO1_IO25	| MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
+static iomux_v3_cfg_t const enet_pads_rmii_q[] = {
+	MX6Q_PAD_ENET_MDIO__ENET_MDIO	 	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_MDC__ENET_MDC  		| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_CRS_DV__ENET_RX_EN	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_RX_ER__ENET_RX_ER	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_TX_EN__ENET_TX_EN	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_RXD0__ENET_RX_DATA0	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_RXD1__ENET_RX_DATA1	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_TXD0__ENET_TX_DATA0	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_ENET_TXD1__ENET_TX_DATA1	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6Q_PAD_RGMII_TX_CTL__ENET_REF_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+
+	/* Phy Reset */
+	MX6Q_PAD_SD4_DAT2__GPIO2_IO10		| MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const enet_pads_rmii_dl[] = {
+	MX6DL_PAD_ENET_MDIO__ENET_MDIO	 	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_MDC__ENET_MDC  		| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_CRS_DV__ENET_RX_EN	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_RX_ER__ENET_RX_ER	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_TX_EN__ENET_TX_EN	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_RXD0__ENET_RX_DATA0	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_RXD1__ENET_RX_DATA1	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_TXD0__ENET_TX_DATA0	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_ENET_TXD1__ENET_TX_DATA1	| MUX_PAD_CTRL(ENET_PAD_CTRL),
+	MX6DL_PAD_RGMII_TX_CTL__ENET_REF_CLK	| MUX_PAD_CTRL(NO_PAD_CTRL),
+
+	/* Phy Reset */
+	MX6DL_PAD_SD4_DAT2__GPIO2_IO10		| MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 int board_eth_init(bd_t *bis)
 {
-	u32 ccgr1;
+	u32 ccgr1, gpr1;
 	int ret;
 	iomux_v3_cfg_t const *enet_pads;
 	unsigned enet_pad_count;
+	int phy_addr;
+	enum xceiver_type xcv_type;
+	enum enet_freq freq; 
+	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+
+	/* Set the IOMUX for ENET */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_PICOMODA9:
+		/* Use 100 MBit/s LAN on RMII pins */
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			enet_pads = enet_pads_rmii_q;
+			enet_pad_count = ARRAY_SIZE(enet_pads_rmii_q);
+		} else {
+			enet_pads = enet_pads_rmii_dl;
+			enet_pad_count = ARRAY_SIZE(enet_pads_rmii_dl);
+		}
+		/* ENET CLK is generated in i.MX& and is an output */
+		gpr1 = readl(&iomux_regs->gpr[1]);
+		gpr1 |= IOMUXC_GPR1_ENET_CLK_SEL_MASK;
+		writel(gpr1, &iomux_regs->gpr[1]);
+
+		freq = ENET_50MHz;
+		break;
+
+	default:
+		/* Use 1 GBit/s LAN on RGMII pins */
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			enet_pads = enet_pads_rgmii_q;
+			enet_pad_count = ARRAY_SIZE(enet_pads_rgmii_q);
+		} else {
+			enet_pads = enet_pads_rgmii_dl;
+			enet_pad_count = ARRAY_SIZE(enet_pads_rgmii_dl);
+		}
+		/* ENET CLK is generated in PHY and is an input */
+		gpr1 = readl(&iomux_regs->gpr[1]);
+		gpr1 |= IOMUXC_GPR1_ENET_CLK_SEL_MASK;
+		writel(gpr1, &iomux_regs->gpr[1]);
+
+		freq = ENET_25MHz;
+		break;
+	}
 
 	/* Activate ENET PLL */
-	ret = enable_fec_anatop_clock(ENET_25MHz);
+	ret = enable_fec_anatop_clock(freq);
 	if (ret < 0)
 		return ret;
 
@@ -708,34 +781,37 @@ int board_eth_init(bd_t *bis)
 	ccgr1 = readl(CCM_CCGR1);
 	writel(ccgr1 | MXC_CCM_CCGR1_ENET_CLK_ENABLE_MASK, CCM_CCGR1);
 
-	/* Set the IOMUX for ENET */
-	if (is_cpu_type(MXC_CPU_MX6Q)) {
-		enet_pads = enet_pads_q;
-		enet_pad_count = ARRAY_SIZE(enet_pads_q);
-	} else {
-		enet_pads = enet_pads_dl;
-		enet_pad_count = ARRAY_SIZE(enet_pads_dl);
-	}
 	imx_iomux_v3_setup_multiple_pads(enet_pads, enet_pad_count);
 
 	/* Reset the PHY */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_PICOMODA9:
-		/* reset phy (GPIO_2_10) for at least 10ms */
+		/* DP83484 PHY: This PHY needs at least 1 us reset pulse width
+		   (GPIO_2_10). After power on it needs min 167 ms (after
+		   reset is deasserted) before the first MDIO access can be
+		   done. In a warm start, it only takes around 3 for this. As
+		   we do not know whether this is a cold or warm start, we
+		   must assume the worst case. */
 		gpio_direction_output(IMX_GPIO_NR(2, 10), 0);
-		udelay(10000);
+		udelay(10);
 		gpio_set_value(IMX_GPIO_NR(2, 10), 1);
+		mdelay(170);
+		phy_addr = 1;
+		xcv_type = RMII;
 		break;
 
 	default:
-		/* reset phy (GPIO_1_25) for at least 0.5 ms */
+		/* Atheros AR8035: reset phy (GPIO_1_25) for at least 0.5 ms */
 		gpio_direction_output(IMX_GPIO_NR(1, 25), 0);
 		udelay(500);
 		gpio_set_value(IMX_GPIO_NR(1, 25), 1);
+		phy_addr = 4;
+		xcv_type = RGMII;
 		break;
 	}
 
-	return cpu_eth_init(bis);
+	return fecmxc_initialize_multi_type(bis, -1, phy_addr, IMX_FEC_BASE,
+					    xcv_type);
 }
 #endif /* CONFIG_CMD_NET */
 

@@ -234,17 +234,6 @@ struct fec_bd {
 };
 
 /**
- * Supported phy types on this platform
- */
-enum xceiver_type {
-	SEVENWIRE,	/* 7-wire       */
-	MII10,		/* MII 10Mbps   */
-	MII100,		/* MII 100Mbps  */
-	RMII,		/* RMII */
-	RGMII,		/* RGMII */
-};
-
-/**
  * @brief i.MX27-FEC private structure
  */
 struct fec_priv {

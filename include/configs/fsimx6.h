@@ -217,12 +217,11 @@
  ************************************************************************/
 #define CONFIG_FEC_MXC
 #define IMX_FEC_BASE		ENET_BASE_ADDR
-#define CONFIG_FEC_XCV_TYPE	RGMII
-#define CONFIG_FEC_MXC_PHYADDR	4
 
 /* PHY */
 #define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
+#define CONFIG_PHY_NATSEMI
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
 

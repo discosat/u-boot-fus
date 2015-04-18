@@ -12,6 +12,7 @@
 #include <malloc.h>
 #include <net.h>
 #include <miiphy.h>
+#include <netdev.h>
 #include "fec_mxc.h"
 
 #include <asm/arch/clock.h>
@@ -923,11 +924,11 @@ static void fec_free_descs(struct fec_priv *fec)
 }
 
 #ifdef CONFIG_PHYLIB
-int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, struct phy_device *phydev)
+int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,	struct mii_dev *bus,
+	      struct phy_device *phydev, enum xceiver_type xcv_type)
 #else
 static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, int phy_id)
+		struct mii_dev *bus, int phy_id, enum xceiver_type xcv_type)
 #endif
 {
 	struct eth_device *edev;
@@ -968,7 +969,7 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec->eth = (struct ethernet_regs *)base_addr;
 	fec->bd = bd;
 
-	fec->xcv_type = CONFIG_FEC_XCV_TYPE;
+	fec->xcv_type = xcv_type;
 
 	/* Reset chip. */
 	writel(readl(&fec->eth->ecntrl) | FEC_ECNTRL_RESET, &fec->eth->ecntrl);
@@ -1039,7 +1040,8 @@ struct mii_dev *fec_get_miibus(uint32_t base_addr, int dev_id)
 	return bus;
 }
 
-int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
+int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type)
 {
 	uint32_t base_mii;
 	struct mii_dev *bus = NULL;
@@ -1067,9 +1069,9 @@ int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
 		free(bus);
 		return -ENOMEM;
 	}
-	ret = fec_probe(bd, dev_id, addr, bus, phydev);
+	ret = fec_probe(bd, dev_id, addr, bus, phydev, xcv_type);
 #else
-	ret = fec_probe(bd, dev_id, addr, bus, phy_id);
+	ret = fec_probe(bd, dev_id, addr, bus, phy_id, xcv_type);
 #endif
 	if (ret) {
 #ifdef CONFIG_PHYLIB
@@ -1080,11 +1082,17 @@ int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
 	return ret;
 }
 
+int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
+{
+	return fecmxc_initialize_multi_type(bd, dev_id, phy_id, addr,
+					    CONFIG_FEC_XCV_TYPE);
+}
+
 #ifdef CONFIG_FEC_MXC_PHYADDR
 int fecmxc_initialize(bd_t *bd)
 {
-	return fecmxc_initialize_multi(bd, -1, CONFIG_FEC_MXC_PHYADDR,
-			IMX_FEC_BASE);
+	return fecmxc_initialize_multi_type(bd, -1, CONFIG_FEC_MXC_PHYADDR,
+					    IMX_FEC_BASE, CONFIG_FEC_XCV_TYPE);
 }
 #endif
 

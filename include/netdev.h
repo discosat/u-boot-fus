@@ -47,8 +47,25 @@ int ep93xx_eth_initialize(u8 dev_num, int base_addr);
 int eth_3com_initialize (bd_t * bis);
 int ethoc_initialize(u8 dev_num, int base_addr);
 int fec_initialize (bd_t *bis);
+
+#ifdef CONFIG_FEC_MXC
+/**
+ * Supported phy types on this platform
+ */
+enum xceiver_type {
+	SEVENWIRE,	/* 7-wire       */
+	MII10,		/* MII 10Mbps   */
+	MII100,		/* MII 100Mbps  */
+	RMII,		/* RMII */
+	RGMII,		/* RGMII */
+};
+
 int fecmxc_initialize(bd_t *bis);
 int fecmxc_initialize_multi(bd_t *bis, int dev_id, int phy_id, uint32_t addr);
+int fecmxc_initialize_multi_type(bd_t *bis, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type);
+#endif
+
 int ftgmac100_initialize(bd_t *bits);
 int ftmac100_initialize(bd_t *bits);
 int ftmac110_initialize(bd_t *bits);
@@ -204,8 +221,8 @@ int mv88e61xx_switch_initialize(struct mv88e61xx_config *swconfig);
 struct mii_dev *fec_get_miibus(uint32_t base_addr, int dev_id);
 #ifdef CONFIG_PHYLIB
 struct phy_device;
-int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, struct phy_device *phydev);
+int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,	struct mii_dev *bus,
+	      struct phy_device *phydev, enum xceiver_type xcv_type);
 #else
 /*
  * Allow FEC to fine-tune MII configuration on boards which require this.
