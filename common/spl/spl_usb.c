@@ -76,7 +76,7 @@ void spl_usb_load_image(void)
 	block_dev_desc_t *stor_dev;
 
 	usb_stop();
-	err = usb_init();
+	err = usb_init(1);
 	if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		printf("spl: usb init failed: err - %d\n", err);

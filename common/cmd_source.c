@@ -409,11 +409,11 @@ static int update_usb(const char *action, const char **check, const char *fname,
 
 	/* Init USB only once during update */
 	if (!usb_init_done) {
-	        if (usb_init() < 0)
+	        if (usb_init(0) < 0)
 			return -1;
 
 		/* Try to recognize storage devices immediately */
-		usb_stor_scan(1);
+		usb_stor_scan(0);
 		usb_init_done = 1;
 	}
 

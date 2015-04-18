@@ -55,7 +55,7 @@ char usb_started; /* flag for the started/stopped USB status */
 /***************************************************************************
  * Init USB Device
  */
-int usb_init(void)
+int usb_init(int verbose)
 {
 	void *ctrl;
 	struct usb_device *dev;
@@ -74,9 +74,11 @@ int usb_init(void)
 	/* init low_level USB */
 	for (i = 0; i < CONFIG_USB_MAX_CONTROLLER_COUNT; i++) {
 		/* init low_level USB */
-		printf("USB%d:   ", i);
+		if (verbose)
+			printf("USB%d:   ", i);
 		if (usb_lowlevel_init(i, USB_INIT_HOST, &ctrl)) {
-			puts("lowlevel init failed\n");
+			if (verbose)
+				puts("lowlevel init failed as HOST\n");
 			continue;
 		}
 		/*
@@ -84,7 +86,8 @@ int usb_init(void)
 		 * i.e. search HUBs and configure them
 		 */
 		start_index = dev_index;
-		printf("scanning bus %d for devices... ", i);
+		if (verbose)
+			printf("scanning bus %d for devices... ", i);
 		dev = usb_alloc_new_device(ctrl);
 		/*
 		 * device 0 is always present
@@ -93,11 +96,13 @@ int usb_init(void)
 		if (dev)
 			usb_new_device(dev);
 
-		if (start_index == dev_index)
-			puts("No USB Device found\n");
-		else
-			printf("%d USB Device(s) found\n",
-				dev_index - start_index);
+		if (verbose) {
+			if (start_index == dev_index)
+				puts("No USB Device found\n");
+			else
+				printf("%d USB Device(s) found\n",
+				       dev_index - start_index);
+		}
 
 		usb_started = 1;
 	}
@@ -105,7 +110,8 @@ int usb_init(void)
 	debug("scan end\n");
 	/* if we were not able to find at least one working bus, bail out */
 	if (!usb_started) {
-		puts("USB error: all controllers failed lowlevel init\n");
+		if (verbose)
+			puts("USB: all controllers failed lowlevel init\n");
 		return -1;
 	}
 

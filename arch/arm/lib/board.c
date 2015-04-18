@@ -37,6 +37,7 @@
 #include <libfdt.h>
 #include <fdtdec.h>
 #include <post.h>
+#include <usb.h>
 #include <logbuff.h>
 #include <asm/sections.h>
 
@@ -723,6 +724,30 @@ void board_init_r(gd_t *id, ulong dest_addr)
 		sprintf((char *)memsz, "%ldk", (gd->ram_size / 1024) - pram);
 		setenv("mem", (char *)memsz);
 	}
+#endif
+
+#ifdef CONFIG_USB_STORAGE
+	/*
+	 * When U-Boot starts the USB host ports, it immediately scans for
+	 * devices. However some devices are slow and take some time before
+	 * they signal their presence, especially if their power is off until
+	 * the root hub and all intermediate hubs are activated. So at the
+	 * time when they signal their presence, the device scan is already
+	 * over. So these slow devices are not found at the first run. On the
+	 * command line, you can call "usb start" for a second time, then the
+	 * devices should be found. This is not nice, but it works. But for
+	 * actions like automatic updates or installation from an USB drive,
+	 * it is fatal if some devices are not found at the first time.
+	 *
+	 * So we are doing an ugly hack here: if environment variable
+	 * earlyusbinit is set, we are doing a (silent) scan right here,
+	 * before the boot delay. So later, when the real scan happens, those
+	 * devices will be found immediately. Please note that this means that
+	 * USB is active right from the start! It will also slow down the
+	 * start noticable.
+	 */
+	if (getenv_yesno("earlyusbinit") == 1)
+		usb_init(0);
 #endif
 
 	/* main_loop() can return to retry autoboot, if so just run it again. */
