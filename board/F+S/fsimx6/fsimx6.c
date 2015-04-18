@@ -247,16 +247,11 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	int nLAN;
-	int nCAN;
 
-	nLAN = pargs->chFeatures1 & FEAT1_2NDLAN ? 2 : 1;
-	nCAN = pargs->chFeatures1 & FEAT1_2NDCAN ? 2 : 1;
-
-	printf("Board: %s Rev %u.%02u (%dx DRAM, %dx LAN, %dx CAN)\n",
+	printf("Board: %s Rev %u.%02u (%dx DRAM)\n",
 	       fs_board_info[pargs->chBoardType].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->dwNumDram, nLAN, nCAN);
+	       pargs->dwNumDram);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
