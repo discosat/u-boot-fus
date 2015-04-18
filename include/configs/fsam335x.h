@@ -748,7 +748,7 @@
 	"recovercheck=undef\0" \
 	"platform=undef\0" \
 	"arch=fsam335x\0" \
-	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init}\0"
+	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 
 /************************************************************************
