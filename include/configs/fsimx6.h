@@ -600,7 +600,7 @@
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
-	".ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
+	".ubivol_ubi=ubi part TargetFS; ubi create kernel 5c0000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
 #endif
