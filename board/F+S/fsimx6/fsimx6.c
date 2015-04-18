@@ -1041,12 +1041,21 @@ char *get_sys_prompt(void)
 	return fs_sys_prompt;
 }
 
+/* ### FIXME: arch/arm/cpu/armv7/mx6/soc.c passes the CPU type in this value
+   by default. imx-lib in buildroot builds a kernel module and defines its own
+   macros for cpu_is_mx6q() and cpu_is_mx6dl() that rely on this value here.
+   Actually this is wrong and imx-lib should use the macros from kernel source
+   arch/arm/plat-mxc/include/mach/mxc.h instead. But as long as imx-lib does
+   it this wrong way, we must not override the original function from
+   arch/arm/cpu/armv7/mx6/soc.c here. */
+#if 0 //### 
 /* Return the board revision; this is called when Linux is started and the
    value is passed to Linux */
 unsigned int get_board_rev(void)
 {
 	return fs_nboot_args.chBoardRev;
 }
+#endif
 
 /* Return a pointer to the hardware configuration; this is called when Linux
    is started and the structure is passed to Linux */
