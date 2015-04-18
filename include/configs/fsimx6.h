@@ -296,8 +296,7 @@
  ************************************************************************/
 /* Use F&S implementation of GPMI NFC NAND Flash Driver (MXS) */
 #define CONFIG_NAND_MXS_FUS
-#define CONFIG_SYS_NAND_BASE		0x40000000
-#define CONFIG_SYS_NAND_MXS_CHUNK_1K
+#define CONFIG_SYS_NAND_BASE	0x40000000
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
 #define CONFIG_APBH_DMA
@@ -318,13 +317,6 @@
 /* Chips per device; all chips must be the same type; if different types
    are necessary, they must be implemented as different NAND devices */
 #define CONFIG_SYS_NAND_MAX_CHIPS	1
-
-/* Our NAND layout has a continuous set of OOB data, so we only need
-   one oobfree entry and we have at most 60 ECC bytes and therefore eccpos
-   entries. By setting the following two values, we can reduce the size of
-   struct nand_ecclayout considerably (see include/linux/mtd/mtd.h). */
-#define CONFIG_SYS_NAND_MAX_OOBFREE	2
-#define CONFIG_SYS_NAND_MAX_ECCPOS	64
 
 /* Define if you want to support nand chips that comply to ONFI spec */
 #define CONFIG_SYS_NAND_ONFI_DETECTION

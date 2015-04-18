@@ -14,8 +14,6 @@
  *
  * - Set real timeout values in mxs_nand_wait_ready().
  *
- * - Add support for Block Refresh
- *
  * - Move cmd_buf[] and data_buf[] to uncached (!) SRAM and remove all
  *   cache handling. Check with page tables that SRAM is really uncached!
  *
@@ -52,22 +50,18 @@
 static uint8_t showdesc;
 #endif
 
-#ifdef CONFIG_SYS_NAND_MXS_CHUNK_1K
-#define MXS_NAND_CHUNK_SIZE_SHIFT	10
-#define MXS_NAND_ECC_BITS		14
-#else
-#define MXS_NAND_CHUNK_SIZE_SHIFT	9
-#define MXS_NAND_ECC_BITS		13
-#endif
-#define MXS_NAND_CHUNK_SIZE		(1 << MXS_NAND_CHUNK_SIZE_SHIFT)
 #define MXS_NAND_METADATA_SIZE		32
 
 /* Worst case is mxs_nand_read_oob_raw() with 3 * chunkcount + 1 descriptors;
    for 512 bytes chunks and 4K pages this is 3 * 8 + 1 = 25 descriptors! */
 #define MXS_NAND_DMA_DESCRIPTOR_COUNT	25
 
-/* We only need a few bytes, so one cache line is more than enough */
-#define MXS_NAND_COMMAND_BUFFER_SIZE	32
+/* When loading ECC data in mxs_nand_do_read_oob(), we need NAND_CMD_READ0 +
+   column + row + NAND_CMD_READSTART and one entry with NAND_CMD_RNDOUT +
+   column + NAND_CMD_RNDOUTSTART for each chunk. For 4K pages and 512 bytes
+   chunks this may be up to 7 + 4*8 = 39 bytes in the command buffer. So use
+   two cache lines to be sure. */
+#define MXS_NAND_COMMAND_BUFFER_SIZE	64
 
 /*
  * Timeout values. In our case they must enclose the transmission time for the
@@ -92,6 +86,7 @@ struct mxs_nand_priv {
 	struct nand_chip chip;		/* Generic NAND chip info */
 	int cur_chip;			/* Current NAND chip number (0..3) */
 	uint32_t timing0;		/* Value for TIMING0 register */
+	uint32_t gf;			/* 13 or 14, depending on chunk size */
 	uint32_t bch_layout;		/* Number of BCH layout */
 	uint32_t desc_index;		/* Current DMA descriptor index */
 	uint32_t cmd_queue_len;		/* Current command queue length */
@@ -107,19 +102,18 @@ struct mxs_nand_priv {
  * chunks of 512 or 1024 bytes, interleaved with ECC. For 1024 bytes chunk
  * size, GF14 is needed, which means 14 bits of ECC data per ECC step. For 512
  * bytes chunk size, GF13 is sufficient, which means 13 bits per ECC step. If
- * CONFIG_SYS_NAND_MXS_CHUNK_1K is set, the driver uses 1024 bytes chunks,
- * otherwise 512 bytes chunks.
+ * MXS_NAND_CHUNK_1K is set in the platform flags, the driver uses 1024 bytes
+ * chunks, otherwise 512 bytes chunks.
  *
  * The bad block marker will also be located at byte 0 of the (main) page, NOT
  * on the first byte of the spare area anymore! We need at least 4 bytes of
  * OOB data for the bad block marker and the backup block number.
  *
- * |		      NAND flash main area			| Spare area |
+ * |                  NAND flash main area                      | Spare area |
  * +-----+----------+--------+-------+--------+-------+-----+--------+-------+
  * | BBM | User OOB | Main 0 | ECC 0 | Main 1 | ECC 1 | ... | Main n | ECC n |
  * +-----+----------+--------+-------+--------+-------+-----+--------+-------+
- *    4	   oobavail  MXS_NAND	      MXS_NAND		     MXS_NAND
- *		     _CHUNK_SIZE      _CHUNK_SIZE	     _CHUNK_SIZE
+ *    4    oobavail  512/1024         512/1024               512/1024
  *
  * The ECC size depends on the ECC strength and the chunk size. It is not
  * necessarily a multiple of 8 bits, which means that subsequent sections may
@@ -374,33 +368,6 @@ static void mxs_nand_dma_desc_append(struct mxs_nand_priv *priv,
 }
 
 /*
- * Add a DMA descriptor that waits for Ready
- */
-static void mxs_nand_add_waitforready_desc(struct mxs_nand_priv *priv)
-{
-	struct mxs_dma_desc *d;
-
-	d = mxs_nand_get_dma_desc(priv);
-	d->cmd.data =
-		MXS_DMA_DESC_COMMAND_NO_DMAXFER |
-		MXS_DMA_DESC_NAND_WAIT_4_READY |
-		MXS_DMA_DESC_WAIT4END |
-		MXS_DMA_DESC_IRQ |
-		MXS_DMA_DESC_DEC_SEM |
-		(1 << MXS_DMA_DESC_PIO_WORDS_OFFSET);
-
-	d->cmd.address = 0;
-
-	d->cmd.pio_words[0] =
-		GPMI_CTRL0_COMMAND_MODE_WAIT_FOR_READY |
-		GPMI_CTRL0_WORD_LENGTH |
-		(priv->cur_chip << GPMI_CTRL0_CS_OFFSET) |
-		GPMI_CTRL0_ADDRESS_NAND_DATA;
-
-	mxs_nand_dma_desc_append(priv, d);
-}
-
-/*
  * Add a DMA descriptor for a command byte with optional arguments (row,
  * column or a one byte argument)
  */
@@ -491,21 +458,23 @@ static int mxs_nand_dma_go(struct mxs_nand_priv *priv)
 /*
  * Compute the default ECC strength if no information is available from NBoot
  */
-static inline uint32_t mxs_nand_get_ecc_strength(struct mtd_info *mtd)
+static inline uint32_t mxs_nand_get_ecc_strength(struct mtd_info *mtd,
+						 uint32_t chunk_shift,
+						 uint32_t gf)
 {
 	uint32_t oobecc;
 	uint32_t eccsteps;
 
 	/* Get number of 1024 bytes chunks */
-	eccsteps = mtd->writesize >> MXS_NAND_CHUNK_SIZE_SHIFT;
+	eccsteps = mtd->writesize >> chunk_shift;
 
 	/* Get available space for ECC, in bits */
 	oobecc = mtd->oobsize - MXS_NAND_METADATA_SIZE - 4;
 	oobecc <<= 3;
 
-	/* We need an even number of 14 bit entries, therefore divide by 28
-	   and multiply by two again */
-	oobecc /= MXS_NAND_ECC_BITS * 2 * eccsteps;
+	/* We need an even number for the ECC strength, therefore divide by
+	   twice the value and multiply by two again */
+	oobecc /= gf * 2 * eccsteps;
 	oobecc <<= 1;
 
 	return oobecc;
@@ -520,6 +489,7 @@ static int mxs_nand_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 	struct mxs_nand_priv *priv = chip->priv;
 	struct mxs_gpmi_regs *gpmi_regs =
 		(struct mxs_gpmi_regs *)MXS_GPMI_BASE;
+	struct mxs_dma_desc *d;
 	uint32_t tmp;
 	uint32_t channel;
 	int ret;
@@ -528,7 +498,24 @@ static int mxs_nand_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 	   gpmi_regs->hw_gpmi_timing1 */
 
 	/* Add DMA descriptor to wait for ready */
-	mxs_nand_add_waitforready_desc(priv);
+	d = mxs_nand_get_dma_desc(priv);
+	d->cmd.data =
+		MXS_DMA_DESC_COMMAND_NO_DMAXFER |
+		MXS_DMA_DESC_NAND_WAIT_4_READY |
+		MXS_DMA_DESC_WAIT4END |
+		MXS_DMA_DESC_IRQ |
+		MXS_DMA_DESC_DEC_SEM |
+		(1 << MXS_DMA_DESC_PIO_WORDS_OFFSET);
+
+	d->cmd.address = 0;
+
+	d->cmd.pio_words[0] =
+		GPMI_CTRL0_COMMAND_MODE_WAIT_FOR_READY |
+		GPMI_CTRL0_WORD_LENGTH |
+		(priv->cur_chip << GPMI_CTRL0_CS_OFFSET) |
+		GPMI_CTRL0_ADDRESS_NAND_DATA;
+
+	mxs_nand_dma_desc_append(priv, d);
 
 	/* Flush cache for command bytes and execute the DMA chain */
 	ret = mxs_nand_dma_go(priv);
@@ -677,16 +664,18 @@ static void mxs_nand_write_data_buf(struct mtd_info *mtd, uint32_t offs,
 static void mxs_nand_read_main_data(struct mtd_info *mtd, uint8_t *buf)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mxs_nand_priv *priv = chip->priv;
 	uint val;
 	uint bit = 0;
 	int chunk, remaining;
+	int chunk_size = chip->ecc.size;
 	uint8_t *raw_data = data_buf + mtd->oobavail + 4;
 
 	for (chunk = 0; chunk < chip->ecc.steps; chunk++) {
 		if (bit) {
 			/* Copy split bytes with shifting */
 			val = *raw_data >> bit;
-			remaining = MXS_NAND_CHUNK_SIZE;
+			remaining = chunk_size;
 			do {
 				val |= *(++raw_data) << (8 - bit);
 				*buf++ = (uint8_t)val;
@@ -694,11 +683,11 @@ static void mxs_nand_read_main_data(struct mtd_info *mtd, uint8_t *buf)
 			} while (--remaining);
 		} else {
 			/* Copy whole bytes */
-			memcpy(buf, raw_data, MXS_NAND_CHUNK_SIZE);
-			buf += MXS_NAND_CHUNK_SIZE;
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			memcpy(buf, raw_data, chunk_size);
+			buf += chunk_size;
+			raw_data += chunk_size;
 		}
-		bit += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+		bit += priv->gf * mtd->ecc_strength;
 		raw_data += bit >> 3;
 		bit &= 7;
 	}
@@ -714,9 +703,11 @@ static void mxs_nand_read_main_data(struct mtd_info *mtd, uint8_t *buf)
 static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mxs_nand_priv *priv = chip->priv;
 	uint val, tmp, mask;
 	uint bit = 0;
 	int chunk, remaining;
+	int chunk_size = chip->ecc.size;
 	uint8_t *raw_data = data_buf + mtd->oobavail + 4;
 
 	for (chunk = 0; chunk < chip->ecc.steps; chunk++) {
@@ -724,7 +715,7 @@ static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
 			/* Copy split bytes with shifting */
 			mask = (1 << bit) - 1;
 			val = *raw_data & mask;
-			remaining = MXS_NAND_CHUNK_SIZE;
+			remaining = chunk_size;
 			do {
 				tmp = *buf++;
 				val |= tmp << bit;
@@ -735,11 +726,11 @@ static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
 			*raw_data = (uint8_t)val;
 		} else {
 			/* Copy whole bytes */
-			memcpy(raw_data, buf, MXS_NAND_CHUNK_SIZE);
-			buf += MXS_NAND_CHUNK_SIZE;
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			memcpy(raw_data, buf, chunk_size);
+			buf += chunk_size;
+			raw_data += chunk_size;
 		}
-		bit += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+		bit += priv->gf * mtd->ecc_strength;
 		raw_data += bit >> 3;
 		bit &= 7;
 	}
@@ -803,18 +794,20 @@ static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
 static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mxs_nand_priv *priv = chip->priv;
 	int chunk, remaining = 0;
+	int chunk_size = chip->ecc.size;
 	uint8_t val, mask;
 	uint headersize = mtd->oobavail + 4;
 	uint8_t *raw_data = data_buf;
 
 	/* Adjust pointers to first ECC section */
 	oob += headersize;
-	raw_data += headersize + MXS_NAND_CHUNK_SIZE;
+	raw_data += headersize + chunk_size;
 
 	/* Copy ECC sections of all chunks */
 	for (chunk = 0; chunk < chip->ecc.steps; chunk++) {
-		remaining += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+		remaining += priv->gf * mtd->ecc_strength;
 		while (remaining >= 8) {
 			/* Copy whole bytes; the sections are only a few bytes
 			   long, so don't bother to use memcpy() */
@@ -829,7 +822,7 @@ static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
 			   shifting, we just need to mask the non-ECC bits. */
 			mask = (1 << remaining) - 1;
 			val = *raw_data & mask;
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			raw_data += chunk_size;
 			val |= *raw_data++ & ~mask;
 			*oob++ = val;
 			remaining -= 8;
@@ -838,7 +831,7 @@ static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
 			   chunk always has more than 8 bits of ECC data, so
 			   we do not have to care about special cases.*/
 		} else
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			raw_data += chunk_size;
 	}
 }
 
@@ -856,18 +849,20 @@ static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
 static void mxs_nand_write_ecc_data(struct mtd_info *mtd, const uint8_t *oob)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct mxs_nand_priv *priv = chip->priv;
 	int chunk, remaining = 0;
+	int chunk_size = chip->ecc.size;
 	uint8_t val, mask;
 	uint headersize = mtd->oobavail + 4;
 	uint8_t *raw_data = data_buf;
 
 	/* Adjust pointers to first ECC section */
 	oob += headersize;
-	raw_data += headersize + MXS_NAND_CHUNK_SIZE;
+	raw_data += headersize + chunk_size;
 
 	/* Copy ECC sections of all chunks */
 	for (chunk = 0; chunk < chip->ecc.steps; chunk++) {
-		remaining += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+		remaining += priv->gf * mtd->ecc_strength;
 		while (remaining >= 8) {
 			/* Copy whole bytes; the sections are only a few bytes
 			   long, so don't bother to use memcpy() */
@@ -886,7 +881,7 @@ static void mxs_nand_write_ecc_data(struct mtd_info *mtd, const uint8_t *oob)
 			val = *oob++;
 			mask = (1 << remaining) - 1;
 			*raw_data = ~mask | (val & mask);
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			raw_data += chunk_size;
 			*raw_data++ = mask | (val & ~mask);
 			remaining -= 8;
 			/* Now remaining is negative because we have borrowed
@@ -894,7 +889,7 @@ static void mxs_nand_write_ecc_data(struct mtd_info *mtd, const uint8_t *oob)
 			   chunk always has more than 8 bits of ECC data, so
 			   we do not have to care about special cases.*/
 		} else
-			raw_data += MXS_NAND_CHUNK_SIZE;
+			raw_data += chunk_size;
 	}
 }
 
@@ -914,7 +909,7 @@ static int mxs_nand_do_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	uint32_t from, to;
 	int i, ret;
 
-	/* Issue read command the page */
+	/* Issue read command for the page */
 	chip->cmdfunc(mtd, NAND_CMD_READ0, column, page);
 	chip->cmdfunc(mtd, NAND_CMD_READSTART, -1, -1);
 	ret = mxs_nand_wait_ready(mtd, MXS_NAND_TIMEOUT_DATA);
@@ -930,9 +925,9 @@ static int mxs_nand_do_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 		i = chip->ecc.steps;
 		do {
 			/* Add DMA descriptor to read only a few bytes */
-			boffs += MXS_NAND_CHUNK_SIZE << 3;
+			boffs += chip->ecc.size << 3;
 			from = boffs >> 3;
-			boffs += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+			boffs += priv->gf * mtd->ecc_strength;
 			to = (boffs - 1) >> 3;
 			chip->cmdfunc(mtd, NAND_CMD_RNDOUT, from, -1);
 			chip->cmdfunc(mtd, NAND_CMD_RNDOUTSTART, -1, -1);
@@ -964,6 +959,7 @@ static int mxs_nand_do_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int mxs_nand_do_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page, int raw)
 {
+	struct mxs_nand_priv *priv = chip->priv;
 	uint32_t boffs;
 	int column = raw ? 0 : 4;
 	int length = mtd->oobavail + 4 - column;
@@ -984,9 +980,9 @@ static int mxs_nand_do_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 		i = chip->ecc.steps;
 		do {
 			/* We actually only write a few bytes */
-			boffs += MXS_NAND_CHUNK_SIZE << 3;
+			boffs += chip->ecc.size << 3;
 			from = boffs >> 3;
-			boffs += MXS_NAND_ECC_BITS * mtd->ecc_strength;
+			boffs += priv->gf * mtd->ecc_strength;
 			to = (boffs - 1) >> 3;
 			chip->cmdfunc(mtd, NAND_CMD_RNDIN, from, -1);
 			mxs_nand_write_data_buf(mtd, from, to - from + 1);
@@ -1070,7 +1066,7 @@ static u16 mxs_nand_read_word(struct mtd_info *mtd)
 	if (mxs_nand_dma_go(priv))
 		return 0xFFFF;
 
-	return data_buf[0] | (data_buf[1] << 16);
+	return data_buf[0] | (data_buf[1] << 8);
 }
 
 /*
@@ -1372,6 +1368,12 @@ static int mxs_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	mxs_nand_dma_desc_append(priv, d);
 
+	/* Remove any COMPLETE_IRQ states from previous writes (we only check
+	   COMPLETE_IRQ when reading); BCH has a pending state, too, so we may
+	   have to clear it twice. We simply clear until it remains zero. */
+	while (readl(&bch_regs->hw_bch_ctrl_reg) & BCH_CTRL_COMPLETE_IRQ)
+		writel(BCH_CTRL_COMPLETE_IRQ, &bch_regs->hw_bch_ctrl_clr);
+
 	/* Execute the DMA chain */
 	ret = mxs_nand_dma_go(priv);
 	if (ret) {
@@ -1453,6 +1455,7 @@ static int mxs_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 #endif
 
+	/* Return maximum number of bitflips across all chunks */
 	return ret;
 }
 
@@ -1603,7 +1606,6 @@ static int mxs_nand_init(struct mxs_nand_priv *priv)
 	/* If timing0 value is 0, use the current setting */
 	if (!priv->timing0)
 		priv->timing0 = readl(&gpmi_regs->hw_gpmi_timing0);
-
 	/* Reset the GPMI block. */
 	mxs_reset_block(&gpmi_regs->hw_gpmi_ctrl0_reg);
 	mxs_reset_block(&bch_regs->hw_bch_ctrl_reg);
@@ -1652,8 +1654,8 @@ static void mxs_nand_init_cont(struct mtd_info *mtd, uint32_t oobavail,
 		((mtd->writesize + mtd->oobsize)
 		       << BCH_FLASHLAYOUT1_PAGE_SIZE_OFFSET) |
 		((mtd->ecc_strength >> 1) << BCH_FLASHLAYOUT1_ECCN_OFFSET) |
-		(MXS_NAND_CHUNK_SIZE >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT);	
-	if (MXS_NAND_ECC_BITS == 14)
+		(chip->ecc.size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT);	
+	if (priv->gf == 14)
 		layout1 |= BCH_FLASHLAYOUT1_GF13_0_GF14_1;
 
 	switch (index) {
@@ -1690,8 +1692,8 @@ static void mxs_nand_init_cont(struct mtd_info *mtd, uint32_t oobavail,
 	/* Allow these many zero-bits in an empty page */
 	writel(mtd->bitflip_threshold, &bch_regs->hw_bch_mode);
 
-	/* Enable BCH complete interrupt */
-	writel(BCH_CTRL_COMPLETE_IRQ_EN, &bch_regs->hw_bch_ctrl_set);
+	/* Do not enable BCH complete interrupt, we will poll */
+	//writel(BCH_CTRL_COMPLETE_IRQ_EN, &bch_regs->hw_bch_ctrl_set);
 }
 
 /*
@@ -1705,6 +1707,7 @@ void mxs_nand_register(int nfc_hw_id,
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
 	uint32_t i, oobavail;
+	uint32_t ecc_strength, chunk_shift;
 
 	if (index >= CONFIG_SYS_MAX_NAND_DEVICE)
 		return;
@@ -1756,6 +1759,8 @@ void mxs_nand_register(int nfc_hw_id,
 	}
 
 	/* Set skipped region and backup region */
+	chunk_shift = 9;
+	ecc_strength = 0;
 	if (pdata) {
 #ifdef CONFIG_NAND_REFRESH
 		mtd->backupoffs = pdata->backup_sblock * mtd->erasesize;
@@ -1766,17 +1771,22 @@ void mxs_nand_register(int nfc_hw_id,
 			mtd->size = mtd->skip;
 			mtd->skip = 0;
 		}
+		if (pdata->flags & MXS_NAND_CHUNK_1K)
+			chunk_shift = 10;
+		ecc_strength = pdata->ecc_strength;
 	}
+	priv->gf = (chunk_shift > 9) ? 14 : 13;
+	if (!ecc_strength)
+		ecc_strength = mxs_nand_get_ecc_strength(mtd, chunk_shift,
+							 priv->gf);
 
 	/* Set up ECC configuration and ECC layout */
 	chip->ecc.layout = &fus_nfc_ecclayout;
 	chip->ecc.mode = NAND_ECC_HW;
-	chip->ecc.steps = mtd->writesize >> MXS_NAND_CHUNK_SIZE_SHIFT;
-	chip->ecc.size = MXS_NAND_CHUNK_SIZE;
-	chip->ecc.strength =
-		pdata ? pdata->ecc_strength : mxs_nand_get_ecc_strength(mtd);
-	chip->ecc.bytes =
-		chip->ecc.strength * chip->ecc.steps * MXS_NAND_ECC_BITS / 8;
+	chip->ecc.steps = mtd->writesize >> chunk_shift;
+	chip->ecc.size = 1 << chunk_shift;
+	chip->ecc.strength = ecc_strength;
+	chip->ecc.bytes = ecc_strength * chip->ecc.steps * priv->gf / 8;
 	oobavail = mtd->oobsize - chip->ecc.bytes - 4;
 	chip->ecc.layout->oobfree[0].offset = 4;
 	chip->ecc.layout->oobfree[0].length = oobavail;

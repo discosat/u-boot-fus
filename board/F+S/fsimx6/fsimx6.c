@@ -393,7 +393,7 @@ void board_nand_init(void)
 	pdata.timing0 = 0;
 	pdata.ecc_strength = fs_nboot_args.chECCtype;
 	pdata.skipblocks = 2;
-	pdata.flags = 0;
+	pdata.flags = MXS_NAND_CHUNK_1K;
 #ifdef CONFIG_NAND_REFRESH
 	pdata.backup_sblock = CONFIG_SYS_NAND_BACKUP_START_BLOCK;
 	pdata.backup_eblock = CONFIG_SYS_NAND_BACKUP_END_BLOCK;

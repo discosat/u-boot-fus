@@ -14,6 +14,7 @@
 
 /* Possible values for flags entry */
 #define MXS_NAND_SKIP_INVERSE 0x01	/* Use skip region only, skip rest */
+#define MXS_NAND_CHUNK_1K     0x02	/* Chunk size is 1024, not 512 bytes */
 
 /* Sizes and offsets are given in blocks because the NAND parameters (like
    block size) are not yet known when this structure is filled in. */
