@@ -66,7 +66,7 @@
 #define MK_STR(x)	XMK_STR(x)
 
 
-#define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |		\
+#define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
 	PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
 
@@ -79,8 +79,8 @@
 #define GPMI_PAD_CTRL1 (PAD_CTL_DSE_40ohm | PAD_CTL_SPEED_MED | PAD_CTL_SRE_FAST)
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
-#define USDHC_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |            \
-	PAD_CTL_PUS_47K_UP  | PAD_CTL_SPEED_LOW |               \
+#define USDHC_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
+	PAD_CTL_PUS_47K_UP  | PAD_CTL_SPEED_LOW |		\
 	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
 
 
@@ -453,6 +453,47 @@ enum update_action board_check_for_recover(void)
 #endif
 
 #ifdef CONFIG_GENERIC_MMC
+static iomux_v3_cfg_t const usdhc1_pads_q[] = {
+	MX6Q_PAD_SD1_CLK__SD1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD1_CMD__SD1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD1_DAT0__SD1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD1_DAT1__SD1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD1_DAT2__SD1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD1_DAT3__SD1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const usdhc1_pads_dl[] = {
+	MX6DL_PAD_SD1_CLK__SD1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD1_CMD__SD1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD1_DAT0__SD1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD1_DAT1__SD1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD1_DAT2__SD1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD1_DAT3__SD1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const usdhc2_pads_q[] = {
+	MX6Q_PAD_SD2_CLK__SD2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD2_CMD__SD2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD2_DAT0__SD2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD2_DAT1__SD2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD2_DAT2__SD2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_SD2_DAT3__SD2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6Q_PAD_GPIO_2__GPIO1_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* WP */
+	MX6Q_PAD_GPIO_4__GPIO1_IO04 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* CD */
+};
+
+static iomux_v3_cfg_t const usdhc2_pads_dl[] = {
+	MX6DL_PAD_SD2_CLK__SD2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD2_CMD__SD2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD2_DAT0__SD2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD2_DAT1__SD2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD2_DAT2__SD2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_SD2_DAT3__SD2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+	MX6DL_PAD_GPIO_2__GPIO1_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* WP */
+	MX6DL_PAD_GPIO_4__GPIO1_IO04 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* CD */
+//###	MX6DL_PAD_SD3_RST__SD3_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+};
+
 /* SD/MMC card pads definition */
 static iomux_v3_cfg_t const usdhc3_pads_q[] = {
 	MX6Q_PAD_SD3_CLK__SD3_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -461,7 +502,7 @@ static iomux_v3_cfg_t const usdhc3_pads_q[] = {
 	MX6Q_PAD_SD3_DAT1__SD3_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	MX6Q_PAD_SD3_DAT2__SD3_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	MX6Q_PAD_SD3_DAT3__SD3_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6Q_PAD_NANDF_CS2__GPIO6_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL),    /* CD */
+	MX6Q_PAD_NANDF_CS2__GPIO6_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* CD */
 //###	MX6Q_PAD_SD3_RST__SD3_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 };
 
@@ -472,7 +513,7 @@ static iomux_v3_cfg_t const usdhc3_pads_dl[] = {
 	MX6DL_PAD_SD3_DAT1__SD3_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	MX6DL_PAD_SD3_DAT2__SD3_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	MX6DL_PAD_SD3_DAT3__SD3_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6DL_PAD_NANDF_CS2__GPIO6_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL),    /* CD */
+	MX6DL_PAD_NANDF_CS2__GPIO6_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* CD */
 //###	MX6DL_PAD_SD3_RST__SD3_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 };
 
@@ -487,10 +528,18 @@ int board_mmc_getcd(struct mmc *mmc)
 {
 	switch (fs_nboot_args.chBoardType) {
 	case BT_ARMSTONEA9:
-		return 1;		/* Assume card present */
+		return !gpio_get_value(IMX_GPIO_NR(6, 15));
+
+	case BT_PICOMODA9:
+		if (mmc->block_dev.dev == 0)
+			/* External SD card slot has Card Detect (CD) */
+			return !gpio_get_value(IMX_GPIO_NR(1, 4));
+		else
+			/* On-board SD card slot has no Card Detect (CD) */
+			return 1;	/* Assume card is present */
 
 	default:
-		return 1;		/* Assume card present */
+		return 1;		/* Assume card is present */
 	}
 }
 
@@ -499,20 +548,21 @@ int board_mmc_init(bd_t *bis)
 	int index;
 	iomux_v3_cfg_t const *usdhc_pads;
 	unsigned usdhc_pad_count;
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	u32 ccgr6;
+	unsigned int gpio_cd = 0xFFFFFFFF;
+	int ret;
 
+	ccgr6 = readl(&mxc_ccm->CCGR6);
+
+	/* Configure first SD card slot */
 	switch (fs_nboot_args.chBoardType) {
-	case BT_ARMSTONEA9:
-		/* Card Detect (CD) on NANDF_CS2 pin */
-		index = 2;		/* USDHC3 */
-		break;
-
-	default:
-		// ### TODO: other boards, on USDHC1 and USHCD2 also init CD
-		index = 2;
-		break;
-	}
-
-	if (index == 2) {
+	case BT_QBLISSA9:
+		/* USDHC3: ext. SD slot (connector), Write Protect (WP) on
+		   SD2_DAT2 (ignored), Card Detect (CD) on NANDF_CS2 pin
+		   (GPIO6_IO15), Power on SD3_RST (GPIO7_IO08); this slot has
+		   8 data lines, but we only use four lines for SD card;
+		   however if this is used for EMMC, we need to add support */
 		if (is_cpu_type(MXC_CPU_MX6Q)) {
 			usdhc_pads = usdhc3_pads_q;
 			usdhc_pad_count = ARRAY_SIZE(usdhc3_pads_q);
@@ -520,45 +570,206 @@ int board_mmc_init(bd_t *bis)
 			usdhc_pads = usdhc3_pads_dl;
 			usdhc_pad_count = ARRAY_SIZE(usdhc3_pads_dl);
 		}
-			
-		imx_iomux_v3_setup_multiple_pads(usdhc_pads, usdhc_pad_count);
+		gpio_cd = IMX_GPIO_NR(6, 15);
+		ccgr6 |= (3 << 6);
+		index = 2;
+		break;
+
+	case BT_ARMSTONEA9:
+		/* USDHC3: on-board micro SD slot, Card Detect (CD) on
+		   NANDF_CS2 pin (GPIO6_IO15) */
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usdhc_pads = usdhc3_pads_q;
+			usdhc_pad_count = ARRAY_SIZE(usdhc3_pads_q);
+		} else {
+			usdhc_pads = usdhc3_pads_dl;
+			usdhc_pad_count = ARRAY_SIZE(usdhc3_pads_dl);
+		}
+		gpio_cd = IMX_GPIO_NR(6, 15);
+		ccgr6 |= (3 << 6);
+		index = 2;
+		break;
+
+	case BT_PICOMODA9:
+		/* USDHC2: ext. SD slot (connector), Write Protect (WP) on
+		   GPIO_2 (ignored), Card Detect (CD) on GPIO_4 (GPIO1_IO4) */
+	case BT_EFUSA9:
+		/* USDHC2: ext. SD slot (connector, normal-size SD slot on
+		   efus SKIT), Write Protect (WP) on GPIO_2 (ignored), Card
+		   Detect (CD) on GPIO_4 (GPIO1_IO4) */
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usdhc_pads = usdhc2_pads_q;
+			usdhc_pad_count = ARRAY_SIZE(usdhc2_pads_q);
+		} else {
+			usdhc_pads = usdhc2_pads_dl;
+			usdhc_pad_count = ARRAY_SIZE(usdhc2_pads_dl);
+		}
+		gpio_cd = IMX_GPIO_NR(1, 4);
+		ccgr6 |= (3 << 4);
+		index = 1;
+		break;
+
+	default:
+		return 0;		/* Unknown device */
 	}
 
+	imx_iomux_v3_setup_multiple_pads(usdhc_pads, usdhc_pad_count);
+	if (gpio_cd != 0xFFFFFFFF)
+		gpio_direction_input(gpio_cd);
+	writel(ccgr6, &mxc_ccm->CCGR6);
+
 	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
-	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
+	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
+	if (ret)
+		return ret;
+	
+	/* Configure second SD card slot (if available) */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_QBLISSA9:
+	case BT_PICOMODA9:
+		/* USDHC1: This on-board micro SD slot is only available if
+		   WLAN is not mounted. It has no Card Detect (CD) signal. */
+		//### TODO: Define and set feature bit for SD slot in NBoot
+		if (0) /*(fs_nboot_args.chFeatures1 & FEAT1_SDSLOT)*/ {
+			gpio_cd = 0xFFFFFFFF;
+			goto usdhc1;
+		}
+		return 0; 		/* No more SD card slots */
+
+	case BT_EFUSA9:
+		/* USDHC1: ext. SD slot (connector, micro SD slot on efus
+		   SKIT), Write Protect (WP) on DIO_PIN4 (ignored), Card
+		   Detect (CD) on GPIO_1 (GPIO1_IO1) */
+		gpio_cd = IMX_GPIO_NR(1, 1);
+	usdhc1:
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usdhc_pads = usdhc1_pads_q;
+			usdhc_pad_count = ARRAY_SIZE(usdhc1_pads_q);
+		} else {
+			usdhc_pads = usdhc1_pads_dl;
+			usdhc_pad_count = ARRAY_SIZE(usdhc1_pads_dl);
+		}
+		ccgr6 |= (3 << 2);
+		index = 0;
+		break;
+
+	default:
+		return 0; 		/* No more SD card slots */
+	}
+
+	imx_iomux_v3_setup_multiple_pads(usdhc_pads, usdhc_pad_count);
+	if (gpio_cd != 0xFFFFFFFF)
+		gpio_direction_input(gpio_cd);
+	writel(ccgr6, &mxc_ccm->CCGR6);
+
+	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
+	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
+	if (ret)
+		return ret;
+
+	/* ### TODO: efusA9 has a third SDIO slot on USDHC3 with 8 data lines,
+	   for on-board EMMC. This may also optionally be used for WLAN or
+	   other RF modems in the future. */
+
+	return 0;
 }
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX6
-/* USB Host pads definition */
-static iomux_v3_cfg_t const usb_pads_q[] = {
+/* USB Hub Reset-Pin (armStoneA9, QBlissA9) */
+static iomux_v3_cfg_t const usb_hub_pads_q[] = {
         MX6Q_PAD_GPIO_17__GPIO7_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
-
-static iomux_v3_cfg_t const usb_pads_dl[] = {
+static iomux_v3_cfg_t const usb_hub_pads_dl[] = {
         MX6DL_PAD_GPIO_17__GPIO7_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
+
+/* USB Host power (efusA9) */
+static iomux_v3_cfg_t const usb_pwr_pads_q[] = {
+        MX6Q_PAD_EIM_D31__GPIO3_IO31 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+static iomux_v3_cfg_t const usb_pwr_pads_dl[] = {
+        MX6DL_PAD_EIM_D31__GPIO3_IO31 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 
 int board_ehci_hcd_init(int port)
 {
 	iomux_v3_cfg_t const *usb_pads;
 	unsigned usb_pad_count;
 
-	if (is_cpu_type(MXC_CPU_MX6Q)) {
-		usb_pads = usb_pads_q;
-		usb_pad_count = ARRAY_SIZE(usb_pads_q);
-	} else {
-		usb_pads = usb_pads_dl;
-		usb_pad_count = ARRAY_SIZE(usb_pads_dl);
-	}
-        imx_iomux_v3_setup_multiple_pads(usb_pads, usb_pad_count);
+	if (port != 1)
+		return 0;
 
-        /* Reset USB hub */
-        gpio_direction_output(IMX_GPIO_NR(7, 12), 0);
-        mdelay(2);
-        gpio_set_value(IMX_GPIO_NR(7, 12), 1);
+	switch (fs_nboot_args.chBoardType) {
+	case BT_ARMSTONEA9:
+	case BT_QBLISSA9:
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usb_pads = usb_hub_pads_q;
+			usb_pad_count = ARRAY_SIZE(usb_hub_pads_q);
+		} else {
+			usb_pads = usb_hub_pads_dl;
+			usb_pad_count = ARRAY_SIZE(usb_hub_pads_dl);
+		}
+		imx_iomux_v3_setup_multiple_pads(usb_pads, usb_pad_count);
+
+		/* Reset USB hub */
+		gpio_direction_output(IMX_GPIO_NR(7, 12), 0);
+		mdelay(2);
+		gpio_set_value(IMX_GPIO_NR(7, 12), 1);
+		break;
+
+	case BT_EFUSA9:
+#if 0
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usb_pads = usb_pwr_pads_q;
+			usb_pad_count = ARRAY_SIZE(usb_pwr_pads_q);
+		} else {
+			usb_pads = usb_pwr_pads_dl;
+			usb_pad_count = ARRAY_SIZE(usb_pwr_pads_dl);
+		}
+		imx_iomux_v3_setup_multiple_pads(usb_pads, usb_pad_count);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(3, 31), 1);
+#endif
+		break;
+
+	default:
+		break;
+	}
 
         return 0;
+}
+
+int board_ehci_power(int port, int on)
+{
+	iomux_v3_cfg_t const *usb_pads;
+	unsigned usb_pad_count;
+
+	if (port != 1)
+		return 0;
+
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA9:
+		if (is_cpu_type(MXC_CPU_MX6Q)) {
+			usb_pads = usb_pwr_pads_q;
+			usb_pad_count = ARRAY_SIZE(usb_pwr_pads_q);
+		} else {
+			usb_pads = usb_pwr_pads_dl;
+			usb_pad_count = ARRAY_SIZE(usb_pwr_pads_dl);
+		}
+		imx_iomux_v3_setup_multiple_pads(usb_pads, usb_pad_count);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(3, 31), on);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
 }
 #endif
 
