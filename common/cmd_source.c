@@ -348,7 +348,7 @@ static int update_mmc(const char *action, const char **check, const char *fname,
 {
 	const char *p = *check + 3;	/* Skip "mmc" */
 	int devnum = 0;
-	int partnum = 1;
+	int partnum = 0;
 	struct mmc *mmc;
 	block_dev_desc_t *dev_desc;
 
@@ -390,7 +390,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 {
 	const char *p = *check + 3;	/* Skip "usb" */
 	int devnum = 0;
-	int partnum = 1;
+	int partnum = 0;
 	static int usb_init_done = 0;
 	block_dev_desc_t *dev_desc;
 
