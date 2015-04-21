@@ -1,6 +1,72 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.01-fsimx6-V2.0 (22.04.2015)
+---------------------------------------
+Supported boards: armStoneA9, efusA9, PicoMODA9, QBlissA9
+Not tested:       armStoneA5, armStoneA8, PicoMOD7A, NetDCU14, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+
+- Improve Ethernet support on fsvybrid (avoids a Vybrid hardware bug)
+- Add support for customer specific board HGATEWAY
+- Add basic support for fsimx6/armStoneA9 (previously done in separate tree)
+- Add MMC/SD card support to fsimx6
+- Convert i.MX6 serial driver to F&S serial driver concept
+- Fix kernel booting that failed for some boot strategies
+- Backport Atheros PHY driver from u-boot-2014.01
+- Add Ethernet support for fsimx6
+- Rebase to u-boot-2012.10
+- Modify F&S FAT driver to support reading from a file offset
+- Enable commands timer (start/get) and ini (load set of environment variables)
+- Enable support for EXT4 fileformat on F&S platforms
+- Add USB host support for fsimx6
+- Rebase to u-boot-2013.01
+- Add support for Thumb Mode compilation
+- Convert build process for fsvybrid to Thumb Mode (for size reasons)
+- Enable generic file support: ls, load
+- Enable gettime command that shows uptime since booting
+- Enable read command for raw reads from media without filesystem
+- Implement USB host for Vybrid CPU and activate it on fsvybrid boards
+- Rebase to u-boot-2013.04
+- Improve messages when reading from UBI
+- Drop support for fss3c64xx architecture (PicoMOD6, PicoCOM3)
+- Activate workarounds for some ARM errata on fsimx6
+- Rebase to u-boot-2013.07
+- Activate NAND support for fsimx6
+- Add F&S specific NAND implementation for i.MX6
+- Rebase to u-boot-2013.10
+- Fix env_nand.c to work with variable environment size again
+- Change NAND code to return bitflips on fsimx6, fsvybrid, fss5pv210
+- Add basic support for fsam335x/PicoCOMA8 (previously done in separate tree)
+- Convert serial_ns16550 driver used on fsa,335x to F&S serial driver concept
+- Add NAND flash support to fsam335x
+- Add MMC/SD card support to fsam335x
+- Add USB host support to fsam335x
+- Add Ethernet support to fsam335x
+- Convert build process for fsam335x to Thumb Mode (for size reasons)
+- Rebase to u-boot-2014.01
+- Add support for i.MX6 DualLite/Solo CPU to fsimx6
+- Change compilation process and board support on fsimx6 for new NBoot VN25
+- Change NAND page layout on fsimx6 to match the one from NBoot VN25
+- Heavily rework i.MX6 NAND driver, improve timings/clock settings, use longer
+  DMA chains: writing is now 4x faster, reading is 7x faster than before!
+- Support block refresh on fsimx6
+- Hide boot strategy variables by prefixing them with '.' instead of '_';
+  use printenv -a to see them again
+- Allow setting additional arguments for command line with variable $extra
+- Add basic support for PicoMODA9, QBlissA9 and efusA9
+- Add code for DP83484 PHY to phylib
+- Add Ethernet support for PicoMODA9, QBlissA9 and efusA9
+- Add SD card support for PicoMODA9, QBlissA9 and efusA9
+- Add USB host support for PicoMODA9, QBlissA9 and efusA9
+- Fix bug that caused imx-lib (i.MX6 audio/video acceleration) in Linux to fail
+- Fix update/install check (was broken because of new FAT partition handling)
+- Add earlyusbinit feature to allow better USB device detection (especially
+  behind USB Hubs), add to F&S board support, activate on efusA9
+- Fix console and login_tty settings tom make redirection to display work again
+- Allow arbitrary filesystem types on MMC and USB for update command
+- Update now sets variable updatedev to the device where the script was found
+
 
 u-boot-2012.07-fsvybrid-V2.1 (22.08.2014)
 -----------------------------------------
