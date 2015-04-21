@@ -680,11 +680,11 @@
 	"console=undef\0" \
 	".console_none=setenv console\0" \
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
-	".console_display=setenv console console=/dev/tty1\0" \
+	".console_display=setenv console console=tty1\0" \
 	"login=undef\0" \
 	".login_none=setenv login login_tty=null\0" \
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
-	".login_display=setenv login login_tty=/dev/tty1\0" \
+	".login_display=setenv login login_tty=tty1\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
 	".network_off=setenv network\0"					\
