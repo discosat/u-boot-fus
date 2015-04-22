@@ -45,6 +45,7 @@
 #endif
 #include <linux/ctype.h>		/* isdigit(), isalnum(), ... */
 #include <jffs2/load_kernel.h>		/* struct mtd_device, ... */
+#include <fs.h>				/* FS_TYPE_ANY, fs_read(), ... */
 
 int
 source (ulong addr, const char *fit_uname)
@@ -207,6 +208,8 @@ U_BOOT_CMD(
 
 #ifdef CONFIG_CMD_UPDATE
 
+#define UPDATEDEV "updatedev"
+
 static int update_ram(const char *action, const char **check,
 		      unsigned long *addr)
 {
@@ -222,6 +225,8 @@ static int update_ram(const char *action, const char **check,
 	*check = p;
 	*addr = newaddr;
 	printf("---- Trying %s from ram@%08lx ----\n", action, newaddr);
+
+	setenv(UPDATEDEV, "ram");
 
 	return 0;
 }
@@ -245,6 +250,8 @@ static int update_ubi(const char *action, const char *part_name,
 		return -1;
 	if (ubifs_load(fname, addr, 0))
 		return -1;
+
+	setenv(UPDATEDEV, "ubi");
 
 	return 0;
 }
@@ -337,35 +344,65 @@ static int update_mtd(const char *action, const char **check, const char *fname,
 	if (nand_load_image(dev->id->num, part->offset, addr, 0))
 		return -1;
 
+	setenv(UPDATEDEV, "nand");
+
 	return 0;
 }
 #endif /* CONFIG_CMD_MTDPARTS */
 
-
-#if defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
-static int update_mmc(const char *action, const char **check, const char *fname,
-		      unsigned long addr)
+#if (defined(CONFIG_MMC) || defined(CONFIG_USB_STORAGE))
+#define MAX_IF_DEV_PART_STR 16
+static int get_if_dev_part_str(char *if_dev_part_str, const char **check)
 {
-	const char *p = *check + 3;	/* Skip "mmc" */
-	int devnum = 0;
-	int partnum = 0;
-	struct mmc *mmc;
-	block_dev_desc_t *dev_desc;
+	const char *p = *check;
+	int i = 0;
 
-	/* Get devnum and partnum by numbers */
-	if (isdigit(*p))
-		devnum = (int)simple_strtoul(p, (char **)&p, 0);
-	if ((*p == ':') && isdigit(*(++p)))
-		partnum = (int)simple_strtoul(p, (char **)&p, 10);
+	/* Copy first three letters (interface name, e.g. "usb", "mmc") */
+	if_dev_part_str[i++] = *p++;
+	if_dev_part_str[i++] = *p++;
+	if_dev_part_str[i++] = *p++;
+
+	/* Add a blank */
+	if_dev_part_str[i++] = ' ';
+
+	/* Scan any leading blanks before device/part description  */
+	while (*p == ' ')
+		p++;
+
+	/* Copy device and partition number; use "0" if no device is given */
+	do {
+		if (!isdigit(*p) && (*p != ':'))
+			break;
+		if_dev_part_str[i++] = *p++;
+	} while (i < MAX_IF_DEV_PART_STR);
+	if (i == 4)
+		if_dev_part_str[i++] = '0';
+	if_dev_part_str[i] = 0;
 
 	if (*p && (*p != ','))
 		return 1;		/* Parse error */
 
 	*check = p;
-	printf("---- Trying %s from mmc%d:%d with %s ----\n", action, devnum,
-	       partnum, fname);
+	return 0;
+}
+#endif /* CONFIG_MMC || CONFIG_USB_STORAGE */
 
-	mmc = find_mmc_device(devnum);
+#ifdef CONFIG_MMC
+static int update_mmc(const char *action, const char **check, const char *fname,
+		      unsigned long addr)
+{
+	char if_dev_part_str[MAX_IF_DEV_PART_STR + 1];
+	int dev_num;
+	struct mmc *mmc;
+
+	if (get_if_dev_part_str(if_dev_part_str, check))
+		return 1;		/* Parse error */
+
+	printf("---- Trying %s from %s with %s ----\n", action,
+	       if_dev_part_str, fname);
+
+	dev_num = simple_strtoul(if_dev_part_str + 4, NULL, 0);
+	mmc = find_mmc_device(dev_num);
 	if (!mmc)
 		return -1;
 
@@ -373,39 +410,30 @@ static int update_mmc(const char *action, const char **check, const char *fname,
 
 	/* If the device is valid and we can open the partition, try to
 	   load the update file */
-	dev_desc = get_dev("mmc", devnum);
-	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+	if (fs_set_blk_dev("mmc", if_dev_part_str + 4, FS_TYPE_ANY))
 		return -1;		  /* Device or partition not valid */
 
-	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+	if (fs_read(fname, addr, 0, 0) < 0)
 		return -1;		  /* File not found or I/O error */
+
+	setenv(UPDATEDEV, if_dev_part_str);
 
 	return 0;
 }
-#endif /* CONFIG_MMC && CONFIG_FS_FAT */
+#endif /* CONFIG_MMC */
 
-#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#ifdef CONFIG_USB_STORAGE
 static int update_usb(const char *action, const char **check, const char *fname,
 		      unsigned long addr)
 {
-	const char *p = *check + 3;	/* Skip "usb" */
-	int devnum = 0;
-	int partnum = 0;
+	char if_dev_part_str[MAX_IF_DEV_PART_STR + 1];
 	static int usb_init_done = 0;
-	block_dev_desc_t *dev_desc;
 
-	/* Get devnum and partnum by numbers */
-	if (isdigit(*p))
-		devnum = (int)simple_strtoul(p, (char **)&p, 0);
-	if ((*p == ':') && isdigit(*(++p)))
-		partnum = (int)simple_strtoul(p, (char **)&p, 10);
-
-	if (*p && (*p != ','))
+	if (get_if_dev_part_str(if_dev_part_str, check))
 		return 1;		/* Parse error */
 
-	*check = p;
-	printf("---- Trying %s from usb%d:%d with %s ----\n", action, devnum,
-	       partnum, fname);
+	printf("---- Trying %s from %s with %s ----\n", action,
+	       if_dev_part_str, fname);
 
 	/* Init USB only once during update */
 	if (!usb_init_done) {
@@ -419,13 +447,13 @@ static int update_usb(const char *action, const char **check, const char *fname,
 
 	/* If the device is valid and we can open the partition, try to
 	   load the update file */
-	dev_desc = get_dev("usb", devnum);
-	if (!dev_desc || (fat_register_device(dev_desc, partnum) < 0))
+	if (fs_set_blk_dev("usb", if_dev_part_str + 4, FS_TYPE_ANY))
 		return -1;		  /* Device or partition not valid */
 
-	if (file_fat_read(fname, (unsigned char *)addr, 0) < 0)
+	if (fs_read(fname, addr, 0, 0) < 0)
 		return -1;		  /* File not found or I/O error */
 
+	setenv(UPDATEDEV, if_dev_part_str);
 	return 0;
 }
 #endif /* CONFIG_USB_STORAGE && CONFIG_FS_FAT */
@@ -455,6 +483,8 @@ static int update_net(const char *action, const char **check, const char *fname,
 
 	/* flush cache */
 	flush_cache(addr, size);
+
+	setenv(UPDATEDEV, "net");
 
 	return 0;
 }
