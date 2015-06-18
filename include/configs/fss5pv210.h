@@ -650,7 +650,7 @@
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
-	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootz\0"
+	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\\\\; bootz\0"
 #else
 #define EXTRA_UBIFS
 #endif
