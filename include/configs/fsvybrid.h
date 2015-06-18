@@ -381,7 +381,7 @@
 
 /* Allow editing (scroll between commands, etc.) */
 #define CONFIG_CMDLINE_EDITING
-#undef CONFIG_AUTO_COMPLETE
+#define CONFIG_AUTO_COMPLETE
 
 /* Input and print buffer sizes */
 #define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
