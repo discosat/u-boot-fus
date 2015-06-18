@@ -692,8 +692,8 @@
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
 	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
-	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1\0" \
-	".rootfs_usb=setenv rootfs root=/dev/sda1\0" \
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1 rootwait\0" \
+	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0" \
 	"kernel=undef\0" \
 	".kernel_nand=setenv kernel nboot Kernel\0" \
 	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
