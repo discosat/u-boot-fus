@@ -482,6 +482,11 @@ int board_init(void)
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
 
+#if 0
+	__led_init(0, 0); //###
+	__led_init(1, 0); //###
+#endif
+
 	/* The internal clock experiences significant drift so we must use the
 	   external oscillator in order to maintain correct time in the
 	   hwclock */
@@ -1042,32 +1047,60 @@ struct tag_fsm4config *get_board_fsm4config(void)
 
 #ifdef CONFIG_CMD_LED
 /* We have LEDs on PTC30 (Pad 103) and PTC31 (Pad 104); on CUBEA5 and
-   AGATEWAY, the logic is inverted */
+   AGATEWAY, the logic is inverted.
+   On HGATEWAY, we allow using the RGB LED PTD25 (red, Pad 69) and PTD24
+   (blue, Pad 70) as status LEDs.
+*/
 #if 0
-void __led_init (led_id_t mask, int state)
+void __led_init(led_id_t mask, int state)
 {
 	printf("### __led_init()\n");
+	if ((mask > 1) || (fs_nboot_args.chBoardType != BT_HGATEWAY))
+		return;
+	__raw_writel(0x00000142, mask ? 0x40048118 : 0x40048114);
+	__led_set(mask, state);
 }
 #endif
-void __led_set (led_id_t mask, int state)
+void __led_set(led_id_t mask, int state)
 {
+	unsigned long reg;
+
+	if (mask > 1)
+		return;
+
 	if ((fs_nboot_args.chBoardType == BT_CUBEA5)
 	    || (fs_nboot_args.chBoardType == BT_AGATEWAY))
 		state = !state;
 
-	if (mask <= 1) {
+	if (fs_nboot_args.chBoardType == BT_HGATEWAY) {
+		/* Write to GPIO2_PSOR or GPIO2_PCOR */
+		mask += 5;
+		reg = 0x400ff084;
+	} else {
 		/* Write to GPIO3_PSOR or GPIO3_PCOR */
 		mask += 7;
-		__raw_writel(1 << mask, state ? 0x400ff0c4 : 0x400ff0c8);
+		reg = 0x400ff0c4;
 	}
+	__raw_writel(1 << mask, state ? reg : (reg + 4));
 }
-void __led_toggle (led_id_t mask)
+
+void __led_toggle(led_id_t mask)
 {
-	if (mask <= 1) {
+	unsigned long reg;
+
+	if (mask > 1)
+		return;
+
+	if (fs_nboot_args.chBoardType == BT_HGATEWAY) {
+		/* Write to GPIO2_PTOR */
+		mask += 5;
+		reg = 0x400ff08c;
+	} else {
 		/* Write to GPIO3_PTOR */
 		mask += 7;
-		__raw_writel(1 << mask, 0x400ff0cc);
+		reg = 0x400ff0cc;
 	}
+	__raw_writel(1 << mask, reg);
 }
 #endif /* CONFIG_CMD_LED */
 
