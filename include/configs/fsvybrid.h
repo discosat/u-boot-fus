@@ -354,10 +354,15 @@
    are necessary, they must be implemented as different NAND devices */
 #define CONFIG_SYS_NAND_MAX_CHIPS	1
 
-/* Our NAND layout on vybrid has a continuous set of OOB data, so we only need
-   one oobfree entry and we have at most 60 ECC bytes and therefore eccpos
-   entries. By setting the following two values, we can reduce the size of
-   struct nand_ecclayout considerably (see include/linux/mtd/mtd.h). */
+/* Our NAND layout has a continuous set of OOB data, so we only need one
+   oobfree entry (plus one empty entry to mark the end of the list). And when
+   using NAND flash with 2K pages (written in a single chunk), Vybrid has at
+   most 60 ECC bytes: 1 chunk, ECC32, GF15: 1*32*15 bits = 60 bytes. So we can
+   also set CONFIG_SYS_NAND_MAX_ECCPOS to >=60. By setting the two values
+   below, we can reduce the size of struct nand_ecclayout considerably from
+   2824 bytes to 280 bytes (see include/linux/mtd/mtd.h). Please note that
+   these settings have to be modified if smaller chunks or NAND flashes with
+   larger pages are used. But then we have to modify the driver code anyway. */
 #define CONFIG_SYS_NAND_MAX_OOBFREE	2
 #define CONFIG_SYS_NAND_MAX_ECCPOS	64
 

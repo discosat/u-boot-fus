@@ -2,12 +2,9 @@
  * Vybrid NAND Flash Controller Driver with Hardware ECC
  * Based on original driver fsl_nfc.c
  *
- * Copyright 2014 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2015 F&S Elektronik Systeme GmbH
  *
- * This is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -32,9 +29,11 @@
 #define ECC_STATUS_MASK		0x80
 #define ECC_ERR_COUNT		0x3F
 
-/* Timeout values. In our case they must enclose the transmission time for the
-   command, address and data byte cycles. The timer resolution in U-Boot is
-   1/1000s, i.e. CONFIG_SYS_HZ=1000 and any final value < 2 will not work well. */
+/*
+ * Timeout values. In our case they must enclose the transmission time for the
+ * command, address and data byte cycles. The timer resolution in U-Boot is
+ * 1/1000s, i.e. CONFIG_SYS_HZ=1000 and any final value < 2 will not work well.
+ */
 #define NFC_TIMEOUT_DATA	(CONFIG_SYS_HZ * 100) / 1000
 #define NFC_TIMEOUT_WRITE	(CONFIG_SYS_HZ * 100) / 1000
 #define NFC_TIMEOUT_ERASE	(CONFIG_SYS_HZ * 400) / 1000
@@ -58,18 +57,20 @@ static const uint ecc_strength[8] = {
 	0, 4, 6, 8, 12, 16, 24, 32
 };
 
-/* NAND page layouts for all possible Vybrid ECC modes. The OOB area has the
-   following appearance:
-
-     Offset          Bytes               Meaning
-     ---------------------------------------------------------------
-     0               4                   Bad Block Marker (BBM)
-     4               eccbytes            Error Correction Code (ECC)
-     4 + eccbytes    oobfree.length      Free OOB area (user part)
-
-   As the size of the OOB is in mtd->oobsize and the number of free bytes
-   (= size of the user part) is stored in mtd->oobavail, we can compute the
-   offset of the free OOB area also by mtd->oobsize - mtd->oobavail. */
+/*
+ * NAND page layouts for all possible Vybrid ECC modes. The OOB area has the
+ * following appearance:
+ *
+ *   Offset          Bytes               Meaning
+ *   ---------------------------------------------------------------
+ *   0               4                   Bad Block Marker (BBM)
+ *   4               eccbytes            Error Correction Code (ECC)
+ *   4 + eccbytes    oobfree.length      Free OOB area (user part)
+ *
+ * As the size of the OOB is in mtd->oobsize and the number of free bytes
+ * (= size of the user part) is stored in mtd->oobavail, we can compute the
+ * offset of the free OOB area also by mtd->oobsize - mtd->oobavail.
+ */
 static struct nand_ecclayout fus_nfc_ecclayout[8] =
 {
 	{
@@ -344,16 +345,26 @@ static int nfc_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 }
 
 
-/* Count the number of zero bits in a value; start at the LSB to be fast in
-   case of 8-bit values */
+/* Count the number of zero bits in a value */
 static int count_zeroes(u32 value)
 {
 	int count = 0;
 
+	/*
+	 * In each cycle, the following loop will flip the least significant
+	 * 0-bit to a 1-bit. So we only need as many loop cycles as we have
+	 * 0-bits in the value.
+	 *
+	 * Example for one cycle:
+	 *
+	 *   value:     1111 1111 1111 1111 0100 1011 1111 1111
+	 *   value + 1: 1111 1111 1111 1111 0100 1100 0000 0000
+	 *   --------------------------------------------------
+	 *   result:    1111 1111 1111 1111 0100 1111 1111 1111
+	 */
 	while (value != 0xFFFFFFFF) {
-		if (!(value & 1))
-			count++;
-		value = (value >> 1) | 0x80000000;
+		value |= value + 1;
+		count++;
 	}
 
 	return count;
@@ -441,7 +452,7 @@ static void fus_nfc_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 
 
 /* Wait until page is written or block is erased, return status */
-static int fus_nfc_wait(struct mtd_info *mtd, struct nand_chip *chip)
+static int fus_nfc_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
 {
 	unsigned long timeout;
 
@@ -451,15 +462,17 @@ static int fus_nfc_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		timeout = NFC_TIMEOUT_WRITE;
 
 	if (nfc_wait_ready(mtd, timeout))
-		return 0x01;
+		return NAND_STATUS_FAIL;
 
 	return nfc_read(chip, NFC_FLASH_STATUS2) & STATUS_BYTE1_MASK;
 }
 
 
-/* Write command to NAND flash. As the Vybrid NFC combines all steps in one
-   compund command, some of these commands are only dummies and the main task
-   is done at the second command byte or in the read/write functions. */
+/*
+ * Write command to NAND flash. As the Vybrid NFC combines all steps in one
+ * compound command, some of these commands are only dummies and the main task
+ * is done at the second command byte or in the read/write functions.
+ */
 static void fus_nfc_command(struct mtd_info *mtd, uint command, int column,
 			    int page)
 {
@@ -469,14 +482,16 @@ static void fus_nfc_command(struct mtd_info *mtd, uint command, int column,
 	/* Restore column for fus_nfc_read_byte() to 0 on each new command */
 	prv->column = 0;
 
-	/* Some commands just store column and/or row for the address cycle.
-	   As the Vybrid NFC does all in one go, the real action takes place
-	   when the second command byte is sent:
-	     NAND_CMD_READ0 -> NAND_CMD_READSTART
-	     NAND_CMD_SEQIN -> NAND_CMD_RNDIN or NAND_CMD_PAGEPROG
-	     NAND_CMD_RNDIN -> NAND_CMD_RNDIN or NAND_CMD_PAGEPROG
-	     NAND_CMD_ERASE1 -> NAND_CMD_ERASE2
-	     NAND_CMD_RNDOUT -> NAND_CMD_RNDOUTSTART */
+	/*
+	 * Some commands just store column and/or row for the address cycle.
+	 * As the Vybrid NFC does all in one go, the real action takes place
+	 * when the second command byte is sent:
+	 *   NAND_CMD_READ0 -> NAND_CMD_READSTART
+	 *   NAND_CMD_SEQIN -> NAND_CMD_RNDIN or NAND_CMD_PAGEPROG
+	 *   NAND_CMD_RNDIN -> NAND_CMD_RNDIN or NAND_CMD_PAGEPROG
+	 *   NAND_CMD_ERASE1 -> NAND_CMD_ERASE2
+	 *   NAND_CMD_RNDOUT -> NAND_CMD_RNDOUTSTART
+	 */
 	switch (command) {
 	case NAND_CMD_RNDIN:
 		/* NAND_CMD_RNDIN must move all the data since the last
@@ -742,12 +757,15 @@ static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				 uint8_t *buf, int oob_required, int page)
 {
 	struct fsl_nfc_fus_prv *prv = chip->priv;
+	uint size = mtd->writesize;
 
 	/* This code assumes that the NAND_CMD_READ0 command was
 	   already issued before */
 
 	/* Set number of bytes to transfer */
-	nfc_write(chip, NFC_SECTOR_SIZE, mtd->writesize + mtd->oobsize);
+	if (oob_required)
+		size += mtd->oobsize;
+	nfc_write(chip, NFC_SECTOR_SIZE, size);
 
 	/* Set ECC mode to BYPASS, position of ECC status, one virtual page */
 	nfc_write(chip, NFC_FLASH_CONFIG,
@@ -767,13 +785,19 @@ static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Actually trigger read transfer and wait for completion */
 	chip->cmdfunc(mtd, NAND_CMD_READSTART, -1, -1);
 
-	/* Copy main and OOB data from NFC RAM. Please note that we don't swap
-	   the main data from Big Endian byte order. DMA does not swap data
-	   either, so if we want to use DMA in the future, we have to keep it
-	   this way. See also fus_nfc_write_page_raw(). However we do swap
-	   the OOB data. */
+	/*
+	 * Copy main and OOB data from NFC RAM. Please note that we don't swap
+	 * the main data from Big Endian byte order. DMA does not swap data
+	 * either, so if we want to use DMA in the future, we have to keep it
+	 * this way. See also fus_nfc_write_page_raw(). However we do swap
+	 * the OOB data.
+	 */
 	memcpy(buf, chip->IO_ADDR_R + NFC_MAIN_AREA(0), mtd->writesize);
-	nfc_copy_from_nfc(chip, chip->oob_poi, mtd->oobsize, mtd->writesize);
+	if (oob_required) {
+		memset(chip->oob_poi, 0xFF, mtd->oobsize);
+		nfc_copy_from_nfc(chip, chip->oob_poi, mtd->oobsize,
+				  mtd->writesize);
+	}
 
 	return 0;
 }
@@ -784,19 +808,23 @@ static int fus_nfc_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				  const uint8_t *buf, int oob_required)
 {
 	struct fsl_nfc_fus_prv *prv = chip->priv;
-	uint size;
+	uint size = mtd->writesize;
 
 	/* NAND_CMD_SEQIN for column 0 was already issued by the caller */
 
-	/* Copy main and OOB data to NFC RAM. Please note that we don't swap
-	   the main data to Big Endian byte order. DMA does not swap the data
-	   either, so if we want to use DMA in the future, we have to keep it
-	   this way. */
-	memcpy(chip->IO_ADDR_R + NFC_MAIN_AREA(0), buf, mtd->writesize);
-	nfc_copy_to_nfc(chip, chip->oob_poi, mtd->oobsize, mtd->writesize);
+	/*
+	 * Copy main and OOB data to NFC RAM. Please note that we don't swap
+	 * the main data to Big Endian byte order. DMA does not swap the data
+	 * either, so if we want to use DMA in the future, we have to keep it
+	 * this way.
+	 */
+	memcpy(chip->IO_ADDR_R + NFC_MAIN_AREA(0), buf, size);
+	if (oob_required) {
+		nfc_copy_to_nfc(chip, chip->oob_poi, mtd->oobsize, size);
+		size += mtd->oobsize;
+	}
 
 	/* Set number of bytes to transfer */
-	size = mtd->writesize + mtd->oobsize;
 	nfc_write(chip, NFC_SECTOR_SIZE, size);
 
 	/* Set ECC mode to BYPASS, one virtual page */
@@ -835,11 +863,8 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	/* This code assumes that the NAND_CMD_READ0 command was
 	   already issued before */
 
-	/* Set ECC part of OOB area to empty, we will not store data there */
-	size = mtd->oobsize - mtd->oobavail;
-	memset(chip->oob_poi, 0xFF, size);
-
 	/* Set size to load main area, BBM and ECC */
+	size = mtd->oobsize - mtd->oobavail;
 	nfc_write(chip, NFC_SECTOR_SIZE, mtd->writesize + size);
 
 	/* Set ECC mode, position of ECC status, one virtual page */
@@ -868,18 +893,22 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		/* Correctable error or no error at all: update ecc_stats */
 		mtd->ecc_stats.corrected += bitflips;
 
-		/* Copy main data from NFC RAM. Please note that we don't swap
-		   the data from Big Endian byte order. DMA does not swap data
-		   either, so if we want to use DMA in the future, we have to
-		   keep it this way. See also fus_nfc_write_page(). */
+		/*
+		 * Copy main data from NFC RAM. Please note that we don't swap
+		 * the data from Big Endian byte order. DMA does not swap data
+		 * either, so if we want to use DMA in the future, we have to
+		 * keep it this way. See also fus_nfc_write_page().
+		 */
 		memcpy(buf, chip->IO_ADDR_R + NFC_MAIN_AREA(0), mtd->writesize);
 
 #ifdef CONFIG_NAND_REFRESH
-		/* If requested, read refresh block number from the four bytes
-		   between main data and ECC and return it converted to an
-		   offset. The caller has to make sure that this flag is not
-		   set in the first two pages of a block, because there the
-		   Bad Block Marker is stored there. */
+		/*
+		 * If requested, read refresh block number from the four bytes
+		 * between main data and ECC and return it converted to an
+		 * offset. The caller has to make sure that this flag is not
+		 * set in the first two pages of a block, because there the
+		 * Bad Block Marker is stored there.
+		 */
 		if (mtd->extraflags & MTD_EXTRA_REFRESHOFFS) {
 			u32 refresh;
 
@@ -891,45 +920,55 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 #endif
 
-		/* Reload the user part of the OOB area to NFC RAM. We can use
-		   NAND_CMD_RNDOUT as the NAND flash still has the data in its
-		   page cache. */
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize + size, -1);
+		if (oob_required) {
+			memset(chip->oob_poi, 0xFF, mtd->oobsize);
 
-		/* Set size to load user OOB area */
-		nfc_write(chip, NFC_SECTOR_SIZE, mtd->oobavail);
+			/*
+			 * Reload the user part of the OOB area to NFC RAM. We
+			 * can use NAND_CMD_RNDOUT as the NAND flash still has
+			 * the data in its page cache.
+			 */
+			chip->cmdfunc(mtd, NAND_CMD_RNDOUT,
+				      mtd->writesize + size, -1);
 
-		/* Set ECC mode to BYPASS, one virtual page */
-		nfc_write(chip, NFC_FLASH_CONFIG,
-			  prv->cfgbase
-			  | (0 << CONFIG_STOP_ON_WERR_SHIFT)
-			  | (0 << CONFIG_ECC_SRAM_ADDR_SHIFT)
-			  | (0 << CONFIG_ECC_SRAM_REQ_SHIFT)
-			  | (0 << CONFIG_DMA_REQ_SHIFT)
-			  | (ECC_BYPASS << CONFIG_ECC_MODE_SHIFT)
-			  | (0 << CONFIG_FAST_FLASH_SHIFT)
-			  | (0 << CONFIG_ID_COUNT_SHIFT)
-			  | (0 << CONFIG_BOOT_MODE_SHIFT)
-			  | (0 << CONFIG_ADDR_AUTO_INCR_SHIFT)
-			  | (0 << CONFIG_BUFNO_AUTO_INCR_SHIFT)
-			  | (1 << CONFIG_PAGE_CNT_SHIFT));
+			/* Set size to load user OOB area */
+			nfc_write(chip, NFC_SECTOR_SIZE, mtd->oobavail);
 
-		/* Actually trigger reading and wait until done */
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUTSTART, -1, -1);
+			/* Set ECC mode to BYPASS, one virtual page */
+			nfc_write(chip, NFC_FLASH_CONFIG,
+				  prv->cfgbase
+				  | (0 << CONFIG_STOP_ON_WERR_SHIFT)
+				  | (0 << CONFIG_ECC_SRAM_ADDR_SHIFT)
+				  | (0 << CONFIG_ECC_SRAM_REQ_SHIFT)
+				  | (0 << CONFIG_DMA_REQ_SHIFT)
+				  | (ECC_BYPASS << CONFIG_ECC_MODE_SHIFT)
+				  | (0 << CONFIG_FAST_FLASH_SHIFT)
+				  | (0 << CONFIG_ID_COUNT_SHIFT)
+				  | (0 << CONFIG_BOOT_MODE_SHIFT)
+				  | (0 << CONFIG_ADDR_AUTO_INCR_SHIFT)
+				  | (0 << CONFIG_BUFNO_AUTO_INCR_SHIFT)
+				  | (1 << CONFIG_PAGE_CNT_SHIFT));
 
-		/* Copy data to OOB buffer; here we do swap the bytes; the
-		   data is at the beginning of the NFC RAM */
-		nfc_copy_from_nfc(chip, chip->oob_poi + size, mtd->oobsize, 0);
+			/* Actually trigger reading and wait until done */
+			chip->cmdfunc(mtd, NAND_CMD_RNDOUTSTART, -1, -1);
+
+			/* Copy data to OOB buffer; here we do swap the bytes;
+			   the data is at the beginning of the NFC RAM */
+			nfc_copy_from_nfc(chip, chip->oob_poi + size,
+					  mtd->oobavail, 0);
+		}
 
 		return bitflips;
 	}
 
-	/* The page is uncorrectable; however this can also happen with a
-	   totally empty (=erased) page, in which case we should return OK.
-	   But this means that we must reload the page in raw mode. However we
-	   can use NAND_CMD_RNDOUT as the NAND flash still has the data in its
-	   page cache. We start by reloading the OOB area of the page to NFC
-	   RAM as we need this data anyway. */
+	/*
+	 * The page is uncorrectable; however this can also happen with a
+	 * totally empty (=erased) page, in which case we should return OK.
+	 * But this means that we must reload the page in raw mode. However we
+	 * can use NAND_CMD_RNDOUT as the NAND flash still has the data in its
+	 * page cache. We start by reloading the OOB area of the page to NFC
+	 * RAM as we need this data anyway.
+	 */
 	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize, -1);
 
 	/* Set size to load OOB area */
@@ -957,10 +996,12 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	   case. This may or may not be empty. Here we do swap the bytes. */
 	nfc_copy_from_nfc(chip, chip->oob_poi + size, mtd->oobavail, size);
 
-	/* By checking the ECC area we can quickly detect a non-empty page.
-	   Because also an empty page may show bitflips (e.g. by write
-	   disturbs caused by writes to a nearby page), we accept up to
-	   bitflip_threshold non-empty bits. */
+	/*
+	 * By checking the ECC area we can quickly detect a non-empty page.
+	 * Because also an empty page may show bitflips (e.g. by write
+	 * disturbs caused by writes to a nearby page), we accept up to
+	 * bitflip_threshold non-empty bits.
+	 */
 	zerobits = 0;
 	limit = (int)mtd->bitflip_threshold;
 	i = size;
@@ -971,11 +1012,13 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	} while (--i);
 
 	if (!i) {
-		/* OK, ECC area is empty. Now reload main area to NFC RAM.
-		   Theoretically we could split this into smaller parts to
-		   speed up the non-empty case. However if the ECC part is
-		   empty, it is highly probable that the whole main part is
-		   empty, too. So it's not worth the trouble. */
+		/*
+		 * OK, ECC area is empty. Now reload main area to NFC RAM.
+		 * Theoretically we could split this into smaller parts to
+		 * speed up the non-empty case. However if the ECC part is
+		 * empty, it is highly probable that the whole main part is
+		 * empty, too. So it's not worth the trouble.
+		 */
 
 		/* Issue NAND_CMD_RNDOUT to reload main area */
 		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, 0, -1);
@@ -1013,16 +1056,20 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			i -= 4;
 		} while (i);
 		if (!i) {
-			/* Main area is empty, too, fill with 0xFF */
+			/* Main area is empty, too, fill everything with 0xFF */
 			memset(buf, 0xFF, mtd->writesize);
+			if (oob_required)
+				memset(chip->oob_poi, 0xFF, mtd->oobsize);
 
 			return zerobits;
 		}
 	}
 
-	/* This page is not empty, it is an actual read error. Update
-	   ecc_stats. Please note that buf and the first part of chip->oob_poi
-	   remain completely unchanged in this case. */
+	/*
+	 * This page is not empty, it is a real read error. Update ecc_stats.
+	 * Please note that buf and chip->oob_poi remain completely unchanged
+	 * in this case.
+	 */
 	mtd->ecc_stats.failed++;
 	printf("Non-correctable error in page at 0x%08llx\n",
 	       (loff_t)page << chip->page_shift);
@@ -1042,18 +1089,22 @@ static int fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* NAND_CMD_SEQIN for column 0 was already issued by the caller */
 
-	/* Copy main data to NFC RAM. Please note that we don't swap the data
-	   to Big Endian byte order. DMA does not swap data either, so if we
-	   want to use DMA in the future, we have to keep it this way. Also
-	   don't forget to write 0xFFFFFFFF to the BBM area. */
+	/*
+	 * Copy main data to NFC RAM. Please note that we don't swap the data
+	 * to Big Endian byte order. DMA does not swap data either, so if we
+	 * want to use DMA in the future, we have to keep it this way. Also
+	 * don't forget to write 0xFFFFFFFF to the BBM area.
+	 */
 	memcpy(chip->IO_ADDR_R + NFC_MAIN_AREA(0), buf, mtd->writesize);
 	nfc_write(chip, NFC_MAIN_AREA(0) + mtd->writesize, 0xFFFFFFFF);
 
 #ifdef CONFIG_NAND_REFRESH
-	/* If requested, store refresh offset as block number in the four
-	   bytes between main data and ECC. The caller has to make sure that
-	   this flag is not set when writing to the first two pages of the
-	   block or the Bad Block Marker may be set unintentionally. */
+	/*
+	 * If requested, store refresh offset as block number in the four
+	 * bytes between main data and ECC. The caller has to make sure that
+	 * this flag is not set when writing to the first two pages of the
+	 * block or the Bad Block Marker may be set unintentionally.
+	 */
 	if ((mtd->extraflags & MTD_EXTRA_REFRESHOFFS) && mtd->extradata) {
 		u32 refresh;
 
@@ -1157,7 +1208,7 @@ void vybrid_nand_register(int nfc_hw_id,
 	chip->read_word = fus_nfc_read_word;
 	chip->read_buf = fus_nfc_read_buf;
 	chip->write_buf = fus_nfc_write_buf;
-	chip->waitfunc = fus_nfc_wait;
+	chip->waitfunc = fus_nfc_waitfunc;
 	chip->options = pdata ? pdata->options : 0;
 	chip->options |= NAND_BBT_SCAN2NDPAGE;
 	chip->badblockpos = 0;
@@ -1229,8 +1280,14 @@ void vybrid_nand_register(int nfc_hw_id,
 			prv->cmdclr |= (1 << 10); /* No row byte 2 */
 	} else
 #endif
-		/* Use only two row cycles if NAND is smaller than 32 MB */
-		prv->cmdclr = (chip->chipsize > (32 << 20)) ? 0 : (1 << 9);
+	{
+		/* Use two column cycles and decide from the size whether we
+		   need two or three row cycles */
+		if (chip->chipsize > (mtd->writesize << 16))
+			prv->cmdclr = 0;
+		else
+			prv->cmdclr = 1 << 9;
+	}
 
 	if (nand_scan_tail(mtd)) {
 		mtd->name = NULL;
