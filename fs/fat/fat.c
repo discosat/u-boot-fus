@@ -926,6 +926,20 @@ int fat_read_file(const char *filename, void *buf, int offset, int len)
 	return file_fat_read_at(filename, offset, buf, len);
 }
 
+int fat_exists(const char *pattern)
+{
+	struct wc_fileinfo wfi;
+
+	/* Prepare file info for root directory */
+	wfi.reference = 0;
+	wfi.file_size = 0;
+	wfi.file_type = WC_TYPE_DIRECTORY;
+	wfi.pattern = pattern;
+	wfi.file_name[0] = '\0';
+
+	return wildcard_exists(&wfi, &fat_ops);
+}
+
 void fat_close(void)
 {
 }

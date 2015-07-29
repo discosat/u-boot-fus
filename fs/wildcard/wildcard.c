@@ -713,3 +713,30 @@ unsigned long wildcard_write(struct wc_fileinfo *wfi,
 
 	return saved_size;
 }
+
+/*
+ * Check for existence of a file.
+ *
+ * Parameters:
+ *   wfi:     Pointer to fileinfo for root directory, wfi->pattern is the
+ *            pattern for the filename to search for
+ *   ops:     Pointer to the filesystem functions doing the data access
+ *
+ * Return:
+ *   0: File does not exist (or I/O error)
+ *   1: File does exist
+ */
+int wildcard_exists(struct wc_fileinfo *wfi,
+		    const struct wc_filesystem_ops *ops)
+{
+	struct wc_dirinfo *wdi;
+
+	fs_ops = ops;
+
+	/* Find path and file */
+	wdi = wildcard_find_unique(wfi);
+	if (wdi && (wfi->file_type != WC_TYPE_NONE))
+		return 1;
+
+	return 0;
+}

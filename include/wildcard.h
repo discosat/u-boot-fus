@@ -113,4 +113,7 @@ extern unsigned long wildcard_write(struct wc_fileinfo *wfi,
 				    const struct wc_filesystem_ops *ops,
 				    void *buffer, unsigned long maxsize);
 
+/* Check for existence of a file */
+extern int wildcard_exists(struct wc_fileinfo *wfi,
+			   const struct wc_filesystem_ops *ops);
 #endif /*!_WILDCARD_H_*/
