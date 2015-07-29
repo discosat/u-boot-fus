@@ -1164,7 +1164,7 @@ static struct file_system_type ubifs_fs_type = {
 	.get_sb  = ubifs_get_sb,
 };
 
-int ubifs_mount(char *name)
+int ubifs_mount(const char *name)
 {
 	int flags;
 	void *data;

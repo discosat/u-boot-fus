@@ -45,13 +45,6 @@
 #define CONFIG_MISC_INIT_R
 
 #define CONFIG_OF_LIBFDT		1
-/*
- * The early kernel mapping on ARM currently only maps from the base of DRAM
- * to the end of the kernel image.  The kernel is loaded at DRAM base + 0x8000.
- * The early kernel pagetable uses DRAM base + 0x4000 to DRAM base + 0x8000,
- * so that leaves DRAM base to DRAM base + 0x4000 available.
- */
-#define CONFIG_SYS_BOOTMAPSZ	        0x4000
 
 #define CONFIG_CMDLINE_TAG		/* enable passing of ATAGs */
 #define CONFIG_SETUP_MEMORY_TAGS
@@ -165,7 +158,8 @@
 							/* CS0 */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1		/* Max number of NAND */
 							/* devices */
-#define CONFIG_SPL_NAND_DEVICE_WIDTH	8
+#define GPMC_NAND_ECC_LP_x8_LAYOUT
+
 /* Environment information */
 #define CONFIG_BOOTDELAY		3
 #define CONFIG_ZERO_BOOTDELAY_CHECK

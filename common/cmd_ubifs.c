@@ -21,15 +21,6 @@
 static int ubifs_mounted;
 static char vol_mounted[UBI_MAX_VOLUME_NAME];
 
-extern struct super_block *ubifs_sb;
-
-/* Prototypes */
-int ubifs_init(void);
-int ubifs_mount(const char *vol_name);
-void ubifs_umount(struct ubifs_info *c);
-int ubifs_ls(char *dir_name);
-int ubifs_load(const char *filename, u32 addr, u32 size);
-
 int cmd_ubifs_mount(const char *vol_name)
 {
 	int ret;
@@ -81,6 +72,9 @@ void cmd_ubifs_umount(void)
 static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,
 			   char *const argv[])
 {
+	if (argc != 1)
+		return CMD_RET_USAGE;
+
 	if (ubifs_mounted == 0) {
 		printf("No UBIFS volume mounted!\n");
 		return -1;

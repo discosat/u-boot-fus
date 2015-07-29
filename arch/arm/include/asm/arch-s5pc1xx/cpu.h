@@ -62,6 +62,12 @@
 /* CPU detection macros */
 
 #define GET_S5P_CPU_ID() ((readl(S5PC100_PRO_ID) & 0x00FFFFFF) >> 12)
+#define GET_S5P_CPU_REV() (readl(S5PC100_PRO_ID) & 0x000000FF)
+
+static inline int s5p_get_cpu_rev(void)
+{
+	return GET_S5P_CPU_REV();
+}
 
 static inline int cpu_is_s5pc100(void)
 {

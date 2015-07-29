@@ -36,7 +36,7 @@ int calxedaxgmac_initialize(u32 id, ulong base_addr);
 int cs8900_initialize(u8 dev_num, int base_addr);
 int davinci_emac_initialize(void);
 int dc21x4x_initialize(bd_t *bis);
-int designware_initialize(u32 id, ulong base_addr, u32 phy_addr, u32 interface);
+int designware_initialize(ulong base_addr, u32 interface);
 int dm9000_initialize(bd_t *bis);
 int dnet_eth_initialize(int id, void *regs, unsigned int phy_addr);
 int e1000_initialize(bd_t *bis);
@@ -103,10 +103,12 @@ int uli526x_initialize(bd_t *bis);
 int armada100_fec_register(unsigned long base_addr);
 int xilinx_axiemac_initialize(bd_t *bis, unsigned long base_addr,
 							unsigned long dma_addr);
+int xilinx_emaclite_of_init(const void *blob);
 int xilinx_emaclite_initialize(bd_t *bis, unsigned long base_addr,
 							int txpp, int rxpp);
 int xilinx_ll_temac_eth_init(bd_t *bis, unsigned long base_addr, int flags,
 						unsigned long ctrl_addr);
+int zynq_gem_of_init(const void *blob);
 int zynq_gem_initialize(bd_t *bis, int base_addr, int phy_addr, u32 emio);
 /*
  * As long as the Xilinx xps_ll_temac ethernet driver has not its own interface
@@ -218,6 +220,7 @@ struct mv88e61xx_config {
 int mv88e61xx_switch_initialize(struct mv88e61xx_config *swconfig);
 #endif /* CONFIG_MV88E61XX_SWITCH */
 
+#ifdef CONFIG_FEC_MXC
 struct mii_dev *fec_get_miibus(uint32_t base_addr, int dev_id);
 #ifdef CONFIG_PHYLIB
 struct phy_device;
@@ -228,6 +231,7 @@ int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,	struct mii_dev *bus,
  * Allow FEC to fine-tune MII configuration on boards which require this.
  */
 int fecmxc_register_mii_postcall(struct eth_device *dev, int (*cb)(int));
+#endif
 #endif
 
 #endif /* _NETDEV_H_ */

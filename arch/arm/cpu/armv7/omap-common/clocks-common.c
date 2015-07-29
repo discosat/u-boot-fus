@@ -771,10 +771,6 @@ void prcm_init(void)
 		scale_vcores(*omap_vcores);
 		recalibrate_io(*omap_vcores);
 		setup_dplls();
-#ifdef CONFIG_SYS_CLOCKS_ENABLE_ALL
-		setup_non_essential_dplls();
-		enable_non_essential_clocks();
-#endif
 		setup_warmreset_time();
 		break;
 	default:

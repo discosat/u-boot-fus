@@ -34,6 +34,7 @@
 #include <nand.h>
 #include <onenand_uboot.h>
 #include <mmc.h>
+#include <scsi.h>
 #include <libfdt.h>
 #include <fdtdec.h>
 #include <post.h>
@@ -94,8 +95,8 @@ static int display_banner(void)
 {
 	printf("\n\n%s\n\n", version_string);
 	debug("U-Boot code: %08lX -> %08lX  BSS: -> %08lX\n",
-	       _TEXT_BASE,
-	       _bss_start_ofs + _TEXT_BASE, _bss_end_ofs + _TEXT_BASE);
+	       (ulong)&_start,
+	       (ulong)&__bss_start, (ulong)&__bss_end);
 #ifdef CONFIG_MODEM_SUPPORT
 	debug("Modem Support enabled\n");
 #endif
@@ -186,8 +187,6 @@ static int arm_pci_init(void)
  */
 typedef int (init_fnc_t) (void);
 
-int print_cpuinfo(void);
-
 void __dram_init_banksize(void)
 {
 	gd->bd->bi_dram[0].start = gd->ram_base;
@@ -239,9 +238,7 @@ init_fnc_t *const init_sequence[] = {
 	serial_init,		/* serial communications setup */
 	console_init_f,		/* stage 1 init of console */
 	display_banner,		/* say that we are here */
-#if defined(CONFIG_DISPLAY_CPUINFO)
 	print_cpuinfo,		/* display cpu info (and speed) */
-#endif
 #if defined(CONFIG_DISPLAY_BOARDINFO)
 	checkboard,		/* display board info */
 #endif
@@ -266,13 +263,13 @@ void board_init_f(ulong bootflag)
 
 	memset((void *)gd, 0, sizeof(gd_t));
 
-	gd->mon_len = _bss_end_ofs;
+	gd->mon_len = (ulong)&__bss_end - (ulong)_start;
 #ifdef CONFIG_OF_EMBED
 	/* Get a pointer to the FDT */
-	gd->fdt_blob = _binary_dt_dtb_start;
+	gd->fdt_blob = __dtb_db_begin;
 #elif defined CONFIG_OF_SEPARATE
 	/* FDT is at end of image */
-	gd->fdt_blob = (void *)(_end_ofs + _TEXT_BASE);
+	gd->fdt_blob = &_end;
 #endif
 	/* Allow the early environment to override the fdt address */
 	gd->fdt_blob = (void *)getenv_ulong("fdtcontroladdr", 16,
@@ -323,13 +320,12 @@ void board_init_f(ulong bootflag)
 	gd->ram_size -= CONFIG_SYS_MEM_TOP_HIDE;
 #endif
 
-
 #ifdef CONFIG_SYS_SDRAM_BASE
 	/* If CONFIG_SYS_SDRAM_BASE is not set, function dram_init() must set
 	   gd->ram_base */
 	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
 #endif
-	addr = gd->ram_base + gd->ram_size;
+	addr = gd->ram_base + get_effective_memsize();
 
 #ifdef CONFIG_LOGBUFFER
 #ifndef CONFIG_ALT_LB_ADDR
@@ -466,12 +462,7 @@ void board_init_f(ulong bootflag)
 #endif
 	gd->relocaddr = addr;
 	gd->start_addr_sp = addr_sp;
-	gd->reloc_off = addr - _TEXT_BASE;
-
-#ifdef CONFIG_SYS_UBOOT_IN_GPURAM
-	gd->reloc_off += _TEXT_BASE;
-#endif
-
+	gd->reloc_off = addr - (ulong)&_start;
 	debug("relocation Offset is: %08lx\n", gd->reloc_off);
 	if (new_fdt) {
 		memcpy(new_fdt, gd->fdt_blob, fdt_size);
@@ -545,7 +536,7 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	gd->flags |= GD_FLG_RELOC;	/* tell others: relocation done */
 	bootstage_mark_name(BOOTSTAGE_ID_START_UBOOT_R, "board_init_r");
 
-	monitor_flash_len = _end_ofs;
+	monitor_flash_len = (ulong)&__rel_dyn_end - (ulong)_start;
 
 	/* Enable caches */
 #if !defined(CONFIG_AM43XX) || defined(CONFIG_QSPI_BOOT)
@@ -622,6 +613,11 @@ void board_init_r(gd_t *id, ulong dest_addr)
 #ifdef CONFIG_GENERIC_MMC
 	puts("MMC:   ");
 	mmc_initialize(gd->bd);
+#endif
+
+#ifdef CONFIG_CMD_SCSI
+	puts("SCSI:  ");
+	scsi_init();
 #endif
 
 #ifdef CONFIG_HAS_DATAFLASH

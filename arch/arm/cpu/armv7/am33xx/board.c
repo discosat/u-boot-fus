@@ -36,11 +36,15 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static const struct gpio_bank gpio_bank_am33xx[4] = {
+static const struct gpio_bank gpio_bank_am33xx[] = {
 	{ (void *)AM33XX_GPIO0_BASE, METHOD_GPIO_24XX },
 	{ (void *)AM33XX_GPIO1_BASE, METHOD_GPIO_24XX },
 	{ (void *)AM33XX_GPIO2_BASE, METHOD_GPIO_24XX },
 	{ (void *)AM33XX_GPIO3_BASE, METHOD_GPIO_24XX },
+#ifdef CONFIG_AM43XX
+	{ (void *)AM33XX_GPIO4_BASE, METHOD_GPIO_24XX },
+	{ (void *)AM33XX_GPIO5_BASE, METHOD_GPIO_24XX },
+#endif
 };
 
 const struct gpio_bank *const omap_gpio_bank = gpio_bank_am33xx;
@@ -224,7 +228,6 @@ void s_init(void)
 	set_uart_mux_conf();
 	setup_clocks_for_console();
 	uart_soft_reset();
-
 #ifdef CONFIG_NOR_BOOT
 	gd->baudrate = CONFIG_BAUDRATE;
 	serial_init();
@@ -233,7 +236,6 @@ void s_init(void)
 	gd = &gdata;
 	preloader_console_init();
 #endif
-
 	prcm_init();
 	set_mux_conf_regs();
 #if defined(CONFIG_SPL_AM33XX_ENABLE_RTC32K_OSC)

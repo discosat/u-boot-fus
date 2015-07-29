@@ -4,7 +4,7 @@
  * Lokesh Vutla	  <lokeshvutla@ti.com>
  *
  * Configuration settings for the TI DRA7XX board.
- * See omap5_common.h for omap5 common settings.
+ * See ti_omap5_common.h for omap5 common settings.
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -48,7 +48,18 @@
 
 #define CONFIG_SYS_OMAP_ABE_SYSCK
 
-#include <configs/omap5_common.h>
+/* Define the default GPT table for eMMC */
+#define PARTS_DEFAULT \
+	"uuid_disk=${uuid_gpt_disk};" \
+	"name=rootfs,start=2MiB,size=-,uuid=${uuid_gpt_rootfs}"
+
+#include <configs/ti_omap5_common.h>
+
+/* Enhance our eMMC support / experience. */
+#define CONFIG_CMD_GPT
+#define CONFIG_EFI_PARTITION
+#define CONFIG_PARTITION_UUIDS
+#define CONFIG_CMD_PART
 
 /* CPSW Ethernet */
 #define CONFIG_CMD_NET			/* 'bootp' and 'tftp' */
@@ -246,6 +257,8 @@
 #else
 #define BOOT_TARGETS_NAND ""
 #endif
+
+#define CONFIG_SUPPORT_EMMC_BOOT
 
 /* USB xHCI HOST */
 #define CONFIG_CMD_USB

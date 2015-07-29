@@ -5,7 +5,7 @@
 # SPDX-License-Identifier:	GPL-2.0+
 #
 
-#CFLAGS += -DDEBUG
+#ccflags-y += -DDEBUG
 
 COBJS-$(CONFIG_RTC_S3C24XX) += s3c24xx_rtc.o
 COBJS-$(CONFIG_RTC_S5P) += s5p_rtc.o

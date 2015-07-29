@@ -31,6 +31,13 @@
 
 #ifndef __ASSEMBLY__
 
+enum bch_level {
+	BCH_4_BIT = 0,
+	BCH_8_BIT,
+	BCH_16_BIT
+};
+
+
 /* BCH syndrome registers */
 struct syndrome {
 	u32 syndrome_fragment_x[7];	/* 0x400, 0x404.... 0x418 */
@@ -66,9 +73,9 @@ struct elm {
 	struct location  error_location[8];	/* 0x800 */
 };
 
-int elm_check_error(u8 *syndrome, u32 bch_type, u32 *error_count,
+int elm_check_error(u8 *syndrome, u32 nibbles, u32 *error_count,
 		u32 *error_locations);
-int elm_config(u32 bch_type);
+int elm_config(enum bch_level level);
 void elm_reset(void);
 void elm_init(void);
 #endif /* __ASSEMBLY__ */

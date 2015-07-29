@@ -10,6 +10,11 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/cpu.h>		  /* samsung_get_base_gpio() */
 
+#define S5P_GPIO_GET_BANK(x)	((x >> S5P_GPIO_BANK_SHIFT) \
+				& S5P_GPIO_BANK_MASK)
+
+#define S5P_GPIO_GET_PIN(x)	(x & S5P_GPIO_PIN_MASK)
+
 #define CON_MASK(x)		(0xf << ((x) << 2))
 #define CON_SFR(x, v)		((v) << ((x) << 2))
 
@@ -125,17 +130,15 @@ void s5p_gpio_set_rate(struct s5p_gpio_bank *bank, int gpio, int mode)
 
 struct s5p_gpio_bank *s5p_gpio_get_bank(unsigned gpio)
 {
-	int bank;
-	unsigned g = gpio - s5p_gpio_part_max(gpio);
+	unsigned bank = S5P_GPIO_GET_BANK(gpio);
+	unsigned base = samsung_get_base_gpio();
 
-	bank = g / GPIO_PER_BANK;
-	bank *= sizeof(struct s5p_gpio_bank);
-	return (struct s5p_gpio_bank *) (samsung_get_base_gpio() + bank);
+	return (struct s5p_gpio_bank *)(base + bank);
 }
 
 int s5p_gpio_get_pin(unsigned gpio)
 {
-	return gpio % GPIO_PER_BANK;
+	return S5P_GPIO_GET_PIN(gpio);
 }
 
 /* Common GPIO API */

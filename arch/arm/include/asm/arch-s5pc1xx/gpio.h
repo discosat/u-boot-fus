@@ -122,32 +122,44 @@ void s5p_gpio_set_pull(struct s5p_gpio_bank *bank, int gpio, int mode);
 void s5p_gpio_set_drv(struct s5p_gpio_bank *bank, int gpio, int mode);
 void s5p_gpio_set_rate(struct s5p_gpio_bank *bank, int gpio, int mode);
 
-static inline unsigned int s5p_gpio_part_max(int nr)
-{
-	return 0;
-}
-
-#if 0 //#####
-static inline unsigned int s5p_gpio_base(int nr)
-{
-	return S5PC110_GPIO_BASE;
-}
-
-#define s5pc110_gpio_get_nr(bank, pin)	  \
-	((((((unsigned int)&(((struct s5pc110_gpio *)S5PC110_GPIO_BASE)->bank))\
-	    - S5PC110_GPIO_BASE) / sizeof(struct s5p_gpio_bank)) \
-	  * GPIO_PER_BANK) + pin)
-#endif //0#####
-#define s5pc100_gpio_get_nr(bank, pin) \
-	(((unsigned int)offsetof(struct s5pc100_gpio, bank)	\
-	 / sizeof(struct s5p_gpio_bank) * GPIO_PER_BANK) + pin)
-#define s5pc110_gpio_get_nr(bank, pin) \
-	(((unsigned int)offsetof(struct s5pc110_gpio, bank)	\
-	  / sizeof(struct s5p_gpio_bank) * GPIO_PER_BANK) + pin)
-#endif /* !__ASSEMBLY__ */
-
 /* GPIO pins per bank  */
 #define GPIO_PER_BANK 8
+
+#define S5P_GPIO_PART_SHIFT	(24)
+#define S5P_GPIO_PART_MASK	(0xff)
+#define S5P_GPIO_BANK_SHIFT	(8)
+#define S5P_GPIO_BANK_MASK	(0xffff)
+#define S5P_GPIO_PIN_MASK	(0xff)
+
+#define S5P_GPIO_SET_PART(x) \
+			(((x) & S5P_GPIO_PART_MASK) << S5P_GPIO_PART_SHIFT)
+
+#define S5P_GPIO_GET_PART(x) \
+			(((x) >> S5P_GPIO_PART_SHIFT) & S5P_GPIO_PART_MASK)
+
+#define S5P_GPIO_SET_PIN(x) \
+			((x) & S5P_GPIO_PIN_MASK)
+
+#define S5PC100_SET_BANK(bank) \
+			(((unsigned)&(((struct s5pc100_gpio *) \
+			S5PC100_GPIO_BASE)->bank) - S5PC100_GPIO_BASE) \
+			& S5P_GPIO_BANK_MASK) << S5P_GPIO_BANK_SHIFT)
+
+#define S5PC110_SET_BANK(bank) \
+			((((unsigned)&(((struct s5pc110_gpio *) \
+			S5PC110_GPIO_BASE)->bank) - S5PC110_GPIO_BASE) \
+			& S5P_GPIO_BANK_MASK) << S5P_GPIO_BANK_SHIFT)
+
+#define s5pc100_gpio_get(bank, pin) \
+			(S5P_GPIO_SET_PART(0) | \
+			S5PC100_SET_BANK(bank) | \
+			S5P_GPIO_SET_PIN(pin))
+
+#define s5pc110_gpio_get(bank, pin) \
+			(S5P_GPIO_SET_PART(0) | \
+			S5PC110_SET_BANK(bank) | \
+			S5P_GPIO_SET_PIN(pin))
+#endif /* !__ASSEMBLY__ */
 
 /* Pin configurations */
 #define GPIO_INPUT	0x0
