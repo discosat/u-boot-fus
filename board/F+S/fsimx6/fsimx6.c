@@ -522,10 +522,26 @@ static iomux_v3_cfg_t const usdhc3_pads_dl[] = {
 };
 
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{USDHC1_BASE_ADDR, MXC_ESDHC_CLK},
-	{USDHC2_BASE_ADDR, MXC_ESDHC2_CLK},
-	{USDHC3_BASE_ADDR, MXC_ESDHC3_CLK},
-	{USDHC4_BASE_ADDR, MXC_ESDHC4_CLK},
+	{
+		.esdhc_base = USDHC1_BASE_ADDR,
+		.sdhc_clk = MXC_ESDHC_CLK,
+		.max_bus_width = 4,
+	},
+	{
+		.esdhc_base = USDHC2_BASE_ADDR,
+		.sdhc_clk = MXC_ESDHC2_CLK,
+		.max_bus_width = 4,
+	},
+	{
+		.esdhc_base = USDHC3_BASE_ADDR,
+		.sdhc_clk = MXC_ESDHC3_CLK,
+		.max_bus_width = 4,
+	},
+	{
+		.esdhc_base = USDHC4_BASE_ADDR,
+		.sdhc_clk = MXC_ESDHC4_CLK,
+		.max_bus_width = 4,
+	},
 };
 
 int board_mmc_getcd(struct mmc *mmc)

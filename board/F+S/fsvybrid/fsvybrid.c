@@ -48,8 +48,16 @@
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{ESDHC0_BASE_ADDR, 0},
-	{ESDHC1_BASE_ADDR, 0},
+	{
+		.esdhc_base = ESDHC0_BASE_ADDR,
+		.sdhc_clk = 0,
+		.max_bus_width = 4,
+	},
+	{
+		.esdhc_base = ESDHC1_BASE_ADDR,
+		.sdhc_clk = 0,
+		.max_bus_width = 4,
+	},
 };
 #endif
 
