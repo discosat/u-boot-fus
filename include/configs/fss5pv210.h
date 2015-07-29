@@ -124,7 +124,7 @@
    RAM automatically when executed. */
 #define CONFIG_SYS_PHY_UBOOT_BASE	0x40f00000
 #define CONFIG_SYS_UBOOT_BASE		CONFIG_SYS_PHY_UBOOT_BASE
-#define CONFIG_UBOOTNB0_SIZE    384	/* Size of uboot.nb0 (in kB) */
+#define CONFIG_UBOOTNB0_SIZE	0x60000	/* Size of uboot.nb0 */
 #undef CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in ARM mode */
 
 /* For the default load address, use an offset of 8MB. The final kernel (after

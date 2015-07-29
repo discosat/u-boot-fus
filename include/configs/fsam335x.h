@@ -118,7 +118,7 @@
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
-#define CONFIG_UBOOTNB0_SIZE	384	/* Size of uboot.nb0 (in kB) */
+#define CONFIG_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 
 /* For the default load address, use an offset of 8MB. The final kernel (after

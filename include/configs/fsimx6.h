@@ -89,7 +89,7 @@
 /* For new NBoot >= VN20, use make to build */
 //#define CONFIG_SYS_TEXT_BASE 0x27800000	/* Where NBoot loads U-Boot */
 #define CONFIG_SYS_TEXT_BASE 0x10100000	/* Where NBoot loads U-Boot */
-#define CONFIG_UBOOTNB0_SIZE	512	/* Size of uboot.nb0 (in kB) */
+#define CONFIG_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
 #else
 /* For old NBoot < VN20, the U-Boot size is not fix. Use make uboot-fsimx6.nb0
    to build. There we prepend a fix header (fsheader.data) of size 0x720 to
