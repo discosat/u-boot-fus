@@ -29,6 +29,9 @@
 #define ECC_BCH8	1
 #define ECC_BCH16	2
 
+#define ELM_MAX_CHANNELS				8
+#define ELM_MAX_ERROR_COUNT				16
+
 #ifndef __ASSEMBLY__
 
 enum bch_level {
@@ -48,7 +51,7 @@ struct syndrome {
 struct location {
 	u32 location_status;		/* 0x800 */
 	u8 res1[124];			/* 0x804 */
-	u32 error_location_x[16];	/* 0x880.... */
+	u32 error_location_x[ELM_MAX_ERROR_COUNT]; /* 0x880, 0x980, .. */
 	u8 res2[64];			/* 0x8c0 */
 };
 
@@ -68,12 +71,12 @@ struct elm {
 	u8 res2[92];				/* 0x024 */
 	u32 page_ctrl;				/* 0x080 */
 	u8 res3[892];				/* 0x084 */
-	struct  syndrome syndrome_fragments[8]; /* 0x400 */
+	struct  syndrome syndrome_fragments[ELM_MAX_CHANNELS]; /* 0x400,0x420 */
 	u8 res4[512];				/* 0x600 */
-	struct location  error_location[8];	/* 0x800 */
+	struct location  error_location[ELM_MAX_CHANNELS]; /* 0x800,0x900 ... */
 };
 
-int elm_check_error(u8 *syndrome, u32 nibbles, u32 *error_count,
+int elm_check_error(u8 *syndrome, enum bch_level bch_type, u32 *error_count,
 		u32 *error_locations);
 int elm_config(enum bch_level level);
 void elm_reset(void);

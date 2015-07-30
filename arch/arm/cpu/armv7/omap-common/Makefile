@@ -22,11 +22,8 @@ obj-y	+= pipe3-phy.o
 obj-$(CONFIG_SCSI_AHCI_PLAT) += sata.o
 endif
 
-ifneq ($(CONFIG_OMAP54XX),)
-COBJS	+= pipe3-phy.o
-ifeq ($(CONFIG_SCSI_AHCI_PLAT),y)
-COBJS	+= sata.o
-endif
+ifeq ($(CONFIG_SYS_DCACHE_OFF),)
+obj-y	+= omap-cache.o
 endif
 
 ifeq ($(CONFIG_OMAP34XX),)
@@ -35,6 +32,4 @@ obj-y	+= lowlevel_init.o
 obj-y	+= AUasm.o
 endif
 
-ifndef CONFIG_SPL_BUILD
 obj-y	+= mem-common.o
-endif

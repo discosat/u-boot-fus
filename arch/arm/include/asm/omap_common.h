@@ -588,11 +588,7 @@ s8 abb_setup_ldovbb(u32 fuse, u32 ldovbb);
 u32 get_l2_aux_ctrl_reg(void);
 void set_l2_aux_ctrl_reg(u32 val);
 
-/* HW Init Context */
-#define OMAP_INIT_CONTEXT_SPL			0
-#define OMAP_INIT_CONTEXT_UBOOT_FROM_NOR	1
-#define OMAP_INIT_CONTEXT_UBOOT_AFTER_SPL	2
-#define OMAP_INIT_CONTEXT_UBOOT_AFTER_CH	3
+void usb_fake_mac_from_die_id(u32 *id);
 
 /* ABB */
 #define OMAP_ABB_NOMINAL_OPP		0
@@ -657,6 +653,7 @@ static inline u8 is_dra7xx(void)
 /* DRA7XX */
 #define DRA752_ES1_0	0x07520100
 #define DRA752_ES1_1	0x07520110
+#define DRA722_ES1_0	0x07220100
 
 /*
  * SRAM scratch space entries

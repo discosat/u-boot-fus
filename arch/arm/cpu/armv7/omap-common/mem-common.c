@@ -101,6 +101,17 @@ void gpmc_init(void)
 						};
 	u32 size = GPMC_SIZE_256M;
 	u32 base = CONFIG_SYS_NAND_BASE;
+#elif defined(CONFIG_CMD_ONENAND)
+	const u32 gpmc_regs[GPMC_MAX_REG] = {	ONENAND_GPMC_CONFIG1,
+						ONENAND_GPMC_CONFIG2,
+						ONENAND_GPMC_CONFIG3,
+						ONENAND_GPMC_CONFIG4,
+						ONENAND_GPMC_CONFIG5,
+						ONENAND_GPMC_CONFIG6,
+						0
+						};
+	u32 base = PISMO1_ONEN_BASE;
+	u32 size = PISMO1_ONEN_SIZE;
 #else
 	const u32 gpmc_regs[GPMC_MAX_REG] = { 0, 0, 0, 0, 0, 0, 0 };
 	u32 size = 0;
@@ -110,6 +121,8 @@ void gpmc_init(void)
 	writel(0x00000008, &gpmc_cfg->sysconfig);
 	writel(0x00000000, &gpmc_cfg->irqstatus);
 	writel(0x00000000, &gpmc_cfg->irqenable);
+	/* disable timeout, set a safe reset value */
+	writel(0x00001ff0, &gpmc_cfg->timeout_control);
 #ifdef CONFIG_NOR
 	writel(0x00000200, &gpmc_cfg->config);
 #else
@@ -121,5 +134,6 @@ void gpmc_init(void)
 	writel(0, &gpmc_cfg->cs[0].config7);
 	sdelay(1000);
 	/* enable chip-select specific configurations */
-	enable_gpmc_cs_config(gpmc_regs, &gpmc_cfg->cs[0], base, size);
+	if (base != 0)
+		enable_gpmc_cs_config(gpmc_regs, &gpmc_cfg->cs[0], base, size);
 }

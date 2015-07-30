@@ -145,6 +145,53 @@ int set_default_vars(int nvars, char * const vars[])
 				H_NOCLEAR | H_INTERACTIVE, nvars, vars);
 }
 
+#ifdef CONFIG_ENV_AES
+#include <aes.h>
+/**
+ * env_aes_cbc_get_key() - Get AES-128-CBC key for the environment
+ *
+ * This function shall return 16-byte array containing AES-128 key used
+ * to encrypt and decrypt the environment. This function must be overriden
+ * by the implementer as otherwise the environment encryption will not
+ * work.
+ */
+__weak uint8_t *env_aes_cbc_get_key(void)
+{
+	return NULL;
+}
+
+static int env_aes_cbc_crypt(env_t *env, const int enc)
+{
+	unsigned char *data = (unsigned char *)(env + 1);
+	uint8_t *key;
+	uint8_t key_exp[AES_EXPAND_KEY_LENGTH];
+	uint32_t aes_blocks;
+	size_t env_size = get_env_size();
+
+	key = env_aes_cbc_get_key();
+	if (!key)
+		return -EINVAL;
+
+	/* First we expand the key. */
+	aes_expand_key(key, key_exp);
+
+	/* Calculate the number of AES blocks to encrypt. */
+	aes_blocks = env_size / AES_KEY_LENGTH;
+
+	if (enc)
+		aes_cbc_encrypt_blocks(key_exp, data, data, aes_blocks);
+	else
+		aes_cbc_decrypt_blocks(key_exp, data, data, aes_blocks);
+
+	return 0;
+}
+#else
+static inline int env_aes_cbc_crypt(env_t *env, const int enc)
+{
+	return 0;
+}
+#endif
+
 /*
  * Check if CRC is valid and (if yes) import the environment.
  * Note that "buf" may or may not be aligned.
@@ -152,6 +199,7 @@ int set_default_vars(int nvars, char * const vars[])
 int env_import(const char *buf, int check, size_t env_size)
 {
 	env_t *ep = (env_t *)buf;
+	int ret;
 
 	env_size -= ENV_HEADER_SIZE;
 	if (check) {
@@ -165,6 +213,14 @@ int env_import(const char *buf, int check, size_t env_size)
 		}
 	}
 
+	/* Decrypt the env if desired. */
+	ret = env_aes_cbc_crypt(ep, 0);
+	if (ret) {
+		error("Failed to decrypt env!\n");
+		set_default_env("!import failed");
+		return ret;
+	}
+
 	if (himport_r(&env_htab, (char *)(ep + 1), env_size, '\0', 0,
 			0, NULL)) {
 		gd->flags |= GD_FLG_ENV_READY;
@@ -174,6 +230,33 @@ int env_import(const char *buf, int check, size_t env_size)
 	error("Cannot import environment: errno = %d\n", errno);
 
 	set_default_env("!import failed");
+
+	return 0;
+}
+
+/* Emport the environment and generate CRC for it. */
+int env_export(env_t *env_out)
+{
+	char *res;
+	ssize_t	len;
+	int ret;
+	size_t env_size = get_env_size();
+
+	res = (char *)(env_out + 1);
+	len = hexport_r(&env_htab, '\0', 0, &res, env_size - ENV_HEADER_SIZE,
+			0, NULL);
+	if (len < 0) {
+		error("Cannot export environment: errno = %d\n", errno);
+		return 1;
+	}
+
+	/* Encrypt the env if desired. */
+	ret = env_aes_cbc_crypt(env_out, 1);
+	if (ret)
+		return ret;
+
+	env_out->crc = crc32(0, (unsigned char *)(env_out + 1),
+			     env_size - ENV_HEADER_SIZE);
 
 	return 0;
 }

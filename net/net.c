@@ -420,7 +420,7 @@ restart:
 			CDPStart();
 			break;
 #endif
-#ifdef CONFIG_NETCONSOLE
+#if defined (CONFIG_NETCONSOLE) && !(CONFIG_SPL_BUILD)
 		case NETCONS:
 			NcStart();
 			break;
@@ -1183,7 +1183,7 @@ NetReceive(uchar *inpkt, int len)
 #endif
 
 
-#ifdef CONFIG_NETCONSOLE
+#if defined (CONFIG_NETCONSOLE) && !(CONFIG_SPL_BUILD)
 		nc_input_packet((uchar *)ip + IP_UDP_HDR_SIZE,
 					src_ip,
 					ntohs(ip->udp_dst),

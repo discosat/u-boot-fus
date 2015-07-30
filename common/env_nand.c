@@ -225,8 +225,6 @@ int saveenv(void)
 	int	ret = 0;
 	env_t *env_new;
 	int env_idx = 0;
-	ssize_t	len;
-	char *res;
 	size_t env_size = get_env_size();
 	size_t env_range = get_env_range();
 	static struct env_location location[] = {
@@ -249,15 +247,9 @@ int saveenv(void)
 		return -1;
 	}
 
-	res = (char *)(env_new + 1);
-	len = hexport_r(&env_htab, '\0', 0, &res, env_size - ENV_HEADER_SIZE,
-			0, NULL);
-	if (len < 0) {
-		error("Cannot export environment: errno = %d\n", errno);
-		free(env_new);
-		return -1;
-	}
-	env_new->crc = crc32(0, (u_char *)res, env_size - ENV_HEADER_SIZE);
+	ret = env_export(env_new);
+	if (ret)
+		return ret;
 
 	location[0].env_size = env_size;
 	location[0].erase_opts.length = env_range;

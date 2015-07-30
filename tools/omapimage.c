@@ -15,33 +15,16 @@
  */
 
 #include "imagetool.h"
+#include <compiler.h>
 #include <image.h>
+#include "gpheader.h"
 #include "omapimage.h"
 
 /* Header size is CH header rounded up to 512 bytes plus GP header */
 #define OMAP_CH_HDR_SIZE 512
-#define OMAP_GP_HDR_SIZE (sizeof(struct gp_header))
-#define OMAP_FILE_HDR_SIZE (OMAP_CH_HDR_SIZE+OMAP_GP_HDR_SIZE)
-
-static const struct ch_qspi ch_qspi_48mhz_quad = {
-				0x13, 0x6B, 0x03, 0x02, 0x1, 0xFF,
-				{0x05, 0x35, 0x00, 0x00},
-				0x11, 0x01, 0x06, 0x01
-};
-
-static const struct ch_settings ch_settings_dummy = {0, {0, 0, 0, 0, 0} };
+#define OMAP_FILE_HDR_SIZE (OMAP_CH_HDR_SIZE + GPIMAGE_HDR_SIZE)
 
 static int do_swap32 = 0;
-
-static uint32_t omapimage_swap32(uint32_t data)
-{
-	uint32_t result = 0;
-	result  = (data & 0xFF000000) >> 24;
-	result |= (data & 0x00FF0000) >> 8;
-	result |= (data & 0x0000FF00) << 8;
-	result |= (data & 0x000000FF) << 24;
-	return result;
-}
 
 static uint8_t omapimage_header[OMAP_FILE_HDR_SIZE];
 
@@ -49,31 +32,7 @@ static int omapimage_check_image_types(uint8_t type)
 {
 	if (type == IH_TYPE_OMAPIMAGE)
 		return EXIT_SUCCESS;
-	else {
-		return EXIT_FAILURE;
-	}
-}
-
-/*
- * Only the simplest image type is currently supported:
- * TOC pointing to CHSETTINGS|CHQSPI
- * TOC terminator
- * CHSETTINGS|CHQSPI
- *
- * padding to OMAP_CH_HDR_SIZE bytes
- *
- * gp header
- *   size
- *   load_addr
- */
-static int valid_gph_size(uint32_t size)
-{
-	return size;
-}
-
-static int valid_gph_load_addr(uint32_t load_addr)
-{
-	return load_addr;
+	return EXIT_FAILURE;
 }
 
 static int omapimage_verify_header(unsigned char *ptr, int image_size,
@@ -81,13 +40,13 @@ static int omapimage_verify_header(unsigned char *ptr, int image_size,
 {
 	struct ch_toc *toc = (struct ch_toc *)ptr;
 	struct gp_header *gph = (struct gp_header *)(ptr+OMAP_CH_HDR_SIZE);
-	uint32_t offset, size, gph_size, gph_load_addr;
+	uint32_t offset, size;
 
 	while (toc->section_offset != 0xffffffff
 			&& toc->section_size != 0xffffffff) {
 		if (do_swap32) {
-			offset = omapimage_swap32(toc->section_offset);
-			size = omapimage_swap32(toc->section_size);
+			offset = cpu_to_be32(toc->section_offset);
+			size = cpu_to_be32(toc->section_size);
 		} else {
 			offset = toc->section_offset;
 			size = toc->section_size;
@@ -100,43 +59,29 @@ static int omapimage_verify_header(unsigned char *ptr, int image_size,
 		toc++;
 	}
 
-	if (do_swap32) {
-		gph_size = omapimage_swap32(gph->size);
-		gph_load_addr = omapimage_swap32(gph->load_addr);
-	} else {
-		gph_size = gph->size;
-		gph_load_addr = gph->load_addr;
-	}
-
-	if (!valid_gph_size(gph_size))
-		return -1;
-	if (!valid_gph_load_addr(gph_load_addr))
-		return -1;
-
-	return 0;
+	return gph_verify_header(gph, do_swap32);
 }
 
-static void omapimage_print_section(struct ch_entry *entry)
+static void omapimage_print_section(struct ch_settings *chs)
 {
 	const char *section_name;
 
-	if (entry->hdr.section_key == KEY_CHSETTINGS)
+	if (chs->section_key)
 		section_name = "CHSETTINGS";
-	else if (entry->hdr.section_key == KEY_CHQSPI)
-		section_name = "CHQSPI";
 	else
 		section_name = "UNKNOWNKEY";
 
 	printf("%s (%x) "
 		"valid:%x "
 		"version:%x "
-		"reserved:%x\n",
+		"reserved:%x "
+		"flags:%x\n",
 		section_name,
-		entry->hdr.section_key,
-		entry->hdr.valid,
-		entry->hdr.version,
-		entry->hdr.reserved);
-
+		chs->section_key,
+		chs->valid,
+		chs->version,
+		chs->reserved,
+		chs->flags);
 }
 
 static void omapimage_print_header(const void *ptr)
@@ -144,13 +89,13 @@ static void omapimage_print_header(const void *ptr)
 	const struct ch_toc *toc = (struct ch_toc *)ptr;
 	const struct gp_header *gph =
 			(struct gp_header *)(ptr+OMAP_CH_HDR_SIZE);
-	uint32_t offset, size, gph_size, gph_load_addr;
+	uint32_t offset, size;
 
 	while (toc->section_offset != 0xffffffff
 			&& toc->section_size != 0xffffffff) {
 		if (do_swap32) {
-			offset = omapimage_swap32(toc->section_offset);
-			size = omapimage_swap32(toc->section_size);
+			offset = cpu_to_be32(toc->section_offset);
+			size = cpu_to_be32(toc->section_size);
 		} else {
 			offset = toc->section_offset;
 			size = toc->section_size;
@@ -165,30 +110,11 @@ static void omapimage_print_header(const void *ptr)
 			toc->section_offset,
 			toc->section_size);
 
-		omapimage_print_section((struct ch_entry *)(ptr+offset));
+		omapimage_print_section((struct ch_settings *)(ptr+offset));
 		toc++;
 	}
 
-	if (do_swap32) {
-		gph_size = omapimage_swap32(gph->size);
-		gph_load_addr = omapimage_swap32(gph->load_addr);
-	} else {
-		gph_size = gph->size;
-		gph_load_addr = gph->load_addr;
-	}
-
-	if (!valid_gph_size(gph_size)) {
-		fprintf(stderr, "Error: invalid image size %x\n", gph_size);
-		exit(EXIT_FAILURE);
-	}
-
-	if (!valid_gph_load_addr(gph_load_addr)) {
-		fprintf(stderr, "Error: invalid image load address %x\n",
-				gph_load_addr);
-		exit(EXIT_FAILURE);
-	}
-
-	printf("GP Header: Size %x LoadAddr %x\n", gph_size, gph_load_addr);
+	gph_print_header(gph, do_swap32);
 }
 
 static int toc_offset(void *hdr, void *member)
@@ -200,38 +126,25 @@ static void omapimage_set_header(void *ptr, struct stat *sbuf, int ifd,
 				struct image_tool_params *params)
 {
 	struct ch_toc *toc = (struct ch_toc *)ptr;
-	struct ch_entry *entry = (struct ch_entry *)
+	struct ch_settings *chs = (struct ch_settings *)
 					(ptr + 2 * sizeof(*toc));
 	struct gp_header *gph = (struct gp_header *)(ptr + OMAP_CH_HDR_SIZE);
-	void *ch_src;
-	uint32_t ch_data_size;
 
-	toc->section_offset = toc_offset(ptr, entry);
+	toc->section_offset = toc_offset(ptr, chs);
+	toc->section_size = sizeof(struct ch_settings);
+	strcpy((char *)toc->section_name, "CHSETTINGS");
 
-	if (strncmp(params->imagename, "ch_qspi", 7) == 0) {
-		strcpy((char *)toc->section_name, "CHQSPI");
-		entry->hdr.section_key = KEY_CHQSPI;
-		entry->hdr.valid = 1;
-		ch_src = (void *)&ch_qspi_48mhz_quad;
-		ch_data_size = sizeof(struct ch_qspi);
-	} else {
-		strcpy((char *)toc->section_name, "CHSETTINGS");
-		entry->hdr.section_key = KEY_CHSETTINGS;
-		entry->hdr.valid = 0;
-		ch_src = (void *)&ch_settings_dummy;
-		ch_data_size = sizeof(struct ch_settings);
-	}
-	memcpy(&entry->ch_data[0], ch_src, ch_data_size);
-
-	entry->hdr.version = 1;
-	entry->hdr.reserved = 0;
-	toc->section_size = sizeof(struct ch_hdr) + ch_data_size;
+	chs->section_key = KEY_CHSETTINGS;
+	chs->valid = 0;
+	chs->version = 1;
+	chs->reserved = 0;
+	chs->flags = 0;
 
 	toc++;
 	memset(toc, 0xff, sizeof(*toc));
 
-	gph->size = sbuf->st_size - OMAP_FILE_HDR_SIZE;
-	gph->load_addr = params->addr;
+	gph_set_header(gph, sbuf->st_size - OMAP_FILE_HDR_SIZE,
+		       params->addr, 0);
 
 	if (strncmp(params->imagename, "byteswap", 8) == 0) {
 		do_swap32 = 1;
@@ -239,18 +152,11 @@ static void omapimage_set_header(void *ptr, struct stat *sbuf, int ifd,
 		uint32_t *data = (uint32_t *)ptr;
 
 		while (swapped <= (sbuf->st_size / sizeof(uint32_t))) {
-			*data = omapimage_swap32(*data);
+			*data = cpu_to_be32(*data);
 			swapped++;
 			data++;
 		}
 	}
-}
-
-int omapimage_check_params(struct image_tool_params *params)
-{
-	return	(params->dflag && (params->fflag || params->lflag)) ||
-		(params->fflag && (params->dflag || params->lflag)) ||
-		(params->lflag && (params->dflag || params->fflag));
 }
 
 /*
@@ -264,7 +170,7 @@ static struct image_type_params omapimage_params = {
 	.verify_header	= omapimage_verify_header,
 	.print_header	= omapimage_print_header,
 	.set_header	= omapimage_set_header,
-	.check_params	= omapimage_check_params,
+	.check_params	= gpimage_check_params,
 };
 
 void init_omap_image_type(void)

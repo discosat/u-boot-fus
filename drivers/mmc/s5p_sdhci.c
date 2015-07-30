@@ -68,17 +68,9 @@ static void s5p_sdhci_set_control_reg(struct sdhci_host *host)
 	sdhci_writel(host, ctrl, SDHCI_CONTROL2);
 }
 
-int s5p_sdhci_init(u32 regbase, int index, int bus_width)
+static int s5p_sdhci_core_init(struct sdhci_host *host)
 {
-	struct sdhci_host *host = NULL;
-	host = (struct sdhci_host *)malloc(sizeof(struct sdhci_host));
-	if (!host) {
-		printf("sdhci__host malloc fail!\n");
-		return 1;
-	}
-
 	host->name = S5P_NAME;
-	host->ioaddr = (void *)regbase;
 
 	//### 19.12.2012 HK: We actually do have the HISPD bit (even if it is
 	//### called OUTEDGEINV in the Samsung docu), but it does not make
@@ -97,13 +89,26 @@ int s5p_sdhci_init(u32 regbase, int index, int bus_width)
 
 	host->set_control_reg = &s5p_sdhci_set_control_reg;
 	host->set_clock = set_mmc_clk;
-	host->index = index;
 
 	host->host_caps = MMC_MODE_HC;
-	if (bus_width == 8)
+	if (host->bus_width == 8)
 		host->host_caps |= MMC_MODE_8BIT;
 
 	return add_sdhci(host, 52000000, 400000);
+}
+
+int s5p_sdhci_init(u32 regbase, int index, int bus_width)
+{
+	struct sdhci_host *host = malloc(sizeof(struct sdhci_host));
+	if (!host) {
+		printf("sdhci__host malloc fail!\n");
+		return 1;
+	}
+	host->ioaddr = (void *)regbase;
+	host->index = index;
+	host->bus_width = bus_width;
+
+	return s5p_sdhci_core_init(host);
 }
 
 #ifdef CONFIG_OF_CONTROL
@@ -138,20 +143,7 @@ static int do_sdhci_init(struct sdhci_host *host)
 		}
 	}
 
-	host->name = S5P_NAME;
-
-	host->quirks = SDHCI_QUIRK_NO_HISPD_BIT | SDHCI_QUIRK_BROKEN_VOLTAGE |
-		SDHCI_QUIRK_BROKEN_R1B | SDHCI_QUIRK_32BIT_DMA_ADDR |
-		SDHCI_QUIRK_WAIT_SEND_CMD;
-	host->voltages = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195;
-	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
-
-	host->set_control_reg = &s5p_sdhci_set_control_reg;
-	host->set_clock = set_mmc_clk;
-
-	host->host_caps = MMC_MODE_HC;
-
-	return add_sdhci(host, 52000000, 400000);
+	return s5p_sdhci_core_init(host);
 }
 
 static int sdhci_get_config(const void *blob, int node, struct sdhci_host *host)

@@ -69,7 +69,7 @@
 #define  UCR3_DSR        (1<<10) /* Data set ready */
 #define  UCR3_DCD        (1<<9)  /* Data carrier detect */
 #define  UCR3_RI         (1<<8)  /* Ring indicator */
-#define  UCR3_TIMEOUTEN  (1<<7)  /* Timeout interrupt enable */
+#define  UCR3_ADNIMP     (1<<7)  /* Autobaud Detection Not Improved */
 #define  UCR3_RXDSEN	 (1<<6)  /* Receive status interrupt enable */
 #define  UCR3_AIRINTEN   (1<<5)  /* Async IR wake interrupt enable */
 #define  UCR3_AWAKEN	 (1<<4)  /* Async wake interrupt enable */
@@ -148,7 +148,7 @@ static int mxc_serial_start(const struct stdio_dev *pdev)
 	while (!(__raw_readl(uart_phys + UCR2) & UCR2_SRST))
 		; /* Do nothing */
 
-	__raw_writel(0x0704, uart_phys + UCR3);
+	__raw_writel(0x0704 | UCR3_ADNIMP, uart_phys + UCR3);
 	__raw_writel(0x8000, uart_phys + UCR4);
 	__raw_writel(0x002B, uart_phys + UESC);
 	__raw_writel(0x0, uart_phys + UTIM);

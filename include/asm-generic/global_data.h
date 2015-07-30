@@ -67,7 +67,7 @@ typedef struct global_data {
 	struct global_data *new_gd;	/* relocated global data */
 
 #ifdef CONFIG_DM
-	struct device	*dm_root;	/* Root instance for Driver Model */
+	struct udevice	*dm_root;/* Root instance for Driver Model */
 	struct list_head uclass_root;	/* Head of core tree */
 #endif
 
@@ -81,6 +81,9 @@ typedef struct global_data {
 #endif
 #if defined(CONFIG_SYS_I2C)
 	int		cur_i2c_bus;	/* current used i2c bus */
+#endif
+#ifdef CONFIG_SYS_I2C_MXC
+	void *srdata[10];
 #endif
 	unsigned long timebase_h;
 	unsigned long timebase_l;
