@@ -14,6 +14,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define XMK_STR(x)	#x
+#define MK_STR(x)	XMK_STR(x)
+
 #define MAX_DELAY_STOP_STR 32
 
 #ifndef DEBUG_BOOTKEYS
@@ -243,7 +246,8 @@ const char *bootdelay_process(void)
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
 
 	s = getenv("bootdelay");
-	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
+	bootdelay = (int)simple_strtol(s ? s : MK_STR(CONFIG_BOOTDELAY),
+				       NULL, 10);
 
 #ifdef CONFIG_OF_CONTROL
 	bootdelay = fdtdec_get_config_int(gd->fdt_blob, "bootdelay",
