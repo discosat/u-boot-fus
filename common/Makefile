@@ -70,6 +70,7 @@ obj-$(CONFIG_CMD_AES) += cmd_aes.o
 obj-$(CONFIG_CMD_AMBAPP) += cmd_ambapp.o
 obj-$(CONFIG_SOURCE) += cmd_source.o
 obj-$(CONFIG_CMD_SOURCE) += cmd_source.o
+obj-$(CONFIG_CMD_UPDATE) += cmd_update.o
 obj-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
 obj-$(CONFIG_CMD_BEDBUG) += bedbug.o cmd_bedbug.o
 obj-$(CONFIG_CMD_BLINK) += cmd_blink.o
