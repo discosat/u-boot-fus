@@ -13,6 +13,8 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <config.h>
+	
 /*
  *************************************************************************
  *
@@ -48,7 +50,7 @@
 #endif
 
 _start:
-	ldr	pc, _reset
+	b	reset
 	ldr	pc, _undefined_instruction
 	ldr	pc, _software_interrupt
 	ldr	pc, _prefetch_abort
@@ -75,7 +77,6 @@ _start:
 	.globl	_irq
 	.globl	_fiq
 
-_reset:			.word reset
 _undefined_instruction:	.word undefined_instruction
 _software_interrupt:	.word software_interrupt
 _prefetch_abort:	.word prefetch_abort
@@ -83,6 +84,7 @@ _data_abort:		.word data_abort
 _not_used:		.word not_used
 _irq:			.word irq
 _fiq:			.word fiq
+_pad:                   .word 0x12345678 /* now 16*4=64 */
 
 	.balignl 16,0xdeadbeef
 
@@ -218,6 +220,14 @@ FIQ_STACK_START:
 	.macro get_fiq_stack			@ setup FIQ stack
 	ldr	sp, FIQ_STACK_START
 	.endm
+
+/* Old F&S NBoot versions expect the reset function at offset 0x5C */
+	.align  4
+fs_pseudo_reset:
+	nop					@ Offset 0x50
+	nop
+	nop
+	b	reset				@ Offset 0x5C
 
 /*
  * exception handlers
