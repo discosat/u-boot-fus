@@ -1,11 +1,11 @@
 /*
  * Copyright (C) 2015 F&S Elektronik Systeme GmbH
  *
- * Configuration settings for all F&S boards based on i.MX6. This is
- * armStoneA9, QBlissA9, PicoMODA9 and efusA9.
+ * Configuration settings for all F&S boards based on i.MX6 Solo-X. This is
+ * efusA9X.
  *
  * Activate with one of the following targets:
- *   make fsimx6_config       Configure for i.MX6 boards
+ *   make fsimx6sx_config     Configure for i.MX6 Solo-X boards
  *   make                     Build uboot.nb0
  *
  * SPDX-License-Identifier:	GPL-2.0+
@@ -42,8 +42,8 @@
  * (256KB) in this memory region.
  */
 
-#ifndef __FSIMX6_CONFIG_H
-#define __FSIMX6_CONFIG_H
+#ifndef __FSIMX6SX_CONFIG_H
+#define __FSIMX6SX_CONFIG_H
 
 /************************************************************************
  * High Level Configuration Options
@@ -52,8 +52,8 @@
 
 /* CPU, family and board defines */
 #define CONFIG_MX6			/* Freescale i.MX6 CPU... */
-#define CONFIG_MX6QDL			/* ...Quad/Dual or DualLite/Solo... */
-#define CONFIG_FSIMX6			/* ...on an F&S i.MX6 board */
+#define CONFIG_MX6SX			/* ...Solo-X... */
+#define CONFIG_FSIMX6SX			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
 #define CONFIG_SYS_L2CACHE_OFF
@@ -89,7 +89,7 @@
 #if 1
 /* For new NBoot >= VN20, use make to build */
 //#define CONFIG_SYS_TEXT_BASE 0x27800000	/* Where NBoot loads U-Boot */
-#define CONFIG_SYS_TEXT_BASE 0x10100000	/* Where NBoot loads U-Boot */
+#define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
 #define CONFIG_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
 #else
 /* For old NBoot < VN20, the U-Boot size is not fix. Use make uboot-fsimx6.nb0
@@ -118,8 +118,7 @@
 
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
 
-/* MX6 has 128KB (Solo/DualLite) or 256KB (Dual/Quad) of internal SRAM,
-   mapped from 0x00900000-0x0091FFFF/0x0093FFFF */
+/* MX6SX has 128KB SRAM, mapped from 0x00900000-0x0091FFFF */
 #define CONFIG_SYS_INIT_RAM_ADDR	(IRAM_BASE_ADDR)
 #define CONFIG_SYS_INIT_RAM_SIZE	(0x20000/*###IRAM_SIZE###*/)
 
@@ -180,7 +179,7 @@
  * Serial Console (UART)
  ************************************************************************/
 #define CONFIG_MXC_UART			/* Use MXC uart driver */
-#define CONFIG_SYS_UART_PORT	3	/* Default UART port; however we
+#define CONFIG_SYS_UART_PORT	1	/* Default UART port; however we
 					   always take the port from NBoot */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 #undef CONFIG_CONSOLE_MUX		/* Just one console at a time */
@@ -233,14 +232,17 @@
  * USB Host
  ************************************************************************/
 /* Use USB1 as host */
+#if 1 //####
 #define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
 #define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS 0
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
+//####define CONFIG_EHCI_HCD_INIT_AFTER_RESET
+#define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
 
 #define CONFIG_USB_STORAGE
-
+#endif //###
 
 /************************************************************************
  * USB Device
@@ -644,7 +646,7 @@
 	"recovercheck=undef\0" \
 	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
-	"arch=fsimx6\0" \
+	"arch=fsimx6sx\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 
@@ -688,4 +690,4 @@
 #define CONFIG_USE_ARCH_MEMSET
 #define CONFIG_USE_ARCH_MEMSET32
 
-#endif /* !__FSIMX6_CONFIG_H */
+#endif /* !__FSIMX6SX_CONFIG_H */
