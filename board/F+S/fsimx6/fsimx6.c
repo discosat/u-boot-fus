@@ -42,6 +42,7 @@
 
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
+#include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 
 /* ------------------------------------------------------------------------- */
 
@@ -669,6 +670,13 @@ int board_ehci_power(int port, int on)
 	}
 
 	return 0;
+}
+
+int board_usb_phy_mode(int port)
+{
+	if (port == 0)
+		return USB_INIT_DEVICE;
+	return USB_INIT_HOST;
 }
 #endif
 
