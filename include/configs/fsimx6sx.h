@@ -12,7 +12,7 @@
  *
  * The following addresses are given as offsets of the device.
  *
- * NAND flash layout with separate Kernel MTD partition 
+ * NAND flash layout with separate Kernel/FDT MTD partition 
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -20,10 +20,11 @@
  * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
  * 0x0014_0000 - 0x001F_FFFF: UBoot: U-Boot image (768KB)
  * 0x0020_0000 - 0x0023_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0024_0000 - 0x007F_FFFF: Kernel: Linux Kernel uImage (5888KB)
- * 0x0080_0000 -         END: TargetFS: Root filesystem (Size - 8MB)
+ * 0x0024_0000 - 0x0083_FFFF: Kernel: Linux Kernel uImage (6MB)
+ * 0x0084_0000 - 0x008F_FFFF: FDT: Flat Device Tree(s) (768KB)
+ * 0x0090_0000 -         END: TargetFS: Root filesystem (Size - 9MB)
  *
- * NAND flash layout with UBI only, Kernel in rootfs or kernel volume
+ * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel volume
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -81,7 +82,7 @@
 #undef CONFIG_USE_IRQ			/* No blinking LEDs yet */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
-#undef CONFIG_OF_LIBFDT			/* No device tree (fdt) support yet */
+#define CONFIG_OF_LIBFDT		/* Use device trees (fdt) */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
@@ -573,7 +574,7 @@
 #define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
-#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; bootm"
+#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 
 /* Add some variables that are not predefined in U-Boot. All entries with
    content "undef" will be updated with a board-specific value in
@@ -608,6 +609,8 @@
 #define EXTRA_UBI
 #endif
 
+#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 81000000\0"
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"console=undef\0" \
 	".console_none=setenv console\0" \
@@ -632,6 +635,13 @@
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
 	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
+        "fdt=undef\0" \
+        ".fdt_none=setenv fdt bootm\0" \
+        ".fdt_nand=setenv fdt nand read 81000000 FDT" BOOT_WITH_FDT \
+        ".fdt_tftp=setenv fdt tftpboot 81000000 ${bootfdt}" BOOT_WITH_FDT \
+        ".fdt_nfs=setenv fdt nfs 81000000 ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
+        ".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 81000000 ${bootftd}" BOOT_WITH_FDT \
+        ".fdt_mmc=setenv fdt usb start\\\\; load usb 0 81000000 ${bootftd}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	".mode_rw=setenv mode rw\0" \
@@ -647,6 +657,7 @@
 	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
 	"arch=fsimx6sx\0" \
+	"bootfdt=fdt.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 

@@ -128,7 +128,7 @@ struct board_info {
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
-		.mach_type = MACH_TYPE_EFUSA9,
+		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
