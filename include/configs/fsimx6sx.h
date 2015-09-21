@@ -20,9 +20,9 @@
  * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
  * 0x0014_0000 - 0x001F_FFFF: UBoot: U-Boot image (768KB)
  * 0x0020_0000 - 0x0023_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0024_0000 - 0x0083_FFFF: Kernel: Linux Kernel uImage (6MB)
- * 0x0084_0000 - 0x008F_FFFF: FDT: Flat Device Tree(s) (768KB)
- * 0x0090_0000 -         END: TargetFS: Root filesystem (Size - 9MB)
+ * 0x0024_0000 - 0x00A3_FFFF: Kernel: Linux Kernel uImage (8MB)
+ * 0x00A4_0000 - 0x00BF_FFFF: FDT: Flat Device Tree(s) (1792KB)
+ * 0x00C0_0000 -         END: TargetFS: Root filesystem (Size - 12MB)
  *
  * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel volume
  * -------------------------------------------------------------------------
@@ -535,7 +535,7 @@
 #define MTDPARTS_PART1		"gpmi-nand:256k(NBoot)ro,768k(UserDef)"
 #endif
 #define MTDPARTS_PART2		"256k(Refresh)ro,768k(UBoot)ro,256k(UBootEnv)ro"
-#define MTDPARTS_PART3		"5888K(Kernel)ro"
+#define MTDPARTS_PART3		"8m(Kernel)ro,1792k(FDT)ro"
 #define MTDPARTS_PART4		"-(TargetFS)"
 #define MTDPARTS_STD		"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
 #define MTDPARTS_UBIONLY	"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
@@ -668,10 +668,11 @@
 
 
 /************************************************************************
- * Linux Support
+ * Linux and Android Support
  ************************************************************************/
 #define CONFIG_ZIMAGE_BOOT
 #define CONFIG_IMAGE_BOOT
+#define CONFIG_ANDROID_BOOT_IMAGE
 
 /* Try to patch serial debug port in image within first 16KB of zImage */
 #define CONFIG_SYS_PATCH_TTY	0x4000
