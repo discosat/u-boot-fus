@@ -257,6 +257,11 @@ int dram_init(void)
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
+
+static iomux_v3_cfg_t const reset_pads[] = {
+	IOMUX_PADS(PAD_ENET1_CRS__GPIO2_IO_1 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 int board_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -275,6 +280,15 @@ int board_init(void)
 
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
+
+	/* Reset board and SKIT hardware (PCIe, USB-Hub, WLAN, if available);
+	   this is on pad ENET1_CRS (GPIO2_IO01); because there may be some
+	   completely different hadrware connected to this general RESETOUTn
+	   pin, use a rather long low pulse of 100ms. */
+	SETUP_IOMUX_PADS(reset_pads);
+	gpio_direction_output(IMX_GPIO_NR(2, 1), 0);
+	mdelay(100);
+	gpio_set_value(IMX_GPIO_NR(2, 1), 1);
 
 #if 0 //###
 	printf("### PLL_ARM=0x%08x\n", readl(0x20c8000));
