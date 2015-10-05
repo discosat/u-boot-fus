@@ -138,11 +138,13 @@ static void fec_mii_setspeed(struct ethernet_regs *eth)
 	 * and do not drop the Preamble.
 	 */
 	register u32 speed = DIV_ROUND_UP(imx_get_fecclk(), 5000000);
+	register u32 holdtime = DIV_ROUND_UP(imx_get_fecclk(), 100000000) - 1;
 #ifdef FEC_QUIRK_ENET_MAC
 	speed--;
 #endif
 	speed <<= 1;
-	writel(speed, &eth->mii_speed);
+	holdtime <<= 8;
+	writel(speed | holdtime, &eth->mii_speed);
 	debug("%s: mii_speed %08x\n", __func__, readl(&eth->mii_speed));
 }
 
@@ -180,13 +182,14 @@ static int fec_mdio_write(struct ethernet_regs *eth, uint8_t phyAddr,
 	return 0;
 }
 
-int fec_phy_read(struct mii_dev *bus, int phyAddr, int dev_addr, int regAddr)
+static int fec_phy_read(struct mii_dev *bus, int phyAddr, int dev_addr,
+			int regAddr)
 {
 	return fec_mdio_read(bus->priv, phyAddr, regAddr);
 }
 
-int fec_phy_write(struct mii_dev *bus, int phyAddr, int dev_addr, int regAddr,
-		u16 data)
+static int fec_phy_write(struct mii_dev *bus, int phyAddr, int dev_addr,
+			 int regAddr, u16 data)
 {
 	return fec_mdio_write(bus->priv, phyAddr, regAddr, data);
 }
@@ -526,8 +529,10 @@ static int fec_open(struct eth_device *edev)
 static int fec_init(struct eth_device *dev, bd_t* bd)
 {
 	struct fec_priv *fec = (struct fec_priv *)dev->priv;
+#if !defined(CONFIG_MX6UL)
 	uint32_t mib_ptr = (uint32_t)&fec->eth->rmon_t_drop;
 	int i;
+#endif
 
 	/* Initialize MAC address */
 	fec_set_hwaddr(dev);
@@ -556,13 +561,14 @@ static int fec_init(struct eth_device *dev, bd_t* bd)
 	writel(0x00000000, &fec->eth->gaddr1);
 	writel(0x00000000, &fec->eth->gaddr2);
 
-
+#if !defined(CONFIG_MX6UL)
 	/* clear MIB RAM */
 	for (i = mib_ptr; i <= mib_ptr + 0xfc; i += 4)
 		writel(0, i);
 
 	/* FIFO receive start register */
 	writel(0x520, &fec->eth->r_fstart);
+#endif
 
 	/* size and address of each buffer */
 	writel(FEC_MAX_PKT_SIZE, &fec->eth->emrbr);

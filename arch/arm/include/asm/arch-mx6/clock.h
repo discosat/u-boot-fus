@@ -43,10 +43,10 @@ enum mxc_clock {
 };
 
 enum enet_freq {
-	ENET_25MHz,
-	ENET_50MHz,
-	ENET_100MHz,
-	ENET_125MHz,
+	ENET_25MHZ,
+	ENET_50MHZ,
+	ENET_100MHZ,
+	ENET_125MHZ,
 };
 
 u32 imx_get_uartclk(void);
@@ -64,6 +64,6 @@ int enable_pcie_clock(void);
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num);
 int enable_spi_clk(unsigned char enable, unsigned spi_num);
 void enable_ipu_clock(void);
-int enable_fec_anatop_clock(enum enet_freq freq);
+int enable_fec_anatop_clock(int fec_id, enum enet_freq freq);
 void enable_enet_clk(unsigned char enable);
 #endif /* __ASM_ARCH_CLOCK_H */

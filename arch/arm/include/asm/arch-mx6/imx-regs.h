@@ -9,7 +9,11 @@
 
 #define ARCH_MXC
 
+#ifdef CONFIG_MX6UL
+#define CONFIG_SYS_CACHELINE_SIZE	64
+#else
 #define CONFIG_SYS_CACHELINE_SIZE	32
+#endif
 
 #define ROMCP_ARB_BASE_ADDR             0x00000000
 #define ROMCP_ARB_END_ADDR              0x000FFFFF
@@ -19,14 +23,15 @@
 #define GPU_2D_ARB_END_ADDR             0x02203FFF
 #define OPENVG_ARB_BASE_ADDR            0x02204000
 #define OPENVG_ARB_END_ADDR             0x02207FFF
-#elif defined(CONFIG_MX6SX)
+
+#elif (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 #define CAAM_ARB_BASE_ADDR              0x00100000
 #define CAAM_ARB_END_ADDR               0x00107FFF
 #define GPU_ARB_BASE_ADDR               0x01800000
 #define GPU_ARB_END_ADDR                0x01803FFF
 #define APBH_DMA_ARB_BASE_ADDR          0x01804000
 #define APBH_DMA_ARB_END_ADDR           0x0180BFFF
-#define M4_BOOTROM_BASE_ADDR			0x007F8000
+#define M4_BOOTROM_BASE_ADDR            0x007F8000
 
 #define MXS_APBH_BASE			APBH_DMA_ARB_BASE_ADDR
 #define MXS_GPMI_BASE			(APBH_DMA_ARB_BASE_ADDR + 0x02000)
@@ -45,27 +50,27 @@
 #define GPU_2D_ARB_END_ADDR             0x00137FFF
 #define DTCP_ARB_BASE_ADDR              0x00138000
 #define DTCP_ARB_END_ADDR               0x0013BFFF
-#endif	/* CONFIG_MX6SL */
 
 #define MXS_APBH_BASE			APBH_DMA_ARB_BASE_ADDR
 #define MXS_GPMI_BASE			(APBH_DMA_ARB_BASE_ADDR + 0x02000)
 #define MXS_BCH_BASE			(APBH_DMA_ARB_BASE_ADDR + 0x04000)
 
+#endif	/* CONFIG_MX6SL */
+
 /* GPV - PL301 configuration ports */
-#if (defined(CONFIG_MX6SL) || defined(CONFIG_MX6SX))
+#if (defined(CONFIG_MX6SL) || defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 #define GPV2_BASE_ADDR                  0x00D00000
 #else
 #define GPV2_BASE_ADDR			0x00200000
 #endif
 
-#ifdef CONFIG_MX6SX
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 #define GPV3_BASE_ADDR			0x00E00000
 #define GPV4_BASE_ADDR			0x00F00000
 #define GPV5_BASE_ADDR			0x01000000
 #define GPV6_BASE_ADDR			0x01100000
 #define PCIE_ARB_BASE_ADDR              0x08000000
 #define PCIE_ARB_END_ADDR               0x08FFFFFF
-
 #else
 #define GPV3_BASE_ADDR			0x00300000
 #define GPV4_BASE_ADDR			0x00800000
@@ -87,9 +92,9 @@
 #define AIPS1_ARB_END_ADDR              0x020FFFFF
 #define AIPS2_ARB_BASE_ADDR             0x02100000
 #define AIPS2_ARB_END_ADDR              0x021FFFFF
-#ifdef CONFIG_MX6SX
-#define AIPS3_BASE_ADDR			0x02200000
-#define AIPS3_END_ADDR			0x022FFFFF
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+#define AIPS3_ARB_BASE_ADDR             0x02200000
+#define AIPS3_ARB_END_ADDR              0x022FFFFF
 #define WEIM_ARB_BASE_ADDR              0x50000000
 #define WEIM_ARB_END_ADDR               0x57FFFFFF
 #define QSPI1_ARB_BASE_ADDR             0x60000000
@@ -111,7 +116,7 @@
 #define WEIM_ARB_END_ADDR               0x0FFFFFFF
 #endif
 
-#if (defined(CONFIG_MX6SL) || defined(CONFIG_MX6SX))
+#if (defined(CONFIG_MX6SL) || defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 #define MMDC0_ARB_BASE_ADDR             0x80000000
 #define MMDC0_ARB_END_ADDR              0xFFFFFFFF
 #define MMDC1_ARB_BASE_ADDR             0xC0000000
@@ -123,7 +128,7 @@
 #define MMDC1_ARB_END_ADDR              0xFFFFFFFF
 #endif
 
-#ifndef CONFIG_MX6SX
+#if (!(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL)))
 #define IPU_SOC_BASE_ADDR		IPU1_ARB_BASE_ADDR
 #define IPU_SOC_OFFSET			0x00200000
 #endif
@@ -149,18 +154,32 @@
 #define UART3_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x34000)
 #define UART4_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x38000)
 #else
-#ifndef CONFIG_MX6SX
+
+#if defined(CONFIG_MX6UL)
+#define UART7_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x18000)
+#elif !defined(CONFIG_MX6SX)
 #define ECSPI5_BASE_ADDR            (ATZ1_BASE_ADDR + 0x18000)
 #endif
+
 #define UART1_BASE                  (ATZ1_BASE_ADDR + 0x20000)
+#if defined(CONFIG_MX6UL)
+#define UART8_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x24000)
+#define SAI1_BASE_ADDR              (ATZ1_BASE_ADDR + 0x28000)
+#define SAI2_BASE_ADDR              (ATZ1_BASE_ADDR + 0x2C000)
+#define SAI3_BASE_ADDR              (ATZ1_BASE_ADDR + 0x30000)
+#else
 #define ESAI1_BASE_ADDR             (ATZ1_BASE_ADDR + 0x24000)
 #define SSI1_BASE_ADDR              (ATZ1_BASE_ADDR + 0x28000)
 #define SSI2_BASE_ADDR              (ATZ1_BASE_ADDR + 0x2C000)
 #define SSI3_BASE_ADDR              (ATZ1_BASE_ADDR + 0x30000)
+#endif
 #define ASRC_BASE_ADDR              (ATZ1_BASE_ADDR + 0x34000)
 #endif
 
-#ifndef CONFIG_MX6SX
+#if defined(CONFIG_MX6UL)
+#define TOUCH_CTRL_BASE_ADDR        (ATZ1_BASE_ADDR + 0x40000)
+#define BEE_BASE_ADDR               (ATZ1_BASE_ADDR + 0x44000)
+#elif !defined(CONFIG_MX6SX)
 #define SPBA_BASE_ADDR              (ATZ1_BASE_ADDR + 0x3C000)
 #define VPU_BASE_ADDR               (ATZ1_BASE_ADDR + 0x40000)
 #endif
@@ -179,8 +198,13 @@
 #define GPIO3_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x24000)
 #define GPIO4_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x28000)
 #define GPIO5_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x2C000)
+#if defined(CONFIG_MX6UL)
+#define SNVS_LP_BASE_ADDR           (AIPS1_OFF_BASE_ADDR + 0x30000)
+#define ENET2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
+#else
 #define GPIO6_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x30000)
 #define GPIO7_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
+#endif
 #define KPP_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x38000)
 #define WDOG1_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x3C000)
 #define WDOG2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x40000)
@@ -194,10 +218,12 @@
 #define SRC_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x58000)
 #define GPC_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x5C000)
 #define IOMUXC_BASE_ADDR            (AIPS1_OFF_BASE_ADDR + 0x60000)
-#ifdef CONFIG_MX6SL
+#define IOMUXC_GPR_BASE_ADDR        (AIPS1_OFF_BASE_ADDR + 0x64000)
+#if defined(CONFIG_MX6SL)
 #define CSI_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x64000)
 #define SIPIX_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define SDMA_PORT_HOST_BASE_ADDR    (AIPS1_OFF_BASE_ADDR + 0x6C000)
+
 #elif defined(CONFIG_MX6SX)
 #define CANFD1_BASE_ADDR            (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define SDMA_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x6C000)
@@ -205,39 +231,65 @@
 #define SEMAPHORE1_BASE_ADDR        (AIPS1_OFF_BASE_ADDR + 0x74000)
 #define SEMAPHORE2_BASE_ADDR        (AIPS1_OFF_BASE_ADDR + 0x78000)
 #define RDC_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x7C000)
+
+#elif defined(CONFIG_MX6UL)
+#define GPT2_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x68000)
+#define SDMA_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x6C000)
+#define PWM5_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x70000)
+#define PWM6_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x74000)
+#define PWM7_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x78000)
+#define PWM8_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x7C000)
 #else
 #define DCIC1_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x64000)
 #define DCIC2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define DMA_REQ_PORT_HOST_BASE_ADDR (AIPS1_OFF_BASE_ADDR + 0x6C000)
 #endif
+#define EPDC_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x74000)
 
 #define AIPS2_ON_BASE_ADDR          (ATZ2_BASE_ADDR + 0x7C000)
 #define AIPS2_OFF_BASE_ADDR         (ATZ2_BASE_ADDR + 0x80000)
+#if defined(CONFIG_MX6UL)
+#define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR + 0x40000)
+#define ARM_BASE_ADDR               (ATZ2_BASE_ADDR)
+#else
 #define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR)
-#define ARM_BASE_ADDR		    (ATZ2_BASE_ADDR + 0x40000)
+#define ARM_BASE_ADDR               (ATZ2_BASE_ADDR + 0x40000)
+#endif
+#define CONFIG_SYS_FSL_SEC_ADDR     CAAM_BASE_ADDR
+#define CONFIG_SYS_FSL_JR0_ADDR     (CAAM_BASE_ADDR + 0x1000)
+
 #define USB_PL301_BASE_ADDR         (AIPS2_OFF_BASE_ADDR + 0x0000)
 #define USB_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x4000)
 
 #define ENET_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x8000)
-#ifdef CONFIG_MX6SL
+#if defined(CONFIG_MX6SL)
 #define MSHC_IPS_BASE_ADDR          (AIPS2_OFF_BASE_ADDR + 0xC000)
+#elif defined(CONFIG_MX6UL)
+#define SIM1_IPS_BASE_ADDR          (AIPS2_OFF_BASE_ADDR + 0xC000)
 #else
 #define MLB_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0xC000)
 #endif
 
 #define USDHC1_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x10000)
 #define USDHC2_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x14000)
+#if !defined(CONFIG_MX6UL)
 #define USDHC3_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x18000)
 #define USDHC4_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x1C000)
+#else
+#define ADC1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x18000)
+#define ADC2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x1C000)
+#endif
 #define I2C1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x20000)
 #define I2C2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x24000)
 #define I2C3_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x28000)
 #define ROMCP_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x2C000)
 #define MMDC_P0_BASE_ADDR           (AIPS2_OFF_BASE_ADDR + 0x30000)
-#ifdef CONFIG_MX6SL
+#if defined(CONFIG_MX6SL)
 #define RNGB_IPS_BASE_ADDR          (AIPS2_OFF_BASE_ADDR + 0x34000)
 #elif defined(CONFIG_MX6SX)
 #define ENET2_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x34000)
+#elif defined(CONFIG_MX6UL)
+#define SIM2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x34000)
 #else
 #define MMDC_P1_BASE_ADDR           (AIPS2_OFF_BASE_ADDR + 0x34000)
 #endif
@@ -245,6 +297,12 @@
 #define WEIM_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x38000)
 #define OCOTP_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x3C000)
 #define CSU_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x40000)
+#if defined(CONFIG_MX6UL)
+#define CSI_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x44000)
+#define LCDIF1_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x48000)
+#define LCDIF2_BASE_ADDR            LCDIF1_BASE_ADDR
+#define PXP_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x4C000)
+#else
 #define IP2APB_PERFMON1_BASE_ADDR   (AIPS2_OFF_BASE_ADDR + 0x44000)
 #define IP2APB_PERFMON2_BASE_ADDR   (AIPS2_OFF_BASE_ADDR + 0x48000)
 #ifdef CONFIG_MX6SX
@@ -252,19 +310,23 @@
 #else
 #define IP2APB_PERFMON3_BASE_ADDR   (AIPS2_OFF_BASE_ADDR + 0x4C000)
 #endif
+#endif /* CONFIG_MX6UL */
+
 #define IP2APB_TZASC1_BASE_ADDR     (AIPS2_OFF_BASE_ADDR + 0x50000)
-#ifdef CONFIG_MX6SX
+#if defined(CONFIG_MX6UL)
+#define SYSCNT_RD_IPS_BASE_ADDR     (AIPS2_OFF_BASE_ADDR + 0x54000)
+#define SYSCNT_CMP_IPS_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x58000)
+#define SYSCNT_CTRL_IPS_BASE_ADDR   (AIPS2_OFF_BASE_ADDR + 0x5C000)
+#define QSPI1_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x60000)
+#define WDOG3_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x64000)
+#elif defined(CONFIG_MX6SX)
 #define SAI1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x54000)
-#else
-#define IP2APB_TZASC2_BASE_ADDR     (AIPS2_OFF_BASE_ADDR + 0x54000)
-#endif
 #define AUDMUX_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x58000)
-#define AUDMUX_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x58000)
-#ifdef CONFIG_MX6SX
 #define SAI2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x5C000)
 #define QSPI1_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x60000)
 #define QSPI2_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x64000)
 #else
+#define IP2APB_TZASC2_BASE_ADDR     (AIPS2_OFF_BASE_ADDR + 0x54000)
 #define MIPI_CSI2_BASE_ADDR         (AIPS2_OFF_BASE_ADDR + 0x5C000)
 #define MIPI_DSI_BASE_ADDR          (AIPS2_OFF_BASE_ADDR + 0x60000)
 #define VDOA_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x64000)
@@ -273,8 +335,22 @@
 #define UART3_BASE                  (AIPS2_OFF_BASE_ADDR + 0x6C000)
 #define UART4_BASE                  (AIPS2_OFF_BASE_ADDR + 0x70000)
 #define UART5_BASE                  (AIPS2_OFF_BASE_ADDR + 0x74000)
+#if defined(CONFIG_MX6SX)
+#define I2C4_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x78000)
+#define QOSC_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x7C000)
+#elif defined(CONFIG_MX6UL)
+#define I2C4_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x78000)
+#define UART6_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x7C000)
+#else
 #define IP2APB_USBPHY1_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x78000)
 #define IP2APB_USBPHY2_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x7C000)
+#endif
+
+#define OTG_BASE_ADDR               USB_BASE_ADDR
+
+#if defined(CONFIG_MX6UL)
+#define SCTR_BASE_ADDR              SYSCNT_CTRL_IPS_BASE_ADDR
+#endif
 
 #ifdef CONFIG_MX6SX
 #define GIS_BASE_ADDR               (AIPS3_ARB_BASE_ADDR + 0x04000)
@@ -305,14 +381,19 @@
 #endif
 
 #define CHIP_REV_1_0                 0x10
+#define CHIP_REV_1_1                 0x11
 #define CHIP_REV_1_2                 0x12
+#define CHIP_REV_1_3                 0x13
+#define CHIP_REV_1_4                 0x14
 #define CHIP_REV_1_5                 0x15
-#ifndef CONFIG_MX6SX
+#define CHIP_REV_2_0                 0x20
+#if (!(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL)))
 #define IRAM_SIZE                    0x00040000
 #else
 #define IRAM_SIZE                    0x00020000
 #endif
 #define FEC_QUIRK_ENET_MAC
+#define SNVS_LPGPR                   0x68
 
 #if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
 #include <asm/types.h>
@@ -331,6 +412,43 @@ extern void imx_get_mac_from_fuse(int dev_id, unsigned char *mac);
 #define SRC_SCR_CORE_2_ENABLE_MASK      (1<<SRC_SCR_CORE_2_ENABLE_OFFSET)
 #define SRC_SCR_CORE_3_ENABLE_OFFSET    24
 #define SRC_SCR_CORE_3_ENABLE_MASK      (1<<SRC_SCR_CORE_3_ENABLE_OFFSET)
+
+/* WEIM registers */
+struct weim {
+	u32 cs0gcr1;
+	u32 cs0gcr2;
+	u32 cs0rcr1;
+	u32 cs0rcr2;
+	u32 cs0wcr1;
+	u32 cs0wcr2;
+
+	u32 cs1gcr1;
+	u32 cs1gcr2;
+	u32 cs1rcr1;
+	u32 cs1rcr2;
+	u32 cs1wcr1;
+	u32 cs1wcr2;
+
+	u32 cs2gcr1;
+	u32 cs2gcr2;
+	u32 cs2rcr1;
+	u32 cs2rcr2;
+	u32 cs2wcr1;
+	u32 cs2wcr2;
+
+	u32 cs3gcr1;
+	u32 cs3gcr2;
+	u32 cs3rcr1;
+	u32 cs3rcr2;
+	u32 cs3wcr1;
+	u32 cs3wcr2;
+
+	u32 unused[12];
+
+	u32 wcr;
+	u32 wiar;
+	u32 ear;
+};
 
 /* System Reset Controller (SRC) */
 struct src {
@@ -354,8 +472,15 @@ struct src {
 };
 
 /* GPR1 bitfields */
+#ifdef CONFIG_MX6UL
+#define IOMUXC_GPR1_ENET1_CLK_SEL_OFFSET	17
+#define IOMUXC_GPR1_ENET1_CLK_SEL_MASK		(1 << IOMUXC_GPR1_ENET1_CLK_SEL_OFFSET)
+#define IOMUXC_GPR1_ENET2_CLK_SEL_OFFSET	18
+#define IOMUXC_GPR1_ENET2_CLK_SEL_MASK		(1 << IOMUXC_GPR1_ENET2_CLK_SEL_OFFSET)
+#else
 #define IOMUXC_GPR1_ENET_CLK_SEL_OFFSET		21
 #define IOMUXC_GPR1_ENET_CLK_SEL_MASK		(1 << IOMUXC_GPR1_ENET_CLK_SEL_OFFSET)
+#endif
 #define IOMUXC_GPR1_USB_OTG_ID_OFFSET		13
 #define IOMUXC_GPR1_USB_OTG_ID_SEL_MASK		(1 << IOMUXC_GPR1_USB_OTG_ID_OFFSET)
 
@@ -408,10 +533,15 @@ struct src {
 
 
 struct iomuxc {
-#ifdef CONFIG_MX6SX
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 	u8 reserved[0x4000];
 #endif
+
+#ifdef CONFIG_MX6UL
+	u32 gpr[15];
+#else
 	u32 gpr[14];
+#endif
 };
 
 struct gpc {
@@ -494,6 +624,14 @@ struct gpc {
 #define IOMUXC_GPR2_LVDS_CH0_MODE_ENABLED_DI0		(IOMUXC_GPR2_MODE_ENABLED_DI0<<IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
 #define IOMUXC_GPR2_LVDS_CH0_MODE_ENABLED_DI1		(IOMUXC_GPR2_MODE_ENABLED_DI1<<IOMUXC_GPR2_LVDS_CH0_MODE_OFFSET)
 
+#ifdef CONFIG_MX6SX
+#define IMX6SX_GPR5_CSI1_MUX_CTRL_MASK			(0x3 << 4)
+#define IMX6SX_GPR5_CSI1_MUX_CTRL_EXT_PIN		(0x0 << 4)
+#define IMX6SX_GPR5_CSI1_MUX_CTRL_CVD			(0x1 << 4)
+#define IMX6SX_GPR5_CSI1_MUX_CTRL_VDAC_TO_CSI	(0x2 << 4)
+#define IMX6SX_GPR5_CSI1_MUX_CTRL_GND			(0x3 << 4)
+#endif
+
 /* ECSPI registers */
 struct cspi_regs {
 	u32 rxdata;
@@ -524,7 +662,11 @@ struct cspi_regs {
 #define MXC_CSPICTRL_RXOVF	(1 << 6)
 #define MXC_CSPIPERIOD_32KHZ	(1 << 15)
 #define MAX_SPI_BYTES	32
+#if defined(CONFIG_MX6SL) || defined(CONFIG_MX6DL) || defined(CONFIG_MX6UL)
+#define SPI_MAX_NUM	3
+#else
 #define SPI_MAX_NUM	4
+#endif
 
 /* Bit position inside CTRL register to be associated with SS */
 #define MXC_CSPICTRL_CHAN	18
@@ -534,7 +676,7 @@ struct cspi_regs {
 #define MXC_CSPICON_POL		4  /* SCLK polarity */
 #define MXC_CSPICON_SSPOL	12 /* SS polarity */
 #define MXC_CSPICON_CTL		20 /* inactive state of SCLK */
-#if defined(CONFIG_MX6SL) || defined(CONFIG_MX6DL)
+#if defined(CONFIG_MX6SL) || defined(CONFIG_MX6DL) || defined(CONFIG_MX6UL)
 #define MXC_SPI_BASE_ADDRESSES \
 	ECSPI1_BASE_ADDR, \
 	ECSPI2_BASE_ADDR, \
@@ -548,6 +690,8 @@ struct cspi_regs {
 	ECSPI4_BASE_ADDR, \
 	ECSPI5_BASE_ADDR
 #endif
+
+#define ANATOP_PLL_VIDEO        0xA0
 
 struct ocotp_regs {
 	u32	ctrl;
@@ -575,9 +719,10 @@ struct ocotp_regs {
 	u32     version;
 	u32     rsvd7[0xdb];
 
+	/* fuse banks */
 	struct fuse_bank {
 		u32	fuse_regs[0x20];
-	} bank[16];
+	} bank[0];
 };
 
 struct fuse_bank0_regs {
@@ -587,28 +732,42 @@ struct fuse_bank0_regs {
 	u32	rsvd1[3];
 	u32	uid_high;
 	u32	rsvd2[3];
-	u32	rsvd3[4];
-	u32	rsvd4[4];
-	u32	rsvd5[4];
+	u32	cfg2;
+	u32	rsvd3[3];
+	u32	cfg3;
+	u32	rsvd4[3];
+	u32	cfg4;
+	u32	rsvd5[3];
 	u32	cfg5;
 	u32	rsvd6[3];
-	u32	rsvd7[4];
+	u32	cfg6;
+	u32	rsvd7[3];
 };
 
-#ifdef CONFIG_MX6SX
+struct fuse_bank1_regs {
+	u32     mem[0x18];
+	u32	ana1;
+	u32	rsvd1[3];
+	u32     ana2;
+	u32	rsvd2[3];
+};
+
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 struct fuse_bank4_regs {
 	u32 sjc_resp_low;
 	u32 rsvd0[3];
 	u32 sjc_resp_high;
 	u32 rsvd1[3];
-	u32 mac_addr_low;
+	u32 mac_addr0;
 	u32 rsvd2[3];
-	u32 mac_addr_high;
+	u32 mac_addr1;
 	u32 rsvd3[3];
 	u32 mac_addr2;
 	u32 rsvd4[7];
 	u32 gp1;
-	u32 rsvd5[7];
+	u32	rsvd5[3];
+	u32	gp2;
+	u32	rsvd6[3];
 };
 #else
 struct fuse_bank4_regs {
@@ -789,6 +948,25 @@ struct anatop_regs {
 #define ANATOP_PFD_CLKGATE_SHIFT(n)	(7+((n)*8))
 #define ANATOP_PFD_CLKGATE_MASK(n)	(1<<ANATOP_PFD_CLKGATE_SHIFT(n))
 
+struct iomuxc_gpr_base_regs {
+#if defined(CONFIG_MX6UL)
+	u32     gpr[15];        /* 0x000 */
+#else
+	u32     gpr[14];        /* 0x000 */
+#endif
+};
+
+struct iomuxc_base_regs {
+#if !(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+	u32     gpr[14];        /* 0x000 */
+#endif
+	u32     obsrv[5];       /* 0x038 */
+	u32     swmux_ctl[197]; /* 0x04c */
+	u32     swpad_ctl[250]; /* 0x360 */
+	u32     swgrp[26];      /* 0x748 */
+	u32     daisy[104];     /* 0x7b0..94c */
+};
+
 struct wdog_regs {
 	u16	wcr;	/* Control */
 	u16	wsr;	/* Service */
@@ -813,5 +991,13 @@ struct pwm_regs {
 	u32	pr;
 	u32	cnr;
 };
+
+/*
+ * If ROM fail back to USB recover mode, USBPH0_PWD will be clear to use USB
+ * If boot from the other mode, USB0_PWD will keep reset value
+ */
+#define	is_boot_from_usb(void) (!(readl(USB_PHY0_BASE_ADDR) & (1<<20)))
+#define	disconnect_from_pc(void) writel(0x0, OTG_BASE_ADDR + 0x140)
+
 #endif /* __ASSEMBLER__*/
 #endif /* __ASM_ARCH_MX6_IMX_REGS_H__ */

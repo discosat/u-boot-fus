@@ -46,6 +46,7 @@ u32 get_cpu_rev(void)
 	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
 	u32 reg = readl(&anatop->digprog_sololite);
 	u32 type = ((reg >> 16) & 0xff);
+	u32 major;
 
 	if (type != MXC_CPU_MX6SL) {
 		reg = readl(&anatop->digprog);
@@ -63,8 +64,9 @@ u32 get_cpu_rev(void)
 		}
 
 	}
+	major = ((reg >> 8) & 0xff);
 	reg &= 0xff;		/* mx6 silicon revision */
-	return (type << 12) | (reg + 0x10);
+	return (type << 12) | (reg + (0x10 * (major + 1)));
 }
 
 #ifdef CONFIG_REVISION_TAG
@@ -92,7 +94,7 @@ void init_aips(void)
 	aips1 = (struct aipstz_regs *)AIPS1_BASE_ADDR;
 	aips2 = (struct aipstz_regs *)AIPS2_BASE_ADDR;
 #ifdef CONFIG_MX6SX
-	aips3 = (struct aipstz_regs *)AIPS3_BASE_ADDR;
+	aips3 = (struct aipstz_regs *)AIPS3_ARB_BASE_ADDR;
 #endif
 
 	/*
@@ -213,11 +215,17 @@ static void imx_set_wdog_powerdown(bool enable)
 	struct wdog_regs *wdog1 = (struct wdog_regs *)WDOG1_BASE_ADDR;
 	struct wdog_regs *wdog2 = (struct wdog_regs *)WDOG2_BASE_ADDR;
 
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+	struct wdog_regs *wdog3 = (struct wdog_regs *)WDOG3_BASE_ADDR;
+	writew(enable, &wdog3->wmcr);
+#endif
+
 	/* Write to the PDE (Power Down Enable) bit */
 	writew(enable, &wdog1->wmcr);
 	writew(enable, &wdog2->wmcr);
 }
 
+#if !defined(CONFIG_MX6UL)
 static void set_ahb_rate(u32 val)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
@@ -229,13 +237,17 @@ static void set_ahb_rate(u32 val)
 	writel((reg & (~MXC_CCM_CBCDR_AHB_PODF_MASK)) |
 		(div << MXC_CCM_CBCDR_AHB_PODF_OFFSET), &mxc_ccm->cbcdr);
 }
+#endif
 
 static void clear_mmdc_ch_mask(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	u32 reg;
+	reg = readl(&mxc_ccm->ccdr);
 
 	/* Clear MMDC channel mask */
-	writel(0, &mxc_ccm->ccdr);
+	reg &= ~(MXC_CCM_CCDR_MMDC_CH1_HS_MASK | MXC_CCM_CCDR_MMDC_CH0_HS_MASK);
+	writel(reg, &mxc_ccm->ccdr);
 }
 
 int arch_cpu_init(void)
@@ -245,6 +257,7 @@ int arch_cpu_init(void)
 	/* Need to clear MMDC_CHx_MASK to make warm reset work. */
 	clear_mmdc_ch_mask();
 
+#if !defined(CONFIG_MX6UL)
 	/*
 	 * When low freq boot is enabled, ROM will not set AHB
 	 * freq, so we need to ensure AHB freq is 132MHz in such
@@ -252,6 +265,16 @@ int arch_cpu_init(void)
 	 */
 	if (mxc_get_clock(MXC_ARM_CLK) == 396000000)
 		set_ahb_rate(132000000);
+#endif
+
+#if defined(CONFIG_MX6UL)
+	/*
+	 * According to the design team's requirement on i.MX6UL,
+	 * the PMIC_STBY_REQ PAD should be configured as open
+	 * drain 100K (0x0000b8a0).
+	 */
+	writel(0x0000b8a0, IOMUXC_BASE_ADDR + 0x29c);
+#endif
 
 	imx_set_wdog_powerdown(false); /* Disable PDE bit of WMCR register */
 
@@ -303,6 +326,29 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 	struct fuse_bank4_regs *fuse =
 			(struct fuse_bank4_regs *)bank->fuse_regs;
 
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+	if (0 == dev_id) {
+		u32 value = readl(&fuse->mac_addr1);
+		mac[0] = (value >> 8);
+		mac[1] = value ;
+
+		value = readl(&fuse->mac_addr0);
+		mac[2] = value >> 24 ;
+		mac[3] = value >> 16 ;
+		mac[4] = value >> 8 ;
+		mac[5] = value ;
+	} else {
+		u32 value = readl(&fuse->mac_addr2);
+		mac[0] = value >> 24 ;
+		mac[1] = value >> 16 ;
+		mac[2] = value >> 8 ;
+		mac[3] = value ;
+
+		value = readl(&fuse->mac_addr1);
+		mac[4] = value >> 24 ;
+		mac[5] = value >> 16 ;
+	}
+#else
 	u32 value = readl(&fuse->mac_addr_high);
 	mac[0] = (value >> 8);
 	mac[1] = value ;
@@ -313,6 +359,7 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 	mac[4] = value >> 8 ;
 	mac[5] = value ;
 
+#endif
 }
 #endif
 
@@ -331,8 +378,8 @@ void boot_mode_apply(unsigned cfg_val)
 /*
  * cfg_val will be used for
  * Boot_cfg4[7:0]:Boot_cfg3[7:0]:Boot_cfg2[7:0]:Boot_cfg1[7:0]
- * After reset, if GPR10[28] is 1, ROM will copy GPR9[25:0]
- * to SBMR1, which will determine the boot device.
+ * After reset, if GPR10[28] is 1, ROM will use GPR9[25:0]
+ * instead of SBMR1 to determine the boot device.
  */
 const struct boot_mode soc_boot_modes[] = {
 	{"normal",	MAKE_CFGVAL(0x00, 0x00, 0x00, 0x00)},
@@ -359,7 +406,7 @@ void s_init(void)
 	u32 mask528;
 	u32 reg, periph1, periph2;
 
-	if (is_cpu_type(MXC_CPU_MX6SX))
+	if (is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL))
 		return;
 
 	/* Due to hardware limitation, on MX6Q we need to gate/ungate all PFDs
@@ -416,7 +463,8 @@ void imx_setup_hdmi(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct hdmi_regs *hdmi  = (struct hdmi_regs *)HDMI_ARB_BASE_ADDR;
-	int reg;
+	int reg, count;
+	u8 val;
 
 	/* Turn on HDMI PHY clock */
 	reg = readl(&mxc_ccm->CCGR2);
@@ -433,15 +481,25 @@ void imx_setup_hdmi(void)
 		 |(CHSCCDR_IPU_PRE_CLK_540M_PFD
 		 << MXC_CCM_CHSCCDR_IPU1_DI0_PRE_CLK_SEL_OFFSET);
 	writel(reg, &mxc_ccm->chsccdr);
+
+	/* Workaround to clear the overflow condition */
+	if (readb(&hdmi->ih_fc_stat2) & HDMI_IH_FC_STAT2_OVERFLOW_MASK) {
+		/* TMDS software reset */
+		writeb((u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ, &hdmi->mc_swrstz);
+		val = readb(&hdmi->fc_invidconf);
+		for (count = 0 ; count < 5 ; count++)
+			writeb(val, &hdmi->fc_invidconf);
+	}
 }
 #endif
 
 #ifndef CONFIG_SYS_L2CACHE_OFF
+#ifndef CONFIG_MX6UL
 #define IOMUXC_GPR11_L2CACHE_AS_OCRAM 0x00000002
 void v7_outer_cache_enable(void)
 {
 	struct pl310_regs *const pl310 = (struct pl310_regs *)L2_PL310_BASE;
-	unsigned int val;
+	unsigned int val, cache_id;
 
 #if defined CONFIG_MX6SL
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -461,22 +519,24 @@ void v7_outer_cache_enable(void)
 
 	val = readl(&pl310->pl310_prefetch_ctrl);
 
-	/* Turn on the L2 I/D prefetch */
-	val |= 0x30000000;
+	/* Turn on the L2 I/D prefetch, double linefill */
+	/* Set prefetch offset with any value except 23 as per errata 765569 */
+	val |= 0x7000000f;
 
 	/*
 	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
-	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL is r3p2
+	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL/SX/DQP
+	 * is r3p2.
 	 * But according to ARM PL310 errata: 752271
 	 * ID: 752271: Double linefill feature can cause data corruption
 	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
 	 * Workaround: The only workaround to this erratum is to disable the
 	 * double linefill feature. This is the default behavior.
 	 */
-
-#ifndef CONFIG_MX6Q
-	val |= 0x40800000;
-#endif
+	cache_id = readl(&pl310->pl310_cache_id);
+	if (((cache_id & L2X0_CACHE_ID_PART_MASK) == L2X0_CACHE_ID_PART_L310)
+	    && ((cache_id & L2X0_CACHE_ID_RTL_MASK) < L2X0_CACHE_ID_RTL_R3P2))
+		val &= ~(1 << 30);
 	writel(val, &pl310->pl310_prefetch_ctrl);
 
 	val = readl(&pl310->pl310_power_ctrl);
@@ -493,4 +553,5 @@ void v7_outer_cache_disable(void)
 
 	clrbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
 }
+#endif
 #endif /* !CONFIG_SYS_L2CACHE_OFF */

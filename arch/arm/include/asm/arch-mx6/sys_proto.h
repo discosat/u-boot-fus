@@ -2,6 +2,8 @@
  * (C) Copyright 2009
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
  *
+ * (C) Copyright 2009-2015 Freescale Semiconductor, Inc.
+ *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
@@ -12,7 +14,7 @@
 #include "../arch-imx/cpu.h"
 
 #define soc_rev() (get_cpu_rev() & 0xFF)
-#define is_soc_rev(rev)        (soc_rev() - rev)
+#define is_soc_rev(rev)        (int)(soc_rev() - rev)
 
 u32 get_nr_cpus(void);
 u32 get_cpu_rev(void);
