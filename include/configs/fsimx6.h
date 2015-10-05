@@ -66,6 +66,7 @@
 #define CONFIG_ARM_ERRATA_751472
 #define CONFIG_ARM_ERRATA_794072
 #define CONFIG_ARM_ERRATA_761320
+#define CONFIG_ARM_ERRATA_845369
 
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
@@ -192,7 +193,7 @@
 /************************************************************************
  * I2C
  ************************************************************************/
-/* No I2C used in U-Boot on F&S Vybrid boards */
+/* No I2C used in U-Boot on F&S i.MX6 boards */
 
 
 /************************************************************************
