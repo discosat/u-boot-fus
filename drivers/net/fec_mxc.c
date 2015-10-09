@@ -355,12 +355,14 @@ static void fec_rbd_clean(int last, struct fec_bd *pRbd)
 	writew(0, &pRbd->data_length);
 }
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 static int fec_get_hwaddr(struct eth_device *dev, int dev_id,
 						unsigned char *mac)
 {
 	imx_get_mac_from_fuse(dev_id, mac);
 	return !is_valid_ether_addr(mac);
 }
+#endif
 
 static int fec_set_hwaddr(struct eth_device *dev)
 {
@@ -975,7 +977,9 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 {
 	struct eth_device *edev;
 	struct fec_priv *fec;
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 	unsigned char ethaddr[6];
+#endif
 	uint32_t start;
 	int ret = 0;
 
@@ -1039,12 +1043,14 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 #endif
 	eth_register(edev);
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 	if (fec_get_hwaddr(edev, dev_id, ethaddr) == 0) {
 		debug("got MAC%d address from fuse: %pM\n", dev_id, ethaddr);
 		memcpy(edev->enetaddr, ethaddr, 6);
 		if (!getenv("ethaddr"))
 			eth_setenv_enetaddr("ethaddr", ethaddr);
 	}
+#endif
 	return ret;
 err4:
 	fec_free_descs(fec);

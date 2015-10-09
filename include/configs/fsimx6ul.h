@@ -550,9 +550,8 @@
    environments is always valid. Currently we don't use this feature. */
 //#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000
 
-//#define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
-#define CONFIG_ETHADDR		00:05:51:07:55:83
-#define CONFIG_ETHPRIME		"FEC"
+#define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
+#define CONFIG_ETHPRIME		"FEC0"
 #define CONFIG_NETMASK		255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122

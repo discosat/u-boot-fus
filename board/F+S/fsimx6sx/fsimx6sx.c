@@ -42,6 +42,7 @@
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
+#include <malloc.h>			/* free() */
 
 /* ------------------------------------------------------------------------- */
 
@@ -716,10 +717,18 @@ int board_late_init(void)
 #ifdef CONFIG_CMD_NET
 /* enet pads definition */
 static iomux_v3_cfg_t const enet_pads_rgmii[] = {
+	/* MDIO */
 	IOMUX_PADS(PAD_ENET2_CRS__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_COL__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 25MHz base clock from CPU to both PHYs */
 	IOMUX_PADS(PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* 125MHz reference clock from PHY to CPU; because we can only take
+	   one clock, the schematics show that we take the clock from PHY2 */
 	IOMUX_PADS(PAD_ENET1_TX_CLK__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* FEC0 (ENET1) */
 	IOMUX_PADS(PAD_RGMII1_TXC__ENET1_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_TD1__ENET1_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -732,6 +741,8 @@ static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IOMUX_PADS(PAD_RGMII1_RD2__ENET1_RX_DATA_2 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_RD3__ENET1_RX_DATA_3 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_RX_CTL__ENET1_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* FEC1 (ENET2) */
 	IOMUX_PADS(PAD_RGMII2_TXC__ENET2_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_TD0__ENET2_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_TD1__ENET2_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -743,62 +754,219 @@ static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IOMUX_PADS(PAD_RGMII2_RD1__ENET2_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_RD2__ENET2_RX_DATA_2 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_RD3__ENET2_RX_DATA_3 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII2_RX_CTL__ENET2_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),	/* Phy Interrupt */
+	IOMUX_PADS(PAD_RGMII2_RX_CTL__ENET2_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* PHY interrupt; on efuA9X this is shared on both PHYs */
 	IOMUX_PADS(PAD_ENET2_TX_CLK__GPIO2_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	/* Phy Reset */
+
+	/* Reset signal for both PHYs */
 	IOMUX_PADS(PAD_ENET1_MDC__GPIO2_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+/* Read a MAC address from OTP memory */
+int get_otp_mac(void *otp_addr, uchar *enetaddr)
+{
+	u32 val;
+	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+	/* 
+	 * Read a MAC address from OTP memory on i.MX6; it is stored in the
+	 * following order:
+	 *
+	 *   Byte 1 in mac_h[31:24]
+	 *   Byte 2 in mac_h[23:16]
+	 *   Byte 3 in mac_h[15:8]
+	 *   Byte 4 in mac_h[7:0]
+	 *   Byte 5 in mac_l[31:24]
+	 *   Byte 6 in mac_l[23:16]
+	 *
+	 * Please note that this layout is different to Vybrid.
+	 *
+	 * The MAC address itself can be empty (all six bytes zero) or erased
+	 * (all six bytes 0xFF). In this case the whole address is ignored.
+	 *
+	 * In addition to the address itself, there may be a count stored in
+	 * mac_l[7:0]. 
+	 *
+	 *   count=0: only the address itself
+	 *   count=1: the address itself and the next address
+	 *   count=2: the address itself and the next two addresses
+	 *   etc.
+	 *
+	 * count=0xFF is a special case (erased count) and must be handled
+	 * like count=0. The count is only valid if the MAC address itself is
+	 * valid (not all zeroes and not all 0xFF).
+	 */
+	val = __raw_readl(otp_addr);
+	enetaddr[0] = val >> 24;
+	enetaddr[1] = (val >> 16) & 0xFF;
+	enetaddr[2] = (val >> 8) & 0xFF;
+	enetaddr[3] = val & 0xFF;
+
+	val = __raw_readl(otp_addr + 0x10);
+	enetaddr[4] = val >> 24;
+	enetaddr[5] = (val >> 16) & 0xFF;
+
+	if (!memcmp(enetaddr, empty1, 6) || !memcmp(enetaddr, empty2, 6))
+		return 0;
+
+	val &= 0xFF;
+	if (val == 0xFF)
+		val = 0;
+
+	return (int)(val + 1);
+}
+
+
+/* Set the ethaddr environment variable according to index */
+void set_fs_ethaddr(int index)
+{
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[4];
+	uchar enetaddr[6];
+	int count, i;
+	int offs = index;
+
+	/*
+	 * Try to fulfil the request in the following order:
+	 *   1. From environment variable
+	 *   2. MAC0 from OTP
+	 *   3. CONFIG_ETHADDR_BASE
+	 */
+	if (eth_getenv_enetaddr_by_index("eth", index, enetaddr))
+		return;
+
+	count = get_otp_mac(&bank->fuse_regs[8], enetaddr);
+	if (count <= offs) {
+		offs -= count;
+		eth_parse_enetaddr(MK_STR(CONFIG_ETHADDR_BASE), enetaddr);
+	}
+
+	i = 6;
+	do {
+		offs += (int)enetaddr[--i];
+		enetaddr[i] = offs & 0xFF;
+		offs >>= 8;
+	} while (i);
+
+	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
+}
+
 int board_eth_init(bd_t *bis)
 {
-	u32 reg, gpr1;
+	u32 gpr1;
 	int ret;
 	int phy_addr;
 	enum xceiver_type xcv_type;
 	enum enet_freq freq;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
-        struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+	struct mii_dev *bus;
+	struct phy_device *phydev;
 
-	/* Set the IOMUX for ENET */
+	/* Set the IOMUX for ENET, use 1 GBit/s LAN on RGMII pins */
+	SETUP_IOMUX_PADS(enet_pads_rgmii);
+
+	/* Get parameters for the first ethernet port */
 	switch (fs_nboot_args.chBoardType) {
 	default:
-		/* Use 1 GBit/s LAN on RGMII pins */
-		SETUP_IOMUX_PADS(enet_pads_rgmii);
-		/* ENET CLK is generated in PHY and is an input */
+		set_fs_ethaddr(0);
+
+		/* ENET1 (FEC0) CLK is generated in PHY and is an input */
 		gpr1 = readl(&iomux_regs->gpr[1]);
 		gpr1 &= ~IOMUX_GPR1_FEC1_MASK;
 		writel(gpr1, &iomux_regs->gpr[1]);
 
-		freq = ENET_125MHz;
-		//###freq = ENET_25MHz;
-		break;
-	}
-
-        reg = readl(&anatop->pll_enet);
-        reg |= BM_ANADIG_PLL_ENET_REF_25M_ENABLE;
-        writel(reg, &anatop->pll_enet);
-
-	/* Activate ENET PLL */
-	ret = enable_fec_anatop_clock(freq);
-	if (ret < 0)
-		return ret;
-
-	/* Reset the PHY */
-	switch (fs_nboot_args.chBoardType) {
-	default:
-		/* Atheros AR8035: reset phy (GPIO_2_2) for at least 0.5 ms */
-		gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
-		udelay(500);
-		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
+		freq = ENET_125MHZ;
 		phy_addr = 4;
 		xcv_type = RGMII;
 		break;
 	}
 
-	//### TODO: Add second ETH port
+	/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least 0.5 ms */
+	gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
+	udelay(500);
+	gpio_set_value(IMX_GPIO_NR(2, 2), 1);
 
-	return fecmxc_initialize_multi_type(bis, -1, phy_addr, IMX_FEC_BASE,
-					    xcv_type);
+	/* Activate ENET1 (FEC0) PLL */
+	ret = enable_fec_anatop_clock(0, freq);
+	if (ret < 0)
+		return ret;
+
+#if 0
+	/* ### If CONFIG_FEC_MXC_25M_REF_CLK is set, this is automatically
+	   done in enable_fec_anatop_clock(); we keep it here as reference
+	   code in case additional board layouts need a different setting and
+	   we can not set CONFIG_FEC_MXC_25M_REF_CLK globally in fsimx6sx.h
+	   anymore. Then we can set it here depending on board type. */
+	{
+		u32 reg;
+		struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+		reg = readl(&anatop->pll_enet);
+		reg |= BM_ANADIG_PLL_ENET_REF_25M_ENABLE;
+		writel(reg, &anatop->pll_enet);
+	}
+#endif
+
+	/* In case of i.MX6 SoloX, the ENET clock is already ungated in
+	   enable_fec_anatop_clock() */
+
+	/* We can not use fecmxc_initialize_multi_type() because this would
+	   allocate one MII bus for each ethernet device. But we only need one
+	   MII bus in total for both ports. So the following code works rather
+	   similar to fecmxc_initialize_multi_type(), but uses just one bus. */
+	bus = fec_get_miibus(ENET_BASE_ADDR, -1);
+	if (!bus)
+		return -ENOMEM;
+
+	/* Probe the first PHY */
+	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RGMII);
+	if (!phydev) {
+		free(bus);
+		return -ENOMEM;
+	}
+
+	/* Probe the first ethernet port */
+	ret = fec_probe(bis, 0, ENET_BASE_ADDR, bus, phydev, xcv_type);
+	if (ret) {
+		free(phydev);
+		free(bus);
+		return ret;
+	}
+
+	/* Get parameters for the second ethernet port; if the second port
+	   fails, return without error because the first port is OK already */
+	switch (fs_nboot_args.chBoardType) {
+	default:
+		set_fs_ethaddr(1);
+
+		/* ENET2 (FEC1) CLK is generated in PHY and is an input */
+		gpr1 = readl(&iomux_regs->gpr[1]);
+		gpr1 &= ~IOMUX_GPR1_FEC2_MASK;
+		writel(gpr1, &iomux_regs->gpr[1]);
+
+		freq = ENET_125MHZ;
+		phy_addr = 5;
+		xcv_type = RGMII;
+		break;
+	}
+
+	/* Activate ENET2 (FEC1) PLL */
+	ret = enable_fec_anatop_clock(1, freq);
+	if (ret < 0)
+		return 0;
+
+	/* Probe the second PHY */
+	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RGMII);
+	if (!phydev)
+		return 0;
+
+	/* Probe the second ethernet port */
+	ret = fec_probe(bis, 1, ENET2_BASE_ADDR, bus, phydev, xcv_type);
+	if (ret)
+		free(phydev);
+
+	return 0;
 }
 #endif /* CONFIG_CMD_NET */
 

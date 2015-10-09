@@ -904,6 +904,8 @@ int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
 	 *   Byte 5 in mac_l[23:16]
 	 *   Byte 6 in mac_l[31:24]
 	 *
+	 * Please note that this layout is different to i.MX6.
+	 *
 	 * The MAC address itself can be empty (all six bytes zero) or erased
 	 * (all six bytes 0xFF). In this case the whole address is ignored.
 	 *
@@ -949,10 +951,14 @@ void set_fs_ethaddr(int index)
 	int offs = index;
 
 	/* Try to fulfil the request in the following order:
-	 *   1. MAC0 from OTP
-	 *   2. MAC1 from OTP
-	 *   3. CONFIG_ETHADDR_BASE
+	 *   1. From environment variable
+	 *   2. MAC0 from OTP
+	 *   3. MAC1 from OTP
+	 *   4. CONFIG_ETHADDR_BASE
 	 */
+	if (eth_getenv_enetaddr_by_index("eth", index, enetaddr))
+		return;
+
 	count = get_otp_mac(OTP_BASE_ADDR + 0x620, enetaddr);
 	if (count <= offs) {
 		offs -= count;
