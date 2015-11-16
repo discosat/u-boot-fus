@@ -242,9 +242,8 @@ int checkboard(void)
 	return 0;
 }
 
-/* Set the available RAM size. We have a memory bank starting at 0x10000000
-   that can hold up to 3840MB of RAM. However up to now we only have 256MB or
-   512MB on F&S i.MX6 boards. */
+/* Set the available RAM size. We have a memory bank starting at 0x80000000
+   that can hold up to 2048MB of RAM. */
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -284,7 +283,7 @@ int board_init(void)
 
 	/* Reset board and SKIT hardware (PCIe, USB-Hub, WLAN, if available);
 	   this is on pad ENET1_CRS (GPIO2_IO01); because there may be some
-	   completely different hadrware connected to this general RESETOUTn
+	   completely different hardware connected to this general RESETOUTn
 	   pin, use a rather long low pulse of 100ms. */
 	SETUP_IOMUX_PADS(reset_pads);
 	gpio_direction_output(IMX_GPIO_NR(2, 1), 0);

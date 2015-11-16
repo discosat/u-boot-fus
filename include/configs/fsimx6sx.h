@@ -233,7 +233,6 @@
  * USB Host
  ************************************************************************/
 /* Use USB1 as host */
-#if 1 //####
 #define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
 #define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
@@ -243,7 +242,7 @@
 #define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
 
 #define CONFIG_USB_STORAGE
-#endif //###
+
 
 /************************************************************************
  * USB Device

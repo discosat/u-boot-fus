@@ -278,8 +278,7 @@ int checkboard(void)
 }
 
 /* Set the available RAM size. We have a memory bank starting at 0x10000000
-   that can hold up to 3840MB of RAM. However up to now we only have 256MB or
-   512MB on F&S i.MX6 boards. */
+   that can hold up to 3840MB of RAM. */
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -460,7 +459,6 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IOMUX_PADS(PAD_SD3_DAT2__SD3_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD3_DAT3__SD3_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_NANDF_CS2__GPIO6_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL)),/* CD */
-//###	IOMUX_PADS(PAD_SD3_RST__SD3_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 };
 
 struct fsl_esdhc_cfg esdhc_cfg[] = {

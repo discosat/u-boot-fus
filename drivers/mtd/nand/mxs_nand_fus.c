@@ -1154,7 +1154,7 @@ static void mxs_nand_command(struct mtd_info *mtd, uint command, int column,
 	case NAND_CMD_ERASE2:
 		/* Add DMA descriptor with command + column and/or row */
 		mxs_nand_add_cmd_desc(priv, command, column, page, -1);
-		/* In case of NAND_CMD_PAGEPROG andNAND_CMD_ERASE2,
+		/* In case of NAND_CMD_PAGEPROG and NAND_CMD_ERASE2,
 		   chip->waitfunc() is called later, so we need not wait now.
 		   FIXME: In case of NAND_CMD_RNDIN we should have a delay of
 		   t_CCS here so that the chip can switch columns */
