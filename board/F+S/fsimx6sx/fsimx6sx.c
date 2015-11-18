@@ -723,10 +723,6 @@ static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	/* 25MHz base clock from CPU to both PHYs */
 	IOMUX_PADS(PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
 
-	/* 125MHz reference clock from PHY to CPU; because we can only take
-	   one clock, the schematics show that we take the clock from PHY2 */
-	IOMUX_PADS(PAD_ENET1_TX_CLK__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-
 	/* FEC0 (ENET1) */
 	IOMUX_PADS(PAD_RGMII1_TXC__ENET1_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
