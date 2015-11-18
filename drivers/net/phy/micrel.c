@@ -60,6 +60,20 @@ static struct phy_driver KSZ8081_driver = {
 };
 
 /**
+ * KSZ8021/KSZ8031
+ */
+
+static struct phy_driver KSZ8021_driver = {
+	.name = "Micrel KSZ8021/KSZ8031",
+	.uid = 0x221556,
+	.mask = 0xffffff,
+	.features = PHY_BASIC_FEATURES,
+	.config = &genphy_config,
+	.startup = &genphy_startup,
+	.shutdown = &genphy_shutdown,
+};
+
+/**
  * KSZ8895
  */
 
@@ -309,6 +323,7 @@ static struct phy_driver ksz9031_driver = {
 int phy_micrel_init(void)
 {
 	phy_register(&KSZ804_driver);
+	phy_register(&KSZ8021_driver);
 	phy_register(&KSZ8081_driver);
 #ifdef CONFIG_PHY_MICREL_KSZ9021
 	phy_register(&ksz9021_driver);
