@@ -591,8 +591,8 @@
 #define CONFIG_BOOTP_DNS		/* Configurable parts of CMD_DHCP */
 #define CONFIG_BOOTP_DNS2
 #define CONFIG_BOOTP_SEND_HOSTNAME
-#define CONFIG_NET_RETRY_COUNT	10
-#define CONFIG_ARP_TIMEOUT	200UL
+#define CONFIG_NET_RETRY_COUNT	5
+#define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
 
 

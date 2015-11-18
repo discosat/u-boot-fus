@@ -969,7 +969,7 @@ int board_eth_init(bd_t *bis)
 		break;
 	}
 
-	return fecmxc_initialize_multi_type(bis, -1, phy_addr, IMX_FEC_BASE,
+	return fecmxc_initialize_multi_type(bis, -1, phy_addr, ENET_BASE_ADDR,
 					    xcv_type);
 }
 #endif /* CONFIG_CMD_NET */
