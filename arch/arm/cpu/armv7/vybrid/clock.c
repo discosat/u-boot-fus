@@ -287,6 +287,34 @@ static u32 vybrid_get_ipg_clk(void)
 	return freq / (div + 1);
 }
 
+static u32 vybrid_get_fec_clk(void)
+{
+	struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
+        u32 cscmr2, rmii_clk_sel;
+        u32 freq = 0;
+
+        cscmr2 = __raw_readl(&ccm->cscmr2);
+        rmii_clk_sel = cscmr2 & CSCMR2_RMII_CLK_SEL_MASK;
+        rmii_clk_sel >>= CSCMR2_RMII_CLK_SEL_SHIFT;
+
+        switch (rmii_clk_sel) {
+        case 0:
+                freq = ENET_EXTERNAL_CLK;
+                break;
+        case 1:
+                freq = AUDIO_EXTERNAL_CLK;
+                break;
+        case 2:
+                freq = vybrid_get_pll_clk(PLL5_CLOCK);
+                break;
+        case 3:
+                freq = vybrid_get_pll_clk(PLL5_CLOCK) / 2;
+                break;
+        }
+
+        return freq;
+}
+
 /* The API of get vybrid clocks. */
 unsigned int vybrid_get_clock(enum vybrid_clock clk)
 {
@@ -297,6 +325,8 @@ unsigned int vybrid_get_clock(enum vybrid_clock clk)
 		return vybrid_get_ddr_clk();
 	case VYBRID_IPG_CLK:
 		return vybrid_get_ipg_clk();
+	case VYBRID_FEC_CLK:
+		return vybrid_get_fec_clk();
 
 	default:
 		break;

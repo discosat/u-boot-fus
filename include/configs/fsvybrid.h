@@ -252,20 +252,13 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-#define CONFIG_MCFFEC
+#define CONFIG_FEC_MXC
 #define CONFIG_FS_VYBRID_PLL_ETH // ### undefine if external quartz is used for ETH clock
-#define CONFIG_SYS_RX_ETH_BUFFER	8
-#define CONFIG_SYS_FEC0_PINMUX	0
-#define CONFIG_SYS_FEC1_PINMUX	0
-#define CONFIG_SYS_FEC0_IOBASE	MACNET0_BASE_ADDR
-#define CONFIG_SYS_FEC1_IOBASE	MACNET1_BASE_ADDR
-#define CONFIG_SYS_FEC0_MIIBASE	MACNET0_BASE_ADDR
-#define CONFIG_SYS_FEC1_MIIBASE	MACNET1_BASE_ADDR
-#define MCFFEC_TOUT_LOOP 50000
-#define CONFIG_HAS_ETH1
 
 /* PHY */
-//###??? #define CONFIG_PHYLIB
+#define CONFIG_PHYLIB
+#define CONFIG_PHY_MICREL		/* Micrel KSZ8021RNL/KSZ8081RNA */
+#define CONFIG_PHY_NATSEMI		/* TI/National Semiconductor DP83848 */
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
 
@@ -565,7 +558,7 @@
 #define CONFIG_NET_RETRY_COUNT	10
 #define CONFIG_ARP_TIMEOUT	200UL
 #define CONFIG_MII			/* Required in net/eth.c */
-#define CONFIG_MII_INIT
+//####define CONFIG_MII_INIT
 
 
 /************************************************************************

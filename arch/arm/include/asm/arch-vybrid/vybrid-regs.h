@@ -118,6 +118,7 @@
 #define MVF_USBPHY0_BASE_ADDR		0x40050800
 #define MVF_USBPHY1_BASE_ADDR		0x40050C00
 
+#define FEC_QUIRK_ENET_MAC
 
 /* Number of GPIO pins per port */
 #define GPIO_NUM_PIN		32
@@ -331,6 +332,9 @@ struct fuse_bank1_regs {
 #define CSCMR1_ESDHC1_CLK_SEL_SHIFT	18
 #define CSCMR1_ESDHC0_CLK_SEL_MASK	(0x3 << 16)
 #define CSCMR1_ESDHC0_CLK_SEL_SHIFT	16
+
+#define CSCMR2_RMII_CLK_SEL_MASK	(0x3 << 4)
+#define CSCMR2_RMII_CLK_SEL_SHIFT	4
 
 #define CSCDR2_ESDHC1_EN	(1 << 29)
 #define CSCDR2_ESDHC0_EN	(1 << 28)

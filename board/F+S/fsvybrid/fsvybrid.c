@@ -503,57 +503,6 @@ int board_init(void)
 	temp |= VYBRID_SCSC_SICR_CTR_SOSC_EN;
 	__raw_writel(temp, &scsc->sosc_ctr);
 
-#ifdef CONFIG_CMD_NET
-	//#### nach board_eth_init()???
-	if (pargs->chBoardType == BT_CUBEA5)
-		return 0;		/* CUBEA5 has no ethernet at all */
-
-	if ((pargs->chBoardType == BT_AGATEWAY) && (pargs->chBoardRev >= 110)) {
-		/* Starting with board Rev 1.10, AGATEWAY has an external
-		   oscillator and needs RMIICLK (PTA6) as input */
-		__raw_writel(0x00203191, IOMUXC_PAD_000);
-	} else {
-#ifdef CONFIG_FS_VYBRID_PLL_ETH
-		struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
-
-		/* Configure PLL5 man clock for RMII clock. */
-		temp = __raw_readl(&ccm->cscmr2);
-		temp = temp | (2<<4);	/* CSCMR2[5:4] Use PLL5 main clock */
-		__raw_writel(temp, &ccm->cscmr2);
-		temp = __raw_readl(&ccm->cscdr1);
-		temp = temp | (1<<24);  /* CSCDR1[24] Enable ENET RMII clock */
-		__raw_writel(temp, &ccm->cscdr1);
-		temp = __raw_readl(0x400500E0);
-		temp = 0x2001;		/* ANADIG_PLL5_CTRL: Enable, 50MHz */
-		__raw_writel(temp, 0x400500E0);
-
-		if (pargs->chFeatures2 & FEAT2_RMIICLK_CKO1) {
-			/* We have a board revision with a direct connection
-			   between PTB10 and PTA6, so we will use CKO1 (PTB10)
-			   to output the RMII clock signal and use RMIICLK
-			   (PTA6) as input. */
-			temp = __raw_readl(&ccm->ccosr);
-			temp &= ~(0x7FF << 0);
-			temp |= (0x2F << 0) | (0 << 6) | (1 << 10);
-			__raw_writel(temp, &ccm->ccosr);
-			__raw_writel(0x00601992, IOMUXC_PAD_032);
-			__raw_writel(0x00203191, IOMUXC_PAD_000);
-		} else {
-			/* We do not have a connection between PTB10 and PTA6
-			   and we also don't have an external oscillator. We
-			   must use RMIICLK (PTA6) as RMII clock output. This
-			   is not stable and may not work with all PHYs! See
-			   the comment in function fecpin_setclear(). */
-			__raw_writel(0x00103942, IOMUXC_PAD_000);
-		}
-#else
-		/* We have an external oscillator for RMII clock, configure
-		   RMIICLK (PTA6) as input */
-		__raw_writel(0x00203191, IOMUXC_PAD_000);
-#endif /* CONFIG_FS_VYBRID_PLL_ETH */
-	}
-#endif /* CONFIG_CMD_NET */
-
 	return 0;
 }
 
@@ -803,88 +752,45 @@ int board_late_init(void)
 
 
 #ifdef CONFIG_CMD_NET
-/* Configure pins for ethernet (setclear=1) or back to GPIO (setclear=0);
-   this function is called by drivers/net/{mcffec.c,mcfmii.c} */
-int fecpin_setclear(struct eth_device *dev, int setclear)
+static void fecpin_config(uint32_t enet_addr)
 {
-	struct fec_info_s *info = (struct fec_info_s *)dev->priv;
-	if (setclear) {
-		/*
-		 * Configure as ethernet. There is a hardware bug on Vybrid
-		 * when RMIICLK (PTA6) is used as RMII clock output. Then
-		 * outgoing data changes value on the wrong edge, i.e. when it
-		 * is latched in the PHY. Unfortunately we have some board
-		 * revisions where this configuration is used. To reduce the
-		 * risk that the PHY latches the wrong data, we set the edge
-		 * speed of the data signals to low and of the clock signal to
-		 * high. This gains about 2ns difference but is unstable and
-		 * does not work with all PHYs.
-		 *
-		 * In our newer board revisions we either use an external
-		 * oscillator (AGATEWAY) or we have connected CKO1 (PTB10) to
-		 * PTA6 and output the RMII clock on CKO1. Then PTA6 is a
-		 * clock input and everything works as expected.
-		 */
-#ifdef CONFIG_SYS_FEC0_IOBASE
-		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
-			__raw_writel(0x001000c2, IOMUXC_PAD_045);	/*MDC*/
-			__raw_writel(0x001000c3, IOMUXC_PAD_046);	/*MDIO*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_047);	/*RxDV*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_048);	/*RxD1*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_049);	/*RxD0*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_050);	/*RxER*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_051);	/*TxD1*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_052);	/*TxD0*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_053);	/*TxEn*/
-		}
-#endif
-#ifdef CONFIG_SYS_FEC1_IOBASE
-		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
-			__raw_writel(0x001000c2, IOMUXC_PAD_054);	/*MDC*/
-			__raw_writel(0x001000c3, IOMUXC_PAD_055);	/*MDIO*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_056);	/*RxDV*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_057);	/*RxD1*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_058);	/*RxD0*/
-			__raw_writel(0x001000c1, IOMUXC_PAD_059);	/*RxER*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_060);	/*TxD1*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_061);	/*TxD0*/
-			__raw_writel(0x001000c2, IOMUXC_PAD_062);	/*TxEn*/
-		}
-#endif
-	} else {
-		/* Configure as GPIO */
-#ifdef CONFIG_SYS_FEC0_IOBASE
-		if (info->iobase == CONFIG_SYS_FEC0_IOBASE) {
-			__raw_writel(0x00003192, IOMUXC_PAD_045);	/*MDC*/
-			__raw_writel(0x00003193, IOMUXC_PAD_046);	/*MDIO*/
-			__raw_writel(0x00003191, IOMUXC_PAD_047);	/*RxDV*/
-			__raw_writel(0x00003191, IOMUXC_PAD_048);	/*RxD1*/
-			__raw_writel(0x00003191, IOMUXC_PAD_049);	/*RxD0*/
-			__raw_writel(0x00003191, IOMUXC_PAD_050);	/*RxER*/
-			__raw_writel(0x00003192, IOMUXC_PAD_051);	/*TxD1*/
-			__raw_writel(0x00003192, IOMUXC_PAD_052);	/*TxD0*/
-			__raw_writel(0x00003192, IOMUXC_PAD_053);	/*TxEn*/
-		}
-#endif
-#ifdef CONFIG_SYS_FEC1_IOBASE
-		if (info->iobase == CONFIG_SYS_FEC1_IOBASE) {
-			__raw_writel(0x00003192, IOMUXC_PAD_054);	/*MDC*/
-			__raw_writel(0x00003193, IOMUXC_PAD_055);	/*MDIO*/
-			__raw_writel(0x00003191, IOMUXC_PAD_056);	/*RxDV*/
-			__raw_writel(0x00003191, IOMUXC_PAD_057);	/*RxD1*/
-			__raw_writel(0x00003191, IOMUXC_PAD_058);	/*RxD0*/
-			__raw_writel(0x00003191, IOMUXC_PAD_059);	/*RxER*/
-			__raw_writel(0x00003192, IOMUXC_PAD_060);	/*TxD1*/
-			__raw_writel(0x00003192, IOMUXC_PAD_061);	/*TxD0*/
-			__raw_writel(0x00003192, IOMUXC_PAD_062);	/*TxEn*/
-		}
-#endif
+	/*
+	 * Configure as ethernet. There is a hardware bug on Vybrid when
+	 * RMIICLK (PTA6) is used as RMII clock output. Then outgoing data
+	 * changes value on the wrong edge, i.e. when it is latched in the
+	 * PHY. Unfortunately we have some board revisions where this
+	 * configuration is used. To reduce the risk that the PHY latches the
+	 * wrong data, we set the edge speed of the data signals to low and of
+	 * the clock signal to high. This gains about 2ns difference but is
+	 * unstable and does not work with all PHYs.
+	 *
+	 * In our newer board revisions we either use an external oscillator
+	 * (AGATEWAY) or we have connected CKO1 (PTB10) to PTA6 and output the
+	 * RMII clock on CKO1. Then PTA6 is a clock input and everything works
+	 * as expected.
+	 */
+	if (enet_addr == MACNET0_BASE_ADDR) {
+		__raw_writel(0x001000c2, IOMUXC_PAD_045);	/*MDC*/
+		__raw_writel(0x001000c3, IOMUXC_PAD_046);	/*MDIO*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_047);	/*RxDV*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_048);	/*RxD1*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_049);	/*RxD0*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_050);	/*RxER*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_051);	/*TxD1*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_052);	/*TxD0*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_053);	/*TxEn*/
+	} else if (enet_addr == MACNET1_BASE_ADDR) {
+		__raw_writel(0x001000c2, IOMUXC_PAD_054);	/*MDC*/
+		__raw_writel(0x001000c3, IOMUXC_PAD_055);	/*MDIO*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_056);	/*RxDV*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_057);	/*RxD1*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_058);	/*RxD0*/
+		__raw_writel(0x001000c1, IOMUXC_PAD_059);	/*RxER*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_060);	/*TxD1*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_061);	/*TxD0*/
+		__raw_writel(0x001000c2, IOMUXC_PAD_062);	/*TxEn*/
 	}
-
-	return 0;
 }
-
-extern struct fec_info_s fec_info[];
 
 /* Read a MAC address from OTP memory */
 int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
@@ -981,45 +887,113 @@ void set_fs_ethaddr(int index)
 }
 
 /* Initialize ethernet by registering the available FEC devices */
-int board_eth_init(bd_t *bd)
+int board_eth_init(bd_t *bis)
 {
 	int ret;
-	int index = 0;
+	int id;
+	int phy_addr;
+	uint32_t enet_addr;
+	u8 chBoardType = fs_nboot_args.chBoardType;
+	
+	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
+	if (chBoardType == BT_CUBEA5)
+		return 0;
 
-#ifdef CONFIG_SYS_FEC0_IOBASE
-	switch (fs_nboot_args.chBoardType) {
-	case BT_PICOCOMA5:
-	case BT_ARMSTONEA5:
-	case BT_NETDCUA5:
-		set_fs_ethaddr(index);
-		ret = mcffec_register(bd, &fec_info[0]);
-		if (ret)
-			return ret;
-		index++;
-		break;
+	/* Configure ethernet PHY clock depending on board type and revision */
+	if ((chBoardType == BT_AGATEWAY) && (fs_nboot_args.chBoardRev >= 110)) {
+		/* Starting with board Rev 1.10, AGATEWAY has an external
+		   oscillator and needs RMIICLK (PTA6) as input */
+		__raw_writel(0x00203191, IOMUXC_PAD_000);
+	} else {
+#ifdef CONFIG_FS_VYBRID_PLL_ETH
+		struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
+		u32 temp;
+
+		/* Configure PLL5 main clock for RMII clock. */
+		temp = __raw_readl(&ccm->cscmr2);
+		temp = temp | (2<<4);	/* CSCMR2[5:4] Use PLL5 main clock */
+		__raw_writel(temp, &ccm->cscmr2);
+		temp = __raw_readl(&ccm->cscdr1);
+		temp = temp | (1<<24);  /* CSCDR1[24] Enable ENET RMII clock */
+		__raw_writel(temp, &ccm->cscdr1);
+		temp = __raw_readl(0x400500E0);
+		temp = 0x2001;		/* ANADIG_PLL5_CTRL: Enable, 50MHz */
+		__raw_writel(temp, 0x400500E0);
+
+		if (fs_nboot_args.chFeatures2 & FEAT2_RMIICLK_CKO1) {
+			/* We have a board revision with a direct connection
+			   between PTB10 and PTA6, so we will use CKO1 (PTB10)
+			   to output the RMII clock signal and use RMIICLK
+			   (PTA6) as input. */
+			temp = __raw_readl(&ccm->ccosr);
+			temp &= ~(0x7FF << 0);
+			temp |= (0x2F << 0) | (0 << 6) | (1 << 10);
+			__raw_writel(temp, &ccm->ccosr);
+			__raw_writel(0x00601992, IOMUXC_PAD_032);
+			__raw_writel(0x00203191, IOMUXC_PAD_000);
+		} else {
+			/* We do not have a connection between PTB10 and PTA6
+			   and we also don't have an external oscillator. We
+			   must use RMIICLK (PTA6) as RMII clock output. This
+			   is not stable and may not work with all PHYs! See
+			   the comment in function fecpin_setclear(). */
+			__raw_writel(0x00103942, IOMUXC_PAD_000);
+		}
+#else
+		/* We have an external oscillator for RMII clock, configure
+		   RMIICLK (PTA6) as input */
+		__raw_writel(0x00203191, IOMUXC_PAD_000);
+#endif /* CONFIG_FS_VYBRID_PLL_ETH */
 	}
-#endif
 
-#ifdef CONFIG_SYS_FEC1_IOBASE
+	/* Get info on first ethernet port; AGATEWAY and HGATEWAY always only
+	   have one port which is actually FEC1! */
+	set_fs_ethaddr(0);
+	phy_addr = 0;
+	enet_addr = MACNET0_BASE_ADDR;
+	id = -1;
 	switch (fs_nboot_args.chBoardType) {
 	case BT_PICOCOMA5:
+		phy_addr = 1;
+		/* Fall through to case BT_ARMSTONEA5 */
 	case BT_ARMSTONEA5:
 	case BT_NETDCUA5:
-		if (!(fs_nboot_args.chFeatures1 & FEAT1_2NDLAN))
-			break;
-		/* Fall through to case BT_AGATEWAY */
+		if (fs_nboot_args.chFeatures1 & FEAT1_2NDLAN)
+			id = 0;
+		break;
 	case BT_AGATEWAY:
 	case BT_HGATEWAY:
-		set_fs_ethaddr(index);
-#ifdef CONFIG_SYS_FEC0_IOBASE
-		ret = mcffec_register(bd, &fec_info[1]);
-#else
-		ret = mcffec_register(bd, &fec_info[0]);
-#endif
+		id = -1;
+		enet_addr = MACNET1_BASE_ADDR;
 		break;
 	}
-#endif
-	return ret;
+
+	/* Configure pads for first port */
+	fecpin_config(enet_addr);
+
+	/* Probe first PHY and ethernet port */
+	ret = fecmxc_initialize_multi_type(bis, id, phy_addr, enet_addr, RMII);
+	if (ret || !(fs_nboot_args.chFeatures1 & FEAT1_2NDLAN))
+		return ret;
+
+	/* Get info on second ethernet port */
+	set_fs_ethaddr(1);
+	switch (fs_nboot_args.chBoardType) {
+	case BT_PICOCOMA5:
+		phy_addr = 1;
+		break;
+	case BT_ARMSTONEA5:
+	case BT_NETDCUA5:
+		phy_addr = 0;
+		break;
+	}
+	enet_addr = MACNET1_BASE_ADDR;
+
+	/* Configure pads for second port */
+	fecpin_config(enet_addr);
+
+	/* Probe second PHY and ethernet port */
+	return fecmxc_initialize_multi_type(bis, 1, phy_addr, enet_addr, RMII);
 }
 #endif /* CONFIG_CMD_NET */
 

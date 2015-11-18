@@ -120,7 +120,9 @@ int cpu_eth_init(bd_t *bis)
 {
 	int rc = -ENODEV;
 
-	rc = mcffec_initialize(bis);
+#if defined(CONFIG_FEC_MXC) && defined(CONFIG_FEC_MXC_PHYADDR)
+        rc = fecmxc_initialize(bis);
+#endif
 
 	return rc;
 }

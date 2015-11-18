@@ -25,6 +25,11 @@
 #ifndef __ASM_ARCH_CLOCK_H
 #define __ASM_ARCH_CLOCK_H
 
+#define ENET_EXTERNAL_CLK 50000000
+#define AUDIO_EXTERNAL_CLK 24576000
+
+#define imx_get_fecclk() vybrid_get_clock(VYBRID_FEC_CLK)
+
 enum vybrid_clock {
 	VYBRID_ARM_CLK = 0,
 	VYBRID_DDR_CLK,
