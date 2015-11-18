@@ -29,7 +29,6 @@
 #include "nfs.h"
 #include "bootp.h"
 
-#define HASHES_PER_LINE 65	/* Number of "loading" hashes per line	*/
 #define NFS_RETRY_COUNT 30
 #ifndef CONFIG_NFS_TIMEOUT
 # define NFS_TIMEOUT 2000UL
@@ -567,9 +566,9 @@ nfs_read_reply(uchar *pkt, unsigned len)
 	}
 
 	if ((nfs_offset != 0) && !((nfs_offset) %
-			(NFS_READ_SIZE / 2 * 10 * HASHES_PER_LINE)))
-		puts("\n\t ");
-	if (!(nfs_offset % ((NFS_READ_SIZE / 2) * 10)))
+			(NFS_READ_SIZE * 16 * 64)))
+		printf("  %lu KiB\n\t ", NetBootFileXferSize >> 10);
+	if (!(nfs_offset % (NFS_READ_SIZE * 16)))
 		putc('#');
 
 	rlen = ntohl(rpc_pkt.u.reply.data[18]);
@@ -608,6 +607,9 @@ NfsHandler(uchar *pkt, unsigned dest, IPaddr_t sip, unsigned src, unsigned len)
 
 	if (dest != NfsOurPort)
 		return;
+
+	/* We have received something useful; restart timeout count */
+	NfsTimeoutCount = 0;
 
 	switch (NfsState) {
 	case STATE_PRCLOOKUP_PROG_MOUNT_REQ:

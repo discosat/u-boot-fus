@@ -475,9 +475,11 @@ restart:
 #endif
 		/*
 		 *	Check the ethernet for a new packet.  The ethernet
-		 *	receive routine will process it.
+		 *	receive routine will process it. In case of error,
+		 *	force immediate timeout.
 		 */
-		eth_rx();
+		if (eth_rx() < 0)
+			timeStart = get_timer(0) - timeDelta - 1;
 
 		/*
 		 *	Abort if ctrl-c was pressed.
@@ -598,9 +600,9 @@ void NetStartAgain(void)
 		if (!strcmp(nretry, "yes"))
 			retry_forever = 1;
 		else if (!strcmp(nretry, "no"))
-			retrycnt = 0;
-		else if (!strcmp(nretry, "once"))
 			retrycnt = 1;
+		else if (!strcmp(nretry, "once"))
+			retrycnt = 2;
 		else
 			retrycnt = simple_strtoul(nretry, NULL, 0);
 	} else

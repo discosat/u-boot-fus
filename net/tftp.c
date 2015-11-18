@@ -25,8 +25,6 @@
 #else
 # define TIMEOUT_COUNT  (CONFIG_NET_RETRY_COUNT * 2)
 #endif
-/* Number of "loading" hashes per line (for checking the image size) */
-#define HASHES_PER_LINE	65
 
 /*
  *	TFTP operations.
@@ -248,10 +246,12 @@ static void show_block_marker(void)
 	} else
 #endif
 	{
-		if (((TftpBlock - 1) % 10) == 0)
+		if ((TftpBlock & 0xf) == 0) {
 			putc('#');
-		else if ((TftpBlock % (10 * HASHES_PER_LINE)) == 0)
-			puts("\n\t ");
+			if ((TftpBlock & 0x3ff) == 0)
+				printf("  %lu KiB\n\t ",
+				       NetBootFileXferSize >> 10);
+		}
 	}
 }
 
@@ -285,10 +285,9 @@ static void update_block_number(void)
 	if (TftpBlock == 0 && TftpLastBlock != 0) {
 		TftpBlockWrap++;
 		TftpBlockWrapOffset += TftpBlkSize * TFTP_SEQUENCE_SIZE;
-		TftpTimeoutCount = 0; /* we've done well, reset thhe timeout */
-	} else {
-		show_block_marker();
+		TftpTimeoutCount = 0; /* we've done well, reset the timeout */
 	}
+	show_block_marker();
 }
 
 /* The TFTP get or put is complete */
@@ -465,6 +464,10 @@ TftpHandler(uchar *pkt, unsigned dest, IPaddr_t sip, unsigned src,
 	if (len < 2)
 		return;
 	len -= 2;
+
+	/* We have received something useful; restart timeout count */
+	TftpTimeoutCount = 0;
+
 	/* warning: don't use increment (++) in ntohs() macros!! */
 	s = (__be16 *)pkt;
 	proto = *s++;
