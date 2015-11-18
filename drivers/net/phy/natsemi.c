@@ -111,37 +111,37 @@ static struct phy_driver DP83865_driver = {
 };
 
 
-/* NatSemi DP83484 */
-#define MIIM_DP83484_RBR 0x17
-#define MIIM_DP83484_PHYCR 0x19
+/* NatSemi DP83848 */
+#define MIIM_DP83848_RBR 0x17
+#define MIIM_DP83848_PHYCR 0x19
 
-static int dp83484_config(struct phy_device *phydev)
+static int dp83848_config(struct phy_device *phydev)
 {
 	int reg;
 
 #if 0
 	/* Switch to RMII rev. 1.0 (instead of rev. 1.2) */
-	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_DP83484_RBR);
+	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_RBR);
 	reg |= 0x10;
-	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83484_RBR, reg);
+	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_RBR, reg);
 #endif
 
 	/* LED Mode 2: Show ethernet activity on LINK LED */
-	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_DP83484_PHYCR);
+	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_PHYCR);
 	reg &= ~0x20;
-	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83484_PHYCR, reg);
+	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_PHYCR, reg);
 
 	genphy_config(phydev);
 
 	return 0;
 }
 
-static struct phy_driver DP83484_driver = {
-	.name = "NatSemi DP83484",
+static struct phy_driver DP83848_driver = {
+	.name = "NatSemi DP83848",
 	.uid = 0x20005c90,
 	.mask = 0xfffffff0,
 	.features = PHY_BASIC_FEATURES,
-	.config = &dp83484_config,
+	.config = &dp83848_config,
 	.startup = &genphy_startup,
 	.shutdown = &genphy_shutdown,
 };
@@ -150,7 +150,7 @@ int phy_natsemi_init(void)
 {
 	phy_register(&DP83630_driver);
 	phy_register(&DP83865_driver);
-	phy_register(&DP83484_driver);
+	phy_register(&DP83848_driver);
 
 	return 0;
 }
