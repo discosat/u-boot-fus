@@ -52,12 +52,22 @@
 #define BT_EFUSA7UL   0
 #define BT_CUBEA7UL   1
 
-/* Features set in tag_fshwconfig.chFeature1 */
-#define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
-#define FEAT1_2NDLAN  (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+/* Features set in tag_fshwconfig.chFeature1 (###TODO: proposed fetaures, not
+   actually available from NBoot) */
+#define FEAT1 L2CACHE (1<<0)		/* 0: no L2 Cache, 1: has L2 Cache */
+#define FEAT1_M4      (1<<1)		/* 0: no Cortex-M4, 1: has Cortex-M4 */
+#define FEAT1_LCD     (1<<2)		/* 0: no LCD device, 1: has LCD */
 
-/* Features set in tag_fshwconfig.chFeature2 */
-#define FEAT2_M4      (1<<0)		/* CPU has Cortex-M4 core */
+/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN26) */
+#define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
+#define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
+#define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
+#define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
+#define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
+
+/* NBoot before VN27 did not report feature values; use reasonable defaults */
+#define FEAT1_DEFAULT 0
+#define FEAT2_DEFAULT (FEAT2_ETH_A | FEAT2_ETH_B | FEAT2_EMMC | FEAT2_WLAN)
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -87,8 +97,11 @@
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
 #define USDHC_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
-	PAD_CTL_PUS_22K_UP  | PAD_CTL_SPEED_LOW |		\
+	PAD_CTL_PUS_47K_UP  | PAD_CTL_SPEED_MED |		\
 	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
+
+#define USDHC_CLK_CTRL (PAD_CTL_SPEED_MED |		\
+	PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
 
 
 struct board_info {
@@ -108,6 +121,11 @@ struct board_info {
 	char *kernel;			/* Default variable for kernel */
 	char *fdt;			/* Default variable for device tree */
 	char *fsload;			/* Default variable for load command */
+};
+
+struct fus_sdhc_cfg {
+	struct fsl_esdhc_cfg esdhc;
+	unsigned int cd_gpio;
 };
 
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -288,6 +306,12 @@ int board_init(void)
 	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
 	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
 
+	/* NBoot versions before VN27 did not report feature values */
+	if ((be32_to_cpu(pargs->dwNBOOT_VER) & 0xFFFF) < 0x3237) { /* "27" */
+		fs_nboot_args.chFeatures1 = FEAT1_DEFAULT;
+		fs_nboot_args.chFeatures2 = FEAT2_DEFAULT;
+	}
+
 	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
 
@@ -424,7 +448,7 @@ enum update_action board_check_for_recover(void)
 #ifdef CONFIG_GENERIC_MMC
 static iomux_v3_cfg_t const usdhc1_pads[] = {
 	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
@@ -435,7 +459,7 @@ static iomux_v3_cfg_t const usdhc1_pads[] = {
 
 static iomux_v3_cfg_t const usdhc2_pads[] = {
 	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_CTRL)),
 	IOMUX_PADS(PAD_LCD_DATA20__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_LCD_DATA21__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_LCD_DATA22__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
@@ -443,101 +467,141 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 	/* No WP and no CD */
 };
 
-struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{
-		.esdhc_base = USDHC1_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC_CLK,
-		.max_bus_width = 4,
-	},
-	{
-		.esdhc_base = USDHC2_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC2_CLK,
-		.max_bus_width = 4,
-	},
+static iomux_v3_cfg_t const sdhc_cd_wp_pads[] = {
+	/* WP */
+	IOMUX_PADS(PAD_UART1_CTS_B__GPIO1_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	/* CD */
+	IOMUX_PADS(PAD_UART1_RTS_B__GPIO1_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
+
+struct fus_sdhc_cfg sdhc_cfg[2];
 
 int board_mmc_getcd(struct mmc *mmc)
 {
-	int cd_pin;
+	struct fus_sdhc_cfg *cfg = &sdhc_cfg[mmc->block_dev.dev];
 
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA7UL:
-		if (mmc->block_dev.dev == 0)
-			return 1;	/* USDHC2 */
-		else
-			cd_pin = IMX_GPIO_NR(1, 19); /* USDHC1 */
-		return !gpio_get_value(cd_pin);
+	if (cfg->cd_gpio == 0xFFFFFFFF)
+		return 1;		/* No CD, assume card is present */
 
-	default:
-		return 1;		/* Assume card is present */
+	/* Return CD signal (active low) */
+	return !gpio_get_value(cfg->cd_gpio);
+}
+
+static int setup_mmc(bd_t *bis, struct fus_sdhc_cfg *cfg, unsigned cd_gpio,
+		     int usdhc_index, u8 max_bus_width)
+{
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	u32 ccgr6;
+
+	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
+	cfg->cd_gpio = cd_gpio;
+	if (cd_gpio != 0xFFFFFFFF)
+		gpio_direction_input(cd_gpio);
+
+	/* Ungate USDHC clock and configure port */
+	cfg->esdhc.max_bus_width = max_bus_width;
+	ccgr6 = readl(&mxc_ccm->CCGR6);
+	switch (usdhc_index) {
+	case 1:
+		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
+		ccgr6 |= (3 << 2);
+		break;
+	case 2:
+		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+		ccgr6 |= (3 << 4);
+		break;
 	}
+	writel(ccgr6, &mxc_ccm->CCGR6);
+
+	return fsl_esdhc_initialize(bis, &cfg->esdhc);
 }
 
 int board_mmc_init(bd_t *bis)
 {
-	int index;
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	u32 ccgr6;
-	unsigned int gpio_cd = 0xFFFFFFFF;
-	int ret;
+	int ret = 0;
+	unsigned int cd_gpio = 0xFFFFFFFF;
+	struct fus_sdhc_cfg *cfg = &sdhc_cfg[0];
 
-	ccgr6 = readl(&mxc_ccm->CCGR6);
-
-#if 1 //### TODO: activate SD slot only if eMMC is not mounted
-	/* Configure first SD card slot */
+	/* Configure first SD card slot (if available) */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA7UL:
-		/* USDHC2: on efusA7UL, this is either the internal eMMC or
-		   the ext. SD slot (connector, normal-size SD slot on efus
-		   SKIT), no Write Protect (WP) and no Card Detect (CD)
-		   signals! */
+		/*
+		 * On efusA7UL, USDHC2 is either used for internal eMMC or
+		 * provides the ext. SD_B on the connector (normal-size SD
+		 * slot on efus SKIT). Write Protect (WP) is on GPIO1_IO18
+		 * (ignored), Card Detect (CD) is on GPIO1_IO19.
+		 *
+		 * On board rev 1.00, the CD/WP pins are only available for
+		 * SD_A. But on newer board revisions, they can be either used
+		 * for SD_A or SD_B. Here we usually use them for SD_B because
+		 * the normal-size slot on the SKIT actually has CD and WP
+		 * while the Micro SD slot on SD_A only has CD. But if eMMC is
+		 * equipped, we pass them on to SD_A. If SD_A is also not
+		 * available because WLAN is equipped, we do not activate any
+		 * CD/WP at all.
+		 */
+		if (fs_nboot_args.chFeatures2 & FEAT2_EMMC)
+			break;		/* configure eMMC later as last MMC */
+		if (fs_nboot_args.chBoardRev >= 110) {
+			cd_gpio = IMX_GPIO_NR(1, 19);
+			SETUP_IOMUX_PADS(sdhc_cd_wp_pads);
+		}
 		SETUP_IOMUX_PADS(usdhc2_pads);
-		ccgr6 |= (3 << 4);
-		index = 1;
+		ret = setup_mmc(bis, cfg++, cd_gpio, 2, 4);
 		break;
 
 	default:
 		return 0;		/* Unknown device */
 	}
 
-	if (gpio_cd != 0xFFFFFFFF)
-		gpio_direction_input(gpio_cd);
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
-	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 	if (ret)
 		return ret;
-#endif
 
-#if 0 //### TODO: activate micro-SD card, but only if WLAN is not mounted
 	/* Configure second SD card slot (if available) */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA7UL:
-		/* USDHC1: ext. SD slot (connector, micro SD slot on efus
-		   SKIT), Write Protect (WP) on GPIO1_IO18 (ignored), Card
-		   Detect (CD) on GPIO1_IO19. Alternatively used as SDIO for
-		   on-board WLAN. */
-		gpio_cd = IMX_GPIO_NR(1, 19);
+		/*
+		 * On efusA7UL, USDHC1 is either used for on-board WLAN or
+		 * provides ext. SD_B on the connector (Micro SD slot on efus
+		 * SKIT). We can only use CD/WP if not already used by SD_B
+		 * above (cd_gpio is still 0xFFFFFFFF).
+		 */
+		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+			break;
+		if (cd_gpio == 0xFFFFFFFF) {
+			cd_gpio = IMX_GPIO_NR(1, 19);
+			SETUP_IOMUX_PADS(sdhc_cd_wp_pads);
+		}
 		SETUP_IOMUX_PADS(usdhc1_pads);
-		ccgr6 |= (3 << 2);
-		index = 0;
+		ret = setup_mmc(bis, cfg++, cd_gpio, 1, 4);
 		break;
 
 	default:
 		return 0; 		/* No more SD card slots */
 	}
 
-	if (gpio_cd != 0xFFFFFFFF)
-		gpio_direction_input(gpio_cd);
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
-	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 	if (ret)
 		return ret;
-#endif //###
-	return 0;
+
+	/* Configure eMMC (if available) ### TODO: eMMC does not work yet */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA7UL:
+		if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+			break;
+		/* On efusA7UL, eMMC is on USDHC2 */
+		SETUP_IOMUX_PADS(usdhc2_pads);
+		/* ### TODO: if no NAND is used, eMMC may take four additional
+		   signals from NAND and use buswidth 8 */
+		ret = setup_mmc(bis, cfg++, 0xFFFFFFFF, 2, 4);
+		break;
+
+	default:
+		return 0; 		/* No more SD card slots */
+	}
+
+	return ret;
 }
 #endif
 
@@ -700,13 +764,20 @@ int board_late_init(void)
 #endif
 
 #ifdef CONFIG_CMD_NET
-/* enet pads definition */
-static iomux_v3_cfg_t const enet_pads_rmii[] = {
-	/* MDIO */
+/* MDIO on ENET1, used if either only ENET1 port or both ports are in use */
+static iomux_v3_cfg_t const enet1_pads_mdio[] = {
 	IOMUX_PADS(PAD_GPIO1_IO06__ENET1_MDIO | MUX_PAD_CTRL(MDIO_PAD_CTRL)),
 	IOMUX_PADS(PAD_GPIO1_IO07__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+};
 
-	/* FEC0 (ENET1); the reference clock goes from CPU to PHY */
+/* MDIO on ENET2, used if only ENET2 port is in use */
+static iomux_v3_cfg_t const enet2_pads_mdio[] = {
+	IOMUX_PADS(PAD_GPIO1_IO06__ENET2_MDIO | MUX_PAD_CTRL(MDIO_PAD_CTRL)),
+	IOMUX_PADS(PAD_GPIO1_IO07__ENET2_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+};
+
+/* FEC0 (ENET1); 100 MBit/s on RMII, reference clock goes from CPU to PHY */
+static iomux_v3_cfg_t const enet1_pads_rmii[] = {
 	IOMUX_PADS(PAD_ENET1_RX_EN__ENET1_RX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET1_RX_ER__ENET1_RX_ER | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET1_TX_EN__ENET1_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -715,8 +786,10 @@ static iomux_v3_cfg_t const enet_pads_rmii[] = {
 	IOMUX_PADS(PAD_ENET1_TX_DATA0__ENET1_TDATA00 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET1_TX_DATA1__ENET1_TDATA01 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET1_TX_CLK__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+};
 
-	/* FEC1 (ENET2); the reference clock goes from CPU to PHY */
+/* FEC1 (ENET2); 100 MBit/s on RMII, reference clock goes from CPU to PHY */
+static iomux_v3_cfg_t const enet2_pads_rmii[] = {
 	IOMUX_PADS(PAD_ENET2_RX_EN__ENET2_RX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_RX_ER__ENET2_RX_ER | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_EN__ENET2_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -726,11 +799,15 @@ static iomux_v3_cfg_t const enet_pads_rmii[] = {
 	IOMUX_PADS(PAD_ENET2_TX_DATA1__ENET2_TDATA01 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_CLK__ENET2_REF_CLK2 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
 
+};
+
+/* Additional pins required for ethernet */
+static iomux_v3_cfg_t const enet_pads_extra[] = {
 	/* PHY interrupt; on efusA7UL this is shared on both PHYs and even the
 	   PCA8565 RTC uses the same interrupt line! */
 	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 
-	/* On efusA7UL, there is no specific PHY reset. Reset is done by the
+	/* On efusA7UL, there is no dedicated PHY reset. Reset is done by the
 	   global RESETOUTn signal that we trigger in board_init() */
 };
 
@@ -741,7 +818,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-	/* 
+	/*
 	 * Read a MAC address from OTP memory on i.MX6; it is stored in the
 	 * following order:
 	 *
@@ -758,7 +835,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	 * (all six bytes 0xFF). In this case the whole address is ignored.
 	 *
 	 * In addition to the address itself, there may be a count stored in
-	 * mac_l[7:0]. 
+	 * mac_l[7:0].
 	 *
 	 *   count=0: only the address itself
 	 *   count=1: the address itself and the next address
@@ -833,95 +910,143 @@ int board_eth_init(bd_t *bis)
 	enum enet_freq freq;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
-
-	struct mii_dev *bus;
+	struct mii_dev *bus = NULL;
 	struct phy_device *phydev;
-
-	/* Set the IOMUX for ENET, use 100 MBit/s LAN on RMII pins */
-	SETUP_IOMUX_PADS(enet_pads_rmii);
-
-	/* Get parameters for the first ethernet port */
-	switch (fs_nboot_args.chBoardType) {
-	default:
-		set_fs_ethaddr(0);
-
-		/* ENET1 (FEC0) CLK is generated in i.MX6 and is an output */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 |= IOMUXC_GPR1_ENET1_CLK_SEL_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
-
-		freq = ENET_50MHZ;
-		phy_addr = 0;
-		xcv_type = RMII;
-		break;
-	}
+	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
+	uint32_t enet_addr;
+	int id = -1;
 
 	/* Both PHYs were already reset via RESETOUTn in board_init() */
 
-	/* Activate ENET1 (FEC0) PLL */
-	ret = enable_fec_anatop_clock(0, freq);
-	if (ret < 0)
-		return ret;
-
-	/* Ungate ETH clock, this is a common clock for both ports */
-	reg = readl(&mxc_ccm->CCGR3);
-	reg |= 0x30;
-	writel(reg, &mxc_ccm->CCGR3);
-
-	/* We can not use fecmxc_initialize_multi_type() because this would
-	   allocate one MII bus for each ethernet device. But we only need one
-	   MII bus in total for both ports. So the following code works rather
-	   similar to fecmxc_initialize_multi_type(), but uses just one bus. */
-	bus = fec_get_miibus(ENET_BASE_ADDR, -1);
-	if (!bus)
-		return -ENOMEM;
-
-	/* Probe the first PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RMII);
-	if (!phydev) {
-		free(bus);
-		return -ENOMEM;
+	/* Ungate ENET clock, this is a common clock for both ports */
+	if (fs_nboot_args.chFeatures2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
+		reg = readl(&mxc_ccm->CCGR3);
+		reg |= 0x30;
+		writel(reg, &mxc_ccm->CCGR3);
 	}
 
-	/* Probe the first ethernet port */
-	ret = fec_probe(bis, 0, ENET_BASE_ADDR, bus, phydev, xcv_type);
-	if (ret) {
-		free(phydev);
-		free(bus);
-		return ret;
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+		/* Set the IOMUX for ENET1, use 100 MBit/s LAN on RMII pins */
+		SETUP_IOMUX_PADS(enet1_pads_rmii);
+		SETUP_IOMUX_PADS(enet1_pads_mdio);
+
+		/* Get parameters for the first ethernet port */
+		switch (fs_nboot_args.chBoardType) {
+		default:
+			set_fs_ethaddr(0);
+
+			/* ENET1 CLK is generated in i.MX6 and is an output */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUXC_GPR1_ENET1_CLK_SEL_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			freq = ENET_50MHZ;
+			phy_addr = 0;
+			xcv_type = RMII;
+			break;
+		}
+
+		/* Activate ENET1 PLL */
+		ret = enable_fec_anatop_clock(0, freq);
+		if (ret < 0)
+			return ret;
+
+		/*
+		 * We can not use fecmxc_initialize_multi_type() because this
+		 * would allocate one MII bus for each ethernet device. But we
+		 * only need one MII bus in total for both ports. So the
+		 * following code works rather similar to
+		 * fecmxc_initialize_multi_type(), but uses just one bus.
+		 */
+		bus = fec_get_miibus(ENET_BASE_ADDR, -1);
+		if (!bus)
+			return -ENOMEM;
+
+		/* Probe the first PHY */
+		phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
+		if (!phydev) {
+			free(bus);
+			return -ENOMEM;
+		}
+
+
+		/* Probe the first ethernet port; call it FEC if it is the
+		   only port, and FEC0 if both ports are in use. */
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
+			id = 0;
+		enet_addr = ENET_BASE_ADDR;
+		ret = fec_probe(bis, id, enet_addr, bus, phydev, xcv_type);
+		if (ret) {
+			free(phydev);
+			free(bus);
+			return ret;
+		}
+		id = 1;
 	}
 
-	/* Get parameters for the second ethernet port; if the second port
-	   fails, return without error because the first port is OK already */
-	switch (fs_nboot_args.chBoardType) {
-	default:
-		set_fs_ethaddr(1);
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
+		/* Set the IOMUX for ENET2, use 100 MBit/s LAN on RMII pins.
+		   If both ports are in use, MDIO was already set above.
+		   Otherwise we will use MDIO via ENET2 to avoid having to
+		   activate the clock for ENET1. */
+		SETUP_IOMUX_PADS(enet2_pads_rmii);
+		if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A))
+			SETUP_IOMUX_PADS(enet2_pads_mdio);
 
-		/* ENET2 (FEC1) CLK is generated in i.MX6 and is an output */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+		/* Get parameters for the second ethernet port */
+		switch (fs_nboot_args.chBoardType) {
+		default:
+			set_fs_ethaddr(1);
 
-		freq = ENET_50MHZ;
-		phy_addr = 3;
-		xcv_type = RMII;
-		break;
+			/* ENET2 CLK is generated in i.MX6 and is an output */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			freq = ENET_50MHZ;
+			phy_addr = 3;
+			xcv_type = RMII;
+			break;
+		}
+
+		/* Activate ENET2 PLL */
+		ret = enable_fec_anatop_clock(1, freq);
+		if (ret < 0)
+			return 0;
+
+		/* If ENET1 is not in use, we must get our MDIO bus now */
+		if (!bus) {
+			bus = fec_get_miibus(ENET2_BASE_ADDR, -1);
+			if (!bus)
+				return -ENOMEM;
+		}
+
+		/* Probe the second PHY */
+		phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
+		if (!phydev) {
+			/* If this is the only port, return error */
+			if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A)) {
+				free(bus);
+				return -ENOMEM;
+			}
+
+			/* If we still have ENET1 running, return successful */
+			return 0;
+		}
+
+		/* Probe the second ethernet port */
+		enet_addr = ENET2_BASE_ADDR;
+		ret = fec_probe(bis, id, enet_addr, bus, phydev, xcv_type);
+		if (ret) {
+			free(phydev);
+			/* If this is the only port, return with error */
+			if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A)) {
+				free(bus);
+				return ret;
+			}
+			/* If we still have ENET1 running, return successful */
+		}
 	}
-
-	/* Activate ENET2 (FEC1) PLL */
-	ret = enable_fec_anatop_clock(1, freq);
-	if (ret < 0)
-		return 0;
-
-	/* Probe the second PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RMII);
-	if (!phydev)
-		return 0;
-
-	/* Probe the second ethernet port */
-	ret = fec_probe(bis, 1, ENET2_BASE_ADDR, bus, phydev, xcv_type);
-	if (ret)
-		free(phydev);
 
 	return 0;
 }
