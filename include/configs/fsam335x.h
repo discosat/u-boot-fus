@@ -100,6 +100,11 @@
 #include <asm/arch/omap.h>		/* NON_SECURE_SRAM info */
 #define CONFIG_SYS_CACHELINE_SIZE	64
 
+/* The ARMv7 cache code (arch/arm/lib/cache-cp15.c) now also allows to set the
+   data cache mode to write-back. Unfortunately this is now the default, but
+   unless this is thoroughly tested, set it back to write-through. */
+#define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
+
 //###FIXME### Can we drop CONFIG_ARCH_CPU_INIT?
 #define CONFIG_ARCH_CPU_INIT		/* Save OMAP boot params (unused) */
 #define CONFIG_SKIP_LOWLEVEL_INIT	/* CPU and RAM setup done in NBoot */

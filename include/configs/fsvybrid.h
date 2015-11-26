@@ -97,6 +97,11 @@
 #include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
 #define CONFIG_SYS_CACHELINE_SIZE	64
 
+/* The ARMv7 cache code (arch/arm/lib/cache-cp15.c) now also allows to set the
+   data cache mode to write-back. Unfortunately this is now the default, but
+   unless this is thoroughly tested, set it back to write-through. */
+#define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
+
 #undef CONFIG_ARCH_CPU_INIT
 //###FIXME### Can we activate CONFIG_SKIP_LOWLEVEL_INIT?
 #undef CONFIG_SKIP_LOWLEVEL_INIT

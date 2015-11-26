@@ -99,9 +99,14 @@
 #define CONFIG_FSS5PV210	1	/* ...on an F&S S5PV210 board */
 #undef CONIFG_MP			/* No multi processor support */
 
+/* The ARMv7 cache code (arch/arm/lib/cache-cp15.c) now also allows to set the
+   data cache mode to write-back. Unfortunately this is now the default, but
+   unless this is thoroughly tested, set it back to write-through. */
+#define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
+
 /* The machine IDs are already set in include/asm/mach-types.h, but we may
    need some additional settings */
-#define MACH_TYPE_PICOMOD7A	MACH_TYPE_PICOMOD7   /* Use same as PicoMOD7 */ 
+#define MACH_TYPE_PICOMOD7A	MACH_TYPE_PICOMOD7   /* Use same as PicoMOD7 */
 #define MACH_TYPE_QBLISSA8B	MACH_TYPE_ARMSTONEA8 /* ###TODO, if ever */
 #define MACH_TYPE_EASYSOM1	MACH_TYPE_ARMSTONEA8 /* no extra number */
 

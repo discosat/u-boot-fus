@@ -63,6 +63,12 @@
 #define CONFIG_SYS_PL310_BASE	L2_PL310_BASE
 #endif
 
+/* The ARMv7 cache code (arch/arm/lib/cache-cp15.c) and the i.MX6 init code
+   (arch/arm/cpu/armv7/mx6/soc.c) now also allow to set the data cache mode to
+   write-back. Unfortunately this is now the default, but (at least) i.MX6
+   SDHC does not work with write-back yet. So set back to write-through. */
+#define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
+
 //#define CONFIG_ARM_ERRATA_743622
 //#define CONFIG_ARM_ERRATA_751472
 //#define CONFIG_ARM_ERRATA_794072
