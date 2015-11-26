@@ -290,7 +290,7 @@ static int do_mmc_read(cmd_tbl_t *cmdtp, int flag,
 	if (argc != 4)
 		return CMD_RET_USAGE;
 
-	addr = (void *)simple_strtoul(argv[1], NULL, 16);
+	addr = (void *)parse_loadaddr(argv[1], NULL);
 	blk = simple_strtoul(argv[2], NULL, 16);
 	cnt = simple_strtoul(argv[3], NULL, 16);
 
@@ -318,7 +318,7 @@ static int do_mmc_write(cmd_tbl_t *cmdtp, int flag,
 	if (argc != 4)
 		return CMD_RET_USAGE;
 
-	addr = (void *)simple_strtoul(argv[1], NULL, 16);
+	addr = (void *)parse_loadaddr(argv[1], NULL);
 	blk = simple_strtoul(argv[2], NULL, 16);
 	cnt = simple_strtoul(argv[3], NULL, 16);
 
