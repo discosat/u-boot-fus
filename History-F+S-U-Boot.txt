@@ -1,6 +1,58 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fsimx6ul-V1.0 (27.11.2015)
+-----------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9
+Not tested:       armStoneA5, armStoneA8, PicoMOD7A, NetDCU14, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+
+- Add AUTO_COMPLETE for fsvybrid, fsam335x and fss5pv210
+- Use new volume name format for ubifsmount
+- Add rootwait for asynchronuous root devices like SD Card
+- Add support for LEDs on HGATEWAY
+- Improve fsvybrid NAND driver, e.g. optimize count_zeroes() function
+- Rebase to u-boot-2014.04
+- Join Vybrid asm-offsets.c with arch/arm/lib/asm-offsets.c
+- Use objcopy to create uboot.nb0 in Makefile
+- Add fat_exists() function in F&S FAT implementation
+- Fix SD/MMC buswidth config on fsimx6 and fsvybrid
+- Activate workarounds for ARM errata 794072+761320 on fsimx6
+- Rebase to u-boot-2014.07
+- Use F&S variants for command interpreters
+- Make U-Boot binary layout work with F&S NBoot again
+- Use IOMUX_PADS() and SETUP_IOMUX_PADS() for fsimx6
+- Remove ARM erratum 742230 from fsimx6
+- Clean up code for update/install/recover infrastructure
+- Add support for i.MX6 Solo-X CPU
+- Add IOMUX_PADS() and SETUP_IOMUX_PADS() for i.MX6 Solo-X
+- Fix irqstaten value in fsl_esdhc driver
+- Add board_usb_phy_mode() to i.MX6 USB driver ehci-mx6.c
+- Add board support for fsimx6sx (efusA9X)
+- Disable warning message for not using generic board
+- Add support for Device Trees (FDT) for fsimx6sx
+- Add FDT partition and Android boot.img support
+- Trigger RESETOUTn at start on fsimx6sx
+- Add basic support for i.MX6UL (taken from rel_imx_3.14.38_6ul_ga)
+- Update necessary ARM errata workarounds for i.MX6
+- Add support for KSZ8081 ethernet PHY
+- Add support for fsimx6ul (efusA7UL)
+- Improve ethernet configuration, add second ETH on fsimx6sx
+- Use SION flag for I2C pads on i.MX6SX
+- Add Micrel KSZ8021/KSZ8031 to drivers/net/phy/micrel.c
+- Fix incorrect PHY name for DP83848
+- Remove unneeded 125MHz reference clock for ethernet on efusA9X
+- Switch LAN on fsvybrid to fec_mxc driver and use PHYLIB
+- During TFTP/NFS, show size and improve timeout handling
+- Improve LAN timeout timing on all F&S boards and modules
+- Backport cache_v7.c from u-boot-2015.07
+- Use CONFIG_SYS_ARM_CACHE_WRITETHROUGH on F&S boards and modules
+- Allow '.' for $loadaddr in mmc read and mmc write
+- Add support for config jumpers on fsimx6ul (needs NBoot VN27 or newer)
+- In fsl_esdhc.c, invalidate dcache twice to be sure
+
+
+
 u-boot-2014.01-fsimx6-V2.0 (22.04.2015)
 ---------------------------------------
 Supported boards: armStoneA9, efusA9, PicoMODA9, QBlissA9
