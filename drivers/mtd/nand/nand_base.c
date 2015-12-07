@@ -1324,6 +1324,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 			if (ret > max_bitflips)
 				max_bitflips = ret;
+			ret = 0;
 
 			/* Transfer not aligned data */
 			if (!aligned) {
