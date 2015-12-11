@@ -38,7 +38,22 @@
 #define NFC_TIMEOUT_WRITE	(CONFIG_SYS_HZ * 100) / 1000
 #define NFC_TIMEOUT_ERASE	(CONFIG_SYS_HZ * 400) / 1000
 
+/*
+ * NAND page layouts for all possible Vybrid ECC modes. The OOB area has the
+ * following appearance:
+ *
+ *   Offset          Bytes               Meaning
+ *   ---------------------------------------------------------------
+ *   0               4                   Bad Block Marker (BBM)
+ *   4               eccbytes            Error Correction Code (ECC)
+ *   4 + eccbytes    oobfree.length      Free OOB area (user part)
+ *
+ * As the size of the OOB is in mtd->oobsize and the number of free bytes
+ * (= size of the user part) is stored in mtd->oobavail, we can compute the
+ * offset of the free OOB area also by mtd->oobsize - mtd->oobavail.
+ */
 struct fsl_nfc_fus_prv {
+	struct nand_ecclayout	layout;
 	struct nand_chip chip;	/* Generic NAND chip info */
 	uint	column;		/* Column to read in read_byte() */
 	uint	last_command;	/* Previous command issued */
@@ -57,101 +72,9 @@ static const uint ecc_strength[8] = {
 	0, 4, 6, 8, 12, 16, 24, 32
 };
 
-/*
- * NAND page layouts for all possible Vybrid ECC modes. The OOB area has the
- * following appearance:
- *
- *   Offset          Bytes               Meaning
- *   ---------------------------------------------------------------
- *   0               4                   Bad Block Marker (BBM)
- *   4               eccbytes            Error Correction Code (ECC)
- *   4 + eccbytes    oobfree.length      Free OOB area (user part)
- *
- * As the size of the OOB is in mtd->oobsize and the number of free bytes
- * (= size of the user part) is stored in mtd->oobavail, we can compute the
- * offset of the free OOB area also by mtd->oobsize - mtd->oobavail.
- */
-static struct nand_ecclayout fus_nfc_ecclayout[8] =
-{
-	{
-		/* 0 ECC bytes, no correctable bit errors */
-		.eccbytes = 0,
-		.eccpos = { },
-		.oobfree = {
-			{.offset = 4,
-			 .length = 60} }
-	},
-	{
-		/* 8 ECC bytes, 4 correctable bit errors */
-		.eccbytes = 8,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11},
-		.oobfree = {
-			{.offset = 12,
-			 .length = 52} }
-	},
-	{
-		/* 12 ECC bytes, 6 correctable bit errors */
-		.eccbytes = 12,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15},
-		.oobfree = {
-			{.offset = 16,
-			 .length = 48} }
-	},
-	{
-		/* 15 ECC bytes, 8 correctable bit errors */
-		.eccbytes = 15,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15, 16, 17, 18},
-		.oobfree = {
-			{.offset = 19,
-			 .length = 45} }
-	},
-	{
-		/* 23 ECC bytes, 12 correctable bit errors */
-		.eccbytes = 23,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-			    24, 25, 26},
-		.oobfree = {
-			{.offset = 27,
-			 .length = 37} }
-	},
-	{
-		/* 30 ECC bytes, 16 correctable bit errors */
-		.eccbytes = 30,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-			    24, 25, 26, 27, 28, 29, 30, 31, 32, 33},
-		.oobfree = {
-			{.offset = 34,
-			 .length = 30} }
-	},
-	{
-		/* 45 ECC bytes, 24 correctable bit errors */
-		.eccbytes = 45,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-			    24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
-			    34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-			    44, 45, 46, 47, 48},
-		.oobfree = {
-			{.offset = 49,
-			 .length = 15} }
-	},
-	{
-		/* 60 ECC bytes, 32 correctable bit errors */
-		.eccbytes = 60,
-		.eccpos = { 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
-			    14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-			    24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
-			    34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-			    44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
-			    54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
-		.oobfree = { }
-	}
+static const uint ecc_bytes[8] = {
+	0, 8, 12, 15, 23, 30, 45, 60
 };
-
 
 static ulong nfc_base_addresses[] = {
 	NFC_BASE_ADDR
@@ -1152,6 +1075,7 @@ void vybrid_nand_register(int nfc_hw_id,
 	struct fsl_nfc_fus_prv *prv;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
+	uint32_t i, oobavail;
 
 	if (index >= CONFIG_SYS_MAX_NAND_DEVICE)
 		return;
@@ -1216,11 +1140,20 @@ void vybrid_nand_register(int nfc_hw_id,
 	}
 
 	/* Set up ECC configuration */
-	chip->ecc.layout = &fus_nfc_ecclayout[prv->eccmode];
+	chip->ecc.layout = &prv->layout;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.steps = 1;
-	chip->ecc.bytes = chip->ecc.layout->eccbytes;
 	chip->ecc.size = mtd->writesize;
+	chip->ecc.strength = ecc_strength[prv->eccmode];
+	chip->ecc.bytes = ecc_bytes[prv->eccmode];
+	oobavail = mtd->oobsize - chip->ecc.bytes - 4;
+	chip->ecc.layout->oobfree[0].offset = 4 + chip->ecc.bytes;
+	chip->ecc.layout->oobfree[0].length = oobavail;
+	chip->ecc.layout->oobfree[1].length = 0; /* Sentinel */
+	chip->ecc.layout->eccbytes = chip->ecc.bytes;
+	for (i = 0; i < chip->ecc.bytes; i++)
+		chip->ecc.layout->eccpos[i] = 4 + i;
+	mtd->ecc_strength = chip->ecc.strength;
 
 	chip->ecc.read_page = fus_nfc_read_page;
 	chip->ecc.write_page = fus_nfc_write_page;
@@ -1230,7 +1163,6 @@ void vybrid_nand_register(int nfc_hw_id,
 	chip->ecc.write_page_raw = fus_nfc_write_page_raw;
 	chip->ecc.read_oob_raw = fus_nfc_read_oob_raw;
 	chip->ecc.write_oob_raw = fus_nfc_write_oob_raw;
-	chip->ecc.strength = ecc_strength[prv->eccmode];
 
 	mtd->bitflip_threshold = bitflip_threshold[prv->eccmode];
 
