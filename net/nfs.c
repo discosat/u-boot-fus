@@ -567,7 +567,7 @@ nfs_read_reply(uchar *pkt, unsigned len)
 
 	if ((nfs_offset != 0) && !((nfs_offset) %
 			(NFS_READ_SIZE * 16 * 64)))
-		printf("  %lu KiB\n\t ", NetBootFileXferSize >> 10);
+		printf("  %lu KiB\n  ", NetBootFileXferSize >> 10);
 	if (!(nfs_offset % (NFS_READ_SIZE * 16)))
 		putc('#');
 
@@ -772,7 +772,7 @@ NfsStart(void)
 		print_size(NetBootFileSize<<9, "");
 	}
 	printf ("\nLoad address: 0x%lx\n"
-		"Loading: *\b", get_loadaddr());
+		"Loading:\n  *\b", get_loadaddr());
 
 	NetSetTimeout(nfs_timeout, NfsTimeout);
 	net_set_udp_handler(NfsHandler);

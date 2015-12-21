@@ -249,7 +249,7 @@ static void show_block_marker(void)
 		if ((TftpBlock & 0xf) == 0) {
 			putc('#');
 			if ((TftpBlock & 0x3ff) == 0)
-				printf("  %lu KiB\n\t ",
+				printf("  %lu KiB\n  ",
 				       NetBootFileXferSize >> 10);
 		}
 	}
@@ -302,7 +302,7 @@ static void tftp_complete(void)
 #endif
 	time_start = get_timer(time_start);
 	if (time_start > 0) {
-		puts("\n\t ");	/* Line up with "Loading: " */
+		puts("\n  ");
 		print_size(NetBootFileXferSize /
 			time_start * 1000, "/s");
 	}
@@ -781,7 +781,7 @@ void TftpStart(enum proto_t protocol)
 #endif
 	{
 		printf("Load address: 0x%lx\n", get_loadaddr());
-		puts("Loading: *\b");
+		puts("Loading:\n  *\b");
 		TftpState = STATE_SEND_RRQ;
 	}
 
@@ -833,7 +833,7 @@ TftpStartServer(void)
 	printf("Listening for TFTP transfer on %pI4\n", &NetOurIP);
 	printf("Load address: 0x%lx\n", get_loadaddr());
 
-	puts("Loading: *\b");
+	puts("Loading:\n  *\b");
 
 	TftpTimeoutCountMax = TIMEOUT_COUNT;
 	TftpTimeoutCount = 0;
