@@ -23,9 +23,9 @@
 #include <asm/processor.h>
 
 #define	DRV_NAME		"fsl_nfc_fus"
-#define	DRV_VERSION		"V1.1"
+#define	DRV_VERSION		"V2.0"
 
-#define ECC_STATUS_OFFS		0x840
+#define ECC_STATUS_OFFS		0x8F8
 #define ECC_STATUS_MASK		0x80
 #define ECC_ERR_COUNT		0x3F
 
