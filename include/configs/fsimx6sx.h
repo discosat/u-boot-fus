@@ -596,10 +596,13 @@
    single backslash. So we actually need an escaped backslash, i.e. two
    backslashes. Which finally results in having to type four backslashes here,
    as each backslash must also be escaped with a backslash in C. */
+#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 81000000\0"
+
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
-	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0"
+	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 81000000 ${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
@@ -607,13 +610,12 @@
 	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
+	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read 81000000 fdt" BOOT_WITH_FDT \
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel 5c0000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
 #endif
-
-#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 81000000\0"
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"console=undef\0" \
