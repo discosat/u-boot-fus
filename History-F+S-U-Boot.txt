@@ -1,6 +1,22 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+
+u-boot-2014.07-fsimx6-V2.1 (23.12.2015)
+---------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9,
+                  armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix bitflip handling in NAND driver
+- On fsvybrid, in case of uncorrectable NAND errors, return raw data now
+- On fsvybrid, NAND driver also works on flashes with more than 64 bytes OOB
+- Reduce progress line length in tftp/nfs to avoid wrap-around on 80 chars
+  terminals
+- Fix exception vector allocation and relocation
+- On fsimx6sx and fsimx6ul, add possibility to load FDT from UBI/UBIFS
+
+
 u-boot-2014.07-fsimx6ul-V1.0 (27.11.2015)
 -----------------------------------------
 Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9
