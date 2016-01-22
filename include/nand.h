@@ -127,6 +127,9 @@ struct nand_erase_options {
 
 typedef struct nand_erase_options nand_erase_options_t;
 
+int nand_convert_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
+			  loff_t lim, u_char *buffer);
+
 int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 		       size_t *actual, loff_t lim, u_char *buffer);
 

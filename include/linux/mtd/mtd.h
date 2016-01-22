@@ -154,6 +154,10 @@ struct mtd_info {
 	loff_t replaceoffs;  /* Offset of bad block replaced by backup */
 #endif
 
+#ifdef CONFIG_CMD_NAND_CONVERT
+	int convert;         /* Old-style format reading: 0: no, 1: yes */
+#endif
+
 	/*
 	 * read ops return -EUCLEAN if max number of bitflips corrected on any
 	 * one region comprising an ecc step equals or exceeds this value.

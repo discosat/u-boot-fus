@@ -648,6 +648,54 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return ret == 0 ? 1 : 0;
 	}
 
+#ifdef CONFIG_CMD_NAND_CONVERT
+	if (strncmp(cmd, "convert", 6) == 0) {
+		size_t rwsize;
+		
+
+		if (argc == 3) {
+			s = argv[2];
+			if (!strcmp(s, "on") || !strcmp(s, "1"))
+				nand->convert = 1;
+			else if (!strcmp(s, "off") || !strcmp(s, "0"))
+				nand->convert = 0;
+			else
+				goto usage;
+		}
+
+		if ((argc <= 3) || !nand->convert) {
+			printf("NAND conversion %s\n",
+			       nand->convert ? "on" : "off");
+			return 0;
+		}
+
+		if (argc < 4)
+			goto usage;
+
+		addr = parse_loadaddr(argv[2], NULL);
+
+		if (arg_off_size(argc - 3, argv + 3, &dev,
+				 &off, &size, &maxsize) != 0)
+			return 1;
+
+		puts("\nNAND conversion in progress...\n");
+
+		/* size is unspecified */
+		if (argc < 5)
+			adjust_size_for_badblocks(&size, off, dev);
+		rwsize = size;
+		ret = nand_convert_skip_bad(nand, off, &rwsize, maxsize,
+					   (u_char *)addr);
+		if (ret) {
+			printf("NAND conversion failed with error %d\n", ret);
+			ret = 1;
+		} else
+			printf("NAND: %zu bytes converted\n", rwsize);
+
+		return ret;
+	}
+#endif
+
 	if (strncmp(cmd, "read", 4) == 0 || strncmp(cmd, "write", 5) == 0) {
 		size_t rwsize;
 		ulong pagecount = 1;
@@ -879,6 +927,14 @@ static char nand_help_text[] =
 	"nand write.yaffs - addr off|partition size\n"
 	"    write 'size' bytes starting at offset 'off' with yaffs format\n"
 	"    from memory address 'addr', skipping bad blocks.\n"
+#endif
+#ifdef CONFIG_CMD_NAND_CONVERT
+	"nand convert addr off|partition size\n"
+	"    Convert NAND content from old version to new version by reading\n"
+        "    data in old style and writing back in new style. addr and size\n"
+	"    must be block aligned.\n"
+	"nand convert on|1|off|0\n"
+	"    Switch old-style reading capability on or off\n"
 #endif
 	"nand erase[.spread] [clean] off size - erase 'size' bytes "
 	"from offset 'off'\n"

@@ -468,6 +468,7 @@
 #undef CONFIG_CMD_MOVI		/* No support for MOVI NAND flash memories */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
 #define CONFIG_CMD_NAND		/* Support for common NAND flash memories */
+#define CONFIG_CMD_NAND_CONVERT	/* support for NAND format conversion */
 #define CONFIG_CMD_NET		/* Support BOOTP and TFTP (bootp, tftpboot) */
 #define CONFIG_CMD_NFS		/* Support download via NFS */
 #undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */

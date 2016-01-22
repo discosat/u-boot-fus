@@ -760,6 +760,134 @@ int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
 	return 0;
 }
 
+#ifdef CONFIG_CMD_NAND_CONVERT
+/**
+ * nand_convert_skip_bad:
+ *
+ * Read region block by block from NAND flash, then write it back block by
+ * block. Blocks that are marked bad are skipped and the next block is used
+ * instead as long as the image is short enough to fit even after
+ * skipping the bad blocks.  In the case where the read would extend
+ * beyond the end of the NAND device or the limit, length is set to 0.
+ * The memory at addr is only used to store one block of data. The data is not
+ * fully available in the buffer after return, just the last block.
+ *
+ * @param nand NAND device
+ * @param offset offset in flash
+ * @param length buffer length, on return holds number of read bytes
+ * @param lim maximum size that actual may be in order to not exceed the
+ * buffer
+ * @param buffer buffer to write to
+ * @return 0 in case of success
+ */
+int nand_convert_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
+			  loff_t lim, u_char *buffer)
+{
+	int rval;
+	size_t left_to_convert = *length;
+	size_t used_for_read = 0;
+	int need_skip;
+	uint32_t erasesize = nand->erasesize;
+	uint32_t writesize = nand->writesize;
+	struct erase_info erase;
+
+	if (((offset & (erasesize - 1)) != 0)
+	    || ((left_to_convert & (erasesize - 1)) !=0)) {
+		puts("Attempt to convert non block-aligned data\n");
+		*length = 0;
+		return -EINVAL;
+	}
+
+	need_skip = check_skip_len(nand, offset, *length, &used_for_read);
+
+	if (need_skip < 0) {
+		puts("Attempt to convert outside the flash area\n");
+		*length = 0;
+		return -EINVAL;
+	}
+
+	if (used_for_read > lim) {
+		puts("Size of convert exceeds partition or device limit\n");
+		*length = 0;
+		return -EFBIG;
+	}
+
+	memset(&erase, 0, sizeof(erase));
+	erase.mtd = nand;
+	erase.len = erasesize;
+	
+	while (left_to_convert > 0) {
+		size_t read_length;
+		size_t write_length;
+		size_t offs;
+
+		WATCHDOG_RESET();
+
+		if (need_skip
+		    && nand_block_isbad(nand, offset)) {
+			printf("Skipping bad block at 0x%08llx\n", offset);
+			offset += erasesize;
+			continue;
+		}
+
+		/* Read one block. Ignore any read errors, we have to continue
+		   in any case.
+		   ECLEAN:  Bitflips do not matter, we re-write the data anyway
+		   EBADMSG: Use the raw data that is read, then hope and pray
+		   Other:   Issue warning and hope for the best */
+		read_length = erasesize;
+		rval = nand_read(nand, offset, &read_length, buffer);
+		if (rval && rval != -EUCLEAN && rval != -EBADMSG) {
+			printf("Reading block at 0x%08llx failed with error %d"
+			       " (ignored)\n", offset, rval);
+		}
+
+		/* Erase block. If this fails, issue warning and pray. */
+		erase.addr = offset;
+		rval = mtd_erase(nand, &erase);
+		if (rval < 0) {
+			printf("Erasing block at 0x%08llx failed with error %d"
+			       " (ignored)\n", offset, rval);
+		}
+
+		/* Write back data to the block, skip empty pages. */
+		offs = 0;
+		do {
+			uint32_t *buffer32 = (u32 *)(buffer + offs);
+			uint32_t i;
+
+			/* Check for empty page */
+			i = nand->writesize >> 2;
+			do {
+				if (buffer32[i - 1] != 0xFFFFFFFF)
+					break;
+			} while (--i);
+
+			/* Write page if not empty; if writing fails, issue
+			   warning and hope for the best */
+			if (i) {
+				write_length = writesize;
+				rval = nand_write(nand, offset + offs,
+						  &write_length, buffer + offs);
+				if (rval < 0) {
+					printf("Writing page at 0x%08llx"
+					       " failed with error %d"
+					       " (ignored)\n", offset + offs,
+					       rval);
+				}
+					
+			}
+			offs += writesize;
+		} while (offs < erasesize);
+
+		left_to_convert -= erasesize;
+		offset += erasesize;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_CMD_NAND_CONVERT */
+
 #ifdef CONFIG_CMD_NAND_TORTURE
 
 /**
