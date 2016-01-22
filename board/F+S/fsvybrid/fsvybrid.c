@@ -910,25 +910,20 @@ int board_eth_init(bd_t *bis)
 		u32 temp;
 
 		/* Configure PLL5 main clock for RMII clock. */
-		temp = __raw_readl(&ccm->cscmr2);
-		temp = temp | (2<<4);	/* CSCMR2[5:4] Use PLL5 main clock */
-		__raw_writel(temp, &ccm->cscmr2);
-		temp = __raw_readl(&ccm->cscdr1);
-		temp = temp | (1<<24);  /* CSCDR1[24] Enable ENET RMII clock */
-		__raw_writel(temp, &ccm->cscdr1);
-		temp = __raw_readl(0x400500E0);
 		temp = 0x2001;		/* ANADIG_PLL5_CTRL: Enable, 50MHz */
 		__raw_writel(temp, 0x400500E0);
-
 		if (fs_nboot_args.chFeatures2 & FEAT2_RMIICLK_CKO1) {
 			/* We have a board revision with a direct connection
 			   between PTB10 and PTA6, so we will use CKO1 (PTB10)
-			   to output the RMII clock signal and use RMIICLK
+			   to output the PLL5 clock signal and use RMIICLK
 			   (PTA6) as input. */
 			temp = __raw_readl(&ccm->ccosr);
-			temp &= ~(0x7FF << 0);
-			temp |= (0x2F << 0) | (0 << 6) | (1 << 10);
+			temp &= ~(0x7FF << 0);	/* PLL5 output on CKO1 */
+			temp |= (0x04 << 0) | (0 << 6) | (1 << 10);
 			__raw_writel(temp, &ccm->ccosr);
+			temp = __raw_readl(&ccm->cscmr2);
+			temp |= (0<<4);		/* Use RMII clock as input */
+			__raw_writel(temp, &ccm->cscmr2);
 			__raw_writel(0x00601992, IOMUXC_PAD_032);
 			__raw_writel(0x00203191, IOMUXC_PAD_000);
 		} else {
@@ -937,6 +932,12 @@ int board_eth_init(bd_t *bis)
 			   must use RMIICLK (PTA6) as RMII clock output. This
 			   is not stable and may not work with all PHYs! See
 			   the comment in function fecpin_setclear(). */
+			temp = __raw_readl(&ccm->cscmr2);
+			temp |= (2<<4);		/* Use PLL5 for RMII */
+			__raw_writel(temp, &ccm->cscmr2);
+			temp = __raw_readl(&ccm->cscdr1);
+			temp |= (1<<24);	/* Enable RMII clock output */
+			__raw_writel(temp, &ccm->cscdr1);
 			__raw_writel(0x00103942, IOMUXC_PAD_000);
 		}
 #else
