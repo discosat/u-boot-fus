@@ -50,13 +50,22 @@
 #define BOOT_PARAMS_BASE (PHYS_SDRAM + 0x100)	  /* Arguments to Linux */
 
 #define BT_EFUSA9X    0
+#define BT_PICOCOMA9X 1
+#define BT_KEN116     2
+#define BT_BEM9X      3
 
-/* Features set in tag_fshwconfig.chFeature1 */
-#define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
-#define FEAT1_2NDLAN  (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+/* Features set in tag_fshwconfig.chFeature1 (###TODO: proposed fetaures, not
+   actually available from NBoot) */
+#define FEAT1 L2CACHE (1<<0)		/* 0: no L2 Cache, 1: has L2 Cache */
+#define FEAT1_M4      (1<<1)		/* 0: no Cortex-M4, 1: has Cortex-M4 */
+#define FEAT1_LCD     (1<<2)		/* 0: no LCD device, 1: has LCD */
 
-/* Features set in tag_fshwconfig.chFeature2 */
-#define FEAT2_M4      (1<<0)		/* CPU has Cortex-M4 core */
+/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
+#define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
+#define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
+#define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
+#define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
+#define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -68,12 +77,6 @@
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
 	PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
 
-#if 0 // mx6
-#define ENET_PAD_CTRL ( \
-		PAD_CTL_PKE | PAD_CTL_PUE | /*Kiepfer*/ 	\
-		PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |	\
-		PAD_CTL_DSE_40ohm   | PAD_CTL_HYS)
-#else // mx6sx
 #define ENET_PAD_CTRL  (PAD_CTL_PUS_100K_UP | PAD_CTL_PUE |     \
         PAD_CTL_SPEED_HIGH   |                                   \
         PAD_CTL_DSE_48ohm   | PAD_CTL_SRE_FAST)
@@ -81,7 +84,6 @@
         PAD_CTL_DSE_120ohm   | PAD_CTL_SRE_FAST)
 #define ENET_RX_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |          \
         PAD_CTL_SPEED_HIGH   | PAD_CTL_SRE_FAST)
-#endif
 
 #define GPMI_PAD_CTRL0 (PAD_CTL_PKE | PAD_CTL_PUE | PAD_CTL_PUS_100K_UP)
 #define GPMI_PAD_CTRL1 (PAD_CTL_DSE_40ohm | PAD_CTL_SPEED_MED | PAD_CTL_SRE_FAST)
@@ -145,17 +147,59 @@ const struct board_info fs_board_info[8] = {
 		.fdt = ".fdt_nand",
 		.fsload = ".fsload_fat",
 	},
-	{	/* 1 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 1 (BT_PicoCOMA9X) */
+		.name = "PicoCOMA9X",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
+		.fsload = ".fsload_fat",
 	},
-	{	/* 2 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 2 (BT_KEN116) */
+		.name = "KEN116",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
+		.fsload = ".fsload_fat",
 	},
-	{	/* 3 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 3 (BT_BEM9X) */
+		.name = "BEM9X",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
+		.fsload = ".fsload_fat",
 	},
 	{	/* 4 (unknown) */
 		.name = "unknown",
@@ -440,6 +484,9 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 	IOMUX_PADS(PAD_SD2_DATA1__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD2_DATA2__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD2_DATA3__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usdhc2_extra_pads[] = {
 	IOMUX_PADS(PAD_GPIO1_IO07__GPIO1_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* WP */
 	IOMUX_PADS(PAD_GPIO1_IO06__GPIO1_IO_6 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* CD */
 };
@@ -500,8 +547,11 @@ int board_mmc_init(bd_t *bis)
 		/* USDHC2: ext. SD slot (connector, normal-size SD slot on
 		   efus SKIT), Write Protect (WP) on GPIO_7 (ignored), Card
 		   Detect (CD) on GPIO_6 (GPIO1_IO6) */
-		SETUP_IOMUX_PADS(usdhc2_pads);
 		gpio_cd = IMX_GPIO_NR(1, 6);
+		SETUP_IOMUX_PADS(usdhc2_extra_pads);
+		/* Fall through to BT_BEM9X */
+	case BT_BEM9X:
+		SETUP_IOMUX_PADS(usdhc2_pads);
 		ccgr6 |= (3 << 4);
 		index = 1;
 		break;
@@ -574,9 +624,8 @@ int board_ehci_hcd_init(int port)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
-#if 0
 		SETUP_IOMUX_PADS(usb_pwr_pads);
-
+#if 0
 		/* Enable USB Host power */
 		gpio_direction_output(IMX_GPIO_NR(1, 12), 1);
 #endif
@@ -605,6 +654,7 @@ int board_ehci_power(int port, int on)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
+	case BT_BEM9X:
 		SETUP_IOMUX_PADS(usb_pwr_pads);
 
 		/* Enable USB Host power */
@@ -758,6 +808,29 @@ static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IOMUX_PADS(PAD_ENET1_MDC__GPIO2_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+static iomux_v3_cfg_t const enet_pads_rmii1[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_MDIO__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_MDC__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_GPIO1_IO05__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC0 (ENET1) */
+	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TD1__ENET1_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TX_CTL__ENET1_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RXC__ENET1_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD0__ENET1_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD1__ENET1_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RX_CTL__ENET1_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* No interrupt on DP83848 PHY */
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 /* Read a MAC address from OTP memory */
 int get_otp_mac(void *otp_addr, uchar *enetaddr)
 {
@@ -855,16 +928,17 @@ int board_eth_init(bd_t *bis)
 	int phy_addr;
 	enum xceiver_type xcv_type;
 	enum enet_freq freq;
+	phy_interface_t interface = PHY_INTERFACE_MODE_RGMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	struct mii_dev *bus;
 	struct phy_device *phydev;
 
-	/* Set the IOMUX for ENET, use 1 GBit/s LAN on RGMII pins */
-	SETUP_IOMUX_PADS(enet_pads_rgmii);
-
 	/* Get parameters for the first ethernet port */
 	switch (fs_nboot_args.chBoardType) {
-	default:
+	case BT_EFUSA9X:
+		/* Set the IOMUX for ENET, use 1 GBit/s LAN on RGMII pins */
+		SETUP_IOMUX_PADS(enet_pads_rgmii);
+
 		set_fs_ethaddr(0);
 
 		/* ENET1 (FEC0) CLK is generated in PHY and is an input */
@@ -876,17 +950,61 @@ int board_eth_init(bd_t *bis)
 		phy_addr = 4;
 		xcv_type = RGMII;
 		break;
-	}
 
-	/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least 0.5 ms */
-	gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
-	udelay(500);
-	gpio_set_value(IMX_GPIO_NR(2, 2), 1);
+	case BT_BEM9X:
+		/* Set the IOMUX for ENET, use 100 MBit/s LAN on RGMII1 pins */
+		SETUP_IOMUX_PADS(enet_pads_rmii1);
+
+		set_fs_ethaddr(0);
+
+		/* ENET1 (FEC0) CLK is generated in CPU and is an output.
+		   Please note that the clock pin must have the SION flag set
+		   to feed back the clock to the internal MAC. This means we
+		   also have to set both ENET mux bits in gpr1. Bit 17 to
+		   generate the REF clock on the pin and bit 13 to get the
+		   generated clock from the PAD back into the MAC. */
+		gpr1 = readl(&iomux_regs->gpr[1]);
+		gpr1 |= IOMUX_GPR1_FEC1_MASK;
+		writel(gpr1, &iomux_regs->gpr[1]);
+
+		interface = PHY_INTERFACE_MODE_RMII;
+		freq = ENET_50MHZ;
+		phy_addr = 1;
+		xcv_type = RMII;
+		break;
+
+	default:
+		return 0;
+	}
 
 	/* Activate ENET1 (FEC0) PLL */
 	ret = enable_fec_anatop_clock(0, freq);
 	if (ret < 0)
 		return ret;
+
+	/* Reset PHY (clock must be running already) */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA9X:
+		/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least
+		   0.5 ms */
+		gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
+		udelay(500);
+		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
+		break;
+
+	case BT_BEM9X:
+		/* DP83484 needs at least 1 us reset pulse width (GPIO2_IO7).
+		   After power on it needs min 167 ms (after reset is
+		   deasserted) before the first MDIO access can be done. In a
+		   warm start, it only takes around 3 for this. As we do not
+		   know whether this is a cold or warm start, we must assume
+		   the worst case. */
+		gpio_direction_output(IMX_GPIO_NR(2, 7), 0);
+		udelay(10);
+		gpio_set_value(IMX_GPIO_NR(2, 7), 1);
+		mdelay(170);
+		break;
+	}
 
 #if 0
 	/* ### If CONFIG_FEC_MXC_25M_REF_CLK is set, this is automatically
@@ -915,7 +1033,7 @@ int board_eth_init(bd_t *bis)
 		return -ENOMEM;
 
 	/* Probe the first PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RGMII);
+	phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
 	if (!phydev) {
 		free(bus);
 		return -ENOMEM;
@@ -932,7 +1050,7 @@ int board_eth_init(bd_t *bis)
 	/* Get parameters for the second ethernet port; if the second port
 	   fails, return without error because the first port is OK already */
 	switch (fs_nboot_args.chBoardType) {
-	default:
+	case BT_EFUSA9X:
 		set_fs_ethaddr(1);
 
 		/* ENET2 (FEC1) CLK is generated in PHY and is an input */
@@ -944,6 +1062,9 @@ int board_eth_init(bd_t *bis)
 		phy_addr = 5;
 		xcv_type = RGMII;
 		break;
+
+	default:
+		return 0;
 	}
 
 	/* Activate ENET2 (FEC1) PLL */
@@ -952,7 +1073,7 @@ int board_eth_init(bd_t *bis)
 		return 0;
 
 	/* Probe the second PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, PHY_INTERFACE_MODE_RGMII);
+	phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
 	if (!phydev)
 		return 0;
 

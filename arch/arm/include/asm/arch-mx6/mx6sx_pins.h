@@ -59,7 +59,7 @@ enum {
 	 MX6_PAD_GPIO1_IO05__USDHC2_VSELECT                     = IOMUX_PAD(0x0370, 0x0028, 1, 0x0000, 0, 0),
 	 MX6_PAD_GPIO1_IO05__ENET1_MDIO                         = IOMUX_PAD(0x0370, 0x0028, 2, 0x0764, 0, 0),
 	 MX6_PAD_GPIO1_IO05__ASRC_ASRC_EXT_CLK                  = IOMUX_PAD(0x0370, 0x0028, 3, 0x0000, 0, 0),
-	 MX6_PAD_GPIO1_IO05__ENET1_REF_CLK1                     = IOMUX_PAD(0x0370, 0x0028, 4, 0x0760, 0, 0),
+	 MX6_PAD_GPIO1_IO05__ENET1_REF_CLK1                     = IOMUX_PAD(0x0370, 0x0028, 4 | IOMUX_CONFIG_SION, 0x0760, 0, 0),
 	 MX6_PAD_GPIO1_IO05__GPIO1_IO_5                         = IOMUX_PAD(0x0370, 0x0028, 5, 0x0000, 0, 0),
 	 MX6_PAD_GPIO1_IO05__SRC_TESTER_ACK                     = IOMUX_PAD(0x0370, 0x0028, 6, 0x0000, 0, 0),
 	 MX6_PAD_GPIO1_IO05__PHY_TDO                            = IOMUX_PAD(0x0370, 0x0028, 7, 0x0000, 0, 0),
