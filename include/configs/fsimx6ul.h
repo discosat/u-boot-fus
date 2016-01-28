@@ -634,8 +634,8 @@
         ".fdt_nand=setenv fdt nand read 81000000 FDT" BOOT_WITH_FDT \
         ".fdt_tftp=setenv fdt tftpboot 81000000 ${bootfdt}" BOOT_WITH_FDT \
         ".fdt_nfs=setenv fdt nfs 81000000 ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-        ".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 81000000 ${bootftd}" BOOT_WITH_FDT \
-        ".fdt_mmc=setenv fdt usb start\\\\; load usb 0 81000000 ${bootftd}" BOOT_WITH_FDT \
+        ".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 81000000 ${bootfdt}" BOOT_WITH_FDT \
+        ".fdt_usb=setenv fdt usb start\\\\; load usb 0 81000000 ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	".mode_rw=setenv mode rw\0" \
