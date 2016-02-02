@@ -122,7 +122,7 @@ struct board_info {
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_EFUSA9) */
 		.name = "efusA9",
-		.mach_type = MACH_TYPE_EFUSA9,
+		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
@@ -140,7 +140,7 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 1 (BT_ARMSTONEA9)*/
 		.name = "armStoneA9",
-		.mach_type = MACH_TYPE_ARMSTONEA9,
+		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
@@ -158,7 +158,7 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 2 (BT_PICOMODA9) */
 		.name = "PicoMODA9",
-		.mach_type = MACH_TYPE_PICOMODA9,
+		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,
@@ -176,7 +176,7 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 3 (BT_QBLISSA9) */
 		.name = "QBlissA9",
-		.mach_type = MACH_TYPE_QBLISSA9,
+		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = UPDATE_DEF,

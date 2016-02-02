@@ -88,7 +88,7 @@
 #undef CONFIG_USE_IRQ			/* No blinking LEDs yet */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
-#undef CONFIG_OF_LIBFDT			/* No device tree (fdt) support yet */
+#define CONFIG_OF_LIBFDT		/* Use device trees (fdt) */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
@@ -538,7 +538,7 @@
 #define MTDPARTS_PART1		"gpmi-nand:256k(NBoot)ro,768k(UserDef)"
 #endif
 #define MTDPARTS_PART2		"256k(Refresh)ro,768k(UBoot)ro,256k(UBootEnv)ro"
-#define MTDPARTS_PART3		"5888K(Kernel)ro"
+#define MTDPARTS_PART3		"8m(Kernel)ro,1792k(FDT)ro"
 #define MTDPARTS_PART4		"-(TargetFS)"
 #define MTDPARTS_STD		"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
 #define MTDPARTS_UBIONLY	"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
@@ -576,7 +576,7 @@
 #define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
-#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; bootm"
+#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 
 /* Add some variables that are not predefined in U-Boot. All entries with
    content "undef" will be updated with a board-specific value in
@@ -594,10 +594,13 @@
    single backslash. So we actually need an escaped backslash, i.e. two
    backslashes. Which finally results in having to type four backslashes here,
    as each backslash must also be escaped with a backslash in C. */
+#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 11000000\0"
+
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
-	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0"
+	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 11000000 ${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
@@ -605,6 +608,7 @@
 	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
+	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read 11000000 fdt" BOOT_WITH_FDT \
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel 5c0000 s; ubi create rootfs\0"
 #else
@@ -635,6 +639,13 @@
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
 	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
+	"fdt=undef\0" \
+	".fdt_none=setenv fdt bootm\0" \
+	".fdt_nand=setenv fdt nand read 11000000 FDT" BOOT_WITH_FDT \
+	".fdt_tftp=setenv fdt tftpboot 11000000 ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_nfs=setenv fdt nfs 11000000 ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 11000000 ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_usb=setenv fdt usb start\\\\; load usb 0 11000000 ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	".mode_rw=setenv mode rw\0" \
@@ -650,6 +661,7 @@
 	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
 	"arch=fsimx6\0" \
+	"bootfdt=fdt.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 
