@@ -52,7 +52,7 @@
 #define BT_EFUSA9X    0
 #define BT_PICOCOMA9X 1
 #define BT_KEN116     2
-#define BT_BEM9X      3
+#define BT_BEMA9X     3
 
 /* Features set in tag_fshwconfig.chFeature1 (###TODO: proposed fetaures, not
    actually available from NBoot) */
@@ -66,6 +66,7 @@
 #define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
 #define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
 #define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
+#define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -183,8 +184,8 @@ const struct board_info fs_board_info[8] = {
 		.fdt = ".fdt_nand",
 		.fsload = ".fsload_fat",
 	},
-	{	/* 3 (BT_BEM9X) */
-		.name = "BEM9X",
+	{	/* 3 (BT_BEMA9X) */
+		.name = "BemA9X",
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -266,11 +267,21 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	unsigned int boardtype = pargs->chBoardType - 8;
+	unsigned int features2 = pargs->chFeatures2;
 
-	printf("Board: %s Rev %u.%02u (%dx DRAM)\n",
-	       fs_board_info[pargs->chBoardType - 8].name,
-	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->dwNumDram);
+	printf("Board: %s Rev %u.%02u (", fs_board_info[boardtype].name,
+	       pargs->chBoardRev / 100, pargs->chBoardRev % 100);
+	if ((boardtype != BT_BEMA9X)
+	    && ((features2 & FEAT2_ETH_MASK) == FEAT2_ETH_MASK))
+		puts("2x ");
+	if (features2 & FEAT2_ETH_MASK)
+		puts("LAN, ");
+	if (features2 & FEAT2_WLAN)
+		puts("WLAN, ");
+	if (features2 & FEAT2_EMMC)
+		puts("eMMC, ");
+	printf("%dx DRAM)\n", pargs->dwNumDram);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
@@ -549,8 +560,8 @@ int board_mmc_init(bd_t *bis)
 		   Detect (CD) on GPIO_6 (GPIO1_IO6) */
 		gpio_cd = IMX_GPIO_NR(1, 6);
 		SETUP_IOMUX_PADS(usdhc2_extra_pads);
-		/* Fall through to BT_BEM9X */
-	case BT_BEM9X:
+		/* Fall through to BT_BEMA9X */
+	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(usdhc2_pads);
 		ccgr6 |= (3 << 4);
 		index = 1;
@@ -624,6 +635,7 @@ int board_ehci_hcd_init(int port)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
+	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(usb_pwr_pads);
 #if 0
 		/* Enable USB Host power */
@@ -654,7 +666,7 @@ int board_ehci_power(int port, int on)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
-	case BT_BEM9X:
+	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(usb_pwr_pads);
 
 		/* Enable USB Host power */
@@ -951,7 +963,7 @@ int board_eth_init(bd_t *bis)
 		xcv_type = RGMII;
 		break;
 
-	case BT_BEM9X:
+	case BT_BEMA9X:
 		/* Set the IOMUX for ENET, use 100 MBit/s LAN on RGMII1 pins */
 		SETUP_IOMUX_PADS(enet_pads_rmii1);
 
@@ -992,7 +1004,7 @@ int board_eth_init(bd_t *bis)
 		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
 		break;
 
-	case BT_BEM9X:
+	case BT_BEMA9X:
 		/* DP83484 needs at least 1 us reset pulse width (GPIO2_IO7).
 		   After power on it needs min 167 ms (after reset is
 		   deasserted) before the first MDIO access can be done. In a

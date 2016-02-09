@@ -58,7 +58,7 @@
 #define FEAT1_M4      (1<<1)		/* 0: no Cortex-M4, 1: has Cortex-M4 */
 #define FEAT1_LCD     (1<<2)		/* 0: no LCD device, 1: has LCD */
 
-/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN26) */
+/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
 #define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
 #define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
@@ -85,7 +85,6 @@
 
 #define MDIO_PAD_CTRL  (PAD_CTL_PUS_100K_UP | PAD_CTL_PUE |     \
         PAD_CTL_DSE_48ohm   | PAD_CTL_SRE_FAST | PAD_CTL_ODE)
-
 
 #define ENET_CLK_PAD_CTRL  (PAD_CTL_DSE_40ohm   | PAD_CTL_SRE_FAST)
 
@@ -253,10 +252,20 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	unsigned int boardtype = pargs->chBoardType - 16;
+	unsigned int features2 = pargs->chFeatures2;
 
-	printf("Board: %s Rev %u.%02u\n",
-	       fs_board_info[pargs->chBoardType - 16].name,
+	printf("Board: %s Rev %u.%02u (", fs_board_info[boardtype].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100);
+	if ((features2 & FEAT2_ETH_MASK) == FEAT2_ETH_MASK)
+		puts("2x ");
+	if (features2 & FEAT2_ETH_MASK)
+		puts("LAN, ");
+	if (features2 & FEAT2_WLAN)
+		puts("WLAN, ");
+	if (features2 & FEAT2_EMMC)
+		puts("eMMC, ");
+	printf("%dx DRAM)\n", pargs->dwNumDram);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
