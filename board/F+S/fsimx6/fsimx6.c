@@ -756,6 +756,7 @@ int board_late_init(void)
 	setup_var("init", bi->init, 1);
 	setup_var("rootfs", bi->rootfs, 1);
 	setup_var("kernel", bi->kernel, 1);
+	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("fdt", bi->fdt, 1);
 	setup_var("bootargs", "set_bootargs", 1);
 

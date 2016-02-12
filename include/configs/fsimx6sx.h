@@ -663,7 +663,8 @@
 	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
 	"arch=fsimx6sx\0" \
-	"bootfdt=fdt.dtb\0" \
+	"bootfdt=undef\0" \
+	"set_bootfdt=setenv bootfdt ${arch}-${platform}.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 
