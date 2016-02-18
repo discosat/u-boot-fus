@@ -1,6 +1,23 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fsimx6sx-V1.0 (19.02.2016)
+-----------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9,
+                  armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY,
+                  BemA9X
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Add nand convert command (used on fsvybrid)
+- Fix ethernet on NetDCUA5 Board Rev 1.21
+- Add device tree support for fsimx6
+- Add support for BemA9X
+- Add missing .fdt_usb in fsimx6sx and fsimx6ul
+- Show more board infos on fsimx6sx and fsimx6ul
+- Do not power cycle USB hub ports, add usb_pgood_delay variable
+- On F&S boards set bootfdt variable to $arch-$platform.dtb
+
+
 
 u-boot-2014.07-fsimx6-V2.1 (23.12.2015)
 ---------------------------------------
@@ -15,6 +32,7 @@ Not tested:       armStoneA8, PicoMOD7A, NetDCU14
   terminals
 - Fix exception vector allocation and relocation
 - On fsimx6sx and fsimx6ul, add possibility to load FDT from UBI/UBIFS
+
 
 
 u-boot-2014.07-fsimx6ul-V1.0 (27.11.2015)
