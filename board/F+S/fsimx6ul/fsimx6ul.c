@@ -64,6 +64,7 @@
 #define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
 #define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
 #define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
+#define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
 
 /* NBoot before VN27 did not report feature values; use reasonable defaults */
 #define FEAT1_DEFAULT 0
