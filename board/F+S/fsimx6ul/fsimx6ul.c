@@ -120,7 +120,6 @@ struct board_info {
 	char *rootfs;			/* Default variable for rootfs */
 	char *kernel;			/* Default variable for kernel */
 	char *fdt;			/* Default variable for device tree */
-	char *fsload;			/* Default variable for load command */
 };
 
 struct fus_sdhc_cfg {
@@ -160,7 +159,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 1 (BT_CUBEA7UL) */
 		.name = "CubeA7UL",
@@ -178,7 +176,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 2 (unknown) */
 		.name = "unknown",
@@ -761,7 +758,6 @@ int board_late_init(void)
 	setup_var("console", bi->console, 1);
 	setup_var("login", bi->login, 1);
 	setup_var("mtdparts", bi->mtdparts, 1);
-	setup_var("fsload", bi->fsload, 1);
 	setup_var("network", bi->network, 1);
 	setup_var("init", bi->init, 1);
 	setup_var("rootfs", bi->rootfs, 1);

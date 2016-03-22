@@ -101,7 +101,6 @@ struct board_info {
 	char *rootfs;			/* Default variable for rootfs */
 	char *kernel;			/* Default variable for kernel */
 	char *fdt;			/* Default variable for device tree */
-	char *fsload;			/* Default variable for load command */
 };
 
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -136,7 +135,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 1 (BT_ARMSTONEA9)*/
 		.name = "armStoneA9",
@@ -154,7 +152,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 2 (BT_PICOMODA9) */
 		.name = "PicoMODA9",
@@ -172,7 +169,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 3 (BT_QBLISSA9) */
 		.name = "QBlissA9",
@@ -190,7 +186,6 @@ const struct board_info fs_board_info[8] = {
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
-		.fsload = ".fsload_fat",
 	},
 	{	/* 4 (unknown) */
 		.name = "unknown",
@@ -751,7 +746,6 @@ int board_late_init(void)
 	setup_var("console", bi->console, 1);
 	setup_var("login", bi->login, 1);
 	setup_var("mtdparts", bi->mtdparts, 1);
-	setup_var("fsload", bi->fsload, 1);
 	setup_var("network", bi->network, 1);
 	setup_var("init", bi->init, 1);
 	setup_var("rootfs", bi->rootfs, 1);
