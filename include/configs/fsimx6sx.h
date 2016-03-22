@@ -602,7 +602,7 @@
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
 	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
-	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 81000000 ${bootfdt}" BOOT_WITH_FDT
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 81000000 /boot/${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
