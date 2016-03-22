@@ -136,8 +136,11 @@ struct us_data {
  * The U-Boot EHCI driver can handle any transfer length as long as there is
  * enough free heap space left, but the SCSI READ(10) and WRITE(10) commands are
  * limited to 65535 blocks.
+ * ### 22.03.2016 HK: For some reasons it only works with 65534 blocks on some
+ *                    USB sticks, if the file is larger than 2x 65535 blocks
  */
-#define USB_MAX_XFER_BLK	65535
+//####define USB_MAX_XFER_BLK	65535
+#define USB_MAX_XFER_BLK	65534
 #else
 #define USB_MAX_XFER_BLK	20
 #endif
