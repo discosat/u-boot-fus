@@ -1013,3 +1013,96 @@ struct tag_fsm4config *get_board_fsm4config(void)
 {
 	return &fs_m4_args;
 }
+
+#ifdef CONFIG_CMD_LED
+/*
+ * Boards                             STA1           STA2         Active
+ * ------------------------------------------------------------------------
+ * PicoMODA9 (Rev 1.00)  extern       GPIO5_IO04     GPIO5_IO02   low
+ * PicoMODA9 (newer)     extern       GPIO7_IO12     GPIO7_IO13   low
+ *                       on-board     GPIO5_IO28     GPIO5_IO29   low
+ * armStoneA9, QBlissA9               GPIO4_IO06     GPIO4_IO07   high
+ * efusA9, armStoneA9r2, QBlissA9r2   GPIO7_IO12     GPIO7_IO13   high
+ */
+static unsigned int led_value;
+
+static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
+				 int val, int index)
+{
+	unsigned int gpio;
+
+	if (val)
+		led_value |= (1 << id);
+	else
+		led_value &= ~(1 << id);
+
+	switch (pargs->chBoardType) {
+	case BT_PICOMODA9:
+		if (pargs->chBoardRev == 100)
+			gpio = (id ? IMX_GPIO_NR(5, 2) : IMX_GPIO_NR(5, 4));
+		else if (!index)
+			gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
+		else
+			gpio = (id ? IMX_GPIO_NR(5, 29) : IMX_GPIO_NR(5, 28));
+		break;
+
+	case BT_ARMSTONEA9:
+	case BT_QBLISSA9:
+		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
+		break;
+
+	default:
+		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
+		break;
+	}
+
+	return gpio;
+}
+
+void coloured_LED_init(void)
+{
+	/* This is called after code relocation in arch/arm/lib/crt0.S but
+	   before board_init_r() and therefore before the NBoot args struct is
+	   copied to fs_nboot_args in board_init(). So variables in RAM are OK
+	   (like led_value above), but no fs_nboot_args yet. */
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	int val = (pargs->chBoardType == BT_PICOMODA9);
+
+	if (val && (pargs->chBoardRev > 100)) {
+		gpio_direction_output(get_led_gpio(pargs, 0, val, 1), val);
+		gpio_direction_output(get_led_gpio(pargs, 1, val, 1), val);
+	}
+	gpio_direction_output(get_led_gpio(pargs, 0, val, 0), val);
+	gpio_direction_output(get_led_gpio(pargs, 1, val, 0), val);
+}
+
+void __led_set(led_id_t id, int val)
+{
+	struct tag_fshwconfig *pargs = &fs_nboot_args;
+
+	if (id > 1)
+		return;
+
+	if (pargs->chBoardType == BT_PICOMODA9) {
+		val = !val;
+		if (pargs->chBoardRev > 100)
+			gpio_set_value(get_led_gpio(pargs, id, val, 1), val);
+	}
+
+	gpio_set_value(get_led_gpio(pargs, id, val, 0), val);
+}
+
+void __led_toggle(led_id_t id)
+{
+	struct tag_fshwconfig *pargs = &fs_nboot_args;
+	int val;
+
+	if (id > 1)
+		return;
+
+	val = !((led_value >> id) & 1);
+	if ((pargs->chBoardType == BT_PICOMODA9) && (pargs->chBoardRev > 100))
+		gpio_set_value(get_led_gpio(pargs, id, val, 1), val);
+	gpio_set_value(get_led_gpio(pargs, id, val, 0), val);
+}
+#endif /* CONFIG_CMD_LED */

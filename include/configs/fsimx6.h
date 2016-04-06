@@ -205,7 +205,9 @@
 /************************************************************************
  * LEDs
  ************************************************************************/
-/* ###TODO### */
+#define CONFIG_BOARD_SPECIFIC_LED
+#define STATUS_LED_BIT 0
+#define STATUS_LED_BIT1 1
 
 
 /************************************************************************
@@ -414,7 +416,7 @@
 #define CONFIG_CMD_ITEST	/* Integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
 #undef CONFIG_CMD_LDRINFO	/* No ldr support for blackfin */
-#undef CONFIG_CMD_LED		/* No LED support */
+#define CONFIG_CMD_LED		/* LED support */
 #undef CONFIG_CMD_LICENSE	/* No support to show GPL license */
 #undef CONFIG_CMD_LOADB		/* No serial load of binaries (loadb) */
 #undef CONFIG_CMD_LOADS		/* No serial load of s-records (loads) */
