@@ -33,7 +33,7 @@ typedef struct led_tbl_s led_tbl_t;
  ************************************************************************
  * May be supplied by boards if desired
  */
-inline void __coloured_LED_init(void) {}
+static inline void __coloured_LED_init(void) {}
 void coloured_LED_init(void)
 	__attribute__((weak, alias("__coloured_LED_init")));
 

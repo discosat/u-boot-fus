@@ -26,7 +26,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define CONFIG_SYS_BOARDNAME "u-boot"
 #endif
 
-inline char *__get_board_name(void)
+static inline char *__get_board_name(void)
 {
 	return CONFIG_SYS_BOARDNAME;
 }
@@ -42,7 +42,7 @@ char *get_board_name(void) __attribute__((weak, alias("__get_board_name")));
 #define CONFIG_SYS_PROMPT CONFIG_SYS_BOARDNAME " # "
 #endif
 
-inline char *__get_sys_prompt(void)
+static inline char *__get_sys_prompt(void)
 {
 	return CONFIG_SYS_PROMPT;
 }
