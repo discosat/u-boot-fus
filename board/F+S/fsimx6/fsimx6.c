@@ -53,6 +53,7 @@
 #define BT_ARMSTONEA9 1
 #define BT_PICOMODA9  2
 #define BT_QBLISSA9   3
+#define BT_ARMSTONEA9R2 4
 
 /* Features set in tag_fshwconfig.chFeature1 */
 #define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
@@ -187,9 +188,22 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
 	},
-	{	/* 4 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 4 (BT_ARMSTONEA9R2) */
+		.name = "armStoneA9R2",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = UPDATE_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
@@ -285,6 +299,7 @@ int dram_init(void)
 
 	return 0;
 }
+
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 int board_init(void)
@@ -484,7 +499,8 @@ int board_mmc_getcd(struct mmc *mmc)
 	switch (fs_nboot_args.chBoardType) {
 	case BT_ARMSTONEA9:
 		return !gpio_get_value(IMX_GPIO_NR(6, 15));
-
+	case BT_ARMSTONEA9R2:
+		return !gpio_get_value(IMX_GPIO_NR(1, 4));
 	case BT_PICOMODA9:
 		if (mmc->block_dev.dev == 0)
 			/* External SD card slot has Card Detect (CD) */
@@ -529,6 +545,15 @@ int board_mmc_init(bd_t *bis)
 		gpio_cd = IMX_GPIO_NR(6, 15);
 		ccgr6 |= (3 << 6);
 		index = 2;
+		break;
+
+	case BT_ARMSTONEA9R2:
+		/* USDHC3: on-board micro SD slot, Card Detect (CD) on
+		   GPIO4 pin (GPIO4) */
+		SETUP_IOMUX_PADS(usdhc2_pads);
+		gpio_cd = IMX_GPIO_NR(1, 4);
+		ccgr6 |= (3 << 4);
+		index = 1;
 		break;
 
 	case BT_PICOMODA9:
@@ -628,7 +653,14 @@ int board_ehci_hcd_init(int port)
 		mdelay(2);
 		gpio_set_value(IMX_GPIO_NR(7, 12), 1);
 		break;
+	case BT_ARMSTONEA9R2:
+		SETUP_IOMUX_PADS(usb_hub_pads);
 
+		/* Reset USB hub */
+		gpio_direction_output(IMX_GPIO_NR(2, 29), 0);
+		mdelay(2);
+		gpio_set_value(IMX_GPIO_NR(2, 29), 1);
+		break;
 	case BT_EFUSA9:
 #if 0
 		SETUP_IOMUX_PADS(usb_pwr_pads);
@@ -1050,7 +1082,9 @@ static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
 	case BT_QBLISSA9:
 		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
 		break;
-
+	case BT_ARMSTONEA9R2:
+		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
+		break;
 	default:
 		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
 		break;
