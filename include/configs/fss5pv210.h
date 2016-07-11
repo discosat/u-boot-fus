@@ -684,7 +684,7 @@
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
-	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${rootpath}\0" \
+	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
 	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1 rootwait\0" \
 	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0" \
 	"kernel=undef\0" \
