@@ -761,6 +761,11 @@ int board_late_init(void)
 			*l++ = c;
 		} while (c);
 
+		if(is_cpu_type(MXC_CPU_MX6SOLO) ||is_cpu_type(MXC_CPU_MX6DL))
+			sprintf(lcasename, "%sdl", lcasename);
+		else if(is_cpu_type(MXC_CPU_MX6D) || is_cpu_type(MXC_CPU_MX6Q))
+			sprintf(lcasename, "%sq", lcasename);
+
 		setenv("platform", lcasename);
 	}
 
