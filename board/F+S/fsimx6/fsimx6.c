@@ -189,7 +189,7 @@ const struct board_info fs_board_info[8] = {
 		.fdt = ".fdt_nand",
 	},
 	{	/* 4 (BT_ARMSTONEA9R2) */
-		.name = "armStoneA9R2",
+		.name = "armStoneA9r2",
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -299,7 +299,6 @@ int dram_init(void)
 
 	return 0;
 }
-
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 int board_init(void)
@@ -499,8 +498,10 @@ int board_mmc_getcd(struct mmc *mmc)
 	switch (fs_nboot_args.chBoardType) {
 	case BT_ARMSTONEA9:
 		return !gpio_get_value(IMX_GPIO_NR(6, 15));
+
 	case BT_ARMSTONEA9R2:
 		return !gpio_get_value(IMX_GPIO_NR(1, 4));
+
 	case BT_PICOMODA9:
 		if (mmc->block_dev.dev == 0)
 			/* External SD card slot has Card Detect (CD) */
@@ -548,8 +549,8 @@ int board_mmc_init(bd_t *bis)
 		break;
 
 	case BT_ARMSTONEA9R2:
-		/* USDHC3: on-board micro SD slot, Card Detect (CD) on
-		   GPIO4 pin (GPIO4) */
+		/* USDHC2: on-board micro SD slot, Card Detect (CD) on
+		   GPIO4 pin (GPIO1_IO04) */
 		SETUP_IOMUX_PADS(usdhc2_pads);
 		gpio_cd = IMX_GPIO_NR(1, 4);
 		ccgr6 |= (3 << 4);
@@ -653,6 +654,7 @@ int board_ehci_hcd_init(int port)
 		mdelay(2);
 		gpio_set_value(IMX_GPIO_NR(7, 12), 1);
 		break;
+
 	case BT_ARMSTONEA9R2:
 		SETUP_IOMUX_PADS(usb_hub_pads);
 
@@ -661,6 +663,7 @@ int board_ehci_hcd_init(int port)
 		mdelay(2);
 		gpio_set_value(IMX_GPIO_NR(2, 29), 1);
 		break;
+
 	case BT_EFUSA9:
 #if 0
 		SETUP_IOMUX_PADS(usb_pwr_pads);
@@ -761,9 +764,9 @@ int board_late_init(void)
 			*l++ = c;
 		} while (c);
 
-		if(is_cpu_type(MXC_CPU_MX6SOLO) ||is_cpu_type(MXC_CPU_MX6DL))
+		if (is_cpu_type(MXC_CPU_MX6SOLO) ||is_cpu_type(MXC_CPU_MX6DL))
 			sprintf(lcasename, "%sdl", lcasename);
-		else if(is_cpu_type(MXC_CPU_MX6D) || is_cpu_type(MXC_CPU_MX6Q))
+		else if (is_cpu_type(MXC_CPU_MX6D) || is_cpu_type(MXC_CPU_MX6Q))
 			sprintf(lcasename, "%sq", lcasename);
 
 		setenv("platform", lcasename);
@@ -842,7 +845,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-	/* 
+	/*
 	 * Read a MAC address from OTP memory on i.MX6; it is stored in the
 	 * following order:
 	 *
@@ -859,7 +862,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	 * (all six bytes 0xFF). In this case the whole address is ignored.
 	 *
 	 * In addition to the address itself, there may be a count stored in
-	 * mac_l[7:0]. 
+	 * mac_l[7:0].
 	 *
 	 *   count=0: only the address itself
 	 *   count=1: the address itself and the next address
@@ -1087,10 +1090,8 @@ static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
 	case BT_QBLISSA9:
 		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
 		break;
-	case BT_ARMSTONEA9R2:
-		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
-		break;
-	default:
+
+	default:			/* efusA9, armStoneA9r2 */
 		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
 		break;
 	}

@@ -845,7 +845,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-	/* 
+	/*
 	 * Read a MAC address from OTP memory on i.MX6; it is stored in the
 	 * following order:
 	 *
@@ -862,7 +862,7 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	 * (all six bytes 0xFF). In this case the whole address is ignored.
 	 *
 	 * In addition to the address itself, there may be a count stored in
-	 * mac_l[7:0]. 
+	 * mac_l[7:0].
 	 *
 	 *   count=0: only the address itself
 	 *   count=1: the address itself and the next address

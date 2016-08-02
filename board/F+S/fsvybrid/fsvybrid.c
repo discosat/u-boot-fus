@@ -384,7 +384,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 	} while (port);
 
 	return CONFIG_SYS_UART_PORT;
-} 
+}
 
 struct serial_device *default_serial_console(void)
 {
@@ -799,7 +799,7 @@ int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
 	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-	/* 
+	/*
 	 * Read a MAC address from OTP memory on Vybrid; it is stored in the
 	 * following order:
 	 *
@@ -816,7 +816,7 @@ int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
 	 * (all six bytes 0xFF). In this case the whole address is ignored.
 	 *
 	 * In addition to the address itself, there may be a count stored in
-	 * mac_l[15:8]. 
+	 * mac_l[15:8].
 	 *
 	 *   count=0: only the address itself
 	 *   count=1: the address itself and the next address
@@ -894,7 +894,7 @@ int board_eth_init(bd_t *bis)
 	int phy_addr;
 	uint32_t enet_addr;
 	u8 chBoardType = fs_nboot_args.chBoardType;
-	
+
 	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
 	if (chBoardType == BT_CUBEA5)
 		return 0;

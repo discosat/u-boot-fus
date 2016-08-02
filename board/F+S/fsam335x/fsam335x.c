@@ -683,7 +683,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 	} while (port);
 
 	return CONFIG_SYS_UART_PORT;
-} 
+}
 
 struct serial_device *default_serial_console(void)
 {
