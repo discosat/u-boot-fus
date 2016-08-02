@@ -113,14 +113,19 @@ struct board_info {
 	char *fdt;			/* Default variable for device tree */
 };
 
+#define INSTALL_RAM "ram@80300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #else
 #define UPDATE_DEF NULL
+#define INSTALL_DEF INSTALL_RAM
 #endif
 #if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define EARLY_USB "1"
@@ -134,7 +139,7 @@ const struct board_info fs_board_info[8] = {
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -151,7 +156,7 @@ const struct board_info fs_board_info[8] = {
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -168,7 +173,7 @@ const struct board_info fs_board_info[8] = {
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -185,7 +190,7 @@ const struct board_info fs_board_info[8] = {
 		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",

@@ -108,14 +108,19 @@ struct board_info {
 	char *kernel;			/* Default variable for kernel */
 };
 
+#define INSTALL_RAM "ram@80300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #else
 #define UPDATE_DEF NULL
+#define INSTALL_DEF INSTALL_RAM
 #endif
 #if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define EARLY_USB "1"
@@ -129,7 +134,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_ARMSTONEA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -145,7 +150,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_PICOCOMA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -161,7 +166,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_NETDCUA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
-		.installcheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.earlyusbinit = NULL,
 		.console = ".console_serial",
@@ -188,7 +193,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_AGATEWAY,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
-		.installcheck = "ram@80300000",
+		.installcheck = INSTALL_RAM,
 		.recovercheck = "TargetFS.ubi(ubi0:recovery)",
 		.earlyusbinit = NULL,
 //###		.console = ".console_serial",
@@ -206,7 +211,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_CUBEA5,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
-		.installcheck = "ram@80300000",
+		.installcheck = INSTALL_RAM,
 		.recovercheck = "TargetFS.ubi(ubi0:recovery)",
 		.earlyusbinit = NULL,
 		.console = ".console_none",
@@ -222,7 +227,7 @@ const struct board_info fs_board_info[16] = {
 		.mach_type = MACH_TYPE_HGATEWAY,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
-		.installcheck = "ram@80300000",
+		.installcheck = INSTALL_RAM,
 		.recovercheck = "TargetFS.ubi(ubi0:recovery)",
 		.earlyusbinit = NULL,
 //###		.console = ".console_serial",
