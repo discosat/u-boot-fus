@@ -1,6 +1,30 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+
+u-boot-2014.07-fsimx6-V3.0 (08.08.2016)
+---------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, QBlissA9,
+                  efusA7UL, CubeA7UL, efusA9X, BemA9X
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY,
+                  armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix AIPS3 initialization on i.MX6-SoloX
+- Add missing FEAT2_ETH_MASK to fsimx6ul.c
+- Fix problem with large files on some USB sticks
+- If using ubifs, look for fdt in /boot (like the kernel)
+- Remove fsload variable from fsimx6, fsimx6sx and fsimx6ul
+- Set correct board_info values for CubeA7UL
+- Add status LED support for fsimx6
+- Prepare for compilation with gcc-5.x, remove warnings
+- Add support for armStoneA9r2
+- Add serverip to nfsroot when running .rootfs_nfs
+- Remove architecture prefix from device tree names
+- Add "dl" or "q" to device tree name on fsimx6, depending on actual CPU type
+- Additionally allow installation from RAM on regular F&S boards
+
+
+
 u-boot-2014.07-fsimx6sx-V1.0 (19.02.2016)
 -----------------------------------------
 Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9,
