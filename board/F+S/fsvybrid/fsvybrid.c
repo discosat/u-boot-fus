@@ -770,9 +770,14 @@ static void fecpin_config(uint32_t enet_addr)
 	 * unstable and does not work with all PHYs.
 	 *
 	 * In our newer board revisions we either use an external oscillator
-	 * (AGATEWAY) or we have connected CKO1 (PTB10) to PTA6 and output the
-	 * RMII clock on CKO1. Then PTA6 is a clock input and everything works
-	 * as expected.
+	 * (AGATEWAY) or we have looped back CKO1 (PTB10) to RMIICKL (PTA6)
+	 * and output the RMII clock on CKO1. Then PTA6 is a clock input and
+	 * everything works as expected.
+	 *
+	 * The drive strength values below guarantee very stable results, but
+	 * if EMC conformance requires, they can be reduced even more:
+	 * 0x00100042 for outputs, 0x00100001 for inputs and 0x00100043 for
+	 * mixed inputs/outputs.
 	 */
 	if (enet_addr == MACNET0_BASE_ADDR) {
 		__raw_writel(0x001000c2, IOMUXC_PAD_045);	/*MDC*/
@@ -929,8 +934,9 @@ int board_eth_init(bd_t *bis)
 			temp = __raw_readl(&ccm->cscmr2);
 			temp |= (0<<4);		/* Use RMII clock as input */
 			__raw_writel(temp, &ccm->cscmr2);
-			__raw_writel(0x00601992, IOMUXC_PAD_032);
-			__raw_writel(0x00203191, IOMUXC_PAD_000);
+			/* See commment above about drive strength */
+			__raw_writel(0x006000c2, IOMUXC_PAD_032);
+			__raw_writel(0x002000c1, IOMUXC_PAD_000);
 		} else {
 			/* We do not have a connection between PTB10 and PTA6
 			   and we also don't have an external oscillator. We
