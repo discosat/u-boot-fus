@@ -1,6 +1,18 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fsvybrid-V2.2 (21.10.2016)
+-----------------------------------------
+
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, QBlissA9,
+                  efusA7UL, CubeA7UL, efusA9X, BemA9X, armStoneA5, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Reduce drive strength for ethernet clock signal on fsvybrid
+
+
+
 u-boot-2014.07-fsimx6sx-V2.0 (20.08.2016)
 -----------------------------------------
 
