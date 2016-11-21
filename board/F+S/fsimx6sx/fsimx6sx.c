@@ -560,7 +560,8 @@ int board_mmc_init(bd_t *bis)
 		   Detect (CD) on GPIO_6 (GPIO1_IO6) */
 		gpio_cd = IMX_GPIO_NR(1, 6);
 		SETUP_IOMUX_PADS(usdhc2_extra_pads);
-		/* Fall through to BT_BEMA9X */
+		/* Fall through to BT_PICOCOMA9X */
+	case BT_PICOCOMA9X:
 	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(usdhc2_pads);
 		ccgr6 |= (3 << 4);
@@ -635,6 +636,7 @@ int board_ehci_hcd_init(int port)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
+	case BT_PICOCOMA9X:
 	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(usb_pwr_pads);
 #if 0
@@ -843,6 +845,29 @@ static iomux_v3_cfg_t const enet_pads_rmii1[] = {
 	IOMUX_PADS(PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+static iomux_v3_cfg_t const enet_pads_rmii2[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_CRS__ENET2_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_COL__ENET2_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_ENET2_TX_CLK__ENET2_REF_CLK2 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC1 (ENET2) */
+	IOMUX_PADS(PAD_RGMII2_TD0__ENET2_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TD1__ENET2_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TX_CTL__ENET2_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RXC__ENET2_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD0__ENET2_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD1__ENET2_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RX_CTL__ENET2_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* No interrupt on DP83848 PHY */
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 /* Read a MAC address from OTP memory */
 int get_otp_mac(void *otp_addr, uchar *enetaddr)
 {
@@ -937,162 +962,209 @@ int board_eth_init(bd_t *bis)
 {
 	u32 gpr1;
 	int ret;
-	int phy_addr;
-	enum xceiver_type xcv_type;
-	enum enet_freq freq;
+	int phy_addr_a, phy_addr_b;
+	int mii_bus_addr = -1;
+	enum xceiver_type xcv_type = RGMII;
 	phy_interface_t interface = PHY_INTERFACE_MODE_RGMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	struct mii_dev *bus;
 	struct phy_device *phydev;
 
-	/* Get parameters for the first ethernet port */
+	/*
+	 * Set IOMUX for ports, enable clocks and reset PHYs. On i.MX6 SoloX,
+	 * the ENET clock is already ungated in enable_fec_anatop_clock().
+	 */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
-		/* Set the IOMUX for ENET, use 1 GBit/s LAN on RGMII pins */
+		/* Set up IOMUX for ENET, use 1 GBit/s LAN on RGMII pins */
 		SETUP_IOMUX_PADS(enet_pads_rgmii);
 
-		set_fs_ethaddr(0);
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+			/* ENET1 (FEC0) CLK is generated in PHY and is input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
 
-		/* ENET1 (FEC0) CLK is generated in PHY and is an input */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 &= ~IOMUX_GPR1_FEC1_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_125MHZ);
+			if (ret < 0)
+				return ret;
+		}
 
-		freq = ENET_125MHZ;
-		phy_addr = 4;
-		xcv_type = RGMII;
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
+			/* ENET2 (FEC1) CLK is generated in PHY and is input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_125MHZ);
+			if (ret < 0)
+				return 0;
+		}
+
+		/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least
+		   0.5 ms */
+		gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
+		udelay(500);
+		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
+
+		phy_addr_a = 4;
+		phy_addr_b = 5;
 		break;
 
+
+	case BT_PICOCOMA9X:
+		mii_bus_addr = 0;
+		/* Fall through to case BT_BEMA9X */
 	case BT_BEMA9X:
-		/* Set the IOMUX for ENET, use 100 MBit/s LAN on RGMII1 pins */
-		SETUP_IOMUX_PADS(enet_pads_rmii1);
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 100 MBit/s LAN on RGMII1 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii1);
 
-		set_fs_ethaddr(0);
+			/*
+			 * ENET1 (FEC0) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 17 to generate the REF
+			 * clock on the pin and bit 13 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
 
-		/* ENET1 (FEC0) CLK is generated in CPU and is an output.
-		   Please note that the clock pin must have the SION flag set
-		   to feed back the clock to the internal MAC. This means we
-		   also have to set both ENET mux bits in gpr1. Bit 17 to
-		   generate the REF clock on the pin and bit 13 to get the
-		   generated clock from the PAD back into the MAC. */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 |= IOMUX_GPR1_FEC1_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET2, use 100 MBit/s LAN on RGMII2 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii2);
+
+			/*
+			 * ENET2 (FEC1) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 18 to generate the REF
+			 * clock on the pin and bit 14 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		/*
+		 * Reset both PHYs. DP83484 needs at least 1 us reset pulse
+		 * width (GPIO2_IO7). After power on it needs min 167 ms
+		 * (after reset is deasserted) before the first MDIO access
+		 * can be done. In a warm start, it only takes around 3 for
+		 * this. As we do not know whether this is a cold or warm
+		 * start, we must assume the worst case.
+		 */
+		gpio_direction_output(IMX_GPIO_NR(2, 7), 0);
+		udelay(10);
+		gpio_set_value(IMX_GPIO_NR(2, 7), 1);
+		mdelay(170);
 
 		interface = PHY_INTERFACE_MODE_RMII;
-		freq = ENET_50MHZ;
-		phy_addr = 1;
 		xcv_type = RMII;
+		phy_addr_a = 1;
+		phy_addr_b = 17;
 		break;
 
 	default:
 		return 0;
 	}
 
-	/* Activate ENET1 (FEC0) PLL */
-	ret = enable_fec_anatop_clock(0, freq);
-	if (ret < 0)
-		return ret;
-
-	/* Reset PHY (clock must be running already) */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-		/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least
-		   0.5 ms */
-		gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
-		udelay(500);
-		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
-		break;
-
-	case BT_BEMA9X:
-		/* DP83484 needs at least 1 us reset pulse width (GPIO2_IO7).
-		   After power on it needs min 167 ms (after reset is
-		   deasserted) before the first MDIO access can be done. In a
-		   warm start, it only takes around 3 for this. As we do not
-		   know whether this is a cold or warm start, we must assume
-		   the worst case. */
-		gpio_direction_output(IMX_GPIO_NR(2, 7), 0);
-		udelay(10);
-		gpio_set_value(IMX_GPIO_NR(2, 7), 1);
-		mdelay(170);
-		break;
-	}
-
 #if 0
-	/* ### If CONFIG_FEC_MXC_25M_REF_CLK is set, this is automatically
-	   done in enable_fec_anatop_clock(); we keep it here as reference
-	   code in case additional board layouts need a different setting and
-	   we can not set CONFIG_FEC_MXC_25M_REF_CLK globally in fsimx6sx.h
-	   anymore. Then we can set it here depending on board type. */
+	/*
+	 * ### If CONFIG_FEC_MXC_25M_REF_CLK is set, this is automatically
+	 * done in enable_fec_anatop_clock(); we keep it here as reference
+	 * code in case additional board layouts need a different setting and
+	 * we can not set CONFIG_FEC_MXC_25M_REF_CLK globally in fsimx6sx.h
+	 * anymore. Then we can set it here depending on board type.
+	 */
 	{
 		u32 reg;
-		struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+		struct anatop_regs *anatop =
+			(struct anatop_regs *)ANATOP_BASE_ADDR;
+
 		reg = readl(&anatop->pll_enet);
 		reg |= BM_ANADIG_PLL_ENET_REF_25M_ENABLE;
 		writel(reg, &anatop->pll_enet);
 	}
 #endif
 
-	/* In case of i.MX6 SoloX, the ENET clock is already ungated in
-	   enable_fec_anatop_clock() */
+	set_fs_ethaddr(0);
 
-	/* We can not use fecmxc_initialize_multi_type() because this would
-	   allocate one MII bus for each ethernet device. But we only need one
-	   MII bus in total for both ports. So the following code works rather
-	   similar to fecmxc_initialize_multi_type(), but uses just one bus. */
-	bus = fec_get_miibus(ENET_BASE_ADDR, -1);
+	/* We can not use fecmxc_initialize_multi_type() because this
+	   would allocate one MII bus for each ethernet device. But we
+	   only need one MII bus in total for both ports. So the
+	   following code works rather similar to
+	   fecmxc_initialize_multi_type(), but uses just one bus. */
+	bus = fec_get_miibus(ENET_BASE_ADDR, mii_bus_addr);
 	if (!bus)
 		return -ENOMEM;
 
-	/* Probe the first PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
-	if (!phydev) {
-		free(bus);
-		return -ENOMEM;
+	/* Probe first PHY and activate first ethernet port */
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+		phydev = phy_find_by_mask(bus, 1 << phy_addr_a, interface);
+		if (!phydev) {
+			free(bus);
+			return -ENOMEM;
+		}
+
+		ret = fec_probe(bis, 0, ENET_BASE_ADDR, bus, phydev, xcv_type);
+		if (ret) {
+			free(phydev);
+			free(bus);
+			return ret;
+		}
 	}
 
-	/* Probe the first ethernet port */
-	ret = fec_probe(bis, 0, ENET_BASE_ADDR, bus, phydev, xcv_type);
-	if (ret) {
-		free(phydev);
-		free(bus);
-		return ret;
-	}
-
-	/* Get parameters for the second ethernet port; if the second port
-	   fails, return without error because the first port is OK already */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
+	/*
+	 * Probe second PHY and activate second ethernet port. If the second
+	 * port fails, return without error because the first port is OK
+	 * already.
+	 */
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
 		set_fs_ethaddr(1);
 
-		/* ENET2 (FEC1) CLK is generated in PHY and is an input */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 &= ~IOMUX_GPR1_FEC2_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+		/* Get the second MII bus if the PHYs are on different buses */
+		if (mii_bus_addr != -1) {
+			mii_bus_addr++;
+			bus = fec_get_miibus(ENET2_BASE_ADDR, mii_bus_addr);
+			if (!bus)
+				return 0;
+		}
 
-		freq = ENET_125MHZ;
-		phy_addr = 5;
-		xcv_type = RGMII;
-		break;
+		phydev = phy_find_by_mask(bus, 1 << phy_addr_b, interface);
+		if (!phydev) {
+			if (mii_bus_addr != -1)
+				free(bus);
+			return 0;
+		}
 
-	default:
-		return 0;
+		ret = fec_probe(bis, 1, ENET2_BASE_ADDR, bus, phydev, xcv_type);
+		if (ret) {
+			free(phydev);
+			if (mii_bus_addr != -1)
+				free(bus);
+			return 0;
+		}
 	}
 
-	/* Activate ENET2 (FEC1) PLL */
-	ret = enable_fec_anatop_clock(1, freq);
-	if (ret < 0)
-		return 0;
-
-	/* Probe the second PHY */
-	phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
-	if (!phydev)
-		return 0;
-
-	/* Probe the second ethernet port */
-	ret = fec_probe(bis, 1, ENET2_BASE_ADDR, bus, phydev, xcv_type);
-	if (ret)
-		free(phydev);
 
 	return 0;
 }
