@@ -51,6 +51,8 @@
 
 #define BT_EFUSA7UL   0
 #define BT_CUBEA7UL   1
+#define BT_PICOCOM1_2 2
+#define BT_CUBE2_0    3
 
 /* Features set in tag_fshwconfig.chFeature1 (###TODO: proposed fetaures, not
    actually available from NBoot) */
@@ -182,13 +184,39 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_ubifs",
 		.fdt = ".fdt_ubifs",
 	},
-	{	/* 2 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 2 (BT_PICOCOM1_2) */
+		.name = "PicoCOM1.2",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
-	{	/* 3 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 3 (BT_CUBE2_0) */
+		.name = "Cube2.0",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = "TargetFS.ubi(ubi0:data)",
+		.installcheck = INSTALL_RAM,
+		.recovercheck = "TargetFS.ubi(ubi0:recovery)",
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_ubionly",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_ubifs",
+		.fdt = ".fdt_ubifs",
 	},
 	{	/* 4 (unknown) */
 		.name = "unknown",
@@ -1104,3 +1132,76 @@ struct tag_fsm4config *get_board_fsm4config(void)
 {
 	return &fs_m4_args;
 }
+
+#ifdef CONFIG_CMD_LED
+/*
+ * Boards       STA1           STA2         Active
+ * ------------------------------------------------------------------------
+ * efusA7UL     -              -            -
+ * PicoCOM1.2   GPIO5_IO00     GPIO5_IO01   high
+ * CubeA7UL     GPIO2_IO05     GPIO2_IO06   low
+ * Cube2.0      GPIO2_IO05     GPIO2_IO06   low
+ */
+static unsigned int led_value;
+
+static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
+				 int val)
+{
+	unsigned int gpio;
+
+	if (val)
+		led_value |= (1 << id);
+	else
+		led_value &= ~(1 << id);
+
+	switch (pargs->chBoardType) {
+	case BT_PICOCOM1_2:
+		gpio = (id ? IMX_GPIO_NR(5, 1) : IMX_GPIO_NR(5, 0));
+		break;
+
+	default:			/* CubeA7UL, Cube2.0 */
+		gpio = (id ? IMX_GPIO_NR(2, 5) : IMX_GPIO_NR(2, 6));
+		break;
+	}
+
+	return gpio;
+}
+
+void coloured_LED_init(void)
+{
+	/* This is called after code relocation in arch/arm/lib/crt0.S but
+	   before board_init_r() and therefore before the NBoot args struct is
+	   copied to fs_nboot_args in board_init(). So variables in RAM are OK
+	   (like led_value above), but no fs_nboot_args yet. */
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	int val = (pargs->chBoardType != BT_PICOCOM1_2);
+
+	gpio_direction_output(get_led_gpio(pargs, 0, val), val);
+	gpio_direction_output(get_led_gpio(pargs, 1, val), val);
+}
+
+void __led_set(led_id_t id, int val)
+{
+	struct tag_fshwconfig *pargs = &fs_nboot_args;
+
+	if (id > 1)
+		return;
+
+	if (pargs->chBoardType != BT_PICOCOM1_2)
+		val = !val;
+
+	gpio_set_value(get_led_gpio(pargs, id, val), val);
+}
+
+void __led_toggle(led_id_t id)
+{
+	struct tag_fshwconfig *pargs = &fs_nboot_args;
+	int val;
+
+	if (id > 1)
+		return;
+
+	val = !((led_value >> id) & 1);
+	gpio_set_value(get_led_gpio(pargs, id, val), val);
+}
+#endif /* CONFIG_CMD_LED */
