@@ -24,6 +24,7 @@ obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
 endif
 obj-$(CONFIG_CMD_BMODE) += cmd_bmode.o
 obj-$(CONFIG_CMD_HDMIDETECT) += cmd_hdmidet.o
+obj-$(CONFIG_BLINK_IMX) += blink_timer.o
 obj-$(CONFIG_USE_IRQ) += interrupts.o
 
 quiet_cmd_cpp_cfg = CFGS    $@

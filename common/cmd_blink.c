@@ -80,6 +80,7 @@ int add_blink_callback(interrupt_handler_t *callback, void *data)
 	return -1;
 }
 
+/* Remove the given blink callback */
 void remove_blink_callback(interrupt_handler_t *callback)
 {
 	int need_blink = 0;

@@ -85,7 +85,7 @@
 #define CONFIG_DISPLAY_BOARDINFO	/* Show board information */
 #define CONFIG_ZERO_BOOTDELAY_CHECK	/* Allow entering U-Boot even if boot
 					   delay is zero */
-#undef CONFIG_USE_IRQ			/* No blinking LEDs yet */
+#define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
 #define CONFIG_OF_LIBFDT		/* Use device trees (fdt) */
@@ -206,6 +206,7 @@
  * LEDs
  ************************************************************************/
 #define CONFIG_BOARD_SPECIFIC_LED
+#define CONFIG_BLINK_IMX
 #define STATUS_LED_BIT 0
 #define STATUS_LED_BIT1 1
 
@@ -368,7 +369,7 @@
 #define CONFIG_CMD_ASKENV	/* Ask user for variable */
 #define CONFIG_CMD_BDI		/* Board information (bdinfo) */
 #undef CONFIG_CMD_BEDBUG	/* No PPC bedbug debugging support */
-#undef CONFIG_CMD_BLINK		/* No support for blinking LEDs */
+#define CONFIG_CMD_BLINK	/* Support blinking LEDs */
 #undef CONFIG_CMD_BMP		/* No old BMP, use new display support */
 #define CONFIG_CMD_BOOTD	/* Boot default target */
 #undef CONFIG_CMD_BOOTLDR	/* No ldr support for blackfin */
