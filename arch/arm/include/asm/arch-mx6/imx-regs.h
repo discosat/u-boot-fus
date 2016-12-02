@@ -80,11 +80,15 @@
 
 #define IRAM_BASE_ADDR			0x00900000
 #define SCU_BASE_ADDR                   0x00A00000
+#ifdef CONFIG_MX6UL
+#define IC_INTERFACES_BASE_ADDR         0x00A02000
+#else
 #define IC_INTERFACES_BASE_ADDR         0x00A00100
+#define L2_PL310_BASE			0x00A02000
+#endif
 #define GLOBAL_TIMER_BASE_ADDR          0x00A00200
 #define PRIVATE_TIMERS_WD_BASE_ADDR     0x00A00600
 #define IC_DISTRIBUTOR_BASE_ADDR        0x00A01000
-#define L2_PL310_BASE			0x00A02000
 #define GPV0_BASE_ADDR                  0x00B00000
 #define GPV1_BASE_ADDR                  0x00C00000
 
@@ -992,12 +996,106 @@ struct pwm_regs {
 	u32	cnr;
 };
 
+
+#define EPIT_CR_EN		(1 << 0)
+#define EPIT_CR_ENMOD		(1 << 1)
+#define EPIT_CR_OCIEN		(1 << 2)
+#define EPIT_CR_RLD		(1 << 3)
+#define EPIT_CR_PRESCALER_MASK	(0xFFF << 4)
+#define EPIT_CR_PRESCALER(x)	(((x - 1) << 4) & EPIT_CR_PRESCALER_MASK)
+#define EPIT_CR_SWR		(1 << 16)
+#define EPIT_CR_IOVW		(1 << 17)
+#define EPIT_CR_DBGEN		(1 << 18)
+#define EPIT_CR_WAITEN		(1 << 19)
+#define EPIT_CR_STOPEN		(1 << 21)
+#define EPIT_CR_OM_MASK		(3 << 22)
+#define EPIT_CR_OM_NONE		(0 << 22)
+#define EPIT_CR_OM_TOGGLE	(1 << 22)
+#define EPIT_CR_OM_CLEAR	(2 << 22)
+#define EPIT_CR_OM_SET		(3 << 22)
+#define EPIT_CR_CLKSRC_MASK	(3 << 24)
+#define EPIT_CR_CLKSRC_OFF	(0 << 24)
+#define EPIT_CR_CLKSRC_IPG	(1 << 24)
+#define EPIT_CR_CLKSRC_24M	(2 << 24)
+#define EPIT_CR_CLKSRC_32K	(3 << 24)
+
+struct epit_regs {
+	u32	cr;
+	u32	sr;
+	u32	lr;
+	u32	cmpr;
+	u32	cnr;
+};
+
 /*
  * If ROM fail back to USB recover mode, USBPH0_PWD will be clear to use USB
  * If boot from the other mode, USB0_PWD will keep reset value
  */
 #define	is_boot_from_usb(void) (!(readl(USB_PHY0_BASE_ADDR) & (1<<20)))
 #define	disconnect_from_pc(void) writel(0x0, OTG_BASE_ADDR + 0x140)
+
+/* Interrupts */
+#define N_IRQS			160
+#define IRQ_EPIT1		88
+
+/* GIC Distributor Registers */
+struct gicd_regs {
+	u32	ctlr;			/* 0x000: Control */
+	u32	typer;			/* 0x004: Type */
+	u32	iidr;			/* 0x008: Implementer Identification */
+	u32	_reserved0[29];		/* 0x00C */
+	u32	igroupr[16];		/* 0x080: Interrupt groups */
+	u32	_reserved1[16];		/* 0x0C0 */
+	u32	isenabler[16];		/* 0x100: Set enable (1 bit/int) */
+	u32	_reserved2[16];		/* 0x140 */
+	u32	icenabler[16];		/* 0x180: Clear enable (1 bit/int) */
+	u32	_reserved3[16];		/* 0x1C0 */
+	u32	ispendr[16];		/* 0x200: Set pending (1 bit/int) */
+	u32	_reserved4[16];		/* 0x240 */
+	u32	icpendr[16];		/* 0x280: Clear pending (1 bit/int) */
+	u32	_reserved5[16];		/* 0x2C0 */
+	u32	isactiver[16];		/* 0x300: Set active (1 bit/int) */
+	u32	_reserved6[16];		/* 0x340 */
+	u32	icactiver[16];		/* 0x380: Clear active (1 bit/int) */
+	u32	_reserved7[16];		/* 0x3C0 */
+	u8	ipriorityr[512];	/* 0x400: Priorities (1 byte/int) */
+	u32	_reserved8[128];	/* 0x600 */
+	u8	itargetsr[512];		/* 0x800: Targets (1 byte/int) */
+	u32	_reserved9[128];	/* 0xA00 */
+	u32	icfgr[32];		/* 0xC00: Configuration (2 bits/int) */
+	u32	_reserved10[32];	/* 0xC80 */
+	u32	isr[16];		/* 0xD00: Status (1 bit/int) */
+	u32	_reserved11[112];	/* 0xD40 */
+	u32	sgir;			/* 0xF00: Software Generated Int. */
+	u32	_reserved12[3];		/* 0xF04 */
+	u32	cpendsgir[4];		/* 0xF10: Clear pend. SGI (1 bit/int) */
+	u32	spendsgir[4];		/* 0xF20: Set pend. SGI (1 bit/int) */
+	u32	_reserved13[40];	/* 0xF30 */
+	u32	pidr[8];		/* 0xFD0: Peripheral ID 4-7/0-3 */
+	u32	cidr[4];		/* 0xFF0: Component ID 0-3 */
+};
+
+/* GIC CPU Interface Registers */
+struct gicc_regs {
+	u32	ctlr;			/* 0x00: Control */
+	u32	pmr;			/* 0x04: Priority mask */
+	u32	bpr;			/* 0x08: Binary point */
+	u32	iar;			/* 0x0C: Interrupt acknowledge */
+	u32	eoir;			/* 0x10: End of interrupt */
+	u32	rpr;			/* 0x14: Running priority */
+	u32	hppir;			/* 0x18: Highest priority pending */
+	u32	abpr;			/* 0x1C: Aliased binary point */
+	u32	aiar;			/* 0x20: Aliased interrupt acknowl. */
+	u32	aeoir;			/* 0x24: Aliased end of interrupt */
+	u32	ahppir;			/* 0x28: Aliased highest prio. pend. */
+	u32	_reserved1[41];		/* 0x2C */
+	u32	apr0;			/* 0xD0: Active priority */
+	u32	_reserved2[3];		/* 0xD4 */
+	u32	nsapr0;			/* 0xE0: Non-secure activge priority */
+	u32	_reserved3[6];		/* 0xE4 */
+	u32	iidr;			/* 0xFC: Interface Identification */
+};
+
 
 #endif /* __ASSEMBLER__*/
 #endif /* __ASM_ARCH_MX6_IMX_REGS_H__ */
