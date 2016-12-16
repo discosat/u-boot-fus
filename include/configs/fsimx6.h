@@ -684,13 +684,7 @@
 /* Try to patch serial debug port in image within first 16KB of zImage */
 #define CONFIG_SYS_PATCH_TTY	0x4000
 
-/* ATAGs passed to Linux */
-#define CONFIG_SETUP_MEMORY_TAGS	/* Memory setup */
-#define CONFIG_CMDLINE_TAG		/* Command line */
-#undef CONFIG_INITRD_TAG		/* No initrd */
-#define CONFIG_REVISION_TAG		/* Board revision */
-#define CONFIG_FSHWCONFIG_TAG		/* Hardware config (NBoot-Args) */
-#define CONFIG_FSM4CONFIG_TAG		/* M4 image and config (M4-Args) */
+/* No ATAGs are passed to Linux when using device trees */
 
 
 /************************************************************************
