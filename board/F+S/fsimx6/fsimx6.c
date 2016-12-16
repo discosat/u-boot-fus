@@ -54,6 +54,7 @@
 #define BT_PICOMODA9  2
 #define BT_QBLISSA9   3
 #define BT_ARMSTONEA9R2 4
+#define BT_NETDCUA9   7
 
 /* Features set in tag_fshwconfig.chFeature1 */
 #define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
@@ -218,9 +219,22 @@ const struct board_info fs_board_info[8] = {
 		.name = "unknown",
 		.mach_type = 0,
 	},
-	{	/* 7 (unknown) */
-		.name = "unknown",
-		.mach_type = 0,
+	{	/* 7 (BT_NETDCUA9) */
+		.name = "NetDCUA9",
+		.mach_type = 0xFFFFFFFF,
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 };
 
@@ -515,6 +529,9 @@ int board_mmc_getcd(struct mmc *mmc)
 			/* On-board SD card slot has no Card Detect (CD) */
 			return 1;	/* Assume card is present */
 
+	case BT_NETDCUA9:
+		return !gpio_get_value(IMX_GPIO_NR(1, 1));
+
 	default:
 		return 1;		/* Assume card is present */
 	}
@@ -573,6 +590,15 @@ int board_mmc_init(bd_t *bis)
 		gpio_cd = IMX_GPIO_NR(1, 4);
 		ccgr6 |= (3 << 4);
 		index = 1;
+		break;
+
+	case BT_NETDCUA9:
+		/* USDHC1: on-board SD slot (connector), Write Protect (WP) on
+		   GPIO_2 (ignored), Card Detect (CD) on GPIO_1 (GPIO1_IO1) */
+		SETUP_IOMUX_PADS(usdhc1_pads);
+		gpio_cd = IMX_GPIO_NR(1, 1);
+		ccgr6 |= (3 << 2);
+		index = 0;
 		break;
 
 	default:
@@ -640,8 +666,13 @@ static iomux_v3_cfg_t const usb_hub_pads[] = {
 };
 
 /* USB Host power (efusA9) */
-static iomux_v3_cfg_t const usb_pwr_pads[] = {
+static iomux_v3_cfg_t const usb_pwr_pads_efusa9[] = {
 	IOMUX_PADS(PAD_EIM_D31__GPIO3_IO31 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+/* USB Host power (NetDCUA9) */
+static iomux_v3_cfg_t const usb_pwr_pads_netdcua9[] = {
+	IOMUX_PADS(PAD_GPIO_0__GPIO1_IO00 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 int board_ehci_hcd_init(int port)
@@ -671,11 +702,18 @@ int board_ehci_hcd_init(int port)
 
 	case BT_EFUSA9:
 #if 0
-		SETUP_IOMUX_PADS(usb_pwr_pads);
+		SETUP_IOMUX_PADS(usb_pwr_pads_efusa9);
 
 		/* Enable USB Host power */
 		gpio_direction_output(IMX_GPIO_NR(3, 31), 1);
 #endif
+		break;
+
+	case BT_NETDCUA9:
+		SETUP_IOMUX_PADS(usb_pwr_pads_netdcua9);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(1, 0), 1);
 		break;
 
 	default:
@@ -692,10 +730,17 @@ int board_ehci_power(int port, int on)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9:
-		SETUP_IOMUX_PADS(usb_pwr_pads);
+		SETUP_IOMUX_PADS(usb_pwr_pads_efusa9);
 
 		/* Enable USB Host power */
 		gpio_direction_output(IMX_GPIO_NR(3, 31), on);
+		break;
+
+	case BT_NETDCUA9:
+		SETUP_IOMUX_PADS(usb_pwr_pads_netdcua9);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(1, 0), on);
 		break;
 
 	default:
@@ -827,7 +872,7 @@ static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IOMUX_PADS(PAD_ENET_CRS_DV__GPIO1_IO25 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-static iomux_v3_cfg_t const enet_pads_rmii[] = {
+static iomux_v3_cfg_t const enet_pads_rmii_picomoda9[] = {
 	IOMUX_PADS(PAD_ENET_MDIO__ENET_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET_MDC__ENET_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET_CRS_DV__ENET_RX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -841,6 +886,23 @@ static iomux_v3_cfg_t const enet_pads_rmii[] = {
 
 	/* Phy Reset */
 	IOMUX_PADS(PAD_SD4_DAT2__GPIO2_IO10 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const enet_pads_rmii_netdcua9[] = {
+	IOMUX_PADS(PAD_ENET_MDIO__ENET_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_MDC__ENET_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_CRS_DV__ENET_RX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_RX_ER__ENET_RX_ER | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_TX_EN__ENET_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_RXD0__ENET_RX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_RXD1__ENET_RX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_TXD0__ENET_TX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET_TXD1__ENET_TX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII_TX_CTL__ENET_REF_CLK | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_GPIO_16__ENET_REF_CLK | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* Phy Reset */
+	IOMUX_PADS(PAD_GPIO_2__GPIO1_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 /* Read a MAC address from OTP memory */
@@ -938,6 +1000,7 @@ int board_eth_init(bd_t *bis)
 	u32 ccgr1, gpr1;
 	int ret;
 	int phy_addr;
+	int reset_gpio;
 	enum xceiver_type xcv_type;
 	enum enet_freq freq;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -945,10 +1008,14 @@ int board_eth_init(bd_t *bis)
 	/* Set the IOMUX for ENET */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_PICOMODA9:
+	case BT_NETDCUA9:
 		set_fs_ethaddr(0);
 
 		/* Use 100 MBit/s LAN on RMII pins */
-		SETUP_IOMUX_PADS(enet_pads_rmii);
+		if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+			SETUP_IOMUX_PADS(enet_pads_rmii_picomoda9);
+		else
+			SETUP_IOMUX_PADS(enet_pads_rmii_netdcua9);
 
 		/* ENET CLK is generated in i.MX6 and is an output */
 		gpr1 = readl(&iomux_regs->gpr[1]);
@@ -985,15 +1052,20 @@ int board_eth_init(bd_t *bis)
 	/* Reset the PHY */
 	switch (fs_nboot_args.chBoardType) {
 	case BT_PICOMODA9:
+	case BT_NETDCUA9:
 		/* DP83484 PHY: This PHY needs at least 1 us reset pulse width
 		   (GPIO_2_10). After power on it needs min 167 ms (after
 		   reset is deasserted) before the first MDIO access can be
 		   done. In a warm start, it only takes around 3 for this. As
 		   we do not know whether this is a cold or warm start, we
 		   must assume the worst case. */
-		gpio_direction_output(IMX_GPIO_NR(2, 10), 0);
+		if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+			reset_gpio = IMX_GPIO_NR(2, 10);
+		else
+			reset_gpio = IMX_GPIO_NR(1, 2);
+		gpio_direction_output(reset_gpio, 0);
 		udelay(10);
-		gpio_set_value(IMX_GPIO_NR(2, 10), 1);
+		gpio_set_value(reset_gpio, 1);
 		mdelay(170);
 		phy_addr = 1;
 		xcv_type = RMII;
@@ -1096,7 +1168,7 @@ static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
 		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
 		break;
 
-	default:			/* efusA9, armStoneA9r2 */
+	default:			/* efusA9, armStoneA9r2, NetDCUA9 */
 		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
 		break;
 	}
