@@ -926,115 +926,104 @@ void set_fs_ethaddr(int index)
 
 int board_eth_init(bd_t *bis)
 {
-	u32 reg, gpr1;
+	u32 gpr1;
 	int ret;
-	int phy_addr;
+	int phy_addr_a, phy_addr_b;
 	enum xceiver_type xcv_type;
-	enum enet_freq freq;
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mii_dev *bus = NULL;
 	struct phy_device *phydev;
-	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
-	uint32_t enet_addr;
-	int id = -1;
-
-	/* Both PHYs were already reset via RESETOUTn in board_init() */
+	unsigned int features2 = fs_nboot_args.chFeatures2;
+	int id = 0;
 
 	/* Ungate ENET clock, this is a common clock for both ports */
-	if (fs_nboot_args.chFeatures2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
-		reg = readl(&mxc_ccm->CCGR3);
-		reg |= 0x30;
-		writel(reg, &mxc_ccm->CCGR3);
-	}
+	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B))
+		writel(readl(&mxc_ccm->CCGR3) | 0x30, &mxc_ccm->CCGR3);
 
-	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
-		/* Set the IOMUX for ENET1, use 100 MBit/s LAN on RMII pins */
-		SETUP_IOMUX_PADS(enet1_pads_rmii);
-		SETUP_IOMUX_PADS(enet1_pads_mdio);
+	/*
+	 * Set IOMUX for ports, enable clocks. Both PHYs were already reset
+	 * via RESETOUTn in board_init().
+	 */
+	switch (fs_nboot_args.chBoardType) {
+	default:
+		if (features2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 100 MBit/s LAN on RMII pins */
+			SETUP_IOMUX_PADS(enet1_pads_rmii);
+			SETUP_IOMUX_PADS(enet1_pads_mdio);
 
-		/* Get parameters for the first ethernet port */
-		switch (fs_nboot_args.chBoardType) {
-		default:
-			set_fs_ethaddr(0);
-
-			/* ENET1 CLK is generated in i.MX6 and is an output */
+			/* ENET1 CLK is generated in i.MX6UL and is output */
 			gpr1 = readl(&iomux_regs->gpr[1]);
 			gpr1 |= IOMUXC_GPR1_ENET1_CLK_SEL_MASK;
 			writel(gpr1, &iomux_regs->gpr[1]);
 
-			freq = ENET_50MHZ;
-			phy_addr = 0;
-			xcv_type = RMII;
-			break;
+			/* Activate ENET1 PLL */
+			ret = enable_fec_anatop_clock(0, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
 		}
 
-		/* Activate ENET1 PLL */
-		ret = enable_fec_anatop_clock(0, freq);
-		if (ret < 0)
-			return ret;
+		if (features2 & FEAT2_ETH_B) {
+			/* Set the IOMUX for ENET2, use 100 MBit/s LAN on RMII
+			   pins. If both ports are in use, MDIO was already
+			   set above. Otherwise we will use MDIO via ENET2 to
+			   avoid having to activate the clock for ENET1. */
+			SETUP_IOMUX_PADS(enet2_pads_rmii);
+			if (!(features2 & FEAT2_ETH_A))
+				SETUP_IOMUX_PADS(enet2_pads_mdio);
+
+			/* ENET2 CLK is generated in i.MX6UL and is output */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 PLL */
+			ret = enable_fec_anatop_clock(1, ENET_50MHZ);
+			if (ret < 0)
+				return 0;
+		}
+
+		phy_addr_a = 0;
+		phy_addr_b = 3;
+		xcv_type = RMII;
+		break;
+	}
+
+	/* Probe first PHY and activate first ethernet port */
+	if (features2 & FEAT2_ETH_A) {
+		set_fs_ethaddr(id);
 
 		/*
 		 * We can not use fecmxc_initialize_multi_type() because this
-		 * would allocate one MII bus for each ethernet device. But we
-		 * only need one MII bus in total for both ports. So the
-		 * following code works rather similar to
-		 * fecmxc_initialize_multi_type(), but uses just one bus.
+		 * would allocate one MII bus for each ethernet device. But on
+		 * efusA7UL we only need one MII bus in total for both ports.
+		 * So the following code works rather similar to the code in
+		 * fecmxc_initialize_multi_type(), but uses just one bus on
+		 * efusA7UL.
 		 */
 		bus = fec_get_miibus(ENET_BASE_ADDR, -1);
 		if (!bus)
 			return -ENOMEM;
 
-		/* Probe the first PHY */
-		phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
+		phydev = phy_find_by_mask(bus, 1 << phy_addr_a, interface);
 		if (!phydev) {
 			free(bus);
 			return -ENOMEM;
 		}
 
-		/* Probe the first ethernet port; call it FEC if it is the
-		   only port, and FEC0 if both ports are in use. */
-		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
-			id = 0;
-		enet_addr = ENET_BASE_ADDR;
-		ret = fec_probe(bis, id, enet_addr, bus, phydev, xcv_type);
+		ret = fec_probe(bis, id, ENET_BASE_ADDR, bus, phydev, xcv_type);
 		if (ret) {
 			free(phydev);
 			free(bus);
 			return ret;
 		}
-		id = 1;
+		id++;
 	}
 
-	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
-		/* Set the IOMUX for ENET2, use 100 MBit/s LAN on RMII pins.
-		   If both ports are in use, MDIO was already set above.
-		   Otherwise we will use MDIO via ENET2 to avoid having to
-		   activate the clock for ENET1. */
-		SETUP_IOMUX_PADS(enet2_pads_rmii);
-		if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A))
-			SETUP_IOMUX_PADS(enet2_pads_mdio);
-
-		/* Get parameters for the second ethernet port */
-		switch (fs_nboot_args.chBoardType) {
-		default:
-			set_fs_ethaddr(1);
-
-			/* ENET2 CLK is generated in i.MX6 and is an output */
-			gpr1 = readl(&iomux_regs->gpr[1]);
-			gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL_MASK;
-			writel(gpr1, &iomux_regs->gpr[1]);
-
-			freq = ENET_50MHZ;
-			phy_addr = 3;
-			xcv_type = RMII;
-			break;
-		}
-
-		/* Activate ENET2 PLL */
-		ret = enable_fec_anatop_clock(1, freq);
-		if (ret < 0)
-			return 0;
+	/* Probe second PHY and activate second ethernet port. */
+	if (features2 & FEAT2_ETH_B) {
+		set_fs_ethaddr(id);
 
 		/* If ENET1 is not in use, we must get our MDIO bus now */
 		if (!bus) {
@@ -1043,32 +1032,29 @@ int board_eth_init(bd_t *bis)
 				return -ENOMEM;
 		}
 
-		/* Probe the second PHY */
-		phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
+		phydev = phy_find_by_mask(bus, 1 << phy_addr_b, interface);
 		if (!phydev) {
-			/* If this is the only port, return error */
-			if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A)) {
+			if (!(features2 & FEAT2_ETH_A))
 				free(bus);
-				return -ENOMEM;
-			}
-
-			/* If we still have ENET1 running, return successful */
-			return 0;
+			return -ENOMEM;
 		}
 
 		/* Probe the second ethernet port */
-		enet_addr = ENET2_BASE_ADDR;
-		ret = fec_probe(bis, id, enet_addr, bus, phydev, xcv_type);
+		ret = fec_probe(bis, id, ENET2_BASE_ADDR, bus, phydev,
+				xcv_type);
 		if (ret) {
 			free(phydev);
 			/* If this is the only port, return with error */
-			if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A)) {
+			if (!(features2 & FEAT2_ETH_A))
 				free(bus);
-				return ret;
-			}
-			/* If we still have ENET1 running, return successful */
+			return ret;
 		}
+		id++;
 	}
+
+	/* If WLAN is available, just set ethaddr variable */
+	if (features2 & FEAT2_WLAN)
+		set_fs_ethaddr(id++);
 
 	return 0;
 }

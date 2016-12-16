@@ -1016,85 +1016,108 @@ int board_eth_init(bd_t *bis)
 	enum xceiver_type xcv_type;
 	enum enet_freq freq;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+	int id = 0;
 
-	/* Set the IOMUX for ENET */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_PICOMODA9:
-	case BT_NETDCUA9:
-		set_fs_ethaddr(0);
+	/* Activate on-chip ethernet port (FEC) */
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+		set_fs_ethaddr(id);
 
-		/* Use 100 MBit/s LAN on RMII pins */
-		if (fs_nboot_args.chBoardType == BT_PICOMODA9)
-			SETUP_IOMUX_PADS(enet_pads_rmii_picomoda9);
-		else
-			SETUP_IOMUX_PADS(enet_pads_rmii_netdcua9);
+		switch (fs_nboot_args.chBoardType) {
+		case BT_PICOMODA9:
+		case BT_NETDCUA9:
+			/* Use 100 MBit/s LAN on RMII pins */
+			if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+				SETUP_IOMUX_PADS(enet_pads_rmii_picomoda9);
+			else
+				SETUP_IOMUX_PADS(enet_pads_rmii_netdcua9);
 
-		/* ENET CLK is generated in i.MX6 and is an output */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 |= IOMUXC_GPR1_ENET_CLK_SEL_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+			/* ENET CLK is generated in i.MX6 and is an output */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUXC_GPR1_ENET_CLK_SEL_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
 
-		freq = ENET_50MHZ;
-		break;
+			freq = ENET_50MHZ;
+			break;
 
-	default:
-		set_fs_ethaddr(0);
+		default:
+			/* Use 1 GBit/s LAN on RGMII pins */
+			SETUP_IOMUX_PADS(enet_pads_rgmii);
 
-		/* Use 1 GBit/s LAN on RGMII pins */
-		SETUP_IOMUX_PADS(enet_pads_rgmii);
+			/* ENET CLK is generated in PHY and is an input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUXC_GPR1_ENET_CLK_SEL_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
 
-		/* ENET CLK is generated in PHY and is an input */
-		gpr1 = readl(&iomux_regs->gpr[1]);
-		gpr1 |= IOMUXC_GPR1_ENET_CLK_SEL_MASK;
-		writel(gpr1, &iomux_regs->gpr[1]);
+			freq = ENET_25MHZ;
+			break;
+		}
 
-		freq = ENET_25MHZ;
-		break;
+		/* Activate ENET PLL */
+		ret = enable_fec_anatop_clock(0, freq);
+		if (ret < 0)
+			return ret;
+
+		/* Enable ENET clock in clock gating register 1 */
+		ccgr1 = readl(CCM_CCGR1);
+		writel(ccgr1 | MXC_CCM_CCGR1_ENET_CLK_ENABLE_MASK, CCM_CCGR1);
+
+		/* Reset the PHY */
+		switch (fs_nboot_args.chBoardType) {
+		case BT_PICOMODA9:
+		case BT_NETDCUA9:
+			/*
+			 * DP83484 PHY: This PHY needs at least 1 us reset
+			 * pulse width (GPIO_2_10). After power on it needs
+			 * min 167 ms (after reset is deasserted) before the
+			 * first MDIO access can be done. In a warm start, it
+			 * only takes around 3 for this. As we do not know
+			 * whether this is a cold or warm start, we must
+			 * assume the worst case.
+			 */
+			if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+				reset_gpio = IMX_GPIO_NR(2, 10);
+			else
+				reset_gpio = IMX_GPIO_NR(1, 2);
+			gpio_direction_output(reset_gpio, 0);
+			udelay(10);
+			gpio_set_value(reset_gpio, 1);
+			mdelay(170);
+			phy_addr = 1;
+			xcv_type = RMII;
+			break;
+
+		default:
+			/*
+			 * Atheros AR8035: Assert reset (GPIO_1_25) for at
+			 * least 0.5 ms
+			 */
+			gpio_direction_output(IMX_GPIO_NR(1, 25), 0);
+			udelay(500);
+			gpio_set_value(IMX_GPIO_NR(1, 25), 1);
+			phy_addr = 4;
+			xcv_type = RGMII;
+			break;
+		}
+
+		ret = fecmxc_initialize_multi_type(bis, -1, phy_addr,
+						   ENET_BASE_ADDR, xcv_type);
+		if (ret < 0)
+			return ret;
+
+		id++;
 	}
 
-	/* Activate ENET PLL */
-	ret = enable_fec_anatop_clock(0, freq);
-	if (ret < 0)
-		return ret;
-
-	/* Enable ENET clock in clock gating register 1 */
-	ccgr1 = readl(CCM_CCGR1);
-	writel(ccgr1 | MXC_CCM_CCGR1_ENET_CLK_ENABLE_MASK, CCM_CCGR1);
-
-	/* Reset the PHY */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_PICOMODA9:
-	case BT_NETDCUA9:
-		/* DP83484 PHY: This PHY needs at least 1 us reset pulse width
-		   (GPIO_2_10). After power on it needs min 167 ms (after
-		   reset is deasserted) before the first MDIO access can be
-		   done. In a warm start, it only takes around 3 for this. As
-		   we do not know whether this is a cold or warm start, we
-		   must assume the worst case. */
-		if (fs_nboot_args.chBoardType == BT_PICOMODA9)
-			reset_gpio = IMX_GPIO_NR(2, 10);
-		else
-			reset_gpio = IMX_GPIO_NR(1, 2);
-		gpio_direction_output(reset_gpio, 0);
-		udelay(10);
-		gpio_set_value(reset_gpio, 1);
-		mdelay(170);
-		phy_addr = 1;
-		xcv_type = RMII;
-		break;
-
-	default:
-		/* Atheros AR8035: reset phy (GPIO_1_25) for at least 0.5 ms */
-		gpio_direction_output(IMX_GPIO_NR(1, 25), 0);
-		udelay(500);
-		gpio_set_value(IMX_GPIO_NR(1, 25), 1);
-		phy_addr = 4;
-		xcv_type = RGMII;
-		break;
+	/* If available, activate external ethernet port (AX88796B) */
+	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
+		/* ### TODO ### */
+		set_fs_ethaddr(id++);
 	}
 
-	return fecmxc_initialize_multi_type(bis, -1, phy_addr, ENET_BASE_ADDR,
-					    xcv_type);
+	/* If WLAN is available, just set ethaddr variable */
+	if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+		set_fs_ethaddr(id++);
+
+	return 0;
 }
 #endif /* CONFIG_CMD_NET */
 
