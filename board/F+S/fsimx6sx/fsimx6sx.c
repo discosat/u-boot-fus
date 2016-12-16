@@ -54,12 +54,6 @@
 #define BT_KEN116     2
 #define BT_BEMA9X     3
 
-/* Features set in tag_fshwconfig.chFeature1 (###TODO: proposed fetaures, not
-   actually available from NBoot) */
-#define FEAT1 L2CACHE (1<<0)		/* 0: no L2 Cache, 1: has L2 Cache */
-#define FEAT1_M4      (1<<1)		/* 0: no Cortex-M4, 1: has Cortex-M4 */
-#define FEAT1_LCD     (1<<2)		/* 0: no LCD device, 1: has LCD */
-
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
 #define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
@@ -67,6 +61,10 @@
 #define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
 #define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
 #define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
+
+/* NBoot before VN27 did not report feature values; use reasonable defaults */
+#define FEAT1_DEFAULT 0
+#define FEAT2_DEFAULT (FEAT2_ETH_A | FEAT2_ETH_B)
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -97,7 +95,6 @@
 
 struct board_info {
 	char *name;			/* Device name */
-	unsigned int mach_type;		/* Device machine ID */
 	char *bootdelay;		/* Default value for bootdelay */
 	char *updatecheck;		/* Default value for updatecheck */
 	char *installcheck;		/* Default value for installcheck */
@@ -136,7 +133,6 @@ struct board_info {
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -153,7 +149,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 1 (BT_PicoCOMA9X) */
 		.name = "PicoCOMA9X",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -170,7 +165,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 2 (BT_KEN116) */
 		.name = "KEN116",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -187,7 +181,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 3 (BT_BEMA9X) */
 		.name = "BemA9X",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -204,19 +197,15 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 4 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 	{	/* 6 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 };
 
@@ -268,7 +257,14 @@ int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	unsigned int boardtype = pargs->chBoardType - 8;
-	unsigned int features2 = pargs->chFeatures2;
+	unsigned int features2;
+
+	/* NBoot versions before VN27 did not report feature values */
+	if ((be32_to_cpu(pargs->dwNBOOT_VER) & 0xFFFF) < 0x3237) { /* "27" */
+		pargs->chFeatures1 = FEAT1_DEFAULT;
+		pargs->chFeatures2 = FEAT2_DEFAULT;
+	}
+	features2 = pargs->chFeatures2;
 
 	printf("Board: %s Rev %u.%02u (", fs_board_info[boardtype].name,
 	       pargs->chBoardRev / 100, pargs->chBoardRev % 100);
@@ -330,7 +326,7 @@ int board_init(void)
 	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
 	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
 
-	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
+	gd->bd->bi_arch_number = 0xFFFFFFFF;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
 
 	/* Prepare the command prompt */

@@ -56,12 +56,17 @@
 #define BT_ARMSTONEA9R2 4
 #define BT_NETDCUA9   7
 
-/* Features set in tag_fshwconfig.chFeature1 */
-#define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
-#define FEAT1_2NDLAN  (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
+/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
+#define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
+#define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
+#define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
+#define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
+#define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
+#define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
 
-/* Features set in tag_fshwconfig.chFeature2 */
-#define FEAT2_M4      (1<<0)		/* CPU has Cortex-M4 core */
+/* NBoot before VN27 did not report feature values; use reasonable defaults */
+#define FEAT1_DEFAULT 0
+#define FEAT2_DEFAULT FEAT2_ETH_A
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -89,7 +94,6 @@
 
 struct board_info {
 	char *name;			/* Device name */
-	unsigned int mach_type;		/* Device machine ID */
 	char *bootdelay;		/* Default value for bootdelay */
 	char *updatecheck;		/* Default value for updatecheck */
 	char *installcheck;		/* Default value for installcheck */
@@ -128,7 +132,6 @@ struct board_info {
 const struct board_info fs_board_info[8] = {
 	{	/* 0 (BT_EFUSA9) */
 		.name = "efusA9",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -145,7 +148,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 1 (BT_ARMSTONEA9)*/
 		.name = "armStoneA9",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -162,7 +164,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 2 (BT_PICOMODA9) */
 		.name = "PicoMODA9",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -179,7 +180,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 3 (BT_QBLISSA9) */
 		.name = "QBlissA9",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -196,7 +196,6 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 4 (BT_ARMSTONEA9R2) */
 		.name = "armStoneA9r2",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -213,15 +212,12 @@ const struct board_info fs_board_info[8] = {
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 	{	/* 6 (unknown) */
 		.name = "unknown",
-		.mach_type = 0,
 	},
 	{	/* 7 (BT_NETDCUA9) */
 		.name = "NetDCUA9",
-		.mach_type = 0xFFFFFFFF,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -285,11 +281,27 @@ struct serial_device *default_serial_console(void)
 int checkboard(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	unsigned int boardtype = pargs->chBoardType;
+	unsigned int features2;
 
-	printf("Board: %s Rev %u.%02u (%dx DRAM)\n",
-	       fs_board_info[pargs->chBoardType].name,
-	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
-	       pargs->dwNumDram);
+	/* NBoot versions before VN27 did not report feature values */
+	if ((be32_to_cpu(pargs->dwNBOOT_VER) & 0xFFFF) < 0x3237) { /* "27" */
+		pargs->chFeatures1 = FEAT1_DEFAULT;
+		pargs->chFeatures2 = FEAT2_DEFAULT;
+	}
+	features2 = pargs->chFeatures2;
+
+	printf("Board: %s Rev %u.%02u (", fs_board_info[boardtype].name,
+	       pargs->chBoardRev / 100, pargs->chBoardRev % 100);
+	if ((features2 & FEAT2_ETH_MASK) == FEAT2_ETH_MASK)
+		puts("2x ");
+	if (features2 & FEAT2_ETH_MASK)
+		puts("LAN, ");
+	if (features2 & FEAT2_WLAN)
+		puts("WLAN, ");
+	if (features2 & FEAT2_EMMC)
+		puts("eMMC, ");
+	printf("%dx DRAM)\n", pargs->dwNumDram);
 
 #if 0 //###
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
@@ -332,7 +344,7 @@ int board_init(void)
 	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
 	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
 
-	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
+	gd->bd->bi_arch_number = 0xFFFFFFFF;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
 
 	/* Prepare the command prompt */
@@ -572,7 +584,7 @@ int board_mmc_init(bd_t *bis)
 
 	case BT_ARMSTONEA9R2:
 		/* USDHC2: on-board micro SD slot, Card Detect (CD) on
-		   GPIO4 pin (GPIO1_IO04) */
+		   GPIO_4 pin (GPIO1_IO04) */
 		SETUP_IOMUX_PADS(usdhc2_pads);
 		gpio_cd = IMX_GPIO_NR(1, 4);
 		ccgr6 |= (3 << 4);
