@@ -43,6 +43,7 @@
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
+#include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 
 /* ------------------------------------------------------------------------- */
 
@@ -71,6 +72,10 @@
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
+/* Device tree paths */
+#define FDT_NAND	"/soc/gpmi-nand@01806000"
+#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@021b4000"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -1197,3 +1202,162 @@ char *get_sys_prompt(void)
 {
 	return fs_sys_prompt;
 }
+
+#ifdef CONFIG_OF_BOARD_SETUP
+/* Set a generic value, if it was not already set in the device tree */
+static void fus_fdt_set_val(void *fdt, int offs, const char *name,
+			    const void *val, int len)
+{
+	int err;
+
+	/* Warn if property already exists in device tree */
+	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
+		printf("## Keeping property %s/%s from device tree!\n",
+		       fdt_get_name(fdt, offs, NULL), name);
+	}
+
+	err = fdt_setprop(fdt, offs, name, val, len);
+	if (err) {
+		printf("## Unable to update property %s/%s: err=%s\n",
+		       fdt_get_name(fdt, offs, NULL), name, fdt_strerror(err));
+	}
+}
+
+/* Set a string value */
+static void fus_fdt_set_string(void *fdt, int offs, const char *name,
+			       const char *str)
+{
+	fus_fdt_set_val(fdt, offs, name, str, strlen(str) + 1);
+}
+
+/* Set a u32 value as a string (usually for bdinfo) */
+static void fus_fdt_set_u32str(void *fdt, int offs, const char *name, u32 val)
+{
+	char str[12];
+
+	sprintf(str, "%u", val);
+	fus_fdt_set_string(fdt, offs, name, str);
+}
+
+/* Set a u32 value */
+static void fus_fdt_set_u32(void *fdt, int offs, const char *name, u32 val)
+{
+	fdt32_t tmp = cpu_to_fdt32(val);
+
+	fus_fdt_set_val(fdt, offs, name, &tmp, sizeof(tmp));
+}
+
+/* Set ethernet MAC address aa:bb:cc:dd:ee:ff for given index */
+static void fus_fdt_set_macaddr(void *fdt, int offs, int id)
+{
+	uchar enetaddr[6];
+	char name[10];
+	char str[20];
+
+	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
+		sprintf(name, "MAC%d", id);
+		sprintf(str, "%pM", enetaddr);
+		fus_fdt_set_string(fdt, offs, name, str);
+	}
+}
+
+/* If environment variable exists, set a string property with the same name */
+static void fus_fdt_set_getenv(void *fdt, int offs, const char *name)
+{
+	const char *str;
+
+	str = getenv(name);
+	if (str)
+		fus_fdt_set_string(fdt, offs, name, str);
+}
+
+/* Open a node, warn if the node does not exist */
+static int fus_fdt_path_offset(void *fdt, const char *path)
+{
+	int offs;
+
+	offs = fdt_path_offset(fdt, path);
+	if (offs < 0) {
+		printf("## Can not access node %s: err=%s\n",
+		       path, fdt_strerror(offs));
+	}
+
+	return offs;
+}
+
+/* Enable or disable node given by path, overwrite any existing status value */
+static void fus_fdt_enable(void *fdt, const char *path, int enable)
+{
+	int offs, err, len;
+	const void *val;
+	char *str = enable ? "okay" : "disabled";
+
+	offs = fdt_path_offset(fdt, path);
+	if (offs < 0)
+		return;
+
+	/* Do not change if status already exists and has this value */
+	val = fdt_getprop(fdt, offs, "status", &len);
+	if (val && len && !strcmp(val, str))
+		return;
+
+	/* No, set new value */
+	err = fdt_setprop_string(fdt, offs, "status", str);
+	if (err) {
+		printf("## Can not set status of node %s: err=%s\n",
+		       path, fdt_strerror(err));
+	}
+}
+
+/* Do any additional board-specific device tree modifications */
+void ft_board_setup(void *fdt, bd_t *bd)
+{
+	int offs;
+
+	printf("   Setting run-time properties\n");
+
+	/* Set ECC strength for NAND driver */
+	offs = fus_fdt_path_offset(fdt, FDT_NAND);
+	if (offs >= 0) {
+		fus_fdt_set_u32(fdt, offs, "fus,ecc_strength",
+				fs_nboot_args.chECCtype);
+	}
+
+	/* Set bdinfo entries */
+	offs = fus_fdt_path_offset(fdt, "/bdinfo");
+	if (offs >= 0) {
+		int id = 0;
+		char rev[6];
+
+		/* NAND info, names and features */
+		fus_fdt_set_u32str(fdt, offs, "ecc_strength",
+				   fs_nboot_args.chECCtype);
+		fus_fdt_set_u32str(fdt, offs, "nand_state",
+				   fs_nboot_args.chECCstate);
+		fus_fdt_set_string(fdt, offs, "board_name", get_board_name());
+		sprintf(rev, "%d.%02d", fs_nboot_args.chBoardRev / 100,
+			fs_nboot_args.chBoardRev % 100);
+		fus_fdt_set_string(fdt, offs, "board_revision", rev);
+		fus_fdt_set_getenv(fdt, offs, "platform");
+		fus_fdt_set_getenv(fdt, offs, "arch");
+		fus_fdt_set_u32str(fdt, offs, "features1",
+				   fs_nboot_args.chFeatures1);
+		fus_fdt_set_u32str(fdt, offs, "features2",
+				   fs_nboot_args.chFeatures2);
+
+		/* MAC addresses */
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
+			fus_fdt_set_macaddr(fdt, offs, id++);
+		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
+			fus_fdt_set_macaddr(fdt, offs, id++);
+		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+			fus_fdt_set_macaddr(fdt, offs, id++);
+	}
+
+	/* Disable ethernet node(s) if feature is not available */
+	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A))
+		fus_fdt_enable(fdt, FDT_ETH_A, 0);
+	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_B))
+		fus_fdt_enable(fdt, FDT_ETH_B, 0);
+}
+#endif /* CONFIG_OF_BOARD_SETUP */

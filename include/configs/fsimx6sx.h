@@ -89,6 +89,7 @@
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
 #define CONFIG_OF_LIBFDT		/* Use device trees (fdt) */
+#define CONFIG_OF_BOARD_SETUP		/* Call board specific FDT fixup */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
