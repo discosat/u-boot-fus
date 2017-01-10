@@ -95,6 +95,10 @@
 	PAD_CTL_PUS_47K_UP  | PAD_CTL_SPEED_LOW |		\
 	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
 
+#define EIM_NO_PULL (PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm)
+#define EIM_PULL_DOWN (EIM_NO_PULL | PAD_CTL_PKE | PAD_CTL_PUE)
+#define EIM_PULL_UP (EIM_PULL_DOWN | PAD_CTL_PUS_100K_UP)
+
 
 struct board_info {
 	char *name;			/* Device name */
@@ -865,6 +869,78 @@ int board_late_init(void)
 #endif
 
 #ifdef CONFIG_CMD_NET
+static iomux_v3_cfg_t const eim_pads_eth_b[] = {
+	/* AX88796B Ethernet 2 */
+	IOMUX_PADS(PAD_EIM_OE__EIM_OE_B | MUX_PAD_CTRL(EIM_NO_PULL)),
+	IOMUX_PADS(PAD_EIM_CS1__EIM_CS1_B | MUX_PAD_CTRL(EIM_NO_PULL)),
+	IOMUX_PADS(PAD_EIM_RW__EIM_RW | MUX_PAD_CTRL(EIM_NO_PULL)),
+	/* AX88796B Ethernet 2 IRQ */
+	IOMUX_PADS(PAD_EIM_DA14__GPIO3_IO14 | MUX_PAD_CTRL(EIM_PULL_DOWN)),
+	IOMUX_PADS(PAD_EIM_DA15__GPIO3_IO15 | MUX_PAD_CTRL(EIM_PULL_DOWN)),
+	/* AX88796B Ethernet 2 RESET */
+	IOMUX_PADS(PAD_GPIO_3__GPIO1_IO03 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	/* AX88796B Ethernet 2 - EIM_A */
+	IOMUX_PADS(PAD_EIM_DA0__EIM_AD00 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_DA1__EIM_AD01 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_DA2__EIM_AD02 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_DA3__EIM_AD03 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_DA4__EIM_AD04 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_DA12__EIM_AD12 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	/* AX88796B Ethernet 2 - EIM_D & PIFDATA */
+	IOMUX_PADS(PAD_EIM_D16__EIM_DATA16 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D17__EIM_DATA17 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D18__EIM_DATA18 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D19__EIM_DATA19 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D20__EIM_DATA20 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D21__EIM_DATA21 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D22__EIM_DATA22 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D23__EIM_DATA23 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D24__EIM_DATA24 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D25__EIM_DATA25 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D26__EIM_DATA26 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D27__EIM_DATA27 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D28__EIM_DATA28 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D29__EIM_DATA29 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D30__EIM_DATA30 | MUX_PAD_CTRL(EIM_PULL_UP)),
+	IOMUX_PADS(PAD_EIM_D31__EIM_DATA31 | MUX_PAD_CTRL(EIM_PULL_UP)),
+};
+
+/* The second ethernet controller is attached via EIM */
+void setup_weim(bd_t *bis)
+{
+	struct weim *weim = (struct weim *)WEIM_BASE_ADDR;
+	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+	u32 ccgr6, gpr1;
+
+	SETUP_IOMUX_PADS(eim_pads_eth_b);
+
+	/* Enable EIM clock */
+	ccgr6 = readl(CCM_CCGR6);
+	writel(ccgr6 | MXC_CCM_CCGR6_EMI_SLOW_MASK, CCM_CCGR6);
+
+	/*
+	 * Set EIM chip select configuration:
+	 *
+	 *   CS0: 0x08000000 - 0x08FFFFFF (64MB)
+	 *   CS1: 0x0C000000 - 0x0FFFFFFF (64MB)
+	 *   CS2, CS3: unused
+	 *
+	 * As these are three bits per chip select, use octal numbers!
+	 */
+	gpr1 = readl(&iomux_regs->gpr[1]);
+	gpr1 &= ~07777;
+	gpr1 |= 00033;
+	writel(gpr1, &iomux_regs->gpr[1]);
+
+	/* AX88796B is connected to CS1 of EIM */
+	writel(0x00020001, &weim->cs1gcr1);
+	writel(0x00000000, &weim->cs1gcr2);
+	writel(0x16000202, &weim->cs1rcr1);
+	writel(0x00000002, &weim->cs1rcr2);
+	writel(0x16002082, &weim->cs1wcr1);
+	writel(0x00000000, &weim->cs1wcr2);
+}
+
 /* enet pads definition */
 static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IOMUX_PADS(PAD_ENET_MDIO__ENET_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -1113,7 +1189,17 @@ int board_eth_init(bd_t *bis)
 
 	/* If available, activate external ethernet port (AX88796B) */
 	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
-		/* ### TODO ### */
+		/* AX88796B is connected via EIM */
+		setup_weim(bis);
+
+		/* Reset AX88796B, on NetDCUA9 this is on GPIO1_IO03 */
+		gpio_direction_output(IMX_GPIO_NR(1, 3), 0);
+		udelay(200);
+		gpio_set_value(IMX_GPIO_NR(1, 3), 1);
+
+		/* Initialize AX88796B */
+		ret = ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
+
 		set_fs_ethaddr(id++);
 	}
 
@@ -1378,10 +1464,8 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		/* MAC addresses */
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
 			fus_fdt_set_macaddr(fdt, offs, id++);
-#if 0
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
 			fus_fdt_set_macaddr(fdt, offs, id++);
-#endif
 		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
 			fus_fdt_set_macaddr(fdt, offs, id++);
 	}

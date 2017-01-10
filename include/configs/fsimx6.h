@@ -238,6 +238,12 @@
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
+/* If a second ETH chip is available, it is a NE2000 compatible AX88796B */
+#define CONFIG_DRIVER_NE2000
+#define CONFIG_DRIVER_NE2000_BASE	0x0C000000
+#define CONFIG_DRIVER_NE2000_SOFTMAC
+#define CONFIG_DRIVER_AX88796L
+
 
 /************************************************************************
  * USB Host
