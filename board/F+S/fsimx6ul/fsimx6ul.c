@@ -579,6 +579,16 @@ int board_mmc_init(bd_t *bis)
 		SETUP_IOMUX_PADS(usdhc2_pads);
 		ret = setup_mmc(bis, cfg++, cd_gpio, 2, 4);
 		break;
+	case BT_PICOCOM1_2:
+			/*
+			 * On efusA7UL, USDHC1 is either used for on-board WLAN or
+			 * provides ext. SD_B on the connector (Micro SD slot on efus
+			 * SKIT). We can only use CD/WP if not already used by SD_B
+			 * above (cd_gpio is still 0xFFFFFFFF).
+			 */
+		   SETUP_IOMUX_PADS(usdhc2_pads);
+		   		ret=setup_mmc(bis,cfg++,cd_gpio, 2, 4);   		   		
+			break;
 
 	default:
 		return 0;		/* Unknown device */
@@ -640,6 +650,11 @@ static iomux_v3_cfg_t const usb_pwr_pads[] = {
 //###	IOMUX_PADS(PAD_GPIO1_IO13__ANATOP_OTG2_ID | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+/* USB Host power (PicoCOM1_2) */
+static iomux_v3_cfg_t const usb_pwr_pads_picocom1_2[] = {
+	IOMUX_PADS(PAD_ENET2_TX_DATA1__GPIO2_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 #define USB_OTHERREGS_OFFSET	0x800
 #define UCTRL_PWR_POL		(1 << 9)
 
@@ -660,6 +675,14 @@ int board_ehci_hcd_init(int port)
 #endif
 		break;
 
+	case BT_PICOCOM1_2:
+
+		SETUP_IOMUX_PADS(usb_pwr_pads_picocom1_2);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(2, 12), 1);
+
+		break;
 	default:
 		break;
 	}
@@ -675,18 +698,25 @@ int board_ehci_hcd_init(int port)
         return 0;
 }
 
-#if 0 //###
 int board_ehci_power(int port, int on)
 {
-	if (port != 1)
+	if (port > 1)
 		return 0;
 
 	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
+	case BT_EFUSA7UL:
 		SETUP_IOMUX_PADS(usb_pwr_pads);
 
 		/* Enable USB Host power */
 		gpio_direction_output(IMX_GPIO_NR(1, 12), on);
+
+		break;
+
+	case BT_PICOCOM1_2:
+		SETUP_IOMUX_PADS(usb_pwr_pads_picocom1_2);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(2, 12), on);
 
 		break;
 
@@ -696,7 +726,6 @@ int board_ehci_power(int port, int on)
 
 	return 0;
 }
-#endif
 
 int board_usb_phy_mode(int port)
 {
@@ -934,6 +963,7 @@ int board_eth_init(bd_t *bis)
 	u32 gpr1;
 	int ret;
 	int phy_addr_a, phy_addr_b;
+	int reset_gpio;
 	enum xceiver_type xcv_type;
 	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -989,12 +1019,37 @@ int board_eth_init(bd_t *bis)
 				return 0;
 		}
 
-		phy_addr_a = 0;
+		if(fs_nboot_args.chBoardType == BT_PICOCOM1_2)
+			phy_addr_a = 1;
+		else
+			phy_addr_a = 0;
 		phy_addr_b = 3;
 		xcv_type = RMII;
 		break;
 	}
 
+	/* Reset the PHY */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_PICOCOM1_2:
+		/*
+		 * DP83484 PHY: This PHY needs at least 1 us reset
+		 * pulse width (GPIO_2_10). After power on it needs
+		 * min 167 ms (after reset is deasserted) before the
+		 * first MDIO access can be done. In a warm start, it
+		 * only takes around 3 for this. As we do not know
+		 * whether this is a cold or warm start, we must
+		 * assume the worst case.
+		 */
+		reset_gpio = IMX_GPIO_NR(5, 11);
+		gpio_direction_output(reset_gpio, 0);
+		udelay(10);
+		gpio_set_value(reset_gpio, 1);
+		mdelay(170);
+		break;
+	default:
+		break;
+	}
+	
 	/* Probe first PHY and activate first ethernet port */
 	if (features2 & FEAT2_ETH_A) {
 		set_fs_ethaddr(id);
@@ -1029,7 +1084,6 @@ int board_eth_init(bd_t *bis)
 	/* Probe second PHY and activate second ethernet port. */
 	if (features2 & FEAT2_ETH_B) {
 		set_fs_ethaddr(id);
-
 		/* If ENET1 is not in use, we must get our MDIO bus now */
 		if (!bus) {
 			bus = fec_get_miibus(ENET2_BASE_ADDR, -1);
