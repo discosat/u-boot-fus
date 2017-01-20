@@ -29,8 +29,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define timestamp (gd->arch.tbl)
-#define timerticks (gd->arch.tbu)
+#define timestamp (gd->timebase_l)
+#define timerticks (gd->timebase_h)
 #define lastinc	(gd->arch.lastinc)
 static unsigned long ltmstamp = 0;
 

@@ -111,7 +111,7 @@ void reset_timer_masked(void)
 
 	/* reset time */
 	gd->arch.lastinc = readl(&timer->tcnto4);
-	gd->arch.tbl = 0;
+	gd->timebase_l = 0;
 }
 
 /*
