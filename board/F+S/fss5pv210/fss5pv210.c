@@ -13,7 +13,7 @@
 #include <asm/errno.h>			/* ENODEV */
 #ifdef CONFIG_CMD_NET
 #include <net.h>			/* eth_init(), eth_halt() */
-#include <netdev.h>			/* ne2000_initialize() */
+#include <netdev.h>			/* ax88796_initialize() */
 #endif
 #ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			/* PON_*, POFF_* */
@@ -254,7 +254,7 @@ struct tag_fshwconfig fs_nboot_args;
  *
  * Example: - board.c calls eth_initialize()
  *	    - eth_initialize() calls board_eth_init() here; we reset one or
- *	      two AX88796 devices and register them with ne2000_initialize();
+ *	      two AX88796 devices and register them with ax88796_initialize();
  *	      this in turn calls eth_register(). Then we return.
  *	    - eth_initialize() continues and lists all registered eth devices
  */
@@ -651,7 +651,8 @@ int board_eth_init(bd_t *bis)
 	s5p_gpio_set_pull(&gpio->h1, 2, GPIO_PULL_UP);
 
 	/* Activate ethernet 0 in any case */
-	if (ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE) < 0)
+	if (ax88796_initialize(0, CONFIG_DRIVER_AX88796_BASE1,
+			       AX88796_MODE_BUS16_DP16) < 0)
 		return -1;
 
 	/* Activate ethernet 1 only if reported as available by NBoot */
@@ -660,7 +661,8 @@ int board_eth_init(bd_t *bis)
 		s5p_gpio_direction_input(&gpio->h0, 0);
 		s5p_gpio_set_pull(&gpio->h0, 0, GPIO_PULL_UP);
 
-		ne2000_initialize(1, CONFIG_DRIVER_NE2000_BASE2);
+		ax88796_initialize(1, CONFIG_DRIVER_AX88796_BASE2,
+				   AX88796_MODE_BUS16_DP16);
 	}
 
 	return 0;

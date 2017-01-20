@@ -246,11 +246,9 @@
  * Ethernet
  ************************************************************************/
 /* This board has one or two NE2000 compatible AX88769B ethernet chips */
-#define CONFIG_DRIVER_NE2000
-#define CONFIG_DRIVER_NE2000_BASE	0x80000000
-#define CONFIG_DRIVER_NE2000_BASE2	0x88000000
-#define CONFIG_DRIVER_NE2000_SOFTMAC
-#define CONFIG_DRIVER_AX88796L
+#define CONFIG_DRIVER_AX88796
+#define CONFIG_DRIVER_AX88796_BASE1	0x80000000
+#define CONFIG_DRIVER_AX88796_BASE2	0x88000000
 #define CONFIG_HAS_ETH1
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */

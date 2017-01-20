@@ -1198,7 +1198,8 @@ int board_eth_init(bd_t *bis)
 		gpio_set_value(IMX_GPIO_NR(1, 3), 1);
 
 		/* Initialize AX88796B */
-		ret = ne2000_initialize(0, CONFIG_DRIVER_NE2000_BASE);
+		ret = ax88796_initialize(-1, CONFIG_DRIVER_AX88796_BASE,
+					 AX88796_MODE_BUS16_DP16);
 
 		set_fs_ethaddr(id++);
 	}

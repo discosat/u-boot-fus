@@ -66,6 +66,10 @@ int fecmxc_initialize_multi_type(bd_t *bis, int dev_id, int phy_id,
 				 uint32_t addr, enum xceiver_type xcv_type);
 #endif
 
+#define AX88796_MODE_BUS8_DP8	0	/* Buswidth 8, data port width 8 */
+#define AX88796_MODE_BUS16_DP8	1	/* Buswidth 16, data port width 8 */
+#define AX88796_MODE_BUS16_DP16	2	/* Buswidth 16, data port width 16 */
+int ax88796_initialize(int dev_id, uint32_t base_addr, int mode); 
 int ftgmac100_initialize(bd_t *bits);
 int ftmac100_initialize(bd_t *bits);
 int ftmac110_initialize(bd_t *bits);
