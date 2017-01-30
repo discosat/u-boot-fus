@@ -13,7 +13,8 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 
-#define TIMER_BASE_ADDR GPT1_BASE_ADDR
+#define TIMER_BASE_ADDR	GPT1_BASE_ADDR
+#define TARGET_CLOCK	3000000
 
 /* General purpose timers registers */
 struct mxc_gpt {
@@ -32,8 +33,12 @@ struct mxc_gpt {
 /* General purpose timer bitfields */
 #define GPTCR_SWR		(1 << 15)	/* Software reset */
 #define GPTCR_FRR		(1 << 9)	/* Freerun / restart */
-#define GPTCR_CLKSRC_32KHZ	(4 << 6)	/* Clock source 32,768kHz */
-#define GPTCR_CLKSRC_24MHZ_8	(5 << 6)	/* Clock source 24MHz/8 */
+#define GPTCR_CLKSRC_OFF	(0 << 6)	/* Clock off */
+#define GPTCR_CLKSRC_IPG	(1 << 6)	/* MXC_IPG_CLK */
+#define GPTCR_CLKSRC_IPGPER	(2 << 6)	/* MXC_IPG_PERCLK */
+#define GPTCR_CLKRSC_EXT	(3 << 6)	/* CLKIN */
+#define GPTCR_CLKSRC_32KHZ	(4 << 6)	/* MXC_CLK32 */
+/* Other clock sources (5 to 7) depend on CPU type */
 #define GPTCR_TEN		1		/* Timer enable */
 
 #define GPTSR_ROV		(1 << 5)	/* Rollover */
@@ -62,18 +67,22 @@ int timer_init(void)
 			break;
 	}
 
-	__raw_writel(0, &gpt->prescaler);	/* Divide by 1 */
-
 	/*
-	 * Freerun Mode at MXC_HCLK/8, usually 24MHz/8 = 3MHz. This allows for
-	 * a udelay() accuracy of +/- 0.33us. So for example udelay(1) is at
-	 * least 0.67us! On the other hand this means the 32 bit counter will
-	 * roll over after 2^32/3000000 = 1431.65 s = ~24 min. If get_ticks()
-	 * is not called during this time, the carry to the high word of the
-	 * 64-bit tick counter value is missed.
+	 * Use IPG_PERCLK as base. This is usually 24 MHz or 66 MHz. Target
+	 * clock is freerun mode at 3MHz. This allows for udelay() accuracy of
+	 * +/- 0.33us. So for example udelay(1) is at least 0.67us! On the
+	 * other hand this means the 32 bit counter will roll over after
+	 * 2^32/3000000 = 1431.65 s = ~24 min. If get_ticks() is not called
+	 * during this time, the carry to the high word of the 64-bit tick
+	 * counter value is missed.
 	 */
+	tmp = mxc_get_clock(MXC_IPG_PERCLK);
+	tmp += TARGET_CLOCK/2;
+	tmp /= TARGET_CLOCK;
+	__raw_writel(tmp - 1, &gpt->prescaler);
+
 	tmp = __raw_readl(&gpt->control);
-	tmp |= GPTCR_CLKSRC_24MHZ_8 | GPTCR_TEN | GPTCR_FRR;
+	tmp |= GPTCR_CLKSRC_IPGPER | GPTCR_TEN | GPTCR_FRR;
 	__raw_writel(tmp, &gpt->control);
 
 	/* Clear roll-over and output compare 1 event flags */
@@ -137,5 +146,13 @@ unsigned long long get_ticks(void)
 /* Return timer base frequency (used to convert between time and ticks */
 ulong get_tbclk(void)
 {
-	return MXC_HCLK/8;
+	static struct mxc_gpt *gpt = (struct mxc_gpt *)TIMER_BASE_ADDR;
+	unsigned int prescaler = __raw_readl(&gpt->prescaler) + 1;
+
+	/*
+	 * This is more or less TARGET_CLOCK, but may slightly differ if
+	 * MXC_IPG_PERCLK is not divisible by TARGET_CLOCK without remainder.
+	 * So return the true value here.
+	 */
+	return mxc_get_clock(MXC_IPG_PERCLK)/prescaler;
 }
