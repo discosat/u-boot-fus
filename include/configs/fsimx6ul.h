@@ -76,10 +76,9 @@
 
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
-//###???#undef CONFIG_ARCH_CPU_INIT
 //###FIXME### Can we activate CONFIG_SKIP_LOWLEVEL_INIT?
 #undef CONFIG_SKIP_LOWLEVEL_INIT
-#undef CONFIG_BOARD_EARLY_INIT_F	/* No early board specific stuff */
+#define CONFIG_BOARD_EARLY_INIT_F	/* Early board specific stuff */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
 #define CONFIG_DISPLAY_BOARDINFO	/* Show board information */

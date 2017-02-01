@@ -52,7 +52,7 @@
 
 #define BT_EFUSA9X    0
 #define BT_PICOCOMA9X 1
-#define BT_KEN116     2
+#define BT_KEN116     2			/* Not supported in Linux */
 #define BT_BEMA9X     3
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
@@ -255,6 +255,54 @@ struct serial_device *default_serial_console(void)
 		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
+}
+
+/* Pads for 18-bit LCD interface */
+static iomux_v3_cfg_t const lcd18_pads[] = {
+	IOMUX_PADS(PAD_LCD1_CLK__GPIO3_IO_0     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA00__GPIO3_IO_1  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA01__GPIO3_IO_2  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA02__GPIO3_IO_3  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA03__GPIO3_IO_4  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA04__GPIO3_IO_5  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA05__GPIO3_IO_6  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA06__GPIO3_IO_7  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA07__GPIO3_IO_8  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA08__GPIO3_IO_9  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA09__GPIO3_IO_10 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA10__GPIO3_IO_11 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA11__GPIO3_IO_12 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA12__GPIO3_IO_13 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA13__GPIO3_IO_14 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA14__GPIO3_IO_15 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA15__GPIO3_IO_16 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA16__GPIO3_IO_17 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA17__GPIO3_IO_18 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_ENABLE__GPIO3_IO_25 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_HSYNC__GPIO3_IO_26  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_VSYNC__GPIO3_IO_28  | MUX_PAD_CTRL(0x3010)),
+};
+
+int board_early_init_f(void)
+{
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+
+	/*
+	 * Set pull-down resistors on display signals; some displays do not
+	 * like high level on data signals when VLCD is not applied yet.
+	 *
+	 * FIXME: This should actually only happen if display is really in
+	 * use, i.e. if device tree activates lcd. However we do not know this
+	 * at this point of time.
+	 */
+	switch (pargs->chBoardType)
+	{
+	default:			/* Boards with 18-bit LCD interface */
+		SETUP_IOMUX_PADS(lcd18_pads);
+		break;
+	}
+
+	return 0;
 }
 
 /* Check board type */

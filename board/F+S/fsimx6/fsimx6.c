@@ -55,6 +55,7 @@
 #define BT_PICOMODA9  2
 #define BT_QBLISSA9   3
 #define BT_ARMSTONEA9R2 4
+#define BT_QBLISSA9R2 6
 #define BT_NETDCUA9   7
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
@@ -283,6 +284,73 @@ struct serial_device *default_serial_console(void)
 		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
+}
+
+/* Pads for 18-bit LCD interface */
+static iomux_v3_cfg_t const lcd18_pads[] = {
+	IOMUX_PADS(PAD_DI0_DISP_CLK__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN2__GPIO4_IO18     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN3__GPIO4_IO19     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN15__GPIO4_IO17    | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT0__GPIO4_IO21   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT1__GPIO4_IO22   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT2__GPIO4_IO23   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT3__GPIO4_IO24   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT4__GPIO4_IO25   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT5__GPIO4_IO26   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT6__GPIO4_IO27   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT7__GPIO4_IO28   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT8__GPIO4_IO29   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT9__GPIO4_IO30   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT10__GPIO4_IO31  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT11__GPIO5_IO05  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT12__GPIO5_IO06  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT13__GPIO5_IO07  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT14__GPIO5_IO08  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT15__GPIO5_IO09  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT16__GPIO5_IO10  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT17__GPIO5_IO11  | MUX_PAD_CTRL(0x3010)),
+};
+
+/* Additional pads for 24-bit LCD interface */
+static iomux_v3_cfg_t const lcd24_pads[] = {
+	IOMUX_PADS(PAD_DISP0_DAT18__GPIO5_IO12  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT19__GPIO5_IO13  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT20__GPIO5_IO14  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT21__GPIO5_IO15  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT22__GPIO5_IO16  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT23__GPIO5_IO17  | MUX_PAD_CTRL(0x3010)),
+};
+
+/* Do some very early board specific setup */
+int board_early_init_f(void)
+{
+	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+
+	/*
+	 * Set pull-down resistors on display signals; some displays do not
+	 * like high level on data signals when VLCD is not applied yet.
+	 *
+	 * FIXME: This should actually only happen if display is really in
+	 * use, i.e. if device tree activates lcd. However we do not know this
+	 * at this point of time.
+	 */
+	switch (pargs->chBoardType)
+	{
+	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
+	case BT_QBLISSA9:
+	case BT_QBLISSA9R2:
+		break;
+
+	case BT_NETDCUA9:		/* Boards with 24-bit LCD interface */
+		SETUP_IOMUX_PADS(lcd24_pads);
+		/* No break, fall through to default case */
+	default:			/* Boards with 18-bit LCD interface */
+		SETUP_IOMUX_PADS(lcd18_pads);
+		break;
+	}
+
+	return 0;
 }
 
 /* Check board type */
