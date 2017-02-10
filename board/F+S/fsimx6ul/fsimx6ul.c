@@ -54,6 +54,7 @@
 #define BT_CUBEA7UL   1
 #define BT_PICOCOM1_2 2
 #define BT_CUBE2_0    3
+#define BT_GAR1       4
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -212,8 +213,21 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_ubifs",
 		.fdt = ".fdt_ubifs",
 	},
-	{	/* 4 (unknown) */
-		.name = "unknown",
+	{	/* 4 (BT_GAR1) */
+		.name = "GAR1",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
@@ -295,10 +309,22 @@ static iomux_v3_cfg_t const lcd18_pads[] = {
 	IOMUX_PADS(PAD_LCD_DATA17__GPIO3_IO22 | MUX_PAD_CTRL(0x3010)),
 };
 
+/* GAR1 power off leds */
+static iomux_v3_cfg_t const gar1_led_pads[] = {
+	IOMUX_PADS(PAD_LCD_DATA00__GPIO3_IO05 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD_DATA01__GPIO3_IO06 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD_DATA02__GPIO3_IO07 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD_DATA03__GPIO3_IO08 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_GPIO1_IO04__GPIO1_IO04 | MUX_PAD_CTRL(0x0)),
+	IOMUX_PADS(PAD_GPIO1_IO05__GPIO1_IO05 | MUX_PAD_CTRL(0x0)),
+	IOMUX_PADS(PAD_GPIO1_IO08__GPIO1_IO08 | MUX_PAD_CTRL(0x0)),
+	IOMUX_PADS(PAD_GPIO1_IO09__GPIO1_IO09 | MUX_PAD_CTRL(0x0)),
+};
+
 int board_early_init_f(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-
+	unsigned int board_type = pargs->chBoardType - 16;
 	/*
 	 * Set pull-down resistors on display signals; some displays do not
 	 * like high level on data signals when VLCD is not applied yet.
@@ -307,11 +333,23 @@ int board_early_init_f(void)
 	 * use, i.e. if device tree activates lcd. However we do not know this
 	 * at this point of time.
 	 */
-	switch (pargs->chBoardType)
+	switch (board_type)
 	{
 	case BT_PICOCOM1_2:		/* Boards without LCD interface */
 	case BT_CUBEA7UL:
 	case BT_CUBE2_0:
+		break;
+
+	case BT_GAR1:
+		SETUP_IOMUX_PADS(gar1_led_pads);
+		gpio_direction_input(IMX_GPIO_NR(3, 5));
+		gpio_direction_input(IMX_GPIO_NR(3, 6));
+		gpio_direction_input(IMX_GPIO_NR(3, 7));
+		gpio_direction_input(IMX_GPIO_NR(3, 8));
+		gpio_direction_input(IMX_GPIO_NR(1, 4));
+		gpio_direction_input(IMX_GPIO_NR(1, 5));
+		gpio_direction_input(IMX_GPIO_NR(1, 8));
+		gpio_direction_input(IMX_GPIO_NR(1, 9));
 		break;
 
 	default:			/* Boards with 18-bit LCD interface */
@@ -402,15 +440,16 @@ int board_init(void)
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
 
-	/* Reset board and SKIT hardware like ETH PHY, PCIe, USB-Hub, WLAN (if
-	   available). This is on pad BOOT_MODE1 (GPIO5_IO10). Because there
-	   may be some completely different hardware connected to this general
-	   RESETOUTn pin, use a rather long low pulse of 100ms. */
-	SETUP_IOMUX_PADS(reset_pads);
-	gpio_direction_output(IMX_GPIO_NR(5, 11), 0);
-	mdelay(100);
-	gpio_set_value(IMX_GPIO_NR(5, 11), 1);
-
+	if (fs_nboot_args.chBoardType ==  BT_EFUSA7UL) {
+		/* Reset board and SKIT hardware like ETH PHY, PCIe, USB-Hub, WLAN (if
+		available). This is on pad BOOT_MODE1 (GPIO5_IO10). Because there
+		may be some completely different hardware connected to this general
+		RESETOUTn pin, use a rather long low pulse of 100ms. */
+		SETUP_IOMUX_PADS(reset_pads);
+		gpio_direction_output(IMX_GPIO_NR(5, 11), 0);
+		mdelay(100);
+		gpio_set_value(IMX_GPIO_NR(5, 11), 1);
+	}
 	return 0;
 }
 
@@ -708,6 +747,11 @@ static iomux_v3_cfg_t const usb_pwr_pads_picocom1_2[] = {
 	IOMUX_PADS(PAD_ENET2_TX_DATA1__GPIO2_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+/* USB Host power (GAR1) */
+static iomux_v3_cfg_t const usb_pwr_pad_gar1[] = {
+	IOMUX_PADS(PAD_SD1_DATA1__GPIO2_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 #define USB_OTHERREGS_OFFSET	0x800
 #define UCTRL_PWR_POL		(1 << 9)
 
@@ -729,12 +773,18 @@ int board_ehci_hcd_init(int port)
 		break;
 
 	case BT_PICOCOM1_2:
-
 		SETUP_IOMUX_PADS(usb_pwr_pads_picocom1_2);
 
 		/* Enable USB Host power */
 		gpio_direction_output(IMX_GPIO_NR(2, 12), 1);
 
+		break;
+
+	case BT_GAR1:
+		SETUP_IOMUX_PADS(usb_pwr_pad_gar1);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(2, 19), 1);
 		break;
 	default:
 		break;
@@ -773,6 +823,14 @@ int board_ehci_power(int port, int on)
 
 		break;
 
+	case BT_GAR1:
+		SETUP_IOMUX_PADS(usb_pwr_pad_gar1);
+
+		/* Enable USB Host power */
+		gpio_direction_output(IMX_GPIO_NR(1, 19), on);
+
+		break;
+
 	default:
 		break;
 	}
@@ -782,7 +840,7 @@ int board_ehci_power(int port, int on)
 
 int board_usb_phy_mode(int port)
 {
-	if (port == 0)
+	if (port == 0 && fs_nboot_args.chBoardType != BT_GAR1)
 		return USB_INIT_DEVICE;
 	return USB_INIT_HOST;
 }
@@ -921,6 +979,13 @@ static iomux_v3_cfg_t const enet_pads_extra[] = {
 	   global RESETOUTn signal that we trigger in board_init() */
 };
 
+/* Additional pins required for ethernet */
+static iomux_v3_cfg_t const enet_pads_reset[] = {
+	/* Phy Reset */
+	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_CSI_PIXCLK__GPIO4_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 /* Read a MAC address from OTP memory */
 int get_otp_mac(void *otp_addr, uchar *enetaddr)
 {
@@ -1016,7 +1081,7 @@ int board_eth_init(bd_t *bis)
 	u32 gpr1;
 	int ret;
 	int phy_addr_a, phy_addr_b;
-	int reset_gpio;
+	int reset_gpio, reset_gpio_2;
 	enum xceiver_type xcv_type;
 	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -1072,11 +1137,18 @@ int board_eth_init(bd_t *bis)
 				return 0;
 		}
 
-		if(fs_nboot_args.chBoardType == BT_PICOCOM1_2)
+		if (fs_nboot_args.chBoardType == BT_PICOCOM1_2 ||
+				fs_nboot_args.chBoardType == BT_GAR1) {
 			phy_addr_a = 1;
+		}
 		else
 			phy_addr_a = 0;
-		phy_addr_b = 3;
+
+		if (fs_nboot_args.chBoardType == BT_GAR1)
+			phy_addr_b = 17;
+		else
+			phy_addr_b = 3;
+
 		xcv_type = RMII;
 		break;
 	}
@@ -1099,10 +1171,30 @@ int board_eth_init(bd_t *bis)
 		gpio_set_value(reset_gpio, 1);
 		mdelay(170);
 		break;
+	case BT_GAR1:
+		/*
+		 * DP83484 PHY: This PHY needs at least 1 us reset
+		 * pulse width (GPIO_4_17, GPIO_4_18). After power on it needs
+		 * min 167 ms (after reset is deasserted) before the
+		 * first MDIO access can be done. In a warm start, it
+		 * only takes around 3 for this. As we do not know
+		 * whether this is a cold or warm start, we must
+		 * assume the worst case.
+		 */
+		SETUP_IOMUX_PADS(enet_pads_reset);
+		reset_gpio = IMX_GPIO_NR(4, 17);
+		reset_gpio_2 = IMX_GPIO_NR(4, 18);
+		gpio_direction_output(reset_gpio, 0);
+		gpio_direction_output(reset_gpio_2, 0);
+		udelay(10);
+		gpio_set_value(reset_gpio, 1);
+		gpio_set_value(reset_gpio_2, 1);
+		mdelay(170);
+		break;
 	default:
 		break;
 	}
-	
+
 	/* Probe first PHY and activate first ethernet port */
 	if (features2 & FEAT2_ETH_A) {
 		set_fs_ethaddr(id);
@@ -1228,7 +1320,8 @@ void coloured_LED_init(void)
 	   copied to fs_nboot_args in board_init(). So variables in RAM are OK
 	   (like led_value above), but no fs_nboot_args yet. */
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	int val = (pargs->chBoardType != BT_PICOCOM1_2);
+	unsigned int board_type = pargs->chBoardType - 16;
+	int val = (board_type != BT_PICOCOM1_2);
 
 	gpio_direction_output(get_led_gpio(pargs, 0, val), val);
 	gpio_direction_output(get_led_gpio(pargs, 1, val), val);
