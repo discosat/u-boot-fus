@@ -736,20 +736,14 @@ int board_mmc_init(bd_t *bis)
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX6
-static iomux_v3_cfg_t const usb_pwr_pads[] = {
-//###	IOMUX_PADS(PAD_GPIO1_IO12__GPIO1_IO_12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-//###	IOMUX_PADS(PAD_GPIO1_IO12__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
-//###	IOMUX_PADS(PAD_GPIO1_IO13__ANATOP_OTG2_ID | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
 /* USB Host power (PicoCOM1_2) */
-static iomux_v3_cfg_t const usb_pwr_pads_picocom1_2[] = {
-	IOMUX_PADS(PAD_ENET2_TX_DATA1__GPIO2_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+static iomux_v3_cfg_t const usb_pwr_pad_picocom1_2[] = {
+	IOMUX_PADS(PAD_ENET2_TX_DATA1__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 /* USB Host power (GAR1) */
 static iomux_v3_cfg_t const usb_pwr_pad_gar1[] = {
-	IOMUX_PADS(PAD_SD1_DATA1__GPIO2_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD1_DATA1__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 #define USB_OTHERREGS_OFFSET	0x800
@@ -757,91 +751,44 @@ static iomux_v3_cfg_t const usb_pwr_pad_gar1[] = {
 
 int board_ehci_hcd_init(int port)
 {
-//	u32 *usbnc_usb_ctrl;
+	u32 *usbnc_usb_ctrl;
 
 	if (port > 1)
 		return 0;
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA7UL:
-#if 0
-		SETUP_IOMUX_PADS(usb_pwr_pads);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 12), 1);
-#endif
+		/* On efusA7UL, USB host power is fixed to 3.3V */
 		break;
 
 	case BT_PICOCOM1_2:
-		SETUP_IOMUX_PADS(usb_pwr_pads_picocom1_2);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(2, 12), 1);
-
+		/* Power on pad ENET2_TX_DATA1 */
+		SETUP_IOMUX_PADS(usb_pwr_pad_picocom1_2);
 		break;
 
 	case BT_GAR1:
+		/* Power on pad SD1_DATA1 */
 		SETUP_IOMUX_PADS(usb_pwr_pad_gar1);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(2, 19), 1);
 		break;
+
 	default:
 		break;
 	}
 
-#if 0 //###
+	/* Set power polarity to active high */
 	usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
 				 port * 4);
-
-	/* Set Power polarity */
 	setbits_le32(usbnc_usb_ctrl, UCTRL_PWR_POL);
-#endif //###
 
         return 0;
 }
 
-int board_ehci_power(int port, int on)
-{
-	if (port > 1)
-		return 0;
-
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA7UL:
-		SETUP_IOMUX_PADS(usb_pwr_pads);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 12), on);
-
-		break;
-
-	case BT_PICOCOM1_2:
-		SETUP_IOMUX_PADS(usb_pwr_pads_picocom1_2);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(2, 12), on);
-
-		break;
-
-	case BT_GAR1:
-		SETUP_IOMUX_PADS(usb_pwr_pad_gar1);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 19), on);
-
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
-
+/* Check if port is Host or Device */
 int board_usb_phy_mode(int port)
 {
 	if (port == 0 && fs_nboot_args.chBoardType != BT_GAR1)
 		return USB_INIT_DEVICE;
+
 	return USB_INIT_HOST;
 }
 #endif
