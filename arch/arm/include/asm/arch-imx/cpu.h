@@ -13,3 +13,5 @@
 #define MXC_CPU_MX6UL		0x64
 #define MXC_CPU_MX6SOLO		0x66 /* dummy */
 #define MXC_CPU_MX6D		0x67
+
+char *get_reset_cause(void);

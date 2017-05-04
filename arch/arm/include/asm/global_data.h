@@ -38,6 +38,7 @@ struct arch_global_data {
 	unsigned long tlb_addr;
 	unsigned long tlb_size;
 #endif
+	unsigned int reset_cause;
 
 #ifdef CONFIG_OMAP
 	struct omap_boot_parameters omap_boot_params;

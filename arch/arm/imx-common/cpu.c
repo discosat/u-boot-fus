@@ -22,13 +22,9 @@
 
 char *get_reset_cause(void)
 {
-	u32 cause;
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	DECLARE_GLOBAL_DATA_PTR;
 
-	cause = readl(&src_regs->srsr);
-	writel(cause, &src_regs->srsr);
-
-	switch (cause) {
+	switch (gd->arch.reset_cause) {
 	case 0x00001:
 	case 0x00011:
 		return "POR";
@@ -127,7 +123,10 @@ const char *get_imx_type(u32 imxtype)
 
 int print_cpuinfo(void)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	u32 cpurev;
+	u32 cause;
+	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 
 	cpurev = get_cpu_rev();
 
@@ -136,7 +135,13 @@ int print_cpuinfo(void)
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
 		mxc_get_clock(MXC_ARM_CLK) / 1000000);
+
+	cause = readl(&src_regs->srsr);
+	writel(cause, &src_regs->srsr);
+	gd->arch.reset_cause = cause;
+
 	printf("Reset: %s\n", get_reset_cause());
+
 	return 0;
 }
 #endif

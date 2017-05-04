@@ -19,6 +19,7 @@
 #include <cmd_lcd.h>			/* PON_*, POFF_* */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <version.h>			/* version_string[] */
 
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
@@ -1530,6 +1531,11 @@ void ft_board_setup(void *fdt, bd_t *bd)
 				   fs_nboot_args.chFeatures1);
 		fus_fdt_set_u32str(fdt, offs, "features2",
 				   fs_nboot_args.chFeatures2);
+		fus_fdt_set_string(fdt, offs, "reset_cause", get_reset_cause());
+		memcpy(rev, &fs_nboot_args.dwNBOOT_VER, 4);
+		rev[4] = 0;
+		fus_fdt_set_string(fdt, offs, "nboot_version", rev);
+		fus_fdt_set_string(fdt, offs, "u-boot_version", version_string);
 
 		/* MAC addresses */
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
