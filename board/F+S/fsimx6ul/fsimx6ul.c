@@ -1311,6 +1311,7 @@ static void fus_fdt_set_val(void *fdt, int offs, const char *name,
 	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
 		printf("## Keeping property %s/%s from device tree!\n",
 		       fdt_get_name(fdt, offs, NULL), name);
+		return;
 	}
 
 	err = fdt_setprop(fdt, offs, name, val, len);
