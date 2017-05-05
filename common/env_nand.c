@@ -56,13 +56,13 @@ inline size_t get_env_range(void)
 #ifdef CONFIG_ENV_RANGE
 	return CONFIG_ENV_RANGE;
 #else
-	return CONIG_ENV_SIZE;
+	return CONFIG_ENV_SIZE;
 #endif
 }
 
 inline size_t get_env_size(void)
 {
-	return CONIG_ENV_SIZE;
+	return CONFIG_ENV_SIZE;
 }
 #else
 extern size_t get_env_range(void);
