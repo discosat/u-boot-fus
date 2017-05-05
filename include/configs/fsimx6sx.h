@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2015 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2017 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX6 Solo-X. This is
- * efusA9X.
+ * efusA9X and PicoCOMA9X.
  *
  * Activate with one of the following targets:
  *   make fsimx6sx_config     Configure for i.MX6 Solo-X boards
@@ -24,7 +24,7 @@
  * 0x00A4_0000 - 0x00BF_FFFF: FDT: Flat Device Tree(s) (1792KB)
  * 0x00C0_0000 -         END: TargetFS: Root filesystem (Size - 12MB)
  *
- * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel volume
+ * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel/FDT volume
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -34,7 +34,8 @@
  * 0x0020_0000 - 0x0023_FFFF: UBootEnv: U-Boot environment (256KB)
  * 0x0024_0000 -         END: TargetFS: Root filesystem (Size - 2.25MB)
  *
- * END: 0x07FF_FFFF for 128MB, 0x0FFF_FFFF for 256MB, 0x3FFF_FFFF for 1GB
+ * END: 0x07FF_FFFF for 128MB, 0x0FFF_FFFF for 256MB, 0x1FFF_FFFF for 512MB,
+ *      0x3FFF_FFFF for 1GB.
  *
  * Remark:
  * Block size is 128KB. All partition sizes have been chosen to allow for at
@@ -121,7 +122,6 @@
 /* Physical addresses of DDR and CPU-internal SRAM */
 #define CONFIG_NR_DRAM_BANKS	1
 #define PHYS_SDRAM		MMDC0_ARB_BASE_ADDR
-//####define PHYS_SDRAM_SIZE		(1u * CONFIG_DDR_MB * 1024 * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
 
@@ -141,8 +141,15 @@
    also contain a copy of the environment. */
 #define CONFIG_SYS_MALLOC_LEN	(2 * 1024 * 1024)
 
-/* Allocate 2048KB protected RAM at end of RAM (Framebuffers, etc.) */
+/* Allocate 2048KB protected RAM at end of RAM (device tree, etc.) */
 #define CONFIG_PRAM		2048
+
+/* If environment variable fdt_high is not set, then the device tree is
+   relocated to the end of RAM before booting Linux. In this case do not go
+   beyond RAM offset 0x6f800000. Otherwise it will not fit into Linux' lowmem
+   region anymore and the kernel will hang when trying to access the device
+   tree after it has set up its final page table. */
+#define CONFIG_SYS_BOOTMAPSZ	0x6f800000
 
 /* Alignment mask for MMU pagetable: 16kB */
 #define CONFIG_SYS_TLB_ALIGN	0xFFFFC000
@@ -266,7 +273,7 @@
 
 
 /************************************************************************
- * SD/MMC Card
+ * SD/MMC Card, eMMC
  ************************************************************************/
 #define CONFIG_MMC			  /* SD/MMC support */
 #define CONFIG_GENERIC_MMC		  /* with the generic driver model, */
@@ -278,12 +285,6 @@
 //#define CONFIG_SYS_FSL_ERRATUM_ESDHC135
 //#define CONFIG_SYS_FSL_ERRATUM_ESDHC111
 //#define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
-
-
-/************************************************************************
- * EMMC
- ************************************************************************/
-/* ###TODO### */
 
 
 /************************************************************************
@@ -480,7 +481,7 @@
 
 
 /************************************************************************
- * Display Commands (LCD)
+ * Display (LCD)
  ************************************************************************/
 /* ###TODO### */
 
@@ -580,9 +581,13 @@
 #define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 
-/* Add some variables that are not predefined in U-Boot. All entries with
-   content "undef" will be updated with a board-specific value in
-   board_late_init().
+/* Add some variables that are not predefined in U-Boot. For example set
+   fdt_high to 0xffffffff to avoid that the device tree is relocated to the
+   end of memory before booting, which is not necessary in our setup (and
+   would result in problems if RAM is larger than ~1,7GB).
+
+   All entries with content "undef" will be updated in board_late_init() with
+   a board-specific value (detected at runtime).
 
    We use ${...} here to access variable names because this will work with the
    simple command line parser, who accepts $(...) and ${...}, and also the
@@ -664,6 +669,7 @@
 	"platform=undef\0" \
 	"arch=fsimx6sx\0" \
 	"bootfdt=undef\0" \
+	"fdt_high=ffffffff\0" \
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
