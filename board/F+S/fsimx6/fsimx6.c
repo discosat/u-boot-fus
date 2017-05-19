@@ -533,14 +533,54 @@ size_t get_env_offset(void)
 #ifdef CONFIG_CMD_UPDATE
 enum update_action board_check_for_recover(void)
 {
-	/* If the board should do an automatic recovery is given in the
-	   dwAction value. Currently this is only defined for CUBEA5, AGATEWAY
-	   and HGATEWAY. If a special button is pressed for a defined time
-	   when power is supplied, the system should be reset to the default
-	   state, i.e. perform a complete recovery. The button is detected in
-	   NBoot, but recovery takes place in U-Boot. */
+	char *recover_gpio;
+
+	/* On some platforms, the check for recovery is already done in NBoot.
+	   Then the ACTION_RECOVER bit in the dwAction value is set. */
 	if (fs_nboot_args.dwAction & ACTION_RECOVER)
 		return UPDATE_ACTION_RECOVER;
+
+	/*
+	 * If a recover GPIO is defined, check if it is in active state. The
+	 * variable contains the number of a gpio, followed by an optional '-'
+	 * or '_', followed by an optional "high" or "low" for active high or
+	 * active low signal. Actually only the first character is checked,
+	 * 'h' and 'H' mean "high", everything else is taken for "low".
+	 * Default is active low.
+	 *
+	 * Examples:
+	 *    123_high  GPIO #123, active high
+	 *    65-low    GPIO #65, active low
+	 *    13        GPIO #13, active low
+	 *    0x1fh     GPIO #31, active high (this shows why a dash or
+	 *              underscore before "high" or "low" makes sense)
+	 * 
+	 * Remark:
+	 * We do not have any clue here what the GPIO represents and therefore
+	 * we do not assume any pad settings. So for example if the GPIO
+	 * represents a button that is floating in the released state, an
+	 * external pull-up or pull-down must be used to avoid unintentionally
+	 * detecting the active state.
+	 */
+	recover_gpio = getenv("recovergpio");
+	if (recover_gpio) {
+		char *endp;
+		int active_state = 0;
+		unsigned int gpio = simple_strtoul(recover_gpio, &endp, 0);
+
+		if (endp != recover_gpio) {
+			char c = *endp;
+
+			if ((c == '-') || (c == '_'))
+				c = *(++endp);
+			if ((c == 'h') || (c == 'H'))
+				active_state = 1;
+			if (!gpio_direction_input(gpio)
+			    && (gpio_get_value(gpio) == active_state))
+				return UPDATE_ACTION_RECOVER;
+		}
+	}
+
 	return UPDATE_ACTION_UPDATE;
 }
 #endif
