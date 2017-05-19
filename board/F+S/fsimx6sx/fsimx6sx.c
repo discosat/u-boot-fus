@@ -94,9 +94,9 @@
 #define GPMI_PAD_CTRL1 (PAD_CTL_DSE_40ohm | PAD_CTL_SPEED_MED | PAD_CTL_SRE_FAST)
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
-#define USDHC_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
-	PAD_CTL_PUS_22K_UP  | PAD_CTL_SPEED_LOW |		\
-	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
+#define USDHC_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_22K_UP |	\
+	PAD_CTL_SPEED_LOW | PAD_CTL_DSE_80ohm | PAD_CTL_SRE_FAST)
+#define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
 
 struct board_info {
@@ -527,18 +527,46 @@ enum update_action board_check_for_recover(void)
 #endif
 
 #ifdef CONFIG_GENERIC_MMC
-static iomux_v3_cfg_t const usdhc1_pads[] = {
+/*
+ * SD/MMC support.
+ *
+ *   Board         USDHC   CD-Pin                 Slot              
+ *   -----------------------------------------------------------------------
+ *   efusA9X (Board Rev 1.1x):
+ *                 USDHC2  GPIO1_IO06             SD_B: Connector (SD)
+ *        either:  USDHC1  GPIO1_IO02             SD_A: Connector (Micro-SD)
+ *            or: [USDHC1  GPIO1_IO02             WLAN]
+ *                 USDHC4  -                      eMMC (8-Bit)
+ *   efusA9X (Board Rev 1.2x):
+ *                 USDHC2  GPIO1_IO06             SD_B: Connector (SD)
+ *        either:  USDHC4  SD4_DATA7 (GPIO6_IO21) SD_A: Connector (Micro-SD)
+ *            or:  USDHC4  -                      eMMC (8-Bit)
+ *                [USDHC1  GPIO1_IO02             WLAN]
+ *   -----------------------------------------------------------------------
+ *   PicoCOMA9X:   USDHC2  -                      Connector (SD)
+ *                 USDHC4 [KEY_COL2 (GPIO2_IO12)] eMMC (8-Bit)
+ *   -----------------------------------------------------------------------
+ *   BEMA9X:       USDHC2  -                      Connector (SD)
+ *                [USDHC4  KEY_COL2 (GPIO2_IO12)  WLAN]
+ *   -----------------------------------------------------------------------
+ *
+ * Remark: The WP pin is ignored in U-Boot, also WLAN
+ */
+
+/* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
+#define to_fus_sdhc_cfg(x) container_of((x), struct fus_sdhc_cfg, esdhc)
+
+/* SD/MMC card pads definition */
+static iomux_v3_cfg_t const usdhc1_sd_pads[] = {
 	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_GPIO1_IO03__GPIO1_IO_3 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* WP */
-	IOMUX_PADS(PAD_GPIO1_IO02__GPIO1_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* CD */
 };
 
-static iomux_v3_cfg_t const usdhc2_pads[] = {
+static iomux_v3_cfg_t const usdhc2_sd_pads[] = {
 	IOMUX_PADS(PAD_SD2_CLK__USDHC2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD2_CMD__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD2_DATA0__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
@@ -547,122 +575,180 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 	IOMUX_PADS(PAD_SD2_DATA3__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 };
 
-static iomux_v3_cfg_t const usdhc2_extra_pads[] = {
-	IOMUX_PADS(PAD_GPIO1_IO07__GPIO1_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* WP */
-	IOMUX_PADS(PAD_GPIO1_IO06__GPIO1_IO_6 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* CD */
+static iomux_v3_cfg_t const usdhc4_sd_pads[] = {
+	IOMUX_PADS(PAD_SD4_CLK__USDHC4_CLK     | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_CMD__USDHC4_CMD     | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_RESET_B__USDHC4_RESET_B | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA0__USDHC4_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA1__USDHC4_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA2__USDHC4_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA3__USDHC4_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA4__USDHC4_DATA4 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA5__USDHC4_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA6__USDHC4_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD4_DATA7__USDHC4_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 };
 
-struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{
-		.esdhc_base = USDHC1_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC_CLK,
-		.max_bus_width = 4,
-	},
-	{
-		.esdhc_base = USDHC2_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC2_CLK,
-		.max_bus_width = 4,
-	},
-	{
-		.esdhc_base = USDHC3_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC3_CLK,
-		.max_bus_width = 4,
-	},
-	{
-		.esdhc_base = USDHC4_BASE_ADDR,
-		.sdhc_clk = MXC_ESDHC4_CLK,
-		.max_bus_width = 4,
-	},
+/* CD on pad GPIO1_IO02 */
+static iomux_v3_cfg_t const cd_gpio1_io02[] = {
+	IOMUX_PADS(PAD_GPIO1_IO02__GPIO1_IO_2 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
+};
+
+/* CD on pad GPIO1_IO06 */
+static iomux_v3_cfg_t const cd_gpio1_io06[] = {
+	IOMUX_PADS(PAD_GPIO1_IO06__GPIO1_IO_6 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
+};
+
+/* CD on pad SD4_DATA7 */
+static iomux_v3_cfg_t const cd_sd4_data7[] = {
+	IOMUX_PADS(PAD_SD4_DATA7__GPIO6_IO_21 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
+};
+
+/* Extended SDHC configuration. Pad count is without data signals, the data
+   signal count will be added automatically according to bus_width. */
+struct fus_sdhc_cfg {
+	const iomux_v3_cfg_t *const pads;
+	const u8 count;
+	const u8 index;
+	u16 cd_gpio;
+	struct fsl_esdhc_cfg esdhc;
+};
+
+enum usdhc_pads {
+	usdhc1, usdhc2, usdhc4
+};
+
+static struct fus_sdhc_cfg sdhc_cfg[] = {
+	[usdhc1] = { usdhc1_sd_pads, 2, 1 }, /* pads, count, USDHC index */
+	[usdhc2] = { usdhc2_sd_pads, 2, 2 },
+	[usdhc4] = { usdhc4_sd_pads, 3, 4 },
+};
+
+struct fus_sdhc_cd {
+	const iomux_v3_cfg_t *pad;
+	unsigned int gpio;
+};
+
+enum usdhc_cds {
+	gpio1_io02, gpio1_io06, gpio6_io21
+};
+
+struct fus_sdhc_cd sdhc_cd[] = {
+	[gpio1_io02] = { cd_gpio1_io02, IMX_GPIO_NR(1, 2) }, /* pad, gpio */
+	[gpio1_io06] = { cd_gpio1_io06, IMX_GPIO_NR(1, 6) },
+	[gpio6_io21] = { cd_sd4_data7, IMX_GPIO_NR(6, 21) },
 };
 
 int board_mmc_getcd(struct mmc *mmc)
 {
-	int cd_pin;
+	struct fsl_esdhc_cfg *fsl_cfg = mmc->priv;
+	struct fus_sdhc_cfg *fus_cfg = to_fus_sdhc_cfg(fsl_cfg);
+	u16 cd_gpio = fus_cfg->cd_gpio;
 
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-		if (mmc->block_dev.dev == 0)
-			cd_pin = IMX_GPIO_NR(1, 6); /* USDHC2 */
-		else
-			cd_pin = IMX_GPIO_NR(1, 2); /* USDHC1 */
-		return !gpio_get_value(cd_pin);
+	if (cd_gpio == (u16)~0)
+		return 1;		/* No CD, assume card is present */
 
-	default:
-		return 1;		/* Assume card is present */
-	}
+	/* Return CD signal (active low) */
+	return !gpio_get_value(cd_gpio);
 }
 
-int board_mmc_init(bd_t *bis)
+static int setup_mmc(bd_t *bd, u8 bus_width, struct fus_sdhc_cfg *cfg,
+		     struct fus_sdhc_cd *cd)
 {
-	int index;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	u32 ccgr6;
-	unsigned int gpio_cd = 0xFFFFFFFF;
-	int ret;
 
+	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
+	if (!cd)
+		cfg->cd_gpio = ~0;
+	else {
+		cfg->cd_gpio = cd->gpio;
+		imx_iomux_v3_setup_multiple_pads(cd->pad, 1);
+		gpio_direction_input(cd->gpio);
+	}
+
+	/* Set DAT, CLK, CMD and RST pin configurations */
+	cfg->esdhc.max_bus_width = bus_width;
+	imx_iomux_v3_setup_multiple_pads(cfg->pads, cfg->count + bus_width);
+
+	/* Get clock speed and ungate appropriate USDHC clock */
 	ccgr6 = readl(&mxc_ccm->CCGR6);
-
-	/* Configure first SD card slot */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-		/* USDHC2: ext. SD slot (connector, normal-size SD slot on
-		   efus SKIT), Write Protect (WP) on GPIO_7 (ignored), Card
-		   Detect (CD) on GPIO_6 (GPIO1_IO6) */
-		gpio_cd = IMX_GPIO_NR(1, 6);
-		SETUP_IOMUX_PADS(usdhc2_extra_pads);
-		/* Fall through to BT_PICOCOMA9X */
-	case BT_PICOCOMA9X:
-	case BT_BEMA9X:
-		SETUP_IOMUX_PADS(usdhc2_pads);
-		ccgr6 |= (3 << 4);
-		index = 1;
-		break;
-
+	switch (cfg->index) {
 	default:
-		return 0;		/* Unknown device */
-	}
-
-	if (gpio_cd != 0xFFFFFFFF)
-		gpio_direction_input(gpio_cd);
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
-	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
-	if (ret)
-		return ret;
-
-#if 0 //### TODO: activate micro-SD card, but only if WLAN is not mounted
-	/* Configure second SD card slot (if available) */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-		/* USDHC1: ext. SD slot (connector, micro SD slot on efus
-		   SKIT), Write Protect (WP) on GPIO_3 (ignored), Card Detect
-		   (CD) on GPIO_2 (GPIO1_IO2). Alternatively used as SDIO for
-		   on-board WLAN. */
-		gpio_cd = IMX_GPIO_NR(1, 2);
-		SETUP_IOMUX_PADS(usdhc1_pads);
+	case 1:
+		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
 		ccgr6 |= (3 << 2);
-		index = 0;
+		break;
+	case 2:
+		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+		ccgr6 |= (3 << 4);
+		break;
+	case 3:
+		cfg->esdhc.esdhc_base = USDHC3_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
+		ccgr6 |= (3 << 6);
+		break;
+	case 4:
+		cfg->esdhc.esdhc_base = USDHC4_BASE_ADDR;
+		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
+		ccgr6 |= (3 << 8);
+		break;
+	}
+	writel(ccgr6, &mxc_ccm->CCGR6);
+
+	return fsl_esdhc_initialize(bd, &cfg->esdhc);
+}
+
+int board_mmc_init(bd_t *bd)
+{
+	int ret = 0;
+
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA9X:
+		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], &sdhc_cd[gpio1_io06]);
+		if (ret)
+			break;
+
+		/* mmc1 (ext. SD slot, micro SD on efus SKIT) */
+		if (fs_nboot_args.chBoardRev < 120) {
+			/* Board Rev 1.0x/1.1x: if no WLAN present: USDHC1 */
+			if (!(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
+				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
+						&sdhc_cd[gpio1_io02]);
+		} else {
+			/* Board Rev 1.2x: if no eMMC present: USDHC4 */
+			if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc4],
+						&sdhc_cd[gpio6_io21]);
+		}
+
+		/* mmc2: USDHC4 (eMMC, if available), no CD */
+		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4], NULL);
+		break;
+
+	case BT_PICOCOMA9X:
+		/* mmc0: USDHC2 (ext. SD slot via connector), no CD */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+
+		/* mmc1: USDHC4 (eMMC, if available), ignore CD */
+		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4], NULL);
+		break;
+
+	case BT_BEMA9X:
+		/* mmc0: USDHC2 (ext. SD slot via connector), no CD */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
 		break;
 
 	default:
-		return 0; 		/* No more SD card slots */
+		return 0;		/* Neither SD card, nor eMMC */
 	}
 
-	if (gpio_cd != 0xFFFFFFFF)
-		gpio_direction_input(gpio_cd);
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	esdhc_cfg[index].sdhc_clk = mxc_get_clock(esdhc_cfg[index].sdhc_clk);
-	ret = fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
-	if (ret)
-		return ret;
-#endif //###
-
-	/* ### TODO: efusA9X has a third SDIO slot on USDHC4 with 8 data lines,
-	   for on-board EMMC. */
-
-	return 0;
+	return ret;
 }
 #endif
 
