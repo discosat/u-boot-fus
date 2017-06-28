@@ -428,6 +428,11 @@ int genphy_startup(struct phy_device *phydev)
 
 int genphy_shutdown(struct phy_device *phydev)
 {
+	int value;
+
+	value = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, value | BMCR_PDOWN);
+
 	return 0;
 }
 

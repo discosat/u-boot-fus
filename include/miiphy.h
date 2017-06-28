@@ -61,6 +61,7 @@ void miiphy_listdev(void);
 struct mii_dev *mdio_alloc(void);
 int mdio_register(struct mii_dev *bus);
 void mdio_list_devices(void);
+void mdio_shutdown_all(void);
 
 #ifdef CONFIG_BITBANGMII
 

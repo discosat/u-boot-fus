@@ -8,6 +8,7 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
+
 #include <common.h>
 #include <asm/errno.h>
 #ifdef CONFIG_CMD_NET
@@ -1549,3 +1550,10 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		fus_fdt_enable(fdt, FDT_ETH_B, 0);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
+
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}

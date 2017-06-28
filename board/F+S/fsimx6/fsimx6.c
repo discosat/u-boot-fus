@@ -1665,3 +1665,10 @@ void ft_board_setup(void *fdt, bd_t *bd)
 #endif
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
+
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}

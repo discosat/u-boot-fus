@@ -8,6 +8,7 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
+
 #include <common.h>
 #include <asm/errno.h>
 #ifdef CONFIG_CMD_NET
@@ -1196,7 +1197,7 @@ int board_eth_init(bd_t *bis)
 	case BT_PICOCOM1_2:
 		/*
 		 * DP83484 PHY: This PHY needs at least 1 us reset
-		 * pulse width (GPIO_2_10). After power on it needs
+		 * pulse width (GPIO_5_11). After power on it needs
 		 * min 167 ms (after reset is deasserted) before the
 		 * first MDIO access can be done. In a warm start, it
 		 * only takes around 3 for this. As we do not know
@@ -1267,6 +1268,7 @@ int board_eth_init(bd_t *bis)
 	/* Probe second PHY and activate second ethernet port. */
 	if (features2 & FEAT2_ETH_B) {
 		set_fs_ethaddr(id);
+
 		/* If ENET1 is not in use, we must get our MDIO bus now */
 		if (!bus) {
 			bus = fec_get_miibus(ENET2_BASE_ADDR, -1);
@@ -1562,3 +1564,10 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		fus_fdt_enable(fdt, FDT_ETH_B, 0);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
+
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}
