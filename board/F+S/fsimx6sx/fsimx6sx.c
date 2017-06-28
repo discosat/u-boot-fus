@@ -1381,15 +1381,17 @@ char *get_sys_prompt(void)
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Set a generic value, if it was not already set in the device tree */
 static void fus_fdt_set_val(void *fdt, int offs, const char *name,
-			    const void *val, int len)
+			    const void *val, int len, int force)
 {
 	int err;
 
 	/* Warn if property already exists in device tree */
 	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
-		printf("## Keeping property %s/%s from device tree!\n",
+		printf("## %s property %s/%s from device tree!\n",
+		       force ? "Overwriting": "Keeping",
 		       fdt_get_name(fdt, offs, NULL), name);
-		return;
+		if (!force)
+			return;
 	}
 
 	err = fdt_setprop(fdt, offs, name, val, len);
@@ -1401,26 +1403,28 @@ static void fus_fdt_set_val(void *fdt, int offs, const char *name,
 
 /* Set a string value */
 static void fus_fdt_set_string(void *fdt, int offs, const char *name,
-			       const char *str)
+			       const char *str, int force)
 {
-	fus_fdt_set_val(fdt, offs, name, str, strlen(str) + 1);
+	fus_fdt_set_val(fdt, offs, name, str, strlen(str) + 1, force);
 }
 
 /* Set a u32 value as a string (usually for bdinfo) */
-static void fus_fdt_set_u32str(void *fdt, int offs, const char *name, u32 val)
+static void fus_fdt_set_u32str(void *fdt, int offs, const char *name,
+			       u32 val, int force)
 {
 	char str[12];
 
 	sprintf(str, "%u", val);
-	fus_fdt_set_string(fdt, offs, name, str);
+	fus_fdt_set_string(fdt, offs, name, str, force);
 }
 
 /* Set a u32 value */
-static void fus_fdt_set_u32(void *fdt, int offs, const char *name, u32 val)
+static void fus_fdt_set_u32(void *fdt, int offs, const char *name,
+			    u32 val, int force)
 {
 	fdt32_t tmp = cpu_to_fdt32(val);
 
-	fus_fdt_set_val(fdt, offs, name, &tmp, sizeof(tmp));
+	fus_fdt_set_val(fdt, offs, name, &tmp, sizeof(tmp), force);
 }
 
 /* Set ethernet MAC address aa:bb:cc:dd:ee:ff for given index */
@@ -1433,18 +1437,18 @@ static void fus_fdt_set_macaddr(void *fdt, int offs, int id)
 	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
 		sprintf(name, "MAC%d", id);
 		sprintf(str, "%pM", enetaddr);
-		fus_fdt_set_string(fdt, offs, name, str);
+		fus_fdt_set_string(fdt, offs, name, str, 1);
 	}
 }
 
 /* If environment variable exists, set a string property with the same name */
-static void fus_fdt_set_getenv(void *fdt, int offs, const char *name)
+static void fus_fdt_set_getenv(void *fdt, int offs, const char *name, int force)
 {
 	const char *str;
 
 	str = getenv(name);
 	if (str)
-		fus_fdt_set_string(fdt, offs, name, str);
+		fus_fdt_set_string(fdt, offs, name, str, force);
 }
 
 /* Open a node, warn if the node does not exist */
@@ -1496,7 +1500,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	offs = fus_fdt_path_offset(fdt, FDT_NAND);
 	if (offs >= 0) {
 		fus_fdt_set_u32(fdt, offs, "fus,ecc_strength",
-				fs_nboot_args.chECCtype);
+				fs_nboot_args.chECCtype, 1);
 	}
 
 	/* Set bdinfo entries */
@@ -1507,24 +1511,27 @@ void ft_board_setup(void *fdt, bd_t *bd)
 
 		/* NAND info, names and features */
 		fus_fdt_set_u32str(fdt, offs, "ecc_strength",
-				   fs_nboot_args.chECCtype);
+				   fs_nboot_args.chECCtype, 1);
 		fus_fdt_set_u32str(fdt, offs, "nand_state",
-				   fs_nboot_args.chECCstate);
-		fus_fdt_set_string(fdt, offs, "board_name", get_board_name());
+				   fs_nboot_args.chECCstate, 1);
+		fus_fdt_set_string(fdt, offs, "board_name",
+				   get_board_name(), 0);
 		sprintf(rev, "%d.%02d", fs_nboot_args.chBoardRev / 100,
 			fs_nboot_args.chBoardRev % 100);
-		fus_fdt_set_string(fdt, offs, "board_revision", rev);
-		fus_fdt_set_getenv(fdt, offs, "platform");
-		fus_fdt_set_getenv(fdt, offs, "arch");
+		fus_fdt_set_string(fdt, offs, "board_revision", rev, 1);
+		fus_fdt_set_getenv(fdt, offs, "platform", 0);
+		fus_fdt_set_getenv(fdt, offs, "arch", 1);
 		fus_fdt_set_u32str(fdt, offs, "features1",
-				   fs_nboot_args.chFeatures1);
+				   fs_nboot_args.chFeatures1, 1);
 		fus_fdt_set_u32str(fdt, offs, "features2",
-				   fs_nboot_args.chFeatures2);
-		fus_fdt_set_string(fdt, offs, "reset_cause", get_reset_cause());
+				   fs_nboot_args.chFeatures2, 1);
+		fus_fdt_set_string(fdt, offs, "reset_cause",
+				   get_reset_cause(), 1);
 		memcpy(rev, &fs_nboot_args.dwNBOOT_VER, 4);
 		rev[4] = 0;
-		fus_fdt_set_string(fdt, offs, "nboot_version", rev);
-		fus_fdt_set_string(fdt, offs, "u-boot_version", version_string);
+		fus_fdt_set_string(fdt, offs, "nboot_version", rev, 1);
+		fus_fdt_set_string(fdt, offs, "u-boot_version",
+				   version_string, 1);
 
 		/* MAC addresses */
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
