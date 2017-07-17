@@ -1230,7 +1230,7 @@ int board_eth_init(bd_t *bis)
 				return ret;
 		}
 
-		if (features2 & FEAT2_ETH_A) {
+		if (features2 & FEAT2_ETH_B) {
 			/* IOMUX for ENET2, use 100 MBit/s LAN on RGMII2 pins */
 			SETUP_IOMUX_PADS(enet_pads_rmii2);
 
