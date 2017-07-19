@@ -487,8 +487,20 @@ static int fec_open(struct eth_device *edev)
 	}
 #endif
 
+	/* Determine default speed from link type, PHY may override */
+	switch (fec->xcv_type) {
+	case MII10:
+		speed = _10BASET;
+		break;
+	default:
+		speed = _100BASET;
+		break;
+	case RGMII:
+		speed = _1000BASET;
+		break;
+	}
 #ifdef CONFIG_PHYLIB
-	{
+	if (fec->phydev) {
 		/* Start up the PHY */
 		int ret = phy_startup(fec->phydev);
 
@@ -500,9 +512,11 @@ static int fec_open(struct eth_device *edev)
 		speed = fec->phydev->speed;
 	}
 #else
-	miiphy_wait_aneg(edev);
-	speed = miiphy_speed(edev->name, fec->phy_id);
-	miiphy_duplex(edev->name, fec->phy_id);
+	if (fec->bus) {
+		miiphy_wait_aneg(edev);
+		speed = miiphy_speed(edev->name, fec->phy_id);
+		miiphy_duplex(edev->name, fec->phy_id);
+	}
 #endif
 
 #ifdef FEC_QUIRK_ENET_MAC
@@ -549,7 +563,7 @@ static int fec_init(struct eth_device *dev, bd_t* bd)
 
 	fec_reg_setup(fec);
 
-	if (fec->xcv_type != SEVENWIRE)
+	if (fec->bus && (fec->xcv_type != SEVENWIRE))
 		fec_mii_setspeed(fec->bus->priv);
 
 	/*
@@ -578,7 +592,7 @@ static int fec_init(struct eth_device *dev, bd_t* bd)
 	writel((uint32_t)fec->rbd_base, &fec->eth->erdsr);
 
 #ifndef CONFIG_PHYLIB
-	if (fec->xcv_type != SEVENWIRE) {
+	if (fec->bus && (fec->xcv_type != SEVENWIRE)) {
 		int ret = miiphy_restart_aneg(dev);
 		if (ret)
 			return ret;
@@ -1040,12 +1054,15 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec_set_dev_name(edev->name, dev_id);
 	fec->dev_id = (dev_id == -1) ? 0 : dev_id;
 	fec->bus = bus;
-	fec_mii_setspeed(bus->priv);
+	if (bus)
+		fec_mii_setspeed(bus->priv);
 #ifdef CONFIG_PHYLIB
 	fec->phydev = phydev;
-	phy_connect_dev(phydev, edev);
-	/* Configure phy */
-	phy_config(phydev);
+	if (phydev) {
+		phy_connect_dev(phydev, edev);
+		/* Configure phy */
+		phy_config(phydev);
+	}
 #else
 	fec->phy_id = phy_id;
 #endif
