@@ -30,6 +30,10 @@
 #include <status_led.h>			/* led_id_t */
 #endif
 
+#ifdef CONFIG_MXC_SPI
+#include <spi.h>			/* SPI_MODE_*, spi_xfer(), ... */
+#endif
+
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/setup.h>			/* struct tag_fshwconfig, ... */
@@ -56,6 +60,7 @@
 #define BT_PICOCOMA9X 1
 #define BT_KEN116     2			/* Not supported in Linux */
 #define BT_BEMA9X     3
+#define BT_CONT1      4
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -98,6 +103,11 @@
 #define USDHC_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_22K_UP |	\
 	PAD_CTL_SPEED_LOW | PAD_CTL_DSE_80ohm | PAD_CTL_SRE_FAST)
 #define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
+
+#define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED | \
+		      PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
+#define SPI_CS_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_100K_UP | PAD_CTL_PKE | PAD_CTL_PUE | \
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
 
 struct board_info {
@@ -202,8 +212,21 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
 	},
-	{	/* 4 (unknown) */
-		.name = "unknown",
+	{	/* 4 (BT_CONT1) */
+		.name = "CONT1",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
@@ -785,6 +808,11 @@ int board_mmc_init(bd_t *bd)
 		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
 		break;
 
+	case BT_CONT1:
+		/* mmc0: USDHC2 (int. SD slot, micro SD on CONT1) */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], &sdhc_cd[gpio1_io06]);
+		break;
+
 	default:
 		return 0;		/* Neither SD card, nor eMMC */
 	}
@@ -954,6 +982,417 @@ int board_late_init(void)
 }
 #endif
 
+#ifdef CONFIG_MXC_SPI
+/* ETH switch SJA1105 is only available on CONT1 */
+static iomux_v3_cfg_t const ecspi4_pads[] = {
+	IOMUX_PADS(PAD_SD3_CLK__ECSPI4_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD3_DATA3__ECSPI4_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD3_CMD__ECSPI4_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA03__GPIO3_IO_4 | MUX_PAD_CTRL(SPI_CS_PAD_CTRL)),
+};
+
+/* SJA1105 configuration data for RGMII mode */
+static u32 sja1105_data[] = {
+	/* Device ID (start of configuration data */
+	0x9E00030E,
+
+	/* L2 Policing Table */
+	0x06000000, 0x00000050,	       /* ID 0x06, Length 40*2 words = 0x50 */
+	0x216F256B,		       /* CRC for Header */
+	0xFEF70000, 0x03FFFFFF,	       /* Data, 40 entries (64 bits) */
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x03FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x07FFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0BFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x0FFFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFEF70000, 0x13FFFFFF,
+	0xFA2E19F8,			/* Checksum for data */
+
+	/* VLAN Lookup Table */
+	0x07000000, 0x00000004,		/* ID 0x07, Length 2*2 words = 0x04 */
+	0x5860942E,			/* Checksum for header */
+	0x00000000, 0x003FF000,		/* Data: 2 entries (64 bits) */
+	0x08000000, 0x003FFF80,
+	0xC7EF16A7,			/* Checksum for data */
+
+	/* L2 Forwarding Table */
+	0x08000000, 0x0000001A,		/* ID 0x08, Length 5*2+8*2 = 0x1A */
+	0x6AF62353,			/* Checksum for header */
+	0x10000000, 0xF7BDF58D,		/* Data Part 1: 5 entries (64 bits) */
+	0x10000000, 0xEF7BF58D,
+	0x10000000, 0xDEF7F58D,
+	0x10000000, 0xBDEFF58D,
+	0x10000000, 0x7BDFF58D,
+	0x00000000, 0x00000000,		/* Data Part 2: 8 entries (64 bits) */
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0x00000000, 0x00000000,
+	0xC004A606,			/* Checksum for data */
+
+	/* MAC Configuration Table */
+	0x09000000, 0x00000023,		/* ID 0x09, Length 5*7 words = 0x23 */
+	0xDAB5BDC8,			/* Checksum for header */
+	0x0000000E, 0x00000000,		/* Data: 5 entries (224 bits) */
+	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000000E, 0x00000000,
+	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000000E, 0x00000000,
+	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000000E, 0x00000000,
+	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000000E, 0x00000000,
+	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x5320879E,			/* Checksum for data */
+
+	/* L2 Lookup Parameters Table */
+	0x0D000000, 0x00000001,		/* ID 0x0D, Length 1*1 word = 0x01 */
+	0x250E7CBD,			/* Checksum for header */
+	0x000125C0,			/* Data: 1 entry (32 bits) */
+	0x70948450,			/* Checksum for data */
+
+	/* L2 Forwarding Parameters Table */
+	0x0E000000, 0x00000003,		/* ID 0x0E, Length 1*3 words = 0x03 */
+	0xC8A7CEE6,			/* Checksum for header */
+	0x0071C000, 0x00000000, 0x00000000, /* Data: 1 entry (96 bits) */
+	0xC3F704B9,			/* Checksum for data */
+
+	/* General Parameters */
+	0x11000000, 0x0000000A,	       /* ID 0x11, Length 1*10 words = 0x0A */
+	0x571F813F,		       /* Checksum for header */
+	0x06440000, 0x00000408,	       /* Data: 1 entry (320 bits) */
+	0x00000000, 0xFF0CE000, 0xFFFFFFFF, 0xFFFFFFFF,
+	0x00FFFFFF, 0x00000000, 0x00000000, 0x58000000,
+	0x415691F7,			/* Checksum for data */
+
+	/* xMII Mode Parameters */
+	0x4E000000, 0x00000001,		/* ID 0x4E, Length 1*1 word = 0x01 */
+	0x3A5D5E24,			/* Checksum for header */
+	0x4B6C0000,			/* Data: 1 entry (32 bits) */
+	0x090263AF,			/* Checksum for data */
+
+	/* End of configuration */
+	0x00000000, 0x00000000,		/* ID ignored, Length 0 */
+	0xDF65AA65			/* CRC for all above config data */
+};
+
+/* Read a 32 bit value from SJA1105 address */
+static int sja1105_read_val(struct spi_slave *slave, unsigned addr, u32 *val)
+{
+	u8 din[8];
+	u8 dout[8];
+	int ret;
+
+	/*
+	 * Prepare read command for one word at given address
+	 *
+	 * Read access:
+	 *   Control word (binary):
+	 *     (bit 31) 0RRR RRRA AAAA AAAA AAAA AAAA AAAA AAAA 0000 (bit 0)
+	 *                      R: Number of words to read (0 = 64 words)
+	 *                      A: Address where to read from
+	 *   Data phase: R data cycles with received data, in our case is R=1
+	 */
+	addr &= 0x1FFFFF;
+	dout[0] = 0x02 | (addr >> 20);
+	dout[1] = addr >> 12;
+	dout[2] = addr >> 4;
+	dout[3] = addr << 4;
+
+	memset(din, 0, sizeof(din));
+
+	/* Transfer command and one word, i.e. 64 bits */
+	ret = spi_xfer(slave, 64, dout, din, SPI_XFER_ONCE);
+	if (ret) {
+		printf("SJA1105: Error %d reading value at 0x%x\n", ret, addr);
+		return ret;
+	}
+
+	*val = (din[4] << 24) | (din[5] << 16) | (din[6] << 8) | din[7];
+
+	return 0;
+}
+
+/* Write a 32 bit value to SJA1105 address */
+static int sja1105_write_val(struct spi_slave *slave, unsigned addr, u32 val)
+{
+	u8 dout[8];
+	int ret;
+
+	/*
+	 * Prepare write command for one word at given address
+	 *
+	 * Write access:
+	 *   Control word (binary):
+	 *     (bit 31)  1000 000A AAAA AAAA AAAA AAAA AAAA AAAA 0000 (bit 0)
+	 *                       A: Address where to write to
+	 *   Data phase: 1 to 64 data cycles with data to send, in our case 1
+	 */
+	addr &= 0x1FFFFF;
+	dout[0] = 0x80 | (addr >> 20);
+	dout[1] = addr >> 12;
+	dout[2] = addr >> 4;
+	dout[3] = addr << 4;
+	dout[4] = val >> 24;
+	dout[5] = val >> 16;
+	dout[6] = val >> 8;
+	dout[7] = val;
+
+	/* Transfer command and one word, i.e. 64 bits */
+	ret = spi_xfer(slave, 64, dout, NULL, SPI_XFER_ONCE);
+	if (ret)
+		printf("SJA1105: Error %d writing value at 0x%x\n", ret, addr);
+
+	return ret;
+}
+
+/* Parse SJA1105 config data and fix CRC values if necessary */
+static int sja1105_parse_config(void)
+{
+	unsigned int index = 1;
+	unsigned int id, size, cs, crc_index;
+
+	while (1) {
+		/* We need at least 3 more words for the end entry */
+		if (index + 3 > ARRAY_SIZE(sja1105_data)) {
+			printf("SJA1105: Missing config end entry\n");
+			return -EINVAL;
+		}
+		id = sja1105_data[index] >> 24;
+		size = sja1105_data[index + 1] & 0x00FFFFFF;
+
+		/* We found end entry if size is 0 */
+		if (!size)
+			break;
+
+		/* Do we have enough data words? */
+		if (index + size + 4 > ARRAY_SIZE(sja1105_data)) {
+			printf("SJA1105: Missing data in block ID 0x%02x"
+			       " at index %d\n", id, index);
+			return -EINVAL;
+		}
+
+		/* Check block header CRC */
+		cs = crc32(0, (const u8 *)&sja1105_data[index], 8);
+		crc_index = index + 2;
+		if (cs != sja1105_data[crc_index]) {
+			printf("SJA1105: Fixing bad header CRC32 in"
+			       " block ID 0x%02x at index %d\n"
+			       "         Found 0x%08x, should be 0x%08x\n",
+			       id, crc_index, sja1105_data[crc_index], cs);
+			sja1105_data[crc_index] = cs;
+		}
+
+		/* Check block data CRC */
+		cs = crc32(0, (const u8 *)&sja1105_data[index + 3], size * 4);
+		crc_index = index + size + 3;
+		if (cs != sja1105_data[crc_index]) {
+			printf("SJA1105: Fixing bad data CRC32 in"
+			       " block ID 0x%02x at index %d\n"
+			       "         Found 0x%08x, should be 0x%08x\n",
+			       id, crc_index, sja1105_data[crc_index], cs);
+			sja1105_data[crc_index] = cs;
+		}
+		index += size + 4;
+	}
+
+	/* Check global CRC */
+	crc_index = index + 2;
+	cs = crc32(0, (const u8 *)&sja1105_data[0], crc_index * 4);
+	if (cs != sja1105_data[crc_index]) {
+		printf("SJA1105: Fixing bad global CRC32 at index %d\n"
+		       "         Found 0x%08x, should be 0x%08x\n",
+		       crc_index, sja1105_data[crc_index], cs);
+		sja1105_data[crc_index] = cs;
+	}
+
+	/* Check for useless data at end of array */
+	index += 3;
+	if (index < ARRAY_SIZE(sja1105_data)) {
+		printf("SJA1105: Ignoring extra config data at index %d\n",
+		       index);
+	}
+
+	return 0;
+}
+
+static int sja1105_configure(struct spi_slave *slave)
+{
+	int ret;
+	unsigned int offs, size, chunksize, addr, i;
+	static u8 dout[65*8*4];
+	u32 val;
+
+	/* Read and check the device ID */
+	ret = sja1105_read_val(slave, 0, &val);
+	if (ret)
+		return ret;
+	if (val != sja1105_data[0]) {
+		printf("SJA1105: Bad ID, expected 0x%08x, found 0x%08x\n",
+		       sja1105_data[0], val);
+		return -EINVAL;
+	}
+
+	/* 
+	 * Send configuration data to SJA1105. The transfer must be split in
+	 * chunks with at most 64 words of data. 
+	 *
+	 * Write access:
+	 *   Control word (binary):
+	 *     (bit 31)  1000 000A AAAA AAAA AAAA AAAA AAAA AAAA 0000 (bit 0)
+	 *                       A: Address where to write to
+	 *   Data phase: 1 to 64 data cycles with data to send
+	 *
+	 * The configuration area begins at address 0x20000 and is write-only.
+	 * Reading data in this region returns arbitrary data.
+	 */
+	addr = 0x20000;
+	offs = 0;
+	size = ARRAY_SIZE(sja1105_data);
+	do {
+		chunksize = size;
+		if (chunksize > 64)
+			chunksize = 64;
+		dout[0] = 0x80 | (addr >> 20);
+		dout[1] = addr >> 12;
+		dout[2] = addr >> 4;
+		dout[3] = addr << 4;
+		for (i = 0; i < chunksize; i++) {
+			val = sja1105_data[offs++];
+			dout[i*4 + 4] = val >> 24;
+			dout[i*4 + 5] = val >> 16;
+			dout[i*4 + 6] = val >> 8;
+			dout[i*4 + 7] = val;
+		}
+		ret = spi_xfer(slave, chunksize * 32 + 32, dout, NULL,
+			       SPI_XFER_ONCE);
+		if (ret) {
+			printf("SJA1105: Error %d when sending config data"
+			       " to 0x%x\n", ret, addr);
+			return ret;
+		}
+		addr += chunksize;
+		size -= chunksize;
+	} while (size);
+	
+	/* Read configuration flag register */
+	ret = sja1105_read_val(slave, 1, &val);
+	if (ret)
+		return ret;
+
+	if (!(val & 0x80000000)) {
+		printf("SJA1105: Device did not accept configuration data\n"
+		       "         Configuration Flag Register: 0x%08x\n", val);
+		return -EINVAL;
+	}
+
+	/* Set MIIx_RGMII_TX_CLK to PLL0 (125 MHz) */
+	val = 0x0b000000;
+	ret = sja1105_write_val(slave, 0x100016, val);		/* MII0 */
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x10001D, val);	/* MII1 */
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x100024, val);	/* MII2 */
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x10002B, val);	/* MII3 */
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x100032, val);	/* MII4 */
+	if (ret)
+		printf("SJA1105: Error %d when setting 125MHz clock\n", ret);
+
+	return ret;
+}
+
+/* Start ECSPI4 and configure SJA1105 ethernet switch */
+static int sja1105_init(void)
+{
+	int ret;
+	u32 reg;
+	struct spi_slave *slave;
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	struct cspi_regs *regs = (struct cspi_regs *) ECSPI4_BASE_ADDR;
+
+	/* Setup iomux for ECSPI4 */
+	SETUP_IOMUX_PADS(ecspi4_pads);
+
+	/* Enable ECSPI4 clock */
+	reg = readl(&mxc_ccm->CCGR1);
+	reg |= (3 << 6);
+	writel(reg, &mxc_ccm->CCGR1);
+
+	/* Clear EN bit in conreg */
+	reg = readl(&regs->ctrl);
+	reg &= ~(1 << 0);
+	writel(reg, &regs->ctrl);
+
+	/* Check stucture of SJA1105 config data, fix checksums if necessary */
+	ret = sja1105_parse_config();
+	if (ret)
+		return ret;
+
+	/* ECSPI4 has index 3, use 10 MHz, SPI mode 1, CS on GPIO3_IO04 */
+	slave = spi_setup_slave(3, 0 | (IMX_GPIO_NR(3, 4) << 8), 10000000,
+				SPI_MODE_1);
+	if (!slave)
+		return -EINVAL;
+
+	/* Claim SPI bus and actually configure SJA1105 */
+	ret = spi_claim_bus(slave);
+	if (!ret)
+		ret = sja1105_configure(slave);
+
+	spi_release_bus(slave);
+
+	/* Clear EN bit in conreg */
+	reg = readl(&regs->ctrl);
+	reg &= ~(1 << 0);
+	writel(reg, &regs->ctrl);
+
+	/* Disable ECSPI4 clock */
+	reg = readl(&mxc_ccm->CCGR1);
+	reg &= ~(3 << 6);
+	writel(reg, &mxc_ccm->CCGR1);
+
+	return ret;
+}
+#endif /* CONFIG_MXC_SPI */
+
 #ifdef CONFIG_CMD_NET
 /* enet pads definition */
 static iomux_v3_cfg_t const enet_pads_control_efusa9x[] = {
@@ -969,6 +1408,22 @@ static iomux_v3_cfg_t const enet_pads_control_efusa9x[] = {
 
 	/* Reset signal for both PHYs */
 	IOMUX_PADS(PAD_ENET1_MDC__GPIO2_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const enet_pads_control_cont1[] = {
+	/* MDIO; on CONT1 all external PHYs are on ENET1_MDIO bus */
+	IOMUX_PADS(PAD_ENET1_MDIO__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_MDC__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* PHY interrupt lines, one for each external PHY */
+	IOMUX_PADS(PAD_LCD1_DATA11__GPIO3_IO_12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA13__GPIO3_IO_14 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA15__GPIO3_IO_16 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signals, one for each external PHY */
+	IOMUX_PADS(PAD_LCD1_DATA10__GPIO3_IO_11 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA12__GPIO3_IO_13 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA14__GPIO3_IO_15 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 static iomux_v3_cfg_t const enet_pads_rgmii1[] = {
@@ -1336,6 +1791,101 @@ int board_eth_init(bd_t *bd)
 					&bus, 1, 17, PHY_INTERFACE_MODE_RMII);
 		break;
 
+	case BT_CONT1:
+		/*
+		 * CONT1 uses a 5 port ethernet switch (SJA1105). Two ports
+		 * are directly connected (MAC-MAC) to the RGMII ports of the
+		 * i.MX6SX and do not need an MII bus. Port 3 goes to ENET1,
+		 * port 4 to ENET2. The three other ports use an Atheros PHY
+		 * each and go to the outside (ports 0+1 via RJ45 connectors,
+		 * port 2 as part of the B2B connector). All three PHYs are on
+		 * one MII bus (on ENET1). The 25 MHz reference clock for the
+		 * SJA1105 is generated by an external crystal and is not
+		 * visible and not required on the i.MX6SX.
+		 */
+		if (features2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 1 GBit/s LAN on RGMII pins */
+			SETUP_IOMUX_PADS(enet_pads_rgmii1);
+			SETUP_IOMUX_PADS(enet_pads_control_cont1);
+
+			/* ENET1_TX_CLK (125MHz) is generated in SJA1105 and
+			   is an input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_125MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (features2 & FEAT2_ETH_B) {
+			/* IOMUX for ENET2, use 1 GBit/s LAN on RGMII pins */
+			SETUP_IOMUX_PADS(enet_pads_rgmii2);
+
+			/* ENET2_TX_CLK (125MHz) is generated in SJA1105 and
+			   is an input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_125MHZ);
+			if (ret < 0)
+				return 0;
+		}
+
+		/* Reset ext. PHYs, Atheros AR8035 needs at least 0.5 ms */
+		gpio_direction_output(IMX_GPIO_NR(3, 11), 0);
+		gpio_direction_output(IMX_GPIO_NR(3, 13), 0);
+		gpio_direction_output(IMX_GPIO_NR(3, 15), 0);
+		udelay(500);
+		gpio_set_value(IMX_GPIO_NR(3, 11), 1);
+		gpio_set_value(IMX_GPIO_NR(3, 13), 1);
+		gpio_set_value(IMX_GPIO_NR(3, 15), 1);
+
+		/* Probe FEC ports, direct connection no MII bus required */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
+					NULL, 0, 0, PHY_INTERFACE_MODE_NONE);
+		bus = NULL;
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
+					NULL, 0, 0, PHY_INTERFACE_MODE_NONE);
+		if (!ret) {
+			phy_interface_t interface = PHY_INTERFACE_MODE_RGMII;
+			struct phy_device *phy3, *phy4, *phy5;
+
+			bus = fec_get_miibus(ENET_BASE_ADDR, -1);
+			if (!bus)
+				return -ENOMEM;
+
+			phy3 = phy_find_by_mask(bus, 1 << 4, interface);
+			phy4 = phy_find_by_mask(bus, 1 << 5, interface);
+			phy5 = phy_find_by_mask(bus, 1 << 6, interface);
+			if (!phy3 || !phy4 || !phy5) {
+				if (phy3)
+					free(phy3);
+				if (phy4)
+					free(phy4);
+				if (phy5)
+					free(phy5);
+				free(bus);
+				ret = -ENOMEM;
+			}
+		}
+#ifdef CONFIG_MXC_SPI
+		if (!ret) {
+			ret = sja1105_init();
+			if (ret) {
+				printf("SJA1105: Configuration failed"
+				       " with error %d\n", ret);
+			}
+		}
+#endif
+		break;
+
 	default:
 		return 0;
 	}
@@ -1538,6 +2088,9 @@ void ft_board_setup(void *fdt, bd_t *bd)
 /* Board specific cleanup before Linux is started */
 void board_preboot_os(void)
 {
-	/* Shut down all ethernet PHYs (suspend mode) */
-	mdio_shutdown_all();
+	/* Shut down all ethernet PHYs (suspend mode); on CONT1, all PHYs are
+	   external PHYs on the SJ1105 ethernet switch to the outside that
+	   must remain active. */
+	if (fs_nboot_args.chBoardType != BT_CONT1)
+		mdio_shutdown_all();
 }

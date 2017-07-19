@@ -241,6 +241,9 @@
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
+/* Ethernet switch SJA1105 */
+#define CONFIG_MXC_SPI
+
 
 /************************************************************************
  * USB Host
