@@ -956,14 +956,22 @@ int board_late_init(void)
 
 #ifdef CONFIG_CMD_NET
 /* enet pads definition */
-static iomux_v3_cfg_t const enet_pads_rgmii1_mdio_irq_reset[] = {
-	/* MDIO */
+static iomux_v3_cfg_t const enet_pads_control_efusa9x[] = {
+	/* MDIO; on efusA9X both PHYs are on ENET1_MDIO bus  */
 	IOMUX_PADS(PAD_ENET2_CRS__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_COL__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 
 	/* 25MHz base clock from CPU to both PHYs */
 	IOMUX_PADS(PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
 
+	/* PHY interrupt; on efuA9X this is shared on both PHYs */
+	IOMUX_PADS(PAD_ENET2_TX_CLK__GPIO2_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signal for both PHYs */
+	IOMUX_PADS(PAD_ENET1_MDC__GPIO2_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const enet_pads_rgmii1[] = {
 	/* FEC0 (ENET1) */
 	IOMUX_PADS(PAD_RGMII1_TXC__ENET1_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -977,16 +985,10 @@ static iomux_v3_cfg_t const enet_pads_rgmii1_mdio_irq_reset[] = {
 	IOMUX_PADS(PAD_RGMII1_RD2__ENET1_RX_DATA_2 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_RD3__ENET1_RX_DATA_3 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII1_RX_CTL__ENET1_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
-
-	/* PHY interrupt; on efuA9X this is shared on both PHYs */
-	IOMUX_PADS(PAD_ENET2_TX_CLK__GPIO2_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-
-	/* Reset signal for both PHYs */
-	IOMUX_PADS(PAD_ENET1_MDC__GPIO2_IO_2 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 static iomux_v3_cfg_t const enet_pads_rgmii2[] = {
-	/* FEC1 (ENET2); MDIO is handled over FEC0 */
+	/* FEC1 (ENET2) */
 	IOMUX_PADS(PAD_RGMII2_TXC__ENET2_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_TD0__ENET2_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_RGMII2_TD1__ENET2_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -1137,19 +1139,74 @@ void set_fs_ethaddr(int index)
 	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
 }
 
-int board_eth_init(bd_t *bis)
+/*
+ * Allocate MII bus (if appropriate), find PHY and probe FEC. Besides the
+ * error code as return value, also return pointer to new MII bus in *pbus.
+ *
+ * Remarks:
+ * - If pbus == NULL, assume a PHY-less connection (no MII bus at all)
+ * - If *pbus == NULL, allocate new MII bus before looking for PHY
+ * - Otherwise use MII bus that is given in *pbus.
+ */
+int setup_fec(bd_t *bd, uint32_t base_addr, int eth_id,
+	      enum xceiver_type xcv_type, struct mii_dev **pbus,
+	      int bus_id, int phy_addr, phy_interface_t interface)
+{
+	struct phy_device *phydev = NULL;
+	struct mii_dev *bus = NULL;
+	int ret;
+
+	set_fs_ethaddr(eth_id);
+
+	/*
+	 * We can not use fecmxc_initialize_multi_type() because this would
+	 * allocate one MII bus for each ethernet device. We have different
+	 * configurations on some boards, e.g. only one MII bus for several
+	 * PHYs. So the following code works rather similar to the code in
+	 * fecmxc_initialize_multi_type(), but handles the MII bus separately
+	 * from the FEC device.
+	 */
+	if (pbus) {
+		bus = *pbus;
+
+		/* Allocate MII bus, if we do not have one already */
+		if (!bus) {
+			bus = fec_get_miibus(base_addr, bus_id);
+			if (!bus)
+				return -ENOMEM;
+		}
+
+		/* Find PHY on the bus */
+		phydev = phy_find_by_mask(bus, 1 << phy_addr, interface);
+		if (!phydev) {
+			free(bus);
+			return -ENOMEM;
+		}
+	}
+
+	ret = fec_probe(bd, eth_id, base_addr, bus, phydev, xcv_type);
+	if (ret) {
+		if (phydev)
+			free(phydev);
+		if (bus)
+			free(bus);
+		return ret;
+	}
+
+	if (pbus)
+		*pbus = bus;
+
+	return 0;
+}
+
+int board_eth_init(bd_t *bd)
 {
 	u32 gpr1;
-	int ret;
-	int phy_addr_a, phy_addr_b;
-	int mii_bus_addr = -1;
-	enum xceiver_type xcv_type = RGMII;
-	phy_interface_t interface = PHY_INTERFACE_MODE_RGMII;
+	int ret = 0;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	struct mii_dev *bus = NULL;
-	struct phy_device *phydev;
 	unsigned int features2 = fs_nboot_args.chFeatures2;
-	int id = 0;
+	int eth_id = 0;
 
 	/*
 	 * Set IOMUX for ports, enable clocks and reset PHYs. On i.MX6 SoloX,
@@ -1162,7 +1219,8 @@ int board_eth_init(bd_t *bis)
 		   must be set */
 		if (features2 & FEAT2_ETH_A) {
 			/* IOMUX for ENET1, use 1 GBit/s LAN on RGMII pins */
-			SETUP_IOMUX_PADS(enet_pads_rgmii1_mdio_irq_reset);
+			SETUP_IOMUX_PADS(enet_pads_rgmii1);
+			SETUP_IOMUX_PADS(enet_pads_control_efusa9x);
 
 			/* ENET1_REF_CLK_25M output is not used, ENET1_TX_CLK
 			   (125MHz) is generated in PHY and is an input */
@@ -1189,7 +1247,7 @@ int board_eth_init(bd_t *bis)
 			/* Activate ENET2 (FEC1) PLL */
 			ret = enable_fec_anatop_clock(1, ENET_125MHZ);
 			if (ret < 0)
-				return 0;
+				return ret;
 		}
 
 		/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least
@@ -1198,14 +1256,16 @@ int board_eth_init(bd_t *bis)
 		udelay(500);
 		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
 
-		phy_addr_a = 4;
-		phy_addr_b = 5;
+		/* Probe FEC ports, both PHYs on one MII bus */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
+					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII);
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
+					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII);
 		break;
 
-
 	case BT_PICOCOMA9X:
-		mii_bus_addr = 0;
-		/* Fall through to case BT_BEMA9X */
 	case BT_BEMA9X:
 		if (features2 & FEAT2_ETH_A) {
 			/* IOMUX for ENET1, use 100 MBit/s LAN on RGMII1 pins */
@@ -1266,101 +1326,25 @@ int board_eth_init(bd_t *bis)
 		gpio_set_value(IMX_GPIO_NR(2, 7), 1);
 		mdelay(170);
 
-		interface = PHY_INTERFACE_MODE_RMII;
-		xcv_type = RMII;
-		phy_addr_a = 1;
-		phy_addr_b = 17;
+		/* Probe FEC ports, each PHY on its own MII bus */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RMII,
+					&bus, 0, 1, PHY_INTERFACE_MODE_RMII);
+		bus = NULL;
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RMII,
+					&bus, 1, 17, PHY_INTERFACE_MODE_RMII);
 		break;
 
 	default:
 		return 0;
 	}
 
-#if 0
-	/*
-	 * ### If CONFIG_FEC_MXC_25M_REF_CLK is set, this is automatically
-	 * done in enable_fec_anatop_clock(); we keep it here as reference
-	 * code in case additional board layouts need a different setting and
-	 * we can not set CONFIG_FEC_MXC_25M_REF_CLK globally in fsimx6sx.h
-	 * anymore. Then we can set it here depending on board type.
-	 */
-	{
-		u32 reg;
-		struct anatop_regs *anatop =
-			(struct anatop_regs *)ANATOP_BASE_ADDR;
-
-		reg = readl(&anatop->pll_enet);
-		reg |= BM_ANADIG_PLL_ENET_REF_25M_ENABLE;
-		writel(reg, &anatop->pll_enet);
-	}
-#endif
-
-	/* Probe first PHY and activate first ethernet port */
-	if (features2 & FEAT2_ETH_A) {
-		set_fs_ethaddr(id);
-
-		/*
-		 * We can not use fecmxc_initialize_multi_type() because this
-		 * would allocate one MII bus for each ethernet device. But on
-		 * efusA9X we only need one MII bus in total for both ports.
-		 * So the following code works rather similar to the code in
-		 * fecmxc_initialize_multi_type(), but uses just one bus on
-		 * efusA9X.
-		 */
-		bus = fec_get_miibus(ENET_BASE_ADDR, mii_bus_addr);
-		if (!bus)
-			return -ENOMEM;
-
-		phydev = phy_find_by_mask(bus, 1 << phy_addr_a, interface);
-		if (!phydev) {
-			free(bus);
-			return -ENOMEM;
-		}
-
-		ret = fec_probe(bis, id, ENET_BASE_ADDR, bus, phydev, xcv_type);
-		if (ret) {
-			free(phydev);
-			free(bus);
-			return ret;
-		}
-		id++;
-	}
-
-	/* Probe second PHY and activate second ethernet port. */
-	if (features2 & FEAT2_ETH_B) {
-		set_fs_ethaddr(id);
-
-		/* Get the second MII bus if the PHYs are on different buses */
-		if (mii_bus_addr != -1) {
-			mii_bus_addr++;
-			bus = fec_get_miibus(ENET2_BASE_ADDR, mii_bus_addr);
-			if (!bus)
-				return 0;
-		}
-
-		phydev = phy_find_by_mask(bus, 1 << phy_addr_b, interface);
-		if (!phydev) {
-			if (mii_bus_addr != -1)
-				free(bus);
-			return -ENOMEM;
-		}
-
-		ret = fec_probe(bis, id, ENET2_BASE_ADDR, bus, phydev,
-				xcv_type);
-		if (ret) {
-			free(phydev);
-			if (mii_bus_addr != -1)
-				free(bus);
-			return ret;
-		}
-		id++;
-	}
-
 	/* If WLAN is available, just set ethaddr variable */
-	if (features2 & FEAT2_WLAN)
-		set_fs_ethaddr(id++);
+	if (!ret && (features2 & FEAT2_WLAN))
+		set_fs_ethaddr(eth_id++);
 
-	return 0;
+	return ret;
 }
 #endif /* CONFIG_CMD_NET */
 
