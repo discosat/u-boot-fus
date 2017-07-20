@@ -1089,16 +1089,16 @@ static u32 sja1105_data[] = {
 	0x09000000, 0x00000023,		/* ID 0x09, Length 5*7 words = 0x23 */
 	0xDAB5BDC8,			/* Checksum for header */
 	0x0000000E, 0x00000000,		/* Data: 5 entries (224 bits) */
-	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x07FC0100, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x0000000E, 0x00000000,
-	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x07FC0100, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x0000000E, 0x00000000,
-	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x07FC0100, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x0000000E, 0x00000000,
-	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x07FC0100, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x0000000E, 0x00000000,
-	0x07FC0102, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x5320879E,			/* Checksum for data */
+	0x07FC0100, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0xC6CE396D,			/* Checksum for data */
 
 	/* L2 Lookup Parameters Table */
 	0x0D000000, 0x00000001,		/* ID 0x0D, Length 1*1 word = 0x01 */
@@ -1129,6 +1129,15 @@ static u32 sja1105_data[] = {
 	/* End of configuration */
 	0x00000000, 0x00000000,		/* ID ignored, Length 0 */
 	0xDF65AA65			/* CRC for all above config data */
+};
+
+/* Predefined speeds for the switch ports */
+static unsigned int sja1105_port_speeds[] = {
+	_1000BASET,			/* RJ45 next to USB */
+	_1000BASET,			/* RJ45 next to power */
+	_1000BASET,			/* B2B connector */
+	_1000BASET,			/* i.MX6SX FEC0 */
+	_1000BASET			/* i.MX6SX FEC1 */
 };
 
 /* Read a 32 bit value from SJA1105 address */
@@ -1271,11 +1280,53 @@ static int sja1105_parse_config(void)
 	return 0;
 }
 
+/* Set speed of a switch port */
+static int sja1105_set_speed(struct spi_slave *slave, unsigned int port,
+			     unsigned int speed)
+{
+	u32 idiv_n_c;
+	u32 clksrc;
+	u32 mac_config;
+	int ret;
+
+	if (port > 4)
+		return -EINVAL;
+	if (speed == _1000BASET) {
+		idiv_n_c = 0x0a000001;		/* IDIV power down */
+		clksrc = 0x0b;;			/* CLKSRC: PLL1 (125 MHz) */
+		mac_config = 0xa01c0000;	/* 1000 MBit/s */
+	} else if (speed == _100BASET) {
+		idiv_n_c = 0x0a000000;		/* IDIV divide by 1 */
+		clksrc = 0x11 + port;		/* CLKSRC: IDIVn (25 MHz) */
+		mac_config = 0xc01c0000;	/* 100 MBit/s */
+	} else if (speed == _10BASET) {
+		idiv_n_c = 0x0a000024;		/* IDIV divide by 10 */
+		clksrc = 0x11 + port;		/* CLKSRC: IDIVn (2.5 MHz) */
+		mac_config = 0xe01c0000;	/* 10 MBit/s */
+	} else
+		return -EINVAL;
+
+	idiv_n_c |= 0x00000800;			/* AUTOBLOCK */
+	clksrc <<= 24;				/* Shift to CLKSRC position */
+	clksrc |= 0x00000800;			/* AUTOBLOCK */
+	mac_config |= port << 24;
+
+	/* Write IDIV_n_C, MIIn_RGMII_TX_CLK and MAC reconfig register */
+	ret = sja1105_write_val(slave, 0x10000b + port, idiv_n_c);
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x100016 + 7*port, clksrc);
+	if (!ret)
+		ret = sja1105_write_val(slave, 0x37, mac_config);
+
+	return ret;
+}
+
+/* Send configuration data and configure ports */
 static int sja1105_configure(struct spi_slave *slave)
 {
 	int ret;
 	unsigned int offs, size, chunksize, addr, i;
-	static u8 dout[65*8*4];
+	static u8 dout[65*4];		/* Max. 65 entries with 32 bits */
 	u32 val;
 
 	/* Read and check the device ID */
@@ -1341,19 +1392,11 @@ static int sja1105_configure(struct spi_slave *slave)
 		return -EINVAL;
 	}
 
-	/* Set MIIx_RGMII_TX_CLK to PLL0 (125 MHz) */
-	val = 0x0b000000;
-	ret = sja1105_write_val(slave, 0x100016, val);		/* MII0 */
-	if (!ret)
-		ret = sja1105_write_val(slave, 0x10001D, val);	/* MII1 */
-	if (!ret)
-		ret = sja1105_write_val(slave, 0x100024, val);	/* MII2 */
-	if (!ret)
-		ret = sja1105_write_val(slave, 0x10002B, val);	/* MII3 */
-	if (!ret)
-		ret = sja1105_write_val(slave, 0x100032, val);	/* MII4 */
-	if (ret)
-		printf("SJA1105: Error %d when setting 125MHz clock\n", ret);
+	for (i = 0; i < 5; i++) {
+		ret = sja1105_set_speed(slave, i, sja1105_port_speeds[i]);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }
