@@ -109,7 +109,6 @@
 #define SPI_CS_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_100K_UP | PAD_CTL_PKE | PAD_CTL_PUE | \
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
-
 struct board_info {
 	char *name;			/* Device name */
 	char *bootdelay;		/* Default value for bootdelay */
@@ -383,6 +382,26 @@ int dram_init(void)
 	gd->ram_base = PHYS_SDRAM;
 
 	return 0;
+}
+
+/* Initialize the RAM banks and leave space for the two rpmsg vrings in
+   between */
+void dram_init_banksize(void)
+{
+  DECLARE_GLOBAL_DATA_PTR;
+
+  unsigned int size = gd->ram_size;
+
+  if (size > 0x40000000) {
+    gd->bd->bi_dram[1].start = gd->ram_base + 0x40000000;
+    gd->bd->bi_dram[1].size = size - 0x40000000;
+    size = 0x40000000;
+  } else {
+    gd->bd->bi_dram[1].start = 0;
+    gd->bd->bi_dram[1].size = 0;
+  }
+  gd->bd->bi_dram[0].start = gd->ram_base;
+  gd->bd->bi_dram[0].size = size - 0x10000;
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
