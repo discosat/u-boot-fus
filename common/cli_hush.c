@@ -1881,7 +1881,7 @@ static int run_list_real(struct pipe *pi)
 #else
 		if (rcode < -1) {
 			last_return_code = -rcode - 2;
-			return -2;	/* exit */
+			return rcode;	/* exit */
 		}
 		last_return_code=(rcode == 0) ? 0 : 1;
 #endif
@@ -2161,7 +2161,7 @@ int set_local_var(const char *s, int flg_export)
 	 * NAME=VALUE format.  So the first order of business is to
 	 * split 's' on the '=' into 'name' and 'value' */
 	value = strchr(name, '=');
-	if (value == NULL && ++value == NULL) {
+	if (value == NULL || *(value + 1) == 0) {
 		free(name);
 		return -1;
 	}
@@ -2470,11 +2470,16 @@ static int done_word(o_string *dest, struct p_context *ctx)
 		}
 		argc = ++child->argc;
 		child->argv = realloc(child->argv, (argc+1)*sizeof(*child->argv));
-		if (child->argv == NULL) return 1;
+		if (child->argv == NULL) {
+			free(str);
+			return 1;
+		}
 		child->argv_nonnull = realloc(child->argv_nonnull,
 					(argc+1)*sizeof(*child->argv_nonnull));
-		if (child->argv_nonnull == NULL)
+		if (child->argv_nonnull == NULL) {
+			free(str);
 			return 1;
+		}
 		child->argv[argc-1]=str;
 		child->argv_nonnull[argc-1] = dest->nonnull;
 		child->argv[argc]=NULL;
@@ -3162,7 +3167,7 @@ static int parse_stream_outer(struct in_str *inp, int flag)
 	o_string temp=NULL_O_STRING;
 	int rcode;
 #ifdef __U_BOOT__
-	int code = 0;
+	int code = 1;
 #endif
 	do {
 		ctx.type = flag;
@@ -3187,9 +3192,9 @@ static int parse_stream_outer(struct in_str *inp, int flag)
 			run_list(ctx.list_head);
 #else
 			code = run_list(ctx.list_head);
-			if (code == -2) {	/* exit */
+			if (code <= -2) {	/* exit */
 				b_free(&temp);
-				code = 0;
+				code = last_return_code;
 				/* XXX hackish way to not allow exit from main loop */
 				if (inp->peek == file_peek) {
 					printf("exit not allowed from main input shell.\n");
@@ -3235,8 +3240,10 @@ int parse_string_outer(const char *s, int flag)
 #ifdef __U_BOOT__
 	char *p = NULL;
 	int rcode;
-	if ( !s || !*s)
+	if (!s)
 		return 1;
+	if (!*s)
+		return 0;
 	if (!(p = strchr(s, '\n')) || *++p) {
 		p = xmalloc(strlen(s) + 2);
 		strcpy(p, s);
@@ -3499,9 +3506,9 @@ static char *insert_var_value_sub(char *inp, int tag_subst)
 	char *p, *p1, *res_str = NULL;
 
 	while ((p = strchr(inp, SPECIAL_VAR_SYMBOL))) {
-		/* check the beginning of the string for normal charachters */
+		/* check the beginning of the string for normal characters */
 		if (p != inp) {
-			/* copy any charachters to the result string */
+			/* copy any characters to the result string */
 			len = p - inp;
 			res_str = xrealloc(res_str, (res_str_len + len));
 			strncpy((res_str + res_str_len), inp, len);
