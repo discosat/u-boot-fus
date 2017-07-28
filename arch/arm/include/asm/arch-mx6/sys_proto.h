@@ -45,4 +45,10 @@ int mxs_wait_mask_set(struct mxs_register_32 *reg,
 int mxs_wait_mask_clr(struct mxs_register_32 *reg,
 		       uint32_t mask,
 		       unsigned int timeout);
+
+void arch_auxiliary_clock_enable(u32 core_id, int enable);
+int arch_auxiliary_clock_check(u32 core_id);
+int arch_auxiliary_core_up(u32 core_id, u32 boot_private_data);
+int arch_auxiliary_core_check_up(u32 core_id);
+
 #endif
