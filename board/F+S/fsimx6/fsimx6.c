@@ -409,6 +409,37 @@ int dram_init(void)
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
+
+/* Issue reset signal on up to three pads (~0: pad unused) */
+void issue_reset(unsigned int active_us, unsigned int delay_us,
+		 unsigned int pad0, unsigned int pad1, unsigned int pad2)
+{
+	/* Assert reset */
+	gpio_direction_output(pad0, 0);
+	if (pad1 != ~0)
+		gpio_direction_output(pad1, 0);
+	if (pad2 != ~0)
+		gpio_direction_output(pad2, 0);
+
+	/* Delay for the active pulse time */
+	udelay(active_us);
+
+	/* De-assert reset */
+	gpio_set_value(pad0, 1);
+	if (pad1 != ~0)
+		gpio_set_value(pad1, 1);
+	if (pad2 != ~0)
+		gpio_set_value(pad2, 1);
+
+	/* Delay some more time if requested */
+	if (delay_us)
+		udelay(delay_us);
+}
+
+static iomux_v3_cfg_t const reset_pads[] = {
+	IOMUX_PADS(PAD_ENET_RXD1__GPIO1_IO26 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 int board_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -426,6 +457,20 @@ int board_init(void)
 
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
+
+	/*
+	 * efusA9 has a generic RESET_OUT signal to reset some arbitrary
+	 * hardware. This signal is available on the efus connector pin 14 and
+	 * in turn on pin 8 of the SKIT feature connector. Because there might
+	 * be some rather slow hardware involved, use a rather long low pulse
+	 * of 1ms.
+	 *
+	 * FIXME: Should we do this somewhere else when we know the pulse time?
+	 */
+	if (board_type == BT_EFUSA9) {
+		SETUP_IOMUX_PADS(reset_pads);
+		issue_reset(1000, 0, IMX_GPIO_NR(1, 26), ~0, ~0);
+	}
 
 	return 0;
 }
@@ -878,18 +923,14 @@ int board_ehci_hcd_init(int port)
 		SETUP_IOMUX_PADS(usb_hub_pads);
 
 		/* Reset USB hub */
-		gpio_direction_output(IMX_GPIO_NR(7, 12), 0);
-		mdelay(2);
-		gpio_set_value(IMX_GPIO_NR(7, 12), 1);
+		issue_reset(2000, 0, IMX_GPIO_NR(7, 12), ~0, ~0);
 		break;
 
 	case BT_ARMSTONEA9R2:
 		SETUP_IOMUX_PADS(usb_hub_pads);
 
 		/* Reset USB hub */
-		gpio_direction_output(IMX_GPIO_NR(2, 29), 0);
-		mdelay(2);
-		gpio_set_value(IMX_GPIO_NR(2, 29), 1);
+		issue_reset(2000, 0, IMX_GPIO_NR(2, 29), ~0, ~0);
 		break;
 
 	case BT_EFUSA9:
@@ -1318,34 +1359,25 @@ int board_eth_init(bd_t *bis)
 		case BT_PICOMODA9:
 		case BT_NETDCUA9:
 			/*
-			 * DP83484 PHY: This PHY needs at least 1 us reset
-			 * pulse width (GPIO_2_10). After power on it needs
-			 * min 167 ms (after reset is deasserted) before the
-			 * first MDIO access can be done. In a warm start, it
-			 * only takes around 3 for this. As we do not know
-			 * whether this is a cold or warm start, we must
-			 * assume the worst case.
+			 * DP83484: This PHY needs at least 1us reset pulse
+			 * width. After power on it needs min 167ms (after
+			 * reset is deasserted) before the first MDIO access
+			 * can be done. In a warm start, it only takes around
+			 * 3us for this. As we do not know whether this is a
+			 * cold or warm start, we must assume the worst case.
 			 */
 			if (fs_nboot_args.chBoardType == BT_PICOMODA9)
 				reset_gpio = IMX_GPIO_NR(2, 10);
 			else
 				reset_gpio = IMX_GPIO_NR(1, 2);
-			gpio_direction_output(reset_gpio, 0);
-			udelay(10);
-			gpio_set_value(reset_gpio, 1);
-			mdelay(170);
+			issue_reset(10, 170000, reset_gpio, ~0, ~0);
 			phy_addr = 1;
 			xcv_type = RMII;
 			break;
 
 		default:
-			/*
-			 * Atheros AR8035: Assert reset (GPIO_1_25) for at
-			 * least 0.5 ms
-			 */
-			gpio_direction_output(IMX_GPIO_NR(1, 25), 0);
-			udelay(500);
-			gpio_set_value(IMX_GPIO_NR(1, 25), 1);
+			/* Atheros AR8035: Assert reset for at least 1ms */
+			issue_reset(1000, 0, IMX_GPIO_NR(1, 25), ~0,~0);
 			phy_addr = 4;
 			xcv_type = RGMII;
 			break;
@@ -1364,10 +1396,8 @@ int board_eth_init(bd_t *bis)
 		/* AX88796B is connected via EIM */
 		setup_weim(bis);
 
-		/* Reset AX88796B, on NetDCUA9 this is on GPIO1_IO03 */
-		gpio_direction_output(IMX_GPIO_NR(1, 3), 0);
-		udelay(200);
-		gpio_set_value(IMX_GPIO_NR(1, 3), 1);
+		/* Reset AX88796B, on NetDCUA9 */
+		issue_reset(200, 0, IMX_GPIO_NR(1, 3), ~0, ~0);
 
 		/* Initialize AX88796B */
 		ret = ax88796_initialize(-1, CONFIG_DRIVER_AX88796_BASE,

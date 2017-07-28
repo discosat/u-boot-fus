@@ -414,9 +414,31 @@ int dram_init(void)
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 
-static iomux_v3_cfg_t const reset_pads[] = {
-	IOMUX_PADS(PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
+/* Issue reset signal on up to three pads (~0: pad unused) */
+void issue_reset(unsigned int active_us, unsigned int delay_us,
+		 unsigned int pad0, unsigned int pad1, unsigned int pad2)
+{
+	/* Assert reset */
+	gpio_direction_output(pad0, 0);
+	if (pad1 != ~0)
+		gpio_direction_output(pad1, 0);
+	if (pad2 != ~0)
+		gpio_direction_output(pad2, 0);
+
+	/* Delay for the active pulse time */
+	udelay(active_us);
+
+	/* De-assert reset */
+	gpio_set_value(pad0, 1);
+	if (pad1 != ~0)
+		gpio_set_value(pad1, 1);
+	if (pad2 != ~0)
+		gpio_set_value(pad2, 1);
+
+	/* Delay some more time if requested */
+	if (delay_us)
+		udelay(delay_us);
+}
 
 int board_init(void)
 {
@@ -437,16 +459,16 @@ int board_init(void)
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
 
-	if (fs_nboot_args.chBoardType ==  BT_EFUSA7UL) {
-		/* Reset board and SKIT hardware like ETH PHY, PCIe, USB-Hub, WLAN (if
-		available). This is on pad BOOT_MODE1 (GPIO5_IO10). Because there
-		may be some completely different hardware connected to this general
-		RESETOUTn pin, use a rather long low pulse of 100ms. */
-		SETUP_IOMUX_PADS(reset_pads);
-		gpio_direction_output(IMX_GPIO_NR(5, 11), 0);
-		mdelay(100);
-		gpio_set_value(IMX_GPIO_NR(5, 11), 1);
-	}
+	/*
+	 * REMARK:
+	 * efusA7UL has a generic RESETOUTn signal to reset on-board WLAN
+	 * (only board revisions before 1.20), both ethernet PHYs and that is
+	 * also available on the efus connector pin 14 and in turn on pin 8 of
+	 * the SKIT feature connector. Because ethernet PHYs have to be reset
+	 * when the PHY clock is already active, this signal is triggered as
+	 * part of the ethernet initialization in board_eth_init(), not here.
+	 */
+
 	return 0;
 }
 
@@ -1008,19 +1030,13 @@ static iomux_v3_cfg_t const enet2_pads_rmii[] = {
 
 };
 
-/* Additional pins required for ethernet */
-static iomux_v3_cfg_t const enet_pads_extra[] = {
-	/* PHY interrupt; on efusA7UL this is shared on both PHYs and even the
-	   PCA8565 RTC uses the same interrupt line! */
-	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-
-	/* On efusA7UL, there is no dedicated PHY reset. Reset is done by the
-	   global RESETOUTn signal that we trigger in board_init() */
+/* Additional pins required to reset the PHY(s). Please note that on efusA7UL
+   this is actually the generic RESETOUTn signal! */
+static iomux_v3_cfg_t const enet_pads_reset_efusa7ul_picocom1_2[] = {
+	IOMUX_PADS(PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-/* Additional pins required for ethernet */
-static iomux_v3_cfg_t const enet_pads_reset[] = {
-	/* Phy Reset */
+static iomux_v3_cfg_t const enet_pads_reset_gar1[] = {
 	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 	IOMUX_PADS(PAD_CSI_PIXCLK__GPIO4_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -1120,7 +1136,6 @@ int board_eth_init(bd_t *bis)
 	u32 gpr1;
 	int ret;
 	int phy_addr_a, phy_addr_b;
-	int reset_gpio, reset_gpio_2;
 	enum xceiver_type xcv_type;
 	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -1192,44 +1207,47 @@ int board_eth_init(bd_t *bis)
 		break;
 	}
 
-	/* Reset the PHY */
+	/* Reset the PHY(s) */
 	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA7UL:
+		/*
+		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
+		 * reset pulse width and 100us delay before the first MDIO
+		 * access can be done.
+		 *
+		 * ATTENTION:
+		 * On efusA7UL, this is the generic RESETOUTn signal that is
+		 * also available on pin 14 of the efus connector. On board
+		 * revisions before 1.20, this signal also resets WLAN. And
+		 * because the WLAN there needs at least 100ms, we must
+		 * increase the reset pulse time in this case.
+		 */
+		SETUP_IOMUX_PADS(enet_pads_reset_efusa7ul_picocom1_2);
+		issue_reset((fs_nboot_args.chBoardRev < 120) ? 100000 : 500,
+			    100, IMX_GPIO_NR(5, 11), ~0, ~0);
+		break;
+
 	case BT_PICOCOM1_2:
 		/*
-		 * DP83484 PHY: This PHY needs at least 1 us reset
-		 * pulse width (GPIO_5_11). After power on it needs
-		 * min 167 ms (after reset is deasserted) before the
-		 * first MDIO access can be done. In a warm start, it
-		 * only takes around 3 for this. As we do not know
-		 * whether this is a cold or warm start, we must
-		 * assume the worst case.
+		 * DP83484 PHY: This PHY needs at least 1us reset pulse
+		 * width. After power on it needs min 167ms (after reset is
+		 * deasserted) before the first MDIO access can be done. In a
+		 * warm start, it only takes around 3us for this. As we do not
+		 * know whether this is a cold or warm start, we must assume
+		 * the worst case.
 		 */
-		reset_gpio = IMX_GPIO_NR(5, 11);
-		gpio_direction_output(reset_gpio, 0);
-		udelay(10);
-		gpio_set_value(reset_gpio, 1);
-		mdelay(170);
+		SETUP_IOMUX_PADS(enet_pads_reset_efusa7ul_picocom1_2);
+		issue_reset(10, 170000, IMX_GPIO_NR(5, 11), ~0, ~0);
 		break;
+
 	case BT_GAR1:
-		/*
-		 * DP83484 PHY: This PHY needs at least 1 us reset
-		 * pulse width (GPIO_4_17, GPIO_4_18). After power on it needs
-		 * min 167 ms (after reset is deasserted) before the
-		 * first MDIO access can be done. In a warm start, it
-		 * only takes around 3 for this. As we do not know
-		 * whether this is a cold or warm start, we must
-		 * assume the worst case.
-		 */
-		SETUP_IOMUX_PADS(enet_pads_reset);
-		reset_gpio = IMX_GPIO_NR(4, 17);
-		reset_gpio_2 = IMX_GPIO_NR(4, 18);
-		gpio_direction_output(reset_gpio, 0);
-		gpio_direction_output(reset_gpio_2, 0);
-		udelay(10);
-		gpio_set_value(reset_gpio, 1);
-		gpio_set_value(reset_gpio_2, 1);
-		mdelay(170);
+		/* Two DP83484 PHYs with separate reset signals; see comment
+		   above for timing considerations */
+		SETUP_IOMUX_PADS(enet_pads_reset_gar1);
+		issue_reset(10, 170000,
+			    IMX_GPIO_NR(4, 17), IMX_GPIO_NR(4, 18), ~0);
 		break;
+
 	default:
 		break;
 	}

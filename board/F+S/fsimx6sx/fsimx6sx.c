@@ -416,6 +416,32 @@ void dram_init_banksize(void)
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 
+/* Issue reset signal on up to three pads (~0: pad unused) */
+void issue_reset(unsigned int active_us, unsigned int delay_us,
+		 unsigned int pad0, unsigned int pad1, unsigned int pad2)
+{
+	/* Assert reset */
+	gpio_direction_output(pad0, 0);
+	if (pad1 != ~0)
+		gpio_direction_output(pad1, 0);
+	if (pad2 != ~0)
+		gpio_direction_output(pad2, 0);
+
+	/* Delay for the active pulse time */
+	udelay(active_us);
+
+	/* De-assert reset */
+	gpio_set_value(pad0, 1);
+	if (pad1 != ~0)
+		gpio_set_value(pad1, 1);
+	if (pad2 != ~0)
+		gpio_set_value(pad2, 1);
+
+	/* Delay some more time if requested */
+	if (delay_us)
+		udelay(delay_us);
+}
+
 static iomux_v3_cfg_t const reset_pads[] = {
 	IOMUX_PADS(PAD_ENET1_CRS__GPIO2_IO_1 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -439,27 +465,29 @@ int board_init(void)
 	/* Prepare the command prompt */
 	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
 
-	/* Reset board and SKIT hardware (PCIe, USB-Hub, WLAN, if available);
-	   this is on pad ENET1_CRS (GPIO2_IO01); because there may be some
-	   completely different hardware connected to this general RESETOUTn
-	   pin, use a rather long low pulse of 100ms. */
-	SETUP_IOMUX_PADS(reset_pads);
-	gpio_direction_output(IMX_GPIO_NR(2, 1), 0);
-	mdelay(100);
-	gpio_set_value(IMX_GPIO_NR(2, 1), 1);
+	/*
+	 * efusA9X has a generic RESETOUTn signal to reset on-board WLAN (only
+	 * board revisions before 1.20), PCIe and that is also available on
+	 * the efus connector pin 14 and in turn on pin 8 of the SKIT feature
+	 * connector. Because there might be some rather slow hardware
+	 * involved, use a rather long low pulse of 1ms.
+	 *
+	 * REMARK:
+	 * The WLAN chip used on board board revisions before 1.20 needs up to
+	 * 300ms PDn time (which is connected to RESETOUTn). Our experience
+	 * showed that 100ms is enough, so use 100ms in this case.
+	 *
+	 * FIXME: Should we do this somewhere else when we know the pulse time?
+	 */
+	if (board_type == BT_EFUSA9X) {
+		unsigned int active_us = 1000;
 
-#if 0 //###
-	printf("### PLL_ARM=0x%08x\n", readl(0x20c8000));
-	printf("### PLL_USB1=0x%08x\n", readl(0x20c8010));
-	printf("### PLL_USB2=0x%08x\n", readl(0x20c8020));
-	printf("### PLL_SYS=0x%08x\n", readl(0x20c8030));
-	printf("### PLL_AUDIO=0x%08x\n", readl(0x20c8070));
-	printf("### PLL_VIDEO=0x%08x\n", readl(0x20c80A0));
-	printf("### PLL_ENET=0x%08x\n", readl(0x20c80e0));
-
-	enable_usb2_anatop_clock();
-	printf("### PLL_USB2=0x%08x\n", readl(0x20c8020));
-#endif
+		if ((fs_nboot_args.chFeatures2 && FEAT2_WLAN)
+		    && (fs_nboot_args.chBoardRev < 120))
+			active_us = 100000;
+		SETUP_IOMUX_PADS(reset_pads);
+		issue_reset(active_us, 0, IMX_GPIO_NR(2, 1), ~0, ~0);
+	}
 
 	return 0;
 }
@@ -1777,11 +1805,9 @@ int board_eth_init(bd_t *bd)
 				return ret;
 		}
 
-		/* Reset both PHYs (GPIO2_IO2), Atheros AR8035 needs at least
-		   0.5 ms */
-		gpio_direction_output(IMX_GPIO_NR(2, 2), 0);
-		udelay(500);
-		gpio_set_value(IMX_GPIO_NR(2, 2), 1);
+		/* Reset both PHYs, Atheros AR8035 needs at least 1ms after
+		   clock is enabled */
+		issue_reset(1000, 0, IMX_GPIO_NR(2, 2), ~0, ~0);
 
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
@@ -1841,17 +1867,14 @@ int board_eth_init(bd_t *bd)
 		}
 
 		/*
-		 * Reset both PHYs. DP83484 needs at least 1 us reset pulse
-		 * width (GPIO2_IO7). After power on it needs min 167 ms
-		 * (after reset is deasserted) before the first MDIO access
-		 * can be done. In a warm start, it only takes around 3 for
-		 * this. As we do not know whether this is a cold or warm
-		 * start, we must assume the worst case.
+		 * Reset both PHYs. DP83484 needs at least 1us reset pulse
+		 * width. After power on it needs min 167ms (after reset is
+		 * deasserted) before the first MDIO access can be done. In a
+		 * warm start, it only takes around 3us for this. As we do not
+		 * know whether this is a cold or warm start, we must assume
+		 * the worst case.
 		 */
-		gpio_direction_output(IMX_GPIO_NR(2, 7), 0);
-		udelay(10);
-		gpio_set_value(IMX_GPIO_NR(2, 7), 1);
-		mdelay(170);
+		issue_reset(10, 170000, IMX_GPIO_NR(2, 7), ~0, ~0);
 
 		/* Probe FEC ports, each PHY on its own MII bus */
 		if (features2 & FEAT2_ETH_A)
@@ -1908,14 +1931,9 @@ int board_eth_init(bd_t *bd)
 				return 0;
 		}
 
-		/* Reset ext. PHYs, Atheros AR8035 needs at least 0.5 ms */
-		gpio_direction_output(IMX_GPIO_NR(3, 11), 0);
-		gpio_direction_output(IMX_GPIO_NR(3, 13), 0);
-		gpio_direction_output(IMX_GPIO_NR(3, 15), 0);
-		udelay(500);
-		gpio_set_value(IMX_GPIO_NR(3, 11), 1);
-		gpio_set_value(IMX_GPIO_NR(3, 13), 1);
-		gpio_set_value(IMX_GPIO_NR(3, 15), 1);
+		/* Reset ext. PHYs, Atheros AR8035 needs at least 1ms */
+		issue_reset(1000, 0, IMX_GPIO_NR(3, 11), IMX_GPIO_NR(3, 13),
+			    IMX_GPIO_NR(3, 15));
 
 		/* Probe FEC ports, direct connection no MII bus required */
 		if (features2 & FEAT2_ETH_A)
