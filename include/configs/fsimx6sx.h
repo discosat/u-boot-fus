@@ -120,7 +120,7 @@
  * Memory Layout
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
-#define CONFIG_NR_DRAM_BANKS	1
+#define CONFIG_NR_DRAM_BANKS	2
 #define PHYS_SDRAM		MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM

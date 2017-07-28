@@ -384,24 +384,34 @@ int dram_init(void)
 	return 0;
 }
 
-/* Initialize the RAM banks and leave space for the two rpmsg vrings in
-   between */
+/* Initialize RAM banks, leave space for the RPMsg vrings */
 void dram_init_banksize(void)
 {
-  DECLARE_GLOBAL_DATA_PTR;
+	DECLARE_GLOBAL_DATA_PTR;
+	unsigned int size = gd->ram_size;
 
-  unsigned int size = gd->ram_size;
-
-  if (size > 0x40000000) {
-    gd->bd->bi_dram[1].start = gd->ram_base + 0x40000000;
-    gd->bd->bi_dram[1].size = size - 0x40000000;
-    size = 0x40000000;
-  } else {
-    gd->bd->bi_dram[1].start = 0;
-    gd->bd->bi_dram[1].size = 0;
-  }
-  gd->bd->bi_dram[0].start = gd->ram_base;
-  gd->bd->bi_dram[0].size = size - 0x10000;
+	/*
+	 * If the RPMsg system is used to communicate with Cortex-M4 core,
+	 * then the Linux RPMsg code assumes a 64KB shared memory region at
+	 * RAM offset 0x3FFF0000, i.e. the end of 1GB. Therefore we split RAM
+	 * in two virtual banks if we have more than 1 GB to allow a gap, and
+	 * we reduce the size of the first bank by 64KB. This also works if we
+	 * only have 512MB or 256MB, then also the last 64KB are not mapped
+	 * and the RPMsg code seems to work because the low memory is also
+	 * aliased to the higher adresses at offset 0x3FFF0000.
+	 *
+	 * Remark: This means that CONFIG_NR_DRAM_BANKS must be set to 2.
+	 */
+	if (size > 0x40000000) {
+		gd->bd->bi_dram[1].start = gd->ram_base + 0x40000000;
+		gd->bd->bi_dram[1].size = size - 0x40000000;
+		size = 0x40000000;
+	} else {
+		gd->bd->bi_dram[1].start = 0;
+		gd->bd->bi_dram[1].size = 0;
+	}
+	gd->bd->bi_dram[0].start = gd->ram_base;
+	gd->bd->bi_dram[0].size = size - 0x10000;
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
