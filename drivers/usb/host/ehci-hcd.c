@@ -204,6 +204,9 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 	if (!ctrl || !ctrl->hcor)
 		return -EINVAL;
 
+	if (!ctrl->host_valid)
+		return 0;
+
 	cmd = ehci_readl(&ctrl->hcor->or_usbcmd);
 	cmd &= ~(CMD_PSE | CMD_ASE);
 	ehci_writel(&ctrl->hcor->or_usbcmd, cmd);
@@ -211,7 +214,7 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 		100 * 1000);
 
 	if (!ret) {
-		for (i = 0; i < CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS; i++) {
+		for (i = 0; i < ctrl->ports; i++) {
 			reg = ehci_readl(&ctrl->hcor->or_portsc[i]);
 			reg |= EHCI_PS_SUSP;
 			ehci_writel(&ctrl->hcor->or_portsc[i], reg);
@@ -640,15 +643,15 @@ fail:
 	return -1;
 }
 
-__weak uint32_t *ehci_get_portsc_register(struct ehci_hcor *hcor, int port)
+__weak uint32_t *ehci_get_portsc_register(struct ehci_ctrl *ctrl, int port)
 {
-	if (port < 0 || port >= CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS) {
+	if (port < 0 || port >= ctrl->ports) {
 		/* Printing the message would cause a scan failure! */
 		debug("The request port(%u) is not configured\n", port);
 		return NULL;
 	}
 
-	return (uint32_t *)&hcor->or_portsc[port];
+	return (uint32_t *)&ctrl->hcor->or_portsc[port];
 }
 
 int
@@ -677,7 +680,7 @@ ehci_submit_root(struct usb_device *dev, unsigned long pipe, void *buffer,
 	case USB_REQ_GET_STATUS | ((USB_RT_PORT | USB_DIR_IN) << 8):
 	case USB_REQ_SET_FEATURE | ((USB_DIR_OUT | USB_RT_PORT) << 8):
 	case USB_REQ_CLEAR_FEATURE | ((USB_DIR_OUT | USB_RT_PORT) << 8):
-		status_reg = ehci_get_portsc_register(ctrl->hcor, port - 1);
+		status_reg = ehci_get_portsc_register(ctrl, port - 1);
 		if (!status_reg)
 			return -1;
 		break;
@@ -936,6 +939,7 @@ int usb_lowlevel_init(int index, enum usb_init_type init, void **controller)
 	int i;
 	int rc;
 
+	ehcic[index].host_valid = 0;
 	rc = ehci_hcd_init(index, init, &ehcic[index].hccr, &ehcic[index].hcor);
 	if (rc)
 		return rc;
@@ -1016,6 +1020,7 @@ int usb_lowlevel_init(int index, enum usb_init_type init, void **controller)
 
 	reg = ehci_readl(&ehcic[index].hccr->cr_hcsparams);
 	descriptor.hub.bNbrPorts = HCS_N_PORTS(reg);
+	ehcic[index].ports = HCS_N_PORTS(reg);
 	debug("Register %x NbrPorts %d\n", reg, descriptor.hub.bNbrPorts);
 	/* Port Indicators */
 	if (HCS_INDICATOR(reg))
@@ -1050,6 +1055,7 @@ int usb_lowlevel_init(int index, enum usb_init_type init, void **controller)
 	printf("USB EHCI %x.%02x\n", reg >> 8, reg & 0xff);
 
 	ehcic[index].rootdev = 0;
+	ehcic[index].host_valid = 1;
 done:
 	*controller = &ehcic[index];
 	return 0;
