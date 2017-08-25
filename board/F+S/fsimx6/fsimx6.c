@@ -101,6 +101,7 @@
 #define EIM_PULL_DOWN (EIM_NO_PULL | PAD_CTL_PKE | PAD_CTL_PUE)
 #define EIM_PULL_UP (EIM_PULL_DOWN | PAD_CTL_PUS_100K_UP)
 
+#define USB_ID_PAD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
 struct board_info {
 	char *name;			/* Device name */
@@ -910,99 +911,438 @@ int board_mmc_init(bd_t *bd)
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX6
-/* USB Hub Reset-Pin (armStoneA9, QBlissA9) */
-static iomux_v3_cfg_t const usb_hub_pads[] = {
+/*
+ * USB Host support.
+ *
+ * USB0 is OTG. By default this is used as device port. However on some F&S
+ * boards this port may optionally be configured as a second host port. So if
+ * environment variable usb0mode is set to "host" on these boards, or if it is
+ * set to "otg" and the ID pin is low when usb is started, use host mode.
+ *
+ *    Board               USB_OTG_PWR              USB_OTG_ID
+ *    --------------------------------------------------------------------
+ *    efusA9              EIM_D22 (GPIO3_IO22)(*)  ENET_RX_ER (GPIO1_IO24)
+ *    armStoneA9          (always on)              ENET_RX_ER (GPIO1_IO24)
+ *    armStoneA9r2        EIM_D22 (GPIO3_IO22)     ENET_RX_ER (GPIO1_IO24)
+ *    QBlissA9  Rev<1.30  (always on)              ENET_RX_ER (GPIO1_IO24)
+ *              other     EIM_D22 (GPIO3_IO22)(*)  ENET_RX_ER (GPIO1_IO24)
+ *    QBlissA9r2          EIM_D22 (GPIO3_IO22)(*)  ENET_RX_ER (GPIO1_IO24)
+ *    PicoMODA9           GPIO_8 (GPIO1_IO08)      GPIO_1 (GPIO1_IO01)(fix)
+ *    NetDCUA9            GPIO_9 (GPIO1_IO09)      (not available)
+ *
+ * (*) Signal on SKIT is active low, usually USB_OTG_PWR is active high
+ *
+ * USB1 is a host-only port (USB_H1). It is used on all boards. Some boards
+ * may have an additional USB hub with a reset signal connected to this port.
+ *
+ *    Board               USB_H1_PWR               Hub Reset
+ *    -------------------------------------------------------------------------
+ *    efusA9              EIM_D31 (GPIO3_IO31)     (Hub on SKIT, no reset line)
+ *    armStoneA9          (always on)              GPIO_17 (GPIO7_IO12)
+ *    armStoneA9r2        (always on)              EIM_EB1 (GPIO2_IO29)
+ *    QBlissA9            (always on)              GPIO_17 (GPIO7_IO12)
+ *    QBlissA9r2          (always on)              EIM_DA15 (GPIO3_IO15)
+ *    PicoMODA9 Rev<1.10  GPIO_17 (GPIO7_IO12)     (Hub on SKIT, no reset line)
+ *              other     GPIO_5 (GPIO1_IO05)      (Hub on SKIT, no reset line)
+ *    NetDCUA9            GPIO_0 (GPIO1_IO00)      (no Hub)
+ *
+ * The polarity for the VBUS power can be set with environment variable
+ * usbxpwr, where x is the port index (0 or 1). If this variable is set to
+ * "low", the power pin is active low, if it is set to "high", the power pin
+ * is active high. Default is board-dependent, so that when F&S SKITs are
+ * used, only usbxmode must be set.
+ *
+ * Example: setenv usb1pwr low
+ *
+ * Usually the VBUS power for a host port is connected to a dedicated pin, i.e.
+ * USB_H1_PWR or USB_OTG_PWR. Then the USB controller can switch power
+ * automatically and we only have to tell the controller whether this signal is
+ * active high or active low. In all other cases, VBUS power is simply handled
+ * by a regular GPIO.
+ *
+ * We have two versions of the code here: If you set USE_USBNC_PWR, then the
+ * power pads will be configured as dedicated function. board_ehci_power() is
+ * only required for PicoMODA9 then, where USB power must always be handled by
+ * a GPIO. If you do not define USE_USBNC_PWR, then all power pads will be
+ * configured as GPIO and function board_ehci_power() will switch VBUS power
+ * manually for all boards.
+ */
+#define USE_USBNC_PWR
+
+#define USB_OTHERREGS_OFFSET	0x800
+#define UCTRL_PWR_POL		(1 << 9)
+#define UCTRL_OVER_CUR_DIS	(1 << 7)
+
+/* Some boards have access to the USB_OTG_ID pin to check host/device mode */
+static iomux_v3_cfg_t const usb_otg_id_pad_picomoda9[] = {
+	IOMUX_PADS(PAD_GPIO_1__GPIO1_IO01 | MUX_PAD_CTRL(USB_ID_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usb_otg_id_pad_other[] = {
+	IOMUX_PADS(PAD_ENET_RX_ER__GPIO1_IO24 | MUX_PAD_CTRL(USB_ID_PAD_CTRL)),
+};
+
+/* Some boards can switch the USB OTG power when configured as host */
+static iomux_v3_cfg_t const usb_otg_pwr_pad_picomoda9[] = {
+	IOMUX_PADS(PAD_GPIO_8__GPIO1_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usb_otg_pwr_pad_netdcua9[] = {
+	IOMUX_PADS(PAD_GPIO_9__GPIO1_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usb_otg_pwr_pad_other[] = {
+#ifdef USE_USBNC_PWR
+	IOMUX_PADS(PAD_EIM_D22__USB_OTG_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_EIM_D22__GPIO3_IO22 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
+};
+
+/* Some boards can switch the USB Host power */
+static iomux_v3_cfg_t const usb_h1_pwr_pad_efusa9[] = {
+#ifdef USE_USBNC_PWR
+	IOMUX_PADS(PAD_EIM_D31__USB_H1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_EIM_D31__GPIO3_IO31 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
+};
+
+static iomux_v3_cfg_t const usb_h1_pwr_pad_picomoda9_REV100[] = {
 	IOMUX_PADS(PAD_GPIO_17__GPIO7_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-/* USB Host power (efusA9) */
-static iomux_v3_cfg_t const usb_pwr_pads_efusa9[] = {
-	IOMUX_PADS(PAD_EIM_D31__GPIO3_IO31 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+static iomux_v3_cfg_t const usb_h1_pwr_pad_picomoda9[] = {
+	IOMUX_PADS(PAD_GPIO_5__GPIO1_IO05 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-/* USB Host power (NetDCUA9) */
-static iomux_v3_cfg_t const usb_pwr_pads_netdcua9[] = {
+static iomux_v3_cfg_t const usb_h1_pwr_pad_netdcua9[] = {
+#ifdef USE_USBNC_PWR
+	IOMUX_PADS(PAD_GPIO_0__USB_H1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
 	IOMUX_PADS(PAD_GPIO_0__GPIO1_IO00 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
 };
 
-int board_ehci_hcd_init(int port)
+/* Some boards have an on-board USB hub with a reset signal */
+static iomux_v3_cfg_t const usb_hub_reset_pad_armstonea9_qblissa9[] = {
+	IOMUX_PADS(PAD_GPIO_17__GPIO7_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usb_hub_reset_pad_armstonea9r2[] = {
+	IOMUX_PADS(PAD_EIM_EB1__GPIO2_IO29 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const usb_hub_reset_pad_qblissa9r2[] = {
+	IOMUX_PADS(PAD_EIM_DA15__GPIO3_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+struct fs_usb_port_cfg {
+	int mode;			/* USB_INIT_DEVICE or USB_INIT_HOST */
+	int pwr_pol;			/* 0 = active high, 1 = active low */
+	int pwr_gpio;			/* GPIO number to switch power */
+	const char *pwr_name;		/* "usb?pwr" */
+	const char *mode_name;		/* "usb?mode" */
+};
+
+static struct fs_usb_port_cfg usb_port_cfg[2] = {
+	{
+		.mode = USB_INIT_DEVICE, /* USB OTG port */
+		.pwr_pol = 0,
+		.pwr_gpio = ~0,
+		.pwr_name = "usb0pwr",
+		.mode_name = "usb0mode",
+	},
+	{
+		.mode = USB_INIT_HOST,	/* USB H1 port */
+		.pwr_pol = 0,
+		.pwr_gpio = ~0,
+		.pwr_name = "usb1pwr",
+		.mode_name = "usb1mode",
+	},
+};
+
+/* Setup pad for reset signal and issue 2ms reset for USB hub */
+static void fs_usb_reset_hub(iomux_v3_cfg_t const *reset_pad,
+			     unsigned int reset_gpio)
 {
-	if (port != 1)
-		return 0;
-
-	switch (fs_nboot_args.chBoardType) {
-	case BT_ARMSTONEA9:
-	case BT_QBLISSA9:
-		SETUP_IOMUX_PADS(usb_hub_pads);
-
-		/* Reset USB hub */
-		issue_reset(2000, 0, IMX_GPIO_NR(7, 12), ~0, ~0);
-		break;
-
-	case BT_ARMSTONEA9R2:
-		SETUP_IOMUX_PADS(usb_hub_pads);
-
-		/* Reset USB hub */
-		issue_reset(2000, 0, IMX_GPIO_NR(2, 29), ~0, ~0);
-		break;
-
-	case BT_EFUSA9:
-#if 0
-		SETUP_IOMUX_PADS(usb_pwr_pads_efusa9);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(3, 31), 1);
-#endif
-		break;
-
-	case BT_NETDCUA9:
-		SETUP_IOMUX_PADS(usb_pwr_pads_netdcua9);
-
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 0), 1);
-		break;
-
-	default:
-		break;
-	}
-
-        return 0;
+	if (reset_pad)
+		imx_iomux_v3_setup_multiple_pads(reset_pad, 1);
+	if (reset_gpio != ~0)
+		issue_reset(2000, 0, reset_gpio, ~0, ~0);
 }
 
+/* Check if OTG port should be started as host or device */
+static int fs_usb_get_otg_mode(iomux_v3_cfg_t const *id_pad, unsigned id_gpio,
+			       const char *mode_name, int default_mode)
+{
+	const char *envvar = getenv(mode_name);
+
+	if (!envvar)
+		return default_mode;
+	if (!strcmp(envvar, "peripheral") || !strcmp(envvar, "device"))
+		return USB_INIT_DEVICE;	/* Requested by user as device */
+	if (!strcmp(envvar, "host"))
+		return USB_INIT_HOST;	/* Requested by user as host */
+	if (strcmp(envvar, "otg"))
+		return default_mode;	/* Unknown mode setting */
+
+	/* "OTG" mode, check ID pin to decide */
+	if (!id_pad || (id_gpio == ~0))
+		return default_mode;	/* No ID pad available */
+
+	/* ID pad must be set up as GPIO with an internal pull-up */
+	imx_iomux_v3_setup_multiple_pads(id_pad, 1);
+	gpio_direction_input(id_gpio);
+	udelay(100);			/* Let voltage settle */
+	if (gpio_get_value(id_gpio))
+		return USB_INIT_DEVICE;	/* ID pulled up: device mode */
+
+	return USB_INIT_HOST;		/* ID connected with GND: host mode */
+}
+
+/* Determine USB host power polarity */
+static int fs_usb_get_pwr_pol(const char *pwr_name, int default_pol)
+{
+	const char *envvar = getenv(pwr_name);
+
+	if (!envvar)
+		return default_pol;
+
+	/* Skip optional prefix "active", "active-" or "active_" */
+	if (!strncmp(envvar, "active", 6)) {
+		envvar += 6;
+		if ((*envvar == '-') || (*envvar == '_'))
+			envvar++;
+	}
+
+	if (!strcmp(envvar, "high"))
+		return 0;
+	if (!strcmp(envvar, "low"))
+		return 1;
+
+	return default_pol;
+}
+
+/* Set up power pad and polarity; if GPIO, switch off for now */
+static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
+			      int port, int pol)
+{
+	/* Configure pad */ 
+	if (pwr_pad)
+		imx_iomux_v3_setup_multiple_pads(pwr_pad, 1);
+
+	/* Use as GPIO or set power polarity in USB controller */
+	if (pwr_gpio != ~0)
+		gpio_direction_output(pwr_gpio, pol);
+#ifdef USE_USBNC_PWR
+	else {
+		u32 *usbnc_usb_ctrl;
+		u32 val;
+
+		usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
+					 port * 4);
+		val = readl(usbnc_usb_ctrl);
+		if (pol)
+			val &= ~UCTRL_PWR_POL;
+		else
+			val |= UCTRL_PWR_POL;
+
+		/* Disable over-current detection */
+		val |= UCTRL_OVER_CUR_DIS;
+		writel(val, usbnc_usb_ctrl);
+	}
+#endif
+}
+
+/* Check if port is Host or Device */
+int board_usb_phy_mode(int port)
+{
+	if (port > 1)
+		return USB_INIT_HOST;	/* Unknown port */
+
+	return usb_port_cfg[port].mode;
+}
+
+/* Switch VBUS power via GPIO */
 int board_ehci_power(int port, int on)
 {
-	if (port != 1)
-		return 0;
+	struct fs_usb_port_cfg *port_cfg;
 
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9:
-		SETUP_IOMUX_PADS(usb_pwr_pads_efusa9);
+	if (port > 1)
+		return 0;		/* Unknown port */
 
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(3, 31), on);
-		break;
+	port_cfg = &usb_port_cfg[port];
+	if (port_cfg->mode != USB_INIT_HOST)
+		return 0;		/* Port not in host mode */
 
-	case BT_NETDCUA9:
-		SETUP_IOMUX_PADS(usb_pwr_pads_netdcua9);
+	if (port_cfg->pwr_gpio == ~0)
+		return 0;		/* PWR not handled by GPIO */
 
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 0), on);
-		break;
+	if (port_cfg->pwr_pol)
+		on = !on;		/* Invert polarity */
 
-	default:
-		break;
-	}
+	gpio_set_value(port_cfg->pwr_gpio, on);
 
 	return 0;
 }
 
-int board_usb_phy_mode(int port)
+/* Init one USB port */
+int board_ehci_hcd_init(int port)
 {
-	if (port == 0)
-		return USB_INIT_DEVICE;
-	return USB_INIT_HOST;
-}
+	iomux_v3_cfg_t const *pwr_pad, *reset_pad, *id_pad;
+	unsigned int pwr_gpio, reset_gpio, id_gpio;
+	int pwr_pol;
+	struct fs_usb_port_cfg *port_cfg;
+
+	if (port > 1)
+		return 0;		/* Unknown port */
+
+	port_cfg = &usb_port_cfg[port];
+
+	/* Default settings, board specific code below will override */
+	reset_pad = NULL;
+	reset_gpio = ~0;
+	pwr_pad = NULL;
+	pwr_gpio = ~0;
+	pwr_pol = 0;
+
+	/* Determine host power pad and USB hub reset pad (if applicable) */
+	if (port == 0) {
+		/* Handle USB OTG port (USB0); Step 1: check OTG mode */
+		id_pad = NULL;
+		id_gpio = ~0;
+
+		switch (fs_nboot_args.chBoardType) {
+		case BT_PICOMODA9:
+			id_pad = usb_otg_id_pad_picomoda9;
+			id_gpio = IMX_GPIO_NR(1, 1);
+			break;
+
+		case BT_EFUSA9:
+		case BT_ARMSTONEA9:
+		case BT_ARMSTONEA9R2:
+		case BT_QBLISSA9:
+		case BT_QBLISSA9R2:
+			id_pad = usb_otg_id_pad_other;
+			id_gpio = IMX_GPIO_NR(1, 24);
+			break;
+
+		case BT_NETDCUA9:
+			/* No ID pad available */
+			break;
+
+		default:
+			/* No host mode available */
+			port_cfg->mode = USB_INIT_DEVICE;
+			return 0;
+		}
+		port_cfg->mode = fs_usb_get_otg_mode(id_pad, id_gpio,
+						     port_cfg->mode_name,
+						     USB_INIT_DEVICE);
+		if (port_cfg->mode != USB_INIT_HOST)
+			return 0;	/* OTG port not in host mode */
+
+		/* Step 2: determine host power pad */
+		switch (fs_nboot_args.chBoardType) {
+		case BT_QBLISSA9:
+			/* No USB_OTG_PWR before board revision 1.30 */
+			if (fs_nboot_args.chBoardRev < 130)
+				break;
+			/* Fall through to case BT_QBLISSA9R2 */
+		case BT_QBLISSA9R2:
+		case BT_EFUSA9:
+		case BT_ARMSTONEA9R2:
+			/* OTG host power on EIM_D22, active low */
+			pwr_pol = 1;
+			pwr_pad = usb_otg_pwr_pad_other;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(3, 22);
 #endif
+			break;
+
+		case BT_PICOMODA9:
+			/* OTG host power on GPIO_8 (only GPIO) */
+			pwr_pad = usb_otg_pwr_pad_picomoda9;
+			pwr_gpio = IMX_GPIO_NR(1, 8);
+			break;
+
+		case BT_NETDCUA9:
+			/* OTG host power on GPIO_9 (only GPIO, active high) */
+			pwr_pad = usb_otg_pwr_pad_netdcua9;
+			pwr_gpio = IMX_GPIO_NR(1, 9);
+			break;
+
+		case BT_ARMSTONEA9:
+		default:
+			/* No USB_OTG_PWR */
+			break;
+		}
+	} else {
+		/* Handle USB H1 port (USB1) */
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA9:
+			/* No reset for USB hub, USB power on EIM_D31 */
+			pwr_pad = usb_h1_pwr_pad_efusa9;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(3, 31);
+#endif
+			break;
+
+		case BT_ARMSTONEA9:
+		case BT_QBLISSA9:
+			/* Hub reset on GPIO_17, USB host power is always on */
+			reset_pad = usb_hub_reset_pad_armstonea9_qblissa9;
+			reset_gpio = IMX_GPIO_NR(7, 12);
+			break;
+
+		case BT_ARMSTONEA9R2:
+			/* Hub reset on EIM_EB1, USB host power is always on */
+			reset_pad = usb_hub_reset_pad_armstonea9r2;
+			reset_gpio = IMX_GPIO_NR(2, 29);
+			break;
+
+		case BT_QBLISSA9R2:
+			/* Hub reset on EIM_DA15, USB host power always on */
+			reset_pad = usb_hub_reset_pad_armstonea9r2;
+			reset_gpio = IMX_GPIO_NR(3, 15);
+			break;
+
+		case BT_PICOMODA9:
+			/* No USB hub, USB host power on GPIO_17 or GPIO_5 */
+			if (fs_nboot_args.chBoardRev < 110) {
+				pwr_pad = usb_h1_pwr_pad_picomoda9_REV100;
+				pwr_gpio = IMX_GPIO_NR(7, 12);
+			} else {
+				pwr_pad = usb_h1_pwr_pad_picomoda9;
+				pwr_gpio = IMX_GPIO_NR(1, 5);
+			}
+			break;
+
+		case BT_NETDCUA9:
+			/* No USB hub, USB host power on GPIO_0 */
+			pwr_pad = usb_h1_pwr_pad_netdcua9;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(1, 0);
+#endif
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	/* Reset a hub, if present */
+	fs_usb_reset_hub(reset_pad, reset_gpio);
+
+	/* Set up the host power pad incl. polarity */
+	port_cfg->pwr_gpio = pwr_gpio;
+	port_cfg->pwr_pol = fs_usb_get_pwr_pol(port_cfg->pwr_name, pwr_pol);
+	fs_usb_config_pwr(pwr_pad, pwr_gpio, port, port_cfg->pwr_pol);
+
+	return 0;
+}
+#endif /* CONFIG_USB_EHCI_MX6 */
 
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)

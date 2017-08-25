@@ -109,6 +109,8 @@
 #define SPI_CS_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_100K_UP | PAD_CTL_PKE | PAD_CTL_PUE | \
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
+#define USB_ID_PAD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
+
 struct board_info {
 	char *name;			/* Device name */
 	char *bootdelay;		/* Default value for bootdelay */
@@ -879,80 +881,323 @@ int board_mmc_init(bd_t *bd)
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX6
-/* USB Host power (efusA9X) on GPIO_12 (GPIO1_IO12) */
-static iomux_v3_cfg_t const usb_pwr_pads[] = {
-//###	IOMUX_PADS(PAD_GPIO1_IO12__GPIO1_IO_12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_GPIO1_IO12__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
-//###	IOMUX_PADS(PAD_GPIO1_IO13__ANATOP_OTG2_ID | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
+/*
+ * USB Host support.
+ *
+ * USB0 is OTG1 port. By default this is used as device port. However on some
+ * F&S boards this port may optionally be configured as a second host port. So
+ * if environment variable usb0mode is set to "host" on these boards, or if it
+ * is set to "otg" and the ID pin is low when usb is started, use host mode.
+ *
+ *    Board               USB_OTG1_PWR             USB_OTG1_ID
+ *    ----------------------------------------------------------------------
+ *    efusA9X             GPIO1_IO09(*)            GPIO1_IO10
+ *    PicoCOMA9X          (only device mode possible)
+ *    BemA9X              (only device mode possible)
+ *    CONT1               (always on)              QSPI1A_DATA1 (GPIO4_IO17)
+ *
+ * (*) Signal on SKIT is active low, usually USB_OTG1_PWR is active high
+ *
+ * USB1 is OTG2 port that is only used as host port at F&S. It is used on all
+ * boards. Some boards may have an additional USB hub with a reset signal
+ * connected to this port.
+ *
+ *    Board               USB_OTG2 PWR             Hub Reset
+ *    -------------------------------------------------------------------------
+ *    efusA9X             GPIO1_IO12               (Hub on SKIT, no reset line)
+ *    PicoCOMA9X          GPIO1_IO12               (no Hub)
+ *    BemA9X              GPIO1_IO12               (no Hub)
+ *    CONT1               (always on)              (no Hub)
+ *
+ * The polarity for the VBUS power can be set with environment variable
+ * usbxpwr, where x is the port index (0 or 1). If this variable is set to
+ * "low", the power pin is active low, if it is set to "high", the power pin
+ * is active high. Default is board-dependent, so that when F&S SKITs are
+ * used, only usbxmode must be set.
+ *
+ * Example: setenv usb1pwr low
+ *
+ * Usually the VBUS power for a host port is connected to a dedicated pin, i.e.
+ * USB_OTG1_PWR or USB_OTG2_PWR. Then the USB controller can switch power
+ * automatically and we only have to tell the controller whether this signal is
+ * active high or active low.
+ *
+ * We have two versions of the code here: If you set USE_USBNC_PWR, then the
+ * power pads will be configured as dedicated function. board_ehci_power() is
+ * not required then. If you do not define USE_USBNC_PWR, then all power pads
+ * will be configured as GPIO and function board_ehci_power() will switch VBUS
+ * power manually for all boards.
+ */
+#define USE_USBNC_PWR
 
 #define USB_OTHERREGS_OFFSET	0x800
 #define UCTRL_PWR_POL		(1 << 9)
+#define UCTRL_OVER_CUR_DIS	(1 << 7)
 
-int board_ehci_hcd_init(int port)
-{
-	u32 *usbnc_usb_ctrl;
+/* Some boards have access to the USB_OTG1_ID pin to check host/device mode */
+static iomux_v3_cfg_t const usb_otg1_id_pad_efusa9x[] = {
+	IOMUX_PADS(PAD_GPIO1_IO10__GPIO1_IO_10 | MUX_PAD_CTRL(USB_ID_PAD_CTRL)),
+};
 
-	if (port > 1)
-		return 0;
+static iomux_v3_cfg_t const usb_otg1_id_pad_cont1[] = {
+	IOMUX_PADS(PAD_QSPI1A_DATA1__GPIO4_IO_17 | MUX_PAD_CTRL(USB_ID_PAD_CTRL)),
+};
 
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-	case BT_PICOCOMA9X:
-	case BT_BEMA9X:
-		SETUP_IOMUX_PADS(usb_pwr_pads);
-#if 0
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 12), 1);
+/* Some boards can switch the USB OTG power when configured as host */
+static iomux_v3_cfg_t const usb_otg1_pwr_pad[] = {
+#ifdef USE_USBNC_PWR
+	IOMUX_PADS(PAD_GPIO1_IO09__USB_OTG1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_GPIO1_IO09__GPIO1_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 #endif
-		break;
+};
 
-	default:
-		break;
-	}
+/* Some boards can switch the USB Host power (USB_OTG2_PWR) */
+static iomux_v3_cfg_t const usb_otg2_pwr_pad[] = {
+#ifdef USE_USBNC_PWR
+	IOMUX_PADS(PAD_GPIO1_IO12__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_GPIO1_IO12__GPIO1_IO_12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
+};
 
-#if 1 //###
-	usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
-				 port * 4);
+struct fs_usb_port_cfg {
+	int mode;			/* USB_INIT_DEVICE or USB_INIT_HOST */
+	int pwr_pol;			/* 0 = active high, 1 = active low */
+	int pwr_gpio;			/* GPIO number to switch power */
+	const char *pwr_name;		/* "usb?pwr" */
+	const char *mode_name;		/* "usb?mode" */
+};
 
-	/* Set Power polarity */
-	setbits_le32(usbnc_usb_ctrl, UCTRL_PWR_POL);
-#endif //###
+static struct fs_usb_port_cfg usb_port_cfg[2] = {
+	{
+		.mode = USB_INIT_DEVICE, /* USB OTG port (OTG1) */
+		.pwr_pol = 0,
+		.pwr_gpio = ~0,
+		.pwr_name = "usb0pwr",
+		.mode_name = "usb0mode",
+	},
+	{
+		.mode = USB_INIT_HOST,	/* USB Host port (OTG2) */
+		.pwr_pol = 0,
+		.pwr_gpio = ~0,
+		.pwr_name = "usb1pwr",
+		.mode_name = "usb1mode",
+	},
+};
 
-        return 0;
+/* Check if OTG port should be started as host or device */
+static int fs_usb_get_otg_mode(iomux_v3_cfg_t const *id_pad, unsigned id_gpio,
+			       const char *mode_name, int default_mode)
+{
+	const char *envvar = getenv(mode_name);
+
+	if (!envvar)
+		return default_mode;
+	if (!strcmp(envvar, "peripheral") || !strcmp(envvar, "device"))
+		return USB_INIT_DEVICE;	/* Requested by user as device */
+	if (!strcmp(envvar, "host"))
+		return USB_INIT_HOST;	/* Requested by user as host */
+	if (strcmp(envvar, "otg"))
+		return default_mode;	/* Unknown mode setting */
+
+	/* "OTG" mode, check ID pin to decide */
+	if (!id_pad || (id_gpio == ~0))
+		return default_mode;	/* No ID pad available */
+
+	/* ID pad must be set up as GPIO with an internal pull-up */
+	imx_iomux_v3_setup_multiple_pads(id_pad, 1);
+	gpio_direction_input(id_gpio);
+	udelay(100);			/* Let voltage settle */
+	if (gpio_get_value(id_gpio))
+		return USB_INIT_DEVICE;	/* ID pulled up: device mode */
+
+	return USB_INIT_HOST;		/* ID connected with GND: host mode */
 }
 
-#if 0 //###
+/* Determine USB host power polarity */
+static int fs_usb_get_pwr_pol(const char *pwr_name, int default_pol)
+{
+	const char *envvar = getenv(pwr_name);
+
+	if (!envvar)
+		return default_pol;
+
+	/* Skip optional prefix "active", "active-" or "active_" */
+	if (!strncmp(envvar, "active", 6)) {
+		envvar += 6;
+		if ((*envvar == '-') || (*envvar == '_'))
+			envvar++;
+	}
+
+	if (!strcmp(envvar, "high"))
+		return 0;
+	if (!strcmp(envvar, "low"))
+		return 1;
+
+	return default_pol;
+}
+
+/* Set up power pad and polarity; if GPIO, switch off for now */
+static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
+			      int port, int pol)
+{
+	/* Configure pad */ 
+	if (pwr_pad)
+		imx_iomux_v3_setup_multiple_pads(pwr_pad, 1);
+
+	/* Use as GPIO or set power polarity in USB controller */
+	if (pwr_gpio != ~0)
+		gpio_direction_output(pwr_gpio, pol);
+#ifdef USE_USBNC_PWR
+	else {
+		u32 *usbnc_usb_ctrl;
+		u32 val;
+
+		usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
+					 port * 4);
+		val = readl(usbnc_usb_ctrl);
+		if (pol)
+			val &= ~UCTRL_PWR_POL;
+		else
+			val |= UCTRL_PWR_POL;
+
+		/* Disable over-current detection */
+		val |= UCTRL_OVER_CUR_DIS;
+		writel(val, usbnc_usb_ctrl);
+	}
+#endif
+}
+
+
+/* Check if port is Host or Device */
+int board_usb_phy_mode(int port)
+{
+	if (port > 1)
+		return USB_INIT_HOST;	/* Unknown port */
+
+	return usb_port_cfg[port].mode;
+}
+
+#ifndef USE_USBNC_PWR
+/* Switch VBUS power via GPIO */
 int board_ehci_power(int port, int on)
 {
-	if (port != 1)
-		return 0;
+	struct fs_usb_port_cfg *port_cfg;
 
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA9X:
-	case BT_BEMA9X:
-		SETUP_IOMUX_PADS(usb_pwr_pads);
+	if (port > 1)
+		return 0;		/* Unknown port */
 
-		/* Enable USB Host power */
-		gpio_direction_output(IMX_GPIO_NR(1, 12), on);
+	port_cfg = &usb_port_cfg[port];
+	if (port_cfg->mode != USB_INIT_HOST)
+		return 0;		/* Port not in host mode */
 
-		break;
+	if (port_cfg->pwr_gpio == ~0)
+		return 0;		/* PWR not handled by GPIO */
 
-	default:
-		break;
-	}
+	if (port_cfg->pwr_pol)
+		on = !on;		/* Invert polarity */
+
+	gpio_set_value(port_cfg->pwr_gpio, on);
 
 	return 0;
 }
 #endif
 
-int board_usb_phy_mode(int port)
+/* Init one USB port */
+int board_ehci_hcd_init(int port)
 {
-	if (port == 0)
-		return USB_INIT_DEVICE;
-	return USB_INIT_HOST;
-}
+	iomux_v3_cfg_t const *pwr_pad, *id_pad;
+	unsigned int pwr_gpio, id_gpio;
+	int pwr_pol;
+	struct fs_usb_port_cfg *port_cfg;
+
+	if (port > 1)
+		return 0;		/* Unknown port */
+
+	port_cfg = &usb_port_cfg[port];
+
+	/* Default settings, board specific code below will override */
+	pwr_pad = NULL;
+	pwr_gpio = ~0;
+	pwr_pol = 0;
+
+	/* Determine host power pad */
+	if (port == 1) {
+		/* Handle USB OTG2 port (USB1) */
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA9X:
+		case BT_PICOCOMA9X:
+		case BT_BEMA9X:
+			/* USB host power on pad GPIO1_IO12 */
+			pwr_pad = usb_otg2_pwr_pad;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(1, 12);
 #endif
+		break;
+
+		case BT_CONT1:
+		default:
+			/* USB host power always on */
+			break;
+		}
+	} else {
+		/* Handle USB OTG1 port (USB0); Step 1: check OTG mode */
+		id_pad = NULL;
+		id_gpio = ~0;
+
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA9X:
+			id_pad = usb_otg1_id_pad_efusa9x;
+			id_gpio = IMX_GPIO_NR(1, 10);
+			break;
+
+		case BT_CONT1:
+			id_pad = usb_otg1_id_pad_cont1;
+			id_gpio = IMX_GPIO_NR(4, 17);
+			break;
+
+		case BT_PICOCOMA9X:
+		case BT_BEMA9X:
+		default:
+			/* No host mode available */
+			port_cfg->mode = USB_INIT_DEVICE;
+			return 0;
+		}
+		port_cfg->mode = fs_usb_get_otg_mode(id_pad, id_gpio,
+						     port_cfg->mode_name,
+						     USB_INIT_DEVICE);
+		if (port_cfg->mode != USB_INIT_HOST)
+			return 0;	/* OTG port not in host mode */
+
+		/* Step 2: determine host power pad */
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA9X:
+			/* OTG host power on GPIO1_IO09, active low */
+			pwr_pol = 1;
+			pwr_pad = usb_otg1_pwr_pad;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(1, 9);
+#endif
+			break;
+
+		case BT_PICOCOMA9X:
+		case BT_BEMA9X:
+		case BT_CONT1:
+		default:
+			/* No USB_OTG1_PWR */
+			break;
+		}
+	}
+
+	/* Set up the host power pad incl. polarity */
+	port_cfg->pwr_gpio = pwr_gpio;
+	port_cfg->pwr_pol = fs_usb_get_pwr_pol(port_cfg->pwr_name, pwr_pol);
+	fs_usb_config_pwr(pwr_pad, pwr_gpio, port, port_cfg->pwr_pol);
+
+        return 0;
+}
+#endif /* CONFIG_USB_EHCI_MX6 */
 
 #ifdef CONFIG_BOARD_LATE_INIT
 void setup_var(const char *varname, const char *content, int runvar)
