@@ -256,9 +256,12 @@
 /* Use USB1 as host */
 #define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
 #define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
+#define CONFIG_USB_EHCI_POWERDOWN	/* Shut down VBUS power on usb stop */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CONFIG_MXC_USB_FLAGS 0
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
+#define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS 1 /* One port per controller */
+#define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
+
 
 #define CONFIG_USB_STORAGE
 
