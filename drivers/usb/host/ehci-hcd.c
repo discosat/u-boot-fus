@@ -224,6 +224,14 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 		ehci_writel(&ctrl->hcor->or_usbcmd, cmd);
 		ret = handshake(&ctrl->hcor->or_usbsts, STS_HALT, STS_HALT,
 			HCHALT_TIMEOUT);
+
+#ifdef CONFIG_USB_EHCI_POWERDOWN
+		for (i = 0; i < ctrl->ports; i++) {
+			reg = ehci_readl(&ctrl->hcor->or_portsc[i]);
+			reg &= ~EHCI_PS_PP;
+			ehci_writel(&ctrl->hcor->or_portsc[i], reg);
+		}
+#endif
 	}
 
 	if (ret)
@@ -654,7 +662,7 @@ __weak uint32_t *ehci_get_portsc_register(struct ehci_ctrl *ctrl, int port)
 	return (uint32_t *)&ctrl->hcor->or_portsc[port];
 }
 
-int
+static int
 ehci_submit_root(struct usb_device *dev, unsigned long pipe, void *buffer,
 		 int length, struct devrequest *req)
 {

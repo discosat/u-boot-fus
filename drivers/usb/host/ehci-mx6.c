@@ -250,6 +250,7 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 	*hcor = (struct ehci_hcor *)((uint32_t)*hccr +
 			HC_LENGTH(ehci_readl(&(*hccr)->cr_capbase)));
 
+	/* Enable VBUS power if done with GPIO */
 	if ((type == init) || (type == USB_INIT_DEVICE))
 		board_ehci_power(index, (type == USB_INIT_DEVICE) ? 0 : 1);
 	if (type != init)
@@ -267,5 +268,10 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 
 int ehci_hcd_stop(int index)
 {
+#ifdef CONFIG_USB_EHCI_POWERDOWN
+	/* Shut down VBUS power if done with GPIO */
+	board_ehci_power(index, 0);
+#endif
+
 	return 0;
 }
