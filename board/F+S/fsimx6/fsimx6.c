@@ -223,8 +223,21 @@ const struct board_info fs_board_info[8] = {
 	{	/* 5 (unknown) */
 		.name = "unknown",
 	},
-	{	/* 6 (unknown) */
-		.name = "unknown",
+	{	/* 6 (BT_QBLISSA9R2) */
+		.name = "QBlissA9r2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 7 (BT_NETDCUA9) */
 		.name = "NetDCUA9",
