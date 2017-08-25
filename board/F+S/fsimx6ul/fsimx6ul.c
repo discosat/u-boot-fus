@@ -939,9 +939,11 @@ int board_late_init(void)
 {
 	unsigned int boardtype = fs_nboot_args.chBoardType;
 	const struct board_info *bi = &fs_board_info[boardtype];
+	const char *envvar;
 
 	/* Set sercon variable if not already set */
-	if (strcmp(getenv("sercon"), "undef") == 0) {
+	envvar = getenv("sercon");
+	if (!envvar || !strcmp(envvar, "undef")) {
 		char sercon[DEV_NAME_SIZE];
 
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
@@ -950,7 +952,8 @@ int board_late_init(void)
 	}
 
 	/* Set platform variable if not already set */
-	if (strcmp(getenv("platform"), "undef") == 0) {
+	envvar = getenv("platform");
+	if (!envvar || !strcmp(envvar, "undef")) {
 		char lcasename[20];
 		char *p = bi->name;
 		char *l = lcasename;
