@@ -634,7 +634,7 @@ enum update_action board_check_for_recover(void)
  *
  *   Board         USDHC   CD-Pin                 Slot              
  *   -----------------------------------------------------------------------
- *   efusA7UL (Board Rev 1.1x, for CD signal see below):
+ *   efusA7UL (for CD signal see below):
  *        either:  USDHC2  UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
  *            or:  USDHC2  -                      eMMC (8-Bit)
  *        either:  USDHC1  UART1_RTS (GPIO1_IO19) SD_A: Connector (Micro-SD)
@@ -652,12 +652,12 @@ enum update_action board_check_for_recover(void)
  *
  * Remark: The WP pin is ignored in U-Boot, also WLAN
  *
- * On efusA7UL board rev 1.00, CD/WP pins are only available for SD_A. But
- * on newer board revisions, they can be either used for SD_A or SD_B. Here we
- * usually use them for SD_B because the normal-size slot on the SKIT actually
- * has CD and WP while the Micro SD slot on SD_A only has CD. But if eMMC is
- * equipped, we pass them on to SD_A. If SD_A is also not available because
- * WLAN is equipped, we do not activate any CD/WP at all.
+ * On efusA7UL board rev 1.00, CD/WP pins are only available for SD_A, and
+ * only if WLAN is not equipped. If WLAN is equipped, CD/WP signals are not
+ * available at all. On newer board revisions, CD/WP are also used for SD_A if
+ * WLAN is not equipped. And if both, WLAN and eMMC are equipped, CD/WP
+ * signals are still not available at all. But in the case of WLAN equipped
+ * and eMMC not equipped, CD/WP are connected be SD_B instead instead of SD_A.
  */
 
 /* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
@@ -796,42 +796,44 @@ int board_mmc_init(bd_t *bd)
 
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA7UL:
-		if (fs_nboot_args.chFeatures2 & FEAT2_EMMC) {
-			/*
-			 * If both eMMC and WLAN are available:
-			 * mmc0: USDHC2 (eMMC), no CD
-			 *
-			 * If only eMMC and no WLAN is available:
-			 * mmc0: USDHC1 (ext. SD slot, micro SD on efus SKIT),
-			 *       CD: GPIO1_IO19
-			 * mmc1: USDHC2 (eMMC), no CD
-			 */
-			if (!(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
-				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
-						&sdhc_cd[gpio1_io19]);
-#ifdef CONFIG_CMD_NAND
-			/* If NAND is equipped, eMMC can only use buswidth 4 */
-			if (!ret)
-				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
-#else
-			/* If no NAND is equipped, four additional data lines
-			   are available and eMMC can use buswidth 8 */
-			if (!ret)
-				ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2], NULL);
-#endif
-		} else {
-			/*
-			 * If eMMC is not available:
-			 * mmc0: USDHC2 (ext. SD slot, normal-size SD on efus
-			 *       SKIT), CD: GPIO1_IO19
-			 * mmc1: USDHC1 (ext. SD slot, micro SD on efus SKIT),
-			 *       no CD (port not available if WLAN is equipped)
-			 */
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2],
-					&sdhc_cd[gpio1_io19]);
-			if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
-				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1], NULL);
+		/*
+		 * If no eMMC is equipped, port SD_B can be used as mmc0
+		 * (USDHC2, ext. SD slot, normal-size SD on efus SKIT); may
+		 * use CD on GPIO1_IO19 if SD_A is occupied by WLAN and board
+		 * revision is at least 1.10.
+		 */
+		if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC)) {
+			struct fus_sdhc_cd *cd = NULL;
+
+			if ((fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+			    && (fs_nboot_args.chBoardRev >= 110))
+				cd = &sdhc_cd[gpio1_io19];
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], cd);
 		}
+		/*
+		 * If no WLAN is equipped, port SD_A with CD on GPIO1_IO19 can
+		 * be used (USDHC1, ext. SD slot, micro SD on efus SKIT). This
+		 * is either mmc1 if SD_B is available, or mmc0 if not. 
+		 */
+		if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
+					&sdhc_cd[gpio1_io19]);
+		/*
+		 * If eMMC is equipped, add it as last mmc port, which is
+		 * either mmc1 if SD_A is available, or mmc0 if not. Use as
+		 * last mmc, because eMMC is least suited as a source for
+		 * update/install, which is by default searched for on mmc0.
+		 */
+#ifdef CONFIG_CMD_NAND
+		/* If NAND is equipped, eMMC can only use buswidth 4 */
+		if (!ret)
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+#else
+		/* If no NAND is equipped, four additional data lines
+		   are available and eMMC can use buswidth 8 */
+		if (!ret)
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2], NULL);
+#endif
 		break;
 
 	case BT_PICOCOM1_2:
