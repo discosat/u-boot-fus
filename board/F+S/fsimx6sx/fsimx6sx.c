@@ -76,6 +76,8 @@
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
+#define RPMSG_SIZE	0x00010000	/* Use 64KB shared memory for RPMsg */
+
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
 
@@ -83,6 +85,7 @@
 #define FDT_NAND	"/soc/gpmi-nand@01806000"
 #define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
 #define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@021b4000"
+#define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -395,12 +398,15 @@ void dram_init_banksize(void)
 	/*
 	 * If the RPMsg system is used to communicate with Cortex-M4 core,
 	 * then the Linux RPMsg code assumes a 64KB shared memory region at
-	 * RAM offset 0x3FFF0000, i.e. the end of 1GB. Therefore we split RAM
-	 * in two virtual banks if we have more than 1 GB to allow a gap, and
-	 * we reduce the size of the first bank by 64KB. This also works if we
-	 * only have 512MB or 256MB, then also the last 64KB are not mapped
-	 * and the RPMsg code seems to work because the low memory is also
-	 * aliased to the higher adresses at offset 0x3FFF0000.
+	 * the end of available RAM that must not be touched by Linux itself.
+	 * However Cortex-M4 can only see at most 1536MB (1.5GB) of DRAM, even
+	 * if up to 2GB are possible. Therefore if we have more than 1GB of
+	 * RAM, we split it into two virtual banks and reduce the size of the
+	 * first bank by 64KB (actually RPMSG_SIZE). This is the gap that we
+	 * were also Cortex-M4 can access RAM.
+	 *
+	 * Later in ft_board_setup() this address will also be patched in the
+	 * device tree so that Linux sees the same values.
 	 *
 	 * Remark: This means that CONFIG_NR_DRAM_BANKS must be set to 2.
 	 */
@@ -413,7 +419,7 @@ void dram_init_banksize(void)
 		gd->bd->bi_dram[1].size = 0;
 	}
 	gd->bd->bi_dram[0].start = gd->ram_base;
-	gd->bd->bi_dram[0].size = size - 0x10000;
+	gd->bd->bi_dram[0].size = size - RPMSG_SIZE;
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
@@ -2365,9 +2371,20 @@ static void fus_fdt_enable(void *fdt, const char *path, int enable)
 /* Do any additional board-specific device tree modifications */
 void ft_board_setup(void *fdt, bd_t *bd)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	int offs;
 
 	printf("   Setting run-time properties\n");
+
+	/* Set up the RPMsg shared memory info for Cortex-M4 communication */
+	offs = fus_fdt_path_offset(fdt, FDT_RPMSG);
+	if (offs >= 0) {
+		u32 addr = gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size;
+
+		fus_fdt_set_u32(fdt, offs, "vring-buffer-address0", addr, 1);
+		addr += RPMSG_SIZE/2;
+		fus_fdt_set_u32(fdt, offs, "vring-buffer-address1", addr, 1);
+	}
 
 	/* Set ECC strength for NAND driver */
 	offs = fus_fdt_path_offset(fdt, FDT_NAND);
