@@ -244,6 +244,8 @@
 /* Ethernet switch SJA1105 */
 #define CONFIG_MXC_SPI
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * USB Host

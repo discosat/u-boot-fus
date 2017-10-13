@@ -249,6 +249,8 @@
 #define CONFIG_DRIVER_AX88796
 #define CONFIG_DRIVER_AX88796_BASE	0x0C000000
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * USB Host

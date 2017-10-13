@@ -215,7 +215,7 @@ static void nc_send_packet(const char *buf, int len)
 	}
 }
 
-static int nc_start(void)
+static int nc_start(const struct stdio_dev *pdev)
 {
 	int retval;
 
@@ -235,7 +235,7 @@ static int nc_start(void)
 	return 0;
 }
 
-static void nc_putc(char c)
+static void nc_putc(const struct stdio_dev *pdev, char c)
 {
 	if (output_recursion)
 		return;
@@ -246,7 +246,7 @@ static void nc_putc(char c)
 	output_recursion = 0;
 }
 
-static void nc_puts(const char *s)
+static void nc_puts(const struct stdio_dev *pdev, const char *s)
 {
 	int len;
 
@@ -265,7 +265,7 @@ static void nc_puts(const char *s)
 	output_recursion = 0;
 }
 
-static int nc_getc(void)
+static int nc_getc(const struct stdio_dev *pdev)
 {
 	uchar c;
 
@@ -286,7 +286,7 @@ static int nc_getc(void)
 	return c;
 }
 
-static int nc_tstc(void)
+static int nc_tstc(const struct stdio_dev *pdev)
 {
 	struct eth_device *eth;
 
@@ -312,12 +312,13 @@ static int nc_tstc(void)
 
 int drv_nc_init(void)
 {
-	struct stdio_dev dev;
+	static struct stdio_dev dev;
 	int rc;
 
 	memset(&dev, 0, sizeof(dev));
 
 	strcpy(dev.name, "nc");
+	strcpy(dev.hwname, "eth");
 	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM;
 	dev.start = nc_start;
 	dev.putc = nc_putc;

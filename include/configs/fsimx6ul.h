@@ -491,6 +491,8 @@
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * Filesystem Support

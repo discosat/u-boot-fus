@@ -270,6 +270,8 @@
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * USB Host
