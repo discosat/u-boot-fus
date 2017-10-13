@@ -493,7 +493,7 @@ int board_init(void)
 /* nand flash pads  */
 static iomux_v3_cfg_t const nfc_pads[] = {
 	IOMUX_PADS(PAD_NANDF_CLE__NAND_CLE | MUX_PAD_CTRL(GPMI_PAD_CTRL2)),
-	IOMUX_PADS(PAD_NANDF_ALE__NAND_ALE | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_NANDF_ALE__NAND_ALE | MUX_PAD_CTRL(GPMI_PAD_CTRL2)),
 	IOMUX_PADS(PAD_NANDF_WP_B__NAND_WP_B | MUX_PAD_CTRL(GPMI_PAD_CTRL2)),
 	IOMUX_PADS(PAD_NANDF_RB0__NAND_READY_B | MUX_PAD_CTRL(GPMI_PAD_CTRL0)),
 	IOMUX_PADS(PAD_NANDF_CS0__NAND_CE0_B | MUX_PAD_CTRL(GPMI_PAD_CTRL2)),
@@ -613,7 +613,7 @@ enum update_action board_check_for_recover(void)
 	 *    13        GPIO #13, active low
 	 *    0x1fh     GPIO #31, active high (this shows why a dash or
 	 *              underscore before "high" or "low" makes sense)
-	 * 
+	 *
 	 * Remark:
 	 * We do not have any clue here what the GPIO represents and therefore
 	 * we do not assume any pad settings. So for example if the GPIO
@@ -648,7 +648,7 @@ enum update_action board_check_for_recover(void)
 /*
  * SD/MMC support.
  *
- *   Board         USDHC   CD-Pin                 Slot              
+ *   Board         USDHC   CD-Pin                 Slot
  *   -----------------------------------------------------------------------
  *   QBlissA9:     USDHC3  NANDF_CS2 (GPIO6_IO15) Connector
  *        either:  USDHC1  -                      On-board (micro-SD)
@@ -1128,7 +1128,7 @@ static int fs_usb_get_pwr_pol(const char *pwr_name, int default_pol)
 static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
 			      int port, int pol)
 {
-	/* Configure pad */ 
+	/* Configure pad */
 	if (pwr_pad)
 		imx_iomux_v3_setup_multiple_pads(pwr_pad, 1);
 
@@ -1822,6 +1822,10 @@ static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
 		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
 		break;
 
+	case BT_EFUSA9:
+	case BT_NETDCUA9:
+	case BT_ARMSTONEA9R2:
+	case BT_QBLISSA9R2:
 	default:			/* efusA9, armStoneA9r2, NetDCUA9 */
 		gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
 		break;

@@ -468,6 +468,9 @@ int board_init(void)
 	 * the SKIT feature connector. Because ethernet PHYs have to be reset
 	 * when the PHY clock is already active, this signal is triggered as
 	 * part of the ethernet initialization in board_eth_init(), not here.
+	 *
+	 * A similar issue exists for PicoCOM1.2. RESETOUTn is also triggered
+	 * in board_eth_init().
 	 */
 
 	return 0;
@@ -597,7 +600,7 @@ enum update_action board_check_for_recover(void)
 	 *    13        GPIO #13, active low
 	 *    0x1fh     GPIO #31, active high (this shows why a dash or
 	 *              underscore before "high" or "low" makes sense)
-	 * 
+	 *
 	 * Remark:
 	 * We do not have any clue here what the GPIO represents and therefore
 	 * we do not assume any pad settings. So for example if the GPIO
@@ -632,7 +635,7 @@ enum update_action board_check_for_recover(void)
 /*
  * SD/MMC support.
  *
- *   Board         USDHC   CD-Pin                 Slot              
+ *   Board         USDHC   CD-Pin                 Slot
  *   -----------------------------------------------------------------------
  *   efusA7UL (for CD signal see below):
  *        either:  USDHC2  UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
@@ -813,7 +816,7 @@ int board_mmc_init(bd_t *bd)
 		/*
 		 * If no WLAN is equipped, port SD_A with CD on GPIO1_IO19 can
 		 * be used (USDHC1, ext. SD slot, micro SD on efus SKIT). This
-		 * is either mmc1 if SD_B is available, or mmc0 if not. 
+		 * is either mmc1 if SD_B is available, or mmc0 if not.
 		 */
 		if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
 			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
@@ -1034,7 +1037,7 @@ static int fs_usb_get_pwr_pol(const char *pwr_name, int default_pol)
 static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
 			      int port, int pol)
 {
-	/* Configure pad */ 
+	/* Configure pad */
 	if (pwr_pad)
 		imx_iomux_v3_setup_multiple_pads(pwr_pad, 1);
 
@@ -1544,6 +1547,11 @@ int board_eth_init(bd_t *bis)
 		 * warm start, it only takes around 3us for this. As we do not
 		 * know whether this is a cold or warm start, we must assume
 		 * the worst case.
+		 *
+		 * ATTENTION:
+		 * On PicoCOM1.2, this is the generic RESETOUTn signal that
+		 * also resets WLAN. But WLAN needs only ~100ms, so no need to
+		 * further increase the reset pulse time.
 		 */
 		SETUP_IOMUX_PADS(enet_pads_reset_efusa7ul_picocom1_2);
 		issue_reset(10, 170000, IMX_GPIO_NR(5, 11), ~0, ~0);

@@ -624,7 +624,7 @@ enum update_action board_check_for_recover(void)
 	 *    13        GPIO #13, active low
 	 *    0x1fh     GPIO #31, active high (this shows why a dash or
 	 *              underscore before "high" or "low" makes sense)
-	 * 
+	 *
 	 * Remark:
 	 * We do not have any clue here what the GPIO represents and therefore
 	 * we do not assume any pad settings. So for example if the GPIO
@@ -659,14 +659,14 @@ enum update_action board_check_for_recover(void)
 /*
  * SD/MMC support.
  *
- *   Board         USDHC   CD-Pin                 Slot              
+ *   Board         USDHC   CD-Pin                 Slot
  *   -----------------------------------------------------------------------
- *   efusA9X (Board Rev 1.1x):
+ *   efusA9X (Board Rev < 1.20):
  *                 USDHC2  GPIO1_IO06             SD_B: Connector (SD)
  *        either:  USDHC1  GPIO1_IO02             SD_A: Connector (Micro-SD)
  *            or: [USDHC1  GPIO1_IO02             WLAN]
  *                 USDHC4  -                      eMMC (8-Bit)
- *   efusA9X (Board Rev 1.2x):
+ *   efusA9X (Board Rev >= 1.20):
  *                 USDHC2  GPIO1_IO06             SD_B: Connector (SD)
  *        either:  USDHC4  SD4_DATA7 (GPIO6_IO21) SD_A: Connector (Micro-SD)
  *            or:  USDHC4  -                      eMMC (8-Bit)
@@ -843,12 +843,12 @@ int board_mmc_init(bd_t *bd)
 
 		/* mmc1 (ext. SD slot, micro SD on efus SKIT) */
 		if (fs_nboot_args.chBoardRev < 120) {
-			/* Board Rev 1.0x/1.1x: if no WLAN present: USDHC1 */
+			/* Board Rev before 1.20: if no WLAN present: USDHC1 */
 			if (!(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
 				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
 						&sdhc_cd[gpio1_io02]);
 		} else {
-			/* Board Rev 1.2x: if no eMMC present: USDHC4 */
+			/* Board Rev since 1.20: if no eMMC present: USDHC4 */
 			if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC))
 				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc4],
 						&sdhc_cd[gpio6_io21]);
@@ -1048,7 +1048,7 @@ static int fs_usb_get_pwr_pol(const char *pwr_name, int default_pol)
 static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
 			      int port, int pol)
 {
-	/* Configure pad */ 
+	/* Configure pad */
 	if (pwr_pad)
 		imx_iomux_v3_setup_multiple_pads(pwr_pad, 1);
 
@@ -1631,9 +1631,9 @@ static int sja1105_configure(struct spi_slave *slave)
 		return -EINVAL;
 	}
 
-	/* 
+	/*
 	 * Send configuration data to SJA1105. The transfer must be split in
-	 * chunks with at most 64 words of data. 
+	 * chunks with at most 64 words of data.
 	 *
 	 * Write access:
 	 *   Control word (binary):
@@ -1672,7 +1672,7 @@ static int sja1105_configure(struct spi_slave *slave)
 		addr += chunksize;
 		size -= chunksize;
 	} while (size);
-	
+
 	/* Read configuration flag register */
 	ret = sja1105_read_val(slave, 1, &val);
 	if (ret)

@@ -600,7 +600,7 @@ enum update_action board_check_for_recover(void)
 	 *    13        GPIO #13, active low
 	 *    0x1fh     GPIO #31, active high (this shows why a dash or
 	 *              underscore before "high" or "low" makes sense)
-	 * 
+	 *
 	 * Remark:
 	 * We do not have any clue here what the GPIO represents and therefore
 	 * we do not assume any pad settings. So for example if the GPIO
