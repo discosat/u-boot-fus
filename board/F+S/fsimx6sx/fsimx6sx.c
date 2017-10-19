@@ -86,6 +86,7 @@
 #define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
 #define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@021b4000"
 #define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
+#define FDT_RES_MEM	"/reserved-memory"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -387,39 +388,6 @@ int dram_init(void)
 	gd->ram_base = PHYS_SDRAM;
 
 	return 0;
-}
-
-/* Initialize RAM banks, leave space for the RPMsg vrings */
-void dram_init_banksize(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-	unsigned int size = gd->ram_size;
-
-	/*
-	 * If the RPMsg system is used to communicate with Cortex-M4 core,
-	 * then the Linux RPMsg code assumes a 64KB shared memory region at
-	 * the end of available RAM that must not be touched by Linux itself.
-	 * However Cortex-M4 can only see at most 1536MB (1.5GB) of DRAM, even
-	 * if up to 2GB are possible. Therefore if we have more than 1GB of
-	 * RAM, we split it into two virtual banks and reduce the size of the
-	 * first bank by 64KB (actually RPMSG_SIZE). This is the gap that we
-	 * were also Cortex-M4 can access RAM.
-	 *
-	 * Later in ft_board_setup() this address will also be patched in the
-	 * device tree so that Linux sees the same values.
-	 *
-	 * Remark: This means that CONFIG_NR_DRAM_BANKS must be set to 2.
-	 */
-	if (size > 0x40000000) {
-		gd->bd->bi_dram[1].start = gd->ram_base + 0x40000000;
-		gd->bd->bi_dram[1].size = size - 0x40000000;
-		size = 0x40000000;
-	} else {
-		gd->bd->bi_dram[1].start = 0;
-		gd->bd->bi_dram[1].size = 0;
-	}
-	gd->bd->bi_dram[0].start = gd->ram_base;
-	gd->bd->bi_dram[0].size = size - RPMSG_SIZE;
 }
 
 /* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
@@ -2368,23 +2336,71 @@ static void fus_fdt_enable(void *fdt, const char *path, int enable)
 	}
 }
 
+/* Reserve a RAM memory region (Framebuffer, Cortex-M4)*/
+static void fus_fdt_reserve_ram(void *fdt)
+{
+	DECLARE_GLOBAL_DATA_PTR;
+	u32 size, base;
+	u32 start, avail;
+	fdt32_t tmp[2];
+	int offs, rm_offs;
+	char name[30];
+
+	/* Get the size to reserve from environment variable */
+	size = getenv_hex("reserved_ram_size", 0);
+	if (!size)
+		return;
+
+	/* Get the reserved-memory node */
+	rm_offs = fdt_path_offset(fdt, FDT_RES_MEM);
+	if (rm_offs < 0)
+		return;
+
+	/* Round up to next MB boundary, leave at least 32MB for Linux */
+	size = (size + 0xfffff) & ~0xfffff;
+	avail = gd->bd->bi_dram[0].size & ~0xfffff;
+	if (size > avail - (32 << 20))
+		size = avail - (32 << 20);
+
+	/* Reserve from end of RAM if base variable is invalid */
+	base = getenv_hex("reserved_ram_base", 0) & ~0xfffff;
+	start = (gd->bd->bi_dram[0].start + 0xfffff) & ~0xfffff;
+	if (!base || (base < start) || (base + size > start + avail))
+		base = start + avail - size;
+
+	/* Create a node under reserved-memory (or update existing node) */
+	snprintf(name, sizeof(name), "by-uboot@%08x", base);
+	name[sizeof(name) - 1] = '\0';
+	offs = fdt_add_subnode(fdt, rm_offs, name);
+	if (offs == -FDT_ERR_EXISTS)
+		offs = fdt_subnode_offset(fdt, rm_offs, name);
+	if (offs >= 0) {
+		printf("## Reserving RAM at 0x%08x, size 0x%08x\n", base, size);
+		tmp[0] = cpu_to_fdt32(base);
+		tmp[1] = cpu_to_fdt32(size);
+		fus_fdt_set_val(fdt, offs, "reg", tmp, sizeof(tmp), 1);
+		fdt_setprop(fdt, offs, "no-map", NULL, 0);
+	}
+
+	/* Let vring-buffer-addresses point to last 64K of this area */
+	offs = fus_fdt_path_offset(fdt, FDT_RPMSG);
+	if (offs >= 0) {
+		fus_fdt_set_u32(fdt, offs, "vring-buffer-address0",
+				base + size - RPMSG_SIZE, 1);
+		fus_fdt_set_u32(fdt, offs, "vring-buffer-address1",
+				base + size - RPMSG_SIZE/2, 1);
+	}
+}
+
 /* Do any additional board-specific device tree modifications */
 void ft_board_setup(void *fdt, bd_t *bd)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	int offs;
 
 	printf("   Setting run-time properties\n");
 
-	/* Set up the RPMsg shared memory info for Cortex-M4 communication */
-	offs = fus_fdt_path_offset(fdt, FDT_RPMSG);
-	if (offs >= 0) {
-		u32 addr = gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size;
-
-		fus_fdt_set_u32(fdt, offs, "vring-buffer-address0", addr, 1);
-		addr += RPMSG_SIZE/2;
-		fus_fdt_set_u32(fdt, offs, "vring-buffer-address1", addr, 1);
-	}
+	/* Optionally reserve some DDR RAM (e.g. Cortex-M4 RPMsg buffers) */
+	fus_fdt_reserve_ram(fdt);
 
 	/* Set ECC strength for NAND driver */
 	offs = fus_fdt_path_offset(fdt, FDT_NAND);

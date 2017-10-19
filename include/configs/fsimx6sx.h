@@ -120,7 +120,7 @@
  * Memory Layout
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
-#define CONFIG_NR_DRAM_BANKS	2
+#define CONFIG_NR_DRAM_BANKS	1
 #define PHYS_SDRAM		MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
@@ -682,6 +682,7 @@
 	"arch=fsimx6sx\0" \
 	"bootfdt=undef\0" \
 	"fdt_high=ffffffff\0" \
+	"reserved_ram_size=10000\0" \
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
