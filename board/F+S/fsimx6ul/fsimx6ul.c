@@ -100,9 +100,13 @@
 #define GPMI_PAD_CTRL1 (PAD_CTL_DSE_40ohm | PAD_CTL_SPEED_MED | PAD_CTL_SRE_FAST)
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
-#define USDHC_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_47K_UP |	\
-	PAD_CTL_SPEED_MED | PAD_CTL_DSE_80ohm | PAD_CTL_SRE_FAST)
-#define USDHC_CLK_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
+#define USDHC_PAD_EXT (PAD_CTL_HYS | PAD_CTL_PUS_47K_UP |	\
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
+#define USDHC_CLK_EXT (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
+	PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
+#define USDHC_PAD_INT (PAD_CTL_HYS | PAD_CTL_PUS_47K_UP |	\
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST)
+#define USDHC_CLK_INT (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
 	PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST)
 #define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
@@ -666,28 +670,37 @@ enum update_action board_check_for_recover(void)
 /* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
 #define to_fus_sdhc_cfg(x) container_of((x), struct fus_sdhc_cfg, esdhc)
 
-/* SD/MMC card pads definition */
-static iomux_v3_cfg_t const usdhc1_sd_pads[] = {
-	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+/* SD/MMC card pads definition, distinguish external from internal ports */
+static iomux_v3_cfg_t const usdhc1_sd_pads_ext[] = {
+	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 };
 
-static iomux_v3_cfg_t const usdhc2_sd_pads[] = {
-	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_CTRL)),
-	IOMUX_PADS(PAD_GPIO1_IO09__USDHC2_RESET_B|MUX_PAD_CTRL(USDHC_CLK_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA20__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA21__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA22__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_LCD_DATA23__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NAND_DATA04__USDHC2_DATA4| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NAND_DATA05__USDHC2_DATA5| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NAND_DATA06__USDHC2_DATA6| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NAND_DATA07__USDHC2_DATA7| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+static iomux_v3_cfg_t const usdhc2_sd_pads_ext[] = {
+	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_LCD_DATA20__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_LCD_DATA21__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_LCD_DATA22__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_LCD_DATA23__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+};
+
+static iomux_v3_cfg_t const usdhc2_sd_pads_int[] = {
+	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_INT)),
+	IOMUX_PADS(PAD_GPIO1_IO09__USDHC2_RESET_B|MUX_PAD_CTRL(USDHC_CLK_INT)),
+	IOMUX_PADS(PAD_LCD_DATA20__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_LCD_DATA21__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_LCD_DATA22__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_LCD_DATA23__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA04__USDHC2_DATA4| MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA05__USDHC2_DATA5| MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA06__USDHC2_DATA6| MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA07__USDHC2_DATA7| MUX_PAD_CTRL(USDHC_PAD_INT)),
 };
 
 /* CD on pad UART1_RTS */
@@ -706,12 +719,13 @@ struct fus_sdhc_cfg {
 };
 
 enum usdhc_pads {
-	usdhc1, usdhc2
+	usdhc1_ext, usdhc2_ext, usdhc2_int
 };
 
 static struct fus_sdhc_cfg sdhc_cfg[] = {
-	[usdhc1] = { usdhc1_sd_pads, 2, 1 }, /* pads, count, USDHC index */
-	[usdhc2] = { usdhc2_sd_pads, 3, 2 },
+	[usdhc1_ext] = { usdhc1_sd_pads_ext, 2, 1 }, /* pads, count, USDHC# */
+	[usdhc2_ext] = { usdhc2_sd_pads_ext, 2, 2 },
+	[usdhc2_int] = { usdhc2_sd_pads_int, 3, 2 },
 };
 
 struct fus_sdhc_cd {
@@ -811,7 +825,7 @@ int board_mmc_init(bd_t *bd)
 			if ((fs_nboot_args.chFeatures2 & FEAT2_WLAN)
 			    && (fs_nboot_args.chBoardRev >= 110))
 				cd = &sdhc_cd[gpio1_io19];
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], cd);
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], cd);
 		}
 		/*
 		 * If no WLAN is equipped, port SD_A with CD on GPIO1_IO19 can
@@ -819,7 +833,7 @@ int board_mmc_init(bd_t *bd)
 		 * is either mmc1 if SD_B is available, or mmc0 if not.
 		 */
 		if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
 					&sdhc_cd[gpio1_io19]);
 		/*
 		 * If eMMC is equipped, add it as last mmc port, which is
@@ -829,13 +843,13 @@ int board_mmc_init(bd_t *bd)
 		 */
 #ifdef CONFIG_CMD_NAND
 		/* If NAND is equipped, eMMC can only use buswidth 4 */
-		if (!ret)
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_int], NULL);
 #else
 		/* If no NAND is equipped, four additional data lines
 		   are available and eMMC can use buswidth 8 */
-		if (!ret)
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2], NULL);
+		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2_int], NULL);
 #endif
 		break;
 
@@ -844,7 +858,7 @@ int board_mmc_init(bd_t *bd)
 		   Actually the port has a CD if UART1 does not use RTS/CTS,
 		   but as we do not know this for sure, skip CD here and
 		   assume "always present". */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
 		break;
 
 	default:

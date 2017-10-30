@@ -104,8 +104,14 @@
 #define GPMI_PAD_CTRL1 (PAD_CTL_DSE_40ohm | PAD_CTL_SPEED_MED | PAD_CTL_SRE_FAST)
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
-#define USDHC_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_PUS_22K_UP |	\
-	PAD_CTL_SPEED_LOW | PAD_CTL_DSE_80ohm | PAD_CTL_SRE_FAST)
+#define USDHC_PAD_EXT (PAD_CTL_HYS | PAD_CTL_PUS_47K_UP |	\
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
+#define USDHC_CLK_EXT (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
+	PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
+#define USDHC_PAD_INT (PAD_CTL_HYS | PAD_CTL_PUS_47K_UP |	\
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST)
+#define USDHC_CLK_INT (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
+	PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST)
 #define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
 #define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED | \
@@ -653,37 +659,46 @@ enum update_action board_check_for_recover(void)
 /* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
 #define to_fus_sdhc_cfg(x) container_of((x), struct fus_sdhc_cfg, esdhc)
 
-/* SD/MMC card pads definition */
-static iomux_v3_cfg_t const usdhc1_sd_pads[] = {
-	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+/* SD/MMC card pads definition, distinguish external from internal ports */
+static iomux_v3_cfg_t const usdhc1_sd_pads_ext[] = {
+	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 };
 
-static iomux_v3_cfg_t const usdhc2_sd_pads[] = {
-	IOMUX_PADS(PAD_SD2_CLK__USDHC2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_CMD__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DATA0__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DATA1__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DATA2__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DATA3__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+static iomux_v3_cfg_t const usdhc2_sd_pads_ext[] = {
+	IOMUX_PADS(PAD_SD2_CLK__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_SD2_CMD__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD2_DATA0__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD2_DATA1__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD2_DATA2__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD2_DATA3__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 };
 
-static iomux_v3_cfg_t const usdhc4_sd_pads[] = {
-	IOMUX_PADS(PAD_SD4_CLK__USDHC4_CLK     | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_CMD__USDHC4_CMD     | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_RESET_B__USDHC4_RESET_B | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA0__USDHC4_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA1__USDHC4_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA2__USDHC4_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA3__USDHC4_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA4__USDHC4_DATA4 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA5__USDHC4_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA6__USDHC4_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DATA7__USDHC4_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+static iomux_v3_cfg_t const usdhc4_sd_pads_ext[] = {
+	IOMUX_PADS(PAD_SD4_CLK__USDHC4_CLK     | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_SD4_CMD__USDHC4_CMD     | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD4_DATA0__USDHC4_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD4_DATA1__USDHC4_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD4_DATA2__USDHC4_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD4_DATA3__USDHC4_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+};
+
+static iomux_v3_cfg_t const usdhc4_sd_pads_int[] = {
+	IOMUX_PADS(PAD_SD4_CLK__USDHC4_CLK     | MUX_PAD_CTRL(USDHC_CLK_INT)),
+	IOMUX_PADS(PAD_SD4_CMD__USDHC4_CMD     | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_RESET_B__USDHC4_RESET_B | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA0__USDHC4_DATA0 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA1__USDHC4_DATA1 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA2__USDHC4_DATA2 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA3__USDHC4_DATA3 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA4__USDHC4_DATA4 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA5__USDHC4_DATA5 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA6__USDHC4_DATA6 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_SD4_DATA7__USDHC4_DATA7 | MUX_PAD_CTRL(USDHC_PAD_INT)),
 };
 
 /* CD on pad GPIO1_IO02 */
@@ -712,13 +727,14 @@ struct fus_sdhc_cfg {
 };
 
 enum usdhc_pads {
-	usdhc1, usdhc2, usdhc4
+	usdhc1_ext, usdhc2_ext, usdhc4_ext, usdhc4_int
 };
 
 static struct fus_sdhc_cfg sdhc_cfg[] = {
-	[usdhc1] = { usdhc1_sd_pads, 2, 1 }, /* pads, count, USDHC index */
-	[usdhc2] = { usdhc2_sd_pads, 2, 2 },
-	[usdhc4] = { usdhc4_sd_pads, 3, 4 },
+	[usdhc1_ext] = { usdhc1_sd_pads_ext, 2, 1 }, /* pads, count, USDHC# */
+	[usdhc2_ext] = { usdhc2_sd_pads_ext, 2, 2 },
+	[usdhc4_ext] = { usdhc4_sd_pads_ext, 2, 4 },
+	[usdhc4_int] = { usdhc4_sd_pads_int, 3, 4 },
 };
 
 struct fus_sdhc_cd {
@@ -805,7 +821,8 @@ int board_mmc_init(bd_t *bd)
 	switch (fs_nboot_args.chBoardType) {
 	case BT_EFUSA9X:
 		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], &sdhc_cd[gpio1_io06]);
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
+				&sdhc_cd[gpio1_io06]);
 		if (ret)
 			break;
 
@@ -813,37 +830,38 @@ int board_mmc_init(bd_t *bd)
 		if (fs_nboot_args.chBoardRev < 120) {
 			/* Board Rev before 1.20: if no WLAN present: USDHC1 */
 			if (!(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
-				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1],
+				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
 						&sdhc_cd[gpio1_io02]);
 		} else {
 			/* Board Rev since 1.20: if no eMMC present: USDHC4 */
 			if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC))
-				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc4],
+				ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc4_ext],
 						&sdhc_cd[gpio6_io21]);
 		}
 
 		/* mmc2: USDHC4 (eMMC, if available), no CD */
 		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4], NULL);
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4_int], NULL);
 		break;
 
 	case BT_PICOCOMA9X:
 		/* mmc0: USDHC2 (ext. SD slot via connector), no CD */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
 
 		/* mmc1: USDHC4 (eMMC, if available), ignore CD */
 		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4], NULL);
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc4_int], NULL);
 		break;
 
 	case BT_BEMA9X:
 		/* mmc0: USDHC2 (ext. SD slot via connector), no CD */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], NULL);
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
 		break;
 
 	case BT_CONT1:
 		/* mmc0: USDHC2 (int. SD slot, micro SD on CONT1) */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2], &sdhc_cd[gpio1_io06]);
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
+				&sdhc_cd[gpio1_io06]);
 		break;
 
 	default:
