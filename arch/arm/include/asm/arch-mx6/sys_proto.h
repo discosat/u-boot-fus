@@ -46,9 +46,60 @@ int mxs_wait_mask_clr(struct mxs_register_32 *reg,
 		       uint32_t mask,
 		       unsigned int timeout);
 
-void arch_auxiliary_clock_enable(u32 core_id, int enable);
-int arch_auxiliary_clock_check(u32 core_id);
-int arch_auxiliary_core_up(u32 core_id, u32 boot_private_data);
-int arch_auxiliary_core_check_up(u32 core_id);
+
+/* For the bootaux command we implemented a state machine to switch between
+ * the different modes. Below you find the bit coding for the state machine.
+ * The different states will be set in the arch_auxiliary_core_set function and
+ * to get the current state you can use the function arch_auxiliary_core_get.
+ * If we get a undefined state we will immediately set the state to aux_off.
+ */
+/******************************************************************************
+****************|              bit coding             | state |****************
+-------------------------------------------------------------------------------
+****************| assert_reset | m4_clock | m4_enable | state |****************
+===============================================================================
+****************|       1      |     0    |     0     |    off    |************
+****************|       1      |     1    |     1     |  stopped  |************
+****************|       0      |     1    |     1     |  running  |************
+****************|       0      |     0    |     1     |  paused   |************
+****************|       0      |     0    |     0     | undefined |************
+****************|       0      |     1    |     0     | undefined |************
+****************|       1      |     0    |     1     | undefined |************
+****************|       1      |     1    |     0     | undefined |************
+*******************************************************************************
+**|   transitions    |   state   |            transitions             |********
+*******************************************************************************
+                      -----------
+                      |   OFF   |
+                      -----------
+          |          |           ^           ^                   ^
+          |    Start |           |  off      |                   |
+          |          v           |           |                   |
+          |           -----------            |                   |
+    run/  |           | Stopped |            | off               |
+          |           -----------            |                   |
+    addr  |          |           ^           |           ^       |
+          | run/addr |           | stop      |           |       | off
+          v          v           |                       |       |
+                      -----------                        |       |
+                      | Running |                        | stop  |
+                      -----------                        |       |
+                     |           ^                       |       |
+               pause |           | continue / run / addr |       |
+                     v           |
+                      -----------
+                      | Paused  |
+                      -----------
+******************************************************************************/
+enum aux_state {
+	aux_off,
+	aux_stopped,
+	aux_running,
+	aux_paused,
+	aux_undefined,
+};
+
+int arch_auxiliary_core_set(u32 core_id, enum aux_state state, u32 boot_private_data);
+enum aux_state arch_auxiliary_core_get(u32 core_id);
 
 #endif

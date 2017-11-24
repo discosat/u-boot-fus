@@ -364,69 +364,71 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 #endif
 
 #ifdef CONFIG_IMX_BOOTAUX
-void arch_auxiliary_clock_enable(u32 core_id, int enable)
+int arch_auxiliary_core_set(u32 core_id, enum aux_state state, u32 boot_private_data)
 {
 	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 
-	if (enable) {
-		/* Enable M4 clock */
-		setbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_M4_MASK);
-	} else {
+	if (!boot_private_data && state == aux_running)
+		return 1;
+
+	if (state == aux_off || state == aux_stopped)
 		/* Assert SW reset, i.e. stop M4 if running */
 		setbits_le32(&src_reg->scr, 0x00000010);
 
+	if (state == aux_off)
+		/* Disable M4 */
+		clrbits_le32(&src_reg->scr, 0x00400000);
+
+	if (state == aux_off || state == aux_paused)
 		/* Disable M4 clock */
 		clrbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_M4_MASK);
+
+	if (state == aux_stopped || state == aux_running)
+		/* Enable M4 clock */
+		setbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_M4_MASK);
+
+	if (!(state == aux_off)) {
+		/* Enable M4 */
+		setbits_le32(&src_reg->scr, 0x00400000);
 	}
-}
 
-int arch_auxiliary_clock_check(u32 core_id)
-{
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-
-	if (readl(&mxc_ccm->CCGR3) & MXC_CCM_CCGR3_M4_MASK)
-		return 1;
+	if (state == aux_running || state == aux_paused)
+		/* Assert SW reset, i.e. stop M4 if running */
+		clrbits_le32(&src_reg->scr, 0x00000010);
 
 	return 0;
 }
 
-int arch_auxiliary_core_up(u32 core_id, u32 boot_private_data)
-{
-	struct src *src_reg;
-	u32 stack, pc;
-
-	if (!boot_private_data)
-		return 1;
-
-	stack = *(u32 *)boot_private_data;
-	pc = *(u32 *)(boot_private_data + 4);
-
-	/* Set the stack and pc to M4 bootROM */
-	writel(stack, M4_BOOTROM_BASE_ADDR);
-	writel(pc, M4_BOOTROM_BASE_ADDR + 4);
-
-	/* Enable M4 */
-	src_reg = (struct src *)SRC_BASE_ADDR;
-	setbits_le32(&src_reg->scr, 0x00400000);
-
-	/* Clear SW Reset */
-	clrbits_le32(&src_reg->scr, 0x00000010);
-
-	return 0;
-}
-
-int arch_auxiliary_core_check_up(u32 core_id)
+enum aux_state arch_auxiliary_core_get(u32 core_id)
 {
 	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
-	unsigned val;
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	int flags = 0;
+	int reg = 0;
 
-	val = readl(&src_reg->scr);
+	reg = readl(&src_reg->scr);
+	if (reg & 0x00000010)
+		flags |= 0x4;
+	if (reg & 0x00400000)
+		flags |= 0x1;
+	reg = readl(&mxc_ccm->CCGR3);
+	if (reg & MXC_CCM_CCGR3_M4_MASK)
+		flags |= 0x2;
 
-	if (val & 0x00000010)
-		return 0;  /* assert in reset */
+	switch (flags)
+	{
+		case 0x4:
+			return aux_off;
+		case 0x7:
+			return aux_stopped;
+		case 0x3:
+			return aux_running;
+		case 0x1:
+			return aux_paused;
+	}
 
-	return 1;
+	return aux_undefined;
 }
 #endif
 
