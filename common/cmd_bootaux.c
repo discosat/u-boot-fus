@@ -23,6 +23,7 @@
  */
 int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+	const char *state_name[] = {"off", "stopped", "running", "paused"};
 	ulong addr = 0;
 	int ret = 0;
 	enum aux_state state;
@@ -30,7 +31,7 @@ int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	state = arch_auxiliary_core_get(0);
 	if (state == aux_undefined) {
 		state = aux_off;
-		arch_auxiliary_core_set(0, state, addr);
+		arch_auxiliary_core_set(0, state);
 	}
 
 	if (argc > 1) {
@@ -44,37 +45,36 @@ int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			state = aux_running;
 		else if (!strcmp(argv[1], "off"))
 			state = aux_off;
-		else if (!strcmp(argv[1], "run") || parse_loadaddr(argv[1], NULL))
+		else if (!strcmp(argv[1], "run") ||
+			(argv[1][0] >= '0' && argv[1][0] <= '9'))
 		{
-			state = aux_running;
 			if(!strcmp(argv[1], "run"))
 				addr = M4_BOOTROM_BASE_ADDR;
 			else
 				addr = parse_loadaddr(argv[1], NULL);
-		}
-		else
-			state = aux_undefined;
 
-		if (state != aux_undefined) {
-			ret = arch_auxiliary_core_set(0, state, addr);
+			state = aux_stopped;
+			arch_auxiliary_core_set(0, state);
+
+			ret = arch_auxiliary_core_set_reset_address(addr);
 			if (ret) {
-				printf("Starting auxiliary core failed\n");
+				printf("Bad address\n");
 				return CMD_RET_FAILURE;
 			}
+			state = aux_running;
 		}
+		else {
+			printf("Command %s unknown or not allowed if auxiliary"
+				    " core %s!\n", argv[1], state_name[state]);
+			return CMD_RET_FAILURE;
+		}
+
+		arch_auxiliary_core_set(0, state);
 	}
 
 	state = arch_auxiliary_core_get(0);
-
 	/* Print auxiliary core state */
-	if (state == aux_off)
-		printf("auxiliary core off\n");
-	else if (state == aux_stopped)
-		printf("auxiliary core stopped\n");
-	else if (state == aux_running)
-		printf("auxiliary core running\n");
-	else
-		printf("auxiliary core paused\n");
+	printf("auxiliary core %s\n", state_name[state]);
 
 	return CMD_RET_SUCCESS;
 }
