@@ -283,6 +283,11 @@ int arch_cpu_init(void)
 	mxs_dma_init();
 #endif
 
+#ifndef CONFIG_PCIE_IMX
+	if (is_cpu_type(MXC_CPU_MX6SX))
+		set_ldo_voltage(LDO_PU, 0);	/* Set LDO for PCIe to off */
+#endif
+
 	return 0;
 }
 
