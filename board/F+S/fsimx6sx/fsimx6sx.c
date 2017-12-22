@@ -84,7 +84,7 @@
 /* Device tree paths */
 #define FDT_NAND	"/soc/gpmi-nand@01806000"
 #define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
-#define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@021b4000"
+#define FDT_ETH_B	"/soc/aips-bus@02100000/ethernet@021b4000"
 #define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
 #define FDT_RES_MEM	"/reserved-memory"
 
@@ -2306,6 +2306,27 @@ static void fus_fdt_set_macaddr(void *fdt, int offs, int id)
 	}
 }
 
+/* Set WLAN MAC address in bdinfo as MAC_WLAN and as Silex-MAC */
+static void fus_fdt_set_wlan_macaddr(void *fdt, int offs, int id)
+{
+	uchar enetaddr[6];
+	char str[30];
+
+	/* WLAN MAC address only required on Silex based board revisions */
+	if ((fs_nboot_args.chBoardType != BT_EFUSA9X)
+	    || (fs_nboot_args.chBoardRev < 120))
+		return;
+
+	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
+		sprintf(str, "%pM", enetaddr);
+		fus_fdt_set_string(fdt, offs, "MAC_WLAN", str, 1);
+		sprintf(str, "Intf0MacAddress=%02X%02X%02X%02X%02X%02X",
+			enetaddr[0], enetaddr[1], enetaddr[2], enetaddr[3],
+			enetaddr[4], enetaddr[5]);
+		fus_fdt_set_string(fdt, offs, "Silex-MAC", str, 1);
+	}
+}
+
 /* If environment variable exists, set a string property with the same name */
 static void fus_fdt_set_getenv(void *fdt, int offs, const char *name, int force)
 {
@@ -2463,7 +2484,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
 			fus_fdt_set_macaddr(fdt, offs, id++);
 		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
-			fus_fdt_set_macaddr(fdt, offs, id++);
+			fus_fdt_set_wlan_macaddr(fdt, offs, id++);
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
