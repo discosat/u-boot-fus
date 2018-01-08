@@ -1,6 +1,20 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fsimx6sx-V2.1 (08.01.2018)
+-----------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Use state machine for auxiliary core support (bootaux command)
+- Add support for PCIe on fsimx6sx
+- Set WLAN MAC address in bdinfo for fsimx6sx/fsimx6ul
+
+
+
 u-boot-2014.07-fsimx6-V3.1 (20.11.2017)
 ---------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
