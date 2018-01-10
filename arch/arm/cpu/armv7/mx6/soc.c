@@ -369,13 +369,29 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 #endif
 
 #ifdef CONFIG_IMX_BOOTAUX
-int arch_auxiliary_core_set(u32 core_id, enum aux_state state, u32 boot_private_data)
+int arch_auxiliary_core_set_reset_address(u32 boot_private_data)
+{
+	u32 stack, pc;
+
+	if (!boot_private_data)
+		return 1;
+
+	if (boot_private_data != M4_BOOTROM_BASE_ADDR) {
+		stack = *(u32 *)boot_private_data;
+		pc = *(u32 *)(boot_private_data + 4);
+
+		/* Set the stack and pc to M4 bootROM */
+		writel(stack, M4_BOOTROM_BASE_ADDR);
+		writel(pc, M4_BOOTROM_BASE_ADDR + 4);
+	}
+
+	return 0;
+}
+
+void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 {
 	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-
-	if (!boot_private_data && state == aux_running)
-		return 1;
 
 	if (state == aux_off || state == aux_stopped)
 		/* Assert SW reset, i.e. stop M4 if running */
@@ -401,8 +417,6 @@ int arch_auxiliary_core_set(u32 core_id, enum aux_state state, u32 boot_private_
 	if (state == aux_running || state == aux_paused)
 		/* Assert SW reset, i.e. stop M4 if running */
 		clrbits_le32(&src_reg->scr, 0x00000010);
-
-	return 0;
 }
 
 enum aux_state arch_auxiliary_core_get(u32 core_id)

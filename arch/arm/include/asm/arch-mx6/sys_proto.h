@@ -54,9 +54,9 @@ int mxs_wait_mask_clr(struct mxs_register_32 *reg,
  * If we get a undefined state we will immediately set the state to aux_off.
  */
 /******************************************************************************
-****************|              bit coding             | state |****************
+****************|              bit coding             |   state   |************
 -------------------------------------------------------------------------------
-****************| assert_reset | m4_clock | m4_enable | state |****************
+****************| assert_reset | m4_clock | m4_enable |   state   |************
 ===============================================================================
 ****************|       1      |     0    |     0     |    off    |************
 ****************|       1      |     1    |     1     |  stopped  |************
@@ -77,16 +77,16 @@ int mxs_wait_mask_clr(struct mxs_register_32 *reg,
           |          v           |           |                   |
           |           -----------            |                   |
     run/  |           | Stopped |            | off               |
-          |           -----------            |                   |
-    addr  |          |           ^           |           ^       |
+    addr  |           -----------            |                   |
+          |          |           ^           |           ^       |
           | run/addr |           | stop      |           |       | off
           v          v           |                       |       |
                       -----------                        |       |
                       | Running |                        | stop  |
                       -----------                        |       |
                      |           ^                       |       |
-               pause |           | continue / run / addr |       |
-                     v           |
+               pause |           | continue              |       |
+                     v           | run/addr (restart)    |       |
                       -----------
                       | Paused  |
                       -----------
@@ -99,7 +99,8 @@ enum aux_state {
 	aux_undefined,
 };
 
-int arch_auxiliary_core_set(u32 core_id, enum aux_state state, u32 boot_private_data);
+int arch_auxiliary_core_set_reset_address(u32 boot_private_data);
+void arch_auxiliary_core_set(u32 core_id, enum aux_state state);
 enum aux_state arch_auxiliary_core_get(u32 core_id);
 
 #endif
