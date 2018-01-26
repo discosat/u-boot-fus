@@ -2203,6 +2203,10 @@ int board_eth_init(bd_t *bd)
 					free(phy5);
 				free(bus);
 				ret = -ENOMEM;
+			} else {
+				phy_config(phy3);
+				phy_config(phy4);
+				phy_config(phy5);
 			}
 		}
 #ifdef CONFIG_MXC_SPI

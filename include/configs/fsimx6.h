@@ -245,6 +245,9 @@
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
+/* Activate this to disable Energy Efficient Ethernet (EEE) on Atheros PHY */
+//#define CONFIG_PHY_ATHEROS_NO_EEE
+
 /* If a second ETH chip is available, it is a NE2000 compatible AX88796B */
 #define CONFIG_DRIVER_AX88796
 #define CONFIG_DRIVER_AX88796_BASE	0x0C000000

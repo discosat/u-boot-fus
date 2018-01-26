@@ -241,6 +241,9 @@
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
+/* Activate this to disable Energy Efficient Ethernet (EEE) on Atheros PHY */
+//#define CONFIG_PHY_ATHEROS_NO_EEE
+
 /* Ethernet switch SJA1105 */
 #define CONFIG_MXC_SPI
 
