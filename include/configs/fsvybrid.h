@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on Freescale Vybrid. This
  * is armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5, AGATEWAY and HGATEWAY.
@@ -90,7 +90,7 @@
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
 /* CPU, family and board defines */
-#define CONFIG_VYBRID			/* Freescale Vybrid CPU... */
+#define CONFIG_VYBRID			/* NXP Vybrid CPU... */
 #define CONFIG_FSVYBRID			/* ...on an F&S Vybrid board */
 #undef CONFIG_MP			/* No multi processor support */
 

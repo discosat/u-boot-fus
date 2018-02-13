@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX6 Solo-X. This is
  * efusA9X and PicoCOMA9X.
@@ -53,10 +53,12 @@
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
 /* CPU, family and board defines */
-#define CONFIG_MX6			/* Freescale i.MX6 CPU... */
+#define CONFIG_MX6			/* NXP i.MX6 CPU... */
 #define CONFIG_MX6SX			/* ...Solo-X... */
 #define CONFIG_FSIMX6SX			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
+
+#define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 
 #define CONFIG_SYS_L2CACHE_OFF
 #ifndef CONFIG_SYS_L2CACHE_OFF
@@ -238,7 +240,6 @@
 #define CONFIG_PHY_NATSEMI
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
 /* Activate this to disable Energy Efficient Ethernet (EEE) on Atheros PHY */

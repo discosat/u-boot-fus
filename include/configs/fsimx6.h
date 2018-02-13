@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX6. This is efusA9,
  * armStoneA9, armStoneA9r2, QBlissA9, QBlissA9r2, PicoMODA9 and NetDCUA9.
@@ -53,10 +53,12 @@
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
 /* CPU, family and board defines */
-#define CONFIG_MX6			/* Freescale i.MX6 CPU... */
+#define CONFIG_MX6			/* NXP i.MX6 CPU... */
 #define CONFIG_MX6QDL			/* ...Quad/Dual or DualLite/Solo... */
 #define CONFIG_FSIMX6			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
+
+#define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 
 #define CONFIG_SYS_L2CACHE_OFF
 #ifndef CONFIG_SYS_L2CACHE_OFF

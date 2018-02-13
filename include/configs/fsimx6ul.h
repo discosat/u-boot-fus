@@ -69,6 +69,8 @@
 #define CONFIG_FSIMX6UL			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_IMX_THERMAL		/* Give extended thermal info */
+
 #define CONFIG_SYS_L2CACHE_OFF
 #ifndef CONFIG_SYS_L2CACHE_OFF
 #define CONFIG_SYS_L2_PL310
