@@ -1357,10 +1357,14 @@ static iomux_v3_cfg_t const enet2_pads_rmii[] = {
 };
 
 /* Additional pins required to reset the PHY(s). Please note that on efusA7UL
-   this is actually the generic RESETOUTn signal! */
-static iomux_v3_cfg_t const enet_pads_reset_efusa7ul_picocom1_2[] = {
-	IOMUX_PADS(PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+   before board revision 1.20, this is actually the generic RESETOUTn signal! */
+static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ull[] = {
+	MX6ULL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
+static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ul[] = {
+	MX6UL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 
 static iomux_v3_cfg_t const enet_pads_reset_gar1[] = {
 	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
@@ -1541,13 +1545,19 @@ int board_eth_init(bd_t *bis)
 		 * access can be done.
 		 *
 		 * ATTENTION:
-		 * On efusA7UL, this is the generic RESETOUTn signal that is
-		 * also available on pin 14 of the efus connector. On board
-		 * revisions before 1.20, this signal also resets WLAN. And
-		 * because the WLAN there needs at least 100ms, we must
-		 * increase the reset pulse time in this case.
+		 * On efusA7UL before board revision 1.20, this is the generic
+		 * RESETOUTn signal that is also available on pin 14 of the
+		 * efus connector. There it also resets WLAN. And because the
+		 * WLAN there needs at least 100ms, we must increase the reset
+		 * pulse time in this case.
+		 * On efusA7UL since board revision 1.20, this only resets the
+		 * ethernet PHYs. WLAN reset, RESETOUTn and other power signals
+		 * are handled by an additional I2C IO expander.
 		 */
-		SETUP_IOMUX_PADS(enet_pads_reset_efusa7ul_picocom1_2);
+		if (is_cpu_type(MXC_CPU_MX6ULL))
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
+		else
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
 		issue_reset((fs_nboot_args.chBoardRev < 120) ? 100000 : 500,
 			    100, IMX_GPIO_NR(5, 11), ~0, ~0);
 		break;
@@ -1566,7 +1576,10 @@ int board_eth_init(bd_t *bis)
 		 * also resets WLAN. But WLAN needs only ~100ms, so no need to
 		 * further increase the reset pulse time.
 		 */
-		SETUP_IOMUX_PADS(enet_pads_reset_efusa7ul_picocom1_2);
+		if (is_cpu_type(MXC_CPU_MX6ULL))
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
+		else
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
 		issue_reset(10, 170000, IMX_GPIO_NR(5, 11), ~0, ~0);
 		break;
 
