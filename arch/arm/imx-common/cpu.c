@@ -14,6 +14,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>
+#include <imx_thermal.h>
 #include <ipu_pixfmt.h>
 
 #ifdef CONFIG_FSL_ESDHC
@@ -98,6 +99,12 @@ unsigned imx_ddr_size(void)
 const char *get_imx_type(u32 imxtype)
 {
 	switch (imxtype) {
+	case MXC_CPU_MX7D:
+		return "7D";	/* Dual-core version of the mx7 */
+	case MXC_CPU_MX6QP:
+		return "6QP";	/* Quad-Plus version of the mx6 */
+	case MXC_CPU_MX6DP:
+		return "6DP";	/* Dual-Plus version of the mx6 */
 	case MXC_CPU_MX6Q:
 		return "6Q";	/* Quad-core version of the mx6 */
 	case MXC_CPU_MX6D:
@@ -112,6 +119,8 @@ const char *get_imx_type(u32 imxtype)
 		return "6SX";	/* SoloX version of the mx6 */
 	case MXC_CPU_MX6UL:
 		return "6UL";	/* UL version of the mx6 */
+	case MXC_CPU_MX6ULL:
+		return "6ULL";	/* ULL version of the mx6 */
 	case MXC_CPU_MX51:
 		return "51";
 	case MXC_CPU_MX53:
@@ -124,17 +133,50 @@ const char *get_imx_type(u32 imxtype)
 int print_cpuinfo(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	u32 cpurev;
+	u32 cpurev = get_cpu_rev();
 	u32 cause;
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+#if defined(CONFIG_IMX_THERMAL)
+	u32 max_freq;
+	int minc, maxc;
 
-	cpurev = get_cpu_rev();
-
+	printf("CPU:   Freescale i.MX%s rev%d.%d",
+	       get_imx_type((cpurev & 0xFF000) >> 12),
+	       (cpurev & 0x000F0) >> 4,
+	       (cpurev & 0x0000F) >> 0);
+	max_freq = get_cpu_speed_grade_hz();
+	if (!max_freq || max_freq == mxc_get_clock(MXC_ARM_CLK)) {
+		printf(" at %dMHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
+	} else {
+		printf(" %d MHz (running at %d MHz)\n", max_freq / 1000000,
+		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
+	}
+#else
 	printf("CPU:   Freescale i.MX%s rev%d.%d at %d MHz\n",
 		get_imx_type((cpurev & 0xFF000) >> 12),
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
 		mxc_get_clock(MXC_ARM_CLK) / 1000000);
+#endif
+
+#if defined(CONFIG_IMX_THERMAL)
+	puts("CPU:   ");
+	switch (get_cpu_temp_grade(&minc, &maxc)) {
+	case TEMP_AUTOMOTIVE:
+		puts("Automotive temperature grade ");
+		break;
+	case TEMP_INDUSTRIAL:
+		puts("Industrial temperature grade ");
+		break;
+	case TEMP_EXTCOMMERCIAL:
+		puts("Extended Commercial temperature grade ");
+		break;
+	default:
+		puts("Commercial temperature grade ");
+		break;
+	}
+	printf("(%dC to %dC)\n", minc, maxc);
+#endif
 
 	cause = readl(&src_regs->srsr);
 	writel(cause, &src_regs->srsr);
