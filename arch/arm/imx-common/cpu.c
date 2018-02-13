@@ -139,6 +139,7 @@ int print_cpuinfo(void)
 #if defined(CONFIG_IMX_THERMAL)
 	u32 max_freq;
 	int minc, maxc;
+	char *temp;
 
 	printf("CPU:   Freescale i.MX%s rev%d.%d",
 	       get_imx_type((cpurev & 0xFF000) >> 12),
@@ -146,9 +147,9 @@ int print_cpuinfo(void)
 	       (cpurev & 0x0000F) >> 0);
 	max_freq = get_cpu_speed_grade_hz();
 	if (!max_freq || max_freq == mxc_get_clock(MXC_ARM_CLK)) {
-		printf(" at %dMHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
+		printf(" at %d MHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	} else {
-		printf(" %d MHz (running at %d MHz)\n", max_freq / 1000000,
+		printf(", %d MHz (running at %d MHz)\n", max_freq / 1000000,
 		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	}
 #else
@@ -160,22 +161,21 @@ int print_cpuinfo(void)
 #endif
 
 #if defined(CONFIG_IMX_THERMAL)
-	puts("CPU:   ");
 	switch (get_cpu_temp_grade(&minc, &maxc)) {
 	case TEMP_AUTOMOTIVE:
-		puts("Automotive temperature grade ");
+		temp = "Automotive";
 		break;
 	case TEMP_INDUSTRIAL:
-		puts("Industrial temperature grade ");
+		temp = "Industrial";
 		break;
 	case TEMP_EXTCOMMERCIAL:
-		puts("Extended Commercial temperature grade ");
+		temp = "Extended Commercial";
 		break;
 	default:
-		puts("Commercial temperature grade ");
+		temp = "Commercial";
 		break;
 	}
-	printf("(%dC to %dC)\n", minc, maxc);
+	printf("CPU:   %s temperature grade (%dC to %dC)\n", temp, minc, maxc);
 #endif
 
 	cause = readl(&src_regs->srsr);

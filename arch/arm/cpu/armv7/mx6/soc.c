@@ -105,13 +105,29 @@ u32 get_cpu_speed_grade_hz(void)
 	val >>= OCOTP_CFG3_SPEED_SHIFT;
 	val &= 0x3;
 
-	if (is_cpu_type(MXC_CPU_MX6UL) || is_cpu_type(MXC_CPU_MX6ULL)) {
-		if (val == OCOTP_CFG3_SPEED_528MHZ)
+	/* UL: 2b'00: Reserved, 2b'01: 528MHz, 2b'10: 696MHz, 2b'11: Reserved */
+	if (is_cpu_type(MXC_CPU_MX6UL)) {
+		switch (val) {
+		case 1:
 			return 528000000;
-		else if (val == OCOTP_CFG3_SPEED_696MHZ)
-			return 69600000;
-		else
+		case 2:
+			return 696000000;
+		default:
 			return 0;
+		}
+	}
+	/* ULL: 2b'00: Reserved, 2b'01: 528MHz, 2b'10: 792MHz, 2b'11: 900MHz */
+	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+		switch (val) {
+		case 1:
+			return 528000000;
+		case 2:
+			return 792000000;
+		case 3:
+			return 900000000;
+		default:
+			return 0;
+		}
 	}
 
 	switch (val) {
