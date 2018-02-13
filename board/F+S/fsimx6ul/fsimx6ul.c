@@ -664,7 +664,7 @@ enum update_action board_check_for_recover(void)
  * available at all. On newer board revisions, CD/WP are also used for SD_A if
  * WLAN is not equipped. And if both, WLAN and eMMC are equipped, CD/WP
  * signals are still not available at all. But in the case of WLAN equipped
- * and eMMC not equipped, CD/WP are connected be SD_B instead instead of SD_A.
+ * and eMMC not equipped, CD/WP are connected be SD_B instead of SD_A.
  */
 
 /* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
@@ -1465,7 +1465,6 @@ int board_eth_init(bd_t *bis)
 	enum xceiver_type xcv_type;
 	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mii_dev *bus = NULL;
 	struct phy_device *phydev;
 	unsigned int features2 = fs_nboot_args.chFeatures2;
@@ -1473,7 +1472,7 @@ int board_eth_init(bd_t *bis)
 
 	/* Ungate ENET clock, this is a common clock for both ports */
 	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B))
-		writel(readl(&mxc_ccm->CCGR3) | 0x30, &mxc_ccm->CCGR3);
+		enable_enet_clk(1);
 
 	/*
 	 * Set IOMUX for ports, enable clocks. Both PHYs were already reset
@@ -1488,7 +1487,7 @@ int board_eth_init(bd_t *bis)
 
 			/* ENET1 CLK is generated in i.MX6UL and is output */
 			gpr1 = readl(&iomux_regs->gpr[1]);
-			gpr1 |= IOMUXC_GPR1_ENET1_CLK_SEL_MASK;
+			gpr1 |= IOMUXC_GPR1_ENET1_CLK_SEL;
 			writel(gpr1, &iomux_regs->gpr[1]);
 
 			/* Activate ENET1 PLL */
@@ -1508,7 +1507,7 @@ int board_eth_init(bd_t *bis)
 
 			/* ENET2 CLK is generated in i.MX6UL and is output */
 			gpr1 = readl(&iomux_regs->gpr[1]);
-			gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL_MASK;
+			gpr1 |= IOMUXC_GPR1_ENET2_CLK_SEL;
 			writel(gpr1, &iomux_regs->gpr[1]);
 
 			/* Activate ENET2 PLL */

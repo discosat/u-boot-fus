@@ -1704,7 +1704,7 @@ void set_fs_ethaddr(int index)
 
 int board_eth_init(bd_t *bis)
 {
-	u32 ccgr1, gpr1;
+	u32 gpr1;
 	int ret;
 	int phy_addr;
 	int reset_gpio;
@@ -1752,9 +1752,8 @@ int board_eth_init(bd_t *bis)
 		if (ret < 0)
 			return ret;
 
-		/* Enable ENET clock in clock gating register 1 */
-		ccgr1 = readl(CCM_CCGR1);
-		writel(ccgr1 | MXC_CCM_CCGR1_ENET_CLK_ENABLE_MASK, CCM_CCGR1);
+		/* Enable ENET clock */
+		enable_enet_clk(1);
 
 		/* Reset the PHY */
 		switch (fs_nboot_args.chBoardType) {

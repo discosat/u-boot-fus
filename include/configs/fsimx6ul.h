@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX6 UltraLite. This is
  * efusA7UL and PicoCOM1.2.
@@ -52,9 +52,20 @@
  ************************************************************************/
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
-/* CPU, family and board defines */
-#define CONFIG_MX6			/* Freescale i.MX6 CPU... */
+/*
+ * CPU, family and board defines.
+ *
+ * Setting CONFIG_MX6ULL mainly pulls in different pinmux settings. However
+ * the differences only affects a few pads and as long as we do not use one of
+ * these pads in U-Boot, we can stay with the UL pinmux settings.
+ *
+ * Everything else, like CPU detection or calling CPU specific code, is
+ * handled at runtime and does not depend on CONFIG_MX6ULL being set.
+ * CONFIG_MX6UL is sufficient for this.
+ */
+#define CONFIG_MX6			/* NXP i.MX6 CPU... */
 #define CONFIG_MX6UL			/* ...UL... */
+#define CONFIG_MX6ULL			/* ...ULL... */
 #define CONFIG_FSIMX6UL			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
@@ -63,6 +74,9 @@
 #define CONFIG_SYS_L2_PL310
 #define CONFIG_SYS_PL310_BASE	L2_PL310_BASE
 #endif
+
+/* i.MX6ULL has some IOMUXC registers moved to SNVS, indicated by LPSR bit */ 
+#define CONFIG_IOMUX_LPSR
 
 /* The ARMv7 cache code (arch/arm/lib/cache-cp15.c) and the i.MX6 init code
    (arch/arm/cpu/armv7/mx6/soc.c) now also allow to set the data cache mode to
