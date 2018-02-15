@@ -311,6 +311,16 @@ static iomux_v3_cfg_t const lcd18_pads[] = {
 	IOMUX_PADS(PAD_LCD_DATA17__GPIO3_IO22 | MUX_PAD_CTRL(0x3010)),
 };
 
+/* Pads for VLCD_ON and VCFL_ON: active high -> pull-down to switch off */
+static iomux_v3_cfg_t const lcd_extra_pads_ull[] = {
+	MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
+	MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+static iomux_v3_cfg_t const lcd_extra_pads_ul[] = {
+	MX6UL_PAD_SNVS_TAMPER4__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
+	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+
 /* GAR1 power off leds */
 static iomux_v3_cfg_t const gar1_led_pads[] = {
 	IOMUX_PADS(PAD_LCD_DATA00__GPIO3_IO05 | MUX_PAD_CTRL(0x3010)),
@@ -342,7 +352,7 @@ int board_early_init_f(void)
 	case BT_CUBE2_0:
 		break;
 
-	case BT_GAR1:
+	case BT_GAR1:			/* Also no LCD, but init other GPIOs */
 		SETUP_IOMUX_PADS(gar1_led_pads);
 		gpio_direction_input(IMX_GPIO_NR(3, 5));
 		gpio_direction_input(IMX_GPIO_NR(3, 6));
@@ -354,8 +364,13 @@ int board_early_init_f(void)
 		gpio_direction_input(IMX_GPIO_NR(1, 9));
 		break;
 
+	case BT_EFUSA7UL:
 	default:			/* Boards with 18-bit LCD interface */
 		SETUP_IOMUX_PADS(lcd18_pads);
+		if (is_cpu_type(MXC_CPU_MX6ULL))
+			SETUP_IOMUX_PADS(lcd_extra_pads_ull);
+		else
+			SETUP_IOMUX_PADS(lcd_extra_pads_ul);
 		break;
 	}
 

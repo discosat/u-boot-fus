@@ -319,6 +319,18 @@ static iomux_v3_cfg_t const lcd18_pads[] = {
 	IOMUX_PADS(PAD_LCD1_VSYNC__GPIO3_IO_28  | MUX_PAD_CTRL(0x3010)),
 };
 
+/* Pads for VLCD_ON and VCFL_ON */
+static iomux_v3_cfg_t const lcd_extra_pads_efusa9x[] = {
+	/* Signals are active high -> pull-down to switch off */
+	IOMUX_PADS(PAD_LCD1_DATA18__GPIO3_IO_19 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA19__GPIO3_IO_20 | MUX_PAD_CTRL(0x3010)),
+};
+static iomux_v3_cfg_t const lcd_extra_pads_picocoma9x[] = {
+	/* Signals are active low -> pull-up to switch off */
+	IOMUX_PADS(PAD_LCD1_RESET__GPIO3_IO_27 | MUX_PAD_CTRL(0xb010)),
+	IOMUX_PADS(PAD_LCD1_DATA19__GPIO3_IO_20 | MUX_PAD_CTRL(0xb010)),
+};
+
 int board_early_init_f(void)
 {
 	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
@@ -330,11 +342,24 @@ int board_early_init_f(void)
 	 * FIXME: This should actually only happen if display is really in
 	 * use, i.e. if device tree activates lcd. However we do not know this
 	 * at this point of time.
+	 *
+	 * Also switch off VLCD_ON and VCFL_ON.
 	 */
 	switch (pargs->chBoardType)
 	{
-	default:			/* Boards with 18-bit LCD interface */
+	case BT_CONT1:
+		break;
+
+	case BT_PICOCOMA9X:
+	case BT_BEMA9X:
 		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd_extra_pads_picocoma9x);
+		break;
+
+	case BT_EFUSA9X:
+	default:
+		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd_extra_pads_efusa9x);
 		break;
 	}
 

@@ -344,6 +344,14 @@ static iomux_v3_cfg_t const lcd24_pads[] = {
 	IOMUX_PADS(PAD_DISP0_DAT23__GPIO5_IO17  | MUX_PAD_CTRL(0x3010)),
 };
 
+/* Additional pads for VLCD_ON and VCFL_ON */
+static iomux_v3_cfg_t const lcd_extra_pads[] = {
+	/* Signals are active high -> pull-down to switch off */
+	IOMUX_PADS(PAD_SD4_DAT3__GPIO2_IO11 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_SD4_DAT0__GPIO2_IO08 | MUX_PAD_CTRL(0x3010)),
+};
+
+
 /* Do some very early board specific setup */
 int board_early_init_f(void)
 {
@@ -362,13 +370,18 @@ int board_early_init_f(void)
 	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
 	case BT_QBLISSA9:
 	case BT_QBLISSA9R2:
+		SETUP_IOMUX_PADS(lcd_extra_pads);
 		break;
 
 	case BT_NETDCUA9:		/* Boards with 24-bit LCD interface */
 		SETUP_IOMUX_PADS(lcd24_pads);
 		/* No break, fall through to default case */
+	case BT_EFUSA9:
+	case BT_ARMSTONEA9:
+	case BT_PICOMODA9:
 	default:			/* Boards with 18-bit LCD interface */
 		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd_extra_pads);
 		break;
 	}
 
