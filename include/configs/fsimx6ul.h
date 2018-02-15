@@ -52,20 +52,10 @@
  ************************************************************************/
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 
-/*
- * CPU, family and board defines.
- *
- * Setting CONFIG_MX6ULL mainly pulls in different pinmux settings. However
- * the differences only affects a few pads and as long as we do not use one of
- * these pads in U-Boot, we can stay with the UL pinmux settings.
- *
- * Everything else, like CPU detection or calling CPU specific code, is
- * handled at runtime and does not depend on CONFIG_MX6ULL being set.
- * CONFIG_MX6UL is sufficient for this.
- */
+/* CPU, family and board defines, UL and ULL can be handled at the same time */
 #define CONFIG_MX6			/* NXP i.MX6 CPU... */
 #define CONFIG_MX6UL			/* ...UL... */
-#define CONFIG_MX6ULL			/* ...ULL... */
+#define CONFIG_MX6ULL			/* ...and ULL... */
 #define CONFIG_FSIMX6UL			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 

@@ -1289,6 +1289,21 @@ int board_late_init(void)
 			*l++ = c;
 		} while (c);
 
+		/*
+		 * In case of i.MX6ULL, append a second 'l' if the name already
+		 * ends with 'ul', otherwise append 'ull'. This results in the
+		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
+		 */
+		if (is_cpu_type(MXC_CPU_MX6ULL)) {
+			l -= 3;
+			if ((*l++ != 'u') || (*l++ != 'l')) {
+				*l++ = 'u';
+				*l++ = 'l';
+			}
+			*l++ = 'l';
+			*l++ = '\0';
+		}
+
 		setenv("platform", lcasename);
 	}
 
