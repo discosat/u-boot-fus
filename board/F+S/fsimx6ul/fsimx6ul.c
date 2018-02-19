@@ -321,6 +321,11 @@ static iomux_v3_cfg_t const lcd_extra_pads_ul[] = {
 	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
 };
 
+/* DVS on efusA7UL (since board rev 1.10) and PicoCOM1.2 (since rev 1.00) */
+static iomux_v3_cfg_t const dvs[] = {
+	IOMUX_PADS(PAD_NAND_DQS__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
+};
+
 /* GAR1 power off leds */
 static iomux_v3_cfg_t const gar1_led_pads[] = {
 	IOMUX_PADS(PAD_LCD_DATA00__GPIO3_IO05 | MUX_PAD_CTRL(0x3010)),
@@ -347,12 +352,16 @@ int board_early_init_f(void)
 	 */
 	switch (board_type)
 	{
-	case BT_PICOCOM1_2:		/* Boards without LCD interface */
-	case BT_CUBEA7UL:
-	case BT_CUBE2_0:
+	case BT_PICOCOM1_2:		/* No LCD, just DVS */
+		SETUP_IOMUX_PADS(dvs);
 		break;
 
-	case BT_GAR1:			/* Also no LCD, but init other GPIOs */
+	case BT_CUBEA7UL:		/* No LCD, no DVS */
+	case BT_CUBE2_0:
+	default:
+		break;
+
+	case BT_GAR1:			/* No LCD, but init other GPIOs */
 		SETUP_IOMUX_PADS(gar1_led_pads);
 		gpio_direction_input(IMX_GPIO_NR(3, 5));
 		gpio_direction_input(IMX_GPIO_NR(3, 6));
@@ -364,13 +373,13 @@ int board_early_init_f(void)
 		gpio_direction_input(IMX_GPIO_NR(1, 9));
 		break;
 
-	case BT_EFUSA7UL:
-	default:			/* Boards with 18-bit LCD interface */
+	case BT_EFUSA7UL:		/* 18-bit LCD and DVS */
 		SETUP_IOMUX_PADS(lcd18_pads);
 		if (is_cpu_type(MXC_CPU_MX6ULL))
 			SETUP_IOMUX_PADS(lcd_extra_pads_ull);
 		else
 			SETUP_IOMUX_PADS(lcd_extra_pads_ul);
+		SETUP_IOMUX_PADS(dvs);
 		break;
 	}
 
