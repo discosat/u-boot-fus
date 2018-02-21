@@ -75,11 +75,15 @@
 
 #define IRAM_BASE_ADDR			0x00900000
 #define SCU_BASE_ADDR                   0x00A00000
+#ifdef CONFIG_MX6UL
+#define IC_INTERFACES_BASE_ADDR         0x00A02000
+#else
 #define IC_INTERFACES_BASE_ADDR         0x00A00100
+#define L2_PL310_BASE			0x00A02000
+#endif
 #define GLOBAL_TIMER_BASE_ADDR          0x00A00200
 #define PRIVATE_TIMERS_WD_BASE_ADDR     0x00A00600
 #define IC_DISTRIBUTOR_BASE_ADDR        0x00A01000
-#define L2_PL310_BASE			0x00A02000
 #define GPV0_BASE_ADDR                  0x00B00000
 #define GPV1_BASE_ADDR                  0x00C00000
 
