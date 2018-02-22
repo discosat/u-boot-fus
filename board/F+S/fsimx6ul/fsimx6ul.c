@@ -64,11 +64,16 @@
 #define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
 #define FEAT2_WLAN    (1<<3)		/* 0: no WLAN, 1: has WLAN */
 #define FEAT2_HDMICAM (1<<4)		/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
+#define FEAT2_AUDIO   (1<<5)		/* 0: Codec onboard, 1: Codec extern */
+#define FEAT2_SPEED   (1<<6)		/* 0: Full speed, 1: Limited speed */
 #define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
 
 /* NBoot before VN27 did not report feature values; use reasonable defaults */
 #define FEAT1_DEFAULT 0
 #define FEAT2_DEFAULT (FEAT2_ETH_A | FEAT2_ETH_B | FEAT2_EMMC | FEAT2_WLAN)
+
+/* Maximum speed (in kHz) if FEAT2_SPEED is set */
+#define SPEED_LIMIT	528000
 
 #define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
@@ -79,6 +84,7 @@
 #define FDT_NAND	"/soc/gpmi-nand@01806000"
 #define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
 #define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@020b4000"
+#define FDT_CPU0	"/cpus/cpu@0"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -1936,6 +1942,40 @@ static void fus_fdt_enable(void *fdt, const char *path, int enable)
 	}
 }
 
+/* Remove operation points for speeds > SPEED_LIMIT */
+static void fus_fdt_limit_speed(void *fdt, int offs, char *name)
+{
+	const fdt32_t *val;
+	fdt32_t *new;
+	int src = 0, dest = 0, len, need_update = 0;
+
+	/* Get existing points, each point is a cell pair <freq> <voltage> */
+	val = fdt_getprop(fdt, offs, name, &len);
+	if (!val || !len || (len % (2 * sizeof(fdt32_t))))
+		return;
+
+	/* Copy only values that do not exceed speed limit */
+	new = (fdt32_t *)malloc(len);
+	if (!new)
+		return;
+	len /= sizeof(fdt32_t);
+	do {
+		if (fdt32_to_cpu(val[src]) > SPEED_LIMIT)
+			need_update = 1;
+		else {
+			new[dest++] = val[src];		/* freq */
+			new[dest++] = val[src + 1];	/* voltage */
+		}
+		src += 2;
+	} while (src < len);
+
+	/* If there were changes, replace property with new cell array */
+	if (need_update)
+		fus_fdt_set_val(fdt, offs, name, new, dest*sizeof(fdt32_t), 1);
+
+	free(new);
+}
+
 /* Do any additional board-specific device tree modifications */
 void ft_board_setup(void *fdt, bd_t *bd)
 {
@@ -1948,6 +1988,16 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	if (offs >= 0) {
 		fus_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 				fs_nboot_args.chECCtype, 1);
+	}
+
+	/* Remove operation points > 528 MHz if speed should be limited */
+	if (fs_nboot_args.chFeatures2 & FEAT2_SPEED) {
+		offs = fus_fdt_path_offset(fdt, FDT_CPU0);
+		if (offs >= 0) {
+			fus_fdt_limit_speed(fdt, offs, "operating-points");
+			fus_fdt_limit_speed(fdt, offs,
+					    "fsl,soc-operating-points");
+		}
 	}
 
 	/* Set bdinfo entries */
