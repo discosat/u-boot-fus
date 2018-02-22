@@ -1,6 +1,30 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fsimx6ul-V2.1 (22.02.2018)
+-----------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Improve auxiliary core support
+- Add option to switch off EEE (Energy Efficient Ethernet) for Atheros PHY
+- Backport i.MX6ULL support from u-boot-2016.03 rel_imx_4.1.15_2.0.0_ga
+- Add support for efusa7UL board rev. 1.22 with i.MX6ULL
+- Add CONFIG_IMX_THERMAL to fsimx6/ul/sx to show speed grading and temp range
+- Fix i.MX6ULL pad settings that differ from i.MX6UL
+- Enhance speed grade detection and temperature output on i.MX6UL/ULL
+- Combine mx6ul_pins.h and mx6ull_pins.h to mx6ulull_pins.h
+- On fsimx6ul, add platform names for variants with i.MX6ULL, e.g. efusa7ull
+- Deactivate VLCD_ON and VCFL_ON in U-Boot on fsimx6/sx/ul
+- Initialize DVS signal on fsimx6ul
+- Revert change to IC_INTERFACES_BASE_ADDR in imx-regs.h
+- On fsimx6ul, add option to limit the CPU to 528 MHz
+
+
+
 u-boot-2014.07-fsimx6sx-V2.1 (08.01.2018)
 -----------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
