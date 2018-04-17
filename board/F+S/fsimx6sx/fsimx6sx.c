@@ -451,8 +451,12 @@ void issue_reset(unsigned int active_us, unsigned int delay_us,
 		udelay(delay_us);
 }
 
-static iomux_v3_cfg_t const reset_pads[] = {
+static iomux_v3_cfg_t const efusa9x_reset_pads[] = {
 	IOMUX_PADS(PAD_ENET1_CRS__GPIO2_IO_1 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const efusa9x_wlanbt_en_pads[] = {
+	IOMUX_PADS(PAD_GPIO1_IO03__GPIO1_IO_3 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 int board_init(void)
@@ -494,8 +498,15 @@ int board_init(void)
 		if ((fs_nboot_args.chFeatures2 && FEAT2_WLAN)
 		    && (fs_nboot_args.chBoardRev < 120))
 			active_us = 100000;
-		SETUP_IOMUX_PADS(reset_pads);
+		SETUP_IOMUX_PADS(efusa9x_reset_pads);
 		issue_reset(active_us, 0, IMX_GPIO_NR(2, 1), ~0, ~0);
+
+		/* Toggle WL_EN and BT_EN on Silex chip */
+		if ((fs_nboot_args.chFeatures2 && FEAT2_WLAN)
+		    && (fs_nboot_args.chBoardRev >= 120)) {
+			SETUP_IOMUX_PADS(efusa9x_wlanbt_en_pads);
+			issue_reset(1000, 0, IMX_GPIO_NR(1, 3), ~0, ~0);
+		}
 	}
 
 	return 0;
