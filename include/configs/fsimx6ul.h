@@ -201,7 +201,14 @@
 /************************************************************************
  * I2C
  ************************************************************************/
-/* No I2C used in U-Boot on F&S i.MX6 UL boards */
+#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_SOFT
+#define CONFIG_SOFT_I2C_GPIO_SCL	IMX_GPIO_NR(5, 9)
+#define CONFIG_SOFT_I2C_GPIO_SDA	IMX_GPIO_NR(5, 8)
+#define CONFIG_SYS_I2C_SOFT_SPEED	50000
+#define CONFIG_SYS_I2C_SOFT_SLAVE       0
+#define CONFIG_SOFT_I2C_READ_REPEATED_START
+#define CONFIG_SYS_SPD_BUS_NUM		0
 
 
 /************************************************************************

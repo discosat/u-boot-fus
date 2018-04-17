@@ -46,6 +46,7 @@
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
+#include <i2c.h>			/* i2c_reg_read/write(), ... */
 
 /* ------------------------------------------------------------------------- */
 
@@ -86,6 +87,13 @@
 #define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@020b4000"
 #define FDT_CPU0	"/cpus/cpu@0"
 
+/* IO expander bits (on efusA9UL since board rev. 1.20) */
+#define IOEXP_RESET_WLAN (1 << 0)
+#define IOEXP_RESET_OUT  (1 << 1)
+#define IOEXP_RESET_LVDS (1 << 2)
+#define IOEXP_USB_H1_PWR (1 << 3)
+#define IOEXP_ALL_RESETS (IOEXP_RESET_WLAN | IOEXP_RESET_OUT | IOEXP_RESET_LVDS)
+
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
 	PAD_CTL_SRE_FAST  | PAD_CTL_HYS)
@@ -117,6 +125,9 @@
 #define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
 #define USB_ID_PAD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
+
+#define I2C_PAD_CTRL  (PAD_CTL_PUS_22K_UP | PAD_CTL_SPEED_LOW	\
+	| PAD_CTL_DSE_40ohm | PAD_CTL_HYS | PAD_CTL_SRE_SLOW)
 
 struct board_info {
 	char *name;			/* Device name */
@@ -432,6 +443,30 @@ int checkboard(void)
 	return 0;
 }
 
+static iomux_v3_cfg_t const i2c_pads_ul[] = {
+	/* SCL */
+	MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+	/* SDA */
+	MX6UL_PAD_SNVS_TAMPER8__GPIO5_IO08 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const i2c_pads_ull[] = {
+	/* SCL */
+	MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+	/* SDA */
+	MX6ULL_PAD_SNVS_TAMPER8__GPIO5_IO08 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+};
+
+
+/* Setup I2C signals */
+void i2c_init_board(void)
+{
+	if (is_cpu_type(MXC_CPU_MX6ULL))
+		SETUP_IOMUX_PADS(i2c_pads_ull);
+	else
+		SETUP_IOMUX_PADS(i2c_pads_ul);
+}
+
 /* Set the available RAM size. We have a memory bank starting at 0x10000000
    that can hold up to 3840MB of RAM. However up to now we only have 256MB or
    512MB on F&S i.MX6 boards. */
@@ -503,9 +538,33 @@ int board_init(void)
 	 * when the PHY clock is already active, this signal is triggered as
 	 * part of the ethernet initialization in board_eth_init(), not here.
 	 *
+	 * Starting with board revision 1.20, efusA7UL has an external GPIO
+	 * expander via I2C and RESET_WLANn, RESETOUTn and RESET_LVDSn can now
+	 * be switched indiviually. In additon, USB_H1_PWR can now be switched,
+	 * too.
+	 *
 	 * A similar issue exists for PicoCOM1.2. RESETOUTn is also triggered
 	 * in board_eth_init().
 	 */
+	if ((board_type == BT_EFUSA7UL) && (fs_nboot_args.chBoardRev >= 120)) {
+		uint8_t val;
+
+		/* 
+		 * Set all IO expander port bits to output, assert RESET_WLANn,
+		 * RESET_LVDSn, RESETOUTn and de-assert them after 1ms again.
+		 *
+		 * ### TODO: Implement switching of USB_H1_PWR. For now it is
+		 * simply set to "on", like on previous board revisions.
+		 */
+		i2c_set_bus_num(0);
+		val = ~IOEXP_ALL_RESETS;
+		i2c_reg_write(0x41, 1, val);
+		i2c_reg_write(0x41, 2, 0);
+		i2c_reg_write(0x41, 3, 0);
+		udelay(1000);
+		val |= IOEXP_ALL_RESETS;
+		i2c_reg_write(0x41, 1, val);
+	}
 
 	return 0;
 }
