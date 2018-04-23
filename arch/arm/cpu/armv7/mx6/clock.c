@@ -19,6 +19,8 @@ enum pll_clocks {
 	PLL_USBOTG,	/* OTG USB PLL */
 	PLL_ENET,	/* ENET PLL */
 	PLL_AUDIO,	/* AUDIO PLL */
+	PLL_VIDEO,	/* AUDIO PLL */
+	PLL_USB2,	/* USB Host PLL */
 };
 
 struct mxc_ccm_reg *imx_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
@@ -220,55 +222,98 @@ int enable_spi_clk(unsigned char enable, unsigned spi_num)
 	__raw_writel(reg, &imx_ccm->CCGR1);
 	return 0;
 }
-static u32 decode_pll(enum pll_clocks pll, u32 infreq)
+
+/* Post dividers for PLL_ENET */
+const u32 enet_post_div[] = {
+	20, 				/* 500 MHz/20 = 25 MHz */
+	10,				/* 500 MHz/10 = 50 MHz */
+	5,				/* 500 MHz/5 = 100 MHz */
+	4				/* 500 MHz/4 = 125 MHz */
+};
+
+/* Post dividers for PLL_AUDIO/PLL_VIDEO */
+const u32 av_post_div[] = { 4, 2, 1, 1 };
+
+static u32 decode_pll(enum pll_clocks pll)
 {
-	u32 div, test_div, pll_num, pll_denom;
+	u32 val, div;
+	u32 post_div = 1;
+	u32 num = 0;
+	u32 denom = 1;
+	u32 infreq = MXC_HCLK;
+	u64 temp64;
 
 	switch (pll) {
 	case PLL_SYS:
-		div = __raw_readl(&imx_ccm->analog_pll_sys);
-		div &= BM_ANADIG_PLL_SYS_DIV_SELECT;
+		val = __raw_readl(&imx_ccm->analog_pll_sys);
+		div = val & BM_ANADIG_PLL_SYS_DIV_SELECT;
+		post_div = 2;
+		break;
 
-		return (infreq * div) >> 1;
 	case PLL_BUS:
-		div = __raw_readl(&imx_ccm->analog_pll_528);
-		div &= BM_ANADIG_PLL_528_DIV_SELECT;
+		val = __raw_readl(&imx_ccm->analog_pll_528);
+		div = (val & BM_ANADIG_PLL_528_DIV_SELECT) * 2 + 20;
+		num = __raw_readl(&imx_ccm->analog_pll_528_num);
+		denom = __raw_readl(&imx_ccm->analog_pll_528_denom);
+		break;
 
-		return infreq * (20 + (div << 1));
 	case PLL_USBOTG:
-		div = __raw_readl(&imx_ccm->analog_usb1_pll_480_ctrl);
-		div &= BM_ANADIG_USB1_PLL_480_CTRL_DIV_SELECT;
+		val = __raw_readl(&imx_ccm->analog_usb1_pll_480_ctrl);
+		div = (val & BM_ANADIG_USB1_PLL_480_CTRL_DIV_SELECT) * 2 + 20;
+		break;
 
-		return infreq * (20 + (div << 1));
+	case PLL_USB2:
+		val = __raw_readl(&imx_ccm->analog_usb2_pll_480_ctrl);
+		div = (val & BM_ANADIG_USB1_PLL_480_CTRL_DIV_SELECT) * 2 + 20;
+		break;
+
 	case PLL_ENET:
-		div = __raw_readl(&imx_ccm->analog_pll_enet);
-		div &= BM_ANADIG_PLL_ENET_DIV_SELECT;
+		/* 24 MHz * (20 + 5/6) = 500 MHz as base clock */
+		val = __raw_readl(&imx_ccm->analog_pll_enet);
+		div = 20;
+		num = 5;
+		denom = 6;
+		post_div = enet_post_div[val & BM_ANADIG_PLL_ENET_DIV_SELECT];
+		break;
 
-		return 25000000 * (div + (div >> 1) + 1);
 	case PLL_AUDIO:
-		div = __raw_readl(&imx_ccm->analog_pll_audio);
-		if (!(div & BM_ANADIG_PLL_AUDIO_ENABLE))
-			return 0;
-		/* BM_ANADIG_PLL_AUDIO_BYPASS_CLK_SRC is ignored */
-		if (div & BM_ANADIG_PLL_AUDIO_BYPASS)
-			return MXC_HCLK;
-		pll_num = __raw_readl(&imx_ccm->analog_pll_audio_num);
-		pll_denom = __raw_readl(&imx_ccm->analog_pll_audio_denom);
-		test_div = (div & BM_ANADIG_PLL_AUDIO_TEST_DIV_SELECT) >>
-			BP_ANADIG_PLL_AUDIO_TEST_DIV_SELECT;
-		div &= BM_ANADIG_PLL_AUDIO_DIV_SELECT;
-		if (test_div == 3) {
-			debug("Error test_div\n");
-			return 0;
-		}
-		test_div = 1 << (2 - test_div);
+		val = __raw_readl(&imx_ccm->analog_pll_audio);
+		div = val & BM_ANADIG_PLL_AUDIO_DIV_SELECT;
+		num = __raw_readl(&imx_ccm->analog_pll_audio_num);
+		denom = __raw_readl(&imx_ccm->analog_pll_audio_denom);
+		post_div = (val & BM_ANADIG_PLL_AUDIO_POST_DIV_SELECT) >>
+			BP_ANADIG_PLL_AUDIO_POST_DIV_SELECT;
+		post_div = av_post_div[post_div];
+		break;
 
-		return infreq * (div + pll_num / pll_denom) / test_div;
+	case PLL_VIDEO:
+		val = __raw_readl(&imx_ccm->analog_pll_video);
+		div = val & BM_ANADIG_PLL_VIDEO_DIV_SELECT;
+		num = __raw_readl(&imx_ccm->analog_pll_video_num);
+		denom = __raw_readl(&imx_ccm->analog_pll_video_denom);
+		post_div = (val & BM_ANADIG_PLL_VIDEO_POST_DIV_SELECT) >>
+			BP_ANADIG_PLL_VIDEO_POST_DIV_SELECT;
+		post_div = av_post_div[post_div];
+		break;
+
 	default:
 		return 0;
 	}
-	/* NOTREACHED */
+
+	/* Check if PLL is enabled */
+	if (!(val & (1 << 13)))
+		return 0;
+
+	/* Check if PLL is bypassed */
+	if (val & (1 << 16))
+		return infreq;
+
+	temp64 = (u64)infreq * num;
+	do_div(temp64, denom);
+
+	return (infreq * div + (u32)temp64) / post_div;
 }
+
 static u32 mxc_get_pll_pfd(enum pll_clocks pll, int pfd_num)
 {
 	u32 div;
@@ -277,18 +322,18 @@ static u32 mxc_get_pll_pfd(enum pll_clocks pll, int pfd_num)
 	switch (pll) {
 	case PLL_BUS:
 		if (!is_cpu_type(MXC_CPU_MX6UL) &&
-		    !is_cpu_type(MXC_CPU_MX6ULL)) {
+		    !is_cpu_type(MXC_CPU_MX6SX)) {
 			if (pfd_num == 3) {
-				/* No PFD3 on PPL2 */
+				/* No PFD3 on PLL2 */
 				return 0;
 			}
 		}
 		div = __raw_readl(&imx_ccm->analog_pfd_528);
-		freq = (u64)decode_pll(PLL_BUS, MXC_HCLK);
+		freq = (u64)decode_pll(PLL_BUS);
 		break;
 	case PLL_USBOTG:
 		div = __raw_readl(&imx_ccm->analog_pfd_480);
-		freq = (u64)decode_pll(PLL_USBOTG, MXC_HCLK);
+		freq = (u64)decode_pll(PLL_USBOTG);
 		break;
 	default:
 		/* No PFD on other PLL					     */
@@ -306,7 +351,7 @@ static u32 get_mcu_main_clk(void)
 	reg = __raw_readl(&imx_ccm->cacrr);
 	reg &= MXC_CCM_CACRR_ARM_PODF_MASK;
 	reg >>= MXC_CCM_CACRR_ARM_PODF_OFFSET;
-	freq = decode_pll(PLL_SYS, MXC_HCLK);
+	freq = decode_pll(PLL_SYS);
 
 	return freq / (reg + 1);
 }
@@ -325,7 +370,7 @@ u32 get_periph_clk(void)
 
 		switch (reg) {
 		case 0:
-			freq = decode_pll(PLL_USBOTG, MXC_HCLK);
+			freq = decode_pll(PLL_USBOTG);
 			break;
 		case 1:
 		case 2:
@@ -341,7 +386,7 @@ u32 get_periph_clk(void)
 
 		switch (reg) {
 		case 0:
-			freq = decode_pll(PLL_BUS, MXC_HCLK);
+			freq = decode_pll(PLL_BUS);
 			break;
 		case 1:
 			freq = mxc_get_pll_pfd(PLL_BUS, 2);
@@ -392,7 +437,7 @@ static u32 get_ipg_per_clk(void)
 static u32 get_uart_clk(void)
 {
 	u32 reg, uart_podf;
-	u32 freq = decode_pll(PLL_USBOTG, MXC_HCLK) / 6; /* static divider */
+	u32 freq = decode_pll(PLL_USBOTG) / 6; /* static divider */
 	reg = __raw_readl(&imx_ccm->cscdr1);
 
 	if (is_cpu_type(MXC_CPU_MX6SL) || is_cpu_type(MXC_CPU_MX6SX) ||
@@ -423,7 +468,7 @@ static u32 get_cspi_clk(void)
 			return MXC_HCLK / (cspi_podf + 1);
 	}
 
-	return	decode_pll(PLL_USBOTG, MXC_HCLK) / (8 * (cspi_podf + 1));
+	return	decode_pll(PLL_USBOTG) / (8 * (cspi_podf + 1));
 }
 
 static u32 get_axi_clk(void)
@@ -460,7 +505,7 @@ static u32 get_emi_slow_clk(void)
 		root_freq = get_axi_clk();
 		break;
 	case 1:
-		root_freq = decode_pll(PLL_USBOTG, MXC_HCLK);
+		root_freq = decode_pll(PLL_USBOTG);
 		break;
 	case 2:
 		root_freq =  mxc_get_pll_pfd(PLL_BUS, 2);
@@ -491,12 +536,12 @@ static u32 get_mmdc_ch0_clk(void)
 				if (cbcmr & MXC_CCM_CBCMR_PERIPH2_CLK2_SEL)
 					freq = MXC_HCLK;
 				else
-					freq = decode_pll(PLL_USBOTG, MXC_HCLK);
+					freq = decode_pll(PLL_USBOTG);
 			} else {
 				if (cbcmr & MXC_CCM_CBCMR_PERIPH2_CLK2_SEL)
-					freq = decode_pll(PLL_BUS, MXC_HCLK);
+					freq = decode_pll(PLL_BUS);
 				else
-					freq = decode_pll(PLL_USBOTG, MXC_HCLK);
+					freq = decode_pll(PLL_USBOTG);
 			}
 		} else {
 			per2_clk2_podf = 0;
@@ -504,7 +549,7 @@ static u32 get_mmdc_ch0_clk(void)
 				MXC_CCM_CBCMR_PRE_PERIPH2_CLK_SEL_MASK) >>
 				MXC_CCM_CBCMR_PRE_PERIPH2_CLK_SEL_OFFSET) {
 			case 0:
-				freq = decode_pll(PLL_BUS, MXC_HCLK);
+				freq = decode_pll(PLL_BUS);
 				break;
 			case 1:
 				freq = mxc_get_pll_pfd(PLL_BUS, 2);
@@ -526,8 +571,7 @@ static u32 get_mmdc_ch0_clk(void)
 					pmu_misc2_audio_div = 4;
 					break;
 				}
-				freq = decode_pll(PLL_AUDIO, MXC_HCLK) /
-					pmu_misc2_audio_div;
+				freq = decode_pll(PLL_AUDIO) / pmu_misc2_audio_div;
 				break;
 			}
 		}
@@ -881,36 +925,50 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 	return 0;
 }
 
+static void show_freq(const char *name, u32 freq)
+{
+	freq = (freq + 50000) / 100000;
+	printf("%-13s%4d.%01d MHz\n", name, freq / 10, freq % 10);
+}
+
 /*
  * Dump some core clockes.
  */
 int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	u32 freq;
-	freq = decode_pll(PLL_SYS, MXC_HCLK);
-	printf("PLL_SYS    %8d MHz\n", freq / 1000000);
-	freq = decode_pll(PLL_BUS, MXC_HCLK);
-	printf("PLL_BUS    %8d MHz\n", freq / 1000000);
-	freq = decode_pll(PLL_USBOTG, MXC_HCLK);
-	printf("PLL_OTG    %8d MHz\n", freq / 1000000);
-	freq = decode_pll(PLL_ENET, MXC_HCLK);
-	printf("PLL_NET    %8d MHz\n", freq / 1000000);
+	show_freq("PLL1 (ARM)", decode_pll(PLL_SYS));
+	show_freq("PLL2 (BUS)", decode_pll(PLL_BUS));
+	show_freq("  PLL2-PFD0", mxc_get_pll_pfd(PLL_BUS, 0));
+	show_freq("  PLL2-PFD1", mxc_get_pll_pfd(PLL_BUS, 1));
+	show_freq("  PLL2-PFD2", mxc_get_pll_pfd(PLL_BUS, 2));
+	if (is_cpu_type(MXC_CPU_MX6UL))
+		show_freq("  PLL2-PFD3", mxc_get_pll_pfd(PLL_BUS, 3));
+
+	show_freq("PLL3 (USBOTG)", decode_pll(PLL_USBOTG));
+	show_freq("  PLL3-PFD0", mxc_get_pll_pfd(PLL_USBOTG, 0));
+	show_freq("  PLL3-PFD1", mxc_get_pll_pfd(PLL_USBOTG, 1));
+	show_freq("  PLL3-PFD2", mxc_get_pll_pfd(PLL_USBOTG, 2));
+	show_freq("  PLL3-PFD3", mxc_get_pll_pfd(PLL_USBOTG, 3));
+	show_freq("PLL4 (AUDIO)", decode_pll(PLL_AUDIO));
+	show_freq("PLL5 (VIDEO)", decode_pll(PLL_VIDEO));
+	show_freq("PLL6 (ENET)", decode_pll(PLL_ENET));
+	show_freq("PLL7 (USB2)", decode_pll(PLL_USB2));
 
 	printf("\n");
-	printf("IPG        %8d kHz\n", mxc_get_clock(MXC_IPG_CLK) / 1000);
-	printf("UART       %8d kHz\n", mxc_get_clock(MXC_UART_CLK) / 1000);
+	show_freq("IPG", mxc_get_clock(MXC_IPG_CLK));
+	show_freq("UART", mxc_get_clock(MXC_UART_CLK));
 #ifdef CONFIG_MXC_SPI
-	printf("CSPI       %8d kHz\n", mxc_get_clock(MXC_CSPI_CLK) / 1000);
+	show_freq("CSPI", mxc_get_clock(MXC_CSPI_CLK));
 #endif
-	printf("AHB        %8d kHz\n", mxc_get_clock(MXC_AHB_CLK) / 1000);
-	printf("AXI        %8d kHz\n", mxc_get_clock(MXC_AXI_CLK) / 1000);
-	printf("DDR        %8d kHz\n", mxc_get_clock(MXC_DDR_CLK) / 1000);
-	printf("USDHC1     %8d kHz\n", mxc_get_clock(MXC_ESDHC_CLK) / 1000);
-	printf("USDHC2     %8d kHz\n", mxc_get_clock(MXC_ESDHC2_CLK) / 1000);
-	printf("USDHC3     %8d kHz\n", mxc_get_clock(MXC_ESDHC3_CLK) / 1000);
-	printf("USDHC4     %8d kHz\n", mxc_get_clock(MXC_ESDHC4_CLK) / 1000);
-	printf("EMI SLOW   %8d kHz\n", mxc_get_clock(MXC_EMI_SLOW_CLK) / 1000);
-	printf("IPG PERCLK %8d kHz\n", mxc_get_clock(MXC_IPG_PERCLK) / 1000);
+	show_freq("AHB", mxc_get_clock(MXC_AHB_CLK));
+	show_freq("AXI", mxc_get_clock(MXC_AXI_CLK));
+	show_freq("DDR", mxc_get_clock(MXC_DDR_CLK));
+	show_freq("USDHC1", mxc_get_clock(MXC_ESDHC_CLK));
+	show_freq("USDHC2", mxc_get_clock(MXC_ESDHC2_CLK));
+	show_freq("USDHC3", mxc_get_clock(MXC_ESDHC3_CLK));
+	show_freq("USDHC4", mxc_get_clock(MXC_ESDHC4_CLK));
+	show_freq("EMI SLOW", mxc_get_clock(MXC_EMI_SLOW_CLK));
+	show_freq("IPG PERCLK", mxc_get_clock(MXC_IPG_PERCLK));
 
 	return 0;
 }
