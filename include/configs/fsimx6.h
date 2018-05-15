@@ -209,7 +209,11 @@
 /************************************************************************
  * I2C
  ************************************************************************/
-/* No I2C used in U-Boot on F&S i.MX6 boards */
+#define CONFIG_CMD_I2C
+#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_MXC
+#define CONFIG_SYS_I2C_SPEED	100000
+#define CONFIG_SYS_SPD_BUS_NUM	1
 
 
 /************************************************************************
@@ -499,7 +503,14 @@
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
-/* ###TODO### */
+#define CONFIG_VIDEO
+#define CONFIG_VIDEO_IPUV3		/* Use IPU */
+#define CONFIG_CFB_CONSOLE		/* Use color framebuffer console */
+#define CONFIG_VGA_AS_SINGLE_DEVICE	/* Display is only output, no input */
+#define CONFIG_VIDEO_LOGO		/* Allow a logo on the console... */
+#define CONFIG_VIDEO_BMP_LOGO		/* ...as BMP image... */
+#define CONFIG_BMP_16BPP		/* ...with 16 bits per pixel */
+#define CONFIG_SPLASH_SCREEN		/* Support splash screen */
 
 
 /************************************************************************
