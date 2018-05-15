@@ -49,8 +49,13 @@ enum enet_freq {
 	ENET_125MHZ,
 };
 
+int config_lvds_clk(u32 ipu, u32 di, u32 freq, u32 split);
+int config_lcd_di_clk(u32 ipu, u32 di);
 u32 imx_get_uartclk(void);
 u32 imx_get_fecclk(void);
+unsigned int mxc_get_ldb_clock(int channel);
+unsigned int mxc_get_ipu_clock(int ipu);
+unsigned int mxc_get_ipu_di_clock(int ipu, int di);
 unsigned int mxc_get_clock(enum mxc_clock clk);
 void setup_gpmi_io_clk(u32 cfg);
 void hab_caam_clock_enable(unsigned char enable);
@@ -63,7 +68,8 @@ int enable_sata_clock(void);
 int enable_pcie_clock(void);
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num);
 int enable_spi_clk(unsigned char enable, unsigned spi_num);
-void enable_ipu_clock(void);
+void enable_ldb_di_clk(int channel);
+void enable_ipu_clock(int ipu);
 int enable_fec_anatop_clock(int fec_id, enum enet_freq freq);
 void enable_enet_clk(unsigned char enable);
 #endif /* __ASM_ARCH_CLOCK_H */
