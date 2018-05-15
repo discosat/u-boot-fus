@@ -944,7 +944,7 @@ static void parse_putc(const char c)
 		CURSOR_SET;
 }
 
-void video_putc(const char c)
+static void video_putc(const struct stdio_dev *dev, const char c)
 {
 #ifdef CONFIG_CFB_CONSOLE_ANSI
 	int i;
@@ -1158,12 +1158,21 @@ void video_putc(const char c)
 		flush_cache(VIDEO_FB_ADRS, VIDEO_SIZE);
 }
 
-void video_puts(const char *s)
+static void video_puts(const struct stdio_dev *dev, const char *s)
 {
+	int flush = cfb_do_flush_cache;
 	int count = strlen(s);
 
+	/* temporarily disable cache flush */
+	cfb_do_flush_cache = 0;
+
 	while (count--)
-		video_putc(*s++);
+		video_putc(dev, *s++);
+
+	if (flush) {
+		cfb_do_flush_cache = flush;
+		flush_cache(VIDEO_FB_ADRS, VIDEO_SIZE);
+	}
 }
 
 /*
@@ -2249,10 +2258,26 @@ int __board_video_skip(void)
 int board_video_skip(void)
 	__attribute__ ((weak, alias("__board_video_skip")));
 
+static struct stdio_dev console_dev = {
+	.name = "vga",
+//###	.ext = DEV_EXT_VIDEO,	/* Video extensions */
+	.putc = video_putc,	/* 'putc' function */
+	.puts = video_puts,	/* 'puts' function */
+#ifdef CONFIG_VGA_AS_SINGLE_DEVICE
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_SYSTEM,
+	.tstc = NULL,	/* 'tstc' function */
+	.getc = NULL,	/* 'getc' function */
+#else
+	/* Also init console device */
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_SYSTEM | DEV_FLAGS_INPUT,
+	.tstc = VIDEO_TSTC_FCT,	/* 'tstc' function */
+	.getc = VIDEO_GETC_FCT,	/* 'getc' function */
+#endif /* CONFIG_VGA_AS_SINGLE_DEVICE */
+};
+
 int drv_video_init(void)
 {
 	int skip_dev_init;
-	struct stdio_dev console_dev;
 
 	/* Check if video initialization should be skipped */
 	if (board_video_skip())
@@ -2271,23 +2296,6 @@ int drv_video_init(void)
 
 	if (skip_dev_init)
 		return 0;
-
-	/* Init vga device */
-	memset(&console_dev, 0, sizeof(console_dev));
-	strcpy(console_dev.name, "vga");
-	console_dev.ext = DEV_EXT_VIDEO;	/* Video extensions */
-	console_dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_SYSTEM;
-	console_dev.putc = video_putc;	/* 'putc' function */
-	console_dev.puts = video_puts;	/* 'puts' function */
-	console_dev.tstc = NULL;	/* 'tstc' function */
-	console_dev.getc = NULL;	/* 'getc' function */
-
-#if !defined(CONFIG_VGA_AS_SINGLE_DEVICE)
-	/* Also init console device */
-	console_dev.flags |= DEV_FLAGS_INPUT;
-	console_dev.tstc = VIDEO_TSTC_FCT;	/* 'tstc' function */
-	console_dev.getc = VIDEO_GETC_FCT;	/* 'getc' function */
-#endif /* CONFIG_VGA_AS_SINGLE_DEVICE */
 
 	if (stdio_register(&console_dev) != 0)
 		return 0;
