@@ -244,7 +244,7 @@ int clk_get_usecount(struct clk *clk);
 struct clk *clk_get_parent(struct clk *clk);
 
 void ipu_dump_registers(void);
-int ipu_probe(void);
+int ipu_probe(unsigned int ipu, unsigned int disp);
 
 void ipu_dmfc_init(int dmfc_type, int first);
 void ipu_init_dc_mappings(void);

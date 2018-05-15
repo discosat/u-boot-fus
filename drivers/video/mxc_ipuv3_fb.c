@@ -249,16 +249,16 @@ static int mxcfb_set_par(struct fb_info *fbi)
 		sig_cfg.Hsync_pol = 1;
 	if (fbi->var.sync & FB_SYNC_VERT_HIGH_ACT)
 		sig_cfg.Vsync_pol = 1;
-	if (!(fbi->var.sync & FB_SYNC_CLK_LAT_FALL))
+	if (fbi->var.sync & FB_SYNC_ON_GREEN)      /* clock polarity */
 		sig_cfg.clk_pol = 1;
 	if (fbi->var.sync & FB_SYNC_DATA_INVERT)
 		sig_cfg.data_pol = 1;
-	if (!(fbi->var.sync & FB_SYNC_OE_LOW_ACT))
+	if (fbi->var.sync & FB_SYNC_COMP_HIGH_ACT) /* DE polarity */
 		sig_cfg.enable_pol = 1;
 	if (fbi->var.sync & FB_SYNC_CLK_IDLE_EN)
 		sig_cfg.clkidle_en = 1;
 
-	debug("pixclock = %ul Hz\n",
+	debug("pixclock = %u Hz\n",
 		(u32) (PICOS2KHZ(fbi->var.pixclock) * 1000UL));
 
 	if (ipu_init_sync_panel(mxc_fbi->ipu_di,
@@ -590,7 +590,7 @@ void *video_hw_init(void)
 {
 	int ret;
 
-	ret = ipu_probe();
+	ret = ipu_probe(1, gdisp);
 	if (ret)
 		puts("Error initializing IPU\n");
 
