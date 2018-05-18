@@ -109,7 +109,7 @@
    code needs the appropriate offset for the text base. */
 #define CONFIG_SYS_TEXT_BASE 0x27800720	/* NBoot loads at 0x27800000 */
 #endif
-#undef CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in ARM mode */
+#define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 
 /* For the default load address, use an offset of 8MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the

@@ -102,7 +102,7 @@
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
 #define CONFIG_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
-#undef CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in ARM mode */
+#define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 
 /* For the default load address, use an offset of 8MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
