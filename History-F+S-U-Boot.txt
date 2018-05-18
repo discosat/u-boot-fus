@@ -1,6 +1,20 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2014.07-fus-Y1.0 (18.05.2018)
+------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix problem with slow USB sticks
+- Toggle WLAN_EN and BT_EN on efusA9X
+- Add support for I2C GPIO expander, toggle WLAN_EN/BT_EN on efusA7UL
+
+
+
 u-boot-2014.07-fsimx6ul-V2.1 (22.02.2018)
 -----------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
