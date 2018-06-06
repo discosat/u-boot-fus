@@ -572,6 +572,11 @@ void ipuv3_fb_shutdown(void)
 	int i;
 	struct ipu_stat *stat = (struct ipu_stat *)IPU_STAT;
 
+	/* ### FIXME: Is this the best way to check if at least one display
+	   was active? */
+	if (!gmode)
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(mxcfb_info); i++) {
 		struct fb_info *fbi = mxcfb_info[i];
 		if (fbi) {
