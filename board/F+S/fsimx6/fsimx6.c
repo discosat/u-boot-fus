@@ -1209,7 +1209,6 @@ static void enable_i2c_backlight(int on)
 		val = 0x18;		/* CH2: ON=0, CH1: PWM, CH0: OFF=1 */
 	else
 		val = 0x11;		/* CH2: ON=0, CH1: OFF=1, CH0: ON=0 */
-	printf("### used_ports=%d val=0x%x\n", used_ports, val);
 	i2c_reg_write(0x60, 0x8, val);
 }
 
