@@ -58,6 +58,7 @@
 #define BT_PICOCOM1_2 2
 #define BT_CUBE2_0    3
 #define BT_GAR1       4
+#define BT_PICOCOMA7 5
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -248,8 +249,21 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
 	},
-	{	/* 5 (unknown) */
-		.name = "unknown",
+	{	/* 5 (PICOCOMA7) */
+		.name = "PicoCOMA7",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 6 (unknown) */
 		.name = "unknown",
@@ -331,14 +345,21 @@ static iomux_v3_cfg_t const lcd18_pads[] = {
 /* Pads for VLCD_ON and VCFL_ON: active high -> pull-down to switch off */
 static iomux_v3_cfg_t const lcd_extra_pads_ull[] = {
 	MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
-	MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
-};
-static iomux_v3_cfg_t const lcd_extra_pads_ul[] = {
-	MX6UL_PAD_SNVS_TAMPER4__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
-	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+	//MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
 };
 
-/* DVS on efusA7UL (since board rev 1.10) and PicoCOM1.2 (since rev 1.00) */
+static iomux_v3_cfg_t const lcd_extra_pads_picocoma7ull[] = {
+	IOMUX_PADS(PAD_LCD_DATA20__GPIO3_IO25 | MUX_PAD_CTRL(0x3010)),
+	//MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+
+static iomux_v3_cfg_t const lcd_extra_pads_ul[] = {
+	MX6UL_PAD_SNVS_TAMPER4__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
+	//MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+
+
+/* DVS on efusA7UL (since board rev 1.10), PicoCOM1.2 (since rev 1.00) and PicoCOMA7 */
 static iomux_v3_cfg_t const dvs[] = {
 	IOMUX_PADS(PAD_NAND_DQS__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
 };
@@ -398,6 +419,12 @@ int board_early_init_f(void)
 			SETUP_IOMUX_PADS(lcd_extra_pads_ul);
 		SETUP_IOMUX_PADS(dvs);
 		break;
+	case BT_PICOCOMA7:
+		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd_extra_pads_picocoma7ull);
+		SETUP_IOMUX_PADS(dvs);
+		break;
+
 	}
 
 	return 0;
@@ -739,6 +766,8 @@ enum update_action board_check_for_recover(void)
  *   PicoCOM1.2:   USDHC2 [GPIO1_IO19]            Connector (SD)
  *                [USDHC1  GPIO1_IO03             WLAN]
  *   -----------------------------------------------------------------------
+ *   PICOCOMA7:    USDHC1 [GPIO1_IO19]			  Connector (SD)
+ *   -----------------------------------------------------------------------
  *   GAR1:        (no SD/MMC)
  *   -----------------------------------------------------------------------
  *   CubeA7UL:    [USDHC1  -                      WLAN]
@@ -949,6 +978,10 @@ int board_mmc_init(bd_t *bd)
 		   assume "always present". */
 		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
 		break;
+	case BT_PICOCOMA7:
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
+						NULL);
+		break;
 
 	default:
 		return 0;		/* Neither SD card, nor eMMC */
@@ -986,6 +1019,7 @@ int board_mmc_init(bd_t *bd)
  *    PicoCOM1.2      ENET2_TX_DATA1 (GPIO2_IO12)  (no Hub)
  *    CubeA7UL/2.0    GPIO1_IO02                   (no Hub)
  *    GAR1            SD1_DATA1 (GPIO2_IO19)       (no Hub)
+ *    PicoCOMA7		  UART4_TX_DATA                (no Hub)
  *
  * The polarity for the host VBUS power can be set with environment variable
  * usbxpwr, where x is the port index (0 or 1). If this variable is set to
@@ -1006,7 +1040,7 @@ int board_mmc_init(bd_t *bd)
  * will be configured as GPIO and function board_ehci_power() will switch VBUS
  * power manually for all boards.
  */
-#define USE_USBNC_PWR
+//#define USE_USBNC_PWR
 
 #define USB_OTHERREGS_OFFSET	0x800
 #define UCTRL_PWR_POL		(1 << 9)
@@ -1042,7 +1076,9 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad_picocom1_2[] = {
 	IOMUX_PADS(PAD_ENET2_TX_DATA1__GPIO2_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL))
 #endif
 };
-
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_picocoma7[] = {
+		IOMUX_PADS(PAD_UART4_TX_DATA__GPIO1_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL))
+};
 static iomux_v3_cfg_t const usb_otg2_pwr_pad_cube[] = {
 #ifdef USE_USBNC_PWR
 	IOMUX_PADS(PAD_GPIO1_IO02__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL))
@@ -1151,7 +1187,6 @@ static void fs_usb_config_pwr(iomux_v3_cfg_t const *pwr_pad, unsigned pwr_gpio,
 	else {
 		u32 *usbnc_usb_ctrl;
 		u32 val;
-
 		usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
 					 port * 4);
 		val = readl(usbnc_usb_ctrl);
@@ -1173,7 +1208,6 @@ int board_usb_phy_mode(int port)
 {
 	if (port > 1)
 		return USB_INIT_HOST;	/* Unknown port */
-
 	return usb_port_cfg[port].mode;
 }
 
@@ -1185,7 +1219,6 @@ int board_ehci_power(int port, int on)
 
 	if (port > 1)
 		return 0;		/* Unknown port */
-
 	port_cfg = &usb_port_cfg[port];
 	if (port_cfg->mode != USB_INIT_HOST)
 		return 0;		/* Port not in host mode */
@@ -1214,7 +1247,6 @@ int board_ehci_hcd_init(int port)
 		return 0;		/* Unknown port */
 
 	port_cfg = &usb_port_cfg[port];
-
 	/* Default settings, board specific code below will override */
 	pwr_pad = NULL;
 	pwr_gpio = ~0;
@@ -1232,7 +1264,6 @@ int board_ehci_hcd_init(int port)
 			id_pad = usb_otg1_id_pad;
 			id_gpio = IMX_GPIO_NR(1, 0);
 			break;
-
 		case BT_PICOCOM1_2:
 			/* No ID pad available */
 			break;
@@ -1269,7 +1300,6 @@ int board_ehci_hcd_init(int port)
 			pwr_gpio = IMX_GPIO_NR(2, 8);
 #endif
 			break;
-
 		case BT_GAR1:
 		default:
 			/* No USB_OTG1_PWR */
@@ -1285,7 +1315,13 @@ int board_ehci_hcd_init(int port)
 			pwr_gpio = IMX_GPIO_NR(2, 12);
 #endif
 			break;
-
+		case BT_PICOCOMA7:
+			/* USB host power on pad ENET2_TX_DATA1 */
+			pwr_pad = usb_otg2_pwr_pad_picocoma7;
+#ifndef USE_USBNC_PWR
+			pwr_gpio = IMX_GPIO_NR(1, 28);
+#endif
+			break;
 		case BT_CUBEA7UL:
 		case BT_CUBE2_0:
 			/* USB host power on pad GPIO1_IO02 */
@@ -1469,6 +1505,10 @@ static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ul[] = {
 	MX6UL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
+static iomux_v3_cfg_t const enet_pads_reset_picocoma7[] = {
+	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(NO_PAD_CTRL),
+	MX6UL_PAD_SNVS_TAMPER6__GPIO5_IO06  | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
 
 static iomux_v3_cfg_t const enet_pads_reset_gar1[] = {
 	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
@@ -1526,7 +1566,6 @@ int get_otp_mac(void *otp_addr, uchar *enetaddr)
 	val &= 0xFF;
 	if (val == 0xFF)
 		val = 0;
-
 	return (int)(val + 1);
 }
 
@@ -1577,7 +1616,6 @@ int board_eth_init(bd_t *bis)
 	struct phy_device *phydev;
 	unsigned int features2 = fs_nboot_args.chFeatures2;
 	int id = 0;
-
 	/* Ungate ENET clock, this is a common clock for both ports */
 	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B))
 		enable_enet_clk(1);
@@ -1624,7 +1662,7 @@ int board_eth_init(bd_t *bis)
 				return 0;
 		}
 
-		if (fs_nboot_args.chBoardType == BT_PICOCOM1_2 ||
+		if (fs_nboot_args.chBoardType == BT_PICOCOM1_2 ||fs_nboot_args.chBoardType == BT_PICOCOMA7||
 				fs_nboot_args.chBoardType == BT_GAR1) {
 			phy_addr_a = 1;
 		}
@@ -1665,7 +1703,6 @@ int board_eth_init(bd_t *bis)
 		issue_reset((fs_nboot_args.chBoardRev < 120) ? 100000 : 500,
 			    100, IMX_GPIO_NR(5, 11), ~0, ~0);
 		break;
-
 	case BT_PICOCOM1_2:
 		/*
 		 * DP83484 PHY: This PHY needs at least 1us reset pulse
@@ -1685,6 +1722,14 @@ int board_eth_init(bd_t *bis)
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
 		issue_reset(10, 170000, IMX_GPIO_NR(5, 11), ~0, ~0);
+		break;
+
+	case BT_PICOCOMA7:
+		/* Two DP83484 PHYs with separate reset signals; see comment
+		   above for timing considerations */
+		SETUP_IOMUX_PADS(enet_pads_reset_picocoma7);
+		issue_reset(10, 170000,
+			    IMX_GPIO_NR(5, 5), IMX_GPIO_NR(5, 6), ~0);
 		break;
 
 	case BT_GAR1:
@@ -1790,6 +1835,7 @@ char *get_sys_prompt(void)
  * ------------------------------------------------------------------------
  * efusA7UL     -              -            -
  * PicoCOM1.2   GPIO5_IO00     GPIO5_IO01   high
+ * PicoCOMA7	GPIO5_IO00	   GPIO5_IO01   high
  * CubeA7UL     GPIO2_IO05     GPIO2_IO06   low
  * Cube2.0      GPIO2_IO05     GPIO2_IO06   low
  */
@@ -1807,6 +1853,7 @@ static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
 
 	switch (pargs->chBoardType) {
 	case BT_PICOCOM1_2:
+	case BT_PICOCOMA7:
 		gpio = (id ? IMX_GPIO_NR(5, 1) : IMX_GPIO_NR(5, 0));
 		break;
 
