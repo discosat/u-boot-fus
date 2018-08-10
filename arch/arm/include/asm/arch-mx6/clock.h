@@ -49,7 +49,14 @@ enum enet_freq {
 	ENET_125MHZ,
 };
 
-int config_lvds_clk(u32 ipu, u32 di, u32 freq, u32 split);
+#if defined(CONFIG_MX6SX)
+int config_lvds_clk(int lcdif, u32 freq);
+#endif
+
+#if defined(CONFIG_MX6QDL)
+int config_lvds_clk(unsigned int ipu, unsigned int di, unsigned int freq, unsigned int split);
+#endif
+
 int config_lcd_di_clk(u32 ipu, u32 di);
 u32 imx_get_uartclk(void);
 u32 imx_get_fecclk(void);
@@ -72,4 +79,8 @@ void enable_ldb_di_clk(int channel);
 void enable_ipu_clock(int ipu);
 int enable_fec_anatop_clock(int fec_id, enum enet_freq freq);
 void enable_enet_clk(unsigned char enable);
+#if defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL)
+void mxs_set_lcdclk(uint32_t base_addr, uint32_t freq);
+void enable_lcdif_clock(uint32_t base_addr);
+#endif
 #endif /* __ASM_ARCH_CLOCK_H */

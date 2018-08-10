@@ -583,7 +583,224 @@ static u32 get_mmdc_ch0_clk(void)
 	}
 }
 
-#ifdef CONFIG_VIDEO_IPUV3
+#ifdef CONFIG_VIDEO_MXS
+static int enable_pll_video(u32 pll_div, u32 pll_num, u32 pll_denom,
+	u32 test_div)
+{
+	u32 reg = 0;
+	ulong start;
+
+	debug("pll5 div = %d, num = %d, denom = %d\n",
+		pll_div, pll_num, pll_denom);
+
+	/* Power up PLL5 video */
+	writel(BM_ANADIG_PLL_VIDEO_POWERDOWN | BM_ANADIG_PLL_VIDEO_BYPASS |
+		BM_ANADIG_PLL_VIDEO_DIV_SELECT | BM_ANADIG_PLL_VIDEO_POST_DIV_SELECT,
+		&imx_ccm->analog_pll_video_clr);
+
+	/* Set div, num and denom */
+	switch (test_div) {
+	case 1:
+		writel(BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div) |
+		       BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x1),
+		       &imx_ccm->analog_pll_video_set);
+		break;
+	case 2:
+		writel(BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div) |
+		       BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x0),
+		       &imx_ccm->analog_pll_video_set);
+		break;
+	default:
+		writel(BF_ANADIG_PLL_VIDEO_DIV_SELECT(pll_div) |
+		       BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(0x2),
+		       &imx_ccm->analog_pll_video_set);
+		break;
+	}
+
+	writel(BF_ANADIG_PLL_VIDEO_NUM_A(pll_num),
+		&imx_ccm->analog_pll_video_num);
+
+	writel(BF_ANADIG_PLL_VIDEO_DENOM_B(pll_denom),
+		&imx_ccm->analog_pll_video_denom);
+
+	/* Wait PLL5 lock */
+	start = get_timer(0);	/* Get current timestamp */
+
+	do {
+		reg = readl(&imx_ccm->analog_pll_video);
+		if (reg & BM_ANADIG_PLL_VIDEO_LOCK) {
+			/* Enable PLL out */
+			writel(BM_ANADIG_PLL_VIDEO_ENABLE,
+					&imx_ccm->analog_pll_video_set);
+			return 0;
+		}
+	} while (get_timer(0) < (start + 10)); /* Wait 10ms */
+
+	printf("Lock PLL5 timeout\n");
+	return 1;
+
+}
+
+void mxs_set_lcdclk(uint32_t base_addr, uint32_t freq)
+{
+
+	u32 reg = 0;
+	u32 hck = MXC_HCLK/1000;
+	u32 min = hck * 27;
+	u32 max = hck * 54;
+	u32 temp, best = 0;
+	u32 i, j, pred = 1, postd = 1;
+	u32 pll_div, pll_num, pll_denom, post_div = 0;
+
+	debug("mxs_set_lcdclk, freq = %d\n", freq);
+
+	if (base_addr == LCDIF1_BASE_ADDR) {
+		reg = readl(&imx_ccm->cscdr2);
+		if ((reg & MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK) != 0)
+			return; /*Can't change clocks when clock not from pre-mux */
+	}
+#ifdef CONFIG_MX6SX
+	else {
+		reg = readl(&imx_ccm->cscdr2);
+		if ((reg & MXC_CCM_CSCDR2_LCDIF2_CLK_SEL_MASK) != 0)
+			return; /*Can't change clocks when clock not from pre-mux */
+	}
+#endif
+
+	temp = (freq * 8 * 8);
+	if (temp < min) {
+		for (i = 1; i <= 2; i++) {
+			if ((temp * (1 << i)) > min) {
+				post_div = i;
+				freq = (freq * (1 << i));
+				break;
+			}
+		}
+
+		if (3 == i) {
+			printf("Fail to set rate to %dkhz", freq);
+			return;
+		}
+	}
+
+	for (i = 1; i <= 8; i++) {
+		for (j = 1; j <= 8; j++) {
+			temp = freq * i * j;
+			if (temp > max || temp < min)
+				continue;
+
+			if (best == 0 || temp < best) {
+				best = temp;
+				pred = i;
+				postd = j;
+			}
+		}
+	}
+
+	if (best == 0) {
+		printf("Fail to set rate to %dkhz", freq);
+		return;
+	}
+
+	debug("best %d, pred = %d, postd = %d\n", best, pred, postd);
+
+	pll_div = best / hck;
+	pll_denom = 1000000;
+	pll_num = (best - hck * pll_div) * pll_denom / hck;
+
+	if (base_addr == LCDIF1_BASE_ADDR) {
+		if (enable_pll_video(pll_div, pll_num, pll_denom, post_div))
+			return;
+
+		/* Select pre-lcd clock to PLL5 */
+		reg = readl(&imx_ccm->cscdr2);
+		reg &= ~MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_MASK;
+		reg |= (0x2 << MXC_CCM_CSCDR2_LCDIF1_PRED_SEL_OFFSET);
+		/* Set the pre divider */
+		reg &= ~MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_MASK;
+		reg |= ((pred - 1) << MXC_CCM_CSCDR2_LCDIF1_PRE_DIV_OFFSET);
+		writel(reg, &imx_ccm->cscdr2);
+
+		/* Set the post divider */
+		reg = readl(&imx_ccm->cbcmr);
+		reg &= ~MXC_CCM_CBCMR_LCDIF1_PODF_MASK;
+		reg |= ((postd - 1) << MXC_CCM_CBCMR_LCDIF1_PODF_OFFSET);
+		writel(reg, &imx_ccm->cbcmr);
+	}
+#ifdef CONFIG_MX6SX
+	else {
+		if (enable_pll_video(pll_div, pll_num, pll_denom, post_div))
+			return;
+
+		/* Select pre-lcd clock to PLL5 */
+		reg = readl(&imx_ccm->cscdr2);
+		reg &= ~MXC_CCM_CSCDR2_LCDIF2_PRED_SEL_MASK;
+		reg |= (0x2 << MXC_CCM_CSCDR2_LCDIF2_PRED_SEL_OFFSET);
+		/* Set the pre divider */
+		reg &= ~MXC_CCM_CSCDR2_LCDIF2_PRE_DIV_MASK;
+		reg |= ((pred - 1) << MXC_CCM_CSCDR2_LCDIF2_PRE_DIV_OFFSET);
+		writel(reg, &imx_ccm->cscdr2);
+
+		/* Set the post divider */
+		reg = readl(&imx_ccm->cscmr1);
+		reg &= ~MXC_CCM_CSCMR1_LCDIF2_PODF_MASK;
+		reg |= ((postd - 1) << MXC_CCM_CSCMR1_LCDIF2_PODF_OFFSET);
+		writel(reg, &imx_ccm->cscmr1);
+	}
+#endif
+}
+
+#ifdef CONFIG_MX6SX
+void enable_lcdif_clock(uint32_t base_addr)
+{
+	u32 reg = 0;
+
+	/* Set to pre-mux clock at default */
+	reg = readl(&imx_ccm->cscdr2);
+	if (base_addr == LCDIF1_BASE_ADDR)
+		reg &= ~MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK;
+	else
+		reg &= ~MXC_CCM_CSCDR2_LCDIF2_CLK_SEL_MASK;
+	writel(reg, &imx_ccm->cscdr2);
+
+	/* Enable the LCDIF pix clock, axi clock, disp axi clock */
+	reg = readl(&imx_ccm->CCGR3);
+	if (base_addr == LCDIF1_BASE_ADDR)
+		reg |= (MXC_CCM_CCGR3_LCDIF1_PIX_MASK | MXC_CCM_CCGR3_DISP_AXI_MASK);
+	else
+		reg |= (MXC_CCM_CCGR3_LCDIF2_PIX_MASK | MXC_CCM_CCGR3_DISP_AXI_MASK);
+	writel(reg, &imx_ccm->CCGR3);
+
+	reg = readl(&imx_ccm->CCGR2);
+	reg |= (MXC_CCM_CCGR2_LCD_MASK);
+	writel(reg, &imx_ccm->CCGR2);
+}
+#endif
+
+#ifdef CONFIG_MX6UL
+void enable_lcdif_clock(uint32_t base_addr)
+{
+	u32 reg = 0;
+
+	/* Set to pre-mux clock at default */
+	reg = readl(&imx_ccm->cscdr2);
+	reg &= ~MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK;
+	writel(reg, &imx_ccm->cscdr2);
+
+	/* Enable the LCDIF pix clock */
+	reg = readl(&imx_ccm->CCGR3);
+	reg |= MXC_CCM_CCGR3_LCDIF1_PIX_MASK;
+	writel(reg, &imx_ccm->CCGR3);
+
+	reg = readl(&imx_ccm->CCGR2);
+	reg |= MXC_CCM_CCGR2_LCD_MASK;
+	writel(reg, &imx_ccm->CCGR2);
+}
+#endif
+
+#endif /* CONFIG_VIDEO_MXS */
+
+#if defined(CONFIG_VIDEO_IPUV3) || defined(CONFIG_VIDEO_MXS)
 
 static unsigned int mxc_get_mmdc_ch1_clk(void)
 {
@@ -897,6 +1114,66 @@ void enable_ipu_clock(int ipu)
 	writel(ccgr3, &imx_ccm->CCGR3);
 }
 
+#if (defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+int config_lvds_clk(int lcdif, unsigned int freq)
+{
+
+	u32 divider;
+	u32 reg;
+	int use_pll5;
+	u32 mask;
+
+	disable_pll5();
+
+	/*
+	 * The current and new parent clocks must be disabled. Default
+	 * clock source for LDB_DI0_CLK is PLL2_PFD3, so gate this clock.
+	 */
+
+	reg = __raw_readl(&imx_ccm->analog_pfd_528);
+	reg |= BM_ANADIG_PFD_528_PFD3_CLKGATE;
+	__raw_writel(reg, &imx_ccm->analog_pfd_528);
+
+	/* Check if PLL2_PFD0 is sufficient; if not, use PLL5. PLL2 main
+	   clock is 528 MHz. To avoid a computation overflow, drop the two
+	   LSBs (i.e. divide by 4) */
+	divider = ((decode_pll(PLL_BUS)/4) * 18 + (freq/8))/ (freq/4);
+	use_pll5 = (divider < 12) || (divider > 35);
+	/* Set ldb_di<n>_clk to PLL5 (000b) or PLL2 PFD0 (001b) */
+	reg = __raw_readl(&imx_ccm->cs2cdr);
+	reg &= ~(0x7 << 9);
+	if (!use_pll5)
+		reg |= (0x3 << 9);
+	__raw_writel(reg, &imx_ccm->cs2cdr);
+	reg = __raw_readl(&imx_ccm->cs2cdr);
+
+	if (use_pll5) {
+		setup_pll5(freq);
+	} else {
+		/* Set PLL2 PFD0 Clock */
+		reg = __raw_readl(&imx_ccm->analog_pfd_528);
+		reg &= ~BM_ANADIG_PFD_528_PFD3_FRAC;
+		reg |= (divider << BP_ANADIG_PFD_528_PFD3_FRAC);
+		__raw_writel(reg, &imx_ccm->analog_pfd_528);
+		reg = __raw_readl(&imx_ccm->analog_pfd_528);
+	}
+
+	reg = __raw_readl(&imx_ccm->cscdr2);
+	/* Set lcdif clock source to ldb_di0_clk */
+	if (lcdif == 1) {
+		mask = 0x7 << 9;
+		reg = 0x3 << 9;
+	} else {
+		mask = 0x7 << 0;
+		reg = 0x3 << 0;
+	}
+	__raw_writel((__raw_readl(&imx_ccm->cscdr2) & ~mask) | reg, &imx_ccm->cscdr2);
+
+	return use_pll5;
+}
+#endif
+
+#ifdef CONFIG_MX6QDL
 int config_lvds_clk(unsigned int ipu, unsigned int di, unsigned int freq,
 		    unsigned int split)
 {
@@ -1074,9 +1351,11 @@ int config_lvds_clk(unsigned int ipu, unsigned int di, unsigned int freq,
 
 	return use_pll5;
 }
+#endif
 
 int config_lcd_di_clk(u32 ipu, u32 di)
 {
+
 	u32 reg;
 	void *addr;
 

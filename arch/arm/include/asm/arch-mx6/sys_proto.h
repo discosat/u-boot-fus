@@ -18,3 +18,4 @@ void ldo_mode_set(int ldo_bypass);
 void prep_anatop_bypass(void);
 void finish_anatop_bypass(void);
 #endif
+int mxs_reset_block(struct mxs_register_32 *reg);
