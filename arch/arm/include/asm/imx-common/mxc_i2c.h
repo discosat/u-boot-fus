@@ -50,6 +50,22 @@ struct i2c_pads_info {
 #define I2C_PADS_INFO(name)	\
 	(is_cpu_type(MXC_CPU_MX6Q) || is_cpu_type(MXC_CPU_MX6D)) ? \
 					&mx6q_##name : &mx6s_##name
+#else
+#define I2C_PADS(name, scl_i2c, scl_gpio, scl_gp, sda_i2c, sda_gpio, sda_gp) \
+		struct i2c_pads_info mx6_##name = {		\
+			.scl = {				\
+				.i2c_mode = MX6_##scl_i2c,	\
+				.gpio_mode = MX6_##scl_gpio,	\
+				.gp = scl_gp,			\
+			},					\
+			.sda = {				\
+				.i2c_mode = MX6_##sda_i2c,	\
+				.gpio_mode = MX6_##sda_gpio,	\
+				.gp = sda_gp,			\
+			}					\
+		};
+#define I2C_PADS_INFO(name)	\
+					&mx6_##name
 #endif
 void setup_i2c(unsigned i2c_index, int speed, int slave_addr,
 		struct i2c_pads_info *p);
