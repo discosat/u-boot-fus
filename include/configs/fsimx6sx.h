@@ -141,7 +141,7 @@
 /* Size of malloc() pool (heap). Command "ubi part" needs quite a large heap
    if the source MTD partition is large. The size should be large enough to
    also contain a copy of the environment. */
-#define CONFIG_SYS_MALLOC_LEN	(2 * 1024 * 1024)
+#define CONFIG_SYS_MALLOC_LEN	(10 * 1024 * 1024)
 
 /* Allocate 2048KB protected RAM at end of RAM (device tree, etc.) */
 #define CONFIG_PRAM		2048
@@ -207,14 +207,17 @@
 /************************************************************************
  * I2C
  ************************************************************************/
-/* No I2C used in U-Boot on F&S i.MX6 SoloX boards */
+#define CONFIG_CMD_I2C
+#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_MXC
+#define CONFIG_SYS_I2C_SPEED	100000
+#define CONFIG_SYS_SPD_BUS_NUM	1
 
 
 /************************************************************************
  * LEDs
  ************************************************************************/
 /* ###TODO### */
-
 
 /************************************************************************
  * PMIC
@@ -492,7 +495,14 @@
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
-/* ###TODO### */
+#define CONFIG_VIDEO
+#define CONFIG_VIDEO_MXS		/* Use IPU */
+#define CONFIG_CFB_CONSOLE		/* Use color framebuffer console */
+#define CONFIG_VGA_AS_SINGLE_DEVICE	/* Display is only output, no input */
+#define CONFIG_VIDEO_LOGO		/* Allow a logo on the console... */
+#define CONFIG_VIDEO_BMP_LOGO		/* ...as BMP image... */
+#define CONFIG_BMP_16BPP		/* ...with 16 bits per pixel */
+#define CONFIG_SPLASH_SCREEN		/* Support splash screen */
 
 
 /************************************************************************

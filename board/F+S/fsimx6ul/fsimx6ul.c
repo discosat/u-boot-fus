@@ -30,6 +30,14 @@
 #include <status_led.h>			/* led_id_t */
 #endif
 
+#ifdef CONFIG_VIDEO_MXS
+#include <linux/fb.h>
+#include <mxsfb.h>
+#endif
+
+
+
+#include <asm/imx-common/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/setup.h>			/* struct tag_fshwconfig, ... */
@@ -47,6 +55,7 @@
 #include <malloc.h>			/* free() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <i2c.h>			/* i2c_reg_read/write(), ... */
+#include <asm/imx-common/mxc_i2c.h>
 
 /* ------------------------------------------------------------------------- */
 
@@ -124,6 +133,8 @@
 #define USDHC_CLK_INT (PAD_CTL_HYS | PAD_CTL_SPEED_MED |	\
 	PAD_CTL_DSE_120ohm | PAD_CTL_SRE_FAST)
 #define USDHC_CD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
+
+#define LCD_CTRL PAD_CTL_DSE_120ohm
 
 #define USB_ID_PAD_CTRL (PAD_CTL_PUS_47K_UP | PAD_CTL_SPEED_LOW | PAD_CTL_HYS)
 
@@ -317,7 +328,7 @@ struct serial_device *default_serial_console(void)
 }
 
 /* Pads for 18-bit LCD interface */
-static iomux_v3_cfg_t const lcd18_pads[] = {
+static iomux_v3_cfg_t const lcd18_pads_low[] = {
 	IOMUX_PADS(PAD_LCD_CLK__GPIO3_IO00    | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_ENABLE__GPIO3_IO01 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_HSYNC__GPIO3_IO02  | MUX_PAD_CTRL(0x3010)),
@@ -412,7 +423,7 @@ int board_early_init_f(void)
 		break;
 
 	case BT_EFUSA7UL:		/* 18-bit LCD and DVS */
-		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd18_pads_low);
 		if (is_cpu_type(MXC_CPU_MX6ULL))
 			SETUP_IOMUX_PADS(lcd_extra_pads_ull);
 		else
@@ -420,7 +431,7 @@ int board_early_init_f(void)
 		SETUP_IOMUX_PADS(dvs);
 		break;
 	case BT_PICOCOMA7:
-		SETUP_IOMUX_PADS(lcd18_pads);
+		SETUP_IOMUX_PADS(lcd18_pads_low);
 		SETUP_IOMUX_PADS(lcd_extra_pads_picocoma7ull);
 		SETUP_IOMUX_PADS(dvs);
 		break;
@@ -490,8 +501,9 @@ void i2c_init_board(void)
 {
 	if (is_cpu_type(MXC_CPU_MX6ULL))
 		SETUP_IOMUX_PADS(i2c_pads_ull);
-	else
+	else{
 		SETUP_IOMUX_PADS(i2c_pads_ul);
+	}
 }
 
 /* Set the available RAM size. We have a memory bank starting at 0x10000000
@@ -991,6 +1003,599 @@ int board_mmc_init(bd_t *bd)
 }
 #endif
 
+
+#ifdef CONFIG_VIDEO_MXS
+/*
+ * Display initialization sequence:
+ *
+ * 1.0   board.c: board_init_r(); calls stdio_init();
+ * 2.0   stdio.c: stdio_init(); calls drv_video_init();
+ *
+ * 3.1   cfb_console.c: drv_video_init(); calls board_video_skip();
+ *       board_video_skip(); is overriden in our boardfile fsimx6ul.c.
+ *       - The original file comes from video.c.
+ *       - if this returns non-zero, the display will not be started.
+ *
+ * 3.11  board_video_skip(); calls
+ *       parse_display_params(struct display_params *display, const char *s);
+ *       - function parses the dispmode and disppara env vars set in u-boot.
+ *
+ * 3.12  fsimx6ul.c: board_video_skip(); calls mxs_lcd_panel_setup();
+ * 3.121 mxsfb.c: mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
+ *       uint32_t base_addr); calls nothing.
+ *       - Map struct, bpp and base_addr to class
+ *
+ * 3.13  fsimx6ul.c: board_video_skip(); calls enable_lcdif_clock();
+ * 3.131 clock.c: enable_lcdif_clock(uint32_t base_addr = LCDIF_BASE_ADDR);
+ *       calls nothing.
+ *       - clear the pre-mux clock in CSCDR2 register.
+ *       - Enable the LCDIF pix clock in CCGR2 and CCGR3 Register.
+ *
+ * 3.2   cfb_console.c: drv_video_init(); calls video_init();
+ * 3.21  cfb_console.c: video_init(); calls video_hw_init();
+ *       - Parse display parameters again.
+ *       - Allocate, wipe and start the framebuffer.
+ *
+ * 3.31  mxsfb.b: video_hw_init(); calls mxs_lcd_init();
+ *       - Set Databus Width.
+ *
+ * 3.32  mxsfb.c: mxs_lcd_init(GraphicDevice *panel,
+ *       struct ctfb_res_modes *mode, int bpp); calls mxs_set_lcdclock();
+ *       - Start lcdif clock.
+ *
+ * 3.321 clock.c: mxs_set_lcdclk(uint32_t base_addr, uint32_t freq);
+ *       calls enable_pll_video();
+ *       - Power up PLL5 video.
+ *       - Set div, num and denom.
+ *       - Set PLL Lock.
+ *
+ * 3.34  mxsfb.c: mxs_lcd_init(); calls mxs_reset_block();
+ * 3.35  misc.c: mxs_reset_block(struct mxs_register_32 *reg);
+ *       calls minor functions
+ *
+ * 4.0   board.c: board_init_r(); calls board_late_init();
+ * 4.1   fsimx6ul.c: board_late_init(); calls enable_displays();
+ *       - Enables backlight voltage and sets backlight brightness (PWM)
+ *         for all active displays
+ */
+
+static iomux_v3_cfg_t const lcd18_pads[] = {
+	IOMUX_PADS(PAD_LCD_CLK__GPIO3_IO00 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_HSYNC__GPIO3_IO02 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_VSYNC__GPIO3_IO03 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_ENABLE__GPIO3_IO01 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA00__GPIO3_IO05  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA01__GPIO3_IO06  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA02__GPIO3_IO07  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA03__GPIO3_IO08  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA04__GPIO3_IO09  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA05__GPIO3_IO10  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA06__GPIO3_IO11  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA07__GPIO3_IO12  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA08__GPIO3_IO13  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA09__GPIO3_IO14  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA10__GPIO3_IO15 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA11__GPIO3_IO16 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA12__GPIO3_IO17 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA13__GPIO3_IO18 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA14__GPIO3_IO19 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA15__GPIO3_IO20 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA16__GPIO3_IO21 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA17__GPIO3_IO22 | MUX_PAD_CTRL(LCD_CTRL)),
+};
+
+I2C_PADS(efusa7ul,						\
+	 PAD_GPIO1_IO02__I2C1_SCL | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 PAD_GPIO1_IO02__GPIO1_IO02 |  MUX_PAD_CTRL(I2C_PAD_CTRL),\
+	 IMX_GPIO_NR(1, 2),					\
+	 PAD_GPIO1_IO01__I2C2_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 PAD_GPIO1_IO01__GPIO1_IO01 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 IMX_GPIO_NR(1, 1));
+
+/* Available display ports */
+#define DISP_PORT_LCD	(1 << 0)
+#define DISP_PORT_HDMI	(1 << 1)
+#define DISP_PORT_LVDS0	(1 << 2)
+#define DISP_PORT_LVDS1	(1 << 3)
+
+/* Extra LVDS settings */
+#define LDB_FLAGS_SPLIT	(1 << 0)	/* 0: 1ch display, 1: 2ch display */
+#define LDB_FLAGS_DUAL	(1 << 1)	/* 0: one display, 1: two displays */
+#define LDB_FLAGS_24BPP	(1 << 2)	/* 0: 18 bpp, 1: 24 bpp */
+#define LDB_FLAGS_JEIDA	(1 << 3)	/* 0: 24 bpp SPWG, 1: 24 bpp JEIDA */
+
+/* Extra display parameters that are not part of fb_videomode */
+struct fb_extra {
+	unsigned int port;
+	unsigned int ldb_flags;
+};
+
+struct display_params {
+	struct fb_videomode mode;
+	struct fb_extra extra;
+};
+
+struct param_choice {
+	const char *name;
+	unsigned int val;
+};
+
+/* This is a set of used display ports */
+unsigned int used_ports;
+
+struct display_params display;
+
+const struct param_choice disp_ports[] = {
+	{"lcd", DISP_PORT_LCD},
+	{"hdmi", DISP_PORT_LCD},
+	{"lvds0", DISP_PORT_LVDS0},
+	{"lvds1", DISP_PORT_LVDS1},
+};
+
+/*
+ * Have a small display data base.
+ *
+ * drivers/video/mxcfb.h defines additional values to set DE polarity and
+ * clock sensitivity. However these values are not valid in Linux and the file
+ * can not easily be included here. So we (F&S) misuse some existing defines
+ * from include/linux/fb.h to handle these two cases. This may change in the
+ * future.
+ *
+ *   FB_SYNC_COMP_HIGH_ACT: DE signal active high
+ *   FB_SYNC_ON_GREEN:      Latch on rising edge of pixel clock
+ */
+
+const struct fb_videomode const display_db[] = {
+	{
+		.name           = "EDT-ET070080DH6",
+		.refresh        = 60,
+		.xres           = 800,
+		.yres           = 480,
+		.pixclock       = 30066, // picosceconds
+		.left_margin    = 88,
+		.right_margin   = 40,
+		.upper_margin   = 33,
+		.lower_margin   = 10,
+		.hsync_len      = 128,
+		.vsync_len      = 2,
+		.sync           = FB_SYNC_ON_GREEN | FB_SYNC_COMP_HIGH_ACT,
+		.vmode          = FB_VMODE_NONINTERLACED
+	},
+#if 0
+	{
+		.name           = "HDMI",
+		.refresh        = 60,
+		.xres           = 640,
+		.yres           = 480,
+		.pixclock       = 39721,
+		.left_margin    = 48,
+		.right_margin   = 16,
+		.upper_margin   = 33,
+		.lower_margin   = 10,
+		.hsync_len      = 96,
+		.vsync_len      = 2,
+		.sync           = 0,
+		.vmode          = FB_VMODE_NONINTERLACED
+	},
+#endif
+};
+
+/* Always use serial for U-Boot console */
+int overwrite_console(void)
+{
+	return 1;
+}
+
+/* Enable backlight power and set brightness via I2C on RGB adapter */
+static void enable_i2c_backlight(int on)
+{
+	u8 val;
+#if 0
+	printf("### ID = 0x%x\n", i2c_reg_read(0x60, 0));
+#endif
+
+	/*
+	 * Talk to the PCA9632 via I2C, this is a 4 channel LED driver
+	 *  Channel 0: Used as GPIO to switch backlight power
+	 *  Channel 1: Used as PWM to set backlight brightness
+	 *  Channel 2: Used as GPIO to set display rotation
+	 *  Channel 3: Unused
+	 * Channels use inverted logic, i.e. ON=0, OFF=1, and the higher the
+	 * PWM value, the lower the duty cycle
+	 */
+	i2c_reg_write(0x60, 0x0, 0x0);	/* Normal mode, no auto-increment */
+	i2c_reg_write(0x60, 0x1, 0x5);	/* Grp dimming, no inv., Totem pole */
+	i2c_reg_write(0x60, 0x3, 0xf0);	/* PWM duty cycle for Channel 1 */
+	if (on)
+		val = 0x18;		/* CH2: ON=0, CH1: PWM, CH0: OFF=1 */
+	else
+		val = 0x11;		/* CH2: ON=0, CH1: OFF=1, CH0: ON=0 */
+	i2c_reg_write(0x60, 0x8, val);
+}
+
+/* Enable VLCD, configure pads if required */
+static void prepare_displays(void)
+{
+	/* Switch off display power on RGB adapter */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA7UL:
+		setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60, I2C_PADS_INFO(efusa7ul));
+		i2c_set_bus_num(1);
+		enable_i2c_backlight(0);
+		break;
+	default:
+		break;
+	}
+
+	/* Enable VLCD */
+	if (used_ports & (DISP_PORT_LCD | DISP_PORT_LVDS0 | DISP_PORT_LVDS1)){
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA7UL:
+			gpio_direction_output(IMX_GPIO_NR(3, 19), 1);
+			mdelay(10);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (used_ports & DISP_PORT_LCD) {
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA7UL:		/* 18-bit LCD interface */
+		default:
+			SETUP_IOMUX_PADS(lcd18_pads);
+			break;
+		}
+	}
+}
+
+/* Enable backlight power depending on the used display ports */
+static void enable_displays(void)
+{
+
+	if (used_ports & DISP_PORT_LCD) {
+		switch (fs_nboot_args.chBoardType) {
+		case BT_EFUSA7UL:
+			i2c_set_bus_num(1);
+			enable_i2c_backlight(1);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (used_ports & DISP_PORT_HDMI) {
+		// ### TODO
+	}
+}
+
+static int parse_choice_param(const char *param, unsigned *val, const char **s,
+			      const struct param_choice *choice, unsigned count)
+{
+	int len;
+	const char *p = *s;
+	unsigned int i;
+	const struct param_choice *entry;
+	char c;
+
+	/* Check for parameter name match */
+	len = strlen(param);
+	if (strncmp(param, p, len))
+		return 0;
+	p += len;
+	if (*p++ != '=')
+		return 0;
+
+	/* Search for a matching choice */
+	for (i = 0, entry = choice; i < count; i++, entry++) {
+		len = strlen(entry->name);
+		if (!strncmp(p, entry->name, len)) {
+			c = p[len];
+			if (c == ',')
+				len++;
+			else if (c != '\0')
+				continue;
+			*s = p + len;
+			*val = entry->val;
+			return 0;
+		}
+	}
+
+	/* No matching choice found */
+	return -1;
+}
+
+/* Parse <param>=<uint>; returns 1 for match, 0 for no match, -1 for error */
+static int parse_uint_param(const char *param, unsigned int *val,
+			     const char **s)
+{
+	int len = strlen(param);
+	const char *p = *s;
+	char *endp;
+	unsigned int tmp;
+
+	if (strncmp(param, p, len))
+		return 0;
+	p += len;
+	if (*p++ != '=')
+		return 0;
+	tmp = simple_strtoul(p, &endp, 0);
+	if (endp == p)
+		return -1;
+	if (*endp == ',')
+		endp++;
+	else if (*endp != '\0')
+		return -1;
+	*s = endp;
+	*val = tmp;
+
+	return 1;
+}
+
+static int parse_display_params(struct display_params *display, const char *s)
+{
+	int err = 0;
+	unsigned int tmp = ~0;
+	const char *start;
+
+	if (!s || !*s)
+		return 0;
+
+	/* Parse given string for paramters */
+	while (*s) {
+		start = s;
+
+		/* Values from dispmode */
+		err = parse_uint_param("clk", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0)
+			display->mode.pixclock = KHZ2PICOS(tmp/1000);
+		err = parse_uint_param("rate", &display->mode.refresh, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("hres", &display->mode.xres, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("vres", &display->mode.yres, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("hfp", &display->mode.right_margin, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("hbp", &display->mode.left_margin, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("vfp", &display->mode.lower_margin, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("vbp", &display->mode.upper_margin, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("hsw", &display->mode.hsync_len, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("vsw", &display->mode.vsync_len, &s);
+		if (err < 0)
+			break;
+		err = parse_uint_param("hsp", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp)
+				display->mode.sync |= FB_SYNC_HOR_HIGH_ACT;
+			else
+				display->mode.sync &= ~FB_SYNC_HOR_HIGH_ACT;
+		}
+		err = parse_uint_param("vsp", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp)
+				display->mode.sync |= FB_SYNC_VERT_HIGH_ACT;
+			else
+				display->mode.sync &= ~FB_SYNC_VERT_HIGH_ACT;
+		}
+		err = parse_uint_param("dep", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp)	/* DE active high */
+				display->mode.sync |= FB_SYNC_COMP_HIGH_ACT;
+			else		/* DE active low */
+				display->mode.sync &= ~FB_SYNC_COMP_HIGH_ACT;
+		}
+		err = parse_uint_param("clkp", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp)	/* Latch on rising edge */
+				display->mode.sync |= FB_SYNC_ON_GREEN;
+			else		/* Latch on falling edge */
+				display->mode.sync &= ~FB_SYNC_ON_GREEN;
+		}
+		err = parse_uint_param("il", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp)
+				display->mode.vmode &= ~FB_VMODE_INTERLACED;
+			else
+				display->mode.vmode |= FB_VMODE_INTERLACED;
+		}
+
+		/* Values from disppara */
+		err = parse_choice_param("port", &display->extra.port, &s,
+					 disp_ports, ARRAY_SIZE(disp_ports));
+		if (err < 0)
+			break;
+
+		err = parse_uint_param("split", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp == 1)
+				display->extra.ldb_flags |= LDB_FLAGS_SPLIT;
+			else
+				display->extra.ldb_flags &= ~LDB_FLAGS_SPLIT;
+		}
+
+		err = parse_uint_param("dual", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if (tmp == 1)
+				display->extra.ldb_flags |= LDB_FLAGS_DUAL;
+			else
+				display->extra.ldb_flags &= ~LDB_FLAGS_DUAL;
+		}
+
+		err = parse_uint_param("bw", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if ((tmp == 24) || (tmp == 1))
+				display->extra.ldb_flags |= LDB_FLAGS_24BPP;
+			else
+				display->extra.ldb_flags &= ~LDB_FLAGS_24BPP;
+		}
+
+		err = parse_uint_param("jeida", &tmp, &s);
+		if (err < 0)
+			break;
+		if (err > 0) {
+			if ((tmp == 24) || (tmp == 1))
+				display->extra.ldb_flags |= LDB_FLAGS_JEIDA;
+			else
+				display->extra.ldb_flags &= ~LDB_FLAGS_JEIDA;
+		}
+
+		err = 0;
+		if (s == start)
+			break;		/* No progress during this loop */
+	}
+
+	/* Complain if we did not consume the whole string */
+	if (*s)
+		err = -1;
+	if (err < 0)
+		printf("Error parsing display parameters\n"
+		       "Remaining string: %s\n", s);
+	return err;
+}
+
+int board_video_skip(void)
+{
+	int i;
+	unsigned int freq;
+	const char *panel = getenv("disppanel");
+	const char *mode = getenv("dispmode");
+
+	if (!panel)
+		return 1;
+	/* Look for panel in display database */
+	for (i = 0; i <  ARRAY_SIZE(display_db); i++) {
+		if (!strcmp(panel, display_db[i].name))
+			break;
+	}
+	if ((i >= ARRAY_SIZE(display_db))) {
+		if (!mode) {
+			printf("Display panel %s not found.\n"
+			       "For a user-defined panel set variable"
+			       " 'disppanel' with appropriate timings\n",
+			       panel);
+			return 1;
+		}
+		/* Use first entry for default parameters */
+		i = 0;
+	}
+
+	/* Take mode parameters from display database */
+	display.mode = display_db[i];
+
+	/* Init extra parameters to default */
+	switch (fs_nboot_args.chBoardType) {
+	case BT_EFUSA7UL:
+	default:
+		display.extra.port = DISP_PORT_LVDS0;
+		break;
+	}
+
+
+	/* Parse mode parameters to override defaults */
+	if ((parse_display_params(&display, mode) < 0)
+	    || (parse_display_params(&display, getenv("disppara")) < 0))
+	    return 1;
+
+	/*
+	 * If pixelclock is given, compute frame rate. If pixelclock is
+	 * missing, compute it from frame rate. If frame rate is also missing,
+	 * assume 60 fps.
+	 */
+
+	freq = (display.mode.xres + display.mode.left_margin
+		+ display.mode.right_margin + display.mode.hsync_len)
+		* (display.mode.yres + display.mode.upper_margin
+		   + display.mode.lower_margin + display.mode.vsync_len);
+
+	if (display.mode.pixclock) {
+		display.mode.refresh =
+			(PICOS2KHZ(display.mode.pixclock) * 1000 + freq/2)/freq;
+	} else {
+		if (!display.mode.refresh)
+			display.mode.refresh = 60;
+		display.mode.pixclock =
+			KHZ2PICOS(freq * display.mode.refresh / 1000);
+	}
+
+	/*
+	 * Initialize display clock and register display settings with IPU
+	 * driver. The real initialization takes place when this function
+	 * returns.
+	 */
+
+	freq = PICOS2KHZ(display.mode.pixclock) * 1000;
+
+	switch (display.extra.port) {
+
+	case DISP_PORT_LCD:
+		mxs_lcd_panel_setup(display.mode, 18, LCDIF1_BASE_ADDR);
+		enable_lcdif_clock(LCDIF1_BASE_ADDR);
+		break;
+
+	case DISP_PORT_HDMI:
+		puts("### HDMI support not yet implemented\n");
+		return 1;
+	}
+	used_ports |= display.extra.port;
+
+	printf("Disp.: %s (%ux%u)\n", panel, display.mode.xres,
+	       display.mode.yres);
+#if 0
+	show_dispmode(&display.mode);
+	show_disppara(&display.extra);
+#endif
+
+	/* Enable VLCD */
+
+	prepare_displays();
+
+	return 0;
+}
+
+/* Run variable splashprepare to load bitmap image for splash */
+int splash_screen_prepare(void)
+{
+	char *prep;
+
+	prep = getenv("splashprepare");
+	if (prep)
+		run_command(prep, 0);
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_USB_EHCI_MX6
 /*
  * USB Host support.
@@ -1453,6 +2058,11 @@ int board_late_init(void)
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("fdt", bi->fdt, 1);
 	setup_var("bootargs", "set_bootargs", 1);
+
+	#ifdef CONFIG_VIDEO_MXS
+		/* Enable backlight for displays */
+		enable_displays();
+	#endif
 
 	return 0;
 }

@@ -143,7 +143,7 @@
 /* Size of malloc() pool (heap). Command "ubi part" needs quite a large heap
    if the source MTD partition is large. The size should be large enough to
    also contain a copy of the environment. */
-#define CONFIG_SYS_MALLOC_LEN	(2 * 1024 * 1024)
+#define CONFIG_SYS_MALLOC_LEN	(10 * 1024 * 1024)
 
 /* Allocate 2048KB protected RAM at end of RAM (device tree, etc.) */
 #define CONFIG_PRAM		2048

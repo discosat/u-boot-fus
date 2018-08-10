@@ -996,7 +996,7 @@ int board_mmc_init(bd_t *bd)
  * 5a. clock.c: config_lvds_clk(): Sets clock parent for LDB_DI clock to PLL5
  *     or PLL2PFD0, sets given frequency and sets IPU_DI clock parent to LDB_D.
  * 5b. clock.c: config_lcd_di_clk(): Sets IPU_DI clock to premuxed IPU_DI clock
- *     and in turn the parebnt of this to PLL2PFD2 (396MHz)
+ *     and in turn the parent of this to PLL2PFD2 (396MHz)
  *  6: Here: board_skip_video() calls ipuv3_fb_init()
  *  7: mxc_ipuv3_fb.c: ipuv3_fb_init(): Store the given values for later use
  *  8. Here: board_skip_video() calls prepare_displays()
@@ -1135,7 +1135,7 @@ const struct fb_videomode const display_db[] = {
 		.refresh        = 60,
 		.xres           = 800,
 		.yres           = 480,
-		.pixclock       = 30066,
+		.pixclock       = 30066, // picoseconds
 		.left_margin    = 88,
 		.right_margin   = 40,
 		.upper_margin   = 33,
@@ -1150,7 +1150,7 @@ const struct fb_videomode const display_db[] = {
 		.refresh        = 60,
 		.xres           = 800,
 		.yres           = 480,
-		.pixclock       = 33500,
+		.pixclock       = 33500, // picoseconds
 		.left_margin    = 88,
 		.right_margin   = 40,
 		.upper_margin   = 33,
@@ -1223,8 +1223,7 @@ static void prepare_displays(void)
 		enable_i2c_backlight(0);
 		break;
 	case BT_ARMSTONEA9:
-		setup_i2c(2, CONFIG_SYS_I2C_SPEED, 0x60,
-			  I2C_PADS_INFO(armstonea9));
+		setup_i2c(2, CONFIG_SYS_I2C_SPEED, 0x60, I2C_PADS_INFO(armstonea9));
 		i2c_set_bus_num(2);
 		enable_i2c_backlight(0);
 		break;
@@ -1314,7 +1313,6 @@ static void enable_lvds(int disp, int channel,
 		vs_polarity = IOMUXC_GPR2_DI1_VS_POLARITY_MASK;
 	else
 		vs_polarity = IOMUXC_GPR2_DI0_VS_POLARITY_MASK;
-		
 	if (channel == 1) {
 		if (disp == 1)
 			enable = IOMUXC_GPR2_LVDS_CH1_MODE_ENABLED_DI1;
