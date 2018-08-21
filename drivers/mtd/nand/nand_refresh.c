@@ -1,15 +1,9 @@
 /*
  * drivers/mtd/nand/nand_refresh.c
- * 
+ *
  * Copyright (C) 2014 F&S Elektronik Systeme GmbH
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * SPDX-License-Identifier:	GPL-2.0+
  *
  *
  * Block Refresh Algorithm for NAND pages with high bitflip counts
@@ -121,7 +115,7 @@
  *       Backup block went bad while doing refresh, before data of original
  *       block could be restored (somewhere between steps 2 and 4). Some data
  *       was actually lost. This is very very unlikely to happen.
- * 
+ *
  * Remark:
  * The following code uses 0 for invalid offsets. This silently assumes that
  * block 0 (at offset 0) is always required for booting and can neither be
@@ -164,7 +158,7 @@ static int erase_block(struct mtd_info *mtd, loff_t offset)
 
 /*
  * Erase the destination block, then copy data from source block to target
- * block. 
+ * block.
  * Return value: 0:        Successfully erased and copied
  *               -EBADMSG: Uncorrectable read errors when reading source block
  *               -EIO:     Destination block could not be erased or written
@@ -424,7 +418,7 @@ static int finish_refresh(struct mtd_info *mtd, loff_t refreshoffs)
 	   some is damaged. */
 	if (rval == -EBADMSG)
 		enter_dataloss_mode(mtd, refreshoffs);
- 
+
 	/* The original block is rewritten in any case, so we also have to do
 	   steps 5 + 6 in any case. */
 	nand_refresh_free_backup(mtd);

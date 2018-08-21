@@ -3,23 +3,7 @@
  * F&S Elektronik Systeme GmbH
  * Written-by: H. Keller <keller@fs-net.de>
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -38,14 +22,14 @@ struct s5p_usb_phy {			  /* Offset */
 
 int usb_cpu_init(void)
 {
-	volatile unsigned int *phy_control = 
+	volatile unsigned int *phy_control =
 		(unsigned int *)samsung_get_base_phy_control();
 	struct s5p_usb_phy *phy = (struct s5p_usb_phy *)samsung_get_base_phy();
 	unsigned int rstcon;
 
 	if (phy_control) {
 		/* We're on an S5PC110 */
-		struct s5pc110_clock *clock = 
+		struct s5pc110_clock *clock =
 			(struct s5pc110_clock *)samsung_get_base_clock();
 		unsigned int gate_ip1;
 
@@ -98,7 +82,7 @@ void usb_cpu_stop(void)
 
 	if (phy_control) {
 		/* We're on an S5PC110 */
-		struct s5pc110_clock *clock = 
+		struct s5pc110_clock *clock =
 			(struct s5pc110_clock *)samsung_get_base_clock();
 		unsigned int gate_ip1;
 

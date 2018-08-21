@@ -4,23 +4,7 @@
  *
  * Implementation for S5P
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -373,7 +357,7 @@ void s5p_nand_enable_hwecc_8bit(struct mtd_info *mtd, int mode)
 
 	nfconf &= ~(0x3 << 23);
 	nfconf |= (0x1 << 23);
-	
+
 	writel(nfconf, NFCONF);
 
 	/* Initialize & unlock */
@@ -405,7 +389,7 @@ int s5p_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat,
 	else {
 		while (!(readl(NFSTAT) & NFSTAT_ECCENCDONE))
 			/* nothing */;
-		
+
 		nfm8ecc0 = readl(NFM8ECC0);
 		nfm8ecc1 = readl(NFM8ECC1);
 		nfm8ecc2 = readl(NFM8ECC2);
@@ -414,7 +398,7 @@ int s5p_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat,
 		ecc_code[0] = nfm8ecc0 & 0xff;
 		ecc_code[1] = (nfm8ecc0 >> 8) & 0xff;
 		ecc_code[2] = (nfm8ecc0 >> 16) & 0xff;
-		ecc_code[3] = (nfm8ecc0 >> 24) & 0xff;			
+		ecc_code[3] = (nfm8ecc0 >> 24) & 0xff;
 		ecc_code[4] = nfm8ecc1 & 0xff;
 		ecc_code[5] = (nfm8ecc1 >> 8) & 0xff;
 		ecc_code[6] = (nfm8ecc1 >> 16) & 0xff;
@@ -425,7 +409,7 @@ int s5p_nand_calculate_ecc_8bit(struct mtd_info *mtd, const u_char *dat,
 		ecc_code[11] = (nfm8ecc2 >> 24) & 0xff;
 		ecc_code[12] = nfm8ecc3 & 0xff;
 	}
-	
+
 	return 0;
 }
 
@@ -444,7 +428,7 @@ int s5p_nand_correct_data_8bit(struct mtd_info *mtd, u_char *dat,
 	nf8eccerr2 = readl(NF8ECCERR2);
 	nfmlc8bitpt0 = readl(NFMLC8BITPT0);
 	nfmlc8bitpt1 = readl(NFMLC8BITPT1);
-	
+
 	err_type = (nf8eccerr0 >> 25) & 0xf;
 
 	/* No error, If free page (all 0xff) */

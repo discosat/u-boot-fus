@@ -469,7 +469,7 @@ static void fus_nfc_command(struct mtd_info *mtd, uint command, int column,
 
 	case NAND_CMD_PAGEPROG:
 		/* Actually do the programming. This is in fact a 3-byte
-		   command with NAND_CMD_STATUS as last command. */ 
+		   command with NAND_CMD_STATUS as last command. */
 		if (prv->last_command == NAND_CMD_SEQIN) {
 			/* Write the data since NAND_CMD_SEQIN to the
 			   flash and start programming. */
