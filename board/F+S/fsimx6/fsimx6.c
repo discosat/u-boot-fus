@@ -987,7 +987,7 @@ int board_mmc_init(bd_t *bd)
  *
  *  1. board.c: board_init_r() calls stdio_init()
  *  2. stdio.c: stdio_init() calls drv_video_init()
- *  3. cfb_console.c: drv_video_init() calls board_video_skip(); if this 
+ *  3. cfb_console.c: drv_video_init() calls board_video_skip(); if this
  *     returns non-zero, the display will not be started
  *  4. Here: board_video_skip(): Check all disp* variables for panel settings,
  *     returns 1 on error or if no panel was given, which means do not start
@@ -1193,14 +1193,14 @@ static void enable_i2c_backlight(int on)
 	printf("### ID = 0x%x\n", i2c_reg_read(0x60, 0));
 #endif
 
-	/* 
-	 * Talk to the PCA9632 via I2C, this is a 4 channel LED driver
+	/*
+	 * Talk to the PCA9632 via I2C, this is a 4 channel LED driver.
 	 *  Channel 0: Used as GPIO to switch backlight power
 	 *  Channel 1: Used as PWM to set backlight brightness
 	 *  Channel 2: Used as GPIO to set display rotation
 	 *  Channel 3: Unused
-	 * Channels use inverted logic, i.e. ON=0, OFF=1, and the higher the
-	 * PWM value, the lower the duty cycle
+	 * Channels use inverted logic, i.e. ON outputs 0, OFF outputs 1, and
+	 * the higher the PWM value, the lower the duty cycle.
 	 */
 	i2c_reg_write(0x60, 0x0, 0x0);	/* Normal mode, no auto-increment */
 	i2c_reg_write(0x60, 0x1, 0x5);	/* Grp dimming, no inv., Totem pole */
@@ -1257,11 +1257,11 @@ static void prepare_displays(void)
 }
 
 /* Enable backlight power depending on the used display ports */
-static void enable_displays(void)
+static void enable_backlight(int on)
 {
 	if (used_ports & (DISP_PORT_LVDS0 | DISP_PORT_LVDS1)) {
-		/* Enable VCFL */
-		gpio_direction_output(IMX_GPIO_NR(2, 8), 1);
+		/* Switch VCFL */
+		gpio_direction_output(IMX_GPIO_NR(2, 8), on);
 		mdelay(1);
 		// ### TODO: Set PWM
 	}
@@ -1270,18 +1270,18 @@ static void enable_displays(void)
 		switch (fs_nboot_args.chBoardType) {
 		case BT_EFUSA9:
 			i2c_set_bus_num(1);
-			enable_i2c_backlight(1);
+			enable_i2c_backlight(on);
 			break;
 		case BT_ARMSTONEA9:
 			i2c_set_bus_num(2);
-			enable_i2c_backlight(1);
+			enable_i2c_backlight(on);
 			break;
 		case BT_QBLISSA9:
 		case BT_QBLISSA9R2:
 		case BT_NETDCUA9:
 		case BT_PICOMODA9:
 			/* Enable VCFL */
-			gpio_direction_output(IMX_GPIO_NR(2, 8), 1);
+			gpio_direction_output(IMX_GPIO_NR(2, 8), on);
 			mdelay(1);
 			// ### TODO: Set PWM
 			// ### TODO: Set LCD_DEN on NetDCUA9/PICOMODA9
@@ -2267,7 +2267,7 @@ int board_late_init(void)
 
 #ifdef CONFIG_VIDEO_IPUV3
 	/* Enable backlight for displays */
-	enable_displays();
+	enable_backlight(1);
 #endif
 
 	return 0;
@@ -2895,6 +2895,9 @@ void ft_board_setup(void *fdt, bd_t *bd)
 /* Board specific cleanup before Linux is started */
 void board_preboot_os(void)
 {
+	/* Switch off display and backlight voltages */
+	enable_backlight(0);
+
 	/* Shut down all ethernet PHYs (suspend mode) */
 	mdio_shutdown_all();
 }
