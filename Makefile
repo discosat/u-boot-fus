@@ -1162,8 +1162,8 @@ tags ctags:
 		ctags -w -o ctags `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
 
-etags:
-		etags -a -o $(obj)etags `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
+TAGS etags:
+		etags -a -o TAGS `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
 cscope:
 		$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) -name '*.[chS]' -print > \
