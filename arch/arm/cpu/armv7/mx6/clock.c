@@ -947,7 +947,7 @@ unsigned int mxc_get_ipu_clock(int ipu)
 
 	reg = __raw_readl(&imx_ccm->cscdr3);
 	if (ipu == 2) {
-		if (is_cpu_type(MXC_CPU_MX6DL))
+		if (is_cpu_type(MXC_CPU_MX6SOLO) || is_cpu_type(MXC_CPU_MX6DL))
 			return 0;
 		podf = (reg & MXC_CCM_CSCDR3_IPU2_HSP_PODF_MASK)
 			>> MXC_CCM_CSCDR3_IPU2_HSP_PODF_OFFSET;
@@ -1082,13 +1082,20 @@ void enable_ldb_di_clk(int channel)
  * ------------------------------------------------------------------
  * MX6Q      264 MHz           MMDC_CH0           2           264 MHz
  * MX6DL     270 MHz           PLL3_PFD1          2           270 MHz
+ *
+ * Remark: For internal (HSP) IPU clock, do not use a clock source with spread
+ * spectrum, this seems to cause trouble (lost frames from time to time).
+ * However the display clock may have spread spectrum. Actually in case of
+ * LCD, the display clock *should* have spread spectrum (i.e. be derived from
+ * PLL2) for EMI reasons. For LVDS and HDMI this does not matter because they
+ * use low voltage differential signals anyway.
  */
 void enable_ipu_clock(int ipu)
 {
 	u32 ccgr3, cscdr3;
 	u32 clk_src =  1;
 
-	if (is_cpu_type(MXC_CPU_MX6DL)) {
+	if (is_cpu_type(MXC_CPU_MX6SOLO) || is_cpu_type(MXC_CPU_MX6DL)) {
 		if (ipu != 1)
 			return;
 		clk_src = 3;
@@ -1771,7 +1778,7 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	show_freq("IPU1", mxc_get_ipu_clock(1));
 	show_freq("IPU1_DI0", mxc_get_ipu_di_clock(1, 0));
 	show_freq("IPU1_DI1", mxc_get_ipu_di_clock(1, 1));
-	if (!is_cpu_type(MXC_CPU_MX6DL)) {
+	if (!is_cpu_type(MXC_CPU_MX6SOLO) && !is_cpu_type(MXC_CPU_MX6DL)) {
 		show_freq("IPU2", mxc_get_ipu_clock(2));
 		show_freq("IPU2_DI0", mxc_get_ipu_di_clock(2, 0));
 		show_freq("IPU2_DI1", mxc_get_ipu_di_clock(2, 1));
