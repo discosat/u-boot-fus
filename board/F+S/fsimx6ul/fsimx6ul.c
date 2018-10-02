@@ -67,7 +67,8 @@
 #define BT_PICOCOM1_2 2
 #define BT_CUBE2_0    3
 #define BT_GAR1       4
-#define BT_PICOCOMA7 5
+#define BT_PICOCOMA7  5
+#define BT_PCOREMX6UL 6
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -276,8 +277,21 @@ const struct board_info fs_board_info[8] = {
 		.kernel = ".kernel_nand",
 		.fdt = ".fdt_nand",
 	},
-	{	/* 6 (unknown) */
-		.name = "unknown",
+	{	/* 6 (BT_PCOREMX6UL) */
+		.name = "PicoCoreMX6UL",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
@@ -1624,7 +1638,8 @@ int splash_screen_prepare(void)
  *    PicoCOM1.2      ENET2_TX_DATA1 (GPIO2_IO12)  (no Hub)
  *    CubeA7UL/2.0    GPIO1_IO02                   (no Hub)
  *    GAR1            SD1_DATA1 (GPIO2_IO19)       (no Hub)
- *    PicoCOMA7		  UART4_TX_DATA                (no Hub)
+ *    PicoCOMA7	      UART4_TX_DATA                (no Hub)
+ *    PicoCoreMX6UL   SNVS_TAMPER2 (GPIO5_IO02)    (no Hub)
  *
  * The polarity for the host VBUS power can be set with environment variable
  * usbxpwr, where x is the port index (0 or 1). If this variable is set to
@@ -1698,6 +1713,15 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad_gar1[] = {
 #else
 	IOMUX_PADS(PAD_SD1_DATA1__GPIO2_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL))
 #endif
+};
+
+/* Only GPIO for pwr switching possible. Tamper pin addr differ from UL to ULL */
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_pcoremx6ul[] = {
+		MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_pcoremx6ull[] = {
+		MX6ULL_PAD_SNVS_TAMPER2__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
 struct fs_usb_port_cfg {
@@ -1944,6 +1968,15 @@ int board_ehci_hcd_init(int port)
 #endif
 			break;
 
+		case BT_PCOREMX6UL:
+			if (is_cpu_type(MXC_CPU_MX6ULL))
+				pwr_pad = usb_otg2_pwr_pad_pcoremx6ull;
+			else
+				pwr_pad = usb_otg2_pwr_pad_pcoremx6ul;
+
+			pwr_gpio = IMX_GPIO_NR(5, 2);
+			break;
+
 		case BT_EFUSA7UL:
 		default:
 			/* USB host power always on */
@@ -2111,6 +2144,7 @@ static iomux_v3_cfg_t const enet2_pads_rmii[] = {
 static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ull[] = {
 	MX6ULL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
+
 static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ul[] = {
 	MX6UL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
@@ -2348,6 +2382,23 @@ int board_eth_init(bd_t *bis)
 		SETUP_IOMUX_PADS(enet_pads_reset_gar1);
 		issue_reset(10, 170000,
 			    IMX_GPIO_NR(4, 17), IMX_GPIO_NR(4, 18), ~0);
+		break;
+
+	case BT_PCOREMX6UL:
+		/*
+		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
+		 * reset pulse width and 100us delay before the first MDIO
+		 * access can be done.
+		 *
+		 * On PicoCoreMX6UL reset signal is used for ethernet PHYs only.
+		 * Having the distinction for ULL and UL we are prepared for
+		 * possible PicoCoreMX6UL with UL CPU in future.
+		 */
+		if (is_cpu_type(MXC_CPU_MX6ULL))
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
+		else 
+			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
+			issue_reset(500, 100, IMX_GPIO_NR(5, 11), ~0, ~0);
 		break;
 
 	default:
