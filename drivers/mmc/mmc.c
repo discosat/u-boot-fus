@@ -972,13 +972,26 @@ static int mmc_startup(struct mmc *mmc)
 			 * According to the JEDEC Standard, the value of
 			 * ext_csd's capacity is valid if the value is more
 			 * than 2GB
+			 *
+			 * 2018/10/16 F&S:
+			 * However chapter 7.2.3 of JESD84-A441 states that
+			 * for a device where the user area shrinks due to
+			 * added GP partitions or activated enhanced mode
+			 * (Pseudo-SLC), the data in this entry still remains
+			 * valid even if the capacity goes below 2GB.
+			 * Therefore the size can *not* be used to do the
+			 * decision.
+			 * As this entry is a sector count, it is only valid
+			 * if the size is measured in blocks, i.e. if the
+			 * device is a high capacity device.
 			 */
 			capacity = ext_csd[EXT_CSD_SEC_CNT] << 0
 					| ext_csd[EXT_CSD_SEC_CNT + 1] << 8
 					| ext_csd[EXT_CSD_SEC_CNT + 2] << 16
 					| ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
 			capacity *= MMC_MAX_BLOCK_LEN;
-			if ((capacity >> 20) > 2 * 1024)
+			//if ((capacity >> 20) > 2 * 1024)
+			if (mmc->high_capacity)
 				mmc->capacity_user = capacity;
 		}
 
@@ -1013,6 +1026,7 @@ static int mmc_startup(struct mmc *mmc)
 			if (err)
 				return err;
 
+			ext_csd[EXT_CSD_ERASE_GROUP_DEF] = 1;
 			/* Read out group size from ext_csd */
 			mmc->erase_grp_size =
 				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] *
