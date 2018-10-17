@@ -700,19 +700,7 @@ struct emif_reg_struct {
 	u32 emif_ddr_ext_phy_ctrl_23_shdw;
 	u32 emif_ddr_ext_phy_ctrl_24;
 	u32 emif_ddr_ext_phy_ctrl_24_shdw;
-	u32 emif_ddr_ext_phy_ctrl_25;
-	u32 emif_ddr_ext_phy_ctrl_25_shdw;
-	u32 emif_ddr_ext_phy_ctrl_26;
-	u32 emif_ddr_ext_phy_ctrl_26_shdw;
-	u32 emif_ddr_ext_phy_ctrl_27;
-	u32 emif_ddr_ext_phy_ctrl_27_shdw;
-	u32 emif_ddr_ext_phy_ctrl_28;
-	u32 emif_ddr_ext_phy_ctrl_28_shdw;
-	u32 emif_ddr_ext_phy_ctrl_29;
-	u32 emif_ddr_ext_phy_ctrl_29_shdw;
-	u32 emif_ddr_ext_phy_ctrl_30;
-	u32 emif_ddr_ext_phy_ctrl_30_shdw;
-	u32 padding[10];
+	u32 padding[22];
 	u32 emif_ddr_fifo_misaligned_clear_1;
 	u32 emif_ddr_fifo_misaligned_clear_2;
 };
@@ -1158,7 +1146,6 @@ struct emif_regs {
 	u32 emif_connect_id_serv_1_map;
 	u32 emif_connect_id_serv_2_map;
 	u32 emif_cos_config;
-	u32 int_config;
 };
 
 struct lpddr2_mr_regs {

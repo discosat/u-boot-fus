@@ -165,10 +165,6 @@
 #define CONFIG_CLOCKS
 #endif
 
-#ifdef CONFIG_CMD_BDI
-#define CONFIG_CLOCKS
-#endif
-
 #ifndef CONFIG_DRIVER_TI_EMAC
 #undef CONFIG_CMD_NET
 #undef CONFIG_CMD_DHCP

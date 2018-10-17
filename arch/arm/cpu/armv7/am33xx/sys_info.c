@@ -53,7 +53,7 @@ u32 get_cpu_type(void)
  * get_board_rev() - setup to pass kernel board revision information
  * returns:(bit[0-3] sub version, higher bit[7-4] is higher version)
  */
-u32 __weak get_board_rev(void)
+u32 get_board_rev(void)
 {
 	return BOARD_REV_ID;
 }
@@ -120,7 +120,7 @@ int print_cpuinfo(void)
 	else
 		sec_s = "?";
 
-	printf("CPU:   %s-%s rev %s\n", cpu_s, sec_s, rev_s);
+	printf("%s-%s rev %s\n", cpu_s, sec_s, rev_s);
 
 	return 0;
 }

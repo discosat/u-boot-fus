@@ -195,76 +195,93 @@ static void omap5_ddr3_leveling(u32 base, const struct emif_regs *regs)
 {
 	struct emif_reg_struct *emif = (struct emif_reg_struct *)base;
 
-	if (!is_dra7xx())	{
-		/* keep sdram in self-refresh */
-		writel(((LP_MODE_SELF_REFRESH << EMIF_REG_LP_MODE_SHIFT)
-			& EMIF_REG_LP_MODE_MASK), &emif->emif_pwr_mgmt_ctrl);
-		__udelay(130);
+	/* keep sdram in self-refresh */
+	writel(((LP_MODE_SELF_REFRESH << EMIF_REG_LP_MODE_SHIFT)
+		& EMIF_REG_LP_MODE_MASK), &emif->emif_pwr_mgmt_ctrl);
+	__udelay(130);
 
-		/*
-		 * Set invert_clkout (if activated)--DDR_PHYCTRL_1
-		 * Invert clock adds an additional half cycle delay on the
-		 * command interface.  The additional half cycle, is usually
-		 * meant to enable leveling in the situation that DQS is later
-		 * than CK on the board.It also helps provide some additional
-		 * margin for leveling.
-		 */
-		writel(regs->emif_ddr_phy_ctlr_1,
-		       &emif->emif_ddr_phy_ctrl_1);
+	/*
+	 * Set invert_clkout (if activated)--DDR_PHYCTRL_1
+	 * Invert clock adds an additional half cycle delay on the
+	 * command interface.  The additional half cycle, is usually
+	 * meant to enable leveling in the situation that DQS is later
+	 * than CK on the board.It also helps provide some additional
+	 * margin for leveling.
+	 */
+	writel(regs->emif_ddr_phy_ctlr_1,
+	       &emif->emif_ddr_phy_ctrl_1);
 
-		writel(regs->emif_ddr_phy_ctlr_1,
-		       &emif->emif_ddr_phy_ctrl_1_shdw);
-		__udelay(130);
+	writel(regs->emif_ddr_phy_ctlr_1,
+	       &emif->emif_ddr_phy_ctrl_1_shdw);
+	__udelay(130);
 
-		writel(((LP_MODE_DISABLE << EMIF_REG_LP_MODE_SHIFT)
-			& EMIF_REG_LP_MODE_MASK), &emif->emif_pwr_mgmt_ctrl);
+	writel(((LP_MODE_DISABLE << EMIF_REG_LP_MODE_SHIFT)
+	       & EMIF_REG_LP_MODE_MASK), &emif->emif_pwr_mgmt_ctrl);
 
-		/* Launch Full leveling */
-		writel(DDR3_FULL_LVL, &emif->emif_rd_wr_lvl_ctl);
+	/* Launch Full leveling */
+	writel(DDR3_FULL_LVL, &emif->emif_rd_wr_lvl_ctl);
 
-		/* Wait till full leveling is complete */
-		readl(&emif->emif_rd_wr_lvl_ctl);
-		__udelay(130);
+	/* Wait till full leveling is complete */
+	readl(&emif->emif_rd_wr_lvl_ctl);
+	      __udelay(130);
 
-		/* Read data eye leveling no of samples */
-		config_data_eye_leveling_samples(base);
+	/* Read data eye leveling no of samples */
+	config_data_eye_leveling_samples(base);
 
-		/*
-		 * Launch 8 incremental WR_LVL- to compensate for
-		 * PHY limitation.
-		 */
-		writel(0x2 << EMIF_REG_WRLVLINC_INT_SHIFT,
-		       &emif->emif_rd_wr_lvl_ctl);
+	/*
+	 * Launch 8 incremental WR_LVL- to compensate for
+	 * PHY limitation.
+	 */
+	writel(0x2 << EMIF_REG_WRLVLINC_INT_SHIFT,
+	       &emif->emif_rd_wr_lvl_ctl);
 
-		__udelay(130);
+	__udelay(130);
 
-		/* Launch Incremental leveling */
-		writel(DDR3_INC_LVL, &emif->emif_rd_wr_lvl_ctl);
-		__udelay(130);
-	} else {
-		u32 fifo_reg;
+	/* Launch Incremental leveling */
+	writel(DDR3_INC_LVL, &emif->emif_rd_wr_lvl_ctl);
+	       __udelay(130);
+}
 
-		fifo_reg = readl(&emif->emif_ddr_fifo_misaligned_clear_1);
-		writel(fifo_reg | 0x00000100,
-		       &emif->emif_ddr_fifo_misaligned_clear_1);
+static void dra7_ddr3_leveling(u32 base, const struct emif_regs *regs)
+{
+	struct emif_reg_struct *emif = (struct emif_reg_struct *)base;
 
-		fifo_reg = readl(&emif->emif_ddr_fifo_misaligned_clear_2);
-		writel(fifo_reg | 0x00000100,
-		       &emif->emif_ddr_fifo_misaligned_clear_2);
+	u32 fifo_reg;
 
-		/* Launch Full leveling */
-		writel(DDR3_FULL_LVL, &emif->emif_rd_wr_lvl_ctl);
+	fifo_reg = readl(&emif->emif_ddr_fifo_misaligned_clear_1);
+	writel(fifo_reg | 0x00000100,
+	       &emif->emif_ddr_fifo_misaligned_clear_1);
 
-		/* Wait till full leveling is complete */
-		readl(&emif->emif_rd_wr_lvl_ctl);
-		__udelay(130);
+	fifo_reg = readl(&emif->emif_ddr_fifo_misaligned_clear_2);
+	writel(fifo_reg | 0x00000100,
+	       &emif->emif_ddr_fifo_misaligned_clear_2);
 
-		/* Read data eye leveling no of samples */
-		config_data_eye_leveling_samples(base);
+	/* Launch Full leveling */
+	writel(DDR3_FULL_LVL, &emif->emif_rd_wr_lvl_ctl);
 
-		/* Disable leveling */
-		writel(0x0, &emif->emif_rd_wr_lvl_rmp_ctl);
-	}
+	/* Wait till full leveling is complete */
+	readl(&emif->emif_rd_wr_lvl_ctl);
+	      __udelay(130);
+
+	/* Read data eye leveling no of samples */
+	config_data_eye_leveling_samples(base);
+
+	/*
+	 * Disable leveling. This is because if leveling is kept
+	 * enabled, then PHY triggers a false leveling during
+	 * EMIF-idle scenario which results in wrong delay
+	 * values getting updated. After this the EMIF becomes
+	 * unaccessible. So disable it after the first time
+	 */
+	writel(0x0, &emif->emif_rd_wr_lvl_rmp_ctl);
+}
+
+static void ddr3_leveling(u32 base, const struct emif_regs *regs)
+{
+	if (is_omap54xx())
+		omap5_ddr3_leveling(base, regs);
+	else
+		dra7_ddr3_leveling(base, regs);
 }
 
 static void ddr3_init(u32 base, const struct emif_regs *regs)

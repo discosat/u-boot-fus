@@ -16,7 +16,6 @@
 /* UART Base Address */
 #define UART0_BASE			0x48020000
 
-#define GPIO0_BASE			0x48032000
 /* Watchdog Timer */
 #define WDT_BASE			0x481C7000
 
@@ -28,8 +27,6 @@
 #define PRCM_BASE			0x48180000
 #define CM_PER				0x44E00000
 #define CM_WKUP				0x44E00400
-#define CM_DPLL				0x44E00500
-#define CM_RTC				0x44E00800
 
 #define PRM_RSTCTRL			(PRCM_BASE + 0x00A0)
 #define PRM_RSTST			(PRM_RSTCTRL + 8)

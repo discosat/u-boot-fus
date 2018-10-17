@@ -17,7 +17,6 @@
 #define UART0_BASE			0x44E09000
 
 /* GPIO Base address */
-#define GPIO0_BASE			0x48032000
 #define GPIO2_BASE			0x481AC000
 
 /* Watchdog Timer */

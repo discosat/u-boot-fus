@@ -650,7 +650,6 @@ const struct read_write_regs *get_bug_regs(u32 *iterations)
 		bug_00339_regs_ptr = dra_bug_00339_regs;
 		*iterations = sizeof(dra_bug_00339_regs)/
 			     sizeof(dra_bug_00339_regs[0]);
-		printf("\n DRA iterations=%d", *iterations);
 		break;
 	default:
 		printf("\n Error: UnKnown SOC");

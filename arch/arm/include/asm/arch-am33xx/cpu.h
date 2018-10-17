@@ -447,15 +447,6 @@ struct gptimer {
 	unsigned int tcar2;		/* offset 0x58 */
 };
 
-/* RTC Registers */
-struct rtc_regs {
-	unsigned int res[21];
-	unsigned int osc;		/* offset 0x54 */
-	unsigned int res2[5];
-	unsigned int kick0r;		/* offset 0x6c */
-	unsigned int kick1r;		/* offset 0x70 */
-};
-
 /* UART Registers */
 struct uart_sys {
 	unsigned int resv1[21];
@@ -498,6 +489,8 @@ struct ctrl_stat {
 #define OMAP_GPIO_SETDATAOUT		0x0194
 
 /* Control Device Register */
+
+ /* Control Device Register */
 #define MREQPRIO_0_SAB_INIT1_MASK	0xFFFFFF8F
 #define MREQPRIO_0_SAB_INIT0_MASK	0xFFFFFFF8
 #define MREQPRIO_1_DSS_MASK		0xFFFFFF8F
@@ -523,9 +516,9 @@ struct ctrl_dev {
 };
 
 /* Bandwidth Limiter Portion of the L3Fast Configuration Register */
-#define BW_LIMITER_BW_FRAC_MASK		0xFFFFFFE0
-#define BW_LIMITER_BW_INT_MASK		0xFFFFFFF0
-#define BW_LIMITER_BW_WATERMARK_MASK	0xFFFFF800
+#define BW_LIMITER_BW_FRAC_MASK         0xFFFFFFE0
+#define BW_LIMITER_BW_INT_MASK          0xFFFFFFF0
+#define BW_LIMITER_BW_WATERMARK_MASK    0xFFFFF800
 
 struct l3f_cfg_bwlimiter {
 	u32 padding0[2];

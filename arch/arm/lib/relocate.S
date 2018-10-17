@@ -41,41 +41,8 @@ fixloop:
 	ldmia	r2!, {r0-r1}		/* (r0,r1) <- (SRC location,fixup) */
 	and	r1, r1, #0xff
 	cmp	r1, #23			/* relative fixup? */
-#if 1
 	bne	fixnext
-#else	
-	/*
-	 * #############################
-	 * Check for undefined offsets in relocation data; this means that some
-	 * code in board_init_f() illegaly writes to variables in the bss area
-	 */
-	beq	dofix
-	ldr	r10, =0x44e09000	/* UART0 on TI AM335x */
-	mov	r11, #'!'
-	strb	r11, [r10]
-	mov	r11, #0x01000000	/* Wait */
-7:	subs	r11, r11,#1
-	bne	7b
-	
-	mov	ip, #28
-7:	mov	r11, r2
-	lsr	r11, r11, ip
-	and	r11, r11, #15
-	cmp	r11, #10
-	addlo	r11, #'0'
-	addhs	r11, #'A' - 10
-	strb	r11, [r10]
-	subs	ip, ip, #4
-	bpl	7b
-	mov	r11, #0x0100000		/* Wait */
-7:	subs	r11, r11,#1
-	bne	7b
 
-	b	fixnext
-
-dofix:
-	/* ################################# */
-#endif
 	/* relative fix: increase location by offset */
 	add	r0, r0, r4
 	ldr	r1, [r0]

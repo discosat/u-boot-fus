@@ -131,7 +131,7 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=0x80200000\0" \
 	"rdaddr=0x81000000\0" \
-	"fdt_high=0xa0000000\0" \
+	"fdt_high=0xffffffff\0" \
 	"fdtaddr=0x80f80000\0" \
 	"usbtty=cdc_acm\0" \
 	"bootfile=uImage\0" \
@@ -302,7 +302,6 @@
 #define CONFIG_SYS_NAND_PAGE_SIZE	2048
 #define CONFIG_SYS_NAND_OOBSIZE		64
 #define CONFIG_SYS_NAND_BLOCK_SIZE	(128*1024)
-#define CONFIG_SPL_NAND_DEVICE_WIDTH	16
 #define CONFIG_SYS_NAND_BAD_BLOCK_POS	0
 #define CONFIG_SYS_NAND_ECCPOS		{2, 3, 4, 5, 6, 7, 8, 9,\
 						10, 11, 12, 13}

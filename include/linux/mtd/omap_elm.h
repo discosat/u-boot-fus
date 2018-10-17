@@ -24,11 +24,6 @@
 #define ELM_LOCATION_STATUS_ECC_CORRECTABLE_MASK	(0x100)
 #define ELM_LOCATION_STATUS_ECC_NB_ERRORS_MASK		(0x1F)
 
-/* bch types */
-#define ECC_BCH4	0
-#define ECC_BCH8	1
-#define ECC_BCH16	2
-
 #define ELM_MAX_CHANNELS				8
 #define ELM_MAX_ERROR_COUNT				16
 

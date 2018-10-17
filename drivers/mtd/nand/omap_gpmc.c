@@ -858,7 +858,7 @@ int board_nand_init(struct nand_chip *nand)
 	nand->IO_ADDR_W = (void __iomem *)&gpmc_cfg->cs[cs].nand_cmd;
 	nand->priv	= &omap_nand_info;
 	nand->cmd_ctrl	= omap_nand_hwcontrol;
-	nand->options	|= NAND_CACHEPRG;
+	nand->options	|= NAND_NO_PADDING | NAND_CACHEPRG;
 	nand->chip_delay = 100;
 	nand->ecc.layout = &omap_ecclayout;
 

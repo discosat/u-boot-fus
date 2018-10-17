@@ -456,9 +456,6 @@ void board_init_f(ulong bootflag)
 	dram_init_banksize();
 	display_dram_config();	/* and display it */
 
-#if defined(CONFIG_AM43XX) && !defined(CONFIG_QSPI_BOOT)
-	enable_caches();
-#endif
 	gd->relocaddr = addr;
 	gd->start_addr_sp = addr_sp;
 	gd->reloc_off = addr - (ulong)&_start;
@@ -538,9 +535,7 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	monitor_flash_len = (ulong)&__rel_dyn_end - (ulong)_start;
 
 	/* Enable caches */
-#if !defined(CONFIG_AM43XX) || defined(CONFIG_QSPI_BOOT)
 	enable_caches();
-#endif
 
 	debug("monitor flash len: %08lX\n", monitor_flash_len);
 	board_init();	/* Setup chipselects */

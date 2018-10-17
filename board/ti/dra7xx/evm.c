@@ -74,16 +74,9 @@ static void dra7xx_adj_io_delay(const struct io_delay *io_dly)
  */
 int board_init(void)
 {
-	gd->bd->bi_boot_params = (0x80000000 + 0x100); /* boot param addr */
-#if defined(CONFIG_NOR) || defined(CONFIG_NAND)
 	gpmc_init();
-#endif
-	return 0;
-}
+	gd->bd->bi_boot_params = (0x80000000 + 0x100); /* boot param addr */
 
-int board_late_init(void)
-{
-	omap_sata_init();
 	return 0;
 }
 

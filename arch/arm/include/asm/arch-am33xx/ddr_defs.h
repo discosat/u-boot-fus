@@ -348,7 +348,4 @@ void config_ddr(unsigned int pll, const struct ctrl_ioregs *ioregs,
 		const struct emif_regs *regs, int nr);
 void emif_get_ext_phy_ctrl_const_regs(const u32 **regs, u32 *size);
 
-void do_sdram_init(const struct ctrl_ioregs *ioregs,
-		   const struct emif_regs *emif_regs,
-		   const u32 *ext_phy_ctrl_const_regs, u32 ddr_type);
 #endif  /* _DDR_DEFS_H */

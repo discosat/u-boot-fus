@@ -38,6 +38,7 @@
 #define DM_TIMER7_BASE			0x4804A000
 
 /* GPIO Base address */
+#define GPIO0_BASE			0x48032000
 #define GPIO1_BASE			0x4804C000
 
 /* BCH Error Location Module */

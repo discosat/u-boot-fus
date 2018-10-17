@@ -19,7 +19,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-int __weak dram_init(void)
+int dram_init(void)
 {
 #ifndef CONFIG_SKIP_LOWLEVEL_INIT
 	sdram_init();
