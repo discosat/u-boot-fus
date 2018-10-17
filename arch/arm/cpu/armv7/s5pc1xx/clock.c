@@ -10,7 +10,6 @@
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/clk.h>
-#include <asm/arch/cpu.h>		  /* samsung_get_base_clock(), ... */
 
 #define CLK_M	0
 #define CLK_D	1

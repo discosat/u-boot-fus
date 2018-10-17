@@ -83,21 +83,6 @@ reset:
 	/* ########### */
 #endif //#####HK
 
-#if 0  //#####HK Samsung
-	/* #####HK: Send character to UART ###### */
-	ldr	r0, =0xE2900000		/* UART0 */
-	//ldr	r0, =0xE2900400		/* UART1 */
-	mov	r1, #0x41
-	str	r1, [r0, #0x20]
-	mov	r1, #0x3A
-	str	r1, [r0, #0x20]
-	mov	r0, #0x01000000		/* Wait */
-9:	subs	r0, r0,#1
-	bne	9b
-	/* ########### */
-#endif //#####HK
-
-
 /*------------------------------------------------------------------------------*/
 
 ENTRY(c_runtime_cpu_setup)

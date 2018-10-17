@@ -13,7 +13,6 @@ obj-$(CONFIG_USB_ISP116X_HCD) += isp116x-hcd.o
 obj-$(CONFIG_USB_R8A66597_HCD) += r8a66597-hcd.o
 obj-$(CONFIG_USB_SL811HS) += sl811-hcd.o
 obj-$(CONFIG_USB_OHCI_S3C24XX) += ohci-s3c24xx.o
-obj-$(CONFIG_USB_S5P) += ohci-s5p.o
 obj-$(CONFIG_USB_OHCI_EP93XX) += ohci-ep93xx.o
 
 # echi
@@ -36,7 +35,6 @@ obj-$(CONFIG_USB_EHCI_OMAP) += ehci-omap.o
 obj-$(CONFIG_USB_EHCI_PPC4XX) += ehci-ppc4xx.o
 obj-$(CONFIG_USB_EHCI_MARVELL) += ehci-marvell.o
 obj-$(CONFIG_USB_EHCI_PCI) += ehci-pci.o
-obj-$(CONFIG_USB_EHCI_S5P) += ehci-s5p.o
 obj-$(CONFIG_USB_EHCI_SPEAR) += ehci-spear.o
 obj-$(CONFIG_USB_EHCI_TEGRA) += ehci-tegra.o
 obj-$(CONFIG_USB_EHCI_VCT) += ehci-vct.o

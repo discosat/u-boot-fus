@@ -13,7 +13,6 @@
 #include <asm/arch/pwm.h>
 #include <asm/arch/clk.h>
 #include <pwm.h>
-#include <asm/arch/cpu.h>		  /* samsung_get_base_timer() */
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -111,7 +110,7 @@ void reset_timer_masked(void)
 
 	/* reset time */
 	gd->arch.lastinc = readl(&timer->tcnto4);
-	gd->timebase_l = 0;
+	gd->arch.tbl = 0;
 }
 
 /*

@@ -12,7 +12,6 @@
 #include <asm/io.h>
 #include <asm/arch/pwm.h>
 #include <asm/arch/clk.h>
-#include <asm/arch/cpu.h>		  /* samsung_get_base_timer() */
 
 int pwm_enable(int pwm_id)
 {

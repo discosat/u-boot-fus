@@ -9,23 +9,35 @@
  */
 
 #include <common.h>
-#include <linux/compiler.h>		  /* __weak */
-#include <serial.h>			  /* struct serial_device */
-#include <asm/io.h>			  /* writel(), readl(), ... */
-#include <asm/arch/uart.h>		  /* struct s5p_uart */
-#include <asm/arch/clk.h>		  /* get_uart_clk() */
-#include <asm/arch/cpu.h>		  /* samsung_get_base_uart() */
+#include <fdtdec.h>
+#include <linux/compiler.h>
+#include <asm/io.h>
+#include <asm/arch/uart.h>
+#include <asm/arch/clk.h>
+#include <serial.h>
 
-/* We need constant addresses for UART registers for initialization */
-#define S5PC100_UART0 (S5PC100_UART_BASE + 0x0000)
-#define S5PC100_UART1 (S5PC100_UART_BASE + 0x0400)
-#define S5PC100_UART2 (S5PC100_UART_BASE + 0x0800)
-#define S5PC100_UART3 (S5PC100_UART_BASE + 0x0C00)
+DECLARE_GLOBAL_DATA_PTR;
 
-#define S5PC110_UART0 (S5PC110_UART_BASE + 0x0000)
-#define S5PC110_UART1 (S5PC110_UART_BASE + 0x0400)
-#define S5PC110_UART2 (S5PC110_UART_BASE + 0x0800)
-#define S5PC110_UART3 (S5PC110_UART_BASE + 0x0C00)
+#define RX_FIFO_COUNT_MASK	0xff
+#define RX_FIFO_FULL_MASK	(1 << 8)
+#define TX_FIFO_FULL_MASK	(1 << 24)
+
+/* Information about a serial port */
+struct fdt_serial {
+	u32 base_addr;  /* address of registers in physical memory */
+	u8 port_id;     /* uart port number */
+	u8 enabled;     /* 1 if enabled, 0 if disabled */
+} config __attribute__ ((section(".data")));
+
+static inline struct s5p_uart *s5p_get_base_uart(int dev_index)
+{
+#ifdef CONFIG_OF_CONTROL
+	return (struct s5p_uart *)(config.base_addr);
+#else
+	u32 offset = dev_index * sizeof(struct s5p_uart);
+	return (struct s5p_uart *)(samsung_get_base_uart() + offset);
+#endif
+}
 
 /*
  * The coefficient, used to calculate the baudrate on S5P UARTs is
@@ -53,13 +65,22 @@ static const int udivslot[] = {
 	0xffdf,
 };
 
-static void s5p_serial_setbrg(const struct serial_device *sdev)
+static void serial_setbrg_dev(const int dev_index)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
-	u32 uclk = get_uart_clk(0);	/* Same for all ports on S5PC1xx */
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
+	u32 uclk = get_uart_clk(dev_index);
 	u32 baudrate = gd->baudrate;
 	u32 val;
+
+#if defined(CONFIG_SILENT_CONSOLE) && \
+		defined(CONFIG_OF_CONTROL) && \
+		!defined(CONFIG_SPL_BUILD)
+	if (fdtdec_get_config_int(gd->fdt_blob, "silent_console", 0))
+		gd->flags |= GD_FLG_SILENT;
+#endif
+
+	if (!config.enabled)
+		return;
 
 	val = uclk / baudrate;
 
@@ -75,75 +96,59 @@ static void s5p_serial_setbrg(const struct serial_device *sdev)
  * Initialise the serial port with the given baudrate. The settings
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  */
-static int s5p_serial_start(const struct stdio_dev *pdev)
+static int serial_init_dev(const int dev_index)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
 
-	/* reset and enable FIFOs, set triggers to the maximum */
-	writel(7, &uart->ufcon);
+	/* enable FIFOs, auto clear Rx FIFO */
+	writel(0x3, &uart->ufcon);
 	writel(0, &uart->umcon);
 	/* 8N1 */
 	writel(0x3, &uart->ulcon);
-	/* No interrupts, no DMA, pure polling, PCLK as clock source */
+	/* No interrupts, no DMA, pure polling */
 	writel(0x245, &uart->ucon);
 
-	s5p_serial_setbrg(sdev);
+	serial_setbrg_dev(dev_index);
 
 	return 0;
 }
 
-static void s5p_ll_putc(struct s5p_uart *const uart, const char c)
+static int serial_err_check(const int dev_index, int op)
 {
-	/* If \n, do \r first */
-	if (c == '\n')
-		s5p_ll_putc(uart, '\r');
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
+	unsigned int mask;
 
-	/* wait for room in the tx FIFO */
-	while (!(readl(&uart->utrstat) & 0x2)) {
-		/* Check for break */
-		if (readl(&uart->uerstat) & 0x8)
-			return;
-	}
+	/*
+	 * UERSTAT
+	 * Break Detect	[3]
+	 * Frame Err	[2] : receive operation
+	 * Parity Err	[1] : receive operation
+	 * Overrun Err	[0] : receive operation
+	 */
+	if (op)
+		mask = 0x8;
+	else
+		mask = 0xf;
 
-	writeb(c, &uart->utxh);
+	return readl(&uart->uerstat) & mask;
 }
 
 /*
- * Output a single byte to the serial port.
+ * Read a single byte from the serial port. Returns 1 on success, 0
+ * otherwise. When the function is succesfull, the character read is
+ * written into its argument c.
  */
-static void s5p_serial_putc(const struct stdio_dev *pdev, const char c)
+static int serial_getc_dev(const int dev_index)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
 
-	s5p_ll_putc(uart, c);
-}
+	if (!config.enabled)
+		return 0;
 
-/*
- * Output a string to the serial port.
- */
-static void s5p_serial_puts(const struct stdio_dev *pdev, const char *s)
-{
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
-
-	while (*s)
-		s5p_ll_putc(uart, *s++);
-}
-
-/*
- * Read a single byte from the serial port. 
- */
-static int s5p_serial_getc(const struct stdio_dev *pdev)
-{
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
-
-	/* Wait for character to arrive */
-	while (!(readl(&uart->utrstat) & 0x1)) {
-		/* Check for break, Frame Err, Parity Err, Overrun Err */
-		if (readl(&uart->uerstat) & 0xF)
+	/* wait for character to arrive */
+	while (!(readl(&uart->ufstat) & (RX_FIFO_COUNT_MASK |
+					 RX_FIFO_FULL_MASK))) {
+		if (serial_err_check(dev_index, 0))
 			return 0;
 	}
 
@@ -151,73 +156,146 @@ static int s5p_serial_getc(const struct stdio_dev *pdev)
 }
 
 /*
+ * Output a single byte to the serial port.
+ */
+static void serial_putc_dev(const char c, const int dev_index)
+{
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
+
+	if (!config.enabled)
+		return;
+
+	/* wait for room in the tx FIFO */
+	while ((readl(&uart->ufstat) & TX_FIFO_FULL_MASK)) {
+		if (serial_err_check(dev_index, 1))
+			return;
+	}
+
+	writeb(c, &uart->utxh);
+
+	/* If \n, also do \r */
+	if (c == '\n')
+		serial_putc('\r');
+}
+
+/*
  * Test whether a character is in the RX buffer
  */
-static int s5p_serial_tstc(const struct stdio_dev *pdev)
+static int serial_tstc_dev(const int dev_index)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct s5p_uart *const uart = (struct s5p_uart *)(sdev->dev.priv);
+	struct s5p_uart *const uart = s5p_get_base_uart(dev_index);
+
+	if (!config.enabled)
+		return 0;
 
 	return (int)(readl(&uart->utrstat) & 0x1);
 }
 
-
-#define INIT_S5P_SERIAL(_addr, _name, _hwname) {	\
-	{       /* stdio_dev part */		\
-		.name = _name,			\
-		.hwname = _hwname,		\
-		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
-		.start = s5p_serial_start,	\
-		.stop = NULL,			\
-		.getc = s5p_serial_getc,	\
-		.tstc =	s5p_serial_tstc,	\
-		.putc = s5p_serial_putc,	\
-		.puts = s5p_serial_puts,	\
-		.priv = (void *)_addr,		\
-	},					\
-	.setbrg = s5p_serial_setbrg,		\
+static void serial_puts_dev(const char *s, const int dev_index)
+{
+	while (*s)
+		serial_putc_dev(*s++, dev_index);
 }
 
-struct serial_device s5pc100_serial_device[] = {
-	INIT_S5P_SERIAL(S5PC100_UART0, CONFIG_SYS_SERCON_NAME "0", "s5p_uart0"),
-	INIT_S5P_SERIAL(S5PC100_UART1, CONFIG_SYS_SERCON_NAME "1", "s5p_uart1"),
-	INIT_S5P_SERIAL(S5PC100_UART2, CONFIG_SYS_SERCON_NAME "2", "s5p_uart2"),
-	INIT_S5P_SERIAL(S5PC100_UART3, CONFIG_SYS_SERCON_NAME "3", "s5p_uart3"),
-};
+/* Multi serial device functions */
+#define DECLARE_S5P_SERIAL_FUNCTIONS(port) \
+static int s5p_serial##port##_init(void) { return serial_init_dev(port); } \
+static void s5p_serial##port##_setbrg(void) { serial_setbrg_dev(port); } \
+static int s5p_serial##port##_getc(void) { return serial_getc_dev(port); } \
+static int s5p_serial##port##_tstc(void) { return serial_tstc_dev(port); } \
+static void s5p_serial##port##_putc(const char c) { serial_putc_dev(c, port); } \
+static void s5p_serial##port##_puts(const char *s) { serial_puts_dev(s, port); }
 
-struct serial_device s5pc110_serial_device[] = {
-	INIT_S5P_SERIAL(S5PC110_UART0, CONFIG_SYS_SERCON_NAME "0", "s5p_uart0"),
-	INIT_S5P_SERIAL(S5PC110_UART1, CONFIG_SYS_SERCON_NAME "1", "s5p_uart1"),
-	INIT_S5P_SERIAL(S5PC110_UART2, CONFIG_SYS_SERCON_NAME "2", "s5p_uart2"),
-	INIT_S5P_SERIAL(S5PC110_UART3, CONFIG_SYS_SERCON_NAME "3", "s5p_uart3"),
-};
+#define INIT_S5P_SERIAL_STRUCTURE(port, __name) {	\
+	.name	= __name,				\
+	.start	= s5p_serial##port##_init,		\
+	.stop	= NULL,					\
+	.setbrg	= s5p_serial##port##_setbrg,		\
+	.getc	= s5p_serial##port##_getc,		\
+	.tstc	= s5p_serial##port##_tstc,		\
+	.putc	= s5p_serial##port##_putc,		\
+	.puts	= s5p_serial##port##_puts,		\
+}
 
-/* Get pointer to n-th serial device */
-struct serial_device *get_serial_device(unsigned int n)
+DECLARE_S5P_SERIAL_FUNCTIONS(0);
+struct serial_device s5p_serial0_device =
+	INIT_S5P_SERIAL_STRUCTURE(0, "s5pser0");
+DECLARE_S5P_SERIAL_FUNCTIONS(1);
+struct serial_device s5p_serial1_device =
+	INIT_S5P_SERIAL_STRUCTURE(1, "s5pser1");
+DECLARE_S5P_SERIAL_FUNCTIONS(2);
+struct serial_device s5p_serial2_device =
+	INIT_S5P_SERIAL_STRUCTURE(2, "s5pser2");
+DECLARE_S5P_SERIAL_FUNCTIONS(3);
+struct serial_device s5p_serial3_device =
+	INIT_S5P_SERIAL_STRUCTURE(3, "s5pser3");
+
+#ifdef CONFIG_OF_CONTROL
+int fdtdec_decode_console(int *index, struct fdt_serial *uart)
 {
-	if (n < 4) {
-		if (cpu_is_s5pc100())
-			return &s5pc100_serial_device[n];
-		else if (cpu_is_s5pc110())
-			return &s5pc110_serial_device[n];
+	const void *blob = gd->fdt_blob;
+	int node;
+
+	node = fdt_path_offset(blob, "console");
+	if (node < 0)
+		return node;
+
+	uart->base_addr = fdtdec_get_addr(blob, node, "reg");
+	if (uart->base_addr == FDT_ADDR_T_NONE)
+		return -FDT_ERR_NOTFOUND;
+
+	uart->port_id = fdtdec_get_int(blob, node, "id", -1);
+	uart->enabled = fdtdec_get_is_enabled(blob, node);
+
+	return 0;
+}
+#endif
+
+__weak struct serial_device *default_serial_console(void)
+{
+#ifdef CONFIG_OF_CONTROL
+	int index = 0;
+
+	if ((!config.base_addr) && (fdtdec_decode_console(&index, &config))) {
+		debug("Cannot decode default console node\n");
+		return NULL;
+	}
+
+	switch (config.port_id) {
+	case 0:
+		return &s5p_serial0_device;
+	case 1:
+		return &s5p_serial1_device;
+	case 2:
+		return &s5p_serial2_device;
+	case 3:
+		return &s5p_serial3_device;
+	default:
+		debug("Unknown config.port_id: %d", config.port_id);
+		break;
 	}
 
 	return NULL;
+#else
+	config.enabled = 1;
+#if defined(CONFIG_SERIAL0)
+	return &s5p_serial0_device;
+#elif defined(CONFIG_SERIAL1)
+	return &s5p_serial1_device;
+#elif defined(CONFIG_SERIAL2)
+	return &s5p_serial2_device;
+#elif defined(CONFIG_SERIAL3)
+	return &s5p_serial3_device;
+#else
+#error "CONFIG_SERIAL? missing."
+#endif
+#endif
 }
 
-/* Register all serial ports; if you only want to register a subset, implement
-   function board_serial_init() and call serial_register() there. */
 void s5p_serial_initialize(void)
 {
-	if (cpu_is_s5pc100()) {
-		serial_register(&s5pc100_serial_device[0]);
-		serial_register(&s5pc100_serial_device[1]);
-		serial_register(&s5pc100_serial_device[2]);
-		serial_register(&s5pc100_serial_device[3]);
-	} else if (cpu_is_s5pc110()) {
-		serial_register(&s5pc110_serial_device[0]);
-		serial_register(&s5pc110_serial_device[1]);
-		serial_register(&s5pc110_serial_device[2]);
-		serial_register(&s5pc110_serial_device[3]);
-	}
+	serial_register(&s5p_serial0_device);
+	serial_register(&s5p_serial1_device);
+	serial_register(&s5p_serial2_device);
+	serial_register(&s5p_serial3_device);
 }
