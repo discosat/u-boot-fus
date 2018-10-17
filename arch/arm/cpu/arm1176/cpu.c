@@ -49,5 +49,3 @@ static void cache_flush (void)
 	/* mem barrier to sync things */
 	asm ("mcr p15, 0, %0, c7, c10, 4": :"r" (0));
 }
-
-/*###TODO: add cache stuff similar to arm1136/cpu.c*/

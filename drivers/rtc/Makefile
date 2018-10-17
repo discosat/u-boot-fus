@@ -7,8 +7,6 @@
 
 #ccflags-y += -DDEBUG
 
-COBJS-$(CONFIG_RTC_S3C24XX) += s3c24xx_rtc.o
-COBJS-$(CONFIG_RTC_S5P) += s5p_rtc.o
 obj-$(CONFIG_RTC_AT91SAM9_RTT) += at91sam9_rtt.o
 obj-$(CONFIG_RTC_BFIN) += bfin_rtc.o
 obj-y += date.o
@@ -51,6 +49,4 @@ obj-$(CONFIG_RTC_RTC4543) += rtc4543.o
 obj-$(CONFIG_RTC_RV3029) += rv3029.o
 obj-$(CONFIG_RTC_RX8025) += rx8025.o
 obj-$(CONFIG_RTC_S3C24X0) += s3c24x0_rtc.o
-obj-$(CONFIG_RTC_S3C24XX) += s3c24xx_rtc.o
-obj-$(CONFIG_RTC_S5P) += s5p_rtc.o
 obj-$(CONFIG_RTC_X1205) += x1205.o

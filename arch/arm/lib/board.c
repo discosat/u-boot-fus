@@ -63,10 +63,6 @@ extern int  AT91F_DataflashInit(void);
 extern void dataflash_print_info(void);
 #endif
 
-#ifdef CONFIG_ENABLE_MMU
-extern void setup_mmu_table(ulong tlb_addr);
-#endif
-
 #if defined(CONFIG_HARD_I2C) || \
 	defined(CONFIG_SYS_I2C)
 #include <i2c.h>
@@ -465,15 +461,6 @@ void board_init_f(ulong bootflag)
 		gd->fdt_blob = new_fdt;
 	}
 	memcpy(id, (void *)gd, sizeof(gd_t));
-
-#if defined(CONFIG_SYS_NO_ICACHE) || defined(CONFIG_SYS_NO_DCACHE)
-	/* This function either copies the mmu_table from the rodata section
-	   to the region reserved above at tlb_addr or creates the mmu_table
-	   there directly in software. This is often preferable because the
-	   code for this usually only takes a few bytes, compared to full 16KB
-	   of a fix mmu_table. */
-	setup_mmu_table(gd->tlb_addr);
-#endif
 }
 
 #if !defined(CONFIG_SYS_NO_FLASH)

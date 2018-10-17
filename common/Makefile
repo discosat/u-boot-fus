@@ -151,7 +151,6 @@ obj-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
 obj-$(CONFIG_CMD_NAND) += cmd_nand.o
 obj-$(CONFIG_CMD_NET) += cmd_net.o
 obj-$(CONFIG_CMD_ONENAND) += cmd_onenand.o
-obj-$(CONFIG_CMD_MOVI) += cmd_movi.o
 obj-$(CONFIG_CMD_OTP) += cmd_otp.o
 obj-$(CONFIG_CMD_PART) += cmd_part.o
 ifdef CONFIG_PCI
