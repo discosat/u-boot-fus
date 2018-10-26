@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
- * Configuration settings for all F&S boards based on Freescale Vybrid. This
- * is armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5, AGATEWAY and HGATEWAY.
+ * Configuration settings for all F&S boards based on Freescale Vybrid. These
+ * are armStoneA5, PicoCOMA5, NetDCUA5, CUBEA5, AGATEWAY and HGATEWAY.
  *
  * Activate with one of the following targets:
  *   make fsvybrid_config       Configure for Vybrid boards
@@ -12,7 +12,7 @@
  *
  * The following addresses are given as offsets of the device.
  *
- * NAND flash layout with separate Kernel MTD partition 
+ * NAND flash layout with separate Kernel/FDT MTD partition 
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -20,10 +20,10 @@
  * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
  * 0x0014_0000 - 0x001B_FFFF: UBoot: U-Boot image (512KB)
  * 0x001C_0000 - 0x001F_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0020_0000 - 0x005F_FFFF: Kernel: Linux Kernel uImage (4MB)
+ * 0x0020_0000 - 0x005F_FFFF: Kernel: Linux Kernel zImage (4MB)
  * 0x0060_0000 -         END: TargetFS: Root filesystem (Size - 6MB)
  *
- * NAND flash layout with UBI only, Kernel in rootfs or kernel volume
+ * NAND flash layout with UBI only, Kernel/FDT in rootfs or kernel/FDT volume
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0001_FFFF: NBoot: NBoot image, primary copy (128KB)
  * 0x0002_0000 - 0x0003_FFFF: NBoot: NBoot image, secondary copy (128KB)
@@ -44,21 +44,17 @@
  * RAM layout (RAM starts at 0x80000000)
  * -------------------------------------------------------------------------
  * 0x0000_0000 - 0x0000_00FF: Free RAM
- * 0x0000_0100 - 0x0000_07FF: bi_boot_params (ATAGs)
+ * 0x0000_0100 - 0x0000_07FF: bi_boot_params (ATAGs) (not used if FDT active)
  * 0x0000_1000 - 0x0000_105F: NBoot Args
  * 0x0000_1060 - 0x0000_7FFF: Free RAM
- * 0x0000_8000 - 0x007F_FFFF: Linux zImage
- * 0x0080_0000 - 0x00FF_FFFF: Linux BSS (decompressed kernel)
- * 0x0100_0000 - 0x07FF_FFFF: Free RAM + U-Boot (if 128MB)
- * 0x0100_0000 - 0x0FFF_FFFF: Free RAM + U-Boot (if 256MB)
- * 0x0100_0000 - 0x1FFF_FFFF: Free RAM + U-Boot (if 512MB)
+ * 0x0000_8000 - 0x007F_FFFF: Linux BSS (decompressed kernel)
+ * 0x0100_0000 - 0x01FF_FFFF: Linux zImage
+ * 0x0200_0000 - 0x07FF_FFFF: FDT + Free RAM + U-Boot (if 128MB)
+ * 0x0200_0000 - 0x0FFF_FFFF: FDT + Free RAM + U-Boot (if 256MB)
+ * 0x0200_0000 - 0x1FFF_FFFF: FDT + Free RAM + U-Boot (if 512MB)
  *
  * NBoot loads U-Boot to a rather low RAM address. Then U-Boot computes its
- * final size and relocates itself to the end of RAM. This new ARM specific
- * loader scheme was introduced in u-boot-2010.12. It only requires to set
- * gd->ram_base correctly and to privide a board-specific function dram_init()
- * that sets gd->ram_size to the actually available RAM. For more details see
- * arch/arm/lib/board.c.
+ * final size and relocates itself to the end of RAM.
  *
  * Memory layout within U-Boot (from top to bottom, starting at
  * RAM-Top = gd->ram_base + gd->ram_size)
@@ -125,12 +121,12 @@
 #define CONFIG_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 
-/* For the default load address, use an offset of 8MB. The final kernel (after
+/* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
    zImage there, the loader code will move it away to make room for the
    uncompressed image at this position. So we'll load it directly to a higher
    address to avoid this additional copying. */
-#define CONFIG_SYS_LOAD_OFFS 0x00800000
+#define CONFIG_SYS_LOAD_OFFS 0x01000000
 
 
 /************************************************************************
@@ -269,8 +265,6 @@
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
 
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
-
-#define CONFIG_NETCONSOLE
 
 
 /************************************************************************
@@ -568,6 +562,8 @@
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * Filesystem Support
@@ -641,7 +637,7 @@
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
-#define CONFIG_BOOTFILE		"uImage"
+#define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
 #define CONFIG_BOOTDELAY	undef
@@ -665,13 +661,13 @@
    single backslash. So we actually need an escaped backslash, i.e. two
    backslashes. Which finally results in having to type four backslashes here,
    as each backslash must also be escaped with a backslash in C. */
-#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 81000000\0"
+#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - ${fdtaddr}\0"
 
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
 	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
-	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 81000000 /boot/${bootfdt}" BOOT_WITH_FDT
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
@@ -679,7 +675,7 @@
 	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
-	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read 81000000 fdt" BOOT_WITH_FDT \
+	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read ${fdtaddr} fdt" BOOT_WITH_FDT \
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
 #else
@@ -697,7 +693,7 @@
 	".login_display=setenv login login_tty=tty1\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
-	".network_off=setenv network\0"					\
+	".network_off=setenv network\0" \
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
@@ -710,13 +706,14 @@
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
 	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
-        "fdt=undef\0" \
-        ".fdt_none=setenv fdt bootm\0" \
-        ".fdt_nand=setenv fdt nand read 81000000 FDT" BOOT_WITH_FDT \
-        ".fdt_tftp=setenv fdt tftpboot 81000000 ${bootfdt}" BOOT_WITH_FDT \
-        ".fdt_nfs=setenv fdt nfs 81000000 ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-        ".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 81000000 ${bootfdt}" BOOT_WITH_FDT \
-        ".fdt_usb=setenv fdt usb start\\\\; load usb 0 81000000 ${bootfdt}" BOOT_WITH_FDT \
+	"fdt=undef\0" \
+	"fdtaddr=82000000\0" \
+	".fdt_none=setenv fdt bootm\0" \
+	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT \
+	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	".mode_rw=setenv mode rw\0" \

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
- * Configuration settings for all F&S boards based on i.MX6. This is efusA9,
+ * Configuration settings for all F&S boards based on i.MX6. These are efusA9,
  * armStoneA9, armStoneA9r2, QBlissA9, QBlissA9r2, PicoMODA9 and NetDCUA9.
  *
  * Activate with one of the following targets:
@@ -20,7 +20,7 @@
  * 0x0010_0000 - 0x0013_FFFF: Refresh: Swap blocks for refreshing (256KB)
  * 0x0014_0000 - 0x001F_FFFF: UBoot: U-Boot image (768KB)
  * 0x0020_0000 - 0x0023_FFFF: UBootEnv: U-Boot environment (256KB)
- * 0x0024_0000 - 0x00A3_FFFF: Kernel: Linux Kernel uImage (8MB)
+ * 0x0024_0000 - 0x00A3_FFFF: Kernel: Linux Kernel zImage (8MB)
  * 0x00A4_0000 - 0x00BF_FFFF: FDT: Flat Device Tree(s) (1792KB)
  * 0x00C0_0000 -         END: TargetFS: Root filesystem (Size - 12MB)
  *
@@ -111,12 +111,12 @@
 #endif
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 
-/* For the default load address, use an offset of 8MB. The final kernel (after
+/* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
    zImage there, the loader code will move it away to make room for the
    uncompressed image at this position. So we'll load it directly to a higher
    address to avoid this additional copying. */
-#define CONFIG_SYS_LOAD_OFFS 0x00800000
+#define CONFIG_SYS_LOAD_OFFS 0x01000000
 
 
 /************************************************************************
@@ -248,7 +248,6 @@
 #define CONFIG_PHY_NATSEMI
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
 /* Activate this to disable Energy Efficient Ethernet (EEE) on Atheros PHY */
@@ -257,8 +256,6 @@
 /* If a second ETH chip is available, it is a NE2000 compatible AX88796B */
 #define CONFIG_DRIVER_AX88796
 #define CONFIG_DRIVER_AX88796_BASE	0x0C000000
-
-#define CONFIG_NETCONSOLE
 
 
 /************************************************************************
@@ -272,7 +269,6 @@
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 #define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS 1 /* One port per controller */
 #define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
-
 
 #define CONFIG_USB_STORAGE
 
@@ -527,6 +523,8 @@
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
 
+#define CONFIG_NETCONSOLE
+
 
 /************************************************************************
  * Filesystem Support
@@ -600,7 +598,7 @@
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
 #define CONFIG_GATEWAYIP	10.0.0.5
-#define CONFIG_BOOTFILE		"uImage"
+#define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
 #define CONFIG_BOOTDELAY	undef
@@ -628,13 +626,13 @@
    single backslash. So we actually need an escaped backslash, i.e. two
    backslashes. Which finally results in having to type four backslashes here,
    as each backslash must also be escaped with a backslash in C. */
-#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - 11000000\0"
+#define BOOT_WITH_FDT "\\\\; bootm ${loadaddr} - ${fdtaddr}\0"
 
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
 #define EXTRA_UBIFS \
 	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
-	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload 11000000 /boot/${bootfdt}" BOOT_WITH_FDT
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
@@ -642,9 +640,9 @@
 	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
-	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read 11000000 fdt" BOOT_WITH_FDT \
+	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read ${fdtaddr} fdt" BOOT_WITH_FDT \
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
-	".ubivol_ubi=ubi part TargetFS; ubi create kernel 5c0000 s; ubi create rootfs\0"
+	".ubivol_ubi=ubi part TargetFS; ubi create kernel 800000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
 #endif
@@ -660,7 +658,7 @@
 	".login_display=setenv login login_tty=tty1\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
-	".network_off=setenv network\0"					\
+	".network_off=setenv network\0" \
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
@@ -674,12 +672,13 @@
 	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
 	"fdt=undef\0" \
+	"fdtaddr=12000000\0" \
 	".fdt_none=setenv fdt bootm\0" \
-	".fdt_nand=setenv fdt nand read 11000000 FDT" BOOT_WITH_FDT \
-	".fdt_tftp=setenv fdt tftpboot 11000000 ${bootfdt}" BOOT_WITH_FDT \
-	".fdt_nfs=setenv fdt nfs 11000000 ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 11000000 ${bootfdt}" BOOT_WITH_FDT \
-	".fdt_usb=setenv fdt usb start\\\\; load usb 0 11000000 ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT \
+	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \
 	".mode_rw=setenv mode rw\0" \
