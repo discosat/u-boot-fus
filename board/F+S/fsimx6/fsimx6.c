@@ -52,8 +52,9 @@
 
 /* ------------------------------------------------------------------------- */
 
-#define NBOOT_ARGS_BASE (PHYS_SDRAM + 0x00001000) /* Arguments from NBoot */
-#define BOOT_PARAMS_BASE (PHYS_SDRAM + 0x100)	  /* Arguments to Linux */
+/* Addresses of arguments coming from NBoot and going to Linux */
+#define NBOOT_ARGS_BASE (CONFIG_SYS_SDRAM_BASE + 0x00001000)
+#define BOOT_PARAMS_BASE (CONFIG_SYS_SDRAM_BASE + 0x100)
 
 #define BT_EFUSA9     0
 #define BT_ARMSTONEA9 1
@@ -449,7 +450,7 @@ int dram_init(void)
 
 	pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
 	gd->ram_size = pargs->dwMemSize << 20;
-	gd->ram_base = PHYS_SDRAM;
+	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
 
 	return 0;
 }

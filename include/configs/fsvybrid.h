@@ -98,9 +98,9 @@
    unless this is thoroughly tested, set it back to write-through. */
 #define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
 
+#define CONFIG_SYS_GENERIC_BOARD	/* Generic, not ARM specific startup */
 #undef CONFIG_ARCH_CPU_INIT
-//###FIXME### Can we activate CONFIG_SKIP_LOWLEVEL_INIT?
-#undef CONFIG_SKIP_LOWLEVEL_INIT
+#undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 //###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?
 #define CONFIG_BOARD_EARLY_INIT_F	/* Activate NAND flash pin mux */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
@@ -134,8 +134,7 @@
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
 #define CONFIG_NR_DRAM_BANKS	1
-#define PHYS_SDRAM_0		0x80000000	    /* DDR */
-//####define PHYS_SDRAM_0_SIZE	(256 * 1024 * 1024) /* varying */
+#define CONFIG_SYS_SDRAM_BASE	0x80000000
 
 /* Vybrid has min. 256KB internal SRAM, mapped from 0x3F000000-0x3F03FFFF */
 #define CONFIG_SYS_INIT_RAM_ADDR	(IRAM_BASE_ADDR)

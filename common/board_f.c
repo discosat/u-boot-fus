@@ -37,6 +37,7 @@
 #include <os.h>
 #include <post.h>
 #include <spi.h>
+#include <serial.h>
 #include <trace.h>
 #include <watchdog.h>
 #include <asm/errno.h>
@@ -66,37 +67,6 @@ DECLARE_GLOBAL_DATA_PTR = (gd_t *) (CONFIG_SYS_INIT_GD_ADDR);
 #else
 DECLARE_GLOBAL_DATA_PTR;
 #endif
-
-/*
- * sjg: IMO this code should be
- * refactored to a single function, something like:
- *
- * void led_set_state(enum led_colour_t colour, int on);
- */
-/************************************************************************
- * Coloured LED functionality
- ************************************************************************
- * May be supplied by boards if desired
- */
-inline void __coloured_LED_init(void) {}
-void coloured_LED_init(void)
-	__attribute__((weak, alias("__coloured_LED_init")));
-inline void __red_led_on(void) {}
-void red_led_on(void) __attribute__((weak, alias("__red_led_on")));
-inline void __red_led_off(void) {}
-void red_led_off(void) __attribute__((weak, alias("__red_led_off")));
-inline void __green_led_on(void) {}
-void green_led_on(void) __attribute__((weak, alias("__green_led_on")));
-inline void __green_led_off(void) {}
-void green_led_off(void) __attribute__((weak, alias("__green_led_off")));
-inline void __yellow_led_on(void) {}
-void yellow_led_on(void) __attribute__((weak, alias("__yellow_led_on")));
-inline void __yellow_led_off(void) {}
-void yellow_led_off(void) __attribute__((weak, alias("__yellow_led_off")));
-inline void __blue_led_on(void) {}
-void blue_led_on(void) __attribute__((weak, alias("__blue_led_on")));
-inline void __blue_led_off(void) {}
-void blue_led_off(void) __attribute__((weak, alias("__blue_led_off")));
 
 /*
  * Why is gd allocated a register? Prior to reloc it might be better to

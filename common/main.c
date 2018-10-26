@@ -60,7 +60,7 @@ void main_loop(void)
 
 	bootstage_mark_name(BOOTSTAGE_ID_MAIN_LOOP, "main_loop");
 
-#if 0 //###ndef CONFIG_SYS_GENERIC_BOARD
+#ifndef CONFIG_SYS_GENERIC_BOARD
 	puts("Warning: Your board does not use generic board. Please read\n");
 	puts("doc/README.generic-board and take action. Boards not\n");
 	puts("upgraded by the late 2014 may break or be removed.\n");

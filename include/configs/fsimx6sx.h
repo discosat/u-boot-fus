@@ -79,8 +79,8 @@
 
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
-//###FIXME### Can we activate CONFIG_SKIP_LOWLEVEL_INIT?
-#undef CONFIG_SKIP_LOWLEVEL_INIT
+#define CONFIG_SYS_GENERIC_BOARD	/* Generic, not ARM specific startup */
+#undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 #define CONFIG_BOARD_EARLY_INIT_F	/* Early board specific stuff */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
@@ -113,9 +113,7 @@
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
 #define CONFIG_NR_DRAM_BANKS	1
-#define PHYS_SDRAM		MMDC0_ARB_BASE_ADDR
-
-#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
+#define CONFIG_SYS_SDRAM_BASE	MMDC0_ARB_BASE_ADDR
 
 /* MX6SX has 128KB SRAM, mapped from 0x00900000-0x0091FFFF */
 #define CONFIG_SYS_INIT_RAM_ADDR	(IRAM_BASE_ADDR)
