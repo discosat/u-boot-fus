@@ -19,5 +19,6 @@ ifdef MINIMAL
 # necessary to create built-in.o
 obj- := __dummy__.o
 else
+obj-$(CONFIG_FS_BOARD_COMMON)	+= fs_board_common.o
 obj-$(CONFIG_FS_FDT_COMMON)	+= fs_fdt_common.o
 endif

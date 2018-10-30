@@ -35,7 +35,6 @@
 #include <asm/imx-common/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/setup.h>			/* struct tag_fshwconfig, ... */
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/iomux.h>
@@ -48,13 +47,9 @@
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
-#include "../common/fs_board_common.h"	/* fs_nboot_args, fs_board_*() */
+#include "../common/fs_board_common.h"	/* fs_board_*() */
 
 /* ------------------------------------------------------------------------- */
-
-/* Addresses of arguments coming from NBoot and going to Linux */
-#define NBOOT_ARGS_BASE (CONFIG_SYS_SDRAM_BASE + 0x00001000)
-#define BOOT_PARAMS_BASE (CONFIG_SYS_SDRAM_BASE + 0x100)
 
 #define BT_EFUSA9     0
 #define BT_ARMSTONEA9 1
@@ -77,8 +72,6 @@
 /* NBoot before VN27 did not report feature values; use reasonable defaults */
 #define FEAT1_DEFAULT 0
 #define FEAT2_DEFAULT FEAT2_ETH_A
-
-#define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
 
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
@@ -123,23 +116,6 @@
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_HYS |	\
 	PAD_CTL_ODE | PAD_CTL_SRE_FAST)
 
-struct board_info {
-	char *name;			/* Device name */
-	char *bootdelay;		/* Default value for bootdelay */
-	char *updatecheck;		/* Default value for updatecheck */
-	char *installcheck;		/* Default value for installcheck */
-	char *recovercheck;		/* Default value for recovercheck */
-	char *earlyusbinit;		/* Default value for earlyusbinit */
-	char *console;			/* Default variable for console */
-	char *login;			/* Default variable for login */
-	char *mtdparts;			/* Default variable for mtdparts */
-	char *network;			/* Default variable for network */
-	char *init;			/* Default variable for init */
-	char *rootfs;			/* Default variable for rootfs */
-	char *kernel;			/* Default variable for kernel */
-	char *fdt;			/* Default variable for device tree */
-};
-
 #define INSTALL_RAM "ram@10300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
@@ -160,7 +136,7 @@ struct board_info {
 #define EARLY_USB NULL
 #endif
 
-const struct board_info fs_board_info[8] = {
+const struct fs_board_info board_info[8] = {
 	{	/* 0 (BT_EFUSA9) */
 		.name = "efusA9",
 		.bootdelay = "3",
@@ -278,48 +254,7 @@ const struct board_info fs_board_info[8] = {
 	},
 };
 
-/* String used for system prompt */
-static char fs_sys_prompt[20];
-
-/* Copy of the NBoot args, split into hwconfig and m4config */
-static struct tag_fshwconfig fs_nboot_args;
-static struct tag_fsm4config fs_m4_args;
-
-/* Get the number of the debug port reported by NBoot */
-static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
-{
-	unsigned int port = 6;
-	struct serial_device *sdev;
-
-	do {
-		sdev = get_serial_device(--port);
-		if (sdev && sdev->dev.priv == (void *)dwDbgSerPortPA)
-			return port;
-	} while (port);
-
-	return CONFIG_SYS_UART_PORT;
-}
-
-struct serial_device *default_serial_console(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs;
-
-	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
-	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
-	   However GD_FLG_RELOC may be set before the NBoot arguments are
-	   copied from NBOOT_ARGS_BASE to fs_nboot_args (see board_init()
-	   below). But then at least the .bss section and therefore
-	   fs_nboot_args is cleared. So if fs_nboot_args.dwDbgSerPortPA is 0,
-	   the structure is not yet copied and we still have to look at
-	   NBOOT_ARGS_BASE. Otherwise we can (and must) use fs_nboot_args. */
-	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
-		pargs = &fs_nboot_args;
-	else
-		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-
-	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
-}
+/* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
 /* Pads for 18-bit LCD interface */
 static iomux_v3_cfg_t const lcd18_pads_low[] = {
@@ -364,12 +299,9 @@ static iomux_v3_cfg_t const lcd_extra_pads[] = {
 	IOMUX_PADS(PAD_SD4_DAT0__GPIO2_IO08 | MUX_PAD_CTRL(0x3010)),
 };
 
-
 /* Do some very early board specific setup */
 int board_early_init_f(void)
 {
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-
 	/*
 	 * Set pull-down resistors on display signals; some displays do not
 	 * like high level on data signals when VLCD is not applied yet.
@@ -378,7 +310,7 @@ int board_early_init_f(void)
 	 * use, i.e. if device tree activates lcd. However we do not know this
 	 * at this point of time.
 	 */
-	switch (pargs->chBoardType)
+	switch (fs_board_get_type())
 	{
 	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
 	case BT_QBLISSA9:
@@ -404,8 +336,9 @@ int board_early_init_f(void)
 /* Check board type */
 int checkboard(void)
 {
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	unsigned int boardtype = pargs->chBoardType;
+	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 	unsigned int features2;
 
 	/* NBoot versions before VN27 did not report feature values */
@@ -415,8 +348,8 @@ int checkboard(void)
 	}
 	features2 = pargs->chFeatures2;
 
-	printf("Board: %s Rev %u.%02u (", fs_board_info[boardtype].name,
-	       pargs->chBoardRev / 100, pargs->chBoardRev % 100);
+	printf("Board: %s Rev %u.%02u (", board_info[board_type].name,
+	       board_rev / 100, board_rev % 100);
 	if ((features2 & FEAT2_ETH_MASK) == FEAT2_ETH_MASK)
 		puts("2x ");
 	if (features2 & FEAT2_ETH_MASK)
@@ -427,61 +360,12 @@ int checkboard(void)
 		puts("eMMC, ");
 	printf("%dx DRAM)\n", pargs->dwNumDram);
 
-#if 0 //###
-	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
-	printf("dwMemSize = 0x%08x\n", pargs->dwMemSize);
-	printf("dwFlashSize = 0x%08x\n", pargs->dwFlashSize);
-	printf("dwDbgSerPortPA = 0x%08x\n", pargs->dwDbgSerPortPA);
-	printf("chBoardType = 0x%02x\n", pargs->chBoardType);
-	printf("chBoardRev = 0x%02x\n", pargs->chBoardRev);
-	printf("chFeatures1 = 0x%02x\n", pargs->chFeatures1);
-	printf("chFeatures2 = 0x%02x\n", pargs->chFeatures2);
-#endif
+	//fs_board_show_nboot_args(pargs);
 
 	return 0;
 }
 
-/* Set the available RAM size. We have a memory bank starting at 0x10000000
-   that can hold up to 3840MB of RAM. */
-int dram_init(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs;
-
-	pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	gd->ram_size = pargs->dwMemSize << 20;
-	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
-
-	return 0;
-}
-
-/* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
-
-/* Issue reset signal on up to three pads (~0: pad unused) */
-void issue_reset(unsigned int active_us, unsigned int delay_us,
-		 unsigned int pad0, unsigned int pad1, unsigned int pad2)
-{
-	/* Assert reset */
-	gpio_direction_output(pad0, 0);
-	if (pad1 != ~0)
-		gpio_direction_output(pad1, 0);
-	if (pad2 != ~0)
-		gpio_direction_output(pad2, 0);
-
-	/* Delay for the active pulse time */
-	udelay(active_us);
-
-	/* De-assert reset */
-	gpio_set_value(pad0, 1);
-	if (pad1 != ~0)
-		gpio_set_value(pad1, 1);
-	if (pad2 != ~0)
-		gpio_set_value(pad2, 1);
-
-	/* Delay some more time if requested */
-	if (delay_us)
-		udelay(delay_us);
-}
+/* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
 
 static iomux_v3_cfg_t const reset_pads[] = {
 	IOMUX_PADS(PAD_ENET_RXD1__GPIO1_IO26 | MUX_PAD_CTRL(NO_PAD_CTRL)),
@@ -489,21 +373,10 @@ static iomux_v3_cfg_t const reset_pads[] = {
 
 int board_init(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	unsigned int board_type = pargs->chBoardType;
+	unsigned int board_type = fs_board_get_type();
 
-	/* Save a copy of the NBoot args */
-	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));
-	fs_nboot_args.dwSize = sizeof(struct tag_fshwconfig);
-	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
-	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
-
-	gd->bd->bi_arch_number = 0xFFFFFFFF;
-	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
-
-	/* Prepare the command prompt */
-	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
+	/* Copy NBoot args to variables and prepare command prompt string */
+	fs_board_init_common(&board_info[board_type]);
 
 	/*
 	 * efusA9 has a generic RESET_OUT signal to reset some arbitrary
@@ -516,7 +389,7 @@ int board_init(void)
 	 */
 	if (board_type == BT_EFUSA9) {
 		SETUP_IOMUX_PADS(reset_pads);
-		issue_reset(1000, 0, IMX_GPIO_NR(1, 26), ~0, ~0);
+		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 26), ~0, ~0);
 	}
 
 	return 0;
@@ -576,7 +449,7 @@ void board_nand_init(void)
 	   and is always read as 0xFF. */
 	pdata.options = NAND_BBT_SCAN2NDPAGE;
 	pdata.timing0 = 0;
-	pdata.ecc_strength = fs_nboot_args.chECCtype;
+	pdata.ecc_strength = fs_board_get_nboot_args()->chECCtype;
 	pdata.skipblocks = 2;
 	pdata.flags = MXS_NAND_CHUNK_1K;
 #ifdef CONFIG_NAND_REFRESH
@@ -600,82 +473,6 @@ void board_nand_init(void)
 	mxs_nand_register(0, &pdata);
 #endif
 }
-
-void board_nand_state(struct mtd_info *mtd, unsigned int state)
-{
-	/* Save state to pass it to Linux later */
-	fs_nboot_args.chECCstate |= (unsigned char)state;
-}
-
-size_t get_env_size(void)
-{
-	return ENV_SIZE_DEF_LARGE;
-}
-
-size_t get_env_range(void)
-{
-	return ENV_RANGE_DEF_LARGE;
-}
-
-size_t get_env_offset(void)
-{
-	return ENV_OFFSET_DEF_LARGE;
-}
-
-#ifdef CONFIG_CMD_UPDATE
-enum update_action board_check_for_recover(void)
-{
-	char *recover_gpio;
-
-	/* On some platforms, the check for recovery is already done in NBoot.
-	   Then the ACTION_RECOVER bit in the dwAction value is set. */
-	if (fs_nboot_args.dwAction & ACTION_RECOVER)
-		return UPDATE_ACTION_RECOVER;
-
-	/*
-	 * If a recover GPIO is defined, check if it is in active state. The
-	 * variable contains the number of a gpio, followed by an optional '-'
-	 * or '_', followed by an optional "high" or "low" for active high or
-	 * active low signal. Actually only the first character is checked,
-	 * 'h' and 'H' mean "high", everything else is taken for "low".
-	 * Default is active low.
-	 *
-	 * Examples:
-	 *    123_high  GPIO #123, active high
-	 *    65-low    GPIO #65, active low
-	 *    13        GPIO #13, active low
-	 *    0x1fh     GPIO #31, active high (this shows why a dash or
-	 *              underscore before "high" or "low" makes sense)
-	 *
-	 * Remark:
-	 * We do not have any clue here what the GPIO represents and therefore
-	 * we do not assume any pad settings. So for example if the GPIO
-	 * represents a button that is floating in the released state, an
-	 * external pull-up or pull-down must be used to avoid unintentionally
-	 * detecting the active state.
-	 */
-	recover_gpio = getenv("recovergpio");
-	if (recover_gpio) {
-		char *endp;
-		int active_state = 0;
-		unsigned int gpio = simple_strtoul(recover_gpio, &endp, 0);
-
-		if (endp != recover_gpio) {
-			char c = *endp;
-
-			if ((c == '-') || (c == '_'))
-				c = *(++endp);
-			if ((c == 'h') || (c == 'H'))
-				active_state = 1;
-			if (!gpio_direction_input(gpio)
-			    && (gpio_get_value(gpio) == active_state))
-				return UPDATE_ACTION_RECOVER;
-		}
-	}
-
-	return UPDATE_ACTION_UPDATE;
-}
-#endif
 
 #ifdef CONFIG_GENERIC_MMC
 /*
@@ -892,8 +689,10 @@ static int setup_mmc(bd_t *bd, u8 bus_width, struct fus_sdhc_cfg *cfg,
 int board_mmc_init(bd_t *bd)
 {
 	int ret = 0;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_ARMSTONEA9:
 		/* mmc0: USDHC3 (on-board micro SD slot), CD: GPIO6_IO15 */
 		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc3_ext],
@@ -906,7 +705,7 @@ int board_mmc_init(bd_t *bd)
 				&sdhc_cd[gpio1_io04]);
 
 		/* mmc1: USDHC3 (eMMC, if available), no CD */
-		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && (features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
@@ -916,7 +715,7 @@ int board_mmc_init(bd_t *bd)
 				&sdhc_cd[gpio1_io01]);
 
 		/* mmc1: USDHC3 (eMMC, if available), no CD */
-		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && (features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
@@ -926,7 +725,7 @@ int board_mmc_init(bd_t *bd)
 				&sdhc_cd[gpio6_io15]);
 
 		/* mmc1: USDHC1: on-board micro SD slot (if available), no CD */
-		if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_WLAN))
+		if (!ret && !(features2 & FEAT2_WLAN))
 			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
 		break;
 
@@ -942,7 +741,7 @@ int board_mmc_init(bd_t *bd)
 			break;
 
 		/* mmc1: USDHC3: eMMC (if available), no CD */
-		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && (features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
@@ -953,9 +752,9 @@ int board_mmc_init(bd_t *bd)
 
 		/* mmc1: USDHC1 (on-board micro SD or on-board eMMC), no CD
 		   Remark: eMMC also only uses 4 bits if NAND is present. */
-		if (!ret && !(fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && !(features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
-		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && (features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_int], NULL);
 		break;
 
@@ -970,7 +769,7 @@ int board_mmc_init(bd_t *bd)
 					&sdhc_cd[gpio1_io01]);
 
 		/* mmc2: USDHC3 (eMMC, if available), no CD */
-		if (!ret && (fs_nboot_args.chFeatures2 & FEAT2_EMMC))
+		if (!ret && (features2 & FEAT2_EMMC))
 			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
@@ -1216,8 +1015,10 @@ static void enable_i2c_backlight(int on)
 /* Enable VLCD, configure pads if required */
 static void prepare_displays(void)
 {
+	unsigned int board_type = fs_board_get_type();
+
 	/* Switch off display power on RGB adapter */
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_EFUSA9:
 		setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60, I2C_PADS_INFO(efusa9));
 		i2c_set_bus_num(1);
@@ -1238,7 +1039,7 @@ static void prepare_displays(void)
 	mdelay(1);
 
 	if (used_ports & DISP_PORT_LCD) {
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_ARMSTONEA9R2:	/* No LCD interface */
 		case BT_QBLISSA9:
 		case BT_QBLISSA9R2:
@@ -1260,6 +1061,8 @@ static void prepare_displays(void)
 /* Enable backlight power depending on the used display ports */
 static void enable_backlight(int on)
 {
+	unsigned int board_type = fs_board_get_type();
+
 	if (used_ports & (DISP_PORT_LVDS0 | DISP_PORT_LVDS1)) {
 		/* Switch VCFL */
 		gpio_direction_output(IMX_GPIO_NR(2, 8), on);
@@ -1268,7 +1071,7 @@ static void enable_backlight(int on)
 	}
 
 	if (used_ports & DISP_PORT_LCD) {
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_EFUSA9:
 			i2c_set_bus_num(1);
 			enable_i2c_backlight(on);
@@ -1609,6 +1412,7 @@ int board_video_skip(void)
 	unsigned int freq;
 	const char *panel = getenv("disppanel");
 	const char *mode = getenv("dispmode");
+	unsigned int board_type = fs_board_get_type();
 
 	if (!panel)
 		return 1;
@@ -1634,7 +1438,7 @@ int board_video_skip(void)
 	display.mode = display_db[i];
 
 	/* Init extra parameters to default */
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_QBLISSA9:
 	case BT_QBLISSA9R2:
 	case BT_ARMSTONEA9R2:
@@ -1671,7 +1475,7 @@ int board_video_skip(void)
 	}
 
 	/* The LCD port on efusA9 has swapped red and blue signals */
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_EFUSA9:
 		if (display.extra.port == DISP_PORT_LCD) {
 			pixfmt = IPU_PIX_FMT_BGR666;
@@ -1902,7 +1706,7 @@ static void fs_usb_reset_hub(iomux_v3_cfg_t const *reset_pad,
 	if (reset_pad)
 		imx_iomux_v3_setup_multiple_pads(reset_pad, 1);
 	if (reset_gpio != ~0)
-		issue_reset(2000, 0, reset_gpio, ~0, ~0);
+		fs_board_issue_reset(2000, 0, reset_gpio, ~0, ~0);
 }
 
 /* Check if OTG port should be started as host or device */
@@ -2027,6 +1831,8 @@ int board_ehci_hcd_init(int port)
 	unsigned int pwr_gpio, reset_gpio, id_gpio;
 	int pwr_pol;
 	struct fs_usb_port_cfg *port_cfg;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 
 	if (port > 1)
 		return 0;		/* Unknown port */
@@ -2046,7 +1852,7 @@ int board_ehci_hcd_init(int port)
 		id_pad = NULL;
 		id_gpio = ~0;
 
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_PICOMODA9:
 			id_pad = usb_otg_id_pad_picomoda9;
 			id_gpio = IMX_GPIO_NR(1, 1);
@@ -2077,10 +1883,10 @@ int board_ehci_hcd_init(int port)
 			return 0;	/* OTG port not in host mode */
 
 		/* Step 2: determine host power pad */
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_QBLISSA9:
 			/* No USB_OTG_PWR before board revision 1.30 */
-			if (fs_nboot_args.chBoardRev < 130)
+			if (board_rev < 130)
 				break;
 			/* Fall through to case BT_QBLISSA9R2 */
 		case BT_QBLISSA9R2:
@@ -2113,7 +1919,7 @@ int board_ehci_hcd_init(int port)
 		}
 	} else {
 		/* Handle USB H1 port (USB1) */
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_EFUSA9:
 			/* No reset for USB hub, USB power on EIM_D31 */
 			pwr_pad = usb_h1_pwr_pad_efusa9;
@@ -2143,7 +1949,7 @@ int board_ehci_hcd_init(int port)
 
 		case BT_PICOMODA9:
 			/* No USB hub, USB host power on GPIO_17 or GPIO_5 */
-			if (fs_nboot_args.chBoardRev < 110) {
+			if (board_rev < 110) {
 				pwr_pad = usb_h1_pwr_pad_picomoda9_REV100;
 				pwr_gpio = IMX_GPIO_NR(7, 12);
 			} else {
@@ -2178,93 +1984,16 @@ int board_ehci_hcd_init(int port)
 #endif /* CONFIG_USB_EHCI_MX6 */
 
 #ifdef CONFIG_BOARD_LATE_INIT
-void setup_var(const char *varname, const char *content, int runvar)
-{
-	char *envvar = getenv(varname);
-
-	/* If variable is not set or does not contain string "undef", do not
-	   change it */
-	if (!envvar || strcmp(envvar, "undef"))
-		return;
-
-	/* Either set variable directly with value ... */
-	if (!runvar) {
-		setenv(varname, content);
-		return;
-	}
-
-	/* ... or set variable by running the variable with name in content */
-	content = getenv(content);
-	if (content)
-		run_command(content, 0);
-}
-
-/* Use this slot to init some final things before the network is started. We
-   set up some environment variables for things that are board dependent and
-   can't be defined as a fix value in fsvybrid.h. As an unset value is valid
-   for some of these variables, we check for the special value "undef". Any
-   of these variables that holds this value will be replaced with the
-   board-specific value. */
+/*
+ * Use this slot to init some final things before the network is started. The
+ * F&S configuration heavily depends on this to set up the board specific
+ * environment, i.e. environment variables that can't be defined as a constant
+ * value at compile time.
+ */
 int board_late_init(void)
 {
-	unsigned int boardtype = fs_nboot_args.chBoardType;
-	const struct board_info *bi = &fs_board_info[boardtype];
-	const char *envvar;
-
-	/* Set sercon variable if not already set */
-	envvar = getenv("sercon");
-	if (!envvar || !strcmp(envvar, "undef")) {
-		char sercon[DEV_NAME_SIZE];
-
-		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
-			'0' + get_debug_port(fs_nboot_args.dwDbgSerPortPA));
-		setenv("sercon", sercon);
-	}
-
-	/* Set platform variable if not already set */
-	envvar = getenv("platform");
-	if (!envvar || !strcmp(envvar, "undef")) {
-		char lcasename[20];
-		char *p = bi->name;
-		char *l = lcasename;
-		char c;
-
-		do {
-			c = *p++;
-			if ((c >= 'A') && (c <= 'Z'))
-				c += 'a' - 'A';
-			*l++ = c;
-		} while (c);
-
-		if (is_cpu_type(MXC_CPU_MX6SOLO) ||is_cpu_type(MXC_CPU_MX6DL))
-			sprintf(lcasename, "%sdl", lcasename);
-		else if (is_cpu_type(MXC_CPU_MX6D) || is_cpu_type(MXC_CPU_MX6Q))
-			sprintf(lcasename, "%sq", lcasename);
-
-		setenv("platform", lcasename);
-	}
-
-	/* Set some variables with a direct value */
-	setup_var("bootdelay", bi->bootdelay, 0);
-	setup_var("updatecheck", bi->updatecheck, 0);
-	setup_var("installcheck", bi->installcheck, 0);
-	setup_var("recovercheck", bi->recovercheck, 0);
-	setup_var("earlyusbinit", bi->earlyusbinit, 0);
-	setup_var("mtdids", MTDIDS_DEFAULT, 0);
-	setup_var("partition", MTDPART_DEFAULT, 0);
-	setup_var("mode", CONFIG_MODE, 0);
-
-	/* Set some variables by runnning another variable */
-	setup_var("console", bi->console, 1);
-	setup_var("login", bi->login, 1);
-	setup_var("mtdparts", bi->mtdparts, 1);
-	setup_var("network", bi->network, 1);
-	setup_var("init", bi->init, 1);
-	setup_var("rootfs", bi->rootfs, 1);
-	setup_var("kernel", bi->kernel, 1);
-	setup_var("bootfdt", "set_bootfdt", 1);
-	setup_var("fdt", bi->fdt, 1);
-	setup_var("bootargs", "set_bootargs", 1);
+	/* Set up all board specific variables */
+	fs_board_late_init_common();
 
 #ifdef CONFIG_VIDEO_IPUV3
 	/* Enable backlight for displays */
@@ -2273,7 +2002,7 @@ int board_late_init(void)
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_BOARD_LATE_INIT */
 
 #ifdef CONFIG_CMD_NET
 static iomux_v3_cfg_t const eim_pads_eth_b[] = {
@@ -2504,16 +2233,18 @@ int board_eth_init(bd_t *bis)
 	enum enet_freq freq;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	int id = 0;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
 	/* Activate on-chip ethernet port (FEC) */
-	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A) {
+	if (features2 & FEAT2_ETH_A) {
 		set_fs_ethaddr(id);
 
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_PICOMODA9:
 		case BT_NETDCUA9:
 			/* Use 100 MBit/s LAN on RMII pins */
-			if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+			if (board_type == BT_PICOMODA9)
 				SETUP_IOMUX_PADS(enet_pads_rmii_picomoda9);
 			else
 				SETUP_IOMUX_PADS(enet_pads_rmii_netdcua9);
@@ -2548,7 +2279,7 @@ int board_eth_init(bd_t *bis)
 		enable_enet_clk(1);
 
 		/* Reset the PHY */
-		switch (fs_nboot_args.chBoardType) {
+		switch (board_type) {
 		case BT_PICOMODA9:
 		case BT_NETDCUA9:
 			/*
@@ -2559,18 +2290,19 @@ int board_eth_init(bd_t *bis)
 			 * 3us for this. As we do not know whether this is a
 			 * cold or warm start, we must assume the worst case.
 			 */
-			if (fs_nboot_args.chBoardType == BT_PICOMODA9)
+			if (board_type == BT_PICOMODA9)
 				reset_gpio = IMX_GPIO_NR(2, 10);
 			else
 				reset_gpio = IMX_GPIO_NR(1, 2);
-			issue_reset(10, 170000, reset_gpio, ~0, ~0);
+			fs_board_issue_reset(10, 170000, reset_gpio, ~0, ~0);
 			phy_addr = 1;
 			xcv_type = RMII;
 			break;
 
 		default:
 			/* Atheros AR8035: Assert reset for at least 1ms */
-			issue_reset(1000, 0, IMX_GPIO_NR(1, 25), ~0,~0);
+			fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 25),
+					     ~0,~0);
 			phy_addr = 4;
 			xcv_type = RGMII;
 			break;
@@ -2585,12 +2317,12 @@ int board_eth_init(bd_t *bis)
 	}
 
 	/* If available, activate external ethernet port (AX88796B) */
-	if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B) {
+	if (features2 & FEAT2_ETH_B) {
 		/* AX88796B is connected via EIM */
 		setup_weim(bis);
 
 		/* Reset AX88796B, on NetDCUA9 */
-		issue_reset(200, 0, IMX_GPIO_NR(1, 3), ~0, ~0);
+		fs_board_issue_reset(200, 0, IMX_GPIO_NR(1, 3), ~0, ~0);
 
 		/* Initialize AX88796B */
 		ret = ax88796_initialize(-1, CONFIG_DRIVER_AX88796_BASE,
@@ -2600,27 +2332,12 @@ int board_eth_init(bd_t *bis)
 	}
 
 	/* If WLAN is available, just set ethaddr variable */
-	if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+	if (features2 & FEAT2_WLAN)
 		set_fs_ethaddr(id++);
 
 	return 0;
 }
 #endif /* CONFIG_CMD_NET */
-
-/* Return the board name; we have different boards that use this file, so we
-   can not define the board name with CONFIG_SYS_BOARDNAME */
-char *get_board_name(void)
-{
-	return fs_board_info[fs_nboot_args.chBoardType].name;
-}
-
-
-/* Return the system prompt; we can not define it with CONFIG_SYS_PROMPT
-   because we want to include the board name, which is variable (see above) */
-char *get_sys_prompt(void)
-{
-	return fs_sys_prompt;
-}
 
 #ifdef CONFIG_CMD_LED
 /*
@@ -2634,19 +2351,20 @@ char *get_sys_prompt(void)
  */
 static unsigned int led_value;
 
-static unsigned int get_led_gpio(struct tag_fshwconfig *pargs, led_id_t id,
-				 int val, int index)
+static unsigned int get_led_gpio(led_id_t id, int val, int index)
 {
 	unsigned int gpio;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 
 	if (val)
 		led_value |= (1 << id);
 	else
 		led_value &= ~(1 << id);
 
-	switch (pargs->chBoardType) {
+	switch (board_type) {
 	case BT_PICOMODA9:
-		if (pargs->chBoardRev == 100)
+		if (board_rev == 100)
 			gpio = (id ? IMX_GPIO_NR(5, 2) : IMX_GPIO_NR(5, 4));
 		else if (!index)
 			gpio = (id ? IMX_GPIO_NR(7, 13) : IMX_GPIO_NR(7, 12));
@@ -2677,45 +2395,48 @@ void coloured_LED_init(void)
 	   before board_init_r() and therefore before the NBoot args struct is
 	   copied to fs_nboot_args in board_init(). So variables in RAM are OK
 	   (like led_value above), but no fs_nboot_args yet. */
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	int val = (pargs->chBoardType == BT_PICOMODA9);
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
+	int val = (board_type == BT_PICOMODA9);
 
-	if (val && (pargs->chBoardRev > 100)) {
-		gpio_direction_output(get_led_gpio(pargs, 0, val, 1), val);
-		gpio_direction_output(get_led_gpio(pargs, 1, val, 1), val);
+	if (val && (board_rev > 100)) {
+		gpio_direction_output(get_led_gpio(0, val, 1), val);
+		gpio_direction_output(get_led_gpio(1, val, 1), val);
 	}
-	gpio_direction_output(get_led_gpio(pargs, 0, val, 0), val);
-	gpio_direction_output(get_led_gpio(pargs, 1, val, 0), val);
+	gpio_direction_output(get_led_gpio(0, val, 0), val);
+	gpio_direction_output(get_led_gpio(1, val, 0), val);
 }
 
 void __led_set(led_id_t id, int val)
 {
-	struct tag_fshwconfig *pargs = &fs_nboot_args;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 
 	if (id > 1)
 		return;
 
-	if (pargs->chBoardType == BT_PICOMODA9) {
+	if (board_type == BT_PICOMODA9) {
 		val = !val;
-		if (pargs->chBoardRev > 100)
-			gpio_set_value(get_led_gpio(pargs, id, val, 1), val);
+		if (board_rev > 100)
+			gpio_set_value(get_led_gpio(id, val, 1), val);
 	}
 
-	gpio_set_value(get_led_gpio(pargs, id, val, 0), val);
+	gpio_set_value(get_led_gpio(id, val, 0), val);
 }
 
 void __led_toggle(led_id_t id)
 {
-	struct tag_fshwconfig *pargs = &fs_nboot_args;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 	int val;
 
 	if (id > 1)
 		return;
 
 	val = !((led_value >> id) & 1);
-	if ((pargs->chBoardType == BT_PICOMODA9) && (pargs->chBoardRev > 100))
-		gpio_set_value(get_led_gpio(pargs, id, val, 1), val);
-	gpio_set_value(get_led_gpio(pargs, id, val, 0), val);
+	if ((board_type == BT_PICOMODA9) && (board_rev > 100))
+		gpio_set_value(get_led_gpio(id, val, 1), val);
+	gpio_set_value(get_led_gpio(id, val, 0), val);
 }
 #endif /* CONFIG_CMD_LED */
 
@@ -2724,6 +2445,7 @@ void __led_toggle(led_id_t id)
 void ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
+	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
 
@@ -2731,7 +2453,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
-				fs_nboot_args.chECCtype, 1);
+			       pargs->chECCtype, 1);
 	}
 
 	/* Set bdinfo entries */
@@ -2740,22 +2462,22 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		int id = 0;
 
 		/* Set common bdinfo entries */
-		fs_fdt_set_bdinfo(fdt, offs, &fs_nboot_args);
+		fs_fdt_set_bdinfo(fdt, offs, pargs);
 
 		/* MAC addresses */
-		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
+		if (pargs->chFeatures2 & FEAT2_ETH_A)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
+		if (pargs->chFeatures2 & FEAT2_ETH_B)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
+		if (pargs->chFeatures2 & FEAT2_WLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A))
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A))
 		fs_fdt_enable(fdt, FDT_ETH_A, 0);
 #if 0
-	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_B))
+	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
 #endif
 }

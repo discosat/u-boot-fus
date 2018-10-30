@@ -58,6 +58,9 @@
 #define CONFIG_FSIMX6			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_BOARD_OFFS	0	/* F&S i.MX6 board types as reported
+					   by NBoot start at offset 0 */
+#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
 
 #define CONFIG_IMX_THERMAL		/* Give extended thermal info */

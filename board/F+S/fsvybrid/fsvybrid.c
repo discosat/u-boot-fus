@@ -47,6 +47,9 @@
 #include <usb/ehci-fsl.h>
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
+#include "../common/fs_board_common.h"	/* fs_board_*() */
+
+/* ------------------------------------------------------------------------- */
 
 #ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
@@ -64,10 +67,6 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #endif
 
 /* ------------------------------------------------------------------------- */
-
-/* Addresses of arguments coming from NBoot and going to Linux */
-#define NBOOT_ARGS_BASE (CONFIG_SYS_SDRAM_BASE + 0x00001000)
-#define BOOT_PARAMS_BASE (CONFIG_SYS_SDRAM_BASE + 0x100)
 
 #define BT_ARMSTONEA5 0
 #define BT_PICOCOMA5  1
@@ -89,28 +88,8 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define FEAT2_RMIICLK_CKO1 (1<<2)	/* RMIICLK (PTA6) 0: output, 1: input
 					   CKO1 (PTB10) 0: unused, 1: output */
 
-#define ACTION_RECOVER 0x00000040	/* Start recovery instead of update */
-
 #define XMK_STR(x)	#x
 #define MK_STR(x)	XMK_STR(x)
-
-struct board_info {
-	char *name;			/* Device name */
-	unsigned int mach_type;		/* Device machine ID */
-	char *bootdelay;		/* Default value for bootdelay */
-	char *updatecheck;		/* Default value for updatecheck */
-	char *installcheck;		/* Default value for installcheck */
-	char *recovercheck;		/* Default value for recovercheck */
-	char *earlyusbinit;		/* Default value for earlyusbinit */
-	char *console;			/* Default variable for console */
-	char *login;			/* Default variable for login */
-	char *mtdparts;			/* Default variable for mtdparts */
-	char *network;			/* Default variable for network */
-	char *init;			/* Default variable for init */
-	char *rootfs;			/* Default variable for rootfs */
-	char *kernel;			/* Default variable for kernel */
-	char *fdt;			/* Default variable for device tree */
-};
 
 #define INSTALL_RAM "ram@80300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -132,10 +111,9 @@ struct board_info {
 #define EARLY_USB NULL
 #endif
 
-const struct board_info fs_board_info[16] = {
+const struct fs_board_info board_info[16] = {
 	{	/* 0 (BT_ARMSTONEA5) */
 		.name = "armStoneA5",
-		.mach_type = MACH_TYPE_ARMSTONEA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -152,7 +130,6 @@ const struct board_info fs_board_info[16] = {
 	},
 	{	/* 1 (BT_PICOCOMA5)*/
 		.name = "PicoCOMA5",
-		.mach_type = MACH_TYPE_PICOCOMA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -169,7 +146,6 @@ const struct board_info fs_board_info[16] = {
 	},
 	{	/* 2 (BT_NETDCUA5) */
 		.name = "NetDCUA5",
-		.mach_type = MACH_TYPE_NETDCUA5,
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -189,15 +165,12 @@ const struct board_info fs_board_info[16] = {
 	},
 	{	/* 4 (BT_PICOMODA5) */
 		.name = "PicoMODA5",
-		.mach_type = 0,		/*####not yet registered*/
 	},
 	{	/* 5 (BT_PICOMOD1_2) */
 		.name = "PicoMOD1.2",
-		.mach_type = 0,		/*####not yet registered*/
 	},
 	{	/* 6 (BT_AGATEWAY) */
 		.name = "AGATEWAY",
-		.mach_type = MACH_TYPE_AGATEWAY,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
 		.installcheck = INSTALL_RAM,
@@ -216,7 +189,6 @@ const struct board_info fs_board_info[16] = {
 	},
 	{	/* 7 (BT_CUBEA5) */
 		.name = "CUBEA5",
-		.mach_type = MACH_TYPE_CUBEA5,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
 		.installcheck = INSTALL_RAM,
@@ -233,7 +205,6 @@ const struct board_info fs_board_info[16] = {
 	},
 	{	/* 8 (BT_HGATEWAY) */
 		.name = "HGATEWAY",
-		.mach_type = MACH_TYPE_HGATEWAY,
 		.bootdelay = "0",
 		.updatecheck = "TargetFS.ubi(ubi0:data)",
 		.installcheck = INSTALL_RAM,
@@ -272,82 +243,7 @@ const struct board_info fs_board_info[16] = {
 	},
 };
 
-/* String used for system prompt */
-static char fs_sys_prompt[20];
-
-/* Copy of the NBoot args, split into hwconfig and m4config */
-struct tag_fshwconfig fs_nboot_args;
-struct tag_fsm4config fs_m4_args;
-
-
-/*
- * Miscellaneous platform dependent initialisations. Boot Sequence:
- *
- * Nr. File             Function        Comment
- * -----------------------------------------------------------------
- *  1.  start.S         reset()                 Init CPU, invalidate cache
- *  2.  fsvybrid.c      save_boot_params()      (unused)
- *  3.  lowlevel_init.S lowlevel_init()         Init clocks, etc.
- *  4.  board.c         board_init_f()          Init from flash (without RAM)
- *  5.  cpu_info.c      arch_cpu_init()         CPU type (PC100, PC110/PV210)
- *  6.  fsvybrid.c      board_early_init_f()    Set up NAND flash ###
- *  7.  timer.c         timer_init()            Init timer for udelay()
- *  8.  env_nand.c      env_init()              Prepare to read env from NAND
- *  9.  board.c         init_baudrate()         Get the baudrate from env
- * 10.  serial.c        serial_init()           Start default serial port
- * 10a. fsvybrid.c      default_serial_console() Get serial debug port
- * 11.  console.c       console_init_f()        Early console on serial port
- * 12.  board.c         display_banner()        Show U-Boot version
- * 13.  cpu_info.c      print_cpuinfo()         Show CPU type
- * 14.  fsvybrid.c      checkboard()            Check NBoot params, show board
- * 15.  fsvybrid.c      dram_init()             Set DRAM size to global data
- * 16.  cmd_lcd.c       lcd_setmem()            Reserve framebuffer region
- * 17.  fsvybrid.c      dram_init_banksize()    Set ram banks to board desc.
- * 18.  board.c         display_dram_config()   Show DRAM info
- * 19.  lowlevel_init.S setup_mmu_table()       Init MMU table
- * 20.  start.S         relocate_code()         Relocate U-Boot to end of RAM,
- * 21.  board.c         board_init_r()          Init from RAM
- * 22.  cache.c         enable_caches()         Switch on caches
- * 23.  fsvybrid.c      board_init()            Set boot params, config CS
- * 24.  serial.c        serial_initialize()     Register serial devices
- * 24a. fsvybrid.c      board_serial_init()     (unused)
- * 25.  dlmalloc.c      mem_malloc_init()       Init heap for malloc()
- * 26.  nand.c          nand_init()             Scan NAND devices
- * 26a. fsl_nfc_fus.c   board_nand_init()       Set fsvybrid NAND config
- * 26b. fsl_nfc_fus.c   board_nand_setup()      Set OOB layout and ECC mode
- * 26c. fsvybrid.c      board_nand_setup_vybrid()  Set OOB layout and ECC mode
- * 27.  mmc.c           mmc_initialize()        Scan MMC slots
- * 27a. fsvybrid.c      board_mmc_init()        Set fss5pv210 MMC config
- * 28.  env_common.c    env_relocate()          Copy env to RAM
- * 29.  stdio_init.c    stdio_init()            Set I/O devices
- * 30.  cmd_lcd.c       drv_lcd_init()          Register LCD devices
- * 31.  serial.c        serial_stdio_init()     Register serial devices
- * 32.  exports.c       jumptable_init()        Table for exported functions
- * 33.  api.c           api_init()              (unused)
- * 34.  console.c       console_init_r()        Start full console
- * 35.  fsvybrid.c      arch_misc_init()        (unused)
- * 36.  fsvybrid.c      misc_init_r()           (unused)
- * 37.  interrupts.c    interrupt_init()        (unused)
- * 38.  interrupts.c    enable_interrupts()     (unused)
- * 39.  fsvybrid.c      board_late_init()       Set additional environment
- * 40.  eth.c           eth_initialize()        Register eth devices
- * 40a. fsvybrid.c      board_eth_init()        Set fss5pv210 eth config
- * 41.  cmd_source.c    update_script()         Run update script
- * 42.  main.c          main_loop()             Handle user commands
- *
- * The basic idea is to call some protocol specific driver_init() function in
- * board.c. This calls a board_driver_init() function here where all required
- * GPIOs and other initializations for this device are done. Then a device
- * specific init function is called that registers the appropriate devices at
- * the protocol driver. Then the local function returns and the registered
- * devices can be listed.
- *
- * Example: - board.c calls eth_initialize()
- *	    - eth_initialize() calls board_eth_init() here; we reset one or
- *	      two AX88796 devices and register them with ne2000_initialize();
- *	      this in turn calls eth_register(). Then we return.
- *	    - eth_initialize() continues and lists all registered eth devices
- */
+/* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
 #ifdef CONFIG_NAND_FSL_NFC
 static void setup_iomux_nfc(void)
@@ -386,50 +282,16 @@ int board_early_init_f(void)
 	return 0;
 }
 
-/* Get the number of the debug port reported by NBoot */
-static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
-{
-	unsigned int port = 6;
-	struct serial_device *sdev;
-
-	do {
-		sdev = get_serial_device(--port);
-		if (sdev && sdev->dev.priv == (void *)dwDbgSerPortPA)
-			return port;
-	} while (port);
-
-	return CONFIG_SYS_UART_PORT;
-}
-
-struct serial_device *default_serial_console(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs;
-
-	/* As long as GD_FLG_RELOC is not set, we can not access fs_nboot_args
-	   and therefore have to use the NBoot args at NBOOT_ARGS_BASE.
-	   However GD_FLG_RELOC may be set before the NBoot arguments are
-	   copied from NBOOT_ARGS_BASE to fs_nboot_args (see board_init()
-	   below). But then at least the .bss section and therefore
-	   fs_nboot_args is cleared. So if fs_nboot_args.dwDbgSerPortPA is 0,
-	   the structure is not yet copied and we still have to look at
-	   NBOOT_ARGS_BASE. Otherwise we can (and must) use fs_nboot_args. */
-	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
-		pargs = &fs_nboot_args;
-	else
-		pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-
-	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
-}
-
 /* Check board type */
 int checkboard(void)
 {
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 	int nLAN;
 	int nCAN;
 
-	switch (pargs->chBoardType) {
+	switch (board_type) {
 	case BT_CUBEA5:
 		nLAN = 0;
 		break;
@@ -438,7 +300,7 @@ int checkboard(void)
 		break;
 	}
 
-	switch (pargs->chBoardType) {
+	switch (board_type) {
 	case BT_CUBEA5:
 	case BT_AGATEWAY:
 	case BT_HGATEWAY:
@@ -450,60 +312,24 @@ int checkboard(void)
 	}
 
 	printf("Board: %s Rev %u.%02u (%d MHz, %dx DRAM, %dx LAN, %dx CAN)\n",
-	       fs_board_info[pargs->chBoardType].name,
-	       pargs->chBoardRev / 100, pargs->chBoardRev % 100,
+	       board_info[board_type].name, board_rev / 100, board_rev % 100,
 	       pargs->chFeatures1 & FEAT1_CPU400 ? 400 : 500,
 	       pargs->dwNumDram, nLAN, nCAN);
 
-#if 0 //###
-	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
-	printf("dwMemSize = 0x%08x\n", pargs->dwMemSize);
-	printf("dwFlashSize = 0x%08x\n", pargs->dwFlashSize);
-	printf("dwDbgSerPortPA = 0x%08x\n", pargs->dwDbgSerPortPA);
-	printf("chBoardType = 0x%02x\n", pargs->chBoardType);
-	printf("chBoardRev = 0x%02x\n", pargs->chBoardRev);
-	printf("chFeatures1 = 0x%02x\n", pargs->chFeatures1);
-	printf("chFeatures2 = 0x%02x\n", pargs->chFeatures2);
-#endif
+	//fs_board_show_nboot_args(pargs);
 
 	return 0;
 }
 
-/* Set the available RAM size. We have a memory bank starting at 0x80000000
-   that can hold up to 1536MB of RAM. However up to now we only have 256MB or
-   512MB on F&S Vybrid boards. */
-int dram_init(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs;
+/* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
 
-	pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	gd->ram_size = pargs->dwMemSize << 20;
-	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
-
-	return 0;
-}
-
-/* Now RAM is valid, U-Boot is relocated. From now on we can use variables */
 int board_init(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
-	unsigned int board_type = pargs->chBoardType;
-	u32 temp;
 	struct vybrid_scsc_reg *scsc;
+	u32 temp;
 
-	/* Save a copy of the NBoot args */
-	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));
-	fs_nboot_args.dwSize = sizeof(struct tag_fshwconfig);
-	memcpy(&fs_m4_args, pargs+1, sizeof(struct tag_fsm4config));
-	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
-
-	gd->bd->bi_arch_number = fs_board_info[board_type].mach_type;
-	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
-
-	/* Prepare the command prompt */
-	sprintf(fs_sys_prompt, "%s # ", fs_board_info[board_type].name);
+	/* Copy NBoot args to variables and prepare command prompt string */
+	fs_board_init_common(&board_info[fs_board_get_type()]);
 
 #if 0
 	__led_init(0, 0); //###
@@ -532,7 +358,7 @@ void board_nand_init(void)
 	   and is always read as 0xFF. */
 	pdata.options = NAND_BBT_SCAN2NDPAGE;
 	pdata.t_wb = 0;
-	pdata.eccmode = fs_nboot_args.chECCtype;
+	pdata.eccmode = fs_board_get_nboot_args()->chECCtype;
 	pdata.skipblocks = 2;
 	pdata.flags = 0;
 #ifdef CONFIG_NAND_REFRESH
@@ -557,88 +383,12 @@ void board_nand_init(void)
 #endif
 }
 
-void board_nand_state(struct mtd_info *mtd, unsigned int state)
-{
-	/* Save state to pass it to Linux later */
-	fs_nboot_args.chECCstate |= (unsigned char)state;
-}
-
-size_t get_env_size(void)
-{
-	return ENV_SIZE_DEF_LARGE;
-}
-
-size_t get_env_range(void)
-{
-	return ENV_RANGE_DEF_LARGE;
-}
-
-size_t get_env_offset(void)
-{
-	return ENV_OFFSET_DEF_LARGE;
-}
-
-#ifdef CONFIG_CMD_UPDATE
-enum update_action board_check_for_recover(void)
-{
-	char *recover_gpio;
-
-	/* On some platforms, the check for recovery is already done in NBoot.
-	   Then the ACTION_RECOVER bit in the dwAction value is set. */
-	if (fs_nboot_args.dwAction & ACTION_RECOVER)
-		return UPDATE_ACTION_RECOVER;
-
-	/*
-	 * If a recover GPIO is defined, check if it is in active state. The
-	 * variable contains the number of a gpio, followed by an optional '-'
-	 * or '_', followed by an optional "high" or "low" for active high or
-	 * active low signal. Actually only the first character is checked,
-	 * 'h' and 'H' mean "high", everything else is taken for "low".
-	 * Default is active low.
-	 *
-	 * Examples:
-	 *    123_high  GPIO #123, active high
-	 *    65-low    GPIO #65, active low
-	 *    13        GPIO #13, active low
-	 *    0x1fh     GPIO #31, active high (this shows why a dash or
-	 *              underscore before "high" or "low" makes sense)
-	 *
-	 * Remark:
-	 * We do not have any clue here what the GPIO represents and therefore
-	 * we do not assume any pad settings. So for example if the GPIO
-	 * represents a button that is floating in the released state, an
-	 * external pull-up or pull-down must be used to avoid unintentionally
-	 * detecting the active state.
-	 */
-	recover_gpio = getenv("recovergpio");
-	if (recover_gpio) {
-		char *endp;
-		int active_state = 0;
-		unsigned int gpio = simple_strtoul(recover_gpio, &endp, 0);
-
-		if (endp != recover_gpio) {
-			char c = *endp;
-
-			if ((c == '-') || (c == '_'))
-				c = *(++endp);
-			if ((c == 'h') || (c == 'H'))
-				active_state = 1;
-			if (!gpio_direction_input(gpio)
-			    && (gpio_get_value(gpio) == active_state))
-				return UPDATE_ACTION_RECOVER;
-		}
-	}
-
-	return UPDATE_ACTION_UPDATE;
-}
-#endif
-
 #ifdef CONFIG_GENERIC_MMC
 int board_mmc_getcd(struct mmc *mmc)
 {
 	u32 val;
 
-	switch (fs_nboot_args.chBoardType) {
+	switch (fs_board_get_type()) {
 	case BT_AGATEWAY:		/* PAD51 = GPIO1, Bit 19 */
 		val = __raw_readl(0x400FF050) & (1 << 19);
 		break;
@@ -663,7 +413,7 @@ int board_mmc_init(bd_t *bis)
 	int index;
 	u32 val;
 
-	switch (fs_nboot_args.chBoardType) {
+	switch (fs_board_get_type()) {
 	case BT_AGATEWAY:
 		__raw_writel(MVF600_GPIO_SDHC_CD, IOMUXC_PAD_051);
 		index = 0;
@@ -723,92 +473,20 @@ int board_ehci_hcd_init(int port)
 #endif
 
 #ifdef CONFIG_BOARD_LATE_INIT
-void setup_var(const char *varname, const char *content, int runvar)
-{
-	char *envvar = getenv(varname);
-
-	/* If variable is not set or does not contain string "undef", do not
-	   change it */
-	if (!envvar || strcmp(envvar, "undef"))
-		return;
-
-	/* Either set variable directly with value ... */
-	if (!runvar) {
-		setenv(varname, content);
-		return;
-	}
-
-	/* ... or set variable by running the variable with name in content */
-	content = getenv(content);
-	if (content)
-		run_command(content, 0);
-}
-
-/* Use this slot to init some final things before the network is started. We
-   set up some environment variables for things that are board dependent and
-   can't be defined as a fix value in fsvybrid.h. As an unset value is valid
-   for some of these variables, we check for the special value "undef". Any
-   of these variables that holds this value will be replaced with the
-   board-specific value. */
+/*
+ * Use this slot to init some final things before the network is started. The
+ * F&S configuration heavily depends on this to set up the board specific
+ * environment, i.e. environment variables that can't be defined as a constant
+ * value at compile time.
+ */
 int board_late_init(void)
 {
-	unsigned int boardtype = fs_nboot_args.chBoardType;
-	const struct board_info *bi = &fs_board_info[boardtype];
-	const char *envvar;
-
-	/* Set sercon variable if not already set */
-	envvar = getenv("sercon");
-	if (!envvar || !strcmp(envvar, "undef")) {
-		char sercon[DEV_NAME_SIZE];
-
-		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
-			'0' + get_debug_port(fs_nboot_args.dwDbgSerPortPA));
-		setenv("sercon", sercon);
-	}
-
-	/* Set platform variable if not already set */
-	envvar = getenv("platform");
-	if (!envvar || !strcmp(envvar, "undef")) {
-		char lcasename[20];
-		char *p = bi->name;
-		char *l = lcasename;
-		char c;
-
-		do {
-			c = *p++;
-			if ((c >= 'A') && (c <= 'Z'))
-				c += 'a' - 'A';
-			*l++ = c;
-		} while (c);
-
-		setenv("platform", lcasename);
-	}
-
-	/* Set some variables with a direct value */
-	setup_var("bootdelay", bi->bootdelay, 0);
-	setup_var("updatecheck", bi->updatecheck, 0);
-	setup_var("installcheck", bi->installcheck, 0);
-	setup_var("recovercheck", bi->recovercheck, 0);
-	setup_var("earlyusbinit", bi->earlyusbinit, 0);
-	setup_var("mtdids", MTDIDS_DEFAULT, 0);
-	setup_var("partition", MTDPART_DEFAULT, 0);
-	setup_var("mode", CONFIG_MODE, 0);
-
-	/* Set some variables by runnning another variable */
-	setup_var("console", bi->console, 1);
-	setup_var("login", bi->login, 1);
-	setup_var("mtdparts", bi->mtdparts, 1);
-	setup_var("network", bi->network, 1);
-	setup_var("init", bi->init, 1);
-	setup_var("rootfs", bi->rootfs, 1);
-	setup_var("kernel", bi->kernel, 1);
-	setup_var("bootfdt", "set_bootfdt", 1);
-	setup_var("fdt", bi->fdt, 1);
-	setup_var("bootargs", "set_bootargs", 1);
+	/* Set up all board specific variables */
+	fs_board_late_init_common();
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_BOARD_LATE_INIT */
 
 
 #ifdef CONFIG_CMD_NET
@@ -958,14 +636,17 @@ int board_eth_init(bd_t *bis)
 	int id;
 	int phy_addr;
 	uint32_t enet_addr;
-	u8 chBoardType = fs_nboot_args.chBoardType;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
+	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+
 
 	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
-	if (chBoardType == BT_CUBEA5)
+	if (board_type == BT_CUBEA5)
 		return 0;
 
 	/* Configure ethernet PHY clock depending on board type and revision */
-	if ((chBoardType == BT_AGATEWAY) && (fs_nboot_args.chBoardRev >= 110)) {
+	if ((board_type == BT_AGATEWAY) && (board_rev >= 110)) {
 		/* Starting with board Rev 1.10, AGATEWAY has an external
 		   oscillator and needs RMIICLK (PTA6) as input */
 		__raw_writel(0x00203191, IOMUXC_PAD_000);
@@ -977,7 +658,7 @@ int board_eth_init(bd_t *bis)
 		/* Configure PLL5 main clock for RMII clock. */
 		temp = 0x2001;		/* ANADIG_PLL5_CTRL: Enable, 50MHz */
 		__raw_writel(temp, 0x400500E0);
-		if (fs_nboot_args.chFeatures2 & FEAT2_RMIICLK_CKO1) {
+		if (pargs->chFeatures2 & FEAT2_RMIICLK_CKO1) {
 			/* We have a board revision with a direct connection
 			   between PTB10 and PTA6, so we will use CKO1 (PTB10)
 			   to output the PLL5 clock signal and use RMIICLK
@@ -1019,13 +700,13 @@ int board_eth_init(bd_t *bis)
 	phy_addr = 0;
 	enet_addr = MACNET0_BASE_ADDR;
 	id = -1;
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_PICOCOMA5:
 		phy_addr = 1;
 		/* Fall through to case BT_ARMSTONEA5 */
 	case BT_ARMSTONEA5:
 	case BT_NETDCUA5:
-		if (fs_nboot_args.chFeatures1 & FEAT1_2NDLAN)
+		if (pargs->chFeatures1 & FEAT1_2NDLAN)
 			id = 0;
 		break;
 	case BT_AGATEWAY:
@@ -1040,12 +721,12 @@ int board_eth_init(bd_t *bis)
 
 	/* Probe first PHY and ethernet port */
 	ret = fecmxc_initialize_multi_type(bis, id, phy_addr, enet_addr, RMII);
-	if (ret || !(fs_nboot_args.chFeatures1 & FEAT1_2NDLAN))
+	if (ret || !(pargs->chFeatures1 & FEAT1_2NDLAN))
 		return ret;
 
 	/* Get info on second ethernet port */
 	set_fs_ethaddr(1);
-	switch (fs_nboot_args.chBoardType) {
+	switch (board_type) {
 	case BT_PICOCOMA5:
 		phy_addr = 1;
 		break;
@@ -1064,40 +745,10 @@ int board_eth_init(bd_t *bis)
 }
 #endif /* CONFIG_CMD_NET */
 
-/* Return the board name; we have different boards that use this file, so we
-   can not define the board name with CONFIG_SYS_BOARDNAME */
-char *get_board_name(void)
-{
-	return fs_board_info[fs_nboot_args.chBoardType].name;
-}
-
-
-/* Return the system prompt; we can not define it with CONFIG_SYS_PROMPT
-   because we want to include the board name, which is variable (see above) */
-char *get_sys_prompt(void)
-{
-	return fs_sys_prompt;
-}
-
-/* Return the board revision; this is called when Linux is started and the
-   value is passed to Linux */
+/* Get board revision */
 unsigned int get_board_rev(void)
 {
-	return fs_nboot_args.chBoardRev;
-}
-
-/* Return a pointer to the hardware configuration; this is called when Linux
-   is started and the structure is passed to Linux */
-struct tag_fshwconfig *get_board_fshwconfig(void)
-{
-	return &fs_nboot_args;
-}
-
-/* Return a pointer to the M4 image and configuration; this is called when
-   Linux is started and the structure is passed to Linux */
-struct tag_fsm4config *get_board_fsm4config(void)
-{
-	return &fs_m4_args;
+	return fs_board_get_rev();
 }
 
 #ifdef CONFIG_CMD_LED
@@ -1110,7 +761,7 @@ struct tag_fsm4config *get_board_fsm4config(void)
 void __led_init(led_id_t mask, int state)
 {
 	printf("### __led_init()\n");
-	if ((mask > 1) || (fs_nboot_args.chBoardType != BT_HGATEWAY))
+	if ((mask > 1) || (fs_board_get_type() != BT_HGATEWAY))
 		return;
 	__raw_writel(0x00000142, mask ? 0x40048118 : 0x40048114);
 	__led_set(mask, state);
@@ -1119,15 +770,15 @@ void __led_init(led_id_t mask, int state)
 void __led_set(led_id_t mask, int state)
 {
 	unsigned long reg;
+	unsigned int board_type = fs_board_get_type();
 
 	if (mask > 1)
 		return;
 
-	if ((fs_nboot_args.chBoardType == BT_CUBEA5)
-	    || (fs_nboot_args.chBoardType == BT_AGATEWAY))
+	if ((board_type == BT_CUBEA5) || (board_type == BT_AGATEWAY))
 		state = !state;
 
-	if (fs_nboot_args.chBoardType == BT_HGATEWAY) {
+	if (board_type == BT_HGATEWAY) {
 		/* Write to GPIO2_PSOR or GPIO2_PCOR */
 		mask += 5;
 		reg = 0x400ff084;
@@ -1142,11 +793,12 @@ void __led_set(led_id_t mask, int state)
 void __led_toggle(led_id_t mask)
 {
 	unsigned long reg;
+	unsigned int board_type = fs_board_get_type();
 
 	if (mask > 1)
 		return;
 
-	if (fs_nboot_args.chBoardType == BT_HGATEWAY) {
+	if (board_type == BT_HGATEWAY) {
 		/* Write to GPIO2_PTOR */
 		mask += 5;
 		reg = 0x400ff08c;
@@ -1239,6 +891,7 @@ void s3c64xx_lcd_board_disable(int index)
 void ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
+	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
 #if 0 //### TODO
@@ -1246,7 +899,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
-				fs_nboot_args.chECCtype);
+			       pargs->chECCtype, 1);
 	}
 #endif
 	/* Set bdinfo entries */
@@ -1255,16 +908,16 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		int id = 0;
 
 		/* Set common bdinfo entries */
-		fs_fdt_set_bdinfo(fdt, offs, &fs_nboot_args);
+		fs_fdt_set_bdinfo(fdt, offs, pargs);
 
 		/* MAC addresses */
 		fs_fdt_set_macaddr(fdt, offs, id++);
-		if (fs_nboot_args.chFeatures1 & FEAT1_2NDLAN)
+		if (pargs->chFeatures1 & FEAT1_2NDLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 #if 0 //### TODO
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(fs_nboot_args.chFeatures1 & FEAT1_2NDLAN))
+	if (!(pargs->chFeatures1 & FEAT1_2NDLAN))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
 #endif
 }

@@ -90,6 +90,9 @@
 #define CONFIG_FSVYBRID			/* ...on an F&S Vybrid board */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_BOARD_OFFS	0	/* F&S Vybrid board types as reported
+					   by NBoot start at offset 0 */
+#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
 
 #include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
@@ -750,13 +753,7 @@
 /* Try to patch serial debug port in image within first 16KB of zImage */
 #define CONFIG_SYS_PATCH_TTY	0x4000
 
-/* ATAGs passed to Linux */
-#define CONFIG_SETUP_MEMORY_TAGS	/* Memory setup */
-#define CONFIG_CMDLINE_TAG		/* Command line */
-#undef CONFIG_INITRD_TAG		/* No initrd */
-#define CONFIG_REVISION_TAG		/* Board revision */
-#define CONFIG_FSHWCONFIG_TAG		/* Hardware config (NBoot-Args) */
-#define CONFIG_FSM4CONFIG_TAG		/* M4 image and config (M4-Args) */
+/* No ATAGs are passed to Linux when using device trees */
 
 
 /************************************************************************
