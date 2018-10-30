@@ -90,6 +90,8 @@
 #define CONFIG_FSVYBRID			/* ...on an F&S Vybrid board */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
+
 #include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
 #define CONFIG_SYS_CACHELINE_SIZE	64
 

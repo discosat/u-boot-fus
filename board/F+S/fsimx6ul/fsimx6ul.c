@@ -19,7 +19,6 @@
 #include <cmd_lcd.h>			/* PON_*, POFF_* */
 #endif
 #include <serial.h>			/* struct serial_device */
-#include <version.h>			/* version_string[] */
 
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
@@ -53,9 +52,11 @@
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
-#include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <i2c.h>			/* i2c_reg_read/write(), ... */
 #include <asm/imx-common/mxc_i2c.h>
+#include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
+#include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
+#include "../common/fs_board_common.h"	/* fs_nboot_args, fs_board_*() */
 
 /* ------------------------------------------------------------------------- */
 
@@ -2573,150 +2574,8 @@ void __led_toggle(led_id_t id)
 #endif /* CONFIG_CMD_LED */
 
 #ifdef CONFIG_OF_BOARD_SETUP
-/* Set a generic value, if it was not already set in the device tree */
-static void fus_fdt_set_val(void *fdt, int offs, const char *name,
-			    const void *val, int len, int force)
-{
-	int err;
-
-	/* Warn if property already exists in device tree */
-	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
-		printf("## %s property %s/%s from device tree!\n",
-		       force ? "Overwriting": "Keeping",
-		       fdt_get_name(fdt, offs, NULL), name);
-		if (!force)
-			return;
-	}
-
-	err = fdt_setprop(fdt, offs, name, val, len);
-	if (err) {
-		printf("## Unable to update property %s/%s: err=%s\n",
-		       fdt_get_name(fdt, offs, NULL), name, fdt_strerror(err));
-	}
-}
-
-/* Set a string value */
-static void fus_fdt_set_string(void *fdt, int offs, const char *name,
-			       const char *str, int force)
-{
-	fus_fdt_set_val(fdt, offs, name, str, strlen(str) + 1, force);
-}
-
-/* Set a u32 value as a string (usually for bdinfo) */
-static void fus_fdt_set_u32str(void *fdt, int offs, const char *name,
-			       u32 val, int force)
-{
-	char str[12];
-
-	sprintf(str, "%u", val);
-	fus_fdt_set_string(fdt, offs, name, str, force);
-}
-
-/* Set a u32 value */
-static void fus_fdt_set_u32(void *fdt, int offs, const char *name,
-			    u32 val, int force)
-{
-	fdt32_t tmp = cpu_to_fdt32(val);
-
-	fus_fdt_set_val(fdt, offs, name, &tmp, sizeof(tmp), force);
-}
-
-/* Set ethernet MAC address aa:bb:cc:dd:ee:ff for given index */
-static void fus_fdt_set_macaddr(void *fdt, int offs, int id)
-{
-	uchar enetaddr[6];
-	char name[10];
-	char str[20];
-
-	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
-		sprintf(name, "MAC%d", id);
-		sprintf(str, "%pM", enetaddr);
-		fus_fdt_set_string(fdt, offs, name, str, 1);
-	}
-}
-
-/* Set MAC address in bdinfo as MAC_WLAN and in case of Silex as Silex-MAC */
-static void fus_fdt_set_wlan_macaddr(void *fdt, int offs, int id)
-{
-	uchar enetaddr[6];
-	char str[30];
-	int silex = 0;
-
-	/* WLAN MAC address only required on Silex based board revisions */
-	switch (fs_nboot_args.chBoardType) {
-	case BT_EFUSA7UL:
-		if (fs_nboot_args.chBoardRev < 120)
-			return;
-		silex = 1;
-		break;
-	case BT_CUBE2_0:
-		break;
-	default:
-		return;
-	}
-
-	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
-		sprintf(str, "%pM", enetaddr);
-		fus_fdt_set_string(fdt, offs, "MAC_WLAN", str, 1);
-		if (silex) {
-			sprintf(str, "Intf0MacAddress=%02X%02X%02X%02X%02X%02X",
-				enetaddr[0], enetaddr[1], enetaddr[2],
-				enetaddr[3], enetaddr[4], enetaddr[5]);
-			fus_fdt_set_string(fdt, offs, "Silex-MAC", str, 1);
-		}
-	}
-}
-
-/* If environment variable exists, set a string property with the same name */
-static void fus_fdt_set_getenv(void *fdt, int offs, const char *name, int force)
-{
-	const char *str;
-
-	str = getenv(name);
-	if (str)
-		fus_fdt_set_string(fdt, offs, name, str, force);
-}
-
-/* Open a node, warn if the node does not exist */
-static int fus_fdt_path_offset(void *fdt, const char *path)
-{
-	int offs;
-
-	offs = fdt_path_offset(fdt, path);
-	if (offs < 0) {
-		printf("## Can not access node %s: err=%s\n",
-		       path, fdt_strerror(offs));
-	}
-
-	return offs;
-}
-
-/* Enable or disable node given by path, overwrite any existing status value */
-static void fus_fdt_enable(void *fdt, const char *path, int enable)
-{
-	int offs, err, len;
-	const void *val;
-	char *str = enable ? "okay" : "disabled";
-
-	offs = fdt_path_offset(fdt, path);
-	if (offs < 0)
-		return;
-
-	/* Do not change if status already exists and has this value */
-	val = fdt_getprop(fdt, offs, "status", &len);
-	if (val && len && !strcmp(val, str))
-		return;
-
-	/* No, set new value */
-	err = fdt_setprop_string(fdt, offs, "status", str);
-	if (err) {
-		printf("## Can not set status of node %s: err=%s\n",
-		       path, fdt_strerror(err));
-	}
-}
-
 /* Remove operation points for speeds > SPEED_LIMIT */
-static void fus_fdt_limit_speed(void *fdt, int offs, char *name)
+static void fs_fdt_limit_speed(void *fdt, int offs, char *name)
 {
 	const fdt32_t *val;
 	fdt32_t *new;
@@ -2744,7 +2603,7 @@ static void fus_fdt_limit_speed(void *fdt, int offs, char *name)
 
 	/* If there were changes, replace property with new cell array */
 	if (need_update)
-		fus_fdt_set_val(fdt, offs, name, new, dest*sizeof(fdt32_t), 1);
+		fs_fdt_set_val(fdt, offs, name, new, dest*sizeof(fdt32_t), 1);
 
 	free(new);
 }
@@ -2757,66 +2616,49 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	printf("   Setting run-time properties\n");
 
 	/* Set ECC strength for NAND driver */
-	offs = fus_fdt_path_offset(fdt, FDT_NAND);
+	offs = fs_fdt_path_offset(fdt, FDT_NAND);
 	if (offs >= 0) {
-		fus_fdt_set_u32(fdt, offs, "fus,ecc_strength",
-				fs_nboot_args.chECCtype, 1);
+		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
+			       fs_nboot_args.chECCtype, 1);
 	}
 
 	/* Remove operation points > 528 MHz if speed should be limited */
 	if (fs_nboot_args.chFeatures2 & FEAT2_SPEED) {
-		offs = fus_fdt_path_offset(fdt, FDT_CPU0);
+		offs = fs_fdt_path_offset(fdt, FDT_CPU0);
 		if (offs >= 0) {
-			fus_fdt_limit_speed(fdt, offs, "operating-points");
-			fus_fdt_limit_speed(fdt, offs,
-					    "fsl,soc-operating-points");
+			fs_fdt_limit_speed(fdt, offs, "operating-points");
+			fs_fdt_limit_speed(fdt, offs,
+					   "fsl,soc-operating-points");
 		}
 	}
 
 	/* Set bdinfo entries */
-	offs = fus_fdt_path_offset(fdt, "/bdinfo");
+	offs = fs_fdt_path_offset(fdt, "/bdinfo");
 	if (offs >= 0) {
 		int id = 0;
-		char rev[6];
 
-		/* NAND info, names and features */
-		fus_fdt_set_u32str(fdt, offs, "ecc_strength",
-				   fs_nboot_args.chECCtype, 1);
-		fus_fdt_set_u32str(fdt, offs, "nand_state",
-				   fs_nboot_args.chECCstate, 1);
-		fus_fdt_set_string(fdt, offs, "board_name",
-				   get_board_name(), 0);
-		sprintf(rev, "%d.%02d", fs_nboot_args.chBoardRev / 100,
-			fs_nboot_args.chBoardRev % 100);
-		fus_fdt_set_string(fdt, offs, "board_revision", rev, 1);
-		fus_fdt_set_getenv(fdt, offs, "platform", 0);
-		fus_fdt_set_getenv(fdt, offs, "arch", 1);
-		fus_fdt_set_u32str(fdt, offs, "features1",
-				   fs_nboot_args.chFeatures1, 1);
-		fus_fdt_set_u32str(fdt, offs, "features2",
-				   fs_nboot_args.chFeatures2, 1);
-		fus_fdt_set_string(fdt, offs, "reset_cause",
-				   get_reset_cause(), 1);
-		memcpy(rev, &fs_nboot_args.dwNBOOT_VER, 4);
-		rev[4] = 0;
-		fus_fdt_set_string(fdt, offs, "nboot_version", rev, 1);
-		fus_fdt_set_string(fdt, offs, "u-boot_version",
-				   version_string, 1);
+		/* Set common bdinfo entries */
+		fs_fdt_set_bdinfo(fdt, offs, &fs_nboot_args);
 
 		/* MAC addresses */
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_A)
-			fus_fdt_set_macaddr(fdt, offs, id++);
+			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (fs_nboot_args.chFeatures2 & FEAT2_ETH_B)
-			fus_fdt_set_macaddr(fdt, offs, id++);
-		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN)
-			fus_fdt_set_wlan_macaddr(fdt, offs, id++);
+			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (fs_nboot_args.chFeatures2 & FEAT2_WLAN) {
+			if ((fs_nboot_args.chBoardType == BT_EFUSA7UL)
+			    && (fs_nboot_args.chBoardRev >= 120))
+				fs_fdt_set_wlan_macaddr(fdt, offs, id++, 1);
+			else if (fs_nboot_args.chBoardType == BT_CUBE2_0)
+				fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
+		}				
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
 	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_A))
-		fus_fdt_enable(fdt, FDT_ETH_A, 0);
+		fs_fdt_enable(fdt, FDT_ETH_A, 0);
 	if (!(fs_nboot_args.chFeatures2 & FEAT2_ETH_B))
-		fus_fdt_enable(fdt, FDT_ETH_B, 0);
+		fs_fdt_enable(fdt, FDT_ETH_B, 0);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 

@@ -58,6 +58,8 @@
 #define CONFIG_FSIMX6SX			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
+
 #define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 
 #define CONFIG_SYS_L2CACHE_OFF
