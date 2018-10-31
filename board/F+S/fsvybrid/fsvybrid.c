@@ -32,7 +32,6 @@
 
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/setup.h>			/* struct tag_fshwconfig, ... */
 #include <asm/arch/vybrid-regs.h>	/* SCSCM_BASE_ADDR, ... */
 #include <asm/arch/vybrid-pins.h>
 #include <asm/arch/iomux.h>
@@ -77,12 +76,12 @@ struct fsl_esdhc_cfg esdhc_cfg[] = {
 #define BT_CUBEA5     7
 #define BT_HGATEWAY   8
 
-/* Features set in tag_fshwconfig.chFeature1 */
+/* Features set in fs_nboot_args.chFeature1 */
 #define FEAT1_CPU400  (1<<0)		/* 0: 500 MHz, 1: 400 MHz CPU */
 #define FEAT1_2NDCAN  (1<<1)		/* 0: 1x CAN, 1: 2x CAN */
 #define FEAT1_2NDLAN  (1<<4)		/* 0: 1x LAN, 1: 2x LAN */
 
-/* Features set in tag_fshwconfig.chFeature2 */
+/* Features set in fs_nboot_args.chFeature2 */
 #define FEAT2_M4      (1<<0)		/* CPU has Cortex-M4 core */
 #define FEAT2_L2      (1<<1)		/* CPU has Level 2 cache */
 #define FEAT2_RMIICLK_CKO1 (1<<2)	/* RMIICLK (PTA6) 0: output, 1: input
@@ -285,7 +284,7 @@ int board_early_init_f(void)
 /* Check board type */
 int checkboard(void)
 {
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
 	int nLAN;
@@ -638,7 +637,7 @@ int board_eth_init(bd_t *bis)
 	uint32_t enet_addr;
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 
 	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
@@ -891,7 +890,7 @@ void s3c64xx_lcd_board_disable(int index)
 void ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
 #if 0 //### TODO
@@ -908,7 +907,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		int id = 0;
 
 		/* Set common bdinfo entries */
-		fs_fdt_set_bdinfo(fdt, offs, pargs);
+		fs_fdt_set_bdinfo(fdt, offs);
 
 		/* MAC addresses */
 		fs_fdt_set_macaddr(fdt, offs, id++);

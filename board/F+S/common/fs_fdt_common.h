@@ -12,8 +12,6 @@
 #ifndef __FS_FDT_COMMON_H__
 #define __FS_FDT_COMMON_H__
 
-#include <asm/setup.h>			/* struct tag_fshwconfig, ... */
-
 /* Set a generic value, if it was not already set in the device tree */
 void fs_fdt_set_val(void *fdt, int offs, const char *name, const void *val,
 		    int len, int force);
@@ -45,6 +43,6 @@ int fs_fdt_path_offset(void *fdt, const char *path);
 void fs_fdt_enable(void *fdt, const char *path, int enable);
 
 /* Store common board specific values in node bdinfo */
-void fs_fdt_set_bdinfo(void *fdt, int offs, struct tag_fshwconfig *nboot_args);
+void fs_fdt_set_bdinfo(void *fdt, int offs);
 
 #endif /* !__FS_FDT_COMMON_H__ */

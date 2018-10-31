@@ -22,10 +22,6 @@
 #include <asm/bootm.h>
 #include <linux/compiler.h>
 
-#if defined (CONFIG_VFD) || defined (CONFIG_LCD)
-#include <cmd_lcd.h>			  /* lcd_getfbpoolinfo() */
-#endif
-
 #if defined(CONFIG_ARMV7_NONSEC) || defined(CONFIG_ARMV7_VIRT)
 #include <asm/armv7.h>
 #endif
@@ -105,7 +101,7 @@ static void setup_memory_tags(bd_t *bd)
 {
 	int i;
 
-	for (i = 0; (i < CONFIG_NR_DRAM_BANKS) && bd->bi_dram[i].size; i++) {
+	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
 		params->hdr.tag = ATAG_MEM;
 		params->hdr.size = tag_size (tag_mem32);
 
@@ -180,34 +176,6 @@ static void setup_revision_tag(struct tag **in_params)
 	params = tag_next (params);
 }
 
-void setup_fshwconfig_tag(struct tag **in_params)
-{
-	struct tag_fshwconfig *fshwconfig;
-
-	fshwconfig = get_board_fshwconfig();
-
-	if (fshwconfig) {
-		params->hdr.tag = ATAG_FSHWCONFIG;
-		params->hdr.size = tag_size(tag_fshwconfig);
-		params->u.fshwconfig = *fshwconfig;
-		params = tag_next (params);
-	}
-}
-
-void setup_fsm4config_tag(struct tag **in_params)
-{
-	struct tag_fsm4config *fsm4config;
-
-	fsm4config = get_board_fsm4config();
-
-	if (fsm4config) {
-		params->hdr.tag = ATAG_FSM4CONFIG;
-		params->hdr.size = tag_size(tag_fsm4config);
-		params->u.fsm4config = *fsm4config;
-		params = tag_next (params);
-	}
-}
-
 static void setup_end_tag(bd_t *bd)
 {
 	params->hdr.tag = ATAG_NONE;
@@ -262,10 +230,6 @@ static void boot_prep_linux(bootm_headers_t *images)
 			setup_revision_tag(&params);
 		if (BOOTM_ENABLE_MEMORY_TAGS)
 			setup_memory_tags(gd->bd);
-		if (BOOTM_ENABLE_FSHWCONFIG_TAG)
-			setup_fshwconfig_tag(&params);
-		if (BOOTM_ENABLE_FSM4CONFIG_TAG)
-			setup_fsm4config_tag(&params);
 		if (BOOTM_ENABLE_INITRD_TAG) {
 			if (images->rd_start && images->rd_end) {
 				setup_initrd_tag(gd->bd, images->rd_start,

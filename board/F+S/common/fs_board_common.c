@@ -29,16 +29,16 @@
 /* String used for system prompt */
 static char fs_sys_prompt[20];
 
-/* Copy of the NBoot args, split into hwconfig and m4config */
-static struct tag_fshwconfig fs_nboot_args;
-static struct tag_fsm4config fs_m4_args;
+/* Copy of the NBoot arguments, split into nboot_args and m4_args */
+static struct fs_nboot_args nboot_args;
+static struct fs_m4_args m4_args;
 
 /* Store a pointer to the current board info */
 static const struct fs_board_info *current_bi;
 
 #if 0
 /* List NBoot args; function can be activated and used for debugging */
-void fs_board_show_nboot_args(struct tag_fshwconfig *pargs)
+void fs_board_show_nboot_args(struct fs_nboot_args *pargs)
 {
 	printf("dwNumDram = 0x%08x\n", pargs->dwNumDram);
 	printf("dwMemSize = 0x%08x\n", pargs->dwMemSize);
@@ -52,23 +52,23 @@ void fs_board_show_nboot_args(struct tag_fshwconfig *pargs)
 #endif
 
 /* Get a pointer to the NBoot args */
-struct tag_fshwconfig *fs_board_get_nboot_args(void)
+struct fs_nboot_args *fs_board_get_nboot_args(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 
 	/* As long as GD_FLG_RELOC is not set, we can not access variable
-	   fs_nboot_args and therefore have to use the NBoot args at
+	   nboot_args and therefore have to use the NBoot args at
 	   NBOOT_ARGS_BASE. However GD_FLG_RELOC may be set before the NBoot
-	   arguments are actually copied from NBOOT_ARGS_BASE to fs_nboot_args
+	   arguments are actually copied from NBOOT_ARGS_BASE to nboot_args
 	   (see fs_board_init_common() below). But then at least the .bss
-	   section and therefore fs_nboot_args is cleared. We check this by
-	   looking at fs_nboot_args.dwDbgSerPortPA. If this is 0, the
+	   section and therefore nboot_args is cleared. We check this by
+	   looking at nboot_args.dwDbgSerPortPA. If this is 0, the
 	   structure is not yet copied and we still have to look at
-	   NBOOT_ARGS_BASE. Otherwise we can (and must) use fs_nboot_args. */
-	if ((gd->flags & GD_FLG_RELOC) && fs_nboot_args.dwDbgSerPortPA)
-		return &fs_nboot_args;
+	   NBOOT_ARGS_BASE. Otherwise we can (and must) use nboot_args. */
+	if ((gd->flags & GD_FLG_RELOC) && nboot_args.dwDbgSerPortPA)
+		return &nboot_args;
 
-	return (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	return (struct fs_nboot_args *)NBOOT_ARGS_BASE;
 }
 
 /* Get board type (zero-based) */
@@ -101,7 +101,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 /* Get the number of the debug port reported by NBoot */
 struct serial_device *default_serial_console(void)
 {
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
 }
@@ -136,16 +136,16 @@ void fs_board_issue_reset(uint active_us, uint delay_us,
 void fs_board_init_common(const struct fs_board_info *board_info)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs = (struct tag_fshwconfig *)NBOOT_ARGS_BASE;
+	struct fs_nboot_args *pargs = (struct fs_nboot_args *)NBOOT_ARGS_BASE;
 
 	/* Save a pointer to this board info */
 	current_bi = board_info;
 
 	/* Save a copy of the NBoot args */
-	memcpy(&fs_nboot_args, pargs, sizeof(struct tag_fshwconfig));
-	fs_nboot_args.dwSize = sizeof(struct tag_fshwconfig);
-	memcpy(&fs_m4_args, pargs + 1, sizeof(struct tag_fsm4config));
-	fs_m4_args.dwSize = sizeof(struct tag_fsm4config);
+	memcpy(&nboot_args, pargs, sizeof(struct fs_nboot_args));
+	nboot_args.dwSize = sizeof(struct fs_nboot_args);
+	memcpy(&m4_args, pargs + 1, sizeof(struct fs_m4_args));
+	m4_args.dwSize = sizeof(struct fs_m4_args);
 
 	gd->bd->bi_arch_number = 0xFFFFFFFF;
 	gd->bd->bi_boot_params = BOOT_PARAMS_BASE;
@@ -158,7 +158,7 @@ void fs_board_init_common(const struct fs_board_info *board_info)
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	gd->ram_size = pargs->dwMemSize << 20;
 	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
@@ -169,7 +169,7 @@ int dram_init(void)
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {
 	/* Save state to pass it to Linux later */
-	fs_nboot_args.chECCstate |= (unsigned char)state;
+	nboot_args.chECCstate |= (unsigned char)state;
 }
 
 size_t get_env_size(void)
@@ -194,7 +194,7 @@ enum update_action board_check_for_recover(void)
 
 	/* On some platforms, the check for recovery is already done in NBoot.
 	   Then the ACTION_RECOVER bit in the dwAction value is set. */
-	if (fs_nboot_args.dwAction & ACTION_RECOVER)
+	if (nboot_args.dwAction & ACTION_RECOVER)
 		return UPDATE_ACTION_RECOVER;
 
 	/*
@@ -269,7 +269,7 @@ static void setup_var(const char *varname, const char *content, int runvar)
 void fs_board_late_init_common(void)
 {
 	const char *envvar;
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* Set sercon variable if not already set */
 	envvar = getenv("sercon");

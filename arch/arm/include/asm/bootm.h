@@ -17,8 +17,6 @@ extern void udc_disconnect(void);
 		defined(CONFIG_CMDLINE_TAG) || \
 		defined(CONFIG_INITRD_TAG) || \
 		defined(CONFIG_SERIAL_TAG) || \
-		defined(CONFIG_FSHWCONFIG_TAG) || \
-		defined(CONFIG_FSM4CONFIG_TAG) || \
 		defined(CONFIG_REVISION_TAG)
 # define BOOTM_ENABLE_TAGS		1
 #else
@@ -61,28 +59,6 @@ u32 get_board_rev(void);
 static inline u32 get_board_rev(void)
 {
 	return 0;
-}
-#endif
-
-#ifdef CONFIG_FSHWCONFIG_TAG
- #define BOOTM_ENABLE_FSHWCONFIG_TAG	1
-struct tag_fshwconfig *get_board_fshwconfig(void);
-#else
- #define BOOTM_ENABLE_FSHWCONFIG_TAG	0
-static inline struct tag_fshwconfig *get_board_fshwconfig(void)
-{
-	return NULL;
-}
-#endif
-
-#ifdef CONFIG_FSM4CONFIG_TAG
- #define BOOTM_ENABLE_FSM4CONFIG_TAG	1
-struct tag_fsm4config *get_board_fsm4config(void);
-#else
- #define BOOTM_ENABLE_FSM4CONFIG_TAG	0
-static inline struct tag_fsm4config *get_board_fsm4config(void)
-{
-	return NULL;
 }
 #endif
 

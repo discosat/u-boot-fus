@@ -59,7 +59,7 @@
 #define BT_QBLISSA9R2 6
 #define BT_NETDCUA9   7
 
-/* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
+/* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
 #define FEAT2_ETH_B   (1<<1)		/* 0: no LAN1, 1; has LAN1 */
 #define FEAT2_EMMC    (1<<2)		/* 0: no eMMC, 1: has eMMC */
@@ -336,7 +336,7 @@ int board_early_init_f(void)
 /* Check board type */
 int checkboard(void)
 {
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
 	unsigned int features2;
@@ -2445,7 +2445,7 @@ void __led_toggle(led_id_t id)
 void ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
-	struct tag_fshwconfig *pargs = fs_board_get_nboot_args();
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
 
@@ -2462,7 +2462,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		int id = 0;
 
 		/* Set common bdinfo entries */
-		fs_fdt_set_bdinfo(fdt, offs, pargs);
+		fs_fdt_set_bdinfo(fdt, offs);
 
 		/* MAC addresses */
 		if (pargs->chFeatures2 & FEAT2_ETH_A)

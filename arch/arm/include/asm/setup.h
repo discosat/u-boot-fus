@@ -205,51 +205,6 @@ struct tag_memclk {
 	u32 fmemclk;
 };
 
-#define ATAG_MTDPART    0x41001099
-
-struct tag_mtdpart {
-	u32 mtd_part_size[3];
-};
-
-/* F&S hardware config */
-#define ATAG_FSHWCONFIG	0x54410501
-
-#define FSHWCONFIG_ARGS_ID 0x4E424F54	/* Magic number for dwID: 'NBOT' */ 
-struct tag_fshwconfig {
-	u32	dwID;			/* 'NBOT' if valid */
-	u32	dwSize;			/* 16*4 */
-	u32	dwNBOOT_VER;
-	u32	dwMemSize;		/* size of SDRAM in MB */
-	u32	dwFlashSize;		/* size of NAND flash in MB */
-	u32	dwDbgSerPortPA;		/* Phys addr of serial debug port */
-	u32	dwNumDram;		/* Installed memory chips */
-	u32	dwAction;		/* (unused in U-Boot) */
-	u32	dwCompat;		/* (unused in U-Boot) */
-	char	chPassword[8];		/* (unused in U-Boot) */
-	u8	chBoardType;
-	u8	chBoardRev;
-	u8	chFeatures1;
-	u8	chFeatures2;
-	u16	wBootStartBlock;	/* Start block number of bootloader */
-	u8	chECCtype;		/* ECC type used */
-	u8	chECCstate;		/* NAND error state */
-	u32	dwReserved[3];
-};
-
-/* F&S M4 image and configuration */
-#define ATAG_FSM4CONFIG	0x54410502
-
-#define FSM4CONFIG_ARGS_ID 0x4D344D34	/* Magic number for dwID: 'M4M4' */
-struct tag_fsm4config
-{
-	u32	dwID;			/* 'M4M4' if valid */
-	u32	dwSize;			/* 8*4 */
-	u32	dwCRC;			/* Checksum of M4 image */
-	u32	dwLoadAddress;		/* Load address of M4 image */
-	u32	dwMCCAddress;		/* Load address of MCC library */
-	u32	dwReserved[3];
-};
-
 struct tag {
 	struct tag_header hdr;
 	union {
@@ -262,17 +217,16 @@ struct tag {
 		struct tag_revision	revision;
 		struct tag_videolfb	videolfb;
 		struct tag_cmdline	cmdline;
-		
-		/* Acorn specific */
-		struct tag_acorn	acorn;
-		
-		/* DC21285 specific */
-		struct tag_memclk	memclk;
-		struct tag_mtdpart	mtdpart_info;
 
-		/* F&S specific */
-		struct tag_fshwconfig	fshwconfig;
-		struct tag_fsm4config	fsm4config;
+		/*
+		 * Acorn specific
+		 */
+		struct tag_acorn	acorn;
+
+		/*
+		 * DC21285 specific
+		 */
+		struct tag_memclk	memclk;
 	} u;
 };
 

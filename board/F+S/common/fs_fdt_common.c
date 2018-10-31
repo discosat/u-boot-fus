@@ -18,6 +18,7 @@
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <asm/arch/sys_proto.h>		/* get_reset_cause() */
 #include "fs_fdt_common.h"		/* Own interface */
+#include "fs_board_common.h"		/* fs_board_get_nboot_args() */
 
 /* Set a generic value, if it was not already set in the device tree */
 void fs_fdt_set_val(void *fdt, int offs, const char *name, const void *val,
@@ -147,23 +148,24 @@ void fs_fdt_enable(void *fdt, const char *path, int enable)
 }
 
 /* Store common board specific values in node bdinfo */
-void fs_fdt_set_bdinfo(void *fdt, int offs, struct tag_fshwconfig *nboot_args)
+void fs_fdt_set_bdinfo(void *fdt, int offs)
 {
 	char rev[6];
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_rev = fs_board_get_rev();
 
 	/* NAND info, names and features */
-	fs_fdt_set_u32str(fdt, offs, "ecc_strength", nboot_args->chECCtype, 1);
-	fs_fdt_set_u32str(fdt, offs, "nand_state", nboot_args->chECCstate, 1);
+	fs_fdt_set_u32str(fdt, offs, "ecc_strength", pargs->chECCtype, 1);
+	fs_fdt_set_u32str(fdt, offs, "nand_state", pargs->chECCstate, 1);
 	fs_fdt_set_string(fdt, offs, "board_name", get_board_name(), 0);
-	sprintf(rev, "%d.%02d", nboot_args->chBoardRev / 100,
-		nboot_args->chBoardRev % 100);
+	sprintf(rev, "%d.%02d", board_rev / 100, board_rev % 100);
 	fs_fdt_set_string(fdt, offs, "board_revision", rev, 1);
 	fs_fdt_set_getenv(fdt, offs, "platform", 0);
 	fs_fdt_set_getenv(fdt, offs, "arch", 1);
-	fs_fdt_set_u32str(fdt, offs, "features1", nboot_args->chFeatures1, 1);
-	fs_fdt_set_u32str(fdt, offs, "features2", nboot_args->chFeatures2, 1);
+	fs_fdt_set_u32str(fdt, offs, "features1", pargs->chFeatures1, 1);
+	fs_fdt_set_u32str(fdt, offs, "features2", pargs->chFeatures2, 1);
 	fs_fdt_set_string(fdt, offs, "reset_cause", get_reset_cause(), 1);
-	memcpy(rev, &nboot_args->dwNBOOT_VER, 4);
+	memcpy(rev, &pargs->dwNBOOT_VER, 4);
 	rev[4] = 0;
 	fs_fdt_set_string(fdt, offs, "nboot_version", rev, 1);
 	fs_fdt_set_string(fdt, offs, "u-boot_version", version_string, 1);
