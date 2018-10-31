@@ -70,6 +70,7 @@
 #define BT_KEN116     2			/* Not supported in Linux */
 #define BT_BEMA9X     3
 #define BT_CONT1      4
+#define BT_PCOREMX6SX 6
 
 /* Features set in tag_fshwconfig.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -259,8 +260,21 @@ const struct board_info fs_board_info[8] = {
 	{	/* 5 (unknown) */
 		.name = "unknown",
 	},
-	{	/* 6 (unknown) */
-		.name = "unknown",
+	{	/* 6 (BT_PCOREMX6SX) */
+		.name = "PicoCoreMX6SX",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.earlyusbinit = NULL,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
@@ -769,6 +783,14 @@ static iomux_v3_cfg_t const cd_sd4_data7[] = {
 	IOMUX_PADS(PAD_SD4_DATA7__GPIO6_IO_21 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
 };
 
+static iomux_v3_cfg_t const cd_key_col2[] = {
+	IOMUX_PADS(PAD_KEY_COL2__GPIO2_IO_12 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
+};
+
+static iomux_v3_cfg_t const pwr_pcoremx6sx[] = {
+		IOMUX_PADS(PAD_SD4_RESET_B__GPIO6_IO_22 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+};
+
 /* Extended SDHC configuration. Pad count is without data signals, the data
    signal count will be added automatically according to bus_width. */
 struct fus_sdhc_cfg {
@@ -796,13 +818,14 @@ struct fus_sdhc_cd {
 };
 
 enum usdhc_cds {
-	gpio1_io02, gpio1_io06, gpio6_io21
+	gpio1_io02, gpio1_io06, gpio6_io21, gpio2_io12
 };
 
 struct fus_sdhc_cd sdhc_cd[] = {
 	[gpio1_io02] = { cd_gpio1_io02, IMX_GPIO_NR(1, 2) }, /* pad, gpio */
 	[gpio1_io06] = { cd_gpio1_io06, IMX_GPIO_NR(1, 6) },
 	[gpio6_io21] = { cd_sd4_data7, IMX_GPIO_NR(6, 21) },
+	[gpio2_io12] = { cd_key_col2, IMX_GPIO_NR(2, 12) }
 };
 
 int board_mmc_getcd(struct mmc *mmc)
@@ -917,6 +940,25 @@ int board_mmc_init(bd_t *bd)
 				&sdhc_cd[gpio1_io06]);
 		break;
 
+	case BT_PCOREMX6SX:
+
+		SETUP_IOMUX_PADS(pwr_pcoremx6sx);
+		gpio_direction_output(IMX_GPIO_NR(6, 22), 1);
+
+		/* mmc0: USDHC4 (ext. SD slot, micro SD on picocore SKIT) */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc4_ext], &sdhc_cd[gpio2_io12]);
+		if (ret)
+		break;
+
+		/* mmc1: USDHC2 (eMMC, if available), ignore CD */
+
+		if (!(fs_nboot_args.chFeatures2 & FEAT2_EMMC)) {
+			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2_ext], NULL);
+			break;
+			}
+
+		break;
+
 	default:
 		return 0;		/* Neither SD card, nor eMMC */
 	}
@@ -924,7 +966,6 @@ int board_mmc_init(bd_t *bd)
 	return ret;
 }
 #endif
-
 
 #ifdef CONFIG_VIDEO_MXS
 /*
@@ -1878,6 +1919,7 @@ int board_ehci_hcd_init(int port)
 		switch (fs_nboot_args.chBoardType) {
 		case BT_EFUSA9X:
 		case BT_PICOCOMA9X:
+		case BT_PCOREMX6SX:
 		case BT_BEMA9X:
 			/* USB host power on pad GPIO1_IO12 */
 			pwr_pad = usb_otg2_pwr_pad;
@@ -1898,6 +1940,7 @@ int board_ehci_hcd_init(int port)
 
 		switch (fs_nboot_args.chBoardType) {
 		case BT_EFUSA9X:
+		case BT_PCOREMX6SX:
 			id_pad = usb_otg1_id_pad_efusa9x;
 			id_gpio = IMX_GPIO_NR(1, 10);
 			break;
@@ -1923,6 +1966,7 @@ int board_ehci_hcd_init(int port)
 		/* Step 2: determine host power pad */
 		switch (fs_nboot_args.chBoardType) {
 		case BT_EFUSA9X:
+		case BT_PCOREMX6SX:
 			/* OTG host power on GPIO1_IO09, active low */
 			pwr_pol = 1;
 			pwr_pad = usb_otg1_pwr_pad;
@@ -1985,6 +2029,7 @@ int board_late_init(void)
 
 	/* Set sercon variable if not already set */
 	envvar = getenv("sercon");
+
 	if (!envvar || !strcmp(envvar, "undef")) {
 		char sercon[DEV_NAME_SIZE];
 
@@ -2011,6 +2056,8 @@ int board_late_init(void)
 		setenv("platform", lcasename);
 	}
 
+
+
 	/* Set some variables with a direct value */
 	setup_var("bootdelay", bi->bootdelay, 0);
 	setup_var("updatecheck", bi->updatecheck, 0);
@@ -2032,7 +2079,6 @@ int board_late_init(void)
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("fdt", bi->fdt, 1);
 	setup_var("bootargs", "set_bootargs", 1);
-
 
 #ifdef CONFIG_VIDEO_MXS
 	/* Enable backlight for displays */
@@ -2982,6 +3028,57 @@ int board_eth_init(bd_t *bd)
 			}
 		}
 #endif
+		break;
+
+	case BT_PCOREMX6SX:
+
+		/* The 25 MHz reference clock is generated in the CPU and is an
+		   output on pad ENET2_RX_CLK, i.e. CONFIG_FEC_MXC_25M_REF_CLK
+		   must be set */
+		if (features2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 1 GBit/s LAN on RGMII pins */
+			SETUP_IOMUX_PADS(enet_pads_rgmii1);
+			SETUP_IOMUX_PADS(enet_pads_control_efusa9x);
+
+			/* ENET1_REF_CLK_25M output is not used, ENET1_TX_CLK
+			   (125MHz) is generated in PHY and is an input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_125MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (features2 & FEAT2_ETH_B) {
+			/* IOMUX for ENET2, use 1 GBit/s LAN on RGMII pins */
+			SETUP_IOMUX_PADS(enet_pads_rgmii2);
+
+			/* ENET2_REF_CLK_25M is an output, ENET2_TX_CLK
+			   (125MHz) is generated in PHY and is an input */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 &= ~IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_125MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		/* Reset both PHYs, Atheros AR8035 needs at least 1ms after
+		   clock is enabled */
+		issue_reset(1000, 0, IMX_GPIO_NR(2, 2), ~0, ~0);
+
+		/* Probe FEC ports, both PHYs on one MII bus */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
+					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII);
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
+					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII);
 		break;
 
 	default:
