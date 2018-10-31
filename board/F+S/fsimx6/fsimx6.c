@@ -23,6 +23,7 @@
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
 #include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
+#include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 #endif
 
 #ifdef CONFIG_CMD_LED
@@ -606,85 +607,25 @@ enum usdhc_pads {
 	usdhc1_ext, usdhc1_int, usdhc2_ext, usdhc3_ext, usdhc3_int
 };
 
-static struct fus_sdhc_cfg sdhc_cfg[] = {
-	[usdhc1_ext] = { usdhc1_sd_pads_ext, 2, 1 }, /* pads, count, USDHC# */
-	[usdhc1_int] = { usdhc1_sd_pads_int, 2, 1 },
-	[usdhc2_ext] = { usdhc2_sd_pads_ext, 2, 2 },
-	[usdhc3_ext] = { usdhc3_sd_pads_ext, 2, 3 },
-	[usdhc3_int] = { usdhc3_sd_pads_int, 3, 3 },
-};
-
-struct fus_sdhc_cd {
-	const iomux_v3_cfg_t *pad;
-	unsigned int gpio;
+static struct fs_mmc_cfg sdhc_cfg[] = {
+		      /* pads,               count, USDHC# */
+	[usdhc1_ext] = { usdhc1_sd_pads_ext, 2,     1 },
+	[usdhc1_int] = { usdhc1_sd_pads_int, 2,     1 },
+	[usdhc2_ext] = { usdhc2_sd_pads_ext, 2,     2 },
+	[usdhc3_ext] = { usdhc3_sd_pads_ext, 2,     3 },
+	[usdhc3_int] = { usdhc3_sd_pads_int, 3,     3 },
 };
 
 enum usdhc_cds {
 	gpio1_io01, gpio1_io04, gpio6_io15
 };
 
-struct fus_sdhc_cd sdhc_cd[] = {
-	[gpio1_io01] = { cd_gpio_1, IMX_GPIO_NR(1, 1) }, /* pad, gpio */
-	[gpio1_io04] = { cd_gpio_4, IMX_GPIO_NR(1, 4) },
+static const struct fs_mmc_cd sdhc_cd[] = {
+		      /* pad,          gpio */
+	[gpio1_io01] = { cd_gpio_1,    IMX_GPIO_NR(1, 1) },
+	[gpio1_io04] = { cd_gpio_4,    IMX_GPIO_NR(1, 4) },
 	[gpio6_io15] = { cd_nandf_cs2, IMX_GPIO_NR(6, 15) },
 };
-
-int board_mmc_getcd(struct mmc *mmc)
-{
-	struct fsl_esdhc_cfg *fsl_cfg = mmc->priv;
-	struct fus_sdhc_cfg *fus_cfg = to_fus_sdhc_cfg(fsl_cfg);
-	u16 cd_gpio = fus_cfg->cd_gpio;
-
-	if (cd_gpio == (u16)~0)
-		return 1;		/* No CD, assume card is present */
-
-	/* Return CD signal (active low) */
-	return !gpio_get_value(cd_gpio);
-}
-
-static int setup_mmc(bd_t *bd, u8 bus_width, struct fus_sdhc_cfg *cfg,
-		     struct fus_sdhc_cd *cd)
-{
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	u32 ccgr6;
-
-	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
-	if (!cd)
-		cfg->cd_gpio = ~0;
-	else {
-		cfg->cd_gpio = cd->gpio;
-		imx_iomux_v3_setup_multiple_pads(cd->pad, 1);
-		gpio_direction_input(cd->gpio);
-	}
-
-	/* Set DAT, CLK, CMD and RST pin configurations */
-	cfg->esdhc.max_bus_width = bus_width;
-	imx_iomux_v3_setup_multiple_pads(cfg->pads, cfg->count + bus_width);
-
-	/* Get clock speed and ungate appropriate USDHC clock */
-	ccgr6 = readl(&mxc_ccm->CCGR6);
-	switch (cfg->index) {
-	default:
-	case 1:
-		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-		ccgr6 |= (3 << 2);
-		break;
-	case 2:
-		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-		ccgr6 |= (3 << 4);
-		break;
-	case 3:
-		cfg->esdhc.esdhc_base = USDHC3_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-		ccgr6 |= (3 << 6);
-		break;
-	}
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	return fsl_esdhc_initialize(bd, &cfg->esdhc);
-}
 
 int board_mmc_init(bd_t *bd)
 {
@@ -695,38 +636,38 @@ int board_mmc_init(bd_t *bd)
 	switch (board_type) {
 	case BT_ARMSTONEA9:
 		/* mmc0: USDHC3 (on-board micro SD slot), CD: GPIO6_IO15 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc3_ext],
-				&sdhc_cd[gpio6_io15]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc3_ext],
+				   &sdhc_cd[gpio6_io15]);
 		break;
 
 	case BT_ARMSTONEA9R2:
 		/* mmc0: USDHC2 (on-board micro SD slot), CD: GPIO1_IO04 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
-				&sdhc_cd[gpio1_io04]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
+				   &sdhc_cd[gpio1_io04]);
 
 		/* mmc1: USDHC3 (eMMC, if available), no CD */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
 	case BT_NETDCUA9:
 		/* mmc0: USDHC1 (on-board SD slot), CD: GPIO1_IO01 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
-				&sdhc_cd[gpio1_io01]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext],
+				   &sdhc_cd[gpio1_io01]);
 
 		/* mmc1: USDHC3 (eMMC, if available), no CD */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
 	case BT_QBLISSA9:
 		/* mmc0: USDHC3 (ext. SD slot via connector), CD: GPIO6_IO15 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc3_ext],
-				&sdhc_cd[gpio6_io15]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc3_ext],
+				   &sdhc_cd[gpio6_io15]);
 
 		/* mmc1: USDHC1: on-board micro SD slot (if available), no CD */
 		if (!ret && !(features2 & FEAT2_WLAN))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
 		break;
 
 	case BT_QBLISSA9R2:
@@ -735,42 +676,42 @@ int board_mmc_init(bd_t *bd)
 		gpio_direction_output(IMX_GPIO_NR(3, 14), 0);
 
 		/* mmc0: USDHC2: connector, CD: GPIO1_IO04 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
-				&sdhc_cd[gpio1_io04]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
+				   &sdhc_cd[gpio1_io04]);
 		if (ret)
 			break;
 
 		/* mmc1: USDHC3: eMMC (if available), no CD */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
 	case BT_PICOMODA9:
 		/* mmc0: USDHC2 (ext. SD slot via connector), CD: GPIO1_IO04 */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
-				&sdhc_cd[gpio1_io04]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
+				   &sdhc_cd[gpio1_io04]);
 
 		/* mmc1: USDHC1 (on-board micro SD or on-board eMMC), no CD
 		   Remark: eMMC also only uses 4 bits if NAND is present. */
 		if (!ret && !(features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_int], NULL);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_int], NULL);
 		break;
 
 	case BT_EFUSA9:
 		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext],
-				&sdhc_cd[gpio1_io04]);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
+				   &sdhc_cd[gpio1_io04]);
 
 		/* mmc1: USDHC1 (ext. SD slot, micro SD on efus SKIT) */
 		if (!ret)
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
-					&sdhc_cd[gpio1_io01]);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext],
+					   &sdhc_cd[gpio1_io01]);
 
 		/* mmc2: USDHC3 (eMMC, if available), no CD */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc3_int], NULL);
 		break;
 
 	default:

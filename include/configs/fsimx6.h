@@ -62,6 +62,7 @@
 					   by NBoot start at offset 0 */
 #define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
+#define CONFIG_FS_MMC_COMMON		/* Use F&S common MMC stuff */
 
 #define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 

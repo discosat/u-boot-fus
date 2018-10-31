@@ -23,6 +23,7 @@
 #ifdef CONFIG_GENERIC_MMC
 #include <mmc.h>
 #include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
+#include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 #endif
 
 #ifdef CONFIG_CMD_LED
@@ -578,24 +579,26 @@ void board_nand_init(void)
 /*
  * SD/MMC support.
  *
- *   Board         USDHC   CD-Pin                 Slot
+ *   Board          USDHC   CD-Pin                 Slot
  *   -----------------------------------------------------------------------
  *   efusA7UL (for CD signal see below):
- *        either:  USDHC2  UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
- *            or:  USDHC2  -                      eMMC (8-Bit)
- *        either:  USDHC1  UART1_RTS (GPIO1_IO19) SD_A: Connector (Micro-SD)
- *            or: [USDHC1  UART1_RTS (GPIO1_IO19) WLAN]
+ *        either:   USDHC2  UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
+ *            or:   USDHC2  -                      eMMC (8-Bit)
+ *        either:   USDHC1  UART1_RTS (GPIO1_IO19) SD_A: Connector (Micro-SD)
+ *            or:  [USDHC1  UART1_RTS (GPIO1_IO19) WLAN]
  *   -----------------------------------------------------------------------
- *   PicoCOM1.2:   USDHC2 [GPIO1_IO19]            Connector (SD)
- *                [USDHC1  GPIO1_IO03             WLAN]
+ *   PicoCOM1.2:    USDHC2 [GPIO1_IO19]            Connector (SD)
+ *                 [USDHC1  GPIO1_IO03             WLAN]
  *   -----------------------------------------------------------------------
- *   PICOCOMA7:    USDHC1 [GPIO1_IO19]			  Connector (SD)
+ *   PicoCOMA7:     USDHC1 [GPIO1_IO19]            Connector (SD)
  *   -----------------------------------------------------------------------
- *   GAR1:        (no SD/MMC)
+ *   PicoCoreMX6UL: USDHC1  GPIO1_IO19             SD_A: Connector (Micro-SD)
  *   -----------------------------------------------------------------------
- *   CubeA7UL:    [USDHC1  -                      WLAN]
+ *   GAR1:         (no SD/MMC)
  *   -----------------------------------------------------------------------
- *   Cube2.0:     [USDHC1  -                      WLAN]
+ *   CubeA7UL:     [USDHC1  -                      WLAN]
+ *   -----------------------------------------------------------------------
+ *   Cube2.0:      [USDHC1  -                      WLAN]
  *   -----------------------------------------------------------------------
  *
  * Remark: The WP pin is ignored in U-Boot, also WLAN
@@ -608,11 +611,9 @@ void board_nand_init(void)
  * and eMMC not equipped, CD/WP are connected be SD_B instead of SD_A.
  */
 
-/* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
-#define to_fus_sdhc_cfg(x) container_of((x), struct fus_sdhc_cfg, esdhc)
-
 /* SD/MMC card pads definition, distinguish external from internal ports */
-static iomux_v3_cfg_t const usdhc1_sd_pads_ext[] = {
+static iomux_v3_cfg_t const usdhc1_sd_pads_ext_rst[] = {
+	IOMUX_PADS(PAD_GPIO1_IO09__USDHC1_RESET_B|MUX_PAD_CTRL(USDHC_CLK_INT)),
 	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
 	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
@@ -649,104 +650,26 @@ static iomux_v3_cfg_t const cd_uart1_rts[] = {
 	IOMUX_PADS(PAD_UART1_RTS_B__GPIO1_IO19 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
 };
 
-/* Extended SDHC configuration. Pad count is without data signals, the data
-   signal count will be added automatically according to bus_width. */
-struct fus_sdhc_cfg {
-	const iomux_v3_cfg_t *const pads;
-	const u8 count;
-	const u8 index;
-	u16 cd_gpio;
-	struct fsl_esdhc_cfg esdhc;
-};
-
 enum usdhc_pads {
-	usdhc1_ext, usdhc2_ext, usdhc2_int
+	usdhc1_ext_rst, usdhc1_ext, usdhc2_ext, usdhc2_int
 };
 
-static struct fus_sdhc_cfg sdhc_cfg[] = {
-	[usdhc1_ext] = { usdhc1_sd_pads_ext, 2, 1 }, /* pads, count, USDHC# */
-	[usdhc2_ext] = { usdhc2_sd_pads_ext, 2, 2 },
-	[usdhc2_int] = { usdhc2_sd_pads_int, 3, 2 },
-};
-
-struct fus_sdhc_cd {
-	const iomux_v3_cfg_t *pad;
-	unsigned int gpio;
+static struct fs_mmc_cfg sdhc_cfg[] = {
+		          /* pads,                       count, USDHC# */
+	[usdhc1_ext_rst] = { usdhc1_sd_pads_ext_rst,     3,     1 },
+	[usdhc1_ext]     = { &usdhc1_sd_pads_ext_rst[1], 2,     1 },
+	[usdhc2_ext]     = { usdhc2_sd_pads_ext,         2,     2 },
+	[usdhc2_int]     = { usdhc2_sd_pads_int,         3,     2 },
 };
 
 enum usdhc_cds {
 	gpio1_io19
 };
 
-struct fus_sdhc_cd sdhc_cd[] = {
-	[gpio1_io19] = { cd_uart1_rts, IMX_GPIO_NR(1, 19) }, /* pad, gpio */
+static const struct fs_mmc_cd sdhc_cd[] = {
+		      /* pad,          gpio */
+	[gpio1_io19] = { cd_uart1_rts, IMX_GPIO_NR(1, 19) },
 };
-
-int board_mmc_getcd(struct mmc *mmc)
-{
-	struct fsl_esdhc_cfg *fsl_cfg = mmc->priv;
-	struct fus_sdhc_cfg *fus_cfg = to_fus_sdhc_cfg(fsl_cfg);
-	u16 cd_gpio = fus_cfg->cd_gpio;
-
-	if (cd_gpio == (u16)~0)
-		return 1;		/* No CD, assume card is present */
-
-	/* Return CD signal (active low) */
-	return !gpio_get_value(cd_gpio);
-}
-
-static int setup_mmc(bd_t *bd, u8 bus_width, struct fus_sdhc_cfg *cfg,
-		     struct fus_sdhc_cd *cd)
-{
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	u32 ccgr6;
-
-	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
-	if (!cd)
-		cfg->cd_gpio = ~0;
-	else {
-		cfg->cd_gpio = cd->gpio;
-		imx_iomux_v3_setup_multiple_pads(cd->pad, 1);
-		gpio_direction_input(cd->gpio);
-	}
-
-	/* Set DAT, CLK, CMD and RST pin configurations */
-	cfg->esdhc.max_bus_width = bus_width;
-	imx_iomux_v3_setup_multiple_pads(cfg->pads, cfg->count + bus_width);
-
-	/* Get clock speed and ungate appropriate USDHC clock */
-	ccgr6 = readl(&mxc_ccm->CCGR6);
-	switch (cfg->index) {
-	default:
-	case 1:
-		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-		ccgr6 |= (3 << 2);
-		break;
-	case 2:
-		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-		ccgr6 |= (3 << 4);
-		break;
-#ifdef USDHC3_BASE_ADDR
-	case 3:
-		cfg->esdhc.esdhc_base = USDHC3_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-		ccgr6 |= (3 << 6);
-		break;
-#endif
-#ifdef USDHC4_BASE_ADDR
-	case 4:
-		cfg->esdhc.esdhc_base = USDHC4_BASE_ADDR;
-		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
-		ccgr6 |= (3 << 8);
-		break;
-#endif
-	}
-	writel(ccgr6, &mxc_ccm->CCGR6);
-
-	return fsl_esdhc_initialize(bd, &cfg->esdhc);
-}
 
 int board_mmc_init(bd_t *bd)
 {
@@ -764,11 +687,11 @@ int board_mmc_init(bd_t *bd)
 		 * revision is at least 1.10.
 		 */
 		if (!(features2 & FEAT2_EMMC)) {
-			struct fus_sdhc_cd *cd = NULL;
+			const struct fs_mmc_cd *cd = NULL;
 
 			if ((features2 & FEAT2_WLAN) && (board_rev >= 110))
 				cd = &sdhc_cd[gpio1_io19];
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], cd);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext], cd);
 		}
 		/*
 		 * If no WLAN is equipped, port SD_A with CD on GPIO1_IO19 can
@@ -776,8 +699,8 @@ int board_mmc_init(bd_t *bd)
 		 * is either mmc1 if SD_B is available, or mmc0 if not.
 		 */
 		if (!ret && !(features2 & FEAT2_WLAN))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
-					&sdhc_cd[gpio1_io19]);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext],
+					   &sdhc_cd[gpio1_io19]);
 		/*
 		 * If eMMC is equipped, add it as last mmc port, which is
 		 * either mmc1 if SD_A is available, or mmc0 if not. Use as
@@ -787,12 +710,12 @@ int board_mmc_init(bd_t *bd)
 #ifdef CONFIG_CMD_NAND
 		/* If NAND is equipped, eMMC can only use buswidth 4 */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_int], NULL);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_int], NULL);
 #else
 		/* If no NAND is equipped, four additional data lines
 		   are available and eMMC can use buswidth 8 */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = setup_mmc(bd, 8, &sdhc_cfg[usdhc2_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc2_int], NULL);
 #endif
 		break;
 
@@ -801,16 +724,17 @@ int board_mmc_init(bd_t *bd)
 		   Actually the port has a CD if UART1 does not use RTS/CTS,
 		   but as we do not know this for sure, skip CD here and
 		   assume "always present". */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext], NULL);
 		break;
+
 	case BT_PICOCOMA7:
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
-						NULL);
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext], NULL);
 		break;
+
 	case BT_PCOREMX6UL:
-		/* mmc0: USDHC1 (ext. micro SD slot via connector), */
-		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], 
-				&sdhc_cd[gpio1_io19]);
+		/* mmc0: USDHC1 (ext. micro SD slot via connector) */
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext_rst], 
+				   &sdhc_cd[gpio1_io19]);
 		break;
 
 	default:

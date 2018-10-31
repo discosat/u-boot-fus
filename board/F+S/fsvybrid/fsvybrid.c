@@ -50,23 +50,6 @@
 
 /* ------------------------------------------------------------------------- */
 
-#ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg esdhc_cfg[] = {
-	{
-		.esdhc_base = ESDHC0_BASE_ADDR,
-		.sdhc_clk = 0,
-		.max_bus_width = 4,
-	},
-	{
-		.esdhc_base = ESDHC1_BASE_ADDR,
-		.sdhc_clk = 0,
-		.max_bus_width = 4,
-	},
-};
-#endif
-
-/* ------------------------------------------------------------------------- */
-
 #define BT_ARMSTONEA5 0
 #define BT_PICOCOMA5  1
 #define BT_NETDCUA5   2
@@ -383,6 +366,19 @@ void board_nand_init(void)
 }
 
 #ifdef CONFIG_GENERIC_MMC
+struct fsl_esdhc_cfg esdhc_cfg[] = {
+	{
+		.esdhc_base = ESDHC0_BASE_ADDR,
+		.sdhc_clk = 0,
+		.max_bus_width = 4,
+	},
+	{
+		.esdhc_base = ESDHC1_BASE_ADDR,
+		.sdhc_clk = 0,
+		.max_bus_width = 4,
+	},
+};
+
 int board_mmc_getcd(struct mmc *mmc)
 {
 	u32 val;
@@ -448,7 +444,7 @@ int board_mmc_init(bd_t *bis)
 	esdhc_cfg[index].sdhc_clk = vybrid_get_esdhc_clk(index);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
-#endif
+#endif /* CONFIG_GENERIC_MMC */
 
 #ifdef CONFIG_USB_EHCI_VYBRID
 int board_ehci_hcd_init(int port)
