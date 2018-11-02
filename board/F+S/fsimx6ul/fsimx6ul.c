@@ -14,6 +14,7 @@
 #ifdef CONFIG_CMD_NET
 #include <miiphy.h>
 #include <netdev.h>
+#include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			/* PON_*, POFF_* */
@@ -84,9 +85,6 @@
 
 /* Maximum speed (in kHz) if FEAT2_SPEED is set */
 #define SPEED_LIMIT	528000
-
-#define XMK_STR(x)	#x
-#define MK_STR(x)	XMK_STR(x)
 
 /* Device tree paths */
 #define FDT_NAND	"/soc/gpmi-nand@01806000"
@@ -1805,95 +1803,6 @@ static iomux_v3_cfg_t const enet_pads_reset_gar1[] = {
 	IOMUX_PADS(PAD_CSI_PIXCLK__GPIO4_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-/* Read a MAC address from OTP memory */
-int get_otp_mac(void *otp_addr, uchar *enetaddr)
-{
-	u32 val;
-	static const uchar empty1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-	static const uchar empty2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-	/*
-	 * Read a MAC address from OTP memory on i.MX6; it is stored in the
-	 * following order:
-	 *
-	 *   Byte 1 in mac_h[31:24]
-	 *   Byte 2 in mac_h[23:16]
-	 *   Byte 3 in mac_h[15:8]
-	 *   Byte 4 in mac_h[7:0]
-	 *   Byte 5 in mac_l[31:24]
-	 *   Byte 6 in mac_l[23:16]
-	 *
-	 * Please note that this layout is different to Vybrid.
-	 *
-	 * The MAC address itself can be empty (all six bytes zero) or erased
-	 * (all six bytes 0xFF). In this case the whole address is ignored.
-	 *
-	 * In addition to the address itself, there may be a count stored in
-	 * mac_l[7:0].
-	 *
-	 *   count=0: only the address itself
-	 *   count=1: the address itself and the next address
-	 *   count=2: the address itself and the next two addresses
-	 *   etc.
-	 *
-	 * count=0xFF is a special case (erased count) and must be handled
-	 * like count=0. The count is only valid if the MAC address itself is
-	 * valid (not all zeroes and not all 0xFF).
-	 */
-	val = __raw_readl(otp_addr);
-	enetaddr[0] = val >> 24;
-	enetaddr[1] = (val >> 16) & 0xFF;
-	enetaddr[2] = (val >> 8) & 0xFF;
-	enetaddr[3] = val & 0xFF;
-
-	val = __raw_readl(otp_addr + 0x10);
-	enetaddr[4] = val >> 24;
-	enetaddr[5] = (val >> 16) & 0xFF;
-
-	if (!memcmp(enetaddr, empty1, 6) || !memcmp(enetaddr, empty2, 6))
-		return 0;
-
-	val &= 0xFF;
-	if (val == 0xFF)
-		val = 0;
-	return (int)(val + 1);
-}
-
-
-/* Set the ethaddr environment variable according to index */
-void set_fs_ethaddr(int index)
-{
-	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
-	struct fuse_bank *bank = &ocotp->bank[4];
-	uchar enetaddr[6];
-	int count, i;
-	int offs = index;
-
-	/*
-	 * Try to fulfil the request in the following order:
-	 *   1. From environment variable
-	 *   2. MAC0 from OTP
-	 *   3. CONFIG_ETHADDR_BASE
-	 */
-	if (eth_getenv_enetaddr_by_index("eth", index, enetaddr))
-		return;
-
-	count = get_otp_mac(&bank->fuse_regs[8], enetaddr);
-	if (count <= offs) {
-		offs -= count;
-		eth_parse_enetaddr(MK_STR(CONFIG_ETHADDR_BASE), enetaddr);
-	}
-
-	i = 6;
-	do {
-		offs += (int)enetaddr[--i];
-		enetaddr[i] = offs & 0xFF;
-		offs >>= 8;
-	} while (i);
-
-	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
-}
-
 int board_eth_init(bd_t *bis)
 {
 	u32 gpr1;
@@ -2056,7 +1965,7 @@ int board_eth_init(bd_t *bis)
 
 	/* Probe first PHY and activate first ethernet port */
 	if (features2 & FEAT2_ETH_A) {
-		set_fs_ethaddr(id);
+		fs_eth_set_ethaddr(id);
 
 		/*
 		 * We can not use fecmxc_initialize_multi_type() because this
@@ -2087,7 +1996,7 @@ int board_eth_init(bd_t *bis)
 
 	/* Probe second PHY and activate second ethernet port. */
 	if (features2 & FEAT2_ETH_B) {
-		set_fs_ethaddr(id);
+		fs_eth_set_ethaddr(id);
 
 		/* If ENET1 is not in use, we must get our MDIO bus now */
 		if (!bus) {
@@ -2118,7 +2027,7 @@ int board_eth_init(bd_t *bis)
 
 	/* If WLAN is available, just set ethaddr variable */
 	if (features2 & FEAT2_WLAN)
-		set_fs_ethaddr(id++);
+		fs_eth_set_ethaddr(id++);
 
 	return 0;
 }

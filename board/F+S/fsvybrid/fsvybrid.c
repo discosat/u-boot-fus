@@ -588,7 +588,7 @@ int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
 
 
 /* Set the ethaddr environment variable according to index */
-void set_fs_ethaddr(int index)
+void fs_eth_set_ethaddr(int index)
 {
 	uchar enetaddr[6];
 	int count, i;
@@ -691,7 +691,7 @@ int board_eth_init(bd_t *bis)
 
 	/* Get info on first ethernet port; AGATEWAY and HGATEWAY always only
 	   have one port which is actually FEC1! */
-	set_fs_ethaddr(0);
+	fs_eth_set_ethaddr(0);
 	phy_addr = 0;
 	enet_addr = MACNET0_BASE_ADDR;
 	id = -1;
@@ -720,7 +720,7 @@ int board_eth_init(bd_t *bis)
 		return ret;
 
 	/* Get info on second ethernet port */
-	set_fs_ethaddr(1);
+	fs_eth_set_ethaddr(1);
 	switch (board_type) {
 	case BT_PICOCOMA5:
 		phy_addr = 1;
