@@ -624,7 +624,7 @@ static int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		else
 			dev = usb_stor_curr_dev;
 		printf("\nUSB device %d:\n", dev);
-		stor_dev = usb_stor_get_dev(usb_stor_curr_dev);
+		stor_dev = usb_stor_get_dev(dev);
 		if (stor_dev == NULL) {
 			printf("  -> unknown device\n");
 			return 1;
