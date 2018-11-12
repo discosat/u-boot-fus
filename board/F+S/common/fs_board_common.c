@@ -326,7 +326,6 @@ void fs_board_late_init_common(void)
 	setup_var("updatecheck", current_bi->updatecheck, 0);
 	setup_var("installcheck", current_bi->installcheck, 0);
 	setup_var("recovercheck", current_bi->recovercheck, 0);
-	setup_var("earlyusbinit", current_bi->earlyusbinit, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
 	setup_var("mode", CONFIG_MODE, 0);

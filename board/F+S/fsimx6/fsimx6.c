@@ -130,11 +130,6 @@
 #define UPDATE_DEF NULL
 #define INSTALL_DEF INSTALL_RAM
 #endif
-#if defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
-#define EARLY_USB "1"
-#else
-#define EARLY_USB NULL
-#endif
 
 const struct fs_board_info board_info[8] = {
 	{	/* 0 (BT_EFUSA9) */
@@ -143,7 +138,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -159,7 +153,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -175,7 +168,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -191,7 +183,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -207,7 +198,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -226,7 +216,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
@@ -242,7 +231,6 @@ const struct fs_board_info board_info[8] = {
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
-		.earlyusbinit = NULL,
 		.console = ".console_serial",
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",

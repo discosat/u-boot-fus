@@ -730,7 +730,6 @@
 	"installcheck=undef\0" \
 	"updatecheck=undef\0" \
 	"recovercheck=undef\0" \
-	"earlyusbinit=undef\0" \
 	"platform=undef\0" \
 	"arch=fsvybrid\0" \
 	"bootfdt=undef\0" \

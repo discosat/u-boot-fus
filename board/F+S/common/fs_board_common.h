@@ -51,7 +51,6 @@ struct fs_board_info {
 	char *updatecheck;		/* Default value for updatecheck */
 	char *installcheck;		/* Default value for installcheck */
 	char *recovercheck;		/* Default value for recovercheck */
-	char *earlyusbinit;		/* Default value for earlyusbinit */
 	char *console;			/* Default variable for console */
 	char *login;			/* Default variable for login */
 	char *mtdparts;			/* Default variable for mtdparts */
