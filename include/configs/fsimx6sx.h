@@ -64,6 +64,9 @@
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
 #define CONFIG_FS_MMC_COMMON		/* Use F&S common MMC stuff */
 #define CONFIG_FS_ETH_COMMON		/* Use F&S common ETH stuff */
+#define CONFIG_FS_USB_COMMON		/* Use F&S common USB stuff */
+#define CONFIG_FS_USB_PWR_USBNC		/* Use dedicated PWR function of USB
+					   controller where possible */
 
 #define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 
