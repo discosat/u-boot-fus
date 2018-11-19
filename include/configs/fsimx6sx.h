@@ -67,6 +67,8 @@
 #define CONFIG_FS_USB_COMMON		/* Use F&S common USB stuff */
 #define CONFIG_FS_USB_PWR_USBNC		/* Use dedicated PWR function of USB
 					   controller where possible */
+#define CONFIG_FS_DISP_COMMON		/* Use F&S common display stuff */
+#define CONFIG_FS_DISP_COUNT	2	/* Support up to two displays */
 
 #define CONFIG_IMX_THERMAL		/* Give extended thermal info */
 
@@ -492,7 +494,7 @@
  * Display (LCD)
  ************************************************************************/
 #define CONFIG_VIDEO
-#define CONFIG_VIDEO_MXS		/* Use IPU */
+#define CONFIG_VIDEO_MXS		/* Use MXS display driver */
 #define CONFIG_CFB_CONSOLE		/* Use color framebuffer console */
 #define CONFIG_VGA_AS_SINGLE_DEVICE	/* Display is only output, no input */
 #define CONFIG_VIDEO_LOGO		/* Allow a logo on the console... */

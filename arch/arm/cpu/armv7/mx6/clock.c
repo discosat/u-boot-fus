@@ -1136,7 +1136,6 @@ int config_lvds_clk(int lcdif, unsigned int freq)
 	 * The current and new parent clocks must be disabled. Default
 	 * clock source for LDB_DI0_CLK is PLL2_PFD3, so gate this clock.
 	 */
-
 	reg = __raw_readl(&imx_ccm->analog_pfd_528);
 	reg |= BM_ANADIG_PFD_528_PFD3_CLKGATE;
 	__raw_writel(reg, &imx_ccm->analog_pfd_528);
@@ -1146,6 +1145,7 @@ int config_lvds_clk(int lcdif, unsigned int freq)
 	   LSBs (i.e. divide by 4) */
 	divider = ((decode_pll(PLL_BUS)/4) * 18 + (freq/8))/ (freq/4);
 	use_pll5 = (divider < 12) || (divider > 35);
+
 	/* Set ldb_di<n>_clk to PLL5 (000b) or PLL2 PFD0 (001b) */
 	reg = __raw_readl(&imx_ccm->cs2cdr);
 	reg &= ~(0x7 << 9);
@@ -1216,8 +1216,14 @@ int config_lvds_clk(unsigned int ipu, unsigned int di, unsigned int freq,
 	 *
 	 * Need to disable MMDC_CH1 clock manually as there is no CG bit
 	 * for this clock. The only way to disable this clock is to move
-	 * it topll3_sw_clk and then to disable pll3_sw_clk
+	 * it to pll3_sw_clk and then to disable pll3_sw_clk.
 	 * Make sure periph2_clk2_sel is set to pll3_sw_clk
+	 *
+	 * Remark:
+	 * pll3_sw_clk may is also parent of the UARTs. So if an UART
+	 * transmission is going on in parallel (e.g. by sending from
+	 * the UART FIFO), then the bit timing is disturbed and some
+	 * characters may arrive damaged.
 	 */
 	reg = __raw_readl(&imx_ccm->cbcmr);
 	reg &= ~(1 << 20);

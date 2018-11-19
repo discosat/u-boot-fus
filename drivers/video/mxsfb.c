@@ -40,11 +40,11 @@ __weak void mxsfb_system_setup(void)
 }
 
 static int setup;
-static struct fb_videomode fbmode;
+static const struct fb_videomode *fbmode;
 static int depth;
 
-int mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
-	uint32_t base_addr)
+int mxs_lcd_panel_setup(uint32_t base_addr,
+			const struct fb_videomode *mode, int bpp)
 {
 
 	fbmode = mode;
@@ -54,15 +54,6 @@ int mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
 	setup = 1;
 
 	return 0;
-}
-
-void mxs_lcd_get_panel(struct display_panel *dispanel)
-{
-	dispanel->width = fbmode.xres;
-	dispanel->height = fbmode.yres;
-	dispanel->reg_base = panel.isaBase;
-	dispanel->gdfindex = panel.gdfIndex;
-	dispanel->gdfbytespp = panel.gdfBytesPP;
 }
 
 /*
@@ -182,17 +173,17 @@ void *video_hw_init(void)
 		bpp = video_get_params(&mode, penv);
 		panel.isaBase  = MXS_LCDIF_BASE;
 	} else {
-		mode.xres = fbmode.xres;
-		mode.yres = fbmode.yres;
-		mode.pixclock = fbmode.pixclock;
-		mode.left_margin = fbmode.left_margin;
-		mode.right_margin = fbmode.right_margin;
-		mode.upper_margin = fbmode.upper_margin;
-		mode.lower_margin = fbmode.lower_margin;
-		mode.hsync_len = fbmode.hsync_len;
-		mode.vsync_len = fbmode.vsync_len;
-		mode.sync = fbmode.sync;
-		mode.vmode = fbmode.vmode;
+		mode.xres = fbmode->xres;
+		mode.yres = fbmode->yres;
+		mode.pixclock = fbmode->pixclock;
+		mode.left_margin = fbmode->left_margin;
+		mode.right_margin = fbmode->right_margin;
+		mode.upper_margin = fbmode->upper_margin;
+		mode.lower_margin = fbmode->lower_margin;
+		mode.hsync_len = fbmode->hsync_len;
+		mode.vsync_len = fbmode->vsync_len;
+		mode.sync = fbmode->sync;
+		mode.vmode = fbmode->vmode;
 		bpp = depth;
 	}
 

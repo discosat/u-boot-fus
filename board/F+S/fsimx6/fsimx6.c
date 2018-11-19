@@ -16,9 +16,6 @@
 #include <netdev.h>
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
-#ifdef CONFIG_CMD_LCD
-#include <cmd_lcd.h>			/* PON_*, POFF_* */
-#endif
 #include <serial.h>			/* struct serial_device */
 
 #ifdef CONFIG_GENERIC_MMC
@@ -34,7 +31,11 @@
 #include <i2c.h>
 #include <asm/imx-common/mxc_i2c.h>
 
+#ifdef CONFIG_VIDEO_IPUV3
 #include <asm/imx-common/video.h>
+#include "../common/fs_disp_common.h"	/* struct fs_disp_port, fs_disp_*() */
+#endif
+
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -244,52 +245,14 @@ const struct fs_board_info board_info[8] = {
 
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
-/* Pads for 18-bit LCD interface */
-static iomux_v3_cfg_t const lcd18_pads_low[] = {
-	IOMUX_PADS(PAD_DI0_DISP_CLK__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DI0_PIN2__GPIO4_IO18     | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DI0_PIN3__GPIO4_IO19     | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DI0_PIN15__GPIO4_IO17    | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT0__GPIO4_IO21   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT1__GPIO4_IO22   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT2__GPIO4_IO23   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT3__GPIO4_IO24   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT4__GPIO4_IO25   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT5__GPIO4_IO26   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT6__GPIO4_IO27   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT7__GPIO4_IO28   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT8__GPIO4_IO29   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT9__GPIO4_IO30   | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT10__GPIO4_IO31  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT11__GPIO5_IO05  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT12__GPIO5_IO06  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT13__GPIO5_IO07  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT14__GPIO5_IO08  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT15__GPIO5_IO09  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT16__GPIO5_IO10  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT17__GPIO5_IO11  | MUX_PAD_CTRL(0x3010)),
-};
-
-/* Additional pads for 24-bit LCD interface */
-static iomux_v3_cfg_t const lcd24_pads_low[] = {
-	IOMUX_PADS(PAD_DISP0_DAT18__GPIO5_IO12  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT19__GPIO5_IO13  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT20__GPIO5_IO14  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT21__GPIO5_IO15  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT22__GPIO5_IO16  | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_DISP0_DAT23__GPIO5_IO17  | MUX_PAD_CTRL(0x3010)),
-};
-
-/* Additional pads for VLCD_ON and VCFL_ON */
-static iomux_v3_cfg_t const lcd_extra_pads[] = {
-	/* Signals are active high -> pull-down to switch off */
-	IOMUX_PADS(PAD_SD4_DAT3__GPIO2_IO11 | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_SD4_DAT0__GPIO2_IO08 | MUX_PAD_CTRL(0x3010)),
-};
+#ifdef CONFIG_VIDEO_IPUV3
+static void setup_lcd_pads(int on);	/* Defined below */
+#endif
 
 /* Do some very early board specific setup */
 int board_early_init_f(void)
 {
+#ifdef CONFIG_VIDEO_IPUV3
 	/*
 	 * Set pull-down resistors on display signals; some displays do not
 	 * like high level on data signals when VLCD is not applied yet.
@@ -297,26 +260,14 @@ int board_early_init_f(void)
 	 * FIXME: This should actually only happen if display is really in
 	 * use, i.e. if device tree activates lcd. However we do not know this
 	 * at this point of time.
+	 *
+	 * SOLUTION: When display configuration is solely done via U-Boot in
+	 * the future, i.e. U-Boot changes the device tree on-the-fly, we can
+	 * remove the call here and only set LCD pads to pull-down below in
+	 * board_display_set_vlcd().
 	 */
-	switch (fs_board_get_type())
-	{
-	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
-	case BT_QBLISSA9:
-	case BT_QBLISSA9R2:
-		SETUP_IOMUX_PADS(lcd_extra_pads);
-		break;
-
-	case BT_NETDCUA9:		/* Boards with 24-bit LCD interface */
-		SETUP_IOMUX_PADS(lcd24_pads_low);
-		/* No break, fall through to default case */
-	case BT_EFUSA9:
-	case BT_ARMSTONEA9:
-	case BT_PICOMODA9:
-	default:			/* Boards with 18-bit LCD interface */
-		SETUP_IOMUX_PADS(lcd18_pads_low);
-		SETUP_IOMUX_PADS(lcd_extra_pads);
-		break;
-	}
+	setup_lcd_pads(0);
+#endif
 
 	return 0;
 }
@@ -711,48 +662,76 @@ int board_mmc_init(bd_t *bd)
 
 #ifdef CONFIG_VIDEO_IPUV3
 /*
+ * Possible display configurations
+ *
+ *   Board          LCD      LVDS0    LVDS1    HDMI
+ *   -------------------------------------------------------------
+ *   efusA9         18 bit*  24 bit   24 bit   24 bit
+ *   armStoneA9     18 bit*  24 bit   24 bit   24 bit
+ *   armStoneA9r2   -        24 bit*  24 bit   24 bit
+ *   QBlissA9       -        24 bit*  24 bit   24 bit
+ *   QBlissA9r2     -        24 bit*  24 bit   24 bit
+ *   NetDCUA9       24 bit*  24 bit   -        -
+ *   PicoMODA9      18 bit   24 bit*  -        24 bit
+ *
+ * The entry marked with * is the default port.
+ *
  * Display initialization sequence:
  *
- *  1. board.c: board_init_r() calls stdio_init()
- *  2. stdio.c: stdio_init() calls drv_video_init()
+ *  1. board_r.c: board_init_r() calls stdio_init().
+ *  2. stdio.c: stdio_init() calls drv_video_init().
  *  3. cfb_console.c: drv_video_init() calls board_video_skip(); if this
- *     returns non-zero, the display will not be started
- *  4. Here: board_video_skip(): Check all disp* variables for panel settings,
- *     returns 1 on error or if no panel was given, which means do not start
- *     display driver. If display is valid, calls one of config_lvds_clk() and
- *     config_lcd_di_clk() to initialize display clocks.
- * 5a. clock.c: config_lvds_clk(): Sets clock parent for LDB_DI clock to PLL5
- *     or PLL2PFD0, sets given frequency and sets IPU_DI clock parent to LDB_D.
- * 5b. clock.c: config_lcd_di_clk(): Sets IPU_DI clock to premuxed IPU_DI clock
- *     and in turn the parent of this to PLL2PFD2 (396MHz)
- *  6: Here: board_skip_video() calls ipuv3_fb_init()
- *  7: mxc_ipuv3_fb.c: ipuv3_fb_init(): Store the given values for later use
- *  8. Here: board_skip_video() calls prepare_displays()
- *  9. Here: prepare_displays() enables the voltage for the LCD logic, in case
- *     of LCD also configures LCD pads
- * 10. cfb_console.c: drv_video_init() calls video_init()
- * 11. cfb_console.c: video_init() calls video_hw_init()
- * 12. mxc_ipuv3_fb.c: video_hw_init() calls ipu_probe()
- * 13. ipu_common.c: ipu_probe() initializes a minimal IPU clock tree
- * 14. mxc_ipuv3_fb.c: video_hw_init() calls mxcfb_probe()
- * 15. mxc_ipuv3_fb.c: mxcfb_probe() initializes framebuffer, using the values
- *     stored in step 7 above
- * 16. cfb_console.c: video_init() clears the framebuffer and calls video_logo()
- * 17. cfb_console.c: video_logo() draws either the console logo and the welcome
+ *     returns non-zero, the display will not be started.
+ *  4. fsimx6.c: board_video_skip(): Call fs_disp_register(). This checks for
+ *     display parameters and activates the display. To handle board specific
+ *     stuff, it will call callback functions board_display_set_backlight(),
+ *     board_display_set_power() and board_display_start() here. The latter
+ *     will initialize the clocks and call ipuv3_fb_init() to store mode and
+ *     pixfmt to be used later.
+ *  5. cfb_console.c: drv_video_init() calls video_init().
+ *  6. cfb_console.c: video_init() calls video_hw_init().
+ *  7. mxc_ipuv3_fb.c: video_hw_init() calls ipu_probe().
+ *  8. ipu_common.c: ipu_probe() initializes a minimal IPU clock tree.
+ *  9. mxc_ipuv3_fb.c: video_hw_init() calls mxcfb_probe().
+ * 10. mxc_ipuv3_fb.c: mxcfb_probe() initializes framebuffer, using the values
+ *     stored in step 4 above.
+ * 11. cfb_console.c: video_init() clears framebuffer and calls video_logo().
+ * 12. cfb_console.c: video_logo() draws either the console logo and the welcome
  *     message, or if environment variable splashimage is set, the splash
- *     screen. In this case function splash_screen_prepare() is called first.
- *     We use this function here to run variable splashprepare that should load
- *     the image to the address given in splashimage.
- * 18. cfb_console.c: drv_video_init() registers the console as stdio device,
- *     but only if board_cfb_skip() returns 0. This function could be used
- *     here to suppress the console function, e.g. if only a splash image
- *     should be shown without the option for text output.
- * 19. board.c: board_init_r() calls board_late_init()
- * 20. Here: board_late_init() calls enable_displays()
- * 21. Here: enable_displays() enables backlight voltage and sets backlight
- *     brightness (PWM) for all active displays
+ *     screen.
+ * 13. cfb_console.c: drv_video_init() registers the console as stdio device.
+ * 14. board_r.c: board_init_r() calls board_late_init().
+ * 15. fsimx6.c: board_late_init() calls fs_board_set_backlight_all() to
+ *     enable all active displays.
  */
-static iomux_v3_cfg_t const lcd18_pads[] = {
+
+/* Pads for 18-bit LCD interface */
+static iomux_v3_cfg_t const lcd18_pads_low[] = {
+	IOMUX_PADS(PAD_DI0_DISP_CLK__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN2__GPIO4_IO18     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN3__GPIO4_IO19     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DI0_PIN15__GPIO4_IO17    | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT0__GPIO4_IO21   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT1__GPIO4_IO22   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT2__GPIO4_IO23   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT3__GPIO4_IO24   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT4__GPIO4_IO25   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT5__GPIO4_IO26   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT6__GPIO4_IO27   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT7__GPIO4_IO28   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT8__GPIO4_IO29   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT9__GPIO4_IO30   | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT10__GPIO4_IO31  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT11__GPIO5_IO05  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT12__GPIO5_IO06  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT13__GPIO5_IO07  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT14__GPIO5_IO08  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT15__GPIO5_IO09  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT16__GPIO5_IO10  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT17__GPIO5_IO11  | MUX_PAD_CTRL(0x3010)),
+};
+
+static iomux_v3_cfg_t const lcd18_pads_active[] = {
 	IOMUX_PADS(PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DI0_PIN2__IPU1_DI0_PIN02       | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DI0_PIN3__IPU1_DI0_PIN03       | MUX_PAD_CTRL(LCD_CTRL)),
@@ -778,13 +757,29 @@ static iomux_v3_cfg_t const lcd18_pads[] = {
 };
 
 /* Additional pads for 24-bit LCD interface */
-static iomux_v3_cfg_t const lcd24_pads[] = {
+static iomux_v3_cfg_t const lcd24_pads_low[] = {
+	IOMUX_PADS(PAD_DISP0_DAT18__GPIO5_IO12  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT19__GPIO5_IO13  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT20__GPIO5_IO14  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT21__GPIO5_IO15  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT22__GPIO5_IO16  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_DISP0_DAT23__GPIO5_IO17  | MUX_PAD_CTRL(0x3010)),
+};
+
+static iomux_v3_cfg_t const lcd24_pads_active[] = {
 	IOMUX_PADS(PAD_DISP0_DAT18__IPU1_DISP0_DATA18 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT19__IPU1_DISP0_DATA19 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT20__IPU1_DISP0_DATA20 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT21__IPU1_DISP0_DATA21 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT22__IPU1_DISP0_DATA22 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT23__IPU1_DISP0_DATA23 | MUX_PAD_CTRL(LCD_CTRL)),
+};
+
+/* Additional pads for VLCD_ON and VCFL_ON */
+static iomux_v3_cfg_t const lcd_extra_pads[] = {
+	/* Signals are active high -> pull-down to switch off */
+	IOMUX_PADS(PAD_SD4_DAT3__GPIO2_IO11 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_SD4_DAT0__GPIO2_IO08 | MUX_PAD_CTRL(0x3010)),
 };
 
 /* Use I2C2 to talk to RGB adapter on armStoneA9 */
@@ -805,233 +800,137 @@ I2C_PADS(efusa9,						\
 	 PAD_KEY_ROW3__GPIO4_IO13 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
 	 IMX_GPIO_NR(4, 13));
 
-/* Available display ports */
-#define DISP_PORT_LCD	(1 << 0)
-#define DISP_PORT_HDMI	(1 << 1)
-#define DISP_PORT_LVDS0	(1 << 2)
-#define DISP_PORT_LVDS1	(1 << 3)
-
-/* Extra LVDS settings */
-#define LDB_FLAGS_SPLIT	(1 << 0)	/* 0: 1ch display, 1: 2ch display */
-#define LDB_FLAGS_DUAL	(1 << 1)	/* 0: one display, 1: two displays */
-#define LDB_FLAGS_24BPP	(1 << 2)	/* 0: 18 bpp, 1: 24 bpp */
-#define LDB_FLAGS_JEIDA	(1 << 3)	/* 0: 24 bpp SPWG, 1: 24 bpp JEIDA */
-
-/* Extra display parameters that are not part of fb_videomode */
-struct fb_extra {
-	unsigned int port;
-	unsigned int ldb_flags;
+enum display_port_index {
+	port_lcd, port_lvds0, port_lvds1, port_hdmi
 };
 
-struct display_params {
-	struct fb_videomode mode;
-	struct fb_extra extra;
+/* Define possible displays ports; LVDS ports may have additional settings */
+#define FS_DISP_FLAGS_LVDS						\
+	(FS_DISP_FLAGS_LVDS_2CH | FS_DISP_FLAGS_LVDS_DUP		\
+	 | FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA)
+
+static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
+	[port_lcd] =   { "lcd",   0 },
+	[port_lvds0] = { "lvds0", FS_DISP_FLAGS_LVDS },
+	[port_lvds1] = { "lvds1", FS_DISP_FLAGS_LVDS },
+	[port_hdmi] =  { "hdmi",  0 }
 };
 
-struct param_choice {
-	const char *name;
-	unsigned int val;
-};
-
-/* This is a set of used display ports */
-unsigned int used_ports;
-
-struct display_params display;
-
-const struct param_choice disp_ports[] = {
-	{"lcd", DISP_PORT_LCD},
-	{"hdmi", DISP_PORT_LCD},
-	{"lvds0", DISP_PORT_LVDS0},
-	{"lvds1", DISP_PORT_LVDS1},
-};
-
-/*
- * Have a small display data base.
- *
- * drivers/video/mxcfb.h defines additional values to set DE polarity and
- * clock sensitivity. However these values are not valid in Linux and the file
- * can not easily be included here. So we (F&S) misuse some existing defines
- * from include/linux/fb.h to handle these two cases. This may change in the
- * future.
- *
- *   FB_SYNC_COMP_HIGH_ACT: DE signal active high
- *   FB_SYNC_ON_GREEN:      Latch on rising edge of pixel clock
- */
-const struct fb_videomode const display_db[] = {
-	{
-		.name           = "EDT-ET070080DH6",
-		.refresh        = 60,
-		.xres           = 800,
-		.yres           = 480,
-		.pixclock       = 30066, // picoseconds
-		.left_margin    = 88,
-		.right_margin   = 40,
-		.upper_margin   = 33,
-		.lower_margin   = 10,
-		.hsync_len      = 128,
-		.vsync_len      = 2,
-		.sync           = FB_SYNC_ON_GREEN | FB_SYNC_COMP_HIGH_ACT,
-		.vmode          = FB_VMODE_NONINTERLACED
-	},
-	{
-		.name           = "ChiMei-G070Y2-L01",
-		.refresh        = 60,
-		.xres           = 800,
-		.yres           = 480,
-		.pixclock       = 33500, // picoseconds
-		.left_margin    = 88,
-		.right_margin   = 40,
-		.upper_margin   = 33,
-		.lower_margin   = 10,
-		.hsync_len      = 128,
-		.vsync_len      = 2,
-		.sync           = FB_SYNC_ON_GREEN | FB_SYNC_COMP_HIGH_ACT,
-		.vmode          = FB_VMODE_NONINTERLACED
-	},
-#if 0
-	{
-		.name           = "HDMI",
-		.refresh        = 60,
-		.xres           = 640,
-		.yres           = 480,
-		.pixclock       = 39721,
-		.left_margin    = 48,
-		.right_margin   = 16,
-		.upper_margin   = 33,
-		.lower_margin   = 10,
-		.hsync_len      = 96,
-		.vsync_len      = 2,
-		.sync           = 0,
-		.vmode          = FB_VMODE_NONINTERLACED
-	},
-#endif
-};
-
-/* Always use serial for U-Boot console */
-int overwrite_console(void)
+static void setup_lcd_pads(int on)
 {
-	return 1;
-}
-
-/* Enable backlight power and set brightness via I2C on RGB adapter */
-static void enable_i2c_backlight(int on)
-{
-	u8 val;
-#if 0
-	printf("### ID = 0x%x\n", i2c_reg_read(0x60, 0));
-#endif
-
-	/*
-	 * Talk to the PCA9632 via I2C, this is a 4 channel LED driver.
-	 *  Channel 0: Used as GPIO to switch backlight power
-	 *  Channel 1: Used as PWM to set backlight brightness
-	 *  Channel 2: Used as GPIO to set display rotation
-	 *  Channel 3: Unused
-	 * Channels use inverted logic, i.e. ON outputs 0, OFF outputs 1, and
-	 * the higher the PWM value, the lower the duty cycle.
-	 */
-	i2c_reg_write(0x60, 0x0, 0x0);	/* Normal mode, no auto-increment */
-	i2c_reg_write(0x60, 0x1, 0x5);	/* Grp dimming, no inv., Totem pole */
-	i2c_reg_write(0x60, 0x3, 0xf0);	/* PWM duty cycle for Channel 1 */
-	if (on)
-		val = 0x18;		/* CH2: ON=0, CH1: PWM, CH0: OFF=1 */
-	else
-		val = 0x11;		/* CH2: ON=0, CH1: OFF=1, CH0: ON=0 */
-	i2c_reg_write(0x60, 0x8, val);
-}
-
-/* Enable VLCD, configure pads if required */
-static void prepare_displays(void)
-{
-	unsigned int board_type = fs_board_get_type();
-
-	/* Switch off display power on RGB adapter */
-	switch (board_type) {
+	switch (fs_board_get_type())
+	{
+	case BT_NETDCUA9:		/* Boards with 24-bit LCD interface */
+		if (on)
+			SETUP_IOMUX_PADS(lcd24_pads_active);
+		else
+			SETUP_IOMUX_PADS(lcd24_pads_low);
+		/* No break, fall through to default case */
 	case BT_EFUSA9:
-		setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60, I2C_PADS_INFO(efusa9));
-		i2c_set_bus_num(1);
-		enable_i2c_backlight(0);
-		break;
 	case BT_ARMSTONEA9:
-		setup_i2c(2, CONFIG_SYS_I2C_SPEED, 0x60, I2C_PADS_INFO(armstonea9));
-		i2c_set_bus_num(2);
-		enable_i2c_backlight(0);
+	case BT_PICOMODA9:
+	default:			/* Boards with 18-bit LCD interface */
+		if (on)
+			SETUP_IOMUX_PADS(lcd18_pads_active);
+		else
+			SETUP_IOMUX_PADS(lcd18_pads_low);
+		/* No break, fall through to case BT_ARMSTONEA9R2 */
+	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
+	case BT_QBLISSA9:
+	case BT_QBLISSA9R2:
+		SETUP_IOMUX_PADS(lcd_extra_pads);
 		break;
-	default:
-		break;
-	}
-
-	/* Enable VLCD */
-	if (used_ports & (DISP_PORT_LCD | DISP_PORT_LVDS0 | DISP_PORT_LVDS1))
-		gpio_direction_output(IMX_GPIO_NR(2, 11), 1);
-	mdelay(1);
-
-	if (used_ports & DISP_PORT_LCD) {
-		switch (board_type) {
-		case BT_ARMSTONEA9R2:	/* No LCD interface */
-		case BT_QBLISSA9:
-		case BT_QBLISSA9R2:
-			break;
-
-		case BT_NETDCUA9:	/* 24-bit LCD interface */
-			SETUP_IOMUX_PADS(lcd24_pads);
-			/* No break, fall through to default case */
-		case BT_EFUSA9:		/* 18-bit LCD interface */
-		case BT_ARMSTONEA9:
-		case BT_PICOMODA9:
-		default:
-			SETUP_IOMUX_PADS(lcd18_pads);
-			break;
-		}
 	}
 }
 
-/* Enable backlight power depending on the used display ports */
-static void enable_backlight(int on)
+/* Enable or disable display voltage VLCD; if LCD, also switch LCD pads */
+void board_display_set_power(int port, int on)
 {
-	unsigned int board_type = fs_board_get_type();
+	static unsigned int vlcd_users;
 
-	if (used_ports & (DISP_PORT_LVDS0 | DISP_PORT_LVDS1)) {
-		/* Switch VCFL */
-		gpio_direction_output(IMX_GPIO_NR(2, 8), on);
-		mdelay(1);
-		// ### TODO: Set PWM
+	if (port == port_hdmi)
+		return;
+
+	/* Switch on when first user enables and off when last user disables */
+	if (!on) {
+		vlcd_users &= ~(1 << port);
+		if (port == port_lcd)
+			setup_lcd_pads(0);
 	}
+	if (!vlcd_users) {
+		gpio_direction_output(IMX_GPIO_NR(2, 11), on);
+		if (on)
+			mdelay(1);
+	}
+	if (on) {
+		vlcd_users |= (1 << port);
+		if (port == port_lcd)
+			setup_lcd_pads(1);
+	}
+}
 
-	if (used_ports & DISP_PORT_LCD) {
-		switch (board_type) {
+/* Enable or disable backlight (incl. backlight voltage) for a display port */
+void board_display_set_backlight(int port, int on)
+{
+	static int i2c_init;
+
+	switch (port) {
+	case port_lcd:
+		switch (fs_board_get_type()) {
 		case BT_EFUSA9:
-			i2c_set_bus_num(1);
-			enable_i2c_backlight(on);
+			if (!i2c_init) {
+				setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
+					  I2C_PADS_INFO(efusa9));
+				i2c_init = 1;
+			}
+			fs_disp_set_i2c_backlight(1, on);
 			break;
 		case BT_ARMSTONEA9:
-			i2c_set_bus_num(2);
-			enable_i2c_backlight(on);
+			if (!i2c_init) {
+				setup_i2c(2, CONFIG_SYS_I2C_SPEED, 0x60,
+					  I2C_PADS_INFO(armstonea9));
+				i2c_init = 1;
+			}
+			fs_disp_set_i2c_backlight(2, on);
 			break;
 		case BT_QBLISSA9:
 		case BT_QBLISSA9R2:
 		case BT_NETDCUA9:
 		case BT_PICOMODA9:
-			/* Enable VCFL */
-			gpio_direction_output(IMX_GPIO_NR(2, 8), on);
-			mdelay(1);
+			fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 11));
 			// ### TODO: Set PWM
 			// ### TODO: Set LCD_DEN on NetDCUA9/PICOMODA9
 			// ### TODO: Set LCD_ENA on PicoMODA9
 			break;
-		case BT_ARMSTONEA9R2:
-		default:
-			break;
 		}
-	}
+		break;
 
-	if (used_ports & DISP_PORT_HDMI) {
-		// ### TODO
+	case port_lvds0:
+	case port_lvds1:
+		fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 11));
+		// ### TODO: Set PWM
+		break;
+
+	case port_hdmi:
+		break;
 	}
 }
 
-static void enable_lvds(int disp, int channel,
-			const struct display_params *params)
+/* If UART is sending data, wait until done */
+static void wait_for_uart(void)
+{
+#if 0
+	//### TODO. For this to work we need to add serial_stop() to serial.c
+	//### and mxc_serial_stop() to serial_mxc.c. In the latter, wait for
+	//### end of transmission.
+	serial_stop();
+	serial_init();
+#endif
+}
+
+/* Activate LVDS channel ### TODO: Handle 2CH and CLONE */
+static void enable_lvds(int disp, int channel, unsigned int flags,
+			const struct fb_videomode *mode)
 {
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	u32 gpr2 = readl(&iomux->gpr[2]);
@@ -1065,413 +964,114 @@ static void enable_lvds(int disp, int channel,
 	mask |= bit_mapping | data_width;
 	gpr2 &= ~mask;
 
-	if (!(params->mode.sync & FB_SYNC_VERT_HIGH_ACT))
+	if (!(mode->sync & FB_SYNC_VERT_HIGH_ACT))
 		gpr2 |= vs_polarity;
-	if (params->extra.ldb_flags & LDB_FLAGS_JEIDA)
+	if (flags & FS_DISP_FLAGS_LVDS_JEIDA)
 		gpr2 |= bit_mapping;
-	if (params->extra.ldb_flags & LDB_FLAGS_24BPP)
+	if (flags & FS_DISP_FLAGS_LVDS_24BPP)
 		gpr2 |= data_width;
 	gpr2 |= enable;
 
 	writel(gpr2, &iomux->gpr[2]);
 }
 
-#if 0 //###
-static const char *show_choice(unsigned int val,
-			       const struct param_choice *choice,
-			       unsigned count)
+/* Set display clocks and register pixel format, resolution and timings */
+int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 {
-	unsigned int i;
-	const struct param_choice *entry;
-
-	for (i = 0, entry = choice; i < count; i++, entry++) {
-		if (entry->val == val)
-			return entry->name;
-	}
-
-	return "???";
-}
-
-static void show_disppara(const struct fb_extra *extra)
-{
-	printf("disppara: port=%s,split=%d,dual=%d,bw=%d,jeida=%d\n",
-	       show_choice(extra->port, disp_ports, ARRAY_SIZE(disp_ports)),
-	       (extra->ldb_flags & LDB_FLAGS_SPLIT) ? 1 : 0,
-	       (extra->ldb_flags & LDB_FLAGS_DUAL) ? 1 : 0,
-	       (extra->ldb_flags & LDB_FLAGS_24BPP) ? 24 : 18,
-	       (extra->ldb_flags & LDB_FLAGS_JEIDA) ? 1 : 0);
-}
-
-static void show_dispmode(const struct fb_videomode *mode)
-{
-	printf("dispmode: clk=%lu,rate=%u,hres=%u,vres=%u,hfp=%u,hbp=%u,vfp=%u,"
-	       "vbp=%u,hsw=%u,vsw=%u,hsp=%u,vsp=%u,dep=%u,clkp=%u,il=%u\n",
-	       PICOS2KHZ(mode->pixclock)*1000, mode->refresh, mode->xres,
-	       mode->yres, mode->right_margin, mode->left_margin,
-	       mode->lower_margin, mode->upper_margin, mode->hsync_len,
-	       mode->vsync_len,
-	       (mode->sync & FB_SYNC_HOR_HIGH_ACT) ? 1 : 0,
-	       (mode->sync & FB_SYNC_VERT_HIGH_ACT) ? 1 : 0,
-	       (mode->sync & FB_SYNC_COMP_HIGH_ACT) ? 1 : 0,
-	       (mode->sync & FB_SYNC_ON_GREEN) ? 1 : 0,
-	       (mode->vmode & FB_VMODE_INTERLACED) ? 1 : 0);
-}
-#endif //###
-
-static int parse_choice_param(const char *param, unsigned *val, const char **s,
-			      const struct param_choice *choice, unsigned count)
-{
-	int len;
-	const char *p = *s;
-	unsigned int i;
-	const struct param_choice *entry;
-	char c;
-
-	/* Check for parameter name match */
-	len = strlen(param);
-	if (strncmp(param, p, len))
-		return 0;
-	p += len;
-	if (*p++ != '=')
-		return 0;
-
-	/* Search for a matching choice */
-	for (i = 0, entry = choice; i < count; i++, entry++) {
-		len = strlen(entry->name);
-		if (!strncmp(p, entry->name, len)) {
-			c = p[len];
-			if (c == ',')
-				len++;
-			else if (c != '\0')
-				continue;
-			*s = p + len;
-			*val = entry->val;
-			return 0;
-		}
-	}
-
-	/* No matching choice found */
-	return -1;
-}
-
-/* Parse <param>=<uint>; returns 1 for match, 0 for no match, -1 for error */
-static int parse_uint_param(const char *param, unsigned int *val,
-			     const char **s)
-{
-	int len = strlen(param);
-	const char *p = *s;
-	char *endp;
-	unsigned int tmp;
-
-	if (strncmp(param, p, len))
-		return 0;
-	p += len;
-	if (*p++ != '=')
-		return 0;
-	tmp = simple_strtoul(p, &endp, 0);
-	if (endp == p)
-		return -1;
-	if (*endp == ',')
-		endp++;
-	else if (*endp != '\0')
-		return -1;
-	*s = endp;
-	*val = tmp;
-
-	return 1;
-}
-
-static int parse_display_params(struct display_params *display, const char *s)
-{
-	int err = 0;
-	unsigned int tmp = ~0;
-	const char *start;
-
-	if (!s || !*s)
-		return 0;
-
-	/* Parse given string for paramters */
-	while (*s) {
-		start = s;
-
-		/* Values from dispmode */
-		err = parse_uint_param("clk", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0)
-			display->mode.pixclock = KHZ2PICOS(tmp/1000);
-		err = parse_uint_param("rate", &display->mode.refresh, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("hres", &display->mode.xres, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("vres", &display->mode.yres, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("hfp", &display->mode.right_margin, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("hbp", &display->mode.left_margin, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("vfp", &display->mode.lower_margin, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("vbp", &display->mode.upper_margin, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("hsw", &display->mode.hsync_len, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("vsw", &display->mode.vsync_len, &s);
-		if (err < 0)
-			break;
-		err = parse_uint_param("hsp", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp)
-				display->mode.sync |= FB_SYNC_HOR_HIGH_ACT;
-			else
-				display->mode.sync &= ~FB_SYNC_HOR_HIGH_ACT;
-		}
-		err = parse_uint_param("vsp", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp)
-				display->mode.sync |= FB_SYNC_VERT_HIGH_ACT;
-			else
-				display->mode.sync &= ~FB_SYNC_VERT_HIGH_ACT;
-		}
-		err = parse_uint_param("dep", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp)	/* DE active high */
-				display->mode.sync |= FB_SYNC_COMP_HIGH_ACT;
-			else		/* DE active low */
-				display->mode.sync &= ~FB_SYNC_COMP_HIGH_ACT;
-		}
-		err = parse_uint_param("clkp", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp)	/* Latch on rising edge */
-				display->mode.sync |= FB_SYNC_ON_GREEN;
-			else		/* Latch on falling edge */
-				display->mode.sync &= ~FB_SYNC_ON_GREEN;
-		}
-		err = parse_uint_param("il", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp)
-				display->mode.vmode &= ~FB_VMODE_INTERLACED;
-			else
-				display->mode.vmode |= FB_VMODE_INTERLACED;
-		}
-
-		/* Values from disppara */
-		err = parse_choice_param("port", &display->extra.port, &s,
-					 disp_ports, ARRAY_SIZE(disp_ports));
-		if (err < 0)
-			break;
-
-		err = parse_uint_param("split", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp == 1)
-				display->extra.ldb_flags |= LDB_FLAGS_SPLIT;
-			else
-				display->extra.ldb_flags &= ~LDB_FLAGS_SPLIT;
-		}
-
-		err = parse_uint_param("dual", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if (tmp == 1)
-				display->extra.ldb_flags |= LDB_FLAGS_DUAL;
-			else
-				display->extra.ldb_flags &= ~LDB_FLAGS_DUAL;
-		}
-
-		err = parse_uint_param("bw", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if ((tmp == 24) || (tmp == 1))
-				display->extra.ldb_flags |= LDB_FLAGS_24BPP;
-			else
-				display->extra.ldb_flags &= ~LDB_FLAGS_24BPP;
-		}
-
-		err = parse_uint_param("jeida", &tmp, &s);
-		if (err < 0)
-			break;
-		if (err > 0) {
-			if ((tmp == 24) || (tmp == 1))
-				display->extra.ldb_flags |= LDB_FLAGS_JEIDA;
-			else
-				display->extra.ldb_flags &= ~LDB_FLAGS_JEIDA;
-		}
-
-		err = 0;
-		if (s == start)
-			break;		/* No progress during this loop */
-	}
-
-	/* Complain if we did not consume the whole string */
-	if (*s)
-		err = -1;
-	if (err < 0)
-		printf("Error parsing display parameters\n"
-		       "Remaining string: %s\n", s);
-	return err;
-}
-
-int board_video_skip(void)
-{
-	int i;
-	int pixfmt;
 	unsigned int freq;
-	const char *panel = getenv("disppanel");
-	const char *mode = getenv("dispmode");
-	unsigned int board_type = fs_board_get_type();
-
-	if (!panel)
-		return 1;
-
-	/* Look for panel in display database */
-	for (i = 0; i <  ARRAY_SIZE(display_db); i++) {
-		if (!strcmp(panel, display_db[i].name))
-			break;
-	}
-	if ((i >= ARRAY_SIZE(display_db))) {
-		if (!mode) {
-			printf("Display panel %s not found.\n"
-			       "For a user-defined panel set variable"
-			       " 'disppanel' with appropriate timings\n",
-			       panel);
-			return 1;
-		}
-		/* Use first entry for default parameters */
-		i = 0;
-	}
-
-	/* Take mode parameters from display database */
-	display.mode = display_db[i];
-
-	/* Init extra parameters to default */
-	switch (board_type) {
-	case BT_QBLISSA9:
-	case BT_QBLISSA9R2:
-	case BT_ARMSTONEA9R2:
-	case BT_PICOMODA9:
-		display.extra.port = DISP_PORT_LVDS0;
-		break;
-	default:
-		display.extra.port = DISP_PORT_LCD;
-		break;
-	}
-
-	/* Parse mode parameters to override defaults */
-	if ((parse_display_params(&display, mode) < 0)
-	    || (parse_display_params(&display, getenv("disppara")) < 0))
-	    return 1;
-
-	/*
-	 * If pixelclock is given, compute frame rate. If pixelclock is
-	 * missing, compute it from frame rate. If frame rate is also missing,
-	 * assume 60 fps.
-	 */
-	freq = (display.mode.xres + display.mode.left_margin
-		+ display.mode.right_margin + display.mode.hsync_len)
-		* (display.mode.yres + display.mode.upper_margin
-		   + display.mode.lower_margin + display.mode.vsync_len);
-	if (display.mode.pixclock) {
-		display.mode.refresh =
-			(PICOS2KHZ(display.mode.pixclock) * 1000 + freq/2)/freq;
-	} else {
-		if (!display.mode.refresh)
-			display.mode.refresh = 60;
-		display.mode.pixclock =
-			KHZ2PICOS(freq * display.mode.refresh / 1000);
-	}
-
-	/* The LCD port on efusA9 has swapped red and blue signals */
-	switch (board_type) {
-	case BT_EFUSA9:
-		if (display.extra.port == DISP_PORT_LCD) {
-			pixfmt = IPU_PIX_FMT_BGR666;
-			break;
-		}
-		/* Fall through to default */
-	default:
-		pixfmt = IPU_PIX_FMT_RGB666;
-		break;
-	}
+	int pixfmt;
 
 	/*
 	 * Initialize display clock and register display settings with IPU
-	 * driver. The real initialization takes place when this function
-	 * returns.
+	 * display driver. The real initialization takes place later in
+	 * function cfb_console.c: video_init().
+	 *
+	 * Remark: In config_lvds_clk(), the clock for UART may be switched
+	 * off for a short period of time. This can result in some damaged
+	 * characters if the UART is still transmitting some characters from
+	 * the FIFO. Therefore wait for the end of the UART transmission first.
 	 */
-	freq = PICOS2KHZ(display.mode.pixclock) * 1000;
-	switch (display.extra.port) {
-	case DISP_PORT_LVDS0:
+	freq = PICOS2KHZ(mode->pixclock) * 1000;
+	pixfmt = IPU_PIX_FMT_RGB666;
+	switch (port) {
+	case port_lcd:
+		/* The LCD port on efusA9 has swapped red and blue signals */
+		if (fs_board_get_type() == BT_EFUSA9)
+			pixfmt = IPU_PIX_FMT_BGR666;
+		config_lcd_di_clk(1, 0);
+		ipuv3_fb_init(mode, 0, pixfmt);
+		break;
+
+	case port_lvds0:
+		wait_for_uart();
 		config_lvds_clk(1, 0, freq * 7, 0);
 		enable_ldb_di_clk(0);
-		enable_lvds(0, 0, &display);
-		ipuv3_fb_init(&display.mode, 0, pixfmt);
+		enable_lvds(0, 0, flags, mode);
+		ipuv3_fb_init(mode, 0, pixfmt);
 		break;
 
-	case DISP_PORT_LVDS1:
+	case port_lvds1:
+		wait_for_uart();
 		config_lvds_clk(1, 1, freq * 7, 0);
 		enable_ldb_di_clk(1);
-		enable_lvds(1, 1, &display);
-		ipuv3_fb_init(&display.mode, 1, pixfmt);
+		enable_lvds(1, 1, flags, mode);
+		ipuv3_fb_init(mode, 1, pixfmt);
 		break;
 
-	case DISP_PORT_LCD:
-		config_lcd_di_clk(1, 0);
-		ipuv3_fb_init(&display.mode, 0, pixfmt);
-		break;
-
-	case DISP_PORT_HDMI:
+	case port_hdmi:
 		puts("### HDMI support not yet implemented\n");
 		return 1;
 	}
-	used_ports |= display.extra.port;
-
-	printf("Disp.: %s (%ux%u)\n", panel, display.mode.xres,
-	       display.mode.yres);
-#if 0
-	show_dispmode(&display.mode);
-	show_disppara(&display.extra);
-#endif
-
-	/* Enable VLCD */
-	prepare_displays();
 
 	enable_ipu_clock(1);
 
 	return 0;
 }
 
-/* Run variable splashprepare to load bitmap image for splash */
-int splash_screen_prepare(void)
+/* Init display or return 1 to skip display activation */
+int board_video_skip(void)
 {
-	char *prep;
+	int default_port;
+	unsigned int valid_mask;
+	unsigned int board_type = fs_board_get_type();
 
-	prep = getenv("splashprepare");
-	if (prep)
-		run_command(prep, 0);
+	/* Determine possible displays and default port */
+	switch (board_type) {
+	case BT_EFUSA9:
+	case BT_ARMSTONEA9:
+		valid_mask = (1 << port_lcd) | (1 << port_lvds0)
+			| (1 << port_lvds1) | (1 << port_hdmi);
+		default_port = port_lcd;
+		break;
 
-	return 0;
+	case BT_QBLISSA9:
+	case BT_QBLISSA9R2:
+	case BT_ARMSTONEA9R2:
+		valid_mask = (1 << port_lvds0) | (1 << port_lvds1)
+			| (1 << port_hdmi);
+		default_port = port_lvds0;
+		break;
+
+	case BT_NETDCUA9:
+		valid_mask = (1 << port_lcd) | (1 << port_lvds0);
+		default_port = port_lcd;
+		break;
+
+	case BT_PICOMODA9:
+		valid_mask = (1 << port_lcd) | (1 << port_lvds0)
+			| (1 << port_hdmi);
+		default_port = port_lvds0;
+		break;
+
+	default:			/* No displays */
+		return 1;
+	}
+
+	/*
+	 * Check if user has defined a display. If not, return 1, i.e. skip
+	 * display activation. If yes, activate display.
+	 */
+	return fs_disp_register(display_ports, valid_mask, default_port);
 }
 #endif /* CONFIG_VIDEO_IPUV3 */
 
@@ -1722,7 +1322,7 @@ int board_late_init(void)
 
 #ifdef CONFIG_VIDEO_IPUV3
 	/* Enable backlight for displays */
-	enable_backlight(1);
+	fs_disp_set_backlight_all(1);
 #endif
 
 	return 0;
@@ -2121,8 +1721,13 @@ void ft_board_setup(void *fdt, bd_t *bd)
 /* Board specific cleanup before Linux is started */
 void board_preboot_os(void)
 {
-	/* Switch off display and backlight voltages */
-	enable_backlight(0);
+#ifdef CONFIG_VIDEO_IPUV3
+	/* Switch off backlight and display voltages */
+	/* ### TODO: In the future the display should pass smoothly to Linux,
+	   then switching everything off should not be necessary anymore. */
+	fs_disp_set_backlight_all(0);
+	fs_disp_set_power_all(0);
+#endif
 
 	/* Shut down all ethernet PHYs (suspend mode) */
 	mdio_shutdown_all();
