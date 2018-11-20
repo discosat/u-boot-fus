@@ -1008,6 +1008,11 @@ int board_mmc_init(bd_t *bd)
 		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext],
 						NULL);
 		break;
+	case BT_PCOREMX6UL:
+		/* mmc0: USDHC1 (ext. micro SD slot via connector), */
+		ret = setup_mmc(bd, 4, &sdhc_cfg[usdhc1_ext], 
+				&sdhc_cd[gpio1_io19]);
+		break;
 
 	default:
 		return 0;		/* Neither SD card, nor eMMC */
