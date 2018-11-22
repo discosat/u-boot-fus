@@ -913,60 +913,45 @@ void board_display_set_backlight(int port, int on)
 }
 
 /* Activate LVDS channel */
-static void enable_lvds(uint32_t lcdif_base, unsigned int flags,
+static void config_lvds(uint32_t lcdif_base, unsigned int flags,
 			const struct fb_videomode *mode)
 {
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
-	struct mxc_ccm_reg *imx_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 
-	u32 gpr6 = readl(&iomux->gpr[6]);
+	u32 gpr;
 	u32 vs_polarity;
 	u32 bit_mapping;
 	u32 data_width;
 	u32 enable;
-	u32 mask;
 
 	vs_polarity = IOMUXC_GPR2_DI0_VS_POLARITY_MASK;
 	bit_mapping = IOMUXC_GPR2_BIT_MAPPING_CH0_JEIDA;
 	data_width = IOMUXC_GPR2_DATA_WIDTH_CH0_MASK;
 	enable = IOMUXC_GPR2_LVDS_CH0_MODE_ENABLED_DI0;
 
-	mask = bit_mapping | data_width | vs_polarity;
-	gpr6 &= ~mask;
-
+	gpr = readl(&iomux->gpr[6]);
+	gpr &= ~(bit_mapping | data_width | vs_polarity);
 	if (!(mode->sync & FB_SYNC_VERT_HIGH_ACT))
-		gpr6 |= vs_polarity;
+		gpr |= vs_polarity;
 	if (flags & FS_DISP_FLAGS_LVDS_JEIDA)
-		gpr6 |= bit_mapping;
+		gpr |= bit_mapping;
 	if (flags & FS_DISP_FLAGS_LVDS_24BPP)
-		gpr6 |= data_width;
-	gpr6 |= enable;
+		gpr |= data_width;
+	gpr |= enable;
+	writel(gpr, &iomux->gpr[6]);
 
-	writel(gpr6, &iomux->gpr[6]);
-
-	/* set LDB DI0 clock for LCDIF PIX clock */
-	mask = readl(&imx_ccm->cscdr2);
-	if (lcdif_base == LCDIF1_BASE_ADDR) {
-		mask &= ~MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_MASK;
-		mask |= (0x3 << MXC_CCM_CSCDR2_LCDIF1_CLK_SEL_OFFSET);
-	} else {
-		mask &= ~MXC_CCM_CSCDR2_LCDIF2_CLK_SEL_MASK;
-		mask |= (0x3 << MXC_CCM_CSCDR2_LCDIF2_CLK_SEL_OFFSET);
-	}
-	writel(mask, &imx_ccm->cscdr2);
-
-	mask = readl(&iomux->gpr[5]);
+	gpr = readl(&iomux->gpr[5]);
 	if (lcdif_base == LCDIF1_BASE_ADDR)
-		mask &= ~0x8;  /* MUX LVDS to LCDIF1 */
+		gpr &= ~0x8;		/* Use LCDIF1 for LVDS */
 	else
-		mask |= 0x8; /* MUX LVDS to LCDIF2 */
-	writel(mask, &iomux->gpr[5]);
+		gpr |= 0x8;		/* Use LCDIF2 for LVDS */
+	writel(gpr, &iomux->gpr[5]);
 }
 
 /* Set display clocks and register pixel format, resolution and timings */
 int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 {
-	unsigned int freq;
+	unsigned int freq_khz;
 	int bpp = 18;
 
 	/*
@@ -974,22 +959,22 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * display driver. The real initialization takes place later in
 	 * function cfb_console.c: video_init().
 	 */
-	freq = PICOS2KHZ(mode->pixclock) * 1000;
+	freq_khz = PICOS2KHZ(mode->pixclock);
 	switch (port) {
 	case port_lcd:
 		if (fs_board_get_type() == BT_PCOREMX6SX)
 			bpp = 24;
 		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
-		enable_lcdif_clock(LCDIF1_BASE_ADDR);
+		mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
+		mxs_enable_lcdif_clk(LCDIF1_BASE_ADDR);
 		break;
 
 	case port_lvds:
-		config_lvds_clk(1, freq * 7);
-		// don't set it to 1 - the wrong register would be set.
-		enable_ldb_di_clk(0);
-		enable_lcdif_clock(LCDIF1_BASE_ADDR);
-		enable_lvds(LCDIF1_BASE_ADDR, flags, mode);
 		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
+		mxs_config_lvds_clk(LCDIF1_BASE_ADDR, freq_khz);
+		config_lvds(LCDIF1_BASE_ADDR, flags, mode);
+		enable_ldb_di_clk(0);	/* Always use ldb_di0 on MX6SX */
+		mxs_enable_lcdif_clk(LCDIF1_BASE_ADDR);
 		break;
 	}
 

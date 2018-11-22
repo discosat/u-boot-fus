@@ -929,7 +929,7 @@ static void wait_for_uart(void)
 }
 
 /* Activate LVDS channel ### TODO: Handle 2CH and CLONE */
-static void enable_lvds(int disp, int channel, unsigned int flags,
+static void config_lvds(int disp, int channel, unsigned int flags,
 			const struct fb_videomode *mode)
 {
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -961,7 +961,7 @@ static void enable_lvds(int disp, int channel, unsigned int flags,
 		data_width = IOMUXC_GPR2_DATA_WIDTH_CH0_MASK;
 		mask = IOMUXC_GPR2_LVDS_CH0_MODE_MASK;
 	}
-	mask |= bit_mapping | data_width;
+	mask |= bit_mapping | data_width | vs_polarity;
 	gpr2 &= ~mask;
 
 	if (!(mode->sync & FB_SYNC_VERT_HIGH_ACT))
@@ -978,7 +978,7 @@ static void enable_lvds(int disp, int channel, unsigned int flags,
 /* Set display clocks and register pixel format, resolution and timings */
 int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 {
-	unsigned int freq;
+	unsigned int freq_khz;
 	int pixfmt;
 
 	/*
@@ -991,30 +991,30 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * characters if the UART is still transmitting some characters from
 	 * the FIFO. Therefore wait for the end of the UART transmission first.
 	 */
-	freq = PICOS2KHZ(mode->pixclock) * 1000;
+	freq_khz = PICOS2KHZ(mode->pixclock);
 	pixfmt = IPU_PIX_FMT_RGB666;
 	switch (port) {
 	case port_lcd:
 		/* The LCD port on efusA9 has swapped red and blue signals */
 		if (fs_board_get_type() == BT_EFUSA9)
 			pixfmt = IPU_PIX_FMT_BGR666;
-		config_lcd_di_clk(1, 0);
+		ipuv3_config_lcd_di_clk(1, 0);
 		ipuv3_fb_init(mode, 0, pixfmt);
 		break;
 
 	case port_lvds0:
 		wait_for_uart();
-		config_lvds_clk(1, 0, freq * 7, 0);
+		ipuv3_config_lvds_clk(1, 0, freq_khz, 0);
 		enable_ldb_di_clk(0);
-		enable_lvds(0, 0, flags, mode);
+		config_lvds(0, 0, flags, mode);
 		ipuv3_fb_init(mode, 0, pixfmt);
 		break;
 
 	case port_lvds1:
 		wait_for_uart();
-		config_lvds_clk(1, 1, freq * 7, 0);
+		ipuv3_config_lvds_clk(1, 1, freq_khz, 0);
 		enable_ldb_di_clk(1);
-		enable_lvds(1, 1, flags, mode);
+		config_lvds(1, 1, flags, mode);
 		ipuv3_fb_init(mode, 1, pixfmt);
 		break;
 
@@ -1023,7 +1023,7 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 		return 1;
 	}
 
-	enable_ipu_clock(1);
+	ipuv3_enable_ipu_clk(1);
 
 	return 0;
 }
@@ -1722,7 +1722,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 void board_preboot_os(void)
 {
 #ifdef CONFIG_VIDEO_IPUV3
-	/* Switch off backlight and display voltages */
+	/* Switch off backlight and display voltages, IPU: arch_preboot_os() */
 	/* ### TODO: In the future the display should pass smoothly to Linux,
 	   then switching everything off should not be necessary anymore. */
 	fs_disp_set_backlight_all(0);

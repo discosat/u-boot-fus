@@ -962,6 +962,7 @@ void board_display_set_backlight(int port, int on)
 /* Set display clocks and register pixel format, resolution and timings */
 int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 {
+	unsigned int freq_khz;
 	int bpp = 18;
 
 	/*
@@ -969,10 +970,12 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * display driver. The real initialization takes place later in
 	 * function cfb_console.c: video_init().
 	 */
+	freq_khz = PICOS2KHZ(mode->pixclock);
 	if (fs_board_get_type() == BT_PCOREMX6UL)
 		bpp = 24;
 	mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
-	enable_lcdif_clock(LCDIF1_BASE_ADDR);
+	mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
+	mxs_enable_lcdif_clk(LCDIF1_BASE_ADDR);
 
 	return 0;
 }

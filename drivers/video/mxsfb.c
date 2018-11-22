@@ -76,7 +76,9 @@ static void mxs_lcd_init(GraphicDevice *panel,
 	uint8_t valid_data = 0;
 
 	/* Kick in the LCDIF clock */
-	mxs_set_lcdclk(panel->isaBase, PS2KHZ(mode->pixclock));
+	/* ### Clock configuration is board specific, handle outside of the
+           driver. Clocks should all be set and started when coming here. */
+//###	mxs_set_lcdclk(panel->isaBase, PS2KHZ(mode->pixclock));
 
 	/* Restart the LCDIF block */
 	mxs_reset_block((struct mxs_register_32 *)&regs->hw_lcdif_ctrl);
