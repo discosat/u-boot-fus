@@ -444,8 +444,7 @@ int ipu_probe(unsigned int ipu, unsigned int disp)
 	g_pixel_clk[0] = &pixel_clk[0];
 	g_pixel_clk[1] = &pixel_clk[1];
 
-	ipu_clk.rate = mxc_get_ipu_di_clock(ipu, disp);
-//###	ipu_clk.rate = mxc_get_ipu_clock(ipu);
+	ipu_clk.rate = ipuv3_get_ipu_di_clock(ipu, disp);
 	g_ipu_clk = &ipu_clk;
 	debug("ipu_clk = %u\n", clk_get_rate(g_ipu_clk));
 	g_ldb_clk = &ldb_clk;

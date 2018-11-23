@@ -10,3 +10,5 @@
 obj-y	:= soc.o clock.o
 obj-$(CONFIG_SPL_BUILD)	     += ddr.o
 obj-$(CONFIG_SECURE_BOOT)    += hab.o
+obj-$(CONFIG_VIDEO_IPUV3)    += clock-ipuv3.o
+obj-$(CONFIG_VIDEO_MXS)      += clock-mxsfb.o
