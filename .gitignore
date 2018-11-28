@@ -34,6 +34,7 @@
 /SPL
 /System.map
 /u-boot*
+/boards.cfg
 /uboot.nb0
 /uboot-fsimx6.nb0
 /uboot.fs
@@ -47,11 +48,7 @@
 #
 # Generated files
 #
-
 /LOG
-/errlog
-/reloc_off
-
 /spl/
 /tpl/
 
@@ -60,8 +57,6 @@
 #
 /include/config/
 /include/generated/
-/include/spl-autoconf.mk
-/include/tpl-autoconf.mk
 
 # stgit generated dirs
 patches-*

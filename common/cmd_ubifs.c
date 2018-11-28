@@ -15,6 +15,7 @@
 #include <common.h>
 #include <config.h>
 #include <command.h>
+#include <mtd/ubi-user.h>			/* UBI_MAX_VOLUME_NAME */
 
 #include "../fs/ubifs/ubifs.h"
 
@@ -30,7 +31,7 @@ int cmd_ubifs_mount(const char *vol_name)
 		ubifs_mounted = 0;
 		ubifs_init();
 
-		ret = ubifs_mount(vol_name);
+		ret = uboot_ubifs_mount(vol_name);
 		if (ret)
 			return -1;
 

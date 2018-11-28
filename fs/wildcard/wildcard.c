@@ -604,7 +604,8 @@ int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_filesystem_ops *ops)
  *            pattern for the filename to search for
  *   ops:     Pointer to the filesystem functions doing the data access
  *   pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
- *   buffer:  Pointer to buffer where to store data
+ *   buffer:  Pointer to buffer where to store data; if NULL, be quiet and
+ *            only return size
  *   maxsize: Maximum number of bytes to read (0: whole file)
  *
  * Return:
@@ -632,16 +633,20 @@ unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
 	}
 
 	if (wfi->file_type == WC_TYPE_REGULAR) {
-		/* Load file */
-		puts("Loading ");
-		wildcard_print_pathfile(wdi, wfi);
-		puts(" ... ");
+		/* Load file, print info only if buffer is not NULL */
+		if (buffer) {
+			puts("Loading ");
+			wildcard_print_pathfile(wdi, wfi);
+			puts(" ... ");
+		}
 
 		loaded_size = ops->read_file_at(wdi, wfi, pos, buffer, maxsize);
-		if (loaded_size == (unsigned long)-1)
-			printf("failed!\n");
-		else
-			printf("done!\n");
+		if (buffer) {
+			if (loaded_size == (unsigned long)-1)
+				puts("failed!\n");
+			else
+				puts("done!\n");
+		}
 	} else {
 		wildcard_print_pathfile(wdi, wfi);
 		puts(" is no regular file\n");

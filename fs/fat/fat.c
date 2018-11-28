@@ -536,6 +536,8 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 		return 0;		/* Empty file or seek past EOF */
 	if (maxsize && (remaining > skip + maxsize))
 		remaining = skip + maxsize;
+	if (!buffer)
+		return remaining;	/* Do not read, just return size */
 
 	sect_size = mydata->sect_size;
 	bytes_per_cluster = mydata->clust_size * sect_size;
@@ -938,6 +940,11 @@ int fat_exists(const char *pattern)
 	wfi.file_name[0] = '\0';
 
 	return wildcard_exists(&wfi, &fat_ops);
+}
+
+int fat_size(const char *filename)
+{
+	return file_fat_read(filename, NULL, 0);
 }
 
 void fat_close(void)

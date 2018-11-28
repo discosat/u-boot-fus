@@ -187,7 +187,7 @@ int stdio_deregister(const char *devname)
 }
 #endif	/* CONFIG_SYS_STDIO_DEREGISTER */
 
-int stdio_init (void)
+int stdio_init_tables(void)
 {
 #if defined(CONFIG_NEEDS_MANUAL_RELOC)
 	/* already relocated for current ARM implementation */
@@ -203,6 +203,11 @@ int stdio_init (void)
 
 	devs = NULL;
 
+	return 0;
+}
+
+int stdio_add_devices(void)
+{
 #ifdef CONFIG_SYS_I2C
 	i2c_init_all();
 #else
@@ -237,4 +242,12 @@ int stdio_init (void)
 	cbmemc_init();
 #endif
 	return (0);
+}
+
+int stdio_init(void)
+{
+	stdio_init_tables();
+	stdio_add_devices();
+
+	return 0;
 }

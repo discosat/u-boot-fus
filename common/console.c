@@ -300,7 +300,7 @@ static inline void print_pre_console_buffer(void) {}
 void putc(const char c)
 {
 #ifdef CONFIG_SANDBOX
-	if (!gd) {
+	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
 		os_putc(c);
 		return;
 	}
@@ -326,7 +326,7 @@ void putc(const char c)
 void puts(const char *s)
 {
 #ifdef CONFIG_SANDBOX
-	if (!gd) {
+	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
 		os_puts(s);
 		return;
 	}
@@ -380,7 +380,7 @@ int vprintf(const char *fmt, va_list args)
 	uint i;
 	char printbuffer[CONFIG_SYS_PBSIZE];
 
-#ifndef CONFIG_PRE_CONSOLE_BUFFER
+#if defined(CONFIG_PRE_CONSOLE_BUFFER) && !defined(CONFIG_SANDBOX)
 	if (!gd->have_console)
 		return 0;
 #endif
@@ -400,6 +400,7 @@ static int ctrlc_disabled = 0;	/* see disable_ctrl() */
 static int ctrlc_was_pressed = 0;
 int ctrlc(void)
 {
+#ifndef CONFIG_SANDBOX
 	if (!ctrlc_disabled && gd->have_console) {
 		if (tstc()) {
 			switch (getc()) {
@@ -411,6 +412,8 @@ int ctrlc(void)
 			}
 		}
 	}
+#endif
+
 	return 0;
 }
 /* Reads user's confirmation.

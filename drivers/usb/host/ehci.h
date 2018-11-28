@@ -248,6 +248,7 @@ struct ehci_ctrl {
 	struct QH qh_list __aligned(USB_DMA_MINALIGN);
 	struct QH periodic_queue __aligned(USB_DMA_MINALIGN);
 	uint32_t *periodic_list;
+	int periodic_schedules;
 	int ntds;
 };
 

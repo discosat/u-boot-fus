@@ -27,6 +27,12 @@
 #define IOMUXC_GPR5_PCIE_PERST			(1 << 18)
 
 /*
+ * IOMUXC_GPR5 bit fields
+ */
+#define IOMUXC_GPR5_PCIE_BTNRST			(1 << 19)
+#define IOMUXC_GPR5_PCIE_PERST			(1 << 18)
+
+/*
  * IOMUXC_GPR8 bit fields
  */
 #define IOMUXC_GPR8_PCS_TX_DEEMPH_GEN1_MASK		(0x3f << 0)

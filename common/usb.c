@@ -34,7 +34,7 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <compiler.h>
-
+#include <errno.h>
 #include <usb.h>
 #ifdef CONFIG_4xx
 #include <asm/4xx_pci.h>
@@ -60,6 +60,7 @@ int usb_init(int verbose)
 	void *ctrl;
 	struct usb_device *dev;
 	int i, start_index = 0;
+	int ret;
 
 	dev_index = 0;
 	asynch_allowed = 1;
@@ -76,9 +77,15 @@ int usb_init(int verbose)
 		/* init low_level USB */
 		if (verbose)
 			printf("USB%d:   ", i);
-		if (usb_lowlevel_init(i, USB_INIT_HOST, &ctrl)) {
+		ret = usb_lowlevel_init(i, USB_INIT_HOST, &ctrl);
+		if (ret == -ENODEV) {	/* No such device. */
 			if (verbose)
-				puts("lowlevel init failed as HOST\n");
+				puts("Port not available as HOST.\n");
+			continue;
+		}
+
+		if (ret) {		/* Other error. */
+			puts("lowlevel init failed\n");
 			continue;
 		}
 		/*

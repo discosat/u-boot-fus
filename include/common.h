@@ -32,10 +32,7 @@ typedef volatile unsigned char	vu_char;
     defined(CONFIG_MPC866)	|| \
     defined(CONFIG_MPC866P)
 # define CONFIG_MPC866_FAMILY 1
-#elif defined(CONFIG_MPC870) \
-   || defined(CONFIG_MPC875) \
-   || defined(CONFIG_MPC880) \
-   || defined(CONFIG_MPC885)
+#elif defined(CONFIG_MPC885)
 # define CONFIG_MPC885_FAMILY   1
 #endif
 #if   defined(CONFIG_MPC860)	   \
@@ -191,9 +188,6 @@ ulong timer_get_boot_us(void);
 		typeof(Y) __y = (Y);		\
 		(__x > __y) ? __x : __y; })
 
-#define MIN(x, y)  min(x, y)
-#define MAX(x, y)  max(x, y)
-
 #define min3(X, Y, Z)				\
 	({ typeof(X) __x = (X);			\
 		typeof(Y) __y = (Y);		\
@@ -207,9 +201,6 @@ ulong timer_get_boot_us(void);
 		typeof(Z) __z = (Z);		\
 		__x > __y ? (__x > __z ? __x : __z) :	\
 		(__y > __z ? __y : __z); })
-
-#define MIN3(x, y, z)  min3(x, y, z)
-#define MAX3(x, y, z)  max3(x, y, z)
 
 /*
  * Return the absolute value of a number.
@@ -331,14 +322,14 @@ int arch_early_init_r(void);
 void board_show_dram(ulong size);
 
 /**
- * arch_fixup_memory_node() - Write arch-specific memory information to fdt
+ * arch_fixup_fdt() - Write arch-specific information to fdt
  *
- * Defined in arch/$(ARCH)/lib/bootm.c
+ * Defined in arch/$(ARCH)/lib/bootm-fdt.c
  *
  * @blob:	FDT blob to write to
  * @return 0 if ok, or -ve FDT_ERR_... on failure
  */
-int arch_fixup_memory_node(void *blob);
+int arch_fixup_fdt(void *blob);
 
 /* common/flash.c */
 void flash_perror (int);
@@ -656,6 +647,7 @@ int	checkicache   (void);
 int	checkdcache   (void);
 void	upmconfig     (unsigned int, unsigned int *, unsigned int);
 ulong	get_tbclk     (void);
+void	reset_misc    (void);
 void	reset_cpu     (ulong addr);
 #if defined (CONFIG_OF_LIBFDT) && defined (CONFIG_OF_BOARD_SETUP)
 void ft_cpu_setup(void *blob, bd_t *bd);
