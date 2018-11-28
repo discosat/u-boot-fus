@@ -1,0 +1,7 @@
+FSVYBRID BOARDS
+M:	Hartmut Keller <keller@fs-net.de>
+W:	www.fs-net.de
+S:	Maintained
+F:	board/F+S/fsvybrid/
+F:	include/configs/fsvybrid.h
+F:	configs/fsvybrid_defconfig

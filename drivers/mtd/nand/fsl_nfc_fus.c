@@ -20,7 +20,6 @@
 #include <nand.h>
 #include <errno.h>
 #include <asm/io.h>
-#include <asm/processor.h>
 
 #define	DRV_NAME		"fsl_nfc_fus"
 #define	DRV_VERSION		"V2.0"

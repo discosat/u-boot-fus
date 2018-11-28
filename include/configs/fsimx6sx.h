@@ -85,9 +85,11 @@
 #define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
 
 #define CONFIG_ARM_ERRATA_743622
-//#define CONFIG_ARM_ERRATA_751472
-//#define CONFIG_ARM_ERRATA_794072
-//#define CONFIG_ARM_ERRATA_761320
+#if 0
+#define CONFIG_ARM_ERRATA_751472
+#define CONFIG_ARM_ERRATA_794072
+#define CONFIG_ARM_ERRATA_761320
+#endif
 
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
@@ -111,6 +113,7 @@
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
 #define CONFIG_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
+#define CONFIG_BOARD_SIZE_LIMIT CONFIG_UBOOTNB0_SIZE
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
@@ -165,9 +168,10 @@
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) ### If not set, test from beginning of RAM to before stack. */
-//####define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
-//####define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
-
+#if 0
+#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
+#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+#endif
 
 /************************************************************************
  * Clock Settings and Timers
@@ -246,7 +250,7 @@
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
 
 /* Activate this to disable Energy Efficient Ethernet (EEE) on Atheros PHY */
-//#define CONFIG_PHY_ATHEROS_NO_EEE
+/*#define CONFIG_PHY_ATHEROS_NO_EEE*/
 
 /* Ethernet switch SJA1105 */
 #define CONFIG_MXC_SPI
@@ -276,10 +280,10 @@
 /************************************************************************
  * Keyboard
  ************************************************************************/
-#if 0 //###
+#if 0
 #define CONFIG_USB_KEYBOARD
 #define CONFIG_SYS_DEVICE_DEREGISTER	/* Required for CONFIG_USB_KEYBOARD */
-#endif //0###
+#endif
 
 
 /************************************************************************
@@ -292,10 +296,11 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 #define CONFIG_SYS_FSL_USDHC_NUM       1
 
-//#define CONFIG_SYS_FSL_ERRATUM_ESDHC135
-//#define CONFIG_SYS_FSL_ERRATUM_ESDHC111
-//#define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
-
+#if 0
+#define CONFIG_SYS_FSL_ERRATUM_ESDHC135
+#define CONFIG_SYS_FSL_ERRATUM_ESDHC111
+#define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
+#endif
 
 /************************************************************************
  * NOR Flash
@@ -330,8 +335,11 @@
    if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
    as a second NAND device with just that size. This makes it easier to have a
    different ECC strategy and software write protection for NBoot. */
+#if 1
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
-//#define CONFIG_SYS_MAX_NAND_DEVICE	2
+#else
+#define CONFIG_SYS_MAX_NAND_DEVICE	2
+#endif
 
 /* Chips per device; all chips must be the same type; if different types
    are necessary, they must be implemented as different NAND devices */
@@ -512,7 +520,7 @@
 #define CONFIG_PCI_SCAN_SHOW
 #define CONFIG_PCIE_IMX
 #define CONFIG_PCIE_IMX_PERST_GPIO	IMX_GPIO_NR(2, 1)
-//#define CONFIG_PCIE_IMX_POWER_GPIO	IMX_GPIO_NR(3, 19)
+/*#define CONFIG_PCIE_IMX_POWER_GPIO	IMX_GPIO_NR(3, 19)*/
 #endif
 
 
@@ -604,7 +612,7 @@
    is available. To avoid this time, we can save the environment alternatively
    to two different locations in the NAND flash. Then at least one of the
    environments is always valid. Currently we don't use this feature. */
-//#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000
+/*#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000*/
 
 #define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
@@ -742,7 +750,7 @@
 /************************************************************************
  * Libraries
  ************************************************************************/
-//#define USE_PRIVATE_LIBGCC
+/*#define USE_PRIVATE_LIBGCC*/
 #define CONFIG_SYS_64BIT_VSPRINTF	/* Needed for nand_util.c */
 #define CONFIG_USE_ARCH_MEMCPY
 #define CONFIG_USE_ARCH_MEMMOVE

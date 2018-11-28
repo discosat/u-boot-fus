@@ -408,6 +408,18 @@ config TARGET_MX6SLEVK
 config TARGET_MX6SXSABRESD
 	bool "Support mx6sxsabresd"
 
+config TARGET_FSIMX6
+	bool "F&S fsimx6 boards & modules"
+
+config TARGET_FSIMX6SX
+	bool "F&S fsimx6sx boards & modules"
+
+config TARGET_FSIMX6UL
+	bool "F&S fsimx6ul boards & modules"
+
+config TARGET_FSVYBRID
+	bool "F&S fsvybrid boards & modules"
+
 config TARGET_GW_VENTANA
 	bool "Support gw_ventana"
 
@@ -566,6 +578,10 @@ source "board/BuR/tseries/Kconfig"
 source "board/BuS/eb_cpux9k2/Kconfig"
 source "board/BuS/vl_ma2sc/Kconfig"
 source "board/CarMediaLab/flea3/Kconfig"
+source "board/F+S/fsimx6/Kconfig"
+source "board/F+S/fsimx6sx/Kconfig"
+source "board/F+S/fsimx6ul/Kconfig"
+source "board/F+S/fsvybrid/Kconfig"
 source "board/Marvell/aspenite/Kconfig"
 source "board/Marvell/dkb/Kconfig"
 source "board/Marvell/gplugd/Kconfig"

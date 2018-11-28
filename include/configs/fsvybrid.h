@@ -106,7 +106,7 @@
 #define CONFIG_SYS_GENERIC_BOARD	/* Generic, not ARM specific startup */
 #undef CONFIG_ARCH_CPU_INIT
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
-//###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?
+/*###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?*/
 #define CONFIG_BOARD_EARLY_INIT_F	/* Activate NAND flash pin mux */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
@@ -125,6 +125,7 @@
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
 #define CONFIG_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
+#define CONFIG_BOARD_SIZE_LIMIT CONFIG_UBOOTNB0_SIZE
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
@@ -172,9 +173,10 @@
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) ### If not set, test from beginning of RAM to before stack. */
-//####define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
-//####define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
-
+#if 0
+#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
+#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
+#endif
 
 /************************************************************************
  * Clock Settings and Timers
@@ -259,7 +261,8 @@
  * Ethernet
  ************************************************************************/
 #define CONFIG_FEC_MXC
-#define CONFIG_FS_VYBRID_PLL_ETH // ### undefine if external quartz is used for ETH clock
+/* Undefine the following line if external quarts is used for ETH clock */
+#define CONFIG_FS_VYBRID_PLL_ETH
 
 /* PHY */
 #define CONFIG_PHYLIB
@@ -279,7 +282,7 @@
 #define CONFIG_USB_EHCI_VYBRID		/* This is Vybrid EHCI */
 #define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
 /* If USB0 should be used as second USB Host port, activate this entry */
-//#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
+/*#define CONFIG_USB_MAX_CONTROLLER_COUNT 2*/
 
 #define CONFIG_USB_STORAGE
 
@@ -293,10 +296,10 @@
 /************************************************************************
  * Keyboard
  ************************************************************************/
-#if 0 //###
+#if 0
 #define CONFIG_USB_KEYBOARD
 #define CONFIG_SYS_DEVICE_DEREGISTER	/* Required for CONFIG_USB_KEYBOARD */
-#endif //0###
+#endif
 
 
 /************************************************************************
@@ -346,8 +349,11 @@
    if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
    as a second NAND device with just that size. This makes it easier to have a
    different ECC strategy and software write protection for NBoot. */
+#if 1
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
-//#define CONFIG_SYS_MAX_NAND_DEVICE	2
+#else
+#define CONFIG_SYS_MAX_NAND_DEVICE	2
+#endif
 
 /* Chips per device; all chips must be the same type; if different types
    are necessary, they must be implemented as different NAND devices */
@@ -522,16 +528,16 @@
 /************************************************************************
  * Display Commands (LCD)
  ************************************************************************/
-#if 0 //###TODO###
+#if 0					/* ### TODO */
 #define CONFIG_CMD_LCD			/* Support lcd settings command */
-//#define CONFIG_CMD_WIN		/* Window layers, alpha blending */
-//#define CONFIG_CMD_CMAP		/* Support CLUT pixel formats */
+#define CONFIG_CMD_WIN			/* Window layers, alpha blending */
+#define CONFIG_CMD_CMAP			/* Support CLUT pixel formats */
 #define CONFIG_CMD_DRAW			/* Support draw command */
-//#define CONFIG_CMD_ADRAW		/* Support alpha draw commands */
-//#define CONFIG_CMD_BMINFO		/* Provide bminfo command */
-//#define CONFIG_XLCD_PNG		/* Support for PNG bitmaps */
+#define CONFIG_CMD_ADRAW		/* Support alpha draw commands */
+#define CONFIG_CMD_BMINFO		/* Provide bminfo command */
+#define CONFIG_XLCD_PNG			/* Support for PNG bitmaps */
 #define CONFIG_XLCD_BMP			/* Support for BMP bitmaps */
-//#define CONFIG_XLCD_JPG		/* Support for JPG bitmaps */
+#define CONFIG_XLCD_JPG			/* Support for JPG bitmaps */
 #define CONFIG_XLCD_EXPR		/* Allow expressions in coordinates */
 #define CONFIG_XLCD_CONSOLE		/* Support console on LCD */
 #define CONFIG_XLCD_CONSOLE_MULTI	/* Define a console on each window */
@@ -549,7 +555,7 @@
 /* Supported test images (see include/cmd_xlcd.h) */
 #define CONFIG_XLCD_TEST \
 	(XLCD_TEST_GRID /*| XLCD_TEST_COLORS | XLCD_TEST_D2B | XLCD_TEST_GRAD*/)
-#endif //0###
+#endif
 
 
 /************************************************************************
@@ -633,7 +639,7 @@
    is available. To avoid this time, we can save the environment alternatively
    to two different locations in the NAND flash. Then at least one of the
    environments is always valid. Currently we don't use this feature. */
-//#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000
+/*#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000*/
 
 #define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
@@ -764,7 +770,7 @@
 /************************************************************************
  * Libraries
  ************************************************************************/
-//#define USE_PRIVATE_LIBGCC
+/*#define USE_PRIVATE_LIBGCC*/
 #define CONFIG_SYS_64BIT_VSPRINTF	/* Needed for nand_util.c */
 #define CONFIG_USE_ARCH_MEMCPY
 #define CONFIG_USE_ARCH_MEMMOVE

@@ -43,7 +43,6 @@
 
 #include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/fsl_nfc_fus.h>		/* struct fsl_nfc_fus_platform_data */
-#include <usb/ehci-fsl.h>
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
