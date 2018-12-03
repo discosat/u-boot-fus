@@ -127,7 +127,6 @@ serial_initfunc(evb64260_serial_initialize);
 serial_initfunc(imx_serial_initialize);
 serial_initfunc(iop480_serial_initialize);
 serial_initfunc(jz_serial_initialize);
-serial_initfunc(ks8695_serial_initialize);
 serial_initfunc(leon2_serial_initialize);
 serial_initfunc(leon3_serial_initialize);
 serial_initfunc(lh7a40x_serial_initialize);
@@ -241,7 +240,6 @@ void serial_initialize(void)
 		imx_serial_initialize();
 		iop480_serial_initialize();
 		jz_serial_initialize();
-		ks8695_serial_initialize();
 		leon2_serial_initialize();
 		leon3_serial_initialize();
 		lh7a40x_serial_initialize();
@@ -382,6 +380,17 @@ static struct serial_device *get_current(void)
 	return sdev;
 }
 
+static const struct serial_device *get_serial_dev(const struct stdio_dev *pdev)
+{
+#if 0
+	/* ### FIXME: Some serial calls do not pass the correct stdio_dev yet */
+	if (pdev)
+		return to_serial_device(pdev);
+#endif
+
+	return get_current();
+}
+
 /**
  * serial_init() - Initialize currently selected serial port
  *
@@ -429,7 +438,7 @@ void serial_setbrg(void)
  */
 int serial_getc(const struct stdio_dev *pdev)
 {
-	const struct serial_device *sdev = get_current();
+	const struct serial_device *sdev = get_serial_dev(pdev);
 
 	return sdev->dev.getc(&sdev->dev);
 }
@@ -446,7 +455,7 @@ int serial_getc(const struct stdio_dev *pdev)
  */
 int serial_tstc(const struct stdio_dev *pdev)
 {
-	const struct serial_device *sdev = get_current();
+	const struct serial_device *sdev = get_serial_dev(pdev);
 
 	return sdev->dev.tstc(&sdev->dev);
 }
@@ -464,7 +473,7 @@ int serial_tstc(const struct stdio_dev *pdev)
  */
 void serial_putc(const struct stdio_dev *pdev, const char c)
 {
-	const struct serial_device *sdev = get_current();
+	const struct serial_device *sdev = get_serial_dev(pdev);
 
 	sdev->dev.putc(&sdev->dev, c);
 }
@@ -484,8 +493,8 @@ void serial_putc(const struct stdio_dev *pdev, const char c)
  */
 void serial_puts(const struct stdio_dev *pdev, const char *s)
 {
-	const struct serial_device *sdev = get_current();
-	
+	const struct serial_device *sdev = get_serial_dev(pdev);
+
 	sdev->dev.puts(&sdev->dev, s);
 }
 
@@ -503,7 +512,7 @@ void serial_puts(const struct stdio_dev *pdev, const char *s)
  */
 void default_serial_puts(const struct stdio_dev *pdev, const char *s)
 {
-	const struct serial_device *sdev = get_current();
+	const struct serial_device *sdev = get_serial_dev(pdev);
 
 	while (*s)
 		sdev->dev.putc(&sdev->dev, *s++);

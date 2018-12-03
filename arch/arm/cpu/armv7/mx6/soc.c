@@ -316,6 +316,23 @@ static void clear_mmdc_ch_mask(void)
 	writel(reg, &mxc_ccm->ccdr);
 }
 
+static void init_bandgap(void)
+{
+	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+	/*
+	 * Ensure the bandgap has stabilized.
+	 */
+	while (!(readl(&anatop->ana_misc0) & 0x80))
+		;
+	/*
+	 * For best noise performance of the analog blocks using the
+	 * outputs of the bandgap, the reftop_selfbiasoff bit should
+	 * be set.
+	 */
+	writel(BM_ANADIG_ANA_MISC0_REFTOP_SELBIASOFF, &anatop->ana_misc0_set);
+}
+
+
 #ifdef CONFIG_MX6SL
 static void set_preclk_from_osc(void)
 {
@@ -327,6 +344,8 @@ static void set_preclk_from_osc(void)
 	writel(reg, &mxc_ccm->cscmr1);
 }
 #endif
+
+#define SRC_SCR_WARM_RESET_ENABLE	0
 
 int arch_cpu_init(void)
 {
@@ -356,6 +375,13 @@ int arch_cpu_init(void)
 
 	/* Need to clear MMDC_CHx_MASK to make warm reset work. */
 	clear_mmdc_ch_mask();
+
+	/*
+	 * Disable self-bias circuit in the analog bandap.
+	 * The self-bias circuit is used by the bandgap during startup.
+	 * This bit should be set after the bandgap has initialized.
+	 */
+	init_bandgap();
 
 	if (!is_cpu_type(MXC_CPU_MX6UL) && !is_cpu_type(MXC_CPU_MX6ULL)) {
 		/*
@@ -417,6 +443,8 @@ int arch_cpu_init(void)
 	if (is_cpu_type(MXC_CPU_MX6SX))
 		set_ldo_voltage(LDO_PU, 0);	/* Set LDO for PCIe to off */
 #endif
+
+	init_src();
 
 	return 0;
 }

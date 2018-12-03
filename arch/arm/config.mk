@@ -30,9 +30,6 @@ ARCH_PLATFORM_LIBGCC := $(shell \
 	else $(CC) -print-file-name=libgcc.a ; \
 	fi)
 
-# Support generic board on ARM
-__HAVE_ARCH_GENERIC_BOARD := y
-
 PLATFORM_CPPFLAGS += -D__ARM__
 
 # Choose between ARM/Thumb instruction sets

@@ -25,7 +25,9 @@
 #include <fsl_esdhc.h>
 #endif
 
-char *get_reset_cause(void)
+static u32 reset_cause = -1;
+
+const char *get_reset_cause(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 
@@ -48,6 +50,11 @@ char *get_reset_cause(void)
 	default:
 		return "unknown reset";
 	}
+}
+
+u32 get_imx_reset_cause(void)
+{
+	return reset_cause;
 }
 
 #if defined(CONFIG_MX53) || defined(CONFIG_MX6)

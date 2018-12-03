@@ -999,16 +999,19 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	ulong start, end;
 	vu_long *buf, *dummy;
-	int iteration_limit;
+	ulong iteration_limit = 0;
 	int ret;
 	ulong errs = 0;	/* number of errors, or -1 if interrupted */
-	ulong pattern;
+	ulong pattern = 0;
 	int iteration;
 #if defined(CONFIG_SYS_ALT_MEMTEST)
 	const int alt_test = 1;
 #else
 	const int alt_test = 0;
 #endif
+
+	start = CONFIG_SYS_MEMTEST_START;
+	end = CONFIG_SYS_MEMTEST_END;
 
 	if (argc > 1)
 		start = (ulong *)parse_loadaddr(argv[1], NULL);
@@ -1039,14 +1042,17 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	if (argc > 3)
-		pattern = (ulong)simple_strtoul(argv[3], NULL, 16);
-	else
-		pattern = 0;
+		if (strict_strtoul(argv[3], 16, &pattern) < 0)
+			return CMD_RET_USAGE;
 
 	if (argc > 4)
-		iteration_limit = (ulong)simple_strtoul(argv[4], NULL, 16);
-	else
-		iteration_limit = 0;
+		if (strict_strtoul(argv[4], 16, &iteration_limit) < 0)
+			return CMD_RET_USAGE;
+
+	if (end < start) {
+		printf("Refusing to do empty test\n");
+		return -1;
+	}
 
 	printf("Testing %08x ... %08x:\n", (uint)start, (uint)end);
 	debug("%s:%d: start %#08lx end %#08lx\n", __func__, __LINE__,
@@ -1097,7 +1103,7 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 		ret = errs != 0;
 	}
 
-	return ret;	/* not reached */
+	return ret;
 }
 #endif	/* CONFIG_CMD_MEMTEST */
 

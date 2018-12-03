@@ -39,4 +39,4 @@
 #define CS0_64M_CS1_32M_CS2_32M			2
 #define CS0_32M_CS1_32M_CS2_32M_CS3_32M		3
 
-char *get_reset_cause(void);
+const char *get_reset_cause(void);

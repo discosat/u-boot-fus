@@ -223,7 +223,7 @@ static int read_record(char *buf, ulong len)
 		}
 
 	    /* Check for the console hangup (if any different from serial) */
-	    if (gd->jt[XF_getc] != getc) {
+	    if (gd->jt->getc != getc) {
 		if (ctrlc()) {
 		    return (-1);
 		}

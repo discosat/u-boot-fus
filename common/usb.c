@@ -59,6 +59,7 @@ int usb_init(int verbose)
 	void *ctrl;
 	struct usb_device *dev;
 	int i, start_index = 0;
+	int controllers_initialized = 0;
 	int ret;
 
 	dev_index = 0;
@@ -80,6 +81,7 @@ int usb_init(int verbose)
 		if (ret == -ENODEV) {	/* No such device. */
 			if (verbose)
 				puts("Port not available as HOST.\n");
+			controllers_initialized++;
 			continue;
 		}
 
@@ -91,6 +93,7 @@ int usb_init(int verbose)
 		 * lowlevel init is OK, now scan the bus for devices
 		 * i.e. search HUBs and configure them
 		 */
+		controllers_initialized++;
 		start_index = dev_index;
 		if (verbose)
 			printf("scanning bus %d for devices... ", i);
@@ -115,13 +118,12 @@ int usb_init(int verbose)
 
 	debug("scan end\n");
 	/* if we were not able to find at least one working bus, bail out */
-	if (!usb_started) {
+	if (controllers_initialized == 0) {
 		if (verbose)
-			puts("USB: all controllers failed lowlevel init\n");
-		return -1;
+			puts("USB error: all controllers failed lowlevel init\n");
 	}
 
-	return 0;
+	return usb_started ? 0 : -1;
 }
 
 /******************************************************************************
@@ -975,6 +977,8 @@ int usb_new_device(struct usb_device *dev)
 			printf("\n     Couldn't reset port %i\n", dev->portnr);
 			return 1;
 		}
+	} else {
+		usb_reset_root_port();
 	}
 #endif
 
