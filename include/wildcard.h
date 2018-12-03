@@ -4,25 +4,9 @@
  * Generic commands to read and write a file and to list directories. These
  * commands support wildcards in file/path names.
  *
- * (C) Copyright 2012 Hartmut Keller (keller@fs-net.de)
+ * (C) Copyright 2012-2018 Hartmut Keller (keller@fs-net.de)
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _WILDCARD_H_
@@ -79,18 +63,17 @@ struct wc_fileinfo {
 };
 
 /* Calls into the filesystem to do the necessary data accesses */
-struct wc_filesystem_ops {
+struct wc_fsops {
 	const char *name;
 	struct wc_dirinfo *(*alloc_dir)(void);
 	void (*free_dir)(struct wc_dirinfo *wdi);
 	int (*get_fileinfo)(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi);
-	unsigned long (*read_file_at)(struct wc_dirinfo *wdi,
-				      struct wc_fileinfo *wfi, 
-				      unsigned long pos, void *buffer,
-				      unsigned long maxsize);
-	unsigned long (*write_file)(struct wc_dirinfo *wdi,
-				    struct wc_fileinfo *wfi, void *buffer,
-				    unsigned long maxsize);
+	int (*read_file_at)(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi, 
+			    void *buffer, loff_t offset, loff_t len,
+			    loff_t *actread);
+	int (*write_file)(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
+			  const void *buffer, loff_t offset, loff_t len,
+			  loff_t *actwrite);
 	int (*get_symlink)(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
 			   char *symlink);
 };
@@ -99,21 +82,17 @@ struct wc_filesystem_ops {
 /* ------ Exported functions ------ */
 
 /* List directory contents */
-extern int wildcard_ls(struct wc_fileinfo *wfi,
-		       const struct wc_filesystem_ops *ops);
+int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_fsops *ops);
 
 /* Read a file */
-extern unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
-				      const struct wc_filesystem_ops *ops,
-				      unsigned long pos, void *buffer,
-				      unsigned long maxsize);
+int wildcard_read_at(struct wc_fileinfo *wfi, const struct wc_fsops *ops,
+		     void *buffer, loff_t offset, loff_t len, loff_t *actread);
 
 /* Write a file */
-extern unsigned long wildcard_write(struct wc_fileinfo *wfi,
-				    const struct wc_filesystem_ops *ops,
-				    void *buffer, unsigned long maxsize);
+int wildcard_write(struct wc_fileinfo *wfi, const struct wc_fsops *ops,
+		   const void *buffer, loff_t offset, loff_t len,
+		   loff_t *actwrite);
 
 /* Check for existence of a file */
-extern int wildcard_exists(struct wc_fileinfo *wfi,
-			   const struct wc_filesystem_ops *ops);
+int wildcard_exists(struct wc_fileinfo *wfi, const struct wc_fsops *ops);
 #endif /*!_WILDCARD_H_*/

@@ -1,8 +1,7 @@
 /*
- * R/O (V)FAT 12/16/32 filesystem implementation by Marcus Sundberg
+ * fat.h
  *
- * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
- * 2003-03-10 - kharris@nexus-tech.net - ported to u-boot
+ * (C) 2012-2018 Hartmut Keller (keller@fs-net.de)
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -186,9 +185,9 @@ int file_fat_detectfs(void);
 int file_fat_ls(const char *pattern);
 int fat_exists(const char *pattern);
 int fat_size(const char *pattern, loff_t *size);
-long file_fat_read_at(const char *pattern, loff_t pos, void *buffer,
+int file_fat_read_at(const char *pattern, loff_t pos, void *buffer,
 		      loff_t maxsize, loff_t *actread);
-long file_fat_read(const char *pattern, void *buffer, int maxsize);
+int file_fat_read(const char *pattern, void *buffer, int maxsize);
 const char *file_getfsname(int idx);
 int fat_set_blk_dev(block_dev_desc_t *rbdd, disk_partition_t *info);
 int fat_register_device(block_dev_desc_t *dev_desc, int part_no);

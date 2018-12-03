@@ -4,43 +4,28 @@
  * Generic commands to read and write a file and to list directories. These
  * commands support wildcards in file/path names.
  *
- * (C) Copyright 2012 Hartmut Keller (keller@fs-net.de)
+ * (C) Copyright 2012-2018 Hartmut Keller (keller@fs-net.de)
  *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
+ * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <config.h>
 #include <wildcard.h>
 #include <fat.h>
+#include <errno.h>
 
 /* Pointer to file system calls for data access */
-static const struct wc_filesystem_ops *fs_ops;
+static const struct wc_fsops *fs_ops;
 
-/*
+/**
+ * skip_dir_delim() - Remove all leading directory delimiters
+ * @pattern: String to check
+ *
  * Remove all leading directory delimiters '/' from the pattern.
  *
- * Parameters:
- *   pattern: Pointer to string to check
- *
  * Return:
- *   Pointer to string behind any leading slashes
+ * Pointer to string behind any leading slashes.
  */
 static const char *skip_dir_delim(const char *pattern)
 {
@@ -50,20 +35,20 @@ static const char *skip_dir_delim(const char *pattern)
 	return pattern;
 }
 
-/* 
+/**
+ * wildcard_match() - Check if a filename matches the pattern
+ * @filename: Filename to check
+ * @pattern:  Pattern to check for
+ *
  * Check if the filename matches the pattern. The pattern may contain '?'
  * which matches any single character and '*' which matches any sequence of
  * zero or more characters. The function is called recursively to resolve
  * the '*' wildcards.
  *
- * Parameters:
- *   filename: Pointer to filename to check
- *   pattern:  Pointer to pattern to check for
- *
  * Return:
- *   Pointer to pattern behind the matching part. This either points to the
- *   end of the pattern ('\0') or to the next directory part ('/'). Return
- *   NULL if no match.
+ * Pointer to pattern behind the matching part. This either points to the
+ * end of the pattern ('\0') or to the next directory part ('/'). Return
+ * NULL if no match.
  */
 static const char *wildcard_match(const char *filename, const char *pattern)
 {
@@ -100,18 +85,17 @@ static const char *wildcard_match(const char *filename, const char *pattern)
 	return pattern - 1;
 }
 
-/*
+/**
+ * wildcard_find_file() - Return next file match for a pattern
+ * @wdi:    Directory entry; wdi->dir_pattern is the pattern to search for
+ * @wfi:    Structure where to store file information if a file is found
+ *
  * Return the next match for a file.
  *
- * Parameters:
- *   wdi: Pointer to directory entry; especially wdi->dir_pattern is the
- *        pattern to search for
- *   wfi: Pointer to structure where to store file information if found
- *
  * Return:
- *   1:  Found a file match
- *   0:  No more matches
- *   -1: Error, e.g. while reading data from the device
+ *  1 - Found a file match;
+ *  0 - No more matches;
+ * -1 - Error, e.g. while reading data from the device
  */
 static int wildcard_find_file(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 {
@@ -135,19 +119,18 @@ static int wildcard_find_file(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 	return ret;
 }
 
-/*
+/**
+ * wildcard_find_dir() - Return next directory match for a pattern
+ * @wdi:    Directory entry; wdi->dir_pattern is the pattern to search for
+ * @wfi:    Structure where to store file information if a directory is found
+ *
  * Return the next match for a directory. This is similar to
  * wildcard_find_file() but only returns directory matches.
  *
- * Parameters:
- *   wdi: Pointer to directory entry; especially wdi->dir_pattern is the
- *        pattern to search for
- *   wfi: Pointer to structure where to store file information if found
- *
  * Return:
- *   1:  Found a directory match
- *   0:  No more matches
- *   -1: Error, e.g. while reading data from the device
+ *  1 - Found a directory match;
+ *  0 - No more matches;
+ * -1 - Error, e.g. while reading data from the device
  */
 static int wildcard_find_dir(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 {
@@ -161,21 +144,19 @@ static int wildcard_find_dir(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 	return ret;
 }
 
-/*
+/**
+ * wildcard_is_unique_file() - Check if file pattern has only one match
+ * @wdi:    Directory entry; wdi->dir_pattern is the pattern to search for
+ * @wfi:    Structure to store temporary information; ignore after return
+ *
  * Check the first or the first two file matches of the given directory
  * to decide if the match is unique or not.
  *
- * Parameters:
- *   wdi: Pointer to directory entry; especially wdi->dir_pattern is the
- *        pattern to search for
- *   wfi: Pointer to structure where to store intermediate file information;
- *        it does not contain meaningful data after return!
- *
  * Return:
- *   2:  Not unique, at least two files match
- *   1:  A file exists and is the only match
- *   0:  There is no such file
- *   <0: Error
+ *  2 - Not unique, at least two files match;
+ *  1 - A file exists and is the only match;
+ *  0 - There is no such file;
+ * <0 - Error
  */
 static int wildcard_is_unique_file(struct wc_dirinfo *wdi,
 				  struct wc_fileinfo *wfi)
@@ -193,22 +174,20 @@ static int wildcard_is_unique_file(struct wc_dirinfo *wdi,
 	return ret;
 }
 
-/*
+/**
+ * wildcard_is_unique_dir() - Check if directory pattern has only one match
+ * @wdi:    Directory entry; wdi->dir_pattern is the pattern to search for
+ * @wfi:    Structure to store temporary information; ignore after return
+ *
  * Check the first or the first two directory matches of the given directory
  * to decide if the match is unique or not. This is similar to
  * wildcard_is_unique_file(), but only checks for directories.
  *
- * Parameters:
- *   wdi: Pointer to directory entry; especially wdi->dir_pattern is the
- *        pattern to search for
- *   wfi: Pointer to structure where to store intermediate file information;
- *        it does not contain meaningful data after return!
- *
  * Return:
- *   2:  Not unique, at least two directories match
- *   1:  Directory exists and is the only match
- *   0:  There is no such directory or several directories match
- *   <0: Error
+ *  2 - Not unique, at least two directories match;
+ *  1 - Directory exists and is the only match;
+ *  0 - There is no such directory or several directories match;
+ * <0 - Error
  */
 static int wildcard_is_unique_dir(struct wc_dirinfo *wdi,
 				  struct wc_fileinfo *wfi)
@@ -225,7 +204,10 @@ static int wildcard_is_unique_dir(struct wc_dirinfo *wdi,
 	return ret;
 }
 
-/*
+/**
+ * wildcard_print_path() - Print directory path
+ * @wdi:    Pointer to directory entry
+ *
  * Recursively print the given directory path; the path always ends with '/'.
  *
  * The parameter points to the deepest directory, all parent directories can
@@ -236,9 +218,6 @@ static int wildcard_is_unique_dir(struct wc_dirinfo *wdi,
  *                '\0'     /   "abc"    /   "def"    /   "ghi"   /
  *
  * The result in this example would be:  /abc/def/ghi/
- *
- * Parameter:
- *   wdi: Pointer to directory entry
  */
 static void wildcard_print_path(struct wc_dirinfo *wdi)
 {
@@ -248,8 +227,12 @@ static void wildcard_print_path(struct wc_dirinfo *wdi)
 	putc('/');
 }
 
-/*
- * Recursively print the given directory path; the path always ends with '/'.
+/**
+ * wildcard_print_pathfile() - Print directory path and file name
+ * @wdi:    Pointer to directory entry
+ * @wfi:    Pointer to file information
+ *
+ * Recursively print the given directory path and append the file name.
  *
  * The parameter points to the deepest directory, all parent directories can
  * be reached by the parent link in the wc_dirinfo structure:
@@ -261,10 +244,6 @@ static void wildcard_print_path(struct wc_dirinfo *wdi)
  *   "basename.ext" <--- wfi
  *
  * The result in this example would be:  /abc/def/ghi/basename.ext
- *
- * Parameter:
- *   wdi: Pointer to directory entry
- *   wfi: Pointer to file information
  */
 static void wildcard_print_pathfile(struct wc_dirinfo *wdi,
 				    struct wc_fileinfo *wfi)
@@ -273,14 +252,14 @@ static void wildcard_print_pathfile(struct wc_dirinfo *wdi,
 	puts(wfi->file_name);
 }
 
-/*
+/**
+ * wildcard_free_dir() - Free directory entry
+ * @wdi:    Pointer to current directory
+ *
  * Free the given directory entry and return a pointer to the parent.
  *
- * Parameter:
- *   wdi: Pointer to current directory
- *
  * Return:
- *   Pointer to parent directory, NULL if this was the root directory
+ * Pointer to parent directory, NULL if this was the root directory.
  */
 static struct wc_dirinfo *wildcard_free_dir(struct wc_dirinfo *wdi)
 {
@@ -291,14 +270,14 @@ static struct wc_dirinfo *wildcard_free_dir(struct wc_dirinfo *wdi)
 	return parent_wdi;
 }
 
-/*
+/**
+ * wildcard_path_done() - Free the given directory path
+ * @wdi:    Pointer to directory path
+ *
  * Free the given directory path and return NULL.
  *
- * Parameter:
- *   wdi: Pointer to directory path
- *
  * Return:
- *   NULL
+ * NULL
  */
 static struct wc_dirinfo *wildcard_path_done(struct wc_dirinfo *wdi)
 {
@@ -308,18 +287,18 @@ static struct wc_dirinfo *wildcard_path_done(struct wc_dirinfo *wdi)
 	return wdi;
 }
 
-/*
+/**
+ * wildcard_alloc_dir() - Allocate directory entry
+ * @parent_wdi: Pointer to directory path where a new entry will be appended
+ * @wfi:        File information for subdirectory
+ *
  * Allocate a directory entry, link it to the given parent directory and fill
  * in the given file data. If the entry can not be allocated, show an
  * allocation error, free whole path and return NULL.
  *
- * Parameters:
- *   parent_wdi: Pointer to directory path where a new entry will be appended
- *   wfi:        File information for subdirectory
- *
  * Return:
- *   Pointer to the new directory entry or NULL on error; in the latter case,
- *   the whole path is already deallocated on return
+ * Pointer to the new directory entry or NULL on error; in the latter case,
+ * the whole path is already deallocated on return.
  */
 static struct wc_dirinfo *wildcard_alloc_dir(struct wc_dirinfo *parent_wdi,
 					     struct wc_fileinfo *wfi)
@@ -345,16 +324,16 @@ static struct wc_dirinfo *wildcard_alloc_dir(struct wc_dirinfo *parent_wdi,
 	return wdi;
 }
 
-/*
+/**
+ * wildcard_path_error() - Show error message and free directory path
+ * @wdi:    Pointer to directory path
+ * @reason: Error reason (NULL: use fix string "I/O error on")
+ *
  * Show the path, the error reason and the remaining pattern. Then free the
  * given directory path and return NULL.
  *
- * Parameters:
- *   wdi:    Pointer to directory path
- *   reason: Error reason (NULL: use fix "I/O error on")
- *
  * Return:
- *   NULL
+ * NULL
  */
 static struct wc_dirinfo *wildcard_path_error(struct wc_dirinfo *wdi,
 					      const char *reason)
@@ -367,22 +346,19 @@ static struct wc_dirinfo *wildcard_path_error(struct wc_dirinfo *wdi,
 	return wildcard_path_done(wdi);
 }
 
-/*
- * List the given directory in ls style. If the directory pattern is empty,
+/**
+ * wildcard_list_dir() - List the given directory in ls style
+ * @wdi:    Directory path to list; wdi->dir_pattern is the pattern to show
+ * @wfi:    Structure to store temporary information; ignore after return
+ *
+ * List the files of the given directory. If the wdi->dir_pattern is empty,
  * list all files (including "." and ".."), otherwise only list matching files.
  *
  * Remark: Files are not sorted in any way. They are shown in the sequence as
  * they appear in the directory.
  *
- * Parameters:
- *   wdi: Pointer to directory path to list; especially wdi->dir_pattern is
- *        the pattern to show; if empty, show all files of directory
- *   wfi: Pointer structure where to store file information; it does not
- *        contain meaningful data after return!
- *
  * Return:
- *   0:  No error
- *   -1: Error
+ * -1 on error, 0 for success.
  */
 static int wildcard_list_dir(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 {
@@ -436,7 +412,10 @@ static int wildcard_list_dir(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 	return 0;
 }
 
-/* 
+/**
+ * wildcard_find_unique() - Check if path and file name exist and are unique
+ * @wfi:    Info for root directory and pattern for file; will be updated
+ *
  * Check if the path and file name exist and are unique. Return a pointer to
  * the directory path and the fileinfo in *wfi. If the file does not exist,
  * wfi->file_type is set to WC_TYPE_NONE, wfi->file_name is empty and
@@ -451,12 +430,8 @@ static int wildcard_list_dir(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
  * an appropriate error message (including path and remaining pattern) and
  * returns NULL. Then *wfi is not valid.
  *
- * Parameter:
- *   wfi: Info for root directory and pattern for file; this is updated and
- *        contains the info for the found file after return
- *
  * Return:
- *   Pointer to directory path where file is found, or NULL if no match
+ * Pointer to directory path where file is found, NULL if no match.
  */
 static struct wc_dirinfo *wildcard_find_unique(struct wc_fileinfo *wfi)
 {
@@ -518,20 +493,18 @@ static struct wc_dirinfo *wildcard_find_unique(struct wc_fileinfo *wfi)
 }
 
 
-/*
+/**
+ * wildcard_ls() - List files
+ * @wfi:      Info for root directory and pattern for files to list
+ * @ops:      Pointer to the filesystem functions doing the data access
+ *
  * Recursively list the files in the given root directory and all
  * subdirectories that match the pattern in wfi->pattern.
  *
- * Parameters:
- *   wfi: Pointer to fileinfo for root directory, wfi->pattern is the pattern
- *        to search for
- *   ops: Pointer to the filesystem functions doing the data access
- *
  * Return:
- *   0:  OK
- *   -1: Error, e.g. while reading data from the device
+ * -1 on errors, 0 for success.
  */
-int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_filesystem_ops *ops)
+int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_fsops *ops)
 {
 	struct wc_dirinfo *wdi = NULL;
 	int ret;
@@ -596,40 +569,41 @@ int wildcard_ls(struct wc_fileinfo *wfi, const struct wc_filesystem_ops *ops)
 	return -1;
 }
 
-/*
- * Read a file.
+/**
+ * wildcard_read_at() - Read a file.
+ * @wfi:      Info for root directory and pattern for files to search for
+ * @ops:      Pointer to the filesystem functions doing the data access
+ * @buffer:   Pointer to buffer with data to write
+ * @offset:   Starting position in file
+ * @len:      Number of bytes to write
+ * @actread:  Pointer where to store the number of actually read bytes
  *
- * Parameters:
- *   wfi:     Pointer to fileinfo for root directory, wfi->pattern is the
- *            pattern for the filename to search for
- *   ops:     Pointer to the filesystem functions doing the data access
- *   pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
- *   buffer:  Pointer to buffer where to store data; if NULL, be quiet and
- *            only return size
- *   maxsize: Maximum number of bytes to read (0: whole file)
+ * If there is exactly one file matchin the pattern, load the data from it by
+ * calling the filesystem specific read_file_at() function. Special files,
+ * e.g. the volume name or directories can not be read.
  *
  * Return:
- *   Number of read bytes or -1 (0xFFFFFFFF) on error, e.g. if path or file is
- *   not found or while reading data from the device
+ * Error code (<0) or 0 for success.
  */
-unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
-			       const struct wc_filesystem_ops *ops,
-			       unsigned long pos, void *buffer,
-			       unsigned long maxsize)
+int wildcard_read_at(struct wc_fileinfo *wfi, const struct wc_fsops *ops,
+		     void *buffer, loff_t offset, loff_t len, loff_t *actread)
 {
 	struct wc_dirinfo *wdi;
-	unsigned long loaded_size = (unsigned long)-1;
+	int err;
+
+	if (actread)
+		*actread = 0;
 
 	fs_ops = ops;
 
 	/* Find path and file */
 	wdi = wildcard_find_unique(wfi);
 	if (!wdi)
-		return loaded_size;
+		return -ENOENT;
 
 	if (wfi->file_type == WC_TYPE_NONE) {
 		wildcard_path_error(wdi, "No file matches");
-		return loaded_size;
+		return -ENOENT;
 	}
 
 	if (wfi->file_type == WC_TYPE_REGULAR) {
@@ -640,9 +614,9 @@ unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
 			puts(" ... ");
 		}
 
-		loaded_size = ops->read_file_at(wdi, wfi, pos, buffer, maxsize);
+		err = ops->read_file_at(wdi, wfi, buffer, offset, len, actread);
 		if (buffer) {
-			if (loaded_size == (unsigned long)-1)
+			if (err < 0)
 				puts("failed!\n");
 			else
 				puts("done!\n");
@@ -650,51 +624,59 @@ unsigned long wildcard_read_at(struct wc_fileinfo *wfi,
 	} else {
 		wildcard_print_pathfile(wdi, wfi);
 		puts(" is no regular file\n");
+		err = -EINVAL;
 	}
 
 	wildcard_path_done(wdi);
 
-	return loaded_size;
+	return err;
 }
 
-/*
- * Write a file.
+/**
+ * wildcard_write() - Write a file
+ * @wfi:      Info for root directory and pattern for files to search for
+ * @ops:      Pointer to the filesystem functions doing the data access
+ * @buffer:   Pointer to buffer with data to write
+ * @offset:   Starting position in file
+ * @len:      Number of bytes to write
+ * @actwrite: Pointer where to store number of actually written bytes
  *
- * Parameters:
- *   wfi:     Pointer to fileinfo for root directory, wfi->pattern is the
- *            pattern for the filename to search for
- *   ops:     Pointer to the filesystem functions doing the data access
- *   buffer:  Pointer to buffer with data to write
- *   maxsize: Number of bytes to write
+ * If there are several files matching the pattern or if no file matches, but
+ * the pattern contains wildcards (* or ?), return an error. Otherwise use the
+ * resulting filename and write the data to it by calling the filesystem
+ * specific write_file() function. Special files, e.g. the volume name or
+ * directories can not be written to.
  *
  * Return:
- *   Number of written bytes or -1 (0xFFFFFFFF) on error, e.g. if path not
- *   found or while reading data from or writing data to the device
+ * Error code (<0) or 0 for success.
  */
-unsigned long wildcard_write(struct wc_fileinfo *wfi,
-			     const struct wc_filesystem_ops *ops,
-			     void *buffer, unsigned long maxsize)
+int wildcard_write(struct wc_fileinfo *wfi, const struct wc_fsops *ops,
+		   const void *buffer, loff_t offset, loff_t len,
+		   loff_t *actwrite)
 {
 	struct wc_dirinfo *wdi;
-	unsigned long saved_size = (unsigned long)-1;
+	int err = 0;
+
+	if (actwrite)
+		*actwrite = 0;
 
 	fs_ops = ops;
 
 	if (!ops->write_file) {
 		printf("No write support for %s\n", ops->name);
-		return saved_size;
+		return -EROFS;
 	}
 
 	/* Find path and file */
 	wdi = wildcard_find_unique(wfi);
 	if (!wdi)
-		return saved_size;
+		return -ENOENT;
 
 	/* If filename contains wildcards, we must have a match */
 	if ((wfi->file_type == WC_TYPE_NONE)
 	    && (strchr(wfi->pattern, '*') || strchr(wfi->pattern, '?'))) {
 		wildcard_path_error(wdi, "No file matches");
-		return saved_size;
+		return -ENOENT;
 	}
 
 	if ((wfi->file_type == WC_TYPE_REGULAR)
@@ -704,35 +686,33 @@ unsigned long wildcard_write(struct wc_fileinfo *wfi,
 		wildcard_print_pathfile(wdi, wfi);
 		puts(" ... ");
 
-		saved_size = ops->write_file(wdi, wfi, buffer, maxsize);
-		if (saved_size == (unsigned long)-1)
-			printf("failed!\n");
+		err = ops->write_file(wdi, wfi, buffer, offset, len, actwrite);
+		if (err < 0)
+			puts("failed!\n");
 		else
-			printf("done!\n");
+			puts("done!\n");
 	} else {
 		wildcard_print_pathfile(wdi, wfi);
 		puts(" is no regular file\n");
+		err = -EINVAL;
 	}
 
 	wildcard_path_done(wdi);
 
-	return saved_size;
+	return err;
 }
 
-/*
- * Check for existence of a file.
+/**
+ * wildcard_exists() - Check for existence of a file.
+ * @wfi:      Pointer to fileinfo of root directory, searches for wfi->pattern
+ * @ops:      Pointer to the filesystem functions doing the data access
  *
- * Parameters:
- *   wfi:     Pointer to fileinfo for root directory, wfi->pattern is the
- *            pattern for the filename to search for
- *   ops:     Pointer to the filesystem functions doing the data access
+ * Check if a file exists that matches the path and file name pattern.
  *
  * Return:
- *   0: File does not exist (or I/O error)
- *   1: File does exist
+ * 1 if file exists, 0 if it does not exist or in case of I/O errors.
  */
-int wildcard_exists(struct wc_fileinfo *wfi,
-		    const struct wc_filesystem_ops *ops)
+int wildcard_exists(struct wc_fileinfo *wfi, const struct wc_fsops *ops)
 {
 	struct wc_dirinfo *wdi;
 

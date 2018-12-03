@@ -1,10 +1,7 @@
 /*
  * fat.c
  *
- * R/O (V)FAT 12/16/32 filesystem implementation by Marcus Sundberg
- *
- * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
- * 2003-03-10 - kharris@nexus-tech.net - ported to uboot
+ * (C) 2012-2018 Hartmut Keller (keller@fs-net.de)
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -16,6 +13,7 @@
 #include <part.h>
 #include <malloc.h>
 #include <linux/compiler.h>		/* __aligned() */
+#include <div64.h>
 
 
 /* Directory preload size, must be a multiple of the sector size 512 (0x200) */
@@ -120,16 +118,14 @@ int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 	return fat_set_blk_dev(dev_desc, &info);
 }
 
-/*
- * Load consecutive blocks from block device.
- *
- * Parameters:
- *   sector: Sector where to start loading
- *   count:  Number of sectors to load
- *   buffer: Buffer where to store the loaded data
+/**
+ * disk_read() - Load consecutive blocks from block device.
+ * @sector: Sector where to start loading
+ * @count:  Number of sectors to load
+ * @buffer: Buffer where to store the loaded data
  *
  * Return:
- *  Number of read sectors; if smaller than count, this indicates an error
+ * Number of read sectors; if smaller than count, this indicates an error
  */
 static __u32 disk_read(__u32 sector, __u32 count, void *buffer)
 {
@@ -147,8 +143,12 @@ static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
 	return mydata->data_sect + (cluster - 2) * mydata->clust_size;
 }
 
-/*
- * Get a short filename from a 8+3 directory entry.
+/**
+ * get_shortname() - Get a short filename from a 8+3 directory entry
+ * @name:    Pointer to buffer where to store name; the size of the buffer is
+ *           WC_NAME_MAX characters which is always sufficient for short names
+ * @dirname: Pointer to name from directory entry (8+3 = 11 characters)
+ * @lcase:   Flags whether basename and extension are upper or lower case
  *
  * A FAT short name may not contain leading blanks, as any blank in the first
  * positon of the basename or extension is interpreted as an empty basename or
@@ -160,12 +160,6 @@ static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
  * same is true for the extension. So abc.def, ABC.def, abc.DEF and ABC.DEF
  * are valid combinations for short names, but Abc.def must be saved as a long
  * name.
- *
- * Parameters:
- *   name:    Pointer to buffer where to store name; the size of the buffer is
- *            WC_NAME_MAX characters which is always sufficient for short names
- *   dirname: Pointer to name from directory entry (8+3 = 11 characters)
- *   lcase:   Flags whether basename and extension are upper or lower case
  */
 static void get_shortname(char *name, const char *dirname, __u8 lcase)
 {
@@ -216,16 +210,16 @@ static void get_shortname(char *name, const char *dirname, __u8 lcase)
 	name[dst] = '\0';
 }
 
-/*
+/**
+ * get_fatent() - Get the FAT table entry at given index
+ * @mydata:  Pointer to device specific information
+ * @cluster: Index into FAT table from where to get next value
+ *
  * Get the FAT table entry at given index, i.e. return the next cluster in the
  * file; the FAT table may have 12, 16 or 32 bit entries.
  *
- * Parameters:
- *   mydata:  Pointer to device specific information
- *   cluster: Index into FAT table from where to get next value
- *
  * Return:
- *   Next cluster, or 0 on failure
+ * Next cluster, or 0 on failure
  */
 static __u32 get_fatent(struct fsdata *mydata, __u32 cluster)
 {
@@ -281,17 +275,17 @@ static __u32 get_fatent(struct fsdata *mydata, __u32 cluster)
 }
 
 
-/*
+/**
+ * fat_dir_preload() - Load the next chunk of the directory
+ * @mydata: Pointer to device specific information
+ * @fdi:    Pointer to directory path
+ *
  * Load the next chunk of the directory into the directory preload buffer.
  *
- * Parameters:
- *   mydata: Pointer to device specific information
- *   fdi:    Pointer to directory path
- *
  * Return:
- *   1:  OK, next chunk is loaded
- *   0:  Done, end of directory, no more chunks
- *   -1: Error while reading data from device
+ *  1 - OK, next chunk is loaded;
+ *  0 - Done, end of directory, no more chunks;
+ * -1 - Error while reading data from device
  */
 static int fat_dir_preload(struct fsdata *mydata, struct fat_dirinfo *fdi)
 {
@@ -335,14 +329,16 @@ static int fat_dir_preload(struct fsdata *mydata, struct fat_dirinfo *fdi)
 	return 1;
 }
 
-/*
+/**
+ * fat_alloc_dir() - Allocate a directory entry
+ *
  * Allocate a directory entry; we allocate a fat_dirinfo, but we return a
  * pointer to the embedded wc_dirinfo. All functions that are called from the
  * wildcard module also pass this pointer, so we always have to convert it
  * back to the surrounding fat_dirinfo.
  *
  * Return:
- *   Pointer to the embedded wc_dirinfo, NULL on error
+ * Pointer to the embedded wc_dirinfo, NULL on error
  */
 static struct wc_dirinfo *fat_alloc_dir(void)
 {
@@ -355,28 +351,26 @@ static struct wc_dirinfo *fat_alloc_dir(void)
 	return TO_WC_DIRINFO(fdi);
 }
 
-/*
- * Free a directory entry.
- *
- * Parameter:
- *   wdi: Pointer to directory entry
+/**
+ * fat_free_dir() - Free a directory entry
+ * @wdi: Pointer to directory entry
  */
 static void fat_free_dir(struct wc_dirinfo *wdi)
 {
 	free(TO_FAT_DIRINFO(wdi));
 }
 
-/*
+/**
+ * fat_get_fileinfo() - Get next directory entry
+ * @wdi: Pointer to directory entry (data will be updated)
+ * @wfi: Pointer to structure where to store file information
+ *
  * Get next directory entry and return the type, size and name of the file.
  *
- * Parameters:
- *   wdi: Pointer to directory entry (data will be updated)
- *   wfi: Pointer to structure where to store file information
- *
  * Return:
- *   1:  OK, found another entry
- *   0:  Done, no more entries
- *   -1: Error while reading data from device
+ *  1 - OK, found another entry;
+ *  0 - Done, no more entries;
+ * -1 - Error while reading data from device
  */
 static int fat_get_fileinfo(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 {
@@ -498,29 +492,28 @@ static int fat_get_fileinfo(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
 	return 1;
 }
 
-/*
+/**
+ * fat_read_at() - Read the file
+ * @wdi:     Pointer to current directory entry
+ * @wfi:     Information of file to load; wfi->reference is start cluster
+ * @buffer:  Pointer to buffer where to store data
+ * @skip:    Number of bytes to skip at beginning of file
+ * @len:     Maximum number of bytes to read (0: whole/remaining file)
+ * @actread: Number of actually read bytes
+ *
  * Read the file given in wfistarting at cluster wfi->reference.
  *
  * ATTENTION: We are re-using the directory preload buffer here. This should
  * be no problem as long as we don't require the directory content anymore.
  *
- * Parameters:
- *   wdi:     Pointer to current directory entry
- *   wfi:     Information of file to load; especially wfi->reference is the
- *            start cluster of the file
- *   skip:    Number of bytes to skip at beginning of file
- *   buffer:  Pointer to buffer where to store data
- *   maxsize: Maximum number of bytes to read (0: whole file)
- *
  * Return:
- *   Number of read bytes
+ * Error code (<0) or 0 for success.
  */
-static unsigned long fat_read_at(struct wc_dirinfo *wdi,
-				 struct wc_fileinfo *wfi, unsigned long skip,
-				 void *buffer, unsigned long maxsize)
+static int fat_read_at(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
+		       void *buffer, loff_t skip, loff_t len, loff_t *actread)
 {
 	unsigned long bytes_next_chunk;
-	unsigned long total_bytes_loaded;
+	unsigned long total_bytes_loaded = 0;
 	unsigned long remaining;
 	struct fsdata *mydata = &myfsdata;
 	unsigned long bytes_per_cluster;
@@ -533,16 +526,17 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 
 	remaining = (unsigned long)wfi->file_size;
 	if (!remaining || (skip >= remaining))
-		return 0;		/* Empty file or seek past EOF */
-	if (maxsize && (remaining > skip + maxsize))
-		remaining = skip + maxsize;
-	if (!buffer)
-		return remaining;	/* Do not read, just return size */
+		goto out;		/* Empty file or seek past EOF */
+	if (len && (remaining > skip + len))
+		remaining = skip + len;
+	if (!buffer) {
+		total_bytes_loaded = remaining;
+		goto out;		/* Do not read, just return count */
+	}
 
 	sect_size = mydata->sect_size;
 	bytes_per_cluster = mydata->clust_size * sect_size;
 	cluster = wfi->reference;
-	total_bytes_loaded = 0;
 
 	do {
 		/* Combine sectors to a long chunk if they are in sequence */
@@ -562,7 +556,7 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 
 			/* Return on unexpected EOF or invalid cluster */
 			if ((cluster < 2) || (cluster >= mydata->max_cluster))
-				return total_bytes_loaded;
+				goto out;
 		} while (cluster == tmp + 1);
 
 		debug("Next chunk: 0x%lx bytes at sector 0x%x\n",
@@ -575,8 +569,10 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 		if (skip) {
 			__u32 sectors_to_skip;
 			unsigned long bytes_to_skip;
+			unsigned long long temp = (unsigned long long)skip;
 
-			sectors_to_skip = skip / sect_size;
+			do_div(temp, sect_size);
+			sectors_to_skip = (__u32)temp;
 			if (sectors_to_skip > sector_count)
 				sectors_to_skip = sector_count;
 			sector_count -= sectors_to_skip;
@@ -597,10 +593,10 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 				bytes_to_copy = bytes_next_chunk;
 			bytes_next_chunk -= bytes_to_copy;
 			bytes_to_copy -= skip;
-			debug("Skip 0x%lx bytes and read 0x%lx bytes at"
+			debug("Skip 0x%llx bytes and read 0x%lx bytes at"
 			      " sector 0x%x\n", skip, bytes_to_copy, sector);
 			if (disk_read(sector, 1, mydata->dirbuf) != 1)
-				return total_bytes_loaded;
+				goto out;
 			memcpy(buffer, mydata->dirbuf + skip, bytes_to_copy);
 			total_bytes_loaded += bytes_to_copy;
 			buffer += bytes_to_copy;
@@ -627,7 +623,7 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 				}
 				for (i = 0; i < sector_count; i++) {
 					if (disk_read(sector, 1, temp) != 1)
-						return total_bytes_loaded;
+						goto out;
 					sector++;
 					memcpy(buffer, temp, sect_size);
 					buffer += sect_size;
@@ -646,7 +642,7 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 				bytes_next_chunk -= bytes_loaded;
 				total_bytes_loaded += bytes_loaded;
 				if (read != sector_count)
-					return total_bytes_loaded;
+					goto out;
 			}
 		}
 
@@ -656,7 +652,7 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 			      " from sector 0x%x\n", bytes_next_chunk,
 			      sect_size - bytes_next_chunk, sector);
 			if (disk_read(sector, 1, mydata->dirbuf) != 1)
-				return total_bytes_loaded;
+				goto out;
 			memcpy(buffer, mydata->dirbuf, bytes_next_chunk);
 			total_bytes_loaded += bytes_next_chunk;
 			buffer += bytes_next_chunk;
@@ -664,15 +660,20 @@ static unsigned long fat_read_at(struct wc_dirinfo *wdi,
 		}
 	} while (remaining);
 
-	return total_bytes_loaded;
+out:
+	if (actread)
+		*actread = total_bytes_loaded;
+
+	return 0;
 }
 
-/* Function to write a file, see fat_write.c */
+/* Function to write a file, see fat_write.c ### TODO ### */
 extern unsigned long fat_write(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
-			       void *buffer, unsigned long maxsize);
+			       void *buffer, loff_t offset, loff_t len,
+			       loff_t *actwrite);
 
 /* Callback functions for wildcard module to access directories and files */
-const struct wc_filesystem_ops fat_ops = {
+const struct wc_fsops fat_ops = {
 	"FAT",
 	fat_alloc_dir,
 	fat_free_dir,
@@ -686,16 +687,16 @@ const struct wc_filesystem_ops fat_ops = {
 	NULL
 };
 
-/*
+/**
+ * file_fat_ls() - List directory contents
+ * @pattern: File or path name to list; may contain wildcards * and ?
+ *
  * List directory contents. This may actually be a sequence of lists as the
  * pattern may refer to several directories.
  *
- * Parameter:
- *   pattern: File or path name to list; may contain wildcards * and ?
- *
  * Return:
- *   0:  OK
- *   -1: Error, e.g. while reading data from device
+ *  0 - OK;
+ * -1 - Error, e.g. while reading data from device
  */
 int file_fat_ls(const char *pattern)
 {
@@ -711,19 +712,19 @@ int file_fat_ls(const char *pattern)
 	return wildcard_ls(&wfi, &fat_ops);
 }
 
-/*
- * Read the given file with up to maxsize bytes.
- *
- * Parameters:
- *   pattern: file name; may contain wildcards, but must match uniquely
- *   buffer:  Pointer to buffer where to store data
- *   maxsize: Maximum number of bytes to read (0: whole file)
+/**
+ * file_fat_read_at() - Read the given file with up to maxsize bytes.
+ * @pattern: file name; may contain wildcards, but must match uniquely
+ * @pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
+ * @buffer:  Pointer to buffer where to store data
+ * @maxsize: Maximum number of bytes to read (0: whole file)
+ * @actread: Number of actually read bytes
  *
  * Return:
- *   Number of read bytes or -1 (0xFFFFFFFF) on error (e.g. while loading data
- *   from device, non-existent file, etc.)
+ * Error code (<0) or 0 for success
  */
-long file_fat_read(const char *pattern, void *buffer, unsigned long maxsize)
+int file_fat_read_at(const char *pattern, loff_t pos, void *buffer,
+		     loff_t maxsize, loff_t *actread)
 {
 	struct wc_fileinfo wfi;
 
@@ -734,47 +735,40 @@ long file_fat_read(const char *pattern, void *buffer, unsigned long maxsize)
 	wfi.pattern = pattern;
 	wfi.file_name[0] = '\0';
 
-	return (long)wildcard_read_at(&wfi, &fat_ops, 0, buffer, maxsize);
+	return wildcard_read_at(&wfi, &fat_ops, buffer, pos, maxsize, actread);
 }
 
-/*
- * Read the given file with up to maxsize bytes.
- *
- * Parameters:
- *   pattern: file name; may contain wildcards, but must match uniquely
- *   pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
- *   buffer:  Pointer to buffer where to store data
- *   maxsize: Maximum number of bytes to read (0: whole file)
+/**
+ * file_fat_read() - Read the given file with up to maxsize bytes.
+ * @pattern: file name; may contain wildcards, but must match uniquely
+ * @buffer:  Pointer to buffer where to store data
+ * @maxsize: Maximum number of bytes to read (0: whole file)
  *
  * Return:
- *   Number of read bytes or -1 (0xFFFFFFFF) on error (e.g. while loading data
- *   from device, non-existent file, etc.)
+ * Error code (<0) or number of read bytes
  */
-long file_fat_read_at(const char *pattern, unsigned long pos, void *buffer,
-		      unsigned long maxsize)
+int file_fat_read(const char *pattern, void *buffer, int maxsize)
 {
-	struct wc_fileinfo wfi;
+	loff_t actread;
+	int err;
 
-	/* Prepare file info for root directory */
-	wfi.reference = 0;
-	wfi.file_size = 0;
-	wfi.file_type = WC_TYPE_DIRECTORY;
-	wfi.pattern = pattern;
-	wfi.file_name[0] = '\0';
+	err = file_fat_read_at(pattern, 0, buffer, maxsize, &actread);
+	if (err)
+		return err;
 
-	return (long)wildcard_read_at(&wfi, &fat_ops, pos, buffer, maxsize);
+	return actread;
 }
 
-/*
+/**
+ * fat_set_blk_dev() - Check device and initialize
+ * @dev_desc: Device description
+ * @part_no:  Partition number
+ *
  * Check device and initialize device specific data (FAT type, etc.)
  *
- * Parameters:
- *   dev_desc: Device description
- *   part_no:  Partition number
- *
  * Return:
- *   0:  OK, FAT filesystem initialized
- *   -1: Error, e.g. no FAT filesystem, error reading data from device, etc.
+ *  0 - OK, FAT filesystem initialized;
+ * -1 - Error, e.g. no FAT filesystem, error reading data from device, etc.
  */
 int fat_set_blk_dev(block_dev_desc_t *dev_desc, disk_partition_t *info)
 {
@@ -896,12 +890,14 @@ int fat_set_blk_dev(block_dev_desc_t *dev_desc, disk_partition_t *info)
 	return 0;
 }
 
-/*
+/**
+ * file_fat_detectfs() - Show information
+
  * Show information on current device and FAT filesystem.
- *
+
  * Return:
- *   0: OK
- *   1: No current device
+ * 0 - OK;
+ * 1 - No current device
  */
 int file_fat_detectfs(void)
 {
@@ -923,9 +919,10 @@ int file_fat_detectfs(void)
 	return 0;
 }
 
-int fat_read_file(const char *filename, void *buf, int offset, int len)
+int fat_read_file(const char *pattern, void *buffer, loff_t offset,
+		  loff_t len, loff_t *actread)
 {
-	return file_fat_read_at(filename, offset, buf, len);
+	return file_fat_read_at(pattern, offset, buffer, len, actread);
 }
 
 int fat_exists(const char *pattern)
@@ -942,7 +939,7 @@ int fat_exists(const char *pattern)
 	return wildcard_exists(&wfi, &fat_ops);
 }
 
-int fat_size(const char *filename)
+int fat_size(const char *filename, loff_t *size)
 {
 	return file_fat_read(filename, NULL, 0);
 }
