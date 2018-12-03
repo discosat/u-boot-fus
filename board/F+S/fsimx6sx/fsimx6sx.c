@@ -964,13 +964,13 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	case port_lcd:
 		if (fs_board_get_type() == BT_PCOREMX6SX)
 			bpp = 24;
-		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
+		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp, PATTERN_RGB);
 		mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
 		mxs_enable_lcdif_clk(LCDIF1_BASE_ADDR);
 		break;
 
 	case port_lvds:
-		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
+		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp, PATTERN_RGB);
 		mxs_config_lvds_clk(LCDIF1_BASE_ADDR, freq_khz);
 		config_lvds(LCDIF1_BASE_ADDR, flags, mode);
 		enable_ldb_di_clk(0);	/* Always use ldb_di0 on MX6SX */

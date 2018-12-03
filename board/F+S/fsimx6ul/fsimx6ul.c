@@ -973,7 +973,7 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	freq_khz = PICOS2KHZ(mode->pixclock);
 	if (fs_board_get_type() == BT_PCOREMX6UL)
 		bpp = 24;
-	mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp);
+	mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp, PATTERN_BGR);
 	mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
 	mxs_enable_lcdif_clk(LCDIF1_BASE_ADDR);
 

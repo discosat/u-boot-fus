@@ -42,14 +42,16 @@ __weak void mxsfb_system_setup(void)
 static int setup;
 static const struct fb_videomode *fbmode;
 static int depth;
+static int rgb_pattern = PATTERN_RGB;
 
-int mxs_lcd_panel_setup(uint32_t base_addr,
-			const struct fb_videomode *mode, int bpp)
+int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
+			int bpp, int pattern)
 {
 
 	fbmode = mode;
 	depth  = bpp;
 	panel.isaBase  = base_addr;
+	rgb_pattern = pattern;
 
 	setup = 1;
 
@@ -112,6 +114,11 @@ static void mxs_lcd_init(GraphicDevice *panel,
 
 	writel(valid_data << LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
 		&regs->hw_lcdif_ctrl1);
+
+	writel(LCDIF_CTRL2_OUTSTANDING_REQS_REQ_16
+	       | (rgb_pattern << LCDIF_CTRL2_ODD_LINE_PATTERN_OFFSET)
+	       | (rgb_pattern << LCDIF_CTRL2_EVEN_LINE_PATTERN_OFFSET),
+	       &regs->hw_lcdif_ctrl2);
 
 	mxsfb_system_setup();
 
