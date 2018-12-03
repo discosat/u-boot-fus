@@ -35,6 +35,7 @@
 #include <onenand_uboot.h>
 #include <mmc.h>
 #include <scsi.h>
+#include <status_led.h>
 #include <libfdt.h>
 #include <fdtdec.h>
 #include <post.h>
@@ -182,27 +183,21 @@ static int arm_pci_init(void)
  */
 typedef int (init_fnc_t) (void);
 
-void __dram_init_banksize(void)
+__weak void dram_init_banksize(void)
 {
 	gd->bd->bi_dram[0].start = gd->ram_base;
 	gd->bd->bi_dram[0].size =  gd->ram_size;
 }
-void dram_init_banksize(void)
-	__attribute__((weak, alias("__dram_init_banksize")));
 
-int __arch_cpu_init(void)
+__weak int arch_cpu_init(void)
 {
 	return 0;
 }
-int arch_cpu_init(void)
-	__attribute__((weak, alias("__arch_cpu_init")));
 
-int __power_init_board(void)
+__weak int power_init_board(void)
 {
 	return 0;
 }
-int power_init_board(void)
-	__attribute__((weak, alias("__power_init_board")));
 
 	/* Record the board_init_f() bootstage (after arch_cpu_init()) */
 static int mark_bootstage(void)

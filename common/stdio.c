@@ -44,17 +44,17 @@ struct stdio_dev serial_dev = {
 };
 
 #ifdef CONFIG_SYS_DEVICE_NULLDEV
-void nulldev_putc(const struct stdio_dev *pdev, const char c)
+static void nulldev_putc(const struct stdio_dev *pdev, const char c)
 {
 	/* nulldev is empty! */
 }
 
-void nulldev_puts(const struct stdio_dev *pdev, const char *s)
+static void nulldev_puts(const struct stdio_dev *pdev, const char *s)
 {
 	/* nulldev is empty! */
 }
 
-int nulldev_input(const struct stdio_dev *pdev)
+static int nulldev_input(const struct stdio_dev *pdev)
 {
 	/* nulldev is empty! */
 	return 0;

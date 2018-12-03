@@ -871,7 +871,7 @@ void s3c64xx_lcd_board_disable(int index)
 
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Do any additional board-specific device tree modifications */
-void ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
@@ -903,5 +903,7 @@ void ft_board_setup(void *fdt, bd_t *bd)
 	if (!(pargs->chFeatures1 & FEAT1_2NDLAN))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
 #endif
+
+	return 0;
 }
 #endif /* CONFIG_OF_BOARD_SETUP */

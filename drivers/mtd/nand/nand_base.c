@@ -658,6 +658,12 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 	if (chip->options & NAND_NO_BADBLOCK)
 		return 0;
 
+	if (!(chip->options & NAND_SKIP_BBTSCAN) &&
+	    !(chip->options & NAND_BBT_SCANNED)) {
+		chip->options |= NAND_BBT_SCANNED;
+		chip->scan_bbt(mtd);
+	}
+
 	if (!chip->bbt)
 		return chip->block_bad(mtd, ofs, getchip);
 
@@ -1801,7 +1807,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 				else
 					nand_wait_ready(mtd);
 			}
-			max_bitflips = max(max_bitflips,
+			max_bitflips = max((unsigned int)max_bitflips,
 					   mtd->ecc_stats.corrected -
 					   prev_corrected);
 		} else {
@@ -3017,7 +3023,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		}
 
 		/* Check if we have a bad block, we do not erase bad blocks! */
-		if (nand_block_checkbad(mtd, ((loff_t) page) <<
+		if (!instr->scrub && nand_block_checkbad(mtd, ((loff_t) page) <<
 					chip->page_shift, 0, allowbbt)) {
 			pr_warn("%s: attempt to erase a bad block at 0x%08llx\n",
 				__func__, addr);
@@ -4438,12 +4444,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	if (!mtd->bitflip_threshold)
 		mtd->bitflip_threshold = mtd->ecc_strength;
 
-	/* Check, if we should skip the bad block table scan */
-	if (chip->options & NAND_SKIP_BBTSCAN)
-		return 0;
-
-	/* Build bad block table */
-	return chip->scan_bbt(mtd);
+	return 0;
 }
 EXPORT_SYMBOL(nand_scan_tail);
 

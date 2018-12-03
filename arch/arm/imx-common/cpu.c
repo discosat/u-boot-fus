@@ -7,7 +7,9 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <bootm.h>
 #include <common.h>
+#include <netdev.h>
 #include <asm/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -16,6 +18,8 @@
 #include <asm/arch/crm_regs.h>
 #include <imx_thermal.h>
 #include <ipu_pixfmt.h>
+#include <thermal.h>
+#include <sata.h>
 
 #ifdef CONFIG_FSL_ESDHC
 #include <fsl_esdhc.h>
@@ -227,10 +231,47 @@ u32 get_ahb_clk(void)
 	return get_periph_clk() / (ahb_podf + 1);
 }
 
-#if defined(CONFIG_VIDEO_IPUV3)
 void arch_preboot_os(void)
 {
+#if defined(CONFIG_CMD_SATA)
+	sata_stop();
+#if defined(CONFIG_MX6)
+	disable_sata_clock();
+#endif
+#endif
+#if defined(CONFIG_VIDEO_IPUV3)
 	/* disable video before launching O/S */
 	ipuv3_fb_shutdown();
-}
 #endif
+}
+
+void set_chipselect_size(int const cs_size)
+{
+	unsigned int reg;
+	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+	reg = readl(&iomuxc_regs->gpr[1]);
+
+	switch (cs_size) {
+	case CS0_128:
+		reg &= ~0x7;	/* CS0=128MB, CS1=0, CS2=0, CS3=0 */
+		reg |= 0x5;
+		break;
+	case CS0_64M_CS1_64M:
+		reg &= ~0x3F;	/* CS0=64MB, CS1=64MB, CS2=0, CS3=0 */
+		reg |= 0x1B;
+		break;
+	case CS0_64M_CS1_32M_CS2_32M:
+		reg &= ~0x1FF;	/* CS0=64MB, CS1=32MB, CS2=32MB, CS3=0 */
+		reg |= 0x4B;
+		break;
+	case CS0_32M_CS1_32M_CS2_32M_CS3_32M:
+		reg &= ~0xFFF;  /* CS0=32MB, CS1=32MB, CS2=32MB, CS3=32MB */
+		reg |= 0x249;
+		break;
+	default:
+		printf("Unknown chip select size: %d\n", cs_size);
+		break;
+	}
+
+	writel(reg, &iomuxc_regs->gpr[1]);
+}

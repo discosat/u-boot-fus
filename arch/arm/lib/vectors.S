@@ -33,7 +33,7 @@
  *************************************************************************
  */
 
-	.section ".vectors", "xa"
+	.section ".vectors", "ax"
 
 /*
  *************************************************************************
@@ -45,12 +45,13 @@
  *************************************************************************
  */
 
+	.type _start, STT_FUNC
+_start:
+
 #ifdef CONFIG_SYS_DV_NOR_BOOT_CFG
 	.word	CONFIG_SYS_DV_NOR_BOOT_CFG
 #endif
 
-	.type _start, STT_FUNC
-_start:
 	b	reset
 	ldr	pc, _undefined_instruction
 	ldr	pc, _software_interrupt

@@ -165,8 +165,8 @@ struct fsdata {
 
 typedef int	(file_detectfs_func)(void);
 typedef int	(file_ls_func)(const char *dir);
-typedef long	(file_read_func)(const char *filename, void *buffer,
-				 unsigned long maxsize);
+typedef int	(file_read_func)(const char *filename, void *buffer,
+				 int maxsize);
 
 struct filesystem {
 	file_detectfs_func	*detect;
@@ -185,15 +185,17 @@ int file_cd(const char *path);
 int file_fat_detectfs(void);
 int file_fat_ls(const char *pattern);
 int fat_exists(const char *pattern);
-int fat_size(const char *pattern);
-long file_fat_read_at(const char *pattern, unsigned long pos,
-		      void *buffer, unsigned long maxsize);
-long file_fat_read(const char *pattern, void *buffer, unsigned long maxsize);
+int fat_size(const char *pattern, loff_t *size);
+long file_fat_read_at(const char *pattern, loff_t pos, void *buffer,
+		      loff_t maxsize, loff_t *actread);
+long file_fat_read(const char *pattern, void *buffer, int maxsize);
 const char *file_getfsname(int idx);
 int fat_set_blk_dev(block_dev_desc_t *rbdd, disk_partition_t *info);
 int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
 
-int file_fat_write(const char *pattern, void *buffer, unsigned long maxsize);
-int fat_read_file(const char *filename, void *buf, int offset, int len);
+int file_fat_write(const char *pattern, void *buffer, loff_t offset,
+		   loff_t len, loff_t *actwrite);
+int fat_read_file(const char *pattern, void *buffer, loff_t offset,
+		  loff_t len, loff_t *actread);
 void fat_close(void);
 #endif /* _FAT_H_ */

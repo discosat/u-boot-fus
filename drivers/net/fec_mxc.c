@@ -11,6 +11,7 @@
 #include <common.h>
 #include <malloc.h>
 #include <net.h>
+#include <netdev.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include "fec_mxc.h"

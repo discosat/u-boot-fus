@@ -21,6 +21,14 @@ struct arch_global_data {
 	unsigned long	ipg_clk;
 	unsigned long	bus_clk;
 #endif
+
+#if defined(CONFIG_U_QE)
+	u32 qe_clk;
+	u32 brg_clk;
+	uint mp_alloc_base;
+	uint mp_alloc_top;
+#endif /* CONFIG_U_QE */
+
 #ifdef CONFIG_AT91FAMILY
 	/* "static data" needed by at91's clock.c */
 	unsigned long	cpu_clk_rate_hz;

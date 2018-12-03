@@ -232,7 +232,7 @@ static int update_mmc(const char *action, const char **check, const char *fname,
 	if (fs_set_blk_dev("mmc", if_dev_part_str + 4, FS_TYPE_ANY))
 		return -1;		  /* Device or partition not valid */
 
-	if (fs_read(fname, addr, 0, 0) < 0)
+	if (fs_read(fname, addr, 0, 0, NULL) < 0)
 		return -1;		  /* File not found or I/O error */
 
 	setenv(UPDATEDEV, if_dev_part_str);
@@ -269,7 +269,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 	if (fs_set_blk_dev("usb", if_dev_part_str + 4, FS_TYPE_ANY))
 		return -1;		  /* Device or partition not valid */
 
-	if (fs_read(fname, addr, 0, 0) < 0)
+	if (fs_read(fname, addr, 0, 0, NULL) < 0)
 		return -1;		  /* File not found or I/O error */
 
 	setenv(UPDATEDEV, if_dev_part_str);

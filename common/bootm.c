@@ -9,6 +9,7 @@
 #include <common.h>
 #include <bootstage.h>
 #include <bzlib.h>
+#include <errno.h>
 #include <fdt_support.h>
 #include <lmb.h>
 #include <malloc.h>
@@ -110,6 +111,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 	const void *os_hdr;
 	int image_format;
 	bool ep_found = false;
+	int ret;
 
 	/* get kernel image header, start address and length */
 	os_hdr = boot_get_kernel(cmdtp, flag, argc, argv,
@@ -131,6 +133,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 
 		images.os.end = image_get_image_end(os_hdr);
 		images.os.load = image_get_load(os_hdr);
+		images.os.arch = image_get_arch(os_hdr);
 
 		/* If this is a zImage, then uncompression is done by the
 		   image itself. So we get IH_COMP_NONE here and we have to
@@ -174,6 +177,13 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 			return 1;
 		}
 
+		if (fit_image_get_arch(images.fit_hdr_os,
+				       images.fit_noffset_os,
+				       &images.os.arch)) {
+			puts("Can't get image ARCH!\n");
+			return 1;
+		}
+
 		images.os.end = fit_get_end(images.fit_hdr_os);
 
 		if (fit_image_get_load(images.fit_hdr_os, images.fit_noffset_os,
@@ -189,11 +199,11 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.os.type = IH_TYPE_KERNEL;
 		images.os.comp = IH_COMP_NONE;
 		images.os.os = IH_OS_LINUX;
-		images.ep = images.os.load;
-		ep_found = true;
 
 		images.os.end = android_image_get_end(os_hdr);
 		images.os.load = android_image_get_kload(os_hdr);
+		images.ep = images.os.load;
+		ep_found = true;
 		break;
 #endif
 	default:
@@ -207,8 +217,18 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 
-	/* find kernel entry point */
-	if (images.legacy_hdr_valid) {
+	/* If we have a valid setup.bin, we will use that for entry (x86) */
+	if (images.os.arch == IH_ARCH_I386 ||
+	    images.os.arch == IH_ARCH_X86_64) {
+		ulong len;
+
+		ret = boot_get_setup(&images, IH_ARCH_I386, &images.ep, &len);
+		if (ret < 0 && ret != -ENOENT) {
+			puts("Could not find a valid setup.bin for x86\n");
+			return 1;
+		}
+		/* Kernel entry point is the setup.bin */
+	} else if (images.legacy_hdr_valid) {
 		images.ep = image_get_ep(&images.legacy_hdr_os_copy);
 #if defined(CONFIG_FIT)
 	} else if (images.fit_uname_os) {

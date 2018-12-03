@@ -86,6 +86,7 @@ int mpc512x_fec_initialize(bd_t *bis);
 int mpc5xxx_fec_initialize(bd_t *bis);
 int mpc82xx_scc_enet_initialize(bd_t *bis);
 int mvgbe_initialize(bd_t *bis);
+int mvneta_initialize(bd_t *bis, int base_addr, int devnum, int phy_addr);
 int natsemi_initialize(bd_t *bis);
 int ne2000_initialize(u8 dev_num, int base_addr);
 int npe_initialize(bd_t *bis);

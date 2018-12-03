@@ -2151,7 +2151,7 @@ static void fs_fdt_reserve_ram(void *fdt)
 }
 
 /* Do any additional board-specific device tree modifications */
-void ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
@@ -2194,6 +2194,8 @@ void ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, FDT_ETH_A, 0);
 	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+
+	return 0;
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 
