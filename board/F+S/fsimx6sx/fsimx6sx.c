@@ -2143,10 +2143,12 @@ static void fs_fdt_reserve_ram(void *fdt)
 	/* Let vring-buffer-addresses point to last 64K of this area */
 	offs = fs_fdt_path_offset(fdt, FDT_RPMSG);
 	if (offs >= 0) {
-		fs_fdt_set_u32(fdt, offs, "vring-buffer-address0",
-				base + size - RPMSG_SIZE, 1);
-		fs_fdt_set_u32(fdt, offs, "vring-buffer-address1",
-				base + size - RPMSG_SIZE/2, 1);
+		fdt32_t tmp[2];
+
+		tmp[0] = cpu_to_fdt32(base + size - RPMSG_SIZE);
+		tmp[1] = cpu_to_fdt32(RPMSG_SIZE);
+
+		fs_fdt_set_val(fdt, offs, "reg", tmp, sizeof(tmp), 1);
 	}
 }
 
