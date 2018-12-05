@@ -365,7 +365,7 @@ static int fec_get_hwaddr(struct eth_device *dev, int dev_id,
 						unsigned char *mac)
 {
 	imx_get_mac_from_fuse(dev_id, mac);
-	return !is_valid_ether_addr(mac);
+	return !is_valid_ethaddr(mac);
 }
 #endif
 
@@ -877,7 +877,7 @@ static int fec_recv(struct eth_device *dev)
 			swap_packet((uint32_t *)addr, frame_length);
 #endif
 			memcpy(buff, (char *)addr, frame_length);
-			NetReceive(buff, frame_length);
+			net_process_received_packet(buff, frame_length);
 			len = frame_length;
 		} else {
 			if (bd_status & FEC_RBD_ERR) {

@@ -63,6 +63,12 @@ led_function_group(led2, STATUS_LED_BIT2)
 #ifdef STATUS_LED_BIT3
 led_function_group(led3, STATUS_LED_BIT3)
 #endif
+#ifdef STATUS_LED_BIT4
+led_function_group(led4, STATUS_LED_BIT4)
+#endif
+#ifdef STATUS_LED_BIT5
+led_function_group(led5, STATUS_LED_BIT5)
+#endif
 
 static const led_tbl_t led_commands[] = {
 #ifdef CONFIG_BOARD_SPECIFIC_LED
@@ -77,6 +83,12 @@ static const led_tbl_t led_commands[] = {
 #endif
 #ifdef STATUS_LED_BIT3
 	{ "3", STATUS_LED_BIT3, led3_off, led3_on, led3_toggle },
+#endif
+#ifdef STATUS_LED_BIT4
+	{ "4", STATUS_LED_BIT4, led4_off, led4_on, led4_toggle },
+#endif
+#ifdef STATUS_LED_BIT5
+	{ "5", STATUS_LED_BIT5, led5_off, led5_on, led5_toggle },
 #endif
 #endif
 #ifdef STATUS_LED_GREEN
@@ -207,7 +219,7 @@ int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 U_BOOT_CMD(
-	led, 3, 1, do_led,
+	led, 4, 1, do_led,
 	"["
 #ifdef CONFIG_BOARD_SPECIFIC_LED
 #ifdef STATUS_LED_BIT
@@ -221,6 +233,12 @@ U_BOOT_CMD(
 #endif
 #ifdef STATUS_LED_BIT3
 	"3, "
+#endif
+#ifdef STATUS_LED_BIT4
+	"4, "
+#endif
+#ifdef STATUS_LED_BIT5
+	"5, "
 #endif
 #endif
 #ifdef STATUS_LED_GREEN

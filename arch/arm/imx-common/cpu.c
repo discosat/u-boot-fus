@@ -25,6 +25,7 @@
 #include <fsl_esdhc.h>
 #endif
 
+#if defined(CONFIG_DISPLAY_CPUINFO)
 static u32 reset_cause = -1;
 
 const char *get_reset_cause(void)
@@ -56,6 +57,7 @@ u32 get_imx_reset_cause(void)
 {
 	return reset_cause;
 }
+#endif
 
 #if defined(CONFIG_MX53) || defined(CONFIG_MX6)
 #if defined(CONFIG_MX53)
@@ -152,6 +154,7 @@ int print_cpuinfo(void)
 	u32 cpurev = get_cpu_rev();
 	u32 cause;
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	int ret = 0;
 #if defined(CONFIG_IMX_THERMAL)
 	u32 max_freq;
 	int minc, maxc;
@@ -191,7 +194,25 @@ int print_cpuinfo(void)
 		temp = "Commercial";
 		break;
 	}
-	printf("CPU:   %s temperature grade (%dC to %dC)\n", temp, minc, maxc);
+	printf("CPU:   %s temperature grade (%dC to %dC)", temp, minc, maxc);
+#ifdef CONFIG_DM
+	{
+		struct udevice *thermal_dev;
+		int cpu_tmp;
+
+		ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
+		if (!ret) {
+			ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+			if (!ret)
+				printf(" at %dC\n", cpu_tmp);
+			else
+				puts(" - invalid sensor data\n");
+		} else {
+			puts(" - invalid sensor device\n");
+		}
+	}
+#endif
+	puts("\n");
 #endif
 
 	cause = readl(&src_regs->srsr);
@@ -200,7 +221,7 @@ int print_cpuinfo(void)
 
 	printf("Reset: %s\n", get_reset_cause());
 
-	return 0;
+	return ret;
 }
 #endif
 

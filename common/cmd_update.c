@@ -294,9 +294,9 @@ static int update_net(const char *action, const char **check, const char *fname,
 		putc(p[i]);
 	printf(" with %s ----\n", fname);
 
-	copy_filename(BootFile, fname, sizeof(BootFile));
+	copy_filename(net_boot_file_name, fname, sizeof(net_boot_file_name));
 	set_loadaddr(addr);
-	size = NetLoop(proto);
+	size = net_loop(proto);
 	if (size < 0)
 		return -1;
 

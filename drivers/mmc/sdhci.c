@@ -13,7 +13,11 @@
 #include <mmc.h>
 #include <sdhci.h>
 
+#if defined(CONFIG_FIXED_SDHCI_ALIGNED_BUFFER)
+void *aligned_buffer = (void *)CONFIG_FIXED_SDHCI_ALIGNED_BUFFER;
+#else
 void *aligned_buffer;
+#endif
 
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
@@ -147,53 +151,46 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 	int ret = 0;
 	int trans_bytes = 0, is_aligned = 1;
 	u32 mask, flags, mode;
-	unsigned int timeout, start_addr = 0;
-	unsigned int retry;
+	unsigned int time = 0, start_addr = 0;
 	int mmc_dev = mmc->block_dev.dev;
+	unsigned start = get_timer(0);
 
 	/* Timeout unit - ms */
 	static unsigned int cmd_timeout = CONFIG_SDHCI_CMD_DEFAULT_TIMEOUT;
 
-	/* Determine for which bits to wait */
-	mask = SDHCI_CMD_INHIBIT;
+	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
+	mask = SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT;
 
 	/* We shouldn't wait for data inihibit for stop commands, even
 	   though they might use busy signaling */
-	if ((cmd->cmdidx != MMC_CMD_STOP_TRANSMISSION)
-	    && (data || (cmd->resp_type & MMC_RSP_BUSY)))
-		mask |= SDHCI_DATA_INHIBIT;
+	if (cmd->cmdidx == MMC_CMD_STOP_TRANSMISSION)
+		mask &= ~SDHCI_DATA_INHIBIT;
 
-	/* Wait max 10 ms */
-	timeout = cmd_timeout;
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) & mask) {
-		if (timeout == 0) {
+		if (time >= cmd_timeout) {
 			printf("%s: MMC: %d busy ", __func__, mmc_dev);
-			ret = COMM_ERR;
 			if (2 * cmd_timeout <= CONFIG_SDHCI_CMD_MAX_TIMEOUT) {
-				timeout = cmd_timeout;
 				cmd_timeout += cmd_timeout;
 				printf("timeout increasing to: %u ms.\n",
 				       cmd_timeout);
 			} else {
 				puts("timeout.\n");
-				goto reset;
+				return COMM_ERR;
 			}
 		}
-		timeout--;
+		time++;
 		udelay(1000);
 	}
-
-	/* Clear any pending interrupts */
-	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
 
 	mask = SDHCI_INT_RESPONSE;
 	if (!(cmd->resp_type & MMC_RSP_PRESENT))
 		flags = SDHCI_CMD_RESP_NONE;
 	else if (cmd->resp_type & MMC_RSP_136)
 		flags = SDHCI_CMD_RESP_LONG;
-	else if (cmd->resp_type & MMC_RSP_BUSY)
+	else if (cmd->resp_type & MMC_RSP_BUSY) {
 		flags = SDHCI_CMD_RESP_SHORT_BUSY;
-	else
+		mask |= SDHCI_INT_DATA_END;
+	} else
 		flags = SDHCI_CMD_RESP_SHORT;
 
 	if (cmd->resp_type & MMC_RSP_CRC)
@@ -227,6 +224,17 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 				memcpy(aligned_buffer, data->src, trans_bytes);
 		}
 
+#if defined(CONFIG_FIXED_SDHCI_ALIGNED_BUFFER)
+		/*
+		 * Always use this bounce-buffer when
+		 * CONFIG_FIXED_SDHCI_ALIGNED_BUFFER is defined
+		 */
+		is_aligned = 0;
+		start_addr = (unsigned long)aligned_buffer;
+		if (data->flags != MMC_DATA_READ)
+			memcpy(aligned_buffer, data->src, trans_bytes);
+#endif
+
 		sdhci_writel(host, start_addr, SDHCI_DMA_ADDRESS);
 		mode |= SDHCI_TRNS_DMA;
 #endif
@@ -235,22 +243,24 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 				SDHCI_BLOCK_SIZE);
 		sdhci_writew(host, data->blocks, SDHCI_BLOCK_COUNT);
 		sdhci_writew(host, mode, SDHCI_TRANSFER_MODE);
+	} else if (cmd->resp_type & MMC_RSP_BUSY) {
+		sdhci_writeb(host, 0xe, SDHCI_TIMEOUT_CONTROL);
 	}
 
 	sdhci_writel(host, cmd->cmdarg, SDHCI_ARGUMENT);
 #ifdef CONFIG_MMC_SDMA
 	flush_cache(start_addr, trans_bytes);
 #endif
-	/* Activate command by writing command register */
 	sdhci_writew(host, SDHCI_MAKE_CMD(cmd->cmdidx, flags), SDHCI_COMMAND);
-
-	/* Wait for command response */
-	retry = 10000;
+	start = get_timer(0);
 	do {
 		stat = sdhci_readl(host, SDHCI_INT_STATUS);
-	} while (!(stat & (SDHCI_INT_ERROR | SDHCI_INT_RESPONSE)) && --retry);
+		if (stat & SDHCI_INT_ERROR)
+			break;
+	} while (((stat & mask) != mask) &&
+		 (get_timer(start) < CONFIG_SDHCI_CMD_DEFAULT_TIMEOUT));
 
-	if (retry == 0) {
+	if (get_timer(start) >= CONFIG_SDHCI_CMD_DEFAULT_TIMEOUT) {
 		if (host->quirks & SDHCI_QUIRK_BROKEN_R1B)
 			return 0;
 		else {
@@ -259,37 +269,33 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 		}
 	}
 
-	if (stat & SDHCI_INT_ERROR)
-		ret = (stat & SDHCI_INT_TIMEOUT) ? TIMEOUT : COMM_ERR;
-	else if (stat & SDHCI_INT_RESPONSE)
-		sdhci_writel(host, SDHCI_INT_RESPONSE, SDHCI_INT_STATUS);
-	else if (!(host->quirks & SDHCI_QUIRK_BROKEN_R1B))
-		ret = TIMEOUT;
+	if ((stat & (SDHCI_INT_ERROR | mask)) == mask) {
+		sdhci_cmd_done(host, cmd);
+		sdhci_writel(host, mask, SDHCI_INT_STATUS);
+	} else
+		ret = -1;
 
-	if (ret)
-		goto reset;
+	if (!ret && data)
+		ret = sdhci_transfer_data(host, data, start_addr);
 
-	/* Get response */
-	sdhci_cmd_done(host, cmd);
-	if (!data)
-		return ret;
-
-	/* Read or write data */
-	ret = sdhci_transfer_data(host, data, start_addr);
 	if (host->quirks & SDHCI_QUIRK_WAIT_SEND_CMD)
 		udelay(1000);
-	if ((host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
-	    !is_aligned && (data->flags == MMC_DATA_READ))
-		memcpy(data->dest, aligned_buffer, trans_bytes);
 
-	if (!ret)
-		return ret;
+	stat = sdhci_readl(host, SDHCI_INT_STATUS);
+	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
+	if (!ret) {
+		if ((host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
+				!is_aligned && (data->flags == MMC_DATA_READ))
+			memcpy(data->dest, aligned_buffer, trans_bytes);
+		return 0;
+	}
 
-reset:
-	/* Error */
-	printf("mmc reset on error %d\n", ret);
-	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
-	return ret;
+	sdhci_reset(host, SDHCI_RESET_CMD);
+	sdhci_reset(host, SDHCI_RESET_DATA);
+	if (stat & SDHCI_INT_TIMEOUT)
+		return TIMEOUT;
+	else
+		return COMM_ERR;
 }
 
 static int sdhci_set_clock(struct mmc *mmc, unsigned int clock)

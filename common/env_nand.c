@@ -286,6 +286,12 @@ DONE:
 }
 #endif /* CMD_SAVEENV */
 
+#if defined(CONFIG_SPL_BUILD)
+static int readenv(size_t offset, u_char *buf, size_t env_size)
+{
+	return nand_spl_load_image(offset, env_size, buf);
+}
+#else
 static int readenv(size_t offset, u_char *buf, size_t env_size)
 {
 	size_t end = offset + get_env_range();
@@ -316,6 +322,7 @@ static int readenv(size_t offset, u_char *buf, size_t env_size)
 
 	return 0;
 }
+#endif /* #if defined(CONFIG_SPL_BUILD) */
 
 #ifdef CONFIG_ENV_OFFSET_OOB
 int get_nand_env_oob(nand_info_t *nand, unsigned long *result)

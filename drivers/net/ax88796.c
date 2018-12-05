@@ -522,7 +522,7 @@ static void ax88796_RxEvent(struct eth_device *dev)
 			AX_OUT(ax, AX_BNDRY, rcv_hdr[1] - 1);
 
 		/* Then pass frame to the upper layer */
-		NetReceive(ax->pbuf, len);
+		net_process_received_packet(ax->pbuf, len);
 	}
 }
 
