@@ -209,7 +209,7 @@
 /************************************************************************
  * GPIO
  ************************************************************************/
-#define CONFIG_VYBRID_GPIO
+#define CONFIG_FSVYBRID_GPIO
 
 
 /************************************************************************
@@ -384,7 +384,6 @@
 /************************************************************************
  * Command Line Editor (Shell)
  ************************************************************************/
-#define CONFIG_SYS_HUSH_PARSER		/* Use "hush" command parser */
 #ifdef CONFIG_SYS_HUSH_PARSER
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
@@ -403,36 +402,24 @@
 /************************************************************************
  * Command Definition
  ************************************************************************/
-/* We don't include
-     #include <config_cmd_default.h>
-   but instead we define all the commands that we want ourselves. However
-   <config_cmd_defaults.h> (note the s) is always included nonetheless. This
-   always sets the following defines: CONFIG_CMD_BOOTM, CONFIG_CMD_CRC32,
-   CONFIG_CMD_GO, CONFIG_CMD_EXPORTENV, CONFIG_CMD_IMPORTENV. */
+/* Only those commands are listed that are not available via Kconfig */
 #undef CONFIG_CMD_AMBAPP	/* No support to show AMBA plug&play devices */
 #define CONFIG_CMD_ASKENV	/* Ask user for variable */
-#define CONFIG_CMD_BDI		/* Board information (bdinfo) */
 #undef CONFIG_CMD_BEDBUG	/* No PPC bedbug debugging support */
 #define CONFIG_CMD_BLINK	/* Support for blinking LEDs */
 #undef CONFIG_CMD_BMP		/* No old BMP, use new display support */
-#define CONFIG_CMD_BOOTD	/* Boot default target */
 #undef CONFIG_CMD_BOOTLDR	/* No ldr support for blackfin */
 #undef CONFIG_CMD_BOOTSTAGE	/* No bootstage command */
 #define CONFIG_CMD_BOOTZ	/* Boot zImage */
 #define CONFIG_CMD_CACHE	/* Switch cache on and off */
 #undef CONFIG_CMD_CBFS		/* No support for coreboot filesystem */
 #undef CONFIG_CMD_CDP		/* No support for CISCOs CDP network config */
-#define CONFIG_CMD_CONSOLE	/* Console information (coninfo) */
 #undef CONFIG_CMD_CPLBINFO	/* No display of PPC CPLB tables */
 #undef CONFIG_CMD_CRAMFS	/* No support for CRAMFS filesystem */
 #undef CONFIG_CMD_DATE		/* No date command */
 #undef CONFIG_CMD_DFU		/* No support for device firmware update */ 
-#define CONFIG_CMD_DHCP		/* Support TFTP boot after DHCP request */
 #undef CONFIG_CMD_DIAG		/* No support for board selftest */
-#undef CONFIG_CMD_DNS		/* No lookup of IP via a DNS name server */
 #undef CONFIG_CMD_DTT		/* No digital thermometer and thermostat */
-#define CONFIG_CMD_ECHO		/* Have echo command */
-#define CONFIG_CMD_EDITENV	/* Allow editing of environment variables */
 #undef CONFIG_CMD_EEPROM	/* No EEPROM support */
 #undef CONFIG_CMD_ELF		/* No support to boot ELF images */
 #define CONFIG_CMD_EXT2		/* Support for EXT2 commands */
@@ -441,8 +428,6 @@
 #undef CONFIG_CMD_FDC		/* No floppy disc controller */
 #undef CONFIG_CMD_FDOS		/* No support for DOS from floppy disc */
 #undef CONFIG_CMD_FITUPD	/* No update from FIT image */
-#undef CONFIG_CMD_FLASH		/* No NOR flash (flinfo, erase, protect) */
-#undef CONFIG_CMD_FPGA		/* No FPGA configuration support */
 #define CONFIG_CMD_FS_GENERIC	/* Filesystem-independent ls and load */
 #define CONFIG_CMD_GETTIME	/* Have gettime command */
 #undef CONFIG_CMD_GPIO		/* No support to set GPIO pins */
@@ -450,68 +435,42 @@
 #undef CONFIG_CMD_GREPENV	/* No support to search in environment */
 #undef CONFIG_CMD_HASH		/* No hash command */
 #undef CONFIG_CMD_HWFLOW	/* No switching of serial flow control */
-#undef CONFIG_CMD_I2C		/* No I2C support */
 #undef CONFIG_CMD_IDE		/* No IDE disk support */
-#define CONFIG_CMD_IMI		/* Image information (iminfo) */
-#undef CONFIG_CMD_IMLS		/* No support to list all found images */
 #undef CONFIG_CMD_IMMAP		/* No support for PPC immap table */
 #define CONFIG_CMD_INI		/* Support INI files to init environment */
 #undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* No interrupt support */
-#define CONFIG_CMD_ITEST	/* Integer (and string) test */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
 #undef CONFIG_CMD_LDRINFO	/* No ldr support for blackfin */
 #define CONFIG_CMD_LED		/* LED support */
-#undef CONFIG_CMD_LICENSE	/* No support to show GPL license */
-#undef CONFIG_CMD_LOADB		/* No serial load of binaries (loadb) */
-#undef CONFIG_CMD_LOADS		/* No serial load of s-records (loads) */
 #undef CONFIG_CMD_MD5SUM	/* No support for md5sum checksums */
-#define CONFIG_CMD_MEMORY	/* md mm nm mw cp cmp crc base loop mtest */
 #undef CONFIG_CMD_MFSL		/* No support for Microblaze FSL */
 #define CONFIG_CMD_MII		/* Support for listing MDIO busses */
-#define CONFIG_CMD_MISC		/* Miscellaneous commands (sleep) */
 #define CONFIG_CMD_MMC		/* Support for SD/MMC cards */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
-#undef CONFIG_CMD_MOVI		/* No support for MOVI NAND flash memories */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
-#define CONFIG_CMD_NAND		/* Support for common NAND flash memories */
 #define CONFIG_CMD_NAND_CONVERT	/* support for NAND format conversion */
-#define CONFIG_CMD_NET		/* Support BOOTP and TFTP (bootp, tftpboot) */
-#define CONFIG_CMD_NFS		/* Support download via NFS */
 #undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */
 #undef CONFIG_CMD_OTP		/* No support for one-time-programmable mem */
 #undef CONFIG_CMD_PART		/* No support for partition info */
 #undef CONFIG_CMD_PCI		/* No PCI support */
 #undef CONFIG_CMD_PCMCIA	/* No support for PCMCIA cards */
-#define CONFIG_CMD_PING		/* Support ping command */
 #undef CONFIG_CMD_PORTIO	/* No port commands (in, out) */
 #undef CONFIG_CMD_PXE		/* No support for PXE files from pxelinux */
-#undef CONFIG_CMD_RARP		/* No support for booting via RARP */
 #define CONFIG_CMD_READ		/* Raw read from media without filesystem */
 #undef CONFIG_CMD_REGINFO	/* No register support on ARM, only PPC */
 #undef CONFIG_CMD_REISER	/* No support for reiserfs filesystem */
-#define CONFIG_CMD_RUN		/* Run command in env variable */
 #undef CONFIG_CMD_SATA		/* No support for SATA disks */
-#define CONFIG_CMD_SAVEENV	/* Allow saving environment to NAND */
 #undef CONFIG_CMD_SAVES		/* No support for serial uploads (saving) */
 #undef CONFIG_CMD_SCSI		/* No support for SCSI disks */
 #undef CONFIG_CMD_SDRAM		/* Support SDRAM chips via I2C */
-#define CONFIG_CMD_SETEXPR	/* Set variable by evaluating an expression */
 #undef CONFIG_CMD_SETGETDCR	/* No support for PPC DCR register */
-#undef CONFIG_CMD_SF		/* No support for serial SPI flashs */
 #undef CONFIG_CMD_SHA1SUM	/* No support for sha1sum checksums */
-#undef CONFIG_CMD_SNTP		/* No synchronizing of RTC via network */
 #undef CONFIG_CMD_SOUND		/* No sound command */
-#define CONFIG_CMD_SOURCE	/* Source support (was autoscr)	*/
-#undef CONFIG_CMD_SPI		/* No SPI support */
 #undef CONFIG_CMD_SPIBOOTLDR	/* No ldr support over SPI for blackfin */
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
-#undef CONFIG_CMD_TFTPPUT	/* No sending of TFTP files (tftpput) */
-#undef CONFIG_CMD_TFTPSRV	/* No acting as TFTP server (tftpsrv) */
-#undef CONFIG_CMD_TIME		/* No support to time command execution */
-#define CONFIG_CMD_TIMER	/* Support system timer access */
 #undef CONFIG_CMD_TPM		/* No support for TPM */
 #undef CONFIG_CMD_TSI148	/* No support for Turndra Tsi148 */
 #define CONFIG_CMD_UBI		/* Support for unsorted block images (UBI) */
@@ -519,8 +478,6 @@
 #undef CONFIG_CMD_UNIVERSE	/* No support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
-#define CONFIG_CMD_USB		/* USB host support */
-#undef CONFIG_CMD_XIMG		/* No support to load part of Multi Image */
 #undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
 #undef CONFIG_CMD_ZIP		/* No support to zip memory region */
 
