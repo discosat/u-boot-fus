@@ -237,8 +237,10 @@ static int do_ini(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return CMD_RET_USAGE;
 
 	section = argv[1];
-	file_address = (char *)simple_strtoul(
-		argc < 3 ? getenv("loadaddr") : argv[2], NULL, 16);
+	if (argc < 3)
+		file_address = (char *)get_loadaddr();
+	else
+		file_address = (char *)parse_loadaddr(argv[2], NULL);
 	file_size = (size_t)simple_strtoul(
 		argc < 4 ? getenv("filesize") : argv[3], NULL, 16);
 

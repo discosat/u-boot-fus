@@ -230,7 +230,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		}
 	} else
 		addr = get_loadaddr();
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 
 	/* If name not given use default name made from IP address */
 	net_boot_file_name[0] = 0;
@@ -258,6 +258,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 
 	/* flush cache */
 	flush_cache(addr, size);
+	setenv_fileinfo(size);
 
 	bootstage_mark(BOOTSTAGE_ID_NET_LOADED);
 

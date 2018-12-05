@@ -611,8 +611,7 @@ restart:
 			if (net_boot_file_size > 0) {
 				printf("Bytes transferred = %u (0x%x)\n",
 				       net_boot_file_size, net_boot_file_size);
-				setenv_hex("filesize", net_boot_file_size);
-				setenv_hex("fileaddr", get_loadaddr());
+				setenv_fileinfo(net_boot_file_size);
 			}
 			if (protocol != NETCONS)
 				eth_halt();

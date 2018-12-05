@@ -660,6 +660,7 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 
 		nand = &nand_info[dev];
+		set_fileaddr(addr);
 
 		if (!s || !strcmp(s, ".jffs2") ||
 		    !strcmp(s, ".e") || !strcmp(s, ".i")) {
@@ -710,6 +711,7 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		printf(" %zu bytes %s: %s\n", rwsize,
 		       read ? "read" : "written", ret ? "ERROR" : "OK");
+		setenv_fileinfo(rwsize);
 
 		return ret == 0 ? 0 : 1;
 	}
@@ -897,6 +899,7 @@ int nand_load_image(int index, ulong offset, ulong addr, int show)
 	const void *fit_hdr = NULL;
 #endif
 
+	set_fileaddr(addr);
 	nand = &nand_info[index];
 	printf("\nLoading from %s, offset 0x%lx\n", nand->name, offset);
 
@@ -954,8 +957,12 @@ int nand_load_image(int index, ulong offset, ulong addr, int show)
 			bootstage_error(BOOTSTAGE_ID_NAND_READ);
 		return 1;
 	}
+
 	if (show)
 		bootstage_mark(BOOTSTAGE_ID_NAND_READ);
+
+	/* Loading successful, set fileaddr and filesize */
+	setenv_fileinfo(cnt);
 
 #if defined(CONFIG_FIT)
 	/* This cannot be done earlier, we need complete FIT image in RAM first */
@@ -980,9 +987,6 @@ static int nand_load_image_boot(cmd_tbl_t *cmdtp, int index, ulong offset,
 {
 	if (nand_load_image(index, offset, addr, 1))
 		return 1;
-
-	/* Loading ok, update default load address */
-	set_loadaddr(addr);
 
 	return bootm_maybe_autostart(cmdtp, cmd);
 }

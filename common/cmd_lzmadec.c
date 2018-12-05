@@ -28,20 +28,21 @@ static int do_lzmadec(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		dst_len = simple_strtoul(argv[3], NULL, 16);
 		/* fall through */
 	case 3:
-		src = simple_strtoul(argv[1], NULL, 16);
-		dst = simple_strtoul(argv[2], NULL, 16);
+		src = parse_loadaddr(argv[1], NULL);
+		dst = parse_loadaddr(argv[2], NULL);
 		break;
 	default:
 		return CMD_RET_USAGE;
 	}
 
+	set_fileaddr(dst);
 	ret = lzmaBuffToBuffDecompress(map_sysmem(dst, dst_len), &src_len,
 				       map_sysmem(src, 0), dst_len);
 
 	if (ret != SZ_OK)
 		return 1;
 	printf("Uncompressed size: %ld = 0x%lX\n", src_len, src_len);
-	setenv_hex("filesize", src_len);
+	setenv_fileinfo(src_len);
 
 	return 0;
 }

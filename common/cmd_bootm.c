@@ -703,9 +703,9 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
-		images->ep = load_addr;
+		images->ep = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				load_addr);
+				images->ep);
 	} else {
 		images->ep = simple_strtoul(argv[0], NULL, 16);
 		debug("*  kernel: cmdline image address = 0x%08lx\n",

@@ -165,7 +165,7 @@ static inline void store_block(int block, uchar *src, unsigned len)
 {
 	ulong offset = block * tftp_block_size + tftp_block_wrap_offset;
 	ulong newsize = offset + len;
-	ulong startaddr = get_loadaddr() + offset;
+	ulong startaddr = get_fileaddr() + offset;
 #ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
 	int i, rc = 0;
 
@@ -230,7 +230,7 @@ static int load_block(unsigned block, uchar *dst, unsigned len)
 	ulong tosend = len;
 
 	tosend = min(net_boot_file_size - offset, tosend);
-	(void)memcpy(dst, (void *)(get_loadaddr() + offset), tosend);
+	(void)memcpy(dst, (void *)(get_fileaddr() + offset), tosend);
 	debug("%s: block=%d, offset=%ld, len=%d, tosend=%ld\n", __func__,
 	      block, offset, len, tosend);
 	return tosend;
@@ -781,7 +781,7 @@ void tftp_start(enum proto_t protocol)
 #ifdef CONFIG_CMD_TFTPPUT
 	tftp_put_active = (protocol == TFTPPUT);
 	if (tftp_put_active) {
-		printf("Save address: 0x%lx\n", get_loadaddr());
+		printf("Save address: 0x%lx\n", get_fileaddr());
 		printf("Save size:    0x%lx\n", net_boot_file_size);
 		puts("Saving:\n  *\b");
 		tftp_state = STATE_SEND_WRQ;
@@ -789,7 +789,7 @@ void tftp_start(enum proto_t protocol)
 	} else
 #endif
 	{
-		printf("Load address: 0x%lx\n", get_loadaddr());
+		printf("Load address: 0x%lx\n", get_fileaddr());
 		puts("Loading:\n  *\b");
 		tftp_state = STATE_SEND_RRQ;
 	}
@@ -839,7 +839,7 @@ void tftp_start_server(void)
 
 	printf("Using %s device\n", eth_get_name());
 	printf("Listening for TFTP transfer on %pI4\n", &net_ip);
-	printf("Load address: 0x%lx\n", get_loadaddr());
+	printf("Load address: 0x%lx\n", get_fileaddr());
 
 	puts("Loading:\n  *\b");
 

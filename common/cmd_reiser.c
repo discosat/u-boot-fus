@@ -92,7 +92,7 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	addr = (argc > 3) ? parse_loadaddr(argv[3], NULL) : get_loadaddr();
 	filename = (argc > 4) ? parse_bootfile(argv[4]) : get_bootfile();
 	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 
 	part = get_device_and_partition(argv[1], argv[2], &dev_desc, &info, 1);
 	if (part < 0)
@@ -126,7 +126,7 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	printf ("\n%ld bytes read\n", filelen);
-	setenv_hex("filesize", filelen);
+	setenv_fileinfo(filelen);
 
 	return filelen;
 }

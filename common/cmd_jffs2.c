@@ -485,7 +485,6 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 	if (argc == 3) {
 		addr = parse_loadaddr(argv[1], NULL);
-		set_loadaddr(offset);
 		filename = parse_bootfile(argv[2]);
 	}
 
@@ -497,19 +496,19 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		/* check partition type for cramfs */
 		fsname = (cramfs_check(part) ? "CRAMFS" : "JFFS2");
-		printf("### %s loading '%s' to 0x%lx\n", fsname, filename, offset);
+		printf("### %s loading '%s' to 0x%lx\n", fsname, filename, addr);
 
 		if (cramfs_check(part)) {
-			size = cramfs_load ((char *) offset, part, filename);
+			size = cramfs_load ((char *) addr, part, filename);
 		} else {
 			/* if this is not cramfs assume jffs2 */
-			size = jffs2_1pass_load((char *)offset, part, filename);
+			size = jffs2_1pass_load((char *)addr, part, filename);
 		}
 
 		if (size > 0) {
 			printf("### %s load complete: %d bytes loaded to 0x%lx\n",
-				fsname, size, offset);
-			setenv_hex("filesize", size);
+				fsname, size, addr);
+			setenv_fileinfo(size);
 		} else {
 			printf("### %s LOAD ERROR<%x> for %s!\n", fsname, size, filename);
 		}

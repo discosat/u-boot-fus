@@ -652,7 +652,7 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		boot_drive = simple_strtoul(argv[2], NULL, 10);
 	else
 		addr = CONFIG_SYS_FDC_DRIVE_NUMBER;
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 
 	/* setup FDC and scan for drives  */
 	if (fdc_setup(boot_drive, pCMD, pFG) == false) {
@@ -722,6 +722,8 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	flush_cache (addr, imsize);
 
+	setenv_fileinfo(imsize);
+
 #if defined(CONFIG_FIT)
 	/* This cannot be done earlier, we need complete FIT image in RAM first */
 	if (genimg_get_format ((void *)addr) == IMAGE_FORMAT_FIT) {
@@ -732,7 +734,6 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		fit_print_contents (fit_hdr);
 	}
 #endif
-
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

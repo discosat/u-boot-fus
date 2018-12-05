@@ -826,6 +826,7 @@ int ubifs_load(const char *filename, u32 addr, u32 size)
 	printf("Loading file '%s' to addr 0x%08x with size %d (0x%08x)...\n",
 	       filename, addr, size, size);
 
+	set_fileaddr(addr);
 	page.addr = (void *)addr;
 	page.index = 0;
 	page.inode = inode;
@@ -847,7 +848,7 @@ int ubifs_load(const char *filename, u32 addr, u32 size)
 	if (err)
 		printf("Error reading file '%s'\n", filename);
 	else {
-		setenv_hex("filesize", size);
+		setenv_fileinfo(size);
 		printf("Done\n");
 	}
 

@@ -72,7 +72,7 @@ static char nfs_path_buff[2048];
 static inline int store_block(uchar *src, unsigned offset, unsigned len)
 {
 	ulong newsize = offset + len;
-	ulong startaddr = get_loadaddr() + offset;
+	ulong startaddr = get_fileaddr() + offset;
 
 #ifdef CONFIG_SYS_DIRECT_FLASH_NFS
 	int i, rc = 0;
@@ -759,7 +759,7 @@ void nfs_start(void)
 		print_size(net_boot_file_expected_size_in_blocks << 9, "");
 	}
 	printf ("\nLoad address: 0x%lx\n"
-		"Loading:\n  *\b", get_loadaddr());
+		"Loading:\n  *\b", get_fileaddr());
 
 	net_set_timeout_handler(nfs_timeout, nfs_timeout_handler);
 	net_set_udp_handler(nfs_handler);

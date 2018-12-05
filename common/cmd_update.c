@@ -295,7 +295,7 @@ static int update_net(const char *action, const char **check, const char *fname,
 	printf(" with %s ----\n", fname);
 
 	copy_filename(net_boot_file_name, fname, sizeof(net_boot_file_name));
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 	size = net_loop(proto);
 	if (size < 0)
 		return -1;
@@ -303,6 +303,8 @@ static int update_net(const char *action, const char **check, const char *fname,
 	/* flush cache */
 	flush_cache(addr, size);
 
+	/* Set fileaddr and filesize */
+	setenv_fileinfo(size);
 	setenv(UPDATEDEV, "net");
 
 	return 0;

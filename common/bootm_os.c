@@ -23,7 +23,8 @@ static int do_bootm_standalone(int flag, int argc, char * const argv[],
 	/* Don't start if "autostart" is set to "no" */
 	s = getenv("autostart");
 	if ((s != NULL) && !strcmp(s, "no")) {
-		setenv_hex("filesize", images->os.image_len);
+		set_fileaddr(images->os.image_start);
+		setenv_fileinfo(images->os.image_len);
 		return 0;
 	}
 	appl = (int (*)(int, char * const []))images->ep;

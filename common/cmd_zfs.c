@@ -53,7 +53,7 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	filename = (argc > 4) ? parse_bootfile(argv[4]) : get_bootfile();
 	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
 	pos = (argc > 6) ? simple_strtoul(argv[6], NULL, 16) : 0;
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 
 	part = get_device_and_partition(argv[1], argv[2], &dev_desc, &info, 1);
 	if (part < 0)
@@ -87,7 +87,7 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	zfs_close(&zfile);
 
 	printf("%llu bytes read\n", zfile.size);
-	setenv_hex("filesize", zfile.size);
+	setenv_fileinfo(zfile.size);
 
 	return 0;
 }

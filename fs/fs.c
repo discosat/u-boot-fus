@@ -389,6 +389,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	else
 		pos = 0;
 
+	set_fileaddr(addr);
 	time = get_timer(0);
 	ret = fs_read(filename, addr, pos, bytes, &len_read);
 	time = get_timer(time);
@@ -403,7 +404,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	}
 	puts("\n");
 
-	setenv_hex("filesize", len_read);
+	setenv_fileinfo(len_read);
 
 	return 0;
 }

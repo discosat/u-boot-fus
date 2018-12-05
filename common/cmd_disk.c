@@ -46,7 +46,7 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 		return 1;
 	}
 
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 	dev = dev_desc->dev;
 	bootstage_mark(BOOTSTAGE_ID_IDE_TYPE);
 
@@ -109,6 +109,9 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 		return 1;
 	}
 	bootstage_mark(BOOTSTAGE_ID_IDE_READ);
+
+	/* Set fileaddr and filesize variables */
+	setenv_fileinfo(cnt * info.blksz);
 
 #if defined(CONFIG_FIT)
 	/* This cannot be done earlier,

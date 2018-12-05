@@ -248,8 +248,8 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 	flush_cache(dest, len);
 
-	setenv_hex("fileaddr", data);
-	setenv_hex("filesize", len);
+	set_fileaddr(data);
+	setenv_fileinfo(len);
 
 	return 0;
 }

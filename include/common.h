@@ -307,8 +307,7 @@ int	source (ulong addr, const char *fit_uname);
 int update_script(enum update_action action_id, const char *autocheck,
 		  const char *fname, unsigned long addr);
 
-/* Use get_loadaddr() and set_loadaddr() instead of variable load_addr; use
-   get_loadaddr() also for saving (in tftpput) */
+/* Use get_loadaddr() and set_loadaddr() instead of variable load_addr */
 //###extern ulong load_addr;		/* Default Load Address */
 
 /* common/cmd_doc.c */
@@ -329,11 +328,27 @@ void	env_relocate (void);
 int	envmatch     (uchar *, int);
 const char *get_bootfile(void);
 const char *parse_bootfile(const char *buffer);
-ulong get_loadaddr(void);
-ulong parse_loadaddr_base(const char *buffer, char **endp, int base);
-ulong parse_loadaddr(const char *buffer, char **endp);
-int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
+
+/* Set the current load address, e.g. if environment variable is changed */
 void set_loadaddr(ulong addr);
+
+/* Get the load address; should be the same as environment variable loadaddr */
+ulong get_loadaddr(void);
+
+/* Parse address, in case of "." return current get_loadaddr() */
+ulong parse_loadaddr(const char *buffer, char **endp);
+
+/* Like simple_loadaddr(), but return error in case of trailing garbage */
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
+
+/* Set address where to load next file */
+void set_fileaddr(ulong addr);
+
+/* Get address where to load next file */
+ulong get_fileaddr(void);
+
+/* Set environment variables fileaddr and filesize */
+void setenv_fileinfo(ulong size);
 
 /* Avoid unfortunate conflict with libc's getenv() */
 #ifdef CONFIG_SANDBOX

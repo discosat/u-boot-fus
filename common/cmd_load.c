@@ -106,7 +106,8 @@ static int do_load_serial(cmd_tbl_t *cmdtp, int flag, int argc,
 		rcode = 1;
 	} else {
 		printf("## Start Addr      = 0x%08lX\n", addr);
-		set_loadaddr(addr);
+		set_fileaddr(addr)
+		setenv_fileinfo(addr);
 	}
 
 #ifdef	CONFIG_SYS_LOADS_BAUD_CHANGE
@@ -182,7 +183,8 @@ static ulong load_serial(long offset)
 			    start_addr, end_addr, size, size
 		    );
 		    flush_cache(start_addr, size);
-		    setenv_hex("filesize", size);
+		    set_fileaddr(start_addr);
+		    setenv_fileinfo(size);
 		    return (addr);
 		case SREC_START:
 		    break;
@@ -248,7 +250,7 @@ int do_save_serial (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #endif
 
 	offset = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
-	set_loadaddr(offset);
+	set_fileaddr(offset);
 	if (argc > 2)
 		size = simple_strtoul(argv[2], NULL, 16);
 
@@ -419,7 +421,7 @@ static int do_load_serial_bin(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	load_baudrate = current_baudrate = gd->baudrate;
 	offset = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
-	set_loadaddr(offset);
+	set_fileaddr(offset);
 	if (argc == 3) {
 		load_baudrate = (int)simple_strtoul(argv[2], NULL, 10);
 
@@ -466,12 +468,10 @@ static int do_load_serial_bin(cmd_tbl_t *cmdtp, int flag, int argc,
 		addr = load_serial_bin(offset);
 
 		if (addr == ~0) {
-			set_loadaddr(0);
 			printf("## Binary (kermit) download aborted\n");
 			rcode = 1;
 		} else {
 			printf("## Start Addr      = 0x%08lX\n", addr);
-			set_loadaddr(addr);
 		}
 	}
 	if (addr == ~0) {
@@ -500,6 +500,7 @@ static ulong load_serial_bin(ulong offset)
 {
 	int size, i;
 
+	set_fileaddr(offset);
 	set_kerm_bin_mode((ulong *) offset);
 	size = k_recv();
 
@@ -518,7 +519,7 @@ static ulong load_serial_bin(ulong offset)
 	flush_cache(offset, size);
 
 	printf("## Total Size      = 0x%08x = %d Bytes\n", size, size);
-	setenv_hex("filesize", size);
+	setenv_fileinfo(size);
 
 	return offset;
 }
@@ -950,6 +951,7 @@ static ulong load_serial_ymodem(ulong offset, int mode)
 	ulong store_addr = ~0;
 	ulong addr = 0;
 
+	set_fileaddr(offset);
 	size = 0;
 	info.mode = mode;
 	res = xyzModem_stream_open(&info, &err);
@@ -989,7 +991,7 @@ static ulong load_serial_ymodem(ulong offset, int mode)
 	flush_cache(offset, size);
 
 	printf("## Total Size      = 0x%08x = %d Bytes\n", size, size);
-	setenv_hex("filesize", size);
+	setenv_fileinfo(size);
 
 	return offset;
 }

@@ -598,7 +598,8 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		printf("Reading from volume %s ... ", argv[3]);
 		ret = ubi_volume_read(argv[3], (char *)addr, size, &loaded);
 		if (!ret) {
-			setenv_hex("filesize", loaded);
+			set_fileaddr(addr);
+			setenv_fileinfo(loaded);
 			printf("OK, %d bytes loaded to 0x%lx\n", loaded, addr);
 		}
 

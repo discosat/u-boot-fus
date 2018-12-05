@@ -67,14 +67,16 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	setenv("netretry", "no");
 
 	/* download the update file */
-	set_loadaddr(addr);
+	set_fileaddr(addr);
 	copy_filename(net_boot_file_name, filename, sizeof(net_boot_file_name));
 	size = net_loop(TFTPGET);
 
 	if (size < 0)
 		rv = 1;
-	else if (size > 0)
+	else if (size > 0) {
 		flush_cache(addr, size);
+		setenv_fileinfo(size);
+	}
 
 	/* restore changed globals and env variable */
 	tftp_timeout_ms = saved_timeout_msecs;
