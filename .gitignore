@@ -51,6 +51,7 @@
 /LOG
 /spl/
 /tpl/
+/defconfig
 
 #
 # Generated include files

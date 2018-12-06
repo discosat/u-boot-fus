@@ -91,7 +91,6 @@ int natsemi_initialize(bd_t *bis);
 int ne2000_initialize(u8 dev_num, int base_addr);
 int npe_initialize(bd_t *bis);
 int ns8382x_initialize(bd_t *bis);
-int pch_gbe_register(bd_t *bis);
 int pcnet_initialize(bd_t *bis);
 int ppc_4xx_eth_initialize (bd_t *bis);
 int rtl8139_initialize(bd_t *bis);
@@ -143,9 +142,6 @@ static inline int pci_eth_init(bd_t *bis)
 #endif
 #ifdef CONFIG_E1000
 	num += e1000_initialize(bis);
-#endif
-#ifdef CONFIG_PCH_GBE
-	num += pch_gbe_register(bis);
 #endif
 #ifdef CONFIG_PCNET
 	num += pcnet_initialize(bis);

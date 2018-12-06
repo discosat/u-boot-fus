@@ -407,7 +407,7 @@
 #define LCDIF2_BASE_ADDR            (AIPS3_ARB_BASE_ADDR + 0x24000)
 #define MX6SX_LCDIF1_BASE_ADDR      (AIPS3_ARB_BASE_ADDR + 0x20000)
 #define MX6SX_WDOG3_BASE_ADDR       (AIPS3_ARB_BASE_ADDR + 0x88000)
-#define MX6SX_UART6_BASE_ADDR             (AIPS3_ARB_BASE_ADDR + 0xA0000)
+#define MX6SX_UART6_BASE_ADDR       (AIPS3_ARB_BASE_ADDR + 0xA0000)
 
 #if !(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
 #define IRAM_SIZE                    0x00040000
@@ -534,8 +534,6 @@ struct src {
 #define SRC_SCR_M4_ENABLE_MASK                  (1 << 22)
 #define SRC_SCR_M4C_NON_SCLR_RST_OFFSET         4
 #define SRC_SCR_M4C_NON_SCLR_RST_MASK           (1 << 4)
-
-#define BIT(x) (1u << x)
 
 /* GPR1 bitfields */
 #define IOMUXC_GPR1_APP_CLK_REQ_N		BIT(30)

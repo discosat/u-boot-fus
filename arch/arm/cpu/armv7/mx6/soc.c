@@ -8,9 +8,6 @@
  */
 
 #include <common.h>
-#include <asm/armv7.h>
-#include <asm/bootm.h>
-#include <asm/pl310.h>
 #include <asm/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -38,7 +35,7 @@ struct scu_regs {
 	u32	fpga_rev;
 };
 
-#if defined(CONFIG_IMX6_THERMAL)
+#if defined(CONFIG_IMX_THERMAL)
 static const struct imx_thermal_plat imx6_thermal_plat = {
 	.regs = (void *)ANATOP_BASE_ADDR,
 	.fuse_bank = 1,
@@ -345,8 +342,6 @@ static void set_preclk_from_osc(void)
 }
 #endif
 
-#define SRC_SCR_WARM_RESET_ENABLE	0
-
 int arch_cpu_init(void)
 {
 	if (!is_cpu_type(MXC_CPU_MX6SL) && !is_cpu_type(MXC_CPU_MX6SX)
@@ -456,31 +451,6 @@ int board_postclk_init(void)
 	return 0;
 }
 
-#ifndef CONFIG_SYS_DCACHE_OFF
-void enable_caches(void)
-{
-#if defined(CONFIG_SYS_ARM_CACHE_WRITETHROUGH)
-	enum dcache_option option = DCACHE_WRITETHROUGH;
-#else
-	enum dcache_option option = DCACHE_WRITEBACK;
-#endif
-
-	/* Avoid random hang when download by usb */
-	invalidate_dcache_all();
-
-	/* Enable D-cache. I-cache is already enabled in start.S */
-	dcache_enable();
-
-	/* Enable caching on OCRAM and ROM */
-	mmu_set_region_dcache_behaviour(ROMCP_ARB_BASE_ADDR,
-					ROMCP_ARB_END_ADDR,
-					option);
-	mmu_set_region_dcache_behaviour(IRAM_BASE_ADDR,
-					IRAM_SIZE,
-					option);
-}
-#endif
-
 #if defined(CONFIG_FEC_MXC)
 void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 {
@@ -516,18 +486,6 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 }
 #endif
 
-void boot_mode_apply(unsigned cfg_val)
-{
-	unsigned reg;
-	struct src *psrc = (struct src *)SRC_BASE_ADDR;
-	writel(cfg_val, &psrc->gpr9);
-	reg = readl(&psrc->gpr10);
-	if (cfg_val)
-		reg |= 1 << 28;
-	else
-		reg &= ~(1 << 28);
-	writel(reg, &psrc->gpr10);
-}
 /*
  * cfg_val will be used for
  * Boot_cfg4[7:0]:Boot_cfg3[7:0]:Boot_cfg2[7:0]:Boot_cfg1[7:0]
@@ -729,74 +687,3 @@ enum aux_state arch_auxiliary_core_get(u32 core_id)
 	return aux_undefined;
 }
 #endif
-
-#ifndef CONFIG_SYS_L2CACHE_OFF
-#ifndef CONFIG_MX6UL
-#define IOMUXC_GPR11_L2CACHE_AS_OCRAM 0x00000002
-void v7_outer_cache_enable(void)
-{
-	struct pl310_regs *const pl310 = (struct pl310_regs *)L2_PL310_BASE;
-	unsigned int val, cache_id;
-
-
-	/*
-	 * Set bit 22 in the auxiliary control register. If this bit
-	 * is cleared, PL310 treats Normal Shared Non-cacheable
-	 * accesses as Cacheable no-allocate.
-	 */
-	setbits_le32(&pl310->pl310_aux_ctrl, L310_SHARED_ATT_OVERRIDE_ENABLE);
-
-#if defined CONFIG_MX6SL
-	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
-	val = readl(&iomux->gpr[11]);
-	if (val & IOMUXC_GPR11_L2CACHE_AS_OCRAM) {
-		/* L2 cache configured as OCRAM, reset it */
-		val &= ~IOMUXC_GPR11_L2CACHE_AS_OCRAM;
-		writel(val, &iomux->gpr[11]);
-	}
-#endif
-
-	/* Must disable the L2 before changing the latency parameters */
-	clrbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
-
-	writel(0x132, &pl310->pl310_tag_latency_ctrl);
-	writel(0x132, &pl310->pl310_data_latency_ctrl);
-
-	val = readl(&pl310->pl310_prefetch_ctrl);
-
-	/* Turn on the L2 I/D prefetch, double linefill */
-	/* Set prefetch offset with any value except 23 as per errata 765569 */
-	val |= 0x7000000f;
-
-	/*
-	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
-	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL/SX/DQP
-	 * is r3p2.
-	 * But according to ARM PL310 errata: 752271
-	 * ID: 752271: Double linefill feature can cause data corruption
-	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
-	 * Workaround: The only workaround to this erratum is to disable the
-	 * double linefill feature. This is the default behavior.
-	 */
-	cache_id = readl(&pl310->pl310_cache_id);
-	if (((cache_id & L2X0_CACHE_ID_PART_MASK) == L2X0_CACHE_ID_PART_L310)
-	    && ((cache_id & L2X0_CACHE_ID_RTL_MASK) < L2X0_CACHE_ID_RTL_R3P2))
-		val &= ~(1 << 30);
-	writel(val, &pl310->pl310_prefetch_ctrl);
-
-	val = readl(&pl310->pl310_power_ctrl);
-	val |= L2X0_DYNAMIC_CLK_GATING_EN;
-	val |= L2X0_STNDBY_MODE_EN;
-	writel(val, &pl310->pl310_power_ctrl);
-
-	setbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
-}
-
-void v7_outer_cache_disable(void)
-{
-	struct pl310_regs *const pl310 = (struct pl310_regs *)L2_PL310_BASE;
-
-	clrbits_le32(&pl310->pl310_ctrl, L2X0_CTRL_EN);
-}
-#endif
-#endif /* !CONFIG_SYS_L2CACHE_OFF */

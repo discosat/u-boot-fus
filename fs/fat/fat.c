@@ -13,6 +13,7 @@
 #include <part.h>
 #include <malloc.h>
 #include <linux/compiler.h>		/* __aligned() */
+#include <memalign.h>			/* ALLOC_CACHE_ALIGN_BUFFER */
 #include <div64.h>
 
 
