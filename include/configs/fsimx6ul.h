@@ -2,7 +2,8 @@
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX6 UltraLite and ULL.
- * These are efusA7UL, PicoCOM1.2, PicoCOMA7 and PicoCorMX6UL.
+ * These are efusA7UL, PicoCOM1.2, PicoCOMA7 and PicoCoreMX6UL. Differences
+ * between UL and ULL can be handled at runtime, so one config is sufficient.
  *
  * Activate with one of the following targets:
  *   make fsimx6ul_config     Configure for i.MX6 UltraLite/ULL boards
@@ -51,12 +52,6 @@
  * High Level Configuration Options
  ************************************************************************/
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
-
-/* CPU, family and board defines, UL and ULL can be handled at the same time */
-#define CONFIG_MX6			/* NXP i.MX6 CPU... */
-#define CONFIG_MX6UL			/* ...UL... */
-#define CONFIG_MX6ULL			/* ...and ULL... */
-#define CONFIG_FSIMX6UL			/* ...on an F&S i.MX6 board */
 #undef CONFIG_MP			/* No multi processor support */
 
 #define CONFIG_FS_BOARD_OFFS	16	/* F&S i.MX6UL/ULL boards as reported
@@ -71,9 +66,8 @@
 #define CONFIG_FS_DISP_COMMON		/* Use F&S common display stuff */
 #define CONFIG_FS_DISP_COUNT	1	/* Support one display */
 
-#define CONFIG_IMX_THERMAL		/* Give extended thermal info */
+/*####define CONFIG_IMX_THERMAL*/	/* Read CPU temperature */
 
-#define CONFIG_SYS_L2CACHE_OFF
 #ifndef CONFIG_SYS_L2CACHE_OFF
 #define CONFIG_SYS_L2_PL310
 #define CONFIG_SYS_PL310_BASE	L2_PL310_BASE
@@ -491,8 +485,6 @@
 #define CONFIG_NET_RETRY_COUNT	5
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
-
-#define CONFIG_NETCONSOLE
 
 
 /************************************************************************

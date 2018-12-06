@@ -84,10 +84,7 @@
  * High Level Configuration Options
  ************************************************************************/
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
-
-/* CPU, family and board defines */
-#define CONFIG_VYBRID			/* NXP Vybrid CPU... */
-#define CONFIG_FSVYBRID			/* ...on an F&S Vybrid board */
+#define CONFIG_VYBRID			/* ### TODO: switch to CONFIG_VF610 */
 #undef CONFIG_MP			/* No multi processor support */
 
 #define CONFIG_FS_BOARD_OFFS	0	/* F&S Vybrid board types as reported
@@ -528,8 +525,6 @@
 #define CONFIG_NET_RETRY_COUNT	5
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
-
-#define CONFIG_NETCONSOLE
 
 
 /************************************************************************

@@ -51,11 +51,6 @@
  * High Level Configuration Options
  ************************************************************************/
 #define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
-
-/* CPU, family and board defines */
-#define CONFIG_MX6			/* NXP i.MX6 CPU... */
-#define CONFIG_MX6QDL			/* ...Quad/Dual or DualLite/Solo... */
-#define CONFIG_FSIMX6			/* ...on an F&S i.MX6 board */
 #define CONFIG_MP			/* Multi processor support */
 
 #define CONFIG_FS_BOARD_OFFS	0	/* F&S i.MX6 board types as reported
@@ -70,9 +65,8 @@
 #define CONFIG_FS_DISP_COMMON		/* Use F&S common display stuff */
 #define CONFIG_FS_DISP_COUNT	4	/* Support up to four displays */
 
-#define CONFIG_IMX_THERMAL		/* Give extended thermal info */
+/*####define CONFIG_IMX_THERMAL*/	/* Read CPU temperature */
 
-#define CONFIG_SYS_L2CACHE_OFF
 #ifndef CONFIG_SYS_L2CACHE_OFF
 #define CONFIG_SYS_L2_PL310
 #define CONFIG_SYS_PL310_BASE	L2_PL310_BASE
@@ -213,6 +207,9 @@
  ************************************************************************/
 #define CONFIG_SYS_I2C
 #define CONFIG_SYS_I2C_MXC
+#define CONFIG_SYS_I2C_MXC_I2C1
+#define CONFIG_SYS_I2C_MXC_I2C2
+#define CONFIG_SYS_I2C_MXC_I2C3
 #define CONFIG_SYS_I2C_SPEED	100000
 #define CONFIG_SYS_SPD_BUS_NUM	1
 
@@ -485,8 +482,6 @@
 #define CONFIG_NET_RETRY_COUNT	5
 #define CONFIG_ARP_TIMEOUT	2000UL
 #define CONFIG_MII			/* Required in net/eth.c */
-
-#define CONFIG_NETCONSOLE
 
 
 /************************************************************************

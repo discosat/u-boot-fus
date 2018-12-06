@@ -29,6 +29,10 @@ config MX6UL
 	select SYS_L2CACHE_OFF
 	bool
 
+config MX6ULL
+	bool
+	select MX6UL
+
 choice
 	prompt "MX6 board select"
 	optional
@@ -58,6 +62,18 @@ config TARGET_EMBESTMX6BOARDS
 config TARGET_GW_VENTANA
 	bool "gw_ventana"
 	select SUPPORT_SPL
+
+config TARGET_FSIMX6
+	bool "F&S fsimx6 boards & modules"
+	select MX6QDL
+
+config TARGET_FSIMX6SX
+	bool "F&S fsimx6sx boards & modules"
+	select MX6SX
+
+config TARGET_FSIMX6UL
+	bool "F&S fsimx6ul boards & modules"
+	select MX6ULL
 
 config TARGET_KOSAGI_NOVENA
 	bool "Kosagi Novena"

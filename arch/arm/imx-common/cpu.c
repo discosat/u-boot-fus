@@ -170,7 +170,6 @@ int print_cpuinfo(void)
 	u32 cause;
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 	int ret = 0;
-#if defined(CONFIG_IMX_THERMAL)
 	u32 max_freq;
 	int minc, maxc;
 	char *temp;
@@ -186,15 +185,7 @@ int print_cpuinfo(void)
 		printf(", %d MHz (running at %d MHz)\n", max_freq / 1000000,
 		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	}
-#else
-	printf("CPU:   Freescale i.MX%s rev%d.%d at %d MHz\n",
-		get_imx_type((cpurev & 0xFF000) >> 12),
-		(cpurev & 0x000F0) >> 4,
-		(cpurev & 0x0000F) >> 0,
-		mxc_get_clock(MXC_ARM_CLK) / 1000000);
-#endif
 
-#if defined(CONFIG_IMX_THERMAL)
 	switch (get_cpu_temp_grade(&minc, &maxc)) {
 	case TEMP_AUTOMOTIVE:
 		temp = "Automotive";
@@ -210,7 +201,7 @@ int print_cpuinfo(void)
 		break;
 	}
 	printf("CPU:   %s temperature grade (%dC to %dC)", temp, minc, maxc);
-#ifdef CONFIG_DM
+#if defined(CONFIG_IMX_THERMAL) && defined(CONFIG_DM)
 	{
 		struct udevice *thermal_dev;
 		int cpu_tmp;
@@ -219,16 +210,11 @@ int print_cpuinfo(void)
 		if (!ret) {
 			ret = thermal_get_temp(thermal_dev, &cpu_tmp);
 			if (!ret)
-				printf(" at %dC\n", cpu_tmp);
-			else
-				puts(" - invalid sensor data\n");
-		} else {
-			puts(" - invalid sensor device\n");
+				printf(" running at %dC", cpu_tmp);
 		}
 	}
 #endif
 	puts("\n");
-#endif
 
 	cause = readl(&src_regs->srsr);
 	writel(cause, &src_regs->srsr);
