@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <console.h>
 #include <debug_uart.h>
 #include <stdarg.h>
 #include <malloc.h>
@@ -368,46 +369,6 @@ void puts(const char *s)
 		fputs(stdout, s);	  /* Send to the standard output */
 	else
 		serial_puts(NULL, s);	  /* Send directly to the handler */
-}
-
-int printf(const char *fmt, ...)
-{
-	va_list args;
-	uint i;
-	char printbuffer[CONFIG_SYS_PBSIZE];
-
-	va_start(args, fmt);
-
-	/* For this to work, printbuffer must be larger than
-	 * anything we ever want to print.
-	 */
-	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
-	va_end(args);
-
-	/* Print the string */
-	puts(printbuffer);
-
-	return i;
-}
-
-int vprintf(const char *fmt, va_list args)
-{
-	uint i;
-	char printbuffer[CONFIG_SYS_PBSIZE];
-
-#if defined(CONFIG_PRE_CONSOLE_BUFFER) && !defined(CONFIG_SANDBOX)
-	if (!gd->have_console)
-		return 0;
-#endif
-
-	/* For this to work, printbuffer must be larger than
-	 * anything we ever want to print.
-	 */
-	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
-
-	/* Print the string */
-	puts(printbuffer);
-	return i;
 }
 
 /* test if ctrl-c was pressed */

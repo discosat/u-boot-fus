@@ -16,28 +16,33 @@
 #include <config.h>
 #include <command.h>
 #include <mtd/ubi-user.h>			/* UBI_MAX_VOLUME_NAME */
-
-#include "../fs/ubifs/ubifs.h"
+#include <ubifs_uboot.h>
 
 static int ubifs_mounted;
 static char vol_mounted[UBI_MAX_VOLUME_NAME];
+
+void cmd_ubifs_umount(void)
+{
+	uboot_ubifs_umount();
+	ubifs_mounted = 0;
+}
 
 int cmd_ubifs_mount(const char *vol_name)
 {
 	int ret;
 
-	if (!ubifs_mounted
-	    || (strncmp(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME) != 0)) {
-		ubifs_mounted = 0;
-		ubifs_init();
+	if (ubifs_mounted && !strncmp(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME))
+		return 0;		/* Already mounted */
+	if (ubifs_mounted)
+		cmd_ubifs_umount();
+	ubifs_init();
 
-		ret = uboot_ubifs_mount(vol_name);
-		if (ret)
-			return -1;
+	ret = uboot_ubifs_mount(vol_name);
+	if (ret)
+		return -1;
 
-		strncpy(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME);
-		ubifs_mounted = 1;
-	}
+	strncpy(vol_mounted, vol_name, UBI_MAX_VOLUME_NAME);
+	ubifs_mounted = 1;
 
 	return 0;
 }
@@ -56,18 +61,6 @@ static int do_ubifs_mount(cmd_tbl_t *cmdtp, int flag, int argc,
 int ubifs_is_mounted(void)
 {
 	return ubifs_mounted;
-}
-
-void cmd_ubifs_umount(void)
-{
-	if (ubifs_sb) {
-		printf("Unmounting UBIFS volume %s!\n",
-		       ((struct ubifs_info *)(ubifs_sb->s_fs_info))->vi.name);
-		ubifs_umount(ubifs_sb->s_fs_info);
-	}
-
-	ubifs_sb = NULL;
-	ubifs_mounted = 0;
 }
 
 static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,

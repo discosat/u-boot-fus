@@ -36,7 +36,7 @@ char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 
 struct stdio_dev serial_dev = {
 	.name = "serial",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM,
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
 	.putc = serial_putc,
 	.puts = serial_puts,
 	.getc = serial_getc,
@@ -62,7 +62,7 @@ static int nulldev_input(const struct stdio_dev *pdev)
 
 struct stdio_dev null_dev = {
 	.name = "nulldev",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM,
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
 	.putc = nulldev_putc,
 	.puts = nulldev_puts,
 	.getc = nulldev_input,

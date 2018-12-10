@@ -37,8 +37,6 @@ static unsigned long ltmstamp = 0;
 #define CONFIG_TMR_USEPIT
 #ifdef CONFIG_TMR_USEPIT
 
-unsigned long long _usec2ticks(unsigned long long usec);
-
 int timer_init(void)
 {
 	ulong usecs;

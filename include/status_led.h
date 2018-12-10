@@ -30,6 +30,7 @@ extern void __led_set (led_id_t mask, int state);
 #define STATUS_LED_BLINKING	1
 #define STATUS_LED_ON		2
 
+void status_led_init(void);
 void status_led_tick (unsigned long timestamp);
 void status_led_set  (int led, int state);
 

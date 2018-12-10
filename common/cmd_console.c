@@ -27,9 +27,8 @@ static int do_coninfo(cmd_tbl_t *cmd, int flag, int argc, char * const argv[])
 	if (pdevstart) {
 		pdev = pdevstart;
 		do {
-			printf("%-16s%08x %c%c%c ",
+			printf("%-16s%08x %c%c ",
 			       pdev->name, pdev->flags,
-			       (pdev->flags & DEV_FLAGS_SYSTEM) ? 'S' : '.',
 			       (pdev->flags & DEV_FLAGS_INPUT) ? 'I' : '.',
 			       (pdev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
 

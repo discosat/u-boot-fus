@@ -325,7 +325,7 @@ static int nc_stdio_tstc(const struct stdio_dev *pdev)
 static struct stdio_dev nc_dev = {
 	.name = "nc",
 	.hwname = "eth",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM,
+	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
 	.start = nc_stdio_start,
 	.putc = nc_stdio_putc,
 	.puts = nc_stdio_puts,
