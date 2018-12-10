@@ -100,7 +100,6 @@
    unless this is thoroughly tested, set it back to write-through. */
 #define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
 
-#define CONFIG_SYS_GENERIC_BOARD	/* Generic, not ARM specific startup */
 #undef CONFIG_ARCH_CPU_INIT
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 /*###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?*/
@@ -262,7 +261,6 @@
 #define CONFIG_FS_VYBRID_PLL_ETH
 
 /* PHY */
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL		/* Micrel KSZ8021RNL/KSZ8081RNA */
 #define CONFIG_PHY_NATSEMI		/* TI/National Semiconductor DP83848 */
 #define CONFIG_SYS_DISCOVER_PHY

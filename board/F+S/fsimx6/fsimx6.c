@@ -1536,7 +1536,7 @@ int board_eth_init(bd_t *bis)
 
 		default:
 			/* Atheros AR8035: Assert reset for at least 1ms */
-			fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 25),
+			fs_board_issue_reset(1000, 1000, IMX_GPIO_NR(1, 25),
 					     ~0,~0);
 			phy_addr = 4;
 			xcv_type = RGMII;
@@ -1557,7 +1557,7 @@ int board_eth_init(bd_t *bis)
 		setup_weim(bis);
 
 		/* Reset AX88796B, on NetDCUA9 */
-		fs_board_issue_reset(200, 0, IMX_GPIO_NR(1, 3), ~0, ~0);
+		fs_board_issue_reset(200, 1000, IMX_GPIO_NR(1, 3), ~0, ~0);
 
 		/* Initialize AX88796B */
 		ret = ax88796_initialize(-1, CONFIG_DRIVER_AX88796_BASE,

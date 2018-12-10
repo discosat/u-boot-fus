@@ -91,7 +91,6 @@
 
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
-#define CONFIG_SYS_GENERIC_BOARD	/* Generic, not ARM specific startup */
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 #define CONFIG_BOARD_EARLY_INIT_F	/* Early board specific stuff */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
@@ -252,7 +251,6 @@
 #define CONFIG_FEC_MXC
 
 /* PHY */
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL		/* Micrel KSZ8081 */
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN

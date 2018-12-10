@@ -1858,7 +1858,7 @@ int board_eth_init(bd_t *bd)
 
 		/* Reset both PHYs, Atheros AR8035 needs at least 1ms after
 		   clock is enabled */
-		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(2, 2), ~0, ~0);
+		fs_board_issue_reset(1000, 1000, IMX_GPIO_NR(2, 2), ~0, ~0);
 
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
@@ -1983,7 +1983,7 @@ int board_eth_init(bd_t *bd)
 		}
 
 		/* Reset ext. PHYs, Atheros AR8035 needs at least 1ms */
-		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(3, 11),
+		fs_board_issue_reset(1000, 1000, IMX_GPIO_NR(3, 11),
 				     IMX_GPIO_NR(3, 13), IMX_GPIO_NR(3, 15));
 
 		/* Probe FEC ports, direct connection no MII bus required */
@@ -2070,7 +2070,7 @@ int board_eth_init(bd_t *bd)
 
 		/* Reset both PHYs, Atheros AR8035 needs at least 1ms after
 		   clock is enabled */
-		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(2, 2), ~0, ~0);
+		fs_board_issue_reset(1000, 1000, IMX_GPIO_NR(2, 2), ~0, ~0);
 
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
