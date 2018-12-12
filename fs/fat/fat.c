@@ -136,7 +136,7 @@ static __u32 disk_read(__u32 sector, __u32 count, void *buffer)
 
 	sector += cur_part_info.start;
 
-	return cur_dev->block_read(cur_dev->dev, sector, count, buffer);
+	return cur_dev->block_read(cur_dev, sector, count, buffer);
 }
 
 static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)

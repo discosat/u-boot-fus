@@ -548,7 +548,7 @@ u32 get_mmdc_ch0_clk(void)
 				freq = mxc_get_pll_pfd(PLL_BUS, 0);
 				break;
 			case 3:
-				pmu_misc2_audio_div = PMU_MISC2_AUDIO_DIV(__raw_readl(&imx_ccm->ana_misc2));
+				pmu_misc2_audio_div = PMU_MISC2_AUDIO_DIV(__raw_readl(&imx_ccm->pmu_misc2));
 				switch (pmu_misc2_audio_div) {
 				case 0:
 				case 2:
@@ -677,8 +677,8 @@ int setup_video_pll(u32 freq_khz)
 	       | BF_ANADIG_PLL_VIDEO_POST_DIV_SELECT(post_div_sel),
 	       &imx_ccm->analog_pll_video_set);
 
-	writel(BM_ANADIG_ANA_MISC2_VIDEO_DIV, &imx_ccm->ana_misc2_clr);
-	writel(BF_ANADIG_ANA_MISC2_VIDEO_DIV(vid_div), &imx_ccm->ana_misc2_set);
+	writel(BM_PMU_MISC2_VIDEO_DIV, &imx_ccm->pmu_misc2_clr);
+	writel(BF_PMU_MISC2_VIDEO_DIV(vid_div), &imx_ccm->pmu_misc2_set);
 
 	return 0;
 }

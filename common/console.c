@@ -440,44 +440,6 @@ void clear_ctrlc(void)
 	ctrlc_was_pressed = 0;
 }
 
-#ifdef CONFIG_MODEM_SUPPORT_DEBUG
-char	screen[1024];
-char *cursor = screen;
-int once = 0;
-inline void dbg(const char *fmt, ...)
-{
-	va_list	args;
-	uint	i;
-	char	printbuffer[CONFIG_SYS_PBSIZE];
-
-	if (!once) {
-		memset(screen, 0, sizeof(screen));
-		once++;
-	}
-
-	va_start(args, fmt);
-
-	/* For this to work, printbuffer must be larger than
-	 * anything we ever want to print.
-	 */
-	i = vsnprintf(printbuffer, sizeof(printbuffer), fmt, args);
-	va_end(args);
-
-	if ((screen + sizeof(screen) - 1 - cursor)
-	    < strlen(printbuffer) + 1) {
-		memset(screen, 0, sizeof(screen));
-		cursor = screen;
-	}
-	sprintf(cursor, printbuffer);
-	cursor += strlen(printbuffer);
-
-}
-#else
-inline void dbg(const char *fmt, ...)
-{
-}
-#endif
-
 /** U-Boot INIT FUNCTIONS *************************************************/
 
 static struct stdio_dev *search_device(int flags, const char *name)
@@ -485,6 +447,10 @@ static struct stdio_dev *search_device(int flags, const char *name)
 	struct stdio_dev *pdev;
 
 	pdev = stdio_get_by_name(name);
+#ifdef CONFIG_VIDCONSOLE_AS_LCD
+	if (!pdev && !strcmp(name, "lcd"))
+		pdev = stdio_get_by_name("vidconsole");
+#endif
 
 	if (pdev && (pdev->flags & flags))
 		return pdev;
@@ -649,6 +615,10 @@ done:
 #ifndef CONFIG_SYS_CONSOLE_INFO_QUIET
 	stdio_print_current_devices();
 #endif /* CONFIG_SYS_CONSOLE_INFO_QUIET */
+#ifdef CONFIG_VIDCONSOLE_AS_LCD
+	if (strstr(stdoutname, "lcd"))
+		printf("Warning: Please change 'lcd' to 'vidconsole' in stdout/stderr environment vars\n");
+#endif
 
 #ifdef CONFIG_SYS_CONSOLE_ENV_OVERWRITE
 	/* set the environment variables (will overwrite previous env settings) */

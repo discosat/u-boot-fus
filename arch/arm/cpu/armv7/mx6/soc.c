@@ -21,6 +21,7 @@
 #include <asm/arch/crm_regs.h>
 #include <dm.h>
 #include <imx_thermal.h>
+#include <mmc.h>
 
 enum ldo_reg {
 	LDO_ARM,
@@ -452,6 +453,67 @@ int arch_cpu_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_ENV_IS_IN_MMC
+__weak int board_mmc_get_env_dev(int devno)
+{
+	return CONFIG_SYS_MMC_ENV_DEV;
+}
+
+static int mmc_get_boot_dev(void)
+{
+	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	u32 soc_sbmr = readl(&src_regs->sbmr1);
+	u32 bootsel;
+	int devno;
+
+	/*
+	 * Refer to
+	 * "i.MX 6Dual/6Quad Applications Processor Reference Manual"
+	 * Chapter "8.5.3.1 Expansion Device eFUSE Configuration"
+	 * i.MX6SL/SX/UL has same layout.
+	 */
+	bootsel = (soc_sbmr & 0x000000FF) >> 6;
+
+	/* No boot from sd/mmc */
+	if (bootsel != 1)
+		return -1;
+
+	/* BOOT_CFG2[3] and BOOT_CFG2[4] */
+	devno = (soc_sbmr & 0x00001800) >> 11;
+
+	return devno;
+}
+
+int mmc_get_env_dev(void)
+{
+	int devno = mmc_get_boot_dev();
+
+	/* If not boot from sd/mmc, use default value */
+	if (devno < 0)
+		return CONFIG_SYS_MMC_ENV_DEV;
+
+	return board_mmc_get_env_dev(devno);
+}
+
+#ifdef CONFIG_SYS_MMC_ENV_PART
+__weak int board_mmc_get_env_part(int devno)
+{
+	return CONFIG_SYS_MMC_ENV_PART;
+}
+
+uint mmc_get_env_part(struct mmc *mmc)
+{
+	int devno = mmc_get_boot_dev();
+
+	/* If not boot from sd/mmc, use default value */
+	if (devno < 0)
+		return CONFIG_SYS_MMC_ENV_PART;
+
+	return board_mmc_get_env_part(devno);
+}
+#endif
+#endif
+
 int board_postclk_init(void)
 {
 	set_ldo_voltage(LDO_SOC, 1175);	/* Set VDDSOC to 1.175V */
@@ -478,7 +540,6 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 		value = readl(&fuse->mac_addr1);
 		mac[4] = value >> 24 ;
 		mac[5] = value >> 16 ;
-
 	} else {
 		u32 value = readl(&fuse->mac_addr1);
 		mac[0] = (value >> 8);

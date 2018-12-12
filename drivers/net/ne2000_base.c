@@ -645,7 +645,7 @@ dp83902a_poll(void)
 }
 
 
-/* U-boot specific routines */
+/* U-Boot specific routines */
 static u8 *pbuf = NULL;
 
 static int pkey = -1;
@@ -789,7 +789,7 @@ int ne2k_register(void)
 	dev->send = ne2k_send;
 	dev->recv = ne2k_recv;
 
-	sprintf(dev->name, "NE2000");
+	strcpy(dev->name, "NE2000");
 
 	return eth_register(dev);
 }
