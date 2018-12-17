@@ -39,15 +39,6 @@ static int is_printable_string(const void *data, int len);
  */
 struct fdt_header *working_fdt;
 
-void set_working_fdt_addr(ulong addr)
-{
-	void *buf;
-
-	buf = map_sysmem(addr, 0);
-	working_fdt = buf;
-	setenv_hex("fdtaddr", addr);
-}
-
 /*
  * Get a value from the fdt and format it to be set in the environment
  */

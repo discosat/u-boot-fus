@@ -23,6 +23,21 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef CONFIG_CMD_FDT
+extern struct fdt_header *working_fdt;
+#endif
+
+void set_working_fdt_addr(ulong addr)
+{
+	void __maybe_unused *buf;
+
+	buf = map_sysmem(addr, 0);
+#ifdef CONFIG_CMD_FDT
+	working_fdt = buf;
+#endif
+	setenv_hex("fdtaddr", addr);
+}
+
 static void fdt_error(const char *msg)
 {
 	puts("ERROR: ");
