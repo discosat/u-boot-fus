@@ -101,7 +101,6 @@
 #define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
-#define CONFIG_OF_LIBFDT		/* Use device trees (fdt) */
 #define CONFIG_OF_BOARD_SETUP		/* Call board specific FDT fixup */
 
 /* The load address of U-Boot is now independent from the size. Just load it
@@ -380,53 +379,31 @@
  * Command Definition
  ************************************************************************/
 /* Only those commands are listed that are not available via Kconfig */
-#undef CONFIG_CMD_AMBAPP	/* No support to show AMBA plug&play devices */
-#define CONFIG_CMD_ASKENV	/* Ask user for variable */
 #undef CONFIG_CMD_BEDBUG	/* No PPC bedbug debugging support */
 #define CONFIG_CMD_BLINK	/* Support blinking LEDs */
 #undef CONFIG_CMD_BMP		/* No old BMP, use new display support */
-#undef CONFIG_CMD_BOOTLDR	/* No ldr support for blackfin */
-#undef CONFIG_CMD_BOOTSTAGE	/* No bootstage command */
-#define CONFIG_CMD_BOOTZ	/* Boot zImage */
-#define CONFIG_CMD_CACHE	/* Switch cache on and off */
 #undef CONFIG_CMD_CBFS		/* No support for coreboot filesystem */
-#undef CONFIG_CMD_CPLBINFO	/* No display of PPC CPLB tables */
 #undef CONFIG_CMD_CRAMFS	/* No support for CRAMFS filesystem */
 #undef CONFIG_CMD_DATE		/* No date command */
-#undef CONFIG_CMD_DFU		/* No support for device firmware update */ 
 #undef CONFIG_CMD_DIAG		/* No support for board selftest */
 #undef CONFIG_CMD_DTT		/* No digital thermometer and thermostat */
 #undef CONFIG_CMD_EEPROM	/* No EEPROM support */
-#undef CONFIG_CMD_ELF		/* No support to boot ELF images */
-#define CONFIG_CMD_EXT2		/* Support for EXT2 commands */
-#define CONFIG_CMD_EXT4		/* Support for EXT4 commands */
-#define CONFIG_CMD_FAT		/* Support for FAT commands */
 #undef CONFIG_CMD_FDC		/* No floppy disc controller */
-#undef CONFIG_CMD_FDOS		/* No support for DOS from floppy disc */
 #undef CONFIG_CMD_FITUPD	/* No update from FIT image */
-#define CONFIG_CMD_FS_GENERIC	/* Filesystem-independent ls and load */
 #define CONFIG_CMD_GETTIME	/* Have gettime command */
-#undef CONFIG_CMD_GPIO		/* No support to set GPIO pins */
 #undef CONFIG_CMD_GPT		/* No support for GPT partition tables */
-#undef CONFIG_CMD_GREPENV	/* No support to search in environment */
 #undef CONFIG_CMD_HASH		/* No hash command */
-#undef CONFIG_CMD_HWFLOW	/* No switching of serial flow control */
 #undef CONFIG_CMD_IDE		/* No IDE disk support */
 #undef CONFIG_CMD_IMMAP		/* No support for PPC immap table */
 #define CONFIG_CMD_INI		/* Support INI files to init environment */
 #undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* No interrupt support */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
-#undef CONFIG_CMD_LDRINFO	/* No ldr support for blackfin */
 #define CONFIG_CMD_LED		/* LED support on some boards */
 #undef CONFIG_CMD_MD5SUM	/* No support for md5sum checksums */
-#undef CONFIG_CMD_MFSL		/* No support for Microblaze FSL */
-#define CONFIG_CMD_MII		/* Support for listing MDIO busses */
-#define CONFIG_CMD_MMC		/* Support for SD/MMC cards */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
 #undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */
-#undef CONFIG_CMD_OTP		/* No support for one-time-programmable mem */
 #undef CONFIG_CMD_PART		/* No support for partition info */
 #undef CONFIG_CMD_PCI		/* No PCI support */
 #undef CONFIG_CMD_PCMCIA	/* No support for PCMCIA cards */
@@ -439,18 +416,12 @@
 #undef CONFIG_CMD_SAVES		/* No support for serial uploads (saving) */
 #undef CONFIG_CMD_SCSI		/* No support for SCSI disks */
 #undef CONFIG_CMD_SDRAM		/* Support SDRAM chips via I2C */
-#undef CONFIG_CMD_SETGETDCR	/* No support for PPC DCR register */
 #undef CONFIG_CMD_SHA1SUM	/* No support for sha1sum checksums */
-#undef CONFIG_CMD_SOUND		/* No sound command */
-#undef CONFIG_CMD_SPIBOOTLDR	/* No ldr support over SPI for blackfin */
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
-#undef CONFIG_CMD_TPM		/* No support for TPM */
-#undef CONFIG_CMD_TSI148	/* No support for Turndra Tsi148 */
 #define CONFIG_CMD_UBI		/* Support for unsorted block images (UBI) */
 #define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
-#undef CONFIG_CMD_UNIVERSE	/* No support for Turndra Universe */
 #define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
 #undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
@@ -500,7 +471,6 @@
 #define CONFIG_JFFS2_NAND		/* Support JFFS2 in NAND */
 
 /* YAFFS */
-#undef CONFIG_CMD_NAND_YAFFS		/* No nand read/write.yaffs */
 #undef CONFIG_YAFFS2			/* No support for YAFFS2 commands */
 
 /* UBI/UBIFS */
