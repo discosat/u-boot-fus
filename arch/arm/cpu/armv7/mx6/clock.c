@@ -769,7 +769,7 @@ int set_lvds_clk(void *addr, unsigned int di, unsigned int ldb_di,
 }
 #endif /* CONFIG_VIDEO_IPUV3 || CONFIG_VIDEO_MXS */
 
-#ifdef CONFIG_MX6SX
+#ifdef CONFIG_FSL_QSPI
 /* qspi_num can be from 0 - 1 */
 void enable_qspi_clk(int qspi_num)
 {
@@ -1221,6 +1221,7 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	show_freq("PLL7 (USB2)", decode_pll(PLL_USB2));
 
 	puts("\n");
+	show_freq("ARM", mxc_get_clock(MXC_ARM_CLK));
 	show_freq("IPG", mxc_get_clock(MXC_IPG_CLK));
 	show_freq("UART", mxc_get_clock(MXC_UART_CLK));
 #ifdef CONFIG_MXC_SPI

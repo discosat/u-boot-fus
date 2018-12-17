@@ -153,7 +153,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 
 		patch_sercon((ulong)os_hdr);
 		break;
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		if (fit_image_get_type(images.fit_hdr_os,
 				       images.fit_noffset_os,
@@ -231,7 +231,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		/* Kernel entry point is the setup.bin */
 	} else if (images.legacy_hdr_valid) {
 		images.ep = image_get_ep(&images.legacy_hdr_os_copy);
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	} else if (images.fit_uname_os) {
 		int ret;
 
@@ -285,7 +285,7 @@ int bootm_find_images(int flag, int argc, char * const argv[])
 		return 1;
 	}
 
-#if defined(CONFIG_OF_LIBFDT)
+#if IMAGE_ENABLE_OF_LIBFDT
 	/* find flattened device tree */
 	ret = boot_get_fdt(flag, argc, argv, IH_ARCH_DEFAULT, &images,
 			   &images.ft_addr, &images.ft_len);
@@ -296,7 +296,7 @@ int bootm_find_images(int flag, int argc, char * const argv[])
 	set_working_fdt_addr((ulong)images.ft_addr);
 #endif
 
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	/* find all of the loadables */
 	ret = boot_get_loadable(argc, argv, &images, IH_ARCH_DEFAULT,
 			       NULL, NULL);
@@ -695,7 +695,7 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		}
 	}
 #endif
-#if defined(CONFIG_OF_LIBFDT) && defined(CONFIG_LMB)
+#if IMAGE_ENABLE_OF_LIBFDT && defined(CONFIG_LMB)
 	if (!ret && (states & BOOTM_STATE_FDT)) {
 		boot_fdt_add_mem_rsv_regions(&images->lmb, images->ft_addr);
 		ret = boot_relocate_fdt(&images->lmb, &images->ft_addr,
@@ -839,7 +839,7 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 	const void *buf;
 	const char	*fit_uname_config = NULL;
 	const char	*fit_uname_kernel = NULL;
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	int		os_noffset;
 #endif
 
@@ -908,7 +908,7 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		break;
 	}
 
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		os_noffset = fit_image_load(images, img_addr,
 				&fit_uname_kernel, &fit_uname_config,

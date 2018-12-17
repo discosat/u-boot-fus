@@ -7,6 +7,7 @@
  */
 
 #include <common.h>
+#include <blk.h>
 #include <config.h>
 #include <fat.h>			/* struct fsdata, ATTR*, ... */
 #include <asm/byteorder.h>
@@ -46,7 +47,7 @@ struct fat_dirinfo {
 	__u32 preload_count;		/* Number of preloaded sectors */
 };
 
-static block_dev_desc_t *cur_dev;
+static struct blk_desc *cur_dev;
 static unsigned int cur_part_nr;
 static disk_partition_t cur_part_info;
 
@@ -90,7 +91,7 @@ __u8 fat_checksum(const char *dirname)
 }
 #endif
 
-int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
+int fat_register_device(struct blk_desc *dev_desc, int part_no)
 {
 	disk_partition_t info;
 
@@ -98,10 +99,10 @@ int fat_register_device(block_dev_desc_t *dev_desc, int part_no)
 	cur_dev = NULL;
 
 	/* Read the partition table, if present */
-	if (get_partition_info(dev_desc, part_no, &info)) {
+	if (part_get_info(dev_desc, part_no, &info)) {
 		if (part_no != 0) {
 			printf("** Partition %d not valid on device %d **\n",
-					part_no, dev_desc->dev);
+					part_no, dev_desc->devnum);
 			return -1;
 		}
 
@@ -771,7 +772,7 @@ int file_fat_read(const char *pattern, void *buffer, int maxsize)
  *  0 - OK, FAT filesystem initialized;
  * -1 - Error, e.g. no FAT filesystem, error reading data from device, etc.
  */
-int fat_set_blk_dev(block_dev_desc_t *dev_desc, disk_partition_t *info)
+int fat_set_blk_dev(struct blk_desc *dev_desc, disk_partition_t *info)
 {
 	struct boot_sector *bs;
 	__u32 clusters;
@@ -907,7 +908,7 @@ int file_fat_detectfs(void)
 		return 1;
 	}
 
-	printf("FAT Device %d:\n", cur_dev->dev);
+	printf("FAT Device %d:\n", cur_dev->devnum);
 	dev_print(cur_dev);
 
 	printf("Partition %d:\n", cur_part_nr);

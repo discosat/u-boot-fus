@@ -578,7 +578,7 @@ ehci_submit_async(struct usb_device *dev, unsigned long pipe, void *buffer,
 	   convert milliseconds to timer ticks; USB_TIMEOUT_MS() returns 1000
 	   or 5000, i.e. 1s or 5s. So it is OK to divide by 1000 first to
 	   avoid a 32-bit overflow during computation. */
-	timeout = USB_TIMEOUT_MS(pipe)/1000 * CONFIG_SYS_HZ;
+	timeout = USB_TIMEOUT_MS(pipe);
 	do {
 		/* Invalidate dcache */
 		invalidate_dcache_range((unsigned long)&ctrl->qh_list,
@@ -1632,6 +1632,12 @@ int ehci_register(struct udevice *dev, struct ehci_hccr *hccr,
 	ret = ehci_reset(ctrl);
 	if (ret)
 		goto err;
+
+	if (ctrl->ops.init_after_reset) {
+		ret = ctrl->ops.init_after_reset(ctrl);
+		if (ret)
+			goto err;
+	}
 
 	ret = ehci_common_init(ctrl, tweaks);
 	if (ret)

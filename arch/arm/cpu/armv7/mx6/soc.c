@@ -392,6 +392,9 @@ int arch_cpu_init(void)
 		 * When low freq boot is enabled, ROM will not set AHB
 		 * freq, so we need to ensure AHB freq is 132MHz in such
 		 * scenario.
+		 *
+		 * To i.MX6UL, when power up, default ARM core and
+		 * AHB rate is 396M and 132M.
 		 */
 		if (mxc_get_clock(MXC_ARM_CLK) == 396000000)
 			set_ahb_rate(132000000);

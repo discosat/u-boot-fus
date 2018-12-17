@@ -29,7 +29,6 @@
 # define DEBUGF(fmt, args...)
 #endif
 
-#ifdef CONFIG_CRAMFS_CMDLINE
 #include <flash.h>
 
 #ifdef CONFIG_SYS_NO_FLASH
@@ -200,7 +199,3 @@ U_BOOT_CMD(
 	"[ directory ]\n"
 	"    - list files in a directory.\n"
 );
-
-#endif /* #ifdef CONFIG_CRAMFS_CMDLINE */
-
-/***************************************************/

@@ -14,8 +14,6 @@
 
 #define CONFIG_SYS_NO_FLASH
 
-#define CONFIG_OF_BOARD_SETUP
-#define CONFIG_FIT
 #define CONFIG_SYS_BOOTMAPSZ		(16 << 20)
 
 #define CONFIG_SYS_TIMER_RATE		(150000000/256)
@@ -70,13 +68,6 @@
 
 #define CONFIG_SYS_LOAD_ADDR		0x800000
 #define CONFIG_SYS_64BIT_LBA
-
-
-#define CONFIG_EXTRA_ENV_SETTINGS	\
-		"fdtaddr_r=0x600000\0" \
-		"pxefile_addr_r=0x700000\0" \
-		"kernel_addr_r=0x800000\0" \
-		"ramdisk_addr_r=0x01000000\0" \
 
 /*-----------------------------------------------------------------------
  * Physical Memory Map

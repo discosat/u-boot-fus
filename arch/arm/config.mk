@@ -19,16 +19,11 @@ PLATFORM_RELFLAGS += -ffunction-sections -fdata-sections \
 PLATFORM_RELFLAGS += $(call cc-option, -msoft-float) \
       $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,))
 
-#
-# When we use a hardfp toolchain if there are both 'libgcc.a' (hardfp) and
-# 'arm-linux-gnueabi/libgcc.a' (softfp) we need to use the latter.  We
-# cannot always build with a hardfp-only toolchain.
-#
-ARCH_PLATFORM_LIBGCC := $(shell \
-	X=`$(CC) -print-file-name=arm-linux-gnueabi/libgcc.a`; \
-	if [ -f $$X ]; then echo $$X ; \
-	else $(CC) -print-file-name=libgcc.a ; \
-	fi)
+# LLVM support
+LLVMS_RELFLAGS		:= $(call cc-option,-mllvm,) \
+			$(call cc-option,-target arm-none-eabi,) \
+			$(call cc-option,-arm-use-movt=0,)
+PLATFORM_RELFLAGS	+= $(LLVM_RELFLAGS)
 
 PLATFORM_CPPFLAGS += -D__ARM__
 
@@ -131,6 +126,10 @@ endif
 
 ifdef CONFIG_OF_EMBED
 OBJCOPYFLAGS += -j .dtb.init.rodata
+endif
+
+ifdef CONFIG_EFI_LOADER
+OBJCOPYFLAGS += -j .efi_runtime -j .efi_runtime_rel
 endif
 
 ifneq ($(CONFIG_IMX_CONFIG),)

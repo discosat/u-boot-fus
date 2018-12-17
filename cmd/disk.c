@@ -21,9 +21,9 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 #if defined(CONFIG_IMAGE_FORMAT_LEGACY)
 	image_header_t *hdr;
 #endif
-	block_dev_desc_t *dev_desc;
+	struct blk_desc *dev_desc;
 
-#if defined(CONFIG_FIT)
+#if CONFIG_IS_ENABLED(FIT)
 	const void *fit_hdr = NULL;
 #endif
 
@@ -39,15 +39,14 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 
 	bootstage_mark(BOOTSTAGE_ID_IDE_BOOT_DEVICE);
 
-	part = get_device_and_partition(intf, boot_device,
-					&dev_desc, &info, 1);
+	part = blk_get_device_part_str(intf, boot_device, &dev_desc, &info, 1);
 	if (part < 0) {
 		bootstage_error(BOOTSTAGE_ID_IDE_TYPE);
 		return 1;
 	}
 
 	set_fileaddr(addr);
-	dev = dev_desc->dev;
+	dev = dev_desc->devnum;
 	bootstage_mark(BOOTSTAGE_ID_IDE_TYPE);
 
 	printf("\nLoading from %s device %d, partition %d: "
@@ -58,7 +57,7 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 	      ", Block Size: %ld\n",
 	      info.start, info.size, info.blksz);
 
-	if (dev_desc->block_read(dev_desc, info.start, 1, (ulong *)addr) != 1) {
+	if (blk_dread(dev_desc, info.start, 1, (ulong *)addr) != 1) {
 		printf("** Read error on %d:%d\n", dev, part);
 		bootstage_error(BOOTSTAGE_ID_IDE_PART_READ);
 		return 1;
@@ -84,7 +83,7 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 		cnt = image_get_image_size(hdr);
 		break;
 #endif
-#if defined(CONFIG_FIT)
+#if CONFIG_IS_ENABLED(FIT)
 	case IMAGE_FORMAT_FIT:
 		fit_hdr = (const void *) addr;
 		puts("Fit image detected...\n");
@@ -102,18 +101,15 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 	cnt /= info.blksz;
 	cnt -= 1;
 
-	if (dev_desc->block_read(dev_desc, info.start + 1, cnt,
-				 (ulong *)(addr + info.blksz)) != cnt) {
+	if (blk_dread(dev_desc, info.start + 1, cnt,
+		      (ulong *)(addr + info.blksz)) != cnt) {
 		printf("** Read error on %d:%d\n", dev, part);
 		bootstage_error(BOOTSTAGE_ID_IDE_READ);
 		return 1;
 	}
 	bootstage_mark(BOOTSTAGE_ID_IDE_READ);
 
-	/* Set fileaddr and filesize variables */
-	setenv_fileinfo(cnt * info.blksz);
-
-#if defined(CONFIG_FIT)
+#if CONFIG_IS_ENABLED(FIT)
 	/* This cannot be done earlier,
 	 * we need complete FIT image in RAM first */
 	if (genimg_get_format((void *) addr) == IMAGE_FORMAT_FIT) {
@@ -128,6 +124,9 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 #endif
 
 	flush_cache(addr, (cnt+1)*info.blksz);
+
+	/* Loading ok, update fileaddr and filesize variables */
+	setenv_fileinfo(cnt * info.blksz);
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

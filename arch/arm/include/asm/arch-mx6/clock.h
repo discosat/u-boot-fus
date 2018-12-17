@@ -52,6 +52,14 @@ enum mxc_clock {
 	MXC_I2C_CLK,
 };
 
+enum ldb_di_clock {
+	MXC_PLL5_CLK = 0,
+	MXC_PLL2_PFD0_CLK,
+	MXC_PLL2_PFD2_CLK,
+	MXC_MMDC_CH1_CLK,
+	MXC_PLL3_SW_CLK,
+};
+
 enum enet_freq {
 	ENET_25MHZ,
 	ENET_50MHZ,

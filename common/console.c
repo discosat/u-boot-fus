@@ -347,8 +347,6 @@ void puts(const char *s)
 			int ch = *s++;
 
 			printch(ch);
-			if (ch == '\n')
-				printch('\r');
 		}
 		return;
 	}

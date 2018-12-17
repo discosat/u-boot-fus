@@ -39,7 +39,7 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	int part;
 	ulong addr = 0;
 	disk_partition_t info;
-	block_dev_desc_t *dev_desc;
+	struct blk_desc *dev_desc;
 	char buf[12];
 	unsigned long count;
 	const char *addr_str;
@@ -55,11 +55,11 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	pos = (argc > 6) ? simple_strtoul(argv[6], NULL, 16) : 0;
 	set_fileaddr(addr);
 
-	part = get_device_and_partition(argv[1], argv[2], &dev_desc, &info, 1);
+	part = blk_get_device_part_str(argv[1], argv[2], &dev_desc, &info, 1);
 	if (part < 0)
 		return 1;
 
-	dev = dev_desc->dev;
+	dev = dev_desc->devnum;
 	printf("Loading file \"%s\" from %s device %d%c%c\n",
 		filename, argv[1], dev,
 		part ? ':' : ' ', part ? part + '0' : ' ');
@@ -107,7 +107,7 @@ static int do_zfs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *filename = "/";
 	int part;
-	block_dev_desc_t *dev_desc;
+	struct blk_desc *dev_desc;
 	disk_partition_t info;
 	struct device_s vdev;
 
@@ -117,7 +117,7 @@ static int do_zfs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc == 4)
 		filename = argv[3];
 
-	part = get_device_and_partition(argv[1], argv[2], &dev_desc, &info, 1);
+	part = blk_get_device_part_str(argv[1], argv[2], &dev_desc, &info, 1);
 	if (part < 0)
 		return 1;
 

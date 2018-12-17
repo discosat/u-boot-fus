@@ -29,7 +29,7 @@
 #include <image.h>
 #include <mapmem.h>
 
-#if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
+#if IMAGE_ENABLE_FIT || IMAGE_ENABLE_OF_LIBFDT
 #include <libfdt.h>
 #include <fdt_support.h>
 #endif
@@ -598,11 +598,9 @@ const char *genimg_get_type_name(uint8_t type)
 	return (get_table_entry_name(uimage_type, "Unknown Image", type));
 }
 
-const char *genimg_get_type_short_name(uint8_t type)
+static const char *genimg_get_short_name(const table_entry_t *table, int val)
 {
-	const table_entry_t *table;
-
-	table = get_table_entry(uimage_type, type);
+	table = get_table_entry(table, val);
 	if (!table)
 		return "unknown";
 #if defined(USE_HOSTCC) || !defined(CONFIG_NEEDS_MANUAL_RELOC)
@@ -612,10 +610,30 @@ const char *genimg_get_type_short_name(uint8_t type)
 #endif
 }
 
+const char *genimg_get_type_short_name(uint8_t type)
+{
+	return genimg_get_short_name(uimage_type, type);
+}
+
 const char *genimg_get_comp_name(uint8_t comp)
 {
 	return (get_table_entry_name(uimage_comp, "Unknown Compression",
 					comp));
+}
+
+const char *genimg_get_comp_short_name(uint8_t comp)
+{
+	return genimg_get_short_name(uimage_comp, comp);
+}
+
+const char *genimg_get_os_short_name(uint8_t os)
+{
+	return genimg_get_short_name(uimage_os, os);
+}
+
+const char *genimg_get_arch_short_name(uint8_t arch)
+{
+	return genimg_get_short_name(uimage_arch, arch);
 }
 
 /**
@@ -697,7 +715,7 @@ ulong genimg_get_kernel_addr_fit(char * const img_addr,
 		kernel_addr = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
 		      kernel_addr);
-#if defined(CONFIG_FIT)
+#if CONFIG_IS_ENABLED(FIT)
 	} else if (fit_parse_conf(img_addr, get_loadaddr(), &kernel_addr,
 				  fit_uname_config)) {
 		debug("*  kernel: config '%s' from image at 0x%08lx\n",
@@ -754,7 +772,7 @@ int genimg_get_format(const void *img_addr)
 #endif
 	if (*(ulong *)(img_addr + 9*4) == IH_ZMAGIC)
 		return IMAGE_FORMAT_ZIMAGE;
-#if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
+#if IMAGE_ENABLE_FIT || IMAGE_ENABLE_OF_LIBFDT
 	if (fdt_check_header(img_addr) == 0)
 		return IMAGE_FORMAT_FIT;
 #endif
@@ -791,7 +809,7 @@ ulong genimg_get_image(ulong img_addr)
 
 		/* get header size */
 		h_size = image_get_header_size();
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 		if (sizeof(struct fdt_header) > h_size)
 			h_size = sizeof(struct fdt_header);
 #endif
@@ -813,7 +831,7 @@ ulong genimg_get_image(ulong img_addr)
 					ram_addr, d_size);
 			break;
 #endif
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 		case IMAGE_FORMAT_FIT:
 			d_size = fit_get_size(buf) - h_size;
 			debug("   FIT/FDT format image found at 0x%08lx, "
@@ -854,7 +872,7 @@ ulong genimg_get_image(ulong img_addr)
  */
 int genimg_has_config(bootm_headers_t *images)
 {
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	if (images->fit_uname_cfg)
 		return 1;
 #endif
@@ -895,7 +913,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 #ifdef CONFIG_SUPPORT_RAW_INITRD
 	char *end;
 #endif
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	const char	*fit_uname_config = images->fit_uname_cfg;
 	const char	*fit_uname_ramdisk = NULL;
 	ulong		default_addr;
@@ -926,7 +944,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 		debug("## Skipping init Ramdisk\n");
 		rd_len = rd_data = 0;
 	} else if (select || genimg_has_config(images)) {
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 		if (select) {
 			/*
 			 * If the init ramdisk comes from the FIT image and
@@ -957,7 +975,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 						"0x%08lx\n",
 						rd_addr);
 			}
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 		} else {
 			/* use FIT configuration provided in first bootm
 			 * command argument. If the property is not defined,
@@ -1000,7 +1018,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 			rd_load = image_get_load(rd_hdr);
 			break;
 #endif
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 		case IMAGE_FORMAT_FIT:
 			rd_noffset = fit_image_load(images,
 					rd_addr, &fit_uname_ramdisk,
@@ -1176,14 +1194,14 @@ error:
 int boot_get_setup(bootm_headers_t *images, uint8_t arch,
 		   ulong *setup_start, ulong *setup_len)
 {
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	return boot_get_setup_fit(images, arch, setup_start, setup_len);
 #else
 	return -ENOENT;
 #endif
 }
 
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 int boot_get_loadable(int argc, char * const argv[], bootm_headers_t *images,
 		uint8_t arch, const ulong *ld_start, ulong * const ld_len)
 {
