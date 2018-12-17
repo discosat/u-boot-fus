@@ -314,6 +314,9 @@ int usb_hub_port_connect_change(struct usb_device *dev, int port)
 			return -ENOTCONN;
 	}
 
+	/* ### F&S: Needed for hub on efus SKIT */
+	mdelay(50);
+
 	/* Reset the port */
 	ret = legacy_hub_port_reset(dev, port, &portstatus);
 	if (ret < 0) {

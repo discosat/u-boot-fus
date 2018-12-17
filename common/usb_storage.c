@@ -1239,9 +1239,9 @@ static unsigned long usb_stor_write(struct blk_desc *block_dev, lbaint_t blknr,
 #ifdef CONFIG_BLK
 	block_dev = dev_get_uclass_platdata(dev);
 	udev = dev_get_parent_priv(dev_get_parent(dev));
-	debug("\nusb_read: udev %d\n", block_dev->devnum);
+	debug("\nusb_write: udev %d\n", block_dev->devnum);
 #else
-	debug("\nusb_read: udev %d\n", block_dev->devnum);
+	debug("\nusb_write: udev %d\n", block_dev->devnum);
 	udev = usb_dev_desc[block_dev->devnum].priv;
 	if (!udev) {
 		debug("%s: No device\n", __func__);
