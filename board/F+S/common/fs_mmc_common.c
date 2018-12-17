@@ -21,17 +21,13 @@
 #include <mmc.h>			/* struct mmc */
 #include "fs_mmc_common.h"		/* Own interface */
 
-/* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
-#define to_fs_mmc_cfg(x) container_of((x), struct fs_mmc_cfg, esdhc)
-
 /* Return value of Card Detect pin (if present) */
 int board_mmc_getcd(struct mmc *mmc)
 {
 	struct fsl_esdhc_cfg *fsl_cfg = mmc->priv;
-	struct fs_mmc_cfg *fs_cfg = to_fs_mmc_cfg(fsl_cfg);
-	u16 cd_gpio = fs_cfg->cd_gpio;
+	unsigned cd_gpio = fsl_cfg->cd_gpio;
 
-	if (cd_gpio == (u16)~0)
+	if (cd_gpio == ~0U)
 		return 1;		/* No CD, assume card is present */
 
 	/* Return CD signal (active low) */
@@ -47,9 +43,9 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 
 	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
 	if (!cd)
-		cfg->cd_gpio = ~0;
+		cfg->esdhc.cd_gpio = ~0;
 	else {
-		cfg->cd_gpio = cd->gpio;
+		cfg->esdhc.cd_gpio = cd->gpio;
 		imx_iomux_v3_setup_multiple_pads(cd->pad, 1);
 		gpio_direction_input(cd->gpio);
 	}

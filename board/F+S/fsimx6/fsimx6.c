@@ -449,9 +449,6 @@ void board_nand_init(void)
  * GPIO to switch power for USDHC2 port.
  */
 
-/* Convert from struct fsl_esdhc_cfg to struct fus_sdhc_cfg */
-#define to_fus_sdhc_cfg(x) container_of((x), struct fus_sdhc_cfg, esdhc)
-
 /* SD/MMC card pads definition, distinguish external from internal ports */
 static iomux_v3_cfg_t const usdhc1_sd_pads_ext[] = {
 	IOMUX_PADS(PAD_SD1_CLK__SD1_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),

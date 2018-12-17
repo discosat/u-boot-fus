@@ -51,7 +51,6 @@ struct fs_mmc_cfg {
 	const iomux_v3_cfg_t *const pads; /* Pads to init */
 	const u8 count;			/* Number of control pads (w/o data) */
 	const u8 index;			/* USDHC index (1..4) */
-	u16 cd_gpio;			/* GPIO number used for this port */
 	struct fsl_esdhc_cfg esdhc;	/* Data needed for MMC driver */
 };
 

@@ -170,8 +170,8 @@
 struct fsl_esdhc_cfg {
 	phys_addr_t esdhc_base;
 	u32	sdhc_clk;
+	unsigned cd_gpio;
 	u8	max_bus_width;
-	struct mmc_config cfg;
 };
 
 /* Select the correct accessors depending on endianess */
