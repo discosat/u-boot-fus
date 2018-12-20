@@ -107,8 +107,6 @@
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
 #define CONFIG_DISPLAY_BOARDINFO	/* Show board information */
-#define CONFIG_ZERO_BOOTDELAY_CHECK	/* Allow entering U-Boot even if boot
-					   delay is zero */
 #define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
@@ -570,7 +568,6 @@
 #define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_MODE		"ro"
-#define CONFIG_BOOTDELAY	undef
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
@@ -610,6 +607,12 @@
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel 400000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
+#endif
+
+#ifdef CONFIG_BOOTDELAY
+#define FSBOOTDELAY
+#else
+#define FSBOOTDELAY "bootdelay=undef\0"
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -659,6 +662,7 @@
 	"platform=undef\0" \
 	"arch=fsvybrid\0" \
 	"bootfdt=undef\0" \
+	FSBOOTDELAY \
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 

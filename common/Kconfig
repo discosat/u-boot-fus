@@ -158,10 +158,15 @@ config SPI_BOOT
 
 endmenu
 
+config SET_BOOTDELAY
+	bool "Set specific boot delay"
+	default y
+
 config BOOTDELAY
 	int "delay in seconds before automatically booting"
 	default 2
 	depends on AUTOBOOT
+	depends on SET_BOOTDELAY
 	help
 	  Delay before automatically running bootcmd;
 	  set to 0 to autoboot with no delay, but you can stop it by key input.
