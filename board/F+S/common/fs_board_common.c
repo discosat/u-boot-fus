@@ -13,7 +13,7 @@
 #include <common.h>			/* types, get_board_name(), ... */
 #include <serial.h>			/* get_serial_device() */
 #include <asm/gpio.h>			/* gpio_direction_output(), ... */
-#include <asm/arch/sys_proto.h>		/* is_cpu_type() */
+#include <asm/arch/sys_proto.h>		/* is_mx6*() */
 #include <linux/mtd/nand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 
@@ -298,9 +298,9 @@ void fs_board_late_init_common(void)
 
 #ifdef CONFIG_MX6QDL
 		/* In case of regular i.MX, add 'dl' or 'q' */
-		if (is_cpu_type(MXC_CPU_MX6SOLO) ||is_cpu_type(MXC_CPU_MX6DL))
+		if (is_mx6sdl())
 			sprintf(lcasename, "%sdl", lcasename);
-		else if (is_cpu_type(MXC_CPU_MX6D) || is_cpu_type(MXC_CPU_MX6Q))
+		else if (is_mx6dq())
 			sprintf(lcasename, "%sq", lcasename);
 #elif defined(CONFIG_MX6UL)
 		/*
@@ -308,7 +308,7 @@ void fs_board_late_init_common(void)
 		 * ends with 'ul', otherwise append 'ull'. This results in the
 		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
 		 */
-		if (is_cpu_type(MXC_CPU_MX6ULL)) {
+		if (is_mx6ull()) {
 			l -= 3;
 			if ((*l++ != 'u') || (*l++ != 'l')) {
 				*l++ = 'u';

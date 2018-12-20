@@ -409,6 +409,30 @@ int ubi_volume_read(char *volume, char *buf, size_t size, size_t *loaded)
 
 extern int get_mtd_info(u8  type, u8 num, struct mtd_info **mtd);
 
+int ubi_detach(void)
+{
+	if (!ubi_initialized)
+		return 0;
+
+#ifdef CONFIG_CMD_UBIFS
+	/*
+	 * Automatically unmount UBIFS partition when user
+	 * changes the UBI device. Otherwise the following
+	 * UBIFS commands will crash.
+	 */
+	if (ubifs_is_mounted())
+		cmd_ubifs_umount();
+#endif
+
+	/* Call ubi_exit() before re-initializing the UBI subsystem */
+	ubi_exit();
+	del_mtd_partitions(ubi_dev.mtd_info);
+	ubi_initialized = 0;
+	ubi_dev.selected = 0;
+
+	return 0;
+}
+
 int set_ubi_part(const char *part_name, const char *vid_header_offset)
 {
 	struct mtd_device *dev;
@@ -419,28 +443,17 @@ int set_ubi_part(const char *part_name, const char *vid_header_offset)
 	u8 pnum;
 	int err;
 
-	if (mtdparts_init() != 0) {
-		printf("Error initializing mtdparts!\n");
-		return 1;
-	}
-
 	if (ubi_initialized) {
 		/* If this is the partition that is already set, we're done */
 		if (strcmp(ubi_dev.part_name, part_name) == 0)
 			return 0;
-#ifdef CONFIG_CMD_UBIFS
-		/*
-		 * Automatically unmount UBIFS partition when user
-		 * changes the UBI device. Otherwise the following
-		 * UBIFS commands will crash.
-		 */
-		if (ubifs_is_mounted())
-			cmd_ubifs_umount();
-#endif
 
-		/* Call ubi_exit() before re-initializing the UBI subsystem */
-		ubi_exit();
-		del_mtd_partitions(ubi_dev.mtd_info);
+		err = ubi_detach();
+		if (err)
+			return err;
+	} else if (mtdparts_init() != 0) {
+		printf("Error initializing mtdparts!\n");
+		return 1;
 	}
 
 	/*
@@ -490,7 +503,7 @@ int set_ubi_part(const char *part_name, const char *vid_header_offset)
 	return err;
 }
 
-static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int64_t size;
 	ulong addr;
@@ -498,6 +511,13 @@ static int do_ubi(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
+
+	if (strcmp(argv[1], "detach") == 0) {
+		if (argc > 2)
+			return CMD_RET_USAGE;
+
+		return ubi_detach();
+	}
 
 	if (!strcmp(argv[1], "part") && (argc >= 2) && (argc <= 4)) {
 		/* Print current partition */
@@ -615,6 +635,8 @@ U_BOOT_CMD(
 	"part [part [offset]]\n"
 		" - Show or set current partition (with optional VID"
 		" header offset)\n"
+	"ubi detach"
+		" - detach ubi from a mtd partition\n"
 	"ubi info [l[ayout]]"
 		" - Display volume and ubi layout information\n"
 	"ubi check volume"

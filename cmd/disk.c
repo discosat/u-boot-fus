@@ -8,13 +8,14 @@
 #include <command.h>
 #include <part.h>
 
-#if defined(CONFIG_CMD_IDE) || defined(CONFIG_CMD_SCSI) || \
+#if defined(CONFIG_CMD_IDE) || defined(CONFIG_SCSI) || \
 	defined(CONFIG_USB_STORAGE)
 int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 		    char *const argv[])
 {
 	char *boot_device = NULL;
-	int dev, part;
+	__maybe_unused int dev;
+	int part;
 	ulong addr;
 	ulong cnt;
 	disk_partition_t info;

@@ -42,7 +42,7 @@ void imx_iomux_v3_setup_pad(iomux_v3_cfg_t pad)
 #ifdef CONFIG_IOMUX_LPSR
 	u32 lpsr = (pad & MUX_MODE_LPSR) >> MUX_MODE_SHIFT;
 
-	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6ull()) {
 		if (lpsr == IOMUX_CONFIG_LPSR) {
 			base = (void *)IOMUXC_SNVS_BASE_ADDR;
 			mux_mode &= ~IOMUX_CONFIG_LPSR;
@@ -50,7 +50,7 @@ void imx_iomux_v3_setup_pad(iomux_v3_cfg_t pad)
 	}
 #endif
 
-	if (is_cpu_type(MXC_CPU_MX6ULL) || mux_ctrl_ofs)
+	if (is_mx6ull() || mux_ctrl_ofs)
 		__raw_writel(mux_mode, base + mux_ctrl_ofs);
 
 	if (sel_input_ofs)
@@ -82,7 +82,7 @@ void imx_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t const *pad_list,
 
 #if defined(CONFIG_MX6QDL)
 	stride = 2;
-	if (!is_cpu_type(MXC_CPU_MX6Q) && !is_cpu_type(MXC_CPU_MX6D))
+	if (!is_mx6dq())
 		p += 1;
 #else
 	stride = 1;

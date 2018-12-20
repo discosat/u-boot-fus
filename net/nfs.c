@@ -133,7 +133,7 @@ static char *dirname(char *path)
 /**************************************************************************
 RPC_ADD_CREDENTIALS - Add RPC authentication/verifier entries
 **************************************************************************/
-static long *rpc_add_credentials(long *p)
+static uint32_t *rpc_add_credentials(uint32_t *p)
 {
 	int hl;
 	int hostnamelen;
@@ -242,7 +242,7 @@ static void nfs_mount_req(char *path)
 	pathlen = strlen(path);
 
 	p = &(data[0]);
-	p = (uint32_t *)rpc_add_credentials((long *)p);
+	p = rpc_add_credentials(p);
 
 	*p++ = htonl(pathlen);
 	if (pathlen & 3)
@@ -269,7 +269,7 @@ static void nfs_umountall_req(void)
 		return;
 
 	p = &(data[0]);
-	p = (uint32_t *)rpc_add_credentials((long *)p);
+	p = rpc_add_credentials(p);
 
 	len = (uint32_t *)p - (uint32_t *)&(data[0]);
 
@@ -290,7 +290,7 @@ static void nfs_readlink_req(void)
 	int len;
 
 	p = &(data[0]);
-	p = (uint32_t *)rpc_add_credentials((long *)p);
+	p = rpc_add_credentials(p);
 
 	memcpy(p, filefh, NFS_FHSIZE);
 	p += (NFS_FHSIZE / 4);
@@ -313,7 +313,7 @@ static void nfs_lookup_req(char *fname)
 	fnamelen = strlen(fname);
 
 	p = &(data[0]);
-	p = (uint32_t *)rpc_add_credentials((long *)p);
+	p = rpc_add_credentials(p);
 
 	memcpy(p, dirfh, NFS_FHSIZE);
 	p += (NFS_FHSIZE / 4);
@@ -338,7 +338,7 @@ static void nfs_read_req(int offset, int readlen)
 	int len;
 
 	p = &(data[0]);
-	p = (uint32_t *)rpc_add_credentials((long *)p);
+	p = rpc_add_credentials(p);
 
 	memcpy(p, filefh, NFS_FHSIZE);
 	p += (NFS_FHSIZE / 4);
@@ -482,8 +482,23 @@ static int nfs_lookup_reply(uchar *pkt, unsigned len)
 	if (rpc_pkt.u.reply.rstatus  ||
 	    rpc_pkt.u.reply.verifier ||
 	    rpc_pkt.u.reply.astatus  ||
-	    rpc_pkt.u.reply.data[0])
+	    rpc_pkt.u.reply.data[0]) {
+		switch (ntohl(rpc_pkt.u.reply.astatus)) {
+		case 0: /* Not an error */
+			break;
+		case 2: /* Remote can't support NFS version */
+			printf("*** ERROR: NFS version not supported: Requested: V%d, accepted: min V%d - max V%d\n",
+			       2,
+			       ntohl(rpc_pkt.u.reply.data[0]),
+			       ntohl(rpc_pkt.u.reply.data[1]));
+			break;
+		default: /* Unknown error on 'accept state' flag */
+			printf("*** ERROR: accept state error (%d)\n",
+			       ntohl(rpc_pkt.u.reply.astatus));
+			break;
+		}
 		return -1;
+	}
 
 	memcpy(filefh, rpc_pkt.u.reply.data + 1, NFS_FHSIZE);
 

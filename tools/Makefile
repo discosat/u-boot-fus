@@ -79,8 +79,6 @@ dumpimage-mkimage-objs := aisimage.o \
 			lib/fdtdec.o \
 			fit_common.o \
 			fit_image.o \
-			gpimage.o \
-			gpimage-common.o \
 			common/image-fit.o \
 			image-host.o \
 			common/image.o \
@@ -101,7 +99,10 @@ dumpimage-mkimage-objs := aisimage.o \
 			common/hash.o \
 			ublimage.o \
 			zynqimage.o \
+			zynqmpimage.o \
 			$(LIBFDT_OBJS) \
+			gpimage.o \
+			gpimage-common.o \
 			$(RSA_OBJS-y)
 
 dumpimage-objs := $(dumpimage-mkimage-objs) dumpimage.o

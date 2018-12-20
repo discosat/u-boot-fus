@@ -32,7 +32,7 @@
  * };
  *
  *         SETUP_IOMUX_PADS(common_pads);
- *         if (is_cpu_type(MXC_CPU_MX6ULL))
+ *         if (is_mx6ull())
  *                 SETUP_IOMUX_PADS(ull_only_pads);
  *         else
  *                 SETUP_IOMUX_PADS(ul_only_pads);

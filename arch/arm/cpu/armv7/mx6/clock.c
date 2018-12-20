@@ -101,10 +101,10 @@ void enable_enet_clk(unsigned char enable)
 {
 	u32 mask, *addr;
 
-	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6ull()) {
 		mask = MXC_CCM_CCGR0_ENET_CLK_ENABLE_MASK;
 		addr = &imx_ccm->CCGR0;
-	} else if (is_cpu_type(MXC_CPU_MX6UL)) {
+	} else if (is_mx6ul()) {
 		mask = MXC_CCM_CCGR3_ENET_CLK_ENABLE_MASK;
 		addr = &imx_ccm->CCGR3;
 	} else {
@@ -124,7 +124,7 @@ void enable_uart_clk(unsigned char enable)
 {
 	u32 mask;
 
-	if (is_cpu_type(MXC_CPU_MX6UL) || is_cpu_type(MXC_CPU_MX6ULL))
+	if (is_mx6ul() || is_mx6ull())
 		mask = MXC_CCM_CCGR5_UART_MASK;
 	else
 		mask = MXC_CCM_CCGR5_UART_MASK | MXC_CCM_CCGR5_UART_SERIAL_MASK;
@@ -175,8 +175,7 @@ int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 			reg &= ~mask;
 		__raw_writel(reg, &imx_ccm->CCGR2);
 	} else {
-		if (is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-		    is_cpu_type(MXC_CPU_MX6ULL)) {
+		if (is_mx6sx() || is_mx6ul() || is_mx6ull()) {
 			mask = MXC_CCM_CCGR6_I2C4_MASK;
 			addr = &imx_ccm->CCGR6;
 		} else {
@@ -311,8 +310,7 @@ u32 mxc_get_pll_pfd(enum pll_clocks pll, int pfd_num)
 
 	switch (pll) {
 	case PLL_BUS:
-		if (!is_cpu_type(MXC_CPU_MX6UL) &&
-		    !is_cpu_type(MXC_CPU_MX6SX)) {
+		if (!is_mx6ul() && !is_mx6sx()) {
 			if (pfd_num == 3) {
 				/* No PFD3 on PLL2 */
 				return 0;
@@ -412,9 +410,8 @@ static u32 get_ipg_per_clk(void)
 	u32 reg, perclk_podf;
 
 	reg = __raw_readl(&imx_ccm->cscmr1);
-	if (is_cpu_type(MXC_CPU_MX6SL) || is_cpu_type(MXC_CPU_MX6SX) ||
-	    is_mx6dqp() || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6sl() || is_mx6sx() ||
+	    is_mx6dqp() || is_mx6ul() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCMR1_PER_CLK_SEL_MASK)
 			return MXC_HCLK; /* OSC 24Mhz */
 	}
@@ -430,9 +427,7 @@ static u32 get_uart_clk(void)
 	u32 freq = decode_pll(PLL_USBOTG) / 6; /* static divider */
 	reg = __raw_readl(&imx_ccm->cscdr1);
 
-	if (is_cpu_type(MXC_CPU_MX6SL) || is_cpu_type(MXC_CPU_MX6SX) ||
-	    is_mx6dqp() || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6sl() || is_mx6sx() || is_mx6dqp() || is_mx6ul() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR1_UART_CLK_SEL)
 			freq = MXC_HCLK;
 	}
@@ -451,9 +446,7 @@ static u32 get_cspi_clk(void)
 	cspi_podf = (reg & MXC_CCM_CSCDR2_ECSPI_CLK_PODF_MASK) >>
 		     MXC_CCM_CSCDR2_ECSPI_CLK_PODF_OFFSET;
 
-	if (is_mx6dqp() || is_cpu_type(MXC_CPU_MX6SL) ||
-	    is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6dqp() || is_mx6sl() || is_mx6sx() || is_mx6ul() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR2_ECSPI_CLK_SEL_MASK)
 			return MXC_HCLK / (cspi_podf + 1);
 	}
@@ -515,14 +508,13 @@ u32 get_mmdc_ch0_clk(void)
 
 	u32 freq, podf, per2_clk2_podf, pmu_misc2_audio_div;
 
-	if (is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6SL) || is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6sx() || is_mx6ul() || is_mx6sl() | is_mx6ull()) {
 		podf = (cbcdr & MXC_CCM_CBCDR_MMDC_CH1_PODF_MASK) >>
 			MXC_CCM_CBCDR_MMDC_CH1_PODF_OFFSET;
 		if (cbcdr & MXC_CCM_CBCDR_PERIPH2_CLK_SEL) {
 			per2_clk2_podf = (cbcdr & MXC_CCM_CBCDR_PERIPH2_CLK2_PODF_MASK) >>
 				MXC_CCM_CBCDR_PERIPH2_CLK2_PODF_OFFSET;
-			if (is_cpu_type(MXC_CPU_MX6SL)) {
+			if (is_mx6sl()) {
 				if (cbcmr & MXC_CCM_CBCMR_PERIPH2_CLK2_SEL)
 					freq = MXC_HCLK;
 				else
@@ -838,9 +830,7 @@ int enable_fec_anatop_clock(int fec_id, enum enet_freq freq)
 		reg |= BF_ANADIG_PLL_ENET_DIV_SELECT(freq);
 	} else if (fec_id == 1) {
 		/* Only i.MX6SX/UL support ENET2 */
-		if (!(is_cpu_type(MXC_CPU_MX6SX) ||
-		      is_cpu_type(MXC_CPU_MX6UL) ||
-		      is_cpu_type(MXC_CPU_MX6ULL)))
+		if (!(is_mx6sx() || is_mx6ul() || is_mx6ull()))
 			return -EINVAL;
 		reg &= ~BM_ANADIG_PLL_ENET2_DIV_SELECT;
 		reg |= BF_ANADIG_PLL_ENET2_DIV_SELECT(freq);
@@ -1050,7 +1040,7 @@ int enable_pcie_clock(void)
 #define ANADIG_ANA_MISC1_LVDS1_CLK_SEL_PCIE_REF	0xa
 #define ANADIG_ANA_MISC1_LVDS1_CLK_SEL_SATA_REF	0xb
 
-	if (is_cpu_type(MXC_CPU_MX6SX))
+	if (is_mx6sx())
 		lvds1_clk_sel = ANADIG_ANA_MISC1_LVDS1_CLK_SEL_PCIE_REF;
 	else
 		lvds1_clk_sel = ANADIG_ANA_MISC1_LVDS1_CLK_SEL_SATA_REF;
@@ -1063,7 +1053,7 @@ int enable_pcie_clock(void)
 	/* PCIe reference clock sourced from AXI. */
 	clrbits_le32(&ccm_regs->cbcmr, MXC_CCM_CBCMR_PCIE_AXI_CLK_SEL);
 
-	if (!is_cpu_type(MXC_CPU_MX6SX)) {
+	if (!is_mx6sx()) {
 		/* Party time! Ungate the clock to the PCIe. */
 #ifdef CONFIG_CMD_SATA
 		ungate_sata_clock();
@@ -1087,7 +1077,7 @@ void hab_caam_clock_enable(unsigned char enable)
 {
 	u32 reg;
 
-	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6ull()) {
 		/* CG5, DCP clock */
 		reg = __raw_readl(&imx_ccm->CCGR0);
 		if (enable)
@@ -1242,7 +1232,7 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	show_freq("IPU1", ipuv3_get_ipu_clock(1));
 	show_freq("IPU1_DI0", ipuv3_get_ipu_di_clock(1, 0));
 	show_freq("IPU1_DI1", ipuv3_get_ipu_di_clock(1, 1));
-	if (!is_cpu_type(MXC_CPU_MX6SOLO) && !is_cpu_type(MXC_CPU_MX6DL)) {
+	if (!is_mx6sdl()) {
 		show_freq("IPU2", ipuv3_get_ipu_clock(2));
 		show_freq("IPU2_DI0", ipuv3_get_ipu_di_clock(2, 0));
 		show_freq("IPU2_DI1", ipuv3_get_ipu_di_clock(2, 1));

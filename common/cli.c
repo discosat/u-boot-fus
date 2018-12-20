@@ -60,7 +60,7 @@ char *get_sys_prompt(void) __attribute__((weak, alias("__get_sys_prompt")));
  */
 int run_command(const char *cmd, int flag)
 {
-#ifndef CONFIG_SYS_HUSH_PARSER
+#ifndef CONFIG_HUSH_PARSER
 	/*
 	 * cli_run_command can return 0 or 1 for success, so clean up
 	 * its result.
@@ -87,7 +87,7 @@ int run_command(const char *cmd, int flag)
  */
 int run_command_repeatable(const char *cmd, int flag)
 {
-#ifndef CONFIG_SYS_HUSH_PARSER
+#ifndef CONFIG_HUSH_PARSER
 	return cli_simple_run_command(cmd, flag);
 #else
 	/*
@@ -111,7 +111,7 @@ int run_command_list(const char *cmd, int len, int flag)
 
 	if (len == -1) {
 		len = strlen(cmd);
-#ifdef CONFIG_SYS_HUSH_PARSER
+#ifdef CONFIG_HUSH_PARSER
 		/* hush will never change our string */
 		need_buff = 0;
 #else
@@ -126,7 +126,7 @@ int run_command_list(const char *cmd, int len, int flag)
 		memcpy(buff, cmd, len);
 		buff[len] = '\0';
 	}
-#ifdef CONFIG_SYS_HUSH_PARSER
+#ifdef CONFIG_HUSH_PARSER
 	rcode = parse_string_outer(buff, FLAG_PARSE_SEMICOLON);
 #else
 	/*
@@ -246,7 +246,7 @@ err:
 
 void cli_loop(void)
 {
-#ifdef CONFIG_SYS_HUSH_PARSER
+#ifdef CONFIG_HUSH_PARSER
 	parse_file_outer();
 	/* This point is never reached */
 	for (;;);
@@ -254,12 +254,12 @@ void cli_loop(void)
 	cli_simple_loop();
 #else
 	printf("## U-Boot command line is disabled. Please enable CONFIG_CMDLINE\n");
-#endif /*CONFIG_SYS_HUSH_PARSER*/
+#endif /*CONFIG_HUSH_PARSER*/
 }
 
 void cli_init(void)
 {
-#ifdef CONFIG_SYS_HUSH_PARSER
+#ifdef CONFIG_HUSH_PARSER
 	u_boot_hush_start();
 #endif
 

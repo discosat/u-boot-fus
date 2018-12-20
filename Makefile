@@ -3,7 +3,7 @@
 #
 
 VERSION = 2016
-PATCHLEVEL = 05
+PATCHLEVEL = 07
 SUBLEVEL =
 EXTRAVERSION =
 NAME =
@@ -804,13 +804,6 @@ quiet_cmd_pad_cat = CAT     $@
 cmd_pad_cat = $(cmd_objcopy) && $(append) || rm -f $@
 
 all:		$(ALL-y)
-ifneq ($(CONFIG_SYS_GENERIC_BOARD),y)
-	@echo "===================== WARNING ======================"
-	@echo "Please convert this board to generic board."
-	@echo "Otherwise it will be removed by the end of 2014."
-	@echo "See doc/README.generic-board for further information"
-	@echo "===================================================="
-endif
 ifeq ($(CONFIG_DM_I2C_COMPAT),y)
 	@echo "===================== WARNING ======================"
 	@echo "This board uses CONFIG_DM_I2C_COMPAT. Please remove"
@@ -820,7 +813,9 @@ ifeq ($(CONFIG_DM_I2C_COMPAT),y)
 endif
 
 PHONY += dtbs
-dtbs dts/dt.dtb: checkdtc u-boot
+dtbs: dts/dt.dtb
+	@:
+dts/dt.dtb: checkdtc u-boot
 	$(Q)$(MAKE) $(build)=dts dtbs
 
 quiet_cmd_copy = COPY    $@
@@ -1270,13 +1265,6 @@ prepare2: prepare3 outputmakefile
 
 prepare1: prepare2 $(version_h) $(timestamp_h) \
                    include/config/auto.conf
-ifeq ($(CONFIG_HAVE_GENERIC_BOARD),)
-ifeq ($(CONFIG_SYS_GENERIC_BOARD),y)
-	@echo >&2 "  Your architecture does not support generic board."
-	@echo >&2 "  Please undefine CONFIG_SYS_GENERIC_BOARD in your board config file."
-	@/bin/false
-endif
-endif
 ifeq ($(wildcard $(LDSCRIPT)),)
 	@echo >&2 "  Could not find linker script."
 	@/bin/false
@@ -1296,8 +1284,8 @@ prepare: prepare0
 define filechk_version.h
 	(echo \#define PLAIN_VERSION \"$(UBOOTRELEASE)\"; \
 	echo \#define U_BOOT_VERSION \"U-Boot \" PLAIN_VERSION; \
-	echo \#define CC_VERSION_STRING \"$$($(CC) --version | head -n 1)\"; \
-	echo \#define LD_VERSION_STRING \"$$($(LD) --version | head -n 1)\"; )
+	echo \#define CC_VERSION_STRING \"$$(LC_ALL=C $(CC) --version | head -n 1)\"; \
+	echo \#define LD_VERSION_STRING \"$$(LC_ALL=C $(LD) --version | head -n 1)\"; )
 endef
 
 # The SOURCE_DATE_EPOCH mechanism requires a date that behaves like GNU date.
@@ -1466,6 +1454,7 @@ clean: $(clean-dirs)
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \
 		-o -name '*.symtypes' -o -name 'modules.order' \
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
+		-o -name 'dsdt.aml' -o -name 'dsdt.asl.tmp' -o -name 'dsdt.c' \
 		-o -name '*.gcno' \) -type f -print | xargs rm -f
 
 # mrproper - Delete all generated files, including .config

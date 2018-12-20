@@ -167,7 +167,7 @@ unsigned int ipuv3_get_ipu_clock(int ipu)
 
 	reg = __raw_readl(&imx_ccm->cscdr3);
 	if (ipu == 2) {
-		if (is_cpu_type(MXC_CPU_MX6SOLO) || is_cpu_type(MXC_CPU_MX6DL))
+		if (is_mx6sdl())
 			return 0;
 		podf = (reg & MXC_CCM_CSCDR3_IPU2_HSP_PODF_MASK)
 			>> MXC_CCM_CSCDR3_IPU2_HSP_PODF_OFFSET;
@@ -345,7 +345,7 @@ void ipuv3_enable_ipu_clk(int ipu)
 	u32 ccgr3, cscdr3;
 	u32 clk_src = 1;
 
-	if (is_cpu_type(MXC_CPU_MX6SOLO) || is_cpu_type(MXC_CPU_MX6DL)) {
+	if (is_mx6sdl()) {
 		if (ipu != 1)
 			return;
 		clk_src = 3;

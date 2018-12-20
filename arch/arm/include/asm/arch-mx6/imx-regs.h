@@ -279,8 +279,13 @@
 #define ARM_BASE_ADDR               (ATZ2_BASE_ADDR + 0x40000)
 #endif
 
-#define CONFIG_SYS_FSL_SEC_ADDR     CAAM_BASE_ADDR
-#define CONFIG_SYS_FSL_JR0_ADDR     (CAAM_BASE_ADDR + 0x1000)
+#define CONFIG_SYS_FSL_SEC_OFFSET   0
+#define CONFIG_SYS_FSL_SEC_ADDR     (CAAM_BASE_ADDR + \
+				     CONFIG_SYS_FSL_SEC_OFFSET)
+#define CONFIG_SYS_FSL_JR0_OFFSET   0x1000
+#define CONFIG_SYS_FSL_JR0_ADDR     (CAAM_BASE_ADDR + \
+				     CONFIG_SYS_FSL_JR0_OFFSET)
+#define CONFIG_SYS_FSL_MAX_NUM_OF_SEC	1
 
 #define USB_PL301_BASE_ADDR         (AIPS2_OFF_BASE_ADDR + 0x0000)
 #define USB_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x4000)
@@ -423,13 +428,12 @@
 #include <asm/types.h>
 
 /* only for i.MX6SX/UL */
-#define WDOG3_BASE_ADDR (((is_cpu_type(MXC_CPU_MX6UL) || is_cpu_type(MXC_CPU_MX6ULL)) ?	\
+#define WDOG3_BASE_ADDR (((is_mx6ul() || is_mx6ull()) ?	\
 			 MX6UL_WDOG3_BASE_ADDR :  MX6SX_WDOG3_BASE_ADDR))
-#define LCDIF1_BASE_ADDR ((is_cpu_type(MXC_CPU_MX6UL)) ?	\
-			  MX6UL_LCDIF1_BASE_ADDR :		\
-			  ((is_cpu_type(MXC_CPU_MX6ULL)) ?	\
+#define LCDIF1_BASE_ADDR ((is_mx6ul()) ? MX6UL_LCDIF1_BASE_ADDR :	\
+			  ((is_mx6ull()) ?	\
 			  MX6ULL_LCDIF1_BASE_ADDR : MX6SX_LCDIF1_BASE_ADDR))
-#define UART6_BASE_ADDR (((is_cpu_type(MXC_CPU_MX6UL)) || is_cpu_type(MXC_CPU_MX6ULL)) ? \
+#define UART6_BASE_ADDR (((is_mx6ul()) || is_mx6ull()) ? \
 			  MX6UL_UART6_BASE_ADDR : MX6SX_UART6_BASE_ADDR)
 
 #define MXS_LCDIF_BASE LCDIF1_BASE_ADDR

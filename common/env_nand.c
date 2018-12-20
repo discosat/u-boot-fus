@@ -179,14 +179,14 @@ static int writeenv(const struct env_location *location, u_char *buf)
 	size_t amount_saved = 0;
 	size_t blocksize, len;
 
-	blocksize = nand_info[0].erasesize;
+	blocksize = nand_info[0]->erasesize;
 	len = min(blocksize, env_size);
 
 	while ((amount_saved < env_size) && (offset < end)) {
-		if (nand_block_isbad(&nand_info[0], offset)) {
+		if (nand_block_isbad(nand_info[0], offset)) {
 			offset += blocksize;
 		} else {
-			if (nand_write(&nand_info[0], offset, &len, buf))
+			if (nand_write(nand_info[0], offset, &len, buf))
 				return 1;
 
 			offset += blocksize;
@@ -206,7 +206,7 @@ static int erase_and_write_env(const struct env_location *location,
 	int ret;
 
 	printf("Erasing %s... ", location->name);
-	ret = nand_erase_opts(&nand_info[0], &location->erase_opts);
+	ret = nand_erase_opts(nand_info[0], &location->erase_opts);
 	if (!ret) {
 		printf("OK\n"
 		       "Writing to %s... ", location->name);
@@ -300,17 +300,17 @@ static int readenv(size_t offset, u_char *buf, size_t env_size)
 	size_t blocksize, len;
 	u_char *char_ptr;
 
-	blocksize = nand_info[0].erasesize;
+	blocksize = nand_info[0]->erasesize;
 	if (!blocksize)
 		return 1;
 
 	while (amount_loaded < env_size && offset < end) {
 		len = min(blocksize, env_size - amount_loaded);
-		if (!nand_block_isbad(&nand_info[0], offset)) {
+		if (!nand_block_isbad(nand_info[0], offset)) {
 			char_ptr = &buf[amount_loaded];
-			if (nand_read_skip_bad(&nand_info[0], offset,
+			if (nand_read_skip_bad(nand_info[0], offset,
 					       &len, NULL,
-					       nand_info[0].size, char_ptr))
+					       nand_info[0]->size, char_ptr))
 				return 1;
 
 			amount_loaded += len;
@@ -326,7 +326,7 @@ static int readenv(size_t offset, u_char *buf, size_t env_size)
 #endif /* #if defined(CONFIG_SPL_BUILD) */
 
 #ifdef CONFIG_ENV_OFFSET_OOB
-int get_nand_env_oob(nand_info_t *nand, unsigned long *result)
+int get_nand_env_oob(struct mtd_info *mtd, unsigned long *result)
 {
 	struct mtd_oob_ops ops;
 	uint32_t oob_buf[ENV_OFFSET_SIZE / sizeof(uint32_t)];
@@ -338,14 +338,14 @@ int get_nand_env_oob(nand_info_t *nand, unsigned long *result)
 	ops.ooblen	= ENV_OFFSET_SIZE;
 	ops.oobbuf	= (void *)oob_buf;
 
-	ret = nand->read_oob(nand, ENV_OFFSET_SIZE, &ops);
+	ret = mtd->read_oob(mtd, ENV_OFFSET_SIZE, &ops);
 	if (ret) {
 		printf("error reading OOB block 0\n");
 		return ret;
 	}
 
 	if (oob_buf[0] == ENV_OOB_MARKER) {
-		*result = oob_buf[1] * nand->erasesize;
+		*result = oob_buf[1] * mtd->erasesize;
 	} else if (oob_buf[0] == ENV_OOB_MARKER_OLD) {
 		*result = oob_buf[1];
 	} else {
@@ -441,7 +441,7 @@ void env_relocate_spec(void)
 	 * If unable to read environment offset from NAND OOB then fall through
 	 * to the normal environment reading code below
 	 */
-	if (!get_nand_env_oob(&nand_info[0], &nand_env_oob_offset)) {
+	if (!get_nand_env_oob(nand_info[0], &nand_env_oob_offset)) {
 		printf("Found Environment offset in OOB..\n");
 	} else {
 		set_default_env("!no env offset in OOB");

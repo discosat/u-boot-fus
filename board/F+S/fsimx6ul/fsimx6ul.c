@@ -377,7 +377,7 @@ static iomux_v3_cfg_t const i2c_pads_ull[] = {
 /* Set up I2C signals */
 void i2c_init_board(void)
 {
-	if (is_cpu_type(MXC_CPU_MX6ULL))
+	if (is_mx6ull())
 		SETUP_IOMUX_PADS(i2c_pads_ull);
 	else{
 		SETUP_IOMUX_PADS(i2c_pads_ul);
@@ -856,7 +856,7 @@ static void setup_lcd_pads(int on)
 			SETUP_IOMUX_PADS(lcd18_pads_active);
 		else
 			SETUP_IOMUX_PADS(lcd18_pads_low);
-		if (is_cpu_type(MXC_CPU_MX6ULL))
+		if (is_mx6ull())
 			SETUP_IOMUX_PADS(lcd_extra_pads_efusa7ull);
 		else
 			SETUP_IOMUX_PADS(lcd_extra_pads_efusa7ul);
@@ -870,7 +870,7 @@ static void setup_lcd_pads(int on)
 			SETUP_IOMUX_PADS(lcd18_pads_low);
 			SETUP_IOMUX_PADS(lcd24_pads_low);
 		}
-		if (is_cpu_type(MXC_CPU_MX6ULL))
+		if (is_mx6ull())
 			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ull);
 		else
 			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ul);
@@ -1162,7 +1162,7 @@ int board_ehci_hcd_init(int index)
 #endif
 			break;
 		case BT_PCOREMX6UL:	/* PWR active high???, ID available */
-			if (is_cpu_type(MXC_CPU_MX6ULL))
+			if (is_mx6ull())
 				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ull;
 			else
 				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ul;
@@ -1214,7 +1214,7 @@ int board_ehci_hcd_init(int index)
 #endif
 			break;
 		case BT_PCOREMX6UL:
-			if (is_cpu_type(MXC_CPU_MX6ULL))
+			if (is_mx6ull())
 				cfg.pwr_pad = usb_otg2_pwr_pad_pcoremx6ull;
 			else
 				cfg.pwr_pad = usb_otg2_pwr_pad_pcoremx6ul;
@@ -1407,7 +1407,7 @@ int board_eth_init(bd_t *bis)
 		 * ethernet PHYs. WLAN reset, RESETOUTn and other power signals
 		 * are handled by an additional I2C IO expander.
 		 */
-		if (is_cpu_type(MXC_CPU_MX6ULL))
+		if (is_mx6ull())
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
@@ -1428,7 +1428,7 @@ int board_eth_init(bd_t *bis)
 		 * also resets WLAN. But WLAN needs only ~100ms, so no need to
 		 * further increase the reset pulse time.
 		 */
-		if (is_cpu_type(MXC_CPU_MX6ULL))
+		if (is_mx6ull())
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
@@ -1461,7 +1461,7 @@ int board_eth_init(bd_t *bis)
 		 * Having the distinction for ULL and UL we are prepared for
 		 * possible PicoCoreMX6UL with UL CPU in future.
 		 */
-		if (is_cpu_type(MXC_CPU_MX6ULL))
+		if (is_mx6ull())
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);

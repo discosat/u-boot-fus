@@ -724,8 +724,8 @@ PLD(	pld	[r1, #-32] )
 	strh	ip, [r0, #-2]!
 
 	/* Copy last byte (if any) */
-9:	ldreqb	lr, [r1, #-1]!
-	streqb	lr, [r0, #-1]!
+9:	ldrbeq	lr, [r1, #-1]!
+	strbeq	lr, [r0, #-1]!
 	pop	{r4, pc}
 ENDPROC(memmove)
 
@@ -753,7 +753,7 @@ ENTRY(memset32)
 	mov	r3, r1
 	mov	ip, r1
 	mov	lr, r1
-	add	r0, r2, lsl #2		  //Move pointer to end of data
+	add	r0, r0, r2, lsl #2	  //Move pointer to end of data
 	bls	2f
 
 	/* We need a set of 8 registers with the value */
@@ -801,7 +801,7 @@ ENTRY(memset32)
 	stmdb	r0!, {ip, lr}
 
 	/* Store last word (if any) */
-1:	stmeqdb	r0!, {ip}		  //r0 is now back at original dest
+1:	stmdbeq	r0!, {ip}		  //r0 is now back at original dest
 	pop	{pc}
 ENDPROC(memset32)
 

@@ -127,7 +127,7 @@ u32 get_cpu_speed_grade_hz(void)
 	val &= 0x3;
 
 	/* UL: 2b'00: Reserved, 2b'01: 528MHz, 2b'10: 696MHz, 2b'11: Reserved */
-	if (is_cpu_type(MXC_CPU_MX6UL)) {
+	if (is_mx6ul()) {
 		switch (val) {
 		case 1:
 			return 528000000;
@@ -138,7 +138,7 @@ u32 get_cpu_speed_grade_hz(void)
 		}
 	}
 	/* ULL: 2b'00: Reserved, 2b'01: 528MHz, 2b'10: 792MHz, 2b'11: 900MHz */
-	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6ull()) {
 		switch (val) {
 		case 1:
 			return 528000000;
@@ -154,16 +154,14 @@ u32 get_cpu_speed_grade_hz(void)
 	switch (val) {
 	/* Valid for IMX6DQ */
 	case OCOTP_CFG3_SPEED_1P2GHZ:
-		if (is_cpu_type(MXC_CPU_MX6Q) || is_cpu_type(MXC_CPU_MX6D) ||
-			is_cpu_type(MXC_CPU_MX6QP) || is_cpu_type(MXC_CPU_MX6DP))
+		if (is_mx6dq() || is_mx6dqp())
 			return 1200000000;
 	/* Valid for IMX6SX/IMX6SDL/IMX6DQ */
 	case OCOTP_CFG3_SPEED_1GHZ:
 		return 996000000;
 	/* Valid for IMX6DQ */
 	case OCOTP_CFG3_SPEED_850MHZ:
-		if (is_cpu_type(MXC_CPU_MX6Q) || is_cpu_type(MXC_CPU_MX6D) ||
-			is_cpu_type(MXC_CPU_MX6QP) || is_cpu_type(MXC_CPU_MX6DP))
+		if (is_mx6dq() || is_mx6dqp())
 			return 852000000;
 	/* Valid for IMX6SX/IMX6SDL/IMX6DQ */
 	case OCOTP_CFG3_SPEED_800MHZ:
@@ -314,8 +312,7 @@ static void clear_mmdc_ch_mask(void)
 	reg = readl(&mxc_ccm->ccdr);
 
 	/* Clear MMDC channel mask */
-	if (is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6SL) || is_cpu_type(MXC_CPU_MX6ULL))
+	if (is_mx6sx() || is_mx6ul() || is_mx6sl() || is_mx6ull())
 		reg &= ~(MXC_CCM_CCDR_MMDC_CH1_HS_MASK);
 	else
 		reg &= ~(MXC_CCM_CCDR_MMDC_CH1_HS_MASK | MXC_CCM_CCDR_MMDC_CH0_HS_MASK);
@@ -353,8 +350,7 @@ static void set_preclk_from_osc(void)
 
 int arch_cpu_init(void)
 {
-	if (!is_cpu_type(MXC_CPU_MX6SL) && !is_cpu_type(MXC_CPU_MX6SX)
-	    && !is_cpu_type(MXC_CPU_MX6UL) && !is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (!is_mx6sl() && !is_mx6sx() && !is_mx6ul() && !is_mx6ull()) {
 		/*
 		 * imx6sl doesn't have pcie at all.
 		 * this bit is not used by imx6sx anymore
@@ -387,7 +383,7 @@ int arch_cpu_init(void)
 	 */
 	init_bandgap();
 
-	if (!is_cpu_type(MXC_CPU_MX6UL) && !is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (!is_mx6ul() && !is_mx6ull()) {
 		/*
 		 * When low freq boot is enabled, ROM will not set AHB
 		 * freq, so we need to ensure AHB freq is 132MHz in such
@@ -400,7 +396,7 @@ int arch_cpu_init(void)
 			set_ahb_rate(132000000);
 	}
 
-	if (is_cpu_type(MXC_CPU_MX6UL)) {
+	if (is_mx6ul()) {
 		if (is_soc_rev(CHIP_REV_1_0)) {
 			/*
 			 * According to the design team's requirement on i.MX6UL,
@@ -420,7 +416,7 @@ int arch_cpu_init(void)
 		}
 	}
 
-	if (is_cpu_type(MXC_CPU_MX6ULL)) {
+	if (is_mx6ull()) {
 		/*
 		 * GPBIT[1:0] is suggested to set to 2'b11:
 		 * 2'b00 : always PUP100K
@@ -447,7 +443,7 @@ int arch_cpu_init(void)
 #endif
 
 #ifndef CONFIG_PCIE_IMX
-	if (is_cpu_type(MXC_CPU_MX6SX))
+	if (is_mx6sx())
 		set_ldo_voltage(LDO_PU, 0);	/* Set LDO for PCIe to off */
 #endif
 
@@ -532,8 +528,7 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 	struct fuse_bank4_regs *fuse =
 			(struct fuse_bank4_regs *)bank->fuse_regs;
 
-	if ((is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6ULL)) && dev_id == 1) {
+	if ((is_mx6sx() || is_mx6ul() || is_mx6ull()) && dev_id == 1) {
 		u32 value = readl(&fuse->mac_addr2);
 		mac[0] = value >> 24 ;
 		mac[1] = value >> 16 ;
@@ -596,8 +591,7 @@ void s_init(void)
 	u32 mask528;
 	u32 reg, periph1, periph2;
 
-	if (is_cpu_type(MXC_CPU_MX6SX) || is_cpu_type(MXC_CPU_MX6UL) ||
-	    is_cpu_type(MXC_CPU_MX6ULL))
+	if (is_mx6sx() || is_mx6ul() || is_mx6ull())
 		return;
 
 	/* Due to hardware limitation, on MX6Q we need to gate/ungate all PFDs
