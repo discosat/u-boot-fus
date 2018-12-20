@@ -52,13 +52,14 @@
  * offset of the free OOB area also by mtd->oobsize - mtd->oobavail.
  */
 struct fsl_nfc_fus_prv {
-	struct nand_ecclayout	layout;
-	struct nand_chip chip;	/* Generic NAND chip info */
-	uint	column;		/* Column to read in read_byte() */
-	uint	last_command;	/* Previous command issued */
-	u32	eccmode;	/* ECC_BYPASS .. ECC_60_BYTE */
-	u32	cfgbase;	/* fix part in CFG: timeout, buswidth */
-	u32	cmdclr;		/* Address cycle bits to clear in NFC cmd */
+	struct nand_chip chip;	      /* Generic NAND chip info */
+	struct nand_ecclayout layout; /* Space for ECC layout */
+	uint	column;		      /* Column to read in read_byte() */
+	uint	last_command;	      /* Previous command issued */
+	u32	eccmode;	      /* ECC_BYPASS .. ECC_60_BYTE */
+	u32	cfgbase;	      /* fix part in CFG: timeout, buswidth */
+	u32	cmdclr;		      /* Address cycle bits to clear in
+					 NFC cmd */
 };
 
 struct fsl_nfc_fus_prv nfc_infos[CONFIG_SYS_MAX_NAND_DEVICE];
@@ -135,7 +136,7 @@ static void nfc_copy_to_nfc(const struct nand_chip *chip, const u8 *buffer,
 static inline void nfc_send_cmd_1(const struct nand_chip *chip,
 				  u32 cmd_byte1, u32 cmd_code)
 {
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 
 	/* Clear unneeded column and row cycles */
 	cmd_code &= ~prv->cmdclr;
@@ -207,7 +208,7 @@ static void nfc_set_row(struct nand_chip *chip, int row, uint command)
 static int nfc_do_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			    int page, uint offs)
 {
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 
 	/* Start programming sequence with NAND_CMD_SEQIN */
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, offs + mtd->writesize, page);
@@ -248,7 +249,7 @@ static int nfc_do_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 /* Wait for operation complete */
 static int nfc_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	u32 time_start;
 
 	time_start = get_timer(0);
@@ -298,7 +299,7 @@ static int count_zeroes(u32 value)
 /* Control chip select signal on the board */
 static void fus_nfc_select_chip(struct mtd_info *mtd, int chipnr)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	u32 rowreg;
 
 	rowreg = nfc_read(chip, NFC_ROW_ADDR);
@@ -322,8 +323,8 @@ static int fus_nfc_dev_ready(struct mtd_info *mtd)
 /* Read byte from NFC buffers */
 static uint8_t fus_nfc_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 	u32 val;
 	uint col = prv->column++;
 
@@ -343,7 +344,7 @@ static uint8_t fus_nfc_read_byte(struct mtd_info *mtd)
 /* Read word from NFC buffers */
 static u16 fus_nfc_read_word(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
 }
@@ -352,8 +353,8 @@ static u16 fus_nfc_read_word(struct mtd_info *mtd)
 /* Read data from NFC buffers */
 static void fus_nfc_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 
 	/* Never call this function for the main area of a page, as the main
 	   area should not be swapped like nfc_copy_from_nfc() does. */
@@ -365,7 +366,7 @@ static void fus_nfc_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 /* Write data to NFC buffers */
 static void fus_nfc_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	/* Never call this function for the main area of a page, as the main
 	   area should not be swapped like nfc_copy_to_nfc() does. */
@@ -398,8 +399,8 @@ static int fus_nfc_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
 static void fus_nfc_command(struct mtd_info *mtd, uint command, int column,
 			    int page)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 
 	/* Restore column for fus_nfc_read_byte() to 0 on each new command */
 	prv->column = 0;
@@ -678,7 +679,7 @@ static int fus_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				 uint8_t *buf, int oob_required, int page)
 {
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 	uint size = mtd->writesize;
 
 	/* This code assumes that the NAND_CMD_READ0 command was
@@ -727,9 +728,10 @@ static int fus_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 /* Write the whole main and the whole OOB area without ECC in one go */
 static int fus_nfc_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				  const uint8_t *buf, int oob_required)
+				  const uint8_t *buf, int oob_required,
+				  int page)
 {
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 	uint size = mtd->writesize;
 
 	/* NAND_CMD_SEQIN for column 0 was already issued by the caller */
@@ -780,7 +782,7 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	uint size;
 	int zerobits;
 	int limit;
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 
 	/* This code assumes that the NAND_CMD_READ0 command was
 	   already issued before */
@@ -1058,9 +1060,9 @@ static int fus_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 /* Write main data of page with ECC enabled */
 static int fus_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			      const uint8_t *buf, int oob_required)
+			      const uint8_t *buf, int oob_required, int page)
 {
-	struct fsl_nfc_fus_prv *prv = chip->priv;
+	struct fsl_nfc_fus_prv *prv = nand_get_controller_data(chip);
 	uint size = mtd->oobsize - mtd->oobavail;
 	uint i;
 	uint8_t *oob;
@@ -1167,12 +1169,12 @@ void vybrid_nand_register(int nfc_hw_id,
 	if (nfc_hw_id > ARRAY_SIZE(nfc_base_addresses))
 		return;
 
-	mtd = &nand_info[index];
 	prv = &nfc_infos[index];
 	chip = &prv->chip;
-	chip->priv = prv;
+	nand_set_controller_data(chip, prv);
 
 	/* Init the mtd device, most of it is done in nand_scan_ident() */
+	mtd = &chip->mtd;
 	mtd->priv = chip;
 	mtd->size = 0;
 	mtd->name = NULL;
@@ -1284,5 +1286,5 @@ void vybrid_nand_register(int nfc_hw_id,
 		return;
 	}
 
-	nand_register(index++);
+	nand_register(index++, mtd);
 }

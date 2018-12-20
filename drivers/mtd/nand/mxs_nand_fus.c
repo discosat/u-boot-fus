@@ -84,6 +84,7 @@ static uint8_t showdesc;
 
 struct mxs_nand_priv {
 	struct nand_chip chip;		/* Generic NAND chip info */
+	struct nand_ecclayout layout;	/* Space for ECC layout */
 	int cur_chip;			/* Current NAND chip number (0..3) */
 	uint32_t timing0;		/* Value for TIMING0 register */
 	uint32_t gf;			/* 13 or 14, depending on chunk size */
@@ -207,8 +208,6 @@ struct mxs_nand_priv {
  *                      7 6 5 4 3 2 1 0
  *                            Bit        2112 Bytes total
  */
-
-static struct nand_ecclayout fus_nfc_ecclayout;
 
 static ulong nfc_base_addresses[] = {
 	CONFIG_SYS_NAND_BASE
@@ -485,8 +484,8 @@ static inline uint32_t mxs_nand_get_ecc_strength(struct mtd_info *mtd,
  */
 static int mxs_nand_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_gpmi_regs *gpmi_regs =
 		(struct mxs_gpmi_regs *)MXS_GPMI_BASE;
 	struct mxs_dma_desc *d;
@@ -541,8 +540,8 @@ static int mxs_nand_wait_ready(struct mtd_info *mtd, unsigned long timeout)
 static void mxs_nand_read_data_buf(struct mtd_info *mtd, uint32_t offs,
 				   uint32_t length, int last)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_dma_desc *d;
 	uint32_t data;
 
@@ -580,8 +579,8 @@ static void mxs_nand_read_data_buf(struct mtd_info *mtd, uint32_t offs,
 static void mxs_nand_write_data_buf(struct mtd_info *mtd, uint32_t offs,
 				    uint32_t length)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_dma_desc *d;
 
 	/* Add DMA descriptor to write data */
@@ -663,8 +662,8 @@ static void mxs_nand_write_data_buf(struct mtd_info *mtd, uint32_t offs,
  */
 static void mxs_nand_read_main_data(struct mtd_info *mtd, uint8_t *buf)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	uint val;
 	uint bit = 0;
 	int chunk, remaining;
@@ -702,8 +701,8 @@ static void mxs_nand_read_main_data(struct mtd_info *mtd, uint8_t *buf)
  */
 static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	uint val, tmp, mask;
 	uint bit = 0;
 	int chunk, remaining;
@@ -793,8 +792,8 @@ static void mxs_nand_write_main_data(struct mtd_info *mtd, const uint8_t *buf)
  */
 static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	int chunk, remaining = 0;
 	int chunk_size = chip->ecc.size;
 	uint8_t val, mask;
@@ -848,8 +847,8 @@ static void mxs_nand_read_ecc_data(struct mtd_info *mtd, uint8_t *oob)
  */
 static void mxs_nand_write_ecc_data(struct mtd_info *mtd, const uint8_t *oob)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	int chunk, remaining = 0;
 	int chunk_size = chip->ecc.size;
 	uint8_t val, mask;
@@ -902,7 +901,7 @@ static void mxs_nand_write_ecc_data(struct mtd_info *mtd, const uint8_t *oob)
 static int mxs_nand_do_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				int page, int raw)
 {
-	struct mxs_nand_priv *priv = chip->priv;
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	uint32_t boffs;
 	int column = raw ? 0 : 4;
 	int length = mtd->oobavail + 4 - column;
@@ -959,7 +958,7 @@ static int mxs_nand_do_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int mxs_nand_do_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page, int raw)
 {
-	struct mxs_nand_priv *priv = chip->priv;
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	uint32_t boffs;
 	int column = raw ? 0 : 4;
 	int length = mtd->oobavail + 4 - column;
@@ -1023,8 +1022,8 @@ static int mxs_nand_wait_for_bch_complete(void)
  */
 static void mxs_nand_select_chip(struct mtd_info *mtd, int cur_chip)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 
 	priv->cur_chip = cur_chip;
 }
@@ -1044,8 +1043,8 @@ static int mxs_nand_device_ready(struct mtd_info *mtd)
  */
 static uint8_t mxs_nand_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 
 	mxs_nand_read_data_buf(mtd, 0, 1, 1);
 	if (mxs_nand_dma_go(priv))
@@ -1059,8 +1058,8 @@ static uint8_t mxs_nand_read_byte(struct mtd_info *mtd)
  */
 static u16 mxs_nand_read_word(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 
 	mxs_nand_read_data_buf(mtd, 0, 2, 1);
 	if (mxs_nand_dma_go(priv))
@@ -1074,8 +1073,8 @@ static u16 mxs_nand_read_word(struct mtd_info *mtd)
  */
 static void mxs_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int length)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 
 	mxs_nand_read_data_buf(mtd, 0, length, 1);
 	if (!mxs_nand_dma_go(priv))
@@ -1120,8 +1119,8 @@ static int mxs_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *chip)
 static void mxs_nand_command(struct mtd_info *mtd, uint command, int column,
 			     int page)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 
 	/* Simulate NAND_CMD_READOOB with NAND_CMD_READ0; NAND_CMD_READOOB is
 	   only used in nand_block_bad() to read the BBM. So simply use the
@@ -1203,7 +1202,7 @@ static void mxs_nand_command(struct mtd_info *mtd, uint command, int column,
 static int mxs_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				  uint8_t *buf, int oob_required, int page)
 {
-	struct mxs_nand_priv *priv = chip->priv;
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	int ret;
 
 	/*
@@ -1245,7 +1244,8 @@ static int mxs_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
  * Write a page to NAND without ECC
  */
 static int mxs_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				   const uint8_t *buf, int oob_required)
+				   const uint8_t *buf, int oob_required,
+				   int page)
 {
 	/* NAND_CMD_SEQIN for column 0 was already issued by the caller */
 
@@ -1281,7 +1281,7 @@ static int mxs_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 static int mxs_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			      uint8_t *buf, int oob_required, int page)
 {
-	struct mxs_nand_priv *priv = chip->priv;
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_dma_desc *d;
 	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
 	uint32_t corrected = 0;
@@ -1463,9 +1463,9 @@ static int mxs_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
  * Write a page to NAND with ECC.
  */
 static int mxs_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required)
+			       const uint8_t *buf, int oob_required, int page)
 {
-	struct mxs_nand_priv *priv = chip->priv;
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
 	struct mxs_dma_desc *d;
 
@@ -1635,8 +1635,8 @@ static int mxs_nand_init(struct mxs_nand_priv *priv)
 static void mxs_nand_init_cont(struct mtd_info *mtd, uint32_t oobavail,
 			       uint32_t index)
 {
-	struct nand_chip *chip = mtd->priv;
-	struct mxs_nand_priv *priv = chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_priv *priv = nand_get_controller_data(chip);
 	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
 	uint32_t layout0, layout1;
 
@@ -1715,12 +1715,12 @@ void mxs_nand_register(int nfc_hw_id,
 	if (nfc_hw_id > ARRAY_SIZE(nfc_base_addresses))
 		return;
 
-	mtd = &nand_info[index];
 	priv = &nfc_infos[index];
 	chip = &priv->chip;
-	chip->priv = priv;
+	nand_set_controller_data(chip, priv);
 
 	/* Init the mtd device, most of it is done in nand_scan_ident() */
+	mtd = &chip->mtd;
 	mtd->priv = chip;
 	mtd->size = 0;
 	mtd->name = NULL;
@@ -1781,7 +1781,7 @@ void mxs_nand_register(int nfc_hw_id,
 							 priv->gf);
 
 	/* Set up ECC configuration and ECC layout */
-	chip->ecc.layout = &fus_nfc_ecclayout;
+	chip->ecc.layout = &priv->layout;
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.steps = mtd->writesize >> chunk_shift;
 	chip->ecc.size = 1 << chunk_shift;
@@ -1835,5 +1835,5 @@ void mxs_nand_register(int nfc_hw_id,
 		return;
 	}
 
-	nand_register(index++);
+	nand_register(index++, mtd);
 }
