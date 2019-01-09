@@ -509,7 +509,7 @@ static int initr_env(void)
 #else
 	/* Default is start of RAM plus configured offset */
 	set_loadaddr(getenv_ulong("loadaddr", 16,
-				  gd->ram_base + CONFIG_SYS_LOAD_OFFS));
+				  CONFIG_SYS_SDRAM_BASE + CONFIG_SYS_LOAD_OFFS));
 #endif
 #if defined(CONFIG_SYS_EXTBDINFO)
 #if defined(CONFIG_405GP) || defined(CONFIG_405EP)

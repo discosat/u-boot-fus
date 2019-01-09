@@ -57,7 +57,7 @@
  * final size and relocates itself to the end of RAM.
  *
  * Memory layout within U-Boot (from top to bottom, starting at
- * RAM-Top = gd->ram_base + gd->ram_size)
+ * RAM-Top = CONFIG_SYS_SDRAM_BASE + gd->ram_size)
  *
  * Addr          Size                      Comment
  * -------------------------------------------------------------------------

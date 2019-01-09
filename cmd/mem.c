@@ -1014,36 +1014,25 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 	const int alt_test = 0;
 #endif
 
+#ifdef CONFIG_SYS_MEMTEST_START
 	start = CONFIG_SYS_MEMTEST_START;
+#else
+	start = CONFIG_SYS_SDRAM_BASE;
+#endif
+#ifdef CONFIG_SYS_MEM_TEST_END
 	end = CONFIG_SYS_MEMTEST_END;
+#else
+	/* End before stack that is before u-boot code at end of RAM */
+	end = gd->start_addr_sp - CONFIG_SYS_STACK_SIZE;
+#endif
 
 	if (argc > 1)
-		start = (ulong *)parse_loadaddr(argv[1], NULL);
-	else {
-#ifdef CONFIG_SYS_MEMTEST_START
-		/* Start at configured address */
-		start = (ulong *)CONFIG_SYS_MEMTEST_START;
-#else
-		DECLARE_GLOBAL_DATA_PTR;
-
-		/* Start at beginning of RAM */
-		start = (ulong *)gd->ram_base;
-#endif
-	}
+		if (strict_parse_loadaddr(argv[1], &start) < 0)
+			return CMD_RET_USAGE;
 
 	if (argc > 2)
-		end = (ulong *)parse_loadaddr(argv[2], NULL);
-	else {
-#ifdef CONFIG_SYS_MEMTEST_END
-		/* End at configured address */
-		end = (ulong *)(CONFIG_SYS_MEMTEST_END);
-#else
-		DECLARE_GLOBAL_DATA_PTR;
-
-		/* End before stack that is before u-boot code at end of RAM */
-		end = (ulong *)(gd->start_addr_sp - CONFIG_SYS_STACK_SIZE);
-#endif
-	}
+		if (strict_parse_loadaddr(argv[2], &end) < 0)
+			return CMD_RET_USAGE;
 
 	if (argc > 3)
 		if (strict_strtoul(argv[3], 16, &pattern) < 0)

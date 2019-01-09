@@ -461,7 +461,13 @@ ulong getenv_bootm_low(void)
 		return tmp;
 	}
 
-	return gd->ram_base;
+#if defined(CONFIG_SYS_SDRAM_BASE)
+	return CONFIG_SYS_SDRAM_BASE;
+#elif defined(CONFIG_ARM)
+	return gd->bd->bi_dram[0].start;
+#else
+	return 0;
+#endif
 }
 
 phys_size_t getenv_bootm_size(void)

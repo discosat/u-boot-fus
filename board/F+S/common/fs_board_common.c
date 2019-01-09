@@ -161,7 +161,6 @@ int dram_init(void)
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	gd->ram_size = pargs->dwMemSize << 20;
-	gd->ram_base = CONFIG_SYS_SDRAM_BASE;
 
 	return 0;
 }
