@@ -256,8 +256,6 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		return CMD_RET_SUCCESS;
 	}
 
-	/* flush cache */
-	flush_cache(addr, size);
 	setenv_fileinfo(size);
 
 	bootstage_mark(BOOTSTAGE_ID_NET_LOADED);
