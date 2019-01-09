@@ -276,8 +276,6 @@
 /* If USB0 should be used as second USB Host port, activate this entry */
 /*#define CONFIG_USB_MAX_CONTROLLER_COUNT 2*/
 
-#define CONFIG_USB_STORAGE
-
 
 /************************************************************************
  * USB Device

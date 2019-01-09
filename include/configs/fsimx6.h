@@ -263,8 +263,6 @@
 #define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS 1 /* One port per controller */
 #define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
 
-#define CONFIG_USB_STORAGE
-
 
 /************************************************************************
  * USB Device
