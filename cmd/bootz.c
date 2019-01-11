@@ -48,8 +48,6 @@ static int bootz_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	lmb_reserve(&images->lmb, images->ep, zi_end - zi_start);
 
-	patch_sercon(images->ep);
-
 	/*
 	 * Handle the BOOTM_STATE_FINDOTHER state ourselves as we do not
 	 * have a header that provide this informaiton.

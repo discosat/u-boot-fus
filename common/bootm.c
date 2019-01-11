@@ -47,32 +47,6 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 				   char * const argv[], bootm_headers_t *images,
 				   ulong *os_data, ulong *os_len);
 
-/* Patch the serial port that is used in the uncompression code of the zImage.
-   Otherwise uncompression output may hang the board. */
-void patch_sercon(ulong img_addr)
-{
-#ifdef CONFIG_SYS_PATCH_TTY
-	char *p = (char *)img_addr;
-	char *end_addr = (char *)img_addr + CONFIG_SYS_PATCH_TTY;
-	int len = strlen(CONFIG_SYS_SERCON_NAME);
-
-	/* Patch serial output port */
-	do {
-		if (!strncmp(p, CONFIG_SYS_SERCON_NAME, len)) {
-			char *s = getenv("sercon");
-			if (!s || (s[len] == p[len]))
-				break;
-
-			printf("## Patching %s at Offset 0x%lx", p,
-			       (ulong)p - img_addr);
-			p[len] = s[len];
-			printf(" to %s\n", p);
-			break;
-		}
-	} while (++p < end_addr);
-#endif
-}
-
 #ifdef CONFIG_LMB
 static void boot_start_lmb(bootm_headers_t *images)
 {
@@ -137,12 +111,6 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.os.end = image_get_image_end(os_hdr);
 		images.os.load = image_get_load(os_hdr);
 		images.os.arch = image_get_arch(os_hdr);
-
-		/* If this is a zImage, then uncompression is done by the
-		   image itself. So we get IH_COMP_NONE here and we have to
-		   patch the serial line for uncompression output */
-		if (images.os.comp == IH_COMP_NONE)
-			patch_sercon((ulong)os_hdr);
 		break;
 #endif
 	case IMAGE_FORMAT_ZIMAGE:
@@ -152,8 +120,6 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.os.load = (ulong)os_hdr;
 		images.os.end = (ulong)os_hdr;
 		images.ep = (ulong)os_hdr;
-
-		patch_sercon((ulong)os_hdr);
 		break;
 #if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
