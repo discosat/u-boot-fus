@@ -156,3 +156,19 @@ ulong get_tbclk(void)
 	 */
 	return mxc_get_clock(MXC_IPG_PERCLK)/prescaler;
 }
+
+/*
+ * This function is intended for SHORT delays only.
+ * It will overflow at around 10 seconds @ 400MHz,
+ * or 20 seconds @ 200MHz.
+ */
+unsigned long usec2ticks(unsigned long _usec)
+{
+	unsigned long long usec = _usec;
+
+	usec *= get_tbclk();
+	usec += 999999;
+	do_div(usec, 1000000);
+
+	return usec;
+}

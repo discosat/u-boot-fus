@@ -15,6 +15,7 @@
 #include <stdio_dev.h>
 #include <exports.h>
 #include <environment.h>
+#include <watchdog.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -64,11 +65,11 @@ U_BOOT_ENV_CALLBACK(console, on_console);
 static int on_silent(const char *name, const char *value, enum env_op op,
 	int flags)
 {
-#ifndef CONFIG_SILENT_CONSOLE_UPDATE_ON_SET
+#if !CONFIG_IS_ENABLED(CONFIG_SILENT_CONSOLE_UPDATE_ON_SET)
 	if (flags & H_INTERACTIVE)
 		return 0;
 #endif
-#ifndef CONFIG_SILENT_CONSOLE_UPDATE_ON_RELOC
+#if !CONFIG_IS_ENABLED(CONFIG_SILENT_CONSOLE_UPDATE_ON_RELOC)
 	if ((flags & H_INTERACTIVE) == 0)
 		return 0;
 #endif
@@ -266,7 +267,7 @@ int tstc(void)
 	return serial_tstc(NULL);
 }
 
-#ifdef CONFIG_PRE_CONSOLE_BUFFER
+#if CONFIG_IS_ENABLED(PRE_CONSOLE_BUFFER)
 #define CIRC_BUF_IDX(idx) ((idx) % (unsigned long)CONFIG_PRE_CON_BUF_SZ)
 
 static void pre_console_putc(const char c)
@@ -483,15 +484,22 @@ int console_assign(int file, const char *devname)
 	return -1;
 }
 
+static void console_update_silent(void)
+{
+#ifdef CONFIG_SILENT_CONSOLE
+	if (getenv("silent") != NULL)
+		gd->flags |= GD_FLG_SILENT;
+	else
+		gd->flags &= ~GD_FLG_SILENT;
+#endif
+}
+
 /* Called before relocation - use serial functions */
 int console_init_f(void)
 {
 	gd->have_console = 1;
 
-#ifdef CONFIG_SILENT_CONSOLE
-	if (getenv("silent") != NULL)
-		gd->flags |= GD_FLG_SILENT;
-#endif
+	console_update_silent();
 
 	print_pre_console_buffer();
 
@@ -638,6 +646,8 @@ int console_init_r(void)
 	struct stdio_dev *inputdev = NULL, *outputdev = NULL;
 	int i;
 	struct stdio_dev *dev;
+
+	console_update_silent();
 
 #ifdef CONFIG_SPLASH_SCREEN
 	/*

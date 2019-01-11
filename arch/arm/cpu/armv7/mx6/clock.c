@@ -7,7 +7,7 @@
 #include <common.h>
 #include <div64.h>
 #include <asm/io.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/clock.h>
@@ -310,7 +310,7 @@ u32 mxc_get_pll_pfd(enum pll_clocks pll, int pfd_num)
 
 	switch (pll) {
 	case PLL_BUS:
-		if (!is_mx6ul() && !is_mx6sx()) {
+		if (!is_mx6ul() && !is_mx6ull() && !is_mx6sx()) {
 			if (pfd_num == 3) {
 				/* No PFD3 on PLL2 */
 				return 0;
@@ -427,7 +427,8 @@ static u32 get_uart_clk(void)
 	u32 freq = decode_pll(PLL_USBOTG) / 6; /* static divider */
 	reg = __raw_readl(&imx_ccm->cscdr1);
 
-	if (is_mx6sl() || is_mx6sx() || is_mx6dqp() || is_mx6ul() || is_mx6ull()) {
+	if (is_mx6sl() || is_mx6sx() || is_mx6dqp() || is_mx6ul() ||
+	    is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR1_UART_CLK_SEL)
 			freq = MXC_HCLK;
 	}
@@ -446,7 +447,8 @@ static u32 get_cspi_clk(void)
 	cspi_podf = (reg & MXC_CCM_CSCDR2_ECSPI_CLK_PODF_MASK) >>
 		     MXC_CCM_CSCDR2_ECSPI_CLK_PODF_OFFSET;
 
-	if (is_mx6dqp() || is_mx6sl() || is_mx6sx() || is_mx6ul() || is_mx6ull()) {
+	if (is_mx6dqp() || is_mx6sl() || is_mx6sx() || is_mx6ul() ||
+	    is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR2_ECSPI_CLK_SEL_MASK)
 			return MXC_HCLK / (cspi_podf + 1);
 	}
@@ -508,7 +510,7 @@ u32 get_mmdc_ch0_clk(void)
 
 	u32 freq, podf, per2_clk2_podf, pmu_misc2_audio_div;
 
-	if (is_mx6sx() || is_mx6ul() || is_mx6sl() | is_mx6ull()) {
+	if (is_mx6sx() || is_mx6ul() || is_mx6ull() || is_mx6sl()) {
 		podf = (cbcdr & MXC_CCM_CBCDR_MMDC_CH1_PODF_MASK) >>
 			MXC_CCM_CBCDR_MMDC_CH1_PODF_OFFSET;
 		if (cbcdr & MXC_CCM_CBCDR_PERIPH2_CLK_SEL) {

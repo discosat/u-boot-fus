@@ -26,7 +26,7 @@
 #include <watchdog.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <jffs2/jffs2.h>
 #include <nand.h>
 

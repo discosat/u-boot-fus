@@ -10,7 +10,6 @@
  */
 
 #include <common.h>
-#include <asm/errno.h>
 #ifdef CONFIG_CMD_NET
 #include <miiphy.h>
 #include <netdev.h>

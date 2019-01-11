@@ -50,7 +50,7 @@
 #include <trace.h>
 #include <video.h>
 #include <watchdog.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/sections.h>
 #if defined(CONFIG_X86) || defined(CONFIG_ARC)
@@ -266,6 +266,11 @@ static int setup_mon_len(void)
 }
 
 __weak int arch_cpu_init(void)
+{
+	return 0;
+}
+
+__weak int mach_cpu_init(void)
 {
 	return 0;
 }
@@ -840,6 +845,7 @@ static init_fnc_t init_sequence_f[] = {
 	x86_fsp_init,
 #endif
 	arch_cpu_init,		/* basic arch cpu dependent setup */
+	mach_cpu_init,		/* SoC/machine dependent CPU setup */
 	initf_dm,
 	arch_cpu_init_dm,
 	mark_bootstage,		/* need timer, go after init dm */
@@ -885,9 +891,6 @@ static init_fnc_t init_sequence_f[] = {
 	console_init_f,		/* stage 1 init of console */
 #ifdef CONFIG_SANDBOX
 	sandbox_early_getopt_check,
-#endif
-#ifdef CONFIG_OF_CONTROL
-	fdtdec_prepare_fdt,
 #endif
 	display_options,	/* say that we are here */
 	display_text_info,	/* show debugging info if required */
@@ -1032,7 +1035,7 @@ void board_init_f(ulong boot_flags)
 {
 #ifdef CONFIG_SYS_GENERIC_GLOBAL_DATA
 	/*
-	 * For some archtectures, global data is initialized and used before
+	 * For some architectures, global data is initialized and used before
 	 * calling this function. The data should be preserved. For others,
 	 * CONFIG_SYS_GENERIC_GLOBAL_DATA should be defined and use the stack
 	 * here to host global data until relocation.
@@ -1044,7 +1047,7 @@ void board_init_f(ulong boot_flags)
 	/*
 	 * Clear global data before it is accessed at debug print
 	 * in initcall_run_list. Otherwise the debug print probably
-	 * get the wrong vaule of gd->have_console.
+	 * get the wrong value of gd->have_console.
 	 */
 	zero_global_data();
 #endif

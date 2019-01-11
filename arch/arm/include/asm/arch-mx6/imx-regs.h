@@ -210,13 +210,8 @@
 #define GPIO4_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x28000)
 #define GPIO5_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x2C000)
 #define MX6UL_SNVS_LP_BASE_ADDR     (AIPS1_OFF_BASE_ADDR + 0x30000)
-#if defined(CONFIG_MX6UL)
-#define SNVS_LP_BASE_ADDR           (AIPS1_OFF_BASE_ADDR + 0x30000)
-#define ENET2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
-#else
 #define GPIO6_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x30000)
 #define GPIO7_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
-#endif
 #define KPP_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x38000)
 #define WDOG1_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x3C000)
 #define WDOG2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x40000)
