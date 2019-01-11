@@ -175,6 +175,8 @@ int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 			reg &= ~mask;
 		__raw_writel(reg, &imx_ccm->CCGR2);
 	} else {
+		if (is_mx6sll())
+			return -EINVAL;
 		if (is_mx6sx() || is_mx6ul() || is_mx6ull()) {
 			mask = MXC_CCM_CCGR6_I2C4_MASK;
 			addr = &imx_ccm->CCGR6;
@@ -410,7 +412,7 @@ static u32 get_ipg_per_clk(void)
 	u32 reg, perclk_podf;
 
 	reg = __raw_readl(&imx_ccm->cscmr1);
-	if (is_mx6sl() || is_mx6sx() ||
+	if (is_mx6sll() || is_mx6sl() || is_mx6sx() ||
 	    is_mx6dqp() || is_mx6ul() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCMR1_PER_CLK_SEL_MASK)
 			return MXC_HCLK; /* OSC 24Mhz */
@@ -428,7 +430,7 @@ static u32 get_uart_clk(void)
 	reg = __raw_readl(&imx_ccm->cscdr1);
 
 	if (is_mx6sl() || is_mx6sx() || is_mx6dqp() || is_mx6ul() ||
-	    is_mx6ull()) {
+	    is_mx6sll() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR1_UART_CLK_SEL)
 			freq = MXC_HCLK;
 	}
@@ -448,7 +450,7 @@ static u32 get_cspi_clk(void)
 		     MXC_CCM_CSCDR2_ECSPI_CLK_PODF_OFFSET;
 
 	if (is_mx6dqp() || is_mx6sl() || is_mx6sx() || is_mx6ul() ||
-	    is_mx6ull()) {
+	    is_mx6sll() || is_mx6ull()) {
 		if (reg & MXC_CCM_CSCDR2_ECSPI_CLK_SEL_MASK)
 			return MXC_HCLK / (cspi_podf + 1);
 	}
@@ -510,7 +512,8 @@ u32 get_mmdc_ch0_clk(void)
 
 	u32 freq, podf, per2_clk2_podf, pmu_misc2_audio_div;
 
-	if (is_mx6sx() || is_mx6ul() || is_mx6ull() || is_mx6sl()) {
+	if (is_mx6sx() || is_mx6ul() || is_mx6ull() || is_mx6sl() ||
+	    is_mx6sll()) {
 		podf = (cbcdr & MXC_CCM_CBCDR_MMDC_CH1_PODF_MASK) >>
 			MXC_CCM_CBCDR_MMDC_CH1_PODF_OFFSET;
 		if (cbcdr & MXC_CCM_CBCDR_PERIPH2_CLK_SEL) {
@@ -542,6 +545,11 @@ u32 get_mmdc_ch0_clk(void)
 				freq = mxc_get_pll_pfd(PLL_BUS, 0);
 				break;
 			case 3:
+				if (is_mx6sl()) {
+					freq = mxc_get_pll_pfd(PLL_BUS, 2) >> 1;
+					break;
+				}
+
 				pmu_misc2_audio_div = PMU_MISC2_AUDIO_DIV(__raw_readl(&imx_ccm->pmu_misc2));
 				switch (pmu_misc2_audio_div) {
 				case 0:
@@ -899,6 +907,16 @@ static u32 get_usdhc_clk(u32 port)
 	u32 cscmr1 = __raw_readl(&imx_ccm->cscmr1);
 	u32 cscdr1 = __raw_readl(&imx_ccm->cscdr1);
 
+	if (is_mx6ul() || is_mx6ull()) {
+		if (port > 1)
+			return 0;
+	}
+
+	if (is_mx6sll()) {
+		if (port > 2)
+			return 0;
+	}
+
 	switch (port) {
 	case 0:
 		usdhc_podf = (cscdr1 & MXC_CCM_CSCDR1_USDHC1_PODF_MASK) >>
@@ -1079,7 +1097,7 @@ void hab_caam_clock_enable(unsigned char enable)
 {
 	u32 reg;
 
-	if (is_mx6ull()) {
+	if (is_mx6ull() || is_mx6sll()) {
 		/* CG5, DCP clock */
 		reg = __raw_readl(&imx_ccm->CCGR0);
 		if (enable)
@@ -1257,6 +1275,20 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	return 0;
 }
+
+#ifndef CONFIG_SYS_NO_FLASH
+void enable_eim_clk(unsigned char enable)
+{
+	u32 reg;
+
+	reg = __raw_readl(&imx_ccm->CCGR6);
+	if (enable)
+		reg |= MXC_CCM_CCGR6_EMI_SLOW_MASK;
+	else
+		reg &= ~MXC_CCM_CCGR6_EMI_SLOW_MASK;
+	__raw_writel(reg, &imx_ccm->CCGR6);
+}
+#endif
 
 /***************************************************/
 

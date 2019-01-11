@@ -89,6 +89,7 @@ int enable_fec_anatop_clock(int fec_id, enum enet_freq freq);
 void enable_enet_clk(unsigned char enable);
 void enable_qspi_clk(int qspi_num);
 void enable_thermal_clk(void);
+void enable_eim_clk(unsigned char enable);
 
 /* Display related clock handling */
 unsigned int mxs_get_ldb_clock(int channel);

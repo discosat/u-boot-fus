@@ -205,13 +205,13 @@ void dev_print (struct blk_desc *dev_desc)
 		gb_quot	= gb / 10;
 		gb_rem	= gb - (10 * gb_quot);
 #if defined(CONFIG_SYS_64BIT_LBA)
-		printf("%ld.%ld MB = %ld.%ld GB (%Ld x %ld)\n",
+		printf("%lu.%lu MB = %lu.%lu GB (%llu x %lu)\n",
 		       mb_quot, mb_rem,
 		       gb_quot, gb_rem,
 		       lba,
 		       dev_desc->blksz);
 #else
-		printf("%ld.%ld MB = %ld.%ld GB (%ld x %ld)\n",
+		printf("%lu.%lu MB = %lu.%lu GB (%lu x %lu)\n",
 		       mb_quot, mb_rem,
 		       gb_quot, gb_rem,
 		       (ulong)lba,

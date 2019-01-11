@@ -270,7 +270,6 @@
 /************************************************************************
  * SD/MMC Card
  ************************************************************************/
-#define CONFIG_MMC			/* SD/MMC support */
 #define CONFIG_GENERIC_MMC		/* with the generic driver model */
 #define CONFIG_FSL_ESDHC		/* use Freescale ESDHC driver */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	/* Not used */
