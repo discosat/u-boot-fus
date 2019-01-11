@@ -23,6 +23,20 @@
 #include <asm/arch/vybrid-regs.h>
 #include <generated/asm-offsets.h>
 
+/* TODO: Only activate some devices; for now: activate all devices */
+#define CONFIG_SYS_CLKCTL_CCGR0		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR1		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR2		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR3		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR4		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR5		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR6		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR7		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR8		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR9		0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR10	0xFFFFFFFF
+#define CONFIG_SYS_CLKCTL_CCGR11	0xFFFFFFFF
+
 /* VFPU setup/invalidation/disable */
 .macro init_vfpu
 	ldr r0, =(0xF << 20)

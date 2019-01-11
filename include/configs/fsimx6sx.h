@@ -52,9 +52,10 @@
  ************************************************************************/
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
 #define CONFIG_FS_BOARD_OFFS	8	/* F&S i.MX6SX board types as reported
 					   by NBoot start at offset 8 */
-#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
+#define CONFIG_FS_BOARD_MODE	"ro"	/* Default mode read-only for rootfs */
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
 #define CONFIG_FS_MMC_COMMON		/* Use F&S common MMC stuff */
 #define CONFIG_FS_ETH_COMMON		/* Use F&S common ETH stuff */
@@ -98,9 +99,9 @@
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
-#define CONFIG_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
+#define CONFIG_FS_UBOOTNB0_SIZE 0x80000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
-#define CONFIG_BOARD_SIZE_LIMIT CONFIG_UBOOTNB0_SIZE
+#define CONFIG_BOARD_SIZE_LIMIT CONFIG_FS_UBOOTNB0_SIZE
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
@@ -142,9 +143,6 @@
    region anymore and the kernel will hang when trying to access the device
    tree after it has set up its final page table. */
 #define CONFIG_SYS_BOOTMAPSZ	0x6f800000
-
-/* Alignment mask for MMU pagetable: 16kB */
-#define CONFIG_SYS_TLB_ALIGN	0xFFFFC000
 
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
@@ -527,7 +525,6 @@
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
-#define CONFIG_MODE		"ro"
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
@@ -637,19 +634,6 @@
  * DFU (USB Device Firmware Update, requires USB device support)
  ************************************************************************/
 /* ###TODO### */
-
-
-/************************************************************************
- * Linux and Android Support
- ************************************************************************/
-#define CONFIG_ZIMAGE_BOOT
-#define CONFIG_IMAGE_BOOT
-#define CONFIG_ANDROID_BOOT_IMAGE
-
-/* Try to patch serial debug port in image within first 16KB of zImage */
-#define CONFIG_SYS_PATCH_TTY	0x4000
-
-/* No ATAGs are passed to Linux when using device trees */
 
 
 /************************************************************************

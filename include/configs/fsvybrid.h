@@ -86,9 +86,10 @@
 #define CONFIG_VYBRID			/* ### TODO: switch to CONFIG_VF610 */
 #undef CONFIG_MP			/* No multi processor support */
 
+#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
 #define CONFIG_FS_BOARD_OFFS	0	/* F&S Vybrid board types as reported
 					   by NBoot start at offset 0 */
-#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
+#define CONFIG_FS_BOARD_MODE	"ro"	/* Default mode read-only for rootfs */
 #define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
 
 #include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
@@ -113,9 +114,9 @@
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
-#define CONFIG_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
+#define CONFIG_FS_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
 #define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
-#define CONFIG_BOARD_SIZE_LIMIT CONFIG_UBOOTNB0_SIZE
+#define CONFIG_BOARD_SIZE_LIMIT CONFIG_FS_UBOOTNB0_SIZE
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
@@ -151,9 +152,6 @@
 /* Allocate 2048KB protected RAM at end of RAM (Framebuffers, etc.) */
 #define CONFIG_PRAM		2048
 
-/* Alignment mask for MMU pagetable: 16kB */
-#define CONFIG_SYS_TLB_ALIGN	0xFFFFC000
-
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
 #ifdef CONFIG_USE_IRQ
@@ -171,29 +169,11 @@
 /************************************************************************
  * Clock Settings and Timers
  ************************************************************************/
-/* Basic input clocks */
-#define CONFIG_SYS_VYBRID_HCLK	24000000
-#define CONFIG_SYS_VYBRID_CLK32	32768
 
 /* Timer */
 #define FTM_BASE_ADDR		FTM0_BASE_ADDR
-#define CONFIG_TMR_USEPIT
 
 #define CONFIG_SYS_HZ		1000
-
-/* ##### TODO: Only activate some devices; for now: activate all devices */
-#define CONFIG_SYS_CLKCTL_CCGR0		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR1		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR2		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR3		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR4		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR5		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR6		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR7		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR8		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR9		0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR10	0xFFFFFFFF
-#define CONFIG_SYS_CLKCTL_CCGR11	0xFFFFFFFF
 
 
 /************************************************************************
@@ -251,8 +231,6 @@
  * Ethernet
  ************************************************************************/
 #define CONFIG_FEC_MXC
-/* Undefine the following line if external quarts is used for ETH clock */
-#define CONFIG_FS_VYBRID_PLL_ETH
 
 /* PHY */
 #define CONFIG_PHY_MICREL		/* Micrel KSZ8021RNL/KSZ8081RNA */
@@ -561,7 +539,6 @@
 #define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
-#define CONFIG_MODE		"ro"
 #define CONFIG_PREBOOT
 #define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
@@ -665,18 +642,6 @@
  * DFU (USB Device Firmware Update, requires USB device support)
  ************************************************************************/
 /* ###TODO### */
-
-
-/************************************************************************
- * Linux Support
- ************************************************************************/
-#define CONFIG_ZIMAGE_BOOT
-#define CONFIG_IMAGE_BOOT
-
-/* Try to patch serial debug port in image within first 16KB of zImage */
-#define CONFIG_SYS_PATCH_TTY	0x4000
-
-/* No ATAGs are passed to Linux when using device trees */
 
 
 /************************************************************************

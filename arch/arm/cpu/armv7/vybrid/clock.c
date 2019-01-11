@@ -30,6 +30,10 @@
 #include <asm/arch/clock.h>
 #include <div64.h>
 
+/* Basic input clocks */
+#define CONFIG_SYS_VYBRID_HCLK	24000000
+#define CONFIG_SYS_VYBRID_CLK32	32768
+
 enum pll_clocks {
 	PLL1_CLOCK = 0,
 	PLL2_CLOCK,

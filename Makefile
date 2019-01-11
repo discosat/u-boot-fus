@@ -950,10 +950,10 @@ u-boot.sha1:	u-boot.bin
 u-boot.dis:	u-boot
 		$(OBJDUMP) -d $< > $@
 
-OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_UBOOTNB0_SIZE) -I binary -O binary
+OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_FS_UBOOTNB0_SIZE) -I binary -O binary
 uboot.nb0:	u-boot.bin
 		$(call if_changed,objcopy)
-#		dd if=/dev/zero bs=1K count=$(CONFIG_UBOOTNB0_SIZE) \
+#		dd if=/dev/zero bs=1K count=$(CONFIG_FS_UBOOTNB0_SIZE) \
 #			 | tr '\000' '\377' >$@
 #		dd if=$< of=$@ conv=notrunc bs=1K
 

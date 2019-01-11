@@ -633,7 +633,8 @@ int board_eth_init(bd_t *bis)
 		   oscillator and needs RMIICLK (PTA6) as input */
 		__raw_writel(0x00203191, IOMUXC_PAD_000);
 	} else {
-#ifdef CONFIG_FS_VYBRID_PLL_ETH
+#if 1
+		/* Use PLL for RMII clock */
 		struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
 		u32 temp;
 
