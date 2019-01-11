@@ -87,6 +87,14 @@ config NAND_MXS
 	  This enables NAND driver for the NAND flash controller on the
 	  MXS processors.
 
+config NAND_MXS_FUS
+	bool "F&S version of MXS NAND support"
+	depends on MX6
+	depends on !NAND_MXS
+	help
+	  This enables NAND driver for the NAND flash controller on the
+	  MXS processors.
+
 comment "Generic NAND options"
 
 # Enhance depends when converting drivers to Kconfig which use this config

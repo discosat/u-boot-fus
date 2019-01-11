@@ -83,7 +83,6 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-#define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 #define CONFIG_VYBRID			/* ### TODO: switch to CONFIG_VF610 */
 #undef CONFIG_MP			/* No multi processor support */
 
@@ -105,8 +104,6 @@
 /*###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?*/
 #define CONFIG_BOARD_EARLY_INIT_F	/* Activate NAND flash pin mux */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
-#define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
-#define CONFIG_DISPLAY_BOARDINFO	/* Show board information */
 #define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
@@ -436,7 +433,6 @@
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
-#define CONFIG_CMD_UBI		/* Support for unsorted block images (UBI) */
 #define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
 #define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */

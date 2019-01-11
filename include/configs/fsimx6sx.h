@@ -50,7 +50,6 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-#define CONFIG_IDENT_STRING " for F&S"	/* We are on an F&S board */
 #undef CONFIG_MP			/* No multi processor support */
 
 #define CONFIG_FS_BOARD_OFFS	8	/* F&S i.MX6SX board types as reported
@@ -90,8 +89,6 @@
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 #define CONFIG_BOARD_EARLY_INIT_F	/* Early board specific stuff */
 #define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
-#define CONFIG_DISPLAY_CPUINFO		/* Show CPU type and speed */
-#define CONFIG_DISPLAY_BOARDINFO	/* Show board information */
 #undef CONFIG_USE_IRQ			/* No blinking LEDs yet */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
@@ -307,7 +304,6 @@
  * NAND Flash
  ************************************************************************/
 /* Use F&S implementation of GPMI NFC NAND Flash Driver (MXS) */
-#define CONFIG_NAND_MXS_FUS
 #define CONFIG_SYS_NAND_BASE	0x40000000
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
@@ -407,7 +403,6 @@
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
-#define CONFIG_CMD_UBI		/* Support for unsorted block images (UBI) */
 #define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
 #define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
@@ -418,10 +413,7 @@
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
-#define CONFIG_VIDEO
 #define CONFIG_VIDEO_MXS		/* Use MXS display driver */
-#define CONFIG_CFB_CONSOLE		/* Use color framebuffer console */
-#define CONFIG_VGA_AS_SINGLE_DEVICE	/* Display is only output, no input */
 #define CONFIG_VIDEO_LOGO		/* Allow a logo on the console... */
 #define CONFIG_VIDEO_BMP_LOGO		/* ...as BMP image... */
 #define CONFIG_BMP_16BPP		/* ...with 16 bits per pixel */
