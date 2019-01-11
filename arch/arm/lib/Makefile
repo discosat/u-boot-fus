@@ -32,7 +32,8 @@ obj-$(CONFIG_CMD_BOOTZ) += bootm.o zimage.o
 obj-$(CONFIG_SYS_L2_PL310) += cache-pl310.o
 obj-$(CONFIG_USE_ARCH_MEMSET) += memset.o
 obj-$(CONFIG_USE_ARCH_MEMCPY) += memcpy.o
-obj-y += string.o
+obj-$(CONFIG_USE_ARCH_MEMMOVE) += memmove.o
+obj-$(CONFIG_USE_ARCH_MEMSET32) += memset32.o
 else
 obj-$(CONFIG_SPL_FRAMEWORK) += spl.o
 obj-$(CONFIG_SPL_FRAMEWORK) += zimage.o
