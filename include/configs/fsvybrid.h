@@ -654,9 +654,5 @@
  ************************************************************************/
 /*#define USE_PRIVATE_LIBGCC*/
 #define CONFIG_SYS_64BIT_VSPRINTF	/* Needed for nand_util.c */
-#define CONFIG_USE_ARCH_MEMCPY
-#define CONFIG_USE_ARCH_MEMMOVE
-#define CONFIG_USE_ARCH_MEMSET
-#define CONFIG_USE_ARCH_MEMSET32
 
 #endif /* !__FSVYBRID_CONFIG_H */
