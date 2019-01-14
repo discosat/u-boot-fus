@@ -134,14 +134,20 @@ config TARGET_GW_VENTANA
 config TARGET_FSIMX6
 	bool "F&S fsimx6 boards & modules"
 	select MX6QDL
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
 
 config TARGET_FSIMX6SX
 	bool "F&S fsimx6sx boards & modules"
 	select MX6SX
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
 
 config TARGET_FSIMX6UL
 	bool "F&S fsimx6ul boards & modules"
 	select MX6ULL
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
 
 config TARGET_KOSAGI_NOVENA
 	bool "Kosagi Novena"

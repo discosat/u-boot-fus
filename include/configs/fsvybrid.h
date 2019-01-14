@@ -103,12 +103,9 @@
 #undef CONFIG_ARCH_CPU_INIT
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 /*###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?*/
-#define CONFIG_BOARD_EARLY_INIT_F	/* Activate NAND flash pin mux */
-#define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
-#define CONFIG_OF_BOARD_SETUP		/* Call board specific FDT fixup */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
@@ -173,8 +170,6 @@
 /* Timer */
 #define FTM_BASE_ADDR		FTM0_BASE_ADDR
 
-#define CONFIG_SYS_HZ		1000
-
 
 /************************************************************************
  * GPIO
@@ -209,10 +204,7 @@
 /************************************************************************
  * LEDs
  ************************************************************************/
-#define CONFIG_BOARD_SPECIFIC_LED
 #define CONFIG_BLINK_VYBRID
-#define STATUS_LED_BIT 0
-#define STATUS_LED_BIT1 1
 
 
 /************************************************************************
@@ -230,11 +222,9 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-#define CONFIG_FEC_MXC
+#define CONFIG_FEC_MXC			/* ### TODO: Enable for Vybrid */
 
 /* PHY */
-#define CONFIG_PHY_MICREL		/* Micrel KSZ8021RNL/KSZ8081RNA */
-#define CONFIG_PHY_NATSEMI		/* TI/National Semiconductor DP83848 */
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
 
@@ -270,7 +260,6 @@
 /************************************************************************
  * SD/MMC Card
  ************************************************************************/
-#define CONFIG_GENERIC_MMC		/* with the generic driver model */
 #define CONFIG_FSL_ESDHC		/* use Freescale ESDHC driver */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	/* Not used */
 /*#define CONFIG_MMC_TRACE*/
@@ -290,7 +279,6 @@
  * NOR Flash
  ************************************************************************/
 /* No NOR flash on F&S Vybrid boards */
-#define CONFIG_SYS_NO_FLASH
 
 
 /************************************************************************
@@ -388,7 +376,6 @@
 #undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* No interrupt support */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
-#define CONFIG_CMD_LED		/* LED support */
 #undef CONFIG_CMD_MD5SUM	/* No support for md5sum checksums */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
@@ -411,10 +398,8 @@
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
 #define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
-#define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
 #undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
-#undef CONFIG_CMD_ZIP		/* No support to zip memory region */
 
 
 /************************************************************************
@@ -471,7 +456,6 @@
 /* FAT */
 #define CONFIG_FS_FAT			/* Support FAT... */
 #define CONFIG_SUPPORT_VFAT		/* ...with VFAT */
-#define CONFIG_DOS_PARTITION
 
 /* EXT4 */
 #define CONFIG_FS_EXT4			/* Support EXT2/3/4 */

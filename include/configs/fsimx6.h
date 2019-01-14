@@ -78,20 +78,12 @@
    SDHC does not work with write-back yet. So set back to write-through. */
 #define CONFIG_SYS_ARM_CACHE_WRITETHROUGH
 
-#define CONFIG_ARM_ERRATA_743622
-#define CONFIG_ARM_ERRATA_751472
-#define CONFIG_ARM_ERRATA_794072
-#define CONFIG_ARM_ERRATA_761320
-
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
-#define CONFIG_BOARD_EARLY_INIT_F	/* Early board specific stuff */
-#define CONFIG_BOARD_LATE_INIT		/* Init board-specific environment */
 #define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
-#define CONFIG_OF_BOARD_SETUP		/* Call board specific FDT fixup */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
@@ -163,8 +155,6 @@
 /* Basic input clocks */
 #define CONFIG_SYS_MX6_HCLK	24000000
 
-#define CONFIG_SYS_HZ		1000
-
 
 /************************************************************************
  * GPIO
@@ -196,7 +186,6 @@
  * I2C
  ************************************************************************/
 #define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1
 #define CONFIG_SYS_I2C_MXC_I2C2
 #define CONFIG_SYS_I2C_MXC_I2C3
@@ -207,10 +196,7 @@
 /************************************************************************
  * LEDs
  ************************************************************************/
-#define CONFIG_BOARD_SPECIFIC_LED
 #define CONFIG_BLINK_IMX
-#define STATUS_LED_BIT 0
-#define STATUS_LED_BIT1 1
 
 
 /************************************************************************
@@ -228,11 +214,8 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-#define CONFIG_FEC_MXC
 
 /* PHY */
-#define CONFIG_PHY_ATHEROS
-#define CONFIG_PHY_NATSEMI
 #define CONFIG_SYS_DISCOVER_PHY
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
 #undef CONFIG_ID_EEPROM			/* No EEPROM for ethernet MAC */
@@ -276,7 +259,6 @@
 /************************************************************************
  * SD/MMC Card, eMMC
  ************************************************************************/
-#define CONFIG_GENERIC_MMC		  /* with the generic driver model, */
 #define CONFIG_FSL_ESDHC		  /* use Freescale ESDHC driver */
 #define CONFIG_FSL_USDHC		  /* with USDHC modifications */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
@@ -293,7 +275,6 @@
  * NOR Flash
  ************************************************************************/
 /* No NOR flash on F&S i.MX6 boards */
-#define CONFIG_SYS_NO_FLASH
 
 
 /************************************************************************
@@ -384,7 +365,6 @@
 #undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* No interrupt support */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
-#define CONFIG_CMD_LED		/* LED support */
 #undef CONFIG_CMD_MD5SUM	/* No support for md5sum checksums */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
@@ -406,10 +386,8 @@
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
 #define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
-#define CONFIG_CMD_UNZIP	/* Have unzip command */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
 #undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
-#undef CONFIG_CMD_ZIP		/* No support to zip memory region */
 
 
 /************************************************************************
@@ -443,7 +421,6 @@
 /* FAT */
 #define CONFIG_FS_FAT			/* Support FAT... */
 #define CONFIG_SUPPORT_VFAT		/* ...with VFAT */
-#define CONFIG_DOS_PARTITION
 
 /* EXT4 */
 #define CONFIG_FS_EXT4			/* Support EXT2/3/4 */

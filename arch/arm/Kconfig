@@ -653,6 +653,8 @@ config TARGET_MX53SMD
 config TARGET_FSVYBRID
 	bool "F&S fsvybrid boards & modules"
 	select CPU_V7
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
 
 config OMAP34XX
 	bool "OMAP34XX SoC"
