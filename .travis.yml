@@ -19,6 +19,8 @@ addons:
     - libsdl1.2-dev
     - python
     - python-virtualenv
+    - swig
+    - libpython-dev
     - gcc-powerpc-linux-gnu
     - gcc-arm-linux-gnueabihf
     - gcc-aarch64-linux-gnu
@@ -26,11 +28,12 @@ addons:
     - grub-efi-ia32-bin
     - rpm2cpio
     - wget
+    - device-tree-compiler
 
 install:
  # install latest device tree compiler
- - git clone --depth=1 git://git.kernel.org/pub/scm/utils/dtc/dtc.git /tmp/dtc
- - make -j4 -C /tmp/dtc
+ #- git clone --depth=1 git://git.kernel.org/pub/scm/utils/dtc/dtc.git /tmp/dtc
+ #- make -j4 -C /tmp/dtc
  # Clone uboot-test-hooks
  - git clone --depth=1 git://github.com/swarren/uboot-test-hooks.git /tmp/uboot-test-hooks
  - ln -s travis-ci /tmp/uboot-test-hooks/bin/`hostname`
@@ -190,7 +193,9 @@ matrix:
     - env:
         - BUILDMAN="t208xrdb t4qds t102*"
     - env:
-        - BUILDMAN="p1_p2_rdb_pc p1010rdb"
+        - BUILDMAN="p1_p2_rdb_pc"
+    - env:
+        - BUILDMAN="p1010rdb"
     - env:
         - BUILDMAN="corenet_ds b4860qds sbc8548 bsc91*"
     - env:
