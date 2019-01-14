@@ -71,37 +71,38 @@ led_function_group(led5, STATUS_LED_BIT5)
 #endif
 
 static const led_tbl_t led_commands[] = {
-#ifdef CONFIG_BOARD_SPECIFIC_LED
-#ifdef STATUS_LED_BIT
-	{ "0", STATUS_LED_BIT, led0_off, led0_on, led0_toggle },
+#ifdef CONFIG_LED_STATUS_BOARD_SPECIFIC
+#ifdef CONFIG_LED_STATUS0
+	{ "0", CONFIG_LED_STATUS_BIT, led0_off, led0_on, led0_toggle },
 #endif
-#ifdef STATUS_LED_BIT1
-	{ "1", STATUS_LED_BIT1, led1_off, led1_on, led1_toggle },
+#ifdef CONFIG_LED_STATUS1
+	{ "1", CONFIG_LED_STATUS_BIT1, led1_off, led1_on, led1_toggle },
 #endif
-#ifdef STATUS_LED_BIT2
-	{ "2", STATUS_LED_BIT2, led2_off, led2_on, led2_toggle },
+#ifdef CONFIG_LED_STATUS2
+	{ "2", CONFIG_LED_STATUS_BIT2, led2_off, led2_on, led2_toggle },
 #endif
-#ifdef STATUS_LED_BIT3
-	{ "3", STATUS_LED_BIT3, led3_off, led3_on, led3_toggle },
+#ifdef CONFIG_LED_STATUS3
+	{ "3", CONFIG_LED_STATUS_BIT3, led3_off, led3_on, led3_toggle },
 #endif
-#ifdef STATUS_LED_BIT4
-	{ "4", STATUS_LED_BIT4, led4_off, led4_on, led4_toggle },
+#ifdef CONFIG_LED_STATUS4
+	{ "4", CONFIG_LED_STATUS_BIT4, led4_off, led4_on, led4_toggle },
 #endif
-#ifdef STATUS_LED_BIT5
-	{ "5", STATUS_LED_BIT5, led5_off, led5_on, led5_toggle },
+#ifdef CONFIG_LED_STATUS5
+	{ "5", CONFIG_LED_STATUS_BIT5, led5_off, led5_on, led5_toggle },
 #endif
 #endif
-#ifdef STATUS_LED_GREEN
-	{ "green", STATUS_LED_GREEN, green_led_off, green_led_on, NULL },
+#ifdef CONFIG_LED_STATUS_GREEN
+	{ "green", CONFIG_LED_STATUS_GREEN, green_led_off, green_led_on, NULL },
 #endif
-#ifdef STATUS_LED_YELLOW
-	{ "yellow", STATUS_LED_YELLOW, yellow_led_off, yellow_led_on, NULL },
+#ifdef CONFIG_LED_STATUS_YELLOW
+	{ "yellow", CONFIG_LED_STATUS_YELLOW, yellow_led_off, yellow_led_on,
+	  NULL },
 #endif
-#ifdef STATUS_LED_RED
-	{ "red", STATUS_LED_RED, red_led_off, red_led_on, NULL },
+#ifdef CONFIG_LED_STATUS_RED
+	{ "red", CONFIG_LED_STATUS_RED, red_led_off, red_led_on, NULL },
 #endif
-#ifdef STATUS_LED_BLUE
-	{ "blue", STATUS_LED_BLUE, blue_led_off, blue_led_on, NULL },
+#ifdef CONFIG_LED_STATUS_BLUE
+	{ "blue", CONFIG_LED_STATUS_BLUE, blue_led_off, blue_led_on, NULL },
 #endif
 };
 
@@ -221,37 +222,37 @@ int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	led, 4, 1, do_led,
 	"["
-#ifdef CONFIG_BOARD_SPECIFIC_LED
-#ifdef STATUS_LED_BIT
-	"0, "
+#ifdef CONFIG_LED_STATUS_BOARD_SPECIFIC
+#ifdef CONFIG_LED_STATUS0
+	"0|"
 #endif
-#ifdef STATUS_LED_BIT1
-	"1, "
+#ifdef CONFIG_LED_STATUS1
+	"1|"
 #endif
-#ifdef STATUS_LED_BIT2
-	"2, "
+#ifdef CONFIG_LED_STATUS2
+	"2|"
 #endif
-#ifdef STATUS_LED_BIT3
-	"3, "
+#ifdef CONFIG_LED_STATUS3
+	"3|"
 #endif
-#ifdef STATUS_LED_BIT4
-	"4, "
+#ifdef CONFIG_LED_STATUS4
+	"4|"
 #endif
-#ifdef STATUS_LED_BIT5
-	"5, "
+#ifdef CONFIG_LED_STATUS5
+	"5|"
 #endif
 #endif
-#ifdef STATUS_LED_GREEN
-	"green, "
+#ifdef CONFIG_LED_STATUS_GREEN
+	"green|"
 #endif
-#ifdef STATUS_LED_YELLOW
-	"yellow, "
+#ifdef CONFIG_LED_STATUS_YELLOW
+	"yellow|"
 #endif
-#ifdef STATUS_LED_RED
-	"red, "
+#ifdef CONFIG_LED_STATUS_RED
+	"red|"
 #endif
-#ifdef STATUS_LED_BLUE
-	"blue, "
+#ifdef CONFIG_LED_STATUS_BLUE
+	"blue|"
 #endif
 	"all] [on|off|toggle"
 #ifdef CONFIG_CMD_BLINK

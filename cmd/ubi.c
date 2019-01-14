@@ -505,7 +505,7 @@ int set_ubi_part(const char *part_name, const char *vid_header_offset)
 
 static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	int64_t size;
+	int64_t size = 0;
 	ulong addr;
 	int ret;
 
@@ -572,11 +572,15 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}				
 
 		/* Get size */
-		size = (argc > 3) ? simple_strtoull(argv[3], NULL, 16) : 0;
+		if (argc > 3) {
+			if (argv[3][0] != '-')
+				size = simple_strtoull(argv[3], NULL, 16);
+			argc--;
+		}
 		if (!size) {
 			/* Use maximum available size */
 			size = ubi->avail_pebs * ubi->leb_size;
-			printf("No size specified -> Using max size (%llu)\n",
+			printf("No size specified -> Using max size (%lld)\n",
 			       size);
 		}
 
@@ -647,7 +651,8 @@ U_BOOT_CMD(
 	"ubi check volume"
 		" - check if volume name exists\n"
 	"ubi create[vol] volume [size [type [id]]]"
-		" - create volume name with size\n"
+		" - create volume name with size ('-' for maximum"
+		" available size)\n"
 	"ubi write[vol] address volume size"
 		" - Write volume from address with size\n"
 	"ubi write.part address volume size [fullsize]\n"
