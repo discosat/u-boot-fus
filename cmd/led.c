@@ -51,23 +51,23 @@ static void led ## _toggle(void)		\
 	__led_toggle(bit);			\
 }						\
 
-#ifdef STATUS_LED_BIT
-led_function_group(led0, STATUS_LED_BIT)
+#ifdef CONFIG_LED_STATUS_BIT
+led_function_group(led0, CONFIG_LED_STATUS_BIT)
 #endif
-#ifdef STATUS_LED_BIT1
-led_function_group(led1, STATUS_LED_BIT1)
+#ifdef CONFIG_LED_STATUS_BIT1
+led_function_group(led1, CONFIG_LED_STATUS_BIT1)
 #endif
-#ifdef STATUS_LED_BIT2
-led_function_group(led2, STATUS_LED_BIT2)
+#ifdef CONFIG_LED_STATUS_BIT2
+led_function_group(led2, CONFIG_LED_STATUS_BIT2)
 #endif
-#ifdef STATUS_LED_BIT3
-led_function_group(led3, STATUS_LED_BIT3)
+#ifdef CONFIG_LED_STATUS_BIT3
+led_function_group(led3, CONFIG_LED_STATUS_BIT3)
 #endif
-#ifdef STATUS_LED_BIT4
-led_function_group(led4, STATUS_LED_BIT4)
+#ifdef CONFIG_LED_STATUS_BIT4
+led_function_group(led4, CONFIG_LED_STATUS_BIT4)
 #endif
-#ifdef STATUS_LED_BIT5
-led_function_group(led5, STATUS_LED_BIT5)
+#ifdef CONFIG_LED_STATUS_BIT5
+led_function_group(led5, CONFIG_LED_STATUS_BIT5)
 #endif
 
 static const led_tbl_t led_commands[] = {

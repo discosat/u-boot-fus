@@ -25,7 +25,7 @@
 #include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
 #endif
 
-#ifdef CONFIG_CMD_LED
+#ifdef CONFIG_LED_STATUS_CMD
 #include <status_led.h>			/* led_id_t */
 #endif
 
@@ -734,7 +734,7 @@ unsigned int get_board_rev(void)
 	return fs_board_get_rev();
 }
 
-#ifdef CONFIG_CMD_LED
+#ifdef CONFIG_LED_STATUS_CMD
 /* We have LEDs on PTC30 (Pad 103) and PTC31 (Pad 104); on CUBEA5 and
    AGATEWAY, the logic is inverted.
    On HGATEWAY, we allow using the RGB LED PTD25 (red, Pad 69) and PTD24
@@ -792,7 +792,7 @@ void __led_toggle(led_id_t mask)
 	}
 	__raw_writel(1 << mask, reg);
 }
-#endif /* CONFIG_CMD_LED */
+#endif /* CONFIG_LED_STATUS_CMD */
 
 #ifdef CONFIG_CMD_LCD
 // ####TODO

@@ -23,7 +23,7 @@
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 #endif
 
-#ifdef CONFIG_CMD_LED
+#ifdef CONFIG_LED_STATUS_CMD
 #include <status_led.h>			/* led_id_t */
 #endif
 
@@ -1542,7 +1542,7 @@ int board_eth_init(bd_t *bis)
 }
 #endif /* CONFIG_CMD_NET */
 
-#ifdef CONFIG_CMD_LED
+#ifdef CONFIG_LED_STATUS_CMD
 /*
  * Boards       STA1           STA2         Active
  * ------------------------------------------------------------------------
@@ -1614,7 +1614,7 @@ void __led_toggle(led_id_t id)
 	val = !((led_value >> id) & 1);
 	gpio_set_value(get_led_gpio(id, val), val);
 }
-#endif /* CONFIG_CMD_LED */
+#endif /* CONFIG_LED_STATUS_CMD */
 
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Remove operation points for speeds > SPEED_LIMIT */

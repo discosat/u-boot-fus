@@ -39,7 +39,13 @@ config LED_STATUS
 	  Allows common u-boot commands to use a board's leds to
 	  provide status for activities like booting and downloading files.
 
-if LED_STATUS
+config LED_STATUS_BOARD_SPECIFIC
+	bool "Specific board"
+	default y
+	help
+	  LED support is only for a specific board.
+
+if LED_STATUS || LED_STATUS_BOARD_SPECIFIC
 
 # Hidden constants
 
@@ -62,12 +68,6 @@ config LED_STATUS_GPIO
 	help
 	  The status LED can be connected to a GPIO pin. In such cases, the
 	  gpio_led driver can be used as a status LED backend implementation.
-
-config LED_STATUS_BOARD_SPECIFIC
-	bool "Specific board"
-	default y
-	help
-	  LED support is only for a specific board.
 
 comment "LEDs parameters"
 
