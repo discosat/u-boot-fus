@@ -59,7 +59,7 @@ int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
 }
 
 /*
- * DENX M28EVK:
+ * ARIES M28EVK:
  * setenv videomode
  * video=ctfb:x:800,y:480,depth:18,mode:0,pclk:30066,
  *       le:0,ri:256,up:0,lo:45,hs:1,vs:1,sync:100663296,vmode:0

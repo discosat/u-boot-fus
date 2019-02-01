@@ -1,267 +1,145 @@
 /*
- * (C) Copyright 2010
- * Jason Kridner <jkridner@beagleboard.org>
+ * Copyright (c) 2017 Google, Inc
+ * Written by Simon Glass <sjg@chromium.org>
  *
- * (C) Copyright 2014
- * F&S Elektronik Systeme GmbH <keller@fs-net.d>
- *
- * Based on cmd_led.c patch from:
- * http://www.mail-archive.com/u-boot@lists.denx.de/msg06873.html
- * (C) Copyright 2008
- * Ulf Samuelsson <ulf.samuelsson@atmel.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
-#include <config.h>
 #include <command.h>
-#include <status_led.h>
+#include <dm.h>
+#include <led.h>
+#include <dm/uclass-internal.h>
 
-struct led_tbl_s {
-	char		*string;	/* String for use in the command */
-	led_id_t	mask;		/* Mask used for calling __led_set() */
-	void		(*off)(void);	/* Optional function for turning LED off */
-	void		(*on)(void);	/* Optional function for turning LED on */
-	void		(*toggle)(void);/* Optional function for toggling LED */
-};
+#define LED_TOGGLE LEDST_COUNT
 
-typedef struct led_tbl_s led_tbl_t;
-
-/************************************************************************
- * Coloured LED functionality
- ************************************************************************
- * May be supplied by boards if desired
- */
-static inline void __coloured_LED_init(void) {}
-void coloured_LED_init(void)
-	__attribute__((weak, alias("__coloured_LED_init")));
-
-#define led_function_group(led, bit)		\
-static void led ## _off(void)			\
-{						\
-	__led_set(bit, 0);			\
-}						\
-static void led ## _on(void)			\
-{						\
-	__led_set(bit, 1);			\
-}						\
-static void led ## _toggle(void)		\
-{						\
-	__led_toggle(bit);			\
-}						\
-
-#ifdef CONFIG_LED_STATUS_BIT
-led_function_group(led0, CONFIG_LED_STATUS_BIT)
-#endif
-#ifdef CONFIG_LED_STATUS_BIT1
-led_function_group(led1, CONFIG_LED_STATUS_BIT1)
-#endif
-#ifdef CONFIG_LED_STATUS_BIT2
-led_function_group(led2, CONFIG_LED_STATUS_BIT2)
-#endif
-#ifdef CONFIG_LED_STATUS_BIT3
-led_function_group(led3, CONFIG_LED_STATUS_BIT3)
-#endif
-#ifdef CONFIG_LED_STATUS_BIT4
-led_function_group(led4, CONFIG_LED_STATUS_BIT4)
-#endif
-#ifdef CONFIG_LED_STATUS_BIT5
-led_function_group(led5, CONFIG_LED_STATUS_BIT5)
-#endif
-
-static const led_tbl_t led_commands[] = {
-#ifdef CONFIG_LED_STATUS_BOARD_SPECIFIC
-#ifdef CONFIG_LED_STATUS0
-	{ "0", CONFIG_LED_STATUS_BIT, led0_off, led0_on, led0_toggle },
-#endif
-#ifdef CONFIG_LED_STATUS1
-	{ "1", CONFIG_LED_STATUS_BIT1, led1_off, led1_on, led1_toggle },
-#endif
-#ifdef CONFIG_LED_STATUS2
-	{ "2", CONFIG_LED_STATUS_BIT2, led2_off, led2_on, led2_toggle },
-#endif
-#ifdef CONFIG_LED_STATUS3
-	{ "3", CONFIG_LED_STATUS_BIT3, led3_off, led3_on, led3_toggle },
-#endif
-#ifdef CONFIG_LED_STATUS4
-	{ "4", CONFIG_LED_STATUS_BIT4, led4_off, led4_on, led4_toggle },
-#endif
-#ifdef CONFIG_LED_STATUS5
-	{ "5", CONFIG_LED_STATUS_BIT5, led5_off, led5_on, led5_toggle },
-#endif
-#endif
-#ifdef CONFIG_LED_STATUS_GREEN
-	{ "green", CONFIG_LED_STATUS_GREEN, green_led_off, green_led_on, NULL },
-#endif
-#ifdef CONFIG_LED_STATUS_YELLOW
-	{ "yellow", CONFIG_LED_STATUS_YELLOW, yellow_led_off, yellow_led_on,
-	  NULL },
-#endif
-#ifdef CONFIG_LED_STATUS_RED
-	{ "red", CONFIG_LED_STATUS_RED, red_led_off, red_led_on, NULL },
-#endif
-#ifdef CONFIG_LED_STATUS_BLUE
-	{ "blue", CONFIG_LED_STATUS_BLUE, blue_led_off, blue_led_on, NULL },
+static const char *const state_label[] = {
+	[LEDST_OFF]	= "off",
+	[LEDST_ON]	= "on",
+	[LEDST_TOGGLE]	= "toggle",
+#ifdef CONFIG_LED_BLINK
+	[LEDST_BLINK]	= "blink",
 #endif
 };
 
-#define LED_OFF		0
-#define LED_ON		1
-#define LED_TOGGLE	2
-#define LED_BLINK       4
-
-static int led_state[ARRAY_SIZE(led_commands)];
-
-static void led_toggle(const struct led_tbl_s *led_command, int led)
+enum led_state_t get_led_cmd(char *var)
 {
-	if (led_command->toggle)
-		led_command->toggle();
-	else {
-		led_state[led] ^= LED_ON;
-		if (led_state[led] & LED_ON)
-			led_command->on();
-		else
-			led_command->off();
+	int i;
+
+	for (i = 0; i < LEDST_COUNT; i++) {
+		if (!strncmp(var, state_label[i], strlen(var)))
+			return i;
 	}
+
+	return -1;
 }
 
-#ifdef CONFIG_CMD_BLINK
-/* Interrupt service routine for blinking the LEDs, must not block */
-static void led_blink_callback(void *data)
+static int show_led_state(struct udevice *dev)
 {
-	int led;
+	int ret;
 
-	for (led = 0; led < ARRAY_SIZE(led_commands); led++) {
-		if (led_state[led] & LED_BLINK)
-			led_toggle(&led_commands[led], led);
-	}
+	ret = led_get_state(dev);
+	if (ret >= LEDST_COUNT)
+		ret = -EINVAL;
+	if (ret >= 0)
+		printf("%s\n", state_label[ret]);
+
+	return ret;
 }
-#endif
 
-int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int list_leds(void)
 {
-	int led, match = 0;
-	int cmd;
-#ifdef CONFIG_CMD_BLINK
-	static int have_blink;
-	int need_blink = 0;
-#endif
+	struct udevice *dev;
+	int ret;
 
-	/* Validate arguments */
-	if (argc != 3)
-		return CMD_RET_USAGE;
+	for (uclass_find_first_device(UCLASS_LED, &dev);
+	     dev;
+	     uclass_find_next_device(&dev)) {
+		struct led_uc_plat *plat = dev_get_uclass_platdata(dev);
 
-	if (strcmp(argv[2], "off") == 0)
-		cmd = LED_OFF;
-	else if (strcmp(argv[2], "on") == 0)
-		cmd = LED_ON;
-	else if (strcmp(argv[2], "toggle") == 0)
-		cmd = LED_TOGGLE;
-#ifdef CONFIG_CMD_BLINK
-	else if (strcmp(argv[2], "blink") == 0)
-		cmd = LED_BLINK;
-#endif
-	else
-		return CMD_RET_USAGE;
-
-	/* Handle LED action */
-	for (led = 0; led < ARRAY_SIZE(led_commands); led++) {
-		const struct led_tbl_s *led_command = &led_commands[led];
-
-		if ((strcmp("all", argv[1]) == 0) ||
-		    (strcmp(led_command->string, argv[1]) == 0)) {
-			match = 1;
-			switch (cmd) {
-			case LED_OFF:
-				led_state[led] = cmd;
-				if (led_command->off)
-					led_command->off();
-				break;
-			case LED_ON:
-				led_state[led] = cmd;
-				if (led_command->on)
-					led_command->on();
-				break;
-			case LED_TOGGLE:
-				led_state[led] &= LED_ON;
-				led_toggle(led_command, led);
-				break;
-#ifdef CONFIG_CMD_BLINK
-			case LED_BLINK:
-				led_state[led] |= LED_BLINK;
-				break;
-#endif
-			}
+		if (!plat->label)
+			continue;
+		printf("%-15s ", plat->label);
+		if (device_active(dev)) {
+			ret = show_led_state(dev);
+			if (ret < 0)
+				printf("Error %d\n", ret);
+		} else {
+			printf("<inactive>\n");
 		}
-#ifdef CONFIG_CMD_BLINK
-		need_blink |= led_state[led] & LED_BLINK;
-#endif
 	}
-
-	/* If we ran out of matches, print Usage */
-	if (!match)
-		return CMD_RET_USAGE;
-
-#ifdef CONFIG_CMD_BLINK
-	/* If there was at least one blinking LED, activate the (interrupt
-	   based) blink timer with the requested rate; otherweise deactivate
-	   the blink timer */
-	if (need_blink != have_blink) {
-		have_blink = need_blink;
-		if (need_blink)
-			add_blink_callback(led_blink_callback, NULL);
-		else
-			remove_blink_callback(led_blink_callback);
-	}
-#endif
 
 	return 0;
 }
 
+int do_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	enum led_state_t cmd;
+	const char *led_label;
+	struct udevice *dev;
+#ifdef CONFIG_LED_BLINK
+	int freq_ms = 0;
+#endif
+	int ret;
+
+	/* Validate arguments */
+	if (argc < 2)
+		return CMD_RET_USAGE;
+	led_label = argv[1];
+	if (*led_label == 'l')
+		return list_leds();
+
+	cmd = argc > 2 ? get_led_cmd(argv[2]) : LEDST_COUNT;
+	if (cmd < 0)
+		return CMD_RET_USAGE;
+#ifdef CONFIG_LED_BLINK
+	if (cmd == LEDST_BLINK) {
+		if (argc < 4)
+			return CMD_RET_USAGE;
+		freq_ms = simple_strtoul(argv[3], NULL, 10);
+	}
+#endif
+	ret = led_get_by_label(led_label, &dev);
+	if (ret) {
+		printf("LED '%s' not found (err=%d)\n", led_label, ret);
+		return CMD_RET_FAILURE;
+	}
+	switch (cmd) {
+	case LEDST_OFF:
+	case LEDST_ON:
+	case LEDST_TOGGLE:
+		ret = led_set_state(dev, cmd);
+		break;
+#ifdef CONFIG_LED_BLINK
+	case LEDST_BLINK:
+		ret = led_set_period(dev, freq_ms);
+		if (!ret)
+			ret = led_set_state(dev, LEDST_BLINK);
+		break;
+#endif
+	case LEDST_COUNT:
+		printf("LED '%s': ", led_label);
+		ret = show_led_state(dev);
+		break;
+	}
+	if (ret < 0) {
+		printf("LED '%s' operation failed (err=%d)\n", led_label, ret);
+		return CMD_RET_FAILURE;
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_LED_BLINK
+#define BLINK "|blink [blink-freq in ms]"
+#else
+#define BLINK ""
+#endif
+
 U_BOOT_CMD(
 	led, 4, 1, do_led,
-	"["
-#ifdef CONFIG_LED_STATUS_BOARD_SPECIFIC
-#ifdef CONFIG_LED_STATUS0
-	"0|"
-#endif
-#ifdef CONFIG_LED_STATUS1
-	"1|"
-#endif
-#ifdef CONFIG_LED_STATUS2
-	"2|"
-#endif
-#ifdef CONFIG_LED_STATUS3
-	"3|"
-#endif
-#ifdef CONFIG_LED_STATUS4
-	"4|"
-#endif
-#ifdef CONFIG_LED_STATUS5
-	"5|"
-#endif
-#endif
-#ifdef CONFIG_LED_STATUS_GREEN
-	"green|"
-#endif
-#ifdef CONFIG_LED_STATUS_YELLOW
-	"yellow|"
-#endif
-#ifdef CONFIG_LED_STATUS_RED
-	"red|"
-#endif
-#ifdef CONFIG_LED_STATUS_BLUE
-	"blue|"
-#endif
-	"all] [on|off|toggle"
-#ifdef CONFIG_CMD_BLINK
-	"|blink"
-#endif
-	"]",
-	"[led_name] [on|off|toggle"
-#ifdef CONFIG_CMD_BLINK
-	"|blink"
-#endif
-	"] sets or clears led(s)"
+	"manage LEDs",
+	"<led_label> on|off|toggle" BLINK "\tChange LED state\n"
+	"led [<led_label>\tGet LED state\n"
+	"led list\t\tshow a list of LEDs"
 );

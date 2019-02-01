@@ -71,7 +71,6 @@ int ax88796_initialize(int dev_id, uint32_t base_addr, int mode);
 int ftgmac100_initialize(bd_t *bits);
 int ftmac100_initialize(bd_t *bits);
 int ftmac110_initialize(bd_t *bits);
-int greth_initialize(bd_t *bis);
 void gt6426x_eth_initialize(bd_t *bis);
 int ks8851_mll_initialize(u8 dev_num, int base_addr);
 int lan91c96_initialize(u8 dev_num, int base_addr);

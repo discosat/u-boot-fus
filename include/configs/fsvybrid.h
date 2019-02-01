@@ -112,7 +112,6 @@
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
 #define CONFIG_FS_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
-#define CONFIG_SYS_THUMB_BUILD		/* Build U-Boot in THUMB mode */
 #define CONFIG_BOARD_SIZE_LIMIT CONFIG_FS_UBOOTNB0_SIZE
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
@@ -355,20 +354,12 @@
  * Command Definition
  ************************************************************************/
 /* Only those commands are listed that are not available via Kconfig */
-#undef CONFIG_CMD_BEDBUG	/* No PPC bedbug debugging support */
 #define CONFIG_CMD_BLINK	/* Support for blinking LEDs */
-#undef CONFIG_CMD_BMP		/* No old BMP, use new display support */
-#undef CONFIG_CMD_CBFS		/* No support for coreboot filesystem */
-#undef CONFIG_CMD_CDP		/* No support for CISCOs CDP network config */
-#undef CONFIG_CMD_CRAMFS	/* No support for CRAMFS filesystem */
-#undef CONFIG_CMD_DATE		/* No date command */
-#undef CONFIG_CMD_DIAG		/* No support for board selftest */
 #undef CONFIG_CMD_DTT		/* No digital thermometer and thermostat */
 #undef CONFIG_CMD_EEPROM	/* No EEPROM support */
 #undef CONFIG_CMD_FDC		/* No floppy disc controller */
 #undef CONFIG_CMD_FITUPD	/* No update from FIT image */
 #define CONFIG_CMD_GETTIME	/* Have gettime command */
-#undef CONFIG_CMD_GPT		/* No support for GPT partition tables */
 #undef CONFIG_CMD_HASH		/* No hash command */
 #undef CONFIG_CMD_IDE		/* No IDE disk support */
 #undef CONFIG_CMD_IMMAP		/* No support for PPC immap table */
@@ -376,16 +367,13 @@
 #undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
 #undef CONFIG_CMD_IRQ		/* No interrupt support */
 #undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
-#undef CONFIG_CMD_MD5SUM	/* No support for md5sum checksums */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
 #define CONFIG_CMD_NAND_CONVERT	/* support for NAND format conversion */
 #undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */
-#undef CONFIG_CMD_PART		/* No support for partition info */
 #undef CONFIG_CMD_PCI		/* No PCI support */
 #undef CONFIG_CMD_PCMCIA	/* No support for PCMCIA cards */
 #undef CONFIG_CMD_PORTIO	/* No port commands (in, out) */
-#undef CONFIG_CMD_PXE		/* No support for PXE files from pxelinux */
 #define CONFIG_CMD_READ		/* Raw read from media without filesystem */
 #undef CONFIG_CMD_REGINFO	/* No register support on ARM, only PPC */
 #undef CONFIG_CMD_REISER	/* No support for reiserfs filesystem */
@@ -397,7 +385,6 @@
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
-#define CONFIG_CMD_UBIFS	/* Support for UBIFS filesystem */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
 #undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
 
