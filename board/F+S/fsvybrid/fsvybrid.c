@@ -20,7 +20,7 @@
 #endif
 #include <serial.h>			/* struct serial_device */
 
-#ifdef CONFIG_GENERIC_MMC
+#ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
 #include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
 #endif
@@ -352,7 +352,7 @@ void board_nand_init(void)
 #endif
 }
 
-#ifdef CONFIG_GENERIC_MMC
+#ifdef CONFIG_FSL_ESDHC
 struct fsl_esdhc_cfg esdhc_cfg[] = {
 	{
 		.esdhc_base = ESDHC0_BASE_ADDR,
@@ -431,7 +431,7 @@ int board_mmc_init(bd_t *bis)
 	esdhc_cfg[index].sdhc_clk = vybrid_get_esdhc_clk(index);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
-#endif /* CONFIG_GENERIC_MMC */
+#endif /* CONFIG_FSL_ESDHC */
 
 #ifdef CONFIG_USB_EHCI_VYBRID
 int board_ehci_hcd_init(int port)

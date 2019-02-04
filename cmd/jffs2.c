@@ -603,7 +603,7 @@ U_BOOT_CMD(
 	"      with offset 'off'"
 );
 U_BOOT_CMD(
-	ls,	2,	1,	do_jffs2_ls,
+	fsls,	2,	1,	do_jffs2_ls,
 	"list files in a directory (default /)",
 	"[ directory ]"
 );

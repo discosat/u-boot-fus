@@ -167,7 +167,6 @@
 /************************************************************************
  * OTP Memory (Fuses)
  ************************************************************************/
-#define CONFIG_CMD_FUSE
 #define CONFIG_MXC_OCOTP
 
 
@@ -236,8 +235,6 @@
  * USB Host
  ************************************************************************/
 /* Use USB1 as host */
-#define CONFIG_USB_EHCI			/* Use EHCI driver (USB2.0) */
-#define CONFIG_USB_EHCI_MX6		/* This is MX6 EHCI */
 #define CONFIG_USB_EHCI_POWERDOWN	/* Shut down VBUS power on usb stop */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
@@ -349,18 +346,8 @@
  ************************************************************************/
 /* Only those commands are listed that are not available via Kconfig */
 #define CONFIG_CMD_BLINK	/* Support blinking LEDs */
-#undef CONFIG_CMD_DTT		/* No digital thermometer and thermostat */
-#undef CONFIG_CMD_EEPROM	/* No EEPROM support */
-#undef CONFIG_CMD_FDC		/* No floppy disc controller */
 #undef CONFIG_CMD_FITUPD	/* No update from FIT image */
-#define CONFIG_CMD_GETTIME	/* Have gettime command */
-#undef CONFIG_CMD_HASH		/* No hash command */
-#undef CONFIG_CMD_IDE		/* No IDE disk support */
-#undef CONFIG_CMD_IMMAP		/* No support for PPC immap table */
 #define CONFIG_CMD_INI		/* Support INI files to init environment */
-#undef CONFIG_CMD_IO		/* No I/O space commands iod and iow */
-#undef CONFIG_CMD_IRQ		/* No interrupt support */
-#undef CONFIG_CMD_JFFS2		/* No support for JFFS2 filesystem */
 #undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
 #define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
 #undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */
@@ -374,7 +361,6 @@
 #undef CONFIG_CMD_SAVES		/* No support for serial uploads (saving) */
 #undef CONFIG_CMD_SCSI		/* No support for SCSI disks */
 #undef CONFIG_CMD_SDRAM		/* Support SDRAM chips via I2C */
-#undef CONFIG_CMD_SHA1SUM	/* No support for sha1sum checksums */
 #undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
 #undef CONFIG_CMD_STRINGS	/* No support to show strings */
 #undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
@@ -411,7 +397,6 @@
  * Filesystem Support
  ************************************************************************/
 /* FAT */
-#define CONFIG_FS_FAT			/* Support FAT... */
 #define CONFIG_SUPPORT_VFAT		/* ...with VFAT */
 
 /* EXT4 */

@@ -11,7 +11,7 @@
 
 #include <config.h>
 
-#ifdef CONFIG_GENERIC_MMC
+#ifdef CONFIG_FSL_ESDHC
 
 #include <common.h>			/* Types, container_of(), ... */
 #include <asm/gpio.h>			/* gpio_get_value(), ... */
@@ -87,4 +87,4 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 
 	return fsl_esdhc_initialize(bd, &cfg->esdhc);
 }
-#endif /* CONFIG_GENERIC_MMC */
+#endif /* CONFIG_FSL_ESDHC */

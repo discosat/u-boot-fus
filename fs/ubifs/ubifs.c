@@ -940,7 +940,7 @@ int ubifs_load(const char *filename, u32 addr, u32 size)
 	printf("Loading file '%s' to addr 0x%08x...\n", filename, addr);
 
 	set_fileaddr(addr);
-	err = ubifs_read(filename, (void *)addr, 0, size, &actread);
+	err = ubifs_read(filename, (void *)(uintptr_t)addr, 0, size, &actread);
 	if (err == 0) {
 		setenv_fileinfo(actread);
 		printf("Done\n");

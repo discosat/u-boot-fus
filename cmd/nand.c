@@ -298,8 +298,8 @@ static void nand_print_and_set_info(int idx)
 	printf("  OOB size   %8d b\n", mtd->oobsize);
 	printf("  Erase size %8d b\n", mtd->erasesize);
 	printf("  Subpagesize %8d b\n", chip->subpagesize);
-	printf("  Options     0x%8x\n", chip->options);
-	printf("  BBT options 0x%8x\n", chip->bbt_options);
+	printf("  Options     0x%08x\n", chip->options);
+	printf("  BBT options 0x%08x\n", chip->bbt_options);
 
 	/* Set geometry info */
 	setenv_hex("nand_writesize", mtd->writesize);

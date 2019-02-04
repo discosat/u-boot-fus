@@ -17,7 +17,7 @@
 #endif
 #include <serial.h>			/* struct serial_device */
 
-#ifdef CONFIG_GENERIC_MMC
+#ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
 #include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
@@ -412,7 +412,7 @@ void board_nand_init(void)
 #endif
 }
 
-#ifdef CONFIG_GENERIC_MMC
+#ifdef CONFIG_FSL_ESDHC
 /*
  * SD/MMC support.
  *
@@ -654,7 +654,7 @@ int board_mmc_init(bd_t *bd)
 
 	return ret;
 }
-#endif
+#endif /* CONFIG_FSL_ESDHC */
 
 #ifdef CONFIG_VIDEO_IPUV3
 /*
