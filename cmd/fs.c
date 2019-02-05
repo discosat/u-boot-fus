@@ -18,7 +18,7 @@ static int do_size_wrapper(cmd_tbl_t *cmdtp, int flag, int argc, char * const ar
 
 U_BOOT_CMD(
 	size,	4,	0,	do_size_wrapper,
-	"determine a file's size and set variable filesize",
+	"determine a file's size and set environment variable filesize",
 	"<interface> <dev[:part]> <filename>\n"
 	"    - Find file 'filename' from 'dev' on 'interface'\n"
 	"      and determine its size."

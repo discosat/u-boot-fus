@@ -1710,7 +1710,6 @@ int mmc_start_init(struct mmc *mmc)
 		return err;
 #endif
 	mmc->ddr_mode = 0;
-	mmc_set_bus_width(mmc, 1);
 	mmc_set_clock(mmc, 1);
 	mmc_set_bus_width(mmc, 1);
 

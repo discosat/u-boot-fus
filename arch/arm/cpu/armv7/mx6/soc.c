@@ -697,11 +697,12 @@ void imx_setup_hdmi(void)
 		 << MXC_CCM_CHSCCDR_IPU1_DI0_PRE_CLK_SEL_OFFSET);
 	writel(reg, &mxc_ccm->chsccdr);
 
-	/* Workaround to clear the overflow condition */
+	/* Clear the overflow condition */
 	if (readb(&hdmi->ih_fc_stat2) & HDMI_IH_FC_STAT2_OVERFLOW_MASK) {
 		/* TMDS software reset */
 		writeb((u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ, &hdmi->mc_swrstz);
 		val = readb(&hdmi->fc_invidconf);
+		/* Need minimum 3 times to write to clear the register */
 		for (count = 0 ; count < 5 ; count++)
 			writeb(val, &hdmi->fc_invidconf);
 	}
