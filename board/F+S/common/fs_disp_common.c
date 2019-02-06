@@ -50,7 +50,7 @@ static const char *parse_pos;
  *   FB_SYNC_COMP_HIGH_ACT: DE signal active high
  *   FB_SYNC_ON_GREEN:      Latch on rising edge of pixel clock
  */
-const struct fb_videomode const display_db[] = {
+const struct fb_videomode display_db[] = {
 	{
 		.name           = "EDT-ET070080DH6",
 		.refresh        = 60,

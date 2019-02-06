@@ -1286,7 +1286,7 @@ int board_ehci_hcd_init(int index)
 			cfg.reset_gpio = IMX_GPIO_NR(2, 29);
 			break;
 		case BT_QBLISSA9R2:	/* PWR always on, RESET for USB hub */
-			cfg.reset_pad = usb_hub_reset_pad_armstonea9r2;
+			cfg.reset_pad = usb_hub_reset_pad_qblissa9r2;
 			cfg.reset_gpio = IMX_GPIO_NR(3, 15);
 			break;
 		case BT_NETDCUA9:	/* PWR active high, no USB hub */

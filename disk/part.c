@@ -108,7 +108,7 @@ void dev_print (struct blk_desc *dev_desc)
 {
 	lba512_t lba512; /* number of blocks if 512bytes block size */
 	int if_type = dev_desc->if_type;
-	static const char const *if_type_table[] = {
+	static const char *const if_type_table[] = {
 		[IF_TYPE_UNKNOWN] = "Unknown",
 		[IF_TYPE_IDE] = "IDE",
 		[IF_TYPE_SCSI] = "SCSI",
