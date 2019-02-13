@@ -15,151 +15,178 @@
 #include <linux/compiler.h>
 #include <asm/io.h>			/* __raw_readl(), __raw_writel() */
 
-/* Register definitions */
-#define URXD  0x0  /* Receiver Register */
-#define UTXD  0x40 /* Transmitter Register */
-#define UCR1  0x80 /* Control Register 1 */
-#define UCR2  0x84 /* Control Register 2 */
-#define UCR3  0x88 /* Control Register 3 */
-#define UCR4  0x8c /* Control Register 4 */
-#define UFCR  0x90 /* FIFO Control Register */
-#define USR1  0x94 /* Status Register 1 */
-#define USR2  0x98 /* Status Register 2 */
-#define UESC  0x9c /* Escape Character Register */
-#define UTIM  0xa0 /* Escape Timer Register */
-#define UBIR  0xa4 /* BRM Incremental Register */
-#define UBMR  0xa8 /* BRM Modulator Register */
-#define UBRC  0xac /* Baud Rate Count Register */
-#define UTS   0xb4 /* UART Test Register (mx31) */
 
 /* UART Control Register Bit Fields.*/
-#define  URXD_CHARRDY    (1<<15)
-#define  URXD_ERR        (1<<14)
-#define  URXD_OVRRUN     (1<<13)
-#define  URXD_FRMERR     (1<<12)
-#define  URXD_BRK        (1<<11)
-#define  URXD_PRERR      (1<<10)
-#define  URXD_RX_DATA    (0xFF)
-#define  UCR1_ADEN       (1<<15) /* Auto dectect interrupt */
-#define  UCR1_ADBR       (1<<14) /* Auto detect baud rate */
-#define  UCR1_TRDYEN     (1<<13) /* Transmitter ready interrupt enable */
-#define  UCR1_IDEN       (1<<12) /* Idle condition interrupt */
-#define  UCR1_RRDYEN     (1<<9)	 /* Recv ready interrupt enable */
-#define  UCR1_RDMAEN     (1<<8)	 /* Recv ready DMA enable */
-#define  UCR1_IREN       (1<<7)	 /* Infrared interface enable */
-#define  UCR1_TXMPTYEN   (1<<6)	 /* Transimitter empty interrupt enable */
-#define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
-#define  UCR1_SNDBRK     (1<<4)	 /* Send break */
-#define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
-#define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
-#define  UCR1_DOZE       (1<<1)	 /* Doze */
-#define  UCR1_UARTEN     (1<<0)	 /* UART enabled */
-#define  UCR2_ESCI	 (1<<15) /* Escape seq interrupt enable */
-#define  UCR2_IRTS	 (1<<14) /* Ignore RTS pin */
-#define  UCR2_CTSC	 (1<<13) /* CTS pin control */
-#define  UCR2_CTS        (1<<12) /* Clear to send */
-#define  UCR2_ESCEN      (1<<11) /* Escape enable */
-#define  UCR2_PREN       (1<<8)  /* Parity enable */
-#define  UCR2_PROE       (1<<7)  /* Parity odd/even */
-#define  UCR2_STPB       (1<<6)	 /* Stop */
-#define  UCR2_WS         (1<<5)	 /* Word size */
-#define  UCR2_RTSEN      (1<<4)	 /* Request to send interrupt enable */
-#define  UCR2_TXEN       (1<<2)	 /* Transmitter enabled */
-#define  UCR2_RXEN       (1<<1)	 /* Receiver enabled */
-#define  UCR2_SRST	 (1<<0)	 /* SW reset */
-#define  UCR3_DTREN	 (1<<13) /* DTR interrupt enable */
-#define  UCR3_PARERREN   (1<<12) /* Parity enable */
-#define  UCR3_FRAERREN   (1<<11) /* Frame error interrupt enable */
-#define  UCR3_DSR        (1<<10) /* Data set ready */
-#define  UCR3_DCD        (1<<9)  /* Data carrier detect */
-#define  UCR3_RI         (1<<8)  /* Ring indicator */
-#define  UCR3_ADNIMP     (1<<7)  /* Autobaud Detection Not Improved */
-#define  UCR3_RXDSEN	 (1<<6)  /* Receive status interrupt enable */
-#define  UCR3_AIRINTEN   (1<<5)  /* Async IR wake interrupt enable */
-#define  UCR3_AWAKEN	 (1<<4)  /* Async wake interrupt enable */
-#define  UCR3_REF25	 (1<<3)  /* Ref freq 25 MHz */
-#define  UCR3_REF30	 (1<<2)  /* Ref Freq 30 MHz */
-#define  UCR3_INVT	 (1<<1)  /* Inverted Infrared transmission */
-#define  UCR3_BPEN	 (1<<0)  /* Preset registers enable */
-#define  UCR4_CTSTL_32   (32<<10) /* CTS trigger level (32 chars) */
-#define  UCR4_INVR	 (1<<9)  /* Inverted infrared reception */
-#define  UCR4_ENIRI	 (1<<8)  /* Serial infrared interrupt enable */
-#define  UCR4_WKEN	 (1<<7)  /* Wake interrupt enable */
-#define  UCR4_REF16	 (1<<6)  /* Ref freq 16 MHz */
-#define  UCR4_IRSC	 (1<<5)  /* IR special case */
-#define  UCR4_TCEN	 (1<<3)  /* Transmit complete interrupt enable */
-#define  UCR4_BKEN	 (1<<2)  /* Break condition interrupt enable */
-#define  UCR4_OREN	 (1<<1)  /* Receiver overrun interrupt enable */
-#define  UCR4_DREN	 (1<<0)  /* Recv data ready interrupt enable */
-#define  UFCR_RXTL_SHF   0       /* Receiver trigger level shift */
-#define  UFCR_RFDIV      (7<<7)  /* Reference freq divider mask */
-#define  UFCR_RFDIV_SHF  7       /* Reference freq divider shift */
-#define  UFCR_DCEDTE	 (1<<6)  /* DTE mode select */
-#define  UFCR_TXTL_SHF   10      /* Transmitter trigger level shift */
-#define  USR1_PARITYERR  (1<<15) /* Parity error interrupt flag */
-#define  USR1_RTSS	 (1<<14) /* RTS pin status */
-#define  USR1_TRDY	 (1<<13) /* Transmitter ready interrupt/dma flag */
-#define  USR1_RTSD	 (1<<12) /* RTS delta */
-#define  USR1_ESCF	 (1<<11) /* Escape seq interrupt flag */
-#define  USR1_FRAMERR    (1<<10) /* Frame error interrupt flag */
-#define  USR1_RRDY       (1<<9)	 /* Receiver ready interrupt/dma flag */
-#define  USR1_TIMEOUT    (1<<7)	 /* Receive timeout interrupt status */
-#define  USR1_RXDS	 (1<<6)	 /* Receiver idle interrupt flag */
-#define  USR1_AIRINT	 (1<<5)	 /* Async IR wake interrupt flag */
-#define  USR1_AWAKE	 (1<<4)	 /* Aysnc wake interrupt flag */
-#define  USR2_ADET	 (1<<15) /* Auto baud rate detect complete */
-#define  USR2_TXFE	 (1<<14) /* Transmit buffer FIFO empty */
-#define  USR2_DTRF	 (1<<13) /* DTR edge interrupt flag */
-#define  USR2_IDLE	 (1<<12) /* Idle condition */
-#define  USR2_IRINT	 (1<<8)	 /* Serial infrared interrupt flag */
-#define  USR2_WAKE	 (1<<7)	 /* Wake */
-#define  USR2_RTSF	 (1<<4)	 /* RTS edge interrupt flag */
-#define  USR2_TXDC	 (1<<3)	 /* Transmitter complete */
-#define  USR2_BRCD	 (1<<2)	 /* Break condition */
-#define  USR2_ORE        (1<<1)	 /* Overrun error */
-#define  USR2_RDR        (1<<0)	 /* Recv data ready */
-#define  UTS_FRCPERR	 (1<<13) /* Force parity error */
-#define  UTS_LOOP        (1<<12) /* Loop tx and rx */
-#define  UTS_TXEMPTY	 (1<<6)	 /* TxFIFO empty */
-#define  UTS_RXEMPTY	 (1<<5)	 /* RxFIFO empty */
-#define  UTS_TXFULL	 (1<<4)	 /* TxFIFO full */
-#define  UTS_RXFULL	 (1<<3)	 /* RxFIFO full */
-#define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
+#define URXD_CHARRDY	(1<<15)
+#define URXD_ERR	(1<<14)
+#define URXD_OVRRUN	(1<<13)
+#define URXD_FRMERR	(1<<12)
+#define URXD_BRK	(1<<11)
+#define URXD_PRERR	(1<<10)
+#define URXD_RX_DATA	(0xFF)
+#define UCR1_ADEN	(1<<15)	/* Auto dectect interrupt */
+#define UCR1_ADBR	(1<<14)	/* Auto detect baud rate */
+#define UCR1_TRDYEN	(1<<13)	/* Transmitter ready interrupt enable */
+#define UCR1_IDEN	(1<<12)	/* Idle condition interrupt */
+#define UCR1_RRDYEN	(1<<9)	/* Recv ready interrupt enable */
+#define UCR1_RDMAEN	(1<<8)	/* Recv ready DMA enable */
+#define UCR1_IREN	(1<<7)	/* Infrared interface enable */
+#define UCR1_TXMPTYEN	(1<<6)	/* Transimitter empty interrupt enable */
+#define UCR1_RTSDEN	(1<<5)	/* RTS delta interrupt enable */
+#define UCR1_SNDBRK	(1<<4)	/* Send break */
+#define UCR1_TDMAEN	(1<<3)	/* Transmitter ready DMA enable */
+#define UCR1_UARTCLKEN	(1<<2)	/* UART clock enabled */
+#define UCR1_DOZE	(1<<1)	/* Doze */
+#define UCR1_UARTEN	(1<<0)	/* UART enabled */
+#define UCR2_ESCI	(1<<15)	/* Escape seq interrupt enable */
+#define UCR2_IRTS	(1<<14)	/* Ignore RTS pin */
+#define UCR2_CTSC	(1<<13)	/* CTS pin control */
+#define UCR2_CTS	(1<<12)	/* Clear to send */
+#define UCR2_ESCEN	(1<<11)	/* Escape enable */
+#define UCR2_PREN	(1<<8)	/* Parity enable */
+#define UCR2_PROE	(1<<7)	/* Parity odd/even */
+#define UCR2_STPB	(1<<6)	/* Stop */
+#define UCR2_WS		(1<<5)	/* Word size */
+#define UCR2_RTSEN	(1<<4)	/* Request to send interrupt enable */
+#define UCR2_TXEN	(1<<2)	/* Transmitter enabled */
+#define UCR2_RXEN	(1<<1)	/* Receiver enabled */
+#define UCR2_SRST	(1<<0)	/* SW reset */
+#define UCR3_DTREN	(1<<13)	/* DTR interrupt enable */
+#define UCR3_PARERREN	(1<<12)	/* Parity enable */
+#define UCR3_FRAERREN	(1<<11)	/* Frame error interrupt enable */
+#define UCR3_DSR	(1<<10)	/* Data set ready */
+#define UCR3_DCD	(1<<9)	/* Data carrier detect */
+#define UCR3_RI		(1<<8)	/* Ring indicator */
+#define UCR3_ADNIMP	(1<<7)	/* Autobaud Detection Not Improved */
+#define UCR3_RXDSEN	(1<<6)	/* Receive status interrupt enable */
+#define UCR3_AIRINTEN	(1<<5)	/* Async IR wake interrupt enable */
+#define UCR3_AWAKEN	(1<<4)	/* Async wake interrupt enable */
+#define UCR3_REF25	(1<<3)	/* Ref freq 25 MHz */
+#define UCR3_REF30	(1<<2)	/* Ref Freq 30 MHz */
+#define UCR3_INVT	(1<<1)	/* Inverted Infrared transmission */
+#define UCR3_BPEN	(1<<0)	/* Preset registers enable */
+#define UCR4_CTSTL_32	(32<<10) /* CTS trigger level (32 chars) */
+#define UCR4_INVR	(1<<9)	/* Inverted infrared reception */
+#define UCR4_ENIRI	(1<<8)	/* Serial infrared interrupt enable */
+#define UCR4_WKEN	(1<<7)	/* Wake interrupt enable */
+#define UCR4_REF16	(1<<6)	/* Ref freq 16 MHz */
+#define UCR4_IRSC	(1<<5)	/* IR special case */
+#define UCR4_TCEN	(1<<3)	/* Transmit complete interrupt enable */
+#define UCR4_BKEN	(1<<2)	/* Break condition interrupt enable */
+#define UCR4_OREN	(1<<1)	/* Receiver overrun interrupt enable */
+#define UCR4_DREN	(1<<0)	/* Recv data ready interrupt enable */
+#define UFCR_RXTL_SHF	0	/* Receiver trigger level shift */
+#define UFCR_RFDIV	(7<<7)	/* Reference freq divider mask */
+#define UFCR_RFDIV_SHF	7	/* Reference freq divider shift */
+#define UFCR_DCEDTE	(1<<6)	/* DTE mode select */
+#define UFCR_TXTL_SHF	10	/* Transmitter trigger level shift */
+#define USR1_PARITYERR	(1<<15)	/* Parity error interrupt flag */
+#define USR1_RTSS	(1<<14)	/* RTS pin status */
+#define USR1_TRDY	(1<<13)	/* Transmitter ready interrupt/dma flag */
+#define USR1_RTSD	(1<<12)	/* RTS delta */
+#define USR1_ESCF	(1<<11)	/* Escape seq interrupt flag */
+#define USR1_FRAMERR	(1<<10)	/* Frame error interrupt flag */
+#define USR1_RRDY	(1<<9)	/* Receiver ready interrupt/dma flag */
+#define USR1_TIMEOUT	(1<<7)	/* Receive timeout interrupt status */
+#define USR1_RXDS	(1<<6)	/* Receiver idle interrupt flag */
+#define USR1_AIRINT	(1<<5)	/* Async IR wake interrupt flag */
+#define USR1_AWAKE	(1<<4)	/* Aysnc wake interrupt flag */
+#define USR2_ADET	(1<<15)	/* Auto baud rate detect complete */
+#define USR2_TXFE	(1<<14)	/* Transmit buffer FIFO empty */
+#define USR2_DTRF	(1<<13)	/* DTR edge interrupt flag */
+#define USR2_IDLE	(1<<12)	/* Idle condition */
+#define USR2_IRINT	(1<<8)	/* Serial infrared interrupt flag */
+#define USR2_WAKE	(1<<7)	/* Wake */
+#define USR2_RTSF	(1<<4)	/* RTS edge interrupt flag */
+#define USR2_TXDC	(1<<3)	/* Transmitter complete */
+#define USR2_BRCD	(1<<2)	/* Break condition */
+#define USR2_ORE	(1<<1)	/* Overrun error */
+#define USR2_RDR	(1<<0)	/* Recv data ready */
+#define UTS_FRCPERR	(1<<13)	/* Force parity error */
+#define UTS_LOOP	(1<<12)	/* Loop tx and rx */
+#define UTS_TXEMPTY	(1<<6)	/* TxFIFO empty */
+#define UTS_RXEMPTY	(1<<5)	/* RxFIFO empty */
+#define UTS_TXFULL	(1<<4)	/* TxFIFO full */
+#define UTS_RXFULL	(1<<3)	/* RxFIFO full */
+#define UTS_SOFTRST	(1<<0)	/* Software reset */
+
+#define TXTL		2 	/* reset default */
+#define RXTL		1	/* reset default */
+#define RFDIV		4	/* divide input clock by 2 */
+
+DECLARE_GLOBAL_DATA_PTR;
+
+struct mxc_uart {
+	u32 rxd;
+	u32 spare0[15];
+
+	u32 txd;
+	u32 spare1[15];
+
+	u32 cr1;
+	u32 cr2;
+	u32 cr3;
+	u32 cr4;
+
+	u32 fcr;
+	u32 sr1;
+	u32 sr2;
+	u32 esc;
+
+	u32 tim;
+	u32 bir;
+	u32 bmr;
+	u32 brc;
+
+	u32 onems;
+	u32 ts;
+};
+
+static void _mxc_serial_init(struct mxc_uart *base)
+{
+	writel(0, &base->cr1);
+	writel(0, &base->cr2);
+
+	while (!(readl(&base->cr2) & UCR2_SRST));
+
+	writel(0x704 | UCR3_ADNIMP, &base->cr3);
+	writel(0x8000, &base->cr4);
+	writel(0x2b, &base->esc);
+	writel(0, &base->tim);
+
+	writel(0, &base->ts);
+}
+
+static void _mxc_serial_setbrg(struct mxc_uart *base, unsigned long clk,
+			       unsigned long baudrate, bool use_dte)
+{
+	u32 tmp;
+
+	tmp = RFDIV << UFCR_RFDIV_SHF;
+	if (use_dte)
+		tmp |= UFCR_DCEDTE;
+	else
+		tmp |= (TXTL << UFCR_TXTL_SHF) | (RXTL << UFCR_RXTL_SHF);
+	writel(tmp, &base->fcr);
+
+	writel(0xf, &base->bir);
+	writel(clk / (2 * baudrate), &base->bmr);
+
+	writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
+	       &base->cr2);
+	writel(UCR1_UARTEN, &base->cr1);
+}
 
 #ifndef CONFIG_DM_SERIAL
 
-/* Register definitions */
-#define URXD  0x0  /* Receiver Register */
-#define UTXD  0x40 /* Transmitter Register */
-#define UCR1  0x80 /* Control Register 1 */
-#define UCR2  0x84 /* Control Register 2 */
-#define UCR3  0x88 /* Control Register 3 */
-#define UCR4  0x8c /* Control Register 4 */
-#define UFCR  0x90 /* FIFO Control Register */
-#define USR1  0x94 /* Status Register 1 */
-#define USR2  0x98 /* Status Register 2 */
-#define UESC  0x9c /* Escape Character Register */
-#define UTIM  0xa0 /* Escape Timer Register */
-#define UBIR  0xa4 /* BRM Incremental Register */
-#define UBMR  0xa8 /* BRM Modulator Register */
-#define UBRC  0xac /* Baud Rate Count Register */
-#define UTS   0xb4 /* UART Test Register (mx31) */
-
-#define TXTL  2 /* reset default */
-#define RXTL  1 /* reset default */
-#define RFDIV 4 /* divide input clock by 2 */
-
 static void mxc_serial_setbrg(const struct serial_device *sdev)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	u32 clk = imx_get_uartclk();
-	void *uart_phys = sdev->dev.priv;
 
-	__raw_writel((RFDIV << UFCR_RFDIV_SHF) | (TXTL << UFCR_TXTL_SHF)
-		     | (RXTL << UFCR_RXTL_SHF), uart_phys + UFCR);
-	__raw_writel(0xF, uart_phys + UBIR);
-	__raw_writel(clk / (2 * gd->baudrate), uart_phys + UBMR);
+	if (!gd->baudrate)
+		gd->baudrate = CONFIG_BAUDRATE;
 
+	_mxc_serial_setbrg(sdev->dev.priv, clk, gd->baudrate, false);
 }
 
 /*
@@ -170,43 +197,26 @@ static void mxc_serial_setbrg(const struct serial_device *sdev)
 static int mxc_serial_start(const struct stdio_dev *pdev)
 {
 	struct serial_device *sdev = to_serial_device(pdev);
-	void *uart_phys = sdev->dev.priv;
 
-	__raw_writel(0x0, uart_phys + UCR1);
-	__raw_writel(0x0, uart_phys + UCR2);
+	_mxc_serial_init(sdev->dev.priv);
 
-	while (!(__raw_readl(uart_phys + UCR2) & UCR2_SRST))
-		; /* Do nothing */
-
-	__raw_writel(0x0704 | UCR3_ADNIMP, uart_phys + UCR3);
-	__raw_writel(0x8000, uart_phys + UCR4);
-	__raw_writel(0x002B, uart_phys + UESC);
-	__raw_writel(0x0, uart_phys + UTIM);
-
-	__raw_writel(0x0, uart_phys + UTS);
-
-	mxc_serial_setbrg(sdev);
-
-	__raw_writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
-		     uart_phys + UCR2);
-
-	__raw_writel(UCR1_UARTEN, uart_phys + UCR1);
+	serial_setbrg();
 
 	return 0;
 }
 
-static void mxc_ll_putc(void *uart_phys, const char c)
+static void mxc_ll_putc(struct mxc_uart *base, const char c)
 {
 	/* If \n, do \r first */
 	if (c == '\n')
-		mxc_ll_putc(uart_phys, '\r');
+		mxc_ll_putc(base, '\r');
 
 	/* wait for room in the tx FIFO */
-	while (!(__raw_readl(uart_phys + UTS) & UTS_TXEMPTY))
+	while (!(readl(&base->ts) & UTS_TXEMPTY))
 		WATCHDOG_RESET();
 
 	/* Send character */
-	__raw_writel(c, uart_phys + UTXD);
+	writel(c, &base->txd);
 }
 
 /*
@@ -215,9 +225,9 @@ static void mxc_ll_putc(void *uart_phys, const char c)
 static void mxc_serial_putc(const struct stdio_dev *pdev, const char c)
 {
 	struct serial_device *sdev = to_serial_device(pdev);
-	void *uart_phys = sdev->dev.priv;
+	struct mxc_uart *base = sdev->dev.priv;
 
-	mxc_ll_putc(uart_phys, c);
+	mxc_ll_putc(base, c);
 }
 
 /*
@@ -226,10 +236,10 @@ static void mxc_serial_putc(const struct stdio_dev *pdev, const char c)
 static void mxc_serial_puts(const struct stdio_dev *pdev, const char *s)
 {
 	struct serial_device *sdev = to_serial_device(pdev);
-	void *uart_phys = sdev->dev.priv;
+	struct mxc_uart *base = sdev->dev.priv;
 
 	while (*s)
-		mxc_ll_putc(uart_phys, *s++);
+		mxc_ll_putc(base, *s++);
 }
 
 
@@ -239,14 +249,14 @@ static void mxc_serial_puts(const struct stdio_dev *pdev, const char *s)
 static int mxc_serial_getc(const struct stdio_dev *pdev)
 {
 	struct serial_device *sdev = to_serial_device(pdev);
-	void *uart_phys = sdev->dev.priv;
+	struct mxc_uart *base = sdev->dev.priv;
 
 	/* Wait for character to arrive */
-	while (__raw_readl(uart_phys + UTS) & UTS_RXEMPTY)
+	while (readl(&base->ts) & UTS_RXEMPTY)
 		WATCHDOG_RESET();
 
 	/* mask out status from upper word */
-	return (__raw_readl(uart_phys + URXD) & URXD_RX_DATA);
+	return (readl(&base->rxd) & URXD_RX_DATA);
 }
 
 /*
@@ -255,10 +265,10 @@ static int mxc_serial_getc(const struct stdio_dev *pdev)
 static int mxc_serial_tstc(const struct stdio_dev *pdev)
 {
 	struct serial_device *sdev = to_serial_device(pdev);
-	void *uart_phys = sdev->dev.priv;
+	struct mxc_uart *base = sdev->dev.priv;
 
 	/* If receive fifo is empty, return false */
-	if (__raw_readl(uart_phys + UTS) & UTS_RXEMPTY)
+	if (readl(&base->ts) & UTS_RXEMPTY)
 		return 0;
 
 	return 1;
@@ -312,50 +322,12 @@ void mxc_serial_initialize(void)
 
 #ifdef CONFIG_DM_SERIAL
 
-struct mxc_uart {
-	u32 rxd;
-	u32 spare0[15];
-
-	u32 txd;
-	u32 spare1[15];
-
-	u32 cr1;
-	u32 cr2;
-	u32 cr3;
-	u32 cr4;
-
-	u32 fcr;
-	u32 sr1;
-	u32 sr2;
-	u32 esc;
-
-	u32 tim;
-	u32 bir;
-	u32 bmr;
-	u32 brc;
-
-	u32 onems;
-	u32 ts;
-};
-
 int mxc_serial_setbrg(struct udevice *dev, int baudrate)
 {
 	struct mxc_serial_platdata *plat = dev->platdata;
-	struct mxc_uart *const uart = plat->reg;
 	u32 clk = imx_get_uartclk();
-	u32 tmp;
 
-	tmp = 4 << UFCR_RFDIV_SHF;
-	if (plat->use_dte)
-		tmp |= UFCR_DCEDTE;
-	writel(tmp, &uart->fcr);
-
-	writel(0xf, &uart->bir);
-	writel(clk / (2 * baudrate), &uart->bmr);
-
-	writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
-	       &uart->cr2);
-	writel(UCR1_UARTEN, &uart->cr1);
+	_mxc_serial_setbrg(plat->reg, clk, baudrate, plat->use_dte);
 
 	return 0;
 }
@@ -363,16 +335,8 @@ int mxc_serial_setbrg(struct udevice *dev, int baudrate)
 static int mxc_serial_probe(struct udevice *dev)
 {
 	struct mxc_serial_platdata *plat = dev->platdata;
-	struct mxc_uart *const uart = plat->reg;
 
-	writel(0, &uart->cr1);
-	writel(0, &uart->cr2);
-	while (!(readl(&uart->cr2) & UCR2_SRST));
-	writel(0x704 | UCR3_ADNIMP, &uart->cr3);
-	writel(0x8000, &uart->cr4);
-	writel(0x2b, &uart->esc);
-	writel(0, &uart->tim);
-	writel(0, &uart->ts);
+	_mxc_serial_init(plat->reg);
 
 	return 0;
 }
@@ -456,4 +420,30 @@ U_BOOT_DRIVER(serial_mxc) = {
 	.ops	= &mxc_serial_ops,
 	.flags = DM_FLAG_PRE_RELOC,
 };
+#endif
+
+#ifdef CONFIG_DEBUG_UART_MXC
+#include <debug_uart.h>
+
+static inline void _debug_uart_init(void)
+{
+	struct mxc_uart *base = (struct mxc_uart *)CONFIG_DEBUG_UART_BASE;
+
+	_mxc_serial_init(base);
+	_mxc_serial_setbrg(base, CONFIG_DEBUG_UART_CLOCK,
+			   CONFIG_BAUDRATE, false);
+}
+
+static inline void _debug_uart_putc(int ch)
+{
+	struct mxc_uart *base = (struct mxc_uart *)CONFIG_DEBUG_UART_BASE;
+
+	while (!(readl(&base->ts) & UTS_TXEMPTY))
+		WATCHDOG_RESET();
+
+	writel(ch, &base->txd);
+}
+
+DEBUG_UART_FUNCS
+
 #endif

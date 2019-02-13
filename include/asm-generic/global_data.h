@@ -50,7 +50,7 @@ typedef struct global_data {
 #endif
 	unsigned long env_addr;		/* Address  of Environment struct */
 	unsigned long env_size;		/* Total size of environment */
-	unsigned long env_valid;	/* Checksum of Environment valid? */
+	unsigned long env_valid;	/* Environment valid? enum env_valid */
 
 	unsigned long ram_top;		/* Top address of RAM used by U-Boot */
 	unsigned long relocaddr;	/* Start address of U-Boot in RAM */
@@ -77,7 +77,7 @@ typedef struct global_data {
 	struct device_node *of_root;
 #endif
 	struct jt_funcs *jt;		/* jump table */
-	char env_buf[32];		/* buffer for getenv() before reloc. */
+	char env_buf[32];		/* buffer for env_get() before reloc. */
 #ifdef CONFIG_TRACE
 	void		*trace_buff;	/* The trace buffer */
 #endif
@@ -89,7 +89,7 @@ typedef struct global_data {
 #endif
 	unsigned int timebase_h;
 	unsigned int timebase_l;
-#ifdef CONFIG_SYS_MALLOC_F_LEN
+#if CONFIG_VAL(SYS_MALLOC_F_LEN)
 	unsigned long malloc_base;	/* base address of early malloc() */
 	unsigned long malloc_limit;	/* limit address */
 	unsigned long malloc_ptr;	/* current address */

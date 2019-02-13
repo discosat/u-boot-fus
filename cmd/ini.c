@@ -219,7 +219,7 @@ static int ini_handler(void *user, char *section, char *name, char *value)
 		for (i = 0; i < strlen(value); i++)
 			value[i] = tolower(value[i]);
 #endif
-		setenv(name, value);
+		env_set(name, value);
 		printf("ini: Imported %s as %s\n", name, value);
 	}
 
@@ -242,7 +242,7 @@ static int do_ini(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	else
 		file_address = (char *)parse_loadaddr(argv[2], NULL);
 	file_size = (size_t)simple_strtoul(
-		argc < 4 ? getenv("filesize") : argv[3], NULL, 16);
+		argc < 4 ? env_get("filesize") : argv[3], NULL, 16);
 
 	return ini_parse(file_address, file_size, ini_handler, (void *)section);
 }

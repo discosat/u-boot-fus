@@ -52,7 +52,7 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 #endif
 	uint8_t		comp;
 
-	verify = getenv_yesno("verify");
+	verify = env_get_yesno("verify");
 
 	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
 	if (argc > 2) {
@@ -250,7 +250,7 @@ do_imgextract(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	flush_cache(dest, len);
 
 	set_fileaddr(data);
-	setenv_fileinfo(len);
+	env_set_fileinfo(len);
 
 	return 0;
 }

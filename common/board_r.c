@@ -256,7 +256,7 @@ static int initr_malloc(void)
 {
 	ulong malloc_start;
 
-#ifdef CONFIG_SYS_MALLOC_F_LEN
+#if CONFIG_VAL(SYS_MALLOC_F_LEN)
 	debug("Pre-reloc malloc() used %#lx bytes (%ld KB)\n", gd->malloc_ptr,
 	      gd->malloc_ptr / 1024);
 #endif
@@ -372,7 +372,7 @@ static int initr_flash(void)
 	*
 	* NOTE: Maybe we should add some WATCHDOG_RESET()? XXX
 	*/
-	if (getenv_yesno("flashchecksum") == 1) {
+	if (env_get_yesno("flashchecksum") == 1) {
 		printf("  CRC: %08X", crc32(0,
 			(const unsigned char *) CONFIG_SYS_FLASH_BASE,
 			flash_size));
@@ -486,17 +486,17 @@ static int initr_env(void)
 	else
 		set_default_env(NULL);
 #ifdef CONFIG_OF_CONTROL
-	setenv_addr("fdtcontroladdr", gd->fdt_blob);
+	env_set_addr("fdtcontroladdr", gd->fdt_blob);
 #endif
 
 	/* Initialize load address from environment */
 #ifdef CONFIG_SYS_LOAD_ADDR
 	/* Default is configured load address */
-	set_loadaddr(getenv_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
+	set_loadaddr(env_get_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
 #else
 	/* Default is start of RAM plus configured offset */
-	set_loadaddr(getenv_ulong("loadaddr", 16,
-				  CONFIG_SYS_SDRAM_BASE + CONFIG_SYS_LOAD_OFFS));
+	set_loadaddr(env_get_ulong("loadaddr", 16,
+				   CONFIG_SYS_SDRAM_BASE + CONFIG_SYS_LOAD_OFFS));
 #endif
 
 	return 0;
@@ -544,21 +544,21 @@ static int initr_ethaddr(void)
 	bd_t *bd = gd->bd;
 
 	/* kept around for legacy kernels only ... ignore the next section */
-	eth_getenv_enetaddr("ethaddr", bd->bi_enetaddr);
+	eth_env_get_enetaddr("ethaddr", bd->bi_enetaddr);
 #ifdef CONFIG_HAS_ETH1
-	eth_getenv_enetaddr("eth1addr", bd->bi_enet1addr);
+	eth_env_get_enetaddr("eth1addr", bd->bi_enet1addr);
 #endif
 #ifdef CONFIG_HAS_ETH2
-	eth_getenv_enetaddr("eth2addr", bd->bi_enet2addr);
+	eth_env_get_enetaddr("eth2addr", bd->bi_enet2addr);
 #endif
 #ifdef CONFIG_HAS_ETH3
-	eth_getenv_enetaddr("eth3addr", bd->bi_enet3addr);
+	eth_env_get_enetaddr("eth3addr", bd->bi_enet3addr);
 #endif
 #ifdef CONFIG_HAS_ETH4
-	eth_getenv_enetaddr("eth4addr", bd->bi_enet4addr);
+	eth_env_get_enetaddr("eth4addr", bd->bi_enet4addr);
 #endif
 #ifdef CONFIG_HAS_ETH5
-	eth_getenv_enetaddr("eth5addr", bd->bi_enet5addr);
+	eth_env_get_enetaddr("eth5addr", bd->bi_enet5addr);
 #endif
 	return 0;
 }
@@ -658,14 +658,14 @@ int initr_mem(void)
 	char memsz[32];
 
 # ifdef CONFIG_PRAM
-	pram = getenv_ulong("pram", 10, CONFIG_PRAM);
+	pram = env_get_ulong("pram", 10, CONFIG_PRAM);
 # endif
 # if defined(CONFIG_LOGBUFFER) && !defined(CONFIG_ALT_LB_ADDR)
 	/* Also take the logbuffer into account (pram is in kB) */
 	pram += (LOGBUFF_LEN + LOGBUFF_OVERHEAD) / 1024;
 # endif
 	sprintf(memsz, "%ldk", (long int) ((gd->ram_size / 1024) - pram));
-	setenv("mem", memsz);
+	env_set("mem", memsz);
 
 	return 0;
 }
@@ -836,6 +836,7 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 	console_init_r,		/* fully init console as a device */
 #ifdef CONFIG_DISPLAY_BOARDINFO_LATE
+	console_announce_r,
 	show_board_info,
 #endif
 #ifdef CONFIG_ARCH_MISC_INIT

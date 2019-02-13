@@ -15,7 +15,7 @@
 #include <linux/errno.h>
 #include <asm/io.h>
 
-#include <asm/imx-common/dma.h>
+#include <asm/mach-imx/dma.h>
 
 #include "videomodes.h"
 #include <linux/string.h>
@@ -193,7 +193,7 @@ void *video_hw_init(void)
 	if (!setup) {
 
 		/* Suck display configuration from "videomode" variable */
-		penv = getenv("videomode");
+		penv = env_get("videomode");
 		if (!penv) {
 			printf("MXSFB: 'videomode' variable not set!\n");
 			return NULL;

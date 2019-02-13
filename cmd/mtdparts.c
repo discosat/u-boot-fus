@@ -132,9 +132,10 @@ static const char *mtdparts_default = MTDPARTS_DEFAULT;
 /* copies of last seen 'mtdids', 'mtdparts' and 'partition' env variables */
 #define MTDIDS_MAXLEN		128
 #define MTDPARTS_MAXLEN		512
-static char last_ids[MTDIDS_MAXLEN];
-static char last_parts[MTDPARTS_MAXLEN];
-static char last_partition[PARTITION_MAXLEN];
+#define PARTITION_MAXLEN	16
+static char last_ids[MTDIDS_MAXLEN + 1];
+static char last_parts[MTDPARTS_MAXLEN + 1];
+static char last_partition[PARTITION_MAXLEN + 1];
 
 /* low level jffs2 cache cleaning routine */
 extern void jffs2_free_cache(struct part_info *part);
@@ -247,19 +248,26 @@ static void index_partitions(void)
 			dev = list_entry(dentry, struct mtd_device, link);
 			if (dev == current_mtd_dev) {
 				mtddevnum += current_mtd_partnum;
-				setenv_ulong("mtddevnum", mtddevnum);
+				env_set_ulong("mtddevnum", mtddevnum);
+				debug("=> mtddevnum %d,\n", mtddevnum);
 				break;
 			}
 			mtddevnum += dev->num_parts;
 		}
 
 		part = mtd_part_info(current_mtd_dev, current_mtd_partnum);
-		setenv("mtddevname", part->name);
+		if (part) {
+			env_set("mtddevname", part->name);
 
-		debug("=> mtddevnum %d,\n=> mtddevname %s\n", mtddevnum, part->name);
+			debug("=> mtddevname %s\n", part->name);
+		} else {
+			env_set("mtddevname", NULL);
+
+			debug("=> mtddevname NULL\n");
+		}
 	} else {
-		setenv("mtddevnum", NULL);
-		setenv("mtddevname", NULL);
+		env_set("mtddevnum", NULL);
+		env_set("mtddevname", NULL);
 
 		debug("=> mtddevnum NULL\n=> mtddevname NULL\n");
 	}
@@ -278,12 +286,12 @@ static void current_save(void)
 		sprintf(buf, "%s%d,%d", MTD_DEV_TYPE(current_mtd_dev->id->type),
 					current_mtd_dev->id->num, current_mtd_partnum);
 
-		setenv("partition", buf);
+		env_set("partition", buf);
 		strncpy(last_partition, buf, 16);
 
 		debug("=> partition %s\n", buf);
 	} else {
-		setenv("partition", NULL);
+		env_set("partition", NULL);
 		last_partition[0] = '\0';
 
 		debug("=> partition NULL\n");
@@ -920,12 +928,6 @@ static int device_parse(const char *const mtd_dev, const char **ret, struct mtd_
 		return 1;
 	}
 
-	if (num_parts == 0) {
-		printf("no partitions for device %s%d (%s)\n",
-				MTD_DEV_TYPE(id->type), id->num, id->mtd_id);
-		return 1;
-	}
-
 	debug("\ntotal partitions: %d\n", num_parts);
 
 	/* check for next device presence */
@@ -1221,9 +1223,9 @@ static int generate_mtdparts_save(char *buf, u32 buflen)
 	ret = generate_mtdparts(buf, buflen);
 
 	if ((buf[0] != '\0') && (ret == 0))
-		setenv("mtdparts", buf);
+		env_set("mtdparts", buf);
 	else
-		setenv("mtdparts", NULL);
+		env_set("mtdparts", NULL);
 
 	return ret;
 }
@@ -1545,11 +1547,11 @@ static int spread_partitions(void)
  * @param buf temporary buffer pointer MTDPARTS_MAXLEN long
  * @return mtdparts variable string, NULL if not found
  */
-static const char *getenv_mtdparts(char *buf)
+static const char *env_get_mtdparts(char *buf)
 {
 	if (gd->flags & GD_FLG_ENV_READY)
-		return getenv("mtdparts");
-	if (getenv_f("mtdparts", buf, MTDPARTS_MAXLEN) != -1)
+		return env_get("mtdparts");
+	if (env_get_f("mtdparts", buf, MTDPARTS_MAXLEN) != -1)
 		return buf;
 	return NULL;
 }
@@ -1577,7 +1579,7 @@ static int parse_mtdparts(const char *const mtdparts)
 	}
 
 	/* re-read 'mtdparts' variable, mtd_devices_init may be updating env */
-	p = getenv_mtdparts(tmp_parts);
+	p = env_get_mtdparts(tmp_parts);
 	if (!p)
 		p = mtdparts;
 
@@ -1605,8 +1607,10 @@ static int parse_mtdparts(const char *const mtdparts)
 		list_add_tail(&dev->link, &devices);
 		err = 0;
 	}
-	if (err == 1)
+	if (err == 1) {
+		free(dev);
 		device_delall(&devices);
+	}
 
 	return err;
 }
@@ -1735,16 +1739,16 @@ int mtdparts_init(void)
 	const char *ids, *parts;
 	const char *current_partition;
 	int ids_changed;
-	char tmp_ep[PARTITION_MAXLEN];
+	char tmp_ep[PARTITION_MAXLEN + 1];
 	char tmp_parts[MTDPARTS_MAXLEN];
 
 	debug("\n---mtdparts_init---\n");
 	if (!initialized) {
 		INIT_LIST_HEAD(&mtdids);
 		INIT_LIST_HEAD(&devices);
-		memset(last_ids, 0, MTDIDS_MAXLEN);
-		memset(last_parts, 0, MTDPARTS_MAXLEN);
-		memset(last_partition, 0, PARTITION_MAXLEN);
+		memset(last_ids, 0, sizeof(last_ids));
+		memset(last_parts, 0, sizeof(last_parts));
+		memset(last_partition, 0, sizeof(last_partition));
 #if defined(CONFIG_SYS_MTDPARTS_RUNTIME)
 		board_mtdparts_default(&mtdids_default, &mtdparts_default);
 #endif
@@ -1753,13 +1757,14 @@ int mtdparts_init(void)
 	}
 
 	/* get variables */
-	ids = getenv("mtdids");
-	parts = getenv_mtdparts(tmp_parts);
-	current_partition = getenv("partition");
+	ids = env_get("mtdids");
+	parts = env_get_mtdparts(tmp_parts);
+	current_partition = env_get("partition");
 
 	/* save it for later parsing, cannot rely on current partition pointer
 	 * as 'partition' variable may be updated during init */
-	tmp_ep[0] = '\0';
+	memset(tmp_parts, 0, sizeof(tmp_parts));
+	memset(tmp_ep, 0, sizeof(tmp_ep));
 	if (current_partition)
 		strncpy(tmp_ep, current_partition, PARTITION_MAXLEN);
 
@@ -1776,7 +1781,7 @@ int mtdparts_init(void)
 		if (mtdids_default) {
 			debug("mtdids variable not defined, using default\n");
 			ids = mtdids_default;
-			setenv("mtdids", (char *)ids);
+			env_set("mtdids", (char *)ids);
 		} else {
 			printf("mtdids not defined, no default present\n");
 			return 1;
@@ -1792,7 +1797,7 @@ int mtdparts_init(void)
 	if (!parts) {
 		if (mtdparts_default && use_defaults) {
 			parts = mtdparts_default;
-			if (setenv("mtdparts", (char *)parts) == 0)
+			if (env_set("mtdparts", (char *)parts) == 0)
 				use_defaults = 0;
 		} else
 			printf("mtdparts variable not set, see 'help mtdparts'\n");
@@ -1862,7 +1867,7 @@ int mtdparts_init(void)
 			current_mtd_partnum = pnum;
 			current_save();
 		}
-	} else if (getenv("partition") == NULL) {
+	} else if (env_get("partition") == NULL) {
 		debug("no partition variable set, setting...\n");
 		current_save();
 	}
@@ -1968,9 +1973,9 @@ static int do_mtdparts(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	if (argc == 2) {
 		if (strcmp(argv[1], "default") == 0) {
-			setenv("mtdids", NULL);
-			setenv("mtdparts", NULL);
-			setenv("partition", NULL);
+			env_set("mtdids", NULL);
+			env_set("mtdparts", NULL);
+			env_set("partition", NULL);
 			use_defaults = 1;
 
 			mtdparts_init();
@@ -1979,7 +1984,7 @@ static int do_mtdparts(cmd_tbl_t *cmdtp, int flag, int argc,
 			/* this may be the first run, initialize lists if needed */
 			mtdparts_init();
 
-			setenv("mtdparts", NULL);
+			env_set("mtdparts", NULL);
 
 			/* mtd_devices_init() calls current_save() */
 			return mtd_devices_init();

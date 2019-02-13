@@ -38,15 +38,15 @@
 #endif
 
 #include <i2c.h>
-#include <asm/imx-common/mxc_i2c.h>
+#include <asm/mach-imx/mxc_i2c.h>
 
-#include <asm/imx-common/video.h>
+#include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/iomux.h>
-#include <asm/imx-common/iomux-v3.h>
+#include <asm/mach-imx/iomux-v3.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
@@ -2104,7 +2104,7 @@ static void fs_fdt_reserve_ram(void *fdt)
 	char name[30];
 
 	/* Get the size to reserve from environment variable */
-	size = getenv_hex("reserved_ram_size", 0);
+	size = env_get_hex("reserved_ram_size", 0);
 	if (!size)
 		return;
 
@@ -2120,7 +2120,7 @@ static void fs_fdt_reserve_ram(void *fdt)
 		size = avail - (32 << 20);
 
 	/* Reserve from end of RAM if base variable is invalid */
-	base = getenv_hex("reserved_ram_base", 0) & ~0xfffff;
+	base = env_get_hex("reserved_ram_base", 0) & ~0xfffff;
 	start = (gd->bd->bi_dram[0].start + 0xfffff) & ~0xfffff;
 	if (!base || (base < start) || (base + size > start + avail))
 		base = start + avail - size;

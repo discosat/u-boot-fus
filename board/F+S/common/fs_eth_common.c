@@ -14,7 +14,7 @@
 #ifdef CONFIG_CMD_NET
 
 #include <common.h>			/* Types */
-#include <net.h>			/* eth_getenv_enetaddr_by_index() */
+#include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <asm/io.h>			/* __raw_readl() */
 
 #define XMK_STR(x)	#x
@@ -91,7 +91,7 @@ void fs_eth_set_ethaddr(int index)
 	 *   2. MAC0 from OTP
 	 *   3. CONFIG_ETHADDR_BASE
 	 */
-	if (eth_getenv_enetaddr_by_index("eth", index, enetaddr))
+	if (eth_env_get_enetaddr_by_index("eth", index, enetaddr))
 		return;
 
 	count = get_otp_mac(&bank->fuse_regs[8], enetaddr);
@@ -107,7 +107,7 @@ void fs_eth_set_ethaddr(int index)
 		offs >>= 8;
 	} while (i);
 
-	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
+	eth_env_set_enetaddr_by_index("eth", index, enetaddr);
 }
 
 #endif /* CONFIG_CMD_NET */

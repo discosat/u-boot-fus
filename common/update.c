@@ -60,7 +60,7 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	/* save used globals and env variable */
 	saved_timeout_msecs = tftp_timeout_ms;
 	saved_timeout_count = tftp_timeout_count_max;
-	saved_netretry = strdup(getenv("netretry"));
+	saved_netretry = strdup(env_get("netretry"));
 	saved_bootfile = strdup(net_boot_file_name);
 
 	/* set timeouts for auto-update */
@@ -68,7 +68,7 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	tftp_timeout_count_max = cnt_max;
 
 	/* we don't want to retry the connection if errors occur */
-	setenv("netretry", "no");
+	env_set("netretry", "no");
 
 	/* download the update file */
 	set_fileaddr(addr);
@@ -86,7 +86,7 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	tftp_timeout_ms = saved_timeout_msecs;
 	tftp_timeout_count_max = saved_timeout_count;
 
-	setenv("netretry", saved_netretry);
+	env_set("netretry", saved_netretry);
 	if (saved_netretry != NULL)
 		free(saved_netretry);
 
@@ -257,7 +257,7 @@ int update_tftp(ulong addr, char *interface, char *devstring)
 	printf("Auto-update from TFTP: ");
 
 	/* get the file name of the update file */
-	filename = getenv(UPDATE_FILE_ENV);
+	filename = env_get(UPDATE_FILE_ENV);
 	if (filename == NULL) {
 		printf("failed, env. variable '%s' not found\n",
 							UPDATE_FILE_ENV);
@@ -268,7 +268,7 @@ int update_tftp(ulong addr, char *interface, char *devstring)
 
 	/* get load address of downloaded update file */
 	/* ### shouldn't this be addr = get_loadaddr()? ### */
-	addr = getenv_ulong("loadaddr", 16, CONFIG_UPDATE_LOAD_ADDR);
+	addr = env_get_ulong("loadaddr", 16, CONFIG_UPDATE_LOAD_ADDR);
 
 	if (update_load(filename, CONFIG_UPDATE_TFTP_MSEC_MAX,
 					CONFIG_UPDATE_TFTP_CNT_MAX, addr)) {

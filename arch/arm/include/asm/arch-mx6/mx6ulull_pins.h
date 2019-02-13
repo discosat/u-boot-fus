@@ -7,7 +7,7 @@
 #ifndef __ASM_ARCH_IMX6ULULL_PINS_H__
 #define __ASM_ARCH_IMX6ULULL_PINS_H__
 
-#include <asm/imx-common/iomux-v3.h>
+#include <asm/mach-imx/iomux-v3.h>
 
 /*
  * This is a combined version of mx6ul_pins.h and mx6ull_pins.h. Pads that are

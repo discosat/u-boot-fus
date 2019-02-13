@@ -34,7 +34,7 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 	bootstage_mark(BOOTSTAGE_ID_IDE_ADDR);
 
 	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
-	boot_device = (argc > 2) ? argv[2] : getenv("bootdevice");
+	boot_device = (argc > 2) ? argv[2] : env_get("bootdevice");
 
 	bootstage_mark(BOOTSTAGE_ID_IDE_BOOT_DEVICE);
 
@@ -125,7 +125,7 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 	flush_cache(addr, (cnt+1)*info.blksz);
 
 	/* Loading ok, update fileaddr and filesize variables */
-	setenv_fileinfo(cnt * info.blksz);
+	env_set_fileinfo(cnt * info.blksz);
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

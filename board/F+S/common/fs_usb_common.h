@@ -12,7 +12,7 @@
 #ifndef __FS_USB_COMMON_H__
 #define __FS_USB_COMMON_H__
 
-#include <asm/imx-common/iomux-v3.h>	/* iomux_v3_cfg_t */
+#include <asm/mach-imx/iomux-v3.h>	/* iomux_v3_cfg_t */
 
 /* Possible USB modes */
 #define FS_USB_DEVICE     1		      /* DEV only */

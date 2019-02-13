@@ -437,7 +437,7 @@ int fec_init(struct eth_device *dev, bd_t * bd)
 	fecp->emrbr = PKT_MAXBLR_SIZE;
 
 	/*
-	 * Setup Buffers and Buffer Desriptors
+	 * Setup Buffers and Buffer Descriptors
 	 */
 	info->rxIdx = 0;
 	info->txIdx = 0;
@@ -491,7 +491,7 @@ static int fec_write_hwaddr(struct eth_device *dev)
 	uchar ea[6];
 
 	/* Set the station address */
-	eth_getenv_enetaddr_by_index("eth", dev->index, ea);
+	eth_env_get_enetaddr_by_index("eth", dev->index, ea);
 	fecp->palr = (ea[0] << 24) | (ea[1] << 16) | (ea[2] << 8) | (ea[3]);
 	fecp->paur = (ea[4] << 24) | (ea[5] << 16);
 

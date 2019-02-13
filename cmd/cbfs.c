@@ -82,7 +82,7 @@ static int do_cbfs_fsload(cmd_tbl_t *cmdtp, int flag, int argc,
 	printf("\n%ld bytes read\n", size);
 
 	/* Set fileaddr and filesize variables */
-	setenv_fileinfo(size);
+	env_set_fileinfo(size);
 
 	return 0;
 }

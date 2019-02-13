@@ -722,7 +722,7 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	flush_cache (addr, imsize);
 
-	setenv_fileinfo(imsize);
+	env_set_fileinfo(imsize);
 
 #if defined(CONFIG_FIT)
 	/* This cannot be done earlier, we need complete FIT image in RAM first */

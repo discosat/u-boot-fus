@@ -74,7 +74,7 @@ void fs_fdt_set_macaddr(void *fdt, int offs, int id)
 	char name[10];
 	char str[20];
 
-	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
+	if (eth_env_get_enetaddr_by_index("eth", id, enetaddr)) {
 		sprintf(name, "MAC%d", id);
 		sprintf(str, "%pM", enetaddr);
 		fs_fdt_set_string(fdt, offs, name, str, 1);
@@ -87,7 +87,7 @@ void fs_fdt_set_wlan_macaddr(void *fdt, int offs, int id, int silex)
 	uchar enetaddr[6];
 	char str[30];
 
-	if (eth_getenv_enetaddr_by_index("eth", id, enetaddr)) {
+	if (eth_env_get_enetaddr_by_index("eth", id, enetaddr)) {
 		sprintf(str, "%pM", enetaddr);
 		fs_fdt_set_string(fdt, offs, "MAC_WLAN", str, 1);
 		if (silex) {
@@ -104,7 +104,7 @@ void fs_fdt_set_getenv(void *fdt, int offs, const char *name, int force)
 {
 	const char *str;
 
-	str = getenv(name);
+	str = env_get(name);
 	if (str)
 		fs_fdt_set_string(fdt, offs, name, str, force);
 }

@@ -87,7 +87,7 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	zfs_close(&zfile);
 
 	printf("%llu bytes read\n", zfile.size);
-	setenv_fileinfo(zfile.size);
+	env_set_fileinfo(zfile.size);
 
 	return 0;
 }

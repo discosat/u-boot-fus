@@ -126,7 +126,7 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	printf ("\n%ld bytes read\n", filelen);
-	setenv_fileinfo(filelen);
+	env_set_fileinfo(filelen);
 
 	return filelen;
 }

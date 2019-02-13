@@ -35,7 +35,7 @@ void set_working_fdt_addr(ulong addr)
 #ifdef CONFIG_CMD_FDT
 	working_fdt = buf;
 #endif
-	setenv_hex("fdtaddr", addr);
+	env_set_hex("fdtaddr", addr);
 }
 
 static void fdt_error(const char *msg)
@@ -147,7 +147,7 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 	of_len = *of_size + CONFIG_SYS_FDT_PAD;
 
 	/* If fdt_high is set use it to select the relocation address */
-	fdt_high = getenv("fdt_high");
+	fdt_high = env_get("fdt_high");
 	if (fdt_high) {
 		void *desired_addr = (void *)simple_strtoul(fdt_high, NULL, 16);
 
@@ -171,8 +171,8 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 	} else {
 		of_start =
 		    (void *)(ulong) lmb_alloc_base(lmb, of_len, 0x1000,
-						   getenv_bootm_mapsize()
-						   + getenv_bootm_low());
+						   env_get_bootm_mapsize()
+						   + env_get_bootm_low());
 	}
 
 	if (of_start == NULL) {

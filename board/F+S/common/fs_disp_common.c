@@ -111,7 +111,7 @@ int splash_screen_prepare(void)
 {
 	char *prep;
 
-	prep = getenv("splashprepare");
+	prep = env_get("splashprepare");
 	if (prep)
 		run_command(prep, 0);
 
@@ -271,7 +271,7 @@ static int parse_error(const char *varname)
 
 static int parse_dispflags(unsigned int *flags, unsigned int flags_mask)
 {
-	const char *s = getenv("dispflags");
+	const char *s = env_get("dispflags");
 
 	if (!s || !*s)
 		return 0;
@@ -389,10 +389,10 @@ int fs_disp_register(const struct fs_display_port *display_ports,
 		display_ports++;
 	}
 
-	disppanel = getenv("disppanel");
+	disppanel = env_get("disppanel");
 	if (!disppanel || !disppanel[0])
 		return 1;
-	dispmode = getenv("dispmode");
+	dispmode = env_get("dispmode");
 
 	/* Parse port name: Syntax: disppanel = [<port_name>:]<panel-name> */
 	tmp = strchr(disppanel, ':');

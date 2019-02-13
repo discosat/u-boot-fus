@@ -587,7 +587,7 @@ void fs_eth_set_ethaddr(int index)
 	 *   3. MAC1 from OTP
 	 *   4. CONFIG_ETHADDR_BASE
 	 */
-	if (eth_getenv_enetaddr_by_index("eth", index, enetaddr))
+	if (eth_env_get_enetaddr_by_index("eth", index, enetaddr))
 		return;
 
 	count = get_otp_mac(OTP_BASE_ADDR + 0x620, enetaddr);
@@ -608,7 +608,7 @@ void fs_eth_set_ethaddr(int index)
 		offs >>= 8;
 	} while (i);
 
-	eth_setenv_enetaddr_by_index("eth", index, enetaddr);
+	eth_env_set_enetaddr_by_index("eth", index, enetaddr);
 }
 
 /* Initialize ethernet by registering the available FEC devices */

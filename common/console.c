@@ -8,8 +8,10 @@
 #include <common.h>
 #include <console.h>
 #include <debug_uart.h>
+#include <dm.h>
 #include <stdarg.h>
 #include <malloc.h>
+#include <mapmem.h>
 #include <os.h>
 #include <serial.h>			  /* serial_*() */
 #include <stdio_dev.h>
@@ -65,11 +67,11 @@ U_BOOT_ENV_CALLBACK(console, on_console);
 static int on_silent(const char *name, const char *value, enum env_op op,
 	int flags)
 {
-#if !CONFIG_IS_ENABLED(CONFIG_SILENT_CONSOLE_UPDATE_ON_SET)
+#if !CONFIG_IS_ENABLED(SILENT_CONSOLE_UPDATE_ON_SET)
 	if (flags & H_INTERACTIVE)
 		return 0;
 #endif
-#if !CONFIG_IS_ENABLED(CONFIG_SILENT_CONSOLE_UPDATE_ON_RELOC)
+#if !CONFIG_IS_ENABLED(SILENT_CONSOLE_UPDATE_ON_RELOC)
 	if ((flags & H_INTERACTIVE) == 0)
 		return 0;
 #endif
@@ -267,48 +269,51 @@ int tstc(void)
 	return serial_tstc(NULL);
 }
 
+#define PRE_CONSOLE_FLUSHPOINT1_SERIAL			0
+#define PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL	1
+
 #if CONFIG_IS_ENABLED(PRE_CONSOLE_BUFFER)
 #define CIRC_BUF_IDX(idx) ((idx) % (unsigned long)CONFIG_PRE_CON_BUF_SZ)
 
 static void pre_console_putc(const char c)
 {
-	char *buffer = (char *)CONFIG_PRE_CON_BUF_ADDR;
+	char *buffer;
+
+	buffer = map_sysmem(CONFIG_PRE_CON_BUF_ADDR, CONFIG_PRE_CON_BUF_SZ);
 
 	buffer[CIRC_BUF_IDX(gd->precon_buf_idx++)] = c;
+
+	unmap_sysmem(buffer);
 }
 
-static void pre_console_puts(const char *s)
-{
-	while (*s)
-		pre_console_putc(*s++);
-}
-
-static void print_pre_console_buffer(void)
+static void print_pre_console_buffer(int flushpoint)
 {
 	unsigned long i = 0;
-	char *buffer = (char *)CONFIG_PRE_CON_BUF_ADDR;
+	char *buffer;
 
+	buffer = map_sysmem(CONFIG_PRE_CON_BUF_ADDR, CONFIG_PRE_CON_BUF_SZ);
 	if (gd->precon_buf_idx > CONFIG_PRE_CON_BUF_SZ)
 		i = gd->precon_buf_idx - CONFIG_PRE_CON_BUF_SZ;
 
-	while (i < gd->precon_buf_idx)
-		putc(buffer[CIRC_BUF_IDX(i++)]);
+	switch (flushpoint) {
+	case PRE_CONSOLE_FLUSHPOINT1_SERIAL:
+		while (i < gd->precon_buf_idx)
+			putc(buffer[CIRC_BUF_IDX(i++)]);
+		break;
+	case PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL:
+		while (i < gd->precon_buf_idx)
+			console_putc_noserial(buffer[CIRC_BUF_IDX(i++)]);
+		break;
+	}
+	unmap_sysmem(buffer);
 }
 #else
 static inline void pre_console_putc(const char c) {}
-static inline void pre_console_puts(const char *s) {}
-static inline void print_pre_console_buffer(void) {}
+static inline void print_pre_console_buffer(int flushpoint) {}
 #endif
 
 void putc(const char c)
 {
-#ifdef CONFIG_SANDBOX
-	/* sandbox can send characters to stdout before it has a console */
-	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
-		os_putc(c);
-		return;
-	}
-#endif
 #ifdef CONFIG_DEBUG_UART
 	/* if we don't have a console yet, use the debug UART */
 	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
@@ -336,38 +341,8 @@ void putc(const char c)
 
 void puts(const char *s)
 {
-#ifdef CONFIG_SANDBOX
-	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
-		os_puts(s);
-		return;
-	}
-#endif
-#ifdef CONFIG_DEBUG_UART
-	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
-		while (*s) {
-			int ch = *s++;
-
-			printch(ch);
-		}
-		return;
-	}
-#endif
-#ifdef CONFIG_SILENT_CONSOLE
-	if (gd->flags & GD_FLG_SILENT)
-		return;
-#endif
-
-#ifdef CONFIG_DISABLE_CONSOLE
-	if (gd->flags & GD_FLG_DISABLE_CONSOLE)
-		return;
-#endif
-
-	if (!gd->have_console)
-		pre_console_puts(s);
-	else if (gd->flags & GD_FLG_DEVINIT)
-		fputs(stdout, s);	  /* Send to the standard output */
-	else
-		serial_puts(NULL, s);	  /* Send directly to the handler */
+	while (*s)
+		putc(*s++);
 }
 
 /* test if ctrl-c was pressed */
@@ -487,11 +462,24 @@ int console_assign(int file, const char *devname)
 static void console_update_silent(void)
 {
 #ifdef CONFIG_SILENT_CONSOLE
-	if (getenv("silent") != NULL)
+	if (env_get("silent") != NULL)
 		gd->flags |= GD_FLG_SILENT;
 	else
 		gd->flags &= ~GD_FLG_SILENT;
 #endif
+}
+
+int console_announce_r(void)
+{
+#if !CONFIG_IS_ENABLED(PRE_CONSOLE_BUFFER)
+	char buf[DISPLAY_OPTIONS_BANNER_LENGTH];
+
+	display_options_get_banner(false, buf, sizeof(buf));
+
+	puts(buf);
+#endif
+
+	return 0;
 }
 
 /* Called before relocation - use serial functions */
@@ -501,7 +489,7 @@ int console_init_f(void)
 
 	console_update_silent();
 
-	print_pre_console_buffer();
+	print_pre_console_buffer(PRE_CONSOLE_FLUSHPOINT1_SERIAL);
 
 	return 0;
 }
@@ -571,9 +559,9 @@ int console_init_r(void)
 
 	/* stdin stdout and stderr are in environment */
 	/* scan for it */
-	stdinname  = getenv("stdin");
-	stdoutname = getenv("stdout");
-	stderrname = getenv("stderr");
+	stdinname  = env_get("stdin");
+	stdoutname = env_get("stdout");
+	stderrname = env_get("stderr");
 
 	if (OVERWRITE_CONSOLE == 0) {	/* if not overwritten by config switch */
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
@@ -629,7 +617,7 @@ done:
 #ifdef CONFIG_SYS_CONSOLE_ENV_OVERWRITE
 	/* set the environment variables (will overwrite previous env settings) */
 	for (i = 0; i < 3; i++) {
-		setenv(stdio_names[i], stdio_devices[i]->name);
+		env_set(stdio_names[i], stdio_devices[i]->name);
 	}
 #endif /* CONFIG_SYS_CONSOLE_ENV_OVERWRITE */
 
@@ -656,7 +644,7 @@ int console_init_r(void)
 	 * console to serial console in this case or suppress it if
 	 * "silent" mode was requested.
 	 */
-	if (getenv("splashimage") != NULL) {
+	if (env_get("splashimage") != NULL) {
 		if (!(gd->flags & GD_FLG_SILENT))
 			outputdev = search_device (DEV_FLAGS_OUTPUT, "serial");
 	}
@@ -690,10 +678,12 @@ int console_init_r(void)
 
 	/* Setting environment variables */
 	for (i = 0; i < 3; i++) {
-		setenv(stdio_names[i], stdio_devices[i]->name);
+		env_set(stdio_names[i], stdio_devices[i]->name);
 	}
 
 	gd->flags |= GD_FLG_DEVINIT;	/* device initialization completed */
+
+	print_pre_console_buffer(PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL);
 
 	return 0;
 }

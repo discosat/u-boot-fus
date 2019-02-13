@@ -22,6 +22,7 @@
 #include <linux/ctype.h>		/* isdigit(), isalnum(), ... */
 #include <jffs2/load_kernel.h>		/* struct mtd_device, ... */
 #include <fs.h>				/* FS_TYPE_ANY, fs_read(), ... */
+#include <nand.h>			/* get_nand_dev_by_index() */
 
 #ifndef CONFIG_CMD_SOURCE
 #error You need CONFIG_CMD_SOURCE when you define CONFIG_CMD_UPDATE
@@ -45,7 +46,7 @@ static int update_ram(const char *action, const char **check,
 	*addr = newaddr;
 	printf("---- Trying %s from ram@%08lx ----\n", action, newaddr);
 
-	setenv(UPDATEDEV, "ram");
+	env_set(UPDATEDEV, "ram");
 
 	return 0;
 }
@@ -70,13 +71,14 @@ static int update_ubi(const char *action, const char *part_name,
 	if (ubifs_load(fname, addr, 0))
 		return -1;
 
-	setenv(UPDATEDEV, "ubi");
+	env_set(UPDATEDEV, "ubi");
 
 	return 0;
 }
 #endif /* CONFIG_CMD_UBIFS */
 
-extern int nand_load_image(int index, ulong offset, ulong addr, int show);
+extern int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr,
+			   int show);
 
 static int update_mtd(const char *action, const char **check, const char *fname,
 		      unsigned long addr, unsigned int len)
@@ -88,6 +90,7 @@ static int update_mtd(const char *action, const char **check, const char *fname,
 	const char *p = *check + len;	/* skip "nand" */
 	unsigned long offset = 0;
 	struct mtd_device *dev;
+	struct mtd_info *mtd;
 	struct part_info *part;
 	u8 pnum;
 
@@ -160,10 +163,11 @@ static int update_mtd(const char *action, const char **check, const char *fname,
 		return -1;
 	}
 
-	if (nand_load_image(dev->id->num, part->offset, addr, 0))
+	mtd = get_nand_dev_by_index(dev->id->num);
+	if (nand_load_image(mtd, part->offset, addr, 0))
 		return -1;
 
-	setenv(UPDATEDEV, "nand");
+	env_set(UPDATEDEV, "nand");
 
 	return 0;
 }
@@ -235,7 +239,7 @@ static int update_mmc(const char *action, const char **check, const char *fname,
 	if (fs_read(fname, addr, 0, 0, NULL) < 0)
 		return -1;		  /* File not found or I/O error */
 
-	setenv(UPDATEDEV, if_dev_part_str);
+	env_set(UPDATEDEV, if_dev_part_str);
 
 	return 0;
 }
@@ -272,7 +276,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 	if (fs_read(fname, addr, 0, 0, NULL) < 0)
 		return -1;		  /* File not found or I/O error */
 
-	setenv(UPDATEDEV, if_dev_part_str);
+	env_set(UPDATEDEV, if_dev_part_str);
 	return 0;
 }
 #endif /* CONFIG_USB_STORAGE && CONFIG_FS_FAT */
@@ -304,8 +308,8 @@ static int update_net(const char *action, const char **check, const char *fname,
 	flush_cache(addr, size);
 
 	/* Set fileaddr and filesize */
-	setenv_fileinfo(size);
-	setenv(UPDATEDEV, "net");
+	env_set_fileinfo(size);
+	env_set(UPDATEDEV, "net");
 
 	return 0;
 }
@@ -346,7 +350,7 @@ int update_script(enum update_action action_id, const char *check,
 	   "installcheck". */
 	if (!check) {
 		sprintf(varname, "%scheck", action);
-		check = getenv(varname);
+		check = env_get(varname);
 		if (!check)
 			return 1;	  /* Variable not set */
 	}
@@ -356,7 +360,7 @@ int update_script(enum update_action action_id, const char *check,
 	   "installaddr". If the variable does not exist, use $(loadaddr) */
 	if (!addr) {
 		sprintf(varname, "%saddr", action);
-		addr = getenv_ulong(varname, 16, get_loadaddr());
+		addr = env_get_ulong(varname, 16, get_loadaddr());
 	}
 
 	/* If called without script filename argument, get filename from
@@ -366,7 +370,7 @@ int update_script(enum update_action action_id, const char *check,
 	   "install.scr". */
 	if (!fname) {
 		sprintf(varname, "%sscript", action);
-		fname = getenv(varname);
+		fname = env_get(varname);
 		if (!fname) {
 			sprintf(varname, "%s.scr", action);
 			fname = varname;

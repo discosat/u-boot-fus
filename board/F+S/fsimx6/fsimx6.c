@@ -28,10 +28,10 @@
 #endif
 
 #include <i2c.h>
-#include <asm/imx-common/mxc_i2c.h>
+#include <asm/mach-imx/mxc_i2c.h>
 
 #ifdef CONFIG_VIDEO_IPUV3
-#include <asm/imx-common/video.h>
+#include <asm/mach-imx/video.h>
 #include "../common/fs_disp_common.h"	/* struct fs_disp_port, fs_disp_*() */
 #endif
 
@@ -40,7 +40,7 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/iomux.h>
-#include <asm/imx-common/iomux-v3.h>
+#include <asm/mach-imx/iomux-v3.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */

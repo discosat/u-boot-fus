@@ -43,7 +43,7 @@ static int do_lzmadec(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		return 1;
 	printf("Uncompressed size: %ld = %#lX\n", (ulong)src_len,
 	       (ulong)src_len);
-	setenv_fileinfo(src_len);
+	env_set_fileinfo(src_len);
 
 	return 0;
 }

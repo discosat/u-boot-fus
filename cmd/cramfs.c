@@ -104,7 +104,7 @@ int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	struct mtdids id;
 
 	ulong addr;
-	addr = simple_strtoul(getenv("cramfsaddr"), NULL, 16);
+	addr = simple_strtoul(env_get("cramfsaddr"), NULL, 16);
 
 	/* hack! */
 	/* cramfs_* only supports NOR flash chips */
@@ -137,7 +137,7 @@ int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (size > 0) {
 		printf("### CRAMFS load complete: %d bytes loaded to 0x%lx\n",
 			size, offset);
-		setenv_fileinfo(size);
+		env_set_fileinfo(size);
 	} else {
 		printf("### CRAMFS LOAD ERROR<%x> for %s!\n", size, filename);
 	}
@@ -168,7 +168,7 @@ int do_cramfs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	struct mtdids id;
 
 	ulong addr;
-	addr = simple_strtoul(getenv("cramfsaddr"), NULL, 16);
+	addr = simple_strtoul(env_get("cramfsaddr"), NULL, 16);
 
 	/* hack! */
 	/* cramfs_* only supports NOR flash chips */

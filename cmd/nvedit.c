@@ -290,7 +290,7 @@ static int _do_env_set(int flag, int argc, char * const argv[], int env_flag)
 	return 0;
 }
 
-int setenv(const char *varname, const char *varvalue)
+int env_set(const char *varname, const char *varvalue)
 {
 	const char * const argv[4] = { "setenv", varname, varvalue, NULL };
 
@@ -311,12 +311,12 @@ int setenv(const char *varname, const char *varvalue)
  * @param value		Value to set it to
  * @return 0 if ok, 1 on error
  */
-int setenv_ulong(const char *varname, ulong value)
+int env_set_ulong(const char *varname, ulong value)
 {
 	/* TODO: this should be unsigned */
 	char *str = simple_itoa(value);
 
-	return setenv(varname, str);
+	return env_set(varname, str);
 }
 
 /**
@@ -326,21 +326,21 @@ int setenv_ulong(const char *varname, ulong value)
  * @param value		Value to set it to
  * @return 0 if ok, 1 on error
  */
-int setenv_hex(const char *varname, ulong value)
+int env_set_hex(const char *varname, ulong value)
 {
 	char str[17];
 
 	sprintf(str, "%lx", value);
-	return setenv(varname, str);
+	return env_set(varname, str);
 }
 
-ulong getenv_hex(const char *varname, ulong default_val)
+ulong env_get_hex(const char *varname, ulong default_val)
 {
 	const char *s;
 	ulong value;
 	char *endp;
 
-	s = getenv(varname);
+	s = env_get(varname);
 	if (s)
 		value = simple_strtoul(s, &endp, 16);
 	if (!s || endp == s)
@@ -361,7 +361,7 @@ void set_fileaddr(ulong addr)
 }
 
 /* Store fileaddr/filesize to environment, call if download was successful */
-void setenv_fileinfo(ulong size)
+void env_set_fileinfo(ulong size)
 {
 	setenv_hex("fileaddr", file_addr);
 	setenv_hex("filesize", size);
@@ -619,7 +619,7 @@ static int do_env_edit(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 1;
 
 	/* Set read buffer to initial value or empty sting */
-	init_val = getenv(argv[1]);
+	init_val = env_get(argv[1]);
 	if (init_val)
 		snprintf(buffer, CONFIG_SYS_CBSIZE, "%s", init_val);
 	else
@@ -647,7 +647,7 @@ static int do_env_edit(cmd_tbl_t *cmdtp, int flag, int argc,
  * return address of storage for that variable,
  * or NULL if not found
  */
-char *getenv(const char *name)
+char *env_get(const char *name)
 {
 	if (gd->flags & GD_FLG_ENV_READY) { /* after import into hashtable */
 		ENTRY e, *ep;
@@ -662,7 +662,7 @@ char *getenv(const char *name)
 	}
 
 	/* restricted capabilities before import */
-	if (getenv_f(name, (char *)(gd->env_buf), sizeof(gd->env_buf)) > 0)
+	if (env_get_f(name, (char *)(gd->env_buf), sizeof(gd->env_buf)) > 0)
 		return (char *)(gd->env_buf);
 
 	return NULL;
@@ -671,7 +671,7 @@ char *getenv(const char *name)
 /*
  * Look up variable from environment for restricted C runtime env.
  */
-int getenv_f(const char *name, char *buf, unsigned len)
+int env_get_f(const char *name, char *buf, unsigned len)
 {
 	int i, nxt;
 	size_t env_size;
@@ -719,13 +719,13 @@ int getenv_f(const char *name, char *buf, unsigned len)
  *			found
  * @return the decoded value, or default_val if not found
  */
-ulong getenv_ulong(const char *name, int base, ulong default_val)
+ulong env_get_ulong(const char *name, int base, ulong default_val)
 {
 	/*
-	 * We can use getenv() here, even before relocation, since the
+	 * We can use env_get() here, even before relocation, since the
 	 * environment variable value is an integer and thus short.
 	 */
-	const char *str = getenv(name);
+	const char *str = env_get(name);
 
 	return str ? simple_strtoul(str, NULL, base) : default_val;
 }
@@ -734,7 +734,7 @@ const char *get_bootfile(void)
 {
 	const char *p;
 
-	p = getenv("bootfile");
+	p = env_get("bootfile");
 	if (p)
 		return p;
 	return CONFIG_BOOTFILE;
@@ -785,9 +785,11 @@ int strict_parse_loadaddr(const char *buffer, ulong *loadaddr)
 static int do_env_save(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
-	printf("Saving Environment to %s...\n", env_name_spec);
+	struct env_driver *env = env_driver_lookup_default();
 
-	return saveenv() ? 1 : 0;
+	printf("Saving Environment to %s...\n", env->name);
+
+	return env_save() ? 1 : 0;
 }
 
 U_BOOT_CMD(
@@ -1009,7 +1011,7 @@ NXTARG:		;
 			return 1;
 		}
 		sprintf(buf, "%zX", (size_t)len);
-		setenv("filesize", buf);
+		env_set("filesize", buf);
 
 		return 0;
 	}
@@ -1036,7 +1038,7 @@ NXTARG:		;
 		envp->flags = ACTIVE_FLAG;
 #endif
 	}
-	setenv_hex("filesize", len + ENV_HEADER_SIZE);
+	env_set_hex("filesize", len + ENV_HEADER_SIZE);
 
 	return 0;
 

@@ -468,7 +468,7 @@ static void set_vidinfo(vidinfo_t *pvi)
 	/* If display is not active (hres or vres is 0), unset environment
 	   variable */
 	if (!lcd->hres || !lcd->vres) {
-		setenv(pvi->name, NULL);
+		env_set(pvi->name, NULL);
 		return;
 	}
 
@@ -542,7 +542,7 @@ static void set_vidinfo(vidinfo_t *pvi)
 		     pvi->frc, pvi->drive);
 
 	/* Set the environment variable */
-	setenv(pvi->name, buf);
+	env_set(pvi->name, buf);
 }
 
 
@@ -1736,7 +1736,7 @@ ulong lcd_setmem(ulong addr)
 
 	/* If environment variable fbsize is set, use it as size for the
 	   framebuffer pool size (in KB, decimal) */
-	fbsize = getenv_ulong("fbsize", 10, CONFIG_XLCD_FBSIZE);
+	fbsize = env_get_ulong("fbsize", 10, CONFIG_XLCD_FBSIZE);
 
 	fbsize = (fbsize + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 
@@ -1862,7 +1862,7 @@ void drv_lcd_init(void)
 
 		pvi = lcd_get_vidinfo_p(vid);
 
-		s = getenv(pvi->name);
+		s = env_get(pvi->name);
 		if (s) {
 			/* Execute the commands that are in the lcd variable.
 			   These commands must not modify the environment.
@@ -1884,7 +1884,7 @@ void drv_lcd_init(void)
 
 #ifdef CONFIG_CMD_WIN
 			/* Is there an environment variable for this window? */
-			s = getenv(pwi->name);
+			s = env_get(pwi->name);
 			if (s) {
 				/* Execute the commands that are in the window
 				   variable. These commands must not modify
@@ -1941,7 +1941,7 @@ void drv_lcd_init(void)
 
 			/* If there is an environment variable "splashcmd",
 			   run it to show the splash screen */
-			s = getenv("splashcmd");
+			s = env_get("splashcmd");
 			if (s)
 				run_command(s, 0);
 		}

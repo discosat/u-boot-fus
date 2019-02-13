@@ -218,7 +218,7 @@ enum update_action board_check_for_recover(void)
 	 * external pull-up or pull-down must be used to avoid unintentionally
 	 * detecting the active state.
 	 */
-	recover_gpio = getenv("recovergpio");
+	recover_gpio = env_get("recovergpio");
 	if (recover_gpio) {
 		char *endp;
 		int active_state = 0;
@@ -245,7 +245,7 @@ enum update_action board_check_for_recover(void)
 /* If variable has value "undef", update it with a board specific value */
 static void setup_var(const char *varname, const char *content, int runvar)
 {
-	char *envvar = getenv(varname);
+	char *envvar = env_get(varname);
 
 	/* If variable is not set or does not contain string "undef", do not
 	   change it */
@@ -254,12 +254,12 @@ static void setup_var(const char *varname, const char *content, int runvar)
 
 	/* Either set variable directly with value ... */
 	if (!runvar) {
-		setenv(varname, content);
+		env_set(varname, content);
 		return;
 	}
 
 	/* ... or set variable by running the variable with name in content */
-	content = getenv(content);
+	content = env_get(content);
 	if (content)
 		run_command(content, 0);
 }
@@ -271,17 +271,17 @@ void fs_board_late_init_common(void)
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* Set sercon variable if not already set */
-	envvar = getenv("sercon");
+	envvar = env_get("sercon");
 	if (!envvar || !strcmp(envvar, "undef")) {
 		char sercon[DEV_NAME_SIZE];
 
 		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
 			'0' + get_debug_port(pargs->dwDbgSerPortPA));
-		setenv("sercon", sercon);
+		env_set("sercon", sercon);
 	}
 
 	/* Set platform variable if not already set */
-	envvar = getenv("platform");
+	envvar = env_get("platform");
 	if (!envvar || !strcmp(envvar, "undef")) {
 		char lcasename[20];
 		char *p = current_bi->name;
@@ -317,7 +317,7 @@ void fs_board_late_init_common(void)
 			*l++ = '\0';
 		}
 #endif
-		setenv("platform", lcasename);
+		env_set("platform", lcasename);
 	}
 
 	/* Set some variables with a direct value */

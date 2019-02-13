@@ -25,8 +25,7 @@
 #define UCTRL_PWR_POL		(1 << 9)
 #define UCTRL_OVER_CUR_DIS	(1 << 7)
 
-#define MAX_USB_PORTS \
-	(CONFIG_USB_MAX_CONTROLLER_COUNT * CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS)
+#define MAX_USB_PORTS CONFIG_USB_MAX_CONTROLLER_COUNT
 
 struct fs_usb_port {
 	struct fs_usb_port_cfg cfg;
@@ -55,7 +54,7 @@ static void fs_usb_get_otg_mode(struct fs_usb_port *port)
 	unsigned int mode = port->cfg.mode - 2;
 
 	mode_name[3] = port->index + '0';
-	envvar = getenv(mode_name);
+	envvar = env_get(mode_name);
 	if (envvar) {
 		/* Check if user requested HOST or DEVICE */
 		if (!strcmp(envvar, "peripheral") || !strcmp(envvar, "device"))
@@ -85,7 +84,7 @@ static void fs_usb_get_pwr_pol(struct fs_usb_port *port)
 	const char *envvar;
 
 	pwr_name[3] = port->index + '0';
-	envvar = getenv(pwr_name);
+	envvar = env_get(pwr_name);
 	if (envvar) {
 		/* Skip optional prefix "active", "active-" or "active_" */
 		if (!strncmp(envvar, "active", 6)) {

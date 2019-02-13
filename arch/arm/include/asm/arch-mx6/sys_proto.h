@@ -7,4 +7,4 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#include <asm/imx-common/sys_proto.h>
+#include <asm/mach-imx/sys_proto.h>

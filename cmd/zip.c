@@ -31,7 +31,7 @@ static int do_zip(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 
 	printf("Compressed size: %ld = 0x%lX\n", dst_len, dst_len);
-	setenv_fileinfo(dst_len);
+	env_set_fileinfo(dst_len);
 
 	return 0;
 }

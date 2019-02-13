@@ -348,7 +348,7 @@ int do_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (fs_size(argv[3], &size) < 0)
 		return CMD_RET_FAILURE;
 
-	setenv_hex("filesize", size);
+	env_set_hex("filesize", size);
 
 	return 0;
 }
@@ -408,7 +408,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	}
 	puts("\n");
 
-	setenv_fileinfo(len_read);
+	env_set_fileinfo(len_read);
 
 	return 0;
 }
@@ -499,7 +499,7 @@ int do_fs_uuid(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		return CMD_RET_FAILURE;
 
 	if (argc == 4)
-		setenv(argv[3], uuid);
+		env_set(argv[3], uuid);
 	else
 		printf("%s\n", uuid);
 
@@ -519,7 +519,7 @@ int do_fs_type(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	info = fs_get_info(fs_type);
 
 	if (argc == 4)
-		setenv(argv[3], info->name);
+		env_set(argv[3], info->name);
 	else
 		printf("%s\n", info->name);
 

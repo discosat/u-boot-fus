@@ -528,7 +528,7 @@ void win_setenv(const wininfo_t *pwi)
 
 	/* If window is not active, unset the environment variable */
 	if (!pwi->active) {
-		setenv((char *)pwi->name, NULL);
+		env_set((char *)pwi->name, NULL);
 		return;
 	}
 
@@ -568,5 +568,5 @@ void win_setenv(const wininfo_t *pwi)
 	}
 
 	/* Set the environment variable */
-	setenv((char *)pwi->name, buf);
+	env_set((char *)pwi->name, buf);
 }

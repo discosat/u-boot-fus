@@ -942,7 +942,7 @@ int ubifs_load(const char *filename, u32 addr, u32 size)
 	set_fileaddr(addr);
 	err = ubifs_read(filename, (void *)(uintptr_t)addr, 0, size, &actread);
 	if (err == 0) {
-		setenv_fileinfo(actread);
+		env_set_fileinfo(actread);
 		printf("Done\n");
 	}
 

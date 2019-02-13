@@ -51,11 +51,11 @@ static int do_load_serial(cmd_tbl_t *cmdtp, int flag, int argc,
 	load_baudrate = current_baudrate = gd->baudrate;
 #endif
 
-	if (((env_echo = getenv("loads_echo")) != NULL) && (*env_echo == '1')) {
+	env_echo = env_get("loads_echo");
+	if (env_echo && *env_echo == '1')
 		do_echo = 1;
-	} else {
+	else
 		do_echo = 0;
-	}
 
 #ifdef	CONFIG_SYS_LOADS_BAUD_CHANGE
 	if (argc >= 2) {
@@ -108,7 +108,7 @@ static int do_load_serial(cmd_tbl_t *cmdtp, int flag, int argc,
 	} else {
 		printf("## Start Addr      = 0x%08lX\n", addr);
 		set_fileaddr(addr)
-		setenv_fileinfo(addr);
+		env_set_fileinfo(addr);
 	}
 
 #ifdef	CONFIG_SYS_LOADS_BAUD_CHANGE
@@ -185,7 +185,7 @@ static ulong load_serial(long offset)
 		    );
 		    flush_cache(start_addr, size);
 		    set_fileaddr(start_addr);
-		    setenv_fileinfo(size);
+		    env_set_fileinfo(size);
 		    return (addr);
 		case SREC_START:
 		    break;
@@ -520,7 +520,7 @@ static ulong load_serial_bin(ulong offset)
 	flush_cache(offset, size);
 
 	printf("## Total Size      = 0x%08x = %d Bytes\n", size, size);
-	setenv_fileinfo(size);
+	env_set_fileinfo(size);
 
 	return offset;
 }
@@ -992,7 +992,7 @@ static ulong load_serial_ymodem(ulong offset, int mode)
 	flush_cache(offset, ALIGN(size, ARCH_DMA_MINALIGN));
 
 	printf("## Total Size      = 0x%08x = %d Bytes\n", size, size);
-	setenv_fileinfo(size);
+	env_set_fileinfo(size);
 
 	return offset;
 }

@@ -178,7 +178,8 @@ struct fsl_esdhc_cfg {
 	u32	sdhc_clk;
 	unsigned cd_gpio;
 	u8	max_bus_width;
-	u8	wp_enable;
+	int	wp_enable;
+	int	vs18_enable; /* Use 1.8V if set to 1 */
 };
 
 /* Select the correct accessors depending on endianess */

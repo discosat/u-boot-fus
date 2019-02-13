@@ -62,7 +62,7 @@ int cli_simple_parse_line(char *line, char *argv[])
  * WARNING:
  *
  * We must create a temporary copy of the command since the command we get
- * may be the result from getenv(), which returns a pointer directly to
+ * may be the result from env_get(), which returns a pointer directly to
  * the environment data, which may change magicly when the command we run
  * creates or modifies environment variables (like "bootp" does).
  */
@@ -220,7 +220,7 @@ int cli_simple_run_command(const char *cmd, int flag)
 					   after the $( or ${ respectively;
 					   read the environment variable */
 					output[out] = 0;
-					s = getenv(output + varindex + 2);
+					s = env_get(output + varindex + 2);
 #if DEBUG_PARSER
 					printf("[$(%s)='",
 					       output + varindex + 2);

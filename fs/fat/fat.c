@@ -131,13 +131,19 @@ int fat_register_device(struct blk_desc *dev_desc, int part_no)
  */
 static __u32 disk_read(__u32 sector, __u32 count, void *buffer)
 {
+	__u32 ret;
+
 	debug("Reading %u sectors from sector 0x%x\n", count, sector);
-	if (!cur_dev || !cur_dev->block_read)
+	if (!cur_dev)
 		return 0;
 
 	sector += cur_part_info.start;
 
-	return cur_dev->block_read(cur_dev, sector, count, buffer);
+	ret = blk_dread(cur_dev, sector, count, buffer);
+	if (ret != count)
+		ret = -1;
+
+	return ret;
 }
 
 static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
