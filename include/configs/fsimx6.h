@@ -164,19 +164,15 @@
 /************************************************************************
  * OTP Memory (Fuses)
  ************************************************************************/
-#define CONFIG_MXC_OCOTP
 
 
 /************************************************************************
  * Serial Console (UART)
  ************************************************************************/
-#define CONFIG_MXC_UART			/* Use MXC uart driver */
 #define CONFIG_SYS_UART_PORT	3	/* Default UART port; however we
 					   always take the port from NBoot */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
-#undef CONFIG_CONSOLE_MUX		/* Just one console at a time */
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
-#define CONFIG_BAUDRATE		115200	/* Default baudrate */
 #define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
 
@@ -233,7 +229,6 @@
 #define CONFIG_USB_EHCI_POWERDOWN	/* Shut down VBUS power on usb stop */
 #define CONFIG_MXC_USB_PORTSC (PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
-#define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS 1 /* One port per controller */
 #define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
 
 
@@ -246,10 +241,6 @@
 /************************************************************************
  * Keyboard
  ************************************************************************/
-#if 0
-#define CONFIG_USB_KEYBOARD
-#define CONFIG_SYS_DEVICE_DEREGISTER	/* Required for CONFIG_USB_KEYBOARD */
-#endif
 
 
 /************************************************************************
@@ -259,12 +250,6 @@
 #define CONFIG_FSL_USDHC		  /* with USDHC modifications */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 #define CONFIG_SYS_FSL_USDHC_NUM       1
-
-#if 0
-#define CONFIG_SYS_FSL_ERRATUM_ESDHC135
-#define CONFIG_SYS_FSL_ERRATUM_ESDHC111
-#define CONFIG_SYS_FSL_ERRATUM_ESDHC_A001
-#endif
 
 
 /************************************************************************
@@ -343,30 +328,12 @@
 #define CONFIG_CMD_BLINK	/* Support blinking LEDs */
 #undef CONFIG_CMD_FITUPD	/* No update from FIT image */
 #define CONFIG_CMD_INI		/* Support INI files to init environment */
-#undef CONFIG_CMD_MMC_SPI	/* No access of MMC cards in SPI mode */
-#define CONFIG_CMD_MTDPARTS	/* Support MTD partitions (mtdparts, chpart) */
-#undef CONFIG_CMD_ONENAND	/* No support for ONENAND flash memories */
-#undef CONFIG_CMD_PCI		/* No PCI support */
-#undef CONFIG_CMD_PCMCIA	/* No support for PCMCIA cards */
-#undef CONFIG_CMD_PORTIO	/* No port commands (in, out) */
-#define CONFIG_CMD_READ		/* Raw read from media without filesystem */
-#undef CONFIG_CMD_REGINFO	/* No register support on ARM, only PPC */
-#undef CONFIG_CMD_REISER	/* No support for reiserfs filesystem */
-#undef CONFIG_CMD_SATA		/* No support for SATA disks */
-#undef CONFIG_CMD_SAVES		/* No support for serial uploads (saving) */
-#undef CONFIG_CMD_SCSI		/* No support for SCSI disks */
-#undef CONFIG_CMD_SDRAM		/* Support SDRAM chips via I2C */
-#undef CONFIG_CMD_SPL		/* No SPL support (kernel parameter images) */
-#undef CONFIG_CMD_STRINGS	/* No support to show strings */
-#undef CONFIG_CMD_TERMINAL	/* No terminal emulator */
 #define CONFIG_CMD_UPDATE	/* Support automatic update/install */
-#undef CONFIG_CMD_ZFS		/* No support for ZFS filesystem */
 
 
 /************************************************************************
  * Display (LCD)
  ************************************************************************/
-#define CONFIG_VIDEO_IPUV3		/* Use IPU display driver */
 #define CONFIG_VIDEO_LOGO		/* Allow a logo on the console... */
 #define CONFIG_VIDEO_BMP_LOGO		/* ...as BMP image... */
 #define CONFIG_BMP_16BPP		/* ...with 16 bits per pixel */
@@ -397,22 +364,11 @@
 /* EXT4 */
 #define CONFIG_FS_EXT4			/* Support EXT2/3/4 */
 
-/* JFFS2 */
-#define CONFIG_JFFS2_NAND		/* Support JFFS2 in NAND */
-
-/* YAFFS */
-#undef CONFIG_YAFFS2			/* No support for YAFFS2 commands */
-
-/* UBI/UBIFS */
-#define CONFIG_RBTREE			/* Required for UBI */
-#define CONFIG_LZO			/* Required for UBI */
-
 
 /************************************************************************
  * Generic MTD Settings
  ************************************************************************/
 #define CONFIG_MTD_DEVICE		/* Create MTD device */
-#define CONFIG_MTD_PARTITIONS		/* Required for UBI */
 
 /* Define MTD partition info */
 #if CONFIG_SYS_MAX_NAND_DEVICE > 1
@@ -434,9 +390,6 @@
 /************************************************************************
  * Environment
  ************************************************************************/
-#define CONFIG_ENV_IS_IN_NAND		/* Environment is in NAND flash */
-#define CONFIG_ENV_OVERWRITE		/* Allow overwriting serial/ethaddr */
-#define CONFIG_SYS_CONSOLE_IS_IN_ENV	/* Console can be saved in env */
 
 /* Environment settings for large blocks (128KB). The environment is held in
    the heap, so keep the real env size small to not waste malloc space. */
@@ -460,7 +413,6 @@
 #define CONFIG_BOOTFILE		"zImage"
 #define CONFIG_ROOTPATH		"/rootfs"
 #define CONFIG_PREBOOT
-#define CONFIG_BOOTARGS		"undef"
 #define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 
 /* Add some variables that are not predefined in U-Boot. For example set
