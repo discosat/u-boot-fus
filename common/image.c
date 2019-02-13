@@ -445,13 +445,62 @@ static const image_header_t *image_get_ramdisk(ulong rd_addr, uint8_t arch,
 /* Shared dual-format routines */
 /*****************************************************************************/
 #ifndef USE_HOSTCC
+static ulong load_addr;			/* Default Load Address */
+static ulong file_addr;			/* Load address for current file */
+
+ulong get_fileaddr(void)
+{
+	return file_addr;
+}
+
+/* Remember fileaddr to be used by load/save and network commands */
+void set_fileaddr(ulong addr)
+{
+	file_addr = addr;
+}
+
+/* Store fileaddr/filesize to environment, call if download was successful */
+void env_set_fileinfo(ulong size)
+{
+	env_set_hex("fileaddr", file_addr);
+	env_set_hex("filesize", size);
+}
+
+ulong get_loadaddr(void)
+{
+	return load_addr;
+}
+
+/* If string starts with '.', return current load_addr, else parse address */
+ulong parse_loadaddr(const char *buffer, char ** endp)
+{
+	if (*buffer != '.')
+		return simple_strtoul(buffer, endp, 16);
+	if (endp)
+		*endp = (char *)(buffer + 1);
+	return load_addr;
+}
+
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr)
+{
+	if (*buffer != '.')
+		return strict_strtoul(buffer, 16, loadaddr);
+
+	*loadaddr = load_addr;
+
+	if (buffer[1])
+		return -EINVAL;
+
+	return 0;
+}
+
 static int on_loadaddr(const char *name, const char *value, enum env_op op,
 	int flags)
 {
 	switch (op) {
 	case env_op_create:
 	case env_op_overwrite:
-		set_loadaddr(simple_strtoul(value, NULL, 16));
+		load_addr = simple_strtoul(value, NULL, 16);
 		break;
 	default:
 		break;

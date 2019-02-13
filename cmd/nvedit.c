@@ -67,9 +67,6 @@ NAND|NVRAM|ONENAND|SATA|SPI_FLASH|REMOTE|UBI} or CONFIG_ENV_IS_NOWHERE
  */
 #define	MAX_ENV_SIZE	(1 << 20)	/* 1 MiB */
 
-static ulong load_addr;			/* Default Load Address */
-static ulong file_addr;			/* Load address for current file */
-
 /*
  * This variable is incremented on each do_env_set(), so it can
  * be used via get_env_id() as an indication, if the environment
@@ -347,24 +344,6 @@ ulong env_get_hex(const char *varname, ulong default_val)
 		return default_val;
 
 	return value;
-}
-
-void set_loadaddr(ulong addr)
-{
-	load_addr = addr;
-}
-
-/* Remember fileaddr to be used by load/save and network commands */
-void set_fileaddr(ulong addr)
-{
-	file_addr = addr;
-}
-
-/* Store fileaddr/filesize to environment, call if download was successful */
-void env_set_fileinfo(ulong size)
-{
-	setenv_hex("fileaddr", file_addr);
-	setenv_hex("filesize", size);
 }
 
 #ifndef CONFIG_SPL_BUILD
@@ -745,39 +724,6 @@ const char *parse_bootfile(const char *buffer)
 	if ((buffer[0] == '.') && (buffer[1] == 0))
 		return get_bootfile();
 	return buffer;
-}
-
-ulong get_loadaddr(void)
-{
-	return load_addr;
-}
-
-ulong get_fileaddr(void)
-{
-	return file_addr;
-}
-
-/* If string starts with '.', return current load_addr, else parse address */
-ulong parse_loadaddr(const char *buffer, char ** endp)
-{
-	if (*buffer != '.')
-		return simple_strtoul(buffer, endp, 16);
-	if (endp)
-		*endp = (char *)(buffer + 1);
-	return load_addr;
-}
-
-int strict_parse_loadaddr(const char *buffer, ulong *loadaddr)
-{
-	if (*buffer != '.')
-		return strict_strtoul(buffer, 16, loadaddr);
-
-	*loadaddr = load_addr;
-
-	if (buffer[1])
-		return -EINVAL;
-
-	return 0;
 }
 
 #ifndef CONFIG_SPL_BUILD

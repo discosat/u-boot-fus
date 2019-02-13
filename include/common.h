@@ -308,7 +308,7 @@ int	source (ulong addr, const char *fit_uname);
 int update_script(enum update_action action_id, const char *autocheck,
 		  const char *fname, unsigned long addr);
 
-/* Use get_loadaddr() and set_loadaddr() instead of variable load_addr */
+/* Use get_loadaddr() instead of variable load_addr */
 //###extern ulong load_addr;		/* Default Load Address */
 
 /* common/cmd_net.c */
@@ -326,9 +326,6 @@ void	env_relocate (void);
 int	envmatch     (uchar *, int);
 const char *get_bootfile(void);
 const char *parse_bootfile(const char *buffer);
-
-/* Set the current load address, e.g. if environment variable is changed */
-void set_loadaddr(ulong addr);
 
 /* Get the load address; should be the same as environment variable loadaddr */
 ulong get_loadaddr(void);
