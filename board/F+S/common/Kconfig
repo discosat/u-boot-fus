@@ -1,0 +1,69 @@
+if TARGET_FSVYBRID || TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL
+
+config ETHADDR_BASE
+	string
+	default "00:05:51:07:55:83"
+
+config ADDFSHEADER
+	bool
+	default y
+
+config FS_BOARD_COMMON
+	bool
+	default y
+
+config FS_BOARD_OFFS
+	int
+	default 16 if TARGET_FSIMX6UL
+	default 8  if TARGET_FSIMX6SX
+	default 0
+
+config FS_BOARD_MODE_RO
+	bool "Load rootfs read-only (F&S)"
+	default y
+	help
+	  F&S boards usually start the rootfs in read-only mode to
+	  avoid any data loss when the power fails or when the board is
+	  simply switched off without a proper shutdown procedure. If
+	  you want a writable rootfs instead, say N here. But be warned,
+	  this may be dangerous for your data!
+
+config FS_FDT_COMMON
+	bool
+	default y
+
+config FS_MMC_COMMON
+	bool
+	default y if TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL
+
+config FS_ETH_COMMON
+	bool
+	default y if TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL
+
+config FS_USB_COMMON
+	bool
+	default y if TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL
+
+config FS_USB_PWR_USBNC
+	bool "Use USB PWR function from host controller"
+	depends on FS_USB_COMMON
+	default y
+	help
+	  The VBUS power for a USB host port can either be switched
+	  automatically in hardware by the dedicated USB controller
+	  function or manually by setting the pad as a GPIO. If you
+	  say N, the code will use the GPIO variant, if you say Y,
+	  the dedicated controller function will be used where possible.
+
+config FS_DISP_COMMON
+	bool
+	default y if TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL
+
+config FS_DISP_COUNT
+	int
+	depends on FS_DISP_COMMON
+	default 4 if TARGET_FSIMX6
+	default 2 if TARGET_FSIMX6SX
+	default 1 if TARGET_FSIMX6UL
+
+endif

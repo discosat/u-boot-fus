@@ -1,5 +1,8 @@
 source "drivers/net/phy/Kconfig"
 
+config MII
+	bool
+
 config DM_ETH
 	bool "Enable Driver Model for Ethernet drivers"
 	depends on DM
@@ -46,6 +49,18 @@ config ALTERA_TSE
 	  This driver supports the Altera Triple-Speed (TSE) Ethernet MAC.
 	  Please find details on the "Triple-Speed Ethernet MegaCore Function
 	  Resource Center" of Altera.
+
+config DRIVER_AX88796
+	bool "Asix AX88796 Fast Ethernet (NE2000 compatible)"
+	help
+	  This driver supports the Asix AX88796 Fast Ethernet chip (MAC+PHY).
+
+config DRIVER_AX88796_BASE
+	hex "AX88796 base address"
+	depends on DRIVER_AX88796
+	help
+	  The AX88796 is addressed memory mapped. Give the address where
+	  the device is located in the address space.
 
 config BCM_SF2_ETH
 	bool "Broadcom SF2 (Starfighter2) Ethernet support"
@@ -149,7 +164,8 @@ config ETHOC
 
 config FEC_MXC
 	bool "FEC Ethernet controller"
-	depends on MX5 || MX6
+	depends on MX5 || MX6 || TARGET_FSVYBRID
+	select MII
 	help
 	  This driver supports the 10/100 Fast Ethernet controller for
 	  NXP i.MX processors.

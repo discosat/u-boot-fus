@@ -68,9 +68,6 @@
 #define FEAT2_RMIICLK_CKO1 (1<<2)	/* RMIICLK (PTA6) 0: output, 1: input
 					   CKO1 (PTB10) 0: unused, 1: output */
 
-#define XMK_STR(x)	#x
-#define MK_STR(x)	XMK_STR(x)
-
 #define INSTALL_RAM "ram@80300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc,usb"
@@ -596,8 +593,7 @@ void fs_eth_set_ethaddr(int index)
 		count = get_otp_mac(OTP_BASE_ADDR + 0x640, enetaddr);
 		if (count <= offs) {
 			offs -= count;
-			eth_parse_enetaddr(MK_STR(CONFIG_ETHADDR_BASE),
-					   enetaddr);
+			eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 		}
 	}
 

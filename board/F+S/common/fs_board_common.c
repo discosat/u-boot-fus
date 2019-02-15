@@ -327,7 +327,11 @@ void fs_board_late_init_common(void)
 	setup_var("recovercheck", current_bi->recovercheck, 0);
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
-	setup_var("mode", CONFIG_FS_BOARD_MODE, 0);
+#ifdef CONFIG_FS_BOARD_MODE_RO
+	setup_var("mode", "ro", 0);
+#else
+	setup_var("mode", "rw", 0);
+#endif
 
 	/* Set some variables by runnning another variable */
 	setup_var("console", current_bi->console, 1);

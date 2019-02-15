@@ -17,9 +17,6 @@
 #include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <asm/io.h>			/* __raw_readl() */
 
-#define XMK_STR(x)	#x
-#define MK_STR(x)	XMK_STR(x)
-
 /* Read a MAC address from OTP memory */
 static int get_otp_mac(void *otp_addr, uchar *enetaddr)
 {
@@ -97,7 +94,7 @@ void fs_eth_set_ethaddr(int index)
 	count = get_otp_mac(&bank->fuse_regs[8], enetaddr);
 	if (count <= offs) {
 		offs -= count;
-		eth_parse_enetaddr(MK_STR(CONFIG_ETHADDR_BASE), enetaddr);
+		eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 	}
 
 	i = 6;

@@ -26,9 +26,9 @@ int arch_reserve_stacks(void)
 
 # if !defined(CONFIG_ARM64)
 #  ifdef CONFIG_USE_IRQ
-	gd->start_addr_sp -= (CONFIG_STACKSIZE_IRQ + CONFIG_STACKSIZE_FIQ);
+	gd->start_addr_sp -= (ARM_STACKSIZE_IRQ + ARM_STACKSIZE_FIQ);
 	debug("Reserving %zu Bytes for IRQ stack at: %08lx\n",
-	      CONFIG_STACKSIZE_IRQ + CONFIG_STACKSIZE_FIQ, gd->start_addr_sp);
+	      ARM_STACKSIZE_IRQ + ARM_STACKSIZE_FIQ, gd->start_addr_sp);
 
 	/* 8-byte alignment for ARM ABI compliance */
 	gd->start_addr_sp &= ~0x07;

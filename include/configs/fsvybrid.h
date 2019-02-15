@@ -70,8 +70,8 @@
  *               TOTAL_MALLOC_LEN          malloc heap
  * bd            sizeof(bd_t)              Board info struct
  * gd->irq_sp    sizeof(gd_t)              Global data
- *               CONFIG_STACKSIZE_IRQ      IRQ stack
- *               CONFIG_STACKSIZE_FIQ      FIQ stack
+ *               ARM_STACKSIZE_IRQ         IRQ stack
+ *               ARM_STACKSIZE_FIQ         FIQ stack
  *               12 (8-byte aligned)       Abort-stack
  *
  * Remark: TOTAL_MALLOC_LEN depends on CONFIG_SYS_MALLOC_LEN and CONFIG_ENV_SIZE
@@ -86,12 +86,6 @@
 #define CONFIG_VYBRID			/* ### TODO: switch to CONFIG_VF610 */
 #undef CONFIG_MP			/* No multi processor support */
 
-#define CONFIG_FS_BOARD_COMMON		/* Use F&S common board stuff */
-#define CONFIG_FS_BOARD_OFFS	0	/* F&S Vybrid board types as reported
-					   by NBoot start at offset 0 */
-#define CONFIG_FS_BOARD_MODE	"ro"	/* Default mode read-only for rootfs */
-#define CONFIG_FS_FDT_COMMON		/* Use F&S common FDT stuff */
-
 #include <asm/arch/vybrid-regs.h>	/* IRAM_BASE_ADDR, IRAM_SIZE */
 #define CONFIG_SYS_CACHELINE_SIZE	64
 
@@ -103,7 +97,6 @@
 #undef CONFIG_ARCH_CPU_INIT
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
 /*###FIXME### Can we drop CONFIG_BOARD_EARLY_INIT_F?*/
-#define CONFIG_USE_IRQ			/* For blinking LEDs */
 #define CONFIG_SYS_LONGHELP		/* Undef to save memory */
 #undef CONFIG_LOGBUFFER			/* No support for log files */
 
@@ -111,8 +104,7 @@
    at some rather low address in RAM. It will relocate itself to the end of
    RAM automatically when executed. */
 #define CONFIG_SYS_TEXT_BASE 0x80100000	/* Where NBoot loads U-Boot */
-#define CONFIG_FS_UBOOTNB0_SIZE 0x60000	/* Size of uboot.nb0 */
-#define CONFIG_BOARD_SIZE_LIMIT CONFIG_FS_UBOOTNB0_SIZE
+#define CONFIG_BOARD_SIZE_LIMIT 0x60000	/* Size of uboot.nb0 */
 
 /* For the default load address, use an offset of 16MB. The final kernel (after
    decompressing the zImage) must be at offset 0x8000. But if we load the
@@ -150,10 +142,6 @@
 
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
-#ifdef CONFIG_USE_IRQ
-#define CONFIG_STACKSIZE_IRQ	(4*1024)
-#define CONFIG_STACKSIZE_FIQ	(128)
-#endif
 
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) ### If not set, test from beginning of RAM to before stack. */
@@ -185,7 +173,6 @@
 /************************************************************************
  * Serial Console (UART)
  ************************************************************************/
-#define CONFIG_VYBRID_UART		/* Use vybrid uart driver */
 #define CONFIG_SYS_UART_PORT	1	/* Default UART port; however we
 					   always take the port from NBoot */
 #define CONFIG_SYS_SERCON_NAME "ttyLP"	/* Base name for serial devices */
@@ -201,7 +188,6 @@
 /************************************************************************
  * LEDs
  ************************************************************************/
-#define CONFIG_BLINK_VYBRID
 
 
 /************************************************************************
@@ -219,7 +205,6 @@
 /************************************************************************
  * Ethernet
  ************************************************************************/
-#define CONFIG_FEC_MXC			/* ### TODO: Enable for Vybrid */
 
 /* PHY */
 #define CONFIG_SYS_DISCOVER_PHY
@@ -232,10 +217,7 @@
  * USB Host
  ************************************************************************/
 /* Use USB1 as host */
-#define CONFIG_USB_EHCI_VYBRID		/* This is Vybrid EHCI */
-#define CONFIG_EHCI_IS_TDI		/* TDI version with USBMODE register */
-/* If USB0 should be used as second USB Host port, activate this entry */
-/*#define CONFIG_USB_MAX_CONTROLLER_COUNT 2*/
+#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 
 /************************************************************************
@@ -278,12 +260,6 @@
 /************************************************************************
  * NAND Flash
  ************************************************************************/
-/* Use F&S implementation of Vybrid NFC driver */
-#define CONFIG_NAND_FSL_NFC_FS
-
-/* Use our own initialization code */
-#define CONFIG_SYS_NAND_SELF_INIT
-
 /* To avoid that NBoot is erased inadvertently, we define a skip region in the
    first NAND device that can not be written and always reads as 0xFF. However
    if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
@@ -342,12 +318,6 @@
 /************************************************************************
  * Command Definition
  ************************************************************************/
-/* Only those commands are listed that are not available via Kconfig */
-#define CONFIG_CMD_BLINK	/* Support for blinking LEDs */
-#undef CONFIG_CMD_FITUPD	/* No update from FIT image */
-#define CONFIG_CMD_INI		/* Support INI files to init environment */
-#define CONFIG_CMD_NAND_CONVERT	/* support for NAND format conversion */
-#define CONFIG_CMD_UPDATE	/* Support automatic update/install */
 
 
 /************************************************************************
@@ -395,15 +365,11 @@
 #define CONFIG_BOOTP_SEND_HOSTNAME
 #define CONFIG_NET_RETRY_COUNT	5
 #define CONFIG_ARP_TIMEOUT	2000UL
-#define CONFIG_MII			/* Required in net/eth.c */
 
 
 /************************************************************************
  * Filesystem Support
  ************************************************************************/
-/* FAT */
-#define CONFIG_SUPPORT_VFAT		/* ...with VFAT */
-
 /* EXT4 */
 #define CONFIG_FS_EXT4			/* Support EXT2/3/4 */
 
@@ -426,7 +392,8 @@
 #define MTDPARTS_PART2		"256k(Refresh)ro,512k(UBoot)ro,256k(UBootEnv)ro"
 #define MTDPARTS_PART3		"4m(Kernel)ro,1792k(FDT)ro"
 #define MTDPARTS_PART4		"-(TargetFS)"
-#define MTDPARTS_STD		"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define MTDPARTS_DEFAULT	"mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define MTDPARTS_STD		"setenv mtdparts " MTDPARTS_DEFAULT
 #define MTDPARTS_UBIONLY	"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
 
 
@@ -447,7 +414,6 @@
    environments is always valid. Currently we don't use this feature. */
 /*#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000*/
 
-#define CONFIG_ETHADDR_BASE	00:05:51:07:55:83
 #define CONFIG_ETHPRIME		"FEC0"
 #define CONFIG_NETMASK		255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
@@ -510,6 +476,7 @@
 	".login_none=setenv login login_tty=null\0" \
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
 	".login_display=setenv login login_tty=tty1\0" \
+	"mtdids=undef\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
 	".network_off=setenv network\0" \
@@ -562,7 +529,6 @@
 /************************************************************************
  * Tools
  ************************************************************************/
-#define CONFIG_ADDFSHEADER
 
 
 /************************************************************************

@@ -121,9 +121,18 @@ config NAND_MXS
 	  MXS processors.
 
 config NAND_MXS_FUS
-	bool "F&S version of MXS NAND support"
+	bool "MXS NAND support (F&S)"
 	depends on MX6
 	depends on !NAND_MXS
+	select SYS_NAND_SELF_INIT
+	help
+	  This enables NAND driver for the NAND flash controller on the
+	  MXS processors.
+
+config NAND_FSL_NFC_FS
+	bool "Vybrid NFC NAND support (F&S)"
+	depends on TARGET_FSVYBRID
+	select SYS_NAND_SELF_INIT
 	help
 	  This enables NAND driver for the NAND flash controller on the
 	  MXS processors.

@@ -6,6 +6,9 @@ comment "USB Host Controller Drivers"
 config USB_HOST
 	bool
 
+config EHCI_IS_TDI
+	bool
+
 config USB_XHCI_HCD
 	bool "xHCI HCD (USB 3.0) support"
 	select USB_HOST
@@ -86,6 +89,12 @@ config USB_EHCI_HCD
 
 if USB_EHCI_HCD
 
+config USB_EHCI_POWERDOWN
+	bool "Shut down VBUS power on usb stop"
+	help
+	  Enable this if the VBUS power should be switched off when USB
+	  host is stopped.
+
 config USB_EHCI_ATMEL
 	bool  "Support for Atmel on-chip EHCI USB controller"
 	depends on ARCH_AT91
@@ -104,6 +113,7 @@ config USB_EHCI_MX6
 	bool "Support for i.MX6 on-chip EHCI USB controller"
 	depends on ARCH_MX6
 	default y
+	select EHCI_IS_TDI
 	---help---
 	  Enables support for the on-chip EHCI controller on i.MX6 SoCs.
 
@@ -111,8 +121,17 @@ config USB_EHCI_MX7
 	bool "Support for i.MX7 on-chip EHCI USB controller"
 	depends on ARCH_MX7
 	default y
+	select EHCI_IS_TDI
 	---help---
 	  Enables support for the on-chip EHCI controller on i.MX7 SoCs.
+
+config USB_EHCI_VYBRID
+	bool "Support for Vybrid on-chip EHCI USB controller (F&S)"
+	depends on TARGET_FSVYBRID
+	default y
+	select EHCI_IS_TDI
+	---help---
+	  Enables support for the on-chip EHCI controller on Vybrid SoCs.
 
 config USB_EHCI_OMAP
 	bool "Support for OMAP3+ on-chip EHCI USB controller"

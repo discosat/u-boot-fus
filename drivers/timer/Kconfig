@@ -1,5 +1,8 @@
 menu "Timer Support"
 
+config USE_IRQ
+	bool
+
 config TIMER
 	bool "Enable driver model for timer drivers"
 	depends on DM
@@ -117,5 +120,25 @@ config ROCKCHIP_TIMER
 	help
 	  Select this to enable support for the timer found on
 	  Rockchip devices.
+
+config BLINK_IMX
+	bool "Blink timer for i.MX CPUs (F&S)"
+	depends on ARCH_MX6
+	select CMD_BLINK
+	select USE_IRQ
+	help
+	  Select this to have blinking support for i.MX CPUs, for
+	  example for blinking LEDs. Blinking speed can be set with
+	  the blink command.
+
+config BLINK_VYBRID
+	bool "Blink timer for Vybrid CPUs (F&S)"
+	depends on TARGET_FSVYBRID
+	select CMD_BLINK
+	select USE_IRQ
+	help
+	  Select this to have blinking support for Vybrid CPUs, for
+	  example for blinking LEDs. Blinking speed can be set with
+	  the blink command.
 
 endmenu

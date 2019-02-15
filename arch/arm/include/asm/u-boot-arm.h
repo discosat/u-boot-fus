@@ -15,6 +15,9 @@
 
 #ifndef __ASSEMBLY__
 
+#define ARM_STACKSIZE_IRQ	4096
+#define ARM_STACKSIZE_FIQ	128
+
 /* for the following variables, see start.S */
 extern ulong IRQ_STACK_START;	/* top of IRQ stack */
 extern ulong FIQ_STACK_START;	/* top of FIQ stack */

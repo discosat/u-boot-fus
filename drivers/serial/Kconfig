@@ -414,6 +414,13 @@ config MXC_UART
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
 
+config VYBRID_UART
+	bool "Vybrid serial port support (F&S)"
+	depends on TARGET_FSVYBRID
+	help
+	  If you have a machine based on an NXP Vybrid CPU, this option
+	  enables its onboard serial port.
+
 config PIC32_SERIAL
 	bool "Support for Microchip PIC32 on-chip UART"
 	depends on DM_SERIAL && MACH_PIC32
