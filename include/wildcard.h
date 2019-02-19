@@ -24,7 +24,7 @@
 
 /* Filesystem doing the call; used as index into the wc_filesystem_ops array */
 enum wc_filesystem {
-#ifdef CONFIG_CMD_FAT
+#ifdef CONFIG_FS_FAT
 	WC_FS_FAT,
 #endif
 	WC_FS_COUNT			/* Keep as last entry */

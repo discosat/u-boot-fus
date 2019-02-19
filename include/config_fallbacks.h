@@ -31,6 +31,7 @@
 
 #if defined(CONFIG_ENV_IS_IN_FAT) && !defined(CONFIG_FS_FAT)
 #define CONFIG_FS_FAT
+#define CONFIG_FAT_ORIG
 #endif
 
 #if (defined(CONFIG_CMD_EXT4) || defined(CONFIG_CMD_EXT2)) && \

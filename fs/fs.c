@@ -153,7 +153,11 @@ static struct fstype_info fstypes[] = {
 		.null_dev_desc_ok = false,
 		.probe = fat_set_blk_dev,
 		.close = fat_close,
+#ifdef CONFIG_FAT_FUS
+		.ls = file_fat_ls,
+#else
 		.ls = fs_ls_generic,
+#endif
 		.exists = fat_exists,
 		.size = fat_size,
 		.read = fat_read_file,
@@ -163,9 +167,14 @@ static struct fstype_info fstypes[] = {
 		.write = fs_write_unsupported,
 #endif
 		.uuid = fs_uuid_unsupported,
+#ifdef CONFIG_FAT_FUS
+		/* We have our own ls with wildcards */
+		.opendir = fs_opendir_unsupported,
+#else
 		.opendir = fat_opendir,
 		.readdir = fat_readdir,
 		.closedir = fat_closedir,
+#endif
 	},
 #endif
 #ifdef CONFIG_FS_EXT4

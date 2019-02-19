@@ -3,4 +3,4 @@
 # SPDX-License-Identifier:	GPL-2.0+
 #
 
-obj-$(CONFIG_FS_FAT)	+= wildcard.o
+obj-$(CONFIG_FAT_FUS)	+= wildcard.o
