@@ -1,7 +1,10 @@
 /*
  * fat.c
  *
- * (C) 2012-2018 Hartmut Keller (keller@fs-net.de)
+ * R/O (V)FAT 12/16/32 filesystem implementation by Marcus Sundberg
+ *
+ * 2002-07-28 - rjones@nexus-tech.net - ported to ppcboot v1.1.6
+ * 2003-03-10 - kharris@nexus-tech.net - ported to uboot
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -9,87 +12,85 @@
 #include <common.h>
 #include <blk.h>
 #include <config.h>
-#include <fat.h>			/* struct fsdata, ATTR*, ... */
+#include <exports.h>
+#include <fat.h>
+#include <fs.h>
 #include <asm/byteorder.h>
 #include <part.h>
 #include <malloc.h>
-#include <linux/compiler.h>		/* __aligned() */
-#include <memalign.h>			/* ALLOC_CACHE_ALIGN_BUFFER */
-#include <div64.h>
-
-
-/* Directory preload size, must be a multiple of the sector size 512 (0x200) */
-#ifndef CONFIG_SYS_FAT_PRELOAD_DIR
-#define CONFIG_SYS_FAT_PRELOAD_DIR 4096
-#endif
-
-/* FAT preload size, must be a multiple of 3 and the sector size 512 (0x200) */
-#ifndef CONFIG_SYS_FAT_PRELOAD_FAT
-#define CONFIG_SYS_FAT_PRELOAD_FAT 3072
-#endif
-
-#define DOS_BOOT_MAGIC_OFFSET	0x1fe
-
-#define TO_FAT_DIRINFO(wdi)	((struct fat_dirinfo *)wdi)
-#define TO_WC_DIRINFO(fdi)	((struct wc_dirinfo *)fdi)
-#define IS_FAT_CHAR(c)		((c >= 32) && (c <= 255) && (c != 127))
-
-/* Directory entry; the generic wc_dirinfo must be part of it; these entries
-   are allocated with fat_alloc_dir() and released with fat_free_dir() */
-struct fat_dirinfo {
-	/* Info seen from outside */
-	struct wc_dirinfo wdi;
-
-	/* Internal info/state to load directory in chunks and access data */
-	__u32 dir_cluster;		/* Current dir cluster, 0: root dir */
-	__u32 cluster_offset;		/* Offset within cluster or fix dir */
-	__u32 preload_offset;		/* Dir entry offset in preload data */
-	__u32 preload_count;		/* Number of preloaded sectors */
-};
-
-static struct blk_desc *cur_dev;
-static unsigned int cur_part_nr;
-static disk_partition_t cur_part_info;
-
-/* Device specific data; if we allow parallel access to more than one FAT
-   device in the future, we must allocate this dynamically. The following
-   dir_buffer and fat_buffer are also part of the device data */
-static struct fsdata myfsdata;
-
-/* Buffer to cache directory entries */
-__u8 dir_buffer[CONFIG_SYS_FAT_PRELOAD_DIR] __aligned(ARCH_DMA_MINALIGN);
-
-/* Buffer to cache FAT table entries */
-__u8 fat_buffer[CONFIG_SYS_FAT_PRELOAD_FAT] __aligned(ARCH_DMA_MINALIGN);
-
+#include <memalign.h>
+#include <linux/compiler.h>
+#include <linux/ctype.h>
 
 #ifdef CONFIG_SUPPORT_VFAT
-/* Indexes into a VFAT longname slot where there are UTF16 characters; this
-   array is also required by FAT writing functions */
-const int slot_index_table[13] = {
-	1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30
-};
+static const int vfat_enabled = 1;
+#else
+static const int vfat_enabled = 0;
+#endif
 
 /*
- * Calculate checksum of a short.
- *
- * Parameter:
- *   dirname: Pointer to name from directory entry (8+3 = 11 characters)
- *
- * Return:
- *   Checksum
+ * Convert a string to lowercase.  Converts at most 'len' characters,
+ * 'len' may be larger than the length of 'str' if 'str' is NULL
+ * terminated.
  */
-__u8 fat_checksum(const char *dirname)
+static void downcase(char *str, size_t len)
 {
-	__u8 cs = 0;
-	int i;
-
-	for (i = 0; i < 11; i++)
-		cs = (((cs & 1) << 7) | (cs >> 1)) + dirname[i];
-
-	return cs;
+	while (*str != '\0' && len--) {
+		*str = tolower(*str);
+		str++;
+	}
 }
-#endif
+
+static struct blk_desc *cur_dev;
+static disk_partition_t cur_part_info;
+
+#define DOS_BOOT_MAGIC_OFFSET	0x1fe
+#define DOS_FS_TYPE_OFFSET	0x36
+#define DOS_FS32_TYPE_OFFSET	0x52
+
+static int disk_read(__u32 block, __u32 nr_blocks, void *buf)
+{
+	ulong ret;
+
+	if (!cur_dev)
+		return -1;
+
+	ret = blk_dread(cur_dev, cur_part_info.start + block, nr_blocks, buf);
+
+	if (ret != nr_blocks)
+		return -1;
+
+	return ret;
+}
+
+int fat_set_blk_dev(struct blk_desc *dev_desc, disk_partition_t *info)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, buffer, dev_desc->blksz);
+
+	cur_dev = dev_desc;
+	cur_part_info = *info;
+
+	/* Make sure it has a valid FAT header */
+	if (disk_read(0, 1, buffer) != 1) {
+		cur_dev = NULL;
+		return -1;
+	}
+
+	/* Check if it's actually a DOS volume */
+	if (memcmp(buffer + DOS_BOOT_MAGIC_OFFSET, "\x55\xAA", 2)) {
+		cur_dev = NULL;
+		return -1;
+	}
+
+	/* Check for FAT12/FAT16/FAT32 filesystem */
+	if (!memcmp(buffer + DOS_FS_TYPE_OFFSET, "FAT", 3))
+		return 0;
+	if (!memcmp(buffer + DOS_FS32_TYPE_OFFSET, "FAT32", 5))
+		return 0;
+
+	cur_dev = NULL;
+	return -1;
+}
 
 int fat_register_device(struct blk_desc *dev_desc, int part_no)
 {
@@ -120,836 +121,1086 @@ int fat_register_device(struct blk_desc *dev_desc, int part_no)
 	return fat_set_blk_dev(dev_desc, &info);
 }
 
-/**
- * disk_read() - Load consecutive blocks from block device.
- * @sector: Sector where to start loading
- * @count:  Number of sectors to load
- * @buffer: Buffer where to store the loaded data
- *
- * Return:
- * Number of read sectors; if smaller than count, this indicates an error
+/*
+ * Extract zero terminated short name from a directory entry.
  */
-static __u32 disk_read(__u32 sector, __u32 count, void *buffer)
+static void get_name(dir_entry *dirent, char *s_name)
 {
-	__u32 ret;
+	char *ptr;
 
-	debug("Reading %u sectors from sector 0x%x\n", count, sector);
-	if (!cur_dev)
-		return 0;
-
-	sector += cur_part_info.start;
-
-	ret = blk_dread(cur_dev, sector, count, buffer);
-	if (ret != count)
-		ret = -1;
-
-	return ret;
-}
-
-static __u32 clust2sect(struct fsdata *mydata, __u32 cluster)
-{
-	return mydata->data_sect + (cluster - 2) * mydata->clust_size;
-}
-
-/**
- * get_shortname() - Get a short filename from a 8+3 directory entry
- * @name:    Pointer to buffer where to store name; the size of the buffer is
- *           WC_NAME_MAX characters which is always sufficient for short names
- * @dirname: Pointer to name from directory entry (8+3 = 11 characters)
- * @lcase:   Flags whether basename and extension are upper or lower case
- *
- * A FAT short name may not contain leading blanks, as any blank in the first
- * positon of the basename or extension is interpreted as an empty basename or
- * extension respectively. Trailing blanks in the basename and/or the
- * extension are padding and are removed. Other blanks are allowed!
- *
- * The basename is always stored in upper case, but it can be either fully
- * lower case or fully upper case, depending on a bit in the lcase entry. The
- * same is true for the extension. So abc.def, ABC.def, abc.DEF and ABC.DEF
- * are valid combinations for short names, but Abc.def must be saved as a long
- * name.
- */
-static void get_shortname(char *name, const char *dirname, __u8 lcase)
-{
-	int src = 0;
-	int dst = 0;
-	char c = dirname[src];
-
-	if (c != ' ') {
-		/* Copy basename */
-		if (c == aRING)
-			c = DELETED_FLAG;
-		do {
-			if (lcase & (1 << 3))
-				TOLOWER(c);
-			name[dst++] = c;
-			c = dirname[++src];
-		} while (src < 8);
-
-		/* Remove trailing blanks (padding); we don't need to check
-		   dst for zero as we know that the basename contains at least
-		   one non-blank character */
-		while (name[dst-1] == ' ')
-			dst--;
-	} else {
-		/* Skip to extension */
-		src = 8;
-		c = dirname[src];
+	memcpy(s_name, dirent->name, 8);
+	s_name[8] = '\0';
+	ptr = s_name;
+	while (*ptr && *ptr != ' ')
+		ptr++;
+	if (dirent->lcase & CASE_LOWER_BASE)
+		downcase(s_name, (unsigned)(ptr - s_name));
+	if (dirent->ext[0] && dirent->ext[0] != ' ') {
+		*ptr++ = '.';
+		memcpy(ptr, dirent->ext, 3);
+		if (dirent->lcase & CASE_LOWER_EXT)
+			downcase(ptr, 3);
+		ptr[3] = '\0';
+		while (*ptr && *ptr != ' ')
+			ptr++;
 	}
-
-	if (c != ' ') {
-		/* Insert '.' and copy extension */
-		name[dst++] = '.';
-		do {
-			if (lcase & (1 << 4))
-				TOLOWER(c);
-			name[dst++] = c;
-			if (src >= 10)
-				break;
-			c = dirname[++src];
-		} while (c && (c != ' '));
-
-		/* Remove trailing blanks (padding); we don't need to check
-		   dst for zero as the extension contains at least one
-		   non-blank character (and of course '.' is also present) */
-		while (name[dst-1] == ' ')
-			dst--;
-	}
-	name[dst] = '\0';
+	*ptr = '\0';
+	if (*s_name == DELETED_FLAG)
+		*s_name = '\0';
+	else if (*s_name == aRING)
+		*s_name = DELETED_FLAG;
 }
 
-/**
- * get_fatent() - Get the FAT table entry at given index
- * @mydata:  Pointer to device specific information
- * @cluster: Index into FAT table from where to get next value
- *
- * Get the FAT table entry at given index, i.e. return the next cluster in the
- * file; the FAT table may have 12, 16 or 32 bit entries.
- *
- * Return:
- * Next cluster, or 0 on failure
+static int flush_dirty_fat_buffer(fsdata *mydata);
+#if !defined(CONFIG_FAT_WRITE)
+/* Stub for read only operation */
+int flush_dirty_fat_buffer(fsdata *mydata)
+{
+	(void)(mydata);
+	return 0;
+}
+#endif
+
+/*
+ * Get the entry at index 'entry' in a FAT (12/16/32) table.
+ * On failure 0x00 is returned.
  */
-static __u32 get_fatent(struct fsdata *mydata, __u32 cluster)
+static __u32 get_fatent(fsdata *mydata, __u32 entry)
 {
 	__u32 bufnum;
-	__u32 offset;
-	__u8 *fatentry;
-	__u32 ret = 0;
+	__u32 offset, off8;
+	__u32 ret = 0x00;
 
-	bufnum = cluster / mydata->fatbuf_entries;
-	offset = cluster - bufnum * mydata->fatbuf_entries;
+	if (CHECK_CLUST(entry, mydata->fatsize)) {
+		printf("Error: Invalid FAT entry: 0x%08x\n", entry);
+		return ret;
+	}
 
-	/* Load according chunk of FAT to the cache (if not already loaded) */
+	switch (mydata->fatsize) {
+	case 32:
+		bufnum = entry / FAT32BUFSIZE;
+		offset = entry - bufnum * FAT32BUFSIZE;
+		break;
+	case 16:
+		bufnum = entry / FAT16BUFSIZE;
+		offset = entry - bufnum * FAT16BUFSIZE;
+		break;
+	case 12:
+		bufnum = entry / FAT12BUFSIZE;
+		offset = entry - bufnum * FAT12BUFSIZE;
+		break;
+
+	default:
+		/* Unsupported FAT size */
+		return ret;
+	}
+
+	debug("FAT%d: entry: 0x%08x = %d, offset: 0x%04x = %d\n",
+	       mydata->fatsize, entry, entry, offset, offset);
+
+	/* Read a new block of FAT entries into the cache. */
 	if (bufnum != mydata->fatbufnum) {
-		__u32 count = mydata->fatbuf_sectors;
-		__u32 sector = bufnum * count;
-		if (sector + count > mydata->fat_length)
-			count = mydata->fat_length - sector;
-		sector += mydata->fat_sect;
+		__u32 getsize = FATBUFBLOCKS;
+		__u8 *bufptr = mydata->fatbuf;
+		__u32 fatlength = mydata->fatlength;
+		__u32 startblock = bufnum * FATBUFBLOCKS;
 
-		debug("Read FAT bufnum: %d, sector: %u, count: %u\n",
-		      bufnum, sector, count);
-		if (disk_read(sector, count, mydata->fatbuf) != count)
+		/* Cap length if fatlength is not a multiple of FATBUFBLOCKS */
+		if (startblock + getsize > fatlength)
+			getsize = fatlength - startblock;
+
+		startblock += mydata->fat_sect;	/* Offset from start of disk */
+
+		/* Write back the fatbuf to the disk */
+		if (flush_dirty_fat_buffer(mydata) < 0)
+			return -1;
+
+		if (disk_read(startblock, getsize, bufptr) < 0) {
+			debug("Error reading FAT blocks\n");
 			return ret;
-
+		}
 		mydata->fatbufnum = bufnum;
 	}
 
 	/* Get the actual entry from the table */
-	fatentry = mydata->fatbuf;
 	switch (mydata->fatsize) {
 	case 32:
-		fatentry += offset * 4;
-		ret = (fatentry[3] << 24) | (fatentry[2] << 16)
-			                  | (fatentry[1] << 8) | fatentry[0];
+		ret = FAT2CPU32(((__u32 *) mydata->fatbuf)[offset]);
 		break;
 	case 16:
-		fatentry += offset * 2;
-		ret = (fatentry[1] << 8) | fatentry[0];
+		ret = FAT2CPU16(((__u16 *) mydata->fatbuf)[offset]);
 		break;
 	case 12:
-		fatentry += offset/2*3;
-		ret = (fatentry[2] << 16) | (fatentry[1] << 8) | fatentry[0];
-		if (offset & 1)
-			ret >>= 12;
-		else
-			ret &= 0xfff;
-		break;
+		off8 = (offset * 3) / 2;
+		/* fatbut + off8 may be unaligned, read in byte granularity */
+		ret = mydata->fatbuf[off8] + (mydata->fatbuf[off8 + 1] << 8);
+
+		if (offset & 0x1)
+			ret >>= 4;
+		ret &= 0xfff;
 	}
-	debug("FAT%u: ret: %08x, offset: %04x\n",
-	      mydata->fatsize, ret, offset);
+	debug("FAT%d: ret: 0x%08x, entry: 0x%08x, offset: 0x%04x\n",
+	       mydata->fatsize, ret, entry, offset);
 
 	return ret;
 }
 
+/*
+ * Read at most 'size' bytes from the specified cluster into 'buffer'.
+ * Return 0 on success, -1 otherwise.
+ */
+static int
+get_cluster(fsdata *mydata, __u32 clustnum, __u8 *buffer, unsigned long size)
+{
+	__u32 idx = 0;
+	__u32 startsect;
+	int ret;
+
+	if (clustnum > 0) {
+		startsect = clust_to_sect(mydata, clustnum);
+	} else {
+		startsect = mydata->rootdir_sect;
+	}
+
+	debug("gc - clustnum: %d, startsect: %d\n", clustnum, startsect);
+
+	if ((unsigned long)buffer & (ARCH_DMA_MINALIGN - 1)) {
+		ALLOC_CACHE_ALIGN_BUFFER(__u8, tmpbuf, mydata->sect_size);
+
+		printf("FAT: Misaligned buffer address (%p)\n", buffer);
+
+		while (size >= mydata->sect_size) {
+			ret = disk_read(startsect++, 1, tmpbuf);
+			if (ret != 1) {
+				debug("Error reading data (got %d)\n", ret);
+				return -1;
+			}
+
+			memcpy(buffer, tmpbuf, mydata->sect_size);
+			buffer += mydata->sect_size;
+			size -= mydata->sect_size;
+		}
+	} else {
+		idx = size / mydata->sect_size;
+		ret = disk_read(startsect, idx, buffer);
+		if (ret != idx) {
+			debug("Error reading data (got %d)\n", ret);
+			return -1;
+		}
+		startsect += idx;
+		idx *= mydata->sect_size;
+		buffer += idx;
+		size -= idx;
+	}
+	if (size) {
+		ALLOC_CACHE_ALIGN_BUFFER(__u8, tmpbuf, mydata->sect_size);
+
+		ret = disk_read(startsect, 1, tmpbuf);
+		if (ret != 1) {
+			debug("Error reading data (got %d)\n", ret);
+			return -1;
+		}
+
+		memcpy(buffer, tmpbuf, size);
+	}
+
+	return 0;
+}
+
+/*
+ * Read at most 'maxsize' bytes from 'pos' in the file associated with 'dentptr'
+ * into 'buffer'.
+ * Update the number of bytes read in *gotsize or return -1 on fatal errors.
+ */
+__u8 get_contents_vfatname_block[MAX_CLUSTSIZE]
+	__aligned(ARCH_DMA_MINALIGN);
+
+static int get_contents(fsdata *mydata, dir_entry *dentptr, loff_t pos,
+			__u8 *buffer, loff_t maxsize, loff_t *gotsize)
+{
+	loff_t filesize = FAT2CPU32(dentptr->size);
+	unsigned int bytesperclust = mydata->clust_size * mydata->sect_size;
+	__u32 curclust = START(dentptr);
+	__u32 endclust, newclust;
+	loff_t actsize;
+
+	*gotsize = 0;
+	debug("Filesize: %llu bytes\n", filesize);
+
+	if (pos >= filesize) {
+		debug("Read position past EOF: %llu\n", pos);
+		return 0;
+	}
+
+	if (maxsize > 0 && filesize > pos + maxsize)
+		filesize = pos + maxsize;
+
+	debug("%llu bytes\n", filesize);
+
+	actsize = bytesperclust;
+
+	/* go to cluster at pos */
+	while (actsize <= pos) {
+		curclust = get_fatent(mydata, curclust);
+		if (CHECK_CLUST(curclust, mydata->fatsize)) {
+			debug("curclust: 0x%x\n", curclust);
+			debug("Invalid FAT entry\n");
+			return 0;
+		}
+		actsize += bytesperclust;
+	}
+
+	/* actsize > pos */
+	actsize -= bytesperclust;
+	filesize -= actsize;
+	pos -= actsize;
+
+	/* align to beginning of next cluster if any */
+	if (pos) {
+		actsize = min(filesize, (loff_t)bytesperclust);
+		if (get_cluster(mydata, curclust, get_contents_vfatname_block,
+				(int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+		filesize -= actsize;
+		actsize -= pos;
+		memcpy(buffer, get_contents_vfatname_block + pos, actsize);
+		*gotsize += actsize;
+		if (!filesize)
+			return 0;
+		buffer += actsize;
+
+		curclust = get_fatent(mydata, curclust);
+		if (CHECK_CLUST(curclust, mydata->fatsize)) {
+			debug("curclust: 0x%x\n", curclust);
+			debug("Invalid FAT entry\n");
+			return 0;
+		}
+	}
+
+	actsize = bytesperclust;
+	endclust = curclust;
+
+	do {
+		/* search for consecutive clusters */
+		while (actsize < filesize) {
+			newclust = get_fatent(mydata, endclust);
+			if ((newclust - 1) != endclust)
+				goto getit;
+			if (CHECK_CLUST(newclust, mydata->fatsize)) {
+				debug("curclust: 0x%x\n", newclust);
+				debug("Invalid FAT entry\n");
+				return 0;
+			}
+			endclust = newclust;
+			actsize += bytesperclust;
+		}
+
+		/* get remaining bytes */
+		actsize = filesize;
+		if (get_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+		*gotsize += actsize;
+		return 0;
+getit:
+		if (get_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+		*gotsize += (int)actsize;
+		filesize -= actsize;
+		buffer += actsize;
+
+		curclust = get_fatent(mydata, endclust);
+		if (CHECK_CLUST(curclust, mydata->fatsize)) {
+			debug("curclust: 0x%x\n", curclust);
+			printf("Invalid FAT entry\n");
+			return 0;
+		}
+		actsize = bytesperclust;
+		endclust = curclust;
+	} while (1);
+}
+
+/*
+ * Extract the file name information from 'slotptr' into 'l_name',
+ * starting at l_name[*idx].
+ * Return 1 if terminator (zero byte) is found, 0 otherwise.
+ */
+static int slot2str(dir_slot *slotptr, char *l_name, int *idx)
+{
+	int j;
+
+	for (j = 0; j <= 8; j += 2) {
+		l_name[*idx] = slotptr->name0_4[j];
+		if (l_name[*idx] == 0x00)
+			return 1;
+		(*idx)++;
+	}
+	for (j = 0; j <= 10; j += 2) {
+		l_name[*idx] = slotptr->name5_10[j];
+		if (l_name[*idx] == 0x00)
+			return 1;
+		(*idx)++;
+	}
+	for (j = 0; j <= 2; j += 2) {
+		l_name[*idx] = slotptr->name11_12[j];
+		if (l_name[*idx] == 0x00)
+			return 1;
+		(*idx)++;
+	}
+
+	return 0;
+}
+
+/* Calculate short name checksum */
+static __u8 mkcksum(const char name[8], const char ext[3])
+{
+	int i;
+
+	__u8 ret = 0;
+
+	for (i = 0; i < 8; i++)
+		ret = (((ret & 1) << 7) | ((ret & 0xfe) >> 1)) + name[i];
+	for (i = 0; i < 3; i++)
+		ret = (((ret & 1) << 7) | ((ret & 0xfe) >> 1)) + ext[i];
+
+	return ret;
+}
+
+/*
+ * TODO these should go away once fat_write is reworked to use the
+ * directory iterator
+ */
+__u8 get_dentfromdir_block[MAX_CLUSTSIZE]
+	__aligned(ARCH_DMA_MINALIGN);
+__u8 do_fat_read_at_block[MAX_CLUSTSIZE]
+	__aligned(ARCH_DMA_MINALIGN);
+
+/*
+ * Read boot sector and volume info from a FAT filesystem
+ */
+static int
+read_bootsectandvi(boot_sector *bs, volume_info *volinfo, int *fatsize)
+{
+	__u8 *block;
+	volume_info *vistart;
+	int ret = 0;
+
+	if (cur_dev == NULL) {
+		debug("Error: no device selected\n");
+		return -1;
+	}
+
+	block = malloc_cache_aligned(cur_dev->blksz);
+	if (block == NULL) {
+		debug("Error: allocating block\n");
+		return -1;
+	}
+
+	if (disk_read(0, 1, block) < 0) {
+		debug("Error: reading block\n");
+		goto fail;
+	}
+
+	memcpy(bs, block, sizeof(boot_sector));
+	bs->reserved = FAT2CPU16(bs->reserved);
+	bs->fat_length = FAT2CPU16(bs->fat_length);
+	bs->secs_track = FAT2CPU16(bs->secs_track);
+	bs->heads = FAT2CPU16(bs->heads);
+	bs->total_sect = FAT2CPU32(bs->total_sect);
+
+	/* FAT32 entries */
+	if (bs->fat_length == 0) {
+		/* Assume FAT32 */
+		bs->fat32_length = FAT2CPU32(bs->fat32_length);
+		bs->flags = FAT2CPU16(bs->flags);
+		bs->root_cluster = FAT2CPU32(bs->root_cluster);
+		bs->info_sector = FAT2CPU16(bs->info_sector);
+		bs->backup_boot = FAT2CPU16(bs->backup_boot);
+		vistart = (volume_info *)(block + sizeof(boot_sector));
+		*fatsize = 32;
+	} else {
+		vistart = (volume_info *)&(bs->fat32_length);
+		*fatsize = 0;
+	}
+	memcpy(volinfo, vistart, sizeof(volume_info));
+
+	if (*fatsize == 32) {
+		if (strncmp(FAT32_SIGN, vistart->fs_type, SIGNLEN) == 0)
+			goto exit;
+	} else {
+		if (strncmp(FAT12_SIGN, vistart->fs_type, SIGNLEN) == 0) {
+			*fatsize = 12;
+			goto exit;
+		}
+		if (strncmp(FAT16_SIGN, vistart->fs_type, SIGNLEN) == 0) {
+			*fatsize = 16;
+			goto exit;
+		}
+	}
+
+	debug("Error: broken fs_type sign\n");
+fail:
+	ret = -1;
+exit:
+	free(block);
+	return ret;
+}
+
+static int get_fs_info(fsdata *mydata)
+{
+	boot_sector bs;
+	volume_info volinfo;
+	int ret;
+
+	ret = read_bootsectandvi(&bs, &volinfo, &mydata->fatsize);
+	if (ret) {
+		debug("Error: reading boot sector\n");
+		return ret;
+	}
+
+	if (mydata->fatsize == 32) {
+		mydata->fatlength = bs.fat32_length;
+	} else {
+		mydata->fatlength = bs.fat_length;
+	}
+
+	mydata->fat_sect = bs.reserved;
+
+	mydata->rootdir_sect = mydata->fat_sect + mydata->fatlength * bs.fats;
+
+	mydata->sect_size = (bs.sector_size[1] << 8) + bs.sector_size[0];
+	mydata->clust_size = bs.cluster_size;
+	if (mydata->sect_size != cur_part_info.blksz) {
+		printf("Error: FAT sector size mismatch (fs=%hu, dev=%lu)\n",
+				mydata->sect_size, cur_part_info.blksz);
+		return -1;
+	}
+
+	if (mydata->fatsize == 32) {
+		mydata->data_begin = mydata->rootdir_sect -
+					(mydata->clust_size * 2);
+		mydata->root_cluster = bs.root_cluster;
+	} else {
+		mydata->rootdir_size = ((bs.dir_entries[1]  * (int)256 +
+					 bs.dir_entries[0]) *
+					 sizeof(dir_entry)) /
+					 mydata->sect_size;
+		mydata->data_begin = mydata->rootdir_sect +
+					mydata->rootdir_size -
+					(mydata->clust_size * 2);
+		mydata->root_cluster =
+			sect_to_clust(mydata, mydata->rootdir_sect);
+	}
+
+	mydata->fatbufnum = -1;
+	mydata->fat_dirty = 0;
+	mydata->fatbuf = malloc_cache_aligned(FATBUFSIZE);
+	if (mydata->fatbuf == NULL) {
+		debug("Error: allocating memory\n");
+		return -1;
+	}
+
+	if (vfat_enabled)
+		debug("VFAT Support enabled\n");
+
+	debug("FAT%d, fat_sect: %d, fatlength: %d\n",
+	       mydata->fatsize, mydata->fat_sect, mydata->fatlength);
+	debug("Rootdir begins at cluster: %d, sector: %d, offset: %x\n"
+	       "Data begins at: %d\n",
+	       mydata->root_cluster,
+	       mydata->rootdir_sect,
+	       mydata->rootdir_sect * mydata->sect_size, mydata->data_begin);
+	debug("Sector size: %d, cluster size: %d\n", mydata->sect_size,
+	      mydata->clust_size);
+
+	return 0;
+}
+
+
+/*
+ * Directory iterator, to simplify filesystem traversal
+ *
+ * Implements an iterator pattern to traverse directory tables,
+ * transparently handling directory tables split across multiple
+ * clusters, and the difference between FAT12/FAT16 root directory
+ * (contiguous) and subdirectories + FAT32 root (chained).
+ *
+ * Rough usage:
+ *
+ *   for (fat_itr_root(&itr, fsdata); fat_itr_next(&itr); ) {
+ *      // to traverse down to a subdirectory pointed to by
+ *      // current iterator position:
+ *      fat_itr_child(&itr, &itr);
+ *   }
+ *
+ * For more complete example, see fat_itr_resolve()
+ */
+
+typedef struct {
+	fsdata    *fsdata;        /* filesystem parameters */
+	unsigned   clust;         /* current cluster */
+	int        last_cluster;  /* set once we've read last cluster */
+	int        is_root;       /* is iterator at root directory */
+	int        remaining;     /* remaining dent's in current cluster */
+
+	/* current iterator position values: */
+	dir_entry *dent;          /* current directory entry */
+	char       l_name[VFAT_MAXLEN_BYTES];    /* long (vfat) name */
+	char       s_name[14];    /* short 8.3 name */
+	char      *name;          /* l_name if there is one, else s_name */
+
+	/* storage for current cluster in memory: */
+	u8         block[MAX_CLUSTSIZE] __aligned(ARCH_DMA_MINALIGN);
+} fat_itr;
+
+static int fat_itr_isdir(fat_itr *itr);
 
 /**
- * fat_dir_preload() - Load the next chunk of the directory
- * @mydata: Pointer to device specific information
- * @fdi:    Pointer to directory path
+ * fat_itr_root() - initialize an iterator to start at the root
+ * directory
  *
- * Load the next chunk of the directory into the directory preload buffer.
- *
- * Return:
- *  1 - OK, next chunk is loaded;
- *  0 - Done, end of directory, no more chunks;
- * -1 - Error while reading data from device
+ * @itr: iterator to initialize
+ * @fsdata: filesystem data for the partition
+ * @return 0 on success, else -errno
  */
-static int fat_dir_preload(struct fsdata *mydata, struct fat_dirinfo *fdi)
+static int fat_itr_root(fat_itr *itr, fsdata *fsdata)
 {
-	__u32 count;
-	__u32 sector;
+	if (get_fs_info(fsdata))
+		return -ENXIO;
 
-	if (!fdi->dir_cluster && !mydata->rootdir_length)
-		fdi->dir_cluster = mydata->rootdir_clust;
+	itr->fsdata = fsdata;
+	itr->clust = fsdata->root_cluster;
+	itr->dent = NULL;
+	itr->remaining = 0;
+	itr->last_cluster = 0;
+	itr->is_root = 1;
 
-	if (fdi->dir_cluster) {
-		/* Read from (root or sub-) directory located in data region */
-		count = mydata->clust_size - fdi->cluster_offset;
-		if (!count) {
-			int cluster;
-
-			/* Get next cluster */
-			cluster = get_fatent(mydata, fdi->dir_cluster);
-			if (cluster >= mydata->eof)
-				return 0;
-			if ((cluster < 2) || (cluster >= mydata->max_cluster))
-				return -1;
-			fdi->dir_cluster = cluster;
-			fdi->cluster_offset = 0;
-			count = mydata->clust_size;
-		}
-		sector = clust2sect(mydata, fdi->dir_cluster);
-	} else {
-		/* Read from fixed size root directory */
-		count = mydata->rootdir_length - fdi->cluster_offset;
-		if (!count)
-			return 0;
-		sector = mydata->rootdir_sect;
-	}
-	sector += fdi->cluster_offset;
-	if (count * mydata->sect_size > CONFIG_SYS_FAT_PRELOAD_DIR)
-		count = CONFIG_SYS_FAT_PRELOAD_DIR / mydata->sect_size;
-	fdi->preload_count = count;
-	if (disk_read(sector, count, mydata->dirbuf) != count)
-		return -1;
-
-	return 1;
+	return 0;
 }
 
 /**
- * fat_alloc_dir() - Allocate a directory entry
+ * fat_itr_child() - initialize an iterator to descend into a sub-
+ * directory
  *
- * Allocate a directory entry; we allocate a fat_dirinfo, but we return a
- * pointer to the embedded wc_dirinfo. All functions that are called from the
- * wildcard module also pass this pointer, so we always have to convert it
- * back to the surrounding fat_dirinfo.
+ * Initializes 'itr' to iterate the contents of the directory at
+ * the current cursor position of 'parent'.  It is an error to
+ * call this if the current cursor of 'parent' is pointing at a
+ * regular file.
  *
- * Return:
- * Pointer to the embedded wc_dirinfo, NULL on error
+ * Note that 'itr' and 'parent' can be the same pointer if you do
+ * not need to preserve 'parent' after this call, which is useful
+ * for traversing directory structure to resolve a file/directory.
+ *
+ * @itr: iterator to initialize
+ * @parent: the iterator pointing at a directory entry in the
+ *    parent directory of the directory to iterate
  */
-static struct wc_dirinfo *fat_alloc_dir(void)
+static void fat_itr_child(fat_itr *itr, fat_itr *parent)
 {
-	struct fat_dirinfo *fdi;
+	fsdata *mydata = parent->fsdata;  /* for silly macros */
+	unsigned clustnum = START(parent->dent);
 
-	fdi = malloc(sizeof(struct fat_dirinfo));
-	if (!fdi)
+	assert(fat_itr_isdir(parent));
+
+	itr->fsdata = parent->fsdata;
+	if (clustnum > 0) {
+		itr->clust = clustnum;
+		itr->is_root = 0;
+	} else {
+		itr->clust = parent->fsdata->root_cluster;
+		itr->is_root = 1;
+	}
+	itr->dent = NULL;
+	itr->remaining = 0;
+	itr->last_cluster = 0;
+}
+
+static void *next_cluster(fat_itr *itr)
+{
+	fsdata *mydata = itr->fsdata;  /* for silly macros */
+	int ret;
+	u32 sect;
+
+	/* have we reached the end? */
+	if (itr->last_cluster)
 		return NULL;
 
-	return TO_WC_DIRINFO(fdi);
+	sect = clust_to_sect(itr->fsdata, itr->clust);
+
+	debug("FAT read(sect=%d), clust_size=%d, DIRENTSPERBLOCK=%zd\n",
+	      sect, itr->fsdata->clust_size, DIRENTSPERBLOCK);
+
+	/*
+	 * NOTE: do_fat_read_at() had complicated logic to deal w/
+	 * vfat names that span multiple clusters in the fat16 case,
+	 * which get_dentfromdir() probably also needed (and was
+	 * missing).  And not entirely sure what fat32 didn't have
+	 * the same issue..  We solve that by only caring about one
+	 * dent at a time and iteratively constructing the vfat long
+	 * name.
+	 */
+	ret = disk_read(sect, itr->fsdata->clust_size,
+			itr->block);
+	if (ret < 0) {
+		debug("Error: reading block\n");
+		return NULL;
+	}
+
+	if (itr->is_root && itr->fsdata->fatsize != 32) {
+		itr->clust++;
+		sect = clust_to_sect(itr->fsdata, itr->clust);
+		if (sect - itr->fsdata->rootdir_sect >=
+		    itr->fsdata->rootdir_size) {
+			debug("cursect: 0x%x\n", itr->clust);
+			itr->last_cluster = 1;
+		}
+	} else {
+		itr->clust = get_fatent(itr->fsdata, itr->clust);
+		if (CHECK_CLUST(itr->clust, itr->fsdata->fatsize)) {
+			debug("cursect: 0x%x\n", itr->clust);
+			itr->last_cluster = 1;
+		}
+	}
+
+	return itr->block;
+}
+
+static dir_entry *next_dent(fat_itr *itr)
+{
+	if (itr->remaining == 0) {
+		struct dir_entry *dent = next_cluster(itr);
+		unsigned nbytes = itr->fsdata->sect_size *
+			itr->fsdata->clust_size;
+
+		/* have we reached the last cluster? */
+		if (!dent)
+			return NULL;
+
+		itr->remaining = nbytes / sizeof(dir_entry) - 1;
+		itr->dent = dent;
+	} else {
+		itr->remaining--;
+		itr->dent++;
+	}
+
+	/* have we reached the last valid entry? */
+	if (itr->dent->name[0] == 0)
+		return NULL;
+
+	return itr->dent;
+}
+
+static dir_entry *extract_vfat_name(fat_itr *itr)
+{
+	struct dir_entry *dent = itr->dent;
+	int seqn = itr->dent->name[0] & ~LAST_LONG_ENTRY_MASK;
+	u8 chksum, alias_checksum = ((dir_slot *)dent)->alias_checksum;
+	int n = 0;
+
+	while (seqn--) {
+		char buf[13];
+		int idx = 0;
+
+		slot2str((dir_slot *)dent, buf, &idx);
+
+		/* shift accumulated long-name up and copy new part in: */
+		memmove(itr->l_name + idx, itr->l_name, n);
+		memcpy(itr->l_name, buf, idx);
+		n += idx;
+
+		dent = next_dent(itr);
+		if (!dent)
+			return NULL;
+	}
+
+	itr->l_name[n] = '\0';
+
+	chksum = mkcksum(dent->name, dent->ext);
+
+	/* checksum mismatch could mean deleted file, etc.. skip it: */
+	if (chksum != alias_checksum) {
+		debug("** chksum=%x, alias_checksum=%x, l_name=%s, s_name=%8s.%3s\n",
+		      chksum, alias_checksum, itr->l_name, dent->name, dent->ext);
+		return NULL;
+	}
+
+	return dent;
 }
 
 /**
- * fat_free_dir() - Free a directory entry
- * @wdi: Pointer to directory entry
- */
-static void fat_free_dir(struct wc_dirinfo *wdi)
-{
-	free(TO_FAT_DIRINFO(wdi));
-}
-
-/**
- * fat_get_fileinfo() - Get next directory entry
- * @wdi: Pointer to directory entry (data will be updated)
- * @wfi: Pointer to structure where to store file information
+ * fat_itr_next() - step to the next entry in a directory
  *
- * Get next directory entry and return the type, size and name of the file.
+ * Must be called once on a new iterator before the cursor is valid.
  *
- * Return:
- *  1 - OK, found another entry;
- *  0 - Done, no more entries;
- * -1 - Error while reading data from device
+ * @itr: the iterator to iterate
+ * @return boolean, 1 if success or 0 if no more entries in the
+ *    current directory
  */
-static int fat_get_fileinfo(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi)
+static int fat_itr_next(fat_itr *itr)
 {
-	int ret;
-	struct dir_entry *dentry;
-	struct fat_dirinfo *fdi = TO_FAT_DIRINFO(wdi);
-	struct fsdata *mydata = &myfsdata;
-#ifdef CONFIG_SUPPORT_VFAT
-	struct dir_slot *dslot;		/* Directory entry as VFAT name slot */
-	__u8 *ds;			/* Directory entry as byte array */
-	char *namepart;
-	int i;
-	unsigned int c;
-	__u8 alias_checksum = 0;
-	__u8 id;
-#endif
+	dir_entry *dent;
 
-	wfi->file_name[0] = '\0';
-	if (fdi->wdi.flags & WC_FLAGS_REWIND) {
-		fdi->wdi.flags &= ~WC_FLAGS_REWIND;
-		fdi->preload_offset = 0;
+	itr->name = NULL;
 
-		/* If we the beginning of the directory is not in the preload
-		   buffer anymore, we have to reload it */
-		if ((fdi->dir_cluster != fdi->wdi.reference)
-		    || (fdi->cluster_offset != 0)) {
-			fdi->dir_cluster = fdi->wdi.reference;
-			fdi->cluster_offset = 0;
-			fdi->preload_count = 0;
-		}
-	}
-	if (fdi->wdi.flags & WC_FLAGS_RELOAD) {
-		fdi->wdi.flags &= ~WC_FLAGS_RELOAD;
-		fdi->preload_count = 0;
-	}
+	while (1) {
+		dent = next_dent(itr);
+		if (!dent)
+			return 0;
 
-	for (;;) {
-		if (!fdi->preload_count) {
-			ret = fat_dir_preload(mydata, fdi);
-			if (ret <= 0)
-				return ret; /* Error or done */
-		}
-
-		dentry = (struct dir_entry *)
-			               (mydata->dirbuf + fdi->preload_offset);
-		if (dentry->name[0] == 0)
-			return 0;	/* First unused entry: done */
-
-		fdi->preload_offset += sizeof(struct dir_entry);
-		if (fdi->preload_offset
-		    >= fdi->preload_count * mydata->sect_size) {
-			fdi->preload_offset = 0;
-			fdi->cluster_offset += fdi->preload_count;
-			fdi->preload_count = 0;
-		}
-
-		if (dentry->name[0] == DELETED_FLAG)
+		if (dent->name[0] == DELETED_FLAG ||
+		    dent->name[0] == aRING)
 			continue;
 
-#ifdef CONFIG_SUPPORT_VFAT
-		if ((dentry->attr & ATTR_VFAT) == ATTR_VFAT) {
-			/* Get VFAT longname slot */
-			dslot = (struct dir_slot *)dentry;
-			id = dslot->id;
-			if (id & DELETED_LONG_ENTRY) {
-				printf("### DELETED_LONG_ENTRY\n");
+		if (dent->attr & ATTR_VOLUME) {
+			if (vfat_enabled &&
+			    (dent->attr & ATTR_VFAT) == ATTR_VFAT &&
+			    (dent->name[0] & LAST_LONG_ENTRY_MASK)) {
+				dent = extract_vfat_name(itr);
+				if (!dent)
+					continue;
+				itr->name = itr->l_name;
+				break;
+			} else {
+				/* Volume label or VFAT entry, skip */
 				continue;
 			}
-			if (id & LAST_LONG_ENTRY_MASK) {
-				/* New filename, clear old content */
-				alias_checksum = dslot->alias_checksum;
-				id &= ~LAST_LONG_ENTRY_MASK;
-				memset(wfi->file_name, 0, WC_NAME_MAX);
-			}
-			if (--id > VFAT_SEQ_MAX) {
-				printf("### Bad VFAT slot index\n");
-				continue;
-			}
-
-			ds = (__u8 *)dslot;
-			namepart = &wfi->file_name[id*13];
-
-			i = 0;
-			do {
-				int idx = slot_index_table[i];
-
-				c = ds[idx + 1] * 256 + ds[idx];
-				if (c && !IS_FAT_CHAR(c))
-					c = '_';
-				namepart[i] = (char)c;
-			} while (c && (++i < 13));
-			continue;
 		}
 
-		/* Do we have a long name and does the checksum match? Then
-		   this directory entry is the short name alias for the VFAT
-		   long name entry, use the long name */
-		if (wfi->file_name[0]
-		    && (fat_checksum(dentry->name) == alias_checksum)) {
-			break;
-		}
-#endif
-		get_shortname(wfi->file_name, dentry->name, dentry->lcase);
 		break;
 	}
 
-	/* Fill in fileinfo data */
-	if (dentry->attr & ATTR_DIR)
-		wfi->file_type = WC_TYPE_DIRECTORY;
-	else if (dentry->attr & ATTR_VOLUME)
-		wfi->file_type = WC_TYPE_VOLUME;
-	else
-		wfi->file_type = WC_TYPE_REGULAR;
-	wfi->file_size = (loff_t)FAT2CPU32(dentry->size);
-	wfi->reference = FAT2CPU16(dentry->start);
-	if (mydata->fatsize == 32)
-		wfi->reference += FAT2CPU16(dentry->starthi) << 16;
+	get_name(dent, itr->s_name);
+	if (!itr->name)
+		itr->name = itr->s_name;
 
 	return 1;
 }
 
 /**
- * fat_read_at() - Read the file
- * @wdi:     Pointer to current directory entry
- * @wfi:     Information of file to load; wfi->reference is start cluster
- * @buffer:  Pointer to buffer where to store data
- * @skip:    Number of bytes to skip at beginning of file
- * @len:     Maximum number of bytes to read (0: whole/remaining file)
- * @actread: Number of actually read bytes
+ * fat_itr_isdir() - is current cursor position pointing to a directory
  *
- * Read the file given in wfistarting at cluster wfi->reference.
- *
- * ATTENTION: We are re-using the directory preload buffer here. This should
- * be no problem as long as we don't require the directory content anymore.
- *
- * Return:
- * Error code (<0) or 0 for success.
+ * @itr: the iterator
+ * @return true if cursor is at a directory
  */
-static int fat_read_at(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
-		       void *buffer, loff_t skip, loff_t len, loff_t *actread)
+static int fat_itr_isdir(fat_itr *itr)
 {
-	unsigned long bytes_next_chunk;
-	unsigned long total_bytes_loaded = 0;
-	unsigned long remaining;
-	struct fsdata *mydata = &myfsdata;
-	unsigned long bytes_per_cluster;
-	unsigned long sect_size;
-	int warning = 0;
-	__u32 cluster;
-	__u32 tmp;
-	__u32 sector_count;
-	__u32 sector;
+	return !!(itr->dent->attr & ATTR_DIR);
+}
 
-	remaining = (unsigned long)wfi->file_size;
-	if (!remaining || (skip >= remaining))
-		goto out;		/* Empty file or seek past EOF */
-	if (len && (remaining > skip + len))
-		remaining = skip + len;
-	if (!buffer) {
-		total_bytes_loaded = remaining;
-		goto out;		/* Do not read, just return count */
+/*
+ * Helpers:
+ */
+
+#define TYPE_FILE 0x1
+#define TYPE_DIR  0x2
+#define TYPE_ANY  (TYPE_FILE | TYPE_DIR)
+
+/**
+ * fat_itr_resolve() - traverse directory structure to resolve the
+ * requested path.
+ *
+ * Traverse directory structure to the requested path.  If the specified
+ * path is to a directory, this will descend into the directory and
+ * leave it iterator at the start of the directory.  If the path is to a
+ * file, it will leave the iterator in the parent directory with current
+ * cursor at file's entry in the directory.
+ *
+ * @itr: iterator initialized to root
+ * @path: the requested path
+ * @type: bitmask of allowable file types
+ * @return 0 on success or -errno
+ */
+static int fat_itr_resolve(fat_itr *itr, const char *path, unsigned type)
+{
+	const char *next;
+
+	/* chomp any extra leading slashes: */
+	while (path[0] && ISDIRDELIM(path[0]))
+		path++;
+
+	/* are we at the end? */
+	if (strlen(path) == 0) {
+		if (!(type & TYPE_DIR))
+			return -ENOENT;
+		return 0;
 	}
 
-	sect_size = mydata->sect_size;
-	bytes_per_cluster = mydata->clust_size * sect_size;
-	cluster = wfi->reference;
+	/* find length of next path entry: */
+	next = path;
+	while (next[0] && !ISDIRDELIM(next[0]))
+		next++;
 
-	do {
-		/* Combine sectors to a long chunk if they are in sequence */
-		sector = clust2sect(mydata, cluster);
-		bytes_next_chunk = 0;
-		do {
-			if (remaining <= bytes_per_cluster) {
-				bytes_next_chunk += remaining;
-				remaining = 0;
-				break;
-			}
-			bytes_next_chunk += bytes_per_cluster;
-			remaining -= bytes_per_cluster;
+	while (fat_itr_next(itr)) {
+		int match = 0;
+		unsigned n = max(strlen(itr->name), (size_t)(next - path));
 
-			tmp = cluster;
-			cluster = get_fatent(mydata, cluster);
+		/* check both long and short name: */
+		if (!strncasecmp(path, itr->name, n))
+			match = 1;
+		else if (itr->name != itr->s_name &&
+			 !strncasecmp(path, itr->s_name, n))
+			match = 1;
 
-			/* Return on unexpected EOF or invalid cluster */
-			if ((cluster < 2) || (cluster >= mydata->max_cluster))
-				goto out;
-		} while (cluster == tmp + 1);
+		if (!match)
+			continue;
 
-		debug("Next chunk: 0x%lx bytes at sector 0x%x\n",
-		      bytes_next_chunk, sector);
-
-		/* Number of full sectors in this chunk */
-		sector_count = bytes_next_chunk / sect_size;
-
-		/* Skip unwanted full sectors at beginning of chunk */
-		if (skip) {
-			__u32 sectors_to_skip;
-			unsigned long bytes_to_skip;
-			unsigned long long temp = (unsigned long long)skip;
-
-			do_div(temp, sect_size);
-			sectors_to_skip = (__u32)temp;
-			if (sectors_to_skip > sector_count)
-				sectors_to_skip = sector_count;
-			sector_count -= sectors_to_skip;
-			bytes_to_skip = sectors_to_skip * sect_size;
-			bytes_next_chunk -= bytes_to_skip;
-			skip -= bytes_to_skip;
-			debug("Skip 0x%lx bytes (=%u full sectors) at sector "
-			      "0x%x\n", bytes_to_skip, sectors_to_skip, sector);
-			sector += sectors_to_skip;
+		if (fat_itr_isdir(itr)) {
+			/* recurse into directory: */
+			fat_itr_child(itr, itr);
+			return fat_itr_resolve(itr, next, type);
+		} else if (next[0]) {
+			/*
+			 * If next is not empty then we have a case
+			 * like: /path/to/realfile/nonsense
+			 */
+			debug("bad trailing path: %s\n", next);
+			return -ENOENT;
+		} else if (!(type & TYPE_FILE)) {
+			return -ENOTDIR;
+		} else {
+			return 0;
 		}
-		
-		/* Skip part of a sector and read part of a sector if the
-		   beginning is not at a sector boundary. */
-		if (skip && bytes_next_chunk) {
-			unsigned long bytes_to_copy;
-			bytes_to_copy = sect_size;
-			if (bytes_to_copy > bytes_next_chunk)
-				bytes_to_copy = bytes_next_chunk;
-			bytes_next_chunk -= bytes_to_copy;
-			bytes_to_copy -= skip;
-			debug("Skip 0x%llx bytes and read 0x%lx bytes at"
-			      " sector 0x%x\n", skip, bytes_to_copy, sector);
-			if (disk_read(sector, 1, mydata->dirbuf) != 1)
-				goto out;
-			memcpy(buffer, mydata->dirbuf + skip, bytes_to_copy);
-			total_bytes_loaded += bytes_to_copy;
-			buffer += bytes_to_copy;
-			skip = 0;
-			sector++;
-			if (sector_count > 0)
-				sector_count--;
-		}
-
-		/* Load full sectors */
-		if (sector_count) {
-			debug("Load 0x%lx bytes (=%d full sectors) at sector "
-			      "0x%x\n", sector_count * sect_size, sector_count,
-			      sector);
-			if ((unsigned long)buffer & (ARCH_DMA_MINALIGN - 1)) {
-				void *temp = mydata->dirbuf;
-				__u32 i;
-
-				/* Read sectors with single reads */
-				if (!warning) {
-					puts("Buffer unaligned, using slow"
-					     " single-sector reads\n");
-					warning = 1;
-				}
-				for (i = 0; i < sector_count; i++) {
-					if (disk_read(sector, 1, temp) != 1)
-						goto out;
-					sector++;
-					memcpy(buffer, temp, sect_size);
-					buffer += sect_size;
-					total_bytes_loaded += sect_size;
-					bytes_next_chunk -= sect_size;
-				}
-			} else {
-				unsigned long bytes_loaded;
-				__u32 read;
-
-				/* Read sectors in one go */
-				read = disk_read(sector, sector_count, buffer);
-				sector += sector_count;
-				bytes_loaded = read * sect_size;
-				buffer += bytes_loaded;
-				bytes_next_chunk -= bytes_loaded;
-				total_bytes_loaded += bytes_loaded;
-				if (read != sector_count)
-					goto out;
-			}
-		}
-
-		/* Load final bytes from last sector. */
-		if (bytes_next_chunk) {
-			debug("Load 0x%lx bytes and ignore 0x%lx bytes"
-			      " from sector 0x%x\n", bytes_next_chunk,
-			      sect_size - bytes_next_chunk, sector);
-			if (disk_read(sector, 1, mydata->dirbuf) != 1)
-				goto out;
-			memcpy(buffer, mydata->dirbuf, bytes_next_chunk);
-			total_bytes_loaded += bytes_next_chunk;
-			buffer += bytes_next_chunk;
-			bytes_next_chunk = 0;
-		}
-	} while (remaining);
-
-out:
-	if (actread)
-		*actread = total_bytes_loaded;
-
-	return 0;
-}
-
-/* Function to write a file, see fat_write.c ### TODO ### */
-extern unsigned long fat_write(struct wc_dirinfo *wdi, struct wc_fileinfo *wfi,
-			       void *buffer, loff_t offset, loff_t len,
-			       loff_t *actwrite);
-
-/* Callback functions for wildcard module to access directories and files */
-const struct wc_fsops fat_ops = {
-	"FAT",
-	fat_alloc_dir,
-	fat_free_dir,
-	fat_get_fileinfo,
-	fat_read_at,
-#ifdef CONFIG_FAT_WRITE
-	fat_write,
-#else
-	NULL,
-#endif
-	NULL
-};
-
-/**
- * file_fat_ls() - List directory contents
- * @pattern: File or path name to list; may contain wildcards * and ?
- *
- * List directory contents. This may actually be a sequence of lists as the
- * pattern may refer to several directories.
- *
- * Return:
- *  0 - OK;
- * -1 - Error, e.g. while reading data from device
- */
-int file_fat_ls(const char *pattern)
-{
-	struct wc_fileinfo wfi;
-
-	/* Prepare file info for root directory */
-	wfi.reference = 0;
-	wfi.file_size = 0;
-	wfi.file_type = WC_TYPE_DIRECTORY;
-	wfi.pattern = pattern;
-	wfi.file_name[0] = '\0';
-
-	return wildcard_ls(&wfi, &fat_ops);
-}
-
-/**
- * file_fat_read_at() - Read the given file with up to maxsize bytes.
- * @pattern: file name; may contain wildcards, but must match uniquely
- * @pos:     Start reading at pos (i.e. skip pos bytes at beginning of file)
- * @buffer:  Pointer to buffer where to store data
- * @maxsize: Maximum number of bytes to read (0: whole file)
- * @actread: Number of actually read bytes
- *
- * Return:
- * Error code (<0) or 0 for success
- */
-int file_fat_read_at(const char *pattern, loff_t pos, void *buffer,
-		     loff_t maxsize, loff_t *actread)
-{
-	struct wc_fileinfo wfi;
-
-	/* Prepare file info for root directory */
-	wfi.reference = 0;
-	wfi.file_size = 0;
-	wfi.file_type = WC_TYPE_DIRECTORY;
-	wfi.pattern = pattern;
-	wfi.file_name[0] = '\0';
-
-	return wildcard_read_at(&wfi, &fat_ops, buffer, pos, maxsize, actread);
-}
-
-/**
- * file_fat_read() - Read the given file with up to maxsize bytes.
- * @pattern: file name; may contain wildcards, but must match uniquely
- * @buffer:  Pointer to buffer where to store data
- * @maxsize: Maximum number of bytes to read (0: whole file)
- *
- * Return:
- * Error code (<0) or number of read bytes
- */
-int file_fat_read(const char *pattern, void *buffer, int maxsize)
-{
-	loff_t actread;
-	int err;
-
-	err = file_fat_read_at(pattern, 0, buffer, maxsize, &actread);
-	if (err)
-		return err;
-
-	return actread;
-}
-
-/**
- * fat_set_blk_dev() - Check device and initialize
- * @dev_desc: Device description
- * @part_no:  Partition number
- *
- * Check device and initialize device specific data (FAT type, etc.)
- *
- * Return:
- *  0 - OK, FAT filesystem initialized;
- * -1 - Error, e.g. no FAT filesystem, error reading data from device, etc.
- */
-int fat_set_blk_dev(struct blk_desc *dev_desc, disk_partition_t *info)
-{
-	struct boot_sector *bs;
-	__u32 clusters;
-	struct volume_info *vistart;
-	struct fsdata *mydata = &myfsdata;
-	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, buffer, dev_desc->blksz);
-
-	cur_dev = dev_desc;
-	cur_part_info = *info;
-
-	/* Make sure it has a valid FAT header */
-	if (disk_read(0, 1, buffer) != 1) {
-		cur_dev = NULL;
-		return -1;
 	}
 
-	/* Check if it's actually a DOS volume */
-	if (memcmp(buffer + DOS_BOOT_MAGIC_OFFSET, "\x55\xAA", 2)) {
-		cur_dev = NULL;
-		return -1;
-	}
-
-	/* Extract the data that we need for accessing the file system */
-	bs = (struct boot_sector *)buffer;
-
-	/* Get size of device (in sectors) */
-	mydata->sectors = (bs->sectors[1] << 8) + bs->sectors[0];
-	if (mydata->sectors == 0)
-		mydata->sectors = FAT2CPU32(bs->total_sect);
-
-	/* Get size of a sector (in bytes) */
-	mydata->sect_size = (bs->sector_size[1] << 8) + bs->sector_size[0];
-	if (mydata->sect_size != cur_part_info.blksz) {
-		printf("Error: FAT sector size mismatch (fs=%hu, dev=%lu)\n",
-		       mydata->sect_size, cur_part_info.blksz);
-		cur_dev = NULL;
-		return -1;
-	}
-
-	/* Get size of a cluster (in sectors) */
-	mydata->clust_size = bs->cluster_size;
-
-	/* The first FAT starts behind the reserved sectors */
-	mydata->fat_sect = FAT2CPU16(bs->reserved);
-
-	/* Get the size of a FAT (in sectors) */
-	mydata->fat_length = FAT2CPU16(bs->fat_length);
-	if (mydata->fat_length == 0) {
-		vistart = (struct volume_info *)
-			                 (buffer + sizeof(struct boot_sector));
-		mydata->fat_length = FAT2CPU32(bs->fat32_length);
-	} else
-		vistart = (struct volume_info *)&(bs->fat32_length);
-
-	/* Get beginning of root directory */
-	mydata->rootdir_sect = mydata->fat_length * bs->fats + mydata->fat_sect;
-
-	/* Get the size of the root directory (in sectors); in case of FAT32,
-	   bs->dir_entries (and therefore rootdir_length) will be zero as the
-	   root directory is located in the data region and can grow
-	   arbitrarily. */
-	mydata->rootdir_length =
-		((bs->dir_entries[1] << 8) + bs->dir_entries[0])
-		* sizeof(struct dir_entry) / mydata->sect_size;
-
-	/* Get the beginning of the data region */
-	mydata->data_sect = mydata->rootdir_sect + mydata->rootdir_length;
-
-	/* Get the size of the data region (in sectors) */
-	mydata->data_length = mydata->sectors - mydata->data_sect;
-
-	/* Get beginning of root directory if located in data region */
-	mydata->rootdir_clust = mydata->rootdir_length ? 0
-		                               : FAT2CPU32(bs->root_cluster);
-	/* Get number of clusters */
-	clusters = mydata->data_length / mydata->clust_size;
-
-	/* Get FAT type. FAT drivers should look only at the number of
-	   clusters to distinguish between FAT12, FAT16, and FAT32. A FAT file
-	   system with up to 4084 clusters is FAT12, 4085 to 65525 clusters is
-	   FAT16 and (despite the name) FAT32 only uses 28 bit FAT entries and
-	   therefore 65526 to 268435445 clusters is a FAT32 file system. */
-	mydata->fatbuf_sectors = CONFIG_SYS_FAT_PRELOAD_FAT/mydata->sect_size;
-	mydata->fatbuf_entries = mydata->sect_size;
-	if (clusters <= 4084) {
-		mydata->fatsize = 12;
-		mydata->eof = 0xFF8;
-		mydata->fatbuf_sectors /= 3;
-		mydata->fatbuf_entries *= mydata->fatbuf_sectors * 2;
-		mydata->fatbuf_sectors *= 3;
-	} else if (clusters <= 65525) {
-		mydata->fatsize = 16;
-		mydata->eof = 0xFFF8;
-		mydata->fatbuf_entries *= mydata->fatbuf_sectors;
-		mydata->fatbuf_entries /= 2;
-	} else if (clusters <= 268435445) {
-		mydata->fatsize = 32;
-		mydata->eof = 0x0FFFFFF8;
-		mydata->fatbuf_entries *= mydata->fatbuf_sectors;
-		mydata->fatbuf_entries /= 4;
-	} else {
-		cur_dev = NULL;		  /* Unknown FAT type (exFAT?) */
-		return -1;
-	}
-	mydata->fatbufnum = (__u32)-1;
-	mydata->fatbuf = fat_buffer;
-	mydata->dirbuf = dir_buffer;
-	mydata->max_cluster = clusters + 2;
-
-	/* Get volume name from volume information */
-	mydata->volume_name[0] = '\0';
-	if (vistart->ext_boot_sign == 0x29)
-		get_shortname(mydata->volume_name, vistart->volume_label, 0);
-	if (mydata->volume_name[0] == '\0')
-		strcpy(mydata->volume_name, FAT_DEF_VOLUME);
-
-	return 0;
+	return -ENOENT;
 }
 
-/**
- * file_fat_detectfs() - Show information
-
- * Show information on current device and FAT filesystem.
-
- * Return:
- * 0 - OK;
- * 1 - No current device
- */
 int file_fat_detectfs(void)
 {
+	boot_sector bs;
+	volume_info volinfo;
+	int fatsize;
+	char vol_label[12];
+
 	if (cur_dev == NULL) {
-		puts("No current device\n");
+		printf("No current device\n");
 		return 1;
 	}
 
-	printf("FAT Device %d:\n", cur_dev->devnum);
+#if defined(CONFIG_IDE) || \
+    defined(CONFIG_SATA) || \
+    defined(CONFIG_SCSI) || \
+    defined(CONFIG_CMD_USB) || \
+    defined(CONFIG_MMC)
+	printf("Interface:  ");
+	switch (cur_dev->if_type) {
+	case IF_TYPE_IDE:
+		printf("IDE");
+		break;
+	case IF_TYPE_SATA:
+		printf("SATA");
+		break;
+	case IF_TYPE_SCSI:
+		printf("SCSI");
+		break;
+	case IF_TYPE_ATAPI:
+		printf("ATAPI");
+		break;
+	case IF_TYPE_USB:
+		printf("USB");
+		break;
+	case IF_TYPE_DOC:
+		printf("DOC");
+		break;
+	case IF_TYPE_MMC:
+		printf("MMC");
+		break;
+	default:
+		printf("Unknown");
+	}
+
+	printf("\n  Device %d: ", cur_dev->devnum);
 	dev_print(cur_dev);
+#endif
 
-	printf("Partition %d:\n", cur_part_nr);
-	printf("  Filesystem: FAT%u\n", myfsdata.fatsize);
-	printf("  Volume name: %s\n", myfsdata.volume_name);
+	if (read_bootsectandvi(&bs, &volinfo, &fatsize)) {
+		printf("\nNo valid FAT fs found\n");
+		return 1;
+	}
 
-	/* We could additionally search the root directory for the volume
-	   name, and show both if they differ, but is it worth it? */
+	memcpy(vol_label, volinfo.volume_label, 11);
+	vol_label[11] = '\0';
+	volinfo.fs_type[5] = '\0';
+
+	printf("Filesystem: %s \"%s\"\n", volinfo.fs_type, vol_label);
 
 	return 0;
 }
 
-int fat_read_file(const char *pattern, void *buffer, loff_t offset,
-		  loff_t len, loff_t *actread)
+int fat_exists(const char *filename)
 {
-	return file_fat_read_at(pattern, offset, buffer, len, actread);
-}
+	fsdata fsdata;
+	fat_itr *itr;
+	int ret;
 
-int fat_exists(const char *pattern)
-{
-	struct wc_fileinfo wfi;
+	itr = malloc_cache_aligned(sizeof(fat_itr));
+	if (!itr)
+		return 0;
+	ret = fat_itr_root(itr, &fsdata);
+	if (ret)
+		goto out;
 
-	/* Prepare file info for root directory */
-	wfi.reference = 0;
-	wfi.file_size = 0;
-	wfi.file_type = WC_TYPE_DIRECTORY;
-	wfi.pattern = pattern;
-	wfi.file_name[0] = '\0';
-
-	return wildcard_exists(&wfi, &fat_ops);
+	ret = fat_itr_resolve(itr, filename, TYPE_ANY);
+	free(fsdata.fatbuf);
+out:
+	free(itr);
+	return ret == 0;
 }
 
 int fat_size(const char *filename, loff_t *size)
 {
-	return file_fat_read(filename, NULL, 0);
+	fsdata fsdata;
+	fat_itr *itr;
+	int ret;
+
+	itr = malloc_cache_aligned(sizeof(fat_itr));
+	if (!itr)
+		return -ENOMEM;
+	ret = fat_itr_root(itr, &fsdata);
+	if (ret)
+		goto out_free_itr;
+
+	ret = fat_itr_resolve(itr, filename, TYPE_FILE);
+	if (ret) {
+		/*
+		 * Directories don't have size, but fs_size() is not
+		 * expected to fail if passed a directory path:
+		 */
+		free(fsdata.fatbuf);
+		fat_itr_root(itr, &fsdata);
+		if (!fat_itr_resolve(itr, filename, TYPE_DIR)) {
+			*size = 0;
+			ret = 0;
+		}
+		goto out_free_both;
+	}
+
+	*size = FAT2CPU32(itr->dent->size);
+out_free_both:
+	free(fsdata.fatbuf);
+out_free_itr:
+	free(itr);
+	return ret;
+}
+
+int file_fat_read_at(const char *filename, loff_t pos, void *buffer,
+		     loff_t maxsize, loff_t *actread)
+{
+	fsdata fsdata;
+	fat_itr *itr;
+	int ret;
+
+	itr = malloc_cache_aligned(sizeof(fat_itr));
+	if (!itr)
+		return -ENOMEM;
+	ret = fat_itr_root(itr, &fsdata);
+	if (ret)
+		goto out_free_itr;
+
+	ret = fat_itr_resolve(itr, filename, TYPE_FILE);
+	if (ret)
+		goto out_free_both;
+
+	printf("reading %s\n", filename);
+	ret = get_contents(&fsdata, itr->dent, pos, buffer, maxsize, actread);
+
+out_free_both:
+	free(fsdata.fatbuf);
+out_free_itr:
+	free(itr);
+	return ret;
+}
+
+int file_fat_read(const char *filename, void *buffer, int maxsize)
+{
+	loff_t actread;
+	int ret;
+
+	ret =  file_fat_read_at(filename, 0, buffer, maxsize, &actread);
+	if (ret)
+		return ret;
+	else
+		return actread;
+}
+
+int fat_read_file(const char *filename, void *buf, loff_t offset, loff_t len,
+		  loff_t *actread)
+{
+	int ret;
+
+	ret = file_fat_read_at(filename, offset, buf, len, actread);
+	if (ret)
+		printf("** Unable to read file %s **\n", filename);
+
+	return ret;
+}
+
+typedef struct {
+	struct fs_dir_stream parent;
+	struct fs_dirent dirent;
+	fsdata fsdata;
+	fat_itr itr;
+} fat_dir;
+
+int fat_opendir(const char *filename, struct fs_dir_stream **dirsp)
+{
+	fat_dir *dir = calloc(1, sizeof(*dir));
+	int ret;
+
+	if (!dir)
+		return -ENOMEM;
+
+	ret = fat_itr_root(&dir->itr, &dir->fsdata);
+	if (ret)
+		goto fail_free_dir;
+
+	ret = fat_itr_resolve(&dir->itr, filename, TYPE_DIR);
+	if (ret)
+		goto fail_free_both;
+
+	*dirsp = (struct fs_dir_stream *)dir;
+	return 0;
+
+fail_free_both:
+	free(dir->fsdata.fatbuf);
+fail_free_dir:
+	free(dir);
+	return ret;
+}
+
+int fat_readdir(struct fs_dir_stream *dirs, struct fs_dirent **dentp)
+{
+	fat_dir *dir = (fat_dir *)dirs;
+	struct fs_dirent *dent = &dir->dirent;
+
+	if (!fat_itr_next(&dir->itr))
+		return -ENOENT;
+
+	memset(dent, 0, sizeof(*dent));
+	strcpy(dent->name, dir->itr.name);
+
+	if (fat_itr_isdir(&dir->itr)) {
+		dent->type = FS_DT_DIR;
+	} else {
+		dent->type = FS_DT_REG;
+		dent->size = FAT2CPU32(dir->itr.dent->size);
+	}
+
+	*dentp = dent;
+
+	return 0;
+}
+
+void fat_closedir(struct fs_dir_stream *dirs)
+{
+	fat_dir *dir = (fat_dir *)dirs;
+	free(dir->fsdata.fatbuf);
+	free(dir);
 }
 
 void fat_close(void)

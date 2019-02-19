@@ -1159,6 +1159,18 @@ void enable_thermal_clk(void)
 	enable_pll3();
 }
 
+void enable_eim_clk(unsigned char enable)
+{
+	u32 reg;
+
+	reg = __raw_readl(&imx_ccm->CCGR6);
+	if (enable)
+		reg |= MXC_CCM_CCGR6_EMI_SLOW_MASK;
+	else
+		reg &= ~MXC_CCM_CCGR6_EMI_SLOW_MASK;
+	__raw_writel(reg, &imx_ccm->CCGR6);
+}
+
 unsigned int mxc_get_clock(enum mxc_clock clk)
 {
 	switch (clk) {
@@ -1201,6 +1213,7 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 	return 0;
 }
 
+#ifndef CONFIG_SPL_BUILD
 static void show_freq(const char *name, u32 freq)
 {
 	freq = (freq + 50000) / 100000;
@@ -1276,20 +1289,6 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
-#ifdef CONFIG_MTD_NOR_FLASH
-void enable_eim_clk(unsigned char enable)
-{
-	u32 reg;
-
-	reg = __raw_readl(&imx_ccm->CCGR6);
-	if (enable)
-		reg |= MXC_CCM_CCGR6_EMI_SLOW_MASK;
-	else
-		reg &= ~MXC_CCM_CCGR6_EMI_SLOW_MASK;
-	__raw_writel(reg, &imx_ccm->CCGR6);
-}
-#endif
-
 /***************************************************/
 
 U_BOOT_CMD(
@@ -1297,3 +1296,4 @@ U_BOOT_CMD(
 	"display clocks",
 	""
 );
+#endif

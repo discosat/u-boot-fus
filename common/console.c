@@ -286,6 +286,12 @@ static void pre_console_putc(const char c)
 	unmap_sysmem(buffer);
 }
 
+static void pre_console_puts(const char *s)
+{
+	while (*s)
+		pre_console_putc(*s++);
+}
+
 static void print_pre_console_buffer(int flushpoint)
 {
 	unsigned long i = 0;
@@ -309,6 +315,7 @@ static void print_pre_console_buffer(int flushpoint)
 }
 #else
 static inline void pre_console_putc(const char c) {}
+static inline void pre_console_puts(const char *s) {}
 static inline void print_pre_console_buffer(int flushpoint) {}
 #endif
 

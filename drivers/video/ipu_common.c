@@ -81,6 +81,11 @@ struct ipu_ch_param {
 
 #define IPU_SW_RST_TOUT_USEC	(10000)
 
+#define IPUV3_CLK_MX51		133000000
+#define IPUV3_CLK_MX53		200000000
+#define IPUV3_CLK_MX6Q		264000000
+#define IPUV3_CLK_MX6DL		198000000
+
 void clk_enable(struct clk *clk)
 {
 	if (clk) {
@@ -448,8 +453,20 @@ int ipu_probe(unsigned int ipu, unsigned int disp)
 	g_pixel_clk[0] = &pixel_clk[0];
 	g_pixel_clk[1] = &pixel_clk[1];
 
-	ipu_clk.rate = ipuv3_get_ipu_di_clock(ipu, disp);
 	g_ipu_clk = &ipu_clk;
+#if 1
+	/* F&S: IPU clock is set by board setup code, get current rate */
+	g_ipu_clk->rate = ipuv3_get_ipu_di_clock(ipu, disp);
+#else
+	/* IPU clock is used with default values */
+#if defined(CONFIG_MX51)
+	g_ipu_clk->rate = IPUV3_CLK_MX51;
+#elif defined(CONFIG_MX53)
+	g_ipu_clk->rate = IPUV3_CLK_MX53;
+#else
+	g_ipu_clk->rate = is_mx6sdl() ? IPUV3_CLK_MX6DL : IPUV3_CLK_MX6Q;
+#endif
+#endif
 	debug("ipu_clk = %u\n", clk_get_rate(g_ipu_clk));
 	g_ldb_clk = &ldb_clk;
 	debug("ldb_clk = %u\n", clk_get_rate(g_ldb_clk));

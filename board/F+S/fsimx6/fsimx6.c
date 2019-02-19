@@ -1367,13 +1367,12 @@ void setup_weim(bd_t *bis)
 {
 	struct weim *weim = (struct weim *)WEIM_BASE_ADDR;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
-	u32 ccgr6, gpr1;
+	u32 gpr1;
 
 	SETUP_IOMUX_PADS(eim_pads_eth_b);
 
 	/* Enable EIM clock */
-	ccgr6 = readl(CCM_CCGR6);
-	writel(ccgr6 | MXC_CCM_CCGR6_EMI_SLOW_MASK, CCM_CCGR6);
+	enable_eim_clk(1);
 
 	/*
 	 * Set EIM chip select configuration:

@@ -90,6 +90,7 @@ void enable_enet_clk(unsigned char enable);
 void enable_qspi_clk(int qspi_num);
 void enable_thermal_clk(void);
 void enable_eim_clk(unsigned char enable);
+int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
 /* Display related clock handling */
 unsigned int mxs_get_ldb_clock(int channel);

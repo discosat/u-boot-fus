@@ -903,7 +903,7 @@ static int fec_recv(struct eth_device *dev)
 #if 1
 				putc('E');
 #else
-				printf("error frame: 0x%08x 0x%08x\n",
+				debug("error frame: 0x%08x 0x%08x\n",
 				       addr, bd_status);
 #endif
 				len = -1;

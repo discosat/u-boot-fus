@@ -336,6 +336,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size, size_t *loaded)
 	unsigned long long tmp;
 	struct ubi_volume *vol;
 	loff_t offp = 0;
+	size_t len_read;
 
 	*loaded = 0;
 	vol = ubi_find_volume(volume);
@@ -376,6 +377,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size, size_t *loaded)
 	tmp = offp;
 	off = do_div(tmp, vol->usable_leb_size);
 	lnum = tmp;
+	len_read = size;
 	do {
 		if (off + len >= vol->usable_leb_size)
 			len = vol->usable_leb_size - off;
@@ -401,6 +403,9 @@ int ubi_volume_read(char *volume, char *buf, size_t size, size_t *loaded)
 		buf += len;
 		len = size > tbuf_size ? tbuf_size : size;
 	} while (size);
+
+	if (!size)
+		env_set_hex("filesize", len_read);
 
 	free(tbuf);
 

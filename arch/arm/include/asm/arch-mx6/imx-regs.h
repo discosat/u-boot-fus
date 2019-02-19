@@ -411,6 +411,9 @@
 /* Unused defines to allow UL and ULL in same code */
 #define IOMUXC_SNVS_BASE_ADDR       (AIPS3_ARB_BASE_ADDR + 0x90000)
 #endif
+
+#define NOC_DDR_BASE_ADDR           (GPV0_BASE_ADDR + 0xB0000)
+
 /* Only for i.MX6SX */
 #define LCDIF2_BASE_ADDR            (AIPS3_ARB_BASE_ADDR + 0x24000)
 #define MX6SX_LCDIF1_BASE_ADDR      (AIPS3_ARB_BASE_ADDR + 0x20000)
