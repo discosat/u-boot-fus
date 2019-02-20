@@ -50,7 +50,7 @@ void setup_gpmi_io_clk(u32 cfg)
 			cfg);
 
 	setbits_le32(&imx_ccm->CCGR4, MXC_CCM_CCGR4_QSPI2_ENFC_MASK);
-#elif defined(CONFIG_MX6UL)
+#elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 	/*
 	 * config gpmi and bch clock to 100 MHz
 	 * bch/gpmi select PLL2 PFD2 400M
@@ -1230,7 +1230,7 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	show_freq("  PLL2_PFD0", mxc_get_pll_pfd(PLL_BUS, 0));
 	show_freq("  PLL2_PFD1", mxc_get_pll_pfd(PLL_BUS, 1));
 	show_freq("  PLL2_PFD2", mxc_get_pll_pfd(PLL_BUS, 2));
-#if defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL)
+#if defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 	show_freq("  PLL2_PFD3", mxc_get_pll_pfd(PLL_BUS, 3));
 #endif
 	show_freq("PLL3 (USBOTG)", decode_pll(PLL_USBOTG));

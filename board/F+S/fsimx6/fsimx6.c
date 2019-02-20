@@ -45,7 +45,7 @@
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
 
-#include <linux/mtd/nand.h>		/* struct mtd_info, struct nand_chip */
+#include <linux/mtd/rawnand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */

@@ -24,7 +24,7 @@
 
 #include <common.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <asm/io.h>

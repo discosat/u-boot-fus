@@ -19,7 +19,6 @@
 #include <i2c.h>
 #include <initcall.h>
 #include <init_helpers.h>
-#include <logbuff.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <os.h>
@@ -280,20 +279,6 @@ static int setup_dest_addr(void)
 #endif
 	return 0;
 }
-
-#if defined(CONFIG_LOGBUFFER)
-static int reserve_logbuffer(void)
-{
-#ifndef CONFIG_ALT_LB_ADDR
-	/* reserve kernel log buffer */
-	gd->relocaddr -= LOGBUFF_RESERVE;
-	debug("Reserving %dk for kernel logbuffer at %08lx\n", LOGBUFF_LEN,
-		gd->relocaddr);
-#endif
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_PRAM
 /* reserve protected RAM */
@@ -751,6 +736,7 @@ static const init_fnc_t init_sequence_f[] = {
 	trace_early_init,
 #endif
 	initf_malloc,
+	log_init,
 	initf_bootstage,	/* uses its own timer, so does not need DM */
 	initf_console_record,
 #if defined(CONFIG_HAVE_FSP)
@@ -831,9 +817,6 @@ static const init_fnc_t init_sequence_f[] = {
 	 *  - board info struct
 	 */
 	setup_dest_addr,
-#if defined(CONFIG_LOGBUFFER)
-	reserve_logbuffer,
-#endif
 #ifdef CONFIG_PRAM
 	reserve_pram,
 #endif
@@ -935,8 +918,10 @@ void board_init_f_r(void)
 	 * The pre-relocation drivers may be using memory that has now gone
 	 * away. Mark serial as unavailable - this will fall back to the debug
 	 * UART if available.
+	 *
+	 * Do the same with log drivers since the memory may not be available.
 	 */
-	gd->flags &= ~GD_FLG_SERIAL_READY;
+	gd->flags &= ~(GD_FLG_SERIAL_READY | GD_FLG_LOG_READY);
 #ifdef CONFIG_TIMER
 	gd->timer = NULL;
 #endif

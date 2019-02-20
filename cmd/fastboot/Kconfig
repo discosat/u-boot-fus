@@ -30,7 +30,7 @@ if USB_FUNCTION_FASTBOOT
 
 config FASTBOOT_BUF_ADDR
 	hex "Define FASTBOOT buffer address"
-	default 0x82000000 if MX6SX || MX6SL || MX6UL || MX6SLL
+	default 0x82000000 if MX6SX || MX6SL || MX6UL || MX6ULL || MX6SLL
 	default 0x81000000 if ARCH_OMAP2PLUS
 	default 0x42000000 if ARCH_SUNXI && !MACH_SUN9I
 	default 0x22000000 if ARCH_SUNXI && MACH_SUN9I
@@ -66,6 +66,7 @@ config FASTBOOT_USB_DEV
 
 config FASTBOOT_FLASH
 	bool "Enable FASTBOOT FLASH command"
+	default y if ARCH_SUNXI
 	help
 	  The fastboot protocol includes a "flash" command for writing
 	  the downloaded image to a non-volatile storage device. Define

@@ -138,6 +138,8 @@
 /* Basic input clocks */
 #define CONFIG_SYS_MX6_HCLK	24000000
 
+#define COUNTER_FREQUENCY	8000000 /* 8Mhz */
+
 
 /************************************************************************
  * GPIO

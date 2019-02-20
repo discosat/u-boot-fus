@@ -78,7 +78,7 @@ obj-$(CONFIG_CMD_LED) += led.o
 obj-$(CONFIG_CMD_LICENSE) += license.o
 obj-$(CONFIG_CMD_LOADS) += load.o
 obj-$(CONFIG_CMD_LOADB) += load.o
-obj-$(CONFIG_LOGBUFFER) += log.o
+obj-$(CONFIG_CMD_LOG) += log.o
 obj-$(CONFIG_ID_EEPROM) += mac.o
 obj-$(CONFIG_CMD_MD5SUM) += md5sum.o
 obj-$(CONFIG_CMD_MEMORY) += mem.o
@@ -160,6 +160,8 @@ obj-$(CONFIG_CMD_DRAW) += draw.o
 obj-$(CONFIG_CMD_ADRAW) += draw.o
 
 obj-$(CONFIG_CMD_BLOB) += blob.o
+
+obj-$(CONFIG_X86) += x86/
 endif # !CONFIG_SPL_BUILD
 
 # core command

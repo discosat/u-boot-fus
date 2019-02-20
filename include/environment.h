@@ -158,12 +158,7 @@ size_t get_env_offset(void) __attribute__((weak, alias("__get_env_offset")));
 size_t get_env_offset(void);
 #endif
 
-#ifdef CONFIG_ENV_AES
-/* Make sure the payload is multiple of AES block size */
-//### #define ENV_SIZE ((CONFIG_ENV_SIZE - ENV_HEADER_SIZE) & ~(16 - 1))
-#else
 //### #define ENV_SIZE (CONFIG_ENV_SIZE - ENV_HEADER_SIZE)
-#endif
 
 typedef struct environment_s {
 	uint32_t	crc;		/* CRC32 over data bytes	*/

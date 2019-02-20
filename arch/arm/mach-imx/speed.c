@@ -22,7 +22,7 @@ int get_clocks(void)
 #ifdef CONFIG_FSL_USDHC
 #if CONFIG_SYS_FSL_ESDHC_ADDR == USDHC2_BASE_ADDR
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-#ifndef CONFIG_MX6UL
+#if !defined(CONFIG_MX6UL) && !defined(CONFIG_MX6ULL)
 #elif CONFIG_SYS_FSL_ESDHC_ADDR == USDHC3_BASE_ADDR
 	gd->arch.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
 #elif CONFIG_SYS_FSL_ESDHC_ADDR == USDHC4_BASE_ADDR

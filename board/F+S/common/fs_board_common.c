@@ -14,7 +14,7 @@
 #include <serial.h>			/* get_serial_device() */
 #include <asm/gpio.h>			/* gpio_direction_output(), ... */
 #include <asm/arch/sys_proto.h>		/* is_mx6*() */
-#include <linux/mtd/nand.h>		/* struct mtd_info */
+#include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 
 /* ------------------------------------------------------------------------- */
@@ -301,7 +301,7 @@ void fs_board_late_init_common(void)
 			sprintf(lcasename, "%sdl", lcasename);
 		else if (is_mx6dq())
 			sprintf(lcasename, "%sq", lcasename);
-#elif defined(CONFIG_MX6UL)
+#elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 		/*
 		 * In case of i.MX6ULL, append a second 'l' if the name already
 		 * ends with 'ul', otherwise append 'ull'. This results in the

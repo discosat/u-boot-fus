@@ -61,7 +61,7 @@ int timer_init(void)
 	struct sctr_regs *sctr = (struct sctr_regs *)SCTR_BASE_ADDR;
 	unsigned long val, freq;
 
-	freq = CONFIG_SC_TIMER_CLK;
+	freq = COUNTER_FREQUENCY;
 	asm("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
 
 	writel(freq, &sctr->cntfid0);
@@ -72,8 +72,8 @@ int timer_init(void)
 	val |= SC_CNTCR_FREQ0 | SC_CNTCR_ENABLE | SC_CNTCR_HDBG;
 	writel(val, &sctr->cntcr);
 
-	gd->arch.tbl = 0;
-	gd->arch.tbu = 0;
+	gd->timebase_h = 0;
+	gd->timebase_l = 0;
 
 	return 0;
 }
@@ -84,8 +84,8 @@ unsigned long long get_ticks(void)
 
 	asm("mrrc p15, 0, %Q0, %R0, c14" : "=r" (now));
 
-	gd->arch.tbl = (unsigned long)(now & 0xffffffff);
-	gd->arch.tbu = (unsigned long)(now >> 32);
+	gd->timebase_l = (unsigned long)(now & 0xffffffff);
+	gd->timebase_h = (unsigned long)(now >> 32);
 
 	return now;
 }

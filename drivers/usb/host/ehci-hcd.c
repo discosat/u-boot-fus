@@ -209,9 +209,6 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 	int i, ret = 0;
 	uint32_t cmd, reg;
 
-	if (!ctrl || !ctrl->hcor)
-		return -EINVAL;
-
 	if (!ctrl->host_valid)
 		return 0;
 
@@ -609,8 +606,9 @@ ehci_submit_async(struct usb_device *dev, unsigned long pipe, void *buffer,
 	 * dangerous operation, it's responsibility of the calling
 	 * code to make sure enough space is reserved.
 	 */
-	invalidate_dcache_range((unsigned long)buffer,
-		ALIGN((unsigned long)buffer + length, ARCH_DMA_MINALIGN));
+	if (buffer != NULL && length > 0)
+		invalidate_dcache_range((unsigned long)buffer,
+			ALIGN((unsigned long)buffer + length, ARCH_DMA_MINALIGN));
 
 	/* Check that the TD processing happened */
 	if (QT_TOKEN_GET_STATUS(token) & QT_TOKEN_STATUS_ACTIVE)
@@ -1129,6 +1127,8 @@ int usb_lowlevel_init(int index, enum usb_init_type init, void **controller)
 	rc = ehci_hcd_init(index, init, &ctrl->hccr, &ctrl->hcor);
 	if (rc)
 		return rc;
+	if (!ctrl->hccr || !ctrl->hcor)
+		return -1;
 	if (init == USB_INIT_DEVICE)
 		goto done;
 
@@ -1630,10 +1630,13 @@ int ehci_register(struct udevice *dev, struct ehci_hccr *hccr,
 {
 	struct usb_bus_priv *priv = dev_get_uclass_priv(dev);
 	struct ehci_ctrl *ctrl = dev_get_priv(dev);
-	int ret;
+	int ret = -1;
 
 	debug("%s: dev='%s', ctrl=%p, hccr=%p, hcor=%p, init=%d\n", __func__,
 	      dev->name, ctrl, hccr, hcor, init);
+
+	if (!ctrl || !hccr || !hcor)
+		goto err;
 
 	priv->desc_before_addr = true;
 
