@@ -46,6 +46,8 @@ install:
  - grub-mkimage -o ~/grub_x86.efi -O i386-efi normal  echo lsefimmap lsefi lsefisystab efinet tftp minicmd
  - mkdir ~/grub2-arm
  - ( cd ~/grub2-arm; wget -O - http://download.opensuse.org/ports/armv7hl/distribution/leap/42.2/repo/oss/suse/armv7hl/grub2-arm-efi-2.02~beta2-87.1.armv7hl.rpm | rpm2cpio | cpio -di )
+ - mkdir ~/grub2-arm64
+ - ( cd ~/grub2-arm64; wget -O - http://download.opensuse.org/ports/aarch64/distribution/leap/42.2/repo/oss/suse/aarch64/grub2-arm64-efi-2.02~beta2-87.1.aarch64.rpm | rpm2cpio | cpio -di )
 
 env:
   global:
@@ -70,13 +72,22 @@ before_script:
        wget https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/releases/download/arc-2016.09-release/arc_gnu_2016.09_prebuilt_uclibc_le_archs_linux_install.tar.gz &&
        tar -C /tmp -xf arc_gnu_2016.09_prebuilt_uclibc_le_archs_linux_install.tar.gz;
     fi
-  - if [[ "${TOOLCHAIN}" == *xtensa* ]]; then ./tools/buildman/buildman --fetch-arch xtensa ; fi
+  - if [[ "${TOOLCHAIN}" == *xtensa* ]]; then
+       wget https://github.com/foss-xtensa/toolchain/releases/download/2018.02/x86_64-2018.02-${TOOLCHAIN}.tar.gz &&
+       tar -C /tmp -xf x86_64-2018.02-${TOOLCHAIN}.tar.gz &&
+       echo -e "\n[toolchain-prefix]\nxtensa = /tmp/2018.02/${TOOLCHAIN}/bin/${TOOLCHAIN}-" >> ~/.buildman;
+    fi
   # If TOOLCHAIN is unset, we're on some flavour of ARM.
   - if [[ "${TOOLCHAIN}" == "" ]]; then
        wget http://releases.linaro.org/components/toolchain/binaries/6.3-2017.02/aarch64-linux-gnu/gcc-linaro-6.3.1-2017.02-x86_64_aarch64-linux-gnu.tar.xz &&
        wget http://releases.linaro.org/components/toolchain/binaries/6.3-2017.02/arm-linux-gnueabihf/gcc-linaro-6.3.1-2017.02-x86_64_arm-linux-gnueabihf.tar.xz &&
        tar -C /tmp -xf gcc-linaro-6.3.1-2017.02-x86_64_aarch64-linux-gnu.tar.xz &&
        tar -C /tmp -xf gcc-linaro-6.3.1-2017.02-x86_64_arm-linux-gnueabihf.tar.xz;
+    fi
+  - if [[ "${TOOLCHAIN}" == "riscv" ]]; then
+        wget https://github.com/PkmX/riscv-prebuilt-toolchains/releases/download/20180111/riscv32-unknown-elf-toolchain.tar.gz &&
+        tar -C /tmp -xf riscv32-unknown-elf-toolchain.tar.gz &&
+        echo -e "\n[toolchain-prefix]\nriscv = /tmp/riscv32-unknown-elf/bin/riscv32-unknown-elf-" >> ~/.buildman;
     fi
   - if [[ "${QEMU_TARGET}" != "" ]]; then
        git clone git://git.qemu.org/qemu.git /tmp/qemu;
@@ -94,9 +105,8 @@ script:
  #
  # Exit code 129 means warnings only.
  - if [[ "${BUILDMAN}" != "" ]]; then
-     set +e;
-     tools/buildman/buildman -P ${BUILDMAN};
-     ret=$?;
+     ret=0;
+     tools/buildman/buildman -P -E ${BUILDMAN} || ret=$?;
      if [[ $ret -ne 0 && $ret -ne 129 ]]; then
        tools/buildman/buildman -sdeP ${BUILDMAN};
        exit $ret;
@@ -109,10 +119,25 @@ script:
  - export UBOOT_TRAVIS_BUILD_DIR=`cd .. && pwd`/.bm-work/${TEST_PY_BD};
    cp ~/grub_x86.efi $UBOOT_TRAVIS_BUILD_DIR/;
    cp ~/grub2-arm/usr/lib/grub2/arm-efi/grub.efi $UBOOT_TRAVIS_BUILD_DIR/grub_arm.efi;
+   cp ~/grub2-arm64/usr/lib/grub2/arm64-efi/grub.efi $UBOOT_TRAVIS_BUILD_DIR/grub_arm64.efi;
    if [[ "${TEST_PY_BD}" != "" ]]; then
      ./test/py/test.py --bd ${TEST_PY_BD} ${TEST_PY_ID}
        -k "${TEST_PY_TEST_SPEC:-not a_test_which_does_not_exist}"
        --build-dir "$UBOOT_TRAVIS_BUILD_DIR";
+     ret=$?;
+     if [[ $ret -ne 0 ]]; then
+       exit $ret;
+     fi;
+   fi;
+   if [[ -n "${TEST_PY_TOOLS}" ]]; then
+     PYTHONPATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc/pylibfdt"
+     PATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc:${PATH}"
+     ./tools/binman/binman -t &&
+     ./tools/patman/patman --test &&
+     ./tools/buildman/buildman -t &&
+     PYTHONPATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc/pylibfdt"
+     PATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc:${PATH}"
+     ./tools/dtoc/dtoc -t;
    fi
 
 matrix:
@@ -206,7 +231,11 @@ matrix:
     - env:
         - BUILDMAN="mpc85xx -x t208xrdb -x t4qds -x t102* -x p1_p2_rdb_pc -x p1010rdb -x corenet_ds -x b4860qds -x sbc8548 -x bsc91*"
     - env:
-        - BUILDMAN="t208xrdb t4qds t102*"
+        - BUILDMAN="t208xrdb"
+    - env:
+        - BUILDMAN="t4qds"
+    - env:
+        - BUILDMAN="t102*"
     - env:
         - BUILDMAN="p1_p2_rdb_pc"
     - env:
@@ -246,7 +275,10 @@ matrix:
           BUILDMAN="xilinx -x microblaze"
     - env:
         - BUILDMAN="xtensa"
-          TOOLCHAIN="xtensa"
+          TOOLCHAIN="xtensa-dc233c-elf"
+    - env:
+        - BUILDMAN="riscv"
+          TOOLCHAIN="riscv"
 
     # QA jobs for code analytics
     # static code analysis with cppcheck (we can add --enable=all later)
@@ -283,6 +315,7 @@ matrix:
           TEST_PY_TEST_SPEC="test_ofplatdata"
           BUILDMAN="^sandbox$"
           TOOLCHAIN="x86_64"
+          TEST_PY_TOOLS="yes"
     - env:
         - TEST_PY_BD="sandbox_flattree"
           BUILDMAN="^sandbox_flattree$"
@@ -308,6 +341,11 @@ matrix:
           TEST_PY_TEST_SPEC="not sleep"
           QEMU_TARGET="arm-softmmu"
           BUILDMAN="^qemu_arm$"
+    - env:
+        - TEST_PY_BD="qemu_arm64"
+          TEST_PY_TEST_SPEC="not sleep"
+          QEMU_TARGET="aarch64-softmmu"
+          BUILDMAN="^qemu_arm64$"
     - env:
         - TEST_PY_BD="qemu_mips"
           TEST_PY_TEST_SPEC="not sleep"
@@ -350,5 +388,12 @@ matrix:
           QEMU_TARGET="arm-softmmu"
           TEST_PY_ID="--id qemu"
           BUILDMAN="^zynq_zc702$"
+    - env:
+        - TEST_PY_BD="xtfpga"
+          TEST_PY_TEST_SPEC="not sleep"
+          QEMU_TARGET="xtensa-softmmu"
+          TEST_PY_ID="--id qemu"
+          BUILDMAN="^xtfpga$"
+          TOOLCHAIN="xtensa-dc233c-elf"
 
 # TODO make it perfect ;-r
