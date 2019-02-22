@@ -40,8 +40,8 @@
 #  ifndef	CONFIG_ENV_SIZE
 #   define	CONFIG_ENV_SIZE	CONFIG_ENV_SECT_SIZE
 #  endif
-//### # else
-//### #  error "Both CONFIG_ENV_SECT_SIZE and CONFIG_ENV_SIZE undefined"
+# else
+#  error "Both CONFIG_ENV_SECT_SIZE and CONFIG_ENV_SIZE undefined"
 # endif
 # if defined(CONFIG_ENV_ADDR_REDUND) && !defined(CONFIG_ENV_SIZE_REDUND)
 #  define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
@@ -75,16 +75,16 @@
 extern unsigned long nand_env_oob_offset;
 #  define CONFIG_ENV_OFFSET nand_env_oob_offset
 # else
-//### #  ifndef CONFIG_ENV_OFFSET
-//### #   error "Need to define CONFIG_ENV_OFFSET when using CONFIG_ENV_IS_IN_NAND"
-//### #  endif
+#  ifndef CONFIG_ENV_OFFSET
+#   error "Need to define CONFIG_ENV_OFFSET when using CONFIG_ENV_IS_IN_NAND"
+#  endif
 #  ifdef CONFIG_ENV_OFFSET_REDUND
 #   define CONFIG_SYS_REDUNDAND_ENVIRONMENT
 #  endif
 # endif /* CONFIG_ENV_OFFSET_OOB */
-//### # ifndef CONFIG_ENV_SIZE
-//### #  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_NAND"
-//### # endif
+# ifndef CONFIG_ENV_SIZE
+#  error "Need to define CONFIG_ENV_SIZE when using CONFIG_ENV_IS_IN_NAND"
+# endif
 #endif /* CONFIG_ENV_IS_IN_NAND */
 
 #if defined(CONFIG_ENV_IS_IN_UBI)
@@ -135,40 +135,30 @@ extern unsigned long nand_env_oob_offset;
 #include "compiler.h"
 
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
+# define ENV_HEADER_SIZE	(sizeof(uint32_t) + 1)
+
 # define ACTIVE_FLAG   1
 # define OBSOLETE_FLAG 0
-#endif
-#define ENV_HEADER_SIZE	sizeof(env_t)
-
-#ifdef CONFIG_ENV_SIZE
-/* We may define our own get_env_size() or use the default one here */
-inline size_t __get_env_size(void) {return CONFIG_ENV_SIZE;}
-size_t get_env_size(void) __attribute__((weak, alias("__get_env_size")));
 #else
-/* We must have get_env_size() */
-size_t get_env_size(void);
+# define ENV_HEADER_SIZE	(sizeof(uint32_t))
 #endif
 
-#ifdef CONFIG_ENV_OFFSET
-/* We may define our own get_env_offset() or use the default one here */
-inline size_t __get_env_offset(void) {return CONFIG_ENV_SIZE;}
-size_t get_env_offset(void) __attribute__((weak, alias("__get_env_offset")));
-#else
-/* We must have get_env_offset() */
-size_t get_env_offset(void);
-#endif
-
-//### #define ENV_SIZE (CONFIG_ENV_SIZE - ENV_HEADER_SIZE)
+#define ENV_SIZE (CONFIG_ENV_SIZE - ENV_HEADER_SIZE)
 
 typedef struct environment_s {
 	uint32_t	crc;		/* CRC32 over data bytes	*/
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
-	uint32_t	flags;		/* active/obsolete flags	*/
+	unsigned char	flags;		/* active/obsolete flags	*/
 #endif
+	unsigned char	data[ENV_SIZE]; /* Environment data		*/
 } env_t;
 
+#ifdef ENV_IS_EMBEDDED
+extern env_t environment;
+#endif /* ENV_IS_EMBEDDED */
+
 extern const unsigned char default_environment[];
-size_t get_default_env_size(void);
+extern env_t *env_ptr;
 
 #if defined(CONFIG_NEEDS_MANUAL_RELOC)
 extern void env_reloc(void);
@@ -198,6 +188,7 @@ enum env_valid {
 };
 
 enum env_location {
+	ENVL_UNKNOWN,
 	ENVL_EEPROM,
 	ENVL_EXT4,
 	ENVL_FAT,
@@ -212,23 +203,19 @@ enum env_location {
 	ENVL_NOWHERE,
 
 	ENVL_COUNT,
-	ENVL_UNKNOWN,
+};
+
+/* value for the various operations we want to perform on the env */
+enum env_operation {
+	ENVOP_GET_CHAR,	/* we want to call the get_char function */
+	ENVOP_INIT,	/* we want to call the init function */
+	ENVOP_LOAD,	/* we want to call the load function */
+	ENVOP_SAVE,	/* we want to call the save function */
 };
 
 struct env_driver {
 	const char *name;
 	enum env_location location;
-
-	/**
-	 * get_char() - Read a character from the environment
-	 *
-	 * This method is optional. If not provided, a default implementation
-	 * will read from gd->env_addr.
-	 *
-	 * @index: Index of character to read (0=first)
-	 * @return character read, or -ve on error
-	 */
-	int (*get_char)(int index);
 
 	/**
 	 * load() - Load the environment from storage
@@ -292,22 +279,16 @@ void set_default_env(const char *s);
 int set_default_vars(int nvars, char * const vars[]);
 
 /* Import from binary representation into hash table */
-int env_import(const char *buf, int check, size_t env_size);
+int env_import(const char *buf, int check);
 
 /* Export from hash table into binary representation */
 int env_export(env_t *env_out);
 
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
 /* Select and import one of two redundant environments */
-int env_import_redund(const char *buf1, const char *buf2);
+int env_import_redund(const char *buf1, int buf1_status,
+		      const char *buf2, int buf2_status);
 #endif
-
-/**
- * env_driver_lookup_default() - Look up the default environment driver
- *
- * @return pointer to driver, or NULL if none (which should not happen)
- */
-struct env_driver *env_driver_lookup_default(void);
 
 /**
  * env_get_char() - Get a character from the early environment

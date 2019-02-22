@@ -87,7 +87,7 @@ struct mxc_i2c_bus {
 	};
 
 
-#define I2C_PADS_INFO(name) (is_mx6dq()) ? &mx6q_##name : &mx6s_##name
+#define I2C_PADS_INFO(name) (is_mx6dq() || is_mx6dqp()) ? &mx6q_##name : &mx6s_##name
 #else
 #define I2C_PADS(name, scl_i2c, scl_gpio, scl_gp, sda_i2c, sda_gpio, sda_gp) \
 		struct i2c_pads_info mx6_##name = {		\

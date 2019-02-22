@@ -19,6 +19,8 @@
 #include <memalign.h>			/* ALLOC_CACHE_ALIGN_BUFFER */
 #include <div64.h>
 
+#define CONFIG_SUPPORT_VFAT
+
 /* Maximum Long File Name length supported here is 128 UTF-16 code units */
 #define VFAT_SEQ_MAX	19	    /* Maximum slots, each 13 UTF-16 chars */
 #define FAT_DEF_VOLUME	"NO NAME"   /* Default volume name if not found */

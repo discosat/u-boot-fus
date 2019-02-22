@@ -2,8 +2,6 @@
  * (C) Copyright 2009
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
  *
- * Copyright (C) 2016 Freescale Semiconductor, Inc.
- *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
@@ -29,6 +27,7 @@
 
 #define is_mx6() (is_soc_type(MXC_SOC_MX6))
 #define is_mx7() (is_soc_type(MXC_SOC_MX7))
+#define is_mx8m() (is_soc_type(MXC_SOC_MX8M))
 
 #define is_mx6dqp() (is_cpu_type(MXC_CPU_MX6QP) || is_cpu_type(MXC_CPU_MX6DP))
 #define is_mx6dq() (is_cpu_type(MXC_CPU_MX6Q) || is_cpu_type(MXC_CPU_MX6D))
@@ -129,69 +128,6 @@ int mxs_reset_block(struct mxs_register_32 *reg);
 int mxs_wait_mask_set(struct mxs_register_32 *reg, u32 mask, u32 timeout);
 int mxs_wait_mask_clr(struct mxs_register_32 *reg, u32 mask, u32 timeout);
 
-int mmc_get_env_dev(void);
-void board_late_mmc_env_init(void);
-
-void vadc_power_up(void);
-void vadc_power_down(void);
-
-void pcie_power_up(void);
-void pcie_power_off(void);
-
-/* For the bootaux command we implemented a state machine to switch between
- * the different modes. Below you find the bit coding for the state machine.
- * The different states will be set in the arch_auxiliary_core_set function and
- * to get the current state you can use the function arch_auxiliary_core_get.
- * If we get a undefined state we will immediately set the state to aux_off.
- */
-/******************************************************************************
-****************|              bit coding             |   state   |************
--------------------------------------------------------------------------------
-****************| assert_reset | m4_clock | m4_enable |   state   |************
-===============================================================================
-****************|       1      |     0    |     0     |    off    |************
-****************|       1      |     1    |     1     |  stopped  |************
-****************|       0      |     1    |     1     |  running  |************
-****************|       0      |     0    |     1     |  paused   |************
-****************|       0      |     0    |     0     | undefined |************
-****************|       0      |     1    |     0     | undefined |************
-****************|       1      |     0    |     1     | undefined |************
-****************|       1      |     1    |     0     | undefined |************
-*******************************************************************************
-**|   transitions    |   state   |            transitions             |********
-*******************************************************************************
-                      -----------
-                      |   OFF   |
-                      -----------
-          |          |           ^           ^                   ^
-          |    Start |           |  off      |                   |
-          |          v           |           |                   |
-          |           -----------            |                   |
-    run/  |           | Stopped |            | off               |
-    addr  |           -----------            |                   |
-          |          |           ^           |           ^       |
-          | run/addr |           | stop      |           |       | off
-          v          v           |                       |       |
-                      -----------                        |       |
-                      | Running |                        | stop  |
-                      -----------                        |       |
-                     |           ^                       |       |
-               pause |           | continue              |       |
-                     v           | run/addr (restart)    |       |
-                      -----------
-                      | Paused  |
-                      -----------
-******************************************************************************/
-enum aux_state {
-	aux_off,
-	aux_stopped,
-	aux_running,
-	aux_paused,
-	aux_undefined,
-};
-
-int arch_auxiliary_core_set_reset_address(u32 boot_private_data);
-void arch_auxiliary_core_set(u32 core_id, enum aux_state state);
-enum aux_state arch_auxiliary_core_get(u32 core_id);
-
+unsigned long call_imx_sip(unsigned long id, unsigned long reg0,
+			   unsigned long reg1, unsigned long reg2);
 #endif

@@ -16,12 +16,6 @@
 #include <environment.h>
 #include <linux/stringify.h>
 
-/* Setting an embedded environment requires a constant CONFIG_ENV_SIZE */
-typedef struct full_env_s {
-	env_t header;
-	unsigned char data[CONFIG_ENV_SIZE - ENV_HEADER_SIZE];
-} full_env_t;
-
 /* Handle HOSTS that have prepended crap on symbol names, not TARGETS. */
 #if defined(__APPLE__)
 /* Leading underscore on symbols */
@@ -76,20 +70,13 @@ typedef struct full_env_s {
 #include <env_default.h>
 
 #ifdef CONFIG_ENV_ADDR_REDUND
-full_env_t redundand_environment __UBOOT_ENV_SECTION__ = {
-	{
-		0,		/* CRC Sum: invalid */
-		0,		/* Flags:   invalid */
-	},
+env_t redundand_environment __UBOOT_ENV_SECTION__ = {
+	0,		/* CRC Sum: invalid */
+	0,		/* Flags:   invalid */
 	{
 	"\0"
 	}
 };
-
-env_t *env_get_redundand_ptr(void)
-{
-	return (env_t *)&redundand_environment;
-}
 #endif	/* CONFIG_ENV_ADDR_REDUND */
 
 /*

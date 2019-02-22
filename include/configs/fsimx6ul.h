@@ -72,8 +72,6 @@
 #include <asm/arch/imx-regs.h>		/* IRAM_BASE_ADDR, IRAM_SIZE */
 
 #undef CONFIG_SKIP_LOWLEVEL_INIT	/* Lowlevel init handles ARM errata */
-#define CONFIG_SYS_LONGHELP		/* Undef to save memory */
-#undef CONFIG_LOGBUFFER			/* No support for log files */
 
 /* The load address of U-Boot is now independent from the size. Just load it
    at some rather low address in RAM. It will relocate itself to the end of
@@ -144,7 +142,6 @@
 /************************************************************************
  * GPIO
  ************************************************************************/
-#define CONFIG_MXC_GPIO
 
 
 /************************************************************************
@@ -255,11 +252,6 @@
 /* Use F&S implementation of GPMI NFC NAND Flash Driver (MXS) */
 #define CONFIG_SYS_NAND_BASE	0x40000000
 
-/* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
-
 /* To avoid that NBoot is erased inadvertently, we define a skip region in the
    first NAND device that can not be written and always reads as 0xFF. However
    if value CONFIG_SYS_MAX_NAND_DEVICE is set to 2, the NBoot region is shown
@@ -292,10 +284,6 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-/* Allow editing (scroll between commands, etc.) */
-#define CONFIG_CMDLINE_EDITING
-#define CONFIG_AUTO_COMPLETE
-
 /* Input and print buffer sizes */
 #define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	640	/* Print Buffer Size */
@@ -320,11 +308,6 @@
 /************************************************************************
  * Network Options
  ************************************************************************/
-#define CONFIG_BOOTP_SUBNETMASK
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_DNS		/* Configurable parts of CMD_DHCP */
 #define CONFIG_BOOTP_DNS2
 #define CONFIG_BOOTP_SEND_HOSTNAME
 #define CONFIG_NET_RETRY_COUNT	5
@@ -334,8 +317,6 @@
 /************************************************************************
  * Filesystem Support
  ************************************************************************/
-/* EXT4 */
-#define CONFIG_FS_EXT4			/* Support EXT2/3/4 */
 
 
 /************************************************************************
@@ -366,9 +347,10 @@
  ************************************************************************/
 /* Environment settings for large blocks (128KB). The environment is held in
    the heap, so keep the real env size small to not waste malloc space. */
-#define ENV_SIZE_DEF_LARGE   0x00004000	/* 16KB */
-#define ENV_RANGE_DEF_LARGE  0x00040000 /* 2 blocks = 256KB */
-#define ENV_OFFSET_DEF_LARGE 0x00200000 /* See NAND layout above */
+#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
+#define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
+#define CONFIG_ENV_OFFSET	0x00200000	/* See NAND layout above */
+#define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
@@ -502,7 +484,5 @@
 /************************************************************************
  * Libraries
  ************************************************************************/
-/*#define USE_PRIVATE_LIBGCC*/
-#define CONFIG_SYS_64BIT_VSPRINTF	/* Needed for nand_util.c */
 
 #endif /* !__FSIMX6UL_CONFIG_H */

@@ -171,21 +171,6 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 	nboot_args.chECCstate |= (unsigned char)state;
 }
 
-size_t get_env_size(void)
-{
-	return ENV_SIZE_DEF_LARGE;
-}
-
-size_t get_env_range(void)
-{
-	return ENV_RANGE_DEF_LARGE;
-}
-
-size_t get_env_offset(void)
-{
-	return ENV_OFFSET_DEF_LARGE;
-}
-
 #ifdef CONFIG_CMD_UPDATE
 enum update_action board_check_for_recover(void)
 {

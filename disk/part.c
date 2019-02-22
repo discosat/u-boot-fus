@@ -26,7 +26,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#ifdef HAVE_BLOCK_DEVICE
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
 static struct part_driver *part_driver_lookup_type(int part_type)
 {
 	struct part_driver *drv =
@@ -80,7 +80,7 @@ struct blk_desc *blk_get_dev(const char *ifname, int dev)
 }
 #endif
 
-#ifdef HAVE_BLOCK_DEVICE
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
 
 /* ------------------------------------------------------------------------- */
 /*
@@ -231,7 +231,7 @@ void dev_print (struct blk_desc *dev_desc)
 }
 #endif
 
-#ifdef HAVE_BLOCK_DEVICE
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
 
 void part_init(struct blk_desc *dev_desc)
 {
@@ -317,12 +317,12 @@ void part_print(struct blk_desc *dev_desc)
 		drv->print(dev_desc);
 }
 
-#endif /* HAVE_BLOCK_DEVICE */
+#endif /* CONFIG_HAVE_BLOCK_DEVICE */
 
 int part_get_info(struct blk_desc *dev_desc, int part,
 		       disk_partition_t *info)
 {
-#ifdef HAVE_BLOCK_DEVICE
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
 	struct part_driver *drv;
 
 #if CONFIG_IS_ENABLED(PARTITION_UUIDS)
@@ -348,7 +348,7 @@ int part_get_info(struct blk_desc *dev_desc, int part,
 		PRINTF("## Valid %s partition found ##\n", drv->name);
 		return 0;
 	}
-#endif /* HAVE_BLOCK_DEVICE */
+#endif /* CONFIG_HAVE_BLOCK_DEVICE */
 
 	return -1;
 }
@@ -415,7 +415,7 @@ int blk_get_device_by_str(const char *ifname, const char *dev_hwpart_str,
 		goto cleanup;
 	}
 
-#ifdef HAVE_BLOCK_DEVICE
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
 	/*
 	 * Updates the partition table for the specified hw partition.
 	 * Does not need to be done for hwpart 0 since it is default and

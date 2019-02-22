@@ -27,11 +27,6 @@ struct hsearch_data env_htab = {
 	.change_ok = env_flags_validate,
 };
 
-size_t get_default_env_size(void)
-{
-	return sizeof(default_environment) + ENV_HEADER_SIZE;
-}
-
 /*
  * Read an environment variable as a boolean
  * Return -1 if variable does not exist (default to true)
@@ -68,7 +63,7 @@ void set_default_env(const char *s)
 {
 	int flags = 0;
 
-	if (sizeof(default_environment) > get_env_size() - ENV_HEADER_SIZE) {
+	if (sizeof(default_environment) > ENV_SIZE) {
 		puts("*** Error - default environment is too large\n\n");
 		return;
 	}
@@ -83,7 +78,7 @@ void set_default_env(const char *s)
 			puts(s);
 		}
 	} else {
-		puts("Using default environment\n\n");
+		debug("Using default environment\n");
 	}
 
 	if (himport_r(&env_htab, (char *)default_environment,
@@ -112,45 +107,63 @@ int set_default_vars(int nvars, char * const vars[])
  * Check if CRC is valid and (if yes) import the environment.
  * Note that "buf" may or may not be aligned.
  */
-int env_import(const char *buf, int check, size_t env_size)
+int env_import(const char *buf, int check)
 {
 	env_t *ep = (env_t *)buf;
 
-	env_size -= ENV_HEADER_SIZE;
 	if (check) {
 		uint32_t crc;
 
 		memcpy(&crc, &ep->crc, sizeof(crc));
 
-		if (crc32(0, (unsigned char *)(ep + 1), env_size) != crc) {
+		if (crc32(0, ep->data, ENV_SIZE) != crc) {
 			set_default_env("!bad CRC");
-			return 0;
+			return -EIO;
 		}
 	}
 
-	if (himport_r(&env_htab, (char *)(ep + 1), env_size, '\0', 0, 0,
+	if (himport_r(&env_htab, (char *)ep->data, ENV_SIZE, '\0', 0, 0,
 			0, NULL)) {
 		gd->flags |= GD_FLG_ENV_READY;
-		return 1;
+		return 0;
 	}
 
 	pr_err("Cannot import environment: errno = %d\n", errno);
 
 	set_default_env("!import failed");
 
-	return 0;
+	return -EIO;
 }
 
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
 static unsigned char env_flags;
 
-int env_import_redund(const char *buf1, const char *buf2)
+int env_import_redund(const char *buf1, int buf1_read_fail,
+		      const char *buf2, int buf2_read_fail)
 {
 	int crc1_ok, crc2_ok;
 	env_t *ep, *tmp_env1, *tmp_env2;
 
 	tmp_env1 = (env_t *)buf1;
 	tmp_env2 = (env_t *)buf2;
+
+	if (buf1_read_fail && buf2_read_fail) {
+		puts("*** Error - No Valid Environment Area found\n");
+	} else if (buf1_read_fail || buf2_read_fail) {
+		puts("*** Warning - some problems detected "
+		     "reading environment; recovered successfully\n");
+	}
+
+	if (buf1_read_fail && buf2_read_fail) {
+		set_default_env("!bad env area");
+		return -EIO;
+	} else if (!buf1_read_fail && buf2_read_fail) {
+		gd->env_valid = ENV_VALID;
+		return env_import((char *)tmp_env1, 1);
+	} else if (buf1_read_fail && !buf2_read_fail) {
+		gd->env_valid = ENV_REDUND;
+		return env_import((char *)tmp_env2, 1);
+	}
 
 	crc1_ok = crc32(0, tmp_env1->data, ENV_SIZE) ==
 			tmp_env1->crc;
@@ -159,7 +172,7 @@ int env_import_redund(const char *buf1, const char *buf2)
 
 	if (!crc1_ok && !crc2_ok) {
 		set_default_env("!bad CRC");
-		return 0;
+		return -EIO;
 	} else if (crc1_ok && !crc2_ok) {
 		gd->env_valid = ENV_VALID;
 	} else if (!crc1_ok && crc2_ok) {
@@ -193,18 +206,15 @@ int env_export(env_t *env_out)
 {
 	char *res;
 	ssize_t	len;
-	size_t env_size = get_env_size();
 
-	res = (char *)(env_out + 1);
-	len = hexport_r(&env_htab, '\0', 0, &res, env_size - ENV_HEADER_SIZE,
-			0, NULL);
+	res = (char *)env_out->data;
+	len = hexport_r(&env_htab, '\0', 0, &res, ENV_SIZE, 0, NULL);
 	if (len < 0) {
 		pr_err("Cannot export environment: errno = %d\n", errno);
 		return 1;
 	}
 
-	env_out->crc = crc32(0, (unsigned char *)(env_out + 1),
-			     env_size - ENV_HEADER_SIZE);
+	env_out->crc = crc32(0, env_out->data, ENV_SIZE);
 
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
 	env_out->flags = ++env_flags; /* increase the serial */

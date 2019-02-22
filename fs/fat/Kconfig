@@ -15,7 +15,7 @@ config FAT_ORIG
 	  with long file names. However it has optional write support.
 
 config FS_FAT_MAX_CLUSTSIZE
-	int "Set maximum possible clusersize"
+	int "Set maximum possible clustersize"
 	default 65536
 	depends on FAT_ORIG
 	help
