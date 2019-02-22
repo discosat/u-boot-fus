@@ -169,6 +169,57 @@ config NAND_FSL_NFC_FS
 	  This enables NAND driver for the NAND flash controller on the
 	  MXS processors.
 
+config NAND_REFRESH
+	bool "Refresh NAND blocks (F&S)"
+	depends on NAND_MXS_FUS || NAND_FSL_NFC_FS
+	help
+	  NAND data may also deteriorate if it is only read. Over time,
+	  the error rate, i.e. number of bit flips in a page, will
+	  increase. If the number of bit flips in a page exceeds the
+	  number of bit flips that can be handled by the ECC, then the
+	  page is not readable anymore.
+
+	  This setting helps to avoid this situation. If set to Y, the
+	  NAND driver will check the bit flip count when reading NAND
+	  pages. If the count exceeds a certain limit, the whole block
+	  will be refreshed. After that the bit flip count should be
+	  low again or even zero.
+
+	  Please note that this is especially meant for read-only data
+	  like U-Boot, device tree, initrd or kernel images, that are
+	  usually not under the control of some other wear-leveling
+	  mechanism like UBI.
+
+	  To avoid any data loss during refresh, the data is first
+	  copied to a reserve block. Then the original block will be
+	  erased and rewritten. Finally the reserve block will be
+	  erased, too. If somewhere in this sequence the power is lost,
+	  the refresh algorithm will detect this at the next start and
+	  resumes (or repeats) the refresh procedure, using the backup
+	  data of the reserve block.
+
+config SYS_NAND_BACKUP_START_BLOCK
+	int "Start of block region to use for NAND refresh"
+	depends on NAND_REFRESH
+	default 9
+	help
+	  Number of a block used as reserve block for NAND refresh.
+	  Unfortunately the reserve block may be a bad block, too.
+	  So actually you can give a whole region of blocks. The
+	  first non-bad block will be used in refresh.
+
+	  The blocks are always checked in sequence from start to end,
+	  so if the end block number is lower than the start number,
+	  the blocks are used in decreasing order.
+
+config SYS_NAND_BACKUP_END_BLOCK
+	int "End of block region to use for NAND refresh"
+	depends on NAND_REFRESH
+	default 8
+	help
+	  Last block number to be used for NAND refresh. See help
+	  to SYS_NAND_BACKUP_START_BLOCK for detailed explanation.
+
 config NAND_ZYNQ
 	bool "Support for Zynq Nand controller"
 	select SYS_NAND_SELF_INIT
