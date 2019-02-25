@@ -253,7 +253,7 @@ ENTRY(memcpy)
  */
 
 	.macro	copy_abort_preamble
-19:	ldmfd	sp!, {r5 - r9}
+19:	ldmfd	sp!, {r5 - r8, r10}
 	b	21f
 20:	ldmfd	sp!, {r5 - r8}
 21:
