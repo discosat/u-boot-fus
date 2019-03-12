@@ -99,6 +99,26 @@ int eth_get_dev_index(void)
 	return eth_current->index;
 }
 
+static int _eth_write_hwaddr(struct eth_device *dev, int eth_number)
+{
+	int ret = 0;
+
+	if (dev->write_hwaddr && !eth_mac_skip(eth_number)) {
+		if (!is_valid_ethaddr(dev->enetaddr)) {
+			printf("\nError: %s address %pM illegal value\n",
+			       dev->name, dev->enetaddr);
+			return -EINVAL;
+		}
+
+		ret = dev->write_hwaddr(dev);
+		if (ret)
+			printf("\nWarning: %s failed to set MAC address\n",
+			       dev->name);
+	}
+
+	return ret;
+}
+
 static int on_ethaddr(const char *name, const char *value, enum env_op op,
 	int flags)
 {
@@ -118,7 +138,7 @@ static int on_ethaddr(const char *name, const char *value, enum env_op op,
 			case env_op_create:
 			case env_op_overwrite:
 				eth_parse_enetaddr(value, dev->enetaddr);
-				eth_write_hwaddr(dev, "eth", dev->index);
+				_eth_write_hwaddr(dev, dev->index);
 				break;
 			case env_op_delete:
 				memset(dev->enetaddr, 0, ARP_HLEN);
@@ -135,7 +155,6 @@ int eth_write_hwaddr(struct eth_device *dev, const char *base_name,
 		   int eth_number)
 {
 	unsigned char env_enetaddr[ARP_HLEN];
-	int ret = 0;
 
 	eth_env_get_enetaddr_by_index(base_name, eth_number, env_enetaddr);
 
@@ -166,20 +185,7 @@ int eth_write_hwaddr(struct eth_device *dev, const char *base_name,
 #endif
 	}
 
-	if (dev->write_hwaddr && !eth_mac_skip(eth_number)) {
-		if (!is_valid_ethaddr(dev->enetaddr)) {
-			printf("\nError: %s address %pM illegal value\n",
-			       dev->name, dev->enetaddr);
-			return -EINVAL;
-		}
-
-		ret = dev->write_hwaddr(dev);
-		if (ret)
-			printf("\nWarning: %s failed to set MAC address\n",
-			       dev->name);
-	}
-
-	return ret;
+	return _eth_write_hwaddr(dev, eth_number);
 }
 
 int eth_register(struct eth_device *dev)
