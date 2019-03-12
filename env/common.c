@@ -64,14 +64,13 @@ void set_default_env(const char *s)
 	int flags = 0;
 
 	if (sizeof(default_environment) > ENV_SIZE) {
-		puts("*** Error - default environment is too large\n\n");
+		puts("*** Error - default environment is too large\n");
 		return;
 	}
 
 	if (s) {
 		if (*s == '!') {
-			printf("*** Warning - %s, "
-				"using default environment\n\n",
+			printf("Warning - %s, using default environment\n",
 				s + 1);
 		} else {
 			flags = H_INTERACTIVE;

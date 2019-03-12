@@ -176,13 +176,12 @@ int env_load(void)
 
 		printf("Loading Environment from %s... ", drv->name);
 		ret = drv->load();
-		if (ret)
-			printf("Failed (%d)\n", ret);
-		else
+		/* Errors are already printed, only need to show success */
+		if (!ret) {
 			printf("OK\n");
 
-		if (!ret)
 			return 0;
+		}
 	}
 
 	return -ENODEV;
