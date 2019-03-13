@@ -1,6 +1,115 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-picocoremx6ul-B2019.03 (13.03.2019)
+--------------------------------------------------
+Supported boards: PicoCoreMX6UL
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1, armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5,
+                  AGATEWAY, HGATEWAY
+
+- Improve PLL decoding and clocks command output on i.MX6
+- Add BGR666 pixel format to ipu_disp.c, required for display on efusA9
+- Add IPU clocks for i.MX6
+- Enhance IPU graphics support for i.MX6
+- Fix video and nulldev stdio devices
+- Add I2C_PADS and I2C_PADS_INFO to mxc_i2c.h
+- Add F&S company boot logo
+- Add LCD and LVDS display support for fsimx6
+- Use THUMB code on fsimx6/sx/ul
+- In ipuv3_fb_shutdown, check if at least one display was active
+- Add support for PicoCOMA7
+- Remove unnecessary debug message in fsimx6.c
+- Add I2C_PADS and I2C_PADS_INFO also for other i.MX6 variants
+- Add support for i.MX6UL and i.MX6SX to mxsfb display driver
+- Add display support to fsimx6sx/ul
+- Add PicoCoreMX6UL
+- Add PicoCoreMX6SX
+- Add SD card support to PicoCOREMX6UL
+- Replace GPL comments in F&S files with SPDX-License-Identifier
+- Fix TAGS file creation
+- Add missing checks for MXC_CPU_MX6SOLO in clock.c
+- Switch off backlight and display voltages when booting Linux
+- Add fix for eMMC with activated Enhanced Mode
+- Drop support for fss5pv210 (armStoneA8, NetDCU14, PicoMOD7A)
+- Drop support for fsam335x (never released)
+- Reduce differences to mainline U-Boot
+- F&S boards: Update loadaddr, add fdtaddr, use zImage by default
+- Switch F&S boards to CONFIG_SYS_GENERIC_BOARD
+- Add get_reset_cause() for Vybrid
+- Move F&S specific FDT code to board/F+S/common/fs_fdt_common.[ch]
+- Move F&S common board code to board/F+S/common/fs_board_common.[ch]
+- Move NBoot args from bootm to F&S specific code
+- Move F&S specific mmc code to board/F+S/common/fs_mmc_common.[ch]
+- Move F&S specific ETH code to board/F+S/common/fs_eth_common.[ch]
+- Show new device if usb dev <n> switches storage devices
+- Update F&S specific USB code and move to board/F+S/common/
+- Remove earlyusbinit feature
+- Improve F&S display code and move to board/F+S/common/fs_disp_common
+- Combine and improve display clock code for i.MX6QDL/SX/UL/ULL
+- Move display specific i.MX6 clock code to clock-ipuv3.c/clock-mxsfb.c
+- Rebase to u-boot-2014.10
+- Add defconfigs for fsimx6/sx/ul/fsvybrid
+- Rebase to u-boot-2015.01
+- Change fat.c and wildcard.c to reflect interface changes
+- Allow swapping color channels on mxsfb
+- Rebase to u-boot-2015.04
+- Rebase to u-boot-2015.07
+- On F&S boards, move some command definitions from .h to defconfig
+- Change meaning of loadaddr, always set fileaddr
+- Change RPMsg ring buffer initialization on fsimx6sx
+- Rebase to u-boot-2015.10
+- Move F&S boards from arch/arm/Kconfig to arch/arm/cpu/armv7/mx6/Kconfig
+- Rebase to u-boot-2016.01
+- Fix reset issues for ETH PHYs on F&S boards
+- Rebase to u-boot-2016.03
+- Rebase to u-boot-2016.05
+- On F&S boards, move more CMD settings from .h to defconfig
+- Move set_working_fdt_addr() from cmd/fdt.c to common/image-fdt.c
+- USB hub handling needs some delay before resetting ports
+- Fix fsl_esdhc_cfg handling when using GPIOs for Card Detect (CD)
+- Rebase to u-boot-2016.07
+- Have option to keep CONFIG_BOOTDELAY unset
+- Change nand chip allocation in fsl_nfc_fus.c and mxs_nand_fus.c
+- Rebase to u-boot-2016.09
+- Remove unnecessary flush_cache() from cmd/net.c
+- Move CONFIG_USB_STORAGE from .h to defconfig on F&S boards
+- Remove ram_base from global data
+- Enable mtest command (CONFIG_CMD_MEMTEST) on F&S boards
+- Rebase to u-boot-2016.11
+- Remove patch_sercon() from boot code
+- Move console, UBI and NAND settings from .h to defconfig on F&S boards
+- Handle non-standard CONFIG settings on F&S boards
+- Rebase to u-boot-2017.01
+- Remove CONFIG_USE_ARCH_MEM* from fsvybrid/fsimx6/sx/ul.h
+- Add F&S specific versions of memmove() and memset32() to Kconfig
+- Rebase to u-boot-2017.03
+- Fix status LED infrastructure
+- On F&S boards, move LED, BOARD and some CMD settings to defconfig
+- Rebase to u-boot-2017.05
+- Bring back rudimentary IRQ support for F&S boards
+- Rebase to u-boot-2017.07
+- Reduce diff to mainline u-boot-2017.07
+- Fix const const problems revealed by gcc-7
+- Rebase to u-boot-2017.09
+- Move more F&S configs from *.h to *_defconfig (environment, cmds)
+- Move loadaddr stuff from cmd/nvedit.c to common/image.c
+- Add F&S specific configs to Kconfig
+- Rebase to u-boot-2017.11
+- Add F&S FAT driver again, available as option
+- memcpy.S for ARM must not modify r9
+- Rebase to u-boot-2018.01
+- Rebase to u-boot-2018.03
+- Enable commands env callbacks and env flags on F&S boards
+- Add F&S NAND refresh feature to drivers/mtd/nand/Kconfig
+- Add a missing conversion from r9 to r10 in memcpy()
+- Clean up error message if env can not be loaded
+- Skip extra check for ethaddr if set with setenv
+
+
+
 u-boot-2014.07-fus-Y1.0 (18.05.2018)
 ------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
