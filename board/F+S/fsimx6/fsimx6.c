@@ -309,6 +309,10 @@ static iomux_v3_cfg_t const reset_pads[] = {
 	IOMUX_PADS(PAD_ENET_RXD1__GPIO1_IO26 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+static iomux_v3_cfg_t const wlan_reset_pads[] = {
+	IOMUX_PADS(PAD_ENET_RXD0__GPIO1_IO27 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
 int board_init(void)
 {
 	unsigned int board_type = fs_board_get_type();
@@ -316,18 +320,23 @@ int board_init(void)
 	/* Copy NBoot args to variables and prepare command prompt string */
 	fs_board_init_common(&board_info[board_type]);
 
-	/*
-	 * efusA9 has a generic RESET_OUT signal to reset some arbitrary
-	 * hardware. This signal is available on the efus connector pin 14 and
-	 * in turn on pin 8 of the SKIT feature connector. Because there might
-	 * be some rather slow hardware involved, use a rather long low pulse
-	 * of 1ms.
-	 *
-	 * FIXME: Should we do this somewhere else when we know the pulse time?
-	 */
 	if (board_type == BT_EFUSA9) {
+		/*
+		 * efusA9 has a generic RESET_OUT signal to reset some
+		 * arbitrary hardware. This signal is available on the efus
+		 * connector pin 14 and in turn on pin 8 of the SKIT feature
+		 * connector. Because there might be some rather slow hardware
+		 * involved, use a rather long low pulse of 1ms.
+		 *
+		 * FIXME: Should we do this somewhere else when we know the
+		 * pulse time?
+		 */
 		SETUP_IOMUX_PADS(reset_pads);
 		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 26), ~0, ~0);
+	} else if (board_type == BT_ARMSTONEA9R2) {
+		/* Reset uBlox WLAN/BT on armStoneA9r2 */
+		SETUP_IOMUX_PADS(wlan_reset_pads);
+		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 27), ~0, ~0);
 	}
 
 	return 0;
