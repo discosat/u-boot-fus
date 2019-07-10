@@ -293,8 +293,9 @@ void fs_board_late_init_common(void)
 		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
 		 */
 		if (is_mx6ull()) {
-			l -= 3;
-			if ((*l++ != 'u') || (*l++ != 'l')) {
+			l--;
+			/* Names have > 2 chars, so negative index is valid */
+			if ((l[-2] != 'u') || (l[-1] != 'l')) {
 				*l++ = 'u';
 				*l++ = 'l';
 			}
