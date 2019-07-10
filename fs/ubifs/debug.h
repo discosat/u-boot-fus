@@ -166,8 +166,9 @@ struct ubifs_global_debug_info {
 		 dbg_snprintf_key(c, key, __tmp_key_buf, DBG_KEY_BUF_LEN));    \
 } while (0)
 #else
+#define UBI_ASSERT 0			/* Set to 1 to see assert messages */
 #define ubifs_assert(expr) do {                                                \
-	if (unlikely(!(expr))) {                                               \
+	if (unlikely(UBI_ASSERT && !(expr))) {                                 \
 		pr_crit("UBIFS assert failed in %s at %u\n",                   \
 		       __func__, __LINE__);                                    \
 		dump_stack();                                                  \
