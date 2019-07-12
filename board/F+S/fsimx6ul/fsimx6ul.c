@@ -1078,6 +1078,14 @@ static iomux_v3_cfg_t const usb_otg1_pwr_pad_picocom1_2[] = {
 #endif
 };
 
+static iomux_v3_cfg_t const usb_otg1_pwr_pad_gar1[] = {
+#ifdef CONFIG_FS_USB_PWR_USBNC
+	IOMUX_PADS(PAD_SD1_CMD__USB_OTG1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL))
+#else
+	IOMUX_PADS(PAD_SD1_CMD__GPIO2_IO16 | MUX_PAD_CTRL(NO_PAD_CTRL))
+#endif
+};
+
 /* On PicoCoreMX6UL, power switching by GPIO only; pins differ on UL and ULL */
 static iomux_v3_cfg_t const usb_otg1_pwr_pad_pcoremx6ul[] = {
 	MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
@@ -1160,6 +1168,14 @@ int board_ehci_hcd_init(int index)
 			cfg.pwr_gpio = IMX_GPIO_NR(2, 8);
 #endif
 			break;
+		case BT_GAR1:	/* PWR active high */
+			cfg.pwr_pad = usb_otg1_pwr_pad_gar1;
+#ifndef CONFIG_FS_USB_PWR_USBNC
+			cfg.pwr_gpio = IMX_GPIO_NR(2, 16);
+#endif
+			cfg.id_pad = usb_otg1_id_pad;
+			cfg.id_gpio = IMX_GPIO_NR(1, 0);
+			break;
 		case BT_PCOREMX6UL:	/* PWR active high???, ID available */
 			if (is_mx6ull())
 				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ull;
@@ -1167,10 +1183,6 @@ int board_ehci_hcd_init(int index)
 				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ul;
 			cfg.pwr_gpio = IMX_GPIO_NR(5, 3); /* GPIO only */
 			cfg.pwr_pol = 1;
-			cfg.id_pad = usb_otg1_id_pad;
-			cfg.id_gpio = IMX_GPIO_NR(1, 0);
-			break;
-		case BT_GAR1:		/* PWR always on, ID available */
 			cfg.id_pad = usb_otg1_id_pad;
 			cfg.id_gpio = IMX_GPIO_NR(1, 0);
 			break;
