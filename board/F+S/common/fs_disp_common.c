@@ -35,6 +35,7 @@ struct fs_display {
 /* This is a set of used display ports */
 static struct fs_display displays[CONFIG_FS_DISP_COUNT];
 static int display_count;
+static int display_index[CONFIG_FS_DISP_COUNT];
 
 static const char *parse_pos;
 
@@ -77,6 +78,21 @@ const struct fb_videomode display_db[] = {
 		.upper_margin   = 33,
 		.lower_margin   = 10,
 		.hsync_len      = 128,
+		.vsync_len      = 2,
+		.sync           = FB_SYNC_ON_GREEN | FB_SYNC_COMP_HIGH_ACT,
+		.vmode          = FB_VMODE_NONINTERLACED
+	},
+	{
+		.name           = "Jinghua-J070WVTC0211",
+		.refresh        = 60,
+		.xres           = 800,
+		.yres           = 480,
+		.pixclock       = 33500, // picoseconds
+		.left_margin    = 44,
+		.right_margin   = 4,
+		.upper_margin   = 21,
+		.lower_margin   = 11,
+		.hsync_len      = 2,
 		.vsync_len      = 2,
 		.sync           = FB_SYNC_ON_GREEN | FB_SYNC_COMP_HIGH_ACT,
 		.vmode          = FB_VMODE_NONINTERLACED
@@ -151,17 +167,30 @@ void fs_disp_set_i2c_backlight(unsigned int bus, int on)
 void fs_disp_set_vcfl(int port, int on, int gpio)
 {
 	static unsigned int vcfl_users;
+	int index = display_index[port];
 
 	/* Switch on when first user enables and off when last user disables */
 	if (!on)
-		vcfl_users &= ~(1 << port);
+		vcfl_users &= ~(1 << index);
 	if (!vcfl_users) {
 		gpio_direction_output(gpio, on);
 		if (on)
 			mdelay(1);
 	}
 	if (on)
-		vcfl_users |= (1 << port);
+		vcfl_users |= (1 << index);
+}
+
+/* Set BKLT_PWM via GPIO, several displays may share this GPIO */
+void fs_disp_set_bklt_pwm(int port, int on, int gpio)
+{
+	int index = display_index[port];
+
+	if (displays[index].flags & FS_DISP_FLAGS_LVDS_BL_INV)
+		on = !on;
+
+	gpio_direction_output(gpio, on);
+	mdelay(1);
 }
 
 #if 1 //###
@@ -184,6 +213,10 @@ static void show_dispflags(unsigned int flags)
 	}
 	if (flags & FS_DISP_FLAGS_LVDS_JEIDA) {
 		strcpy(p, ",lvdsjeida");
+		p += strlen(p);
+	}
+	if (flags & FS_DISP_FLAGS_LVDS_BL_INV) {
+		strcpy(p, ",bl_inv");
 		p += strlen(p);
 	}
 
@@ -292,6 +325,9 @@ static int parse_dispflags(unsigned int *flags, unsigned int flags_mask)
 		if ((flags_mask & FS_DISP_FLAGS_LVDS_JEIDA)
 		    && parse_flag("lvdsjeida", flags, FS_DISP_FLAGS_LVDS_JEIDA))
 			break;
+		if ((flags_mask & FS_DISP_FLAGS_LVDS_BL_INV)
+		    && parse_flag("bl_inv", flags, FS_DISP_FLAGS_LVDS_BL_INV))
+			break;
 
 		if (!*parse_pos)
 			return 0;	/* Success, reached the end */
@@ -377,9 +413,11 @@ int fs_disp_register(const struct fs_display_port *display_ports,
 	display_count = 0;
 	disp = &displays[0];
 	for (i = 0; i < CONFIG_FS_DISP_COUNT; i++) {
+		display_index[i] = -1;
 		if (valid_mask & (1 << i)) {
 			if (port == i)
 				port = display_count;
+			display_index[i] = display_count;
 			disp->port = i;
 			disp->name = display_ports->name;
 			disp->flags_mask = display_ports->flags_mask;

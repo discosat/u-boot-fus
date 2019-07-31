@@ -87,11 +87,13 @@
  * 2CH:   2-channel LVDS: even/odd pixels on separate channels (NXP: split)
  * DUP:   Duplicated data for two displays on both LVDS channels (NXP: dual)
  * JEIDA: A different sorting of data bits on LVDS lanes; only for 24 bpp
+ * BL_INV: Invert backlight pwm
  */
 #define FS_DISP_FLAGS_LVDS_2CH   (1 << 0) /* 0: 1ch display, 1: 2ch display */
 #define FS_DISP_FLAGS_LVDS_DUP   (1 << 1) /* 0: one display, 1: two displays */
 #define FS_DISP_FLAGS_LVDS_24BPP (1 << 2) /* 0: 18 bpp, 1: 24 bpp */
 #define FS_DISP_FLAGS_LVDS_JEIDA (1 << 3) /* 0: 24 bpp SPWG, 1: 24 bpp JEIDA */
+#define FS_DISP_FLAGS_LVDS_BL_INV (1 << 4) /* 0: normal, 1: inverted */
 
 struct fs_display_port {
 	const char *name;		/* Port name */
@@ -118,6 +120,9 @@ void fs_disp_set_i2c_backlight(unsigned int bus, int on);
 
 /* Set VCFL power via GPIO; several displays may share this GPIO */
 void fs_disp_set_vcfl(int port, int on, int gpio);
+
+/* Set BKLT_PWM via GPIO, several displays may share this GPIO */
+void fs_disp_set_bklt_pwm(int port, int on, int gpio);
 
 /* Switch display power for all active displays on or off */
 void fs_disp_set_power_all(int on);

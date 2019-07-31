@@ -780,11 +780,19 @@ static iomux_v3_cfg_t const lcd24_pads_active[] = {
 	IOMUX_PADS(PAD_DISP0_DAT23__IPU1_DISP0_DATA23 | MUX_PAD_CTRL(LCD_CTRL)),
 };
 
-/* Additional pads for VLCD_ON and VCFL_ON */
+/* Additional pads for VLCD_ON, VCFL_ON and BKLT_PWM */
 static iomux_v3_cfg_t const lcd_extra_pads[] = {
 	/* Signals are active high -> pull-down to switch off */
 	IOMUX_PADS(PAD_SD4_DAT3__GPIO2_IO11 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_SD4_DAT0__GPIO2_IO08 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_SD4_DAT1__GPIO2_IO09 | MUX_PAD_CTRL(0x3010)),
+};
+
+/* Additional pads for ENA and DEN */
+static iomux_v3_cfg_t const lcd_extra_pads_pmoda9[] = {
+	/* Signals are active low -> pull-up to switch on */
+	IOMUX_PADS(PAD_SD4_DAT4__GPIO2_IO12 | MUX_PAD_CTRL(0xb010)),
+	IOMUX_PADS(PAD_SD4_DAT5__GPIO2_IO13 | MUX_PAD_CTRL(0xb010)),
 };
 
 /* Use I2C2 to talk to RGB adapter on armStoneA9 */
@@ -815,15 +823,17 @@ enum display_port_index {
 	 | FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA)
 
 static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
-	[port_lcd] =   { "lcd",   0 },
-	[port_lvds0] = { "lvds0", FS_DISP_FLAGS_LVDS },
-	[port_lvds1] = { "lvds1", FS_DISP_FLAGS_LVDS },
+	[port_lcd] =   { "lcd",   FS_DISP_FLAGS_LVDS_BL_INV },
+	[port_lvds0] = { "lvds0", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
+	[port_lvds1] = { "lvds1", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
 	[port_hdmi] =  { "hdmi",  0 }
 };
 
 static void setup_lcd_pads(int on)
 {
-	switch (fs_board_get_type())
+	int board_type = fs_board_get_type();
+
+	switch (board_type)
 	{
 	case BT_NETDCUA9:		/* Boards with 24-bit LCD interface */
 		if (on)
@@ -844,6 +854,8 @@ static void setup_lcd_pads(int on)
 	case BT_QBLISSA9:
 	case BT_QBLISSA9R2:
 		SETUP_IOMUX_PADS(lcd_extra_pads);
+		if (board_type == BT_PICOMODA9)
+			SETUP_IOMUX_PADS(lcd_extra_pads_pmoda9);
 		break;
 	}
 }
@@ -866,6 +878,15 @@ void board_display_set_power(int port, int on)
 		gpio_direction_output(IMX_GPIO_NR(2, 11), on);
 		if (on)
 			mdelay(1);
+		if(fs_board_get_type() == BT_PICOMODA9) {
+			/* ENA -> low active */
+			gpio_direction_output(IMX_GPIO_NR(2, 13), !on);
+			mdelay(1);
+			/* DEN -> low active */
+			gpio_direction_output(IMX_GPIO_NR(2, 12), !on);
+			mdelay(1);
+			// ### TODO: Set LCD_DEN on NetDCUA9
+		}
 	}
 	if (on) {
 		vlcd_users |= (1 << port);
@@ -898,24 +919,21 @@ void board_display_set_backlight(int port, int on)
 			}
 			fs_disp_set_i2c_backlight(2, on);
 			break;
-		case BT_QBLISSA9:
-		case BT_QBLISSA9R2:
 		case BT_NETDCUA9:
 		case BT_PICOMODA9:
-			fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 11));
-			// ### TODO: Set PWM
-			// ### TODO: Set LCD_DEN on NetDCUA9/PICOMODA9
-			// ### TODO: Set LCD_ENA on PicoMODA9
+			fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 8));
+			fs_disp_set_bklt_pwm(port, on, IMX_GPIO_NR(2, 9));
+			break;
+		default:
 			break;
 		}
 		break;
 
 	case port_lvds0:
 	case port_lvds1:
-		fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 11));
-		// ### TODO: Set PWM
+		fs_disp_set_vcfl(port, on, IMX_GPIO_NR(2, 8));
+		fs_disp_set_bklt_pwm(port, on, IMX_GPIO_NR(2, 9));
 		break;
-
 	case port_hdmi:
 		break;
 	}
@@ -984,8 +1002,7 @@ static void config_lvds(int disp, int channel, unsigned int flags,
 int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 {
 	unsigned int freq_khz;
-	int pixfmt;
-
+	int pixfmt = IPU_PIX_FMT_RGB666;
 	/*
 	 * Initialize display clock and register display settings with IPU
 	 * display driver. The real initialization takes place later in
@@ -997,12 +1014,17 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * the FIFO. Therefore wait for the end of the UART transmission first.
 	 */
 	freq_khz = PICOS2KHZ(mode->pixclock);
-	pixfmt = IPU_PIX_FMT_RGB666;
+	if (flags & FS_DISP_FLAGS_LVDS_24BPP)
+		pixfmt = IPU_PIX_FMT_RGB24;
+
 	switch (port) {
 	case port_lcd:
 		/* The LCD port on efusA9 has swapped red and blue signals */
+		/* The LCD port on netdcuA9 need RGB24 */
 		if (fs_board_get_type() == BT_EFUSA9)
 			pixfmt = IPU_PIX_FMT_BGR666;
+		else if (fs_board_get_type() == BT_NETDCUA9)
+			pixfmt = IPU_PIX_FMT_RGB24;
 		ipuv3_config_lcd_di_clk(1, 0);
 		ipuv3_fb_init(mode, 0, pixfmt);
 		break;

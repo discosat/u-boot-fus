@@ -751,11 +751,12 @@ static iomux_v3_cfg_t const lcd24_pads_active[] = {
 	IOMUX_PADS(PAD_LCD1_DATA23__LCDIF1_DATA_23 | MUX_PAD_CTRL(LCD_CTRL)),
 };
 
-/* Pads for VLCD_ON and VCFL_ON */
+/* Pads for VLCD_ON, VCFL_ON and BKLT_PWM */
 static iomux_v3_cfg_t const lcd_extra_pads_efusa9x[] = {
 	/* Signals are active high -> pull-down to switch off */
 	IOMUX_PADS(PAD_LCD1_DATA18__GPIO3_IO_19 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD1_DATA19__GPIO3_IO_20 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA22__GPIO3_IO_23 | MUX_PAD_CTRL(0x3010)),
 };
 static iomux_v3_cfg_t const lcd_extra_pads[] = {
 	/* Signals are active low -> pull-up to switch off */
@@ -790,7 +791,7 @@ enum display_port_index {
 
 static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
 	[port_lcd] =  { "lcd",  0 },
-	[port_lvds] = { "lvds", FS_DISP_FLAGS_LVDS },
+	[port_lvds] = { "lvds", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
 };
 
 static void setup_lcd_pads(int on)
@@ -902,7 +903,7 @@ void board_display_set_backlight(int port, int on)
 		switch (board_type) {
 		case BT_EFUSA9X:
 			fs_disp_set_vcfl(port, on, IMX_GPIO_NR(3, 20));
-			// ### TODO: Set PWM
+			fs_disp_set_bklt_pwm(port, on, IMX_GPIO_NR(3, 23));
 			break;
 		default:
 			break;
@@ -959,6 +960,9 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * function cfb_console.c: video_init().
 	 */
 	freq_khz = PICOS2KHZ(mode->pixclock);
+	if (flags & FS_DISP_FLAGS_LVDS_24BPP)
+		bpp = 24;
+
 	switch (port) {
 	case port_lcd:
 		if (fs_board_get_type() == BT_PCOREMX6SX)
