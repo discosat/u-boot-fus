@@ -42,6 +42,7 @@
 
 static int asynch_allowed;
 char usb_started; /* flag for the started/stopped USB status */
+#define MAX_PREPARE_RETRIES 3
 
 #ifndef CONFIG_DM_USB
 static struct usb_device usb_dev[USB_MAX_DEVICE];
@@ -916,12 +917,24 @@ __weak int usb_alloc_device(struct usb_device *udev)
 }
 #endif /* !CONFIG_DM_USB */
 
-static int usb_hub_port_reset(struct usb_device *dev, struct usb_device *hub)
+static int usb_port_reset(struct usb_device *dev, struct usb_device *hub)
 {
-	if (!hub)
-		usb_reset_root_port(dev);
+	int port;
 
-	return 0;
+	if (!hub) {
+		usb_reset_root_port(dev);
+		return 0;
+	}
+
+	/* Find the port number of the hub we are at */
+	for (port = 0; port < hub->maxchild; port++) {
+		if (hub->children[port] == dev)
+			break;
+	}
+	if (port >= hub->maxchild)
+		return -1;
+
+	return usb_hub_port_reset(hub, port, NULL);
 }
 
 static int get_descriptor_len(struct usb_device *dev, int len, int expect_len)
@@ -1028,6 +1041,7 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 			      struct usb_device *parent)
 {
 	int err;
+	int tries = MAX_PREPARE_RETRIES;
 
 	/*
 	 * Allocate usb 3.0 device context.
@@ -1040,10 +1054,11 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 		printf("Cannot allocate device context to get SLOT_ID\n");
 		return err;
 	}
+retry:
 	err = usb_setup_descriptor(dev, do_read);
 	if (err)
 		return err;
-	err = usb_hub_port_reset(dev, parent);
+	err = usb_port_reset(dev, parent);
 	if (err)
 		return err;
 
@@ -1052,7 +1067,12 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 	err = usb_set_address(dev); /* set address */
 
 	if (err < 0) {
-		printf("\n      USB device not accepting new address " \
+		/* If setting the address failed, reset and try again */
+		debug("Reset again\n");
+		if ((--tries > 0) && !usb_port_reset(dev, parent))
+			goto retry;
+
+		printf("\n       USB device not accepting new address " \
 			"(error=%lX)\n", dev->status);
 		return err;
 	}

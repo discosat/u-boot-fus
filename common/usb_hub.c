@@ -198,8 +198,10 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	/*
 	 * Do a minimum delay of the larger value of 100ms or pgood_delay
 	 * so that the power can stablize before the devices are queried
+	 * 07.08.2019 F&S: 300ms as minimum seems to work better.
 	 */
-	hub->query_delay = get_timer(0) + max(100, (int)pgood_delay);
+//	hub->query_delay = get_timer(0) + max(100, (int)pgood_delay);
+	hub->query_delay = get_timer(0) + max(300, (int)pgood_delay);
 
 	/*
 	 * Record the power-on timeout here. The max. delay (timeout)
@@ -268,7 +270,7 @@ static inline char *portspeed(int portstatus)
  * @port:	Port number to reset (note ports are numbered from 0 here)
  * @portstat:	Returns port status
  */
-static int usb_hub_port_reset(struct usb_device *dev, int port,
+int usb_hub_port_reset(struct usb_device *dev, int port,
 			      unsigned short *portstat)
 {
 	int err, tries;
@@ -338,7 +340,8 @@ static int usb_hub_port_reset(struct usb_device *dev, int port,
 	}
 
 	usb_clear_port_feature(dev, port + 1, USB_PORT_FEAT_C_RESET);
-	*portstat = portstatus;
+	if (portstat)
+		*portstat = portstatus;
 	return 0;
 }
 
@@ -373,9 +376,6 @@ int usb_hub_port_connect_change(struct usb_device *dev, int port)
 		if (!(portstatus & USB_PORT_STAT_CONNECTION))
 			return -ENOTCONN;
 	}
-
-	/* ### F&S: Needed for hub on efus SKIT */
-	mdelay(50);
 
 	/* Reset the port */
 	ret = usb_hub_port_reset(dev, port, &portstatus);
