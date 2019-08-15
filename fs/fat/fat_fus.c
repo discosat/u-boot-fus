@@ -958,7 +958,14 @@ int fat_exists(const char *pattern)
 
 int fat_size(const char *filename, loff_t *size)
 {
-	return file_fat_read(filename, NULL, 0);
+	int err;
+
+	err = file_fat_read(filename, NULL, 0);
+	if (err < 0)
+		return err;
+
+	*size = err;
+	return 0;
 }
 
 void fat_close(void)
