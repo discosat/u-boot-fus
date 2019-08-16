@@ -193,7 +193,7 @@ void fs_disp_set_bklt_pwm(int port, int on, int gpio)
 	mdelay(1);
 }
 
-#if 1 //###
+#if 0 //###
 static void show_dispflags(unsigned int flags)
 {
 	static char dispflags[200] = ",";
@@ -517,7 +517,7 @@ int fs_disp_register(const struct fs_display_port *display_ports,
 		puts(", modified timings");
 	printf(") on %s port\n", disp->name);
 
-#if 1 //###
+#if 0 //###
 	show_dispmode(m);
 	show_dispflags(disp->flags & disp->flags_mask);
 #endif
