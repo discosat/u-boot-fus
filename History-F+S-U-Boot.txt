@@ -1,6 +1,25 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2019.08 (16.08.2019)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, CubeA7UL, Cube2.0
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, efusA9X,
+                  PicoCOMA9X, PicoCoreMX6SX, CONT1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Avoid assert messages in ubifs
+- Reset WLAN chip on armStoneA9r2
+- Fix F&S platform/device tree name on ULL platforms
+- Add support for gar1 revision 1.40
+- Add new F&S default LVDS display (24bpp), add backlight power switching
+- Handle USB storage devices more reliable
+- Fix fatsize command
+- Remove debug output for display settings on F&S boards
+
+
+
 u-boot-2018.03-picocoremx6sx-B2019.03 (21.03.2019)
 --------------------------------------------------
 Supported boards: PicoCoreMX6SX, PicoCoreMX6UL
