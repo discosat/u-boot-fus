@@ -910,7 +910,7 @@ static void mv88e61xx_priv_reg_offs_pre_init(struct mv88e61xx_phy_priv *priv)
 #endif
 }
 
-static int mv88e61xx_probe(struct phy_device *phydev)
+/*static*/ int mv88e61xx_probe(struct phy_device *phydev)
 {
 	struct mii_dev *smi_wrapper;
 	struct mv88e61xx_phy_priv *priv;
@@ -1006,7 +1006,7 @@ static int mv88e61xx_probe(struct phy_device *phydev)
 	return 0;
 }
 
-static int mv88e61xx_phy_config(struct phy_device *phydev)
+/*static*/ int mv88e61xx_phy_config(struct phy_device *phydev)
 {
 	struct mv88e61xx_phy_priv *priv = phydev->priv;
 	int res;
@@ -1081,7 +1081,7 @@ static int mv88e61xx_phy_is_connected(struct phy_device *phydev)
 	return (val & PHY_REG_STATUS1_ENERGY) == 0;
 }
 
-static int mv88e61xx_phy_startup(struct phy_device *phydev)
+/*static*/ int mv88e61xx_phy_startup(struct phy_device *phydev)
 {
 	struct mv88e61xx_phy_priv *priv = phydev->priv;
 	int i;

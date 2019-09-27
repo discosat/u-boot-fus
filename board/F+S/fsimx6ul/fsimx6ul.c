@@ -64,6 +64,7 @@
 #define BT_GAR1       4
 #define BT_PICOCOMA7  5
 #define BT_PCOREMX6UL 6
+#define BT_GAR2		  8
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -147,7 +148,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[8] = {
+const struct fs_board_info board_info[9] = {
 	{	/* 0 (BT_EFUSA7UL) */
 		.name = "efusA7UL",
 		.bootdelay = "3",
@@ -255,6 +256,21 @@ const struct fs_board_info board_info[8] = {
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
+	},
+	{	/* 8 (BT_GAR2) */
+		.name = "GAR2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.rootfs = ".rootfs_ubifs",
+		.kernel = ".kernel_nand",
+		.fdt = ".fdt_nand",
 	},
 };
 
@@ -886,6 +902,7 @@ static void setup_lcd_pads(int on)
 	case BT_CUBEA7UL:
 	case BT_CUBE2_0:
 	case BT_GAR1:
+	case BT_GAR2:
 	default:
 		break;
 	}
@@ -1296,14 +1313,13 @@ static iomux_v3_cfg_t const enet1_pads_rmii[] = {
 /* FEC1 (ENET2); 100 MBit/s on RMII, reference clock goes from CPU to PHY */
 static iomux_v3_cfg_t const enet2_pads_rmii[] = {
 	IOMUX_PADS(PAD_ENET2_RX_EN__ENET2_RX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET2_RX_ER__ENET2_RX_ER | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET2_RX_ER__ENET2_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_EN__ENET2_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_RX_DATA0__ENET2_RDATA00 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_RX_DATA1__ENET2_RDATA01 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_DATA0__ENET2_TDATA00 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_DATA1__ENET2_TDATA01 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	IOMUX_PADS(PAD_ENET2_TX_CLK__ENET2_REF_CLK2 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
-
 };
 
 /* Additional pins required to reset the PHY(s). Please note that on efusA7UL
@@ -1325,6 +1341,121 @@ static iomux_v3_cfg_t const enet_pads_reset_gar1[] = {
 	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 	IOMUX_PADS(PAD_CSI_PIXCLK__GPIO4_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
+
+static iomux_v3_cfg_t const enet_pads_reset_gar2[] = {
+	IOMUX_PADS(PAD_CSI_MCLK__GPIO4_IO17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_CSI_PIXCLK__GPIO4_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+	IOMUX_PADS(PAD_LCD_DATA13__GPIO3_IO18 | MUX_PAD_CTRL(NO_PAD_CTRL))
+};
+
+#if 0
+/*
+ * mv88e61xx_hw_reset() is called in mv88e61xx_probe() and can be used to
+ * initialize some board specific stuff. The code below is for a different
+ * switch chip and will not work on GAR2 without modifications.
+ */
+int mv88e61xx_hw_reset(struct phy_device *phydev)
+{
+	struct mii_dev *bus = phydev->bus;
+
+	/* GPIO[0] output, CLK125 */
+	debug("enabling RGMII_REFCLK\n");
+	bus->write(bus, 0x1c /*MV_GLOBAL2*/, 0, 0x1a /*MV_SCRATCH_MISC*/,
+		   (1 << 15) | (0x62 /*MV_GPIO_DIR*/ << 8) | 0xfe);
+	bus->write(bus, 0x1c /*MV_GLOBAL2*/, 0, 0x1a /*MV_SCRATCH_MISC*/,
+		   (1 << 15) | (0x68 /*MV_GPIO01_CNTL*/ << 8) | 7);
+
+	/* RGMII delay - Physical Control register bit[15:14] */
+	debug("setting port%d RGMII rx/tx delay\n", CONFIG_MV88E61XX_CPU_PORT);
+	/* forced 1000mbps full-duplex link */
+	bus->write(bus, 0x10 + CONFIG_MV88E61XX_CPU_PORT, 0, 1, 0xc0fe);
+	phydev->autoneg = AUTONEG_DISABLE;
+	phydev->speed = SPEED_1000;
+	phydev->duplex = DUPLEX_FULL;
+
+	/* LED configuration: 7:4-green (8=Activity)  3:0 amber (9=10Link) */
+	bus->write(bus, 0x10, 0, 0x16, 0x8089);
+	bus->write(bus, 0x11, 0, 0x16, 0x8089);
+	bus->write(bus, 0x12, 0, 0x16, 0x8089);
+	bus->write(bus, 0x13, 0, 0x16, 0x8089);
+
+	return 0;
+}
+#endif
+
+/* Only needed for legacy driver version, therefore no need for an extra heade
+   file. Can be removed when CONFIG_DM is enabled in the future. */
+int mv88e61xx_probe(struct phy_device *phydev);
+int mv88e61xx_phy_config(struct phy_device *phydev);
+int mv88e61xx_phy_startup(struct phy_device *phydev);
+
+/*
+ * Initialize the MV88E6071 ethernet switch on GAR2. The switch has 7 ports
+ * (0-6). Port 6 is connected with a MAC-to-MAC connection to ENET2, Ports 0
+ * to 4 have an internal PHY and go to a connector each. Port 5 is only
+ * available on a specific variant of GAR2 and has an extra external PHY on
+ * MDIO address 9 then.
+ */
+static int mv88e61xx_init(bd_t *bis, struct mii_dev *bus, int id)
+{
+	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
+	struct phy_device *phy_port5, *phy_switch;
+	int ret;
+
+	/* Probe the second ethernet port */
+	ret = fec_probe(bis, id, ENET2_BASE_ADDR, bus, NULL, RMII);
+	if (ret)
+		return ret;
+
+	/*
+	 * Allocate a phydev struct. This is more or less the same what
+	 * phy_device_create() does. We have to set entries supported and
+	 * advertising ourselves, these values will be taken from the
+	 * phy_driver structure in the future.
+	 */
+	phy_switch = malloc(sizeof(struct phy_device));
+	if (!phy_switch)
+		return -ENOMEM;
+
+	memset(phy_switch, 0, sizeof(*phy_switch));
+
+	phy_switch->duplex = -1;
+	phy_switch->link = 0;
+	phy_switch->interface = interface;
+
+	phy_switch->autoneg = AUTONEG_ENABLE;
+
+	phy_switch->addr = 0;
+	phy_switch->phy_id = 0;
+	phy_switch->bus = bus;
+
+	phy_switch->drv = NULL;
+	phy_switch->supported = PHY_BASIC_FEATURES | SUPPORTED_MII;
+	phy_switch->advertising = phy_switch->supported;
+
+	/*
+	 * As long as we are not using CONFIG_DM, we have to call the driver
+	 * initialization functiones here. mv88e61xx_probe() will call the
+	 * weak function mv88e61xx_hw_reset(), which can be added here like
+	 * the dummy code above.
+	 */
+	ret = mv88e61xx_probe(phy_switch);
+	if (ret < 0)
+		return ret;
+	ret = mv88e61xx_phy_config(phy_switch);
+	if (ret < 0)
+		return ret;
+	ret = mv88e61xx_phy_startup(phy_switch);
+	if (ret < 0)
+		return ret;
+
+	/* Still succeed even if the PHY on port 5 is not available */
+	phy_port5 = phy_find_by_mask(bus, 1 << 9, interface);
+	if (phy_port5)
+		phy_config(phy_port5);
+
+	return 0;
+}
 
 int board_eth_init(bd_t *bis)
 {
@@ -1387,8 +1518,8 @@ int board_eth_init(bd_t *bis)
 				return 0;
 		}
 
-		if ((board_type == BT_PICOCOM1_2)
-		    || (board_type == BT_PICOCOMA7) || (board_type == BT_GAR1))
+		if ((board_type == BT_PICOCOM1_2) || (board_type == BT_GAR1)
+		    || (board_type == BT_GAR2) || (board_type == BT_PICOCOMA7))
 			phy_addr_a = 1;
 		else
 			phy_addr_a = 0;
@@ -1464,6 +1595,15 @@ int board_eth_init(bd_t *bis)
 				     IMX_GPIO_NR(4, 18), ~0);
 		break;
 
+	case BT_GAR2:
+		/* Two DP83484 PHYs with separate reset signals plus switch
+		   chip; see comment above for timing considerations */
+		SETUP_IOMUX_PADS(enet_pads_reset_gar2);
+		fs_board_issue_reset(10, 170000, IMX_GPIO_NR(4, 17),
+				     IMX_GPIO_NR(4, 18), IMX_GPIO_NR(3, 17));
+
+		break;
+
 	case BT_PCOREMX6UL:
 		/*
 		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
@@ -1528,19 +1668,23 @@ int board_eth_init(bd_t *bis)
 				return -ENOMEM;
 		}
 
-		phydev = phy_find_by_mask(bus, 1 << phy_addr_b, interface);
-		if (!phydev) {
-			if (!(features2 & FEAT2_ETH_A))
-				free(bus);
-			return -ENOMEM;
+		if (board_type == BT_GAR2)
+			ret = mv88e61xx_init(bis, bus, id);
+		else {
+			phydev = phy_find_by_mask(bus, 1 << phy_addr_b,
+						  interface);
+			if (!phydev)
+				ret = -ENOMEM;
+			else {
+				/* Probe the second ethernet port */
+				ret = fec_probe(bis, id, ENET2_BASE_ADDR, bus,
+						phydev, xcv_type);
+				if (ret < 0)
+					free(phydev);
+			}
 		}
-
-		/* Probe the second ethernet port */
-		ret = fec_probe(bis, id, ENET2_BASE_ADDR, bus, phydev,
-				xcv_type);
-		if (ret) {
-			free(phydev);
-			/* If this is the only port, return with error */
+		if (ret < 0) {
+			/* Free the bus again if not needed by ENET1 */
 			if (!(features2 & FEAT2_ETH_A))
 				free(bus);
 			return ret;
