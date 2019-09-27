@@ -420,7 +420,7 @@ int board_init(void)
 		 * ### TODO: Implement switching of USB_H1_PWR. For now it is
 		 * simply set to "on", like on previous board revisions.
 		 */
-		i2c_set_bus_num(0);
+		i2c_set_bus_num(1);
 		val = ~IOEXP_ALL_RESETS;
 		i2c_reg_write(0x41, 1, val);
 		i2c_reg_write(0x41, 2, 0);
@@ -825,15 +825,14 @@ static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ul[] = {
 };
 
 /* Use bit-banging I2C to talk to RGB adapter */
-#if 0 //### TODO
+
 I2C_PADS(efusa7ul,						\
 	 PAD_GPIO1_IO02__I2C1_SCL | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
 	 PAD_GPIO1_IO02__GPIO1_IO02 |  MUX_PAD_CTRL(I2C_PAD_CTRL),\
 	 IMX_GPIO_NR(1, 2),					\
-	 PAD_GPIO1_IO01__I2C2_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
-	 PAD_GPIO1_IO01__GPIO1_IO01 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
-	 IMX_GPIO_NR(1, 1));
-#endif
+	 PAD_GPIO1_IO03__I2C1_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 PAD_GPIO1_IO03__GPIO1_IO03 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 IMX_GPIO_NR(1, 3));
 
 enum display_port_index {
 	port_lcd
@@ -934,26 +933,29 @@ void board_display_set_power(int port, int on)
 /* Enable or disable backlight (incl. backlight voltage) for a display port */
 void board_display_set_backlight(int port, int on)
 {
-//###	static int i2c_init;
-	unsigned int board_type = fs_board_get_type();
+	static int i2c_init;
 
-	switch (board_type) {
-	case BT_EFUSA7UL:
-	case BT_PCOREMX6UL:
-#if 0 //### TODO
-		if (!i2c_init) {
-			setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
-				  I2C_PADS_INFO(lcd));
-			i2c_init = 1;
+	switch (port) {
+	case port_lcd:
+		switch (fs_board_get_type()) {
+		case BT_EFUSA7UL:
+		case BT_PCOREMX6UL:
+			if (!i2c_init) {
+				setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
+						I2C_PADS_INFO(efusa7ul));
+				i2c_init = 1;
+			}
+			fs_disp_set_i2c_backlight(0, on);
+			break;
+
+		case BT_PICOCOMA7:
+			fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 26));
+			// ### TODO: Set PWM
+			// ### TODO: Set LCD_DEN
+			break;
 		}
-		fs_disp_set_i2c_backlight(1, on);
-#endif
-		break;
 
-	case BT_PICOCOMA7:
-		fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 26));
-		// ### TODO: Set PWM
-		// ### TODO: Set LCD_DEN on PicoCOMA9X
+	default:
 		break;
 	}
 }

@@ -163,20 +163,21 @@
  * I2C
  ************************************************************************/
 #define CONFIG_SYS_I2C
+#define CONFIG_I2C_MULTI_BUS
+
+/* Bus 0: I2C1 (mxc0) to access RGB display adapter */
+#define CONFIG_SYS_I2C_MXC_I2C1
+#define CONFIG_SYS_I2C_SPEED	100000
+
+/* Bus 1: Soft-I2C (soft00) to access GPIO expander */
 #define CONFIG_SYS_I2C_SOFT
 #define CONFIG_SOFT_I2C_GPIO_SCL	IMX_GPIO_NR(5, 9)
 #define CONFIG_SOFT_I2C_GPIO_SDA	IMX_GPIO_NR(5, 8)
 #define CONFIG_SYS_I2C_SOFT_SPEED	50000
 #define CONFIG_SYS_I2C_SOFT_SLAVE       0
 #define CONFIG_SOFT_I2C_READ_REPEATED_START
-#define CONFIG_SYS_SPD_BUS_NUM		0
+#define CONFIG_SYS_SPD_BUS_NUM		1
 
-/* ###TODO###
- * #define CONFIG_CMD_I2C
- * #define CONFIG_SYS_I2C_MXC
- * #define CONFIG_SYS_I2C_SPEED	100000
- * #define CONFIG_SYS_SPD_BUS_NUM	1
- */
 
 /************************************************************************
  * LEDs
