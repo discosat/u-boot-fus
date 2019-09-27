@@ -45,6 +45,9 @@ config MV88E61XX_88E6020_FAMILY
 config MV88E61XX_CPU_PORT
 	int "CPU Port"
 
+config MV88E61XX_REGISTER_OFFSET
+	hex "Address offset for registers (0x00 or 0x10)"
+
 config MV88E61XX_PHY_PORTS
 	hex "Bitmask of PHY Ports"
 
