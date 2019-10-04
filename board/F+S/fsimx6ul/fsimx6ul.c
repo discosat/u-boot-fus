@@ -1449,10 +1449,16 @@ static int mv88e61xx_init(bd_t *bis, struct mii_dev *bus, int id)
 	if (ret < 0)
 		return ret;
 
-	/* Still succeed even if the PHY on port 5 is not available */
+	/*
+	 * Init PHY on port 5. Still succeed even if this PHY is not
+	 * available; also remove the PHY from the active list of PHYs
+	 * immediately again, so that it is not shut down later in
+	 * board_preboot_os() when Linux is started.
+	 */
 	phy_port5 = phy_find_by_mask(bus, 1 << 9, interface);
 	if (phy_port5)
 		phy_config(phy_port5);
+	bus->phymap[9] = NULL;
 
 	return 0;
 }
