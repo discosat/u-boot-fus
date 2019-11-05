@@ -1290,6 +1290,7 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 			       uint8_t *hub_address, uint8_t *hub_port)
 {
 	/* Find out the nearest parent which is high speed */
+#if 0
 	while (udev->parent->parent != NULL)
 		if (udev->parent->speed != USB_SPEED_HIGH) {
 			udev = udev->parent;
@@ -1298,6 +1299,16 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 			*hub_port = udev->portnr;
 			return;
 		}
+#else
+	while (udev->parent) {
+		if (udev->parent->speed == USB_SPEED_HIGH) {
+			*hub_address = udev->parent->devnum;
+			*hub_port = udev->portnr;
+			return;
+		}
+		udev = udev->parent;
+	}
+#endif
 
 	printf("Error: Cannot find high speed parent of usb-1 device\n");
 	*hub_address = 0;
