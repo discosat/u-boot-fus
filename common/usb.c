@@ -1090,6 +1090,22 @@ retry:
 			return err;
 	}
 
+	/*
+	 * usb_setup_descriptor() only reads the descriptor in case of Full
+	 * Speed. Experience has shown that reading the device descriptor
+	 * later in usb_select_config() may still fail. Therefore actually
+	 * read the device descriptor here already, then we can try again if
+	 * this fails. This helped to bring up some problematic devices.
+	 */
+	err = get_descriptor_len(dev, USB_DT_DEVICE_SIZE, USB_DT_DEVICE_SIZE);
+	if (err) {
+		puts("Retry...\n");
+		if ((--tries > 0) && !usb_port_reset(dev, parent))
+			goto retry;
+
+		return err;
+	}
+
 	return 0;
 }
 

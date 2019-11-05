@@ -43,7 +43,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define USB_BUFSIZ	512
 
-#define HUB_SHORT_RESET_TIME	20
+#define HUB_SHORT_RESET_TIME	40
 #define HUB_LONG_RESET_TIME	200
 
 #define PORT_OVERCURRENT_MAX_SCAN_COUNT		3
@@ -163,7 +163,8 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 {
 	int i;
 	struct usb_device *dev;
-	unsigned pgood_delay = hub->desc.bPwrOn2PwrGood * 2;
+	unsigned long pgood_delay;
+	unsigned long connect_time;
 	const char *env;
 
 	dev = hub->pusb_dev;
@@ -189,29 +190,33 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	 * but allow this time to be increased via env variable as some
 	 * devices break the spec and require longer warm-up times
 	 */
+	pgood_delay = hub->desc.bPwrOn2PwrGood * 2;
 	env = env_get("usb_pgood_delay");
 	if (env)
-		pgood_delay = max(pgood_delay,
-			          (unsigned)simple_strtol(env, NULL, 0));
-	debug("pgood_delay=%dms\n", pgood_delay);
+		pgood_delay = max(pgood_delay, simple_strtoul(env, NULL, 0));
+	debug("pgood_delay=%lums\n", pgood_delay);
 
 	/*
 	 * Do a minimum delay of the larger value of 100ms or pgood_delay
 	 * so that the power can stablize before the devices are queried
 	 * 07.08.2019 F&S: 300ms as minimum seems to work better.
 	 */
-//	hub->query_delay = get_timer(0) + max(100, (int)pgood_delay);
-	hub->query_delay = get_timer(0) + max(300, (int)pgood_delay);
+	hub->query_delay = max((unsigned long)300, pgood_delay);
 
 	/*
 	 * Record the power-on timeout here. The max. delay (timeout)
 	 * will be done based on this value in the USB port loop in
 	 * usb_hub_configure() later.
 	 */
-	hub->connect_timeout = hub->query_delay + 1000;
-	debug("devnum=%d poweron: query_delay=%d connect_timeout=%d\n",
-	      dev->devnum, max(100, (int)pgood_delay),
-	      max(100, (int)pgood_delay) + 1000);
+	connect_time = 1500;
+	env = env_get("usb_connect_time");
+	if (env)
+		connect_time = max(connect_time, simple_strtoul(env, NULL, 0));
+
+	hub->connect_timeout = hub->query_delay + connect_time;
+	debug("devnum=%d poweron: query_delay=%lu connect_timeout=%lu\n",
+	      dev->devnum, hub->query_delay, hub->connect_timeout);
+	hub->pon_time = get_timer(0);
 }
 
 #ifndef CONFIG_DM_USB
@@ -342,6 +347,10 @@ int usb_hub_port_reset(struct usb_device *dev, int port,
 	usb_clear_port_feature(dev, port + 1, USB_PORT_FEAT_C_RESET);
 	if (portstat)
 		*portstat = portstatus;
+
+	/* USB 2.0 standard (9.2.6.2): 10 ms Reset Recovery Time */
+	mdelay(10);
+
 	return 0;
 }
 
@@ -349,23 +358,33 @@ int usb_hub_port_connect_change(struct usb_device *dev, int port)
 {
 	ALLOC_CACHE_ALIGN_BUFFER(struct usb_port_status, portsts, 1);
 	unsigned short portstatus;
+	unsigned short portchange;
 	int ret, speed;
+	unsigned long debounce_start;
 
-	/* Check status */
-	ret = usb_get_port_status(dev, port + 1, portsts);
-	if (ret < 0) {
-		debug("get_port_status failed\n");
-		return ret;
-	}
+	/* The connection state must be stable for at least 100 ms */
+	do {
+		debounce_start = get_timer(0);
 
-	portstatus = le16_to_cpu(portsts->wPortStatus);
-	debug("portstatus %x, change %x, %s\n",
-	      portstatus,
-	      le16_to_cpu(portsts->wPortChange),
-	      portspeed(portstatus));
+		/* Clear the connection change status */
+		usb_clear_port_feature(dev, port + 1,
+				       USB_PORT_FEAT_C_CONNECTION);
+		do {
+			mdelay(1);
 
-	/* Clear the connection change status */
-	usb_clear_port_feature(dev, port + 1, USB_PORT_FEAT_C_CONNECTION);
+			/* Check status */
+			ret = usb_get_port_status(dev, port + 1, portsts);
+			if (ret < 0) {
+				debug("get_port_status failed\n");
+				return ret;
+			}
+			portstatus = le16_to_cpu(portsts->wPortStatus);
+			portchange = le16_to_cpu(portsts->wPortChange);
+			debug("portstatus %x, change %x, %s\n", portstatus,
+			      portchange, portspeed(portstatus));
+		} while (!(portchange & USB_PORT_STAT_C_CONNECTION)
+			 && (get_timer(debounce_start) < 100));
+	} while (portchange & USB_PORT_STAT_C_CONNECTION);
 
 	/* Disconnect any existing devices under this port */
 	if (((!(portstatus & USB_PORT_STAT_CONNECTION)) &&
@@ -451,13 +470,13 @@ static int usb_scan_port(struct usb_device_scan *usb_scan)
 	 * Don't talk to the device before the query delay is expired.
 	 * This is needed for voltages to stabalize.
 	 */
-	if (get_timer(0) < hub->query_delay)
+	if (get_timer(hub->pon_time) < hub->query_delay)
 		return 0;
 
 	ret = usb_get_port_status(dev, i + 1, portsts);
 	if (ret < 0) {
 		debug("get_port_status failed\n");
-		if (get_timer(0) >= hub->connect_timeout) {
+		if (get_timer(hub->pon_time) >= hub->connect_timeout) {
 			debug("devnum=%d port=%d: timeout\n",
 			      dev->devnum, i + 1);
 			/* Remove this device from scanning list */
@@ -481,7 +500,7 @@ static int usb_scan_port(struct usb_device_scan *usb_scan)
 	 */
 	if (!(portchange & USB_PORT_STAT_C_CONNECTION) &&
 	    !(portstatus & USB_PORT_STAT_CONNECTION)) {
-		if (get_timer(0) >= hub->connect_timeout) {
+		if (get_timer(hub->pon_time) >= hub->connect_timeout) {
 			debug("devnum=%d port=%d: timeout\n",
 			      dev->devnum, i + 1);
 			/* Remove this device from scanning list */

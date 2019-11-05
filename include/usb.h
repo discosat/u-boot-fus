@@ -584,6 +584,7 @@ struct usb_hub_device {
 
 	ulong connect_timeout;		/* Device connection timeout in ms */
 	ulong query_delay;		/* Device query delay in ms */
+	ulong pon_time;			/* Power-on time on port */
 	int overcurrent_count[USB_MAXCHILDREN];	/* Over-current counter */
 	int hub_depth;			/* USB 3.0 hub depth */
 	struct usb_tt tt;		/* Transaction Translator */
