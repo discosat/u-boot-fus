@@ -143,7 +143,8 @@ static void ehci_set_usbmode(struct ehci_ctrl *ctrl)
 static void ehci_powerup_fixup(struct ehci_ctrl *ctrl, uint32_t *status_reg,
 			       uint32_t *reg)
 {
-	mdelay(50);
+	if (!ehci_is_TDI())
+		mdelay(50);
 }
 
 static uint32_t *ehci_get_portsc_register(struct ehci_ctrl *ctrl, int port)
@@ -171,7 +172,7 @@ static int handshake(uint32_t *ptr, uint32_t mask, uint32_t done, int usec)
 		result &= mask;
 		if (result == done)
 			return 0;
-		usec--;
+		usec -= 5;
 	} while (usec > 0);
 	return -1;
 }
@@ -577,10 +578,6 @@ ehci_submit_async(struct usb_device *dev, unsigned long pipe, void *buffer,
 	/* Wait for TDs to be processed. */
 	ts = get_timer(0);
 	vtd = &qtd[qtd_counter - 1];
-	/* When we are using the timer ourselves instead of udelay(), we must
-	   convert milliseconds to timer ticks; USB_TIMEOUT_MS() returns 1000
-	   or 5000, i.e. 1s or 5s. So it is OK to divide by 1000 first to
-	   avoid a 32-bit overflow during computation. */
 	timeout = USB_TIMEOUT_MS(pipe);
 	do {
 		/* Invalidate dcache */
@@ -856,15 +853,21 @@ static int ehci_submit_root(struct usb_device *dev, unsigned long pipe,
 				 * root
 				 */
 				ctrl->ops.powerup_fixup(ctrl, status_reg, &reg);
-
-				ehci_writel(status_reg, reg & ~EHCI_PS_PR);
-				/*
-				 * A host controller must terminate the reset
-				 * and stabilize the state of the port within
-				 * 2 milliseconds
-				 */
-				ret = handshake(status_reg, EHCI_PS_PR, 0,
-						2 * 1000);
+				if (ehci_is_TDI()) {
+					/* Bit is self-clearing */
+					ret = handshake(status_reg, EHCI_PS_PR,
+							0, 100 * 1000);
+				} else {
+					ehci_writel(status_reg,
+						    reg & ~EHCI_PS_PR);
+					/*
+					 * A host controller must terminate
+					 * the reset and stabilize the state
+					 * of the port within 2 milliseconds
+					 */
+					ret = handshake(status_reg, EHCI_PS_PR,
+							0, 2 * 1000);
+				}
 				if (!ret) {
 					reg = ehci_readl(status_reg);
 					if ((reg & (EHCI_PS_PE | EHCI_PS_CS))
