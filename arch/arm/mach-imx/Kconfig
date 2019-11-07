@@ -43,6 +43,11 @@ config SECURE_BOOT
 	  This option enables the support for secure boot (HAB).
 	  See doc/README.mxc_hab for more details.
 
+config FS_SECURE_BOOT
+	bool "Support FS variant of Secure Boot"
+	help
+	  This option enables the support for F&S secure boot (HAB).
+
 config CMD_BMODE
 	bool "Support the 'bmode' command"
 	default y

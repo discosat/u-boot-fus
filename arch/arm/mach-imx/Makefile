@@ -43,6 +43,7 @@ obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 obj-$(CONFIG_SATA) += sata.o
 obj-$(CONFIG_SECURE_BOOT)    += hab.o
+obj-$(CONFIG_FS_SECURE_BOOT) += checkboot.o
 obj-$(CONFIG_SYSCOUNTER_TIMER) += syscounter.o
 endif
 ifeq ($(SOC),$(filter $(SOC),mx7ulp))
