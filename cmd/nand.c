@@ -30,6 +30,10 @@
 #include <jffs2/jffs2.h>
 #include <nand.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/checkboot.h>
+#endif
+
 #if defined(CONFIG_CMD_MTDPARTS)
 
 /* partition handling routines */
@@ -676,11 +680,22 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				ret = nand_read_skip_bad(mtd, off, &rwsize,
 							 NULL, maxsize,
 							 (u_char *)addr);
-			else
+			else {
+#ifdef CONFIG_FS_SECURE_BOOT
+				ret = prepare_authentication((u32)addr,
+						BACKUP_IMAGE, &off, &size);
+				if(!ret)
 				ret = nand_write_skip_bad(mtd, off, &rwsize,
 							  NULL, maxsize,
 							  (u_char *)addr,
 							  WITH_WR_VERIFY);
+#else
+				ret = nand_write_skip_bad(mtd, off, &rwsize,
+							  NULL, maxsize,
+							  (u_char *)addr,
+							  WITH_WR_VERIFY);
+#endif
+			}
 #ifdef CONFIG_CMD_NAND_TRIMFFS
 		} else if (!strcmp(s, ".trimffs")) {
 			if (read) {
@@ -937,6 +952,9 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 #if defined(CONFIG_FIT)
 	const void *fit_hdr = NULL;
 #endif
+#ifdef CONFIG_FS_SECURE_BOOT
+	LOADER_TYPE boot_loader_type = LOADER_NONE;
+#endif
 
 	if (!mtd)
 		return 1;
@@ -955,6 +973,14 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	}
 	if (show)
 		bootstage_mark(BOOTSTAGE_ID_NAND_HDR_READ);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	/* if the image have an ivt increment the pointer to the image itself.
+	 */
+	boot_loader_type = GetLoaderType(addr);
+	if(boot_loader_type & (LOADER_KERNEL_IVT | LOADER_FDT_IVT | LOADER_UBOOT_IVT))
+		addr += HAB_HEADER;
+#endif
 
 	switch (genimg_get_format ((void *)addr)) {
 #if defined(CONFIG_IMAGE_FORMAT_LEGACY)
@@ -989,6 +1015,20 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	}
 	if (show)
 		bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	/* Decrease the pointer to point on the beginning of the image. So it
+	 * points again to the ivt.
+	 * If the image has an ivt we have to setup manually the size
+	 * of the image. Normally it will read out the size from the
+	 * header image, but our size is image + IVT + signature. So
+	 * we take the size from csf header image
+	 */
+	if(boot_loader_type & (LOADER_KERNEL_IVT | LOADER_FDT_IVT | LOADER_UBOOT_IVT)) {
+		addr -= HAB_HEADER;
+		cnt = getImageLength(addr);
+	}
+#endif
 
 	r = nand_read_skip_bad(mtd, offset, &cnt, NULL, mtd->size,
 			       (u_char *)addr);
