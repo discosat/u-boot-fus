@@ -303,6 +303,7 @@ int board_early_init_f(void)
 	switch (fs_board_get_type())
 	{
 	case BT_GAR1:
+	case BT_GAR2:
 		SETUP_IOMUX_PADS(gar1_led_pads);
 		gpio_direction_input(IMX_GPIO_NR(3, 5));
 		gpio_direction_input(IMX_GPIO_NR(3, 6));
@@ -1194,6 +1195,7 @@ int board_ehci_hcd_init(int index)
 #endif
 			break;
 		case BT_GAR1:	/* PWR active high */
+		case BT_GAR2:
 			cfg.pwr_pad = usb_otg1_pwr_pad_gar1;
 #ifndef CONFIG_FS_USB_PWR_USBNC
 			cfg.pwr_gpio = IMX_GPIO_NR(2, 16);
@@ -1244,6 +1246,7 @@ int board_ehci_hcd_init(int index)
 #endif
 			break;
 		case BT_GAR1:
+		case BT_GAR2:
 			cfg.pwr_pad = usb_otg2_pwr_pad_gar1;
 #ifndef CONFIG_FS_USB_PWR_USBNC
 			cfg.pwr_gpio = IMX_GPIO_NR(2, 19);
