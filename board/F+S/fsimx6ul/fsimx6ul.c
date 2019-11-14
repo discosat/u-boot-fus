@@ -392,10 +392,11 @@ static iomux_v3_cfg_t const i2c_pads_ull[] = {
 /* Set up I2C signals */
 void i2c_init_board(void)
 {
-	if (is_mx6ull())
-		SETUP_IOMUX_PADS(i2c_pads_ull);
-	else{
-		SETUP_IOMUX_PADS(i2c_pads_ul);
+	if (fs_board_get_type() == BT_EFUSA7UL) {
+		if (is_mx6ull())
+			SETUP_IOMUX_PADS(i2c_pads_ull);
+		else
+	SETUP_IOMUX_PADS(i2c_pads_ul);
 	}
 }
 
@@ -436,7 +437,7 @@ int board_init(void)
 		 * ### TODO: Implement switching of USB_H1_PWR. For now it is
 		 * simply set to "on", like on previous board revisions.
 		 */
-		i2c_set_bus_num(1);
+		i2c_set_bus_num(2);
 		val = ~IOEXP_ALL_RESETS;
 		i2c_reg_write(0x41, 1, val);
 		i2c_reg_write(0x41, 2, 0);
@@ -829,15 +830,9 @@ static iomux_v3_cfg_t const lcd_extra_pads_picocoma7ul[] = {
 	IOMUX_PADS(PAD_LCD_DATA21__GPIO3_IO26 | MUX_PAD_CTRL(0xb010)),
 };
 
-/* Pads for VLCD_ON and VCFL_ON: active low -> pull-up to switch off */
-static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ull[] = {
-	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(0xb010)),
-//###	MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
-};
-
+/* Pads for VLCD_ON: active low -> pull-up to switch off */
 static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ul[] = {
-	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(0xb010)),
-//###	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO04 | MUX_PAD_CTRL(0x3010),
+	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(0x3010)),
 };
 
 /* Use bit-banging I2C to talk to RGB adapter */
@@ -849,6 +844,14 @@ I2C_PADS(efusa7ul,						\
 	 PAD_GPIO1_IO03__I2C1_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
 	 PAD_GPIO1_IO03__GPIO1_IO03 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
 	 IMX_GPIO_NR(1, 3));
+
+I2C_PADS(picocoremx6ul,						\
+	 PAD_UART2_TX_DATA__I2C4_SCL | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 PAD_UART2_TX_DATA__GPIO1_IO20 |  MUX_PAD_CTRL(I2C_PAD_CTRL),\
+	 IMX_GPIO_NR(1, 20),					\
+	 PAD_UART2_RX_DATA__I2C4_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 PAD_UART2_RX_DATA__GPIO1_IO21 | MUX_PAD_CTRL(I2C_PAD_CTRL),	\
+	 IMX_GPIO_NR(1, 21));
 
 enum display_port_index {
 	port_lcd
@@ -884,10 +887,7 @@ static void setup_lcd_pads(int on)
 			SETUP_IOMUX_PADS(lcd18_pads_low);
 			SETUP_IOMUX_PADS(lcd24_pads_low);
 		}
-		if (is_mx6ull())
-			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ull);
-		else
-			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ul);
+		SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ul);
 		break;
 
 	case BT_PICOCOMA7:		/* 18-bit LCD, power active low */
@@ -956,15 +956,21 @@ void board_display_set_backlight(int port, int on)
 	case port_lcd:
 		switch (fs_board_get_type()) {
 		case BT_EFUSA7UL:
-		case BT_PCOREMX6UL:
 			if (!i2c_init) {
-				setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
+				setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x60,
 						I2C_PADS_INFO(efusa7ul));
 				i2c_init = 1;
 			}
 			fs_disp_set_i2c_backlight(0, on);
 			break;
-
+		case BT_PCOREMX6UL:
+			if (!i2c_init) {
+				setup_i2c(3, CONFIG_SYS_I2C_SPEED, 0x60,
+						I2C_PADS_INFO(picocoremx6ul));
+				i2c_init = 1;
+			}
+			fs_disp_set_i2c_backlight(1, on);
+			break;
 		case BT_PICOCOMA7:
 			fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 26));
 			// ### TODO: Set PWM
