@@ -1,6 +1,35 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6ul-B2019.11 (15.11.2019)
+---------------------------------------------
+Supported boards: efusA7UL, PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2,
+                  CubeA7UL, Cube2.0
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA9X, PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1, CUBEA5, armStoneA5, NetDCUA5, PicoCOMA5, AGATEWAY,
+                  HGATEWAY
+
+- Add support for RGB adapter on fsimx6ul
+- Add basic support for ethernet switch MV88E6071
+- Add register offset 0x00 or 0x10 to mv88e61xx.c driver
+- Add support for GAR2
+- Fix parsing of mii devices in mii command
+- Better argument parsing and error handling in mdio.c
+- On GAR2 do not switch off external PHY on Ethernet switch
+- include: update log2 header from the Linux kernel
+- Handle self-clearing Port Reset bit in ehci-hcd
+- Fix function to find nearest High Speed parent in usb.c
+- Improve USB device detection, add variable usb_connect_time
+- Port drivers/crypto/fsl from NXP UBoot 2018.03
+- Add support for FS_SECURE_BOOT
+- Add defconfigs for FS_SECURE_BOOT
+- Add FS_SECURE_BOOT authenticate images
+- Improve display support for PicoCoreMX6UL
+- Add USB support for GAR2
+
+
+
 u-boot-2018.03-fsimx6-B2019.08 (16.08.2019)
 -------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
