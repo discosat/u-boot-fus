@@ -447,7 +447,28 @@ static int do_mmc_list(cmd_tbl_t *cmdtp, int flag,
 }
 
 #if CONFIG_IS_ENABLED(MMC_HW_PARTITIONING)
-static int parse_hwpart_user(struct mmc_hwpart_conf *pconf,
+static unsigned int parse_value(struct mmc *mmc, char *arg)
+{
+	unsigned int value;
+	char *end;
+
+	/*
+	 * Normally U-Boot only uses hex numbers for offsets and sizes, but to
+	 * be compatible with the mainline version, accept decimal by default.
+	 */
+	value = simple_strtoul(arg, &end, 0);
+	if (end && (*end == '\%')) {
+		if (value > 100)
+			value = 100;
+		value *= mmc->max_enh_size_mult;
+		value /= 100;
+		value *= mmc->hc_wp_grp_size;
+	}
+
+	return value;
+}
+
+static int parse_hwpart_user(struct mmc *mmc, struct mmc_hwpart_conf *pconf,
 			     int argc, char * const argv[])
 {
 	int i = 0;
@@ -458,10 +479,8 @@ static int parse_hwpart_user(struct mmc_hwpart_conf *pconf,
 		if (!strcmp(argv[i], "enh")) {
 			if (i + 2 >= argc)
 				return -1;
-			pconf->user.enh_start =
-				simple_strtoul(argv[i+1], NULL, 10);
-			pconf->user.enh_size =
-				simple_strtoul(argv[i+2], NULL, 10);
+			pconf->user.enh_start = parse_value(mmc, argv[i+1]);
+			pconf->user.enh_size = parse_value(mmc, argv[i+2]);
 			i += 3;
 		} else if (!strcmp(argv[i], "wrrel")) {
 			if (i + 1 >= argc)
@@ -481,8 +500,8 @@ static int parse_hwpart_user(struct mmc_hwpart_conf *pconf,
 	return i;
 }
 
-static int parse_hwpart_gp(struct mmc_hwpart_conf *pconf, int pidx,
-			   int argc, char * const argv[])
+static int parse_hwpart_gp(struct mmc *mmc, struct mmc_hwpart_conf *pconf,
+			   int pidx, int argc, char * const argv[])
 {
 	int i;
 
@@ -490,7 +509,7 @@ static int parse_hwpart_gp(struct mmc_hwpart_conf *pconf, int pidx,
 
 	if (1 >= argc)
 		return -1;
-	pconf->gp_part[pidx].size = simple_strtoul(argv[0], NULL, 10);
+	pconf->gp_part[pidx].size = parse_value(mmc, argv[0]);
 
 	i = 1;
 	while (i < argc) {
@@ -533,7 +552,7 @@ static int do_mmc_hwpartition(cmd_tbl_t *cmdtp, int flag,
 	while (i < argc) {
 		if (!strcmp(argv[i], "user")) {
 			i++;
-			r = parse_hwpart_user(&pconf, argc-i, &argv[i]);
+			r = parse_hwpart_user(mmc, &pconf, argc-i, &argv[i]);
 			if (r < 0)
 				return CMD_RET_USAGE;
 			i += r;
@@ -542,7 +561,7 @@ static int do_mmc_hwpartition(cmd_tbl_t *cmdtp, int flag,
 			   argv[i][2] >= '1' && argv[i][2] <= '4') {
 			pidx = argv[i][2] - '1';
 			i++;
-			r = parse_hwpart_gp(&pconf, pidx, argc-i, &argv[i]);
+			r = parse_hwpart_gp(mmc, &pconf, pidx, argc-i, &argv[i]);
 			if (r < 0)
 				return CMD_RET_USAGE;
 			i += r;
@@ -863,13 +882,15 @@ U_BOOT_CMD(
 	"mmc part - lists available partition on current mmc device\n"
 	"mmc dev [dev] [part] - show or set current mmc device [partition]\n"
 	"mmc list - lists available devices\n"
+#if CONFIG_IS_ENABLED(MMC_HW_PARTITIONING)
 	"mmc hwpartition [args...] - does hardware partitioning\n"
-	"  arguments (sizes in 512-byte blocks):\n"
+	"  arguments (sizes in 512-byte blocks or in percent by adding \%):\n"
 	"    [user [enh start cnt] [wrrel {on|off}]] - sets user data area attributes\n"
 	"    [gp1|gp2|gp3|gp4 cnt [enh] [wrrel {on|off}]] - general purpose partition\n"
 	"    [check|set|complete] - mode, complete set partitioning completed\n"
 	"  WARNING: Partitioning is a write-once setting once it is set to complete.\n"
 	"  Power cycling is required to initialize partitions after set to complete.\n"
+#endif
 #ifdef CONFIG_SUPPORT_EMMC_BOOT
 	"mmc bootbus dev boot_bus_width reset_boot_bus_width boot_mode\n"
 	" - Set the BOOT_BUS_WIDTH field of the specified device\n"

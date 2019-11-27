@@ -950,7 +950,6 @@ int mmc_hwpart_config(struct mmc *mmc,
 	u32 enh_size_mult;
 	u32 enh_start_addr;
 	u32 gp_size_mult[4];
-	u32 max_enh_size_mult;
 	u32 tot_enh_size_mult = 0;
 	u8 wr_rel_set;
 	int i, pidx, err;
@@ -1017,13 +1016,9 @@ int mmc_hwpart_config(struct mmc *mmc,
 	if (err)
 		return err;
 
-	max_enh_size_mult =
-		(ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT+2] << 16) +
-		(ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT+1] << 8) +
-		ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT];
-	if (tot_enh_size_mult > max_enh_size_mult) {
+	if (tot_enh_size_mult > mmc->max_enh_size_mult) {
 		pr_err("Total enhanced size exceeds maximum (%u > %u)\n",
-		       tot_enh_size_mult, max_enh_size_mult);
+		       tot_enh_size_mult, mmc->max_enh_size_mult);
 		return -EMEDIUMTYPE;
 	}
 
@@ -2100,6 +2095,9 @@ static int mmc_startup_v4(struct mmc *mmc)
 	mmc->hc_wp_grp_size = 1024
 		* ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]
 		* ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+	mmc->max_enh_size_mult = (ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT+2] << 16)
+		+ (ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT+1] << 8)
+		+ ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT];
 #endif
 
 	mmc->wr_rel_set = ext_csd[EXT_CSD_WR_REL_SET];

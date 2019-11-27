@@ -592,6 +592,8 @@ struct mmc {
 #endif
 #if CONFIG_IS_ENABLED(MMC_HW_PARTITIONING)
 	uint hc_wp_grp_size;	/* in 512-byte sectors */
+	uint max_enh_size_mult; /* in hc_wp_grp_size entities */
+
 #endif
 #if CONFIG_IS_ENABLED(MMC_WRITE)
 	struct sd_ssr	ssr;	/* SD status register */
