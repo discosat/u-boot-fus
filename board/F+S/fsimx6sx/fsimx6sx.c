@@ -708,6 +708,29 @@ static iomux_v3_cfg_t const lcd18_pads_low[] = {
 	IOMUX_PADS(PAD_LCD1_DATA17__GPIO3_IO_18 | MUX_PAD_CTRL(0x3010)),
 };
 
+static iomux_v3_cfg_t const lcd16_pads_low[] = {
+	IOMUX_PADS(PAD_LCD1_ENABLE__GPIO3_IO_25 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_HSYNC__GPIO3_IO_26  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_VSYNC__GPIO3_IO_28  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_CLK__GPIO3_IO_0     | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA01__GPIO3_IO_2  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA02__GPIO3_IO_3  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA03__GPIO3_IO_4  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA04__GPIO3_IO_5  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA05__GPIO3_IO_6  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA06__GPIO3_IO_7  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA07__GPIO3_IO_8  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA08__GPIO3_IO_9  | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA09__GPIO3_IO_10 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA10__GPIO3_IO_11 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA12__GPIO3_IO_13 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA13__GPIO3_IO_14 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA14__GPIO3_IO_15 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA15__GPIO3_IO_16 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA16__GPIO3_IO_17 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD1_DATA17__GPIO3_IO_18 | MUX_PAD_CTRL(0x3010)),
+};
+
 static iomux_v3_cfg_t const lcd18_pads_active[] = {
 	IOMUX_PADS(PAD_LCD1_ENABLE__LCDIF1_ENABLE | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_LCD1_HSYNC__LCDIF1_HSYNC | MUX_PAD_CTRL(LCD_CTRL)),
@@ -732,6 +755,30 @@ static iomux_v3_cfg_t const lcd18_pads_active[] = {
 	IOMUX_PADS(PAD_LCD1_DATA16__LCDIF1_DATA_16 | MUX_PAD_CTRL(LCD_CTRL)),
 	IOMUX_PADS(PAD_LCD1_DATA17__LCDIF1_DATA_17 | MUX_PAD_CTRL(LCD_CTRL)),
 };
+
+static iomux_v3_cfg_t const lcd16_pads_active[] = {
+	IOMUX_PADS(PAD_LCD1_ENABLE__LCDIF1_ENABLE | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_HSYNC__LCDIF1_HSYNC | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_VSYNC__LCDIF1_VSYNC | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_CLK__LCDIF1_CLK | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA01__LCDIF1_DATA_1  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA02__LCDIF1_DATA_2  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA03__LCDIF1_DATA_3  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA04__LCDIF1_DATA_4  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA05__LCDIF1_DATA_5  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA06__LCDIF1_DATA_6  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA07__LCDIF1_DATA_7  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA08__LCDIF1_DATA_8  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA09__LCDIF1_DATA_9  | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA10__LCDIF1_DATA_10 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA11__LCDIF1_DATA_11 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA13__LCDIF1_DATA_13 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA14__LCDIF1_DATA_14 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA15__LCDIF1_DATA_15 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA16__LCDIF1_DATA_16 | MUX_PAD_CTRL(LCD_CTRL)),
+	IOMUX_PADS(PAD_LCD1_DATA17__LCDIF1_DATA_17 | MUX_PAD_CTRL(LCD_CTRL)),
+};
+
 
 static iomux_v3_cfg_t const lcd24_pads_low[] = {
 	IOMUX_PADS(PAD_LCD1_DATA18__GPIO3_IO_19 | MUX_PAD_CTRL(0x3010)),
@@ -761,7 +808,14 @@ static iomux_v3_cfg_t const lcd_extra_pads_efusa9x[] = {
 static iomux_v3_cfg_t const lcd_extra_pads[] = {
 	/* Signals are active low -> pull-up to switch off */
 	IOMUX_PADS(PAD_LCD1_RESET__GPIO3_IO_27 | MUX_PAD_CTRL(0xb010)),
+	IOMUX_PADS(PAD_LCD1_DATA21__GPIO3_IO_22 | MUX_PAD_CTRL(0xb010)),
+	IOMUX_PADS(PAD_LCD1_DATA22__GPIO3_IO_23 | MUX_PAD_CTRL(0xb010)),
 	IOMUX_PADS(PAD_LCD1_DATA23__GPIO3_IO_24 | MUX_PAD_CTRL(0xb010)),
+};
+
+/* Pads for VLCD_ON: active high -> pull-down to switch off */
+static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6sx[] = {
+	IOMUX_PADS(PAD_LCD1_RESET__GPIO3_IO_27 | MUX_PAD_CTRL(0x3010)),
 };
 
 /* Use I2C2 to talk to RGB adapter on efusA9X */
@@ -806,22 +860,28 @@ static void setup_lcd_pads(int on)
 		SETUP_IOMUX_PADS(lcd_extra_pads_efusa9x);
 		break;
 
-	case BT_PCOREMX6SX:		/* 24-bit LCD, power active low */
-		if (on)
-			SETUP_IOMUX_PADS(lcd24_pads_active);
-		else
-			SETUP_IOMUX_PADS(lcd24_pads_low);
-		/* No break, fall through to case BT_PICOCOMA9X */
-	case BT_PICOCOMA9X:
-	case BT_BEMA9X:			/* 18-bit LCD, power active low */
-		if (on)
+	case BT_PCOREMX6SX:		/* 24-bit LCD, power active high */
+		if (on) {
 			SETUP_IOMUX_PADS(lcd18_pads_active);
-		else
+			SETUP_IOMUX_PADS(lcd24_pads_active);
+		} else {
 			SETUP_IOMUX_PADS(lcd18_pads_low);
+			SETUP_IOMUX_PADS(lcd24_pads_low);
+		}
+        SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6sx);
+        break;
+
+		/* No break, fall through to case BT_PICOCOMA9X */
+	case BT_PICOCOMA9X:		/* 16-bit LCD, power active low */
+		if (on)
+			SETUP_IOMUX_PADS(lcd16_pads_active);
+		else
+			SETUP_IOMUX_PADS(lcd16_pads_low);
 		SETUP_IOMUX_PADS(lcd_extra_pads);
 		break;
 
 	case BT_CONT1:			/* Boards with no display at all */
+	case BT_BEMA9X:
 	default:
 		break;
 	}
@@ -835,14 +895,17 @@ void board_display_set_power(int port, int on)
 	unsigned int value = on;
 
 	switch (fs_board_get_type()) {
-	case BT_EFUSA9X:
-	case BT_PCOREMX6SX:		/* VLCD_ON is active high */
+	case BT_EFUSA9X:		/* VLCD_ON is active high */
+	case BT_BEMA9X:
 	default:
 		gpio = IMX_GPIO_NR(3, 19);
 		break;
 
-	case BT_PICOCOMA9X:
-	case BT_BEMA9X:			/* VLCD_ON is active low */
+	case BT_PCOREMX6SX:		/* VLCD_ON is active high */
+		gpio = IMX_GPIO_NR(3, 27);
+		break;
+
+	case BT_PICOCOMA9X:		/* VLCD_ON is active low */
 		gpio = IMX_GPIO_NR(3, 27);
 		value = !on;
 		break;
@@ -892,10 +955,15 @@ void board_display_set_backlight(int port, int on)
 			fs_disp_set_i2c_backlight(1, on);
 			break;
 		case BT_PICOCOMA9X:
-		case BT_BEMA9X:
+			/* VBL_ONn */
 			fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 24));
-			// ### TODO: Set PWM
-			// ### TODO: Set LCD_DEN on PicoCOMA9X
+			/* LCD_DENn */
+			fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 23));
+			/* BL_CTRL */
+			fs_disp_set_vcfl(port, !on, IMX_GPIO_NR(3, 22));
+			break;
+		case BT_BEMA9X:
+		default:
 			break;
 		}
 		break;
