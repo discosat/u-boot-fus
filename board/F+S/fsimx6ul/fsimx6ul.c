@@ -797,12 +797,12 @@ static iomux_v3_cfg_t const lcd18_pads_active[] = {
 };
 
 static iomux_v3_cfg_t const lcd24_pads_low[] = {
-	IOMUX_PADS(PAD_LCD_DATA17__GPIO3_IO22 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA18__GPIO3_IO23 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA19__GPIO3_IO24 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA20__GPIO3_IO25 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA21__GPIO3_IO26 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA22__GPIO3_IO27 | MUX_PAD_CTRL(0x3010)),
+	IOMUX_PADS(PAD_LCD_DATA23__GPIO3_IO28 | MUX_PAD_CTRL(0x3010)),
 };
 
 static iomux_v3_cfg_t const lcd24_pads_active[] = {
@@ -914,6 +914,7 @@ void board_display_set_power(int port, int on)
 {
 	static unsigned int vlcd_users;
 	unsigned int gpio;
+	unsigned int value = on;
 
 	switch (fs_board_get_type()) {
 	case BT_EFUSA7UL:		/* VLCD_ON is active high */
@@ -937,7 +938,7 @@ void board_display_set_power(int port, int on)
 			setup_lcd_pads(0);
 	}
 	if (!vlcd_users) {
-		gpio_direction_output(gpio, on);
+		gpio_direction_output(gpio, value);
 		if (on)
 			mdelay(1);
 	}
