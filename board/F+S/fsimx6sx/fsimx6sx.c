@@ -1582,6 +1582,11 @@ static int sja1105_configure(struct spi_slave *slave)
 	return ret;
 }
 
+int board_spi_cs_gpio(unsigned bus, unsigned cs)
+{
+	return (bus == 3 && cs == 0) ? (IMX_GPIO_NR(3, 4)) : -1;
+}
+
 /* Start ECSPI4 and configure SJA1105 ethernet switch */
 static int sja1105_init(void)
 {
@@ -1610,8 +1615,7 @@ static int sja1105_init(void)
 		return ret;
 
 	/* ECSPI4 has index 3, use 10 MHz, SPI mode 1, CS on GPIO3_IO04 */
-	slave = spi_setup_slave(3, 0 | (IMX_GPIO_NR(3, 4) << 8), 10000000,
-				SPI_MODE_1);
+	slave = spi_setup_slave(3, 0, 10000000, SPI_MODE_1);
 	if (!slave)
 		return -EINVAL;
 
