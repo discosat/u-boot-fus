@@ -1,6 +1,23 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6sx-B2019.11 (29.11.2019)
+---------------------------------------------
+Supported boards: efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, Cube2.0
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, CUBEA5, armStoneA5, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Fix SPI initialization in fsimx6sx.c
+- Improve board_display_set_power in fsimx6sx.c/fsimx6ul.c
+- Fix fsimx6sx.c lcd settings for PicoCoreMX6SX/PicoCOMA9x
+- Improve the M4 ram reservation for imx6sx
+- Allow percentage sizes and hex numbers in mmc hwpartition
+- Handle different feature bits on GAR2
+
+
+
 u-boot-2018.03-fsimx6ul-B2019.11 (15.11.2019)
 ---------------------------------------------
 Supported boards: efusA7UL, PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2,
