@@ -84,6 +84,7 @@
 #define FEAT2_DEFAULT (FEAT2_ETH_A | FEAT2_ETH_B)
 
 #define RPMSG_SIZE	0x00010000	/* Use 64KB shared memory for RPMsg */
+#define M4_DRAM_MAX_CODE_SIZE 0x10000000
 
 /* Device tree paths */
 #define FDT_NAND	"/soc/gpmi-nand@01806000"
@@ -2174,33 +2175,60 @@ int board_eth_init(bd_t *bd)
 static void fs_fdt_reserve_ram(void *fdt)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	u32 size, base;
-	u32 start, avail;
+	u32 size,base, end, vring_size, vring_base;
+	u32 ram_base, ram_end;
 	fdt32_t tmp[2];
 	int offs, rm_offs;
 	char name[30];
 
 	/* Get the size to reserve from environment variable */
 	size = env_get_hex("reserved_ram_size", 0);
-	if (!size)
-		return;
+	base = env_get_hex("reserved_ram_base", 0) & ~0xfffff;
+	end = env_get_hex("reserved_ram_end", 0) & ~0xfffff;
 
+	/* Round up to next MB boundary */
+	size = (size + 0xfffff) & ~0xfffff;
+	if (!size && !(base && end))
+		return;
+	if (!base && !end) {
+		/* If just the size if given, place the reserved
+		   memory at the end of the Cortex-M4 aliased DRAM
+		   region ( first 265 MB) */
+		end = gd->bd->bi_dram[0].start + M4_DRAM_MAX_CODE_SIZE;
+		base = end - size;
+	}
+	else if (!base)
+		base = end - size;
+	else if (!end)
+		end = base + size;
+
+	/* Save 64 MB for the Linux kernel */
+	ram_base = ((gd->bd->bi_dram[0].start + 0xfffff) & ~0xfffff) + (64 << 20);
+	if (base < ram_base) {
+		base = ram_base;
+		printf("## ram_base is in the kernel memory area (first 64 MB)!\n"
+				"   Moving ram_base to 0x%08x\n", base);
+	}
+	/* Make sure we stay in the maximum ram size available */
+	ram_end = (gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size) & ~0xfffff;
+	if (end > ram_end){
+		end = ram_end;
+		printf("## ram_end exceeds maxmimal available memory!\n"
+				"   Moving ram_end to 0x%08x\n", end);
+	}
+
+	size = end-base;
+	if (base > end){
+		printf("## Invalid ram_size! Aborting!\n"
+				"   ram_base: 0x%08x\n"
+				"   ram_end:  0x%08x\n"
+				"   ram_size: 0x%08x\n",base,end,size);
+		return;
+	}
 	/* Get the reserved-memory node */
 	rm_offs = fdt_path_offset(fdt, FDT_RES_MEM);
 	if (rm_offs < 0)
 		return;
-
-	/* Round up to next MB boundary, leave at least 32MB for Linux */
-	size = (size + 0xfffff) & ~0xfffff;
-	avail = gd->bd->bi_dram[0].size & ~0xfffff;
-	if (size > avail - (32 << 20))
-		size = avail - (32 << 20);
-
-	/* Reserve from end of RAM if base variable is invalid */
-	base = env_get_hex("reserved_ram_base", 0) & ~0xfffff;
-	start = (gd->bd->bi_dram[0].start + 0xfffff) & ~0xfffff;
-	if (!base || (base < start) || (base + size > start + avail))
-		base = start + avail - size;
 
 	/* Create a node under reserved-memory (or update existing node) */
 	snprintf(name, sizeof(name), "by-uboot@%08x", base);
@@ -2217,12 +2245,16 @@ static void fs_fdt_reserve_ram(void *fdt)
 	}
 
 	/* Let vring-buffer-addresses point to last 64K of this area */
+	vring_size = env_get_hex("vring_size", 0);
+	if (!vring_size)
+	vring_size = RPMSG_SIZE;
 	offs = fs_fdt_path_offset(fdt, FDT_RPMSG);
 	if (offs >= 0) {
 		fdt32_t tmp[2];
-
-		tmp[0] = cpu_to_fdt32(base + size - RPMSG_SIZE);
-		tmp[1] = cpu_to_fdt32(RPMSG_SIZE);
+		vring_base = base + size -vring_size;
+		printf("## Reserving RPMSG vring-buffers at 0x%08x, size 0x%08x\n", vring_base, vring_size);
+		tmp[0] = cpu_to_fdt32(vring_base);
+		tmp[1] = cpu_to_fdt32(vring_size);
 
 		fs_fdt_set_val(fdt, offs, "reg", tmp, sizeof(tmp), 1);
 	}

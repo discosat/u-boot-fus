@@ -470,7 +470,6 @@
 	"bootfdt=undef\0" \
 	FSBOOTDELAY \
 	"fdt_high=ffffffff\0" \
-	"reserved_ram_size=10000\0" \
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
