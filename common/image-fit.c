@@ -30,10 +30,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #include <u-boot/sha1.h>
 #include <u-boot/sha256.h>
 
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/checkboot.h>
-#endif
-
 /*****************************************************************************/
 /* New uImage format routines */
 /*****************************************************************************/
@@ -1863,30 +1859,11 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 
 	len = (ulong)size;
 
-#ifdef CONFIG_FS_SECURE_BOOT
-	/* if the subimage is a fdt we have to increment the pointer to the
-	 * beginning of fdt instead of ivt. Otherwise the check will fail
-	 * and the FDT can´t be verified.
-	 */
-	int is_ivt = 0;
-	if (image_type == IH_TYPE_FLATDT) {
-		check_for_ivt_void(&buf, &is_ivt);
-	}
-#endif
-
 	/* verify that image data is a proper FDT blob */
 	if (image_type == IH_TYPE_FLATDT && fdt_check_header(buf)) {
 		puts("Subimage data is not a FDT");
 		return -ENOEXEC;
 	}
-
-#ifdef CONFIG_FS_SECURE_BOOT
-	/* if we have increment the pointer so decrease it back to the
-	 * original address. It was only increment for the check above.
-	 */
-	if (is_ivt)
-		buf -= HAB_HEADER;
-#endif
 
 	bootstage_mark(bootstage_id + BOOTSTAGE_SUB_GET_DATA_OK);
 

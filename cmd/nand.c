@@ -682,13 +682,14 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 							 (u_char *)addr);
 			else {
 #ifdef CONFIG_FS_SECURE_BOOT
-				ret = prepare_authentication((u32)addr,
-						BACKUP_IMAGE, &off, &size);
-				if(!ret)
-				ret = nand_write_skip_bad(mtd, off, &rwsize,
+				ret = check_flash_partition((u32)addr,
+						BACKUP_IMAGE, off, size);
+				if (!ret) {
+					ret = nand_write_skip_bad(mtd, off, &rwsize,
 							  NULL, maxsize,
 							  (u_char *)addr,
 							  WITH_WR_VERIFY);
+				}
 #else
 				ret = nand_write_skip_bad(mtd, off, &rwsize,
 							  NULL, maxsize,
@@ -953,7 +954,7 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	const void *fit_hdr = NULL;
 #endif
 #ifdef CONFIG_FS_SECURE_BOOT
-	LOADER_TYPE boot_loader_type = LOADER_NONE;
+	int hab_header = 0;
 #endif
 
 	if (!mtd)
@@ -977,9 +978,10 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 #ifdef CONFIG_FS_SECURE_BOOT
 	/* if the image have an ivt increment the pointer to the image itself.
 	 */
-	boot_loader_type = GetLoaderType(addr);
-	if(boot_loader_type & (LOADER_KERNEL_IVT | LOADER_FDT_IVT | LOADER_UBOOT_IVT))
+	if (!verify_ivt_header(&((struct ivt *)addr)->hdr, 0)) {
 		addr += HAB_HEADER;
+		hab_header = 1;
+	}
 #endif
 
 	switch (genimg_get_format ((void *)addr)) {
@@ -1024,7 +1026,7 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	 * header image, but our size is image + IVT + signature. So
 	 * we take the size from csf header image
 	 */
-	if(boot_loader_type & (LOADER_KERNEL_IVT | LOADER_FDT_IVT | LOADER_UBOOT_IVT)) {
+	if (hab_header) {
 		addr -= HAB_HEADER;
 		cnt = getImageLength(addr);
 	}
@@ -1046,6 +1048,17 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	env_set_fileinfo(cnt);
 
 #if defined(CONFIG_FIT)
+#ifdef CONFIG_FS_SECURE_BOOT
+	/* if we have a hab header dont check completely for FIT image because
+	 * if the image is encrypted we are not able to read the image.
+	 */
+	if (hab_header) {
+		if (show)
+			bootstage_mark(BOOTSTAGE_ID_NAND_FIT_READ_OK);
+		return 0;
+	}
+#endif
+
 	/* This cannot be done earlier, we need complete FIT image in RAM first */
 	if (genimg_get_format ((void *)addr) == IMAGE_FORMAT_FIT) {
 		if (!fit_check_format (fit_hdr)) {

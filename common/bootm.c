@@ -32,7 +32,6 @@
 
 #ifdef CONFIG_FS_SECURE_BOOT
 #include <asm/mach-imx/checkboot.h>
-static int ivt_states[3] = { 0, 0, 0 };
 #endif
 
 #ifndef CONFIG_SYS_BOOTM_LEN
@@ -629,16 +628,14 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	ulong iflag = 0;
 	int ret = 0, need_boot_fn;
 
-	images->state |= states;
-
 #ifdef CONFIG_FS_SECURE_BOOT
-	/* check for ivt images and setup correct addresses. If one Image is
-	 * an uImage or and FIT image and it has an IVT then it will be
-	 * directly verified and the IVT will be cuted.
-	 */
+	/* prepare images for authentification */
 	if (states & BOOTM_STATE_START)
-		check_for_ivt_char(argc, argv, ivt_states);
+		if (parse_images_for_authentification(argc, argv))
+			return 1;
 #endif
+
+	images->state |= states;
 
 	/*
 	 * Work through the states and see how far we get. We stop on
@@ -705,30 +702,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		return 1;
 	}
 
-#ifdef CONFIG_FS_SECURE_BOOT
-	/* check images before DT will be patched
-	 * If the loadaddress is set directly to the image then
-	 * we don´t have to cut the IVT because it points directly to the begin
-	 * of the image. If we the loadaddress points to the IVT instead of the
-	 * beginning of the image we have to cut IVT.
-	 */
-	if (states & BOOTM_STATE_OS_GO) {
-		if (ivt_states[0] == 0)
-			ret = prepare_authentication(images->ep, CUT_IVT, 0, 0);
-		else
-			ret = prepare_authentication(images->ep - HAB_HEADER, DO_NOTHING, 0, 0);
-		if (ret)
-			return ret;
-
-		/* check device-tree */
-		if (ivt_states[2] == 0)
-			ret = prepare_authentication((ulong)images->ft_addr, CUT_IVT, 0, 0);
-		else
-			ret = prepare_authentication((ulong)images->ft_addr - HAB_HEADER, DO_NOTHING, 0, 0);
-		if (ret)
-			return ret;
-	}
-#endif
 
 	/* Call various other states that are not generally used */
 	if (!ret && (states & BOOTM_STATE_OS_CMDLINE))

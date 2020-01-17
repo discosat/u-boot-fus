@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2020 F&S Elektronik Systeme GmbH
  *
  * SPDX-License-Identifier:    GPL-2.0+
  *
@@ -48,15 +48,13 @@ typedef enum eOptions {
     CUT_IVT      = 0x2,
 } OPTIONS;
 
-void check_for_ivt_void(const void **addr, int *is_ivt);
-void check_for_ivt_char(int argc, char * const argv[], int *ivt_states);
 int ivt_header_error(const char *err_str, struct ivt_header *ivt_hdr, int message);
 int verify_ivt_header(struct ivt_header *ivt_hdr, int message);
-LOADER_TYPE GetLoaderType(u32 addr);
 void memExchange(u32 srcaddr, u32 dstaddr, u32 length);
 u32 makeSaveCopy(u32 srcaddr, u32 length);
 u32 getImageLength(u32 addr);
-int check_flash_partition(char *img_name, loff_t *off, u32 length);
-int prepare_authentication(u32 addr, OPTIONS eOption, loff_t *off, loff_t *size);
+int check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length);
+int parse_images_for_authentification(int argc, char * const argv[]);
+int prepare_authentication(u32 addr, OPTIONS eOption);
 
 #endif

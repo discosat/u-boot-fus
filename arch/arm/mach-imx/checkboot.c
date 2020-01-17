@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2020 F&S Elektronik Systeme GmbH
  *
  * Prepare images for secure boot (tested only for i.MX6 CPUs).
  *
@@ -7,6 +7,7 @@
  *
  */
 
+#include <config.h>
 #include <common.h>		//ALIGN, le16_to_cpu
 #include <jffs2/jffs2.h>	//find_dev_and_part, struct part_info
 #include <nand.h>
@@ -22,7 +23,7 @@
  *             ivt_hdr -> Pointer to putative ivt header
  *             message -> print error message if set to 1
  *
- * Return:     return 1 for error.
+ * Return:     1 -> error
  *
  * Content:    This function prints the error message for no ivt header. Ported
  *             from arch/arm/mach-imx/hab.c, but this static so no access.
@@ -36,13 +37,15 @@ int ivt_header_error(const char *err_str, struct ivt_header *ivt_hdr, int messag
 	return 1;
 }
 
+
 /*
  * Function:   verify_ivt_header(struct ivt_header *ivt_hdr, int message)
  *
  * Parameters: ivt_hdr -> Pointer to putative ivt header
  *             message -> print error message if set to 1
  *
- * Return:     return 1 for error.
+ * Return:     0 -> ivt is available
+ *             1 -> error
  *
  * Content:    This function checks if there is an ivt. If there is no
  *             ivt then an error message will occur. Ported from
@@ -67,112 +70,6 @@ int verify_ivt_header(struct ivt_header *ivt_hdr, int message)
 
 
 /*
- * Function:   check_for_ivt_void(const void **addr, int *is_ivt)
- *
- * Parameters: **addr  -> Pointer to putative ivt header
- *             *is_ivt -> Pointer to know there is an ivt image
- *
- * Return:     -
- *
- * Content:    This function checks if the given pointer points to an ivt.
- *             If there is an ivt we increment the pointer to show directly
- *             to the image itself instead of the ivt. We also perceive that
- *             we have increment the pointer so we can later switch back to
- *             the ivt and then we can check the image.
- */
-void check_for_ivt_void(const void **addr, int *is_ivt)
-{
-	struct ivt *ivt;
-	int ret = 1;
-	ivt = (struct ivt *)*addr;
-	ret = verify_ivt_header(&ivt->hdr, 0);
-	if (!ret) {
-		/* IVT found */
-		*addr += HAB_HEADER;
-		is_ivt[0] = 1;
-	}
-}
-
-/*
- * Function:   check_for_ivt_char(int argc, char * const argv[], int *ivt_states)
- *
- * Parameters: argc        -> Count of given arguments in argv
- *             *argv[]     -> Char array of given arguments
- *             *ivt_states -> Pointer to know that we have incremented the
- *                            original pointer to show directly to the image.
- *
- * Return:     -
- *
- * Content:    This function checks all arguments if there is an ivt and if
- *             there is an ivt check it if it´s an FIT image or an uImage. If
- *             not increment the pointer to point directly to the image itself.
- */
-void check_for_ivt_char(int argc, char * const argv[], int *ivt_states)
-{
-	struct ivt *ivt;
-	int ret = 1;
-
-	for (int i = 0; i < argc; i++)
-	{
-		if (strcmp(argv[i], "-") !=  0) {
-			ivt = (struct ivt *)parse_loadaddr(argv[i], NULL);
-			ret = verify_ivt_header(&ivt->hdr, 0);
-			if (!ret) {
-				/* IVT found */
-				/* check if legacy or FIT image, if yes verify
-				 * it and cut ivt.
-				 */
-				if (IS_UIMAGE_IVT(parse_loadaddr(argv[i], NULL))) {
-					ret = prepare_authentication(parse_loadaddr(argv[i], NULL), CUT_IVT, 0, 0);
-				}
-				else if (IS_DEVTREE_IVT(parse_loadaddr(argv[i], NULL)) && i == 0) {
-					ret = prepare_authentication(parse_loadaddr(argv[i], NULL), CUT_IVT, 0, 0);
-				}
-				else {
-					sprintf(argv[i], "%lx", parse_loadaddr(argv[i], NULL) + HAB_HEADER);
-					ivt_states[i] = 1;
-				}
-			}
-		}
-	}
-}
-
-
-/*
- * Function:   GetLoaderType(u32 addr)
- *
- * Parameters: addr -> start address of image
- *
- * Return:     get the type of the image.
- *
- * Content:    we need the name of the image to set the name as a string so we
- *             can get access to the flash partition with this string name.
- */
-LOADER_TYPE GetLoaderType(u32 addr)
-{
-	if (IS_UBOOT(addr))
-		return LOADER_UBOOT;
-
-	if (IS_UBOOT_IVT(addr))
-		return LOADER_UBOOT_IVT;
-
-	if (IS_UIMAGE(addr) || IS_ZIMAGE(addr))
-		return LOADER_KERNEL;
-
-	if (IS_UIMAGE_IVT(addr) || IS_ZIMAGE_IVT(addr))
-		return LOADER_KERNEL_IVT;
-
-	if (IS_DEVTREE(addr))
-		return LOADER_FDT;
-
-	if (IS_DEVTREE_IVT(addr))
-		return LOADER_FDT_IVT;
-
-	return LOADER_NONE;
-}
-
-
-/*
  * Function:   memExchange(u32 srcaddr, u32 dstaddr, u32 length)
  *
  * Parameters: u32 srcaddr -> start address of the given image
@@ -189,17 +86,20 @@ void memExchange(u32 srcaddr, u32 dstaddr, u32 length)
 	u32 *dst_addr = (u32*) dstaddr;
 	u32 image_length = (length + 3) & ~3;
 	int i = 0;
-	if((u32)src_addr  < (u32) dst_addr) {
+
+	if ((u32)src_addr  < (u32) dst_addr) {
 		src_addr = (u32*)(srcaddr + image_length);
 		dst_addr = (u32*)(dstaddr + image_length);
-		for(i=((image_length)/4); i>=0; i--) {
-				*dst_addr = *src_addr;
-				dst_addr--;
-				src_addr--;
-			}
-	} else if((u32)src_addr > (u32)dst_addr) {
+
+		for (i=((image_length)/4); i>=0; i--) {
+			*dst_addr = *src_addr;
+			dst_addr--;
+			src_addr--;
+		}
+	} else if ((u32)src_addr > (u32)dst_addr) {
 		src_addr = (u32*)srcaddr;
 		dst_addr = (u32*)dstaddr;
+
 		for(i=0; i<=image_length/4;i++) {
 			*dst_addr = *src_addr;
 			dst_addr++;
@@ -215,7 +115,7 @@ void memExchange(u32 srcaddr, u32 dstaddr, u32 length)
  * Parameters: srcaddr -> start address of image
  *             length  -> length of the image
  *
- * Return:     get save address of the image.
+ * Return:     u32: Save address of the image.
  *
  * Content:    before the image will be checked it must be saved to another
  *             RAM address. This is necessary because if a encrypted image
@@ -232,7 +132,7 @@ u32 makeSaveCopy(u32 srcaddr, u32 length)
 
 	checkaddr = (u32*) ivt->self;
 
-	if(srcaddr < (u32)checkaddr)
+	if (srcaddr < (u32)checkaddr)
 		saveaddr = (u32*)(checkaddr + length);
 	else
 		saveaddr = (u32*)(srcaddr + length);
@@ -248,7 +148,7 @@ u32 makeSaveCopy(u32 srcaddr, u32 length)
  *
  * Parameters: addr -> start address of image
  *
- * Return:     length of the image
+ * Return:     u32: length of the image
  *
  * Content:    get the image length from the ivt.
  */
@@ -262,115 +162,119 @@ u32 getImageLength(u32 addr)
 
 
 /*
- * Function:   check_flash_partition(char *img_name, loff_t *off, u32 length)
+ * Function:   check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length)
  *
- * Parameters: img_name -> start address of image to be checked
+ * Parameters: addr     -> start address of image to be checked
+ *             eOption  -> enum what to do with the image
  *             off      -> image length
  *             length   -> image name
  *
- * Return:      0 -> check successful
- *             -1 -> check unsuccessful
+ * Return:     0 -> writing is allowed
+ *             1 -> writing to nand partition forbidden
  *
  * Content:    Checks if the image will be written to the correct partition
  *             and checks if the image fits in the partition.
  */
-int check_flash_partition(char *img_name, loff_t *off, u32 length)
+int check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length)
 {
 	struct mtd_device *dev;
 	struct part_info *part;
+	static const char *names[] = {SECURE_PARTITIONS};
 	u8 pnum;
-	int ret = -1;
 
-	find_dev_and_part(img_name, &dev, &pnum, &part);
-	if(*off != part->offset) {
-		printf("\nWrong partition!!\n");
-		printf("\nAborting ...\n\n");
-		ret = -1;
-	} else if(part->size < length) {
-		printf("\nPartition is too small!!\n");
-		printf("\nAborting ...\n\n");
-		ret = -1;
-	} else {
-		ret = 0;
+	for (int i = 0; i < ARRAY_SIZE(names); i++) {
+		if (!find_dev_and_part(names[i], &dev, &pnum, &part)) {
+			if (off >= part->offset && off < part->offset + part->size) {
+				if (off == part->offset) {
+					if (part->size >= length) {
+						return prepare_authentication(addr, eOption);
+					} else {
+						printf("\nPartition is too small!!\n");
+						printf("\nAborting ...\n\n");
+						return 1;
+					}
+				} else {
+					printf("\nWrong partition offset!!\n");
+					printf("\nAborting ...\n\n");
+					return 1;
+				}
+			}
+		}
 	}
-
-	return ret;
+	return 0;
 }
 
 
 /*
- * Function:   prepare_authentication(u32 addr, OPTIONS eOption, loff_t *off, loff_t *size)
+ * Function:   parse_images_for_authentification(int argc, char * const argv[])
  *
- * Parameters: u32 addr        -> address in RAM where the kernel is loaded
- *             OPTIONS eOption -> enum what to do with the image
- *             loff_t *off     -> start address in flash where to write
- *             loff_t *size    -> image size
+ * Parameters: argc  -> count of given arguments in argv
+ *             argv  -> string array
  *
- * Return:     int -> verification of the image
+ * Return:     0 -> verification successful
+ *             1 -> verifi failed
+ *
+ * Content:    This function convert the strings to u32 values and verify
+ *             the images which are behind the addresses. Except if the
+ *             string is a minus. Then it ignores the minus.
+ */
+int parse_images_for_authentification(int argc, char * const argv[])
+{
+	int ret = 0;
+
+	for (int i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-") !=  0) {
+			ret = prepare_authentication(parse_loadaddr(argv[i], NULL), CUT_IVT);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+
+/*
+ * Function:   prepare_authentication(u32 addr, OPTIONS eOption)
+ *
+ * Parameters: addr    -> address in RAM where the image is loaded
+ *             eOption -> enum what to do with the image
+ *
+ * Return:     0 -> authentication successful
+ *             1 -> authentication failed
  *
  * Content:    Prepare the image that it can be verified.
  */
-int prepare_authentication(u32 addr, OPTIONS eOption, loff_t *off, loff_t *size)
+int prepare_authentication(u32 addr, OPTIONS eOption)
 {
 	/* HAB Variables */
 	struct ivt *ivt;
-	struct ivt_header *ivt_hdr;
-	u32 check_addr = 0;
 	u32 save_addr = 0;
 	u32 length = 0;
-	char *img_name = "";
 	int ret = 1;
 
-	/* get image type */
-	LOADER_TYPE boot_loader_type = GetLoaderType(addr);
-
-	/* check which image type we have and set img_name */
-	if(boot_loader_type & (LOADER_UBOOT_IVT | LOADER_UBOOT)) {
-		img_name = "UBoot";
-	} else if(boot_loader_type & (LOADER_KERNEL_IVT | LOADER_KERNEL)) {
-		img_name = "Kernel";
-	} else if(boot_loader_type & (LOADER_FDT_IVT | LOADER_FDT)) {
-		img_name = "FDT";
-	} else {
-		printf("invalid image type!\n");
-		ret = 1;
-		goto exit;
-	}
-
 	ivt = (struct ivt *)addr;
-	check_addr = ivt->self;
-
-	/* Calculate IVT address header */
-	ivt_hdr = &ivt->hdr;
 
 	/* Verify IVT header bugging out on error */
-	if (verify_ivt_header(ivt_hdr, 1))
-		goto exit;
+	if (verify_ivt_header(&ivt->hdr, 1))
+		return ret;
 
 	length = getImageLength(addr);
 
-	if (eOption == BACKUP_IMAGE) {
-		ret = check_flash_partition(img_name, off, length);
-		if(ret != 0) {
-			ret = 1;
-			goto exit;
-		}
+	if (eOption == BACKUP_IMAGE)
 		save_addr = makeSaveCopy(addr, length);
-	}
 
-	if((addr != check_addr)) {
-		memExchange(addr, check_addr, length);
-	}
+	if ((addr != ivt->self))
+		memExchange(addr, ivt->self, length);
 
-	ret = imx_hab_authenticate_image(check_addr, length, 0x0);
+	ret = imx_hab_authenticate_image(ivt->self, length, 0x0);
 
 	if (eOption == BACKUP_IMAGE) {
 		/* get original image saved by 'makeSaveCopy' */
 		memExchange(save_addr, addr, length);
+	} else if (eOption == CUT_IVT) {
+		memExchange((ivt->self + HAB_HEADER), addr, length);
 	}
-	else if(eOption == CUT_IVT) {
-		memExchange(((u32)check_addr + HAB_HEADER), addr, length);
-	}
-exit:
-		return ret;
+
+	return ret;
 }
