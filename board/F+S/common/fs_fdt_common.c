@@ -155,7 +155,15 @@ void fs_fdt_set_bdinfo(void *fdt, int offs)
 	unsigned int board_rev = fs_board_get_rev();
 
 	/* NAND info, names and features */
+#ifdef CONFIG_TARGET_FSVYBRID
+	static unsigned char ecc_strength[8] = {0, 4, 6, 8, 12, 16, 24, 32};
+
+	fs_fdt_set_u32str(fdt, offs, "ecc_mode", pargs->chECCtype, 1);
+	fs_fdt_set_u32str(fdt, offs, "ecc_strength",
+			  ecc_strength[pargs->chECCtype], 1);
+#else
 	fs_fdt_set_u32str(fdt, offs, "ecc_strength", pargs->chECCtype, 1);
+#endif
 	fs_fdt_set_u32str(fdt, offs, "nand_state", pargs->chECCstate, 1);
 	fs_fdt_set_string(fdt, offs, "board_name", get_board_name(), 0);
 	sprintf(rev, "%d.%02d", board_rev / 100, board_rev % 100);

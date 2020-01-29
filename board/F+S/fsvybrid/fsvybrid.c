@@ -13,6 +13,7 @@
 #ifdef CONFIG_CMD_NET
 #include <asm/fec.h>
 #include <net.h>			/* eth_init(), eth_halt() */
+#include <miiphy.h>
 #include <netdev.h>			/* ne2000_initialize() */
 #endif
 #ifdef CONFIG_CMD_LCD
@@ -67,6 +68,10 @@
 #define FEAT2_L2      (1<<1)		/* CPU has Level 2 cache */
 #define FEAT2_RMIICLK_CKO1 (1<<2)	/* RMIICLK (PTA6) 0: output, 1: input
 					   CKO1 (PTB10) 0: unused, 1: output */
+/* Device tree paths */
+#define FDT_NAND	"/soc/aips-bus@40080000/nand@400e0000"
+#define FDT_ETH_A	"/soc/aips-bus@40080000/ethernet@400d0000"
+#define FDT_ETH_B	"/soc/aips-bus@40080000/ethernet@400d1000"
 
 #define INSTALL_RAM "ram@80300000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -153,7 +158,7 @@ const struct fs_board_info board_info[16] = {
 		.init = ".init_linuxrc",
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_ubifs",
-		.fdt = ".fdt_nand",
+		.fdt = ".fdt_ubifs",
 	},
 	{	/* 7 (BT_CUBEA5) */
 		.name = "CUBEA5",
@@ -168,7 +173,7 @@ const struct fs_board_info board_info[16] = {
 		.init = ".init_linuxrc",
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_ubifs",
-		.fdt = ".fdt_nand",
+		.fdt = ".fdt_ubifs",
 	},
 	{	/* 8 (BT_HGATEWAY) */
 		.name = "HGATEWAY",
@@ -184,7 +189,7 @@ const struct fs_board_info board_info[16] = {
 		.init = ".init_linuxrc",
 		.rootfs = ".rootfs_ubifs",
 		.kernel = ".kernel_ubifs",
-		.fdt = ".fdt_nand",
+		.fdt = ".fdt_ubifs",
 	},
 	{	/* 9 */
 		.name = "Unknown",
@@ -620,8 +625,10 @@ int board_eth_init(bd_t *bis)
 
 
 	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
-	if (board_type == BT_CUBEA5)
+	if (board_type == BT_CUBEA5) {
+		fs_eth_set_ethaddr(1);	/* MAC for WLAN */
 		return 0;
+	}
 
 	/* Configure ethernet PHY clock depending on board type and revision */
 	if ((board_type == BT_AGATEWAY) && (board_rev >= 110)) {
@@ -690,7 +697,6 @@ int board_eth_init(bd_t *bis)
 		break;
 	case BT_AGATEWAY:
 	case BT_HGATEWAY:
-		id = -1;
 		enet_addr = MACNET1_BASE_ADDR;
 		break;
 	}
@@ -700,8 +706,16 @@ int board_eth_init(bd_t *bis)
 
 	/* Probe first PHY and ethernet port */
 	ret = fecmxc_initialize_multi_type(bis, id, phy_addr, enet_addr, RMII);
-	if (ret || !(pargs->chFeatures1 & FEAT1_2NDLAN))
+	if (ret)
 		return ret;
+
+	if (board_type == BT_AGATEWAY) {
+		fs_eth_set_ethaddr(1);	/* MAC for WLAN */
+		return 0;
+	}
+
+	if (!(pargs->chFeatures1 & FEAT1_2NDLAN))
+		return 0;
 
 	/* Get info on second ethernet port */
 	fs_eth_set_ethaddr(1);
@@ -873,14 +887,12 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
-#if 0 //### TODO
-	/* Set ECC strength for NAND driver */
+
+	/* Set ECC mode for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
-	if (offs >= 0) {
-		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
-			       pargs->chECCtype, 1);
-	}
-#endif
+	if (offs >= 0)
+		fs_fdt_set_u32(fdt, offs, "fus,ecc_mode", pargs->chECCtype, 1);
+
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
 	if (offs >= 0) {
@@ -893,13 +905,29 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_set_macaddr(fdt, offs, id++);
 		if (pargs->chFeatures1 & FEAT1_2NDLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (fs_board_get_type() == BT_CUBEA5)
+			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
 	}
-#if 0 //### TODO
-	/* Disable ethernet node(s) if feature is not available */
+
+	/* Disable second ethernet node if feature is not available */
 	if (!(pargs->chFeatures1 & FEAT1_2NDLAN))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
-#endif
 
 	return 0;
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
+
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+#if 0
+	/* Switch off backlight and display voltages */
+	/* ### TODO: In the future the display should pass smoothly to Linux,
+	   then switching everything off should not be necessary anymore. */
+	fs_disp_set_backlight_all(0);
+	fs_disp_set_power_all(0);
+#endif
+
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}
