@@ -383,7 +383,7 @@ int do_vybrid_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 			 char * const argv[])
 {
 	u32 freq;
-	static const char const *disabled = " (disabled in CCM)";
+	static const char *disabled = " (disabled in CCM)";
 	struct clkctl *ccm = (struct clkctl *)CCM_BASE_ADDR;
 	u32 ccsr = __raw_readl(&ccm->ccsr);
 
