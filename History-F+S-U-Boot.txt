@@ -1,6 +1,20 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fssecure-V2020.02 (10.02.2020)
+---------------------------------------------
+Supported CPUs: i.MX6 S/DL/D/Q, i.MX6 SX, i.MX6 UL, i.MX6 ULL
+
+- Port drivers/crypto/fsl from NXP UBoot 2018.03
+- Add support for FS_SECURE_BOOT
+- Add defconfigs for FS_SECURE_BOOT
+- Add FS_SECURE_BOOT authenticate images
+- Rename F&S Secure Boot defconfigs
+- Improve verification process of FS_SECURE_BOOT
+- Improve F&S secure boot defconfigs
+
+
+
 u-boot-2018.03-fsimx6sx-B2019.11 (29.11.2019)
 ---------------------------------------------
 Supported boards: efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
