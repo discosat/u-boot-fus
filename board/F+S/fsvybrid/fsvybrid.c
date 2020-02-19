@@ -626,7 +626,7 @@ int board_eth_init(bd_t *bis)
 
 	/* CUBEA5 has not ethernet at all, do not even configure PHY clock */
 	if (board_type == BT_CUBEA5) {
-		fs_eth_set_ethaddr(1);	/* MAC for WLAN */
+		fs_eth_set_ethaddr(0);	/* MAC for WLAN */
 		return 0;
 	}
 
@@ -902,11 +902,12 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_set_bdinfo(fdt, offs);
 
 		/* MAC addresses */
-		fs_fdt_set_macaddr(fdt, offs, id++);
-		if (pargs->chFeatures1 & FEAT1_2NDLAN)
-			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (fs_board_get_type() == BT_CUBEA5)
 			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
+		else
+			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (pargs->chFeatures1 & FEAT1_2NDLAN)
+			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
 	/* Disable second ethernet node if feature is not available */
