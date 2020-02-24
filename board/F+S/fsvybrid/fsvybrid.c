@@ -885,6 +885,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
 
 	printf("   Setting run-time properties\n");
 
@@ -902,7 +903,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_set_bdinfo(fdt, offs);
 
 		/* MAC addresses */
-		if (fs_board_get_type() == BT_CUBEA5)
+		if (board_type == BT_CUBEA5)
 			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
 		else
 			fs_fdt_set_macaddr(fdt, offs, id++);
@@ -911,8 +912,12 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	/* Disable second ethernet node if feature is not available */
-	if (!(pargs->chFeatures1 & FEAT1_2NDLAN))
-		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	if (!(pargs->chFeatures1 & FEAT1_2NDLAN)) {
+		if ((board_type == BT_AGATEWAY) || (board_type == BT_HGATEWAY))
+			fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		else
+			fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	}
 
 	return 0;
 }
