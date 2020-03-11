@@ -48,15 +48,18 @@ __weak void mxsfb_system_setup(void)
 }
 
 static int setup;
-static struct fb_videomode fbmode;
+static const struct fb_videomode *fbmode;
 static int depth;
+static int rgb_pattern = PATTERN_RGB;
 
-int mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
-	uint32_t base_addr)
+int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
+			int bpp, int pattern)
 {
+
 	fbmode = mode;
 	depth  = bpp;
 	panel.isaBase  = base_addr;
+	rgb_pattern = pattern;
 
 	setup = 1;
 
@@ -65,11 +68,14 @@ int mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
 
 void mxs_lcd_get_panel(struct display_panel *dispanel)
 {
-	dispanel->width = fbmode.xres;
-	dispanel->height = fbmode.yres;
+   if(dispanel && fbmode)
+	{
+	dispanel->width = fbmode->xres;
+	dispanel->height = fbmode->yres;
 	dispanel->reg_base = panel.isaBase;
 	dispanel->gdfindex = panel.gdfIndex;
 	dispanel->gdfbytespp = panel.gdfBytesPP;
+	}
 }
 
 /*
@@ -87,7 +93,7 @@ void mxs_lcd_get_panel(struct display_panel *dispanel)
 static void mxs_lcd_init(GraphicDevice *panel,
 			struct ctfb_res_modes *mode, int bpp)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel->isaBase);
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(panel->isaBase);
 	uint32_t word_len = 0, bus_width = 0;
 	uint8_t valid_data = 0;
 
@@ -97,7 +103,7 @@ static void mxs_lcd_init(GraphicDevice *panel,
 //###	mxs_set_lcdclk(panel->isaBase, PS2KHZ(mode->pixclock));
 
 	/* Restart the LCDIF block */
-	mxs_reset_block(&regs->hw_lcdif_ctrl_reg);
+	mxs_reset_block((struct mxs_register_32 *)&regs->hw_lcdif_ctrl);
 
 	switch (bpp) {
 	case 24:
@@ -183,7 +189,7 @@ static void mxs_lcd_init(GraphicDevice *panel,
 
 void lcdif_power_down(void)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel.isaBase);
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)MXS_LCDIF_BASE;
 	int timeout = 1000000;
 
 #ifdef CONFIG_MX6
@@ -230,17 +236,17 @@ void *video_hw_init(void)
 		bpp = video_get_params(&mode, penv);
 		panel.isaBase  = MXS_LCDIF_BASE;
 	} else {
-		mode.xres = fbmode.xres;
-		mode.yres = fbmode.yres;
-		mode.pixclock = fbmode.pixclock;
-		mode.left_margin = fbmode.left_margin;
-		mode.right_margin = fbmode.right_margin;
-		mode.upper_margin = fbmode.upper_margin;
-		mode.lower_margin = fbmode.lower_margin;
-		mode.hsync_len = fbmode.hsync_len;
-		mode.vsync_len = fbmode.vsync_len;
-		mode.sync = fbmode.sync;
-		mode.vmode = fbmode.vmode;
+		mode.xres = fbmode->xres;
+		mode.yres = fbmode->yres;
+		mode.pixclock = fbmode->pixclock;
+		mode.left_margin = fbmode->left_margin;
+		mode.right_margin = fbmode->right_margin;
+		mode.upper_margin = fbmode->upper_margin;
+		mode.lower_margin = fbmode->lower_margin;
+		mode.hsync_len = fbmode->hsync_len;
+		mode.vsync_len = fbmode->vsync_len;
+		mode.sync = fbmode->sync;
+		mode.vmode = fbmode->vmode;
 		bpp = depth;
 	}
 
@@ -253,7 +259,6 @@ void *video_hw_init(void)
 	/* fill in Graphic device struct */
 	sprintf(panel.modeIdent, "%dx%dx%d",
 			mode.xres, mode.yres, bpp);
-
 
 	panel.winSizeX = mode.xres;
 	panel.winSizeY = mode.yres;
@@ -292,7 +297,7 @@ void *video_hw_init(void)
 	/* Wipe framebuffer */
 	memset(fb, 0, panel.memSize);
 
-	panel.frameAdrs = (ulong)fb;
+	panel.frameAdrs = (u32)fb;
 
 	printf("%s\n", panel.modeIdent);
 
