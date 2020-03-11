@@ -85,6 +85,22 @@ config USB_XHCI_FSL
 	depends on !SPL_NO_USB
 	help
 	  Enables support for the on-chip xHCI controller on NXP Layerscape SoCs.
+
+config USB_XHCI_IMX8
+	bool "XHCI support for imx8"
+	depends on ARCH_IMX8
+	default y
+	help
+	  Enables support for the on-chip xHCI controller on imx8qm and
+	  imx8qxp SoCs.
+
+config USB_XHCI_IMX8M
+	bool "XHCI support for imx8M(mscale)"
+	depends on ARCH_IMX8M
+	default y
+	help
+	  Enables support for the on-chip xHCI controller on imx8m(mscale) SoC.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
@@ -125,14 +141,14 @@ config USB_EHCI_MARVELL
 
 config USB_EHCI_MX6
 	bool "Support for i.MX6 on-chip EHCI USB controller"
-	depends on ARCH_MX6
+	depends on ARCH_MX6 || ARCH_MX7ULP || ARCH_IMX8
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on i.MX6 SoCs.
 
 config USB_EHCI_MX7
 	bool "Support for i.MX7 on-chip EHCI USB controller"
-	depends on ARCH_MX7
+	depends on ARCH_MX7 || IMX8MM || IMX8MN
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on i.MX7 SoCs.
@@ -145,7 +161,7 @@ config USB_EHCI_OMAP
 	  Enables support for the on-chip EHCI controller on OMAP3 and later
 	  SoCs.
 
-if USB_EHCI_MX7
+if USB_EHCI_MX7 || USB_EHCI_MX6
 
 config MXC_USB_OTG_HACTIVE
 	bool "USB Power pin high active"

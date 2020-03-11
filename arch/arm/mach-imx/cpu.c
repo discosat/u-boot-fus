@@ -2,7 +2,8 @@
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
- * (C) Copyright 2009 Freescale Semiconductor, Inc.
+ * (C) Copyright 2009-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017-2018 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -17,10 +18,17 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/mach-imx/boot_mode.h>
+#if defined(CONFIG_VIDEO_IMXDCSS)
+#include <asm/arch/video_common.h>
+#endif
 #include <imx_thermal.h>
 #include <ipu_pixfmt.h>
 #include <thermal.h>
 #include <sata.h>
+
+#ifdef CONFIG_VIDEO_GIS
+#include <gis.h>
+#endif
 
 #ifdef CONFIG_FSL_ESDHC
 #include <fsl_esdhc.h>
@@ -35,7 +43,12 @@ static char *get_reset_cause(void)
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 
 	cause = readl(&src_regs->srsr);
+#ifndef CONFIG_ANDROID_BOOT_IMAGE
+	/* We will read the ssrs states later for android so we don't
+	 * clear the states here.
+	 */
 	writel(cause, &src_regs->srsr);
+#endif
 	reset_cause = cause;
 
 	switch (cause) {
@@ -63,7 +76,7 @@ static char *get_reset_cause(void)
 		return "WDOG4";
 	case 0x00200:
 		return "TEMPSENSE";
-#elif defined(CONFIG_MX8M)
+#elif defined(CONFIG_IMX8M)
 	case 0x00100:
 		return "WDOG2";
 	case 0x00200:
@@ -78,6 +91,17 @@ static char *get_reset_cause(void)
 		return "unknown reset";
 	}
 }
+
+#ifdef CONFIG_ANDROID_BOOT_IMAGE
+void get_reboot_reason(char *ret)
+{
+	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+
+	strcpy(ret, (char *)get_reset_cause());
+	/* clear the srsr here, its state has been recorded in reset_cause */
+	writel(reset_cause, &src_regs->srsr);
+}
+#endif
 
 u32 get_imx_reset_cause(void)
 {
@@ -143,8 +167,36 @@ unsigned imx_ddr_size(void)
 const char *get_imx_type(u32 imxtype)
 {
 	switch (imxtype) {
-	case MXC_CPU_MX8MQ:
-		return "8MQ";	/* Quad-core version of the mx8m */
+	case MXC_CPU_IMX8MN:
+		return "8MNano Quad";/* Quad-core version of the imx8mn */
+	case MXC_CPU_IMX8MND:
+		return "8MNano Dual";/* Dual-core version of the imx8mn */
+	case MXC_CPU_IMX8MNS:
+		return "8MNano Solo";/* Single-core version of the imx8mn */
+	case MXC_CPU_IMX8MNL:
+		return "8MNano QuadLite";/* Quad-core Lite version of the imx8mn */
+	case MXC_CPU_IMX8MNDL:
+		return "8MNano DualLite";/* Dual-core Lite version of the imx8mn */
+	case MXC_CPU_IMX8MNSL:
+		return "8MNano SoloLite";/* Single-core Lite version of the imx8mn */
+	case MXC_CPU_IMX8MM:
+		return "8MMQ";	/* Quad-core version of the imx8mm */
+	case MXC_CPU_IMX8MML:
+		return "8MMQL";	/* Quad-core Lite version of the imx8mm */
+	case MXC_CPU_IMX8MMD:
+		return "8MMD";	/* Dual-core version of the imx8mm */
+	case MXC_CPU_IMX8MMDL:
+		return "8MMDL";	/* Dual-core Lite version of the imx8mm */
+	case MXC_CPU_IMX8MMS:
+		return "8MMS";	/* Single-core version of the imx8mm */
+	case MXC_CPU_IMX8MMSL:
+		return "8MMSL";	/* Single-core Lite version of the imx8mm */
+	case MXC_CPU_IMX8MQ:
+		return "8MQ";	/* Quad-core version of the imx8mq */
+	case MXC_CPU_IMX8MQL:
+		return "8MQLite";	/* Quad-core Lite version of the imx8mq */
+	case MXC_CPU_IMX8MD:
+		return "8MD";	/* Dual-core version of the imx8mq */
 	case MXC_CPU_MX7S:
 		return "7S";	/* Single-core version of the mx7 */
 	case MXC_CPU_MX7D:
@@ -171,6 +223,8 @@ const char *get_imx_type(u32 imxtype)
 		return "6UL";   /* Ultra-Lite version of the mx6 */
 	case MXC_CPU_MX6ULL:
 		return "6ULL";	/* ULL version of the mx6 */
+	case MXC_CPU_MX6ULZ:
+		return "6ULZ";	/* ULL version of the mx6 */
 	case MXC_CPU_MX51:
 		return "51";
 	case MXC_CPU_MX53:
@@ -184,15 +238,19 @@ int print_cpuinfo(void)
 {
 	u32 cpurev;
 	__maybe_unused u32 max_freq;
+#if defined(CONFIG_DBG_MONITOR)
+	struct dbg_monitor_regs *dbg =
+		(struct dbg_monitor_regs *)DEBUG_MONITOR_BASE_ADDR;
+#endif
 
 	cpurev = get_cpu_rev();
 
-#if defined(CONFIG_IMX_THERMAL)
+#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
 	struct udevice *thermal_dev;
 	int cpu_tmp, minc, maxc, ret;
 
 	printf("CPU:   Freescale i.MX%s rev%d.%d",
-	       get_imx_type((cpurev & 0xFF000) >> 12),
+	       get_imx_type((cpurev & 0x1FF000) >> 12),
 	       (cpurev & 0x000F0) >> 4,
 	       (cpurev & 0x0000F) >> 0);
 	max_freq = get_cpu_speed_grade_hz();
@@ -204,13 +262,13 @@ int print_cpuinfo(void)
 	}
 #else
 	printf("CPU:   Freescale i.MX%s rev%d.%d at %d MHz\n",
-		get_imx_type((cpurev & 0xFF000) >> 12),
+		get_imx_type((cpurev & 0x1FF000) >> 12),
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
 		mxc_get_clock(MXC_ARM_CLK) / 1000000);
 #endif
 
-#if defined(CONFIG_IMX_THERMAL)
+#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
 	puts("CPU:   ");
 	switch (get_cpu_temp_grade(&minc, &maxc)) {
 	case TEMP_AUTOMOTIVE:
@@ -227,7 +285,11 @@ int print_cpuinfo(void)
 		break;
 	}
 	printf("(%dC to %dC)", minc, maxc);
+#if	defined(CONFIG_NXP_TMU)
+	ret = uclass_get_device_by_name(UCLASS_THERMAL, "cpu-thermal", &thermal_dev);
+#else
 	ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
+#endif
 	if (!ret) {
 		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
 
@@ -238,6 +300,14 @@ int print_cpuinfo(void)
 	} else {
 		debug(" - invalid sensor device\n");
 	}
+#endif
+
+#if defined(CONFIG_DBG_MONITOR)
+	if (readl(&dbg->snvs_addr))
+		printf("DBG snvs regs addr 0x%x, data 0x%x, info 0x%x\n",
+		       readl(&dbg->snvs_addr),
+		       readl(&dbg->snvs_data),
+		       readl(&dbg->snvs_info));
 #endif
 
 	printf("Reset cause: %s\n", get_reset_cause());
@@ -267,7 +337,7 @@ int cpu_mmc_init(bd_t *bis)
 }
 #endif
 
-#if !(defined(CONFIG_MX7) || defined(CONFIG_MX8M))
+#if !(defined(CONFIG_MX7) || defined(CONFIG_IMX8M))
 u32 get_ahb_clk(void)
 {
 	struct mxc_ccm_reg *imx_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
@@ -292,16 +362,26 @@ void arch_preboot_os(void)
 	disable_sata_clock();
 #endif
 #endif
+#if defined(CONFIG_LDO_BYPASS_CHECK)
+	ldo_mode_set(check_ldo_bypass());
+#endif
 #if defined(CONFIG_VIDEO_IPUV3)
 	/* disable video before launching O/S */
 	ipuv3_fb_shutdown();
 #endif
+#ifdef CONFIG_VIDEO_GIS
+	/* Entry for GIS */
+	mxc_disable_gis();
+#endif
 #if defined(CONFIG_VIDEO_MXS)
 	lcdif_power_down();
 #endif
+#if defined(CONFIG_VIDEO_IMXDCSS)
+	imx8m_fb_disable();
+#endif
 }
 
-#ifndef CONFIG_MX8M
+#ifndef CONFIG_IMX8M
 void set_chipselect_size(int const cs_size)
 {
 	unsigned int reg;
@@ -334,7 +414,7 @@ void set_chipselect_size(int const cs_size)
 }
 #endif
 
-#if defined(CONFIG_MX7) || defined(CONFIG_MX8M)
+#if defined(CONFIG_MX7) || defined(CONFIG_IMX8M)
 /*
  * OCOTP_TESTER3[9:8] (see Fusemap Description Table offset 0x440)
  * defines a 2-bit SPEED_GRADING
@@ -345,6 +425,7 @@ enum cpu_speed {
 	OCOTP_TESTER3_SPEED_GRADE1,
 	OCOTP_TESTER3_SPEED_GRADE2,
 	OCOTP_TESTER3_SPEED_GRADE3,
+	OCOTP_TESTER3_SPEED_GRADE4,
 };
 
 u32 get_cpu_speed_grade_hz(void)
@@ -357,17 +438,28 @@ u32 get_cpu_speed_grade_hz(void)
 
 	val = readl(&fuse->tester3);
 	val >>= OCOTP_TESTER3_SPEED_SHIFT;
-	val &= 0x3;
+
+	if (is_imx8mn()) {
+		val &= 0xf;
+		return 2300000000 - val * 100000000;
+	}
+
+	if (is_imx8mm())
+		val &= 0x7;
+	else
+		val &= 0x3;
 
 	switch(val) {
 	case OCOTP_TESTER3_SPEED_GRADE0:
 		return 800000000;
 	case OCOTP_TESTER3_SPEED_GRADE1:
-		return is_mx7() ? 500000000 : 1000000000;
+		return (is_mx7() ? 500000000 : (is_imx8mq() ? 1000000000 : 1200000000));
 	case OCOTP_TESTER3_SPEED_GRADE2:
-		return is_mx7() ? 1000000000 : 1300000000;
+		return (is_mx7() ? 1000000000 : (is_imx8mq() ? 1300000000 : 1600000000));
 	case OCOTP_TESTER3_SPEED_GRADE3:
-		return is_mx7() ? 1200000000 : 1500000000;
+		return (is_mx7() ? 1200000000 : (is_imx8mq() ? 1500000000 : 1800000000));
+	case OCOTP_TESTER3_SPEED_GRADE4:
+		return 2000000000;
 	}
 
 	return 0;
@@ -410,7 +502,7 @@ u32 get_cpu_temp_grade(int *minc, int *maxc)
 }
 #endif
 
-#if defined(CONFIG_MX7) || defined(CONFIG_MX8M)
+#if (defined(CONFIG_MX7) || defined(CONFIG_IMX8M)) && !defined(CONFIG_IMX8MN)
 enum boot_device get_boot_device(void)
 {
 	struct bootrom_sw_info **p =
@@ -439,12 +531,14 @@ enum boot_device get_boot_device(void)
 	case BOOT_TYPE_SPINOR:
 		boot_dev = SPI_NOR_BOOT;
 		break;
-#ifdef CONFIG_MX8M
 	case BOOT_TYPE_USB:
 		boot_dev = USB_BOOT;
 		break;
-#endif
 	default:
+#ifdef CONFIG_IMX8M
+		if (((readl(SRC_BASE_ADDR + 0x58) & 0x00007FFF) >> 12) == 0x4)
+			boot_dev = QSPI_BOOT;
+#endif
 		break;
 	}
 

@@ -136,6 +136,8 @@ serial_initfunc(ml2_serial_initialize);
 serial_initfunc(mpc85xx_serial_initialize);
 serial_initfunc(mpc8xx_serial_initialize);
 serial_initfunc(mxc_serial_initialize);
+serial_initfunc(xen_serial_initialize);
+serial_initfunc(serial_lpuart_initialize);
 serial_initfunc(mxs_auart_initialize);
 serial_initfunc(ns16550_serial_initialize);
 serial_initfunc(oc_serial_initialize);
@@ -150,6 +152,7 @@ serial_initfunc(sconsole_serial_initialize);
 serial_initfunc(sh_serial_initialize);
 serial_initfunc(stm32_serial_initialize);
 serial_initfunc(uartlite_serial_initialize);
+serial_initfunc(xen_debug_serial_initialize);
 serial_initfunc(zynq_serial_initialize);
 
 /**
@@ -223,6 +226,8 @@ void serial_initialize(void)
 	mpc85xx_serial_initialize();
 	mpc8xx_serial_initialize();
 	mxc_serial_initialize();
+	xen_serial_initialize();
+	serial_lpuart_initialize();
 	mxs_auart_initialize();
 	ns16550_serial_initialize();
 	oc_serial_initialize();
@@ -237,6 +242,7 @@ void serial_initialize(void)
 	sh_serial_initialize();
 	stm32_serial_initialize();
 	uartlite_serial_initialize();
+	xen_debug_serial_initialize();
 	zynq_serial_initialize();
 
 	serial_assign(default_serial_console()->name);

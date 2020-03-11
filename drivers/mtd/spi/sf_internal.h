@@ -33,6 +33,7 @@ enum spi_nor_option_flags {
 /* CFI Manufacture ID's */
 #define SPI_FLASH_CFI_MFR_SPANSION	0x01
 #define SPI_FLASH_CFI_MFR_STMICRO	0x20
+#define SPI_FLASH_CFI_MFR_MICRON	0x2C
 #define SPI_FLASH_CFI_MFR_MACRONIX	0xc2
 #define SPI_FLASH_CFI_MFR_SST		0xbf
 #define SPI_FLASH_CFI_MFR_WINBOND	0xef
@@ -62,6 +63,14 @@ enum spi_nor_option_flags {
 #define CMD_READ_STATUS1		0x35
 #define CMD_READ_CONFIG			0x35
 #define CMD_FLAG_STATUS			0x70
+
+#ifdef CONFIG_SPI_FLASH_4BYTES_ADDR
+#define CMD_READ_ARRAY_FAST_4B  0x0c
+#define CMD_PAGE_PROGRAM_4B  	0x12
+#define CMD_ERASE_64K_4B		0xdc
+#define CMD_ERASE_4K_4B			0x21
+#define CMD_EN4B				0xB7
+#endif
 
 /* Bank addr access commands */
 #ifdef CONFIG_SPI_FLASH_BAR

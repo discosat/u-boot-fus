@@ -33,6 +33,9 @@ struct spl_image_info {
 	u32 size;
 	u32 flags;
 	void *arg;
+#ifdef CONFIG_DUAL_BOOTLOADER
+	uint64_t rbindex;
+#endif
 };
 
 /*
@@ -77,6 +80,8 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 			struct spl_load_info *info, ulong sector, void *fdt);
 
 #define SPL_COPY_PAYLOAD_ONLY	1
+#define SPL_FIT_FOUND		2
+#define SPL_FIT_BYPASS_POST_LOAD		4
 
 /* SPL common functions */
 void preloader_console_init(void);
@@ -94,6 +99,19 @@ void spl_set_bd(void);
  * @spl_image: Image description to set up
  */
 void spl_set_header_raw_uboot(struct spl_image_info *spl_image);
+
+
+
+/**
+ * spl_set_header_raw_atf() - Set up a standard SPL image structure for ATF
+ *
+ * This sets up the given spl_image which the standard values obtained from
+ * config options: CONFIG_SYS_MONITOR_LEN, CONFIG_SYS_UBOOT_START,
+ * CONFIG_SYS_TEXT_BASE.
+ *
+ * @spl_image: Image description to set up
+ */
+void spl_set_header_raw_atf(struct spl_image_info *spl_image);
 
 /**
  * spl_parse_image_header() - parse the image header and set up info

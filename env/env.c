@@ -51,13 +51,16 @@ static enum env_location env_locations[] = {
 #ifdef CONFIG_ENV_IS_IN_REMOTE
 	ENVL_REMOTE,
 #endif
+#ifdef CONFIG_ENV_IS_IN_SATA
+	ENVL_ESATA,
+#endif
 #ifdef CONFIG_ENV_IS_IN_SPI_FLASH
 	ENVL_SPI_FLASH,
 #endif
 #ifdef CONFIG_ENV_IS_IN_UBI
 	ENVL_UBI,
 #endif
-#ifdef CONFIG_ENV_IS_NOWHERE
+#if defined(CONFIG_ENV_IS_NOWHERE) || defined(CONFIG_ENV_DEFAULT_NOWHERE)
 	ENVL_NOWHERE,
 #endif
 };
@@ -191,16 +194,16 @@ int env_load(void)
 int env_save(void)
 {
 	struct env_driver *drv;
-	int prio;
 
-	for (prio = 0; (drv = env_driver_lookup(ENVOP_SAVE, prio)); prio++) {
+	drv = env_driver_lookup(ENVOP_SAVE, 0);
+	if (drv) {
 		int ret;
 
 		if (!drv->save)
-			continue;
+			return -ENODEV;
 
 		if (!env_has_inited(drv->location))
-			continue;
+			return -EPERM;
 
 		printf("Saving Environment to %s... ", drv->name);
 		ret = drv->save();
@@ -242,3 +245,10 @@ int env_init(void)
 
 	return ret;
 }
+
+#ifndef ENV_IS_EMBEDDED
+__weak long long env_get_offset(long long defautl_offset)
+{
+	return defautl_offset;
+}
+#endif

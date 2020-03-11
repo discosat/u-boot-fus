@@ -182,8 +182,17 @@ static void _serial_putc(struct udevice *dev, char ch)
 
 static void _serial_puts(struct udevice *dev, const char *str)
 {
-	while (*str)
-		_serial_putc(dev, *str++);
+	struct dm_serial_ops *ops = serial_get_ops(dev);
+	int err;
+
+	if (ops->puts) {
+		do {
+			err = ops->puts(dev, str);
+		} while (err == -EAGAIN);
+	} else {
+		while (*str)
+			_serial_putc(dev, *str++);
+	}
 }
 
 static int __serial_getc(struct udevice *dev)
@@ -416,7 +425,7 @@ static int serial_post_probe(struct udevice *dev)
 		return 0;
 	memset(&sdev, '\0', sizeof(sdev));
 
-	strncpy(sdev.name, dev->name, sizeof(sdev.name));
+	strncpy(sdev.name, dev->name, sizeof(sdev.name) - 1);
 	sdev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_DM;
 	sdev.priv = dev;
 	sdev.putc = serial_stub_putc;

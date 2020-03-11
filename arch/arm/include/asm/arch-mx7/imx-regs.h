@@ -19,7 +19,7 @@
 #define GIC400_ARB_END_ADDR             0x31007FFF
 #define APBH_DMA_ARB_BASE_ADDR          0x33000000
 #define APBH_DMA_ARB_END_ADDR           0x33007FFF
-#define M4_BOOTROM_BASE_ADDR            0x00180000
+#define MCU_BOOTROM_BASE_ADDR            0x00180000
 
 #define MXS_APBH_BASE			APBH_DMA_ARB_BASE_ADDR
 #define MXS_GPMI_BASE			(APBH_DMA_ARB_BASE_ADDR + 0x02000)
@@ -213,6 +213,10 @@
 #define SEMAPHORE1_BASE_ADDR SEMA41_IPS_BASE_ADDR
 #define SEMAPHORE2_BASE_ADDR SEMA42_IPS_BASE_ADDR
 #define RDC_BASE_ADDR RDC_IPS_BASE_ADDR
+#define REGS_QOS_BASE     QOSC_IPS_BASE_ADDR
+#define REGS_QOS_EPDC     (QOSC_IPS_BASE_ADDR + 0x3400)
+#define REGS_QOS_PXP0     (QOSC_IPS_BASE_ADDR + 0x2C00)
+#define REGS_QOS_PXP1     (QOSC_IPS_BASE_ADDR + 0x3C00)
 
 #define FEC_QUIRK_ENET_MAC
 #define SNVS_LPGPR	0x68
@@ -1203,10 +1207,14 @@ extern void check_cpu_temperature(void);
 extern void pcie_power_up(void);
 extern void pcie_power_off(void);
 
+#include <stdbool.h>
+bool is_usb_boot(void);
+#define is_boot_from_usb  is_usb_boot
+
 /* If ROM fail back to USB recover mode, USBPH0_PWD will be clear to use USB
  * If boot from the other mode, USB0_PWD will keep reset value
  */
-#define	is_boot_from_usb(void) (readl(USBOTG1_IPS_BASE_ADDR + 0x158) || \
+#define	is_usbotg_boot_enabled(void) (readl(USBOTG1_IPS_BASE_ADDR + 0x158) || \
 	readl(USBOTG2_IPS_BASE_ADDR + 0x158))
 #define	disconnect_from_pc(void) writel(0x0, USBOTG1_IPS_BASE_ADDR + 0x140)
 

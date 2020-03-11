@@ -164,6 +164,10 @@ int print_cpuinfo(void);
 int update_flash_size(int flash_size);
 int arch_early_init_r(void);
 
+#ifdef CONFIG_ANDROID_BOOT_IMAGE
+void get_reboot_reason(char *ret);
+#endif
+
 /*
  * setup_board_extra() - Fill in extra details in the bd_t structure
  *
@@ -241,6 +245,9 @@ extern ulong save_size;		/* Default Save Size */
 
 /* common/cmd_net.c */
 int do_tftpb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
+
+/* common/cmd_fat.c */
+int do_fat_size(cmd_tbl_t *, int, int, char * const []);
 
 /* common/cmd_fat.c */
 int do_fat_fsload(cmd_tbl_t *, int, int, char * const []);
@@ -680,6 +687,10 @@ int cpu_status(int nr);
 int cpu_reset(int nr);
 int cpu_disable(int nr);
 int cpu_release(int nr, int argc, char * const argv[]);
+#endif
+
+#ifdef CONFIG_CMD_READ
+int do_raw_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 #endif
 
 #else	/* __ASSEMBLY__ */
