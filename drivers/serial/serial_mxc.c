@@ -316,7 +316,9 @@ void mxc_serial_initialize(void)
 	serial_register(&mxc_serial_device[1]);
 	serial_register(&mxc_serial_device[2]);
 	serial_register(&mxc_serial_device[3]);
+#if !defined(CONFIG_IMX8M) || !defined(CONFIG_IMX8MM)
 	serial_register(&mxc_serial_device[4]);
+#endif
 }
 #endif
 
