@@ -68,7 +68,7 @@ static int env_sata_save(void)
 		return 1;
 
 	printf("Writing to SATA(%d)...", env_sata);
-	if (write_env(sata, CONFIG_ENV_SIZE, CONFIG_ENV_OFFSET, &env_new)) {
+	if (write_env(sata, CONFIG_ENV_SIZE, env_get_offset(CONFIG_ENV_OFFSET), (u_char *)env_new)) {
 		puts("failed\n");
 		return 1;
 	}
@@ -91,7 +91,7 @@ static inline int read_env(struct blk_desc *sata, unsigned long size,
 	return (n == blk_cnt) ? 0 : -1;
 }
 
-static void env_sata_load(void)
+static int env_sata_load(void)
 {
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
 	struct blk_desc *sata = NULL;
@@ -108,7 +108,7 @@ static void env_sata_load(void)
 		return -EIO;
 	}
 
-	if (read_env(sata, CONFIG_ENV_SIZE, CONFIG_ENV_OFFSET, buf)) {
+	if (read_env(sata, CONFIG_ENV_SIZE, env_get_offset(CONFIG_ENV_OFFSET), buf)) {
 		set_default_env(NULL);
 		return -EIO;
 	}

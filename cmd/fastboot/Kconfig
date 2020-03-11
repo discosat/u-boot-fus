@@ -1,5 +1,12 @@
 comment "FASTBOOT"
 
+config NOT_UUU_BUILD
+	bool "Disable features used by uuu"
+	help
+	  This disables the features used by uuu, so that users can't
+	  execute u-boot command other than fastboot throuth the fastboot
+	  function provided by uuu.
+
 menuconfig FASTBOOT
 	bool "Fastboot support"
 	depends on USB_GADGET
@@ -25,6 +32,49 @@ config CMD_FASTBOOT
 	  used on Android devices.
 
 	  See doc/README.android-fastboot for more information.
+
+config FSL_FASTBOOT
+	bool "Enable FSL fastboot support"
+	help
+	  This enables FSL implementation for Android fastboot.
+
+if FSL_FASTBOOT
+
+config ANDROID_RECOVERY
+	bool "Enable the recovery boot function"
+	help
+	  This enables the Android Recovery boot function.
+
+config CMD_BOOTA
+	bool "Enable the boota command"
+	help
+	  This enables the boota command for booting android images.
+
+config BCB_SUPPORT
+	bool "Enable the boot control block support"
+	help
+	  This enables the boot control block support for android reboot command
+
+choice
+        prompt "Android Image Storage select"
+        default FASTBOOT_STORAGE_MMC
+
+config FASTBOOT_STORAGE_MMC
+	bool "Using eMMC/SD for Android fastboot storage media"
+
+config FASTBOOT_STORAGE_NAND
+	bool "Using NAND flash for Android fastboot storage media"
+
+config FASTBOOT_STORAGE_SATA
+	bool "Using SATA disk for Android fastboot storage media"
+
+endchoice
+
+config FASTBOOT_SATA_NO
+	int "Sata device index"
+	depends on FASTBOOT_STORAGE_SATA
+
+endif #FSL_FASTBOOT
 
 if USB_FUNCTION_FASTBOOT
 

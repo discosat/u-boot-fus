@@ -4,6 +4,7 @@
  *			<armlinux@phytec.de>
  *
  * Copyright (C) 2011, 2016 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -87,7 +88,7 @@ typedef u64 iomux_v3_cfg_t;
 #define IOMUX_CONFIG_LPSR       0x20
 #define MUX_MODE_LPSR           ((iomux_v3_cfg_t)IOMUX_CONFIG_LPSR << \
 				MUX_MODE_SHIFT)
-#ifdef CONFIG_MX8M
+#ifdef CONFIG_IMX8M
 #define PAD_CTL_DSE0		(0x0 << 0)
 #define PAD_CTL_DSE1		(0x1 << 0)
 #define PAD_CTL_DSE2		(0x2 << 0)
@@ -105,7 +106,11 @@ typedef u64 iomux_v3_cfg_t;
 #define PAD_CTL_ODE		(0x1 << 5)
 #define PAD_CTL_PUE		(0x1 << 6)
 #define PAD_CTL_HYS		(0x1 << 7)
+#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN)
+#define PAD_CTL_PE		(0x1 << 8)
+#else
 #define PAD_CTL_LVTTL		(0x1 << 8)
+#endif
 
 #elif defined CONFIG_MX7
 
@@ -271,6 +276,12 @@ if (is_mx6dq() || is_mx6dqp()) {				\
 #define IOMUX_PADS(x) MX6Q_##x
 #define SETUP_IOMUX_PAD(def)					\
 	imx_iomux_v3_setup_pad(MX6Q_##def);
+#define SETUP_IOMUX_PADS(x)					\
+	imx_iomux_v3_setup_multiple_pads(x, ARRAY_SIZE(x))
+#elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+#define IOMUX_PADS(x) MX6_##x
+#define SETUP_IOMUX_PAD(def)					\
+	imx_iomux_v3_setup_pad(MX6_##def);
 #define SETUP_IOMUX_PADS(x)					\
 	imx_iomux_v3_setup_multiple_pads(x, ARRAY_SIZE(x))
 #elif defined(CONFIG_MX6DL) || defined(CONFIG_MX6S)

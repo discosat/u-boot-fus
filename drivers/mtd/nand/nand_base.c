@@ -1678,7 +1678,6 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
 	return NULL;
 }
 
-#if 0 //### TODO: Add support for read_retry in nand_do_read_ops()
 /**
  * nand_setup_read_retry - [INTERN] Set the READ RETRY mode
  * @mtd: MTD device structure
@@ -1702,7 +1701,6 @@ static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 
 	return chip->setup_read_retry(mtd, retry_mode);
 }
-#endif
 
 /**
  * nand_do_read_ops - [INTERN] Read data with ECC
@@ -1727,6 +1725,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	uint32_t oobmaxlen = mtd_oobavail(mtd, ops);
 	int max_bitflips = 0;
 	uint8_t *bufpoi;
+	int retry_mode = 0;
 	int skippage = (int)(mtd->skip >> chip->page_shift);
 
 	ops->retlen = 0;
@@ -1827,6 +1826,14 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		}
 
 		readlen -= bytes;
+
+		/* Reset to retry mode 0 */
+		if (retry_mode) {
+			ret = nand_setup_read_retry(mtd, 0);
+			if (ret < 0)
+				break;
+			retry_mode = 0;
+		}
 
 		if (!readlen)
 			break;

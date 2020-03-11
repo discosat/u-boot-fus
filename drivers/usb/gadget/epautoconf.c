@@ -170,6 +170,10 @@ static int ep_matches(
 			size = 64;
 		put_unaligned(cpu_to_le16(size), &desc->wMaxPacketSize);
 	}
+
+	if (gadget->ops->match_ep)
+		return gadget->ops->match_ep(gadget, ep, desc);
+
 	return 1;
 }
 
@@ -261,6 +265,7 @@ struct usb_ep *usb_ep_autoconfig(
 		ep = find_ep(gadget, "ep1-bulk");
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#ifndef CONFIG_SPL_BUILD
 	} else if (gadget_is_dwc3(gadget)) {
 		const char *name = NULL;
 		/*
@@ -283,6 +288,7 @@ struct usb_ep *usb_ep_autoconfig(
 			ep = find_ep(gadget, name);
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#endif
 	}
 
 	/* Second, look at endpoints until an unclaimed one looks usable */

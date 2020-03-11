@@ -23,6 +23,14 @@
 #include <linux/fb.h>
 #include <mxsfb.h>
 
+#ifdef CONFIG_VIDEO_GIS
+#include <gis.h>
+#endif
+
+#ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
+#include <imx_mipi_dsi_bridge.h>
+#endif
+
 #define	PS2KHZ(ps)	(1000000000UL / (ps))
 
 static GraphicDevice panel;
@@ -40,22 +48,28 @@ __weak void mxsfb_system_setup(void)
 }
 
 static int setup;
-static const struct fb_videomode *fbmode;
+static struct fb_videomode fbmode;
 static int depth;
-static int rgb_pattern = PATTERN_RGB;
 
-int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
-			int bpp, int pattern)
+int mxs_lcd_panel_setup(struct fb_videomode mode, int bpp,
+	uint32_t base_addr)
 {
-
 	fbmode = mode;
 	depth  = bpp;
 	panel.isaBase  = base_addr;
-	rgb_pattern = pattern;
 
 	setup = 1;
 
 	return 0;
+}
+
+void mxs_lcd_get_panel(struct display_panel *dispanel)
+{
+	dispanel->width = fbmode.xres;
+	dispanel->height = fbmode.yres;
+	dispanel->reg_base = panel.isaBase;
+	dispanel->gdfindex = panel.gdfIndex;
+	dispanel->gdfbytespp = panel.gdfBytesPP;
 }
 
 /*
@@ -73,7 +87,7 @@ int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
 static void mxs_lcd_init(GraphicDevice *panel,
 			struct ctfb_res_modes *mode, int bpp)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(panel->isaBase);
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel->isaBase);
 	uint32_t word_len = 0, bus_width = 0;
 	uint8_t valid_data = 0;
 
@@ -83,7 +97,7 @@ static void mxs_lcd_init(GraphicDevice *panel,
 //###	mxs_set_lcdclk(panel->isaBase, PS2KHZ(mode->pixclock));
 
 	/* Restart the LCDIF block */
-	mxs_reset_block((struct mxs_register_32 *)&regs->hw_lcdif_ctrl);
+	mxs_reset_block(&regs->hw_lcdif_ctrl_reg);
 
 	switch (bpp) {
 	case 24:
@@ -115,20 +129,26 @@ static void mxs_lcd_init(GraphicDevice *panel,
 	writel(valid_data << LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
 		&regs->hw_lcdif_ctrl1);
 
-	writel(LCDIF_CTRL2_OUTSTANDING_REQS_REQ_16
-	       | (rgb_pattern << LCDIF_CTRL2_ODD_LINE_PATTERN_OFFSET)
-	       | (rgb_pattern << LCDIF_CTRL2_EVEN_LINE_PATTERN_OFFSET),
-	       &regs->hw_lcdif_ctrl2);
+#ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
+	writel(LCDIF_CTRL2_OUTSTANDING_REQS_REQ_16, &regs->hw_lcdif_ctrl2);
+#endif
 
 	mxsfb_system_setup();
 
 	writel((mode->yres << LCDIF_TRANSFER_COUNT_V_COUNT_OFFSET) | mode->xres,
 		&regs->hw_lcdif_transfer_count);
 
+#ifdef CONFIG_IMX_SEC_MIPI_DSI
+	writel(LCDIF_VDCTRL0_ENABLE_PRESENT |
+		LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT |
+		LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT |
+		mode->vsync_len, &regs->hw_lcdif_vdctrl0);
+#else
 	writel(LCDIF_VDCTRL0_ENABLE_PRESENT | LCDIF_VDCTRL0_ENABLE_POL |
 		LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT |
 		LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT |
 		mode->vsync_len, &regs->hw_lcdif_vdctrl0);
+#endif
 	writel(mode->upper_margin + mode->lower_margin +
 		mode->vsync_len + mode->yres,
 		&regs->hw_lcdif_vdctrl1);
@@ -163,11 +183,19 @@ static void mxs_lcd_init(GraphicDevice *panel,
 
 void lcdif_power_down(void)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)MXS_LCDIF_BASE;
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel.isaBase);
 	int timeout = 1000000;
 
+#ifdef CONFIG_MX6
+	if (check_module_fused(MX6_MODULE_LCDIF))
+		return;
+#endif
 	if (!panel.frameAdrs)
 		return;
+
+#ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
+	imx_mipi_dsi_bridge_disable();
+#endif
 
 	writel(panel.frameAdrs, &regs->hw_lcdif_cur_buf_reg);
 	writel(panel.frameAdrs, &regs->hw_lcdif_next_buf_reg);
@@ -202,23 +230,30 @@ void *video_hw_init(void)
 		bpp = video_get_params(&mode, penv);
 		panel.isaBase  = MXS_LCDIF_BASE;
 	} else {
-		mode.xres = fbmode->xres;
-		mode.yres = fbmode->yres;
-		mode.pixclock = fbmode->pixclock;
-		mode.left_margin = fbmode->left_margin;
-		mode.right_margin = fbmode->right_margin;
-		mode.upper_margin = fbmode->upper_margin;
-		mode.lower_margin = fbmode->lower_margin;
-		mode.hsync_len = fbmode->hsync_len;
-		mode.vsync_len = fbmode->vsync_len;
-		mode.sync = fbmode->sync;
-		mode.vmode = fbmode->vmode;
+		mode.xres = fbmode.xres;
+		mode.yres = fbmode.yres;
+		mode.pixclock = fbmode.pixclock;
+		mode.left_margin = fbmode.left_margin;
+		mode.right_margin = fbmode.right_margin;
+		mode.upper_margin = fbmode.upper_margin;
+		mode.lower_margin = fbmode.lower_margin;
+		mode.hsync_len = fbmode.hsync_len;
+		mode.vsync_len = fbmode.vsync_len;
+		mode.sync = fbmode.sync;
+		mode.vmode = fbmode.vmode;
 		bpp = depth;
 	}
 
+#ifdef CONFIG_MX6
+	if (check_module_fused(MX6_MODULE_LCDIF)) {
+		printf("LCDIF@0x%x is fused, disable it\n", MXS_LCDIF_BASE);
+		return NULL;
+	}
+#endif
 	/* fill in Graphic device struct */
 	sprintf(panel.modeIdent, "%dx%dx%d",
 			mode.xres, mode.yres, bpp);
+
 
 	panel.winSizeX = mode.xres;
 	panel.winSizeY = mode.yres;
@@ -257,9 +292,19 @@ void *video_hw_init(void)
 	/* Wipe framebuffer */
 	memset(fb, 0, panel.memSize);
 
-	panel.frameAdrs = (u32)fb;
+	panel.frameAdrs = (ulong)fb;
 
 	printf("%s\n", panel.modeIdent);
+
+#ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
+	int dsi_ret;
+	imx_mipi_dsi_bridge_mode_set(&fbmode);
+	dsi_ret = imx_mipi_dsi_bridge_enable();
+	if (dsi_ret) {
+		printf("Enable DSI bridge failed, err %d\n", dsi_ret);
+		return NULL;
+	}
+#endif
 
 	/* Start framebuffer */
 	mxs_lcd_init(&panel, &mode, bpp);
@@ -285,6 +330,11 @@ void *video_hw_init(void)
 
 	/* Execute the DMA chain. */
 	mxs_dma_circ_start(MXS_DMA_CHANNEL_AHB_APBH_LCDIF, &desc);
+#endif
+
+#ifdef CONFIG_VIDEO_GIS
+	/* Entry for GIS */
+	mxc_enable_gis();
 #endif
 
 	return (void *)&panel;

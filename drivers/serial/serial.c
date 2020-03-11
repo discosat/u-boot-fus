@@ -136,6 +136,8 @@ serial_initfunc(ml2_serial_initialize);
 serial_initfunc(mpc85xx_serial_initialize);
 serial_initfunc(mpc8xx_serial_initialize);
 serial_initfunc(mxc_serial_initialize);
+serial_initfunc(xen_serial_initialize);
+serial_initfunc(serial_lpuart_initialize);
 serial_initfunc(mxs_auart_initialize);
 serial_initfunc(ns16550_serial_initialize);
 serial_initfunc(oc_serial_initialize);
@@ -150,6 +152,7 @@ serial_initfunc(sconsole_serial_initialize);
 serial_initfunc(sh_serial_initialize);
 serial_initfunc(stm32_serial_initialize);
 serial_initfunc(uartlite_serial_initialize);
+serial_initfunc(xen_debug_serial_initialize);
 serial_initfunc(vybrid_serial_initialize);
 serial_initfunc(zynq_serial_initialize);
 
@@ -198,12 +201,6 @@ void serial_register(struct serial_device *sdev)
 	}
 }
 
-static int __board_serial_init(void)
-{
-	return -1;
-}
-int board_serial_init(void) __attribute__((weak, alias("__board_serial_init")));
-
 /**
  * serial_initialize() - Register all compiled-in serial port drivers
  *
@@ -215,52 +212,52 @@ int board_serial_init(void) __attribute__((weak, alias("__board_serial_init")));
  */
 void serial_initialize(void)
 {
-	/* The board may initialize only a few ports of some SOC. */
-	if (board_serial_init() < 0) {
-		amirix_serial_initialize();
-		arc_serial_initialize();
-		arm_dcc_initialize();
-		asc_serial_initialize();
-		atmel_serial_initialize();
-		au1x00_serial_initialize();
-		bfin_jtag_initialize();
-		bfin_serial_initialize();
-		bmw_serial_initialize();
-		clps7111_serial_initialize();
-		cogent_serial_initialize();
-		cpci750_serial_initialize();
-		evb64260_serial_initialize();
-		imx_serial_initialize();
-		iop480_serial_initialize();
-		jz_serial_initialize();
-		leon2_serial_initialize();
-		leon3_serial_initialize();
-		lh7a40x_serial_initialize();
-		lpc32xx_serial_initialize();
-		marvell_serial_initialize();
-		max3100_serial_initialize();
-		mcf_serial_initialize();
-		ml2_serial_initialize();
-		mpc85xx_serial_initialize();
-		mpc8xx_serial_initialize();
-		mxc_serial_initialize();
-		mxs_auart_initialize();
-		ns16550_serial_initialize();
-		oc_serial_initialize();
-		p3mx_serial_initialize();
-		pl01x_serial_initialize();
-		pxa_serial_initialize();
-		s3c24xx_serial_initialize();
-		s5p_serial_initialize();
-		sa1100_serial_initialize();
-		sandbox_serial_initialize();
-		sconsole_serial_initialize();
-		sh_serial_initialize();
-		stm32_serial_initialize();
-		uartlite_serial_initialize();
-		vybrid_serial_initialize();
-		zynq_serial_initialize();
-	}
+	amirix_serial_initialize();
+	arc_serial_initialize();
+	arm_dcc_initialize();
+	asc_serial_initialize();
+	atmel_serial_initialize();
+	au1x00_serial_initialize();
+	bfin_jtag_initialize();
+	bfin_serial_initialize();
+	bmw_serial_initialize();
+	clps7111_serial_initialize();
+	cogent_serial_initialize();
+	cpci750_serial_initialize();
+	evb64260_serial_initialize();
+	imx_serial_initialize();
+	iop480_serial_initialize();
+	jz_serial_initialize();
+	leon2_serial_initialize();
+	leon3_serial_initialize();
+	lh7a40x_serial_initialize();
+	lpc32xx_serial_initialize();
+	marvell_serial_initialize();
+	max3100_serial_initialize();
+	mcf_serial_initialize();
+	ml2_serial_initialize();
+	mpc85xx_serial_initialize();
+	mpc8xx_serial_initialize();
+	mxc_serial_initialize();
+	xen_serial_initialize();
+	serial_lpuart_initialize();
+	mxs_auart_initialize();
+	ns16550_serial_initialize();
+	oc_serial_initialize();
+	p3mx_serial_initialize();
+	pl01x_serial_initialize();
+	pxa_serial_initialize();
+	s3c24xx_serial_initialize();
+	s5p_serial_initialize();
+	sa1100_serial_initialize();
+	sandbox_serial_initialize();
+	sconsole_serial_initialize();
+	sh_serial_initialize();
+	stm32_serial_initialize();
+	uartlite_serial_initialize();
+	vybrid_serial_initialize();
+	xen_debug_serial_initialize();
+	zynq_serial_initialize();
 
 	serial_current = default_serial_console();
 //###	serial_assign(default_serial_console()->name);

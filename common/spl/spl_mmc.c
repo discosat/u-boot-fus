@@ -4,6 +4,8 @@
  *
  * Aneesh V <aneesh@ti.com>
  *
+ * Copyright 2018 NXP
+ *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
@@ -18,7 +20,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
+int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
 {
 	u32 image_size_sectors;
@@ -44,7 +46,7 @@ static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 	return 0;
 }
 
-static ulong h_spl_load_read(struct spl_load_info *load, ulong sector,
+ulong h_spl_load_read(struct spl_load_info *load, ulong sector,
 			     ulong count, void *buf)
 {
 	struct mmc *mmc = load->dev;
@@ -52,25 +54,40 @@ static ulong h_spl_load_read(struct spl_load_info *load, ulong sector,
 	return blk_dread(mmc_get_blk_desc(mmc), sector, count, buf);
 }
 
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+/* Pre-declaration of check_rpmb_blob. */
+int check_rpmb_blob(struct mmc *mmc);
+#endif
+
+#ifdef CONFIG_DUAL_BOOTLOADER
+/* Pre-declaration of mmc_load_image_raw_sector_dual_uboot().
+ */
+extern int mmc_load_image_raw_sector_dual_uboot(struct spl_image_info *spl_image,
+						struct mmc *mmc);
+extern int mmc_load_image_parse_container_dual_uboot(struct spl_image_info *spl_image,
+						struct mmc *mmc);
+#else
 static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
-			      struct mmc *mmc, unsigned long sector)
+				     struct mmc *mmc, unsigned long sector)
 {
-	unsigned long count;
-	struct image_header *header;
+	struct image_header *header = (struct image_header *)(CONFIG_SYS_TEXT_BASE -
+					 sizeof(struct image_header));
 	int ret = 0;
 
-	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE -
-					 sizeof(struct image_header));
+#if !defined(CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE) || defined(CONFIG_SPL_LOAD_FIT)
+	unsigned long count = 0;
 
 	/* read image header to find the image size & load address */
 	count = blk_dread(mmc_get_blk_desc(mmc), sector, 1, header);
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
-		ret = -EIO;
-		goto end;
+#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
+		puts("mmc_load_image_raw_sector: mmc block read error\n");
+#endif
+		return -1;
 	}
-
+#endif
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 	    image_get_magic(header) == FDT_MAGIC) {
 		struct spl_load_info load;
@@ -86,7 +103,6 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		ret = mmc_load_legacy(spl_image, mmc, sector, header);
 	}
 
-end:
 	if (ret) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		puts("mmc_load_image_raw_sector: mmc block read error\n");
@@ -94,8 +110,14 @@ end:
 		return -1;
 	}
 
-	return 0;
+	/* Images loaded, now check the rpmb keyblob for Trusty OS. */
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+	ret = check_rpmb_blob(mmc);
+#endif
+	return ret;
 }
+
+#endif /* CONFIG_DUAL_BOOTLOADER */
 
 static int spl_mmc_get_device_index(u32 boot_device)
 {
@@ -165,7 +187,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		err = part_get_info(mmc_get_blk_desc(mmc), type_part, &info);
 		if (err)
 			continue;
-		if (info.sys_ind == 
+		if (info.sys_ind ==
 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION_TYPE) {
 			partition = type_part;
 			break;
@@ -292,6 +314,29 @@ u32 __weak spl_boot_mode(const u32 boot_device)
 #endif
 }
 
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
+unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+{
+	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
+}
+#endif
+
+#ifdef CONFIG_PARSE_CONTAINER
+int __weak mmc_load_image_parse_container(struct spl_image_info *spl_image,
+				     struct mmc *mmc, unsigned long sector)
+{
+	return -ENODEV;
+};
+
+#ifdef CONFIG_DUAL_BOOTLOADER
+int __weak mmc_load_image_parse_container_dual_bootloader(struct spl_image_info *spl_image,
+				     struct mmc *mmc, unsigned long sector)
+{
+	return -ENODEV;
+};
+#endif
+#endif
+
 int spl_mmc_load_image(struct spl_image_info *spl_image,
 		       struct spl_boot_device *bootdev)
 {
@@ -321,10 +366,15 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 			 * 1 and 2 match up to boot0 / boot1 and 7 is user data
 			 * which is the first physical partition (0).
 			 */
+#ifdef CONFIG_DUAL_BOOTLOADER
+			/* Bootloader is stored in eMMC user partition for dual bootloader */
+			part = 0;
+#else
 			part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
 
 			if (part == 7)
 				part = 0;
+#endif
 
 			if (CONFIG_IS_ENABLED(MMC_TINY))
 				err = mmc_switch_part(mmc, part);
@@ -353,8 +403,23 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 			return err;
 #endif
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
+#ifdef CONFIG_DUAL_BOOTLOADER
+#ifdef CONFIG_PARSE_CONTAINER
+		err = mmc_load_image_parse_container_dual_uboot(spl_image,
+								mmc);
+#else
+		err = mmc_load_image_raw_sector_dual_uboot(spl_image,
+							   mmc);
+#endif
+#else
+#ifdef CONFIG_PARSE_CONTAINER
+		err = mmc_load_image_parse_container(spl_image, mmc,
+				spl_mmc_get_uboot_raw_sector(mmc));
+#else
 		err = mmc_load_image_raw_sector(spl_image, mmc,
-			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR);
+			spl_mmc_get_uboot_raw_sector(mmc));
+#endif
+#endif
 		if (!err)
 			return err;
 #endif

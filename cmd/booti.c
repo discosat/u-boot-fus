@@ -32,7 +32,7 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
-		images->ep = get_loadaddr();
+		ld = images->ep = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
 				images->ep);
 	} else {
@@ -43,6 +43,16 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	ret = booti_setup(ld, &relocated_addr, &image_size);
 	if (ret != 0)
 		return 1;
+
+#if defined(CONFIG_SECURE_BOOT) && !defined(CONFIG_AVB_SUPPORT)
+	extern int authenticate_image(
+		uint32_t ddr_start, uint32_t raw_image_size);
+	if (authenticate_image(ld, image_size) != 0) {
+		printf("Authenticate Image Fail, Please check\n");
+		return 1;
+	}
+
+#endif
 
 	/* Handle BOOTM_STATE_LOADOS */
 	if (relocated_addr != ld) {

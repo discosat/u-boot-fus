@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2008, Guennadi Liakhovetski <lg@denx.de>
  *
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
@@ -14,6 +16,7 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/clock.h>
 #include <asm/mach-imx/spi.h>
+#include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -225,8 +228,8 @@ int spi_xchg_single(struct mxc_spi_slave *mxcs, unsigned int bitlen,
 	u32 ts;
 	int status;
 
-	debug("%s: bitlen %d dout 0x%x din 0x%x\n",
-		__func__, bitlen, (u32)dout, (u32)din);
+	debug("%s: bitlen %d dout 0x%lx din 0x%lx\n",
+		__func__, bitlen, (ulong)dout, (ulong)din);
 
 	mxcs->ctrl_reg = (mxcs->ctrl_reg &
 		~MXC_CSPICTRL_BITCOUNT(MXC_CSPICTRL_MAXBITS)) |
@@ -450,6 +453,13 @@ struct spi_slave *spi_setup_slave(unsigned int bus, unsigned int cs,
 		return NULL;
 	}
 
+#ifdef CONFIG_MX6
+	if (mx6_ecspi_fused(spi_bases[bus])) {
+		printf("ECSPI@0x%lx is fused, disable it\n", spi_bases[bus]);
+		return NULL;
+	}
+#endif
+
 	mxcs = spi_alloc_slave(struct mxc_spi_slave, bus, cs);
 	if (!mxcs) {
 		puts("mxc_spi: SPI Slave not allocated !\n");
@@ -505,7 +515,7 @@ static int mxc_spi_probe(struct udevice *bus)
 		return -EINVAL;
 	}
 
-	plat->base = dev_get_addr(bus);
+	plat->base = devfdt_get_addr(bus);
 	if (plat->base == FDT_ADDR_T_NONE)
 		return -ENODEV;
 

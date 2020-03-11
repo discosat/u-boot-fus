@@ -3,6 +3,7 @@
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
 #
 # (C) Copyright 2011 Freescale Semiconductor, Inc.
+# Copyright 2018 NXP
 #
 # SPDX-License-Identifier:	GPL-2.0+
 #
@@ -14,3 +15,7 @@ obj-$(CONFIG_VIDEO_MXS)      += clock-mxsfb.o
 obj-$(CONFIG_MP)             += mp.o
 obj-$(CONFIG_MX6UL_LITESOM)  += litesom.o
 obj-$(CONFIG_MX6UL_OPOS6UL)  += opos6ul.o
+ifdef CONFIG_MX6UL
+obj-$(CONFIG_CMD_BEE)        += bee.o
+endif
+obj-$(CONFIG_MODULE_FUSE)        += module_fuse.o

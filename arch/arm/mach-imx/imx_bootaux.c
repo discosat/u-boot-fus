@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * SPDX-License-Identifier:	GPL-2.0+

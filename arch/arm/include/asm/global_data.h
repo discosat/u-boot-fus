@@ -36,6 +36,8 @@ struct arch_global_data {
 #endif
 	/* "static data" needed by most of timer.c on ARM platforms */
 	unsigned long timer_rate_hz;
+	unsigned int tbu;
+	unsigned int tbl;
 	unsigned long lastinc;
 	unsigned long long timer_reset_value;
 #if !(defined(CONFIG_SYS_ICACHE_OFF) && defined(CONFIG_SYS_DCACHE_OFF))
@@ -77,6 +79,10 @@ struct arch_global_data {
 #endif
 #if defined(CONFIG_FSL_LSCH3) && defined(CONFIG_SYS_FSL_HAS_DP_DDR)
 	unsigned long mem2_clk;
+#endif
+
+#ifdef CONFIG_HAVE_SC_FIRMWARE
+	uint64_t ipc_channel_handle;
 #endif
 };
 

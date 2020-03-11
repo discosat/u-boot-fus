@@ -15,6 +15,27 @@
 #define CONFIG_SYS_BOOTM_LEN	(64 << 20)
 #endif
 
+__weak void board_spl_fit_post_load(ulong load_addr, size_t length)
+{
+
+}
+
+__weak ulong board_spl_fit_size_align(ulong size)
+{
+	return size;
+}
+
+__weak void* board_spl_fit_buffer_addr(ulong fit_size, int bl_len)
+{
+	int align_len = ARCH_DMA_MINALIGN - 1;
+	return  (void *)((CONFIG_SYS_TEXT_BASE - fit_size - bl_len -
+			align_len) & ~align_len);
+}
+
+#ifdef CONFIG_DUAL_BOOTLOADER
+extern int spl_fit_get_rbindex(const void *fit, int images);
+#endif
+
 /**
  * spl_fit_get_image_name(): By using the matching configuration subnode,
  * retrieve the name of an image, specified by a property name and an index
@@ -141,6 +162,14 @@ static int get_aligned_image_size(struct spl_load_info *info, int data_size,
 	return (data_size + info->bl_len - 1) / info->bl_len;
 }
 
+#ifdef CONFIG_IMX_TRUSTY_OS
+__weak int get_tee_load(ulong *load)
+{
+	/* default return ok */
+	return 0;
+}
+#endif
+
 /**
  * spl_load_fit_image(): load the image described in a certain FIT node
  * @info:	points to information about the device to load data from
@@ -189,6 +218,21 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 
 	if (fit_image_get_load(fit, node, &load_addr))
 		load_addr = image_info->load_addr;
+
+#ifdef CONFIG_IMX_TRUSTY_OS
+	char *desc = NULL;
+
+	if (fit_get_desc(fit, node, &desc)) {
+		printf("can't found node description!\n");
+		return -ENOENT;
+	} else if (!strncmp(desc, "TEE firmware",
+				strlen("TEE firmware"))) {
+		if (get_tee_load(&load_addr)) {
+			printf("Failed to get TEE load address!\n");
+			return -ENOENT;
+		}
+	}
+#endif
 
 	if (!fit_image_get_data_position(fit, node, &offset)) {
 		external_data = true;
@@ -331,7 +375,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	struct spl_image_info image_info;
 	int node = -1;
 	int images, ret;
-	int base_offset, align_len = ARCH_DMA_MINALIGN - 1;
+	int base_offset;
 	int index = 0;
 
 	/*
@@ -341,6 +385,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 */
 	size = fdt_totalsize(fit);
 	size = (size + 3) & ~3;
+	size = board_spl_fit_size_align(size);
 	base_offset = (size + 3) & ~3;
 
 	/*
@@ -360,12 +405,12 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 * For FIT with data embedded, data is loaded as part of FIT image.
 	 * For FIT with external data, data is not loaded in this step.
 	 */
-	fit = (void *)((CONFIG_SYS_TEXT_BASE - size - info->bl_len -
-			align_len) & ~align_len);
+	fit = board_spl_fit_buffer_addr(size, info->bl_len);
 	sectors = get_aligned_image_size(info, size, 0);
 	count = info->read(info, sector, sectors, fit);
-	debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu\n",
-	      sector, sectors, fit, count);
+	debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu, size=0x%lx\n",
+	      sector, sectors, fit, count, size);
+
 	if (count == 0)
 		return -EIO;
 
@@ -375,6 +420,16 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		debug("%s: Cannot find /images node: %d\n", __func__, images);
 		return -1;
 	}
+
+#if defined(CONFIG_DUAL_BOOTLOADER) && defined(CONFIG_IMX_TRUSTY_OS)
+	int rbindex;
+	rbindex = spl_fit_get_rbindex(fit, images);
+	if (rbindex < 0) {
+		printf("Error! Can't get rollback index!\n");
+		return -1;
+	} else
+		spl_image->rbindex = rbindex;
+#endif
 
 	/*
 	 * Find the U-Boot image using the following search order:
@@ -472,6 +527,13 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 */
 	if (spl_image->entry_point == FDT_ERROR || spl_image->entry_point == 0)
 		spl_image->entry_point = spl_image->load_addr;
+
+	spl_image->flags |= SPL_FIT_FOUND;
+
+#ifdef CONFIG_SECURE_BOOT
+	if (!(spl_image->flags & SPL_FIT_BYPASS_POST_LOAD))
+		board_spl_fit_post_load((ulong)fit, size);
+#endif
 
 	return 0;
 }
