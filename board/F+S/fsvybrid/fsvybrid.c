@@ -903,12 +903,12 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_set_bdinfo(fdt, offs);
 
 		/* MAC addresses */
-		if (board_type == BT_CUBEA5)
-			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
-		else
+		if (board_type != BT_CUBEA5)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (pargs->chFeatures1 & FEAT1_2NDLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
+		if ((board_type == BT_CUBEA5) || (board_type == BT_AGATEWAY))
+			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 0);
 	}
 
 	/* Disable second ethernet node if feature is not available */
