@@ -351,6 +351,15 @@ config VIDEO_LCD_HITACHI_TX18D42VM
 	lcd controller which needs to be initialized over SPI, once that is
 	done they work like a regular LVDS panel.
 
+config NT35521
+	bool "MIPI DSI NT35521 display"
+	depends on VIDEO
+	default n
+	---help---
+	Support for  LVDS LCD panels, these panels have a
+	lcd controller which needs to be initialized over SPI, once that is
+	done they work like a regular LVDS panel.
+
 config VIDEO_LCD_SPI_CS
 	string "SPI CS pin for LCD related config job"
 	depends on VIDEO_LCD_SSD2828 || VIDEO_LCD_HITACHI_TX18D42VM

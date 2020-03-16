@@ -70,6 +70,7 @@ obj-$(CONFIG_IMX_MIPI_DSI_BRIDGE) += imx_mipi_dsi_bridge.o
 obj-$(CONFIG_HX8363) += hx8363_wvga.o
 obj-$(CONFIG_RM67191) += rm67191.o
 obj-$(CONFIG_RM68200) += rm68200.o
+obj-$(CONFIG_NT35521) += nt35521.o
 
 obj-y += bridge/
 obj-y += sunxi/
