@@ -4463,7 +4463,7 @@ static void do_bootm_on_complete(struct usb_ep *ep, struct usb_request *req)
 	char boot_addr_start[12];
 #ifdef CONFIG_FSL_FASTBOOT
 	char *bootm_args[] = { "boota", boot_addr_start, NULL };
-	sprintf(boot_addr_start, "0x%lx", load_addr);
+	sprintf(boot_addr_start, "0x%lx", get_loadaddr());
 #else
 	char *bootm_args[] = { "bootm", boot_addr_start, NULL };
 	sprintf(boot_addr_start, "0x%lx", (long)CONFIG_FASTBOOT_BUF_ADDR);

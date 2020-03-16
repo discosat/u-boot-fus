@@ -919,6 +919,12 @@ __weak int usb_alloc_device(struct usb_device *udev)
 
 static int usb_port_reset(struct usb_device *dev, struct usb_device *hub)
 {
+#ifdef CONFIG_DM_USB
+	if (!hub) {
+		usb_reset_root_port(dev);
+	}
+        return 0;
+#else /* !CONFIG_DM_USB */
 	int port;
 
 	if (!hub) {
@@ -935,6 +941,7 @@ static int usb_port_reset(struct usb_device *dev, struct usb_device *hub)
 		return -1;
 
 	return usb_hub_port_reset(hub, port, NULL);
+#endif /* CONFIG_DM_USB */
 }
 
 static int get_descriptor_len(struct usb_device *dev, int len, int expect_len)

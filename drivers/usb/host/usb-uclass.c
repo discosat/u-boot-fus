@@ -238,7 +238,7 @@ static void remove_inactive_children(struct uclass *uc, struct udevice *bus)
 	}
 }
 
-int usb_init(void)
+int usb_init(int verbose)
 {
 	int controllers_initialized = 0;
 	struct usb_uclass_priv *uc_priv;
@@ -258,7 +258,8 @@ int usb_init(void)
 
 	uclass_foreach_dev(bus, uc) {
 		/* init low_level USB */
-		printf("USB%d:   ", count);
+		if (verbose)
+			printf("USB%d:   ", count);
 		count++;
 
 #ifdef CONFIG_SANDBOX
@@ -330,10 +331,14 @@ int usb_init(void)
 	remove_inactive_children(uc, bus);
 
 	/* if we were not able to find at least one working bus, bail out */
-	if (!count)
-		printf("No controllers found\n");
-	else if (controllers_initialized == 0)
-		printf("USB error: all controllers failed lowlevel init\n");
+	if (!count){
+		if (verbose)
+			printf("No controllers found\n");
+	}
+	else if (controllers_initialized == 0) {
+		if (verbose)
+			printf("USB error: all controllers failed lowlevel init\n");
+	}
 
 	return usb_started ? 0 : -1;
 }
