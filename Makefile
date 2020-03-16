@@ -766,7 +766,11 @@ endif
 
 # Always append ALL so that arch config.mk's can add custom ones
 ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
+ifndef CONFIG_IMX8M
 ALL-y += uboot.nb0 u-boot.dis
+else
+ALL-y += u-boot.dis
+endif
 
 ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
 ALL-$(CONFIG_NAND_U_BOOT) += u-boot-nand.bin
