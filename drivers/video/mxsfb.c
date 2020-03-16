@@ -55,7 +55,6 @@ static int rgb_pattern = PATTERN_RGB;
 int mxs_lcd_panel_setup(uint32_t base_addr, const struct fb_videomode *mode,
 			int bpp, int pattern)
 {
-
 	fbmode = mode;
 	depth  = bpp;
 	panel.isaBase  = base_addr;
@@ -93,7 +92,7 @@ void mxs_lcd_get_panel(struct display_panel *dispanel)
 static void mxs_lcd_init(GraphicDevice *panel,
 			struct ctfb_res_modes *mode, int bpp)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(panel->isaBase);
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel->isaBase);
 	uint32_t word_len = 0, bus_width = 0;
 	uint8_t valid_data = 0;
 
@@ -135,9 +134,10 @@ static void mxs_lcd_init(GraphicDevice *panel,
 	writel(valid_data << LCDIF_CTRL1_BYTE_PACKING_FORMAT_OFFSET,
 		&regs->hw_lcdif_ctrl1);
 
-#ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
-	writel(LCDIF_CTRL2_OUTSTANDING_REQS_REQ_16, &regs->hw_lcdif_ctrl2);
-#endif
+	writel(LCDIF_CTRL2_OUTSTANDING_REQS_REQ_16
+	       | (rgb_pattern << LCDIF_CTRL2_ODD_LINE_PATTERN_OFFSET)
+	       | (rgb_pattern << LCDIF_CTRL2_EVEN_LINE_PATTERN_OFFSET),
+	       &regs->hw_lcdif_ctrl2);
 
 	mxsfb_system_setup();
 
@@ -189,7 +189,7 @@ static void mxs_lcd_init(GraphicDevice *panel,
 
 void lcdif_power_down(void)
 {
-	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)MXS_LCDIF_BASE;
+	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)(ulong)(panel.isaBase);
 	int timeout = 1000000;
 
 #ifdef CONFIG_MX6
@@ -297,13 +297,14 @@ void *video_hw_init(void)
 	/* Wipe framebuffer */
 	memset(fb, 0, panel.memSize);
 
-	panel.frameAdrs = (u32)fb;
+	panel.frameAdrs = (ulong)fb;
 
 	printf("%s\n", panel.modeIdent);
 
 #ifdef CONFIG_IMX_MIPI_DSI_BRIDGE
 	int dsi_ret;
-	imx_mipi_dsi_bridge_mode_set(&fbmode);
+
+	imx_mipi_dsi_bridge_mode_set((struct fb_videomode *) fbmode);
 	dsi_ret = imx_mipi_dsi_bridge_enable();
 	if (dsi_ret) {
 		printf("Enable DSI bridge failed, err %d\n", dsi_ret);
