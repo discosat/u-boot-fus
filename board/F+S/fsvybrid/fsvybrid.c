@@ -572,6 +572,10 @@ int get_otp_mac(unsigned long otp_addr, uchar *enetaddr)
 	if (val == 0xFF)
 		val = 0;
 
+	/* AGATEWAY needs two addresses, but some have only one the in fuses */
+	if ((val == 0) && (fs_board_get_type() == BT_AGATEWAY))
+		val = 1;
+
 	return (int)(val + 1);
 }
 
