@@ -8,13 +8,14 @@
 #include <asm/arch/imx8m_ddr.h>
 #include <asm/arch/lpddr4_define.h>
 
-void ddr_cfg_phy(struct dram_timing_info *dram_timing)
+int ddr_cfg_phy(struct dram_timing_info *dram_timing)
 {
 	struct dram_cfg_param *dram_cfg;
 	struct dram_fsp_msg *fsp_msg;
 	unsigned int num;
 	int i = 0;
 	int j = 0;
+	int ret = 0;
 
 	/* initialize PHY configuration */
 	dram_cfg = dram_timing->ddrphy_cfg;
@@ -28,7 +29,7 @@ void ddr_cfg_phy(struct dram_timing_info *dram_timing)
 	/* load the frequency setpoint message block config */
 	fsp_msg = dram_timing->fsp_msg;
 	for (i = 0; i < dram_timing->fsp_msg_num; i++) {
-		printf("DRAM PHY training for %dMTS\n", fsp_msg->drate);
+		debug("DRAM PHY training for %dMTS\n", fsp_msg->drate);
 		/* set dram PHY input clocks to desired frequency */
 		ddrphy_init_set_dfi_clk(fsp_msg->drate);
 
@@ -60,7 +61,7 @@ void ddr_cfg_phy(struct dram_timing_info *dram_timing)
 		dwc_ddrphy_apb_wr(0xd0099, 0x0);
 
 		/* Wait for the training firmware to complete */
-		wait_ddrphy_training_complete();
+		ret |= wait_ddrphy_training_complete();
 
 		/* Halt the microcontroller. */
 		dwc_ddrphy_apb_wr(0xd0099, 0x1);
@@ -84,4 +85,6 @@ void ddr_cfg_phy(struct dram_timing_info *dram_timing)
 	/* save the ddr PHY trained CSR in memory for low power use */
 	ddrphy_trained_csr_save(dram_timing->ddrphy_trained_csr,
 				dram_timing->ddrphy_trained_csr_num);
+
+	return ret;
 }

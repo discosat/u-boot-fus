@@ -22,11 +22,12 @@ void ddr_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 	}
 }
 
-void ddr_init(struct dram_timing_info *dram_timing)
+int ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int tmp, initial_drate, target_freq;
+	int ret = 0;
 
-	printf("DDRINFO: start DRAM init\n");
+	debug("DDRINFO: start DRAM init\n");
 
 	/* Step1: Follow the power up procedure */
 	if (is_imx8mq()) {
@@ -100,7 +101,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	 * accessing relevant PUB registers
 	 */
 	debug("DDRINFO:ddrphy config start\n");
-	ddr_cfg_phy(dram_timing);
+	ret = ddr_cfg_phy(dram_timing);
 	debug("DDRINFO: ddrphy config done\n");
 
 	/*
@@ -111,7 +112,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		tmp = reg32_read(DDRPHY_CalBusy(0));
 	} while ((tmp & 0x1));
 
-	printf("DDRINFO:ddrphy calibration done\n");
+	debug("DDRINFO:ddrphy calibration done\n");
 
 	/* Step15: Set SWCTL.sw_done to 0 */
 	reg32_write(DDRC_SWCTL(0), 0x00000000);
@@ -163,8 +164,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	/* enable port 0 */
 	reg32_write(DDRC_PCTRL_0(0), 0x00000001);
-	printf("DDRINFO: ddrmix config done\n");
+	debug("DDRINFO: ddrmix config done\n");
 
 	/* save the dram timing config into memory */
 	dram_config_save(dram_timing, CONFIG_SAVED_DRAM_TIMING_BASE);
+
+	return ret;
 }
