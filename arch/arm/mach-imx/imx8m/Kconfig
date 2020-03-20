@@ -85,8 +85,14 @@ config TARGET_IMX8MN_DDR4_EVK
 	select IMX8M_DDR4
 
 config TARGET_FSIMX8MM
-	bool "Support fsimx8m boards from F&S"
+	bool "Support fsimx8mm boards from F&S"
 	select IMX8MM
+	select SUPPORT_SPL
+	select IMX8M_LPDDR4
+
+config TARGET_FSIMX8M
+	bool "Support fsimx8m boards from F&S"
+	select IMX8MQ
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 
@@ -103,5 +109,6 @@ source "board/freescale/imx8mm_evk/Kconfig"
 source "board/freescale/imx8mm_val/Kconfig"
 source "board/freescale/imx8mn_evk/Kconfig"
 source "board/F+S/fsimx8mm/Kconfig"
+source "board/F+S/fsimx8m/Kconfig"
 
 endif
