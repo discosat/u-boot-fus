@@ -1,6 +1,21 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-Y2020.03 (20.03.2020)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, efusA9X,
+                  PicoCOMA9X, PicoCoreMX6SX, CONT1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0,
+
+
+- Update fsvybrid infrastructure
+- Fix MAC address handling on fsvybrid
+- Disable FEC0 on AGATEWAY instead of FEC1
+
+
+
 u-boot-2018.03-fssecure-V2020.02 (10.02.2020)
 ---------------------------------------------
 Supported CPUs: i.MX6 S/DL/D/Q, i.MX6 SX, i.MX6 UL, i.MX6 ULL
