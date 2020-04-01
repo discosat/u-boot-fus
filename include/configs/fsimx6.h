@@ -42,6 +42,20 @@
  * least one bad block in addition to the required size of the partition. E.g.
  * UBoot is 512KB, but the UBoot partition is 768KB to allow for two bad blocks
  * (256KB) in this memory region.
+ *
+ * eMMC flash layout with separate Kernel/FDT MTD partition
+ * -------------------------------------------------------------------------
+ * BOOTPARTITION1
+ * 0x0000_0000 - 0x0000_FFFF: NBoot: NBoot image, primary copy (64KB)
+ * 0x0001_0000 - 0x0001_FFFF: NBoot: NBoot image, secondary copy (64KB)
+ * 0x0002_0000 - 0x0005_FFFF: M4: M4 image (256KB)
+ * 0x0006_0000 - 0x0007_FFFF: UBootEnv: U-Boot environment (128KB)
+ * 0x0008_0000 - 0x000F_FFFF: UBoot: U-Boot image (512KB)
+ * USER AREA
+ * 0x0000_0000 - 0x0000_43FF: GPT: Linux Kernel zImage (34 * 512B)
+ * 0x0010_0000 - 0x01FF_FFFF: System: System Partition (Kernel + FDT) (31MB)
+ * 0x0200_0000 - (End of RootFS): TargetFS: Root filesystem (Size)
+ * (end of rootfs) -         END: Data: Data filesystem for user
  */
 
 #ifndef __FSIMX6_CONFIG_H
@@ -220,6 +234,11 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 #define CONFIG_SYS_FSL_USDHC_NUM       1
 
+#ifdef CONFIG_ENV_IS_IN_MMC
+#define CONFIG_SYS_MMC_ENV_DEV 0
+#define CONFIG_SYS_MMC_ENV_PART 1 /* NBoot, UBoot and UbootEnv in BootPart1 */
+#endif
+
 
 /************************************************************************
  * NOR Flash
@@ -302,6 +321,14 @@
 /************************************************************************
  * Generic MTD Settings
  ************************************************************************/
+#ifdef CONFIG_ENV_IS_IN_MMC
+
+#define MTDIDS_DEFAULT		"nand0=gpmi-nand"
+#define MTDPART_DEFAULT		"nand0,0"
+#define MTDPARTS_STD		"setenv mtdparts "
+#define MTDPARTS_UBIONLY	"setenv mtdparts "
+
+#else
 #define CONFIG_MTD_DEVICE		/* Create MTD device */
 
 /* Define MTD partition info */
@@ -320,6 +347,7 @@
 #define MTDPARTS_DEFAULT	"mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
 #define MTDPARTS_STD		"setenv mtdparts " MTDPARTS_DEFAULT
 #define MTDPARTS_UBIONLY	"setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
+#endif
 
 
 /************************************************************************
@@ -328,10 +356,16 @@
 
 /* Environment settings for large blocks (128KB). The environment is held in
    the heap, so keep the real env size small to not waste malloc space. */
+#ifdef CONFIG_ENV_IS_IN_MMC
+#define CONFIG_ENV_SIZE		0x00020000	/* 128KB */
+#define CONFIG_ENV_OFFSET	0x00060000	/* See MMC layout above */
+#define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
+#else
 #define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
 #define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
 #define CONFIG_ENV_OFFSET	0x00200000	/* See NAND layout above */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
+#endif
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
@@ -409,18 +443,20 @@
 	"mtdids=undef\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
+	"mmcdev=undef\0" \
+	"usdhcdev=undef\0" \
 	".network_off=setenv network\0" \
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
 	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
-	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1 rootwait\0" \
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${usdhcdev}p2 rootwait\0" \
 	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0" \
 	"kernel=undef\0" \
 	".kernel_nand=setenv kernel nboot Kernel\0" \
 	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
+	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc ${mmcdev} . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
 	"fdt=undef\0" \
 	"fdtaddr=12000000\0" \
@@ -428,7 +464,7 @@
 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT \
 	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc ${mmcdev} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \

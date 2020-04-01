@@ -16,6 +16,7 @@
 #include <asm/arch/sys_proto.h>		/* is_mx6*() */
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
+#include "fs_mmc_common.h"
 
 /* ------------------------------------------------------------------------- */
 
@@ -254,6 +255,13 @@ void fs_board_late_init_common(void)
 {
 	const char *envvar;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+#ifdef FS_MMC_COMMON
+	int usdhc_boot_device = get_usdhc_boot_device();
+	int mmc_boot_device = get_mmc_boot_device();
+#else // support FSVYBRID
+	int usdhc_boot_device = 0;
+	int mmc_boot_device = 0;
+#endif
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
@@ -304,6 +312,24 @@ void fs_board_late_init_common(void)
 		}
 #endif
 		env_set("platform", lcasename);
+	}
+
+	/* Set mmcsdhc variable if not already set */
+	envvar = env_get("usdhcdev");
+	if (!envvar || !strcmp(envvar, "undef")) {
+		char usdhcdev[DEV_NAME_SIZE];
+
+		sprintf(usdhcdev, "%c", '0' + usdhc_boot_device);
+		env_set("usdhcdev", usdhcdev);
+	}
+
+	/* Set mmcdev variable if not already set */
+	envvar = env_get("mmcdev");
+	if (!envvar || !strcmp(envvar, "undef")) {
+		char mmcdev[DEV_NAME_SIZE];
+
+		sprintf(mmcdev, "%c", '0' + mmc_boot_device);
+		env_set("mmcdev", mmcdev);
 	}
 
 	/* Set some variables with a direct value */

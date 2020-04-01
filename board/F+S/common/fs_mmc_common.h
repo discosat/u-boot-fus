@@ -62,4 +62,7 @@ struct fs_mmc_cd {
 int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		 const struct fs_mmc_cd *cd);
 
+int get_usdhc_boot_device(void);
+int get_mmc_boot_device(void);
+
 #endif /* !__FS_MMC_COMMON_H__ */

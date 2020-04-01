@@ -21,6 +21,27 @@
 #include <mmc.h>			/* struct mmc */
 #include "fs_mmc_common.h"		/* Own interface */
 
+#define USDHC_NONE -1
+
+enum
+{
+	USDHC1,
+	USDHC2,
+	USDHC3,
+	USDHC4,
+};
+
+static int usdhc_pos_in_init[] =
+{
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE
+};
+
+static int usdhc_boot_device = -1;
+static int mmc_boot_device = -1;
+
 /* Return value of Card Detect pin (if present) */
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -40,6 +61,7 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	u32 ccgr6;
+	static int sdhc_cnt = 0;
 
 	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
 	if (!cd)
@@ -62,16 +84,19 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
 		ccgr6 |= (3 << 2);
+		usdhc_pos_in_init[USDHC1] = sdhc_cnt;
 		break;
 	case 2:
 		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
 		ccgr6 |= (3 << 4);
+		usdhc_pos_in_init[USDHC2] = sdhc_cnt;
 		break;
 #ifdef USDHC3_BASE_ADDR
 	case 3:
 		cfg->esdhc.esdhc_base = USDHC3_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
+		usdhc_pos_in_init[USDHC3] = sdhc_cnt;
 		ccgr6 |= (3 << 6);
 		break;
 #endif
@@ -79,12 +104,36 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 	case 4:
 		cfg->esdhc.esdhc_base = USDHC4_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
+		usdhc_pos_in_init[USDHC4] = sdhc_cnt;
 		ccgr6 |= (3 << 8);
 		break;
 #endif
 	}
 	writel(ccgr6, &mxc_ccm->CCGR6);
 
+	sdhc_cnt++;
+
 	return fsl_esdhc_initialize(bd, &cfg->esdhc);
 }
+
+#ifdef CONFIG_ENV_IS_IN_MMC
+/* Override board_mmc_get_env_dev to get boot dev from fuse settings */
+int board_mmc_get_env_dev(int devno)
+{
+	usdhc_boot_device = devno;
+	mmc_boot_device = usdhc_pos_in_init[devno];
+	return mmc_boot_device;
+}
+#endif
+
+int get_usdhc_boot_device()
+{
+	return usdhc_boot_device;
+}
+
+int get_mmc_boot_device()
+{
+	return mmc_boot_device;
+}
+
 #endif /* CONFIG_FSL_ESDHC */
