@@ -148,6 +148,20 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
+#ifdef CONFIG_ENV_IS_IN_MMC
+#define ROOTFS ".rootfs_mmc"
+#define KERNEL ".kernel_mmc"
+#define FDT ".fdt_mmc"
+#elif CONFIG_ENV_IS_IN_NAND
+#define ROOTFS ".rootfs_ubifs"
+#define KERNEL ".kernel_nand"
+#define FDT ".fdt_nand"
+#else /* Default = Nand */
+#define ROOTFS ".rootfs_ubifs"
+#define KERNEL ".kernel_nand"
+#define FDT ".fdt_nand"
+#endif
+
 const struct fs_board_info board_info[9] = {
 	{	/* 0 (BT_EFUSA7UL) */
 		.name = "efusA7UL",
@@ -160,9 +174,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 1 (BT_CUBEA7UL) */
 		.name = "CubeA7UL",
@@ -175,9 +189,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_ubionly",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_ubifs",
-		.fdt = ".fdt_ubifs",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 2 (BT_PICOCOM1_2) */
 		.name = "PicoCOM1.2",
@@ -190,9 +204,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 3 (BT_CUBE2_0) */
 		.name = "Cube2.0",
@@ -205,9 +219,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_ubionly",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_ubifs",
-		.fdt = ".fdt_ubifs",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 4 (BT_GAR1) */
 		.name = "GAR1",
@@ -220,9 +234,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 5 (PICOCOMA7) */
 		.name = "PicoCOMA7",
@@ -235,9 +249,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 6 (BT_PCOREMX6UL) */
 		.name = "PicoCoreMX6UL",
@@ -250,9 +264,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
@@ -268,9 +282,9 @@ const struct fs_board_info board_info[9] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 };
 

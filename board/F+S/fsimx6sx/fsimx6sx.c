@@ -147,6 +147,20 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
+#ifdef CONFIG_ENV_IS_IN_MMC
+#define ROOTFS ".rootfs_mmc"
+#define KERNEL ".kernel_mmc"
+#define FDT ".fdt_mmc"
+#elif CONFIG_ENV_IS_IN_NAND
+#define ROOTFS ".rootfs_ubifs"
+#define KERNEL ".kernel_nand"
+#define FDT ".fdt_nand"
+#else /* Default = Nand */
+#define ROOTFS ".rootfs_ubifs"
+#define KERNEL ".kernel_nand"
+#define FDT ".fdt_nand"
+#endif
+
 const struct fs_board_info board_info[8] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
@@ -159,9 +173,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 1 (BT_PicoCOMA9X) */
 		.name = "PicoCOMA9X",
@@ -174,9 +188,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 2 (BT_KEN116) */
 		.name = "KEN116",
@@ -189,9 +203,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 3 (BT_BEMA9X) */
 		.name = "BemA9X",
@@ -204,9 +218,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 4 (BT_CONT1) */
 		.name = "CONT1",
@@ -219,9 +233,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 5 (unknown) */
 		.name = "unknown",
@@ -237,9 +251,9 @@ const struct fs_board_info board_info[8] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.rootfs = ROOTFS,
+		.kernel = KERNEL,
+		.fdt = FDT,
 	},
 	{	/* 7 (unknown) */
 		.name = "unknown",
