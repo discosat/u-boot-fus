@@ -259,7 +259,7 @@ void fs_board_late_init_common(void)
 {
 	const char *envvar;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
-#ifdef FS_MMC_COMMON
+#ifdef CONFIG_FS_MMC_COMMON
 	int usdhc_boot_device = get_usdhc_boot_device();
 	int mmc_boot_device = get_mmc_boot_device();
 #else // support FSVYBRID

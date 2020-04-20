@@ -515,6 +515,10 @@ void nand_refresh_init(struct mtd_info *mtd)
 	loff_t refreshoffs;
 	mtd_oob_ops_t ops;
 
+	/* Return if NAND device doesn't exist. */
+	if (mtd == NULL)
+		return;
+
 	/* Get the first possible backup block. If there is no backup block
 	   available at all, it is not possible that a block refresh was in
 	   progress the last time. Go to normal mode then. */
