@@ -1,13 +1,17 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
-u-boot-2018.03-fsimx6sx-Y2020.03 (24.03.2020)
+u-boot-2018.03-fsimx6-B2020.04 (21.04.2020)
 -------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
-                  QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
-                  CONT1
-Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, CUBEA5, armStoneA5,
-                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0
+                  QBlissA9, QBlissA9r2, armStoneA5, CUBEA5, Cube2.0
+Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- AGATEWAY must set MAC_WLAN in bdinfo
+- Always use two MAC addresses on AGATEWAY
+- Keep .kernel_ubifs and .fdt_ubifs for Cubes
 
 
 
@@ -19,6 +23,20 @@ Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
 Not tested:       CUBEA5, armStoneA5,
                   NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0
 
+(no changes)
+
+
+
+u-boot-2018.03-fsimx6sx-Y2020.03 (24.03.2020)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0
+
+(no changes)
+
 
 
 u-boot-2018.03-fsimx6-Y2020.03 (20.03.2020)
@@ -28,7 +46,6 @@ Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
 Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, efusA9X,
                   PicoCOMA9X, PicoCoreMX6SX, CONT1, CUBEA5, armStoneA5,
                   NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0,
-
 
 - Update fsvybrid infrastructure
 - Fix MAC address handling on fsvybrid

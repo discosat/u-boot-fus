@@ -804,7 +804,7 @@ static iomux_v3_cfg_t const lcd_extra_pads[] = {
 
 /* Additional pads for ENA and DEN */
 static iomux_v3_cfg_t const lcd_extra_pads_pmoda9[] = {
-	/* Signals are active low -> pull-up to switch on */
+	/* Signals are active low -> pull-up to switch off */
 	IOMUX_PADS(PAD_SD4_DAT4__GPIO2_IO12 | MUX_PAD_CTRL(0xb010)),
 	IOMUX_PADS(PAD_SD4_DAT5__GPIO2_IO13 | MUX_PAD_CTRL(0xb010)),
 };
