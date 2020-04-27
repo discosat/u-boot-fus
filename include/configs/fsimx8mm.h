@@ -33,7 +33,7 @@
 #define CONFIG_CMD_NAND
 
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
-#define CONFIG_SYS_UART_PORT	1	/* Default UART port */
+#define CONFIG_SYS_UART_PORT	0	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
 #define CONFIG_SPL_MAX_SIZE		(148 * 1024)
@@ -339,7 +339,7 @@
 #define UART4_BASE UART4_BASE_ADDR
 #define UART5_BASE 0xFFFFFFFF
 
-#define CONFIG_MXC_UART_BASE		UART2_BASE_ADDR
+#define CONFIG_MXC_UART_BASE		UART1_BASE_ADDR
 
 /* Monitor Command Prompt */
 
