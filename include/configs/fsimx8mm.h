@@ -280,6 +280,7 @@
 	"platform=undef\0" \
 	"arch=fsimx8mm\0" \
 	"bootfdt=undef\0" \
+	"m4_uart4=disable\0" \
 	FSBOOTDELAY \
 	"fdt_high=0xffffffffffffffff\0" \
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
