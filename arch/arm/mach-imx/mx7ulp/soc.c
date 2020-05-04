@@ -1,13 +1,21 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017-2018 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
+#include <asm/sections.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/hab.h>
+#include <asm/mach-imx/boot_mode.h>
+#include <fdt_support.h>
+#include <asm/setup.h>
+#ifdef CONFIG_IMX_SEC_INIT
+#include <fsl_caam.h>
+#endif
 
 static char *get_reset_cause(char *);
 
@@ -18,10 +26,29 @@ struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 };
 #endif
 
+#define ROM_VERSION_ADDR 0x80
 u32 get_cpu_rev(void)
 {
-	/* Temporally hard code the CPU rev to 0x73, rev 1.0. Fix it later */
-	return (MXC_CPU_MX7ULP << 12) | (1 << 4);
+	/* Check the ROM version for cpu revision */
+	uint32_t rom_version;
+	rom_version = readl((void __iomem *)ROM_VERSION_ADDR);
+
+	rom_version &= 0xFF;
+	if (rom_version == CHIP_REV_1_0) {
+		return (MXC_CPU_MX7ULP << 12) | (rom_version);
+	} else {
+		/* Check the "Mirror of JTAG ID" SIM register since RevB */
+		uint32_t id;
+		id = readl(SIM0_RBASE + 0x8c);
+		id = (id >> 28) & 0xFF;
+
+		/* Revision Number ULP1 Version
+		 * 0000				A0
+		 * 0001				B0
+		 * 0010				B1
+		 */
+		return (MXC_CPU_MX7ULP << 12) | (CHIP_REV_2_0 + (id - 1));
+	}
 }
 
 #ifdef CONFIG_REVISION_TAG
@@ -49,8 +76,51 @@ enum bt_mode get_boot_mode(void)
 	return LOW_POWER_BOOT;
 }
 
+#ifdef CONFIG_IMX_M4_BIND
+char __firmware_image_start[0] __attribute__((section(".__firmware_image_start")));
+char __firmware_image_end[0] __attribute__((section(".__firmware_image_end")));
+
+int mcore_early_load_and_boot(void)
+{
+	u32 *src_addr = (u32 *)&__firmware_image_start;
+	u32 *dest_addr = (u32 *)TCML_BASE; /*TCML*/
+	u32 image_size = SZ_128K + SZ_64K; /* 192 KB*/
+	u32 pc = 0, tag = 0;
+
+	memcpy(dest_addr, src_addr, image_size);
+
+	/* Set GP register to tell the M4 rom the image entry */
+	/* We assume the M4 image has IVT head and padding which
+	 * should be same as the one programmed into QSPI flash
+	 */
+	tag = *(dest_addr + 1024);
+	if (tag != 0x402000d1 && tag !=0x412000d1)
+		return -1;
+
+	pc = *(dest_addr + 1025);
+
+	writel(pc, SIM0_RBASE + 0x70); /*GP7*/
+
+	return 0;
+}
+#endif
+
 int arch_cpu_init(void)
 {
+#ifdef CONFIG_IMX_M4_BIND
+	int ret;
+	if (get_boot_mode() == SINGLE_BOOT) {
+		ret = mcore_early_load_and_boot();
+		if (ret)
+			puts("Invalid M4 image, boot failed\n");
+	}
+#endif
+
+#ifdef CONFIG_IMX_SEC_INIT
+	/* Secure init function such RNG */
+	imx_sec_init();
+#endif
+
 	return 0;
 }
 
@@ -106,6 +176,15 @@ void s_init(void)
 	/* clock configuration. */
 	clock_init();
 
+	if (soc_rev() < CHIP_REV_2_0) {
+		/* enable dumb pmic */
+		writel((readl(SNVS_LP_LPCR) | SNVS_LPCR_DPEN), SNVS_LP_LPCR);
+
+#if defined(CONFIG_ANDROID_SUPPORT)
+		/* Enable RTC */
+		writel((readl(SNVS_LP_LPCR) | SNVS_LPCR_SRTC_ENV), SNVS_LP_LPCR);
+#endif
+	}
 	return;
 }
 
@@ -149,6 +228,10 @@ int print_cpuinfo(void)
 	case SINGLE_BOOT:
 	default:
 		printf("Single boot\n");
+#ifdef CONFIG_IMX_M4_BIND
+		if (readl(SIM0_RBASE + 0x70))
+			printf("M4 start at 0x%x\n", readl(SIM0_RBASE + 0x70));
+#endif
 		break;
 	}
 
@@ -184,7 +267,12 @@ static char *get_reset_cause(char *ret)
 
 	srs = readl(reg_srs);
 	cause1 = readl(reg_ssrs);
+#ifndef CONFIG_ANDROID_BOOT_IMAGE
+	/* We will read the ssrs states later for android so we don't
+	 * clear the states here.
+	 */
 	writel(cause1, reg_ssrs);
+#endif
 
 	reset_cause = cause1;
 
@@ -224,6 +312,27 @@ static char *get_reset_cause(char *ret)
 	return ret;
 }
 
+#ifdef CONFIG_ANDROID_BOOT_IMAGE
+void get_reboot_reason(char *ret)
+{
+	u32 *reg_ssrs = (u32 *)(SRC_BASE_ADDR + 0x28);
+
+	get_reset_cause(ret);
+	/* clear the ssrs here, its state has been recorded in reset_cause */
+	writel(reset_cause, reg_ssrs);
+}
+#endif
+
+void arch_preboot_os(void)
+{
+#if defined(CONFIG_VIDEO_MXS)
+	lcdif_power_down();
+#endif
+	scg_disable_pll_pfd(SCG_APLL_PFD1_CLK);
+	scg_disable_pll_pfd(SCG_APLL_PFD2_CLK);
+	scg_disable_pll_pfd(SCG_APLL_PFD3_CLK);
+}
+
 #ifdef CONFIG_ENV_IS_IN_MMC
 __weak int board_mmc_get_env_dev(int devno)
 {
@@ -245,3 +354,82 @@ int mmc_get_env_dev(void)
 	return board_mmc_get_env_dev(devno);
 }
 #endif
+
+#ifdef CONFIG_OF_SYSTEM_SETUP
+int ft_system_setup(void *blob, bd_t *bd)
+{
+	if (get_boot_device() == USB_BOOT) {
+		int rc;
+		int nodeoff = fdt_path_offset(blob, "/ahb-bridge0@40000000/usdhc@40370000");
+		if (nodeoff < 0)
+			return 0; /* Not found, skip it */
+
+		printf("Found usdhc0 node\n");
+		if (fdt_get_property(blob, nodeoff, "vqmmc-supply", NULL) != NULL) {
+			rc = fdt_delprop(blob, nodeoff, "vqmmc-supply");
+			if (!rc) {
+				printf("Removed vqmmc-supply property\n");
+
+add:
+				rc = fdt_setprop(blob, nodeoff, "no-1-8-v", NULL, 0);
+				if (rc == -FDT_ERR_NOSPACE) {
+					rc = fdt_increase_size(blob, 32);
+					if (!rc)
+						goto add;
+				} else if (rc) {
+					printf("Failed to add no-1-8-v property, %d\n", rc);
+				} else {
+					printf("Added no-1-8-v property\n");
+				}
+			} else {
+				printf("Failed to remove vqmmc-supply property, %d\n", rc);
+			}
+		}
+	}
+	return 0;
+}
+#endif
+
+enum boot_device get_boot_device(void)
+{
+	struct bootrom_sw_info **p =
+		(struct bootrom_sw_info **)ROM_SW_INFO_ADDR;
+
+	enum boot_device boot_dev = SD1_BOOT;
+	u8 boot_type = (*p)->boot_dev_type;
+	u8 boot_instance = (*p)->boot_dev_instance;
+
+	switch (boot_type) {
+	case BOOT_TYPE_SD:
+		boot_dev = boot_instance + SD1_BOOT;
+		break;
+	case BOOT_TYPE_MMC:
+		boot_dev = boot_instance + MMC1_BOOT;
+		break;
+	case BOOT_TYPE_USB:
+		boot_dev = USB_BOOT;
+		break;
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+
+bool is_usb_boot(void)
+{
+	return get_boot_device() == USB_BOOT;
+}
+
+#ifdef CONFIG_SERIAL_TAG
+void get_board_serial(struct tag_serialnr *serialnr)
+{
+
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[1];
+	struct fuse_bank1_regs *fuse =
+		(struct fuse_bank1_regs *)bank->fuse_regs;
+	serialnr->low = (fuse->cfg0 & 0xFFFF) + ((fuse->cfg1 & 0xFFFF) << 16);
+	serialnr->high = (fuse->cfg2 & 0xFFFF) + ((fuse->cfg3 & 0xFFFF) << 16);
+}
+#endif /*CONFIG_SERIAL_TAG*/

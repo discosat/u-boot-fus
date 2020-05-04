@@ -24,6 +24,9 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 
 	usb_controller = argv[1];
 	controller_index = simple_strtoul(usb_controller, NULL, 0);
+#ifdef CONFIG_FASTBOOT_USB_DEV
+	controller_index = CONFIG_FASTBOOT_USB_DEV;
+#endif
 
 	ret = board_usb_init(controller_index, USB_INIT_DEVICE);
 	if (ret) {

@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
  *
  * SPDX-License-Identifier:	GPL-2.0+
@@ -64,7 +65,7 @@ enum aux_state {
 	aux_undefined,
 };
 
-int arch_auxiliary_core_set_reset_address(u32 boot_private_data)
+int arch_auxiliary_core_set_reset_address(ulong boot_private_data)
 {
 	u32 stack, pc;
 
@@ -85,6 +86,11 @@ int arch_auxiliary_core_set_reset_address(u32 boot_private_data)
 
 void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 {
+#ifdef CONFIG_IMX8M
+        /* TODO: Currently only start state */
+        if (state == aux_off || state == aux_stopped)
+		call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_START, 0, 0, 0);
+#else
 	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 
@@ -112,10 +118,20 @@ void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 	if (state == aux_running || state == aux_paused)
 		/* Assert SW reset, i.e. stop M4 if running */
 		clrbits_le32(&src_reg->scr, 0x00000010);
+#endif
 }
 
 enum aux_state arch_auxiliary_core_get(u32 core_id)
 {
+#ifdef CONFIG_IMX8M
+        /* TODO: check reg values mapping to the state */
+	int reg = call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_STARTED, 0, 0, 0);
+        
+	if(reg)
+		return aux_running;
+        
+        return aux_stopped; 
+#else
 	struct src *src_reg = (struct src *)SRC_BASE_ADDR;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	int flags = 0;
@@ -143,6 +159,7 @@ enum aux_state arch_auxiliary_core_get(u32 core_id)
 	}
 
 	return aux_undefined;
+#endif
 }
 
 /*

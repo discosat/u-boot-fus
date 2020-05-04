@@ -92,7 +92,7 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 
 	do {
 		sdev = get_serial_device(--port);
-		if (sdev && sdev->dev.priv == (void *)dwDbgSerPortPA)
+		if (sdev && sdev->dev.priv == (void *)(ulong)dwDbgSerPortPA)
 			return port;
 	} while (port);
 
@@ -102,9 +102,13 @@ static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
 /* Get the number of the debug port reported by NBoot */
 struct serial_device *default_serial_console(void)
 {
+#ifndef CONFIG_SPL_BUILD
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
+#else
+	return get_serial_device(CONFIG_SYS_UART_PORT);
+#endif
 }
 
 /* Issue reset signal on up to three gpios (~0: gpio unused) */
@@ -255,7 +259,7 @@ void fs_board_late_init_common(void)
 {
 	const char *envvar;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
-#ifdef FS_MMC_COMMON
+#ifdef CONFIG_FS_MMC_COMMON
 	int usdhc_boot_device = get_usdhc_boot_device();
 	int mmc_boot_device = get_mmc_boot_device();
 #else // support FSVYBRID

@@ -63,8 +63,10 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"en25s64",	   INFO(0x1c3817, 0x0, 64 * 1024,   128, 0) },
 #endif
 #ifdef CONFIG_SPI_FLASH_GIGADEVICE	/* GIGADEVICE */
+	{"gd25q16c",	   INFO(0xc84015, 0x0, 64 * 1024,    32, SECT_4K) },
 	{"gd25q64b",	   INFO(0xc84017, 0x0, 64 * 1024,   128, SECT_4K) },
 	{"gd25lq32",	   INFO(0xc86016, 0x0, 64 * 1024,    64, SECT_4K) },
+	{"gd25lq16",	   INFO(0xc86015, 0x0, 64 * 1024,    32, SECT_4K) },
 #endif
 #ifdef CONFIG_SPI_FLASH_ISSI		/* ISSI */
 	{"is25lq040b",	   INFO(0x9d4013, 0x0, 64 * 1024,    8, 0)  },
@@ -88,6 +90,7 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"mx25u1635e",     INFO(0xc22535, 0x0, 64 * 1024,  32, SECT_4K) },
 	{"mx66u51235f",    INFO(0xc2253a, 0x0, 64 * 1024,  1024, RD_FULL | WR_QPP) },
 	{"mx66l1g45g",     INFO(0xc2201b, 0x0, 64 * 1024,  2048, RD_FULL | WR_QPP) },
+	{"mx25r6435f",     INFO(0xc22817, 0x0, 64 * 1024,  128, RD_FULL | SECT_4K) },
 #endif
 #ifdef CONFIG_SPI_FLASH_SPANSION	/* SPANSION */
 	{"s25fl008a",	   INFO(0x010213, 0x0, 64 * 1024,    16, 0) },
@@ -137,7 +140,7 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"n25q1024a",	   INFO(0x20bb21, 0x0,  64 * 1024,  2048, RD_FULL | WR_QPP | E_FSR | SECT_4K) },
 	{"mt25qu02g",	   INFO(0x20bb22, 0x0,  64 * 1024,  4096, RD_FULL | WR_QPP | E_FSR | SECT_4K) },
 	{"mt25ql02g",	   INFO(0x20ba22, 0x0,  64 * 1024,  4096, RD_FULL | WR_QPP | E_FSR | SECT_4K) },
-	{"mt35xu512g",	   INFO6(0x2c5b1a, 0x104100,  128 * 1024,  512, E_FSR | SECT_4K) },
+	{"mt35xu512g",	   INFO6(0x2c5b1a, 0x104100,  128 * 1024,  512, E_FSR) },
 #endif
 #ifdef CONFIG_SPI_FLASH_SST		/* SST */
 	{"sst25vf040b",	   INFO(0xbf258d, 0x0,	64 * 1024,     8, SECT_4K | SST_WR) },

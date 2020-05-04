@@ -494,6 +494,18 @@ void board_nand_init(void)
 	int reg;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mxs_nand_fus_platform_data pdata;
+#ifdef CONFIG_ENV_IS_IN_MMC
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+
+	switch (board_type) {
+
+	case BT_PCOREMX6UL:
+		if (features2 & FEAT2_EMMC)
+			return;
+		break;
+	}
+#endif
 
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nfc_pads);

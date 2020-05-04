@@ -1,0 +1,14 @@
+if TARGET_FSIMX8MM
+
+config SYS_BOARD
+	default "fsimx8mm"
+
+config SYS_VENDOR
+	default "F+S"
+
+config SYS_CONFIG_NAME
+	default "fsimx8mm"
+
+source "board/freescale/common/Kconfig"
+
+endif

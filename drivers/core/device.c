@@ -27,6 +27,9 @@
 #include <dm/util.h>
 #include <linux/err.h>
 #include <linux/list.h>
+#ifdef CONFIG_POWER_DOMAIN
+#include <power-domain.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -375,6 +378,21 @@ int device_probe(struct udevice *dev)
 	 */
 	if (dev->parent && device_get_uclass_id(dev) != UCLASS_PINCTRL)
 		pinctrl_select_state(dev, "default");
+
+#ifdef CONFIG_POWER_DOMAIN
+	if (dev->parent && device_get_uclass_id(dev) != UCLASS_POWER_DOMAIN) {
+		struct power_domain pd;
+		if (!power_domain_get(dev, &pd)) {
+			if (!(dev->driver->flags & DM_FLAG_IGNORE_POWER_ON)) {
+				ret = power_domain_on(&pd);
+				if (ret) {
+					power_domain_free(&pd);
+					goto fail;
+				}
+			}
+		}
+	}
+#endif
 
 	ret = uclass_pre_probe_device(dev);
 	if (ret)

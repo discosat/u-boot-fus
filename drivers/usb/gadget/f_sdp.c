@@ -102,6 +102,7 @@ struct f_sdp {
 	enum sdp_state			next_state;
 	u32				dnl_address;
 	u32				dnl_bytes_remaining;
+	u32				last_dnl_file_bytes;
 	u32				jmp_address;
 	bool				always_send_status;
 	u32				error_status;
@@ -157,10 +158,27 @@ static struct usb_endpoint_descriptor in_desc = {
 	.bInterval =		1,
 };
 
+static struct usb_endpoint_descriptor in_hs_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT, /*USB_DT_CS_ENDPOINT*/
+
+	.bEndpointAddress =	1 | USB_DIR_IN,
+	.bmAttributes =	USB_ENDPOINT_XFER_INT,
+	.wMaxPacketSize =	512,
+	.bInterval =		1,
+};
+
 static struct usb_descriptor_header *sdp_runtime_descs[] = {
 	(struct usb_descriptor_header *)&sdp_intf_runtime,
 	(struct usb_descriptor_header *)&sdp_hid_desc,
 	(struct usb_descriptor_header *)&in_desc,
+	NULL,
+};
+
+static struct usb_descriptor_header *sdp_runtime_hs_descs[] = {
+	(struct usb_descriptor_header *)&sdp_intf_runtime,
+	(struct usb_descriptor_header *)&sdp_hid_desc,
+	(struct usb_descriptor_header *)&in_hs_desc,
 	NULL,
 };
 
@@ -230,6 +248,18 @@ static struct usb_gadget_strings *sdp_generic_strings[] = {
 	NULL,
 };
 
+#ifdef CONFIG_PARSE_CONTAINER
+int __weak sdp_load_image_parse_container(struct spl_image_info *spl_image,
+				   unsigned long offset)
+{
+	return -EINVAL;
+}
+#endif
+
+void __weak board_sdp_cleanup(void)
+{
+}
+
 static inline void *sdp_ptr(u32 val)
 {
 	return (void *)(uintptr_t)val;
@@ -275,8 +305,9 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->error_status = SDP_WRITE_FILE_COMPLETE;
 
 		sdp->state = SDP_STATE_RX_FILE_DATA;
-		sdp->dnl_address = be32_to_cpu(cmd->addr);
+		sdp->dnl_address = cmd->addr ? be32_to_cpu(cmd->addr) : CONFIG_SDP_LOADADDR;
 		sdp->dnl_bytes_remaining = be32_to_cpu(cmd->cnt);
+		sdp->last_dnl_file_bytes = sdp->dnl_bytes_remaining;
 		sdp->next_state = SDP_STATE_IDLE;
 
 		printf("Downloading file of size %d to 0x%08x... ",
@@ -302,7 +333,7 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->always_send_status = false;
 		sdp->error_status = 0;
 
-		sdp->jmp_address = be32_to_cpu(cmd->addr);
+		sdp->jmp_address = cmd->addr ? be32_to_cpu(cmd->addr) : CONFIG_SDP_LOADADDR;
 		sdp->state = SDP_STATE_TX_SEC_CONF;
 		sdp->next_state = SDP_STATE_JUMP;
 		break;
@@ -483,6 +514,11 @@ static int sdp_bind(struct usb_configuration *c, struct usb_function *f)
 		goto error;
 	}
 
+	if (gadget_is_dualspeed(gadget)) {
+		/* Assume endpoint addresses are the same for both speeds */
+		in_hs_desc.bEndpointAddress = in_desc.bEndpointAddress;
+	}
+
 	sdp->in_ep = ep; /* Store IN EP for enabling @ setup */
 
 	cdev->req->context = sdp;
@@ -520,7 +556,7 @@ static struct usb_request *sdp_start_ep(struct usb_ep *ep)
 {
 	struct usb_request *req;
 
-	req = alloc_ep_req(ep, 64);
+	req = alloc_ep_req(ep, 65);
 	debug("%s: ep:%p req:%p\n", __func__, ep, req);
 
 	if (!req)
@@ -535,11 +571,15 @@ static int sdp_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 {
 	struct f_sdp *sdp = func_to_sdp(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
+	struct usb_gadget *gadget = cdev->gadget;
 	int result;
 
 	debug("%s: intf: %d alt: %d\n", __func__, intf, alt);
 
-	result = usb_ep_enable(sdp->in_ep, &in_desc);
+	if (gadget_is_dualspeed(gadget) && gadget->speed == USB_SPEED_HIGH)
+		result = usb_ep_enable(sdp->in_ep, &in_hs_desc);
+	else
+		result = usb_ep_enable(sdp->in_ep, &in_desc);
 	if (result)
 		return result;
 	sdp->in_req = sdp_start_ep(sdp->in_ep);
@@ -585,7 +625,7 @@ static int sdp_bind_config(struct usb_configuration *c)
 	memset(sdp_func, 0, sizeof(*sdp_func));
 
 	sdp_func->usb_function.name = "sdp";
-	sdp_func->usb_function.hs_descriptors = sdp_runtime_descs;
+	sdp_func->usb_function.hs_descriptors = sdp_runtime_hs_descs;
 	sdp_func->usb_function.descriptors = sdp_runtime_descs;
 	sdp_func->usb_function.bind = sdp_bind;
 	sdp_func->usb_function.unbind = sdp_unbind;
@@ -633,6 +673,42 @@ static u32 sdp_jump_imxheader(void *address)
 	/* The image probably never returns hence we won't reach that point */
 	return 0;
 }
+
+static ulong sdp_spl_fit_read(struct spl_load_info *load, ulong sector,
+			      ulong count, void *buf)
+{
+	memcpy(buf, (void *)sector, count);
+
+	return count;
+}
+
+#ifdef CONFIG_SPL_BUILD
+#ifdef CONFIG_PARSE_CONTAINER
+static ulong search_container_header(ulong p, int size)
+{
+	int i = 0;
+	uint8_t *hdr;
+	for (i = 0; i < size; i += 4) {
+		hdr = (uint8_t *)(p +i);
+		if (*(hdr + 3) == 0x87 && *hdr == 0 &&
+			(*(hdr + 1) != 0 || *(hdr + 2) != 0))
+                        return p +i;
+	}
+        return 0;
+}
+#else
+static ulong search_fit_header(ulong p, int size)
+{
+	int i = 0;
+	for (i = 0; i < size; i += 4) {
+                if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
+                        return p + i;
+	}
+
+        return 0;
+}
+#endif
+#endif
 
 static void sdp_handle_in_ep(void)
 {
@@ -686,10 +762,51 @@ static void sdp_handle_in_ep(void)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
-			/* In SPL, allow jumps to U-Boot images */
+			struct image_header *header;
 			struct spl_image_info spl_image = {};
-			spl_parse_image_header(&spl_image,
-				(struct image_header *)sdp_func->jmp_address);
+
+#ifdef CONFIG_PARSE_CONTAINER
+			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
+				sdp_func->last_dnl_file_bytes);
+#else
+			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
+				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
+					sdp_func->last_dnl_file_bytes);
+#endif
+			if (sdp_func->jmp_address == 0) {
+				panic("Error in search header, failed to jump\n");
+			}
+
+			printf("Found header at 0x%08x\n", sdp_func->jmp_address);
+
+			header = (struct image_header *)(ulong)(sdp_func->jmp_address);
+
+			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
+			    image_get_magic(header) == FDT_MAGIC) {
+				struct spl_load_info load;
+
+				debug("Found FIT\n");
+				load.dev = NULL;
+				load.priv = NULL;
+				load.filename = NULL;
+				load.bl_len = 1;
+				load.read = sdp_spl_fit_read;
+				spl_load_simple_fit(&spl_image, &load,
+							  sdp_func->jmp_address,
+							  (void *)header);
+			} else {
+#ifdef CONFIG_PARSE_CONTAINER
+				sdp_load_image_parse_container(&spl_image,
+							     sdp_func->jmp_address);
+#else
+				/* In SPL, allow jumps to U-Boot images */
+				spl_parse_image_header(&spl_image,
+					(struct image_header *)(ulong)(sdp_func->jmp_address));
+#endif
+			}
+
+			board_sdp_cleanup();
+
 			jump_to_image_no_args(&spl_image);
 #else
 			/* In U-Boot, allow jumps to scripts */

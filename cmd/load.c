@@ -107,7 +107,7 @@ static int do_load_serial(cmd_tbl_t *cmdtp, int flag, int argc,
 		rcode = 1;
 	} else {
 		printf("## Start Addr      = 0x%08lX\n", addr);
-		set_fileaddr(addr)
+		set_fileaddr(addr);
 		env_set_fileinfo(addr);
 	}
 

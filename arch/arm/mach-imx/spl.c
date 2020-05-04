@@ -97,13 +97,18 @@ u32 spl_boot_device(void)
 	return BOOT_DEVICE_NONE;
 }
 
-#elif defined(CONFIG_MX7) || defined(CONFIG_MX8M)
-/* Translate iMX7/MX8M boot device to the SPL boot device enumeration */
+#elif defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8)
+/* Translate iMX7/iMX8M boot device to the SPL boot device enumeration */
 u32 spl_boot_device(void)
 {
 	enum boot_device boot_device_spl = get_boot_device();
 
+#if defined(CONFIG_SPL_IMX_ROMAPI_SUPPORT)
+	return BOOT_DEVICE_IMX_ROMAPI;
+#endif
+
 	switch (boot_device_spl) {
+#if defined(CONFIG_MX7)
 	case SD1_BOOT:
 	case MMC1_BOOT:
 	case SD2_BOOT:
@@ -111,17 +116,45 @@ u32 spl_boot_device(void)
 	case SD3_BOOT:
 	case MMC3_BOOT:
 		return BOOT_DEVICE_MMC1;
+#elif defined(CONFIG_IMX8)
+	case MMC1_BOOT:
+                return BOOT_DEVICE_MMC1;
+	case SD2_BOOT:
+		return BOOT_DEVICE_MMC2_2;
+        case SD3_BOOT:
+                return BOOT_DEVICE_MMC1;
+	case FLEXSPI_BOOT:
+		return BOOT_DEVICE_SPI;
+#elif defined(CONFIG_IMX8M)
+	case SD1_BOOT:
+	case MMC1_BOOT:
+		return BOOT_DEVICE_MMC1;
+#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN)
+	case SD2_BOOT:
+	case MMC2_BOOT:
+		return BOOT_DEVICE_MMC1;
+	case SD3_BOOT:
+	case MMC3_BOOT:
+		return BOOT_DEVICE_MMC2;
+#else
+	case SD2_BOOT:
+	case MMC2_BOOT:
+		return BOOT_DEVICE_MMC2;
+#endif
+#endif
 	case NAND_BOOT:
 		return BOOT_DEVICE_NAND;
 	case SPI_NOR_BOOT:
 		return BOOT_DEVICE_SPI;
+	case QSPI_BOOT:
+		return BOOT_DEVICE_NOR;
 	case USB_BOOT:
-		return BOOT_DEVICE_USB;
+		return BOOT_DEVICE_BOARD;
 	default:
 		return BOOT_DEVICE_NONE;
 	}
 }
-#endif /* CONFIG_MX6 || CONFIG_MX7 || CONFIG_MX8M */
+#endif /* CONFIG_MX6 || CONFIG_MX7 || CONFIG_IMX8M || CONFIG_IMX8 */
 
 #ifdef CONFIG_SPL_USB_GADGET_SUPPORT
 int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
@@ -130,12 +163,47 @@ int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 
 	return 0;
 }
+
+#define SDPV_BCD_DEVICE 0x500
+int g_dnl_get_board_bcd_device_number(int gcnum)
+{
+	return SDPV_BCD_DEVICE;
+}
 #endif
 
 #if defined(CONFIG_SPL_MMC_SUPPORT)
 /* called from spl_mmc to see type of boot mode for storage (RAW or FAT) */
 u32 spl_boot_mode(const u32 boot_device)
 {
+#if defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8)
+	switch (get_boot_device()) {
+	/* for MMC return either RAW or FAT mode */
+	case SD1_BOOT:
+	case SD2_BOOT:
+	case SD3_BOOT:
+#if defined(CONFIG_SPL_FAT_SUPPORT)
+		return MMCSD_MODE_FS;
+#else
+		return MMCSD_MODE_RAW;
+#endif
+		break;
+	case MMC1_BOOT:
+	case MMC2_BOOT:
+	case MMC3_BOOT:
+#if defined(CONFIG_SPL_FAT_SUPPORT)
+		return MMCSD_MODE_FS;
+#elif defined(CONFIG_SUPPORT_EMMC_BOOT)
+		return MMCSD_MODE_EMMCBOOT;
+#else
+		return MMCSD_MODE_RAW;
+#endif
+		break;
+	default:
+		puts("spl: ERROR:  unsupported device\n");
+		hang();
+	}
+
+#else /* defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8) */
 	switch (spl_boot_device()) {
 	/* for MMC return either RAW or FAT mode */
 	case BOOT_DEVICE_MMC1:
@@ -152,6 +220,7 @@ u32 spl_boot_mode(const u32 boot_device)
 		puts("spl: ERROR:  unsupported device\n");
 		hang();
 	}
+#endif
 }
 #endif
 
@@ -198,19 +267,59 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 
 	debug("image entry point: 0x%lX\n", spl_image->entry_point);
 
-	/* HAB looks for the CSF at the end of the authenticated data therefore,
-	 * we need to subtract the size of the CSF from the actual filesize */
-	offset = spl_image->size - CONFIG_CSF_SIZE;
-	if (!imx_hab_authenticate_image(spl_image->load_addr,
-					offset + IVT_SIZE + CSF_PAD_SIZE,
-					offset)) {
+	if (spl_image->flags & SPL_FIT_FOUND) {
 		image_entry();
 	} else {
+		/* HAB looks for the CSF at the end of the authenticated data therefore,
+		 * we need to subtract the size of the CSF from the actual filesize */
+		offset = spl_image->size - CONFIG_CSF_SIZE;
+		if (!imx_hab_authenticate_image(spl_image->load_addr,
+						offset + IVT_SIZE + CSF_PAD_SIZE,
+						offset)) {
+			image_entry();
+		} else {
+			puts("spl: ERROR:  image authentication unsuccessful\n");
+			hang();
+		}
+	}
+}
+
+ulong board_spl_fit_size_align(ulong size)
+{
+	/* HAB authenticate_image requests the IVT offset is aligned to 0x1000 */
+#define ALIGN_SIZE		0x1000
+
+	size = ALIGN(size, ALIGN_SIZE);
+	size += CONFIG_CSF_SIZE;
+
+	return size;
+}
+
+void board_spl_fit_post_load(ulong load_addr, size_t length)
+{
+	uint32_t offset = length - CONFIG_CSF_SIZE;
+	if (imx_hab_authenticate_image(load_addr,
+					offset + IVT_SIZE + CSF_PAD_SIZE,
+					offset)) {
 		puts("spl: ERROR:  image authentication unsuccessful\n");
 		hang();
 	}
 }
 
+void* board_spl_fit_buffer_addr(ulong fit_size, int bl_len)
+{
+	int align_len = ARCH_DMA_MINALIGN - 1;
+
+	/* Some devices like SDP, NOR, NAND, SPI are using bl_len =1, so their fit address
+	 * is different with SD/MMC, this cause mismatch with signed address. Thus, adjust
+	 * the bl_len to align with SD/MMC.
+	 */
+	if (bl_len < 512)
+		bl_len = 512;
+
+	return  (void *)((CONFIG_SYS_TEXT_BASE - fit_size - bl_len -
+			align_len) & ~align_len);
+}
 #endif
 
 #if defined(CONFIG_MX6) && defined(CONFIG_SPL_OS_BOOT)

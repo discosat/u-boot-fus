@@ -24,6 +24,7 @@
 #define GPU_ARB_END_ADDR                0x01803FFF
 #define APBH_DMA_ARB_BASE_ADDR          0x01804000
 #define APBH_DMA_ARB_END_ADDR           0x0180BFFF
+#define MCU_BOOTROM_BASE_ADDR	        0x007F8000
 #define M4_BOOTROM_BASE_ADDR            0x007F8000
 
 #elif !defined(CONFIG_MX6SLL)
@@ -132,7 +133,7 @@
 #define QSPI2_ARB_BASE_ADDR             0x70000000
 #define QSPI2_ARB_END_ADDR              0x7FFFFFFF
 
-#if (!(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)))
+#if (!(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL) || defined(CONFIG_MX6SLL)))
 #define IPU_SOC_BASE_ADDR		IPU1_ARB_BASE_ADDR
 #define IPU_SOC_OFFSET			0x00200000
 #endif
@@ -211,8 +212,13 @@
 #define GPIO4_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x28000)
 #define GPIO5_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x2C000)
 #define MX6UL_SNVS_LP_BASE_ADDR     (AIPS1_OFF_BASE_ADDR + 0x30000)
+#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
+#define SNVS_LP_BASE_ADDR           (AIPS1_OFF_BASE_ADDR + 0x30000)
+#define ENET2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
+#else
 #define GPIO6_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x30000)
 #define GPIO7_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x34000)
+#endif
 #define KPP_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x38000)
 #define WDOG1_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x3C000)
 #define WDOG2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x40000)
@@ -237,6 +243,7 @@
 #define CSI_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x64000)
 #define SIPIX_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define SDMA_PORT_HOST_BASE_ADDR    (AIPS1_OFF_BASE_ADDR + 0x6C000)
+#define EPDC_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x74000)
 #elif defined(CONFIG_MX6SX)
 #define CANFD1_BASE_ADDR            (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define SDMA_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x6C000)
@@ -245,7 +252,7 @@
 #define SEMAPHORE2_BASE_ADDR        (AIPS1_OFF_BASE_ADDR + 0x78000)
 #define RDC_BASE_ADDR               (AIPS1_OFF_BASE_ADDR + 0x7C000)
 
-#elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+#elif (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
 #define GPT2_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define SDMA_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x6C000)
 #define PWM5_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x70000)
@@ -256,6 +263,7 @@
 #define DCIC1_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x64000)
 #define DCIC2_BASE_ADDR             (AIPS1_OFF_BASE_ADDR + 0x68000)
 #define DMA_REQ_PORT_HOST_BASE_ADDR (AIPS1_OFF_BASE_ADDR + 0x6C000)
+#define EPDC_BASE_ADDR              (AIPS1_OFF_BASE_ADDR + 0x74000)
 #endif
 
 #define MX6SL_LCDIF_BASE_ADDR      (AIPS1_OFF_BASE_ADDR + 0x78000)
@@ -271,7 +279,7 @@
 #define ARM_BASE_ADDR               (ATZ2_BASE_ADDR)
 #else
 #define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR)
-#define ARM_BASE_ADDR               (ATZ2_BASE_ADDR + 0x40000)
+#define ARM_BASE_ADDR		    (ATZ2_BASE_ADDR + 0x40000)
 #endif
 
 #define CONFIG_SYS_FSL_SEC_OFFSET   0
@@ -299,8 +307,8 @@
 #define USDHC3_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x18000)
 #define USDHC4_BASE_ADDR            (AIPS2_OFF_BASE_ADDR + 0x1C000)
 
-#define MX6UL_ADC1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x18000)
-#define MX6UL_ADC2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x1C000)
+#define MX6UL_ADC1_BASE_ADDR        (AIPS2_OFF_BASE_ADDR + 0x18000)
+#define MX6UL_ADC2_BASE_ADDR        (AIPS2_OFF_BASE_ADDR + 0x1C000)
 #define I2C1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x20000)
 #define I2C2_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x24000)
 #define I2C3_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x28000)
@@ -361,16 +369,22 @@
 #define UART3_BASE                  (AIPS2_OFF_BASE_ADDR + 0x6C000)
 #define UART4_BASE                  (AIPS2_OFF_BASE_ADDR + 0x70000)
 #define UART5_BASE                  (AIPS2_OFF_BASE_ADDR + 0x74000)
+/* i.MX6SLL */
+#define MTR_MASTER_BASE_ADDR        (AIPS2_OFF_BASE_ADDR + 0x7C000)
 /* i.MX6SX/UL */
 #define I2C4_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x78000)
 /* i.MX6UL */
 #define MX6UL_UART6_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x7C000)
 #define IP2APB_USBPHY1_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x78000)
 #define IP2APB_USBPHY2_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x7C000)
-/* i.MX6SLL */
-#define MTR_MASTER_BASE_ADDR        (AIPS2_OFF_BASE_ADDR + 0x7C000)
 
 #define OTG_BASE_ADDR               USB_BASE_ADDR
+
+#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
+#define SCTR_BASE_ADDR              SYSCNT_CTRL_IPS_BASE_ADDR
+#endif
+/* i.MX6SLL */
+#define MTR_MASTER_BASE_ADDR        (AIPS2_OFF_BASE_ADDR + 0x7C000)
 
 #ifdef CONFIG_MX6SX
 #define GIS_BASE_ADDR               (AIPS3_ARB_BASE_ADDR + 0x04000)
@@ -647,7 +661,7 @@ struct iomuxc {
 	u8 reserved[0x4000];
 #endif
 
-#ifdef CONFIG_MX6UL
+#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
 	u32 gpr[15];
 #else
 	u32 gpr[14];
@@ -770,7 +784,8 @@ struct cspi_regs {
 #define MXC_CSPICTRL_RXOVF	(1 << 6)
 #define MXC_CSPIPERIOD_32KHZ	(1 << 15)
 #define MAX_SPI_BYTES	32
-#if defined(CONFIG_MX6SL) || defined(CONFIG_MX6DL) || defined(CONFIG_MX6UL)
+#if defined(CONFIG_MX6DL) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL) ||\
+	defined(CONFIG_MX6SLL) || defined(CONFIG_MX6SL)
 #define SPI_MAX_NUM	3
 #else
 #define SPI_MAX_NUM	4
@@ -1052,7 +1067,7 @@ struct anatop_regs {
 #define ANATOP_PFD_CLKGATE_MASK(n)	(1<<ANATOP_PFD_CLKGATE_SHIFT(n))
 
 struct iomuxc_gpr_base_regs {
-#if defined(CONFIG_MX6UL)
+#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
 	u32     gpr[15];        /* 0x000 */
 #else
 	u32     gpr[14];        /* 0x000 */
@@ -1060,7 +1075,7 @@ struct iomuxc_gpr_base_regs {
 };
 
 struct iomuxc_base_regs {
-#if !(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL))
+#if !(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
 	u32     gpr[14];        /* 0x000 */
 #endif
 	u32     obsrv[5];       /* 0x038 */
@@ -1145,11 +1160,17 @@ extern void pcie_power_up(void);
 extern void pcie_power_off(void);
 #endif
 
+/* gd->flags reserves high 16 bits for arch-specific flags */
+#define GD_FLG_ARCH_MX6_USB_BOOT		0x80000000	 /* If set, the u-boot is booting from USB serial download */ 
+
 /*
  * If ROM fail back to USB recover mode, USBPH0_PWD will be clear to use USB
  * If boot from the other mode, USB0_PWD will keep reset value
  */
-#define	is_boot_from_usb(void) (!(readl(USB_PHY0_BASE_ADDR) & (1<<20)))
+#include <stdbool.h>
+bool is_usb_boot(void);
+#define	is_boot_from_usb  is_usb_boot
+#define	is_usbphy_power_on(void) (!(readl(USB_PHY0_BASE_ADDR) & (1<<20)))
 #define	disconnect_from_pc(void) writel(0x0, OTG_BASE_ADDR + 0x140)
 
 /* Interrupts */
