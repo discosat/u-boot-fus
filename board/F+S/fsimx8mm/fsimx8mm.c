@@ -317,7 +317,7 @@ int board_usb_init(int index, enum usb_init_type init)
   case USB_INIT_DEVICE:
   default:
 	  imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-	  gpio_request (USB_HOST_PWR_PAD, "USB_OTG_PWR");
+	  gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
 	  /* vbus_detect for bddsi  */
 	  gpio_direction_output (USB_OTG_PWR_PAD, 1);
 	  break;
