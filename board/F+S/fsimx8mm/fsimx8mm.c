@@ -547,7 +547,7 @@ static int tc358764_init(void)
     }
 
 #define PPI_D0S_CLRSIPOCOUNT 0x164      
-  *uptr = 0x00000002; // BTA paramters
+  *uptr = 0x00000000; // BTA paramters
   ret = tc358764_i2c_reg_write (mipi2lvds_dev, PPI_D0S_CLRSIPOCOUNT, val,
 				sizeof(val));
   if (ret)
@@ -556,7 +556,7 @@ static int tc358764_init(void)
       return 1;
     }
 #define PPI_D1S_CLRSIPOCOUNT 0x168 
-  *uptr = 0x00000002; // BTA paramters
+  *uptr = 0x00000000; // BTA paramters
   ret = tc358764_i2c_reg_write (mipi2lvds_dev, PPI_D1S_CLRSIPOCOUNT, val,
 				sizeof(val));
   if (ret)
@@ -565,7 +565,7 @@ static int tc358764_init(void)
       return 1;
     }
 #define PPI_D2S_CLRSIPOCOUNT 0x16C
-  *uptr = 0x00000002; // BTA paramters
+  *uptr = 0x00000000; // BTA paramters
   ret = tc358764_i2c_reg_write (mipi2lvds_dev, PPI_D2S_CLRSIPOCOUNT, val,
 				sizeof(val));
   if (ret)
@@ -574,7 +574,7 @@ static int tc358764_init(void)
       return 1;
     }
 #define PPI_D3S_CLRSIPOCOUNT 0x170
-  *uptr = 0x00000002; //4; // BTA paramters
+  *uptr = 0x00000000; //4; // BTA paramters
   ret = tc358764_i2c_reg_write (mipi2lvds_dev, PPI_D3S_CLRSIPOCOUNT, val,
 				sizeof(val));
   if (ret)
