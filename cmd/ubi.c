@@ -634,7 +634,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		if (!ret) {
 			set_fileaddr(addr);
 			env_set_fileinfo(loaded);
-			printf("OK, %d bytes loaded to 0x%lx\n", loaded, addr);
+			printf("OK, %zd bytes loaded to 0x%lx\n", loaded, addr);
 		}
 
 		return ret;
