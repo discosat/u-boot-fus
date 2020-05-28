@@ -47,7 +47,7 @@ uint64_t get_ticks(void)
 {
 	unsigned long ticks = timer_read_counter();
 
-	gd->arch.tbl = ticks;
+	gd->timebase_l = ticks;
 
 	return ticks;
 }

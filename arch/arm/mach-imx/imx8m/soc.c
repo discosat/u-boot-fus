@@ -51,8 +51,8 @@ int timer_init(void)
 			SC_CNTCR_FREQ0 | SC_CNTCR_ENABLE | SC_CNTCR_HDBG);
 #endif
 
-	gd->arch.tbl = 0;
-	gd->arch.tbu = 0;
+	gd->timebase_l = 0;
+	gd->timebase_h = 0;
 
 	return 0;
 }
