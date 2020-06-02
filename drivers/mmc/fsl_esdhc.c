@@ -1245,8 +1245,7 @@ static int fsl_esdhc_init(struct fsl_esdhc_priv *priv,
 	cfg->host_caps |= priv->esdhc.caps;
 
 	cfg->f_min = 400000;
-//	cfg->f_max = min(priv->esdhc.sdhc_clk, (u32)20000000);
-	cfg->f_max = min(priv->esdhc.sdhc_clk, (u32)52000000);
+	cfg->f_max = min(priv->esdhc.sdhc_clk, (u32)200000000);
 
 	cfg->b_max = CONFIG_SYS_MMC_MAX_BLK_COUNT;
 
