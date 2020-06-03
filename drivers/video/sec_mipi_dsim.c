@@ -14,6 +14,7 @@
 #include <div64.h>
 #include <sec_mipi_dsim.h>
 #include <imx_mipi_dsi_bridge.h>
+#include <linux/log2.h>
 
 #define MIPI_FIFO_TIMEOUT		250000 /* 250ms */
 
@@ -305,6 +306,141 @@ static void sec_mipi_dsim_wr_tx_data(struct sec_mipi_dsim *dsim,
 	dsim_write(dsim, tx_data, DSIM_PAYLOAD);
 }
 
+
+/*
+ * DSIM PLL_1432X setting guide from spec:
+ *
+ * Fout(bitclk) = ((m + k / 65536) * Fin) / (p * 2^s), and
+ * p = P[5:0], m = M[9:0], s = S[2:0], k = K[15:0];
+ *
+ * Fpref = Fin / p
+ * Fin: [6MHz ~ 300MHz], Fpref: [2MHz ~ 30MHz]
+ *
+ * Fvco = ((m + k / 65536) * Fin) / p
+ * Fvco: [1050MHz ~ 2100MHz]
+ *
+ * 1 <= P[5:0] <= 63, 64 <= M[9:0] <= 1023,
+ * 0 <= S[2:0] <=  5, -32768 <= K[15:0] <= 32767
+ *
+ */
+ // values from ref. man.
+
+#define DIV_ROUND_CLOSEST_ULL(x, divisor)(		\
+{							\
+	typeof(divisor) __d = divisor;			\
+	unsigned long long _tmp = (x) + (__d) / 2;	\
+	do_div(_tmp, __d);				\
+	_tmp;						\
+}							\
+)
+#define PLLCTRL_SET_PMS(x)		REG_PUT(x, 19,  1)
+#define PLLCTRL_SET_P(x)		REG_PUT(x, 18, 13)
+#define PLLCTRL_SET_M(x)		REG_PUT(x, 12,  3)
+#define PLLCTRL_SET_S(x)		REG_PUT(x,  2,  0)
+
+static void sec_mipi_dsim_calc_pmsk(struct sec_mipi_dsim *dsim)
+{
+	uint32_t p, m, s;
+	uint32_t best_p = 0, best_m = 0, best_s = 0;
+	uint32_t fin, fout;
+	uint32_t s_pow_2, raw_s;
+	uint64_t mfin, pfvco, pfout, psfout;
+	uint32_t delta, best_delta = ~0U;
+	const struct sec_mipi_dsim_plat_data *pdata = dsim->pdata;
+	struct sec_mipi_dsim_pll dpll = *pdata->dphy_pll;
+
+	struct sec_mipi_dsim_range *prange = &dpll.p;
+	struct sec_mipi_dsim_range *mrange = &dpll.m;
+	struct sec_mipi_dsim_range *srange = &dpll.s;
+	struct sec_mipi_dsim_range *krange = &dpll.k;
+	struct sec_mipi_dsim_range *fvco_range  = &dpll.fvco;
+	struct sec_mipi_dsim_range *fpref_range = &dpll.fpref;
+	struct sec_mipi_dsim_range pr_new = *prange;
+	struct sec_mipi_dsim_range sr_new = *srange;
+
+
+	fout = dsim->bit_clk;
+	fin  = PHY_REF_CLK/1000;
+
+	/* TODO: ignore 'k' for PMS calculation,
+	 * only use 'p', 'm' and 's' to generate
+	 * the requested PLL output clock.
+	 */
+	krange->min = 0;
+	krange->max = 0;
+
+	/* narrow 'p' range via 'Fpref' limitation:
+	 * Fpref : [2MHz ~ 30MHz] (Fpref = Fin / p)
+	 */
+	prange->min = max(prange->min, DIV_ROUND_UP(fin, fpref_range->max));
+	prange->max = min(prange->max, fin / fpref_range->min);
+
+	/* narrow 'm' range via 'Fvco' limitation:
+	 * Fvco: [1050MHz ~ 2100MHz] (Fvco = ((m + k / 65536) * Fin) / p)
+	 * So, m = Fvco * p / Fin and Fvco > Fin;
+	 */
+	pfvco = (uint64_t)fvco_range->min * prange->min;
+	mrange->min = max_t(uint32_t, mrange->min,
+			    DIV_ROUND_UP_ULL(pfvco, fin));
+	pfvco = (uint64_t)fvco_range->max * prange->max;
+	mrange->max = min_t(uint32_t, mrange->max,
+			    DIV_ROUND_UP_ULL(pfvco, fin));
+
+	dev_dbg(dev, "p: min = %u, max = %u, "
+		     "m: min = %u, max = %u, "
+		     "s: min = %u, max = %u\n",
+		prange->min, prange->max, mrange->min,
+		mrange->max, srange->min, srange->max);
+
+	/* first determine 'm', then can determine 'p', last determine 's' */
+	for (m = mrange->min; m <= mrange->max; m++) {
+		/* p = m * Fin / Fvco */
+		mfin = (uint64_t)m * fin;
+		pr_new.min = max_t(uint32_t, prange->min,
+				   DIV_ROUND_UP_ULL(mfin, fvco_range->max));
+		pr_new.max = min_t(uint32_t, prange->max,
+				   (mfin / fvco_range->min));
+
+		if (pr_new.max < pr_new.min || pr_new.min < prange->min)
+			continue;
+
+		for (p = pr_new.min; p <= pr_new.max; p++) {
+			/* s = order_pow_of_two((m * Fin) / (p * Fout)) */
+			pfout = (uint64_t)p * fout;
+			raw_s = DIV_ROUND_CLOSEST_ULL(mfin, pfout);
+
+			s_pow_2 = rounddown_pow_of_two(raw_s);
+			sr_new.min = max_t(uint32_t, srange->min,
+					   order_base_2(s_pow_2));
+
+			s_pow_2 = roundup_pow_of_two(DIV_ROUND_CLOSEST_ULL(mfin, pfout));
+			sr_new.max = min_t(uint32_t, srange->max,
+					   order_base_2(s_pow_2));
+
+			if (sr_new.max < sr_new.min || sr_new.min < srange->min)
+				continue;
+
+			for (s = sr_new.min; s <= sr_new.max; s++) {
+				/* fout = m * Fin / (p * 2^s) */
+				psfout = pfout * (1 << s);
+				delta = abs(psfout - mfin);
+				if (delta < best_delta) {
+					best_p = p;
+					best_m = m;
+					best_s = s;
+					best_delta = delta;
+				}
+			}
+		}
+	}
+	dsim->p = best_p;
+	dsim->m = best_m;
+	dsim->s = best_s;
+	dsim->pms = PLLCTRL_SET_P(dsim->p) |
+		    PLLCTRL_SET_M(dsim->m) |
+		    PLLCTRL_SET_S(dsim->s);
+}
+
 static void sec_mipi_dsim_long_data_wr(struct sec_mipi_dsim *dsim,
 			const unsigned char *data0, unsigned int data_size)
 {
@@ -572,30 +708,80 @@ static void sec_mipi_dsim_config_dpi(struct sec_mipi_dsim *dsim)
 	dsim_write(dsim, config, DSIM_CONFIG);
 }
 
+void *bsearch(const void *key, const void *base, size_t num, size_t size,
+	      int (*cmp)(const void *key, const void *elt))
+{
+	const char *pivot;
+	int result;
+
+	while (num > 0) {
+		pivot = base + (num >> 1) * size;
+		result = cmp(key, pivot);
+
+		if (result == 0)
+			return (void *)pivot;
+
+		if (result > 0) {
+			base = pivot + size;
+			num--;
+		}
+		num >>= 1;
+	}
+
+	return NULL;
+}
+
+#define PHYTIMING_SET_M_TLPXCTL(x)	REG_PUT(x, 15,  8)
+#define PHYTIMING_SET_M_THSEXITCTL(x)	REG_PUT(x,  7,  0)
+
+#define PHYTIMING1_SET_M_TCLKPRPRCTL(x)	 REG_PUT(x, 31, 24)
+#define PHYTIMING1_SET_M_TCLKZEROCTL(x)	 REG_PUT(x, 23, 16)
+#define PHYTIMING1_SET_M_TCLKPOSTCTL(x)	 REG_PUT(x, 15,  8)
+#define PHYTIMING1_SET_M_TCLKTRAILCTL(x) REG_PUT(x,  7,  0)
+
+#define PHYTIMING2_SET_M_THSPRPRCTL(x)	REG_PUT(x, 23, 16)
+#define PHYTIMING2_SET_M_THSZEROCTL(x)	REG_PUT(x, 15,  8)
+#define PHYTIMING2_SET_M_THSTRAILCTL(x)	REG_PUT(x,  7,  0)
+
 static void sec_mipi_dsim_config_dphy(struct sec_mipi_dsim *dsim)
 {
+	struct sec_mipi_dsim_dphy_timing key = { 0 };
+	const struct sec_mipi_dsim_dphy_timing *match = NULL;
+	const struct sec_mipi_dsim_plat_data *pdata = dsim->pdata;
 	uint32_t phytiming = 0, phytiming1 = 0, phytiming2 = 0, timeout = 0;
 
-	/* TODO: add a PHY timing table arranged by the pll Fout */
+	/* '1280x720@60Hz' mode with 2 data lanes
+	 * requires special fine tuning for DPHY
+	 * TIMING config according to the tests.
+	 * See linux kernel driver.
+	 */
+	key.bit_clk = DIV_ROUND_CLOSEST_ULL(dsim->bit_clk, 1000);
 
-	phytiming  |= PHYTIMING_SET_M_TLPXCTL(6)	|
-		      PHYTIMING_SET_M_THSEXITCTL(11);
+	match = bsearch(&key, pdata->dphy_timing, pdata->num_dphy_timing,
+			sizeof(struct sec_mipi_dsim_dphy_timing),
+			pdata->dphy_timing_cmp);
+	if (WARN_ON(!match))
+		return;
+
+	phytiming  |= PHYTIMING_SET_M_TLPXCTL(match->lpx)	|
+		      PHYTIMING_SET_M_THSEXITCTL(match->hs_exit);
 	dsim_write(dsim, phytiming, DSIM_PHYTIMING);
 
-	phytiming1 |= PHYTIMING1_SET_M_TCLKPRPRCTL(7)	|
-		      PHYTIMING1_SET_M_TCLKZEROCTL(38)	|
-		      PHYTIMING1_SET_M_TCLKPOSTCTL(13)	|
-		      PHYTIMING1_SET_M_TCLKTRAILCTL(8);
+	phytiming1 |= PHYTIMING1_SET_M_TCLKPRPRCTL(match->clk_prepare)	|
+		      PHYTIMING1_SET_M_TCLKZEROCTL(match->clk_zero)	|
+		      PHYTIMING1_SET_M_TCLKPOSTCTL(match->clk_post)	|
+		      PHYTIMING1_SET_M_TCLKTRAILCTL(match->clk_trail);
 	dsim_write(dsim, phytiming1, DSIM_PHYTIMING1);
 
-	phytiming2 |= PHYTIMING2_SET_M_THSPRPRCTL(8)	|
-		      PHYTIMING2_SET_M_THSZEROCTL(13)	|
-		      PHYTIMING2_SET_M_THSTRAILCTL(11);
+	phytiming2 |= PHYTIMING2_SET_M_THSPRPRCTL(match->hs_prepare)	|
+		      PHYTIMING2_SET_M_THSZEROCTL(match->hs_zero)	|
+		      PHYTIMING2_SET_M_THSTRAILCTL(match->hs_trail);
 	dsim_write(dsim, phytiming2, DSIM_PHYTIMING2);
 
-	timeout |= TIMEOUT_SET_BTAOUT(0xf)	|
-		   TIMEOUT_SET_LPDRTOUT(0xf);
-	dsim_write(dsim, 0xf000f, DSIM_TIMEOUT);
+	timeout |= TIMEOUT_SET_BTAOUT(0xff)	|
+		   TIMEOUT_SET_LPDRTOUT(0xff);
+	dsim_write(dsim, timeout, DSIM_TIMEOUT);
+
 }
 
 static void sec_mipi_dsim_config_clkctrl(struct sec_mipi_dsim *dsim)
@@ -807,6 +993,8 @@ static int sec_mipi_dsim_bridge_mode_set(struct mipi_dsi_bridge_driver *bridge_d
 
 	dsim_host->pix_clk = DIV_ROUND_UP_ULL(pix_clk, 1000);
 	dsim_host->bit_clk = DIV_ROUND_UP_ULL(bit_clk, 1000);
+
+	sec_mipi_dsim_calc_pmsk(dsim_host);
 
 	if (dsim_host->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
 		/* TODO: add PMS calculate and check

@@ -34,6 +34,8 @@
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include <nand.h>
+#include "sec_mipi_dphy_ln14lpp.h"
+#include "sec_mipi_pll_1432x.h"
 
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -783,6 +785,10 @@ static const struct sec_mipi_dsim_plat_data imx8mm_mipi_dsim_plat_data = {
 	.max_data_rate  = 1500000000ULL,
 	.reg_base = MIPI_DSI_BASE_ADDR,
 	.gpr_base = CSI_BASE_ADDR + 0x8000,
+	.dphy_pll	= &pll_1432x,
+	.dphy_timing	= dphy_timing_ln14lpp_v1p2,
+	.num_dphy_timing = ARRAY_SIZE(dphy_timing_ln14lpp_v1p2),
+	.dphy_timing_cmp = dphy_timing_default_cmp,
 };
 
 #define DISPLAY_MIX_SFT_RSTN_CSR		0x00
