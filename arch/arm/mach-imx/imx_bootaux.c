@@ -86,7 +86,7 @@ int arch_auxiliary_core_set_reset_address(ulong boot_private_data)
 
 void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 {
-#ifdef CONFIG_IMX8M
+#if defined(CONFIG_IMX8M) || defined(CONFIG_IMX8MN)
         /* TODO: Currently only start state */
         if (state == aux_off || state == aux_stopped)
 		call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_START, 0, 0, 0);
@@ -123,7 +123,7 @@ void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 
 enum aux_state arch_auxiliary_core_get(u32 core_id)
 {
-#ifdef CONFIG_IMX8M
+#if defined(CONFIG_IMX8M) || defined(CONFIG_IMX8MN)
         /* TODO: check reg values mapping to the state */
 	int reg = call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_STARTED, 0, 0, 0);
         
