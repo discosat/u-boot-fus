@@ -410,8 +410,18 @@ static int pmic_init_board(void)
       return ret;
     }
 
-  val[0] = 2;
-  /* increase VDD_DRAM to 0.9v for 3Ghz DDR */
+
+  val[0] = 0x0f;
+  /* increase VDD_SOC to typical value 0.85v before first DRAM access */
+  ret = dm_i2c_write (pmic_dev, BD71837_BUCK1_VOLT_RUN, &val[0], 1);
+  if (ret)
+    {
+      printf ("%s: Can't increase DRAM VDD %d.\n", __func__, ret);
+      return ret;
+    }
+
+  val[0] = 0x83;
+  /* increase VDD_DRAM to 0.975v for 3Ghz DDR */
   ret = dm_i2c_write (pmic_dev, BD71837_BUCK5_VOLT, &val[0], 1);
   if (ret)
     {
