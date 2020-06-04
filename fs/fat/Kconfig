@@ -6,17 +6,18 @@ config FS_FAT
 	  It is useful mainly for its wide compatibility with various operating
 	  systems. You can also enable CMD_FAT to get access to fat commands.
 
-config FAT_WRITE
-	bool "Enable FAT filesystem write support"
+config FAT_ORIG
+	bool "Enable original U-Boot FAT driver"
 	depends on FS_FAT
+	default y
 	help
-	  This provides support for creating and writing new files to an
-	  existing FAT filesystem partition.
+	  The original FAT driver uses a lot of memory and may have problems
+	  with long file names. However it has optional write support.
 
 config FS_FAT_MAX_CLUSTSIZE
 	int "Set maximum possible clustersize"
 	default 65536
-	depends on FS_FAT
+	depends on FAT_ORIG
 	help
 	  Set the maximum possible clustersize for the FAT filesytem. This
 	  is the smallest amount of disk space that can be used to hold a
@@ -26,7 +27,15 @@ config FS_FAT_MAX_CLUSTSIZE
 config FAT_FUS
 	bool "Enable optimized FAT driver (F&S)"
 	depends on FS_FAT
+	depends on !FAT_ORIG
 	help
 	  Tis FAT driver supports wildcards, is much faster and needs less
 	  memory than the original U-Boot driver. However at the moment it
 	  has no write support.
+
+config FAT_WRITE
+	bool "Enable FAT filesystem write support"
+	depends on FAT_ORIG
+	help
+	  This provides support for creating and writing new files to an
+	  existing FAT filesystem partition.
