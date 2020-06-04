@@ -21,6 +21,11 @@
 
 #include "imx_env.h"
 
+/* disable FAT write becaue its dosn't work 
+   with F&S FAT driver
+*/
+#undef CONFIG_FAT_WRITE
+
 /* need for F&S bootaux */
 #define M4_BOOTROM_BASE_ADDR           MCU_BOOTROM_BASE_ADDR
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
