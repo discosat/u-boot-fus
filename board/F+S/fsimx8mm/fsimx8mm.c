@@ -448,17 +448,6 @@ int board_init(void)
   /* Copy NBoot args to variables and prepare command prompt string */
   fs_board_init_common (&board_info[board_type]);
 
-  pmic_init_board ();
-
-	/*
-	 * set rawnand root
-	 * sys pll1 400M
-	 */
-	clock_enable(CCGR_RAWNAND, 0);
-	clock_set_target_val(NAND_CLK_ROOT, CLK_ROOT_ON |
-		CLK_ROOT_SOURCE_SEL(3) | CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4)); /* 100M */
-	clock_enable(CCGR_RAWNAND, 1);
-
 #ifdef CONFIG_FEC_MXC
   setup_fec ();
 #endif
@@ -1020,6 +1009,8 @@ void board_late_mmc_env_init(void)
 
 int board_late_init(void)
 {
+  pmic_init_board ();
+  
   /* Remove 'fdtcontroladdr' env. because we are using
    * compiled-in version. In this case it is not possible
    * to use this env. as saved in NAND flash. (s. readme for fdt control)
