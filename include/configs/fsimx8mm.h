@@ -21,8 +21,8 @@
 #include "imx_env.h"
 
 /* disable FAT write becaue its dosn't work 
-   with F&S FAT driver
-*/
+ *  with F&S FAT driver
+ */
 #undef CONFIG_FAT_WRITE
 
 /* need for F&S bootaux */
@@ -34,8 +34,9 @@
 #define CONFIG_CSF_SIZE			0x2000 /* 8K region */
 #endif
 
-#define CONFIG_NAND_BOOT
+#ifdef CONFIG_NAND_BOOT
 #define CONFIG_CMD_NAND
+#endif
 
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
 #define CONFIG_SYS_UART_PORT	0	/* Default UART port */
@@ -46,6 +47,7 @@
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
+#define CONFIG_SYS_UBOOT_BASE		(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
 
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
@@ -99,7 +101,7 @@
 #define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00400000 /* Put the FIT out of first 4MB boot area */
 
 /* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
-#define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND \
+#define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND				\
 	(CONFIG_SYS_NAND_U_BOOT_OFFS + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512 - 0x8400)
     
 #endif
@@ -183,7 +185,11 @@
 #define MTDPARTS_DEFAULT    "mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
 #define MTDPARTS_STD	    "setenv mtdparts " MTDPARTS_DEFAULT
 #define MTDPARTS_UBIONLY    "setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
-
+#else
+#define MTDIDS_DEFAULT		""
+#define MTDPART_DEFAULT		""
+#define MTDPARTS_STD		"setenv mtdparts "
+#define MTDPARTS_UBIONLY	"setenv mtdparts "
 #endif
 
 /* Add some variables that are not predefined in U-Boot. For example set
@@ -210,18 +216,18 @@
 
 #ifdef CONFIG_CMD_UBI
 #ifdef CONFIG_CMD_UBIFS
-#define EXTRA_UBIFS \
+#define EXTRA_UBIFS							\
 	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
 	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT
 #else
 #define EXTRA_UBIFS
 #endif
-#define EXTRA_UBI EXTRA_UBIFS \
-	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0" \
+#define EXTRA_UBI EXTRA_UBIFS						\
+	".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0"			\
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
 	".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
 	".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read ${fdtaddr} fdt" BOOT_WITH_FDT \
-	".ubivol_std=ubi part TargetFS; ubi create rootfs\0" \
+	".ubivol_std=ubi part TargetFS; ubi create rootfs\0"		\
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel 800000 s; ubi create rootfs\0"
 #else
 #define EXTRA_UBI
@@ -234,61 +240,62 @@
 #endif
 
 /* Initial environment variables */
-#if defined(CONFIG_NAND_BOOT)
-#define CONFIG_EXTRA_ENV_SETTINGS \
-  	"initrd_addr=0x43800000\0" \
-	"initrd_high=0xffffffffffffffff\0" \
-	"console=undef\0" \
-	".console_none=setenv console\0" \
+#if defined(CONFIG_NAND_BOOT) || defined(CONFIG_SD_BOOT)
+#define CONFIG_EXTRA_ENV_SETTINGS					\
+  	"initrd_addr=0x43800000\0"					\
+	"initrd_high=0xffffffffffffffff\0"				\
+	"console=undef\0"						\
+	".console_none=setenv console\0"				\
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
-	".console_display=setenv console console=tty1\0" \
-	"login=undef\0" \
-	".login_none=setenv login login_tty=null\0" \
-	".login_serial=setenv login login_tty=${sercon},${baudrate}\0" \
-	".login_display=setenv login login_tty=tty1\0" \
-	"mtdids=undef\0" \
-	"mtdparts=undef\0" \
-	".mtdparts_std=" MTDPARTS_STD "\0" \
-	".network_off=setenv network\0" \
+	".console_display=setenv console console=tty1\0"		\
+	"login=undef\0"							\
+	".login_none=setenv login login_tty=null\0"			\
+	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\
+	".login_display=setenv login login_tty=tty1\0"			\
+	"mtdids=undef\0"						\
+	"mtdparts=undef\0"						\
+	".mtdparts_std=" MTDPARTS_STD "\0"				\
+	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0"		\
+	".network_off=setenv network\0"					\
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
-	".network_dhcp=setenv network ip=dhcp\0" \
-	"rootfs=undef\0" \
+	".network_dhcp=setenv network ip=dhcp\0"			\
+	"rootfs=undef\0"						\
 	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
-	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1 rootwait\0" \
-	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0" \
-	"kernel=undef\0" \
-	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0" \
-	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p2 rootwait\0" \
+	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0"		\
+	"kernel=undef\0"						\
+	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0"	\
+	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0"		\
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
+	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc ${mmcdev} . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
-	"fdt=undef\0" \
-	"fdtaddr=0x43000000\0" \
-	".fdt_none=setenv fdt booti\0" \
-	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT \
+	"fdt=undef\0"							\
+	"fdtaddr=0x43000000\0"						\
+	".fdt_none=setenv fdt booti\0"					\
+	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT	\
 	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc ${mmcdev} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
-	EXTRA_UBI \
-	"mode=undef\0" \
-	".mode_rw=setenv mode rw\0" \
-	".mode_ro=setenv mode ro\0" \
-	"netdev=eth0\0" \
-	"init=undef\0" \
-	".init_init=setenv init\0" \
-	".init_linuxrc=setenv init init=linuxrc\0" \
-	"sercon=undef\0" \
-	"installcheck=undef\0" \
-	"updatecheck=undef\0" \
-	"recovercheck=undef\0" \
-	"platform=undef\0" \
-	"arch=fsimx8mm\0" \
-	"bootfdt=undef\0" \
-	"m4_uart4=disable\0" \
-	FSBOOTDELAY \
-	"fdt_high=0xffffffffffffffff\0" \
-	"set_bootfdt=setenv bootfdt ${platform}.dtb\0" \
+	EXTRA_UBI							\
+	"mode=undef\0"							\
+	".mode_rw=setenv mode rw\0"					\
+	".mode_ro=setenv mode ro\0"					\
+	"netdev=eth0\0"							\
+	"init=undef\0"							\
+	".init_init=setenv init\0"					\
+	".init_linuxrc=setenv init init=linuxrc\0"			\
+	"sercon=undef\0"						\
+	"installcheck=undef\0"						\
+	"updatecheck=undef\0"						\
+	"recovercheck=undef\0"						\
+	"platform=undef\0"						\
+	"arch=fsimx8mm\0"						\
+	"bootfdt=undef\0"						\
+	"m4_uart4=disable\0"						\
+	FSBOOTDELAY							\
+	"fdt_high=0xffffffffffffffff\0"					\
+	"set_bootfdt=setenv bootfdt ${platform}.dtb\0"			\
 	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 #endif
 
@@ -299,9 +306,9 @@
 
 #define CONFIG_SYS_INIT_RAM_ADDR        0x40000000
 #define CONFIG_SYS_INIT_RAM_SIZE        0x80000
-#define CONFIG_SYS_INIT_SP_OFFSET \
+#define CONFIG_SYS_INIT_SP_OFFSET				\
         (CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR \
+#define CONFIG_SYS_INIT_SP_ADDR					\
         (CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /************************************************************************
@@ -310,19 +317,16 @@
 
 /* Environment settings for large blocks (128KB). The environment is held in
    the heap, so keep the real env size small to not waste malloc space. */
-#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
+#define CONFIG_ENV_SIZE			0x1000
 #define CONFIG_ENV_OFFSET               (64 * SZ_64K)
 #elif defined(CONFIG_ENV_IS_IN_NAND)
-#define CONFIG_ENV_RANGE	    0x00040000	/* 2 blocks = 256KB */
+#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
+#define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
 #define CONFIG_ENV_OFFSET       0x00800000 /* after u-boot */
 #endif
-
-
-#define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC2 */
-#define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* USDHC2 */
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
@@ -356,21 +360,11 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#if 1
 /* Input and print buffer sizes */
 #define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	640	/* Print Buffer Size */
 #define CONFIG_SYS_MAXARGS	16	/* max number of command args */
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
-
-#else
-#define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
-#define CONFIG_SYS_CBSIZE              2048
-#define CONFIG_SYS_MAXARGS             64
-#define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
-#endif
 
 #define CONFIG_IMX_BOOTAUX
 
@@ -379,12 +373,23 @@
 #define CONFIG_FSL_ESDHC
 #define CONFIG_FSL_USDHC
 
-#define CONFIG_SYS_FSL_USDHC_NUM	1 /* use USDHC1*/
+#ifdef CONFIG_SD_BOOT
+/* SPL use the CONFIG_SYS_MMC_ENV_DEV in 
+ * serial download mode. Otherwise use
+ * board_mmc_get_env_dev function.
+ * (s. mmc_get_env_dev in mmc_env.c)
+ */
+#define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
+/* number of available  */
+#define CONFIG_SYS_FSL_USDHC_NUM	2 /* use USDHC1 and USDHC3 */
+#else
+#define CONFIG_SYS_FSL_USDHC_NUM	1 /* use USDHC1 */
+#define CONFIG_SYS_MMC_ENV_DEV		-1
+#endif
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 
 #define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
-#define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #define CONFIG_MXC_GPIO
 
@@ -440,7 +445,6 @@
 #define CONFIG_APBH_DMA_BURST8
 
 #ifdef CONFIG_CMD_UBI
-/*#define CONFIG_MTD_PARTITIONS */
 #define CONFIG_MTD_DEVICE
 #endif
 

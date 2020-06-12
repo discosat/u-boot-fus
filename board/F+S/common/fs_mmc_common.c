@@ -29,6 +29,7 @@ enum
 	USDHC2,
 	USDHC3,
 	USDHC4,
+	USDHCNUM,
 };
 
 static int usdhc_pos_in_init[] =
@@ -59,8 +60,10 @@ int board_mmc_getcd(struct mmc *mmc)
 int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		 const struct fs_mmc_cd *cd)
 {
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	u32 ccgr6;
+#endif
 	static int sdhc_cnt = 0;
 
 	/* Set CD pin configuration, activate GPIO for CD (if appropriate) */
@@ -75,21 +78,26 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 	/* Set DAT, CLK, CMD and RST pin configurations */
 	cfg->esdhc.max_bus_width = bus_width;
 	imx_iomux_v3_setup_multiple_pads(cfg->pads, cfg->count + bus_width);
-
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)
 	/* Get clock speed and ungate appropriate USDHC clock */
 	ccgr6 = readl(&mxc_ccm->CCGR6);
+#endif
 	switch (cfg->index) {
 	default:
 	case 1:
 		cfg->esdhc.esdhc_base = USDHC1_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)		
 		ccgr6 |= (3 << 2);
+#endif		
 		usdhc_pos_in_init[USDHC1] = sdhc_cnt;
 		break;
 	case 2:
 		cfg->esdhc.esdhc_base = USDHC2_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)
 		ccgr6 |= (3 << 4);
+#endif		
 		usdhc_pos_in_init[USDHC2] = sdhc_cnt;
 		break;
 #ifdef USDHC3_BASE_ADDR
@@ -97,7 +105,9 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		cfg->esdhc.esdhc_base = USDHC3_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
 		usdhc_pos_in_init[USDHC3] = sdhc_cnt;
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)		
 		ccgr6 |= (3 << 6);
+#endif		
 		break;
 #endif
 #ifdef USDHC4_BASE_ADDR
@@ -105,11 +115,15 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		cfg->esdhc.esdhc_base = USDHC4_BASE_ADDR;
 		cfg->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
 		usdhc_pos_in_init[USDHC4] = sdhc_cnt;
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)		
 		ccgr6 |= (3 << 8);
+#endif		
 		break;
 #endif
 	}
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)	
 	writel(ccgr6, &mxc_ccm->CCGR6);
+#endif
 
 	sdhc_cnt++;
 
@@ -120,8 +134,27 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 /* Override board_mmc_get_env_dev to get boot dev from fuse settings */
 int board_mmc_get_env_dev(int devno)
 {
+#if defined(CONFIG_DM_MMC) && defined(CONFIG_BLK)
+	if(!find_mmc_device(devno)) {
+		/* Check device tree node for usdhc[devno] 
+                 */
+		debug("Device %d is not available.", devno);
+		return USDHC_NONE;
+	} else {
+		/* Use NXP aliases for mmc devices:
+		 * mmc0 = &usdhc1
+		 * mmc1 = &usdhc2
+		 * mmc2 = &usdhc3
+		 * mmc3 = &usdhc4
+		 */
+		usdhc_boot_device = devno;
+		mmc_boot_device =   devno;
+	}
+#else
 	usdhc_boot_device = devno;
 	mmc_boot_device = usdhc_pos_in_init[devno];
+#endif
+
 	return mmc_boot_device;
 }
 #endif
