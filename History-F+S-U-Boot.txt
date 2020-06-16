@@ -1,8 +1,15 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-Y2020.06 (16.06.2020)
+-------------------------------------------
+Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 
-u-boot-2018.03-fsimx8m-Y2020.06 (09.06.2020)
+- Add support for fsimx8mn to boot from emmc
+- Add support for fsimx8mm to boot from emmc
+
+
+u-boot-2018.03-fsimx8mn-Y2020.06 (09.06.2020)
 -------------------------------------------
 Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 
