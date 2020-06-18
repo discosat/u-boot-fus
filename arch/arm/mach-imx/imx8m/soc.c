@@ -933,7 +933,11 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	return env_loc;
 }
 
-#ifndef ENV_IS_EMBEDDED
+/* ### TODO: It is not clear why NXP uses 60 MB offset for NAND environment,
+ * through this reason we decided to uncomment this function if we build our
+ * target "FSIMX8MN".
+ */
+#if !defined(ENV_IS_EMBEDDED) && !defined(CONFIG_TARGET_FSIMX8MN)
 long long env_get_offset(long long defautl_offset)
 {
 	enum boot_device dev = get_boot_device();
