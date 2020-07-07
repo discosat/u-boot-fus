@@ -25,7 +25,8 @@ extern struct stdio_dev **console_devices[MAX_FILES];
  */
 extern int cd_count[MAX_FILES];
 
-extern void console_doenv(int, struct stdio_dev *);
-extern int iomux_doenv(int, const char *);
+int iomux_doenv(const int, const char *);
+void iomux_printdevs(const int);
+struct stdio_dev *search_device(int, const char *);
 
 #endif /* _IO_MUX_H */

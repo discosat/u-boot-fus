@@ -226,7 +226,7 @@ static void nc_send_packet(const char *buf, int len)
 	}
 }
 
-static int nc_stdio_start(const struct stdio_dev *pdev)
+static int nc_stdio_start(const struct stdio_dev *dev)
 {
 	int retval;
 
@@ -246,7 +246,7 @@ static int nc_stdio_start(const struct stdio_dev *pdev)
 	return 0;
 }
 
-static void nc_stdio_putc(const struct stdio_dev *pdev, char c)
+static void nc_stdio_putc(const struct stdio_dev *dev, char c)
 {
 	if (output_recursion)
 		return;
@@ -257,7 +257,7 @@ static void nc_stdio_putc(const struct stdio_dev *pdev, char c)
 	output_recursion = 0;
 }
 
-static void nc_stdio_puts(const struct stdio_dev *pdev, const char *s)
+static void nc_stdio_puts(const struct stdio_dev *dev, const char *s)
 {
 	int len;
 
@@ -276,7 +276,7 @@ static void nc_stdio_puts(const struct stdio_dev *pdev, const char *s)
 	output_recursion = 0;
 }
 
-static int nc_stdio_getc(const struct stdio_dev *pdev)
+static int nc_stdio_getc(const struct stdio_dev *dev)
 {
 	uchar c;
 
@@ -297,7 +297,7 @@ static int nc_stdio_getc(const struct stdio_dev *pdev)
 	return c;
 }
 
-static int nc_stdio_tstc(const struct stdio_dev *pdev)
+static int nc_stdio_tstc(const struct stdio_dev *dev)
 {
 #ifdef CONFIG_DM_ETH
 	struct udevice *eth;
@@ -325,22 +325,22 @@ static int nc_stdio_tstc(const struct stdio_dev *pdev)
 	return input_size != 0;
 }
 
-static struct stdio_dev nc_dev = {
-	.name = "nc",
-	.hwname = "eth",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
-	.start = nc_stdio_start,
-	.putc = nc_stdio_putc,
-	.puts = nc_stdio_puts,
-	.getc = nc_stdio_getc,
-	.tstc = nc_stdio_tstc,
-};
-
 int drv_nc_init(void)
 {
+	struct stdio_dev dev;
 	int rc;
 
-	rc = stdio_register(&nc_dev);
+	memset(&dev, 0, sizeof(dev));
+
+	strcpy(dev.name, "nc");
+	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
+	dev.start = nc_stdio_start;
+	dev.putc = nc_stdio_putc;
+	dev.puts = nc_stdio_puts;
+	dev.getc = nc_stdio_getc;
+	dev.tstc = nc_stdio_tstc;
+
+	rc = stdio_register(&dev);
 
 	return (rc == 0) ? 1 : rc;
 }

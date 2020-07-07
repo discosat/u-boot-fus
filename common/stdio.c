@@ -11,6 +11,8 @@
 
 #include <config.h>
 #include <common.h>
+#include <dm.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <malloc.h>
 #include <stdio_dev.h>
@@ -20,9 +22,11 @@
 #include <i2c.h>
 #endif
 
+#include <dm/device-internal.h>
+
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct stdio_dev *devs;
+static struct stdio_dev devs;
 struct stdio_dev *stdio_devices[] = { NULL, NULL, NULL };
 char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 
@@ -34,40 +38,22 @@ char *stdio_names[MAX_FILES] = { "stdin", "stdout", "stderr" };
 #define	CONFIG_SYS_DEVICE_NULLDEV	1
 #endif
 
-struct stdio_dev serial_dev = {
-	.name = "serial",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
-	.putc = serial_putc,
-	.puts = serial_puts,
-	.getc = serial_getc,
-	.tstc = serial_tstc
-};
-
 #ifdef CONFIG_SYS_DEVICE_NULLDEV
-static void nulldev_putc(const struct stdio_dev *pdev, const char c)
+static void nulldev_putc(const struct stdio_dev *dev, const char c)
 {
 	/* nulldev is empty! */
 }
 
-static void nulldev_puts(const struct stdio_dev *pdev, const char *s)
+static void nulldev_puts(const struct stdio_dev *dev, const char *s)
 {
 	/* nulldev is empty! */
 }
 
-static int nulldev_input(const struct stdio_dev *pdev)
+static int nulldev_input(const struct stdio_dev *dev)
 {
 	/* nulldev is empty! */
 	return 0;
 }
-
-struct stdio_dev null_dev = {
-	.name = "nulldev",
-	.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT,
-	.putc = nulldev_putc,
-	.puts = nulldev_puts,
-	.getc = nulldev_input,
-	.tstc = nulldev_input
-};
 #endif
 
 /**************************************************************************
@@ -77,10 +63,19 @@ struct stdio_dev null_dev = {
 
 static void drv_system_init (void)
 {
-	stdio_register(&serial_dev);
-
 #ifdef CONFIG_SYS_DEVICE_NULLDEV
-	stdio_register(&null_dev);
+	struct stdio_dev dev;
+
+	memset (&dev, 0, sizeof (dev));
+
+	strcpy (dev.name, "nulldev");
+	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
+	dev.putc = nulldev_putc;
+	dev.puts = nulldev_puts;
+	dev.getc = nulldev_input;
+	dev.tstc = nulldev_input;
+
+	stdio_register (&dev);
 #endif
 }
 
@@ -88,9 +83,9 @@ static void drv_system_init (void)
  * DEVICES
  **************************************************************************
  */
-struct stdio_dev *stdio_get_list(void)
+struct list_head* stdio_get_list(void)
 {
-	return devs;
+	return &(devs.list);
 }
 
 #ifdef CONFIG_DM_VIDEO
@@ -148,14 +143,16 @@ static int stdio_probe_device(const char *name, enum uclass_id id,
 
 struct stdio_dev *stdio_get_by_name(const char *name)
 {
-	struct stdio_dev *dev = devs;
+	struct list_head *pos;
+	struct stdio_dev *sdev;
 
-	if (name && devs) {
-		do {
-			if(strcmp(dev->name, name) == 0)
-				return dev;
-			dev = dev->next;
-		} while (dev != devs);
+	if (!name)
+		return NULL;
+
+	list_for_each(pos, &(devs.list)) {
+		sdev = list_entry(pos, struct stdio_dev, list);
+		if (strcmp(sdev->name, name) == 0)
+			return sdev;
 	}
 #ifdef CONFIG_DM_VIDEO
 	/*
@@ -177,82 +174,91 @@ struct stdio_dev *stdio_get_by_name(const char *name)
 	return NULL;
 }
 
-int stdio_register (struct stdio_dev *dev)
+struct stdio_dev* stdio_clone(const struct stdio_dev *dev)
 {
-#ifdef CONFIG_CONSOLE_MUX
-	int i;
+	struct stdio_dev *_dev;
 
-	/* Clear all links that represent lists */
-	for (i = 0; i < MAX_FILES; i++)
-		dev->file_next[i] = NULL;
-#endif
+	if(!dev)
+		return NULL;
 
-	if (!devs) {
-		/* First element, loop back to itself */
-		dev->next = dev;
-		dev->prev = dev;
-		devs = dev;
-	} else {
-		/* Add at end; devs points to the first element in the device
-		   ring, so devs->prev points to the last element */
-		dev->prev = devs->prev;
-		dev->prev->next = dev;
-		dev->next = devs;
-		dev->next->prev = dev;
+	_dev = calloc(1, sizeof(struct stdio_dev));
+
+	if(!_dev)
+		return NULL;
+
+	memcpy(_dev, dev, sizeof(struct stdio_dev));
+
+	return _dev;
 	}
+
+int stdio_register_dev(const struct stdio_dev *dev, struct stdio_dev **devp)
+{
+	struct stdio_dev *_dev;
+
+	_dev = stdio_clone(dev);
+	if(!_dev)
+		return -ENODEV;
+	list_add_tail(&(_dev->list), &(devs.list));
+	if (devp)
+		*devp = _dev;
+
 	return 0;
+}
+
+int stdio_register(const struct stdio_dev *dev)
+{
+	return stdio_register_dev(dev, NULL);
 }
 
 /* deregister the device "devname".
  * returns 0 if success, -1 if device is assigned and 1 if devname not found
  */
 #if CONFIG_IS_ENABLED(SYS_STDIO_DEREGISTER)
-int stdio_deregister(const char *devname)
+int stdio_deregister_dev(struct stdio_dev *dev, int force)
 {
-	int i;
+	int l;
+	struct list_head *pos;
+	char temp_names[3][16];
+
+	/* get stdio devices (ListRemoveItem changes the dev list) */
+	for (l=0 ; l< MAX_FILES; l++) {
+		if (stdio_devices[l] == dev) {
+			if (force) {
+				strcpy(temp_names[l], "nulldev");
+				continue;
+			}
+			/* Device is assigned -> report error */
+		return -1;
+		}
+		memcpy (&temp_names[l][0],
+			stdio_devices[l]->name,
+			sizeof(temp_names[l]));
+	}
+
+	list_del(&(dev->list));
+	free(dev);
+
+	/* reassign Device list */
+	list_for_each(pos, &(devs.list)) {
+		dev = list_entry(pos, struct stdio_dev, list);
+		for (l=0 ; l< MAX_FILES; l++) {
+			if(strcmp(dev->name, temp_names[l]) == 0)
+				stdio_devices[l] = dev;
+		}
+	}
+	return 0;
+	}
+
+int stdio_deregister(const char *devname, int force)
+{
 	struct stdio_dev *dev;
-	struct stdio_dev *tmp;
 
 	dev = stdio_get_by_name(devname);
+
 	if (!dev) /* device not found */
-		return -1;
+		return -ENODEV;
 
-	/* Check if device is assigned */
-	for (i=0 ; i< MAX_FILES; i++) {
-#ifdef CONFIG_CONSOLE_MUX
-		tmp = stdio_devices[i];
-
-		while (tmp) {
-			if (tmp == dev)
-				return -1; /* in use */
-			tmp = tmp->file_next[i];
-		}
-#else
-		if (stdio_devices[i] == dev)
-			return -1;	  /* in use */
-#endif
-	}
-
-	/* The device is not part of any of the active stdio devices. Now
-	   find device in the device list */
-	tmp = devs;
-	while (tmp != dev)
-		tmp = tmp->next;
-
-	/* Unlink device from device ring list */
-	if (tmp->next == tmp)
-		devs = NULL;		  /* It was the last device */
-	else {
-		/* Update head if this is the first element */
-		if (tmp == devs)
-			devs = tmp->next;
-
-		tmp->prev->next = tmp->next;
-		tmp->next->prev = tmp->prev;
-
-	}
-
-	return 0;
+	return stdio_deregister_dev(dev, force);
 }
 #endif /* CONFIG_IS_ENABLED(SYS_STDIO_DEREGISTER) */
 
@@ -270,7 +276,8 @@ int stdio_init_tables(void)
 	}
 #endif /* CONFIG_NEEDS_MANUAL_RELOC */
 
-	devs = NULL;
+	/* Initialize the list */
+	INIT_LIST_HEAD(&(devs.list));
 
 	return 0;
 }

@@ -10,10 +10,11 @@
 #include <debug_uart.h>
 #include <dm.h>
 #include <stdarg.h>
+#include <iomux.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <os.h>
-#include <serial.h>			  /* serial_*() */
+#include <serial.h>
 #include <stdio_dev.h>
 #include <exports.h>
 #include <environment.h>
@@ -101,23 +102,27 @@ extern int overwrite_console(void);
 
 #endif /* CONFIG_IS_ENABLED(SYS_CONSOLE_IS_IN_ENV) */
 
-static int console_setfile(int file, struct stdio_dev *pdev)
+static int console_setfile(int file, struct stdio_dev * dev)
 {
 	int error = 0;
 
-	if (!pdev || file >= MAX_FILES)
+	if (dev == NULL)
 		return -1;
 
+	switch (file) {
+	case stdin:
+	case stdout:
+	case stderr:
 	/* Start new device */
-	if (pdev->start) {
-		error = pdev->start(pdev);
-		/* If it's not started dont use it */
-		if (error < 0)
-			return error;
-	}
+		if (dev->start) {
+			error = dev->start(dev);
+			/* If it's not started dont use it */
+			if (error < 0)
+				break;
+		}
 
 	/* Assign the new device (leaving the existing one started) */
-	stdio_devices[file] = pdev;
+		stdio_devices[file] = dev;
 
 	/*
 	 * Update monitor functions
@@ -134,9 +139,154 @@ static int console_setfile(int file, struct stdio_dev *pdev)
 		gd->jt->printf = printf;
 		break;
 	}
+		break;
+
+	default:		/* Invalid file ID */
+		error = -1;
+	}
+	return error;
+}
+
+/**
+ * console_dev_is_serial() - Check if a stdio device is a serial device
+ *
+ * @sdev: Device to check
+ * @return true if this device is in the serial uclass (or for pre-driver-model,
+ * whether it is called "serial".
+ */
+static bool console_dev_is_serial(struct stdio_dev *sdev)
+{
+	bool is_serial;
+
+#ifdef CONFIG_DM_SERIAL
+	if (sdev->flags & DEV_FLAGS_DM) {
+		struct udevice *dev = sdev->priv;
+
+		is_serial = device_get_uclass_id(dev) == UCLASS_SERIAL;
+	} else
+#endif
+	is_serial = !strcmp(sdev->name, "serial");
+
+	return is_serial;
+}
+
+#if CONFIG_IS_ENABLED(CONSOLE_MUX)
+/** Console I/O multiplexing *******************************************/
+
+static struct stdio_dev *tstcdev;
+struct stdio_dev **console_devices[MAX_FILES];
+int cd_count[MAX_FILES];
+
+/*
+ * This depends on tstc() always being called before getc().
+ * This is guaranteed to be true because this routine is called
+ * only from fgetc() which assures it.
+ * No attempt is made to demultiplex multiple input sources.
+ */
+static int console_getc(int file)
+{
+	unsigned char ret;
+
+	/* This is never called with testcdev == NULL */
+	ret = tstcdev->getc(tstcdev);
+	tstcdev = NULL;
+	return ret;
+}
+
+static int console_tstc(int file)
+{
+	int i, ret;
+	struct stdio_dev *dev;
+
+	disable_ctrlc(1);
+	for (i = 0; i < cd_count[file]; i++) {
+		dev = console_devices[file][i];
+		if (dev->tstc != NULL) {
+			ret = dev->tstc(dev);
+			if (ret > 0) {
+				tstcdev = dev;
+				disable_ctrlc(0);
+				return ret;
+			}
+		}
+	}
+	disable_ctrlc(0);
 
 	return 0;
 }
+
+static void console_putc(int file, const char c)
+{
+	int i;
+	struct stdio_dev *dev;
+
+	for (i = 0; i < cd_count[file]; i++) {
+		dev = console_devices[file][i];
+		if (dev->putc != NULL)
+			dev->putc(dev, c);
+	}
+}
+
+static void console_puts_noserial(int file, const char *s)
+{
+	int i;
+	struct stdio_dev *dev;
+
+	for (i = 0; i < cd_count[file]; i++) {
+		dev = console_devices[file][i];
+		if (dev->puts != NULL && !console_dev_is_serial(dev))
+			dev->puts(dev, s);
+	}
+}
+
+static void console_puts(int file, const char *s)
+{
+	int i;
+	struct stdio_dev *dev;
+
+	for (i = 0; i < cd_count[file]; i++) {
+		dev = console_devices[file][i];
+		if (dev->puts != NULL)
+			dev->puts(dev, s);
+	}
+}
+
+static inline void console_doenv(int file, struct stdio_dev *dev)
+{
+	iomux_doenv(file, dev->name);
+}
+#else
+static inline int console_getc(int file)
+{
+	return stdio_devices[file]->getc(stdio_devices[file]);
+}
+
+static inline int console_tstc(int file)
+{
+	return stdio_devices[file]->tstc(stdio_devices[file]);
+}
+
+static inline void console_putc(int file, const char c)
+{
+	stdio_devices[file]->putc(stdio_devices[file], c);
+}
+
+static inline void console_puts_noserial(int file, const char *s)
+{
+	if (!console_dev_is_serial(stdio_devices[file]))
+		stdio_devices[file]->puts(stdio_devices[file], s);
+}
+
+static inline void console_puts(int file, const char *s)
+{
+	stdio_devices[file]->puts(stdio_devices[file], s);
+}
+
+static inline void console_doenv(int file, struct stdio_dev *dev)
+{
+	console_setfile(file, dev);
+}
+#endif /* CONFIG_IS_ENABLED(CONSOLE_MUX) */
 
 /** U-Boot INITIAL CONSOLE-NOT COMPATIBLE FUNCTIONS *************************/
 
@@ -154,61 +304,61 @@ int serial_printf(const char *fmt, ...)
 	i = vscnprintf(printbuffer, sizeof(printbuffer), fmt, args);
 	va_end(args);
 
-	serial_puts(NULL, printbuffer);
+	serial_puts(printbuffer);
 	return i;
 }
 
-#if !CONFIG_IS_ENABLED(CONSOLE_MUX)
-/* Similar functions for I/O multiplexing are defined in iomux.c */
 int fgetc(int file)
 {
-	struct stdio_dev *pdev;
+	if (file < MAX_FILES) {
+#if CONFIG_IS_ENABLED(CONSOLE_MUX)
+		/*
+		 * Effectively poll for input wherever it may be available.
+		 */
+		for (;;) {
+			WATCHDOG_RESET();
+			/*
+			 * Upper layer may have already called tstc() so
+			 * check for that first.
+			 */
+			if (tstcdev != NULL)
+				return console_getc(file);
+			console_tstc(file);
+#ifdef CONFIG_WATCHDOG
+			/*
+			 * If the watchdog must be rate-limited then it should
+			 * already be handled in board-specific code.
+			 */
+			 udelay(1);
+#endif
+		}
+#else
+		return console_getc(file);
+#endif
+	}
 
-	if (file >= MAX_FILES)
 		return -1;
-
-	pdev = stdio_devices[file];
-	return pdev->getc(pdev);
 }
 
 int ftstc(int file)
 {
-	struct stdio_dev *pdev;
+	if (file < MAX_FILES)
+		return console_tstc(file);
 
-	if (file >= MAX_FILES)
-		return -1;
-
-	pdev = stdio_devices[file];
-	return pdev->tstc(pdev);
+	return -1;
 }
 
 void fputc(int file, const char c)
 {
-	struct stdio_dev *pdev;
-
-	if (file >= MAX_FILES)
-		return;
-
-	pdev = stdio_devices[file];
-	pdev->putc(pdev, c);
+	if (file < MAX_FILES)
+		console_putc(file, c);
 }
 
 void fputs(int file, const char *s)
 {
-	struct stdio_dev *pdev;
-
-	if (file >= MAX_FILES)
-		return;
-	pdev = stdio_devices[file];
-	pdev->puts(pdev, s);
+	if (file < MAX_FILES)
+		console_puts(file, s);
 }
-
-static inline void console_doenv(int file, struct stdio_dev *dev)
-{
-	console_setfile(file, dev);
-}
-#endif /* !CONFIG_IS_ENABLED(CONSOLE_MUX) */
-
 
 int fprintf(int file, const char *fmt, ...)
 {
@@ -241,13 +391,22 @@ int getc(void)
 	if (!gd->have_console)
 		return 0;
 
+#ifdef CONFIG_CONSOLE_RECORD
+	if (gd->console_in.start) {
+		int ch;
+
+		ch = membuff_getbyte(&gd->console_in);
+		if (ch != -1)
+			return 1;
+	}
+#endif
 	if (gd->flags & GD_FLG_DEVINIT) {
 		/* Get from the standard input */
 		return fgetc(stdin);
 	}
 
 	/* Send directly to the handler */
-	return serial_getc(NULL);
+	return serial_getc();
 }
 
 int tstc(void)
@@ -259,14 +418,19 @@ int tstc(void)
 
 	if (!gd->have_console)
 		return 0;
-
+#ifdef CONFIG_CONSOLE_RECORD
+	if (gd->console_in.start) {
+		if (membuff_peekbyte(&gd->console_in) != -1)
+			return 1;
+	}
+#endif
 	if (gd->flags & GD_FLG_DEVINIT) {
 		/* Test the standard input */
 		return ftstc(stdin);
 	}
 
 	/* Send directly to the handler */
-	return serial_tstc(NULL);
+	return serial_tstc();
 }
 
 #define PRE_CONSOLE_FLUSHPOINT1_SERIAL			0
@@ -294,24 +458,28 @@ static void pre_console_puts(const char *s)
 
 static void print_pre_console_buffer(int flushpoint)
 {
-	unsigned long i = 0;
-	char *buffer;
+	unsigned long in = 0, out = 0;
+	char buf_out[CONFIG_PRE_CON_BUF_SZ + 1];
+	char *buf_in;
 
-	buffer = map_sysmem(CONFIG_PRE_CON_BUF_ADDR, CONFIG_PRE_CON_BUF_SZ);
+	buf_in = map_sysmem(CONFIG_PRE_CON_BUF_ADDR, CONFIG_PRE_CON_BUF_SZ);
 	if (gd->precon_buf_idx > CONFIG_PRE_CON_BUF_SZ)
-		i = gd->precon_buf_idx - CONFIG_PRE_CON_BUF_SZ;
+		in = gd->precon_buf_idx - CONFIG_PRE_CON_BUF_SZ;
+
+	while (in < gd->precon_buf_idx)
+		buf_out[out++] = buf_in[CIRC_BUF_IDX(in++)];
+	unmap_sysmem(buf_in);
+
+	buf_out[out] = 0;
 
 	switch (flushpoint) {
 	case PRE_CONSOLE_FLUSHPOINT1_SERIAL:
-		while (i < gd->precon_buf_idx)
-			putc(buffer[CIRC_BUF_IDX(i++)]);
+		puts(buf_out);
 		break;
 	case PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL:
-		while (i < gd->precon_buf_idx)
-			console_putc_noserial(buffer[CIRC_BUF_IDX(i++)]);
+		console_puts_noserial(stdout, buf_out);
 		break;
 	}
-	unmap_sysmem(buffer);
 }
 #else
 static inline void pre_console_putc(const char c) {}
@@ -335,6 +503,10 @@ void putc(const char c)
 		return;
 	}
 #endif
+#ifdef CONFIG_CONSOLE_RECORD
+	if (gd && (gd->flags & GD_FLG_RECORD) && gd->console_out.start)
+		membuff_putbyte(&gd->console_out, c);
+#endif
 #ifdef CONFIG_SILENT_CONSOLE
 	if (gd->flags & GD_FLG_SILENT)
 		return;
@@ -346,18 +518,82 @@ void putc(const char c)
 #endif
 
 	if (!gd->have_console)
+		return pre_console_putc(c);
+
+	if (gd->flags & GD_FLG_DEVINIT) {
+		/* Send to the standard output */
+		fputc(stdout, c);
+	} else {
+		/* Send directly to the handler */
 		pre_console_putc(c);
-	else if (gd->flags & GD_FLG_DEVINIT)
-		fputc(stdout, c);	  /* Send to the standard output */
-	else
-		serial_putc(NULL, c);	  /* Send directly to the handler */
+		serial_putc(c);
+	}
 }
 
 void puts(const char *s)
 {
-	while (*s)
-		putc(*s++);
+#ifdef CONFIG_DEBUG_UART
+	if (!gd || !(gd->flags & GD_FLG_SERIAL_READY)) {
+		while (*s) {
+			int ch = *s++;
+
+			printch(ch);
 }
+		return;
+	}
+#endif
+#ifdef CONFIG_CONSOLE_RECORD
+	if (gd && (gd->flags & GD_FLG_RECORD) && gd->console_out.start)
+		membuff_put(&gd->console_out, s, strlen(s));
+#endif
+#ifdef CONFIG_SILENT_CONSOLE
+	if (gd->flags & GD_FLG_SILENT)
+		return;
+#endif
+
+#ifdef CONFIG_DISABLE_CONSOLE
+	if (gd->flags & GD_FLG_DISABLE_CONSOLE)
+		return;
+#endif
+
+	if (!gd->have_console)
+		return pre_console_puts(s);
+
+	if (gd->flags & GD_FLG_DEVINIT) {
+		/* Send to the standard output */
+		fputs(stdout, s);
+	} else {
+		/* Send directly to the handler */
+		pre_console_puts(s);
+		serial_puts(s);
+	}
+}
+
+#ifdef CONFIG_CONSOLE_RECORD
+int console_record_init(void)
+{
+	int ret;
+
+	ret = membuff_new(&gd->console_out, CONFIG_CONSOLE_RECORD_OUT_SIZE);
+	if (ret)
+		return ret;
+	ret = membuff_new(&gd->console_in, CONFIG_CONSOLE_RECORD_IN_SIZE);
+
+	return ret;
+}
+
+void console_record_reset(void)
+{
+	membuff_purge(&gd->console_out);
+	membuff_purge(&gd->console_in);
+}
+
+void console_record_reset_enable(void)
+{
+	console_record_reset();
+	gd->flags |= GD_FLG_RECORD;
+}
+#endif
 
 /* test if ctrl-c was pressed */
 static int ctrlc_disabled = 0;	/* see disable_ctrl() */
@@ -430,18 +666,18 @@ void clear_ctrlc(void)
 
 /** U-Boot INIT FUNCTIONS *************************************************/
 
-static struct stdio_dev *search_device(int flags, const char *name)
+struct stdio_dev *search_device(int flags, const char *name)
 {
-	struct stdio_dev *pdev;
+	struct stdio_dev *dev;
 
-	pdev = stdio_get_by_name(name);
+	dev = stdio_get_by_name(name);
 #ifdef CONFIG_VIDCONSOLE_AS_LCD
-	if (!pdev && !strcmp(name, "lcd"))
-		pdev = stdio_get_by_name("vidconsole");
+	if (!dev && !strcmp(name, "lcd"))
+		dev = stdio_get_by_name("vidconsole");
 #endif
 
-	if (pdev && (pdev->flags & flags))
-		return pdev;
+	if (dev && (dev->flags & flags))
+		return dev;
 
 	return NULL;
 }
@@ -449,7 +685,7 @@ static struct stdio_dev *search_device(int flags, const char *name)
 int console_assign(int file, const char *devname)
 {
 	int flag;
-	struct stdio_dev *pdev;
+	struct stdio_dev *dev;
 
 	/* Check for valid file */
 	switch (file) {
@@ -466,9 +702,10 @@ int console_assign(int file, const char *devname)
 
 	/* Check for valid device name */
 
-	pdev = search_device(flag, devname);
-	if (pdev)
-		return console_setfile(file, pdev);
+	dev = search_device(flag, devname);
+
+	if (dev)
+		return console_setfile(file, dev);
 
 	return -1;
 }
@@ -490,7 +727,7 @@ int console_announce_r(void)
 
 	display_options_get_banner(false, buf, sizeof(buf));
 
-	puts(buf);
+	console_puts_noserial(stdout, buf);
 #endif
 
 	return 0;
@@ -515,42 +752,21 @@ void stdio_print_current_devices(void)
 	if (stdio_devices[stdin] == NULL) {
 		puts("No input devices available!\n");
 	} else {
-#if CONFIG_IS_ENABLED(CONSOLE_MUX)
-		struct stdio_dev *p;
-
-		for (p = stdio_devices[stdin]; p; p = p->file_next[stdin])
-			printf("%s ", p->name);
-#else
 		printf("%s\n", stdio_devices[stdin]->name);
-#endif
 	}
 
 	puts("Out:   ");
 	if (stdio_devices[stdout] == NULL) {
 		puts("No output devices available!\n");
 	} else {
-#if CONFIG_IS_ENABLED(CONSOLE_MUX)
-		struct stdio_dev *p;
-
-		for (p = stdio_devices[stdout]; p; p = p->file_next[stdout])
-			printf("%s ", p->name);
-#else
 		printf("%s\n", stdio_devices[stdout]->name);
-#endif
 	}
 
 	puts("Err:   ");
 	if (stdio_devices[stderr] == NULL) {
 		puts("No error devices available!\n");
 	} else {
-#if CONFIG_IS_ENABLED(CONSOLE_MUX)
-		struct stdio_dev *p;
-
-		for (p = stdio_devices[stderr]; p; p = p->file_next[stderr])
-			printf("%s ", p->name);
-#else
 		printf("%s\n", stdio_devices[stderr]->name);
-#endif
 	}
 }
 
@@ -563,13 +779,16 @@ int console_init_r(void)
 #ifdef CONFIG_SYS_CONSOLE_ENV_OVERWRITE
 	int i;
 #endif /* CONFIG_SYS_CONSOLE_ENV_OVERWRITE */
+#if CONFIG_IS_ENABLED(CONSOLE_MUX)
+	int iomux_err = 0;
+#endif
 
 	/* set default handlers at first */
-	gd->jt->getc = getc;
-	gd->jt->tstc = tstc;
-	gd->jt->putc = putc;
-	gd->jt->puts = puts;
-	gd->jt->printf = printf;
+	gd->jt->getc  = serial_getc;
+	gd->jt->tstc  = serial_tstc;
+	gd->jt->putc  = serial_putc;
+	gd->jt->puts  = serial_puts;
+	gd->jt->printf = serial_printf;
 
 	/* stdin stdout and stderr are in environment */
 	/* scan for it */
@@ -578,9 +797,10 @@ int console_init_r(void)
 	stderrname = env_get("stderr");
 
 	if (OVERWRITE_CONSOLE == 0) {	/* if not overwritten by config switch */
+		inputdev  = search_device(DEV_FLAGS_INPUT,  stdinname);
+		outputdev = search_device(DEV_FLAGS_OUTPUT, stdoutname);
+		errdev    = search_device(DEV_FLAGS_OUTPUT, stderrname);
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
-		int iomux_err = 0;
-
 		iomux_err = iomux_doenv(stdin, stdinname);
 		iomux_err += iomux_doenv(stdout, stdoutname);
 		iomux_err += iomux_doenv(stderr, stderrname);
@@ -588,9 +808,6 @@ int console_init_r(void)
 			/* Successful, so skip all the code below. */
 			goto done;
 #endif
-		inputdev  = search_device(DEV_FLAGS_INPUT,  stdinname);
-		outputdev = search_device(DEV_FLAGS_OUTPUT, stdoutname);
-		errdev    = search_device(DEV_FLAGS_OUTPUT, stderrname);
 	}
 	/* if the devices are overwritten or not found, use default device */
 	if (inputdev == NULL) {
@@ -637,6 +854,12 @@ done:
 
 	gd->flags |= GD_FLG_DEVINIT;	/* device initialization completed */
 
+#if 0
+	/* If nothing usable installed, use only the initial console */
+	if ((stdio_devices[stdin] == NULL) && (stdio_devices[stdout] == NULL))
+		return 0;
+#endif
+	print_pre_console_buffer(PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL);
 	return 0;
 }
 
@@ -647,6 +870,8 @@ int console_init_r(void)
 {
 	struct stdio_dev *inputdev = NULL, *outputdev = NULL;
 	int i;
+	struct list_head *list = stdio_get_list();
+	struct list_head *pos;
 	struct stdio_dev *dev;
 
 	console_update_silent();
@@ -665,7 +890,9 @@ int console_init_r(void)
 #endif
 
 	/* Scan devices looking for input and output devices */
-	for (dev = stdio_get_list(); dev; dev = dev->next) {
+	list_for_each(pos, list) {
+		dev = list_entry(pos, struct stdio_dev, list);
+
 		if ((dev->flags & DEV_FLAGS_INPUT) && (inputdev == NULL)) {
 			inputdev = dev;
 		}
@@ -680,11 +907,19 @@ int console_init_r(void)
 	if (outputdev != NULL) {
 		console_setfile(stdout, outputdev);
 		console_setfile(stderr, outputdev);
+#if CONFIG_IS_ENABLED(CONSOLE_MUX)
+		console_devices[stdout][0] = outputdev;
+		console_devices[stderr][0] = outputdev;
+#endif
 	}
 
 	/* Initializes input console */
-	if (inputdev != NULL)
+	if (inputdev != NULL) {
 		console_setfile(stdin, inputdev);
+#if CONFIG_IS_ENABLED(CONSOLE_MUX)
+		console_devices[stdin][0] = inputdev;
+#endif
+	}
 
 #ifndef CONFIG_SYS_CONSOLE_INFO_QUIET
 	stdio_print_current_devices();
@@ -697,8 +932,12 @@ int console_init_r(void)
 
 	gd->flags |= GD_FLG_DEVINIT;	/* device initialization completed */
 
+#if 0
+	/* If nothing usable installed, use only the initial console */
+	if ((stdio_devices[stdin] == NULL) && (stdio_devices[stdout] == NULL))
+		return 0;
+#endif
 	print_pre_console_buffer(PRE_CONSOLE_FLUSHPOINT2_EVERYTHING_BUT_SERIAL);
-
 	return 0;
 }
 

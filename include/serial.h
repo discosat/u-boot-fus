@@ -1,32 +1,27 @@
 #ifndef __SERIAL_H__
 #define __SERIAL_H__
 
-#include <stdio_dev.h>			  /* struct stdio_dev */
 #include <post.h>
 
-#define to_serial_device(x) container_of((x), struct serial_device, dev)
-
 struct serial_device {
-	/* Standard functions start(), stop(), tstc(), getc(), putc(), puts()
-	   are defined in the embedded stdio_dev */
-	struct stdio_dev dev;
+	/* enough bytes to match alignment of following func pointer */
+	char	name[16];
 
-	/* Additional serial specific functions and fields are defined here */
-	void (*setbrg) (const struct serial_device *);
+	int	(*start)(const struct serial_device *sdev);
+	int	(*stop)(const struct serial_device *sdev);
+	void	(*setbrg)(const struct serial_device *sdev);
+	int	(*getc)(const struct serial_device *sdev);
+	int	(*tstc)(const struct serial_device *sdev);
+	void	(*putc)(const struct serial_device *sdev, const char c);
+	void	(*puts)(const struct serial_device *sdev, const char *s);
 #if CONFIG_POST & CONFIG_SYS_POST_UART
-	void (*loop) (const struct serial_device *, int);
+	void	(*loop)(const struct serial_device *sdev, int);
 #endif
-
-	/* The serial devices are stored in a ring structure. So the last
-	   element points with its next pointer back again to the first
-	   element and the first element points with its prev pointer back
-	   again to the last element. The beginning of the ring is stored in
-	   variable serial_devices. */
+	void	*priv;
 	struct serial_device *next;
-	struct serial_device *prev;
 };
 
-void default_serial_puts(const struct stdio_dev *pdev, const char *s);
+void default_serial_puts(const char *s);
 
 extern struct serial_device serial_smc_device;
 extern struct serial_device serial_scc_device;
@@ -45,7 +40,6 @@ extern void serial_initialize(void);
 extern void serial_stdio_init(void);
 extern int serial_assign(const char *name);
 extern void serial_reinit_all(void);
-extern struct serial_device *get_serial_device(unsigned int);
 
 /* For usbtty */
 #ifdef CONFIG_USB_TTY
@@ -227,18 +221,8 @@ int	serial_buffered_tstc (const struct stdio_dev *pdev);
 
 /* arch/$(ARCH)/cpu/$(CPU)/$(SOC)/serial.c */
 int	serial_init   (void);
-void	serial_addr   (unsigned int);
 void	serial_setbrg (void);
-void	serial_putc_raw(const char);
-int	serial_start  (const struct stdio_dev *);
-void	serial_putc   (const struct stdio_dev *, const char);
-void	serial_puts   (const struct stdio_dev *, const char *);
-int	serial_getc   (const struct stdio_dev *);
-int	serial_tstc   (const struct stdio_dev *);
-
-void	_serial_setbrg (const int);
-void	_serial_putc   (const char, const int);
-void	_serial_putc_raw(const char, const int);
-void	_serial_puts   (const char *, const int);
-int	_serial_getc   (const int);
-int	_serial_tstc   (const int);
+void	serial_putc   (const char);
+void	serial_puts   (const char *);
+int	serial_getc   (void);
+int	serial_tstc   (void);

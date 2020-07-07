@@ -166,46 +166,28 @@ serial_initfunc(zynq_serial_initialize);
  * relocation of constant variables, relocation of the supplied structure
  * is performed.
  */
-void serial_register(struct serial_device *sdev)
+void serial_register(struct serial_device *dev)
 {
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
-	if (sdev->start)
-		sdev->start += gd->reloc_off;
-	if (sdev->stop)
-		sdev->stop += gd->reloc_off;
-	if (sdev->setbrg)
-		sdev->setbrg += gd->reloc_off;
-	if (sdev->getc)
-		sdev->getc += gd->reloc_off;
-	if (sdev->tstc)
-		sdev->tstc += gd->reloc_off;
-	if (sdev->putc)
-		sdev->putc += gd->reloc_off;
-	if (sdev->puts)
-		sdev->puts += gd->reloc_off;
+	if (dev->start)
+		dev->start += gd->reloc_off;
+	if (dev->stop)
+		dev->stop += gd->reloc_off;
+	if (dev->setbrg)
+		dev->setbrg += gd->reloc_off;
+	if (dev->getc)
+		dev->getc += gd->reloc_off;
+	if (dev->tstc)
+		dev->tstc += gd->reloc_off;
+	if (dev->putc)
+		dev->putc += gd->reloc_off;
+	if (dev->puts)
+		dev->puts += gd->reloc_off;
 #endif
 
-	if (!serial_devices) {
-		/* First element, loop back to itself */
-		sdev->next = sdev;
-		sdev->prev = sdev;
-		serial_devices = sdev;
-	} else {
-		/* Add at end; serial_devices points to the first element in
-		   the serial devices ring, so serial_devices->prev points to
-		   the last element. */
-		sdev->prev = serial_devices->prev;
-		sdev->prev->next = sdev;
-		sdev->next = serial_devices;
-		sdev->next->prev = sdev;
-	}
+	dev->next = serial_devices;
+	serial_devices = dev;
 }
-
-static int __board_serial_init(void)
-{
-	return -1;
-}
-int board_serial_init(void) __attribute__((weak, alias("__board_serial_init")));
 
 /**
  * serial_initialize() - Register all compiled-in serial port drivers
@@ -218,124 +200,54 @@ int board_serial_init(void) __attribute__((weak, alias("__board_serial_init")));
  */
 void serial_initialize(void)
 {
-	/* The board may initialize only a few ports of some SOC. */
-	if (board_serial_init() < 0) {
-		amirix_serial_initialize();
-		arc_serial_initialize();
-		arm_dcc_initialize();
-		asc_serial_initialize();
-		atmel_serial_initialize();
-		au1x00_serial_initialize();
-		bfin_jtag_initialize();
-		bfin_serial_initialize();
-		bmw_serial_initialize();
-		clps7111_serial_initialize();
-		cogent_serial_initialize();
-		cpci750_serial_initialize();
-		evb64260_serial_initialize();
-		imx_serial_initialize();
-		iop480_serial_initialize();
-		jz_serial_initialize();
-		leon2_serial_initialize();
-		leon3_serial_initialize();
-		lh7a40x_serial_initialize();
-		lpc32xx_serial_initialize();
-		marvell_serial_initialize();
-		max3100_serial_initialize();
-		mcf_serial_initialize();
-		ml2_serial_initialize();
-		mpc85xx_serial_initialize();
-		mpc8xx_serial_initialize();
-		mxc_serial_initialize();
-        serial_lpuart_initialize();
-		mxs_auart_initialize();
-		ns16550_serial_initialize();
-		oc_serial_initialize();
-		p3mx_serial_initialize();
-		pl01x_serial_initialize();
-		pxa_serial_initialize();
-		s3c24xx_serial_initialize();
-		s5p_serial_initialize();
-		sa1100_serial_initialize();
-		sandbox_serial_initialize();
-		sconsole_serial_initialize();
-		sh_serial_initialize();
-		stm32_serial_initialize();
-		uartlite_serial_initialize();
-        xen_debug_serial_initialize();
-		vybrid_serial_initialize();
-		zynq_serial_initialize();
-	}
+	amirix_serial_initialize();
+	arc_serial_initialize();
+	arm_dcc_initialize();
+	asc_serial_initialize();
+	atmel_serial_initialize();
+	au1x00_serial_initialize();
+	bfin_jtag_initialize();
+	bfin_serial_initialize();
+	bmw_serial_initialize();
+	clps7111_serial_initialize();
+	cogent_serial_initialize();
+	cpci750_serial_initialize();
+	evb64260_serial_initialize();
+	imx_serial_initialize();
+	iop480_serial_initialize();
+	jz_serial_initialize();
+	leon2_serial_initialize();
+	leon3_serial_initialize();
+	lh7a40x_serial_initialize();
+	lpc32xx_serial_initialize();
+	marvell_serial_initialize();
+	max3100_serial_initialize();
+	mcf_serial_initialize();
+	ml2_serial_initialize();
+	mpc85xx_serial_initialize();
+	mpc8xx_serial_initialize();
+	mxc_serial_initialize();
+	xen_serial_initialize();
+	serial_lpuart_initialize();
+	mxs_auart_initialize();
+	ns16550_serial_initialize();
+	oc_serial_initialize();
+	p3mx_serial_initialize();
+	pl01x_serial_initialize();
+	pxa_serial_initialize();
+	s3c24xx_serial_initialize();
+	s5p_serial_initialize();
+	sa1100_serial_initialize();
+	sandbox_serial_initialize();
+	sconsole_serial_initialize();
+	sh_serial_initialize();
+	stm32_serial_initialize();
+	uartlite_serial_initialize();
+	xen_debug_serial_initialize();
+	vybrid_serial_initialize();
+	zynq_serial_initialize();
 
-	serial_current = default_serial_console();
-//###	serial_assign(default_serial_console()->name);
-}
-
-/**
- * serial_stdio_init() - Register serial ports with STDIO core
- *
- * This function generates a proxy driver for each serial port driver.
- * These proxy drivers then register with the STDIO core, making the
- * serial drivers available as STDIO devices.
- */
-void serial_stdio_init(void)
-{
-	struct serial_device *sdev = serial_devices;
-
-	/* Register a stdio_dev for every serial_device */
-	if (sdev) {
-		do {
-			stdio_register(&sdev->dev);
-			sdev = sdev->next;
-		} while (sdev != serial_devices);
-	}
-}
-
-/**
- * serial_assign() - Select the serial output device by name
- * @name:	Name of the serial driver to be used as default output
- *
- * This function configures the serial output multiplexing by
- * selecting which serial device will be used as default. In case
- * the STDIO "serial" device is selected as stdin/stdout/stderr,
- * the serial device previously configured by this function will be
- * used for the particular operation.
- *
- * Returns 0 on success, negative on error.
- */
-int serial_assign(const char *name)
-{
-	struct serial_device *sdev = serial_devices;
-
-	if (sdev) {
-		do {
-			if (strcmp(sdev->dev.name, name) == 0) {
-				serial_current = sdev;
-				return 0;
-			}
-			sdev = sdev->next;
-		} while (sdev != serial_devices);
-	}
-
-	return -EINVAL;
-}
-
-/**
- * serial_reinit_all() - Reinitialize all compiled-in serial ports
- *
- * This function reinitializes all serial ports that are compiled
- * into U-Boot by calling their serial_start() functions.
- */
-void serial_reinit_all(void)
-{
-	struct serial_device *sdev = serial_devices;
-
-	if (sdev) {
-		do {
-			sdev->dev.start(&sdev->dev);
-			sdev = sdev->next;
-		} while (sdev != serial_devices);
-	}
+	serial_assign(default_serial_console()->name);
 }
 
 /**
@@ -355,13 +267,17 @@ void serial_reinit_all(void)
  */
 static struct serial_device *get_current(void)
 {
-	struct serial_device *sdev;
+	struct serial_device *dev;
 
-	if (!(gd->flags & GD_FLG_RELOC) || !serial_current) {
-		sdev = default_serial_console();
+	if (!(gd->flags & GD_FLG_RELOC))
+		dev = default_serial_console();
+	else if (!serial_current)
+		dev = default_serial_console();
+	else
+		dev = serial_current;
 
 		/* We must have a console device */
-		if (!sdev) {
+	if (!dev) {
 #ifdef CONFIG_SPL_BUILD
 			puts("Cannot find console\n");
 			hang();
@@ -369,21 +285,138 @@ static struct serial_device *get_current(void)
 			panic("Cannot find console\n");
 #endif
 		}
-	} else
-		sdev = serial_current;
 
-	return sdev;
+	return dev;
 }
 
-static const struct serial_device *get_serial_dev(const struct stdio_dev *pdev)
+static int serial_stub_start(const struct stdio_dev *sdev)
 {
-#if 0
-	/* ### FIXME: Some serial calls do not pass the correct stdio_dev yet */
-	if (pdev)
-		return to_serial_device(pdev);
-#endif
+	struct serial_device *dev = sdev->priv;
 
-	return get_current();
+	if (dev && dev->start)
+		return dev->start(dev);
+
+	return 0;
+}
+
+static int serial_stub_stop(const struct stdio_dev *sdev)
+{
+	struct serial_device *dev = sdev->priv;
+
+	if (dev && dev->stop)
+		return dev->stop(dev);
+
+	return 0;
+}
+
+static void serial_stub_putc(const struct stdio_dev *sdev, const char ch)
+{
+	struct serial_device *dev = sdev->priv;
+
+	if (dev && dev->putc)
+		dev->putc(dev, ch);
+}
+
+static void serial_stub_puts(const struct stdio_dev *sdev, const char *str)
+{
+	struct serial_device *dev = sdev->priv;
+
+	if (dev && dev->puts)
+		dev->puts(dev, str);
+}
+
+static int serial_stub_getc(const struct stdio_dev *sdev)
+{
+	struct serial_device *dev = sdev->priv;
+
+	if (dev && dev->getc)
+		return dev->getc(dev);
+
+	return 0;
+}
+
+static int serial_stub_tstc(const struct stdio_dev *sdev)
+{
+	struct serial_device *dev = sdev->priv;
+
+	if (dev && dev->tstc)
+		return dev->tstc(dev);
+
+	return 0;
+}
+
+/**
+ * serial_stdio_init() - Register serial ports with STDIO core
+ *
+ * This function generates a proxy driver for each serial port driver.
+ * These proxy drivers then register with the STDIO core, making the
+ * serial drivers available as STDIO devices.
+ */
+void serial_stdio_init(void)
+{
+	struct stdio_dev dev;
+	struct serial_device *s = serial_devices;
+
+	memset(&dev, 0, sizeof(dev));
+
+	strcpy(dev.name, "serial");
+	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
+	dev.start = serial_stub_start;
+	dev.stop = serial_stub_stop;
+	dev.putc = serial_stub_putc;
+	dev.puts = serial_stub_puts;
+	dev.getc = serial_stub_getc;
+	dev.tstc = serial_stub_tstc;
+	dev.priv = get_current();
+	stdio_register(&dev);
+
+	while (s) {
+		strcpy(dev.name, s->name);
+		dev.priv = s;
+		stdio_register(&dev);
+
+		s = s->next;
+	}
+}
+
+/**
+ * serial_assign() - Select the serial output device by name
+ * @name:	Name of the serial driver to be used as default output
+ *
+ * This function configures the serial output multiplexing by
+ * selecting which serial device will be used as default. In case
+ * the STDIO "serial" device is selected as stdin/stdout/stderr,
+ * the serial device previously configured by this function will be
+ * used for the particular operation.
+ *
+ * Returns 0 on success, negative on error.
+ */
+int serial_assign(const char *name)
+{
+	struct serial_device *s;
+
+	for (s = serial_devices; s; s = s->next) {
+		if (!strcmp(s->name, name)) {
+			serial_current = s;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * serial_reinit_all() - Reinitialize all compiled-in serial ports
+ *
+ * This function reinitializes all serial ports that are compiled
+ * into U-Boot by calling their serial_start() functions.
+ */
+void serial_reinit_all(void)
+{
+	struct serial_device *s;
+
+	for (s = serial_devices; s; s = s->next)
+		s->start(s);
 }
 
 /**
@@ -398,9 +431,11 @@ static const struct serial_device *get_serial_dev(const struct stdio_dev *pdev)
  */
 int serial_init(void)
 {
-	const struct serial_device *sdev = get_current();
+	struct serial_device *sdev = get_current();
 
-	return sdev->dev.start(&sdev->dev);
+	gd->flags |= GD_FLG_SERIAL_READY;
+
+	return sdev->start(sdev);
 }
 
 /**
@@ -415,7 +450,7 @@ int serial_init(void)
  */
 void serial_setbrg(void)
 {
-	const struct serial_device *sdev = get_current();
+	struct serial_device *sdev = get_current();
 
 	sdev->setbrg(sdev);
 }
@@ -431,11 +466,11 @@ void serial_setbrg(void)
  *
  * Returns the character on success, negative on error.
  */
-int serial_getc(const struct stdio_dev *pdev)
+int serial_getc(void)
 {
-	const struct serial_device *sdev = get_serial_dev(pdev);
+	struct serial_device *sdev = get_current();
 
-	return sdev->dev.getc(&sdev->dev);
+	return sdev->getc(sdev);
 }
 
 /**
@@ -448,11 +483,11 @@ int serial_getc(const struct stdio_dev *pdev)
  *
  * Returns positive if character is available, zero otherwise.
  */
-int serial_tstc(const struct stdio_dev *pdev)
+int serial_tstc(void)
 {
-	const struct serial_device *sdev = get_serial_dev(pdev);
+	struct serial_device *sdev = get_current();
 
-	return sdev->dev.tstc(&sdev->dev);
+	return sdev->tstc(sdev);
 }
 
 /**
@@ -466,11 +501,11 @@ int serial_tstc(const struct stdio_dev *pdev)
  * for a short amount of time. This function uses the get_current()
  * call to determine which port is selected.
  */
-void serial_putc(const struct stdio_dev *pdev, const char c)
+void serial_putc(const char c)
 {
-	const struct serial_device *sdev = get_serial_dev(pdev);
+	struct serial_device *sdev = get_current();
 
-	sdev->dev.putc(&sdev->dev, c);
+	sdev->putc(sdev, c);
 }
 
 /**
@@ -486,11 +521,11 @@ void serial_putc(const struct stdio_dev *pdev, const char c)
  * amount of time. This function uses the get_current() call to
  * determine which port is selected.
  */
-void serial_puts(const struct stdio_dev *pdev, const char *s)
+void serial_puts(const char *s)
 {
-	const struct serial_device *sdev = get_serial_dev(pdev);
+	struct serial_device *sdev = get_current();
 
-	sdev->dev.puts(&sdev->dev, s);
+	sdev->puts(sdev, s);
 }
 
 /**
@@ -505,12 +540,11 @@ void serial_puts(const struct stdio_dev *pdev, const char *s)
  * calls get_current() once and then directly accesses the putc() call
  * of the &struct serial_device .
  */
-void default_serial_puts(const struct stdio_dev *pdev, const char *s)
+void default_serial_puts(const char *s)
 {
-	const struct serial_device *sdev = get_serial_dev(pdev);
-
+	struct serial_device *sdev = get_current();
 	while (*s)
-		sdev->dev.putc(&sdev->dev, *s++);
+		sdev->putc(sdev, *s++);
 }
 
 #if CONFIG_POST & CONFIG_SYS_POST_UART
@@ -533,35 +567,31 @@ int uart_post_test(int flags)
 {
 	unsigned char c;
 	int ret, saved_baud, b;
-	struct serial_device *saved_dev, *sdev;
+	struct serial_device *saved_dev, *s;
 
 	/* Save current serial state */
 	ret = 0;
 	saved_dev = serial_current;
 	saved_baud = gd->baudrate;
 
-	sdev = serial_devices;
-	if (!sdev)
-		goto done;
-
-	do {
+	for (s = serial_devices; s; s = s->next) {
 		/* If this driver doesn't support loop back, skip it */
-		if (!sdev->loop)
+		if (!s->loop)
 			continue;
 
 		/* Test the next device */
-		serial_current = sdev;
+		serial_current = s;
 
 		ret = serial_init();
 		if (ret)
 			goto done;
 
 		/* Consume anything that happens to be queued */
-		while (serial_tstc(&sdev->dev))
-			serial_getc(&sdev->dev);
+		while (serial_tstc())
+			serial_getc();
 
 		/* Enable loop back */
-		sdev->loop(sdev, 1);
+		s->loop(1);
 
 		/* Test every available baud rate */
 		for (b = 0; b < ARRAY_SIZE(bauds); ++b) {
@@ -577,28 +607,32 @@ int uart_post_test(int flags)
 			 */
 			for (c = 0x20; c < 0x7f; ++c) {
 				/* Send it out */
-				serial_putc(&sdev->dev, c);
+				serial_putc(c);
 
 				/* Make sure it's the same one */
-				ret = (c != serial_getc(&sdev->dev));
+				ret = (c != serial_getc());
 				if (ret) {
-					sdev->loop(sdev, 0);
+					s->loop(0);
 					goto done;
 				}
 
 				/* Clean up the output in case it was sent */
-				serial_putc(&sdev->dev, '\b');
-				ret = ('\b' != serial_getc(&sdev->dev));
+				serial_putc('\b');
+				ret = ('\b' != serial_getc());
 				if (ret) {
-					sdev->loop(sdev, 0);
+					s->loop(0);
 					goto done;
 				}
 			}
 		}
 
 		/* Disable loop back */
-		sdev->loop(sdev, 0);
-	} while (sdev != serial_devices);
+		s->loop(0);
+
+		/* XXX: There is no serial_stop() !? */
+		if (s->stop)
+			s->stop();
+	}
 
  done:
 	/* Restore previous serial state */

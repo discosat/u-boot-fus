@@ -7,14 +7,12 @@
 #include <common.h>
 #include <dm.h>
 #include <errno.h>
-#include <watchdog.h>		        /* WATCHDOG_RESET() */
-#include <asm/arch/imx-regs.h>		/* UART?_BASE */
-#include <asm/arch/clock.h>		/* imx_get_uartclk() */
+#include <watchdog.h>
+#include <asm/arch/imx-regs.h>
+#include <asm/arch/clock.h>
 #include <dm/platform_data/serial_mxc.h>
-#include <serial.h>			/* struct serial_device */
+#include <serial.h>
 #include <linux/compiler.h>
-#include <asm/io.h>			/* __raw_readl(), __raw_writel() */
-
 
 /* UART Control Register Bit Fields.*/
 #define URXD_CHARRDY	(1<<15)
@@ -186,7 +184,7 @@ static void mxc_serial_setbrg(const struct serial_device *sdev)
 	if (!gd->baudrate)
 		gd->baudrate = CONFIG_BAUDRATE;
 
-	_mxc_serial_setbrg(sdev->dev.priv, clk, gd->baudrate, false);
+	_mxc_serial_setbrg(sdev->priv, clk, gd->baudrate, false);
 }
 
 /*
@@ -194,13 +192,11 @@ static void mxc_serial_setbrg(const struct serial_device *sdev)
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  *
  */
-static int mxc_serial_start(const struct stdio_dev *pdev)
+static int mxc_serial_start(const struct serial_device *sdev)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
+	_mxc_serial_init(sdev->priv);
 
-	_mxc_serial_init(sdev->dev.priv);
-
-	serial_setbrg();
+	mxc_serial_setbrg(sdev);
 
 	return 0;
 }
@@ -222,10 +218,9 @@ static void mxc_ll_putc(struct mxc_uart *base, const char c)
 /*
  * Output a single byte to the serial port.
  */
-static void mxc_serial_putc(const struct stdio_dev *pdev, const char c)
+static void mxc_serial_putc(const struct serial_device *sdev, const char c)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct mxc_uart *base = sdev->dev.priv;
+	struct mxc_uart *base = sdev->priv;
 
 	mxc_ll_putc(base, c);
 }
@@ -233,10 +228,9 @@ static void mxc_serial_putc(const struct stdio_dev *pdev, const char c)
 /*
  * Output a string to the serial port.
  */
-static void mxc_serial_puts(const struct stdio_dev *pdev, const char *s)
+static void mxc_serial_puts(const struct serial_device *sdev, const char *s)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct mxc_uart *base = sdev->dev.priv;
+	struct mxc_uart *base = sdev->priv;
 
 	while (*s)
 		mxc_ll_putc(base, *s++);
@@ -246,10 +240,9 @@ static void mxc_serial_puts(const struct stdio_dev *pdev, const char *s)
 /*
  * Read a single byte from the serial port. 
  */
-static int mxc_serial_getc(const struct stdio_dev *pdev)
+static int mxc_serial_getc(const struct serial_device *sdev)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct mxc_uart *base = sdev->dev.priv;
+	struct mxc_uart *base = sdev->priv;
 
 	/* Wait for character to arrive */
 	while (readl(&base->ts) & UTS_RXEMPTY)
@@ -262,10 +255,9 @@ static int mxc_serial_getc(const struct stdio_dev *pdev)
 /*
  * Test whether a character is in the RX buffer
  */
-static int mxc_serial_tstc(const struct stdio_dev *pdev)
+static int mxc_serial_tstc(const struct serial_device *sdev)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct mxc_uart *base = sdev->dev.priv;
+	struct mxc_uart *base = sdev->priv;
 
 	/* If receive fifo is empty, return false */
 	if (readl(&base->ts) & UTS_RXEMPTY)
@@ -274,51 +266,51 @@ static int mxc_serial_tstc(const struct stdio_dev *pdev)
 	return 1;
 }
 
-
-#define INIT_MXC_SERIAL(_addr, _name, _hwname) {	\
-	{       /* stdio_dev part */		\
-		.name = _name,			\
-		.hwname = _hwname,		\
-		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
-		.start = mxc_serial_start,	\
-		.stop = NULL,			\
-		.getc = mxc_serial_getc,	\
-		.tstc =	mxc_serial_tstc,	\
-		.putc = mxc_serial_putc,	\
-		.puts = mxc_serial_puts,	\
-		.priv = (void *)_addr,	\
-	},					\
-	.setbrg = mxc_serial_setbrg,		\
+#define INIT_MXC_SERIAL(_addr, _name) {	\
+	.name = _name,			\
+	.start = mxc_serial_start,	\
+	.stop = NULL,			\
+	.setbrg = mxc_serial_setbrg,	\
+	.getc = mxc_serial_getc,	\
+	.tstc =	mxc_serial_tstc,	\
+	.putc = mxc_serial_putc,	\
+	.puts = mxc_serial_puts,	\
+	.priv = (void *)_addr,		\
 }
 
-struct serial_device mxc_serial_device[] = {
-	INIT_MXC_SERIAL(UART1_BASE, CONFIG_SYS_SERCON_NAME "0", "mxc_uart0"),
-	INIT_MXC_SERIAL(UART2_BASE, CONFIG_SYS_SERCON_NAME "1", "mxc_uart1"),
-	INIT_MXC_SERIAL(UART3_BASE, CONFIG_SYS_SERCON_NAME "2", "mxc_uart2"),
-	INIT_MXC_SERIAL(UART4_BASE, CONFIG_SYS_SERCON_NAME "3", "mxc_uart3"),
-	INIT_MXC_SERIAL(UART5_BASE, CONFIG_SYS_SERCON_NAME "4", "mxc_uart4"),
+static struct serial_device mxc_serial_devices[] = {
+	INIT_MXC_SERIAL(UART1_BASE, "ttymxc0"),
+	INIT_MXC_SERIAL(UART2_BASE, "ttymxc1"),
+	INIT_MXC_SERIAL(UART3_BASE, "ttymxc2"),
+	INIT_MXC_SERIAL(UART4_BASE, "ttymxc3"),
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN)
+	INIT_MXC_SERIAL(UART5_BASE, "ttymxc4"),
+#endif
 };
 
-/* Get pointer to n-th serial device */
-struct serial_device *get_serial_device(unsigned int n)
+__weak ulong board_serial_base(void)
 {
-	if (n < 5)
-		return &mxc_serial_device[n];
-
-	return NULL;
+	return CONFIG_MXC_UART_BASE;
 }
 
-/* Register all serial ports; if you only want to register a subset, implement
-   function board_serial_init() and call serial_register() there. */
+struct serial_device *default_serial_console(void)
+{
+	void *addr = (void *)board_serial_base();
+	int port = ARRAY_SIZE(mxc_serial_devices);
+
+	do {
+		port--;
+		if (addr == mxc_serial_devices[port].priv)
+			break;
+	} while (port > 0);
+
+	return &mxc_serial_devices[port];
+}
+
+/* Register the default serial port */
 void mxc_serial_initialize(void)
 {
-	serial_register(&mxc_serial_device[0]);
-	serial_register(&mxc_serial_device[1]);
-	serial_register(&mxc_serial_device[2]);
-	serial_register(&mxc_serial_device[3]);
-#if !defined(CONFIG_IMX8M) || !defined(CONFIG_IMX8MM) || !defined(CONFIG_IMX8MN)
-	serial_register(&mxc_serial_device[4]);
-#endif
+	serial_register(default_serial_console());
 }
 #endif
 

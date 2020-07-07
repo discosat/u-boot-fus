@@ -159,10 +159,8 @@
 /************************************************************************
  * Serial Console (UART)
  ************************************************************************/
-#define CONFIG_SYS_UART_PORT	1	/* Default UART port; however we
+#define CONFIG_MXC_UART_BASE UART2_BASE	/* Default UART port; however we
 					   always take the port from NBoot */
-#define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
-#define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
 #define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
 

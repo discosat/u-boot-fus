@@ -29,7 +29,7 @@
 static void vybrid_serial_setbrg(const struct serial_device *sdev)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct vybrid_uart *uart = (struct vybrid_uart *)(sdev->dev.priv);
+	struct vybrid_uart *uart = (struct vybrid_uart *)(sdev->priv);
 	u32 clk = vybrid_get_clock(VYBRID_IPG_CLK);
 	u16 sbr;
 
@@ -45,10 +45,9 @@ static void vybrid_serial_setbrg(const struct serial_device *sdev)
  * Initialise the serial port with the given baudrate. The settings
  * are always 8 data bits, no parity, 1 stop bit, no start bits.
  */
-static int vybrid_serial_start(const struct stdio_dev *pdev)
+static int vybrid_serial_start(const struct serial_device *sdev)
 {
-	const struct serial_device *sdev = to_serial_device(pdev);
-        struct vybrid_uart *uart = (struct vybrid_uart *)(sdev->dev.priv);
+        struct vybrid_uart *uart = (struct vybrid_uart *)(sdev->priv);
 
 	clrbits_8(&uart->uc2, UC2_RE);
 	clrbits_8(&uart->uc2, ~UC2_TE);
@@ -83,10 +82,9 @@ static void vybrid_ll_putc(struct vybrid_uart *const uart, const char c)
 /*
  * Output a single byte to the serial port.
  */
-static void vybrid_serial_putc(const struct stdio_dev *pdev, const char c)
+static void vybrid_serial_putc(const struct serial_device *sdev, const char c)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->dev.priv;
+	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->priv;
 
 	vybrid_ll_putc(uart, c);
 }
@@ -94,10 +92,9 @@ static void vybrid_serial_putc(const struct stdio_dev *pdev, const char c)
 /*
  * Output a string to the serial port.
  */
-static void vybrid_serial_puts(const struct stdio_dev *pdev, const char *s)
+static void vybrid_serial_puts(const struct serial_device *sdev, const char *s)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->dev.priv;
+	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->priv;
 
 	while (*s)
 		vybrid_ll_putc(uart, *s++);
@@ -107,10 +104,9 @@ static void vybrid_serial_puts(const struct stdio_dev *pdev, const char *s)
 /*
  * Read a single byte from the serial port. 
  */
-static int vybrid_serial_getc(const struct stdio_dev *pdev)
+static int vybrid_serial_getc(const struct serial_device *sdev)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->dev.priv;
+	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->priv;
 
 	/* Wait for character to arrive */
 	while (!(in_8(&uart->us1) & US1_RDRF))
@@ -124,10 +120,9 @@ static int vybrid_serial_getc(const struct stdio_dev *pdev)
 /*
  * Test whether a character is in the RX buffer
  */
-static int vybrid_serial_tstc(const struct stdio_dev *pdev)
+static int vybrid_serial_tstc(const struct serial_device *sdev)
 {
-	struct serial_device *sdev = to_serial_device(pdev);
-	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->dev.priv;
+	struct vybrid_uart *const uart = (struct vybrid_uart *)sdev->priv;
 
 	if (in_8(&uart->urcfifo) == 0)
 		return 0;
@@ -136,48 +131,48 @@ static int vybrid_serial_tstc(const struct stdio_dev *pdev)
 }
 
 
-#define INIT_VYB_SERIAL(_addr, _name, _hwname) {	\
-	{       /* stdio_dev part */		\
-		.name = _name,			\
-		.hwname = _hwname,		\
-		.flags = DEV_FLAGS_INPUT | DEV_FLAGS_OUTPUT, \
-		.start = vybrid_serial_start,	\
-		.stop = NULL,			\
-		.getc = vybrid_serial_getc,	\
-		.tstc =	vybrid_serial_tstc,	\
-		.putc = vybrid_serial_putc,	\
-		.puts = vybrid_serial_puts,	\
-		.priv = (void *)_addr,	\
-	},					\
-	.setbrg = vybrid_serial_setbrg,		\
+#define INIT_VYB_SERIAL(_addr, _name) { \
+	.name = _name,			\
+	.start = vybrid_serial_start,	\
+	.stop = NULL,			\
+	.setbrg = vybrid_serial_setbrg,	\
+	.getc = vybrid_serial_getc,	\
+	.tstc =	vybrid_serial_tstc,	\
+	.putc = vybrid_serial_putc,	\
+	.puts = vybrid_serial_puts,	\
+	.priv = (void *)_addr,		\
 }
 
-struct serial_device vybrid_serial_device[] = {
-	INIT_VYB_SERIAL(UART0_BASE, CONFIG_SYS_SERCON_NAME "0", "vybrid_uart0"),
-	INIT_VYB_SERIAL(UART1_BASE, CONFIG_SYS_SERCON_NAME "1", "vybrid_uart1"),
-	INIT_VYB_SERIAL(UART2_BASE, CONFIG_SYS_SERCON_NAME "2", "vybrid_uart2"),
-	INIT_VYB_SERIAL(UART3_BASE, CONFIG_SYS_SERCON_NAME "3", "vybrid_uart3"),
-	INIT_VYB_SERIAL(UART4_BASE, CONFIG_SYS_SERCON_NAME "4", "vybrid_uart4"),
-	INIT_VYB_SERIAL(UART5_BASE, CONFIG_SYS_SERCON_NAME "5", "vybrid_uart5"),
+static struct serial_device vybrid_serial_devices[] = {
+	INIT_VYB_SERIAL(UART0_BASE, "ttyLP0"),
+	INIT_VYB_SERIAL(UART1_BASE, "ttyLP1"),
+	INIT_VYB_SERIAL(UART2_BASE, "ttyLP2"),
+	INIT_VYB_SERIAL(UART3_BASE, "ttyLP3"),
+	INIT_VYB_SERIAL(UART4_BASE, "ttyLP4"),
+	INIT_VYB_SERIAL(UART5_BASE, "ttyLP5"),
 };
 
-/* Get pointer to n-th serial device */
-struct serial_device *get_serial_device(unsigned int n)
+__weak ulong board_serial_base(void)
 {
-	if (n < 6)
-		return &vybrid_serial_device[n];
-
-	return NULL;
+	return CONFIG_MXC_UART_BASE;
 }
 
-/* Register all serial ports; if you only want to register a subset, implement
-   function board_serial_init() and call serial_register() there. */
+struct serial_device *default_serial_console(void)
+{
+	void *addr = (void *)board_serial_base();
+	int port = ARRAY_SIZE(vybrid_serial_devices);
+
+	do {
+		port--;
+		if (addr == vybrid_serial_devices[port].priv)
+			break;
+	} while (port > 0);
+
+	return &vybrid_serial_devices[port];
+}
+
+/* Register the default serial port */
 void vybrid_serial_initialize(void)
 {
-	serial_register(&vybrid_serial_device[0]);
-	serial_register(&vybrid_serial_device[1]);
-	serial_register(&vybrid_serial_device[2]);
-	serial_register(&vybrid_serial_device[3]);
-	serial_register(&vybrid_serial_device[4]);
-	serial_register(&vybrid_serial_device[5]);
+	serial_register(default_serial_console());
 }

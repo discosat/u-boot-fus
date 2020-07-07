@@ -12,6 +12,7 @@
 #include <config.h>
 #include <common.h>			/* types, get_board_name(), ... */
 #include <serial.h>			/* get_serial_device() */
+#include <stdio_dev.h>			/* DEV_NAME_SIZE */
 #include <asm/gpio.h>			/* gpio_direction_output(), ... */
 #include <asm/arch/sys_proto.h>		/* is_mx6*() */
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
@@ -84,32 +85,15 @@ unsigned int fs_board_get_rev(void)
 	return fs_board_get_nboot_args()->chBoardRev;
 }
 
-/* Get the number of the debug port reported by NBoot */
-static unsigned int get_debug_port(unsigned int dwDbgSerPortPA)
-{
-	unsigned int port = 6;
-	struct serial_device *sdev;
-
-	do {
-		sdev = get_serial_device(--port);
-		if (sdev && sdev->dev.priv == (void *)(ulong)dwDbgSerPortPA)
-			return port;
-	} while (port);
-
-	return CONFIG_SYS_UART_PORT;
-}
-
-/* Get the number of the debug port reported by NBoot */
-struct serial_device *default_serial_console(void)
-{
+// ### TODO: In case of SPL, return board specific port number -> board code */
 #ifndef CONFIG_SPL_BUILD
+ulong board_serial_base(void)
+{
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
-	return get_serial_device(get_debug_port(pargs->dwDbgSerPortPA));
-#else
-	return get_serial_device(CONFIG_SYS_UART_PORT);
-#endif
+	return pargs->dwDbgSerPortPA;
 }
+#endif
 
 /* Issue reset signal on up to three gpios (~0: gpio unused) */
 void fs_board_issue_reset(uint active_us, uint delay_us,
@@ -258,7 +242,6 @@ static void setup_var(const char *varname, const char *content, int runvar)
 void fs_board_late_init_common(void)
 {
 	const char *envvar;
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 #ifdef CONFIG_FS_MMC_COMMON
 	int usdhc_boot_device = get_usdhc_boot_device();
 	int mmc_boot_device = get_mmc_boot_device();
@@ -269,13 +252,8 @@ void fs_board_late_init_common(void)
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
-	if (!envvar || !strcmp(envvar, "undef")) {
-		char sercon[DEV_NAME_SIZE];
-
-		sprintf(sercon, "%s%c", CONFIG_SYS_SERCON_NAME,
-			'0' + get_debug_port(pargs->dwDbgSerPortPA));
-		env_set("sercon", sercon);
-	}
+	if (!envvar || !strcmp(envvar, "undef"))
+		env_set("sercon", default_serial_console()->name);
 
 	/* Set platform variable if not already set */
 	envvar = env_get("platform");
