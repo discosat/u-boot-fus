@@ -1226,30 +1226,6 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 	return 0;
 }
 
-static void pre_misc_setting(void)
-{
-	/* Bypass IPU1 QoS generator */
-	writel(0x00000002, 0x00bb048c);
-	/* Bypass IPU2 QoS generator */
-	writel(0x00000002, 0x00bb050c);
-	/* Bandwidth THR for of PRE0 */
-	writel(0x00000200, 0x00bb0690);
-	/* Bandwidth THR for of PRE1 */
-	writel(0x00000200, 0x00bb0710);
-	/* Bandwidth THR for of PRE2 */
-	writel(0x00000200, 0x00bb0790);
-	/* Bandwidth THR for of PRE3 */
-	writel(0x00000200, 0x00bb0810);
-	/* Saturation THR for of PRE0 */
-	writel(0x00000010, 0x00bb0694);
-	/* Saturation THR for of PRE1 */
-	writel(0x00000010, 0x00bb0714);
-	/* Saturation THR for of PRE2 */
-	writel(0x00000010, 0x00bb0794);
-	/* Saturation THR for of PRE */
-	writel(0x00000010, 0x00bb0814);
-}
-
 #ifndef CONFIG_SPL_BUILD
 static void show_freq(const char *name, u32 freq)
 {
@@ -1327,6 +1303,30 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 #ifndef CONFIG_MX6SX
+static void pre_misc_setting(void)
+{
+	/* Bypass IPU1 QoS generator */
+	writel(0x00000002, 0x00bb048c);
+	/* Bypass IPU2 QoS generator */
+	writel(0x00000002, 0x00bb050c);
+	/* Bandwidth THR for of PRE0 */
+	writel(0x00000200, 0x00bb0690);
+	/* Bandwidth THR for of PRE1 */
+	writel(0x00000200, 0x00bb0710);
+	/* Bandwidth THR for of PRE2 */
+	writel(0x00000200, 0x00bb0790);
+	/* Bandwidth THR for of PRE3 */
+	writel(0x00000200, 0x00bb0810);
+	/* Saturation THR for of PRE0 */
+	writel(0x00000010, 0x00bb0694);
+	/* Saturation THR for of PRE1 */
+	writel(0x00000010, 0x00bb0714);
+	/* Saturation THR for of PRE2 */
+	writel(0x00000010, 0x00bb0794);
+	/* Saturation THR for of PRE */
+	writel(0x00000010, 0x00bb0814);
+}
+
 void enable_ipu_clock(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
