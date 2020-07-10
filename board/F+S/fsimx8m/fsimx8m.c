@@ -421,7 +421,7 @@ int board_late_init(void)
    *  */
   env_set("fdtcontroladdr", "");
   /* Set up all board specific variables */
-  fs_board_late_init_common ();
+  fs_board_late_init_common("ttymxc");
 
 	return 0;
 }

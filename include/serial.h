@@ -226,3 +226,6 @@ void	serial_putc   (const char);
 void	serial_puts   (const char *);
 int	serial_getc   (void);
 int	serial_tstc   (void);
+#ifdef CONFIG_DM_SERIAL
+int	serial_get_alias_seq(void);
+#endif

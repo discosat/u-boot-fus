@@ -81,7 +81,7 @@ void fs_board_issue_reset(uint active_us, uint delay_us,
 void fs_board_init_common(const struct fs_board_info *board_info);
 
 /* Set up all board specific variables */
-void fs_board_late_init_common(void);
+void fs_board_late_init_common(const char *serial_name);
 
 
 #endif /* !__FS_BOARD_COMMON_H__ */

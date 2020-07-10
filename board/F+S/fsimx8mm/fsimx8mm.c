@@ -1040,7 +1040,7 @@ int board_late_init(void)
 	 *  */
 	env_set("fdtcontroladdr", "");
 	/* Set up all board specific variables */
-	fs_board_late_init_common ();
+	fs_board_late_init_common("ttymxc");
 
 	imx_iomux_v3_setup_multiple_pads (vlcd_on_pads, ARRAY_SIZE (bl_on_pads));
 	/* backlight off */

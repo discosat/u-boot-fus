@@ -239,7 +239,7 @@ static void setup_var(const char *varname, const char *content, int runvar)
 }
 
 /* Set up all board specific variables */
-void fs_board_late_init_common(void)
+void fs_board_late_init_common(const char *serial_name)
 {
 	const char *envvar;
 #ifdef CONFIG_FS_MMC_COMMON
@@ -252,8 +252,17 @@ void fs_board_late_init_common(void)
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
-	if (!envvar || !strcmp(envvar, "undef"))
+	if (!envvar || !strcmp(envvar, "undef")) {
+#ifdef CONFIG_DM_SERIAL
+		char sercon[DEV_NAME_SIZE];
+
+		snprintf(sercon, DEV_NAME_SIZE, "%s%d", serial_name,
+			 serial_get_alias_seq());
+		env_set("sercon", sercon);
+#else
 		env_set("sercon", default_serial_console()->name);
+#endif
+	}
 
 	/* Set platform variable if not already set */
 	envvar = env_get("platform");

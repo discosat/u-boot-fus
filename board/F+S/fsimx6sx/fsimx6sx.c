@@ -1267,7 +1267,7 @@ int board_ehci_hcd_init(int index)
 int board_late_init(void)
 {
 	/* Set up all board specific variables */
-	fs_board_late_init_common();
+	fs_board_late_init_common("ttymxc");
 
 #ifdef CONFIG_VIDEO_MXS
 	/* Enable backlight for displays */
