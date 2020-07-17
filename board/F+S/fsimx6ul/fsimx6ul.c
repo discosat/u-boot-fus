@@ -950,8 +950,9 @@ void board_display_set_power(int port, int on)
 		gpio = IMX_GPIO_NR(5, 4);
 		break;
 
-	case BT_PICOCOMA7:		/* VLCD_ON is active high */
+	case BT_PICOCOMA7:		/* VLCD_ON is active low*/
 		gpio = IMX_GPIO_NR(3, 25);
+	    value = !on;
 		break;
 
 	case BT_PCOREMX6UL:		/* VLCD_ON is active high */
@@ -1263,9 +1264,7 @@ int board_ehci_hcd_init(int index)
 			break;
 		case BT_PICOCOMA7:
 			cfg.pwr_pad = usb_otg2_pwr_pad_picocoma7;
-#ifndef CONFIG_FS_USB_PWR_USBNC
 			cfg.pwr_gpio = IMX_GPIO_NR(1, 28);
-#endif
 			break;
 		case BT_CUBEA7UL:
 		case BT_CUBE2_0:
