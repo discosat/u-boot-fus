@@ -1042,7 +1042,7 @@ int board_late_init(void)
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
-	imx_iomux_v3_setup_multiple_pads (vlcd_on_pads, ARRAY_SIZE (bl_on_pads));
+	imx_iomux_v3_setup_multiple_pads (bl_on_pads, ARRAY_SIZE (bl_on_pads));
 	/* backlight off */
 	gpio_request (BL_ON_PAD, "BL_ON");
 	gpio_direction_output (BL_ON_PAD, 0);
@@ -1059,7 +1059,7 @@ int board_late_init(void)
 
 	/* set vlcd on*/
 	gpio_request (VLCD_ON_PAD, "VLCD_ON");
-	gpio_direction_output (VLCD_ON_PAD, 0);
+	gpio_direction_output (VLCD_ON_PAD, 1);
 	/* backlight on */
 	gpio_direction_output (BL_ON_PAD, 1);
 
