@@ -156,9 +156,9 @@
 #define CONFIG_LIB_RAND
 #define CONFIG_NET_RANDOM_ETHADDR
 #define CONFIG_NETMASK		255.255.255.0
-#define CONFIG_IPADDR		192.168.192.91
-#define CONFIG_SERVERIP		192.168.192.28
-#define CONFIG_GATEWAYIP	192.168.192.1
+#define CONFIG_IPADDR		10.0.0.252
+#define CONFIG_SERVERIP		10.0.0.122
+#define CONFIG_GATEWAYIP	10.0.0.5
 #define CONFIG_ROOTPATH		"/rootfs"
 
 #endif
@@ -248,6 +248,7 @@
 	".console_none=setenv console\0"				\
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
 	".console_display=setenv console console=tty1\0"		\
+	"ethaddr=00:05:51:07:55:83\0"	\
 	"login=undef\0"							\
 	".login_none=setenv login login_tty=null\0"			\
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\

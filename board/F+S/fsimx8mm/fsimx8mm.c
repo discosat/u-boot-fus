@@ -343,17 +343,27 @@ int board_usb_init(int index, enum usb_init_type init)
 	switch(init)
 	{
 	case USB_INIT_HOST:
-		imx_iomux_v3_setup_pad(usb_host_pwr_pad);
-		gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
-		/* vbus_detect for bddsi  */
-		gpio_direction_output (USB_HOST_PWR_PAD, 1);
+		if (index == 0) {
+			imx_iomux_v3_setup_pad(usb_host_pwr_pad);
+			gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
+			/* vbus_detect for bddsi - active high */
+			gpio_direction_output (USB_HOST_PWR_PAD, 1);
+		}
+		else if (index == 1) {
+			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
+			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
+			/* vbus_detect for bddsi - active low  */
+			gpio_direction_output (USB_OTG_PWR_PAD, 0);
+		}
 		break;
 	case USB_INIT_DEVICE:
 	default:
-		imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-		gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
-		/* vbus_detect for bddsi  */
-		gpio_direction_output (USB_OTG_PWR_PAD, 1);
+		if (index == 1) {
+			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
+			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
+			/* vbus_detect for bddsi - active low */
+			gpio_direction_output (USB_OTG_PWR_PAD, 1);
+		}
 		break;
 	}
 
@@ -373,17 +383,20 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 	switch(init)
 	{
 	case USB_INIT_HOST:
-		imx_iomux_v3_setup_pad(usb_host_pwr_pad);
-		gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
-		/* vbus_detect for bddsi  */
-		gpio_direction_output (USB_HOST_PWR_PAD, 0);
+		if (index == 0) {
+			imx_iomux_v3_setup_pad(usb_host_pwr_pad);
+			gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
+			/* vbus_detect for bddsi  */
+			gpio_direction_output (USB_HOST_PWR_PAD, 0);
+		}
+		else if (index == 1) {
+			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
+			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
+			/* vbus_detect for bddsi - active low  */
+			gpio_direction_output (USB_OTG_PWR_PAD, 1);
+		}
 		break;
-	case USB_INIT_DEVICE:
 	default:
-		imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-		gpio_request (USB_HOST_PWR_PAD, "USB_OTG_PWR");
-		/* vbus_detect for bddsi  */
-		gpio_direction_output (USB_OTG_PWR_PAD, 0);
 		break;
 	}
 
