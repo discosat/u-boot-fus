@@ -2,6 +2,20 @@ History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
 
+u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)
+-------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Update history file to u-boot-2018.03-fsimx8mm-B2020.08
+- Improve USB support for fsimx8mm
+- Improve display support for fsimx8mm
+- Fix fsimx6ul PicoCOMA7 USB and Display
+- Add basic device tree support for serial drivers on F&S platforms
+- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
+- Remove stdio_dev from F&S serial devices and netconsole
+- Revert to F&S timer implementation on i.MX
+- void compiler warning in ubi.c on ARM64
+
 u-boot-2018.03-fsimx8m(m,n)-Y2020.06 (18.06.2020)
 -------------------------------------------
 Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
