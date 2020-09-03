@@ -323,84 +323,20 @@ int board_phy_config(struct phy_device *phydev)
 }
 #endif
 
-#define USB_GPIO_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_DSE1)
-
-#define USB_OTG_PWR_PAD IMX_GPIO_NR(1, 12)
-static iomux_v3_cfg_t const usb_otg_pwr_pad =
-	(IMX8MM_PAD_GPIO1_IO12_GPIO1_IO12 | MUX_PAD_CTRL(USB_GPIO_PAD_CTRL));
-
-#define USB_HOST_PWR_PAD IMX_GPIO_NR(1, 14)
-static iomux_v3_cfg_t const usb_host_pwr_pad
-= (IMX8MM_PAD_GPIO1_IO14_GPIO1_IO14 | MUX_PAD_CTRL(USB_GPIO_PAD_CTRL));
-
-
 int board_usb_init(int index, enum usb_init_type init)
 {
-	int ret = 0;
-
 	debug("board_usb_init %d, type %d\n", index, init);
 
-	switch(init)
-	{
-	case USB_INIT_HOST:
-		if (index == 0) {
-			imx_iomux_v3_setup_pad(usb_host_pwr_pad);
-			gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
-			/* vbus_detect for bddsi - active high */
-			gpio_direction_output (USB_HOST_PWR_PAD, 1);
-		}
-		else if (index == 1) {
-			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
-			/* vbus_detect for bddsi - active low  */
-			gpio_direction_output (USB_OTG_PWR_PAD, 0);
-		}
-		break;
-	case USB_INIT_DEVICE:
-	default:
-		if (index == 1) {
-			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
-			/* vbus_detect for bddsi - active low */
-			gpio_direction_output (USB_OTG_PWR_PAD, 1);
-		}
-		break;
-	}
-
 	imx8m_usb_power (index, true);
-
-	return ret;
+	return 0;
 }
 
 int board_usb_cleanup(int index, enum usb_init_type init)
 {
-	int ret = 0;
-
 	debug("board_usb_cleanup %d, type %d\n", index, init);
 
 	imx8m_usb_power (index, false);
-
-	switch(init)
-	{
-	case USB_INIT_HOST:
-		if (index == 0) {
-			imx_iomux_v3_setup_pad(usb_host_pwr_pad);
-			gpio_request (USB_HOST_PWR_PAD, "USB_HOST_PWR");
-			/* vbus_detect for bddsi  */
-			gpio_direction_output (USB_HOST_PWR_PAD, 0);
-		}
-		else if (index == 1) {
-			imx_iomux_v3_setup_pad(usb_otg_pwr_pad);
-			gpio_request (USB_OTG_PWR_PAD, "USB_OTG_PWR");
-			/* vbus_detect for bddsi - active low  */
-			gpio_direction_output (USB_OTG_PWR_PAD, 1);
-		}
-		break;
-	default:
-		break;
-	}
-
-	return ret;
+	return 0;
 }
 
 static int pmic_init_board(void)

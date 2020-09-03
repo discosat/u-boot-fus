@@ -684,10 +684,11 @@ static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
 {
 	struct usb_platdata *plat = dev_get_platdata(dev);
 	struct ehci_mx6_priv_data *priv = dev_get_priv(dev);
+	int of_offset = dev_of_offset(dev);
 	const char *mode;
 	const struct fdt_property *extcon;
 
-	mode = fdt_getprop(gd->fdt_blob, dev_of_offset(dev), "dr_mode", NULL);
+	mode = fdt_getprop(gd->fdt_blob, of_offset, "dr_mode", NULL);
 	if (mode) {
 		if (strcmp(mode, "peripheral") == 0)
 			priv->init_type = USB_INIT_DEVICE;
@@ -698,7 +699,7 @@ static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
 		else
 			return -EINVAL;
 	} else {
-		extcon = fdt_get_property(gd->fdt_blob, dev_of_offset(dev),
+		extcon = fdt_get_property(gd->fdt_blob, of_offset,
 			"extcon", NULL);
 		if (extcon)
 			priv->init_type = board_ehci_usb_phy_mode(dev);
@@ -720,7 +721,7 @@ static int ehci_usb_probe(struct udevice *dev)
 	struct usb_platdata *plat = dev_get_platdata(dev);
 	struct usb_ehci *ehci = (struct usb_ehci *)devfdt_get_addr(dev);
 	struct ehci_mx6_priv_data *priv = dev_get_priv(dev);
-	enum usb_init_type type = plat->init_type;
+	enum usb_init_type type = priv->init_type;
 	struct ehci_hccr *hccr;
 	struct ehci_hcor *hcor;
 	int ret;
@@ -762,9 +763,12 @@ static int ehci_usb_probe(struct udevice *dev)
 		ret = ehci_usb_phy_mode(dev);
 		if (ret)
 			return ret;
-		if (priv->init_type != type)
+		if (priv->init_type != type && type!=USB_INIT_UNKNOWN)
 			return -ENODEV;
 	}
+	plat->init_type = priv->init_type;
+
+	printf("%s \n", (priv->init_type == USB_INIT_DEVICE)? "Device":"Host");
 
 	if (priv->vbus_supply) {
 		ret = regulator_set_enable(priv->vbus_supply,
