@@ -102,6 +102,12 @@ config TARGET_FSIMX8MN
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 
+config TARGET_FSIMX8MX
+	bool "Support fsimx8mx boards from F&S"
+	select IMX8MM
+	select SUPPORT_SPL
+	select IMX8M_LPDDR3
+
 endchoice
 
 config SYS_SOC
@@ -117,5 +123,6 @@ source "board/freescale/imx8mn_evk/Kconfig"
 source "board/F+S/fsimx8mm/Kconfig"
 source "board/F+S/fsimx8m/Kconfig"
 source "board/F+S/fsimx8mn/Kconfig"
+source "board/F+S/fsimx8mx/Kconfig"
 
 endif
