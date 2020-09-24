@@ -108,6 +108,12 @@ static void fs_board_init_nboot_args(void)
 	imx_iomux_v3_setup_multiple_pads(
 		feature_jumper_pads, ARRAY_SIZE(feature_jumper_pads));
 
+#if defined(FUS_CONFIG_BOARDTYPE) && defined(FUS_CONFIG_BOARDREV) && defined(FUS_CONFIG_FEAT2)
+	nbootargs.chBoardType = FUS_CONFIG_BOARDTYPE;
+	nbootargs.chBoardRev  = FUS_CONFIG_BOARDREV;
+	nbootargs.chFeatures2  = FUS_CONFIG_FEAT2;
+#warning "Using fixed config values! This Uboot is not portable!"
+#else
 	/* get board type */
 	gpio_direction_input(D0_GPIO);
         nbootargs.chBoardType |= gpio_get_value(D6_GPIO);
@@ -165,6 +171,8 @@ static void fs_board_init_nboot_args(void)
 	/* ethernet = 0, ethernet = 1  */
 	gpio_direction_input(WE_B_GPIO);
         nbootargs.chFeatures2 |= (gpio_get_value(WE_B_GPIO) << 7);
+
+#endif
 
 	if( (nbootargs.chFeatures2 &(1<<1)) == 0){
 		dram_size = 0x10000000;
