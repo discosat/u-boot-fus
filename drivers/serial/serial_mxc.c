@@ -142,6 +142,9 @@ struct mxc_uart {
 
 static void _mxc_serial_init(struct mxc_uart *base)
 {
+	if (readl(&base->cr2) & UCR2_TXEN)
+		while (!(readl(&base->sr2) & USR2_TXDC));
+
 	writel(0, &base->cr1);
 	writel(0, &base->cr2);
 
