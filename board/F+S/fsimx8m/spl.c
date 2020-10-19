@@ -293,8 +293,9 @@ void board_init_f(ulong dummy)
 
 	printf("DDRInfo: RAM initialization success.\n");
 
-	/* fill nboot args first after ram initialization
-    */
+	/* initalize ram area with zero before set */
+	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
+	/* fill nboot args first after ram initialization */
 	pargs = fs_board_get_nboot_args();
 
 	pargs->dwID = nbootargs.dwID;
