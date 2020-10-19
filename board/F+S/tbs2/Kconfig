@@ -1,0 +1,14 @@
+if TARGET_TBS2
+
+config SYS_BOARD
+	default "tbs2"
+
+config SYS_VENDOR
+	default "F+S"
+
+config SYS_CONFIG_NAME
+	default "tbs2"
+
+source "board/freescale/common/Kconfig"
+
+endif
