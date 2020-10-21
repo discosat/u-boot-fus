@@ -28,7 +28,8 @@
 #endif
 
  /* Network */
-#define CONFIG_PICOCOREMX8MX_ETH
+/* Use FIXED_SPEED and LEGACY_ETH for now */
+//#define CONFIG_PICOCOREMX8MX_ETH
 
 /* USB */
 #define CONFIG_PICOCOREMX8MX_USB_OTG1
