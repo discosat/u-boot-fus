@@ -95,12 +95,7 @@ static void fs_board_init_nboot_args(void)
 	nbootargs.dwSize = 16*4;
 	nbootargs.dwNBOOT_VER = 1;
 
-	if(rom_pointer[1])
-		nbootargs.dwMemSize = (PHYS_SDRAM_SIZE - rom_pointer[1]) >> 20;
-	else
-		nbootargs.dwMemSize = PHYS_SDRAM_SIZE >> 20;
 
-	nbootargs.dwNumDram = CONFIG_NR_DRAM_BANKS;
 	nbootargs.dwFlashSize = 256;		/* size of NAND flash in MB */
 	nbootargs.dwDbgSerPortPA = CONFIG_MXC_UART_BASE;
 
@@ -183,6 +178,8 @@ static void fs_board_init_nboot_args(void)
 	if( (nbootargs.chFeatures2 &(1<<0)) == 1)
 		dram_size *= 2;
 
+	/* HOTFIX: Set number of DRAMs hard to 2 */
+	nbootargs.dwNumDram = 2;
 	if(rom_pointer[1])
 		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
 	else
