@@ -169,15 +169,15 @@ static void fs_board_init_nboot_args(void)
 
 #endif
 
-	if( (nbootargs.chFeatures2 &(1<<1)) == 0){
-		dram_size = 0x10000000;
-	}else{
+	/* HOTFIX: Use Bit 0 to set RAM size
+	 * Bit(0) = 0 -> 512MB
+	 * Bit(0) = 1 -> 1024MB
+	 */
+	if( (nbootargs.chFeatures2 &(1<<0)) == 0){
 		dram_size = 0x20000000;
+	}else{
+		dram_size = 0x40000000;
 	}
-
-	if( (nbootargs.chFeatures2 &(1<<0)) == 1)
-		dram_size *= 2;
-
 	/* HOTFIX: Set number of DRAMs hard to 2 */
 	nbootargs.dwNumDram = 2;
 	if(rom_pointer[1])
@@ -227,11 +227,11 @@ int power_init_board(void)
 static int spl_dram_init(void)
 {
 	/* TODO: change RAM detection
-	 *  Simple detection: Rev. 1.00 MT41K128M16TW
-	 *  Rev. 1.20 Fert7,8 - im4g16d3fdbg107i
-         */
+	 * Bit(0) = 0 -> 512MB
+	 * Bit(0) = 1 -> 1024MB
+     */
 
-	if((nbootargs.chFeatures2 & (1<<1)) == 0) {
+	if((nbootargs.chFeatures2 & (1<<0)) == 0) {
 		if(ddr_init(&ddr3l_2x_mt41k128m16tw_dram_timing))
 			return 1;
 	}
