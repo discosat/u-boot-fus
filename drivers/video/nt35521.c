@@ -240,7 +240,7 @@ typedef struct cmd_table {
 				29 01 00 00 00 00 02 53 2C
  */
 
-
+#if 0
 static const struct cmd_table def_cmd_table[] = {
     /* page 0 */
     {0x29, 0x06, {0xF0, 0x55, 0xAA, 0x52, 0x08, 0x00}},
@@ -464,7 +464,7 @@ static const struct cmd_table def_cmd_table[] = {
     {0x29, 0x02, {0x53, 0x2C}},
 
 };
-
+#endif
 static u8 color_format_from_dsi_format(enum mipi_dsi_pixel_format format)
 {
 	switch (format) {
@@ -479,7 +479,7 @@ static u8 color_format_from_dsi_format(enum mipi_dsi_pixel_format format)
 		return 0x77; /* for backward compatibility */
 	}
 };
-
+#if 0
 static int mipi_dsi_generic_write(const void *payload, size_t size)
 {
 	int ret;
@@ -510,6 +510,7 @@ static int mipi_dsi_generic_write(const void *payload, size_t size)
 
 	return ret;
 }
+#endif
 
 static int mipi_dsi_dcs_write(u8 cmd, const void *data, size_t len)
 {
@@ -554,7 +555,7 @@ static int mipi_dsi_dcs_write(u8 cmd, const void *data, size_t len)
 
 	return ret;
 }
-
+#if 0
 static int nt_panel_push_cmd_list(void)
 {
 	size_t i;
@@ -585,7 +586,7 @@ static int nt_panel_push_cmd_list(void)
 
 	return ret;
 };
-
+#endif
 int nt35521_lcd_setup(struct mipi_dsi_client_dev *panel_dev)
 {
 	u8 color_format = color_format_from_dsi_format(panel_dev->format);
