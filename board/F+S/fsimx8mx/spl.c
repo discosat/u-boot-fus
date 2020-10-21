@@ -107,6 +107,11 @@ static void fs_board_init_nboot_args(void)
 	nbootargs.chBoardType = FUS_CONFIG_BOARDTYPE;
 	nbootargs.chBoardRev  = FUS_CONFIG_BOARDREV;
 	nbootargs.chFeatures2  = FUS_CONFIG_FEAT2;
+#define STRING2(x) #x
+#define STRING(x) STRING2(x)
+#pragma message "FUS_CONFIG_BOARDTYPE = " STRING(FUS_CONFIG_BOARDTYPE)
+#pragma message "FUS_CONFIG_BOARDREV = " STRING(FUS_CONFIG_BOARDREV)
+#pragma message "FUS_CONFIG_FEAT2 = " STRING(FUS_CONFIG_FEAT2)
 #warning "Using fixed config values! This Uboot is not portable!"
 #else
 	/* get board type */
@@ -394,6 +399,7 @@ void board_init_f(ulong dummy)
 {
 	int ret;
 	struct fs_nboot_args *pargs = (struct fs_nboot_args*)(CONFIG_SYS_SDRAM_BASE + 0x00001000);
+
 
 	/* Clear the BSS. */
 	memset(__bss_start, 0, __bss_end - __bss_start);
