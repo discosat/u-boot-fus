@@ -33,8 +33,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-extern struct dram_timing_info ddr3l_mt41k128m16tw_dram_timing;
-extern struct dram_timing_info ddr3l_im4g16d3fdbg107i_dram_timing;
+extern struct dram_timing_info ddr3l_2x_mt41k128m16tw_dram_timing;
+extern struct dram_timing_info ddr3l_2x_im4g16d3fdbg107i_dram_timing;
 
 
 static struct fs_nboot_args nbootargs;
@@ -235,12 +235,12 @@ static int spl_dram_init(void)
          */
 
 	if((nbootargs.chFeatures2 & (1<<1)) == 0) {
-		if(ddr_init(&ddr3l_mt41k128m16tw_dram_timing))
+		if(ddr_init(&ddr3l_2x_mt41k128m16tw_dram_timing))
 			return 1;
 	}
         else{
                 /* check for Intelligent Memory (IM) RAM */
-		if(ddr_init(&ddr3l_im4g16d3fdbg107i_dram_timing))
+		if(ddr_init(&ddr3l_2x_im4g16d3fdbg107i_dram_timing))
 			return 1;
 	}
 

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <asm/arch/imx8m_ddr.h>
 
-struct dram_cfg_param ddr3l_mt41k128m16tw_ddrc_cfg[] = {
+static struct dram_cfg_param ddr3l_ddrc_cfg[] = {
 	/** Initialize DDRC registers **/
 	{ 0x3d400304, 0x1 },
 	{ 0x3d400030, 0x20 },
@@ -61,7 +61,7 @@ struct dram_cfg_param ddr3l_mt41k128m16tw_ddrc_cfg[] = {
 };
 
 /* PHY Initialize Configuration */
-struct dram_cfg_param ddr3l_mt41k128m16tw_ddrphy_cfg[] = {
+static struct dram_cfg_param ddr3l_ddrphy_cfg[] = {
 	{ 0x1005f, 0x3ff },
 	{ 0x1015f, 0x3ff },
 	{ 0x1105f, 0x3ff },
@@ -125,7 +125,7 @@ struct dram_cfg_param ddr3l_mt41k128m16tw_ddrphy_cfg[] = {
 };
 
 /* ddr phy trained csr */
-struct dram_cfg_param ddr3l_mt41k128m16tw_ddrphy_trained_csr[] = {
+static struct dram_cfg_param ddr3l_ddrphy_trained_csr[] = {
 	{ 0x200b2, 0x0 },
 	{ 0x1200b2, 0x0 },
 	{ 0x2200b2, 0x0 },
@@ -847,7 +847,7 @@ struct dram_cfg_param ddr3l_mt41k128m16tw_ddrphy_trained_csr[] = {
 	{ 0x13830, 0x0 },
 };
 /* P0 message block paremeter for training firmware */
-struct dram_cfg_param ddr_fsp0_cfg[] = {
+static struct dram_cfg_param ddr_fsp0_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54003, 0x640 },
 	{ 0x54004, 0x2 },
@@ -866,7 +866,7 @@ struct dram_cfg_param ddr_fsp0_cfg[] = {
 };
 
 /* DRAM PHY init engine image */
-struct dram_cfg_param ddr3l_mt41k128m16tw_phy_pie[] = {
+static struct dram_cfg_param ddr3l_phy_pie[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x90000, 0x10 },
 	{ 0x90001, 0x400 },
@@ -1064,7 +1064,7 @@ struct dram_cfg_param ddr3l_mt41k128m16tw_phy_pie[] = {
 	{ 0xd0000, 0x1 }
 };
 
-struct dram_fsp_msg ddr3l_mt41k128m16tw_dram_fsp_msg[] = {
+static struct dram_fsp_msg ddr3l_dram_fsp_msg[] = {
 	{
 		/* P0 1600mts 1D */
 		.drate = 1600,
@@ -1075,17 +1075,17 @@ struct dram_fsp_msg ddr3l_mt41k128m16tw_dram_fsp_msg[] = {
 };
 
 /* ddr timing config params */
-struct dram_timing_info ddr3l_mt41k128m16tw_dram_timing = {
-	.ddrc_cfg = ddr3l_mt41k128m16tw_ddrc_cfg,
-	.ddrc_cfg_num = ARRAY_SIZE(ddr3l_mt41k128m16tw_ddrc_cfg),
-	.ddrphy_cfg = ddr3l_mt41k128m16tw_ddrphy_cfg,
-	.ddrphy_cfg_num = ARRAY_SIZE(ddr3l_mt41k128m16tw_ddrphy_cfg),
-	.fsp_msg = ddr3l_mt41k128m16tw_dram_fsp_msg,
-	.fsp_msg_num = ARRAY_SIZE(ddr3l_mt41k128m16tw_dram_fsp_msg),
-	.ddrphy_trained_csr = ddr3l_mt41k128m16tw_ddrphy_trained_csr,
-	.ddrphy_trained_csr_num = ARRAY_SIZE(ddr3l_mt41k128m16tw_ddrphy_trained_csr),
-	.ddrphy_pie = ddr3l_mt41k128m16tw_phy_pie,
-	.ddrphy_pie_num = ARRAY_SIZE(ddr3l_mt41k128m16tw_phy_pie),
+struct dram_timing_info ddr3l_2x_mt41k128m16tw_dram_timing = {
+	.ddrc_cfg = ddr3l_ddrc_cfg,
+	.ddrc_cfg_num = ARRAY_SIZE(ddr3l_ddrc_cfg),
+	.ddrphy_cfg = ddr3l_ddrphy_cfg,
+	.ddrphy_cfg_num = ARRAY_SIZE(ddr3l_ddrphy_cfg),
+	.fsp_msg = ddr3l_dram_fsp_msg,
+	.fsp_msg_num = ARRAY_SIZE(ddr3l_dram_fsp_msg),
+	.ddrphy_trained_csr = ddr3l_ddrphy_trained_csr,
+	.ddrphy_trained_csr_num = ARRAY_SIZE(ddr3l_ddrphy_trained_csr),
+	.ddrphy_pie = ddr3l_phy_pie,
+	.ddrphy_pie_num = ARRAY_SIZE(ddr3l_phy_pie),
 	.fsp_table = { 1600, },
 };
 
