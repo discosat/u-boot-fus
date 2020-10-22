@@ -1029,6 +1029,7 @@ int board_phy_config(struct phy_device *phydev)
 #define FDT_UART_C	"/serial@30a60000"
 #define FDT_NAND        "/gpmi-nand@33002000"
 #define FDT_EMMC        "/mmc@30b60000"
+#define FDT_CMA 	"/reserved-memory/linux,cma"
 
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
@@ -1070,6 +1071,13 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}else{
 		/* Disable UART_C in DT */
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
+	}
+	if (pargs->dwMemSize==1023 || pargs->dwMemSize==1024){
+		fdt32_t tmp[2];
+		tmp[0] = cpu_to_fdt32(0x0);
+		tmp[1] = cpu_to_fdt32(0x28000000);
+		offs = fs_fdt_path_offset(fdt, FDT_CMA);
+		fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
 	}
 
 	return 0;
