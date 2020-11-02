@@ -1,0 +1,14 @@
+if TARGET_FSIMX8MX_NANO
+
+config SYS_BOARD
+	default "fsimx8mx_nano"
+
+config SYS_VENDOR
+	default "F+S"
+
+config SYS_CONFIG_NAME
+	default "fsimx8mx_nano"
+
+source "board/freescale/common/Kconfig"
+
+endif
