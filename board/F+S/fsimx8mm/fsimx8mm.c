@@ -81,14 +81,26 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ROOTFS ".rootfs_mmc"
 #define KERNEL ".kernel_mmc"
 #define FDT ".fdt_mmc"
+#define SET_ROOTFS ".set_rootfs_mmc"
+#define SELECTOR ".selector_mmc"
+#define BOOT_PARTITION ".boot_partition_mmc"
+#define ROOTFS_PARTITION ".rootfs_partition_mmc"
 #elif CONFIG_ENV_IS_IN_NAND
 #define ROOTFS ".rootfs_ubifs"
 #define KERNEL ".kernel_nand"
 #define FDT ".fdt_nand"
+#define SET_ROOTFS ".set_rootfs_nand"
+#define SELECTOR ".selector_nand"
+#define BOOT_PARTITION ".boot_partition_nand"
+#define ROOTFS_PARTITION ".rootfs_partition_nand"
 #else /* Default = Nand */
 #define ROOTFS ".rootfs_ubifs"
 #define KERNEL ".kernel_nand"
 #define FDT ".fdt_nand"
+#define SET_ROOTFS ".set_rootfs_nand"
+#define SELECTOR ".selector_nand"
+#define BOOT_PARTITION ".boot_partition_nand"
+#define ROOTFS_PARTITION ".rootfs_partition_nand"
 #endif
 
 const struct fs_board_info board_info[1] = {
@@ -106,6 +118,12 @@ const struct fs_board_info board_info[1] = {
 		.rootfs = ROOTFS,
 		.kernel = KERNEL,
 		.fdt = FDT,
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+		.set_rootfs = SET_ROOTFS,
+		.selector = SELECTOR,
+		.boot_partition = BOOT_PARTITION,
+		.rootfs_partition = ROOTFS_PARTITION
+#endif
 	},
 };
 

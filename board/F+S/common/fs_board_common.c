@@ -347,6 +347,12 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("fdt", current_bi->fdt, 1);
 	setup_var("bootargs", "set_bootargs", 1);
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+	setup_var("selector", current_bi->selector, 1);
+	setup_var("set_rootfs", current_bi->set_rootfs, 1);
+	setup_var("boot_partition", current_bi->boot_partition, 1);
+	setup_var("rootfs_partition", current_bi->rootfs_partition, 1);
+#endif
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
