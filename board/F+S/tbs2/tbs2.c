@@ -72,6 +72,10 @@ DECLARE_GLOBAL_DATA_PTR;
 #define KERNEL ".kernel_mmc"
 #define FDT ".fdt_mmc"
 
+#define RDC_PDAP70     0x303d0518
+#define FDT_UART_C	"/serial@30a60000"
+
+
 const struct fs_board_info board_info[1] = {
 	{	/* 0 (BT_TBS2) */
 		.name = "TBS2",
@@ -305,6 +309,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 {
 	int offs;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	const char *envvar;
 
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
@@ -320,6 +325,17 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 		if (pargs->chFeatures2 & FEAT2_WLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
+
+	/*TODO: Its workaround to use UART4 */
+	envvar = env_get("m4_uart4");
+
+		if (!envvar || !strcmp(envvar, "disable")) {
+			/* Disable UART4 for M4. Enabled by ATF. */
+			writel(0xff, RDC_PDAP70);
+		} else {
+			/* Disable UART_C in DT */
+			fs_fdt_enable(fdt, FDT_UART_C, 0);
+		}
 	}
 
 	return 0;
