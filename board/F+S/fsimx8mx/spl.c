@@ -113,7 +113,9 @@ static void fs_board_init_nboot_args(void)
 #pragma message "FUS_CONFIG_BOARDREV = " STRING(FUS_CONFIG_BOARDREV)
 #pragma message "FUS_CONFIG_FEAT2 = " STRING(FUS_CONFIG_FEAT2)
 #warning "Using fixed config values! This Uboot is not portable!"
+	printf("Using fixed config: 0x%x\n",nbootargs.chFeatures2);
 #else
+
 	/* get board type */
 	gpio_direction_input(D0_GPIO);
         nbootargs.chBoardType |= gpio_get_value(D6_GPIO);
@@ -171,7 +173,7 @@ static void fs_board_init_nboot_args(void)
 	/* ethernet = 0, ethernet = 1  */
 	gpio_direction_input(WE_B_GPIO);
         nbootargs.chFeatures2 |= (gpio_get_value(WE_B_GPIO) << 7);
-
+	printf("Using config jumper: 0x%x\n",nbootargs.chFeatures2);
 #endif
 
 	/* HOTFIX: Use Bit 0 to set RAM size
