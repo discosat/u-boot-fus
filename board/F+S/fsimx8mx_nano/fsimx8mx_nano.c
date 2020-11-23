@@ -891,7 +891,6 @@ int board_late_init(void)
 #endif /* CONFIG_BOARD_LATE_INIT */
 
 #ifdef CONFIG_FEC_MXC
-
 /* enet pads definition */
 static iomux_v3_cfg_t const enet_pads_rgmii[] = {
 	IMX8MN_PAD_ENET_MDIO__ENET1_MDIO | MUX_PAD_CTRL(PAD_CTL_DSE4  | PAD_CTL_ODE),
@@ -952,6 +951,9 @@ int board_phy_config(struct phy_device *phydev)
 	phy_write (phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
 	phy_write (phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
 
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x00);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x82ee);
+
 	phy_write (phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
 	phy_write (phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
@@ -965,9 +967,9 @@ int board_phy_config(struct phy_device *phydev)
 #ifdef CONFIG_OF_BOARD_SETUP
 
 #define RDC_PDAP70      0x303d0518
-#define FDT_UART_C	"/serial@30a60000"
-#define FDT_NAND        "/gpmi-nand@33002000"
-#define FDT_EMMC        "/mmc@30b60000"
+#define FDT_UART_C	"serial3"
+#define FDT_NAND        "nand"
+#define FDT_EMMC        "mmc2"
 #define FDT_CMA 	"/reserved-memory/linux,cma"
 
 /* Do any additional board-specific device tree modifications */
@@ -1011,12 +1013,16 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		/* Disable UART_C in DT */
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
 	}
+
+	/* Set linux,cma size depending on RAM size. Default is 320MB. */
+	offs = fs_fdt_path_offset(fdt, FDT_CMA);
+	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
 	if (pargs->dwMemSize==1023 || pargs->dwMemSize==1024){
 		fdt32_t tmp[2];
 		tmp[0] = cpu_to_fdt32(0x0);
 		tmp[1] = cpu_to_fdt32(0x28000000);
-		offs = fs_fdt_path_offset(fdt, FDT_CMA);
 		fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
+		}
 	}
 
 	return 0;

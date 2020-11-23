@@ -36,6 +36,39 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct fs_nboot_args nbootargs;
 
+#define ALE_GPIO IMX_GPIO_NR(3, 0)
+#define CLE_GPIO IMX_GPIO_NR(3, 5)
+#define RE_B_GPIO IMX_GPIO_NR(3, 15)
+#define RB0_GPIO IMX_GPIO_NR(3, 16)
+#define WE_B_GPIO IMX_GPIO_NR(3, 17)
+
+#define D0_GPIO	IMX_GPIO_NR(3, 6)
+#define D1_GPIO	IMX_GPIO_NR(3, 7)
+#define D2_GPIO	IMX_GPIO_NR(3, 8)
+#define D3_GPIO	IMX_GPIO_NR(3, 9)
+#define D4_GPIO	IMX_GPIO_NR(3, 10)
+#define D5_GPIO	IMX_GPIO_NR(3, 11)
+#define D6_GPIO	IMX_GPIO_NR(3, 12)
+#define D7_GPIO	IMX_GPIO_NR(3, 13)
+
+#define FEATURE_JUMPER_PAD_CTRL	(PAD_CTL_DSE1 | PAD_CTL_PE | PAD_CTL_PUE | PAD_CTL_HYS)
+
+	static iomux_v3_cfg_t const feature_jumper_pads[] = {
+		IMX8MN_PAD_NAND_DATA00__GPIO3_IO6  | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA01__GPIO3_IO7  | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA02__GPIO3_IO8  | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA03__GPIO3_IO9  | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA04__GPIO3_IO10 | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA05__GPIO3_IO11 | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA06__GPIO3_IO12 | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_DATA07__GPIO3_IO13 | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_ALE__GPIO3_IO0     | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_CLE__GPIO3_IO5     | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_RE_B__GPIO3_IO15   | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_READY_B__GPIO3_IO16 | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+		IMX8MN_PAD_NAND_WE_B__GPIO3_IO17   | MUX_PAD_CTRL(FEATURE_JUMPER_PAD_CTRL),
+	};
+
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
 struct i2c_pads_info i2c_pad_info1 = {
@@ -63,8 +96,11 @@ static void fs_board_init_nboot_args(void)
 	nbootargs.dwFlashSize = 512;		/* size of NAND flash in MB */
 	nbootargs.dwDbgSerPortPA = CONFIG_MXC_UART_BASE;
 
+
+	imx_iomux_v3_setup_multiple_pads(
+		feature_jumper_pads, ARRAY_SIZE(feature_jumper_pads));
+
 #if defined(FUS_CONFIG_BOARDTYPE) && defined(FUS_CONFIG_BOARDREV) && defined(FUS_CONFIG_FEAT2)
-	/* Get configuration from environment */
 	nbootargs.chBoardType = FUS_CONFIG_BOARDTYPE;
 	nbootargs.chBoardRev  = FUS_CONFIG_BOARDREV;
 	nbootargs.chFeatures2  = FUS_CONFIG_FEAT2;
@@ -74,11 +110,67 @@ static void fs_board_init_nboot_args(void)
 #pragma message "FUS_CONFIG_BOARDREV = " STRING(FUS_CONFIG_BOARDREV)
 #pragma message "FUS_CONFIG_FEAT2 = " STRING(FUS_CONFIG_FEAT2)
 #warning "Using fixed config values! This Uboot is not portable!"
+	printf("Using fixed config: 0x%x\n",nbootargs.chFeatures2);
 #else
-	/* Set dummy values */
-	nbootargs.chBoardType = 0;
+
+	/* get board type */
+	gpio_direction_input(D0_GPIO);
+        nbootargs.chBoardType |= gpio_get_value(D6_GPIO);
+	gpio_direction_input(D6_GPIO);
+        nbootargs.chBoardType |= (gpio_get_value(D7_GPIO) << 1);
+	gpio_direction_input(D7_GPIO);
+        nbootargs.chBoardType |= (gpio_get_value(D0_GPIO) << 2);
+	/* get board revision */
+	gpio_direction_input(D4_GPIO);
+        nbootargs.chBoardRev |= gpio_get_value(D4_GPIO);
+	gpio_direction_input(D5_GPIO);
+        nbootargs.chBoardRev |= (gpio_get_value(D5_GPIO) << 1);
+
+	switch (nbootargs.chBoardRev)
+	{
+	case 0:
+		nbootargs.chBoardRev = 100;
+		break;
+	case 1:
+		nbootargs.chBoardRev = 110;
+		break;
+	case 2:
+		nbootargs.chBoardRev = 120;
+		break;
+	case 3:
+		nbootargs.chBoardRev = 130;
+		break;
+	default:
 	nbootargs.chBoardRev = 255;
-	nbootargs.chFeatures2 = 0x0;
+		break;
+	}
+
+	/* check for features*/
+	/* DDR3L x1 = 0, DDR3L x2 = 1  */
+	gpio_direction_input(ALE_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(ALE_GPIO));
+	/* NAND = 0, eMMC = 1 */
+	gpio_direction_input(CLE_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(CLE_GPIO) << 1);
+	/* No CAN = 0, CAN = 1 */
+	gpio_direction_input(D1_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(D1_GPIO) << 2);
+	/* No Security Chip = 0, Security Chip = 1 */
+	gpio_direction_input(D2_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(D2_GPIO) << 3);
+	/* No Audio = 0, Audio = 1 */
+	gpio_direction_input(RB0_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(RB0_GPIO) << 4);
+	/* Internal RTC = 0, External RTC = 1 */
+	gpio_direction_input(D3_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(D3_GPIO) << 5);
+	/* MIPI-DSI = 0, LVDS = 1  */
+	gpio_direction_input(RE_B_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(RE_B_GPIO) << 6);
+	/* ethernet = 0, ethernet = 1  */
+	gpio_direction_input(WE_B_GPIO);
+        nbootargs.chFeatures2 |= (gpio_get_value(WE_B_GPIO) << 7);
+	printf("Using config jumper: 0x%x\n",nbootargs.chFeatures2);
 #endif
 
 	/* HOTFIX: Use Bit 0 to set RAM size
@@ -96,6 +188,9 @@ static void fs_board_init_nboot_args(void)
 		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
 	else
 		nbootargs.dwMemSize = dram_size >> 20;
+
+	/* For Nano with ROMAPI Boot, eMMC Init isn't called, so we do it here */
+	mmc_initialize(NULL);
 }
 
 #ifdef CONFIG_POWER
