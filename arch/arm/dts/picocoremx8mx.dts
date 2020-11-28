@@ -29,7 +29,7 @@
 
  /* Network */
 /* Use FIXED_SPEED and LEGACY_ETH for now */
-//#define CONFIG_PICOCOREMX8MX_ETH
+#define CONFIG_PICOCOREMX8MX_ETH
 
 /* USB */
 #define CONFIG_PICOCOREMX8MX_USB_OTG1
@@ -342,7 +342,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rgmii-id";
-	phy-handle = <&ethphy0>;
 	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
         phy-reset-duration = <10>;
 	phy-reset-post-delay=<1>;
@@ -352,20 +351,6 @@
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
-	};
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		ethphy0: ethernet-phy@0 {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <3>;
-			#if 1
-			at803x,led-act-blind-workaround;
-			at803x,eee-okay;
-			#endif
-		};
 	};
 };
 #endif
