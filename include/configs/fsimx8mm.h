@@ -20,7 +20,7 @@
 
 #include "imx_env.h"
 
-/* disable FAT write becaue its dosn't work 
+/* disable FAT write becaue its dosn't work
  *  with F&S FAT driver
  */
 #undef CONFIG_FAT_WRITE
@@ -55,9 +55,9 @@
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
 #define CONFIG_SPL_WATCHDOG_SUPPORT
-/* #define CONFIG_SPL_POWER_SUPPORT */
+#define CONFIG_SPL_POWER_SUPPORT
 #define CONFIG_SPL_DRIVERS_MISC_SUPPORT
-/* #define CONFIG_SPL_I2C_SUPPORT */
+#define CONFIG_SPL_I2C_SUPPORT
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
 #define CONFIG_SPL_STACK		0x91fff0
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
@@ -84,7 +84,7 @@
 #define CONFIG_POWER
 #define CONFIG_POWER_I2C
 #define CONFIG_POWER_BD71837
-#define CONFIG_DM_PMIC_BD71837
+/* #define CONFIG_DM_PMIC_BD71837 */
 
 #define CONFIG_SYS_I2C
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 0 */
@@ -143,13 +143,12 @@
 
 #define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
-#define CONFIG_FEC_MXC_PHYADDR          4
+/* #define CONFIG_FEC_MXC_PHYADDR          4 */
 #define FEC_QUIRK_ENET_MAC
 
 #define CONFIG_PHY_GIGE
 #define IMX_FEC_BASE			0x30BE0000
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
 #define CONFIG_PHY_NATSEMI
 #define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
@@ -476,13 +475,7 @@
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
-#define PHYS_SDRAM                      0x40000000
-#define PHYS_SDRAM_SIZE			0x40000000 /* 1GB DDR */
 #define CONFIG_NR_DRAM_BANKS		1
-
-#define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
-
 #define CONFIG_BAUDRATE			115200
 
 #define CONFIG_MXC_UART
@@ -518,7 +511,7 @@
 #define CONFIG_FSL_USDHC
 
 #ifdef CONFIG_SD_BOOT
-/* SPL use the CONFIG_SYS_MMC_ENV_DEV in 
+/* SPL use the CONFIG_SYS_MMC_ENV_DEV in
  * serial download mode. Otherwise use
  * board_mmc_get_env_dev function.
  * (s. mmc_get_env_dev in mmc_env.c)
@@ -609,7 +602,4 @@
 
 #define CONFIG_OF_SYSTEM_SETUP
 
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "imx8mm_evk_android.h"
-#endif
 #endif

@@ -89,6 +89,7 @@ config TARGET_FSIMX8MM
 	select IMX8MM
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
+	select IMX8M_DDR3L
 
 config TARGET_FSIMX8M
 	bool "Support fsimx8m boards from F&S"

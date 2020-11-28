@@ -532,7 +532,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rgmii-id";
-	phy-handle = <&ethphy0>;
+	phy-handle = <&ethphy4>;
 	fsl,magic-packet;
 	status = "okay";
 
@@ -540,9 +540,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethphy0: ethernet-phy@0 {
+		ethphy4: ethernet-phy@4 {
 			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0>;
+			reg = <4>;
 			at803x,led-act-blind-workaround;
 			at803x,eee-okay;
 		};
