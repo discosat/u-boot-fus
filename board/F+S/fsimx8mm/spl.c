@@ -81,9 +81,11 @@ ulong board_serial_base(void)
 	case BT_PICOCOREMX8MM:
 	case BT_PICOCOREMX8MX:
 		return UART1_BASE_ADDR;
+	default:
 		break;
 	}
 
+	return UART1_BASE_ADDR;
 }
 
 static iomux_v3_cfg_t const uart_pads_mm[] = {
@@ -97,9 +99,11 @@ static iomux_v3_cfg_t const uart_pads_mx[] = {
 };
 
 
-static void config_uart_pads() {
+static void config_uart_pads(void)
+{
 	switch (nbootargs.chBoardType)
 	{
+	default:
 	case BT_PICOCOREMX8MM:
 		/* Setup UART pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mm, ARRAY_SIZE(uart_pads_mm));
@@ -109,8 +113,8 @@ static void config_uart_pads() {
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mx, ARRAY_SIZE(uart_pads_mx));
 		break;
 	}
-
 }
+
 static void fs_board_init_nboot_args(void)
 {
 	int dram_size = 0;
@@ -176,8 +180,10 @@ int power_init_board(void)
 {
 	struct pmic *p;
 	int ret;
+
 	switch (nbootargs.chBoardType)
 	{
+	default:
 	case BT_PICOCOREMX8MM:
 		setup_i2c(I2C_PMIC_8MM, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info_8mm);
 		ret = power_bd71837_init(I2C_PMIC_8MM);
