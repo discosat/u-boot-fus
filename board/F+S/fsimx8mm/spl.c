@@ -360,8 +360,6 @@ int board_mmc_init(bd_t *bd)
 	gpio_direction_output(USDHC3_PWR_GPIO, 0);
 	udelay(500);
 	gpio_direction_output(USDHC3_PWR_GPIO, 1);
-
-	
 #endif
 	return ret;
 }

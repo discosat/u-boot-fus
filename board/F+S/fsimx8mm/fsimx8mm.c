@@ -217,7 +217,7 @@ int checkboard(void)
 		break;
 	case BT_PICOCOREMX8MX:
 		if (features2 & FEAT2_8MX_ETH)
-		puts ("LAN, ");
+			puts ("LAN, ");
 		if (features2 & FEAT2_8MX_NAND_EMMC)
 			puts ("eMMC, ");
 		else
@@ -1196,6 +1196,22 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			/* disable nand node  */
 			fs_fdt_enable(fdt, FDT_NAND, 0);
 
+		}
+
+		if((pargs->chFeatures2 & FEAT2_8MX_AUDIO) == 0)
+		{
+			/* disable audio node  */
+			fs_fdt_enable(fdt, "i2c0/sgtl5000", 0);
+
+		}
+
+		if((pargs->chFeatures2 & FEAT2_8MX_ETH) == 0)
+		{
+			/* disable eth switch node  */
+			fs_fdt_enable(fdt, "i2c4/ksz9893", 0);
+
+			/* disable gpio i2c node  */
+			fs_fdt_enable(fdt, "i2c4", 0);
 		}
 		break;
 	}
