@@ -103,7 +103,7 @@
 /* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
 #define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND				\
 	(CONFIG_SYS_NAND_U_BOOT_OFFS + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512 - 0x8400)
-    
+
 #endif
 
 #endif
@@ -167,7 +167,7 @@
 #define CONFIG_BOOTFILE		"Image"
 #define CONFIG_PREBOOT
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	#define CONFIG_BOOTCOMMAND	"run selector; run set_bootargs; run kernel; run fdt"
+	#define CONFIG_BOOTCOMMAND	"run selector; run set_bootargs; run kernel; run fdt; reset"
 #else
 	#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 #endif
@@ -287,14 +287,17 @@
 #ifdef CONFIG_FS_UPDATE_SUPPORT
 
 	#define FS_UPDATE_SUPPORT "BOOT_ORDER=A B\0" \
-	"BOOT_ORDER_ALT=undef\0" \
+	"BOOT_ORDER_OLD=A B\0" \
 	"BOOT_A_LEFT=3\0" \
 	"BOOT_B_LEFT=3\0" \
+	"update_reboot_state=0\0" \
+	"update=0000\0" \
+	"application=A\0" \
 	"rauc_cmd=rauc.slot=A\0" \
 	"selector=undef\0" \
 	".selector_mmc=setenv selector " \
-	"'if test \"x${BOOT_ORDER_ALT}\" != \"x${BOOT_ORDER}\"; then	"														\
-	"setenv rauc_cmd undef; "																								\
+	"'if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
+		"setenv rauc_cmd undef; "																							\
 		"for BOOT_SLOT in \"${BOOT_ORDER}\"; do "																			\
 		  "if test \"x${BOOT_SLOT}\" = \"xA\" && test ${BOOT_A_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
 			  "echo \"Current rootfs boot_partition is A\"; "																\
@@ -310,11 +313,11 @@
 			  "setenv rauc_cmd rauc.slot=B;"																				\
 		  "fi;"																												\
 		"done;"																												\
-	"saveenv;"																												\
+		"saveenv;"																											\
 	"fi;'\0"																												\
-	".selector_nand=setenv selector " \
-	"'if test \"x${BOOT_ORDER_ALT}\" != \"x${BOOT_ORDER}\"; then	"														\
-	"setenv rauc_cmd undef; "																								\
+	".selector_nand=setenv selector " 																						\
+	"'if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
+		"setenv rauc_cmd undef; "																							\
 		"for BOOT_SLOT in \"${BOOT_ORDER}\"; do "																			\
 		  "if test \"x${BOOT_SLOT}\" = \"xA\" && test ${BOOT_A_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
 			  "echo \"Current rootfs boot_partition is A\"; "																\
@@ -334,7 +337,7 @@
 			  "setenv rauc_cmd rauc.slot=B;"																				\
 		  "fi;"																												\
 		"done;"																												\
-	"saveenv;"																												\
+		"saveenv;"																											\
 	"fi;'\0"																												\
 	NAND_BOOT_VALUES \
 	"boot_partition=undef\0" \
