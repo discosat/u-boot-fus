@@ -171,7 +171,7 @@ const struct fs_board_info board_info[2] = {
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
 #ifdef CONFIG_NAND_MXS
-static void setup_gpmi_nand(void);
+//###static void setup_gpmi_nand(void);
 #endif
 
 static iomux_v3_cfg_t const wdog_pads[] = {
@@ -188,7 +188,7 @@ int board_early_init_f(void)
 	set_wdog_reset(wdog);
 
 #ifdef CONFIG_NAND_MXS
-	setup_gpmi_nand(); /* SPL will call the board_early_init_f */
+//###	setup_gpmi_nand(); /* SPL will call the board_early_init_f */
 #endif
 
 	return 0;
@@ -260,33 +260,6 @@ int board_init(void)
 	return 0;
 }
 
-/* nand flash pads  */
-#ifdef CONFIG_NAND_MXS
-#define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
-#define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
-static iomux_v3_cfg_t const gpmi_pads[] = {
-	IMX8MM_PAD_NAND_ALE_RAWNAND_ALE | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_CE0_B_RAWNAND_CE0_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_CLE_RAWNAND_CLE | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA00_RAWNAND_DATA00 | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA01_RAWNAND_DATA01 | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA02_RAWNAND_DATA02 | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA03_RAWNAND_DATA03 | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA04_RAWNAND_DATA04 | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA05_RAWNAND_DATA05	| MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA06_RAWNAND_DATA06	| MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA07_RAWNAND_DATA07	| MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_RE_B_RAWNAND_RE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_READY_B_RAWNAND_READY_B | MUX_PAD_CTRL(NAND_PAD_READY0_CTRL),
-	IMX8MM_PAD_NAND_WE_B_RAWNAND_WE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
-	IMX8MM_PAD_NAND_WP_B_RAWNAND_WP_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
-};
-
-static void setup_gpmi_nand(void)
-{
-	imx_iomux_v3_setup_multiple_pads(gpmi_pads, ARRAY_SIZE(gpmi_pads));
-}
-#endif /* CONFIG_NAND_MXS */
 
 #ifdef CONFIG_VIDEO_MXS
 /*

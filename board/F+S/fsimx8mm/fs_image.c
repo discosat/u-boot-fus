@@ -9,10 +9,10 @@
  *
  * When the SPL starts it needs to know what board it is running on. Usually
  * this information is read from NAND or eMMC. It then selects the correct DDR
- * RAM settings, initializes RAM and then loads the ATF (and probably other
+ * RAM settings, initializes DRAM and then loads the ATF (and probably other
  * images like opTEE).
  *
- * Originally all these parts are all separate files: RAM timings, RAM
+ * Originally all these parts are all separate files: DRAM timings, DRAM
  * training firmware, the SPL code itself, the ATF code, board configurations,
  * etc. By using F&S headers, these files are all combined in one image that
  * is called NBoot.
@@ -31,65 +31,65 @@
  * information for the next part of data. The following is a general view of
  * the NBoot structure.
  *
- *   +-------------------------------------------+
- *   | BOARD-ID (id) (optional)                  |
- *   |   +---------------------------------------+
- *   |   | NBoot (arch)                          |
- *   |   |   +-----------------------------------+
- *   |   |   | SPL (arch)                        |
- *   |   |   +-----------------------------------+
- *   |   |   | BOARD-CONFIGS (arch)              |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | BOARD-CFG (id)                |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | BOARD-CFG (id)                |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | ...                           |
- *   |   |   |---+-------------------------------+
- *   |   |   | FIRMWARE (arch)                   |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | RAM-SETTINGS (arch)           |
- *   |   |   |   |   +---------------------------+
- *   |   |   |   |   | RAM-TYPE (DDR3L)          |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-FW (DDR3L)        |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | ...                   |
- *   |   |   |   |   +---+-----------------------+
- *   |   |   |   |   | RAM-TYPE (DDR4)           |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-FW (DDR4)         |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | ...                   |
- *   |   |   |   |   +---+-----------------------+
- *   |   |   |   |   | RAM-TYPE (LPDDR4)         |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-FW (LPDDR4)       |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | RAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +-----------------------+
- *   |   |   |   |   |   | ...                   |
- *   |   |   |   +---+---+-----------------------+
- *   |   |   |   | ATF (arch)                    |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | TEE (arch) (optional)         |
- *   |   |   +---+-------------------------------+
- *   |   |   | EXTRAS                            |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | BASH-SCRIPT (addfsheader.sh)  |
- *   |   |   |   +-------------------------------+
- *   |   |   |   | BASH-SCRIPT (fsimage.sh)      |
- *   +---+---+---+-------------------------------+
+ *   +--------------------------------------------+
+ *   | BOARD-ID (id) (optional)                   |
+ *   |   +----------------------------------------+
+ *   |   | NBoot (arch)                           |
+ *   |   |   +------------------------------------+
+ *   |   |   | SPL (arch)                         |
+ *   |   |   +------------------------------------+
+ *   |   |   | BOARD-CONFIGS (arch)               |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | BOARD-CFG (id)                 |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | BOARD-CFG (id)                 |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | ...                            |
+ *   |   |   |---+--------------------------------+
+ *   |   |   | FIRMWARE (arch)                    |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | DRAM-SETTINGS (arch)           |
+ *   |   |   |   |   +----------------------------+
+ *   |   |   |   |   | DRAM-TYPE (DDR3L)          |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-FW (DDR3L)        |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | ...                    |
+ *   |   |   |   |   +---+------------------------+
+ *   |   |   |   |   | DRAM-TYPE (DDR4)           |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-FW (DDR4)         |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | ...                    |
+ *   |   |   |   |   +---+------------------------+
+ *   |   |   |   |   | DRAM-TYPE (LPDDR4)         |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-FW (LPDDR4)       |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | ...                    |
+ *   |   |   |   +---+---+------------------------+
+ *   |   |   |   | ATF (arch)                     |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | TEE (arch) (optional)          |
+ *   |   |   +---+--------------------------------+
+ *   |   |   | EXTRAS                             |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | BASH-SCRIPT (addfsheader.sh)   |
+ *   |   |   |   +--------------------------------+
+ *   |   |   |   | BASH-SCRIPT (fsimage.sh)       |
+ *   +---+---+---+--------------------------------+
  *
  * Comments
  *
@@ -103,8 +103,8 @@
  *
  * - Exactly one BOARD-CFG is stored; it identifies the board.
  * - SPL is stored in a special way so that the ROM loader can execute it.
- * - The FIRMWARE section is stored for RAM settings, ATF and TEE. In fact
- *   from the RAM settings only the specific setting of the specific board
+ * - The FIRMWARE section is stored for DRAM settings, ATF and TEE. In fact
+ *   from the DRAM settings only the specific setting of the specific board
  *   would be needed, but it may bee too complicated to extract this part only
  *   when saving the data.
  *
@@ -135,8 +135,8 @@
  * FIRMWARE part is stored on the board, the state machine can only perform the
  * last two steps. This has to be taken care of by the caller. If a previous
  * step is missing for some specific job, the job can also not be done. For
- * example a TEE file can only be loaded to RAM, so RAM initialization must be
- * done before that.
+ * example a TEE file can only be loaded to DRAM, so DRAM initialization must
+ * be done before that.
  */
 
 #include <common.h>
@@ -148,17 +148,6 @@
 #include <asm/sections.h>
 
 #include "fs_image.h"			/* Own interface */
-
-/* ### The following settings should go to <fsimx...>.h or Kconfig */
-//### Die Adressen können (werden) sich noch ändern, sind so nur für fsimx8mm
-#define CONFIG_SPL_BOARDCFG_NAND_OFFSET 0x180000
-#define CONFIG_SPL_FIRMWARE_NAND_OFFSET 0x300000
-#define CONFIG_SPL_ATF_ADDR 0x920000
-#define CONFIG_SPL_RAM_TIMING_ADDR (CONFIG_SPL_ATF_ADDR + 0xc000)
-#define CONFIG_SPL_BOARDCFG_ADDR \
-	(CONFIG_SPL_BSS_START_ADDR + CONFIG_SPL_BSS_MAX_SIZE)
-#define CONFIG_SPL_TEE_ADDR 0xbe000000
-
 
 /* F&S header (V0.0) for a generic file */
 struct fs_header_v0_0 {			/* Size: 16 Bytes */
@@ -191,15 +180,15 @@ struct fs_header_v1_0 {			/* Size: 64 bytes */
 					   the image (without header) */
 
 /* Jobs within FIRMWARE part */
-#define FSIMG_JOB_FIRMWARE (FSIMG_JOB_RAM | FSIMG_JOB_ATF | FSIMG_JOB_TEE)
+#define FSIMG_JOB_FIRMWARE (FSIMG_JOB_DRAM | FSIMG_JOB_ATF | FSIMG_JOB_TEE)
 
 static enum fsimg_state {
 	FSIMG_STATE_ANY,
 	FSIMG_STATE_BOARD_CFG,
-	FSIMG_STATE_RAM,
-	FSIMG_STATE_RAM_TYPE,
-	FSIMG_STATE_RAM_FW,
-	FSIMG_STATE_RAM_TIMING,
+	FSIMG_STATE_DRAM,
+	FSIMG_STATE_DRAM_TYPE,
+	FSIMG_STATE_DRAM_FW,
+	FSIMG_STATE_DRAM_TIMING,
 	FSIMG_STATE_ATF,
 	FSIMG_STATE_TEE,
 } state;
@@ -213,6 +202,7 @@ static char board_id[32];
 static const char *ram_type;
 static const char *ram_timing;
 static const char *arch = CONFIG_SYS_BOARD;
+static basic_init_t basic_init_callback;
 
 struct fs_header_v1_0 fsh;		/* Header of current image */
 
@@ -236,6 +226,12 @@ void *fs_image_get_cfg_addr(bool with_fs_header)
 	return with_fs_header ? cfg + sizeof(struct fs_header_v1_0) : cfg;
 }
 
+/* Return the address of the /board-cfg node */
+int fs_image_get_cfg_offs(void *fdt)
+{
+	return fdt_path_offset(fdt, "/board-cfg");
+}
+
 /* Read the image size (incl. padding) from an F&S header */
 static unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh)
 {
@@ -245,28 +241,34 @@ static unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh)
 
 #define reloc(addr, offs) addr = ((void *)addr + (unsigned long)offs)
 
-/* Relocate dram_timing_info structure and initialize DDR */
-static int fs_image_init_ddr(void)
+/* Relocate dram_timing_info structure and initialize DRAM */
+static int fs_image_init_dram(void)
 {
-	struct dram_timing_info *dram_timing;
+	struct dram_timing_info *dti;
 	unsigned long *p;
-//###	int i;
-	unsigned long offset = CONFIG_SPL_RAM_TIMING_ADDR;
+
+	/* Before we can init DRAM, we have to init the board config */
+	basic_init_callback();
 
 	/* The image starts with a pointer to the dram_timing variable */
-	p = (unsigned long *)offset;
-	dram_timing = (struct dram_timing_info *)*p;
+	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
+	dti = (struct dram_timing_info *)*p;
 #if 0 //###
-	reloc(dram_timing->ddrc_cfg, offset);
-	reloc(dram_timing->ddrphy_cfg, offset);
-	reloc(dram_timing->fsp_msg, offset);
-	reloc(dram_timing->ddrphy_trained_csr, offset);
-	reloc(dram_timing->ddrphy_pie, offset);
-	for (i = 0; i < dram_timing->fsp_msg_num; i++)
-		reloc(dram_timing->fsp_msg[i].fsp_cfg, offset);
+	{
+		int i;
+		unsigned long offset = (unsigned long)p;
+
+		reloc(dti->ddrc_cfg, offset);
+		reloc(dti->ddrphy_cfg, offset);
+		reloc(dti->fsp_msg, offset);
+		reloc(dti->ddrphy_trained_csr, offset);
+		reloc(dti->ddrphy_pie, offset);
+		for (i = 0; i < dti->fsp_msg_num; i++)
+			reloc(dti->fsp_msg[i].fsp_cfg, offset);
+	}
 #endif //###
 
-	return !ddr_init(dram_timing);
+	return !ddr_init(dti);
 }
 
 static void fs_image_get_board_name_rev(const char id[32],
@@ -377,7 +379,9 @@ static void fs_image_next_header(enum fsimg_state new_state)
 /* Enter a new (sub-) image with given size and load the header */
 static void fs_image_enter(unsigned int size, enum fsimg_state new_state)
 {
+	fsimg_stack[nest_level].remaining -= size;
 	fsimg_stack[++nest_level].remaining = size;
+	fsimg_stack[nest_level].size = size;
 	fs_image_next_header(new_state);
 }
 
@@ -393,6 +397,7 @@ static void fs_image_copy(void *buf, unsigned int size)
 /* Skip data of given size */
 static void fs_image_skip(unsigned int size)
 {
+	printf("### %d: skip 0x%x, state=0x%x\n", nest_level, size, state);
 	fsimg_stack[nest_level].remaining -= size;
 	count = size;
 	mode = FSIMG_MODE_SKIP;
@@ -414,8 +419,8 @@ static void fs_image_copy_or_skip(struct fs_header_v1_0 *fsh,
 /* Get the next FIRMWARE job */
 static enum fsimg_state fs_image_get_fw_state(void)
 {
-	if (jobs & FSIMG_JOB_RAM)
-		return FSIMG_STATE_RAM;
+	if (jobs & FSIMG_JOB_DRAM)
+		return FSIMG_STATE_DRAM;
 	if (jobs & FSIMG_JOB_ATF)
 		return FSIMG_STATE_ATF;
 	if (jobs & FSIMG_JOB_TEE)
@@ -457,7 +462,15 @@ static void fs_image_handle_header(void)
 	if (!nest_level && !fsimg->remaining)
 		fsimg->remaining = size;
 
-	printf("### %d: Found %s, size=0x%x remaining=0x%x\n", nest_level, fsh.type, size, fsimg->remaining);
+	printf("### %d: Found %s, size=0x%x remaining=0x%x, state=%d\n", nest_level, fsh.type, size, fsimg->remaining, state);
+
+	{
+		int i;
+		for (i=0; i<=nest_level; i++)
+			printf("### +++> %d: size=0x%x remaining=0x%x\n",
+			       i, fsimg_stack[i].size, fsimg_stack[i].remaining);
+	}
+
 
 	switch (state) {
 	case FSIMG_STATE_ANY:
@@ -497,39 +510,39 @@ static void fs_image_handle_header(void)
 			fs_image_skip(size);
 		break;
 
-	case FSIMG_STATE_RAM:
-		/* Get RAM type and RAM timing from BOARD-CFG */
-		if (fs_image_match(&fsh, "RAM-SETTINGS", arch)) {
-			int offs;
+	case FSIMG_STATE_DRAM:
+		/* Get DRAM type and DRAM timing from BOARD-CFG */
+		if (fs_image_match(&fsh, "DRAM-SETTINGS", arch)) {
 			void *fdt = fs_image_get_cfg_addr(false);
+			int off = fs_image_get_cfg_offs(fdt);
 
-			offs = fdt_path_offset(fdt, "/board-cfg");
-			ram_type = fdt_getprop(fdt, offs, "ram-type", NULL);
-			ram_timing = fdt_getprop(fdt, offs, "ram-timing", NULL);
+			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
+			ram_timing = fdt_getprop(fdt, off, "dram-timing", NULL);
 
 			printf("### Looking for: %s, %s\n", ram_type, ram_timing);
 
-			fs_image_enter(size, FSIMG_STATE_RAM_TYPE);
+			fs_image_enter(size, FSIMG_STATE_DRAM_TYPE);
 		} else
 			fs_image_skip(size);
 		break;
 
-	case FSIMG_STATE_RAM_TYPE:
-		if (fs_image_match(&fsh, "RAM-TYPE", ram_type))
-			fs_image_enter(size, FSIMG_STATE_RAM_FW);
+	case FSIMG_STATE_DRAM_TYPE:
+		if (fs_image_match(&fsh, "DRAM-TYPE", ram_type))
+			fs_image_enter(size, FSIMG_STATE_DRAM_FW);
 		else
 			fs_image_skip(size);
 		break;
 
-	case FSIMG_STATE_RAM_FW:
+	case FSIMG_STATE_DRAM_FW:
 		/* Load DDR training firmware behind SPL code */
-		fs_image_copy_or_skip(&fsh, "RAM-FW", ram_type, &_end, size);
+		fs_image_copy_or_skip(&fsh, "DRAM-FW", ram_type, &_end, size);
 		break;
 
-	case FSIMG_STATE_RAM_TIMING:
+	case FSIMG_STATE_DRAM_TIMING:
 		/* This may overlap ATF */
-		fs_image_copy_or_skip(&fsh, "RAM-TIMING", ram_timing,
-				      (void *)CONFIG_SPL_RAM_TIMING_ADDR, size);
+		fs_image_copy_or_skip(&fsh, "DRAM-TIMING", ram_timing,
+				      (void *)CONFIG_SPL_DRAM_TIMING_ADDR,
+				      size);
 		break;
 
 	case FSIMG_STATE_ATF:
@@ -550,8 +563,8 @@ static void fs_image_handle_image(void)
 
 	switch (state) {
 	case FSIMG_STATE_ANY:
-	case FSIMG_STATE_RAM:
-	case FSIMG_STATE_RAM_TYPE:
+	case FSIMG_STATE_DRAM:
+	case FSIMG_STATE_DRAM_TYPE:
 		/* Should not happen, we do not load these images */
 		break;
 
@@ -562,22 +575,22 @@ static void fs_image_handle_image(void)
 		fs_image_skip(fsimg->remaining);
 		break;
 
-	case FSIMG_STATE_RAM_FW:
-		/* DDR training firmware loaded, now look for RAM timing */
-		printf("### Got RAM-FW (%s)\n", ram_type);
-		fs_image_next_header(FSIMG_STATE_RAM_TIMING);
+	case FSIMG_STATE_DRAM_FW:
+		/* DRAM training firmware loaded, now look for DRAM timing */
+		printf("### Got DRAM-FW (%s)\n", ram_type);
+		fs_image_next_header(FSIMG_STATE_DRAM_TIMING);
 		break;
 
-	case FSIMG_STATE_RAM_TIMING:
-		/* RAM info complete, start it; job done if successful */
-		printf("### Got RAM-TIMING (%s)\n", ram_timing);
-		if (!fs_image_init_ddr()) {
+	case FSIMG_STATE_DRAM_TIMING:
+		/* DRAM info complete, start it; job done if successful */
+		printf("### Got DRAM-TIMING (%s)\n", ram_timing);
+		if (fs_image_init_dram()) {
 			puts("### Init DDR successful\n");
-			jobs &= ~FSIMG_JOB_RAM;
+			jobs &= ~FSIMG_JOB_DRAM;
 		} else
 			puts("### Init DDR failed\n");
 		
-		/* Skip remaining RAM timings */
+		/* Skip remaining DRAM timings */
 		fs_image_skip(fsimg->remaining);
 		break;
 
@@ -601,6 +614,7 @@ static void fs_image_handle_skip(void)
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
 
 	if (fsimg->remaining) {
+		printf("### %d: skip: remaining=0x%x state=0x%x\n", nest_level, fsimg->remaining, state);
 		fs_image_next_header(state);
 		return;
 	}
@@ -609,7 +623,16 @@ static void fs_image_handle_skip(void)
 		mode = FSIMG_MODE_DONE;
 		return;
 	}
+
 	nest_level--;
+	fsimg--;
+
+	{
+		int i;
+		for (i=0; i<=nest_level; i++)
+			printf("### ---> %d: size=0x%x remaining=0x%x\n",
+			       i, fsimg_stack[i].size, fsimg_stack[i].remaining);
+	}
 
 	switch (state) {
 	case FSIMG_STATE_ANY:
@@ -620,21 +643,19 @@ static void fs_image_handle_skip(void)
 		fs_image_next_header(FSIMG_STATE_ANY);
 		break;
 
-	case FSIMG_STATE_RAM:
+	case FSIMG_STATE_DRAM_TYPE:
+		printf("### DRAM_TYPE: next fw: state=%d\n", state);
 		fs_image_next_fw();
 		break;
 
-	case FSIMG_STATE_RAM_TYPE:
-		state = FSIMG_STATE_RAM;
+	case FSIMG_STATE_DRAM_FW:
+	case FSIMG_STATE_DRAM_TIMING:
+		printf("### FSIMG_STATE_DRAM_FW|TIMING: state=%d\n", state);
+		state = FSIMG_STATE_DRAM_TYPE;
 		fs_image_skip(fsimg->remaining);
 		break;
 
-	case FSIMG_STATE_RAM_FW:
-	case FSIMG_STATE_RAM_TIMING:
-		state = FSIMG_STATE_RAM_TYPE;
-		fs_image_skip(fsimg->remaining);
-		break;
-
+	case FSIMG_STATE_DRAM:
 	case FSIMG_STATE_ATF:
 	case FSIMG_STATE_TEE:
 		fs_image_next_header(FSIMG_STATE_ANY);
@@ -665,9 +686,11 @@ static void fs_image_handle(void)
 	}
 }
 
-static void fs_image_start(unsigned int size, unsigned int jobs_todo)
+static void fs_image_start(unsigned int size, unsigned int jobs_todo,
+			   basic_init_t basic_init)
 {
 	jobs = jobs_todo;
+	basic_init_callback = basic_init;
 	nest_level = -1;
 	fs_image_enter(size, FSIMG_STATE_ANY);
 }
@@ -694,7 +717,7 @@ static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 
 static void fs_image_sdp_new_file(u32 dnl_address, u32 size)
 {
-	fs_image_start(size, jobs);
+	fs_image_start(size, jobs, basic_init_callback);
 }
 
 static const struct sdp_stream_ops fs_image_sdp_stream_ops = {
@@ -703,16 +726,19 @@ static const struct sdp_stream_ops fs_image_sdp_stream_ops = {
 };
 
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
-void fs_image_all_sdp(unsigned int jobs_todo)
+void fs_image_all_sdp(unsigned int jobs_todo, basic_init_t basic_init)
 {
 	jobs = jobs_todo;
+	basic_init_callback = basic_init;
 
 	/* Stream the file and load appropriate parts */
 	spl_sdp_stream_image(&fs_image_sdp_stream_ops, true);
 
 	/* Stream further files until all necessary init jobs are done */
-	while (jobs)
+	while (jobs) {
+		printf("### Jobs to do: 0x%x\n", jobs);
 		spl_sdp_stream_continue(&fs_image_sdp_stream_ops, true);
+	}
 }
 
 #ifdef CONFIG_NAND_MXS
@@ -744,12 +770,12 @@ int fs_image_load_nand(unsigned int offset, char *type, char *descr,
 }
 
 /* Load FIRMWARE from NAND */
-unsigned int fs_image_fw_nand(unsigned int jobs_todo)
+unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
 {
 	unsigned int offs = CONFIG_SPL_FIRMWARE_NAND_OFFSET;
 
 	/* We do not know the size yet, but have room for the first header */
-	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo);
+	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo, basic_init);
 
 	// ### TODO: Handle (skip) bad blocks
 	do {
@@ -815,7 +841,7 @@ int fs_image_load_mmc(unsigned int offset, char *type, char *descr,
 }
 
 /* Load FIRMWARE from eMMC */
-unsigned int fs_image_fw_mmc(unsigned int jobs_todo)
+unsigned int fs_image_fw_mmc(unsigned int jobs_todo, basic_init_t basic_init)
 {
 	//### TODO
 

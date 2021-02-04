@@ -1,15 +1,132 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2017 F&S Elektronik Systeme GmbH
- * Copyright (C) 2018-2019 F&S Elektronik Systeme GmbH
+ * Copyright (C) 2020 F&S Elektronik Systeme GmbH
  *
  * Configuration settings for all F&S boards based on i.MX8MM. This is
  * PicoCoreMX8MM.
  *
  * Activate with one of the following targets:
  *   make fsimx8mm_defconfig   Configure for i.MX8MM boards
- *   make                     Build uboot-spl.bin, u-boot.bin and u-boot-nodtb.bin.
+ *   make                      Build uboot-spl.bin, u-boot.bin and
+ *                             u-boot-nodtb.bin.
  *
- * SPDX-License-Identifier:	GPL-2.0+
+ *
+ * ====== Snip from here ====
+ * Layout for i.MX8M (with only 128KB of OCRAM)
+ *
+ *
+ * TCM layout (SPL)
+ * ----------------
+ * 0x007E_0000: --- (4KB, unused)
+ * 0x007E_1000: SPL, address defined by ATF (up to ~120KB)
+ *     DRAM_FW: Training Firmware (up to 96KB, immediately behind end of SPL)
+ * 0x0081_7000: MALLOC_F pool (36KB, CONFIG_SPL_SYS_MALLOC_F_LEN)  ### Das geht so nicht!!!!!
+ * 0x0081_FFFF: END
+ *
+ * The sum of SPL and DDR_FW must not exceed 216KB (unless the MALLOC_F pool
+ * can be shrinked).
+ *
+ * OCRAM layout (SPL)
+ * ------------------
+ * 0x0090_0000: --- (64KB, reserved by ROM loader)
+ * 0x0091_0000: ATF (48KB)
+ * 0x0091_C000: DRAM Timing Data (16KB)
+ * 0x0091_FFFF: END
+ *
+ * OCRAM_S layout (SPL)
+ * --------------------
+ * 0x0018_0000: BSS data of SPL (8KB)
+ * 0x0018_2000: Board-Config (8KB)
+ * 0x0018_4000: Stack + Global Data (16KB)
+ * 0x0018_7FFF: End
+ *
+ * ====== Snip to here ====
+ *
+ * TCM layout (SPL)
+ * ----------------
+ * 0x007E_0000: --- (4KB, unused)
+ * 0x007E_1000: SPL, address defined by ATF (up to ~120KB)
+ *     DRAM_FW: Training Firmware (up to 96KB, immediately behind end of SPL)
+ * 0x0081_E000: --- (unused) ### why?
+ * 0x0081_FFFF: END
+ *
+ * The sum of SPL and DDR_FW must not exceed 216KB (unless the MALLOC_F pool
+ * can be shrinked).
+ *
+ * OCRAM layout (SPL)
+ * ------------------
+ * 0x0090_0000: --- (64KB, reserved by ROM loader)
+ * 0x0091_0000: BSS data of SPL (8KB)
+ * 0x0091_2000: Board-Config (8KB)
+ * 0x0091_4000: MALLOC_F pool (28KB)
+ * 0x0091_B000: --- (free)
+ * 0x0091_C000: Stack + Global Data (16KB)
+ * 0x0092_0000: ATF (48KB)
+ * 0x0092_C000: DRAM Timing Data (16KB)
+ * 0x0093_FFFF: End
+ *
+ * OCRAM_S layout (SPL)
+ * --------------------
+ * 0x0018_0000: Copy of DRAM configuration (passed to ATF)(~16KB)
+ * 0x0018_4000: --- (free)
+ * 0x0018_7FFF: End
+ *
+ * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
+ *
+ * Later, ATF is loaded to OCRAM at 0x0092_0000 and U-Boot is loaded to DRAM
+ * at 0x4020_0000. If a TEE program is loaded, it has to go to 0xBE00_0000 and
+ * a DEK_BLOB is loaded to 0x4040_0000. These addresses are defined in ATF.
+ *
+ * NAND flash layout
+ * -------------------------------------------------------------------------
+---(Actually now, as written from NXP tool kobs)
+ * 0x0000_0000 - 0x0001_FFFF: FCB Copy 0 (128KB)
+ * 0x0002_0000 - 0x0003_FFFF: FCB Copy 1 (128KB)
+ * 0x0004_0000 - 0x0005_FFFF: FCB Copy 2 (128KB)
+ * 0x0006_0000 - 0x0007_FFFF: FCB Copy 3 (128KB)
+ * 0x0008_0000 - 0x0009_FFFF: DBBT Copy 0 (128KB)
+ * 0x000A_0000 - 0x000B_FFFF: DBBT Copy 1 (128KB)
+ * 0x000C_0000 - 0x000D_FFFF: DBBT Copy 2 (128KB)
+ * 0x000E_0000 - 0x000F_FFFF: DBBT Copy 3 (128KB)
+ * 0x0010_0000 - 0x0013_FFFF: SPL Copy 0 (256KB)
+ * 0x0014_0000 - 0x0017_FFFF: HDMI-FW Copy 0 (256KB, unused but written)
+ * 0x0018_0000 - 0x0027_FFFF: --- (1024KB, unused, not written) -> BOARD-CFG
+ * 0x0028_0000 - 0x002B_FFFF: SPL Copy 1 (256KB)
+ * 0x002C_0000 - 0x002F_FFFF: HDMI-FW Copy 1 (256KB, unused but written)
+ * 0x0030_0000 - 0x003F_FFFF: --- (1024KB, unused, not written) -> FIRMWARES
+ * 0x0040_0000 - 0x007F_FFFF: UBoot + Reserve (4MB)
+ * 0x0080_0000 - 0x0083_FFFF: UBootEnv (256KB)
+ * 0x0084_0000 - 0x0283_FFFF: Kernel (32MB)
+ * 0x0284_0000 - 0x029F_FFFF: FDT (1792KB)
+ * 0x02A0_0000 -         END: TargetFS as UBI Volumes
+---(Planned)
+ * 0x0000_0000 - 0x0001_FFFF: BCB Copy 0 (FCB+DBBT) (128KB)         \
+ * 0x0002_0000 - 0x0003_FFFF: BCB Copy 1 (FCB+DBBT) (128KB)          |
+ * 0x0004_0000 - 0x0007_FFFF: SPL Copy 0 (256KB)                     |
+ * 0x0008_0000 - 0x000B_FFFF: HDMI-FW Copy 0 (256KB) (unused)        |
+ * 0x000C_0000 - 0x000F_FFFF: SPL Copy 1 (256KB)                     |
+ * 0x0010_0000 - 0x0013_FFFF: HDMI-FW Copy 1 (256KB) (unused)        | NBoot
+ * 0x0014_0000 - 0x0017_FFFF: Reserve in case of bad blocks (256KB)  |
+ * 0x0018_0000 - 0x0019_FFFF: Board-Config Copy 0 (128KB)            |
+ * 0x001A_0000 - 0x001B_FFFF: Board-Config Copy 1 (128KB)            |
+ * 0x001C_0000 - 0x001F_FFFF: Reserve in case of bad blocks (256KB)  |
+ * 0x0020_0000 - 0x002F_FFFF: ATF/DDR Copy 0 + Reserve (1024KB)      |
+ * 0x0030_0000 - 0x003F_FFFF: ATF/DDR Copy 1 + Reserve (1024KB)     /
+ * 0x0040_0000 - 0x0057_FFFF: UserDef (1536KB)
+ * 0x0058_0000 - 0x005F_FFFF: Refresh (512KB)
+ * 0x0060_0000 - 0x0087_FFFF: UBoot + Reserve (2560KB)              \
+ * 0x0088_0000 - 0x008B_FFFF: UBootEnv + Reserve (256KB)             |
+ * 0x008C_0000 - 0x008F_FFFF: UBootEnvRed + Reserve (256KB)          | Set A
+ * 0x0090_0000 - 0x028F_FFFF: Kernel (32MB)                          |
+ * 0x0290_0000 - 0x029F_FFFF: FDT (1MB)                             /
+ * 0x02A0_0000 - 0x04DF_FFFF: UBoot + UBootEnv + Kernel + FDT (opt)    Set B
+ * 0x04E0_0000 -         END: TargetFS as UBI Volumes                  Set A+B
+---
+ *
+ * Remarks:
+ * - If Kernel and FDT are part of the Rootfs, these partitions are dropped
+ * - If no Update with Set A and B is used, all Set B partitions are dropped
+ * - On i.MX8MM, no HDMI is available, so Copy 1 of SPL directly follows Copy 0
  */
 
 #ifndef __FSIMX8MM_H
@@ -42,7 +159,8 @@
 #define CONFIG_SYS_UART_PORT	0	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
-#define CONFIG_SPL_MAX_SIZE		(148 * 1024)
+/*####define CONFIG_SPL_MAX_SIZE		(148 * 1024)*/
+#define CONFIG_SPL_MAX_SIZE		(132 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
@@ -71,10 +189,26 @@
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
 
-#define CONFIG_MALLOC_F_ADDR		0x912000 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_SPL_USE_ATF_ENTRYPOINT
+#define CONFIG_SPL_ATF_ADDR 0x920000
+#define CONFIG_SPL_TEE_ADDR 0xbe000000
+
+#define CONFIG_SPL_DRAM_TIMING_ADDR (CONFIG_SPL_ATF_ADDR + 0xc000)
+#define CONFIG_SPL_BOARDCFG_ADDR \
+	(CONFIG_SPL_BSS_START_ADDR + CONFIG_SPL_BSS_MAX_SIZE)
+
+#define CONFIG_SPL_BOARDCFG_NAND_OFFSET 0x180000
+#define CONFIG_SPL_FIRMWARE_NAND_OFFSET 0x300000
+
+
+/* malloc_f is used before GD_FLG_FULL_MALLOC_INIT set, locate at end of TCM */
+/* ###
+#define CONFIG_MALLOC_F_ADDR \
+	(0x820000 - CONFIG_SPL_SYS_MALLOC_F_LEN)
+###*/
+#define CONFIG_MALLOC_F_ADDR 0x914000
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
-
 
 #define CONFIG_I2C_SUPPORT
 #undef CONFIG_DM_MMC

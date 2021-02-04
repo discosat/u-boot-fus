@@ -528,6 +528,10 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	if (spl_image->entry_point == FDT_ERROR || spl_image->entry_point == 0)
 		spl_image->entry_point = spl_image->load_addr;
 
+#ifdef CONFIG_SPL_USE_ATF_ENTRYPOINT
+	spl_image->entry_point = CONFIG_SPL_ATF_ADDR;
+#endif
+
 	spl_image->flags |= SPL_FIT_FOUND;
 
 #ifdef CONFIG_SECURE_BOOT

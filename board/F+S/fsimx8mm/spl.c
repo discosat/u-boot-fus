@@ -11,6 +11,7 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
+#define DEBUG
 
 #include <common.h>
 #include <spl.h>
@@ -27,27 +28,91 @@
 #include <asm/mach-imx/mxc_i2c.h>
 #include <fsl_esdhc.h>
 #include <mmc.h>
+#include <nand.h>
 #include <asm/arch/imx8m_ddr.h>
 
+#include <asm/sections.h>
+#include <sdp.h>
+
+#include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
+#include "fs_image.h"			/* F&S images */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 
 DECLARE_GLOBAL_DATA_PTR;
 
-extern struct dram_timing_info dram_timing_k4f8e304hb_mgcj;
-extern struct dram_timing_info ddr3l_2x_mt41k128m16tw_dram_timing;
-extern struct dram_timing_info ddr3l_2x_im4g16d3fdbg107i_dram_timing;
-
-static struct fs_nboot_args nbootargs;
-
 #define BT_PICOCOREMX8MM 0x0
 #define BT_PICOCOREMX8MX 0x1
 
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+static struct fs_nboot_args nbootargs;
+static const char *board_name;
+static char board_name_lc[32];		/* Lower case (for FDT match) */
 
+static void fs_board_init_nboot_args(void)
+{
+	int dram_size;
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	int i;
+	char c;
+
+	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
+	nbootargs.dwSize = 16*4;
+	nbootargs.dwNBOOT_VER = 1;
+	nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+
+	board_name = fdt_getprop(fdt, offs, "board-name", NULL);
+
+	/* Switch to lower case for device tree name */
+	i = 0;
+	do {
+		c = board_name[i];
+		if ((c >= 'A') && (c <= 'Z'))
+			c += 'a' - 'A';
+		board_name_lc[i++] = c;
+	} while (c);
+
+	printf("### board_name=%s, lc=%s\n", board_name, board_name_lc);
+	if (!strcmp(board_name, "PicoCoreMX8MM")) {
+		nbootargs.chBoardType = BT_PICOCOREMX8MM;
+		nbootargs.dwFlashSize = 512;
+	} else if (!strcmp(board_name, "PicoCoreMX8MX")) {
+		nbootargs.chBoardType = BT_PICOCOREMX8MM;
+		nbootargs.dwFlashSize = 256;
+	}
+
+	nbootargs.chBoardRev = fdt_getprop_u32_default_node(fdt, offs, 0,
+							   "board-rev", 100);
+	nbootargs.dwNumDram = fdt_getprop_u32_default_node(fdt, offs, 0,
+							   "dram-chips", 1);
+	dram_size = fdt_getprop_u32_default_node(fdt, offs, 0, "dram-size",
+						 0x40000000);
+	if (rom_pointer[1])
+		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
+	else
+		nbootargs.dwMemSize = dram_size >> 20;
+
+	//#### noch böser Hack, MX fehlt noch, muss eh alles anders werden
+	nbootargs.chFeatures2 = 0;
+	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+		nbootargs.chFeatures2 |= (1<<2);
+	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+		nbootargs.chFeatures2 |= (1<<3);
+	if (fdt_getprop(fdt, offs, "have-sgtl5000", NULL))
+		nbootargs.chFeatures2 |= (1<<5);
+	if (fdt_getprop(fdt, offs, "have-lvds", NULL))
+		nbootargs.chFeatures2 |= (1<<7);
+
+	printf("### board_name=%s, dram_size=0x%x, chBoardRev=%d, chFeatures2=0x%x\n", board_name, nbootargs.dwMemSize, nbootargs.chBoardRev, nbootargs.chFeatures2);
+}
+
+#ifdef CONFIG_POWER
+#define I2C_PMIC_8MM	3
+#define I2C_PMIC_8MX	0
 
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
+
 struct i2c_pads_info i2c_pad_info_8mm = {
 	.scl = {
 		.i2c_mode = IMX8MM_PAD_I2C4_SCL_I2C4_SCL | PC,
@@ -74,136 +139,6 @@ struct i2c_pads_info i2c_pad_info_8mx = {
 	},
 };
 
-ulong board_serial_base(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	case BT_PICOCOREMX8MM:
-	case BT_PICOCOREMX8MX:
-		return UART1_BASE_ADDR;
-	default:
-		break;
-	}
-
-	return UART1_BASE_ADDR;
-}
-
-static iomux_v3_cfg_t const uart_pads_mm[] = {
-	IMX8MM_PAD_UART1_RXD_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_UART1_TXD_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const uart_pads_mx[] = {
-	IMX8MM_PAD_SAI2_RXC_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_SAI2_RXFS_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-
-static void config_uart_pads(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	default:
-	case BT_PICOCOREMX8MM:
-		/* Setup UART pads */
-		imx_iomux_v3_setup_multiple_pads(uart_pads_mm, ARRAY_SIZE(uart_pads_mm));
-		break;
-	case BT_PICOCOREMX8MX:
-		/* Setup UART pads */
-		imx_iomux_v3_setup_multiple_pads(uart_pads_mx, ARRAY_SIZE(uart_pads_mx));
-		break;
-	}
-}
-
-static void fs_board_init_nboot_args(void)
-{
-	int dram_size = 0;
-
-	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
-	nbootargs.dwSize = 16*4;
-	nbootargs.dwNBOOT_VER = 1;
-
-#if defined(FUS_CONFIG_BOARDTYPE) && defined(FUS_CONFIG_BOARDREV) && defined(FUS_CONFIG_FEAT2)
-	nbootargs.chBoardType = FUS_CONFIG_BOARDTYPE;
-	nbootargs.chBoardRev  = FUS_CONFIG_BOARDREV;
-	nbootargs.chFeatures2  = FUS_CONFIG_FEAT2;
-#define STRING2(x) #x
-#define STRING(x) STRING2(x)
-#pragma message "FUS_CONFIG_BOARDTYPE = " STRING(FUS_CONFIG_BOARDTYPE)
-#pragma message "FUS_CONFIG_BOARDREV = " STRING(FUS_CONFIG_BOARDREV)
-#pragma message "FUS_CONFIG_FEAT2 = " STRING(FUS_CONFIG_FEAT2)
-#warning "Using fixed config values! This Uboot is not portable!"
-#else
-#error "Board Config not set! \
-Please set CONFIG_FUS_BOARDTYPE, CONFIG_FUS_BOARDREV and CONFIG_FUS_FEATURES2 according to the documentation"
-#endif
-
-	switch (nbootargs.chBoardType)
-	{
-	case BT_PICOCOREMX8MM:
-		/* size of NAND flash in MB */
-		nbootargs.dwFlashSize = 512;
-		/* HOTFIX: Set ram size hard to 1GB */
-		dram_size = 0x40000000;
-		/* HOTFIX: Set number of DRAMs hard to 1 */
-		nbootargs.dwNumDram = 1;
-		break;
-	case BT_PICOCOREMX8MX:
-		/* size of NAND flash in MB */
-		nbootargs.dwFlashSize = 256;
-		/* HOTFIX: Use Bit 0 to set RAM size
-		 * Bit(0) = 0 -> 512MB
-		 * Bit(0) = 1 -> 1024MB
-		 */
-		if( (nbootargs.chFeatures2 &(1<<0)) == 0){
-			dram_size = 0x20000000;
-		}else{
-			dram_size = 0x40000000;
-		}
-		/* HOTFIX: Set number of DRAMs hard to 2 */
-		nbootargs.dwNumDram = 2;
-	}
-
-	nbootargs.dwDbgSerPortPA = board_serial_base();
-
-	if(rom_pointer[1])
-		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
-	else
-		nbootargs.dwMemSize = dram_size >> 20;
-
-}
-
-#define OPEN_DRAIN_PAD_CTRL (PAD_CTL_DSE6 | PAD_CTL_ODE)
-
-static iomux_v3_cfg_t const lvds_rst_8mm_120_pads =
-	IMX8MM_PAD_GPIO1_IO13_GPIO1_IO13  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
-
-static iomux_v3_cfg_t const lvds_rst_8mm_130_pads =
-	IMX8MM_PAD_SAI3_TXFS_GPIO4_IO31  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
-
-static iomux_v3_cfg_t const lvds_rst_8mx_110_pads =
-	IMX8MM_PAD_GPIO1_IO08_GPIO1_IO8  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
-
-static void fs_board_early_init(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	default:
-	case BT_PICOCOREMX8MM:
-		if(nbootargs.chBoardRev < 130)
-			imx_iomux_v3_setup_pad(lvds_rst_8mm_120_pads);
-		else
-			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
-		break;
-	case BT_PICOCOREMX8MX:
-			imx_iomux_v3_setup_pad(lvds_rst_8mx_110_pads);
-		break;
-	}
-}
-
-#ifdef CONFIG_POWER
-#define I2C_PMIC_8MM	3
-#define I2C_PMIC_8MX	0
 int power_init_board(void)
 {
 	struct pmic *p;
@@ -213,11 +148,13 @@ int power_init_board(void)
 	{
 	default:
 	case BT_PICOCOREMX8MM:
-		setup_i2c(I2C_PMIC_8MM, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info_8mm);
+		setup_i2c(I2C_PMIC_8MM, CONFIG_SYS_I2C_SPEED, 0x7f,
+			  &i2c_pad_info_8mm);
 		ret = power_bd71837_init(I2C_PMIC_8MM);
 		break;
 	case BT_PICOCOREMX8MX:
-		setup_i2c(I2C_PMIC_8MX, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info_8mx);
+		setup_i2c(I2C_PMIC_8MX, CONFIG_SYS_I2C_SPEED, 0x7f,
+			  &i2c_pad_info_8mx);
 		ret = power_bd71837_init(I2C_PMIC_8MX);
 		break;
 	}
@@ -261,42 +198,7 @@ int power_init_board(void)
 }
 #endif
 
-static int spl_dram_init(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	case BT_PICOCOREMX8MM:
-		/* TODO: change RAM detection
-		 *  Simple detection: Rev. 1.00 k4f8e304hb_mgcj
-		 *                    Rev. 1.10 k4f8e3s4hd_mgcl
-		 */
-		if(ddr_init(&dram_timing))
-		{
-			if(ddr_init(&dram_timing_k4f8e304hb_mgcj))
-				return 1;
-		}
-		break;
-	case BT_PICOCOREMX8MX:
-		/* TODO: change RAM detection
-		 * Bit(0) = 0 -> 512MB
-		 * Bit(0) = 1 -> 1024MB
-	         */
-
-		if((nbootargs.chFeatures2 & (1<<0)) == 0) {
-			if(ddr_init(&ddr3l_2x_mt41k128m16tw_dram_timing))
-				return 1;
-		}
-		else{
-		        /* check for Intelligent Memory (IM) RAM */
-			if(ddr_init(&ddr3l_2x_im4g16d3fdbg107i_dram_timing))
-				return 1;
-		}
-		break;
-	}
-
-	return 0;
-}
-
+#if 0 //#### Muss wieder nach fsimx8mm.c
 #define USDHC1_CD_GPIO	IMX_GPIO_NR(1, 6)
 /* SD_A_RST */
 #define USDHC1_PWR_GPIO IMX_GPIO_NR(2, 10)
@@ -391,6 +293,254 @@ int board_mmc_init(bd_t *bd)
 #endif
 	return ret;
 }
+#endif //###
+
+#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+
+static iomux_v3_cfg_t const uart_pads_mm[] = {
+	MUX_PAD_CTRL(UART_PAD_CTRL) | IMX8MM_PAD_UART1_RXD_UART1_RX,
+	MUX_PAD_CTRL(UART_PAD_CTRL) | IMX8MM_PAD_UART1_TXD_UART1_TX,
+};
+
+static iomux_v3_cfg_t const uart_pads_mx[] = {
+	MUX_PAD_CTRL(UART_PAD_CTRL) | IMX8MM_PAD_SAI2_RXC_UART1_RX,
+	MUX_PAD_CTRL(UART_PAD_CTRL) | IMX8MM_PAD_SAI2_RXFS_UART1_TX,
+};
+
+/* Setup and start serial debug port */
+static void config_uart(int board_type)
+{
+	switch (board_type)
+	{
+	default:
+	case BT_PICOCOREMX8MM:
+		/* Setup UART pads */
+		imx_iomux_v3_setup_multiple_pads(uart_pads_mm,
+						 ARRAY_SIZE(uart_pads_mm));
+		break;
+
+	case BT_PICOCOREMX8MX:
+		/* Setup UART pads */
+		imx_iomux_v3_setup_multiple_pads(uart_pads_mx,
+						 ARRAY_SIZE(uart_pads_mx));
+		break;
+	}
+
+	preloader_console_init();
+}
+
+#define OPEN_DRAIN_PAD_CTRL (PAD_CTL_DSE6 | PAD_CTL_ODE)
+
+static iomux_v3_cfg_t const lvds_rst_8mm_120_pads =
+	IMX8MM_PAD_GPIO1_IO13_GPIO1_IO13  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static iomux_v3_cfg_t const lvds_rst_8mm_130_pads =
+	IMX8MM_PAD_SAI3_TXFS_GPIO4_IO31  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static iomux_v3_cfg_t const lvds_rst_8mx_110_pads =
+	IMX8MM_PAD_GPIO1_IO08_GPIO1_IO8  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static void fs_board_early_init(void)
+{
+	switch (nbootargs.chBoardType)
+	{
+	default:
+	case BT_PICOCOREMX8MM:
+		if(nbootargs.chBoardRev < 130)
+			imx_iomux_v3_setup_pad(lvds_rst_8mm_120_pads);
+		else
+			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
+		break;
+	case BT_PICOCOREMX8MX:
+			imx_iomux_v3_setup_pad(lvds_rst_8mx_110_pads);
+		break;
+	}
+}
+
+/* Do the basic board setup when we have our final BOARD-CFG */
+static void basic_init(void)
+{
+	fs_board_init_nboot_args();
+
+	config_uart(nbootargs.chBoardType);
+
+	fs_board_early_init();
+
+	power_init_board();
+}
+
+/* Pad settings if using NAND flash */
+#define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
+#define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
+
+static iomux_v3_cfg_t const nand_pads[] = {
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_ALE_RAWNAND_ALE,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_CE0_B_RAWNAND_CE0_B,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_CLE_RAWNAND_CLE,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA00_RAWNAND_DATA00,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA01_RAWNAND_DATA01,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA02_RAWNAND_DATA02,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA03_RAWNAND_DATA03,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA04_RAWNAND_DATA04,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA05_RAWNAND_DATA05,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA06_RAWNAND_DATA06,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_DATA07_RAWNAND_DATA07,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_RE_B_RAWNAND_RE_B,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_WE_B_RAWNAND_WE_B,
+	MUX_PAD_CTRL(NAND_PAD_CTRL) | IMX8MM_PAD_NAND_WP_B_RAWNAND_WP_B,
+	MUX_PAD_CTRL(NAND_PAD_READY0_CTRL)
+				    | IMX8MM_PAD_NAND_READY_B_RAWNAND_READY_B,
+};
+
+/* Pad settings if using eMMC */
+#define USDHC_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE \
+			 |PAD_CTL_PE | PAD_CTL_FSEL2)
+#define USDHC_GPIO_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_DSE1)
+
+static iomux_v3_cfg_t const emmc_pads[] = {
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_WE_B_USDHC3_CLK,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_WP_B_USDHC3_CMD,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_DATA04_USDHC3_DATA0,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_DATA05_USDHC3_DATA1,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_DATA06_USDHC3_DATA2,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_DATA07_USDHC3_DATA3,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_RE_B_USDHC3_DATA4,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_CE2_B_USDHC3_DATA5,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_CE3_B_USDHC3_DATA6,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_CLE_USDHC3_DATA7,
+//###	MUX_PAD_CTRL(USDHC_PAD_CTRL) | IMX8MM_PAD_NAND_CE1_B_USDHC3_STROBE,
+	MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL) | IMX8MM_PAD_NAND_CE1_B_GPIO3_IO2,
+	/* IMX8MM_PAD_NAND_READY_B_USDHC3_RESET_B */
+	MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL) | IMX8MM_PAD_NAND_READY_B_GPIO3_IO16,
+};
+
+/* If board is already configured, load config from NAND or eMMC */
+static int fs_spl_early_load_boardcfg(void)
+{
+	int err;
+
+	printf("### fused_boot_dev=%u\n", fs_board_get_boot_device_from_fuses());
+	switch (fs_board_get_boot_device_from_fuses()) {
+	case BOOT_DEVICE_NAND:
+		puts("###A\n");
+		imx_iomux_v3_setup_multiple_pads(nand_pads,
+						 ARRAY_SIZE(nand_pads));
+		nand_init();
+	puts("###B\n");
+		err = fs_image_cfg_nand();
+	puts("###C\n");
+		break;
+
+	case BOOT_DEVICE_MMC1:
+		//### TODO: init mmc
+		imx_iomux_v3_setup_multiple_pads(emmc_pads,
+						 ARRAY_SIZE(emmc_pads));
+		err = fs_image_cfg_mmc();
+		break;
+
+	case BOOT_DEVICE_BOARD:
+	default:
+		/* Board not configured, await config as part of USB config */
+		err = -ENOENT;
+		break;
+	}
+
+	return err;
+}
+
+void board_init_f(ulong dummy)
+{
+	int ret;
+	struct fs_nboot_args *pargs = (struct fs_nboot_args*)(CONFIG_SYS_SDRAM_BASE + 0x00001000);
+	unsigned int jobs_todo;
+
+	/* Clear the BSS. */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	arch_cpu_init();
+
+	board_early_init_f();		/* Init watchdog */
+
+	timer_init();
+
+#if 0
+	/*
+	 * Enable this to have early debug output before BOARD-CFG is loaded
+	 * You have to provide the board type, we do not know it yet
+	 */
+	config_uart(BT_PICOCOREMX8MM);
+	puts("###Hello\n");
+#endif
+
+	/* Init malloc_f pool and boot stages */
+	ret = spl_init();
+	if (ret) {
+		debug("spl_init() failed: %d\n", ret);
+		hang();
+	}
+	enable_tzc380();
+
+	/* Load BOARD-CFG from boot device configured in fuses */
+	jobs_todo = FSIMG_JOB_CFG | FSIMG_JOB_DRAM | FSIMG_JOB_ATF;
+#ifdef CONFIG_IMX_OPTEE
+	jobs_todo |= FSIMG_JOB_TEE;
+#endif
+	if (!fs_spl_early_load_boardcfg()) {
+		/* Load remaining part from current boot device */
+	puts("###D\n");
+		jobs_todo &= ~FSIMG_JOB_CFG;
+		switch (spl_boot_device()) {
+		case BOOT_DEVICE_NAND:
+	puts("###E\n");
+			jobs_todo = fs_image_fw_nand(jobs_todo, basic_init);
+			break;
+		case BOOT_DEVICE_MMC1:
+			jobs_todo = fs_image_fw_mmc(jobs_todo, basic_init);
+			break;
+		case BOOT_DEVICE_BOARD:
+	puts("###F\n");
+			/* Loading is done below */
+			break;
+		}
+	}
+
+	puts("###G\n");
+	/* On load errors or if configured for USB, start system with SDP */
+	if (jobs_todo) {
+		puts("###H\n");
+		fs_image_all_sdp(jobs_todo, basic_init);
+	}
+
+	/* At this point we have a valid system configuration */
+#if 0 //####
+	{
+		int i;
+		u32 tcm, ram;
+
+		puts("### Checking RAM\n");
+		for (i=0; i<0x30000; i+=4) {
+			tcm = *(u32 *)(0x7e0000UL + i);
+			*(u32 *)(0x40000000UL + i) = tcm;
+	}
+		for (i=0; i<0x30000; i+=4) {
+			ram = *(u32 *)(0x40000000UL + i);
+			tcm = *(u32 *)(0x7e0000UL + i);
+			if (ram != tcm)
+				printf("### mismatch: ram=0x%08x, tcm=0x%08x\n", ram, tcm);
+		}
+	}
+#endif //####
+
+	/* Copy nboot args to RAM where U-Boot expects them */
+	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
+	pargs = fs_board_get_nboot_args();
+	*pargs = nbootargs;
+
+	printf("### A: board_name=%s, dram_size=0x%x, chBoardRev=%d, chFeatures2=0x%x\n", board_name, nbootargs.dwMemSize, nbootargs.chBoardRev, nbootargs.chFeatures2);
+	printf("### B: board_name=%s, dram_size=0x%x, chBoardRev=%d, chFeatures2=0x%x\n", board_name, pargs->dwMemSize, pargs->chBoardRev, pargs->chFeatures2);
+
+	board_init_r(NULL, 0);
+}
 
 /* BL_ON */
 #define BL_ON_PAD IMX_GPIO_NR(5, 3)
@@ -399,12 +549,10 @@ static iomux_v3_cfg_t const bl_on_pad =
 
 void spl_board_init(void)
 {
-
 	imx_iomux_v3_setup_pad(bl_on_pad);
 	/* backlight off*/
 	gpio_request(BL_ON_PAD, "BL_ON");
 	gpio_direction_output(BL_ON_PAD, 0);
-
 
 #ifndef CONFIG_SPL_USB_SDP_SUPPORT
 	/* Serial download mode */
@@ -419,71 +567,9 @@ void spl_board_init(void)
 #ifdef CONFIG_SPL_LOAD_FIT
 int board_fit_config_name_match(const char *name)
 {
-	/* Just empty function now - can't decide what to choose */
 	debug("%s: %s\n", __func__, name);
+	printf("### I am: %s, test for %s\n", board_name_lc, name);
 
-	return 0;
+	return strcmp(name, board_name_lc);
 }
 #endif
-
-void board_init_f(ulong dummy)
-{
-	int ret;
-	struct fs_nboot_args *pargs = (struct fs_nboot_args*)(CONFIG_SYS_SDRAM_BASE + 0x00001000);
-
-	/* Clear the BSS. */
-	memset(__bss_start, 0, __bss_end - __bss_start);
-
-	arch_cpu_init();
-
-	board_early_init_f();
-
-	timer_init();
-
-	fs_board_init_nboot_args();
-
-	fs_board_early_init();
-
-	config_uart_pads();
-
-	preloader_console_init();
-
-	ret = spl_init();
-	if (ret) {
-		debug("spl_init() failed: %d\n", ret);
-		hang();
-	}
-	enable_tzc380();
-
-	power_init_board();
-
-
-	/* DDR initialization */
-	if(spl_dram_init())
-	{
-		printf("This UBoot can't be started. RAM initialization fails.\n");
-		while(1);
-	}
-
-	printf("DDRInfo: RAM initialization success.\n");
-
-	/* initalize ram area with zero before set */
-	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
-	/* fill nboot args first after ram initialisation */
-	pargs = fs_board_get_nboot_args();
-
-	pargs->dwID = nbootargs.dwID;
-	pargs->dwSize = nbootargs.dwSize;
-	pargs->dwNBOOT_VER = nbootargs.dwNBOOT_VER;
-	pargs->dwMemSize = nbootargs.dwMemSize;
-	pargs->dwNumDram = nbootargs.dwNumDram;
-	pargs->dwFlashSize = nbootargs.dwFlashSize;
-	pargs->dwDbgSerPortPA = nbootargs.dwDbgSerPortPA;
-	pargs->chBoardRev = nbootargs.chBoardRev;
-	pargs->chBoardType = nbootargs.chBoardType;
-	pargs->chFeatures2 = nbootargs.chFeatures2;
-
-	printf("Using fixed config: 0x%x\n",nbootargs.chFeatures2);
-
-	board_init_r(NULL, 0);
-}
