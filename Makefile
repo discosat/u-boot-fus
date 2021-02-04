@@ -781,10 +781,13 @@ endif
 # Always append ALL so that arch config.mk's can add custom ones
 ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
 ifndef CONFIG_IMX8M
-ALL-y += uboot.nb0 u-boot.dis
-else
-ALL-y += u-boot.dis
+ALL-y += uboot.nb0
 endif
+
+# Create disassembler listings if requested
+ALL-$(CONFIG_DISASM) += u-boot.dis
+ALL-$(CONFIG_SPL_DISASM) += spl/u-boot-spl.dis
+ALL-$(CONFIG_TPL_DISASM) += tpl/u-boot-tpl.dis
 
 ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
 ALL-$(CONFIG_NAND_U_BOOT) += u-boot-nand.bin
@@ -1092,8 +1095,11 @@ u-boot-spl.kwb: u-boot.img spl/u-boot-spl.bin FORCE
 u-boot.sha1:	u-boot.bin
 		tools/ubsha1 u-boot.bin
 
-u-boot.dis:	u-boot
-		$(OBJDUMP) -d $< > $@
+quiet_cmd_disasm = DISASM  $@
+cmd_disasm = $(OBJDUMP) -d $< > $@
+
+%.dis:	%
+	$(call cmd,disasm)
 
 OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_BOARD_SIZE_LIMIT) -I binary -O binary
 uboot.nb0:	u-boot.bin
