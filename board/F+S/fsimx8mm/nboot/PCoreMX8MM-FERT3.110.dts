@@ -1,0 +1,39 @@
+/*
+ * Copyright (C) 2021 F&S Elektronik Systeme GmbH
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+/ {
+	board-cfg {
+		board-cfg-version = <1>;	/* Increment on changes */  
+		board-name = "PicoCoreMX8MM";
+		board-rev = <110>;		/* Rev 1.10 */
+
+		/* DRAM: 1GB Samsung (different to Rev. 1.00!) */
+		dram-type = "lpddr4";
+		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+		dram-size = <0x40000000>;
+		dram-chips = <1>;
+
+		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
+		boot-dev = "NAND";
+
+		/* Board Features */
+		have-nand;
+		//have-emmc;
+		have-sgtl5000;
+		have-eth-phy;
+		have-wlan;
+		have-lvds;
+		//have-1x-mipi-dsi;
+		//have-ext-rtc;
+		//have-security;
+		//have-can;
+		//have-eeprom;
+	};
+};

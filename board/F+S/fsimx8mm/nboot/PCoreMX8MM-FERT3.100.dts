@@ -1,0 +1,19 @@
+/*
+ * Copyright (C) 2021 F&S Elektronik Systeme GmbH
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+/ {
+	board-cfg {
+		board-cfg-version = <1>;	/* Increment on changes */  
+		board-name = "PicoCoreMX8MM";
+		board-rev = <100>;		/* Rev 1.00 */
+		dram-type = "lpddr4";
+		dram-timing = "lpddr4_k4f8e304hb_mgcj";
+	};
+};

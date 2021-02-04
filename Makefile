@@ -1126,6 +1126,11 @@ endif
 uboot.fs:	$(addfsheader_target)
 	$(call cmd,addfsheader,$(FSIMG_OPT))
 
+PHONY += nboot
+NBOOT_PATH = board/$(BOARDDIR)/nboot
+nboot: SPL
+	$(Q)$(MAKE) $(build)=$(NBOOT_PATH) $@
+
 
 ifdef CONFIG_TPL
 SPL_PAYLOAD := tpl/u-boot-with-tpl.bin
@@ -1615,6 +1620,7 @@ clean: $(clean-dirs)
 		-o -name '*.ko.*' -o -name '*.su' -o -name '*.cfgtmp' \
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \
 		-o -name '*.symtypes' -o -name 'modules.order' \
+		-o -name '*.fs' \
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
 		-o -name 'dsdt.aml' -o -name 'dsdt.asl.tmp' -o -name 'dsdt.c' \
 		-o -name '*.gcno' \) -type f -print | xargs rm -f

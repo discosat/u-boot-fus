@@ -16,6 +16,7 @@
 *.lst
 *.order
 *.elf
+*.fs
 *.swp
 *.bin
 *.patch
@@ -37,8 +38,6 @@ fit-dtb.blob
 /u-boot*
 /boards.cfg
 /uboot.nb0
-/uboot-fsimx6.nb0
-/uboot.fs
 
 #
 # git files that we don't want to ignore even it they are dot-files
