@@ -1089,7 +1089,7 @@ int board_video_skip(void)
  *    -------------------------------------------------------------------------
  *    efusA7UL        (always on)                  (Hub on SKIT, no reset line)
  *    PicoCOM1.2      ENET2_TX_DATA1 (GPIO2_IO12)  (no Hub)
- *    PicoCOMA7	      UART4_TX_DATA                (no Hub)
+ *    PicoCOMA7	      UART4_TX_DATA (GPIO1_IO28)   (no Hub)
  *    PicoCoreMX6UL   SNVS_TAMPER2 (GPIO5_IO02)    (no Hub)
  *    CubeA7UL/2.0    GPIO1_IO02                   (no Hub)
  *    GAR1            SD1_DATA1 (GPIO2_IO19)       (no Hub)
@@ -1160,7 +1160,7 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad_picocom1_2[] = {
 #endif
 };
 static iomux_v3_cfg_t const usb_otg2_pwr_pad_picocoma7[] = {
-		IOMUX_PADS(PAD_UART4_TX_DATA__GPIO1_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL))
+	IOMUX_PADS(PAD_UART4_TX_DATA__GPIO1_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL))
 };
 static iomux_v3_cfg_t const usb_otg2_pwr_pad_cube[] = {
 #ifdef CONFIG_FS_USB_PWR_USBNC
