@@ -780,9 +780,10 @@ endif
 
 # Always append ALL so that arch config.mk's can add custom ones
 ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
-ifndef CONFIG_IMX8M
-ALL-y += uboot.nb0
-endif
+
+# Add uboot.nb0 for F&S boards on all i.MX6 and Vybrid variants
+ALL-$(CONFIG_TARGET_FSVYBRID) += uboot.nb0
+ALL-$(CONFIG_ARCH_MX6) += uboot.nb0
 
 # Create disassembler listings if requested
 ALL-$(CONFIG_DISASM) += u-boot.dis
@@ -1108,8 +1109,23 @@ uboot.nb0:	u-boot.bin
 #			 | tr '\000' '\377' >$@
 #		dd if=$< of=$@ conv=notrunc bs=1K
 
-uboot.fs:	u-boot.bin
-		tools/addfsheader $< $@
+quiet_cmd_addfsheader = FSIMG   $@
+cmd_addfsheader = scripts/addfsheader.sh $2 $< > $@
+
+# Use V0.0 F&S header on Vybrid/i.MX6, otherwise V1.0 plus type/descr
+ifneq ($(CONFIG_TARGET_FSVYBRID)$(CONFIG_ARCH_MX6),)
+FSIMG_OPT = -v 0.0
+else
+FSIMG_OPT = -c -p 16 -t U-BOOT -d $(BOARD)
+endif
+ifdef CONFIG_SPL_LOAD_FIT
+addfsheader_target = u-boot-dtb.img
+else
+addfsheader_target = u-boot.bin
+endif
+uboot.fs:	$(addfsheader_target)
+	$(call cmd,addfsheader,$(FSIMG_OPT))
+
 
 ifdef CONFIG_TPL
 SPL_PAYLOAD := tpl/u-boot-with-tpl.bin
