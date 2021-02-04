@@ -913,6 +913,7 @@ int initf_malloc(void);
 
 /* Simple versions which can be used when space is tight */
 void *malloc_simple(size_t size);
+void *memalign_simple(size_t align, size_t bytes);
 
 #pragma GCC visibility push(hidden)
 # if __STD_C

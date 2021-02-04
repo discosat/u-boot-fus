@@ -39,6 +39,9 @@ void *memalign_simple(size_t align, size_t bytes)
 
 	addr = ALIGN(gd->malloc_base + gd->malloc_ptr, align);
 	new_ptr = addr + bytes - gd->malloc_base;
+	debug("%s: size=%zx, align=%zx, ptr=%lx, limit=%lx: ", __func__,
+	      bytes, align, new_ptr, gd->malloc_limit);
+
 	if (new_ptr > gd->malloc_limit) {
 		debug("space exhausted\n");
 		return NULL;
