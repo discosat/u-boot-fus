@@ -19,6 +19,12 @@
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"
 
+#ifdef CONFIG_ARCH_IMX8M
+#include <spl.h>			/* BOOT_DEVICE_* */
+#include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
+#include <fuse.h>			/* fuse_read() */
+#endif
+
 /* ------------------------------------------------------------------------- */
 
 /* Addresses of arguments coming from NBoot and going to Linux */
@@ -367,3 +373,48 @@ char *get_sys_prompt(void)
 {
 	return fs_sys_prompt;
 }
+
+#ifdef CONFIG_ARCH_IMX8M
+/* Definitions in boot_cfg (fuse bank 1, word 3) */
+#define BOOT_CFG_DEVSEL_SHIFT 12
+#define BOOT_CFG_DEVSEL_MASK (7 << BOOT_CFG_DEVSEL_SHIFT)
+#define BOOT_CFG_PORTSEL_SHIFT 10
+#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
+
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB (returned by spl_boot_device()), but is basically fused to boot from
+ * NAND (returned here).
+ */
+unsigned int fs_board_get_boot_device_from_fuses(void)
+{
+	u32 val;
+	u32 port;
+	u32 boot_dev = BOOT_DEVICE_BOARD;
+
+	/* boot_cfg is in fuse bank 1, word 3 */
+	if (fuse_read(1, 3, &val)) {
+		puts("Error reading boot_cfg\n");
+		return boot_dev;
+	}
+
+	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
+	case BOOT_TYPE_SD:
+	case BOOT_TYPE_MMC:
+		port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
+		if (port == 0)
+			boot_dev = BOOT_DEVICE_MMC1;
+		else if (port == 1)
+			boot_dev = BOOT_DEVICE_MMC2;
+		break;
+	case BOOT_TYPE_NAND:
+		boot_dev = BOOT_DEVICE_NAND;
+		break;
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+#endif

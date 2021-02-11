@@ -90,5 +90,7 @@ void fs_board_init_common(const struct fs_board_info *board_info);
 /* Set up all board specific variables */
 void fs_board_late_init_common(const char *serial_name);
 
+/* Return the boot device as programmed in the fuses. */
+unsigned int fs_board_get_boot_device_from_fuses(void);
 
 #endif /* !__FS_BOARD_COMMON_H__ */
