@@ -56,16 +56,6 @@ struct fs_board_info {
 	char *mtdparts;			/* Default variable for mtdparts */
 	char *network;			/* Default variable for network */
 	char *init;			/* Default variable for init */
-	char *rootfs;			/* Default variable for rootfs */
-	char *kernel;			/* Default variable for kernel */
-	char *fdt;			/* Default variable for device tree */
-
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-	char *set_rootfs;		/* Default variable for set rootfs RAUC [nand/mmc] */
-	char *selector;			/* Default variable for setting selector for RAUC [nand/mmc] */
-	char *boot_partition; 		/* Default variable for selecting Kernel [nand/mmc] */
-	char *rootfs_partition;		/* Default variable for selecting the right rootfs source [nand/mmc] */
-#endif
 };
 
 /* List NBoot args for debugging */

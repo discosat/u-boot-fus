@@ -91,30 +91,10 @@ DECLARE_GLOBAL_DATA_PTR;
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define ROOTFS ".rootfs_mmc"
-#define KERNEL ".kernel_mmc"
-#define FDT ".fdt_mmc"
-#define SET_ROOTFS ".set_rootfs_mmc"
-#define SELECTOR ".selector_mmc"
-#define BOOT_PARTITION ".boot_partition_mmc"
-#define ROOTFS_PARTITION ".rootfs_partition_mmc"
-#elif CONFIG_ENV_IS_IN_NAND
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#define SET_ROOTFS ".set_rootfs_nand"
-#define SELECTOR ".selector_nand"
-#define BOOT_PARTITION ".boot_partition_nand"
-#define ROOTFS_PARTITION ".rootfs_partition_nand"
-#else /* Default = Nand */
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#define SET_ROOTFS ".set_rootfs_nand"
-#define SELECTOR ".selector_nand"
-#define BOOT_PARTITION ".boot_partition_nand"
-#define ROOTFS_PARTITION ".rootfs_partition_nand"
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+#define INIT_DEF ".init_fs_updater"
+#else
+#define INIT_DEF ".init_init"
 #endif
 
 const struct fs_board_info board_info[2] = {
@@ -128,19 +108,7 @@ const struct fs_board_info board_info[2] = {
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
-		.init = ".init_init",
-		.rootfs = ROOTFS,
-		.kernel = KERNEL,
-		.fdt = FDT,
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-		.set_rootfs = SET_ROOTFS,
-		.selector = SELECTOR,
-		.boot_partition = BOOT_PARTITION,
-		.rootfs_partition = ROOTFS_PARTITION,
-		.init = ".init_fs_updater",
-#else
-		.init = ".init_init",
-#endif
+		.init = INIT_DEF,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
 		.name = "PicoCoreMX8MM",
@@ -152,19 +120,7 @@ const struct fs_board_info board_info[2] = {
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
-		.init = ".init_init",
-		.rootfs = ROOTFS,
-		.kernel = KERNEL,
-		.fdt = FDT,
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-		.set_rootfs = SET_ROOTFS,
-		.selector = SELECTOR,
-		.boot_partition = BOOT_PARTITION,
-		.rootfs_partition = ROOTFS_PARTITION,
-		.init = ".init_fs_updater",
-#else
-		.init = ".init_init",
-#endif
+		.init = INIT_DEF,
 	},
 };
 
@@ -797,7 +753,7 @@ int detect_mipi_disp(struct display_info_t const *dev)
 	unsigned int features2;
 
 	features2 = pargs->chFeatures2;
-
+  
 	/* if LVDS controller is equipped  */
 	switch (fs_board_get_type())
 	{
@@ -1223,7 +1179,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			if (pargs->chFeatures2 & FEAT2_8MX_ETH) {
 				fs_fdt_set_macaddr (fdt, offs, id++);
 				fs_fdt_set_macaddr (fdt, offs, id++);
-			}
+		}
 		}
 
 		if(pargs->chFeatures2 & FEAT2_8MX_NAND_EMMC)

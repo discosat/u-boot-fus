@@ -255,6 +255,8 @@ void fs_board_late_init_common(const char *serial_name)
 	int usdhc_boot_device = 0;
 	int mmc_boot_device = 0;
 #endif
+	bool is_nand =
+		(fs_board_get_boot_device_from_fuses() == BOOT_DEVICE_NAND);
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
@@ -341,24 +343,28 @@ void fs_board_late_init_common(const char *serial_name)
 #else
 	setup_var("mode", "rw", 0);
 #endif
+	/* Set boot devices, they must match with kernel, fdt, rootfs below */
+	setup_var("bd_kernel", is_nand ? "nand" : "mmc", 0);
+	setup_var("bd_fdt", is_nand ? "nand" : "mmc", 0);
+	setup_var("bd_rootfs", is_nand ? "ubifs" : "mmc", 0);
 
 	/* Set some variables by runnning another variable */
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+	setup_var("kernel", is_nand ? ".kernel_nand_A" : ".kernel_mmc_A", 1);
+	setup_var("fdt", is_nand ? ".fdt_nand_A" : ".fdt_mmc_A", 1);
+	setup_var("rootfs", is_nand ? ".rootfs_ubifs_A" : ".rootfs_mmc_A", 1);
+#else
+	setup_var("kernel", is_nand ? ".kernel_nand" : ".kernel_mmc", 1);
+	setup_var("fdt", is_nand ? ".fdt_nand" : ".fdt_mmc", 1);
+	setup_var("rootfs", is_nand ? ".rootfs_ubifs" : ".rootfs_mmc", 1);
+#endif
 	setup_var("console", current_bi->console, 1);
 	setup_var("login", current_bi->login, 1);
 	setup_var("mtdparts", current_bi->mtdparts, 1);
 	setup_var("network", current_bi->network, 1);
 	setup_var("init", current_bi->init, 1);
-	setup_var("rootfs", current_bi->rootfs, 1);
-	setup_var("kernel", current_bi->kernel, 1);
 	setup_var("bootfdt", "set_bootfdt", 1);
-	setup_var("fdt", current_bi->fdt, 1);
 	setup_var("bootargs", "set_bootargs", 1);
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-	setup_var("selector", current_bi->selector, 1);
-	setup_var("set_rootfs", current_bi->set_rootfs, 1);
-	setup_var("boot_partition", current_bi->boot_partition, 1);
-	setup_var("rootfs_partition", current_bi->rootfs_partition, 1);
-#endif
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 

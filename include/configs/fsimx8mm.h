@@ -175,6 +175,7 @@
 /* malloc_f is used before GD_FLG_FULL_MALLOC_INIT set */
 #define CONFIG_MALLOC_F_ADDR 0x914000
 
+/* ### Kann das weg? Wird nirgendwo genutzt */
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
 
 #define CONFIG_I2C_SUPPORT
@@ -199,13 +200,13 @@
 #define CONFIG_SPL_NAND_SUPPORT
 #define CONFIG_SPL_DMA_SUPPORT
 #define CONFIG_SPL_NAND_MXS
-#define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00400000 /* Put the FIT out of first 4MB boot area */
 #define CONFIG_SPL_RAWNAND_BUFFERS_MALLOC
+#define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00700000 /* Put the FIT out of first 4MB boot area */
 
 /* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
 #define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND				\
 	(CONFIG_SYS_NAND_U_BOOT_OFFS + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512 - 0x8400)
-    
+
 #endif
 
 #endif /* CONFIG_SPL_BUILD */
@@ -270,72 +271,28 @@
 #define CONFIG_BOOTFILE		"Image"
 #define CONFIG_PREBOOT
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	#define CONFIG_BOOTCOMMAND	"run selector; run set_bootargs; run kernel; run fdt; run failed_update_reset"
+#define CONFIG_BOOTCOMMAND \
+	"run selector; run set_bootargs; run kernel; run fdt; run failed_update_reset"
 #else
-	#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
+#define CONFIG_BOOTCOMMAND \
+	"run set_bootargs; run kernel; run fdt"
 #endif
 
 /************************************************************************
- * Generic MTD Settings
+ * Environment
  ************************************************************************/
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-	#ifdef CONFIG_NAND_BOOT
 		/* Define MTD partition info */
 		#define MTDIDS_DEFAULT      "nand0=gpmi-nand"
 		#define MTDPART_DEFAULT     "nand0,1"
-		#define MTDPARTS_PART1      "gpmi-nand:4m(Spl)"
-		#define MTDPARTS_PART2	    "4m(UBootA),512k(UBootEnv)"
-		#define MTDPARTS_PART3	    "4m(UBootB)"
-		#define MTDPARTS_PART4	    "32m(KernelA),32m(KernelB)"
-		#define MTDPARTS_PART5	    "1792k(FDTA),1792k(FDTB)"
-		#define MTDPARTS_PART6	    "-(TargetFS)"
-		#define MTDPARTS_DEFAULT    "mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4 "," MTDPARTS_PART5 "," MTDPARTS_PART6
-		#define MTDPARTS_STD	    "setenv mtdparts " MTDPARTS_DEFAULT
-
-	#else
-		#define MTDIDS_DEFAULT		""
-		#define MTDPART_DEFAULT		""
-		#define MTDPARTS_STD		"setenv mtdparts "
-	#endif
-	#define EXTRA_UBI
-#else
-	#ifdef CONFIG_NAND_BOOT
-		/* Define MTD partition info */
-		#define MTDIDS_DEFAULT      "nand0=gpmi-nand"
-		#define MTDPART_DEFAULT     "nand0,1"
-		#define MTDPARTS_PART1      "gpmi-nand:4m(Spl)"
-		#define MTDPARTS_PART2	    "4m(UBoot),256k(UBootEnv)"
-		#define MTDPARTS_PART3	    "32m(Kernel)ro,1792k(FDT)ro"
+#define MTDPARTS_PART1 \
+	"gpmi-nand:4m(Spl),2m(UserDef),512k(Refresh),512k(UBootEnv)"
+#define MTDPARTS_PART2	    "3m(UBoot)"
+#define MTDPARTS_PART2_A    "3m(UBoot_A)"
+#define MTDPARTS_PART2_B    "3m(UBoot_B)"
+#define MTDPARTS_PART3	    "32m(Kernel)ro,1024k(FDT)ro"
+#define MTDPARTS_PART3_A    "32m(Kernel_A)ro,1024k(FDT_A)ro"
+#define MTDPARTS_PART3_B    "32m(Kernel_B)ro,1024k(FDT_B)ro"
 		#define MTDPARTS_PART4	    "-(TargetFS)"
-		#define MTDPARTS_DEFAULT    "mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART3 "," MTDPARTS_PART4
-		#define MTDPARTS_STD	    "setenv mtdparts " MTDPARTS_DEFAULT
-		#define MTDPARTS_UBIONLY    "setenv mtdparts mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2 "," MTDPARTS_PART4
-	#else
-		#define MTDIDS_DEFAULT		""
-		#define MTDPART_DEFAULT		""
-		#define MTDPARTS_STD		"setenv mtdparts "
-		#define MTDPARTS_UBIONLY	"setenv mtdparts "
-	#endif
-
-	#ifdef CONFIG_CMD_UBI
-	#ifdef CONFIG_CMD_UBIFS
-	#define EXTRA_UBIFS							\
-		".kernel_ubifs=setenv kernel ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0" \
-		".fdt_ubifs=setenv fdt ubi part TargetFS\\\\; ubifsmount ubi0:rootfs\\\\; ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT
-	#else
-	#define EXTRA_UBIFS
-	#endif
-	#define EXTRA_UBI EXTRA_UBIFS						\
-		".mtdparts_ubionly=" MTDPARTS_UBIONLY "\0"			\
-		".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS root=ubi0:rootfs\0" \
-		".kernel_ubi=setenv kernel ubi part TargetFS\\\\; ubi read . kernel\0" \
-		".fdt_ubi=setenv fdt ubi part TargetFS\\\\; ubi read ${fdtaddr} fdt" BOOT_WITH_FDT \
-		".ubivol_std=ubi part TargetFS; ubi create rootfs\0"		\
-		".ubivol_ubi=ubi part TargetFS; ubi create kernel 800000 s; ubi create rootfs\0"
-	#else
-	#define EXTRA_UBI
-	#endif
-#endif
 
 /* Add some variables that are not predefined in U-Boot. For example set
    fdt_high to 0xffffffff to avoid that the device tree is relocated to the
@@ -359,131 +316,266 @@
    as each backslash must also be escaped with a backslash in C. */
 #define BOOT_WITH_FDT "\\\\; booti ${loadaddr} - ${fdtaddr}\0"
 
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+/*
+ * F&S updates are based on an A/B mechanism. All storage regions for U-Boot,
+ * kernel, device tree and rootfs are doubled, there is a slot A and a slot B.
+ * One slot is always active and holds the current software. The other slot is
+ * passive and can be used to install new software versions. When all new
+ * versions are installed, the roles of the slots are swapped. This means the
+ * previously passive slot with the new software gets active and the
+ * previously active slot with the old software gets passive. This
+ * configuration is then started. If it proves to work, then the new roles get
+ * permanent and the now passive slot is available for future versions. If the
+ * system will not start successfully, the roles will be switched back and the
+ * system will be working with the old software again.
+ */
+
+/* In case of NAND, load kernel and device tree from MTD partitions. */
+#ifdef CONFIG_CMD_NAND
+#define MTDPARTS_DEFAULT						\
+	"mtdparts=" MTDPARTS_PART1					\
+	"," MTDPARTS_PART2_A "," MTDPARTS_PART3_A			\
+	"," MTDPARTS_PART2_B "," MTDPARTS_PART3_B			\
+	"," MTDPARTS_PART4
+#define BOOT_FROM_NAND							\
+	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
+ 	".kernel_nand_A=setenv kernel nand read ${loadaddr} Kernel_A\0" \
+ 	".kernel_nand_B=setenv kernel nand read ${loadaddr} Kernel_B\0" \
+ 	".fdt_nand_A=setenv fdt nand read ${fdtaddr} FDT_A" BOOT_WITH_FDT \
+ 	".fdt_nand_B=setenv fdt nand read ${fdtaddr} FDT_B" BOOT_WITH_FDT
+#else
+#define BOOT_FROM_NAND
+#endif
+
+/* In case of UBI, load kernel and FDT directly from UBI volumes */
+#ifdef CONFIG_CMD_UBI
+#define BOOT_FROM_UBI							\
+	".mtdparts_ubionly=setenv mtdparts mtdparts=" MTDPARTS_PART1	\
+	"," MTDPARTS_PART2_A "," MTDPARTS_PART2_B			\
+	"," MTDPARTS_PART4 "\0"						\
+	".ubivol_std=ubi part TargetFS;"				\
+	" ubi create rootfs_A ${rootfs_size};"				\
+	" ubi create rootfs_B\0"					\
+	".ubivol_ubi=ubi part TargetFS;"				\
+	" ubi create kernel_A ${kernel_size} s;"			\
+	" ubi create kernel_B ${kernel_size} s;"			\
+	" ubi create fdt_A ${fdt_site} s;"				\
+	" ubi create fdt_B ${fdt_site} s;"				\
+	" ubi create rootfs_A ${rootfs_size};"				\
+	" ubi create rootfs_A ${rootfs_size};\0"			\
+	".kernel_ubi_A=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubi read . kernel_A\0"					\
+	".kernel_ubi_B=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubi read . kernel_B\0"					\
+	".fdt_ubi_A=setenv fdt ubi part TargetFS\\\\;"			\
+	" ubi read ${fdtaddr} fdt_A" BOOT_WITH_FDT			\
+	".fdt_ubi_B=setenv fdt ubi part TargetFS\\\\;"			\
+	" ubi read ${fdtaddr} fdt_B" BOOT_WITH_FDT
+#else
+#define BOOT_FROM_UBI
+#endif
+
+/*
+ * In case of UBIFS, the rootfs is loaded from a UBI volume. If Kernel and/or
+ * device tree are loaded from UBIFS, they are supposed to be part of the
+ * rootfs in directory /boot.
+ */
+#ifdef CONFIG_CMD_UBIFS
+#define BOOT_FROM_UBIFS							\
+	".kernel_ubifs_A=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubifsmount ubi0:rootfs_A\\\\; ubifsload . /boot/${bootfile}\0" \
+	".kernel_ubifs_B=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubifsmount ubi0:rootfs_B\\\\; ubifsload . /boot/${bootfile}\0" \
+	".fdt_ubifs_A=setenv fdt ubi part TargetFS\\\\;"		\
+	" ubifsmount ubi0:rootfs_A\\\\;"				\
+	" ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT		\
+	".fdt_ubifs_B=setenv fdt ubi part TargetFS\\\\;"		\
+	" ubifsmount ubi0:rootfs_B\\\\;"				\
+	" ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT		\
+	".rootfs_ubifs_A=setenv rootfs rootfstype=squashfs"		\
+	" ubi.block=0,rootfs_A ubi.mtd=TargetFS,2048"			\
+	" root=/dev/ubiblock0_0 rootwait ro'\0"				\
+	".rootfs_ubifs_B=setenv rootfs rootfstype=squashfs"		\
+	" ubi.block=0,rootfs_B ubi.mtd=TargetFS,2048"			\
+	" root=/dev/ubiblock0_1 rootwait ro'\0"
+#else
+#define BOOT_FROM_UBIFS
+#endif
+
+/*
+ * In case of (e)MMC, the rootfs is loaded from a separate partition. Kernel
+ * and device tree are loaded as files from a different partition that is
+ * typically formated with FAT.
+ */
+#ifdef CONFIG_CMD_MMC
+#define BOOT_FROM_MMC							\
+	".kernel_mmc_A=setenv kernel mmc rescan\\\\;"			\
+	" load mmc ${mmcdev}:5\0"					\
+	".kernel_mmc_B=setenv kernel mmc rescan\\\\;"			\
+	" load mmc ${mmcdev}:6\0"					\
+	".fdt_mmc_A=setenv fdt mmc rescan\\\\;"				\
+	" load mmc ${mmcdev}:5 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT	\
+	".fdt_mmc_B=setenv fdt mmc rescan\\\\;"				\
+	" load mmc ${mmcdev}:6 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT	\
+	".rootfs_mmc_A=setenv rootfs root=/dev/mmcblk${mmcdev}p7"	\
+	" rootfstype=squashfs rootwait\0"				\
+	".rootfs_mmc_B=setenv rootfs root=/dev/mmcblk${mmcdev}p8"	\
+	" rootfstype=squashfs rootwait\0"
+#else
+#define BOOT_FROM_MMC
+#endif
+
+/* Loading from USB is not supported for updates yet */
+#define BOOT_FROM_USB
+
+/* Loading from TFTP is not supported for updates yet */
+#define BOOT_FROM_TFTP
+
+/* Loading from NFS is not supported for updates yet */
+#define BOOT_FROM_NFS
+
+/* Generic settings for booting with updates on A/B */
+#define BOOT_SYSTEM							\
+	".init_fs_updater=setenv init init=/sbin/preinit.sh\0" 		\
+	"BOOT_ORDER=A B\0"						\
+	"BOOT_ORDER_OLD=A B\0"						\
+	"BOOT_LEFT_A=3\0"						\
+	"BOOT_LEFT_B=3\0"						\
+	"update_reboot_state=0\0" 					\
+	"update=0000\0" 						\
+	"application=A\0" 						\
+	"rauc_cmd=rauc.slot=A\0" 					\
+	"selector="							\
+	"'if test \"x${BOOT_ORDER_OLD\" != \"x${BOOT_ORDER}\"; then	"														\
+	"setenv rauc_cmd undef; "																								\
+	"for slot in \"${BOOT_ORDER}\"; do "				\
+		"setenv sname BOOT_LEFT_$slot; "			\
+		"if test \"${!sname}\" -gt 0; then "			\
+			"echo \"Current rootfs boot_partition is $slot\"; " \
+			"setexpr $sname ${!sname} - 1; "		\
+			"run .kernel_${bd_kernel}_${slot}; "		\
+			"run .fdt_${bd_fdt}_${slot}; "			\
+			"run .rootfs_${bd_rootfs}_${slot}; "		\
+			"setenv rauc_cmd rauc.slot=$slot; "		\
+			"break; "					\
+		  "fi;"																												\
+		"done;"																												\
+	"saveenv;"																												\
+	"fi;'\0"
+
+#else /* CONFIG_FS_UPDATE_SUPPORT */
+
+/*
+ * In a regular environment, all storage regions for U-Boot, kernel, device
+ * tree and rootfs are only available once, no A and B. This provides more
+ * free space.
+ */
+
+/* In case of NAND, load kernel and device tree from MTD partitions. */
+#ifdef CONFIG_CMD_NAND
+#define MTDPARTS_DEFAULT						\
+	"mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2			\
+	"," MTDPARTS_PART3 "," MTDPARTS_PART4
+#define BOOT_FROM_NAND							\
+	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
+	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0"	\
+ 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT
+#else
+#define BOOT_FROM_NAND
+#endif
+
+/* In case of UBI, load kernel and FDT directly from UBI volumes */
+#ifdef CONFIG_CMD_UBI
+#define BOOT_FROM_UBI							\
+	".mtdparts_ubionly=setenv mtdparts mtdparts=" MTDPARTS_PART1	\
+	"," MTDPARTS_PART2 "," MTDPARTS_PART4 "\0"			\
+	".ubivol_std=ubi part TargetFS; ubi create rootfs\0"		\
+	".ubivol_ubi=ubi part TargetFS; ubi create kernel ${kernel_size} s;" \
+	" ubi create fdt ${fdt_size} s; ubi create rootfs\0"		\
+	".kernel_ubi=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubi read . kernel\0"						\
+	".fdt_ubi=setenv fdt ubi part TargetFS\\\\;"			\
+	" ubi read ${fdtaddr} fdt" BOOT_WITH_FDT
+#else
+#define BOOT_FROM_UBI
+#endif
+
+#ifdef CONFIG_CMD_UBIFS
+#define BOOT_FROM_UBIFS							\
+	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\;"		\
+	" ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0"	\
+	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\;"			\
+	" ubifsmount ubi0:rootfs\\\\;"					\
+	" ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT		\
+	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS" \
+	" root=ubi0:rootfs\0"
+#else
+#define BOOT_FROM_UBIFS
+#endif
+
+/*
+ * In case of (e)MMC, the rootfs is loaded from a separate partition. Kernel
+ * and device tree are loaded as files from a different partition that is
+ * typically formated with FAT.
+ */
+#ifdef CONFIG_CMD_MMC
+#define BOOT_FROM_MMC							\
+	".kernel_mmc=setenv kernel mmc rescan\\\\;"			\
+	" load mmc ${mmcdev} . ${bootfile}\0"				\
+	".fdt_mmc=setenv fdt mmc rescan\\\\;"				\
+	" load mmc ${mmcdev} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT	\
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p2 rootwait\0"
+#else
+#define BOOT_FROM_MMC
+#endif
+
+/* In case of USB, the layout is the same as on MMC. */
+#define BOOT_FROM_USB							\
+	".kernel_usb=setenv kernel usb start\\\\;"			\
+	" load usb 0 . ${bootfile}\0"					\
+	".fdt_usb=setenv fdt usb start\\\\;"				\
+	" load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT		\
+	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0"
+
+/* In case of TFTP, kernel and device tree are loaded from TFTP server */
+#define BOOT_FROM_TFTP							\
+	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0"		\
+	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT
+
+/* In case of NFS, kernel, device tree and rootfs are loaded from NFS server */
+#define BOOT_FROM_NFS							\
+	".kernel_nfs=setenv kernel nfs ."				\
+	" ${serverip}:${rootpath}/${bootfile}\0"			\
+	".fdt_nfs=setenv fdt nfs ${fdtaddr}"				\
+	" ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT		\
+	".rootfs_nfs=setenv rootfs root=/dev/nfs"			\
+	" nfsroot=${serverip}:${rootpath}\0"
+
+/* Generic settings when not booting with updates A/B */
+#define BOOT_SYSTEM
+
+#endif /* CONFIG_FS_UPDATE_SUPPORT */
+
+/* Generic variables */
+
 #ifdef CONFIG_BOOTDELAY
 #define FSBOOTDELAY
 #else
 #define FSBOOTDELAY "bootdelay=undef\0"
 #endif
 
-#if defined(CONFIG_ENV_IS_IN_MMC)
-	#define FILSEIZE2BLOCKCOUNT "block_size=200\0" 	\
-		"filesize2blockcount=" \
-			"setexpr test_rest \\${filesize} % \\${block_size}; " \
-			"if test \\${test_rest} = 0; then " \
-				"setexpr blockcount \\${filesize} / \\${block_size}; " \
-			"else " \
-				"setexpr blockcount \\${filesize} / \\${block_size}; " \
-				"setexpr blocckount \\${blockcount} + 1; " \
-			"fi;\0"
-#else
-	#define FILSEIZE2BLOCKCOUNT
-#endif
-
-#if defined(CONFIG_ENV_IS_IN_NAND)
-#define NAND_BOOT_VALUES "rootfs_ubi_number=0\0" \
-	"fdt_partition=FDTA\0"
-#else
-#define NAND_BOOT_VALUES
-#endif
-
-
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-
-	#define FS_UPDATE_SUPPORT "BOOT_ORDER=A B\0" \
-	"BOOT_ORDER_OLD=A B\0" \
-	"BOOT_A_LEFT=3\0" \
-	"BOOT_B_LEFT=3\0" \
-	"update_reboot_state=0\0" \
-	"update=0000\0" \
-	"application=A\0" \
-	"rauc_cmd=rauc.slot=A\0" \
-	"selector=undef\0" \
-	".selector_mmc=setenv selector " \
-	"'if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
-	"setenv rauc_cmd undef; "																								\
-		"for BOOT_SLOT in \"${BOOT_ORDER}\"; do "																			\
-		  "if test \"x${BOOT_SLOT}\" = \"xA\" && test ${BOOT_A_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
-			  "echo \"Current rootfs boot_partition is A\"; "																\
-			  "setexpr BOOT_A_LEFT ${BOOT_A_LEFT} - 1; "																	\
-			  "setenv boot_partition 5;"																					\
-			  "setenv rootfs_partition 7;"																					\
-			  "setenv rauc_cmd rauc.slot=A;"																				\
-		  "elif test \"x${BOOT_SLOT}\" = \"xB\" && test ${BOOT_B_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
-			  "echo \"Current rootfs boot_partition is B\"; "																\
-			  "setexpr BOOT_B_LEFT ${BOOT_B_LEFT} - 1; "																	\
-			  "setenv boot_partition 6;"																					\
-			  "setenv rootfs_partition 8;"																					\
-			  "setenv rauc_cmd rauc.slot=B;"																				\
-		  "fi;"																												\
-		"done;"																												\
-	"saveenv;"																												\
-	"fi;'\0"																												\
-	".selector_nand=setenv selector " \
-	"'if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
-	"setenv rauc_cmd undef; "																								\
-		"for BOOT_SLOT in \"${BOOT_ORDER}\"; do "																			\
-		  "if test \"x${BOOT_SLOT}\" = \"xA\" && test ${BOOT_A_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
-			  "echo \"Current rootfs boot_partition is A\"; "																\
-			  "setexpr BOOT_A_LEFT ${BOOT_A_LEFT} - 1; "																	\
-			  "setenv boot_partition KernelA;"																				\
-			  "setenv fdt_partition FDTA;"																					\
-			  "setenv rootfs_partition rootfsA;"																			\
-			  "setenv rootfs_ubi_number 0;"																					\
-			  "setenv rauc_cmd rauc.slot=A;"																				\
-		  "elif test \"x${BOOT_SLOT}\" = \"xB\" && test ${BOOT_B_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
-			  "echo \"Current rootfs boot_partition is B\"; "																\
-			  "setexpr BOOT_B_LEFT ${BOOT_B_LEFT} - 1; "																	\
-			  "setenv boot_partition KernelB;"																				\
-			  "setenv rootfs_partition rootfsB;"																			\
-			  "setenv fdt_partition FDTB;"																					\
-			  "setenv rootfs_ubi_number 1;"																					\
-			  "setenv rauc_cmd rauc.slot=B;"																				\
-		  "fi;"																												\
-		"done;"																												\
-	"saveenv;"																												\
-	"fi;'\0"																												\
-	"failed_update_reset="																									\
-		"if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
-			"reset; "																										\
-		"fi;\0"																											\
-	NAND_BOOT_VALUES \
-	"boot_partition=undef\0" \
-	".boot_partition_mmc= setenv boot_partition 5\0"\
-	".boot_partition_nand= setenv boot_partition KernelA\0"\
-	"rootfs_partition=undef\0"\
-	".rootfs_partition_mmc=setenv rootfs_partition 7\0"\
-	".rootfs_partition_nand=setenv rootfs_partition rootfsA\0"
-
-	#define ROOTFS_MEM 	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p\\\\${boot_partition} rootwait\0"
-	#define KERNEL_MEM 	".kernel_nand=setenv kernel nand read ${loadaddr} \\\\${boot_partition}\0" \
-				".kernel_mmc=setenv kernel mmc rescan\\\\; fatload mmc ${mmcdev}:\\\\${boot_partition}\0" \
-
-	#define FDT_MEM 	".fdt_nand=setenv fdt nand read ${fdtaddr} \\\\${fdt_partition}" BOOT_WITH_FDT	\
-				".fdt_mmc=setenv fdt mmc rescan\\\\; fatload mmc ${mmcdev}:\\\\${boot_partition} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT
-
-	#define BOOTARGS 	"set_rootfs=undef\0" \
-				".set_rootfs_mmc=setenv set_rootfs 'setenv rootfs root=/dev/mmcblk${mmcdev}p${rootfs_partition} rootfstype=squashfs rootwait'\0" \
-				".set_rootfs_nand=setenv set_rootfs 'setenv rootfs rootfstype=squashfs ubi.block=0,${rootfs_partition} ubi.mtd=TargetFS,2048 root=/dev/ubiblock0_${rootfs_ubi_number} rootwait ro'\0" \
-				"set_bootargs=run set_rootfs; setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra} ${rauc_cmd}\0"
-#else
-
-
-	#define FS_UPDATE_SUPPORT
-	#define ROOTFS_MEM 	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p2 rootwait\0"
-
-	#define KERNEL_MEM	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0" \
-				".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc ${mmcdev} . ${bootfile}\0"
-
-	#define FDT_MEM 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT	\
-				".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc ${mmcdev} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT
-
-	#define BOOTARGS "set_bootargs=setenv bootargs ${console} ${login} ${mtdparts} ${network} ${rootfs} ${mode} ${init} ${extra}\0"
-#endif
+/* Conversion from file size to MMC block count (512 bytes per block) */
+#define FILESIZE2BLOCKCOUNT \
+	"filesize2blockcount=" \
+		"setexpr blockcount \\${filesize} + 0x1ff; " \
+		"setexpr blockcount \\${blockcount} / 0x200\0"
 
 /* Initial environment variables */
-#if defined(CONFIG_NAND_BOOT) || defined(CONFIG_SD_BOOT)
 #define CONFIG_EXTRA_ENV_SETTINGS					\
-	FS_UPDATE_SUPPORT 						\
+	"bd_kernel=undef\0"						\
+	"bd_fdt=undef\0"						\
+	"bd_rootfs=undef\0"						\
 	"initrd_addr=0x43800000\0"					\
 	"initrd_high=0xffffffffffffffff\0"				\
 	"console=undef\0"						\
@@ -494,39 +586,35 @@
 	".login_none=setenv login login_tty=null\0"			\
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\
 	".login_display=setenv login login_tty=tty1\0"			\
-	"mtdids=undef\0"						\
-	"mtdparts=undef\0"						\
-	".mtdparts_std=" MTDPARTS_STD "\0"				\
-	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0"		\
-	".network_off=setenv network\0"					\
-	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
-	".network_dhcp=setenv network ip=dhcp\0"			\
-	"rootfs=undef\0"						\
-	ROOTFS_MEM							\
-	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
-	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0"		\
-	"kernel=undef\0"						\
-	KERNEL_MEM 							\
-	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0"		\
-	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
-	"fdt=undef\0"							\
-	"fdtaddr=0x43000000\0"						\
-	FDT_MEM 							\
-	".fdt_none=setenv fdt booti\0"					\
-	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
-	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
-	FILSEIZE2BLOCKCOUNT					\
-	EXTRA_UBI							\
 	"mode=undef\0"							\
 	".mode_rw=setenv mode rw\0"					\
 	".mode_ro=setenv mode ro\0"					\
-	"netdev=eth0\0"							\
 	"init=undef\0"							\
 	".init_init=setenv init\0"					\
 	".init_linuxrc=setenv init init=linuxrc\0"			\
-	".init_fs_updater=setenv init init=/sbin/preinit.sh\0" \
+	"mtdids=undef\0"						\
+	"mtdparts=undef\0"						\
+	"netdev=eth0\0"							\
+	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0"		\
+	".network_off=setenv network\0"					\
+	".network_on=setenv network ip=${ipaddr}:${serverip}"		\
+	":${gatewayip}:${netmask}:${hostname}:${netdev}\0"		\
+	".network_dhcp=setenv network ip=dhcp\0"			\
+	"rootfs=undef\0"						\
+	"kernel=undef\0"						\
+	"fdt=undef\0"							\
+	"fdtaddr=0x43000000\0"						\
+	".fdt_none=setenv fdt booti\0"					\
+	BOOT_FROM_NAND							\
+	BOOT_FROM_UBI							\
+	BOOT_FROM_UBIFS							\
+	BOOT_FROM_MMC							\
+	BOOT_FROM_USB							\
+	BOOT_FROM_TFTP							\
+	BOOT_FROM_NFS							\
+	BOOT_SYSTEM							\
+	FILESIZE2BLOCKCOUNT						\
+	FSBOOTDELAY							\
 	"sercon=undef\0"						\
 	"installcheck=undef\0"						\
 	"updatecheck=undef\0"						\
@@ -535,11 +623,10 @@
 	"arch=fsimx8mm\0"						\
 	"bootfdt=undef\0"						\
 	"m4_uart4=disable\0"						\
-	FSBOOTDELAY							\
 	"fdt_high=0xffffffffffffffff\0"					\
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0"			\
-	BOOTARGS
-#endif
+	"set_bootargs=setenv bootargs ${console} ${login} ${mtdparts}"	\
+	" ${network} ${rootfs} ${mode} ${init} ${extra}\0"
 
 /* Link Definitions */
 #define CONFIG_LOADADDR			0x40480000
@@ -570,16 +657,10 @@
 	#endif
 	#define CONFIG_ENV_OFFSET               (64 * SZ_64K)
 #elif defined(CONFIG_ENV_IS_IN_NAND)
-	#ifdef CONFIG_FS_UPDATE_SUPPORT
 		#define CONFIG_ENV_SIZE			0x00004000	/* 16KB */
 		#define CONFIG_ENV_RANGE		0x00080000	/* 4 blocks = 512KB */
-		#define CONFIG_ENV_OFFSET   		0x00800000 /* after u-boot */
-		#define CONFIG_ENV_OFFSET_REDUND   	0x00840000
-	#else
-		#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
-		#define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
-		#define CONFIG_ENV_OFFSET       0x00800000 /* after u-boot */
-	#endif
+	#define CONFIG_ENV_OFFSET   		0x00680000	/* Before u-boot */
+	#define CONFIG_ENV_OFFSET_REDUND   	0x006c0000
 #endif
 
 /* Size of malloc() pool */
@@ -695,7 +776,6 @@
 #ifdef CONFIG_CMD_UBI
 #define CONFIG_MTD_DEVICE
 #endif
-
 #endif
 
 /* Framebuffer */
