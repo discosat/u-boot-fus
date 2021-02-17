@@ -113,10 +113,6 @@
 #define CONFIG_CSF_SIZE			0x2000 /* 8K region */
 #endif
 
-#ifdef CONFIG_NAND_BOOT
-#define CONFIG_CMD_NAND
-#endif
-
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
 #define CONFIG_SYS_UART_PORT	0	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
@@ -281,9 +277,9 @@
 /************************************************************************
  * Environment
  ************************************************************************/
-		/* Define MTD partition info */
-		#define MTDIDS_DEFAULT      "nand0=gpmi-nand"
-		#define MTDPART_DEFAULT     "nand0,1"
+/* Define MTD partition info */
+#define MTDIDS_DEFAULT      "nand0=gpmi-nand"
+#define MTDPART_DEFAULT     "nand0,1"
 #define MTDPARTS_PART1 \
 	"gpmi-nand:4m(Spl),2m(UserDef),512k(Refresh),512k(UBootEnv)"
 #define MTDPARTS_PART2	    "3m(UBoot)"
@@ -292,7 +288,7 @@
 #define MTDPARTS_PART3	    "32m(Kernel)ro,1024k(FDT)ro"
 #define MTDPARTS_PART3_A    "32m(Kernel_A)ro,1024k(FDT_A)ro"
 #define MTDPARTS_PART3_B    "32m(Kernel_B)ro,1024k(FDT_B)ro"
-		#define MTDPARTS_PART4	    "-(TargetFS)"
+#define MTDPARTS_PART4	    "-(TargetFS)"
 
 /* Add some variables that are not predefined in U-Boot. For example set
    fdt_high to 0xffffffff to avoid that the device tree is relocated to the
@@ -445,10 +441,10 @@
 	"update_reboot_state=0\0" 					\
 	"update=0000\0" 						\
 	"application=A\0" 						\
-	"rauc_cmd=rauc.slot=A\0" 					\
+	"rauc_cmd=rauc.slot=A\0"					\
 	"selector="							\
 	"'if test \"x${BOOT_ORDER_OLD\" != \"x${BOOT_ORDER}\"; then	"														\
-	"setenv rauc_cmd undef; "																								\
+	"setenv rauc_cmd undef; "					\
 	"for slot in \"${BOOT_ORDER}\"; do "				\
 		"setenv sname BOOT_LEFT_$slot; "			\
 		"if test \"${!sname}\" -gt 0; then "			\
@@ -459,9 +455,9 @@
 			"run .rootfs_${bd_rootfs}_${slot}; "		\
 			"setenv rauc_cmd rauc.slot=$slot; "		\
 			"break; "					\
-		  "fi;"																												\
-		"done;"																												\
-	"saveenv;"																												\
+		"fi;"							\
+	"done;"								\
+	"saveenv;"							\
 	"fi;'\0"
 
 #else /* CONFIG_FS_UPDATE_SUPPORT */
@@ -648,23 +644,17 @@
    the heap, so keep the real env size small to not waste malloc space. */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
 
-#if defined(CONFIG_ENV_IS_IN_MMC)
-	#ifdef CONFIG_FS_UPDATE_SUPPORT
-		#define CONFIG_ENV_SIZE			0x2000
-		#define CONFIG_ENV_OFFSET_REDUND (CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
-	#else
-		#define CONFIG_ENV_SIZE			0x1000
-	#endif
-	#define CONFIG_ENV_OFFSET               (64 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-		#define CONFIG_ENV_SIZE			0x00004000	/* 16KB */
-		#define CONFIG_ENV_RANGE		0x00080000	/* 4 blocks = 512KB */
-	#define CONFIG_ENV_OFFSET   		0x00680000	/* Before u-boot */
-	#define CONFIG_ENV_OFFSET_REDUND   	0x006c0000
-#endif
+#define CONFIG_ENV_SIZE		0x2000		/* 8KB (### should be 16KB) */
+#define CONFIG_ENV_MMC_OFFSET	(64 * SZ_64K)
+#define CONFIG_ENV_MMC_OFFSET_REDUND	(CONFIG_ENV_MMC_OFFSET + CONFIG_ENV_SIZE)
+
+/* Use redundant environment, also in case without update support */
+#define CONFIG_ENV_NAND_RANGE	0x00080000	/* 4 blocks = 512KB */
+#define CONFIG_ENV_NAND_OFFSET	0x00680000	/* Before u-boot */
+#define CONFIG_ENV_NAND_OFFSET_REDUND   0x006c0000
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
+#define CONFIG_SYS_MALLOC_LEN	((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define CONFIG_NR_DRAM_BANKS		1
@@ -755,7 +745,7 @@
 
 #ifdef CONFIG_NAND_BOOT
 #define CONFIG_NAND_MXS
-#define CONFIG_CMD_NAND
+/*####define CONFIG_CMD_NAND*/
 #define CONFIG_CMD_NAND_TRIMFFS
 
 /* NAND stuff */

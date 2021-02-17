@@ -37,6 +37,7 @@
 #include <imx_mipi_dsi_bridge.h>
 #include <mipi_dsi_panel.h>
 #include <asm/mach-imx/video.h>
+#include <environment.h>		/* enum env_operation */
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
@@ -148,6 +149,25 @@ int board_early_init_f(void)
 #endif
 
 	return 0;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_device_from_fuses()) {
+		case BOOT_DEVICE_NAND:
+			puts("### ENV from NAND\n");
+			return ENVL_NAND;
+		case BOOT_DEVICE_MMC1:
+			puts("### ENV from MMC\n");
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
 }
 
 /* Check board type */
