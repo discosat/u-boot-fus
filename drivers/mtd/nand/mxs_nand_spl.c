@@ -263,7 +263,8 @@ static int mxs_flash_ident(struct mtd_info *mtd, struct nand_flash_dev *type)
 
 	if (!chip->onfi_version) {
 		printf("unsupported ONFI version: %d\n", val);
-		return 0;
+		chip->onfi_version = INT_MAX;
+//		return 0;
 	}
 
 	if (p->ecc_bits != 0xff) {
