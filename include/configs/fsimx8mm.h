@@ -233,6 +233,7 @@
 #define CONFIG_SPL_DMA_SUPPORT
 #define CONFIG_SPL_NAND_MXS
 #define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00400000 /* Put the FIT out of first 4MB boot area */
+#define CONFIG_SPL_RAWNAND_BUFFERS_MALLOC
 
 /* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
 #define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND				\

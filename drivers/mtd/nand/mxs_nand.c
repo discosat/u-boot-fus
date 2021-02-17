@@ -1214,7 +1214,11 @@ static int mxs_nand_scan_bbt(struct mtd_info *mtd)
 int mxs_nand_alloc_buffers(struct mxs_nand_info *nand_info)
 {
 	uint8_t *buf;
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+	const int size = 256;		/* Required minimum for ONFI */
+#else
 	const int size = NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE;
+#endif
 
 	nand_info->data_buf_size = roundup(size, MXS_DMA_ALIGNMENT);
 
@@ -1242,6 +1246,30 @@ int mxs_nand_alloc_buffers(struct mxs_nand_info *nand_info)
 
 	return 0;
 }
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+int mxs_nand_realloc(struct mtd_info *mtd)
+{
+	int size;
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
+
+	/* Allocate data and ecc buffers with the correct sizes */
+	size = roundup(mtd->writesize + mtd->oobsize, MXS_DMA_ALIGNMENT);
+	nand->buffers = malloc(sizeof(*nand->buffers));
+	nand->buffers->ecccalc = memalign(ARCH_DMA_MINALIGN, mtd->oobsize);
+	nand->buffers->ecccode = memalign(ARCH_DMA_MINALIGN, mtd->oobsize);
+	nand->buffers->databuf = memalign(ARCH_DMA_MINALIGN, size);
+
+	/* Use this data buffer now instead of the previous temporary one */
+	free(nand_info->data_buf);
+	nand_info->data_buf_size = size;
+	nand_info->data_buf = nand->buffers->databuf;
+	nand_info->oob_buf = nand_info->data_buf + mtd->writesize;
+
+	return 0;
+}
+#endif
 
 /*
  * Initializes the NFC hardware.

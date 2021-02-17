@@ -633,12 +633,21 @@ static inline int nand_standard_page_accessors(struct nand_ecc_ctrl *ecc)
  * Do not change the order of buffers. databuf and oobrbuf must be in
  * consecutive order.
  */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+/* Use malloc to allocate */
+struct nand_buffers {
+	uint8_t	*ecccalc;
+	uint8_t	*ecccode;
+	uint8_t *databuf;
+};
+#else
 struct nand_buffers {
 	uint8_t	ecccalc[ALIGN(NAND_MAX_OOBSIZE, ARCH_DMA_MINALIGN)];
 	uint8_t	ecccode[ALIGN(NAND_MAX_OOBSIZE, ARCH_DMA_MINALIGN)];
 	uint8_t databuf[ALIGN(NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE,
 			      ARCH_DMA_MINALIGN)];
 };
+#endif
 
 /**
  * struct nand_sdr_timings - SDR NAND chip timings
