@@ -221,9 +221,9 @@ static struct board_name_rev {
 /* Return the address of the board configuration in OCRAM */
 void *fs_image_get_cfg_addr(bool with_fs_header)
 {
-	void *cfg = (void*)CONFIG_SPL_BOARDCFG_ADDR;
+	void *cfg = (void*)CONFIG_FUS_BOARDCFG_ADDR;
 
-	return with_fs_header ? cfg + sizeof(struct fs_header_v1_0) : cfg;
+	return with_fs_header ? cfg : cfg + sizeof(struct fs_header_v1_0);
 }
 
 /* Return the address of the /board-cfg node */
@@ -475,7 +475,7 @@ static void fs_image_handle_header(void)
 	switch (state) {
 	case FSIMG_STATE_ANY:
 		if (fs_image_match(&fsh, "BOARD-ID", NULL)) {
-			/* Save ID and add job to load BOARD-CFG */ 
+			/* Save ID and add job to load BOARD-CFG */
 			fs_image_set_board_id(fsh.param.descr);
 			jobs |= FSIMG_JOB_CFG;
 			fs_image_enter(size, state);
@@ -589,7 +589,7 @@ static void fs_image_handle_image(void)
 			jobs &= ~FSIMG_JOB_DRAM;
 		} else
 			puts("### Init DDR failed\n");
-		
+
 		/* Skip remaining DRAM timings */
 		fs_image_skip(fsimg->remaining);
 		break;
@@ -749,7 +749,7 @@ int fs_image_load_nand(unsigned int offset, char *type, char *descr,
 	unsigned int size;
 	struct fs_header_v1_0 *fsh = buf;
 	int err;
-	
+
 	/* Load F&S header */
 	err = nand_spl_load_image(offset, sizeof(struct fs_header_v1_0), fsh);
 	if (err < 0)
@@ -769,27 +769,53 @@ int fs_image_load_nand(unsigned int offset, char *type, char *descr,
 	return nand_spl_load_image(offset, size, buf);
 }
 
-/* Load FIRMWARE from NAND */
-unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
+/* Load FIRMWARE from NAND using state machine */
+static int fs_image_loop_nand(unsigned int offs, unsigned int lim)
 {
-	unsigned int offs = CONFIG_SPL_FIRMWARE_NAND_OFFSET;
+	int err;
 
-	/* We do not know the size yet, but have room for the first header */
-	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo, basic_init);
+	lim += offs;
 
 	// ### TODO: Handle (skip) bad blocks
 	do {
 		if (count) {
 			if ((mode == FSIMG_MODE_IMAGE)
 			    || (mode == FSIMG_MODE_HEADER)) {
-				if (nand_spl_load_image(offs, count, addr) < 0)
-					break;
+				if (offs + count >= lim)
+					return -EFBIG;
+				err = nand_spl_load_image(offs, count, addr);
+				if (err)
+					return err;
 				addr += count;
 			}
 			offs += count;
 		}
 		fs_image_handle();
 	} while (mode != FSIMG_MODE_DONE);
+
+	return 0;
+}
+
+/* Load FIRMWARE using state machine, try both copies */
+unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
+{
+	unsigned int lim = CONFIG_FUS_FIRMWARE_NAND_SIZE;
+	int err;
+
+	/*
+	 * Try first copy; we do not know the FIRMWARE size yet, but have room
+	 * for the first header in any case; the size will be filled in by the
+	 * state machine when it is known.
+	 */
+	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo, basic_init);
+	err = fs_image_loop_nand(CONFIG_FUS_FIRMWARE_NAND_OFFSET1, lim);
+	if (err) {
+		/* Read error, try second copy to complete remaining jobs */
+		fs_image_start(sizeof(struct fs_header_v1_0), jobs, basic_init);
+		err = fs_image_loop_nand(CONFIG_FUS_FIRMWARE_NAND_OFFSET2, lim);
+	}
+	if (err)
+		printf("Reading FIRMWARE failed (%d)\n", err);
 
 	return jobs;
 }
@@ -799,13 +825,20 @@ int fs_image_cfg_nand(void)
 {
 	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
 	int err;
+	char *type = "BOARD-CFG";
 
-	err = fs_image_load_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET,
-				 "BOARD-CFG", NULL, fsh, true);
-	if (!err)
-		fs_image_set_board_id(fsh->param.descr);
+	err = fs_image_load_nand(CONFIG_FUS_BOARDCFG_NAND_OFFSET1,
+				 type, NULL, fsh, true);
+	if (err) {
+		err = fs_image_load_nand(CONFIG_FUS_BOARDCFG_NAND_OFFSET2,
+					 type, NULL, fsh, true);
+		if (err)
+			return err;
+	}
 
-	return err;
+	fs_image_set_board_id(fsh->param.descr);
+
+	return 0;
 }
 #endif /* CONFIG_NAND_MXS */
 
@@ -817,7 +850,7 @@ int fs_image_load_mmc(unsigned int offset, char *type, char *descr,
 	unsigned int size;
 	struct fs_header_v1_0 *fsh = buf;
 	int err;
-	
+
 	/* Load F&S header */
 	// ### TODO
 	err = -EINVAL; //###
