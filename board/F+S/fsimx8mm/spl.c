@@ -35,7 +35,7 @@
 #include <sdp.h>
 
 #include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
-#include "fs_image.h"			/* F&S images */
+#include "../common/fs_image_common.h"	/* fs_image_*() */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 

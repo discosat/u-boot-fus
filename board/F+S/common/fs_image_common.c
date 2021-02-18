@@ -147,7 +147,7 @@
 #include <asm/arch/imx8m_ddr.h>
 #include <asm/sections.h>
 
-#include "fs_image.h"			/* Own interface */
+#include "fs_image_common.h"		/* Own interface */
 
 /* F&S header (V0.0) for a generic file */
 struct fs_header_v0_0 {			/* Size: 16 Bytes */

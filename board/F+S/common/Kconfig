@@ -28,6 +28,10 @@ config FS_BOARD_MODE_RO
 	  you want a writable rootfs instead, say N here. But be warned,
 	  this may be dangerous for your data!
 
+config FS_IMAGE_COMMON
+	bool
+	default y if TARGET_FSIMX8MM
+
 config FS_FDT_COMMON
 	bool
 	default y

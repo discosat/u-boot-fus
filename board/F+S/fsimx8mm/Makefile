@@ -7,5 +7,5 @@
 obj-y += fsimx8mm.o
 
 ifdef CONFIG_SPL_BUILD
-obj-y += spl.o fs_image.o
+obj-y += spl.o
 endif

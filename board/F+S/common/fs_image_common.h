@@ -8,6 +8,9 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#ifndef __FS_IMAGE_COMMON_H__
+#define __FS_IMAGE_COMMON_H__
+
 /* Jobs to do when streaming image data */
 #define FSIMG_JOB_CFG BIT(0)
 #define FSIMG_JOB_DRAM BIT(1)
@@ -52,3 +55,6 @@ unsigned int fs_image_fw_mmc(unsigned int jobs_todo, basic_init_t basic_init);
 
 /* Load BOARD-CFG from eMMC */
 int fs_image_cfg_mmc(void);
+
+#endif /* !__FS_IMAGE_COMMON_H__ */
+
