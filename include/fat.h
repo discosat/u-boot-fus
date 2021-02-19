@@ -39,7 +39,7 @@
 #define SIGNLEN		8
 
 /* File attributes */
-#define ATTR_RO	1
+#define ATTR_RO		1
 #define ATTR_HIDDEN	2
 #define ATTR_SYS	4
 #define ATTR_VOLUME	8
@@ -56,6 +56,7 @@
  * dir entries
  */
 #define LAST_LONG_ENTRY_MASK	0x40
+#define DELETED_LONG_ENTRY      0x80
 
 #define ISDIRDELIM(c)	((c) == '/' || (c) == '\\')
 
@@ -115,13 +116,17 @@ typedef struct boot_sector {
 } boot_sector;
 
 typedef struct volume_info
-{
-	__u8 drive_number;	/* BIOS drive number */
-	__u8 reserved;		/* Unused */
-	__u8 ext_boot_sign;	/* 0x29 if fields below exist (DOS 3.3+) */
-	__u8 volume_id[4];	/* Volume ID number */
-	char volume_label[11];	/* Volume label */
-	char fs_type[8];	/* Typically FAT12, FAT16, or FAT32 */
+{				/* FAT12+16/32 offset */
+	__u8 drive_number;	/* 0x024/0x040: BIOS drive number */
+	__u8 unused;		/* 0x025/0x041: Unused */
+	__u8 ext_boot_sign;	/* 0x026/0x042: 0x28: only Volume ID follows
+				                0x29: Volume ID, volume label
+				                      and FS type follow */
+	__u8 volume_id[4];	/* 0x027/0x043: Volume ID number */
+	char volume_label[11];	/* 0x02B/0x047: Volume label */
+	char fs_type[8];	/* 0x036/0x052: FS type, padded with blanks,
+				                typically one of "FAT12   ",
+						"FAT16   ", or "FAT32   " */
 	/* Boot code comes next, all but 2 bytes to fill up sector */
 	/* Boot sign comes last, 2 bytes */
 } volume_info;
@@ -130,28 +135,37 @@ typedef struct volume_info
 #define CASE_LOWER_BASE	8	/* base (name) is lower case */
 #define CASE_LOWER_EXT	16	/* extension is lower case */
 
+/* Standard FAT directory entry with 8.3 name */
 typedef struct dir_entry {
+#ifdef CONFIG_FAT_FUS
+	char	name[8+3];	/* 0x00: Name and extension */
+#else
 	char	name[8],ext[3];	/* Name and extension */
-	__u8	attr;		/* Attribute bits */
-	__u8	lcase;		/* Case for name and ext (CASE_LOWER_x) */
-	__u8	ctime_ms;	/* Creation time, milliseconds */
-	__u16	ctime;		/* Creation time */
-	__u16	cdate;		/* Creation date */
-	__u16	adate;		/* Last access date */
-	__u16	starthi;	/* High 16 bits of cluster in FAT32 */
-	__u16	time,date,start;/* Time, date and first cluster */
-	__u32	size;		/* File size in bytes */
+#endif
+	__u8	attr;		/* 0x0B: Attribute bits */
+	__u8	lcase;		/* 0x0C: Case for basename and extension */
+	__u8	ctime_ms;	/* 0x0D: Creation time, 10ms units 0..199 */
+	__u16	ctime;		/* 0x0E: Creation time */
+	__u16	cdate;		/* 0x10: Creation date */
+	__u16	adate;		/* 0x12: Last access date */
+	__u16	starthi;	/* 0x14: High 16 bits of cluster in FAT32 */
+	__u16	time;		/* 0x16: Last modified time */
+	__u16   date;		/* 0x18: Last modified date */
+	__u16   start;		/* 0x1A: First cluster, low 16 bits in FAT32 */
+	__u32	size;		/* 0x1C: File size in bytes */
 } dir_entry;
 
+/* VFAT directory slot for up to 13 file name characters; the name ends with
+   a 0x0000 character and any unused characters should be set to 0xFFFF */
 typedef struct dir_slot {
-	__u8	id;		/* Sequence number for slot */
-	__u8	name0_4[10];	/* First 5 characters in name */
-	__u8	attr;		/* Attribute byte */
-	__u8	reserved;	/* Unused */
-	__u8	alias_checksum;/* Checksum for 8.3 alias */
-	__u8	name5_10[12];	/* 6 more characters in name */
-	__u16	start;		/* Unused */
-	__u8	name11_12[4];	/* Last 2 characters in name */
+	__u8	id;		/* 0x00: Sequence number for slot */
+	__u8	name0_4[10];	/* 0x01: First 5 characters in name */
+	__u8	attr;		/* 0x0B: Attribute bits (0x0F for VFAT) */
+	__u8	reserved;	/* 0x0C: Unused (0x00, see lcase above) */
+	__u8	alias_checksum; /* 0x0D: Checksum for 8.3 alias */
+	__u8	name5_10[12];	/* 0x0E: 6 more characters in name */
+	__u16	start;		/* 0x1A: Unused (0x0000) */
+	__u8	name11_12[4];	/* 0x1C: Last 2 characters in name */
 } dir_slot;
 
 /*
@@ -160,7 +174,8 @@ typedef struct dir_slot {
  * Note: FAT buffer has to be 32 bit aligned
  * (see FAT32 accesses)
  */
-typedef struct {
+#ifndef CONFIG_FAT_FUS
+typedef struct fsdata {
 	__u8	*fatbuf;	/* Current FAT buffer */
 	int	fatsize;	/* Size of FAT in bits */
 	__u32	fatlength;	/* Length of FAT in sectors */
@@ -186,7 +201,9 @@ static inline u32 sect_to_clust(fsdata *fsdata, int sect)
 {
 	return (sect - fsdata->data_begin) / fsdata->clust_size;
 }
+#endif /* !CONFIG_FAT_FUS */
 
+int file_fat_ls(const char *pattern); /* F&S */
 int file_fat_detectfs(void);
 int fat_exists(const char *filename);
 int fat_size(const char *filename, loff_t *size);

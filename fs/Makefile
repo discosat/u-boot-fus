@@ -7,6 +7,7 @@
 ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_FS_LOADER) += fs.o
 obj-$(CONFIG_SPL_FS_FAT) += fat/
+obj-$(CONFIG_SPL_FUS_FAT) += fat/ wildcard/
 obj-$(CONFIG_SPL_FS_EXT4) += ext4/
 obj-$(CONFIG_SPL_FS_CBFS) += cbfs/
 else
@@ -16,7 +17,8 @@ obj-$(CONFIG_FS_BTRFS) += btrfs/
 obj-$(CONFIG_FS_CBFS) += cbfs/
 obj-$(CONFIG_CMD_CRAMFS) += cramfs/
 obj-$(CONFIG_FS_EXT4) += ext4/
-obj-$(CONFIG_FS_FAT) += fat/
+obj-y += fat/
+obj-y += wildcard/
 obj-$(CONFIG_FS_JFFS2) += jffs2/
 obj-$(CONFIG_CMD_REISER) += reiserfs/
 obj-$(CONFIG_SANDBOX) += sandbox/
