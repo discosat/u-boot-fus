@@ -12,6 +12,7 @@
 int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 		    char *const argv[])
 {
+	char *boot_device = NULL;
 	__maybe_unused int dev;
 	int part;
 	ulong addr = CONFIG_SYS_LOAD_ADDR;
@@ -33,18 +34,18 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 	}
 	bootstage_mark(BOOTSTAGE_ID_IDE_ADDR);
 
-	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
+	boot_device = (argc > 2) ? argv[2] : env_get("bootdevice");
 
 	bootstage_mark(BOOTSTAGE_ID_IDE_BOOT_DEVICE);
 
-	part = blk_get_device_part_str(intf, (argc == 3) ? argv[2] : NULL,
-					&dev_desc, &info, 1);
+	part = blk_get_device_part_str(intf, boot_device, &dev_desc, &info, 1);
 	if (part < 0) {
 		bootstage_error(BOOTSTAGE_ID_IDE_TYPE);
 		return 1;
 	}
 
+	set_fileaddr(addr);
 	dev = dev_desc->devnum;
 	bootstage_mark(BOOTSTAGE_ID_IDE_TYPE);
 
@@ -124,8 +125,8 @@ int common_diskboot(cmd_tbl_t *cmdtp, const char *intf, int argc,
 
 	flush_cache(addr, (cnt+1)*info.blksz);
 
-	/* Loading ok, update default load address */
-	image_load_addr = addr;
+	/* Loading ok, update fileaddr and filesize variables */
+	env_set_fileinfo(cnt * info.blksz);
 
 	return bootm_maybe_autostart(cmdtp, argv[0]);
 }

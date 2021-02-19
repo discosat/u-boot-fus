@@ -34,9 +34,9 @@ static int bootz_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Setup Linux kernel zImage entry point */
 	if (!argc) {
-		images->ep = image_load_addr;
+		images->ep = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				image_load_addr);
+				images->ep);
 	} else {
 		images->ep = simple_strtoul(argv[0], NULL, 16);
 		debug("*  kernel: cmdline image address = 0x%08lx\n",
@@ -107,7 +107,7 @@ static char bootz_help_text[] =
 	"\ta third argument is required which is the address of the\n"
 	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
 	"\tuse a '-' for the second argument. If you do not pass a third\n"
-	"\ta bd_info struct will be passed instead\n"
+	"\targument, a bd_info struct will be passed instead\n"
 #endif
 	"";
 #endif

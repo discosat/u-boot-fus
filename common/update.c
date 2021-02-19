@@ -72,14 +72,16 @@ static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
 	env_set("netretry", "no");
 
 	/* download the update file */
-	image_load_addr = addr;
+	set_fileaddr(addr);
 	copy_filename(net_boot_file_name, filename, sizeof(net_boot_file_name));
 	size = net_loop(TFTPGET);
 
 	if (size < 0)
 		rv = 1;
-	else if (size > 0)
+	else if (size > 0) {
 		flush_cache(addr, size);
+		setenv_fileinfo(size);
+	}
 
 	/* restore changed globals and env variable */
 	tftp_timeout_ms = saved_timeout_msecs;
@@ -266,12 +268,8 @@ int update_tftp(ulong addr, char *interface, char *devstring)
 	printf("trying update file '%s'\n", filename);
 
 	/* get load address of downloaded update file */
-	env_addr = env_get("loadaddr");
-	if (env_addr)
-		addr = simple_strtoul(env_addr, NULL, 16);
-	else
-		addr = CONFIG_UPDATE_LOAD_ADDR;
-
+	/* ### shouldn't this be addr = get_loadaddr()? ### */
+	addr = env_get_ulong("loadaddr", 16, CONFIG_UPDATE_LOAD_ADDR);
 
 	if (update_load(filename, CONFIG_UPDATE_TFTP_MSEC_MAX,
 					CONFIG_UPDATE_TFTP_CNT_MAX, addr)) {

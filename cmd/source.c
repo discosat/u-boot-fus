@@ -168,21 +168,21 @@ static int do_source(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Find script image */
 	if (argc < 2) {
-		addr = CONFIG_SYS_LOAD_ADDR;
+		addr = get_loadaddr();
 		debug ("*  source: default load address = 0x%08lx\n", addr);
 #if defined(CONFIG_FIT)
-	} else if (fit_parse_subimage(argv[1], image_load_addr, &addr,
-				      &fit_uname)) {
+	} else if (fit_parse_subimage(argv[1], get_loadaddr(), &addr,
+				       &fit_uname)) {
 		debug ("*  source: subimage '%s' from FIT image at 0x%08lx\n",
 				fit_uname, addr);
 #endif
 	} else {
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		debug ("*  source: cmdline image address = 0x%08lx\n", addr);
 	}
 
 	printf ("## Executing script at %08lx\n", addr);
-	rcode = image_source_script(addr, fit_uname);
+	rcode = image_source_script (addr, fit_uname);
 	return rcode;
 }
 

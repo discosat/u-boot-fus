@@ -8,6 +8,7 @@
 #include <common.h>
 #include <command.h>
 #include <fs.h>
+#include <efi_loader.h>
 
 static int do_size_wrapper(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -16,7 +17,7 @@ static int do_size_wrapper(cmd_tbl_t *cmdtp, int flag, int argc, char * const ar
 
 U_BOOT_CMD(
 	size,	4,	0,	do_size_wrapper,
-	"determine a file's size",
+	"determine a file's size and set environment variable filesize",
 	"<interface> <dev[:part]> <filename>\n"
 	"    - Find file 'filename' from 'dev' on 'interface'\n"
 	"      and determine its size."
@@ -25,6 +26,8 @@ U_BOOT_CMD(
 static int do_load_wrapper(cmd_tbl_t *cmdtp, int flag, int argc,
 				char * const argv[])
 {
+	efi_set_bootdev(argv[1], (argc > 2) ? argv[2] : "",
+			(argc > 4) ? argv[4] : "");
 	return do_load(cmdtp, flag, argc, argv, FS_TYPE_ANY);
 }
 

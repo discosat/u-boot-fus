@@ -260,7 +260,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 
 	/* Init USB only once during update */
 	if (!usb_init_done) {
-	        if (usb_init(0) < 0)
+	        if (usb_init() < 0)
 			return -1;
 
 		/* Try to recognize storage devices immediately */
@@ -424,7 +424,7 @@ int update_script(enum update_action action_id, const char *check,
 #endif
 				puts("Loaded!\n");
 
-				ret = source(addr, NULL);
+				ret = image_source_script(addr, NULL);
 
 				printf("---- %s %s ----\n", action,
 				       ret ? "FAILED!" : "COMPLETE!");

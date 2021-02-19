@@ -110,7 +110,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc > 0) {
 		char *endp;
 
-		simple_strtoul(argv[0], &endp, 16);
+		parse_loadaddr(argv[0], &endp);
 		/* endp pointing to NULL means that argv[0] was just a
 		 * valid number, pass it along to the normal bootm processing
 		 *
@@ -206,7 +206,7 @@ int bootm_maybe_autostart(cmd_tbl_t *cmdtp, const char *cmd)
 		local_args[0] = (char *)cmd;
 		local_args[1] = NULL;
 		printf("Automatic boot of image at addr 0x%08lX ...\n",
-		       image_load_addr);
+		       get_loadaddr());
 		return do_bootm(cmdtp, 0, 1, local_args);
 	}
 
@@ -294,11 +294,11 @@ static int do_iminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int	rcode = 0;
 
 	if (argc < 2) {
-		return image_info(image_load_addr);
+		return image_info(get_loadaddr());
 	}
 
 	for (arg = 1; arg < argc; ++arg) {
-		addr = simple_strtoul(argv[arg], NULL, 16);
+		addr = parse_loadaddr(argv[arg], NULL);
 		if (image_info(addr) != 0)
 			rcode = 1;
 	}

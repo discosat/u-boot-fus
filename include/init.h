@@ -136,6 +136,9 @@ int arch_reserve_stacks(void);
  */
 int init_cache_f_r(void);
 
+/* arch/$(ARCH)/lib/cache.c */
+void	flush_cache   (unsigned long, unsigned long);
+
 #if !CONFIG_IS_ENABLED(CPU)
 /**
  * print_cpuinfo() - Display information about the CPU
@@ -245,6 +248,31 @@ void trap_init(unsigned long reloc_addr);
  * This normally runs the command line.
  */
 void main_loop(void);
+
+
+char	*get_board_name(void);
+char	*get_sys_prompt(void);
+
+const char *get_bootfile(void);
+const char *parse_bootfile(const char *buffer);
+
+/* Get the load address; should be the same as environment variable loadaddr */
+ulong get_loadaddr(void);
+
+/* Parse address, in case of "." return current get_loadaddr() */
+ulong parse_loadaddr(const char *buffer, char **endp);
+
+/* Like simple_loadaddr(), but return error in case of trailing garbage */
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
+
+/* Set address where to load next file */
+void set_fileaddr(ulong addr);
+
+/* Get address where to load next file */
+ulong get_fileaddr(void);
+
+/* Set environment variables fileaddr and filesize */
+void env_set_fileinfo(ulong size);
 
 #if defined(CONFIG_ARM)
 void relocate_code(ulong addr_moni);

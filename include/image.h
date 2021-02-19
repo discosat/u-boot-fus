@@ -573,6 +573,7 @@ int boot_get_setup(bootm_headers_t *images, uint8_t arch, ulong *setup_start,
 #endif
 #define IMAGE_FORMAT_FIT	0x02	/* new, libfdt based format */
 #define IMAGE_FORMAT_ANDROID	0x03	/* Android boot image */
+#define IMAGE_FORMAT_ZIMAGE	0x04    /* Linux zImage format */
 
 ulong genimg_get_kernel_addr_fit(char * const img_addr,
 			         const char **fit_uname_config,

@@ -146,7 +146,7 @@ static inline int store_block(int block, uchar *src, unsigned int len)
 {
 	ulong offset = block * tftp_block_size + tftp_block_wrap_offset;
 	ulong newsize = offset + len;
-	ulong store_addr = tftp_load_addr + offset;
+	ulong store_addr = get_fileaddr() + offset;
 #ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
 	int i, rc = 0;
 
@@ -222,7 +222,7 @@ static int load_block(unsigned block, uchar *dst, unsigned len)
 	ulong tosend = len;
 
 	tosend = min(net_boot_file_size - offset, tosend);
-	(void)memcpy(dst, (void *)(image_save_addr + offset), tosend);
+	(void)memcpy(dst, (void *)(get_fileaddr() + offset), tosend);
 	debug("%s: block=%u, offset=%lu, len=%u, tosend=%lu\n", __func__,
 	      block, offset, len, tosend);
 	return tosend;
@@ -711,10 +711,10 @@ void tftp_start(enum proto_t protocol)
 #ifdef CONFIG_CMD_TFTPPUT
 	tftp_put_active = (protocol == TFTPPUT);
 	if (tftp_put_active) {
-		printf("Save address: 0x%lx\n", image_save_addr);
-		printf("Save size:    0x%lx\n", image_save_size);
+		printf("Save address: 0x%lx\n", get_fileaddr());
+		printf("Save size:    0x%lx\n", net_boot_file_size);
 		net_boot_file_size = image_save_size;
-		puts("Saving: *\b");
+		puts("Saving:\n  *\b");
 		tftp_state = STATE_SEND_WRQ;
 		new_transfer();
 	} else
@@ -727,8 +727,8 @@ void tftp_start(enum proto_t protocol)
 			puts("trying to overwrite reserved memory...\n");
 			return;
 		}
-		printf("Load address: 0x%lx\n", tftp_load_addr);
-		puts("Loading: *\b");
+		printf("Load address: 0x%lx\n", get_fileaddr());
+		puts("Loading:\n  *\b");
 		tftp_state = STATE_SEND_RRQ;
 #ifdef CONFIG_CMD_BOOTEFI
 		efi_set_bootdev("Net", "", tftp_filename);
@@ -783,9 +783,9 @@ void tftp_start_server(void)
 	}
 	printf("Using %s device\n", eth_get_name());
 	printf("Listening for TFTP transfer on %pI4\n", &net_ip);
-	printf("Load address: 0x%lx\n", tftp_load_addr);
+	printf("Load address: 0x%lx\n", get_fileaddr());
 
-	puts("Loading: *\b");
+	puts("Loading:\n  *\b");
 
 	timeout_count_max = tftp_timeout_count_max;
 	timeout_count = 0;
