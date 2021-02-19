@@ -273,7 +273,7 @@ void cli_simple_loop(void)
 			 */
 			bootretry_reset_cmd_timeout();
 		}
-		len = cli_readline(CONFIG_SYS_PROMPT);
+		len = cli_readline(get_sys_prompt());
 
 		flag = 0;	/* assume no special flags for now */
 		if (len > 0)

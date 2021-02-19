@@ -363,7 +363,7 @@ int cmd_auto_complete(const char *const prompt, char *buf, int *np, int *colp)
 	const char *ps_prompt = CONFIG_SYS_PROMPT;
 #endif
 
-	if (strcmp(prompt, ps_prompt) != 0)
+	if (strcmp(prompt, get_sys_prompt()) != 0)
 		return 0;	/* not in normal console */
 
 	cnt = strlen(buf);
