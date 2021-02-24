@@ -421,7 +421,7 @@ static int fs_spl_early_load_boardcfg(void)
 
 	printf("### fused_boot_dev=%u\n", fs_board_get_boot_device_from_fuses());
 	switch (fs_board_get_boot_device_from_fuses()) {
-	case BOOT_DEVICE_NAND:
+	case NAND_BOOT:
 		puts("###A\n");
 		imx_iomux_v3_setup_multiple_pads(nand_pads,
 						 ARRAY_SIZE(nand_pads));
@@ -431,14 +431,14 @@ static int fs_spl_early_load_boardcfg(void)
 	puts("###C\n");
 		break;
 
-	case BOOT_DEVICE_MMC1:
+	case MMC3_BOOT:
 		//### TODO: init mmc
 		imx_iomux_v3_setup_multiple_pads(emmc_pads,
 						 ARRAY_SIZE(emmc_pads));
 		err = fs_image_cfg_mmc();
 		break;
 
-	case BOOT_DEVICE_BOARD:
+	case USB_BOOT:
 	default:
 		/* Board not configured, await config as part of USB config */
 		err = -ENOENT;
@@ -489,15 +489,16 @@ void board_init_f(ulong dummy)
 		/* Load remaining part from current boot device */
 	puts("###D\n");
 		jobs_todo &= ~FSIMG_JOB_CFG;
-		switch (spl_boot_device()) {
-		case BOOT_DEVICE_NAND:
+		switch (get_boot_device()) {
+		case NAND_BOOT:
 	puts("###E\n");
 			jobs_todo = fs_image_fw_nand(jobs_todo, basic_init);
 			break;
-		case BOOT_DEVICE_MMC1:
+		case MMC3_BOOT:
 			jobs_todo = fs_image_fw_mmc(jobs_todo, basic_init);
 			break;
-		case BOOT_DEVICE_BOARD:
+		case USB_BOOT:
+		default:
 	puts("###F\n");
 			/* Loading is done below */
 			break;

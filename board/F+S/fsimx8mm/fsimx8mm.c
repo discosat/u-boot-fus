@@ -156,10 +156,10 @@ enum env_location env_get_location(enum env_operation op, int prio)
 {
 	if (prio == 0) {
 		switch (fs_board_get_boot_device_from_fuses()) {
-		case BOOT_DEVICE_NAND:
+		case NAND_BOOT:
 			puts("### ENV from NAND\n");
 			return ENVL_NAND;
-		case BOOT_DEVICE_MMC1:
+		case MMC3_BOOT:
 			puts("### ENV from MMC\n");
 			return ENVL_MMC;
 		default:

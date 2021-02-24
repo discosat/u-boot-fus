@@ -20,8 +20,6 @@
 #include "fs_mmc_common.h"
 
 #ifdef CONFIG_ARCH_IMX8M
-#include <spl.h>			/* BOOT_DEVICE_* */
-#include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
 #include <fuse.h>			/* fuse_read() */
 #endif
 
@@ -256,7 +254,7 @@ void fs_board_late_init_common(const char *serial_name)
 	int mmc_boot_device = 0;
 #endif
 	bool is_nand =
-		(fs_board_get_boot_device_from_fuses() == BOOT_DEVICE_NAND);
+		(fs_board_get_boot_device_from_fuses() == NAND_BOOT);
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
@@ -387,17 +385,33 @@ char *get_sys_prompt(void)
 #define BOOT_CFG_PORTSEL_SHIFT 10
 #define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
 
+struct boot_dev_name {
+	enum boot_device boot_dev;
+	const char *name;
+};
+
+const struct boot_dev_name boot_dev_names[] = {
+	{USB_BOOT,  "USB"},
+	{NAND_BOOT, "NAND"},
+	{MMC1_BOOT, "MMC1"},
+	{MMC2_BOOT, "MMC2"},
+	{MMC3_BOOT, "MMC3"},
+	{SD1_BOOT,  "SD1"},
+	{SD2_BOOT,  "SD2"},
+	{SD3_BOOT,  "SD3"},
+};
+
 /*
  * Return the boot device as programmed in the fuses. This may differ from the
  * currently active boot device. For example the board can currently boot from
  * USB (returned by spl_boot_device()), but is basically fused to boot from
  * NAND (returned here).
  */
-unsigned int fs_board_get_boot_device_from_fuses(void)
+enum boot_device fs_board_get_boot_device_from_fuses(void)
 {
 	u32 val;
 	u32 port;
-	u32 boot_dev = BOOT_DEVICE_BOARD;
+	enum boot_device boot_dev = USB_BOOT;
 
 	/* boot_cfg is in fuse bank 1, word 3 */
 	if (fuse_read(1, 3, &val)) {
@@ -405,22 +419,50 @@ unsigned int fs_board_get_boot_device_from_fuses(void)
 		return boot_dev;
 	}
 
+	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
 	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
 	case BOOT_TYPE_SD:
+		boot_dev = SD1_BOOT + port;
+		break;
+
 	case BOOT_TYPE_MMC:
-		port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
-		if (port == 0)
-			boot_dev = BOOT_DEVICE_MMC1;
-		else if (port == 1)
-			boot_dev = BOOT_DEVICE_MMC2;
+		boot_dev = MMC1_BOOT + port;
 		break;
+
 	case BOOT_TYPE_NAND:
-		boot_dev = BOOT_DEVICE_NAND;
+		boot_dev = NAND_BOOT;
 		break;
+
 	default:
 		break;
 	}
 
 	return boot_dev;
 }
+
+/* Get the boot device number from the string */
+enum boot_device fs_board_get_boot_dev_from_name(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
+		if (!strcmp(boot_dev_names[i].name, name))
+			return boot_dev_names[i].boot_dev;
+	}
+	return UNKNOWN_BOOT;
+}
+
+/* Get the string from the boot device number */
+const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
+		if (boot_dev_names[i].boot_dev == boot_dev)
+			return boot_dev_names[i].name;
+	}
+
+	return "(unknown)";
+}
+
 #endif

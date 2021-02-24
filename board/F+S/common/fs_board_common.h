@@ -12,6 +12,8 @@
 #ifndef __FS_BOARD_COMMON_H__
 #define __FS_BOARD_COMMON_H__
 
+#include <asm/mach-imx/boot_mode.h>	/* enum boot_device */
+
 #define FSHWCONFIG_ARGS_ID 0x4E424F54	/* Magic number for dwID: 'NBOT' */ 
 struct fs_nboot_args {
 	u32	dwID;			/* 'NBOT' if valid */
@@ -81,6 +83,12 @@ void fs_board_init_common(const struct fs_board_info *board_info);
 void fs_board_late_init_common(const char *serial_name);
 
 /* Return the boot device as programmed in the fuses. */
-unsigned int fs_board_get_boot_device_from_fuses(void);
+enum boot_device fs_board_get_boot_device_from_fuses(void);
+
+/* Get the boot device number from the string */
+enum boot_device fs_board_get_boot_dev_from_name(const char *name);
+
+/* Get the string from the boot device number */
+const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev);
 
 #endif /* !__FS_BOARD_COMMON_H__ */
