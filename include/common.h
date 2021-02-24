@@ -727,6 +727,10 @@ int cpu_release(int nr, int argc, char * const argv[]);
 int do_raw_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 #endif
 
+#ifdef CONFIG_CMD_FDT
+int fdt_print(void *fdt, const char *pathp, char *prop, int depth);
+#endif
+
 #else	/* __ASSEMBLY__ */
 
 /* Drop a C type modifier (like in 3UL) for constants used in assembly. */
