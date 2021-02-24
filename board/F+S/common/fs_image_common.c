@@ -146,7 +146,9 @@
 #include <sdp.h>
 #include <asm/arch/imx8m_ddr.h>
 #include <asm/sections.h>
+#include <console.h>			/* confirm_yesno() */
 
+#include "fs_board_common.h"		/* fs_board_*() */
 #include "fs_image_common.h"		/* Own interface */
 
 /* F&S header (V0.0) for a generic file */
@@ -178,10 +180,18 @@ struct fs_header_v1_0 {			/* Size: 64 bytes */
 #define FSH_FLAGS_DESCR 0x8000		/* Description descr is present */
 #define FSH_FLAGS_CRC32 0x4000		/* p32[7] holds the CRC32 checksum of
 					   the image (without header) */
+#define FSH_SIZE sizeof(struct fs_header_v1_0)
+
+/* Structure to handle board name and revision separately */
+struct board_name_rev {
+	char name[MAX_DESCR_LEN];
+	unsigned int rev;
+};
 
 /* Jobs within FIRMWARE part */
 #define FSIMG_JOB_FIRMWARE (FSIMG_JOB_DRAM | FSIMG_JOB_ATF | FSIMG_JOB_TEE)
 
+#ifdef CONFIG_SPL_BUILD
 static enum fsimg_state {
 	FSIMG_STATE_ANY,
 	FSIMG_STATE_BOARD_CFG,
@@ -198,13 +208,10 @@ static unsigned int count;
 static void *addr;
 static unsigned int jobs;
 static int nest_level;
-static char board_id[32];
 static const char *ram_type;
 static const char *ram_timing;
-static const char *arch = CONFIG_SYS_BOARD;
 static basic_init_t basic_init_callback;
-
-struct fs_header_v1_0 fsh;		/* Header of current image */
+static char board_id[MAX_DESCR_LEN];
 
 #define MAX_NEST_LEVEL 8
 
@@ -213,17 +220,41 @@ static struct fsimg {
 	unsigned int remaining;		/* Remaining bytes in this level */
 } fsimg_stack[MAX_NEST_LEVEL];
 
-static struct board_name_rev {
-	char name[32];
-	unsigned int rev;
-} board_name_rev;
+static struct board_name_rev bnr;
+#endif
+
+struct fs_header_v1_0 fsh;		/* Space for one F&S header */
+
+/* ============= Functions in SPL and U-Boot =============================== */
+
+/* Return the F&S architecture */
+const char *fs_image_get_arch(void)
+{
+	return CONFIG_SYS_BOARD;
+}
+
+static bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh)
+{
+	return !strncmp(fsh->info.magic, "FSLX", sizeof(fsh->info.magic));
+}
 
 /* Return the address of the board configuration in OCRAM */
 void *fs_image_get_cfg_addr(bool with_fs_header)
 {
 	void *cfg = (void*)CONFIG_FUS_BOARDCFG_ADDR;
 
-	return with_fs_header ? cfg : cfg + sizeof(struct fs_header_v1_0);
+	return with_fs_header ? cfg : cfg + FSH_SIZE;
+}
+
+static unsigned int fs_image_get_board_cfg_size(void *fdt, int offs)
+{
+	return fdt_getprop_u32_default_node(fdt, offs, 0, "board-cfg-size", 0);
+}
+
+/* Return the address of the /nboot-info node */
+int fs_image_get_info_offs(void *fdt)
+{
+	return fdt_path_offset(fdt, "/nboot-info");
 }
 
 /* Return the address of the /board-cfg node */
@@ -233,45 +264,37 @@ int fs_image_get_cfg_offs(void *fdt)
 }
 
 /* Read the image size (incl. padding) from an F&S header */
-static unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh)
+static inline unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh,
+					     bool with_fs_header)
 {
 	/* We ignore the high word, boot images are definitely < 4GB */
-	return fsh->info.file_size_low;
+	return fsh->info.file_size_low + (with_fs_header ? FSH_SIZE : 0);
 }
 
-#define reloc(addr, offs) addr = ((void *)addr + (unsigned long)offs)
-
-/* Relocate dram_timing_info structure and initialize DRAM */
-static int fs_image_init_dram(void)
+/* Check image magic, type and descr; return true on match */
+static bool fs_image_match(const struct fs_header_v1_0 *fsh,
+			   const char *type, const char *descr)
 {
-	struct dram_timing_info *dti;
-	unsigned long *p;
+	if (!type)
+		return false;
 
-	/* Before we can init DRAM, we have to init the board config */
-	basic_init_callback();
+	if (!fs_image_is_fs_image(fsh))
+		return false;
 
-	/* The image starts with a pointer to the dram_timing variable */
-	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
-	dti = (struct dram_timing_info *)*p;
-#if 0 //###
-	{
-		int i;
-		unsigned long offset = (unsigned long)p;
+	if (strncmp(fsh->type, type, MAX_TYPE_LEN))
+		return false;
 
-		reloc(dti->ddrc_cfg, offset);
-		reloc(dti->ddrphy_cfg, offset);
-		reloc(dti->fsp_msg, offset);
-		reloc(dti->ddrphy_trained_csr, offset);
-		reloc(dti->ddrphy_pie, offset);
-		for (i = 0; i < dti->fsp_msg_num; i++)
-			reloc(dti->fsp_msg[i].fsp_cfg, offset);
+	if (descr) {
+		if (!(fsh->info.flags & FSH_FLAGS_DESCR))
+			return false;
+		if (strncmp(fsh->param.descr, descr, MAX_DESCR_LEN))
+			return false;
 	}
-#endif //###
 
-	return !ddr_init(dti);
+	return true;
 }
 
-static void fs_image_get_board_name_rev(const char id[32],
+static void fs_image_get_board_name_rev(const char *id,
 					struct board_name_rev *bnr)
 {
 	char c;
@@ -301,38 +324,9 @@ static void fs_image_get_board_name_rev(const char id[32],
 	printf("### %s: name=%s rev=%u\n", id, bnr->name, bnr->rev);
 }
 
-/* Store board_id and split into name and revision to ease board_id matching */
-static void fs_image_set_board_id(const char id[32])
-{
-	memcpy(board_id, id, sizeof(board_id));
-	fs_image_get_board_name_rev(id, &board_name_rev);
-}
-
-/* Check image magic, type and descr; return true on match */
-static bool fs_image_match(struct fs_header_v1_0 *fsh,
-			   const char *type, const char *descr)
-{
-	if (!type)
-		return false;
-
-	if (strncmp(fsh->info.magic, "FSLX", sizeof(fsh->info.magic)))
-		return false;
-
-	if (strncmp(fsh->type, type, sizeof(fsh->type)))
-		return false;
-
-	if (descr) {
-		if (!(fsh->info.flags & FSH_FLAGS_DESCR))
-			return false;
-		if (strncmp(fsh->param.descr, descr, sizeof(fsh->param.descr)))
-			return false;
-	}
-
-	return true;
-}
-
 static bool fs_image_match_board_id(struct fs_header_v1_0 *fsh,
-				    const char *type)
+				    const char *type,
+				    const struct board_name_rev *target_bnr)
 {
 	struct board_name_rev bnr;
 
@@ -348,12 +342,75 @@ static bool fs_image_match_board_id(struct fs_header_v1_0 *fsh,
 	fs_image_get_board_name_rev(fsh->param.descr, &bnr);
 
 	/* Compare with name and rev of the board we are running on */
-	if (strncmp(bnr.name, board_name_rev.name, sizeof(bnr.name)))
+	if (strncmp(bnr.name, target_bnr->name, sizeof(bnr.name)))
 		return false;
-	if (bnr.rev > board_name_rev.rev)
+	if (bnr.rev > target_bnr->rev)
 		return false;
 
 	return true;
+}
+
+#ifdef CONFIG_NAND_MXS
+static inline unsigned int fs_image_get_nand_size(void *fdt, int offs)
+{
+	return fdt_getprop_u32_default_node(fdt, offs, 0, "nand-size", 0);
+}
+
+static unsigned int fs_image_get_nand_start(void *fdt, int offs, int index)
+{
+	return fdt_getprop_u32_default_node(fdt, offs, index, "nand-start", 0);
+}
+#endif
+
+/* ============= Functions only in SPL, not U-Boot ========================= */
+
+#ifdef CONFIG_SPL_BUILD
+#define reloc(addr, offs) addr = ((void *)addr + (unsigned long)offs)
+
+/* Relocate dram_timing_info structure and initialize DRAM */
+static int fs_image_init_dram(void)
+{
+	struct dram_timing_info *dti;
+	unsigned long *p;
+
+	/* Before we can init DRAM, we have to init the board config */
+	basic_init_callback();
+
+	/* The image starts with a pointer to the dram_timing variable */
+	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
+	dti = (struct dram_timing_info *)*p;
+#if 0 //###
+	{
+		int i;
+		unsigned long offset = (unsigned long)p;
+
+		reloc(dti->ddrc_cfg, offset);
+		reloc(dti->ddrphy_cfg, offset);
+		reloc(dti->fsp_msg, offset);
+		reloc(dti->ddrphy_trained_csr, offset);
+		reloc(dti->ddrphy_pie, offset);
+		for (i = 0; i < dti->fsp_msg_num; i++)
+			reloc(dti->fsp_msg[i].fsp_cfg, offset);
+	}
+#endif //###
+	printf("### dram_timing=%p\n", dti);
+	{
+		u8 *p = (u8 *)CONFIG_SPL_DRAM_TIMING_ADDR;
+		int i;
+		printf("###%p:", p);
+		for (i=0; i<32; i++)
+			printf(" %02x", p[i]);
+		puts("\n");
+	}
+
+	return !ddr_init(dti);
+}
+
+/* Store board_id and split into name and revision to ease board_id matching */
+static void fs_image_set_board_id(const char id[MAX_DESCR_LEN])
+{
+	memcpy(board_id, id, sizeof(board_id));
+	fs_image_get_board_name_rev(id, &bnr);
 }
 
 /* Load next header in image */
@@ -362,7 +419,7 @@ static void fs_image_next_header(enum fsimg_state new_state)
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
 
 	state = new_state;
-	count = sizeof(struct fs_header_v1_0);
+	count = FSH_SIZE;
 	if (count > fsimg->remaining) {
 		/* Image too small, no room for F&S header, skip */
 		count = fsimg->remaining;
@@ -447,16 +504,17 @@ static void fs_image_handle_header(void)
 {
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
 	unsigned int size;
+	const char *arch;
 
 	/* Check if magic is correct */
-	if (strncmp(fsh.info.magic, "FSLX", sizeof(fsh.info.magic))) {
+	if (!fs_image_is_fs_image(&fsh)) {
 		/* This is no F&S header; skip remaining image */
 		fs_image_skip(fsimg->remaining);
 		return;
 	}
 
 	/* Get the image size (incuding padding) */
-	size = fs_image_get_size(&fsh);
+	size = fs_image_get_size(&fsh, false);
 
 	/* Fill in size on topmost level, if we did not know it (NAND, MMC) */
 	if (!nest_level && !fsimg->remaining)
@@ -472,6 +530,7 @@ static void fs_image_handle_header(void)
 	}
 
 
+	arch = fs_image_get_arch();
 	switch (state) {
 	case FSIMG_STATE_ANY:
 		if (fs_image_match(&fsh, "BOARD-ID", NULL)) {
@@ -503,8 +562,8 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_BOARD_CFG:
 		// ### TODO: Use highest revision number <= BOARD_ID revision
-		if (fs_image_match_board_id(&fsh, "BOARD-CFG")) {
-			memcpy(fs_image_get_cfg_addr(true), &fsh, sizeof(fsh));
+		if (fs_image_match_board_id(&fsh, "BOARD-CFG", &bnr)) {
+			memcpy(fs_image_get_cfg_addr(true), &fsh, FSH_SIZE);
 			fs_image_copy(fs_image_get_cfg_addr(false), size);
 		} else
 			fs_image_skip(size);
@@ -742,33 +801,6 @@ void fs_image_all_sdp(unsigned int jobs_todo, basic_init_t basic_init)
 }
 
 #ifdef CONFIG_NAND_MXS
-/* Load F&S image with given type/descr from NAND at offset to given buffer */
-int fs_image_load_nand(unsigned int offset, char *type, char *descr,
-		       void *buf, bool keep_header)
-{
-	unsigned int size;
-	struct fs_header_v1_0 *fsh = buf;
-	int err;
-
-	/* Load F&S header */
-	err = nand_spl_load_image(offset, sizeof(struct fs_header_v1_0), fsh);
-	if (err < 0)
-		return err;
-
-        if (!fs_image_match(fsh, type, descr))
-		return -ENOENT;
-
-	size = fs_image_get_size(fsh);
-
-	/* Load image data */
-	if (keep_header)
-		size += sizeof(struct fs_header_v1_0);
-	else
-		offset += sizeof(struct fs_header_v1_0);
-
-	return nand_spl_load_image(offset, size, buf);
-}
-
 /* Load FIRMWARE from NAND using state machine */
 static int fs_image_loop_nand(unsigned int offs, unsigned int lim)
 {
@@ -796,28 +828,83 @@ static int fs_image_loop_nand(unsigned int offs, unsigned int lim)
 	return 0;
 }
 
+static int fs_image_get_start_index(void)
+{
+	//### TODO: Return value depending on primary or secondary SPL
+
+	return 0;
+}
+
 /* Load FIRMWARE using state machine, try both copies */
 unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
 {
-	unsigned int lim = CONFIG_SPL_BOARDCFG_NAND_SIZE;
-	int err;
+	int start_index, index;
+	int err = -ENOENT;
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_info_offs(fdt);
+	unsigned int nand_start;
+	unsigned int nand_size = fs_image_get_nand_size(fdt, offs);
+	unsigned int cfg_size = fs_image_get_board_cfg_size(fdt, offs);
 
-	/*
-	 * Try first copy; we do not know the FIRMWARE size yet, but have room
-	 * for the first header in any case; the size will be filled in by the
-	 * state machine when it is known.
-	 */
-	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo, basic_init);
-	err = fs_image_loop_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET0, lim);
-	if (err) {
-		/* Read error, try second copy to complete remaining jobs */
-		fs_image_start(sizeof(struct fs_header_v1_0), jobs, basic_init);
-		err = fs_image_loop_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET1, lim);
+	if (!nand_size || !cfg_size) {
+		puts("Missing nboot-info entries in BOARD-CFG\n");
+		return jobs_todo;
 	}
+
+	jobs = jobs_todo;
+	start_index = fs_image_get_start_index();
+	index = start_index;
+	do {
+		nand_start = fs_image_get_nand_start(fdt, offs, index);
+		if (nand_start) {
+			/*
+			 * Try a copy; we do not know the FIRMWARE size yet,
+			 * but have room for the first header in any case; the
+			 * size will be filled in by the state machine when it
+			 * is known.
+			 */
+			printf("### Trying FIRMWARE copy %d from NAND at 0x%x\n", index, nand_start);
+			fs_image_start(FSH_SIZE, jobs, basic_init);
+			err = fs_image_loop_nand(nand_start + cfg_size,
+						 nand_size - cfg_size);
+			if (!err)
+				break;
+			index++;
+		 } else
+			index = 0;
+	} while (index != start_index);
+
 	if (err)
 		printf("Reading FIRMWARE failed (%d)\n", err);
 
 	return jobs;
+}
+
+/* Load F&S image with given type/descr from NAND at offset to given buffer */
+int fs_image_load_nand(unsigned int offset, char *type, char *descr,
+		       void *buf, bool keep_header)
+{
+	unsigned int size;
+	struct fs_header_v1_0 *fsh = buf;
+	int err;
+
+	/* Load F&S header */
+	err = nand_spl_load_image(offset, FSH_SIZE, fsh);
+	if (err < 0)
+		return err;
+
+        if (!fs_image_match(fsh, type, descr))
+		return -ENOENT;
+
+	size = fs_image_get_size(fsh, false);
+
+	/* Load image data */
+	if (keep_header)
+		size += FSH_SIZE;
+	else
+		offset += FSH_SIZE;
+
+	return nand_spl_load_image(offset, size, buf);
 }
 
 /* Load BOARD-CFG from NAND */
@@ -854,20 +941,20 @@ int fs_image_load_mmc(unsigned int offset, char *type, char *descr,
 	/* Load F&S header */
 	// ### TODO
 	err = -EINVAL; //###
-	//err = nand_spl_load_image(offset, sizeof(struct fs_header_v1_0), fsh);
+	//err = nand_spl_load_image(offset, sizeof(*fsh), fsh);
 	if (err < 0)
 		return err;
 
         if (!fs_image_match(fsh, type, descr))
 		return -ENOENT;
 
-	size = fs_image_get_size(fsh);
+	size = fs_image_get_size(fsh, false);
 
 	/* Load image data */
 	if (keep_header)
-		size += sizeof(struct fs_header_v1_0);
+		size += FSH_SIZE;
 	else
-		offset += sizeof(struct fs_header_v1_0);
+		offset += FSH_SIZE;
 
 	//### TODO
 	return -EINVAL; //###nand_spl_load_image(offset, size, buf);
@@ -890,3 +977,567 @@ int fs_image_cfg_mmc(void)
 	return -EINVAL; //###
 }
 #endif /* CONFIG_MMC */
+
+#endif /* CONFIG_SPL_BUILD */
+
+/* ============= Functions only in U-Boot, not SPL ========================= */
+
+#ifndef CONFIG_SPL_BUILD
+
+/* ------------- Support for cmd/fsimage.c --------------------------------- */
+
+/* Check if board configuration in OCRAM is OK and return the address */
+void *fs_image_get_cfg_addr_check(bool with_fs_header)
+{
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
+	const char *type = "BOARD-CFG";
+
+	if (!fs_image_match(fsh, type, NULL)) {
+		printf("%s in OCRAM damaged\n", type);
+		return NULL;
+	}
+
+	if (!with_fs_header)
+		fsh++;
+
+	return fsh;
+}
+
+/* Return the BOARD-ID; id must have room for MAX_DESCR_LEN characters */
+int fs_image_get_board_id(char *id)
+{
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr_check(true);
+
+	if (!fsh)
+		return -ENOENT;
+
+	memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
+
+	return 0;
+}
+
+#ifdef CONFIG_NAND_MXS
+static int fs_image_get_nand_sizes(void *fdt, int offs, struct mtd_info *mtd,
+				   unsigned int *nand_size,
+				   unsigned int *cfg_size)
+{
+	unsigned int size;
+
+	size = fs_image_get_nand_size(fdt, offs);
+	if (!size) {
+		printf("Invalid or missing nand-size\n");
+		return -EINVAL;
+	}
+	if (size % mtd->erasesize) {
+		printf("nand-size 0x%x not aligned to NAND blocks 0x%x\n",
+		       size, mtd->erasesize);
+		return -EINVAL;
+	}
+	*nand_size = size;
+
+	size = fs_image_get_board_cfg_size(fdt, offs);
+	if (!size) {
+		printf("Invalid or missing board-cfg-size\n");
+		return -EINVAL;
+	}
+	if (size % mtd->writesize) {
+		printf("board-cfg-size 0x%x not aligned to NAND pages 0x%x\n",
+		       size, mtd->writesize);
+		return -EINVAL;
+	}
+	*cfg_size = size;
+
+	printf("### nand-size=0x%x, board-cfg-size=0x%x\n", *nand_size, *cfg_size);
+	return 0;
+}
+
+/* Load the image of given type/descr from NAND flash at given offset */
+static int fs_image_load_image_from_nand(struct mtd_info *mtd,
+					 unsigned long addr, unsigned int offs,
+					 unsigned int lim, const char *type,
+					 const char *descr)
+{
+	size_t size;
+	int err;
+
+	/* Read F&S header */
+	puts("###A\n");
+	size = FSH_SIZE;
+	err = nand_read_skip_bad(mtd, offs, &size, NULL, lim, (u_char *)&fsh);
+	if (err)
+		return err;
+
+	puts("###B\n");
+	{
+		u8 *p = (u8 *)&fsh;
+		int i;
+		printf("###%p:", p);
+		for (i=0; i<32; i++)
+			printf(" %02x", p[i]);
+		puts("\n");
+	}
+	/* Check type */
+	if (!fs_image_match(&fsh, type, descr))
+		return -ENOENT;
+
+	puts("###C\n");
+	/* Load whole image incl. header */
+	size = fs_image_get_size(&fsh, true);
+	err = nand_read_skip_bad(mtd, offs, &size, NULL, lim, (u_char *)addr);
+	if (err)
+		return err;
+
+	puts("###D\n");
+	/* Set parameters for loaded file */
+	set_fileaddr(addr);
+	env_set_fileinfo(size);
+
+	printf("%s image (size 0x%lx) loaded to address 0x%lx\n",
+	       type, size, addr);
+
+	return 0;
+}
+
+static int fs_image_load_firmware_from_nand(void *fdt, unsigned long addr)
+{
+	unsigned int cfg_size, nand_size;
+	unsigned int nand_start;
+	struct mtd_info *mtd = get_nand_dev_by_index(0);
+	const char *type = "FIRMWARE";
+	const char *arch = fs_image_get_arch();
+	int offs = fs_image_get_info_offs(fdt);
+	int err;
+	int i;
+
+	err = fs_image_get_nand_sizes(fdt, offs, mtd, &nand_size, &cfg_size);
+	if (err)
+		return err;
+
+	for (i = 0; ; i++) {
+		nand_start = fs_image_get_nand_start(fdt, offs, i);
+		printf("### nand-start=0x%x\n", nand_start);
+		if (!nand_start) {
+			printf("No valid %s found\n", type);
+			return -ENOENT;
+		}
+		if (nand_start % mtd->erasesize) {
+			printf("Skipping copy %d: nand-start 0x%x not on a"
+			       " NAND block boundary\n", i, nand_start);
+			continue;
+		}
+
+		printf("Trying copy %d from NAND at 0x%x\n", i, nand_start);
+		err = fs_image_load_image_from_nand(
+			mtd, addr, nand_start + cfg_size, nand_size - cfg_size,
+			type, arch);
+		if (!err)
+			break;
+	}
+
+	return 0;
+}
+
+/* Save the image to the given NAND offset */
+static int fs_image_save_image_to_nand(struct mtd_info *mtd,
+				       const struct fs_header_v1_0 *fsh,
+				       unsigned int offs, unsigned int lim)
+{
+	size_t size = fs_image_get_size(fsh, true);
+	int err;
+
+	// ### TODO: On write fails, we have to mark a block as bad and repeat
+
+	/*
+	 * Write everything of the image but the first page with the header.
+	 * If this is interrupted (e.g. due to a power loss), then the image
+	 * will not be seen as valid when loading because of the missing
+	 * header. So there is no problem with half-written files.
+	 */
+	if (size > mtd->writesize) {
+		size -= mtd->writesize;
+		err = nand_write_skip_bad(mtd, offs + mtd->writesize, &size,
+					  NULL, lim - mtd->writesize,
+					  (u_char *)fsh + mtd->writesize,
+					  WITH_WR_VERIFY);
+		if (err)
+			return err;
+		size = mtd->writesize;
+	}
+
+	/*
+	 * Finally write the page with the header; if this succeeds, then we
+	 * know that the whole image is completely written. If this is
+	 * interrupted, then loading will fail either because of a
+	 * bad header or because of a bad ECC. So again this prevents loading
+	 * files that are not fully written.
+	 */
+	err = nand_write_skip_bad(mtd, offs, &size, NULL, mtd->writesize,
+				  (u_char *)fsh, WITH_WR_VERIFY);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* Save NBoot to NAND (BOARD-CFG, FIRMWARE; ### TODO: also SPL) */
+static int fs_image_save_nboot_to_nand(void *fdt,
+				       const struct fs_header_v1_0 *cfg,
+				       const struct fs_header_v1_0 *firmware,
+				       const struct fs_header_v1_0 *spl)
+{
+	struct mtd_info *mtd = get_nand_dev_by_index(0);
+	int offs = fs_image_get_info_offs(fdt);
+	struct nand_erase_options opts = {0};
+	unsigned int cfg_size, nand_size;
+	unsigned int nand_start;
+	int err, lasterr = -ENOENT;
+	int i;
+	int success = 0;
+
+	err = fs_image_get_nand_sizes(fdt, offs, mtd, &nand_size, &cfg_size);
+	if (err)
+		return err;
+
+	opts.length = nand_size;
+	opts.lim = nand_size;
+	opts.quiet = 1;
+
+	for (i = 0; ; i++) {
+		nand_start = fs_image_get_nand_start(fdt, offs, i);
+		printf("### nand-start=0x%x\n", nand_start);
+		if (!nand_start)
+			break;
+		if (nand_start % mtd->erasesize) {
+			printf("Skipping copy %d: nand-start 0x%x not on a"
+			       " NAND block boundary\n", i, nand_start);
+			continue;
+		}
+
+		printf("Saving copy %d to NAND at 0x%x... ", i, nand_start);
+		opts.offset = nand_start;
+		err = nand_erase_opts(mtd, &opts);
+		if (err) {
+			printf("Erasing failed (%d)\n", err);
+			lasterr = err;
+			continue;
+		}
+
+		/*
+		 * We assume that the FIRMWARE starts within the same NAND
+		 * block as the BOARD-CFG; so we do not have to care about bad
+		 * blocks inbetween. If the first block is bad, we will skip
+		 * it here in the same way as later when writing the
+		 * BOARD-CFG.
+		 */
+		err = fs_image_save_image_to_nand(mtd, firmware,
+						  nand_start + cfg_size,
+						  nand_size - cfg_size);
+		if (err) {
+			printf("Saving FIRMWARE failed (%d)\n", err);
+			lasterr = err;
+			continue;
+		}
+		err = fs_image_save_image_to_nand(mtd, cfg, nand_start,
+						  nand_size);
+		if (err) {
+			printf("Saving BOARD-CFG failed (%d)\n", err);
+			lasterr = err;
+			continue;
+		}
+		puts("Done\n");
+		success++;
+	}
+
+	if (!success) {
+		printf("Saving NBOOT failed\n");
+		return -lasterr;
+	}
+	if (success < i) {
+		printf("WARNING: only %d of %d copies were successful\n",
+		       success, i);
+	}
+
+	//### TODO: Write SPL incl. FCB/DBBT
+	puts("WARNING: SPL skipped, use kobs to write it!\n");
+
+	return 0;
+}
+#endif /* CONFIG_NAND_MXS */
+
+/* Load the FIRMWARE image to RAM */
+int fs_image_load_firmware(unsigned long addr)
+{
+	void *fdt = fs_image_get_cfg_addr_check(false);
+	enum boot_device boot_dev;
+
+	if (!fdt)
+		return -ENOENT;
+
+	boot_dev = fs_board_get_boot_device_from_fuses();
+	switch (boot_dev) {
+#ifdef CONFIG_NAND_MXS
+	case NAND_BOOT:
+		return fs_image_load_firmware_from_nand(fdt, addr);
+#endif
+
+	case MMC3_BOOT:
+#ifdef CONFIG_MMC
+		return -EINVAL;
+#endif
+
+	default:
+		printf("Cannot handle boot device %s\n",
+		       fs_board_get_name_from_boot_dev(boot_dev));
+		return -EINVAL;
+	}
+}
+
+static void fs_image_parse_image(unsigned long addr, unsigned int offs,
+				 int level, unsigned int remaining)
+{
+	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)(addr + offs);
+	bool had_sub_image = false;
+	unsigned int size;
+	char info[MAX_DESCR_LEN + 1];
+	int i;
+
+
+	/* Show info for this image */
+	printf("%08x %08x", offs, remaining);
+	for (i = 0; i < level; i++)
+		putc(' ');
+	if (fsh->type[0]) {
+		memcpy(info, fsh->type, MAX_TYPE_LEN);
+		info[MAX_TYPE_LEN] = '\0';
+		printf(" %s", info);
+	}
+	if ((fsh->info.flags & FSH_FLAGS_DESCR) && fsh->param.descr[0]) {
+		memcpy(info, fsh->param.descr, MAX_DESCR_LEN);
+		info[MAX_DESCR_LEN] = '\0';
+		printf(" (%s)", info);
+	}
+	puts("\n");
+	offs += FSH_SIZE;
+	level++;
+
+	/* Handle subimages */
+	while (remaining > 0) {
+		fsh = (struct fs_header_v1_0 *)(addr + offs);
+		if (fs_image_is_fs_image(fsh)) {
+			had_sub_image = true;
+			size = fs_image_get_size(fsh, false);
+			fs_image_parse_image(addr, offs, level, size);
+			size += FSH_SIZE;
+		} else {
+			size = remaining;
+			if (had_sub_image) {
+				printf("%08x %08x", offs, size);
+				for (i = 0; i < level; i++)
+					putc(' ');
+				puts(" [unkown data]\n");
+			}
+		}
+		offs += size;
+		remaining -= size;
+	}
+}
+
+/* List contents of an F&S image at given address */
+int fs_image_list(unsigned long addr)
+{
+	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
+
+	if (!fs_image_is_fs_image(fsh)) {
+		printf("No F&S image found at addr 0x%lx\n", addr);
+		return -ENOENT;
+	}
+
+	printf("offset   size     type (description)\n");
+	printf("-------------------------------------------------------------------------------\n");
+
+	fs_image_parse_image(addr, 0, 0, fs_image_get_size(fsh, false));
+
+	return 0;
+}
+
+/* Find the given image; return NULL if not found */
+struct fs_header_v1_0 *fs_image_find(struct fs_header_v1_0 *fsh,
+				     const char *type, const char *descr)
+{
+	unsigned int size;
+	unsigned int remaining;
+
+	remaining = fs_image_get_size(fsh++, false);
+	while (remaining > 0) {
+	{
+		u8 *p = (u8 *)fsh;
+		int i;
+		printf("###%p:", p);
+		for (i=0; i<32; i++)
+			printf(" %02x", p[i]);
+		puts("\n");
+	}
+
+		if (!fs_image_is_fs_image(fsh))
+			return NULL;
+		if (fs_image_match(fsh, type, descr))
+			return fsh;
+		size = fs_image_get_size(fsh, true);
+		fsh = (struct fs_header_v1_0 *)((void *)fsh + size);
+		remaining -= size;
+	}
+
+	return NULL;
+}
+
+static int fs_image_confirm(void)
+{
+	puts("Are you sure? [y/N] ");
+	return confirm_yesno();
+}
+
+/* Save the F&S NBoot image at given address to the appropriate device */
+int fs_image_save(unsigned long addr, bool force)
+{
+	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
+	struct fs_header_v1_0 *cfg;
+	struct fs_header_v1_0 *spl;
+	struct fs_header_v1_0 *firmware;
+	unsigned int size, remaining;
+	char id[MAX_DESCR_LEN + 1];
+	char old_id[MAX_DESCR_LEN + 1];
+	const char *arch = fs_image_get_arch();
+	const char *boot_dev;
+	const char *nboot_version;
+	enum boot_device boot_dev_cfg;
+	enum boot_device boot_dev_fuses;
+	void *fdt;
+	int offs;
+	int err;
+	struct board_name_rev bnr;
+
+	if (!fs_image_is_fs_image(fsh)) {
+		printf("No F&S image found at addr 0x%lx\n", addr);
+		return -ENOENT;
+	}
+
+	/* Use current BOARD-ID for saving */
+	err = fs_image_get_board_id(id);
+	if (err)
+		return err;
+	id[MAX_DESCR_LEN] = '\0';
+
+	/* In case of an NBoot image with prepended BOARD-ID, use this ID*/
+	if (fs_image_match(fsh, "BOARD-ID", NULL)) {
+		printf("### new id\n");
+		memcpy(old_id, id, MAX_DESCR_LEN + 1);
+		memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
+		if (strcmp(id, old_id)) {
+			printf("Warning: converting board from %s to %s\n",
+			       old_id, id);
+			if (!force && !fs_image_confirm())
+				return 0;
+		}
+		fsh++;
+	}
+	printf("### Using BOARD-ID %s\n", id);
+
+	if (!fs_image_match(fsh, "NBOOT", arch)) {
+		printf("This is no NBOOT image for arch %s\n", arch);
+		return -EINVAL;
+	}
+
+	/* Look for BOARD-CONFIGS subimage and search for matching BOARD-CFG */
+	cfg = fs_image_find(fsh, "BOARD-CONFIGS", arch);
+	if (!cfg) {
+		printf("No BOARD-CONFIGS found for arch %s\n", arch);
+		return -ENOENT;
+	}
+
+	remaining = fs_image_get_size(cfg++, false);
+	fs_image_get_board_name_rev(id, &bnr);
+	while (1) {
+		if (!remaining || !fs_image_is_fs_image(cfg)) {
+			printf("No BOARD-CFG found for BOARD-ID %s\n", id);
+			return -ENOENT;
+		}
+		if (fs_image_match_board_id(cfg, "BOARD-CFG", &bnr))
+			break;
+		size = fs_image_get_size(cfg, true);
+		remaining -= size;
+		cfg = (struct fs_header_v1_0 *)((void *)cfg + size);
+	}
+
+	memcpy(id, cfg->param.descr, MAX_DESCR_LEN); //###
+	printf("### Using BOARD-CFG %s\n", id);
+
+	/* Check for valid boot device */
+	fdt = (void *)(cfg + 1);
+	offs = fs_image_get_info_offs(fdt);
+	nboot_version = fdt_getprop(fdt, offs, "version", NULL);
+	if (!nboot_version) {
+		puts("Rejecting to save NBOOT with unknown version\n");
+		return -EINVAL;
+	}
+
+	printf("Found NBOOT version %s\n", nboot_version);
+
+	/* Check for valid boot device */
+	offs = fs_image_get_cfg_offs(fdt);
+	boot_dev = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	boot_dev_cfg = fs_board_get_boot_dev_from_name(boot_dev);
+	if (boot_dev_cfg == UNKNOWN_BOOT) {
+		printf("Unknown boot device %s in BOARD-CFG\n", boot_dev);
+		return -EINVAL;
+	}
+	boot_dev_fuses = fs_board_get_boot_device_from_fuses();
+	if (boot_dev_fuses != boot_dev_cfg) {
+		if (boot_dev_fuses != USB_BOOT) {
+			printf("Error: New BOARD-CFG wants to boot from %s but"
+			       " board is already fused\nfor %s. Rejecting"
+			       " to save this configuration.\n", boot_dev,
+			       fs_board_get_name_from_boot_dev(boot_dev_fuses));
+			return -EINVAL;
+		}
+		printf("Boot fuses not yet set, remember to burn them for %s\n",
+			boot_dev);
+	}
+	printf("### Board is assumed to boot from %s\n", boot_dev);
+
+	/* Look for SPL */
+	spl = fs_image_find(fsh, "SPL", arch);
+	if (!spl) {
+		printf("No SPL found for arch %s\n", arch);
+		return -ENOENT;
+	}
+
+	/* Look for FIRMWARE */
+	firmware = fs_image_find(fsh, "FIRMWARE", arch);
+	if (!firmware) {
+		printf("No FIRMWARE found for arch %s\n", arch);
+		return -ENOENT;
+	}
+
+	printf("### BOARD-CFG: %p, FIRMWARE: %p, SPL: %p\n", cfg, firmware, spl);
+
+	/* Found all sub-images, let's go */
+	switch (boot_dev_cfg) {
+#ifdef CONFIG_NAND_MXS
+	case NAND_BOOT:
+		err = fs_image_save_nboot_to_nand(fdt, cfg, firmware, spl);
+		break;
+#endif
+
+	default:
+		printf("### Saving NBOOT to %s not available\n", boot_dev);
+		err = -EINVAL;
+		break;
+	}
+
+	if (err)
+		printf("Saving NBOOT image failed (%d)\n", err);
+
+	return err;
+}
+
+#endif /* !CONFIG_SPL_BUILD */

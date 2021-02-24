@@ -152,6 +152,9 @@ obj-$(CONFIG_CMD_ETHSW) += ethsw.o
 obj-$(CONFIG_CMD_PMIC) += pmic.o
 obj-$(CONFIG_CMD_REGULATOR) += regulator.o
 
+# Handle F&S images, e.g. NBoot
+obj-$(CONFIG_CMD_FSIMAGE) += fsimage.o
+
 # Extended LCD support (F&S)
 obj-$(CONFIG_CMD_LCD) += lcd.o
 obj-$(CONFIG_CMD_WIN) += win.o
