@@ -24,8 +24,8 @@
  * OCRAM layout (SPL)
  * ------------------
  * 0x0090_0000: --- (64KB, reserved by ROM loader)
- * 0x0091_0000: BSS data of SPL (8KB)
- * 0x0091_2000: Board-Config (8KB)
+ * 0x0091_0000: BOARD-CFG (8KB)
+ * 0x0091_2000: BSS data of SPL (8KB)
  * 0x0091_4000: MALLOC_F pool (28KB)
  * 0x0091_B000: --- (4KB, free)
  * 0x0091_C000: Stack + Global Data (16KB)
@@ -69,11 +69,11 @@
  * 0x000E_0000: DBBT Copy 3 (128KB)                          |
  * 0x0010_0000: SPL Copy 0 (256KB)                           | "NBoot"
  * 0x0014_0000: HDMI-FW Copy 0 (256KB, unused but written)   |
- * 0x0018_0000: BOARD-CFG Copy 0 (8KB)                       |
+ * 0x0018_0000: BOARD-CFG Copy 0 (8KB) (see nboot-info.dtsi) |
  * 0x0018_2000: FIRMWARE Copy 0 (1016KB)                     |
  * 0x0028_0000: SPL Copy 1 (256KB)                           |
  * 0x002C_0000: HDMI-FW Copy 1 (256KB, unused but written)   |
- * 0x0030_0000: BOARD-CFG Copy 1 (8KB)                       |
+ * 0x0030_0000: BOARD-CFG Copy 1 (8KB) (see nboot-info.dtsi) |
  * 0x0030_2000: FIRMWARE Copy 1 (1016KB)                    /
  * 0x0040_0000: UserDef (2048KB)
  * 0x0060_0000: Refresh (512KB)
@@ -88,7 +88,6 @@
  * Remarks:
  * - If Kernel and FDT are part of the Rootfs, these partitions are dropped
  * - If no Update with Set A and B is used, all Set B partitions are dropped
- * - On i.MX8MM, no HDMI is available, so Copy 1 of SPL directly follows Copy 0
  */
 
 #ifndef __FSIMX8MM_H
@@ -99,7 +98,7 @@
 
 #include "imx_env.h"
 
-/* disable FAT write becaue its dosn't work
+/* disable FAT write becaue its doesn't work
  *  with F&S FAT driver
  */
 #undef CONFIG_FAT_WRITE
@@ -128,20 +127,8 @@
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
 
-/* Address where BOARD-CFG is loaded to */
-#define CONFIG_FUS_BOARDCFG_ADDR 0x912000
-
-/* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_NAND_OFFSET1 0x180000
-#define CONFIG_FUS_BOARDCFG_NAND_OFFSET2 0x300000
-#define CONFIG_FUS_BOARDCFG_NAND_SIZE 0x2000
-#define CONFIG_FUS_FIRMWARE_NAND_OFFSET1 \
-	(CONFIG_FUS_BOARDCFG_NAND_OFFSET1 + CONFIG_FUS_BOARDCFG_NAND_SIZE)
-#define CONFIG_FUS_FIRMWARE_NAND_OFFSET2 \
-	(CONFIG_FUS_BOARDCFG_NAND_OFFSET2 + CONFIG_FUS_BOARDCFG_NAND_SIZE)
-#define CONFIG_FUS_FIRMWARE_NAND_SIZE \
-	(0x100000 - CONFIG_FUS_BOARDCFG_NAND_SIZE)
-
+/* Address in OCRAM where BOARD-CFG is loaded to; U-Boot must know this, too */
+#define CONFIG_FUS_BOARDCFG_ADDR 0x910000
 
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
@@ -155,18 +142,27 @@
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
 #define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
-#define CONFIG_SPL_BSS_START_ADDR      0x00910000
-#define CONFIG_SPL_BSS_MAX_SIZE        0x2000	/* 8 KB */
-#define CONFIG_SYS_SPL_MALLOC_START    0x42200000
-#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
+/* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
+#define CONFIG_SPL_BOARDCFG_NAND_OFFSET0 0x180000
+#define CONFIG_SPL_BOARDCFG_NAND_OFFSET1 0x300000
+#define CONFIG_SPL_BOARDCFG_NAND_SIZE	0x100000
+#define CONFIG_SPL_BOARDCFG_SIZE	0x2000	/* 8 KB should be enough */
+
+#define CONFIG_SPL_BSS_START_ADDR \
+	(CONFIG_FUS_BOARDCFG_ADDR + CONFIG_SPL_BOARDCFG_SIZE)
+#define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
+#define CONFIG_SYS_SPL_MALLOC_START	0x42200000
+#define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000	/* 512 KB */
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
 
+/* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
 #define CONFIG_SPL_ATF_ADDR 0x920000
 #define CONFIG_SPL_TEE_ADDR 0xbe000000
 
-#define CONFIG_SPL_DRAM_TIMING_ADDR (CONFIG_SPL_ATF_ADDR + 0xc000)
+/* TCM Address where DRAM Timings are loaded to */
+#define CONFIG_SPL_DRAM_TIMING_ADDR 0x81C000
 
 /* malloc_f is used before GD_FLG_FULL_MALLOC_INIT set */
 #define CONFIG_MALLOC_F_ADDR 0x914000

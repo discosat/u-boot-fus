@@ -1,0 +1,85 @@
+/*
+ * Copyright (C) 2021 F&S Elektronik Systeme GmbH
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This file contains generic NBoot parameters that are included in every
+ * BOARD-CFG file. So keep the set as small as possible. Examples are the
+ * places where NBoot images (or parts thereof) are stored in NAND and eMMC.
+ *
+ * Some values are only given as placeholders, starting and ending with ###.
+ * The Makefile will replace them with their correct values before the file is
+ * included in all board configurations.
+ *
+ * We avoid coding these places in the bootloader itself because this would
+ * cause problems when something changes. Assume a new NBoot has a different
+ * layout where images are stored at different places. Then an old U-Boot with
+ * hard coded values would still write the new NBoot to the old positions and
+ * the system would fail to boot after that. So it is better to have this
+ * information dynamically as part of NBoot. Then U-Boot can look for the right
+ * values in the BOARD-CFG file and can save everything to the correct (new)
+ * positions.
+ *
+ * When an NBOOT image is stored, there are three parts that are stored
+ * individually:
+ *
+ *   SPL:       First stage boot loader
+ *   BOARD-CFG: This is the configuration for the specific board
+ *   FIRMWARE:  This part contains files for DRAM configuration, ATF and TEE
+ *
+ * For now, BOARD-CFG and FIRMWARE are stored in the same continuous region of
+ * the memory. The BOARD-CFG is stored first, starting at the beginning of that
+ * region, then with a small gap there is the FIRMWARE. So we only need to know
+ * the start of the region, the offset for the FIRMWARE and of course the size
+ * of the region.
+ *
+ *     +-----------+  <--- start                  \
+ *     | BOARD-CFG |                               |
+ *     |-----------|                               |
+ *     | (gap)     |                               |
+ *     +-----------+  <--- start + board-cfg-size  | size
+ *     | FIRMWARE  |                               |
+ *     +-----------+                               |
+ *     | (free)    |                               |
+ *     +-----------+                              /
+ *
+ * SPL is stored separately as requird by the ROM loader.
+ */
+
+/ {
+	nboot-info {
+		/*
+		 * NBoot version with year and month. Please update for every
+		 * release. If there needs to be more than one release within a
+		 * month, add .1, .2, .3, ..., e.g. 2021.02.2 for the third
+		 * release in February 2021.
+		 */
+		version = "###NBOOT_VERSION###";
+
+		/*
+		 * The maximum size of the BOARD-CFG; this is also the offset
+		 * of the FIRMWARE behind the BOARD-CFG in NAND and MMC. Must
+		 * be a multiple of the NAND page size (0x800 = 2048 bytes) and
+		 * the MMC sector size (0x200 = 512 bytes).
+		 */
+		board-cfg-size = <###BOARD_CFG_SIZE###>;
+
+		/*
+		 * Settings for NAND: start and size must both be NAND block
+		 * aligned (0x20000 = 128KB).
+		 */
+		nand-start = <###NAND_START_0### ###NAND_START_1###>;
+		nand-size = <###NAND_SIZE###>;
+
+		/*
+		 * Settings for eMMC. All values must be aligned to sectors
+		 * (0x200 = 512 bytes), better even aligned to Linux page size
+		 * (0x1000 = 4096 bytes). There will be two copies, one in
+		 * Boot1 hardware partition, one in Boot2 hardware partition.
+		 */
+		mmc-start = <40000>;
+		mmc-size = <0x100000>;
+	};
+};

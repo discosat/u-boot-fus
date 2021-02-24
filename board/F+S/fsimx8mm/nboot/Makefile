@@ -4,6 +4,10 @@
 # SPDX-License-Identifier:      GPL-2.0+
 #
 
+include spl/include/autoconf.mk
+
+NBOOT_VERSION = 2021.02
+
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
 # format is:
@@ -120,39 +124,51 @@ cmd_dd4 = dd if=$(word 1,$^) of=$@ bs=16k status=none; \
 	dd if=$(word 3,$^) of=$@ bs=16k seek=3 conv=notrunc status=none; \
 	dd if=$(word 4,$^) of=$@ bs=16k seek=5 conv=notrunc status=none
 
-.INTERMEDIATE: $(obj)/ddr3l_fw.bin $(obj)/lpddr4_fw.bin $(obj)/ddr4_fw.bin
+.INTERMEDIATE: $(obj)/.ddr3l_fw.tmp $(obj)/.lpddr4_fw.tmp $(obj)/.ddr4_fw.tmp
 
-$(obj)/ddr3l_fw.bin: $(NXP_PATH_DDR3L)
+$(obj)/.ddr3l_fw.tmp: $(NXP_PATH_DDR3L)
 	$(call cmd,dd2)
 
-$(obj)/lpddr4_fw.bin: $(NXP_PATH_LPDDR4)
+$(obj)/.lpddr4_fw.tmp: $(NXP_PATH_LPDDR4)
 	$(call cmd,dd4)
 
-$(obj)/ddr4_fw.bin: $(NXP_PATH_DDR4)
+$(obj)/.ddr4_fw.tmp: $(NXP_PATH_DDR4)
 	$(call cmd,dd4)
 
-DRAM_TIMINGS_LDS = $(NBOOT_PATH)/dram-timings.lds
+quiet_cmd_sed = SED     $@
+cmd_sed = sed $2 $< > $@
+
+#quiet_cmd_lds = LDS     $@
+#cmd_lds = $(CPP) $(cpp_flags) -P -x c -o $@ $<
+#cmd_lds = sed -e "s/###DRAM_TIMING_ADDR###/$(CONFIG_SPL_DRAM_TIMING_ADDR)/g" \
+	$< > $@
+
+DRAM_TIMINGS_LDS = $(obj)/.dram-timings.lds.tmp
+DRAM_TIMINGS_REPLACE = \
+	-e "s/\#\#\#DRAM_TIMING_ADDR\#\#\#/$(CONFIG_SPL_DRAM_TIMING_ADDR)/g"
+$(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds
+	$(call cmd,sed,$(DRAM_TIMINGS_REPLACE))
+
 quiet_cmd_dram_elf = LINK    $@
 cmd_dram_elf = $(LD) -T $(DRAM_TIMINGS_LDS) -o $@ $<
 #cmd_dram_elf = $(LD) -T $(DRAM_TIMINGS_LDS) -Map $*.map -o $@ $<
 
-%.elf: %.o
+$(obj)/.%.elf.tmp: $(obj)/%.o $(DRAM_TIMINGS_LDS)
 	$(call cmd,dram_elf)
 
 quiet_cmd_dram_bin = OBJCOPY $@
 cmd_dram_bin = $(OBJCOPY) --gap-fill=0xff -O binary $< $@
 
-%.bin: %.elf
-#	$(call cmd,objcopy)
+$(obj)/.%.bin.tmp: $(obj)/.%.elf.tmp
 	$(call cmd,dram_bin)
 
 quiet_cmd_fsimg = FSIMG   $@
 cmd_fsimg = scripts/addfsheader.sh -q -p 16 $2 $^ > $@
 
-%_timing.fs: %_timing.bin
+$(obj)/%_timing.fs: $(obj)/.%_timing.bin.tmp
 	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
 
-%_fw.fs: %_fw.bin
+$(obj)/%_fw.fs: $(obj)/.%_fw.tmp
 	$(call cmd,fsimg,-t DRAM-FW -d $(*F))
 
 $(obj)/ddr3l_type.fs: $(OBJ_RT_DDR3L)
@@ -174,13 +190,22 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 %_spl.fs: SPL
 	$(call cmd,fsimg,-t SPL -d $(*F))
 
+NBOOT_INFO_REPLACE = \
+	-e "s/\#\#\#NBOOT_VERSION\#\#\#/$(NBOOT_VERSION)/g" \
+	-e "s/\#\#\#BOARD_CFG_SIZE\#\#\#/$(CONFIG_SPL_BOARDCFG_SIZE)/g" \
+	-e "s/\#\#\#NAND_START_0\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_OFFSET0)/g" \
+	-e "s/\#\#\#NAND_START_1\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_OFFSET1)/g" \
+	-e "s/\#\#\#NAND_SIZE\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_SIZE)/g"
+$(obj)/.nboot-info.dtsi.tmp: $(NBOOT_PATH)/nboot-info.dtsi
+	$(call cmd,sed,$(NBOOT_INFO_REPLACE))
+
 quiet_cmd_dtc = DTC     $@
 cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
 
-$(obj)/%.dtb: $(NBOOT_PATH)/%.dts
+$(obj)/.%.dtb.tmp: $(NBOOT_PATH)/%.dts $(obj)/.nboot-info.dtsi.tmp
 	$(call cmd,dtc)
 
-%.fs: %.dtb
+$(obj)/%.fs: $(obj)/.%.dtb.tmp
 	$(call cmd,fsimg,-t BOARD-CFG -d $(*F))
 
 %_board_configs.fs: $(OBJ_BOARD_CONFIGS)
@@ -202,18 +227,9 @@ $(obj)/fsimage.sh.fs: $(srctree)/scripts/fsimage.sh
 %_extra.fs: $(OBJ_EXTRA_FILES)
 	$(call cmd,fsimg,-t EXTRA -d $(*F))
 
-nboot-$(BOARD).fs: $(OBJ_NBOOT_FILES)
+nboot-$(BOARD)-$(NBOOT_VERSION).fs: $(OBJ_NBOOT_FILES)
 	$(call cmd,fsimg,-t NBOOT -d $(BOARD))
 
-quiet_cmd_copy = COPY    $@
-      cmd_copy = cp $< $@
-
-#nboot-$(BOARD).fs: $(OBJ_NBOOT)
-#	$(call cmd,copy)
-
 PHONY += nboot
+nboot: nboot-$(BOARD)-$(NBOOT_VERSION).fs
 	@echo "Finished doing nboot"
-
-### TODO: make clean does not work yet
-clean-files := $(BOARD_CONFIGS) $(RT_DDR3L) $(RT_LPDDR4) $(RT_DDR4) \
-	$(DRAM_TYPES) $(EXTRA) $(FIRMWARE) $(NBOOT_FILES) $(NBOOT)

@@ -799,7 +799,7 @@ static int fs_image_loop_nand(unsigned int offs, unsigned int lim)
 /* Load FIRMWARE using state machine, try both copies */
 unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
 {
-	unsigned int lim = CONFIG_FUS_FIRMWARE_NAND_SIZE;
+	unsigned int lim = CONFIG_SPL_BOARDCFG_NAND_SIZE;
 	int err;
 
 	/*
@@ -808,11 +808,11 @@ unsigned int fs_image_fw_nand(unsigned int jobs_todo, basic_init_t basic_init)
 	 * state machine when it is known.
 	 */
 	fs_image_start(sizeof(struct fs_header_v1_0), jobs_todo, basic_init);
-	err = fs_image_loop_nand(CONFIG_FUS_FIRMWARE_NAND_OFFSET1, lim);
+	err = fs_image_loop_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET0, lim);
 	if (err) {
 		/* Read error, try second copy to complete remaining jobs */
 		fs_image_start(sizeof(struct fs_header_v1_0), jobs, basic_init);
-		err = fs_image_loop_nand(CONFIG_FUS_FIRMWARE_NAND_OFFSET2, lim);
+		err = fs_image_loop_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET1, lim);
 	}
 	if (err)
 		printf("Reading FIRMWARE failed (%d)\n", err);
@@ -827,10 +827,10 @@ int fs_image_cfg_nand(void)
 	int err;
 	char *type = "BOARD-CFG";
 
-	err = fs_image_load_nand(CONFIG_FUS_BOARDCFG_NAND_OFFSET1,
+	err = fs_image_load_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET0,
 				 type, NULL, fsh, true);
 	if (err) {
-		err = fs_image_load_nand(CONFIG_FUS_BOARDCFG_NAND_OFFSET2,
+		err = fs_image_load_nand(CONFIG_SPL_BOARDCFG_NAND_OFFSET1,
 					 type, NULL, fsh, true);
 		if (err)
 			return err;

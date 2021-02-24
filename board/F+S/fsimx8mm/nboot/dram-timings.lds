@@ -7,7 +7,7 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
-MEMORY { .ocram : ORIGIN = 0x92c000, LENGTH = 0x4000 }
+MEMORY { .ocram : ORIGIN = ###DRAM_TIMING_ADDR###, LENGTH = 0x4000 }
 OUTPUT_FORMAT("elf64-littleaarch64", "elf64-littleaarch64", "elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
 SECTIONS

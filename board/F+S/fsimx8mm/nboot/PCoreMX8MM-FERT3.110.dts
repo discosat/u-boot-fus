@@ -8,6 +8,8 @@
 
 /dts-v1/;
 
+#include ".nboot-info.dtsi.tmp"
+
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */  
