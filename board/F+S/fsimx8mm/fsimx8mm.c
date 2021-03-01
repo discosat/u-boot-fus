@@ -137,7 +137,10 @@ const struct fs_board_info board_info[2] = {
 		.set_rootfs = SET_ROOTFS,
 		.selector = SELECTOR,
 		.boot_partition = BOOT_PARTITION,
-		.rootfs_partition = ROOTFS_PARTITION
+		.rootfs_partition = ROOTFS_PARTITION,
+		.init = ".init_fs_updater",
+#else
+		.init = ".init_init",
 #endif
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */

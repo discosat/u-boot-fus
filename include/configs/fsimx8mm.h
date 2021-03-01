@@ -302,14 +302,14 @@
 		  "if test \"x${BOOT_SLOT}\" = \"xA\" && test ${BOOT_A_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
 			  "echo \"Current rootfs boot_partition is A\"; "																\
 			  "setexpr BOOT_A_LEFT ${BOOT_A_LEFT} - 1; "																	\
-			  "setenv boot_partition 1;"																					\
-			  "setenv rootfs_partition 5;"																					\
+			  "setenv boot_partition 5;"																					\
+			  "setenv rootfs_partition 7;"																					\
 			  "setenv rauc_cmd rauc.slot=A;"																				\
 		  "elif test \"x${BOOT_SLOT}\" = \"xB\" && test ${BOOT_B_LEFT} -gt 0 && test \"x${rauc_cmd}\" = \"xundef\"; then "	\
 			  "echo \"Current rootfs boot_partition is B\"; "																\
 			  "setexpr BOOT_B_LEFT ${BOOT_B_LEFT} - 1; "																	\
-			  "setenv boot_partition 2;"																					\
-			  "setenv rootfs_partition 6;"																					\
+			  "setenv boot_partition 6;"																					\
+			  "setenv rootfs_partition 8;"																					\
 			  "setenv rauc_cmd rauc.slot=B;"																				\
 		  "fi;"																												\
 		"done;"																												\
@@ -341,10 +341,10 @@
 	"fi;'\0"																												\
 	NAND_BOOT_VALUES \
 	"boot_partition=undef\0" \
-	".boot_partition_mmc= setenv boot_partition 1\0"\
+	".boot_partition_mmc= setenv boot_partition 5\0"\
 	".boot_partition_nand= setenv boot_partition KernelA\0"\
 	"rootfs_partition=undef\0"\
-	".rootfs_partition_mmc=setenv rootfs_partition 4\0"\
+	".rootfs_partition_mmc=setenv rootfs_partition 7\0"\
 	".rootfs_partition_nand=setenv rootfs_partition rootfsA\0"
 
 	#define ROOTFS_MEM 	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p\\\\${boot_partition} rootwait\0"
@@ -420,6 +420,7 @@
 	"init=undef\0"							\
 	".init_init=setenv init\0"					\
 	".init_linuxrc=setenv init init=linuxrc\0"			\
+	".init_fs_updater=setenv init init=/sbin/preinit.sh\0" \
 	"sercon=undef\0"						\
 	"installcheck=undef\0"						\
 	"updatecheck=undef\0"						\
@@ -457,6 +458,7 @@
 #if defined(CONFIG_ENV_IS_IN_MMC)
 	#ifdef CONFIG_FS_UPDATE_SUPPORT
 		#define CONFIG_ENV_SIZE			0x2000
+		#define CONFIG_ENV_OFFSET_REDUND (CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
 	#else
 		#define CONFIG_ENV_SIZE			0x1000
 	#endif
