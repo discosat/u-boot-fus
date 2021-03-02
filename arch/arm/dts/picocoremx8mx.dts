@@ -17,16 +17,6 @@
 /* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
 #define CONFIG_PICOCOREMX8MX_BOARD_REVISION	110
 
-#ifdef CONFIG_ENV_IS_IN_NAND
-/* On-board NAND */
-#define CONFIG_PICOCOREMX8MX_NAND
-#elif defined(CONFIG_ENV_IS_IN_MMC)
-/* EMMC - SD_C - Internal SD port */
-#define CONFIG_PICOCOREMX8MX_EMMC
-#else /* default boot device nand */
-#define CONFIG_PICOCOREMX8MX_NAND
-#endif
-
  /* Network */
 /* Use FIXED_SPEED and LEGACY_ETH for now */
 #define CONFIG_PICOCOREMX8MX_ETH
@@ -62,11 +52,6 @@
 //#define CONFIG_PICOCOREMX8MX_SD_B_CD
 //#define CONFIG_PICOCOREMX8MX_SD_B_WP
 
-/* IF NAND is used, eMMC can´t be used */
-#ifdef CONFIG_PICOCOREMX8MX_NAND
-#undef CONFIG_PICOCOREMX8MX_EMMC
-#endif
-
 /* TODO: Power polarity can't be set by DT
 *  Default its low for both ports. Use regulator
 *  to set pin value to correct state.
@@ -90,6 +75,7 @@
 
 	aliases {
 		i2c4 = &i2c_gpio;
+		emmc = &usdhc3;
 	};
 
 	chosen {
@@ -123,18 +109,19 @@
 	};
 #endif
 
-#ifdef CONFIG_PICOCOREMX8MX_EMMC
 	reg_usdhc3_vmmc: regulator-usdhc3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD3_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+#if 0
 		gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		startup-delay-us = <100>;
 		off-on-delay-us = <12000>;
-	};
 #endif
+	};
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -421,7 +408,6 @@
 };
 #endif
 
-#ifdef CONFIG_PICOCOREMX8MX_EMMC
 &usdhc3 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
@@ -432,7 +418,6 @@
 	vmmc-supply = <&reg_usdhc3_vmmc>;
 	status = "okay";
 };
-#endif
 
 &wdog1 {
 	pinctrl-names = "default";
@@ -503,11 +488,11 @@
 				MX8MM_IOMUXC_ENET_TXC_ENET1_RGMII_TXC		0x0001f
 				MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x00091
 				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x00091
-				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x0001f
-				/* ETH_SW_RST  */
-				MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5		0x00019
-				/* ETH_SW_INTn  */
-				MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x00064
+			        MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x0001f
+                                /* ETH_SW_RST  */
+                		MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5		0x00019
+                                /* ETH_SW_INTn  */
+			        MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x00064
 
 			>;
 		};
@@ -671,7 +656,6 @@
 		};
 #endif
 
-#ifdef CONFIG_PICOCOREMX8MX_EMMC
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK			0x40000190
@@ -685,6 +669,7 @@
 				MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x001d0
 				MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7			0x001d0
 				MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x00190
+				MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B 0x190
 			>;
 		};
 
@@ -701,6 +686,7 @@
 				MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x001d4
 				MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7			0x001d4
 				MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x00194
+				MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B 0x1d4
 			>;
 		};
 
@@ -716,10 +702,10 @@
 				MX8MM_IOMUXC_NAND_CE2_B_USDHC3_DATA5		0x001d6
 				MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x001d6
 				MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7			0x001d6
-				MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x196
+				MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 	0x00196
+				MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B 0x1d6
 			>;
 		};
-#endif
 
 
 		pinctrl_wdog: wdoggrp {

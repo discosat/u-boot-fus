@@ -323,7 +323,7 @@ static int is_badblock(struct mtd_info *mtd, loff_t offs, int allowbbt)
 /* setup mtd and nand structs and init mxs_nand driver */
 extern int mxs_nand_realloc(struct mtd_info *mtd);
 
-static int mxs_nand_init(void)
+static int mxs_nand_spl_init(void)
 {
 	/* return if already initalized */
 	if (nand_chip.numchips)
@@ -366,7 +366,7 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	uint8_t *page_buf = NULL;
 	uint32_t page_off;
 
-	if (mxs_nand_init())
+	if (mxs_nand_spl_init())
 		return -ENODEV;
 
 	chip = mtd_to_nand(mtd);

@@ -42,6 +42,9 @@ void *fs_image_get_cfg_addr(bool with_fs_header);
 /* Return the address of the /board-cfg node */
 int fs_image_get_cfg_offs(void *fdt);
 
+/* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
+const char *fs_image_get_nboot_version(void *fdt);
+
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
 void fs_image_all_sdp(unsigned int jobs_todo, basic_init_t basic_init);
 

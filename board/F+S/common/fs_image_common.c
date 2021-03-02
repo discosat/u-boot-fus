@@ -243,7 +243,10 @@ void *fs_image_get_cfg_addr(bool with_fs_header)
 {
 	void *cfg = (void*)CONFIG_FUS_BOARDCFG_ADDR;
 
-	return with_fs_header ? cfg : cfg + FSH_SIZE;
+	if (!with_fs_header)
+		cfg += FSH_SIZE;
+
+	return cfg;
 }
 
 static unsigned int fs_image_get_board_cfg_size(void *fdt, int offs)
@@ -261,6 +264,17 @@ int fs_image_get_info_offs(void *fdt)
 int fs_image_get_cfg_offs(void *fdt)
 {
 	return fdt_path_offset(fdt, "/board-cfg");
+}
+
+const char *fs_image_get_nboot_version(void *fdt)
+{
+	int offs;
+
+	if (!fdt)
+		fdt = fs_image_get_cfg_addr(false);
+
+	offs = fs_image_get_info_offs(fdt);
+	return fdt_getprop(fdt, offs, "version", NULL);
 }
 
 /* Read the image size (incl. padding) from an F&S header */
@@ -1268,26 +1282,30 @@ static int fs_image_save_nboot_to_nand(void *fdt,
 int fs_image_load_firmware(unsigned long addr)
 {
 	void *fdt = fs_image_get_cfg_addr_check(false);
-	enum boot_device boot_dev;
+	int offs;
+	const char *boot_dev;
+	enum boot_device boot_dev_cfg;
 
 	if (!fdt)
 		return -ENOENT;
 
-	boot_dev = fs_board_get_boot_device_from_fuses();
-	switch (boot_dev) {
+	offs = fs_image_get_cfg_offs(fdt);
+	boot_dev = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	boot_dev_cfg = fs_board_get_boot_dev_from_name(boot_dev);
+
+	switch (boot_dev_cfg) {
 #ifdef CONFIG_NAND_MXS
 	case NAND_BOOT:
 		return fs_image_load_firmware_from_nand(fdt, addr);
 #endif
 
-	case MMC3_BOOT:
 #ifdef CONFIG_MMC
+	case MMC3_BOOT:
 		return -EINVAL;
 #endif
 
 	default:
-		printf("Cannot handle boot device %s\n",
-		       fs_board_get_name_from_boot_dev(boot_dev));
+		printf("Cannot handle boot device %s\n", boot_dev);
 		return -EINVAL;
 	}
 }
@@ -1471,10 +1489,9 @@ int fs_image_save(unsigned long addr, bool force)
 	memcpy(id, cfg->param.descr, MAX_DESCR_LEN); //###
 	printf("### Using BOARD-CFG %s\n", id);
 
-	/* Check for valid boot device */
+	/* Get NBoot version */
 	fdt = (void *)(cfg + 1);
-	offs = fs_image_get_info_offs(fdt);
-	nboot_version = fdt_getprop(fdt, offs, "version", NULL);
+	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
 		puts("Rejecting to save NBOOT with unknown version\n");
 		return -EINVAL;
@@ -1490,7 +1507,7 @@ int fs_image_save(unsigned long addr, bool force)
 		printf("Unknown boot device %s in BOARD-CFG\n", boot_dev);
 		return -EINVAL;
 	}
-	boot_dev_fuses = fs_board_get_boot_device_from_fuses();
+	boot_dev_fuses = fs_board_get_boot_dev_from_fuses();
 	if (boot_dev_fuses != boot_dev_cfg) {
 		if (boot_dev_fuses != USB_BOOT) {
 			printf("Error: New BOARD-CFG wants to boot from %s but"

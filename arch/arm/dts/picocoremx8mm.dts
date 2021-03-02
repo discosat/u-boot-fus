@@ -35,6 +35,11 @@
 	model = "FSL i.MX8MM PCoreMX8MM board";
 	compatible = "fus,picocoremx8mm", "fsl,imx8mm";
 
+	aliases {
+		/* Alias for GPMI node. Dont change it
+		 * because it used by the bootloader */
+		emmc = &usdhc3;
+	};
 
 	chosen {
 		bootargs = "console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200";
@@ -63,18 +68,19 @@
 		off-on-delay-us = <12000>;
 	};
 
-	#ifdef CONFIG_ENV_IS_IN_MMC
 	reg_usdhc3_vmmc: regulator-usdhc3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD3_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+#if 0
 		gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		startup-delay-us = <100>;
 		off-on-delay-us = <12000>;
+#endif
 	};
-	#endif
 
 	regulators {
 		compatible = "simple-bus";
@@ -120,9 +126,6 @@
  			MX8MM_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19
 			/* CLKO2 -> EXTCLK */
 			MX8MM_IOMUXC_GPIO1_IO15_CCMSRCGPCMIX_CLKO2	0x59
-			#ifdef CONFIG_ENV_IS_IN_MMC
-			MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16            0x19
-			#endif
 			>;
 		};
 
@@ -273,7 +276,6 @@
 			>;
 		};
 
-		#ifdef CONFIG_ENV_IS_IN_MMC
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 			MX8MM_IOMUXC_NAND_WE_B_USDHC3_CLK		0x40000190
@@ -287,6 +289,7 @@
 			MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d0
 			MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d0
 			MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x190
+			MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B	0x190
 			>;
 		};
 
@@ -303,6 +306,7 @@
 			MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d4
 			MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d4
 			MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x194
+			MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B	0x194
 			>;
 		};
 
@@ -319,9 +323,9 @@
 			MX8MM_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d6
 			MX8MM_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d6
 			MX8MM_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x196
+			MX8MM_IOMUXC_NAND_READY_B_USDHC3_RESET_B	0x196
 			>;
 		};
-		#endif
 
 		pinctrl_wdog: wdoggrp {
 			fsl,pins = <
@@ -577,7 +581,6 @@
 	status = "disabled";
 };
 
-#ifdef CONFIG_ENV_IS_IN_MMC
 &usdhc3 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3>;
@@ -588,7 +591,6 @@
 	vmmc-supply = <&reg_usdhc3_vmmc>;
 	status = "okay";
 };
-#endif
 
 &wdog1 {
 	pinctrl-names = "default";

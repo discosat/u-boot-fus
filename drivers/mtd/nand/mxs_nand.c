@@ -1349,9 +1349,9 @@ err1:
  *                information that is used by the suspend, resume and
  *                remove functions
  *
- * @return  The function always returns 0.
+ * @return  0 or error number
  */
-int board_nand_init(struct nand_chip *nand)
+int mxs_nand_register(struct nand_chip *nand)
 {
 	struct mxs_nand_info *nand_info;
 	int err;
@@ -1409,4 +1409,9 @@ err2:
 err1:
 	free(nand_info);
 	return err;
+}
+
+__weak int board_nand_init(struct nand_chip *nand)
+{
+	return mxs_nand_register(nand);
 }

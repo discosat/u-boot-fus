@@ -19,7 +19,7 @@
 		/* DRAM: 1GB Intelligent Memory */
 		dram-type = "ddr3l";
 		dram-timing = "ddr3l_2x_im4g16d3fdbg107i";
-		dram-size = <0x40000000>;
+		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <2>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */

@@ -19,7 +19,7 @@
 		/* DRAM: 512MB Micron */
 		dram-type = "ddr3l";
 		dram-timing = "ddr3l_2x_mt41k128m16tw";
-		dram-size = <0x20000000>;
+		dram-size = <0x200>;		/* In MiB */
 		dram-chips = <2>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */

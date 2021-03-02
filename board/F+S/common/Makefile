@@ -21,9 +21,11 @@ obj- := __dummy__.o
 else
 obj-$(CONFIG_FS_BOARD_COMMON)	+= fs_board_common.o
 obj-$(CONFIG_FS_IMAGE_COMMON)	+= fs_image_common.o
+ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_FS_FDT_COMMON)	+= fs_fdt_common.o
 obj-$(CONFIG_FS_MMC_COMMON)	+= fs_mmc_common.o
 obj-$(CONFIG_FS_ETH_COMMON)	+= fs_eth_common.o
 obj-$(CONFIG_FS_USB_COMMON)	+= fs_usb_common.o
 obj-$(CONFIG_FS_DISP_COMMON)	+= fs_disp_common.o
+endif
 endif

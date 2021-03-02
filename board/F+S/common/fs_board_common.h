@@ -12,7 +12,15 @@
 #ifndef __FS_BOARD_COMMON_H__
 #define __FS_BOARD_COMMON_H__
 
+#include <config.h>
+
+#ifdef CONFIG_ARCH_IMX8M
+#define HAVE_BOARD_CFG			/* Use BOARD-CFG, no fs_nboot_args */
+#endif
+
 #include <asm/mach-imx/boot_mode.h>	/* enum boot_device */
+
+#ifndef HAVE_BOARD_CFG
 
 #define FSHWCONFIG_ARGS_ID 0x4E424F54	/* Magic number for dwID: 'NBOT' */ 
 struct fs_nboot_args {
@@ -47,6 +55,28 @@ struct fs_m4_args
 	u32	dwReserved[3];
 };
 
+/* List NBoot args for debugging */
+void fs_board_show_nboot_args(struct fs_nboot_args *pargs);
+
+/* Get a pointer to the NBoot args */
+struct fs_nboot_args *fs_board_get_nboot_args(void);
+
+#else
+
+struct cfg_info {
+	unsigned int board_type;
+	unsigned int board_rev;
+	enum boot_device boot_dev;
+	unsigned int features;
+	unsigned int dram_size;
+	unsigned int dram_chips;
+};
+
+/* Get the boot device that is programmed in the fuses. */
+enum boot_device fs_board_get_boot_dev_from_fuses(void);
+
+#endif /* !HAVE_BOARD_CFG */
+
 struct fs_board_info {
 	char *name;			/* Device name */
 	char *bootdelay;		/* Default value for bootdelay */
@@ -60,17 +90,29 @@ struct fs_board_info {
 	char *init;			/* Default variable for init */
 };
 
-/* List NBoot args for debugging */
-void fs_board_show_nboot_args(struct fs_nboot_args *pargs);
+/* Get the configured boot device (also valid before fuses are programmed) */
+enum boot_device fs_board_get_boot_dev(void);
 
-/* Get a pointer to the NBoot args */
-struct fs_nboot_args *fs_board_get_nboot_args(void);
+/* Get the boot device number from the string */
+enum boot_device fs_board_get_boot_dev_from_name(const char *name);
+
+/* Get the string from the boot device number */
+const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev);
+
+/* Get Pointer to struct cfg_info */
+struct cfg_info *fs_board_get_cfg_info(void);
+
+/* Get the board features */
+unsigned int fs_board_get_features(void);
 
 /* Get board type (zero-based) */
 unsigned int fs_board_get_type(void);
 
 /* Get board revision (major * 100 + minor, e.g. 120 for rev 1.20) */
 unsigned int fs_board_get_rev(void);
+
+/* Get NBoot version (VNxx or YYYY.MM[.P]) */
+const char *fs_board_get_nboot_version(void);
 
 /* Issue reset signal on up to three gpios (~0: gpio unused) */
 void fs_board_issue_reset(uint active_us, uint delay_us,
@@ -81,14 +123,5 @@ void fs_board_init_common(const struct fs_board_info *board_info);
 
 /* Set up all board specific variables */
 void fs_board_late_init_common(const char *serial_name);
-
-/* Return the boot device as programmed in the fuses. */
-enum boot_device fs_board_get_boot_device_from_fuses(void);
-
-/* Get the boot device number from the string */
-enum boot_device fs_board_get_boot_dev_from_name(const char *name);
-
-/* Get the string from the boot device number */
-const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev);
 
 #endif /* !__FS_BOARD_COMMON_H__ */

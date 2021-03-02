@@ -42,6 +42,7 @@
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include "../common/fs_image_common.h"	/* fs_image_*() */
 #include <nand.h>
 #include "sec_mipi_dphy_ln14lpp.h"
 #include "sec_mipi_pll_1432x.h"
@@ -53,23 +54,23 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
 
-/* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
-#define FEAT2_8MM_ETH	  	(1<<0)	/* 0: no LAN0, 1; has LAN0 */
-#define FEAT2_8MM_EMMC   	(1<<2)	/* 0: no eMMC, 1: has eMMC */
-#define FEAT2_8MM_WLAN   	(1<<3)	/* 0: no WLAN, 1: has WLAN */
-#define FEAT2_8MM_HDMICAM	(1<<4)	/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
-#define FEAT2_8MM_AUDIO   	(1<<5)	/* 0: Codec onboard, 1: Codec extern */
-#define FEAT2_8MM_SPEED   	(1<<6)	/* 0: Full speed, 1: Limited speed */
-#define FEAT2_8MM_LVDS    	(1<<7)	/* 0: MIPI DSI, 1: LVDS */
+/* Board features; these values can be resorted and redefined at will */
+#define FEAT_ETH_A	(1<<0)
+#define FEAT_ETH_B	(1<<1)
+#define FEAT_ETH_A_PHY	(1<<2)
+#define FEAT_ETH_B_PHY	(1<<3)
+#define FEAT_NAND	(1<<4)
+#define FEAT_EMMC	(1<<5)
+#define FEAT_SGTL5000	(1<<6)
+#define FEAT_WLAN	(1<<7)
+#define FEAT_LVDS	(1<<8)
+#define FEAT_MIPI_DSI	(1<<9)
+#define FEAT_EXT_RTC	(1<<10)
+#define FEAT_SEC_CHIP	(1<<11)
+#define FEAT_CAN	(1<<12)
+#define FEAT_EEPROM	(1<<13)
 
-#define FEAT2_8MX_DDR3L_X2 	(1<<0)	/* 0: DDR3L x1, 1; DDR3L x2 */
-#define FEAT2_8MX_NAND_EMMC	(1<<1)	/* 0: NAND, 1: has eMMC */
-#define FEAT2_8MX_CAN		(1<<2)	/* 0: no CAN, 1: has CAN */
-#define FEAT2_8MX_SEC_CHIP	(1<<3)	/* 0: no Security Chip, 1: has Security Chip */
-#define FEAT2_8MX_AUDIO 	(1<<4)	/* 0: no Audio, 1: Audio */
-#define FEAT2_8MX_EXT_RTC   	(1<<5)	/* 0: internal RTC, 1: external RTC */
-#define FEAT2_8MX_LVDS   	(1<<6)	/* 0: MIPI DSI, 1: LVDS */
-#define FEAT2_8MX_ETH   	(1<<7)	/* 0: no LAN, 1; has LAN */
+#define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
 #define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
@@ -98,7 +99,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define INIT_DEF ".init_init"
 #endif
 
-const struct fs_board_info board_info[2] = {
+const struct fs_board_info board_info[] = {
 	{	/* 0 (BT_PICOCOREMX8MM) */
 		.name = "PicoCoreMX8MM",
 		.bootdelay = "3",
@@ -123,6 +124,18 @@ const struct fs_board_info board_info[2] = {
 		.network = ".network_off",
 		.init = INIT_DEF,
 	},
+	{	/* (last) (unknown board) */
+		.name = "unknown",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+	},
 };
 
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
@@ -135,10 +148,83 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
 
+#ifndef CONFIG_SPL_BUILD
+/* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
+static void fs_spl_setup_cfg_info(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	int i;
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+	const char *tmp;
+	unsigned int features;
+
+	memset(cfg, 0, sizeof(struct cfg_info));
+
+	//###nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+
+	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
+	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
+		if (!strcmp(tmp, board_info[i].name))
+			break;
+	}
+	cfg->board_type = i;
+
+	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	cfg->boot_dev = fs_board_get_boot_dev_from_name(tmp);
+
+	cfg->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "board-rev", 100);
+	cfg->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "dram-chips", 1);
+	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "dram-size", 0x400);
+
+	//#### noch böser Hack, MX fehlt noch, muss eh alles anders werden
+	features = 0;
+	if (fdt_getprop(fdt, offs, "have-nand", NULL))
+		features |= FEAT_NAND;
+	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+		features |= FEAT_EMMC;
+	if (fdt_getprop(fdt, offs, "have-sgtl5000", NULL))
+		features |= FEAT_SGTL5000;
+	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
+		features |= FEAT_ETH_A;
+		if (cfg->board_type == BT_PICOCOREMX8MX)
+			features |= FEAT_ETH_B;
+	}
+	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+		features |= FEAT_WLAN;
+	if (fdt_getprop(fdt, offs, "have-lvds", NULL))
+		features |= FEAT_LVDS;
+	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
+		features |= FEAT_MIPI_DSI;
+	if (fdt_getprop(fdt, offs, "have-ext_rtc", NULL))
+		features |= FEAT_EXT_RTC;
+	if (fdt_getprop(fdt, offs, "have-security", NULL))
+		features |= FEAT_SEC_CHIP;
+	if (fdt_getprop(fdt, offs, "have-can", NULL))
+		features |= FEAT_CAN;
+	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
+		features |= FEAT_EEPROM;
+	cfg->features = features;
+}
+#endif
+
 /* Do some very early board specific setup */
 int board_early_init_f(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs*) WDOG1_BASE_ADDR;
+
+#ifndef CONFIG_SPL_BUILD
+	{ //####
+		volatile u8 *p = (u8 *)0x30860000;
+		*(p + 0x40) = '+';
+		*(p + 0x40) = '@';
+	} //####
+
+	fs_spl_setup_cfg_info();
+#endif
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
 
@@ -155,7 +241,7 @@ int board_early_init_f(void)
 enum env_location env_get_location(enum env_operation op, int prio)
 {
 	if (prio == 0) {
-		switch (fs_board_get_boot_device_from_fuses()) {
+		switch (fs_board_get_boot_dev()) {
 		case NAND_BOOT:
 			puts("### ENV from NAND\n");
 			return ENVL_NAND;
@@ -167,48 +253,39 @@ enum env_location env_get_location(enum env_operation op, int prio)
 		}
 	}
 
+#ifndef CONFIG_SPL_BUILD
+	{ //####
+		volatile u8 *p = (u8 *)0x30860000;
+		*(p + 0x40) = '?';
+		*(p + 0x40) = '?';
+	} //####
+#endif
+	puts("### ENV unknown\n");
+
 	return ENVL_UNKNOWN;
 }
 
 /* Check board type */
 int checkboard(void)
 {
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
-	unsigned int features2;
-
-	features2 = pargs->chFeatures2;
+	unsigned int features = fs_board_get_features();
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
 		board_rev / 100, board_rev % 100);
-	switch (board_type)
-	{
-	case BT_PICOCOREMX8MM:
-		if (features2 & FEAT2_8MM_ETH)
+	if ((features & FEAT_ETH_MASK) == FEAT_ETH_MASK)
+		puts ("2x ");
+	if (features & FEAT_ETH_MASK)
 			puts ("LAN, ");
-		if (features2 & FEAT2_8MM_WLAN)
+	if (features & FEAT_WLAN)
 			puts ("WLAN, ");
-		if (features2 & FEAT2_8MM_EMMC)
+	if (features & FEAT_EMMC)
 			puts ("eMMC, ");
-		else
+	if (features & FEAT_NAND)
 			puts("NAND, ");
-		break;
-	case BT_PICOCOREMX8MX:
-		if (features2 & FEAT2_8MX_ETH) {
-			puts ("2x ");
-			puts ("LAN, ");
-		}
-		if (features2 & FEAT2_8MX_NAND_EMMC)
-			puts ("eMMC, ");
-		else
-			puts("NAND, ");
-		break;
-	}
 
-	printf ("%dx DRAM)\n", pargs->dwNumDram);
-
-	//fs_board_show_nboot_args(pargs);
+	printf ("%dx DRAM)\n", fs_board_get_cfg_info()->dram_chips);
 
 	return 0;
 }
@@ -222,7 +299,7 @@ int board_init(void)
 {
 	unsigned int board_type = fs_board_get_type();
 
-	/* Copy NBoot args to variables and prepare command prompt string */
+	/* Prepare command prompt string */
 	fs_board_init_common(&board_info[board_type]);
 
 #ifdef CONFIG_FEC_MXC
@@ -236,6 +313,15 @@ int board_init(void)
 	return 0;
 }
 
+extern int mxs_nand_register(struct nand_chip *nand);
+
+int board_nand_init(struct nand_chip *nand)
+{
+	if (fs_board_get_features() & FEAT_NAND)
+		return mxs_nand_register(nand);
+
+	return -ENODEV;
+}
 
 #ifdef CONFIG_VIDEO_MXS
 /*
@@ -744,52 +830,12 @@ void enable_tc358764(struct display_info_t const *dev)
 
 int detect_tc358764(struct display_info_t const *dev)
 {
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
-	unsigned int features2;
-
-	features2 = pargs->chFeatures2;
-
-	/* if LVDS controller is equipped  */
-	switch (fs_board_get_type())
-	{
-	case BT_PICOCOREMX8MM:
-		if(features2 & FEAT2_8MM_LVDS){
-			return 1;
-		}
-		break;
-	case BT_PICOCOREMX8MX:
-		if(features2 & FEAT2_8MX_LVDS){
-			return 1;
-		}
-		break;
-	}
-
-	return 0;
+	return (fs_board_get_features() & FEAT_LVDS) ? 1 : 0;
 }
 
 int detect_mipi_disp(struct display_info_t const *dev)
 {
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
-	unsigned int features2;
-
-	features2 = pargs->chFeatures2;
-  
-	/* if LVDS controller is equipped  */
-	switch (fs_board_get_type())
-	{
-	case BT_PICOCOREMX8MM:
-		if(features2 & FEAT2_8MM_LVDS) {
-			return 0;
-		}
-		break;
-	case BT_PICOCOREMX8MX:
-		if(features2 & FEAT2_8MX_LVDS) {
-			return 0;
-		}
-		break;
-	}
-
-	return 1;
+	return (fs_board_get_features() & FEAT_MIPI_DSI) ? 1 : 0;
 }
 
 void enable_mipi_disp(struct display_info_t const *dev)
@@ -942,11 +988,15 @@ int board_late_init(void)
 	 * to use this env. as saved in NAND flash. (s. readme for fdt control)
 	 */
 	env_set("fdtcontroladdr", "");
+
+#if 0 //###
 	/* TODO: Set here because otherwise platform would be generated from
          * name.
          */
 	if (fs_board_get_type() == BT_PICOCOREMX8MX)
 		env_set("platform", "picocoremx8mx");
+#endif
+
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
@@ -995,37 +1045,24 @@ static iomux_v3_cfg_t const fec1_rst_pads[] = {
 
 static void setup_iomux_fec(void)
 {
-	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads, ARRAY_SIZE (fec1_rst_pads));
+	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads,
+					 ARRAY_SIZE(fec1_rst_pads));
 
 	gpio_request(FEC_RST_PAD, "fec1_rst");
-	gpio_direction_output(FEC_RST_PAD, 0);
-	udelay(11000);
-	gpio_direction_output(FEC_RST_PAD, 1);
-	udelay(1000);
+	fs_board_issue_reset(11000, 1000, FEC_RST_PAD, ~0, ~0);
 }
 
 void fs_ethaddr_init(void)
 {
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+	unsigned int features = fs_board_get_features();
 	int eth_id = 0;
 
-	/* Set MAC addresses as environment variables */
-	switch (fs_board_get_type())
-	{
-	case BT_PICOCOREMX8MM:
-		if (features2 & FEAT2_8MM_ETH) {
-			fs_eth_set_ethaddr(eth_id++);
-		}
-		break;
-	case BT_PICOCOREMX8MX:
-		if (features2 & FEAT2_8MX_ETH) {
-			fs_eth_set_ethaddr(eth_id++);
-			fs_eth_set_ethaddr(eth_id++);
-		}
-		break;
-	default:
-		break;
-	}
+	if (features & FEAT_ETH_A)
+		fs_eth_set_ethaddr(eth_id++);
+	if (features & FEAT_ETH_B)
+		fs_eth_set_ethaddr(eth_id++);
+	if (features & FEAT_WLAN)
+		fs_eth_set_ethaddr(eth_id++);
 }
 
 static int setup_fec(void)
@@ -1037,8 +1074,8 @@ static int setup_fec(void)
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
 	clrsetbits_le32 (&iomuxc_gpr_regs->gpr[1],
-			 IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT,
-			 0);
+			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT, 0);
+
 	return set_clk_enet (ENET_125MHZ);
 }
 
@@ -1147,93 +1184,67 @@ int board_phy_config(struct phy_device *phydev)
 }
 #endif /* CONFIG_FEC_MXC */
 
-#ifdef CONFIG_OF_BOARD_SETUP
-
 #define RDC_PDAP70      0x303d0518
 #define FDT_UART_C	"serial3"
 #define FDT_NAND        "nand"
-#define FDT_EMMC        "mmc2"
+#define FDT_EMMC        "emmc"
 #define FDT_CMA 	"/reserved-memory/linux,cma"
 
-/* Do any additional board-specific device tree modifications */
-int ft_board_setup(void *fdt, bd_t *bd)
+int do_fdt_board_setup(void *fdt, bool for_linux)
 {
 	int offs;
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args ();
 	const char *envvar;
-
-	/* Set bdinfo entries */
-	offs = fs_fdt_path_offset (fdt, "/bdinfo");
-	switch (fs_board_get_type())
-	{
-	case BT_PICOCOREMX8MM:
-		if (offs >= 0)
-		{
+	unsigned int features = fs_board_get_features();
+	unsigned int board_type = fs_board_get_type();
 			int id = 0;
-			/* Set common bdinfo entries */
-			fs_fdt_set_bdinfo (fdt, offs);
 
-			/* MAC addresses */
-			if (pargs->chFeatures2 & FEAT2_8MM_ETH)
-				fs_fdt_set_macaddr (fdt, offs, id++);
-		}
+	/* Make some room in the FDT */
+	if (!for_linux)
+		fdt_shrink_to_minimum(fdt, 8192);
 
-		if(pargs->chFeatures2 & FEAT2_8MM_EMMC)
-		{
-			/* enable emmc node  */
-			fs_fdt_enable(fdt, FDT_EMMC, 1);
+	/* The first part is set in U-Boot and Linux device tree */
+	if (!(features & FEAT_NAND)) {
+	{ //####
+		volatile u8 *p = (u8 *)0x30860000;
+		*(p + 0x40) = ':';
+		*(p + 0x40) = ':';
+	} //####
 
-			/* disable nand node  */
 			fs_fdt_enable(fdt, FDT_NAND, 0);
-
-		}
-		break;
-	case BT_PICOCOREMX8MX:
-		if (offs >= 0)
-		{
-			int id = 0;
-			/* Set common bdinfo entries */
-			fs_fdt_set_bdinfo (fdt, offs);
-
-			/* MAC addresses */
-			if (pargs->chFeatures2 & FEAT2_8MX_ETH) {
-				fs_fdt_set_macaddr (fdt, offs, id++);
-				fs_fdt_set_macaddr (fdt, offs, id++);
-		}
 		}
 
-		if(pargs->chFeatures2 & FEAT2_8MX_NAND_EMMC)
-		{
-			/* enable emmc node  */
-			fs_fdt_enable(fdt, FDT_EMMC, 1);
+	if (!(features & FEAT_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
 
-			/* disable nand node  */
-			fs_fdt_enable(fdt, FDT_NAND, 0);
+	if (!for_linux)
+		return 0;
 
-		}
-
-		if((pargs->chFeatures2 & FEAT2_8MX_AUDIO) == 0)
-		{
-			/* disable audio node  */
+	/* The following stuff is only set in Linux device tree */
+	if (!(features & FEAT_SGTL5000))
 			fs_fdt_enable(fdt, "i2c0/sgtl5000", 0);
 
+	if (!(features & FEAT_ETH_A) && (board_type == BT_PICOCOREMX8MX)) {
+		fs_fdt_enable(fdt, "i2c4/ksz9893", 0); /* Disables switch */
+		fs_fdt_enable(fdt, "i2c4", 0); /* Disable i2c4 (i2c_gpio) */
 		}
 
-		if((pargs->chFeatures2 & FEAT2_8MX_ETH) == 0)
-		{
-			/* disable eth switch node  */
-			fs_fdt_enable(fdt, "i2c4/ksz9893", 0);
+	/* Set bdinfo entries */
+	offs = fs_fdt_path_offset(fdt, "/bdinfo");
+	if (offs >= 0) {
+		/* Set common bdinfo entries */
+		fs_fdt_set_bdinfo(fdt, offs);
 
-			/* disable gpio i2c node  */
-			fs_fdt_enable(fdt, "i2c4", 0);
+		/* MAC addresses */
+		if (features & FEAT_ETH_A)
+			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (features & FEAT_ETH_B)
+			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (features & FEAT_WLAN)
+			fs_fdt_set_macaddr(fdt, offs, id++);
 		}
-		break;
-	}
-
 
 	/*TODO: Its workaround to use UART4 */
 	envvar = env_get("m4_uart4");
-
 	if (!envvar || !strcmp(envvar, "disable")) {
 		/* Disable UART4 for M4. Enabled by ATF. */
 		writel(0xff, RDC_PDAP70);
@@ -1245,7 +1256,8 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	/* Set linux,cma size depending on RAM size. Default is 320MB. */
 	offs = fs_fdt_path_offset(fdt, FDT_CMA);
 	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-		if (pargs->dwMemSize==1023 || pargs->dwMemSize==1024){
+		unsigned int dram_size = fs_board_get_cfg_info()->dram_size;
+		if ((dram_size == 1023) || (dram_size == 1024)) {
 			fdt32_t tmp[2];
 			tmp[0] = cpu_to_fdt32(0x0);
 			tmp[1] = cpu_to_fdt32(0x28000000);
@@ -1255,7 +1267,23 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	return 0;
 }
-#endif /* CONFIG_OF_BOARD_SETUP */
+
+/* Do any board-specific modifications on U-Boot device tree before starting */
+int board_fix_fdt(void *fdt)
+{
+	{ //####
+		volatile u8 *p = (u8 *)0x30860000;
+		*(p + 0x40) = '+';
+		*(p + 0x40) = '+';
+	} //####
+	return do_fdt_board_setup(fdt, false);
+}
+
+/* Do any additional board-specific modifications on Linux device tree */
+int ft_board_setup(void *fdt, bd_t *bd)
+{
+	return do_fdt_board_setup(fdt, true);
+}
 
 #ifdef CONFIG_FASTBOOT_STORAGE_MMC
 int mmc_map_to_kernel_blk(int devno)
@@ -1267,6 +1295,13 @@ int mmc_map_to_kernel_blk(int devno)
 #ifdef CONFIG_BOARD_POSTCLK_INIT
 int board_postclk_init(void)
 {
+#ifndef CONFIG_SPL_BUILD
+	{ //####
+		volatile u8 *p = (u8 *)0x30860000;
+		*(p + 0x40) = '+';
+		*(p + 0x40) = '#';
+	} //####
+#endif
 	/* TODO */
 	return 0;
 }
