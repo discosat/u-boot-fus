@@ -40,6 +40,7 @@
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
+#include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #include <nand.h>
 #include "sec_mipi_dphy_ln14lpp.h"
 #include "sec_mipi_pll_1432x.h"
@@ -52,15 +53,13 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MX	1
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
-#define FEAT2_8MM_ETH_A  	(1<<0)	/* 0: no LAN0, 1; has LAN0 */
-#define FEAT2_8MM_ETH_B		(1<<1)	/* 0: no LAN1, 1; has LAN1 */
+#define FEAT2_8MM_ETH	  	(1<<0)	/* 0: no LAN0, 1; has LAN0 */
 #define FEAT2_8MM_EMMC   	(1<<2)	/* 0: no eMMC, 1: has eMMC */
 #define FEAT2_8MM_WLAN   	(1<<3)	/* 0: no WLAN, 1: has WLAN */
 #define FEAT2_8MM_HDMICAM	(1<<4)	/* 0: LCD-RGB, 1: HDMI+CAM (PicoMOD) */
 #define FEAT2_8MM_AUDIO   	(1<<5)	/* 0: Codec onboard, 1: Codec extern */
 #define FEAT2_8MM_SPEED   	(1<<6)	/* 0: Full speed, 1: Limited speed */
 #define FEAT2_8MM_LVDS    	(1<<7)	/* 0: MIPI DSI, 1: LVDS */
-#define FEAT2_8MM_ETH_MASK 	(FEAT2_8MM_ETH_A | FEAT2_8MM_ETH_B)
 
 #define FEAT2_8MX_DDR3L_X2 	(1<<0)	/* 0: DDR3L x1, 1; DDR3L x2 */
 #define FEAT2_8MX_NAND_EMMC	(1<<1)	/* 0: NAND, 1: has eMMC */
@@ -207,9 +206,7 @@ int checkboard(void)
 	switch (board_type)
 	{
 	case BT_PICOCOREMX8MM:
-		if ((features2 & FEAT2_8MM_ETH_MASK) == FEAT2_8MM_ETH_MASK)
-			puts ("2x ");
-		if (features2 & FEAT2_8MM_ETH_MASK)
+		if (features2 & FEAT2_8MM_ETH)
 			puts ("LAN, ");
 		if (features2 & FEAT2_8MM_WLAN)
 			puts ("WLAN, ");
@@ -219,8 +216,10 @@ int checkboard(void)
 			puts("NAND, ");
 		break;
 	case BT_PICOCOREMX8MX:
-		if (features2 & FEAT2_8MX_ETH)
+		if (features2 & FEAT2_8MX_ETH) {
+			puts ("2x ");
 			puts ("LAN, ");
+		}
 		if (features2 & FEAT2_8MX_NAND_EMMC)
 			puts ("eMMC, ");
 		else
@@ -237,6 +236,7 @@ int checkboard(void)
 
 /* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
 static int setup_fec(void);
+void fs_ethaddr_init(void);
 
 int board_init(void)
 {
@@ -993,6 +993,8 @@ int board_late_init(void)
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
+	/* Set mac addresses for corresponding boards */
+	fs_ethaddr_init();
 #ifdef CONFIG_VIDEO_MXS
 	imx_iomux_v3_setup_multiple_pads (bl_on_pads, ARRAY_SIZE (bl_on_pads));
 	/* backlight off */
@@ -1029,47 +1031,6 @@ int board_late_init(void)
 #endif /* CONFIG_BOARD_LATE_INIT */
 
 #ifdef CONFIG_FEC_MXC
-/* enet pads definition */
-static iomux_v3_cfg_t const enet_8mm_pads_rgmii[] = {
-	IMX8MM_PAD_ENET_MDIO_ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_MDC_ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TXC_ENET1_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TX_CTL_ENET1_RGMII_TX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD0_ENET1_RGMII_TD0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD1_ENET1_RGMII_TD1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD2_ENET1_RGMII_TD2 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD3_ENET1_RGMII_TD3 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RXC_ENET1_RGMII_RXC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RX_CTL_ENET1_RGMII_RX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD0_ENET1_RGMII_RD0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD1_ENET1_RGMII_RD1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD2_ENET1_RGMII_RD2 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD3_ENET1_RGMII_RD3 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-
-	/* Phy Interrupt */
-	IMX8MM_PAD_GPIO1_IO04_GPIO1_IO4 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const enet_8mx_pads_rgmii[] = {
-	IMX8MM_PAD_ENET_MDIO_ENET1_MDIO | MUX_PAD_CTRL(PAD_CTL_DSE6),
-	IMX8MM_PAD_ENET_MDC_ENET1_MDC | MUX_PAD_CTRL(PAD_CTL_DSE6 | PAD_CTL_ODE),
-	IMX8MM_PAD_ENET_TXC_ENET1_RGMII_TXC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TX_CTL_ENET1_RGMII_TX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD0_ENET1_RGMII_TD0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD1_ENET1_RGMII_TD1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD2_ENET1_RGMII_TD2 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_TD3_ENET1_RGMII_TD3 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RXC_ENET1_RGMII_RXC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RX_CTL_ENET1_RGMII_RX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD0_ENET1_RGMII_RD0 | MUX_PAD_CTRL(ENET_PAD_CTRL | PAD_CTL_PE ),
-	IMX8MM_PAD_ENET_RD1_ENET1_RGMII_RD1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD2_ENET1_RGMII_RD2 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	IMX8MM_PAD_ENET_RD3_ENET1_RGMII_RD3 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-
-	/* Phy Interrupt */
-	IMX8MM_PAD_GPIO1_IO11_GPIO1_IO11 | MUX_PAD_CTRL(PAD_CTL_PUE | PAD_CTL_DSE2 | PAD_CTL_ODE),
-};
-
 #define FEC_RST_PAD IMX_GPIO_NR(1, 5)
 static iomux_v3_cfg_t const fec1_rst_pads[] = {
 	IMX8MM_PAD_GPIO1_IO05_GPIO1_IO5 | MUX_PAD_CTRL(NO_PAD_CTRL),
@@ -1077,27 +1038,37 @@ static iomux_v3_cfg_t const fec1_rst_pads[] = {
 
 static void setup_iomux_fec(void)
 {
+	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads, ARRAY_SIZE (fec1_rst_pads));
+
+	gpio_request(FEC_RST_PAD, "fec1_rst");
+	gpio_direction_output(FEC_RST_PAD, 0);
+	udelay(11000);
+	gpio_direction_output(FEC_RST_PAD, 1);
+	udelay(1000);
+}
+
+void fs_ethaddr_init(void)
+{
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+	int eth_id = 0;
+
+	/* Set MAC addresses as environment variables */
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
-		imx_iomux_v3_setup_multiple_pads (enet_8mm_pads_rgmii,
-					 	 ARRAY_SIZE (enet_8mm_pads_rgmii));
+		if (features2 & FEAT2_8MM_ETH) {
+			fs_eth_set_ethaddr(eth_id++);
+		}
 		break;
 	case BT_PICOCOREMX8MX:
-		imx_iomux_v3_setup_multiple_pads (enet_8mx_pads_rgmii,
-						  ARRAY_SIZE (enet_8mx_pads_rgmii));
+		if (features2 & FEAT2_8MX_ETH) {
+			fs_eth_set_ethaddr(eth_id++);
+			fs_eth_set_ethaddr(eth_id++);
+		}
+		break;
+	default:
 		break;
 	}
-
-
-
-	imx_iomux_v3_setup_multiple_pads (fec1_rst_pads, ARRAY_SIZE (fec1_rst_pads));
-
-	gpio_request (FEC_RST_PAD, "fec1_rst");
-	gpio_direction_output (FEC_RST_PAD, 0);
-	udelay (10000);
-	gpio_direction_output (FEC_RST_PAD, 1);
-	udelay (1000);
 }
 
 static int setup_fec(void)
@@ -1161,10 +1132,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_bdinfo (fdt, offs);
 
 			/* MAC addresses */
-			if (pargs->chFeatures2 & FEAT2_8MM_ETH_A)
-				fs_fdt_set_macaddr (fdt, offs, id++);
-
-			if (pargs->chFeatures2 & FEAT2_8MM_WLAN)
+			if (pargs->chFeatures2 & FEAT2_8MM_ETH)
 				fs_fdt_set_macaddr (fdt, offs, id++);
 		}
 
@@ -1186,10 +1154,11 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_bdinfo (fdt, offs);
 
 			/* MAC addresses */
-			if (pargs->chFeatures2 & FEAT2_8MX_ETH)
+			if (pargs->chFeatures2 & FEAT2_8MX_ETH) {
 				fs_fdt_set_macaddr (fdt, offs, id++);
+				fs_fdt_set_macaddr (fdt, offs, id++);
+			}
 		}
-
 
 		if(pargs->chFeatures2 & FEAT2_8MX_NAND_EMMC)
 		{

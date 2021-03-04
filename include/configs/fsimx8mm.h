@@ -140,6 +140,7 @@
 #define CONFIG_CMD_MII
 #define CONFIG_MII
 #define CONFIG_ETHPRIME                 "FEC"
+#define FDT_SEQ_MACADDR_FROM_ENV
 
 #define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
@@ -383,7 +384,6 @@
 	".console_none=setenv console\0"				\
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
 	".console_display=setenv console console=tty1\0"		\
-	"ethaddr=00:05:51:07:55:83\0"	\
 	"login=undef\0"							\
 	".login_none=setenv login login_tty=null\0"			\
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\
