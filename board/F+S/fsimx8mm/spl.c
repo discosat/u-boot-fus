@@ -173,6 +173,34 @@ Please set CONFIG_FUS_BOARDTYPE, CONFIG_FUS_BOARDREV and CONFIG_FUS_FEATURES2 ac
 
 }
 
+#define OPEN_DRAIN_PAD_CTRL (PAD_CTL_DSE6 | PAD_CTL_ODE)
+
+static iomux_v3_cfg_t const lvds_rst_8mm_120_pads =
+	IMX8MM_PAD_GPIO1_IO13_GPIO1_IO13  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static iomux_v3_cfg_t const lvds_rst_8mm_130_pads =
+	IMX8MM_PAD_SAI3_TXFS_GPIO4_IO31  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static iomux_v3_cfg_t const lvds_rst_8mx_110_pads =
+	IMX8MM_PAD_GPIO1_IO08_GPIO1_IO8  | MUX_PAD_CTRL(OPEN_DRAIN_PAD_CTRL);
+
+static void fs_board_early_init(void)
+{
+	switch (nbootargs.chBoardType)
+	{
+	default:
+	case BT_PICOCOREMX8MM:
+		if(nbootargs.chBoardRev < 130)
+			imx_iomux_v3_setup_pad(lvds_rst_8mm_120_pads);
+		else
+			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
+		break;
+	case BT_PICOCOREMX8MX:
+			imx_iomux_v3_setup_pad(lvds_rst_8mx_110_pads);
+		break;
+	}
+}
+
 #ifdef CONFIG_POWER
 #define I2C_PMIC_8MM	3
 #define I2C_PMIC_8MX	0
@@ -413,6 +441,8 @@ void board_init_f(ulong dummy)
 	timer_init();
 
 	fs_board_init_nboot_args();
+
+	fs_board_early_init();
 
 	config_uart_pads();
 
