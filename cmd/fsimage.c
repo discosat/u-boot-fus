@@ -99,9 +99,22 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 			   char * const argv[])
 {
-	puts("### Not yet implemented\n");
+	unsigned long addr;
+	bool force = false;
 
-	return 1;
+	if ((argc > 1) && (argv[1][0] == '-')) {
+		if (strcmp(argv[1], "-f"))
+			return CMD_RET_USAGE;
+		force = true;
+		argv++;
+		argc--;
+	}
+	if (argc > 1)
+		addr = parse_loadaddr(argv[1], NULL);
+	else
+		addr = get_loadaddr();
+
+	return fs_image_fuse(addr, force) ? 1 : 0;
 }
 
 /* Subcommands for "fsimage" */

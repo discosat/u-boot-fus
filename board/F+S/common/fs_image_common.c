@@ -147,6 +147,7 @@
 #include <asm/arch/imx8m_ddr.h>
 #include <asm/sections.h>
 #include <console.h>			/* confirm_yesno() */
+#include <fuse.h>			/* fuse_read() */
 
 #include "fs_board_common.h"		/* fs_board_*() */
 #include "fs_image_common.h"		/* Own interface */
@@ -1414,25 +1415,60 @@ static int fs_image_confirm(void)
 	return confirm_yesno();
 }
 
-/* Save the F&S NBoot image at given address to the appropriate device */
-int fs_image_save(unsigned long addr, bool force)
+/* Check boot device */
+static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
 {
-	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
-	struct fs_header_v1_0 *cfg;
-	struct fs_header_v1_0 *spl;
-	struct fs_header_v1_0 *firmware;
-	unsigned int size, remaining;
-	char id[MAX_DESCR_LEN + 1];
-	char old_id[MAX_DESCR_LEN + 1];
-	const char *arch = fs_image_get_arch();
+	int offs;
 	const char *boot_dev;
-	const char *nboot_version;
 	enum boot_device boot_dev_cfg;
 	enum boot_device boot_dev_fuses;
+
+	/* Check for valid boot device */
+	offs = fs_image_get_cfg_offs(fdt);
+	boot_dev = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	boot_dev_cfg = fs_board_get_boot_dev_from_name(boot_dev);
+	if (boot_dev_cfg == UNKNOWN_BOOT) {
+		printf("Unknown boot device %s in BOARD-CFG\n", boot_dev);
+		return -EINVAL;
+	}
+
+	*used_boot_dev = boot_dev;
+	boot_dev_fuses = fs_board_get_boot_dev_from_fuses();
+	if (boot_dev_fuses != boot_dev_cfg) {
+		if (boot_dev_fuses != USB_BOOT) {
+			printf("Error: New BOARD-CFG wants to boot from %s but"
+			       " board is already fused\nfor %s. Rejecting"
+			       " to save this configuration.\n", boot_dev,
+			       fs_board_get_name_from_boot_dev(boot_dev_fuses));
+			return -EINVAL;
+		}
+		return 1;
+	}
+	printf("### Board is assumed to boot from %s\n", boot_dev);
+
+	return 0;
+}
+
+/*
+ * Get pointer to BOARD-CFG image that is to be used and to NBOOT part
+ * Returns: <0: error; 0: aborted by user; >0: proceed to save
+ */
+static int fs_image_find_board_cfg(unsigned long addr, bool force,
+				   struct fs_header_v1_0 **used_cfg,
+				   struct fs_header_v1_0 **nboot)
+{
+	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
+	char id[MAX_DESCR_LEN + 1];
+	char old_id[MAX_DESCR_LEN + 1];
 	void *fdt;
-	int offs;
-	int err;
+	struct fs_header_v1_0 *cfg;
+	const char *arch = fs_image_get_arch();
+	unsigned int size, remaining;
+	const char *nboot_version;
 	struct board_name_rev bnr;
+	int err;
+
+	*used_cfg = NULL;
 
 	if (!fs_image_is_fs_image(fsh)) {
 		printf("No F&S image found at addr 0x%lx\n", addr);
@@ -1445,16 +1481,18 @@ int fs_image_save(unsigned long addr, bool force)
 		return err;
 	id[MAX_DESCR_LEN] = '\0';
 
-	/* In case of an NBoot image with prepended BOARD-ID, use this ID*/
+	/* In case of an NBoot image with prepended BOARD-ID, use this ID */
 	if (fs_image_match(fsh, "BOARD-ID", NULL)) {
 		printf("### new id\n");
 		memcpy(old_id, id, MAX_DESCR_LEN + 1);
 		memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
 		if (strcmp(id, old_id)) {
-			printf("Warning: converting board from %s to %s\n",
-			       old_id, id);
-			if (!force && !fs_image_confirm())
-				return 0;
+			printf("Warning! Current board is %s but you want to"
+			       " save for %s\n", old_id, id);
+			if (!force && !fs_image_confirm()) {
+				puts("Aborted by user, nothing changed.");
+				return 0; /* used_cfg == NULL in this case */
+			}
 		}
 		fsh++;
 	}
@@ -1489,47 +1527,55 @@ int fs_image_save(unsigned long addr, bool force)
 	memcpy(id, cfg->param.descr, MAX_DESCR_LEN); //###
 	printf("### Using BOARD-CFG %s\n", id);
 
-	/* Get NBoot version */
+	/* Get and show NBoot version */
 	fdt = (void *)(cfg + 1);
 	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
-		puts("Rejecting to save NBOOT with unknown version\n");
+		puts("Unknown NBOOT version, rejecting to save\n");
 		return -EINVAL;
 	}
-
 	printf("Found NBOOT version %s\n", nboot_version);
 
-	/* Check for valid boot device */
-	offs = fs_image_get_cfg_offs(fdt);
-	boot_dev = fdt_getprop(fdt, offs, "boot-dev", NULL);
-	boot_dev_cfg = fs_board_get_boot_dev_from_name(boot_dev);
-	if (boot_dev_cfg == UNKNOWN_BOOT) {
-		printf("Unknown boot device %s in BOARD-CFG\n", boot_dev);
-		return -EINVAL;
-	}
-	boot_dev_fuses = fs_board_get_boot_dev_from_fuses();
-	if (boot_dev_fuses != boot_dev_cfg) {
-		if (boot_dev_fuses != USB_BOOT) {
-			printf("Error: New BOARD-CFG wants to boot from %s but"
-			       " board is already fused\nfor %s. Rejecting"
-			       " to save this configuration.\n", boot_dev,
-			       fs_board_get_name_from_boot_dev(boot_dev_fuses));
-			return -EINVAL;
-		}
+	*used_cfg = cfg;
+	if (nboot)
+		*nboot = fsh;
+
+	return 1;			/* Proceed */
+}
+
+/* Save the F&S NBoot image at given address to the appropriate device */
+int fs_image_save(unsigned long addr, bool force)
+{
+	struct fs_header_v1_0 *cfg;
+	struct fs_header_v1_0 *nboot;
+	struct fs_header_v1_0 *spl;
+	struct fs_header_v1_0 *firmware;
+	const char *arch = fs_image_get_arch();
+	const char *boot_dev;
+	void *fdt;
+	int ret;
+
+	ret = fs_image_find_board_cfg(addr, force, &cfg, &nboot);
+	if (ret <= 0)
+		return ret;
+
+	fdt = (void *)(cfg + 1);
+	ret = fs_image_check_bootdev(fdt, &boot_dev);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
 		printf("Boot fuses not yet set, remember to burn them for %s\n",
 			boot_dev);
-	}
-	printf("### Board is assumed to boot from %s\n", boot_dev);
 
 	/* Look for SPL */
-	spl = fs_image_find(fsh, "SPL", arch);
+	spl = fs_image_find(nboot, "SPL", arch);
 	if (!spl) {
 		printf("No SPL found for arch %s\n", arch);
 		return -ENOENT;
 	}
 
 	/* Look for FIRMWARE */
-	firmware = fs_image_find(fsh, "FIRMWARE", arch);
+	firmware = fs_image_find(nboot, "FIRMWARE", arch);
 	if (!firmware) {
 		printf("No FIRMWARE found for arch %s\n", arch);
 		return -ENOENT;
@@ -1538,23 +1584,121 @@ int fs_image_save(unsigned long addr, bool force)
 	printf("### BOARD-CFG: %p, FIRMWARE: %p, SPL: %p\n", cfg, firmware, spl);
 
 	/* Found all sub-images, let's go */
-	switch (boot_dev_cfg) {
+	switch (fs_board_get_boot_dev_from_name(boot_dev)) {
 #ifdef CONFIG_NAND_MXS
 	case NAND_BOOT:
-		err = fs_image_save_nboot_to_nand(fdt, cfg, firmware, spl);
+		ret = fs_image_save_nboot_to_nand(fdt, cfg, firmware, spl);
 		break;
 #endif
 
 	default:
 		printf("### Saving NBOOT to %s not available\n", boot_dev);
-		err = -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
 
-	if (err)
-		printf("Saving NBOOT image failed (%d)\n", err);
+	if (ret)
+		printf("Saving NBOOT image failed (%d)\n", ret);
 
-	return err;
+	return ret;
+}
+
+/* Burn the fuses according to the NBoot image at given address */
+int fs_image_fuse(unsigned long addr, bool force)
+{
+	struct fs_header_v1_0 *cfg;
+	void *fdt;
+	int offs;
+	int ret;
+	const char *boot_dev;
+	unsigned int cur_val, fuse_val, fuse_mask, fuse_bw;
+	const fdt32_t *fvals, *fmasks, *fbws;
+	int i, len, len2, len3;
+
+	ret = fs_image_find_board_cfg(addr, force, &cfg, NULL);
+	if (ret <= 0)
+		return ret;
+
+	fdt = (void *)(cfg + 1);
+	ret = fs_image_check_bootdev(fdt, &boot_dev);
+	if (ret < 0)
+		return ret;
+
+	/* No contradictions, do an in-depth check */
+	offs = fs_image_get_cfg_offs(fdt);
+
+	fbws = fdt_getprop(fdt, offs, "fuse-bankword", &len);
+	fmasks = fdt_getprop(fdt, offs, "fuse-mask", &len2);
+	fvals = fdt_getprop(fdt, offs, "fuse-value", &len3);
+	if (!fbws || !fmasks || !fvals || (len != len2) || (len2 != len3)
+	    || !len || (len % sizeof(fdt32_t) != 0)) {
+		printf("Invalid or missing fuse value settings for boot"
+		       " device %s\n", boot_dev);
+		return -EINVAL;
+	}
+	len /= sizeof(fdt32_t);
+
+	puts("\n"
+	     "Fuse settings (with respect to booting):\n"
+	     "\n"
+	     "  Bank Word Current    -> Target\n"
+	     "  ----------------------------------------------\n");
+	ret = 0;
+	for (i = 0; i < len; i++) {
+		fuse_bw = fdt32_to_cpu(fbws[i]);
+		fuse_mask = fdt32_to_cpu(fmasks[i]);
+		fuse_val = fdt32_to_cpu(fvals[i]);
+		fuse_read(fuse_bw >> 16, fuse_bw & 0xffff, &cur_val);
+		cur_val &= fuse_mask;
+
+		printf("  0x%02x 0x%02x 0x%08x -> 0x%08x", fuse_bw >> 16,
+		       fuse_bw & 0xffff, cur_val, fuse_val);
+		if (cur_val == fuse_val)
+			puts("(unchanged)\n");
+		else if (cur_val & ~fuse_val) {
+			ret |= 1;
+			puts(" (impossible)");
+		} else
+			ret |= 2;	/* Need change */
+		puts("\n");
+	}
+	puts("\n");
+	if (!ret) {
+		printf("Fuses already set correctly to boot from %s\n",
+		       boot_dev);
+		return 0;
+	}
+	if (ret & 1) {
+		printf("Error: New settings for boot device %s would need to"
+		       " clear fuse bits which\nis impossible. Rejecting to"
+		       " save this configuration.\n", boot_dev);
+		return -EINVAL;
+	}
+	if (!force) {
+		puts("The fuses will be changed to the above settings. This is"
+		     " a write once option\nand can not be undone. ");
+		if (!fs_image_confirm())
+			return 0;
+	}
+
+	puts("### Burning fuses not yet activated, nothing changed.\n");
+	return 0;
+
+	for (i = 0; i < len; i++) {
+		fuse_bw = fbws[i];
+		fuse_val = fvals[i];
+		ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
+		if (ret) {
+			printf("Error: Fuse programming failed for bank 0x%x,"
+			       " word 0x%x, value 0x%08x (%d)\n",
+			       fuse_bw >> 16, fuse_bw & 0xffff, fuse_val, ret);
+			return ret;
+		}
+	}
+
+	printf("Fuses programmed for boot device %s\n", boot_dev);
+
+	return 0;
 }
 
 #endif /* !CONFIG_SPL_BUILD */

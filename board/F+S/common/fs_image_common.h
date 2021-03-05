@@ -80,5 +80,8 @@ int fs_image_list(unsigned long addr);
 /* Save the F&S NBoot image at given address to the appropriate device */
 int fs_image_save(unsigned long addr, bool force);
 
+/* Burn the fuses according to the NBoot image at given address */
+int fs_image_fuse(unsigned long addr, bool force);
+
 #endif /* !__FS_IMAGE_COMMON_H__ */
 
