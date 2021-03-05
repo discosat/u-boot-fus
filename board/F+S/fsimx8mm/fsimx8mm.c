@@ -160,7 +160,10 @@ const struct fs_board_info board_info[2] = {
 		.set_rootfs = SET_ROOTFS,
 		.selector = SELECTOR,
 		.boot_partition = BOOT_PARTITION,
-		.rootfs_partition = ROOTFS_PARTITION
+		.rootfs_partition = ROOTFS_PARTITION,
+		.init = ".init_fs_updater",
+#else
+		.init = ".init_init",
 #endif
 	},
 };
@@ -821,7 +824,7 @@ int detect_mipi_disp(struct display_info_t const *dev)
 	unsigned int features2;
 
 	features2 = pargs->chFeatures2;
-  
+
 	/* if LVDS controller is equipped  */
 	switch (fs_board_get_type())
 	{
