@@ -77,6 +77,8 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void);
 
 #endif /* !HAVE_BOARD_CFG */
 
+#define BI_FLAGS_UBIONLY (1 << 0)
+
 struct fs_board_info {
 	char *name;			/* Device name */
 	char *bootdelay;		/* Default value for bootdelay */
@@ -88,6 +90,7 @@ struct fs_board_info {
 	char *mtdparts;			/* Default variable for mtdparts */
 	char *network;			/* Default variable for network */
 	char *init;			/* Default variable for init */
+	unsigned int flags;		/* Special settings, see BI_FLAGS_* */
 };
 
 /* Get the configured boot device (also valid before fuses are programmed) */

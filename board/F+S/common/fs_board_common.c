@@ -382,6 +382,8 @@ void fs_board_late_init_common(const char *serial_name)
 	int mmc_boot_device = 0;
 #endif
 	bool is_nand = (fs_board_get_boot_dev() == NAND_BOOT);
+	const char *bd_kernel, *bd_fdt, *bd_rootfs;
+	char var_name[20];
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");
@@ -468,20 +470,38 @@ void fs_board_late_init_common(const char *serial_name)
 #else
 	setup_var("mode", "rw", 0);
 #endif
-	/* Set boot devices, they must match with kernel, fdt, rootfs below */
-	setup_var("bd_kernel", is_nand ? "nand" : "mmc", 0);
-	setup_var("bd_fdt", is_nand ? "nand" : "mmc", 0);
-	setup_var("bd_rootfs", is_nand ? "ubifs" : "mmc", 0);
+	/* Set boot devices for kernel, device tree and rootfs */
+	if (is_nand) {
+		bd_rootfs = "ubifs";
+		if (current_bi->flags & BI_FLAGS_UBIONLY)
+			bd_kernel = bd_rootfs;
+		else
+			bd_kernel = "nand";
+		bd_fdt = bd_kernel;
+	} else {
+		bd_kernel = "mmc";
+		bd_fdt = bd_kernel;
+		bd_rootfs = bd_kernel;
+	}
+	setup_var("bd_kernel", bd_kernel, 0);
+	setup_var("bd_fdt", bd_fdt, 0);
+	setup_var("bd_rootfs", bd_rootfs, 0);
 
 	/* Set some variables by runnning another variable */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	setup_var("kernel", is_nand ? ".kernel_nand_A" : ".kernel_mmc_A", 1);
-	setup_var("fdt", is_nand ? ".fdt_nand_A" : ".fdt_mmc_A", 1);
-	setup_var("rootfs", is_nand ? ".rootfs_ubifs_A" : ".rootfs_mmc_A", 1);
+	sprintf(var_name, ".kernel_%s_A", bd_kernel);
+	setup_var("kernel", var_name, 1);
+	sprintf(var_name, ".fdt_%s_A", bd_fdt);
+	setup_var("fdt", var_name, 1);
+	sprintf(var_name, ".rootfs_%s_A", bd_rootfs);
+	setup_var("rootfs", var_name, 1);
 #else
-	setup_var("kernel", is_nand ? ".kernel_nand" : ".kernel_mmc", 1);
-	setup_var("fdt", is_nand ? ".fdt_nand" : ".fdt_mmc", 1);
-	setup_var("rootfs", is_nand ? ".rootfs_ubifs" : ".rootfs_mmc", 1);
+	sprintf(var_name, ".kernel_%s", bd_kernel);
+	setup_var("kernel", var_name, 1);
+	sprintf(var_name, ".fdt_%s", bd_fdt);
+	setup_var("fdt", var_name, 1);
+	sprintf(var_name, ".rootfs_%s", bd_rootfs);
+	setup_var("rootfs", var_name, 1);
 #endif
 	setup_var("console", current_bi->console, 1);
 	setup_var("login", current_bi->login, 1);

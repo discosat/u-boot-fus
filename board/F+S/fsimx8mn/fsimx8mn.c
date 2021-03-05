@@ -77,20 +77,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FEAT2_SPEED   (1<<6)		/* 0: Full speed, 1: Limited speed */
 #define FEAT2_ETH_MASK (FEAT2_ETH_A | FEAT2_ETH_B)
 
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define ROOTFS ".rootfs_mmc"
-#define KERNEL ".kernel_mmc"
-#define FDT ".fdt_mmc"
-#elif CONFIG_ENV_IS_IN_NAND
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#else /* Default = Nand */
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#endif
-
 const struct fs_board_info board_info[1] = {
 	{	/* 0 (BT_PICOCOREMX8MN) */
 		.name = "PicoCoreMX8MN",
@@ -103,9 +89,7 @@ const struct fs_board_info board_info[1] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ROOTFS,
-		.kernel = KERNEL,
-		.fdt = FDT,
+		.flags = 0,
 	},
 };
 

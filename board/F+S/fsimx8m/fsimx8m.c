@@ -87,9 +87,7 @@ const struct fs_board_info board_info[] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = ".init_init",
-		.rootfs = ".rootfs_ubifs",
-		.kernel = ".kernel_nand",
-		.fdt = ".fdt_nand",
+		.flags = 0,
 	},
 };
 

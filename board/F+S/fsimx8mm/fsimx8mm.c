@@ -111,6 +111,7 @@ const struct fs_board_info board_info[] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = INIT_DEF,
+		.flags = 0,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
 		.name = "PicoCoreMX8MM",
@@ -123,6 +124,7 @@ const struct fs_board_info board_info[] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = INIT_DEF,
+		.flags = 0,
 	},
 	{	/* (last) (unknown board) */
 		.name = "unknown",
@@ -135,6 +137,7 @@ const struct fs_board_info board_info[] = {
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
 		.init = INIT_DEF,
+		.flags = 0,
 	},
 };
 
@@ -277,13 +280,13 @@ int checkboard(void)
 	if ((features & FEAT_ETH_MASK) == FEAT_ETH_MASK)
 		puts ("2x ");
 	if (features & FEAT_ETH_MASK)
-			puts ("LAN, ");
+		puts ("LAN, ");
 	if (features & FEAT_WLAN)
-			puts ("WLAN, ");
+		puts ("WLAN, ");
 	if (features & FEAT_EMMC)
-			puts ("eMMC, ");
+		puts ("eMMC, ");
 	if (features & FEAT_NAND)
-			puts("NAND, ");
+		puts("NAND, ");
 
 	printf ("%dx DRAM)\n", fs_board_get_cfg_info()->dram_chips);
 
@@ -1046,7 +1049,7 @@ static iomux_v3_cfg_t const fec1_rst_pads[] = {
 static void setup_iomux_fec(void)
 {
 	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads,
-					 ARRAY_SIZE(fec1_rst_pads));
+					 ARRAY_SIZE (fec1_rst_pads));
 
 	gpio_request(FEC_RST_PAD, "fec1_rst");
 	fs_board_issue_reset(11000, 1000, FEC_RST_PAD, ~0, ~0);
@@ -1073,10 +1076,10 @@ static int setup_fec(void)
 	setup_iomux_fec();
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32 (&iomuxc_gpr_regs->gpr[1],
+	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT, 0);
 
-	return set_clk_enet (ENET_125MHZ);
+	return set_clk_enet(ENET_125MHZ);
 }
 
 #define KSZ9893R_SLAVE_ADDR		0x5F
@@ -1167,18 +1170,18 @@ static int board_setup_ksz9893r(void)
 int board_phy_config(struct phy_device *phydev)
 {
 	/* enable rgmii rxc skew and phy mode select to RGMII copper */
-	phy_write (phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
-	phy_write (phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
 
 	if (fs_board_get_type() == BT_PICOCOREMX8MX) {
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x00);
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x82ee);
 	}
-	phy_write (phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
-	phy_write (phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
 	if (phydev->drv->config)
-		phydev->drv->config (phydev);
+		phydev->drv->config(phydev);
 
 	return 0;
 }
@@ -1196,7 +1199,7 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 	const char *envvar;
 	unsigned int features = fs_board_get_features();
 	unsigned int board_type = fs_board_get_type();
-			int id = 0;
+	int id = 0;
 
 	/* Make some room in the FDT */
 	if (!for_linux)
@@ -1210,8 +1213,8 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 		*(p + 0x40) = ':';
 	} //####
 
-			fs_fdt_enable(fdt, FDT_NAND, 0);
-		}
+		fs_fdt_enable(fdt, FDT_NAND, 0);
+	}
 
 	if (!(features & FEAT_EMMC))
 		fs_fdt_enable(fdt, FDT_EMMC, 0);
@@ -1221,12 +1224,12 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 
 	/* The following stuff is only set in Linux device tree */
 	if (!(features & FEAT_SGTL5000))
-			fs_fdt_enable(fdt, "i2c0/sgtl5000", 0);
+		fs_fdt_enable(fdt, "i2c0/sgtl5000", 0);
 
 	if (!(features & FEAT_ETH_A) && (board_type == BT_PICOCOREMX8MX)) {
 		fs_fdt_enable(fdt, "i2c4/ksz9893", 0); /* Disables switch */
 		fs_fdt_enable(fdt, "i2c4", 0); /* Disable i2c4 (i2c_gpio) */
-		}
+	}
 
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
@@ -1241,14 +1244,14 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (features & FEAT_WLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		}
+	}
 
 	/*TODO: Its workaround to use UART4 */
 	envvar = env_get("m4_uart4");
 	if (!envvar || !strcmp(envvar, "disable")) {
 		/* Disable UART4 for M4. Enabled by ATF. */
 		writel(0xff, RDC_PDAP70);
-	}else{
+	} else {
 		/* Disable UART_C in DT */
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
 	}
