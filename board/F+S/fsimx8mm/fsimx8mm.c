@@ -916,6 +916,19 @@ struct display_info_t const displays[] = {
 size_t display_count = ARRAY_SIZE(displays);
 #endif /* CONFIG_VIDEO_MXS */
 
+/* Return the HW partition where U-Boot environment is on eMMC */
+unsigned int mmc_get_env_part(struct mmc *mmc)
+{
+	unsigned int boot_part;
+
+	boot_part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
+	if (boot_part == 7)
+		boot_part = 0;
+
+	printf("### Using UBootEnv from part %u\n", boot_part);
+
+	return boot_part;
+}
 
 /*
  * USB Host support.

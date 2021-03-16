@@ -694,6 +694,7 @@
  * (s. mmc_get_env_dev in mmc_env.c)
  */
 #define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
+#define CONFIG_SYS_MMC_ENV_PART		1 /* Use mmc_get_env_part() */
 /* number of available  */
 #define CONFIG_SYS_FSL_USDHC_NUM	2 /* use USDHC1 and USDHC3 */
 #else
