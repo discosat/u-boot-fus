@@ -314,6 +314,26 @@ u32 __weak spl_boot_mode(const u32 boot_device)
 #endif
 }
 
+int __weak spl_boot_part(struct mmc *mmc)
+{
+	int part;
+
+#ifdef CONFIG_DUAL_BOOTLOADER
+	/* Bootloader is stored in eMMC user partition for dual bootloader */
+	part = 0;
+#else
+	/*
+	 * We need to check what the partition is configured to.
+	 * 1 and 2 match up to boot0 / boot1 and 7 is user data
+	 * which is the first physical partition (0).
+	 */
+	part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
+	if (part == 7)
+		part = 0;
+#endif
+	return part;
+}
+
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
@@ -361,33 +381,19 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 	err = -EINVAL;
 	switch (boot_mode) {
 	case MMCSD_MODE_EMMCBOOT:
-			/*
-			 * We need to check what the partition is configured to.
-			 * 1 and 2 match up to boot0 / boot1 and 7 is user data
-			 * which is the first physical partition (0).
-			 */
-#ifdef CONFIG_DUAL_BOOTLOADER
-			/* Bootloader is stored in eMMC user partition for dual bootloader */
-			part = 0;
-#else
-			part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
+		part = spl_boot_part(mmc);
+		if (CONFIG_IS_ENABLED(MMC_TINY))
+			err = mmc_switch_part(mmc, part);
+		else
+			err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
 
-			if (part == 7)
-				part = 0;
-#endif
-
-			if (CONFIG_IS_ENABLED(MMC_TINY))
-				err = mmc_switch_part(mmc, part);
-			else
-				err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
-
-			if (err) {
+		if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-				puts("spl: mmc partition switch failed\n");
+			puts("spl: mmc partition switch failed\n");
 #endif
-				return err;
-			}
-			/* Fall through */
+			return err;
+		}
+		/* Fall through */
 	case MMCSD_MODE_RAW:
 		debug("spl: mmc boot mode: raw\n");
 

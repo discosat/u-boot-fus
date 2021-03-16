@@ -572,7 +572,75 @@ void spl_board_init(void)
 	puts("Normal Boot\n");
 }
 
+/* Return the offset where U-Boot starts in NAND */
+uint32_t spl_nand_get_uboot_raw_page(void)
+{
+	printf("### Loading U-Boot from NAND offset 0x%x\n", uboot_offs);
+	return uboot_offs;
+}
+
+/* Return the sector number where U-Boot starts in eMMC (User HW partition) */
+unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+{
+	printf("### Loading U-Boot from MMC offset 0x%x\n", uboot_offs);
+	return uboot_offs / 512;
+}
+
+/* U-Boot is always loaded from the User HW partition */
+int spl_boot_part(struct mmc *mmc)
+{
+	puts("### Loading U-Boot from part 0\n");
+	return 0;
+}
+
+/*
+ * Provide our own boot order, which in fact has just one entry: the current
+ * boot device. Unfortunately the regular SPL infrastructure of U-Boot uses an
+ * own set of boot devices (defined in arch/arm/include/asm/spl.h) that
+ * differs from NXP's definitions in arch/arm/include/asm/mach-imx/boot_mode.h.
+ * Here only BOOT_DEVICE_MMC1, BOOT_DEVICE_MMC2 and BOOT_DEVICE_MMC2_2 are
+ * known as MMC devices. These values do not actually refer to a hardware
+ * device of this number, they simply mean the MMC index. So BOOT_DEVICE_MMC1
+ * is the first MMC device with index 0 and both BOOT_DEVICE_MMC2 as well as
+ * BOOT_DEVICE_MMC2_2 point to the second MMC device with index 1. See
+ * spl_mmc_get_device_index() in common/spl/spl_mmc.c. So at some point, the
+ * NXP boot device has to be converted to U-Boot's device. This happens in
+ * spl_boot_device() in arch/arm/mach-imx/spl.c.
+ *
+ * Unfortunately this mapping there does not fit our needs. We only have one
+ * MMC device active in SPL, and this is the boot device. It will always be on
+ * index 0, no matter what USDHC port we actually boot from. So we always have
+ * to map to BOOT_DEVICE_MMC1. By overwriting the weak board_boot_order() in
+ * common/spl/spl.c, we can change this to our needs.
+ */
+void board_boot_order(u32 *spl_boot_list)
+{
+	puts("### board_boot_order()\n");
+	switch (get_boot_device()) {
+	case MMC1_BOOT:
+	case MMC2_BOOT:
+	case MMC3_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_MMC1;
+		break;
+	case NAND_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_NAND;
+		break;
+	case USB_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_BOARD;
+		break;
+	default:
+		spl_boot_list[0] = BOOT_DEVICE_NONE;
+		break;
+	}
+}
+
 #ifdef CONFIG_SPL_LOAD_FIT
+/*
+ * This function is called for each appended device tree. If we signal a match
+ * (return value 0), the referenced device tree (and only this) is loaded
+ * behind U-Boot. So from the view of U-Boot, it always has the right device
+ * tree when starting. See doc/README.multi-dtb-fit for details.
+ */
 int board_fit_config_name_match(const char *name)
 {
 	debug("%s: %s\n", __func__, name);
