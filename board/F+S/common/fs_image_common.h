@@ -14,11 +14,100 @@
 #define MAX_TYPE_LEN 16
 #define MAX_DESCR_LEN 32
 
-/* Jobs to do when streaming image data */
-#define FSIMG_JOB_CFG BIT(0)
-#define FSIMG_JOB_DRAM BIT(1)
-#define FSIMG_JOB_ATF BIT(2)
-#define FSIMG_JOB_TEE BIT(3)
+/* F&S header (V0.0) for a generic file */
+struct fs_header_v0_0 {			/* Size: 16 Bytes */
+	char magic[4];			/* "FS" + two bytes operating system
+					   (e.g. "LX" for Linux) */
+	u32 file_size_low;		/* Image size [31:0] */
+	u32 file_size_high;		/* Image size [63:32] */
+	u16 flags;			/* See flags below */
+	u8 padsize;			/* Number of padded bytes at end */
+	u8 version;			/* Header version x.y:
+					   [7:4] major x, [3:0] minor y */
+};
+
+/* F&S header (V1.0) for a generic file */
+struct fs_header_v1_0 {			/* Size: 64 bytes */
+	struct fs_header_v0_0 info;	/* Image info, see above */
+	char type[16];			/* Image type, e.g. "U-BOOT" */
+	union {
+		char descr[32];		/* Description, null-terminated */
+		u8 p8[32];		/* 8-bit parameters */
+		u16 p16[16];		/* 16-bit parameters */
+		u32 p32[8];		/* 32-bit parameters */
+		u64 p64[4];		/* 64-bit parameters */
+	} param;
+};
+
+/* Possible values for flags entry above */
+#define FSH_FLAGS_DESCR 0x8000		/* Description descr is present */
+#define FSH_FLAGS_CRC32 0x4000		/* p32[7] holds the CRC32 checksum of
+					   the image (without header) */
+#define FSH_SIZE sizeof(struct fs_header_v1_0)
+
+/* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */
+struct storage_info {
+	const fdt32_t *start;		/* List of start addresses *-start */
+	unsigned int size;		/* *-size entry */
+	unsigned int count;		/* Number of entries in start */
+};
+
+/* Return the F&S architecture */
+const char *fs_image_get_arch(void);
+
+/* Check if this is an F&S image */
+bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh);
+
+/* Return the address of the board configuration in OCRAM */
+void *fs_image_get_cfg_addr(bool with_fs_header);
+
+/* Return the address of the /board-cfg node */
+int fs_image_get_cfg_offs(void *fdt);
+
+/* Return the address of the /nboot-info node */
+int fs_image_get_info_offs(void *fdt);
+
+/* Return the address of the /board-cfg node */
+int fs_image_get_cfg_offs(void *fdt);
+
+/* Get the board-cfg-size from nboot-info */
+int fs_image_get_board_cfg_size(void *fdt, int offs, unsigned int align,
+				unsigned int *size);
+
+/* Get nboot-start and nboot-size values from nboot-info */
+int fs_image_get_nboot_info(void *fdt, int offs, unsigned int align,
+			    struct storage_info *si);
+
+/* Get spl-start and spl-size values from nboot-info */
+int fs_image_get_spl_info(void *fdt, int offs, unsigned int align,
+			  struct storage_info *si);
+
+/* Get uboot-start and uboot-size values from nboot-info */
+int fs_image_get_uboot_info(void *fdt, int offs, unsigned int align,
+			    struct storage_info *si);
+
+/* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
+const char *fs_image_get_nboot_version(void *fdt);
+
+/* Read the image size (incl. padding) from an F&S header */
+unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh,
+			       bool with_fs_header);
+
+/* Check image magic, type and descr; return true on match */
+bool fs_image_match(const struct fs_header_v1_0 *fsh,
+		    const char *type, const char *descr);
+
+/* Check id, return also true if revision is less than revision of compare id */
+bool fs_image_match_board_id(struct fs_header_v1_0 *fsh, const char *type);
+
+
+/* Set the compare id that will used in fs_image_match_board_id() */
+void fs_image_set_board_id_compare(const char *id);
+
+
+/* ------------- Stuff only for SPL ---------------------------------------- */
+
+#ifdef CONFIG_SPL_BUILD
 
 /* Load mode */
 enum fsimg_mode {
@@ -30,23 +119,12 @@ enum fsimg_mode {
 
 typedef void (*basic_init_t)(void);
 
-/* Return the F&S architecture */
-const char *fs_image_get_arch(void);
-
-/* Return the BOARD-ID; id must have room for MAX_DESCR_LEN characters */
-int fs_image_get_board_id(char *id);
-
-/* Return the address of the board configuration in OCRAM */
-void *fs_image_get_cfg_addr(bool with_fs_header);
-
-/* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt);
-
-/* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
-const char *fs_image_get_nboot_version(void *fdt);
-
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
-void fs_image_all_sdp(unsigned int jobs_todo, basic_init_t basic_init);
+void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init);
+
+/* Load BOARD-CFG and optionally FIRMWARE from NAND or MMC */
+int fs_image_load_system(enum boot_device boot_dev, bool secondary,
+			 basic_init_t basic_init);
 
 /* Load F&S image with given type/descr from NAND at offset to given buffer */
 int fs_image_load_nand(unsigned int offset, char *type, char *descr,
@@ -67,21 +145,7 @@ unsigned int fs_image_fw_mmc(unsigned int jobs_todo, basic_init_t basic_init);
 
 /* Load BOARD-CFG from eMMC */
 int fs_image_cfg_mmc(void);
-
-/* Check if board configuration in OCRAM is OK and return the address */
-void *fs_image_get_cfg_addr_check(bool with_fs_header);
-
-/* Load FIRMWARE from NAND to given address */
-int fs_image_load_firmware(unsigned long addr);
-
-/* List contents of an F&S image at given address */
-int fs_image_list(unsigned long addr);
-
-/* Save the F&S NBoot image at given address to the appropriate device */
-int fs_image_save(unsigned long addr, bool force);
-
-/* Burn the fuses according to the NBoot image at given address */
-int fs_image_fuse(unsigned long addr, bool force);
+#endif /* CONFIG_SPL_BUILD */
 
 #endif /* !__FS_IMAGE_COMMON_H__ */
 

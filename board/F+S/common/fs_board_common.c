@@ -145,47 +145,6 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 
 #ifdef HAVE_BOARD_CFG
 
-struct boot_dev_name {
-	enum boot_device boot_dev;
-	const char *name;
-};
-
-const struct boot_dev_name boot_dev_names[] = {
-	{USB_BOOT,  "USB"},
-	{NAND_BOOT, "NAND"},
-	{MMC1_BOOT, "MMC1"},
-	{MMC2_BOOT, "MMC2"},
-	{MMC3_BOOT, "MMC3"},
-	{SD1_BOOT,  "SD1"},
-	{SD2_BOOT,  "SD2"},
-	{SD3_BOOT,  "SD3"},
-};
-
-/* Get the boot device number from the string */
-enum boot_device fs_board_get_boot_dev_from_name(const char *name)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
-		if (!strcmp(boot_dev_names[i].name, name))
-			return boot_dev_names[i].boot_dev;
-	}
-	return UNKNOWN_BOOT;
-}
-
-/* Get the string from the boot device number */
-const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
-		if (boot_dev_names[i].boot_dev == boot_dev)
-			return boot_dev_names[i].name;
-	}
-
-	return "(unknown)";
-}
-
 /* Get Pointer to struct cfg_info */
 struct cfg_info *fs_board_get_cfg_info(void)
 {
@@ -529,7 +488,50 @@ char *get_sys_prompt(void)
 
 /* ============= Functions also available in SPL =========================== */
 
+struct boot_dev_name {
+	enum boot_device boot_dev;
+	const char *name;
+};
+
+const struct boot_dev_name boot_dev_names[] = {
+	{USB_BOOT,  "USB"},
+	{NAND_BOOT, "NAND"},
+	{MMC1_BOOT, "MMC1"},
+	{MMC2_BOOT, "MMC2"},
+	{MMC3_BOOT, "MMC3"},
+	{SD1_BOOT,  "SD1"},
+	{SD2_BOOT,  "SD2"},
+	{SD3_BOOT,  "SD3"},
+};
+
+/* Get the boot device number from the string */
+enum boot_device fs_board_get_boot_dev_from_name(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
+		if (!strcmp(boot_dev_names[i].name, name))
+			return boot_dev_names[i].boot_dev;
+	}
+	return UNKNOWN_BOOT;
+}
+
+/* Get the string from the boot device number */
+const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(boot_dev_names); i++) {
+		if (boot_dev_names[i].boot_dev == boot_dev)
+			return boot_dev_names[i].name;
+	}
+
+	return "(unknown)";
+}
+
 #ifdef HAVE_BOARD_CFG
+
+#include <fdtdec.h>
 
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
