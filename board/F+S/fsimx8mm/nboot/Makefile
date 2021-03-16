@@ -6,7 +6,10 @@
 
 include spl/include/autoconf.mk
 
-NBOOT_VERSION = 2021.02
+# NBoot version with year and month. Please update for every release. If there
+# needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
+# 2021.03.2 for the third release in March 2021.
+NBOOT_VERSION = 2021.03
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -144,10 +147,11 @@ cmd_sed = sed $2 $< > $@
 	$< > $@
 
 DRAM_TIMINGS_LDS = $(obj)/.dram-timings.lds.tmp
-DRAM_TIMINGS_REPLACE = \
+DRAM_TIMINGS_REPLACE_SED_CMD = \
 	-e "s/\#\#\#DRAM_TIMING_ADDR\#\#\#/$(CONFIG_SPL_DRAM_TIMING_ADDR)/g"
+
 $(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds
-	$(call cmd,sed,$(DRAM_TIMINGS_REPLACE))
+	$(call cmd,sed,$(DRAM_TIMINGS_REPLACE_SED_CMD))
 
 quiet_cmd_dram_elf = LINK    $@
 cmd_dram_elf = $(LD) -T $(DRAM_TIMINGS_LDS) -o $@ $<
@@ -190,19 +194,22 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 %_spl.fs: SPL
 	$(call cmd,fsimg,-t SPL -d $(*F))
 
-NBOOT_INFO_REPLACE = \
-	-e "s/\#\#\#NBOOT_VERSION\#\#\#/$(NBOOT_VERSION)/g" \
-	-e "s/\#\#\#BOARD_CFG_SIZE\#\#\#/$(CONFIG_SPL_BOARDCFG_SIZE)/g" \
-	-e "s/\#\#\#NAND_START_0\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_OFFSET0)/g" \
-	-e "s/\#\#\#NAND_START_1\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_OFFSET1)/g" \
-	-e "s/\#\#\#NAND_SIZE\#\#\#/$(CONFIG_SPL_BOARDCFG_NAND_SIZE)/g"
-$(obj)/.nboot-info.dtsi.tmp: $(NBOOT_PATH)/nboot-info.dtsi
-	$(call cmd,sed,$(NBOOT_INFO_REPLACE))
+REPLACE_NAND_START = $(CONFIG_FUS_BOARDCFG_NAND0) $(CONFIG_FUS_BOARDCFG_NAND1)
+REPLACE_MMC_START = $(CONFIG_FUS_BOARDCFG_MMC0) $(CONFIG_FUS_BOARDCFG_MMC1)
+NBOOT_INFO_REPLACE_SED_CMD = \
+	-e "s/\#\#\#NAND_START\#\#\#/$(REPLACE_NAND_START)/g" \
+	-e "s/\#\#\#MMC_START\#\#\#/$(REPLACE_MMC_START)/g" \
+	-e "s/\#\#\#NBOOT_VERSION\#\#\#/$(NBOOT_VERSION)/g"
+
+$(obj)/.nboot-info-%.dtsi.tmp: $(NBOOT_PATH)/nboot-info-%.dtsi
+	$(call cmd,sed,$(NBOOT_INFO_REPLACE_SED_CMD))
+#	cat $@
 
 quiet_cmd_dtc = DTC     $@
 cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
 
-$(obj)/.%.dtb.tmp: $(NBOOT_PATH)/%.dts $(obj)/.nboot-info.dtsi.tmp
+NBOOT_INFO = $(obj)/.nboot-info-nand.dtsi.tmp $(obj)/.nboot-info-mmc.dtsi.tmp
+$(obj)/.%.dtb.tmp: $(NBOOT_PATH)/%.dts $(NBOOT_INFO)
 	$(call cmd,dtc)
 
 $(obj)/%.fs: $(obj)/.%.dtb.tmp

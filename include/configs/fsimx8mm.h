@@ -13,25 +13,25 @@
  * TCM layout (SPL)
  * ----------------
  * 0x007E_0000: --- (4KB, unused)
- * 0x007E_1000: SPL, address defined by ATF (up to ~120KB)
+ * 0x007E_1000: SPL (<= ~140KB) (loaded by ROM-Loader, address defined by ATF)
  *     DRAM-FW: Training Firmware (up to 96KB, immediately behind end of SPL)
- * 0x0081_E000: --- (unused) ### why?
+ * 0x0081_C000: DRAM Timing Data (16KB)          CONFIG_SPL_DRAM_TIMING_ADDR
  * 0x0081_FFFF: END
  *
- * The sum of SPL and DDR_FW must not exceed 216KB (unless the MALLOC_F pool
- * can be shrinked).
+ * The sum of SPL and DDR_FW must not exceed 236KB (0x3b000).
  *
- * OCRAM layout (SPL)
- * ------------------
- * 0x0090_0000: --- (64KB, reserved by ROM loader)
- * 0x0091_0000: BOARD-CFG (8KB)
- * 0x0091_2000: BSS data of SPL (8KB)
- * 0x0091_4000: MALLOC_F pool (28KB)
- * 0x0091_B000: --- (4KB, free)
- * 0x0091_C000: Stack + Global Data (16KB)
- * 0x0092_0000: ATF (48KB)
- * 0x0092_C000: DRAM Timing Data (16KB)
+ * OCRAM layout SPL                  U-Boot
+ * ---------------------------------------------------------
+ * 0x0090_0000: (Region reserved by ROM loader)(64KB)
+ * 0x0091_0000: BOARD-CFG            BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
+ * 0x0091_2000: BSS data             cfg_info  (8KB)  CONFIG_SPL_BSS_START_ADDR
+ * 0x0091_4000: MALLOC_F pool        ---       (28KB) CONFIG_MALLOC_F_ADDR
+ * 0x0091_B000: ---                  ---       (4KB)
+ * 0x0091_C000: Stack + Global Data  ---       (16KB) CONFIG_SPL_STACK
+ * 0x0092_0000: ATF                  ATF       (64KB) CONFIG_SPL_ATF_ADDR
  * 0x0093_FFFF: End
+ *
+ * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
  *
  * OCRAM_S layout (SPL)
  * --------------------
@@ -39,11 +39,9 @@
  * 0x0018_4000: --- (free)
  * 0x0018_7FFF: End
  *
- * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
- *
- * Later, ATF is loaded to OCRAM at 0x0092_0000 and U-Boot is loaded to DRAM
- * at 0x4020_0000. If a TEE program is loaded, it has to go to 0xBE00_0000 and
- * a DEK_BLOB is loaded to 0x4040_0000. These addresses are defined in ATF.
+ * After SPL, U-Boot is loaded to DRAM* at 0x4020_0000. If a TEE program is
+ * loaded, it has to go to 0xBE00_0000 and a DEK_BLOB is loaded to
+ * 0x4040_0000. These addresses are defined in ATF.
  *
  * NAND flash layout
  * -------------------------------------------------------------------------
@@ -57,7 +55,7 @@
  * 0x0010_2000: FIRMWARE Copy 0 (1528KB)                     |
  * 0x0028_0000: BOARD-CFG Copy 1 (8KB)                       |
  * 0x0028_0000: FIRMWARE Copy 1 (1528KB)                    /
- * 0x0040_0000: UserDef ...
+ * 0x0040_0000: Refresh ...
  * Actually now, when SPL/FCB/DBBT/HDMI is written by NXP tool kobs:
  * 0x0000_0000: FCB Copy 0 (128KB)                          \
  * 0x0002_0000: FCB Copy 1 (128KB)                           |
@@ -67,27 +65,91 @@
  * 0x000A_0000: DBBT Copy 1 (128KB)                          |
  * 0x000C_0000: DBBT Copy 2 (128KB)                          |
  * 0x000E_0000: DBBT Copy 3 (128KB)                          |
- * 0x0010_0000: SPL Copy 0 (256KB)                           | "NBoot"
+ * 0x0010_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
  * 0x0014_0000: HDMI-FW Copy 0 (256KB, unused but written)   |
- * 0x0018_0000: BOARD-CFG Copy 0 (8KB) (see nboot-info.dtsi) |
+ * 0x0018_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
  * 0x0018_2000: FIRMWARE Copy 0 (1016KB)                     |
- * 0x0028_0000: SPL Copy 1 (256KB)                           |
+ * 0x0028_0000: SPL Copy 1 (256KB)         Defined by FCB    |
  * 0x002C_0000: HDMI-FW Copy 1 (256KB, unused but written)   |
- * 0x0030_0000: BOARD-CFG Copy 1 (8KB) (see nboot-info.dtsi) |
+ * 0x0030_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
  * 0x0030_2000: FIRMWARE Copy 1 (1016KB)                    /
- * 0x0040_0000: UserDef (2048KB)
- * 0x0060_0000: Refresh (512KB)
- * 0x0068_0000: UBootEnv + Reserve (256KB)
- * 0x006C_0000: UBootEnvRed + Reserve (256KB)
- * 0x0070_0000: UBoot + Reserve (3MB)                       \
- * 0x00A0_0000: Kernel (32MB)                                | Set A
- * 0x02A0_0000: FDT (1024KB)                                /
- * 0x02B0_0000: UBoot + Kernel + FDT (36MB, opt)            -- Set B
- * 0x04E0_0000: TargetFS as UBI Volumes
+ * 0x0040_0000: Refresh (512KB)
+ * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
+ * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
+ * 0x0050_0000: UBoot_A (3MB)              nboot-info: uboot-start[0]
+ * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
+ * 0x00B0_0000: UserDef (2MB)
+ * 0x00D0_0000: Kernel_A (32MB)
+ * 0x02D0_0000: FDT_A (1MBKB)
+ * 0x02E0_0000: Kernel_B (32MB, opt)
+ * 0x04E0_0000: FDT_B (1MB, opt)
+ * 0x04F0_0000: TargetFS as UBI Volumes
  *
  * Remarks:
- * - If Kernel and FDT are part of the Rootfs, these partitions are dropped
- * - If no Update with Set A and B is used, all Set B partitions are dropped
+ * - nboot-start[] is initialized with CONFIG_FUS_BOARDCFG_NAND0/1.
+ * - If Kernel and FDT are part of the Rootfs, these partitions are dropped.
+ * - If no Update with Set A and B is used, all _B partitions are dropped;
+ *   UBoot_B is replaced by UserDef. This keeps all offsets up to and
+ *   including FDT_A fix and also mtd numbers in Linux. In other words: the
+ *   version with Update support just inserts Kernel_B and FDT_B in front of
+ *   TargetFS and renames UserDef to UBoot_B.
+ * - If the size of U-Boot will increase in the future, only UBoot_B must be
+ *   moved. All other hardcoded offsets stay as they are.
+ *
+ * eMMC Layout
+ * -----------
+ * Current:
+ * boot1-part:
+ * 0x0000_0000: Space for GPT (32KB, unused)
+ * 0x0000_8000: Space for MBR (512B, unused)
+ * 0x0000_8200: Optional Secondary Image Table (512B)
+ * 0x0000_8400: SPL (223KB)
+ * 0x0004_0000: --- (free)
+ * User-part:
+ * 0x0000_0000: Space for GPT (32KB)
+ * 0x0000_8000: Space for MBR (512B, unused)
+ * 0x0000_8200: Optional Secondary Image Table (512B, unused)
+ * 0x0000_8400: (opt. SPL if booting from User-part) (223KB)
+ * 0x0004_0000: --- (128KB, free)
+ * 0x0006_0000: UBoot (3712KB)
+ * 0x0040_0000: UBootEnv (32KB)
+ * 0x0040_8000: --- (4064KB, free)
+ * 0x0080_0000: Boot-Partition (VFAT): Kernel, FDT (32MB)
+ * 0x0280_0000: TargetFS (EXT4)
+ *
+ * Planned:
+ * Boot1/Boot2 or User HW partition:
+ * 0x0000_0000: Space for GPT (32KB)
+ * 0x0000_8000: Space for MBR (512B, unused)
+ * 0x0000_8200: Secondary Image Table (512B)
+ * 0x0000_8400: SPL Copy 0 (223KB)         Defined by i.MX8MM
+ * 0x0004_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
+ * 0x0004_2000: FIRMWARE Copy 0 (760KB)
+ * 0x0010_0000: UBootEnv (16KB)
+ * 0x0010_4000: UBootEnvRed (16KB)
+ * 0x0010_8000: --- (1KB, free)
+ * 0x0010_8400: SPL Copy 1 (223KB)         Defined by Secondary Image Table
+ * 0x0014_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x0014_2000: FIRMWARE Copy 1 (760KB)
+ *
+ * User HW partition only:
+ * 0x0020_0000: UBoot_A (3MB)              nboot-info: mmc-u-boot[0]
+ * 0x0050_0000: UBoot_B (3MB)              nboot-info: mmc-u-boot[1]
+ * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
+ *
+ * Remarks:
+ * - nboot-start[] is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the Makefile
+ * - We can either boot from Boot1, or from Boot2 or from the User partition.
+ *   So it will also work on SD cards without a Boot partition.
+ * - The reserved region size stays at 8MB as with NXP.
+ * - The boot partition requirement is 2 MB and will also work for small eMMC.
+ *   If FIRMWARE part grows above 760K, we will need a larger Boot partition.
+ * - If booting from a Boot HW partition, there is room in the User partiton
+ *   from 0x00008000 to 0x00200000 to store an M4 image for example.
+ * - If U-Boot grows beyond 3MB and if we do not want to increase the
+ *   reserved region, we can drop the User partition boot option and use the
+ *   SPL/BOARD-CFG/FIRMWARE areas for U-Boot, too. Then U-Boot can be almost
+ *   4MB in size.
  */
 
 #ifndef __FSIMX8MM_H
@@ -116,13 +178,11 @@
 #define CONFIG_SYS_UART_PORT	0	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
-/*####define CONFIG_SPL_MAX_SIZE		(148 * 1024)*/
-#define CONFIG_SPL_MAX_SIZE		(132 * 1024)
+#define CONFIG_SPL_MAX_SIZE		(140 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
+#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x800
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
-#define CONFIG_SYS_UBOOT_BASE		(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
 
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
@@ -144,11 +204,14 @@
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
 #define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
+
 /* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_SPL_BOARDCFG_NAND_OFFSET0 0x180000
-#define CONFIG_SPL_BOARDCFG_NAND_OFFSET1 0x300000
-#define CONFIG_SPL_BOARDCFG_NAND_SIZE	0x100000
-#define CONFIG_SPL_BOARDCFG_SIZE	0x2000	/* 8 KB should be enough */
+#define CONFIG_FUS_BOARDCFG_NAND0 0x180000
+#define CONFIG_FUS_BOARDCFG_NAND1 0x300000
+
+/* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
+#define CONFIG_FUS_BOARDCFG_MMC0 0x00040000
+#define CONFIG_FUS_BOARDCFG_MMC1 0x00140000
 
 #define CONFIG_SYS_SPL_MALLOC_START	0x42200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000	/* 512 KB */
@@ -192,12 +255,10 @@
 #define CONFIG_SPL_DMA_SUPPORT
 #define CONFIG_SPL_NAND_MXS
 #define CONFIG_SPL_RAWNAND_BUFFERS_MALLOC
-#define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00700000 /* Put the FIT out of first 4MB boot area */
 
-/* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
-#define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND				\
-	(CONFIG_SYS_NAND_U_BOOT_OFFS + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512 - 0x8400)
-
+/* Fallback values if values in nboot-info are missing/damaged */
+#define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x00500000
+#define CONFIG_SYS_NAND_U_BOOT_OFFS_B	0x00800000
 #endif
 
 #endif /* CONFIG_SPL_BUILD */
@@ -275,15 +336,13 @@
 /* Define MTD partition info */
 #define MTDIDS_DEFAULT      "nand0=gpmi-nand"
 #define MTDPART_DEFAULT     "nand0,1"
-#define MTDPARTS_PART1 \
-	"gpmi-nand:4m(Spl),2m(UserDef),512k(Refresh),512k(UBootEnv)"
-#define MTDPARTS_PART2	    "3m(UBoot)"
-#define MTDPARTS_PART2_A    "3m(UBoot_A)"
-#define MTDPARTS_PART2_B    "3m(UBoot_B)"
-#define MTDPARTS_PART3	    "32m(Kernel)ro,1024k(FDT)ro"
-#define MTDPARTS_PART3_A    "32m(Kernel_A)ro,1024k(FDT_A)ro"
-#define MTDPARTS_PART3_B    "32m(Kernel_B)ro,1024k(FDT_B)ro"
-#define MTDPARTS_PART4	    "-(TargetFS)"
+#define MTDPARTS_1	"gpmi-nand:4m(Spl),512k(Refresh),512k(UBootEnv),"
+#define MTDPARTS_2	"3m(UBoot),3m(UBootRed),2m(UserDef),"
+#define MTDPARTS_2_U    "3m(UBoot_A),3m(UBoot_B),2m(UserDef),"
+#define MTDPARTS_3	"32m(Kernel)ro,1024k(FDT)ro,"
+#define MTDPARTS_3_A    "32m(Kernel_A)ro,1024k(FDT_A)ro,"
+#define MTDPARTS_3_B    "32m(Kernel_B)ro,1024k(FDT_B)ro,"
+#define MTDPARTS_4	"-(TargetFS)"
 
 /* Add some variables that are not predefined in U-Boot. For example set
    fdt_high to 0xffffffff to avoid that the device tree is relocated to the
@@ -325,10 +384,7 @@
 /* In case of NAND, load kernel and device tree from MTD partitions. */
 #ifdef CONFIG_CMD_NAND
 #define MTDPARTS_DEFAULT						\
-	"mtdparts=" MTDPARTS_PART1					\
-	"," MTDPARTS_PART2_A "," MTDPARTS_PART3_A			\
-	"," MTDPARTS_PART2_B "," MTDPARTS_PART3_B			\
-	"," MTDPARTS_PART4
+	"mtdparts=" MTDPARTS_1 MTDPARTS_2_U MTDPARTS_3_A MTDPARTS_3_B MTDPARTS_4
 #define BOOT_FROM_NAND							\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
  	".kernel_nand_A=setenv kernel nand read ${loadaddr} Kernel_A\0" \
@@ -342,9 +398,8 @@
 /* In case of UBI, load kernel and FDT directly from UBI volumes */
 #ifdef CONFIG_CMD_UBI
 #define BOOT_FROM_UBI							\
-	".mtdparts_ubionly=setenv mtdparts mtdparts=" MTDPARTS_PART1	\
-	"," MTDPARTS_PART2_A "," MTDPARTS_PART2_B			\
-	"," MTDPARTS_PART4 "\0"						\
+	".mtdparts_ubionly=setenv mtdparts mtdparts="			\
+	  MTDPARTS_1 MTDPARTS_2_U MTDPARTS_4 "\0"			\
 	".ubivol_std=ubi part TargetFS;"				\
 	" ubi create rootfs_A ${rootfs_size};"				\
 	" ubi create rootfs_B\0"					\
@@ -466,8 +521,7 @@
 /* In case of NAND, load kernel and device tree from MTD partitions. */
 #ifdef CONFIG_CMD_NAND
 #define MTDPARTS_DEFAULT						\
-	"mtdparts=" MTDPARTS_PART1 "," MTDPARTS_PART2			\
-	"," MTDPARTS_PART3 "," MTDPARTS_PART4
+	"mtdparts=" MTDPARTS_1 MTDPARTS_2 MTDPARTS_3 MTDPARTS_4
 #define BOOT_FROM_NAND							\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
 	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0"	\
@@ -479,8 +533,8 @@
 /* In case of UBI, load kernel and FDT directly from UBI volumes */
 #ifdef CONFIG_CMD_UBI
 #define BOOT_FROM_UBI							\
-	".mtdparts_ubionly=setenv mtdparts mtdparts=" MTDPARTS_PART1	\
-	"," MTDPARTS_PART2 "," MTDPARTS_PART4 "\0"			\
+	".mtdparts_ubionly=setenv mtdparts mtdparts="			\
+	  MTDPARTS_1 MTDPARTS_2 MTDPARTS_4 "\0"				\
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0"		\
 	".ubivol_ubi=ubi part TargetFS; ubi create kernel ${kernel_size} s;" \
 	" ubi create fdt ${fdt_size} s; ubi create rootfs\0"		\
@@ -640,13 +694,15 @@
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
 
 #define CONFIG_ENV_SIZE		0x2000		/* 8KB (### should be 16KB) */
-#define CONFIG_ENV_MMC_OFFSET	(64 * SZ_64K)
-#define CONFIG_ENV_MMC_OFFSET_REDUND	(CONFIG_ENV_MMC_OFFSET + CONFIG_ENV_SIZE)
+
+/* Fallback values if values in the device tree are missing/damaged */
+#define CONFIG_ENV_MMC_OFFSET	0x100000
+#define CONFIG_ENV_MMC_OFFSET_REDUND 0x104000
 
 /* Use redundant environment, also in case without update support */
-#define CONFIG_ENV_NAND_RANGE	0x00080000	/* 4 blocks = 512KB */
-#define CONFIG_ENV_NAND_OFFSET	0x00680000	/* Before u-boot */
-#define CONFIG_ENV_NAND_OFFSET_REDUND   0x006c0000
+#define CONFIG_ENV_NAND_RANGE	0x00040000	/* 2 blocks = 256KB each copy */
+#define CONFIG_ENV_NAND_OFFSET	0x00480000	/* Before u-boot */
+#define CONFIG_ENV_NAND_OFFSET_REDUND   0x004c0000
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN	((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)

@@ -8,7 +8,7 @@
 
 /dts-v1/;
 
-#include ".nboot-info.dtsi.tmp"
+#include ".nboot-info-nand.dtsi.tmp"
 
 / {
 	board-cfg {
