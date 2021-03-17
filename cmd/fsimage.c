@@ -454,7 +454,8 @@ static int fs_image_save_image_to_nand(struct mtd_info *mtd, void *buf,
 {
 	int err = 0;
 
-	printf("  Writing %s to offset 0x%llx...", type, offs);
+	printf("  Writing %s (size 0x%zx) to offset 0x%llx...",
+	       type, size, offs);
 
 	// ### TODO: On write fails, we have to mark a block as bad and repeat
 
@@ -500,7 +501,7 @@ static int fs_image_erase_nand(struct mtd_info *mtd, size_t size, loff_t offs,
 	printf("  Erasing %s", type1);
 	if (type2)
 		printf("/%s", type2);
-	printf(" at offset 0x%llx... ", offs);
+	printf(" (size 0x%zx) at offset 0x%llx... ", size, offs);
 
 	opts.length = size;
 	opts.lim = size;
@@ -515,6 +516,44 @@ static int fs_image_erase_nand(struct mtd_info *mtd, size_t size, loff_t offs,
 	return err;
 }
 
+/* Issue warning if U-Boot MTD partitions do not match nboot-info */
+static bool fs_image_check_uboot_mtd(struct storage_info *si)
+{
+	struct mtd_device *dev;
+	u8 part_num;
+	struct part_info *part;
+	const char *name;
+	int i;
+	u64 start;
+	bool warning = false;
+
+	mtdparts_init();
+
+	for (i = 0; i < ARRAY_SIZE(uboot_mtd_names); i++) {
+		name = uboot_mtd_names[i];
+		printf("### Checking MTD %s\n", name);
+		if (find_dev_and_part(name, &dev, &part_num, &part)) {
+			printf("WARNING: MTD %s not found\n", name);
+			warning = true;
+		} else {
+			start = fdt32_to_cpu(si->start[i]);
+			if (part->offset != start) {
+				printf("WARNING: MTD %s starts on 0x%llx but"
+				       " should start on 0x%llx.\n",
+				       name, part->offset, start);
+				warning = true;
+			}
+			if (part->size != (u64)(si->size)) {
+				printf("WARNING: MTD %s has size 0x%llx but"
+				       " should have size 0x%llx.\n",
+				       name, part->offset, start);
+				warning = true;
+			}
+		}
+	}
+	return warning;
+}
+
 /* Save NBoot to NAND (BOARD-CFG, FIRMWARE; ### TODO: also SPL) */
 static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 {
@@ -525,10 +564,6 @@ static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 	int i;
 	int success = 0;
 	struct storage_info si;
-	struct mtd_device *dev;
-	u8 part_num;
-	struct part_info *part;
-	const char *name;
 	u64 start;
 
 	err = fs_image_get_nboot_storage(fdt, offs, mtd->erasesize,
@@ -540,21 +575,7 @@ static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 	err = fs_image_get_uboot_info(fdt, offs, mtd->erasesize, &si);
 	if (err)
 		return err;
-	mtdparts_init();
-	for (i = 0; i < ARRAY_SIZE(uboot_mtd_names); i++) {
-		name = uboot_mtd_names[i];
-		printf("### Checking MTD %s\n", name);
-		if (find_dev_and_part(name, &dev, &part_num, &part)) {
-			printf("WARNING: MTD %s not found\n", name);
-		} else {
-			start = fdt32_to_cpu(si.start[i]);
-			if (start != part->offset) {
-				printf("WARNING: MTD %s starts on 0x%llx but"
-				       " should start on 0x%llx.\n",
-				       name, part->offset, start);
-			}
-		}
-	}
+	fs_image_check_uboot_mtd(&si);
 
 	cfg_size = img[0].si.size;
 	size = cfg_size + img[1].si.size;
@@ -603,7 +624,49 @@ static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 	//### TODO: Write SPL incl. FCB/DBBT to img[2].si
 	puts("WARNING: Writing SPL skipped, use kobs to write it!\n");
 
+	/* Set the new BOARD-CFG as current */
+	if (success)
+		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+
 	return lasterr;
+}
+
+/* Save U-Boot to NAND */
+static int fs_image_save_uboot_to_nand(void *fdt, struct img_info *img,
+				       int copy, bool force)
+{
+	struct mtd_info *mtd = get_nand_dev_by_index(0);
+	int offs = fs_image_get_info_offs(fdt);
+	int err;
+	u64 start;
+
+	/* Issue warning if UBoot MTD partitions are missing or differ */
+	err = fs_image_get_uboot_info(fdt, offs, mtd->erasesize, &img->si);
+	if (err)
+		return err;
+
+	/* Ask for confirmation in case of warning */
+	if (fs_image_check_uboot_mtd(&img->si)) {
+		if (!force) {
+			printf("Saving %s to offset 0x%x with size 0x%x. ",
+			       img->type, fdt32_to_cpu(img->si.start[copy]),
+			       img->si.size);
+			if (!fs_image_confirm())
+				return -EINVAL;
+		}
+	}
+
+	/* Actually save image */
+	printf("Saving %s to NAND:\n", img->type);
+	start = fdt32_to_cpu(img->si.start[copy]);
+	err = fs_image_erase_nand(mtd, img->si.size, start, img->si.size,
+				  img->type, NULL);
+	if (!err) {
+		err = fs_image_save_image_to_nand(
+		     mtd, img->img, img->size, start, img->si.size, img->type);
+	}
+
+	return err;
 }
 #endif /* CONFIG_CMD_NAND */
 
@@ -728,8 +791,8 @@ static int fs_image_save_image_to_mmc(struct blk_desc *blk_desc, void *buf,
 	unsigned long n;
 	int err = 0;
 
-	printf("  Writing %s to offset 0x%x (block 0x" LBAF ")... ",
-	       type, offs, blk);
+	printf("  Writing %s (size 0x%x) to offset 0x%x (block 0x"
+	       LBAF ")... ", type, size, offs, blk);
 
 	/*
 	 * Write everything of the image but the first block with the header.
@@ -872,13 +935,13 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 				err = fs_image_save_image_to_mmc(
 					blk_desc, img[1].img,
 					start + img[0].si.size,
-					img[1].si.size, img[1].type);
+					img[1].size, img[1].type);
 			}
 			if (!err) {
 				/* Write BOARD-CFG */
 				err = fs_image_save_image_to_mmc(
 					blk_desc, img[0].img, start,
-					img[0].si.size, img[0].type);
+					img[0].size, img[0].type);
 			}
 		}
 		if (!err && (i < img[1].si.count)) {
@@ -890,7 +953,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 				/* Write SPL */
 				err = fs_image_save_image_to_mmc(
 					blk_desc, img[2].img, start,
-					img[2].si.size, img[2].type);
+					img[2].size, img[2].type);
 			}
 			if (!err && (i == 1)) {
 				/*
@@ -935,10 +998,117 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		}
 	}
 
+	/* Set the new BOARD-CFG as current */
+	if (success)
+		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+
 	return lasterr;
+}
+
+/* Save U-Boot to eMMC */
+static int fs_image_save_uboot_to_mmc(void *fdt, struct img_info *img,
+				       int copy, int mmc_dev)
+{
+	struct mmc *mmc = find_mmc_device(mmc_dev);
+	struct blk_desc *blk_desc;
+	int offs = fs_image_get_info_offs(fdt);
+	int err;
+	unsigned int cur_part;
+	unsigned long start;
+
+	if (!mmc) {
+		printf("mmc%d not found\n", mmc_dev);
+		return -ENODEV;
+	}
+	blk_desc = mmc_get_blk_desc(mmc);
+
+	err = fs_image_get_uboot_info(fdt, offs, blk_desc->blksz, &img->si);
+	if (err)
+		return err;
+
+	/* Switch to User partition (0) */
+	cur_part = mmc->part_config & PART_ACCESS_MASK;
+	if (cur_part != 0) {
+		err = blk_dselect_hwpart(blk_desc, 0);
+		if (err) {
+			printf("Cannot switch to part 0 on mmc%d\n", mmc_dev);
+			return err;
+		}
+	}
+
+	/* Actually save U-Boot */
+	start = fdt32_to_cpu(img->si.start[copy]);
+	printf("Saving %s to mmc%d, part 0:\n", img->type, mmc_dev);
+	err = fs_image_invalidate_mmc(blk_desc, start, img->type);
+	if (!err)
+		err = fs_image_save_image_to_mmc(blk_desc, img->img, start,
+						 img->size, img->type);
+
+	/* Switch back the previous partition */
+	if (cur_part != 0) {
+		int tmperr = blk_dselect_hwpart(blk_desc, cur_part);
+		if (tmperr) {
+			printf("WARNING: Cannot switch back to part %d on"
+			       " mmc%d (%d)\n", cur_part, mmc_dev, tmperr);
+		}
+	}
+
+	return err;
 }
 #endif /* CONFIG_CMD_MMC */
 
+static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
+{
+	void *fdt;
+	const char *arch = fs_image_get_arch();
+	const char *boot_dev;
+	struct img_info img;
+	int ret;
+	int copy;
+
+	img.type = "U-BOOT";
+	img.descr = arch;
+	img.img = fsh + 1;
+	img.size = fs_image_get_size(fsh, false);
+	if (!fs_image_match(fsh, img.type, img.descr)) {
+		printf("%s image not valid for %s\n", img.type, img.descr);
+		return 1;
+	}
+
+	fdt = fs_image_get_cfg_addr_check(false);
+	if (!fdt)
+		return 1;
+	ret = fs_image_check_bootdev(fdt, &boot_dev);
+	if (ret < 0)
+		return 1;
+
+	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
+	copy = 0;
+	switch (fs_board_get_boot_dev_from_name(boot_dev)) {
+#ifdef CONFIG_NAND_MXS
+	case NAND_BOOT:
+		ret = fs_image_save_uboot_to_nand(fdt, &img, copy, force);
+		break;
+#endif
+
+#ifdef CONFIG_MMC
+	case MMC3_BOOT:
+		ret = fs_image_save_uboot_to_mmc(fdt, &img, copy, 2);
+		break;
+#endif
+
+	default:
+		printf("Saving %s to boot device %s not available\n",
+		       img.type, boot_dev);
+		ret = -EINVAL;
+		break;
+	}
+
+	printf("Saving %s %s\n", img.type,
+	       ret ? "incomplete or failed" : "complete");
+
+	return ret ? 1 : 0;
+}
 
 /* ------------- Command implementation ------------------------------------ */
 
@@ -1085,6 +1255,7 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 	int ret;
 	unsigned long addr;
 	bool force = false;
+	const char *type = "NBOOT";
 
 	if ((argc > 1) && (argv[1][0] == '-')) {
 		if (strcmp(argv[1], "-f"))
@@ -1098,6 +1269,10 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 	else
 		addr = get_loadaddr();
 
+	/* If this is an U-Boot image, handle separately */
+	if (fs_image_match((void *)addr, "U-BOOT", NULL))
+		return fsimage_save_uboot((void *)addr, force);
+
 	ret = fs_image_find_board_cfg(addr, force, &cfg, &nboot);
 	if (ret <= 0)
 		return 1;
@@ -1107,8 +1282,8 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret < 0)
 		return 1;
 	if (ret > 0) {
-		printf("Boot fuses not yet set, remember to burn them for %s\n",
-		       boot_dev);
+		printf("Warning! Boot fuses not yet set, remember to burn"
+		       " them for %s\n", boot_dev);
 	}
 
 	/* Prepare img[0]: BOARD-CFG */
@@ -1140,16 +1315,14 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 #endif
 
 	default:
-		printf("Saving NBOOT to boot device %s not available\n",
-		       boot_dev);
+		printf("Saving %s to boot device %s not available\n",
+		       type, boot_dev);
 		ret = -EINVAL;
 		break;
 	}
 
-	if (ret)
-		puts("Saving NBOOT incomplete or failed\n");
-	else
-		puts("Saving NBOOT complete\n");
+	printf("Saving %s %s\n", type,
+	       ret ? "incomplete or failed" : "complete");
 
 	return ret ? 1 : 0;
 }
