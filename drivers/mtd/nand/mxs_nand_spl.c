@@ -415,13 +415,13 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 			 */
 			while (is_badblock(mtd, offs, 1)) {
 				page = page + nand_page_per_block;
+				offs += mtd->erasesize;
 				/* Check i we've reached the end of flash. */
 				if (page >= mtd->size >> chip->page_shift)
 					return -ENOMEM;
 			}
 		}
 	}
-
 
 	return 0;
 }
