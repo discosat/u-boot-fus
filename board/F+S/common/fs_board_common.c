@@ -556,8 +556,6 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 		return boot_dev;
 	}
 
-	printf("### Fuse 1,3: 0x%08x\n", val);
-
 	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
 	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
 	case BOOT_TYPE_SD:

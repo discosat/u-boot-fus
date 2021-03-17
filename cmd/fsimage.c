@@ -189,15 +189,6 @@ struct fs_header_v1_0 *fs_image_find(struct fs_header_v1_0 *fsh,
 
 	remaining = fs_image_get_size(fsh++, false);
 	while (remaining > 0) {
-		{//###
-			u8 *p = (u8 *)fsh;
-			int i;
-			printf("###%p:", p);
-			for (i=0; i<32; i++)
-				printf(" %02x", p[i]);
-			puts("\n");
-		}//###
-
 		if (!fs_image_is_fs_image(fsh))
 			break;
 		size = fs_image_get_size(fsh, true);
@@ -259,7 +250,6 @@ static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
 		}
 		return 1;
 	}
-	printf("### Board is assumed to boot from %s\n", boot_dev);
 
 	return 0;
 }
@@ -297,7 +287,6 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 
 	/* In case of an NBoot image with prepended BOARD-ID, use this ID */
 	if (fs_image_match(fsh, "BOARD-ID", NULL)) {
-		printf("### new id\n");
 		memcpy(old_id, id, MAX_DESCR_LEN + 1);
 		memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
 		if (strcmp(id, old_id)) {
@@ -310,7 +299,6 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		}
 		fsh++;
 	}
-	printf("### Using BOARD-ID %s\n", id);
 
 	if (!fs_image_match(fsh, "NBOOT", arch)) {
 		printf("No NBOOT image for %s found at address 0x%lx\n",
@@ -338,9 +326,6 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		remaining -= size;
 		cfg = (struct fs_header_v1_0 *)((void *)cfg + size);
 	}
-
-	memcpy(id, cfg->param.descr, MAX_DESCR_LEN); //###
-	printf("### Using BOARD-CFG %s\n", id);
 
 	/* Get and show NBoot version as noted in BOARD-CFG */
 	fdt = (void *)(cfg + 1);
@@ -381,34 +366,22 @@ static int fs_image_load_image_from_nand(struct mtd_info *mtd,
 	int err;
 
 	/* Read F&S header */
-	puts("###A\n");
 	size = FSH_SIZE;
 	err = nand_read_skip_bad(mtd, offs, &size, NULL, lim,
 				 (u_char *)&local_buffer.fsh);
 	if (err)
 		return err;
 
-	puts("###B\n");
-	{
-		u8 *p = (u8 *)&local_buffer.fsh;
-		int i;
-		printf("###%p:", p);
-		for (i=0; i<32; i++)
-			printf(" %02x", p[i]);
-		puts("\n");
-	}
 	/* Check type */
 	if (!fs_image_match(&local_buffer.fsh, img->type, img->descr))
 		return -ENOENT;
 
-	puts("###C\n");
 	/* Load whole image incl. header */
 	size = fs_image_get_size(&local_buffer.fsh, true);
 	err = nand_read_skip_bad(mtd, offs, &size, NULL, lim, img->img);
 	if (err)
 		return err;
 
-	puts("###D\n");
 	img->size = size;
 
 	return 0;
@@ -531,7 +504,6 @@ static bool fs_image_check_uboot_mtd(struct storage_info *si)
 
 	for (i = 0; i < ARRAY_SIZE(uboot_mtd_names); i++) {
 		name = uboot_mtd_names[i];
-		printf("### Checking MTD %s\n", name);
 		if (find_dev_and_part(name, &dev, &part_num, &part)) {
 			printf("WARNING: MTD %s not found\n", name);
 			warning = true;
@@ -684,27 +656,16 @@ static int fs_image_load_image_from_mmc(struct blk_desc *blk_desc,
 	lbaint_t count;
 
 	/* Read F&S header */
-	puts("###A\n");
 	n = blk_dread(blk_desc, blk, 1, &local_buffer.block);
 	if (IS_ERR_VALUE(n))
 		return (int)n;
 	if (n < 1)
 		return -EIO;
 
-	puts("###B\n");
-	{
-		u8 *p = (u8 *)&local_buffer.fsh;
-		int i;
-		printf("###%p:", p);
-		for (i=0; i<32; i++)
-			printf(" %02x", p[i]);
-		puts("\n");
-	}
 	/* Check type */
 	if (!fs_image_match(&local_buffer.fsh, img->type, img->descr))
 		return -ENOENT;
 
-	puts("###C\n");
 	/* Load whole image incl. header */
 	size = fs_image_get_size(&local_buffer.fsh, true);
 	count = (size + blk_desc->blksz - 1) / blk_desc->blksz;
@@ -715,8 +676,6 @@ static int fs_image_load_image_from_mmc(struct blk_desc *blk_desc,
 		return -EIO;
 
 	img->size = size;
-
-	puts("###D\n");
 
 	return 0;
 }
@@ -1420,9 +1379,7 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 			return 0;
 	}
 
-//###	puts("### Burning fuses not yet activated, nothing changed.\n");
-//###	return 0;
-
+	/* Now there is no way back... actually burn the fuses */
 	for (i = 0; i < len; i++) {
 		fuse_bw = fdt32_to_cpu(fbws[i]);
 		fuse_val = fdt32_to_cpu(fvals[i]);

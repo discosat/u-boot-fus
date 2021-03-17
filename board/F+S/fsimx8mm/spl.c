@@ -225,7 +225,6 @@ static iomux_v3_cfg_t const nand_pads[] = {
 
 static void fs_spl_init_nand_pads(void)
 {
-	puts("### Configuring NAND pins\n");
 	imx_iomux_v3_setup_multiple_pads(nand_pads, ARRAY_SIZE(nand_pads));
 	boot_dev_init_done = true;
 }
@@ -256,7 +255,6 @@ static iomux_v3_cfg_t const emmc_pads[] = {
 
 static void fs_spl_init_emmc_pads(void)
 {
-	puts("### Configuring eMMC pins\n");
 	imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
 	boot_dev_init_done = true;
 }
@@ -270,8 +268,6 @@ int board_mmc_init(bd_t *bd)
 {
 	struct fsl_esdhc_cfg esdhc;
 
-	puts("### board_mmc_init()\n");
-
 	switch (used_boot_dev) {
 	case MMC1_BOOT:
 		esdhc.esdhc_base = USDHC1_BASE_ADDR;
@@ -284,15 +280,13 @@ int board_mmc_init(bd_t *bd)
 		break;
 
 	case MMC3_BOOT:
-	printf("###bmi1\n");
 		esdhc.esdhc_base = USDHC3_BASE_ADDR;
 		esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-	printf("###bmi2\n");
 		break;
 	default:
 		return -ENODEV;
 	}
-	printf("###bmi\n");
+
 	return fsl_esdhc_initialize(bd, &esdhc);
 }
 #endif /* CONFIG_MMC */
@@ -391,8 +385,6 @@ static void basic_init(void)
 
 	board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
 						 "board-rev", 100);
-	printf("### board_name=%s, lc=%s\n", board_name, board_name_lc);
-
 	config_uart(board_type);
 	if (secondary)
 		puts("Warning! Running secondary SPL, please check if"
@@ -432,13 +424,12 @@ void board_init_f(ulong dummy)
 	wdog_init();
 	timer_init();
 
-#if 1
+#if 0
 	/*
 	 * Enable this to have early debug output before BOARD-CFG is loaded
 	 * You have to provide the board type, we do not know it yet
 	 */
 	config_uart(BT_PICOCOREMX8MM);
-	puts("###Hello\n");
 #endif
 
 	/* Init malloc_f pool and boot stages */
@@ -454,15 +445,13 @@ void board_init_f(ulong dummy)
 	if (readl(&src->gpr10) & (1 << 30))
 		secondary = true;
 
-	printf("### Running on %s SPL\n", secondary ? "secondary" : "primary");
-
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
 	if (boot_dev != USB_BOOT) {
 		if (fs_spl_init_boot_dev(boot_dev, true, "current")
 		    || fs_image_load_system(boot_dev, secondary, basic_init))
 			boot_dev = USB_BOOT;
-		}
+	}
 	if (boot_dev == USB_BOOT) {
 		bool need_cfg = true;
 
@@ -477,25 +466,6 @@ void board_init_f(ulong dummy)
 	}
 
 	/* At this point we have a valid system configuration */
-#if 0 //####
-	{
-		int i;
-		u32 tcm, ram;
-
-		puts("### Checking RAM\n");
-		for (i=0; i<0x30000; i+=4) {
-			tcm = *(u32 *)(0x7e0000UL + i);
-			*(u32 *)(0x40000000UL + i) = tcm;
-		}
-		for (i=0; i<0x30000; i+=4) {
-			ram = *(u32 *)(0x40000000UL + i);
-			tcm = *(u32 *)(0x7e0000UL + i);
-			if (ram != tcm)
-				printf("### mismatch: ram=0x%08x, tcm=0x%08x\n", ram, tcm);
-		}
-	}
-#endif //####
-
 	board_init_r(NULL, 0);
 }
 
@@ -524,21 +494,18 @@ void spl_board_init(void)
 /* Return the offset where U-Boot starts in NAND */
 uint32_t spl_nand_get_uboot_raw_page(void)
 {
-	printf("### Loading U-Boot from NAND offset 0x%x\n", uboot_offs);
 	return uboot_offs;
 }
 
 /* Return the sector number where U-Boot starts in eMMC (User HW partition) */
 unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
-	printf("### Loading U-Boot from MMC offset 0x%x\n", uboot_offs);
 	return uboot_offs / 512;
 }
 
 /* U-Boot is always loaded from the User HW partition */
 int spl_boot_part(struct mmc *mmc)
 {
-	puts("### Loading U-Boot from part 0\n");
 	return 0;
 }
 
@@ -564,7 +531,6 @@ int spl_boot_part(struct mmc *mmc)
  */
 void board_boot_order(u32 *spl_boot_list)
 {
-	puts("### board_boot_order()\n");
 	switch (get_boot_device()) {
 	case MMC1_BOOT:
 	case MMC2_BOOT:
@@ -592,9 +558,6 @@ void board_boot_order(u32 *spl_boot_list)
  */
 int board_fit_config_name_match(const char *name)
 {
-	debug("%s: %s\n", __func__, name);
-	printf("### I am: %s, test for %s\n", board_name_lc, name);
-
 	return strcmp(name, board_name_lc);
 }
 #endif

@@ -151,7 +151,6 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
 
-#ifndef CONFIG_SPL_BUILD
 /* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
 static void fs_spl_setup_cfg_info(void)
 {
@@ -183,7 +182,6 @@ static void fs_spl_setup_cfg_info(void)
 	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 						      "dram-size", 0x400);
 
-	//#### noch böser Hack, MX fehlt noch, muss eh alles anders werden
 	features = 0;
 	if (fdt_getprop(fdt, offs, "have-nand", NULL))
 		features |= FEAT_NAND;
@@ -212,22 +210,13 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_EEPROM;
 	cfg->features = features;
 }
-#endif
 
 /* Do some very early board specific setup */
 int board_early_init_f(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs*) WDOG1_BASE_ADDR;
 
-#ifndef CONFIG_SPL_BUILD
-	{ //####
-		volatile u8 *p = (u8 *)0x30860000;
-		*(p + 0x40) = '+';
-		*(p + 0x40) = '@';
-	} //####
-
 	fs_spl_setup_cfg_info();
-#endif
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
 
@@ -246,24 +235,13 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	if (prio == 0) {
 		switch (fs_board_get_boot_dev()) {
 		case NAND_BOOT:
-			puts("### ENV from NAND\n");
 			return ENVL_NAND;
 		case MMC3_BOOT:
-			puts("### ENV from MMC\n");
 			return ENVL_MMC;
 		default:
 			break;
 		}
 	}
-
-#ifndef CONFIG_SPL_BUILD
-	{ //####
-		volatile u8 *p = (u8 *)0x30860000;
-		*(p + 0x40) = '?';
-		*(p + 0x40) = '?';
-	} //####
-#endif
-	puts("### ENV unknown\n");
 
 	return ENVL_UNKNOWN;
 }
@@ -925,8 +903,6 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
 	if (boot_part == 7)
 		boot_part = 0;
 
-	printf("### Using UBootEnv from part %u\n", boot_part);
-
 	return boot_part;
 }
 
@@ -1219,15 +1195,8 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 		fdt_shrink_to_minimum(fdt, 8192);
 
 	/* The first part is set in U-Boot and Linux device tree */
-	if (!(features & FEAT_NAND)) {
-	{ //####
-		volatile u8 *p = (u8 *)0x30860000;
-		*(p + 0x40) = ':';
-		*(p + 0x40) = ':';
-	} //####
-
+	if (!(features & FEAT_NAND))
 		fs_fdt_enable(fdt, FDT_NAND, 0);
-	}
 
 	if (!(features & FEAT_EMMC))
 		fs_fdt_enable(fdt, FDT_EMMC, 0);
@@ -1287,11 +1256,6 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 /* Do any board-specific modifications on U-Boot device tree before starting */
 int board_fix_fdt(void *fdt)
 {
-	{ //####
-		volatile u8 *p = (u8 *)0x30860000;
-		*(p + 0x40) = '+';
-		*(p + 0x40) = '+';
-	} //####
 	return do_fdt_board_setup(fdt, false);
 }
 
@@ -1311,13 +1275,6 @@ int mmc_map_to_kernel_blk(int devno)
 #ifdef CONFIG_BOARD_POSTCLK_INIT
 int board_postclk_init(void)
 {
-#ifndef CONFIG_SPL_BUILD
-	{ //####
-		volatile u8 *p = (u8 *)0x30860000;
-		*(p + 0x40) = '+';
-		*(p + 0x40) = '#';
-	} //####
-#endif
 	/* TODO */
 	return 0;
 }

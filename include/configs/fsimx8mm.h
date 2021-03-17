@@ -98,26 +98,6 @@
  *
  * eMMC Layout
  * -----------
- * Current:
- * boot1-part:
- * 0x0000_0000: Space for GPT (32KB, unused)
- * 0x0000_8000: Space for MBR (512B, unused)
- * 0x0000_8200: Optional Secondary Image Table (512B)
- * 0x0000_8400: SPL (223KB)
- * 0x0004_0000: --- (free)
- * User-part:
- * 0x0000_0000: Space for GPT (32KB)
- * 0x0000_8000: Space for MBR (512B, unused)
- * 0x0000_8200: Optional Secondary Image Table (512B, unused)
- * 0x0000_8400: (opt. SPL if booting from User-part) (223KB)
- * 0x0004_0000: --- (128KB, free)
- * 0x0006_0000: UBoot (3712KB)
- * 0x0040_0000: UBootEnv (32KB)
- * 0x0040_8000: --- (4064KB, free)
- * 0x0080_0000: Boot-Partition (VFAT): Kernel, FDT (32MB)
- * 0x0280_0000: TargetFS (EXT4)
- *
- * Planned:
  * Boot1/Boot2 or User HW partition:
  * 0x0000_0000: Space for GPT (32KB)
  * 0x0000_8000: Space for MBR (512B, unused)
@@ -334,9 +314,9 @@
  * Environment
  ************************************************************************/
 /* Define MTD partition info */
-#define MTDIDS_DEFAULT      "nand0=gpmi-nand"
-#define MTDPART_DEFAULT     "nand0,1"
-#define MTDPARTS_1	"gpmi-nand:4m(Spl),512k(Refresh),512k(UBootEnv),"
+#define MTDIDS_DEFAULT  "nand0=gpmi-nand"
+#define MTDPART_DEFAULT "nand0,1"
+#define MTDPARTS_1	"gpmi-nand:4m(NBoot),512k(Refresh),512k(UBootEnv),"
 #define MTDPARTS_2	"3m(UBoot),3m(UBootRed),2m(UserDef),"
 #define MTDPARTS_2_U    "3m(UBoot_A),3m(UBoot_B),2m(UserDef),"
 #define MTDPARTS_3	"32m(Kernel)ro,1024k(FDT)ro,"

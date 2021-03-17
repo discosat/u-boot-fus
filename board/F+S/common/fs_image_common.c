@@ -215,8 +215,6 @@ static int fs_image_get_storage_size(void *fdt, int offs, unsigned int align,
 	if (align && (*size % align))
 		return fs_image_invalid_nboot_info(name);
 
-	printf("### %s: 0x%x\n", name, *size);
-
 	return 0;
 }
 
@@ -248,13 +246,6 @@ static int fs_image_get_storage_info(void *fdt, int offs, unsigned int align,
 				return fs_image_invalid_nboot_info(name);
 		}
 	}
-
-	//###
-	printf("### %s:", name);
-	for (i = 0; i < si->count; i++)
-		printf(" 0x%08x", fdt32_to_cpu(si->start[i]));
-	printf(", count=%d\n", si->count);
-	//###
 
 	return fs_image_get_storage_size(fdt, offs, align, &si->size, prefix);
 }
@@ -349,8 +340,6 @@ static void fs_image_get_board_name_rev(const char *id, struct bnr *bnr)
 	bnr->name[rev] = 0;
 	while (++rev < i)
 		bnr->rev = bnr->rev * 10 + bnr->name[rev] - '0';
-
-	printf("### %s: name=%s rev=%u\n", id, bnr->name, bnr->rev);
 }
 
 /* Check id, return also true if revision is less than revision of compare id */
@@ -446,29 +435,6 @@ static int fs_image_init_dram(void)
 	/* The image starts with a pointer to the dram_timing variable */
 	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
 	dti = (struct dram_timing_info *)*p;
-#if 0 //###
-	{
-		int i;
-		unsigned long offset = (unsigned long)p;
-
-		reloc(dti->ddrc_cfg, offset);
-		reloc(dti->ddrphy_cfg, offset);
-		reloc(dti->fsp_msg, offset);
-		reloc(dti->ddrphy_trained_csr, offset);
-		reloc(dti->ddrphy_pie, offset);
-		for (i = 0; i < dti->fsp_msg_num; i++)
-			reloc(dti->fsp_msg[i].fsp_cfg, offset);
-	}
-#endif //###
-	printf("### dram_timing=%p\n", dti);
-	{
-		u8 *p = (u8 *)CONFIG_SPL_DRAM_TIMING_ADDR;
-		int i;
-		printf("###%p:", p);
-		for (i=0; i<32; i++)
-			printf(" %02x", p[i]);
-		puts("\n");
-	}
 
 	return !ddr_init(dti);
 }
@@ -521,7 +487,6 @@ static void fs_image_copy(void *buf, unsigned int size)
 /* Skip data of given size */
 static void fs_image_skip(unsigned int size)
 {
-	printf("### %d: skip 0x%x, state=0x%x\n", nest_level, size, state);
 	fsimg_stack[nest_level].remaining -= size;
 	count = size;
 	mode = FSIMG_MODE_SKIP;
@@ -531,13 +496,10 @@ static void fs_image_copy_or_skip(struct fs_header_v1_0 *fsh,
 				  const char *type, const char *descr,
 				  void *addr, unsigned int size)
 {
-	if (fs_image_match(fsh, type, descr)) {
-		puts("### match\n");
+	if (fs_image_match(fsh, type, descr))
 		fs_image_copy(addr, size);
-	} else {
-		puts("### mismatch\n");
+	else
 		fs_image_skip(size);
-	}
 }
 
 /* Get the next FIRMWARE job */
@@ -587,16 +549,6 @@ static void fs_image_handle_header(void)
 	if (!nest_level && !fsimg->remaining)
 		fsimg->remaining = size;
 
-	printf("### %d: Found %s, size=0x%x remaining=0x%x, state=%d\n", nest_level, one_fsh.type, size, fsimg->remaining, state);
-
-	{
-		int i;
-		for (i=0; i<=nest_level; i++)
-			printf("### +++> %d: size=0x%x remaining=0x%x\n",
-			       i, fsimg_stack[i].size, fsimg_stack[i].remaining);
-	}
-
-
 	arch = fs_image_get_arch();
 	switch (state) {
 	case FSIMG_STATE_ANY:
@@ -643,8 +595,6 @@ static void fs_image_handle_header(void)
 
 			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
 			ram_timing = fdt_getprop(fdt, off, "dram-timing", NULL);
-
-			printf("### Looking for: %s, %s\n", ram_type, ram_timing);
 
 			fs_image_enter(size, FSIMG_STATE_DRAM_TYPE);
 		} else
@@ -696,25 +646,21 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_BOARD_CFG:
 		/* We have our config, skip remaining configs */
-		printf("### Got BOARD-CFG, ID=%s\n", board_id);
 		jobs &= ~FSIMG_JOB_CFG;
 		fs_image_skip(fsimg->remaining);
 		break;
 
 	case FSIMG_STATE_DRAM_FW:
 		/* DRAM training firmware loaded, now look for DRAM timing */
-		printf("### Got DRAM-FW (%s)\n", ram_type);
 		fs_image_next_header(FSIMG_STATE_DRAM_TIMING);
 		break;
 
 	case FSIMG_STATE_DRAM_TIMING:
 		/* DRAM info complete, start it; job done if successful */
-		printf("### Got DRAM-TIMING (%s)\n", ram_timing);
-		if (fs_image_init_dram()) {
-			puts("### Init DDR successful\n");
+		if (fs_image_init_dram())
 			jobs &= ~FSIMG_JOB_DRAM;
-		} else
-			puts("### Init DDR failed\n");
+		else
+			debug("Init DDR failed\n");
 
 		/* Skip remaining DRAM timings */
 		fs_image_skip(fsimg->remaining);
@@ -722,7 +668,6 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_ATF:
 		/* ATF loaded, job done */
-		puts("### Got ATF\n");
 		jobs &= ~FSIMG_JOB_ATF;
 		fs_image_next_fw();
 		break;
@@ -740,7 +685,6 @@ static void fs_image_handle_skip(void)
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
 
 	if (fsimg->remaining) {
-		printf("### %d: skip: remaining=0x%x state=0x%x\n", nest_level, fsimg->remaining, state);
 		fs_image_next_header(state);
 		return;
 	}
@@ -753,13 +697,6 @@ static void fs_image_handle_skip(void)
 	nest_level--;
 	fsimg--;
 
-	{
-		int i;
-		for (i=0; i<=nest_level; i++)
-			printf("### ---> %d: size=0x%x remaining=0x%x\n",
-			       i, fsimg_stack[i].size, fsimg_stack[i].remaining);
-	}
-
 	switch (state) {
 	case FSIMG_STATE_ANY:
 		fs_image_next_header(state);
@@ -770,13 +707,11 @@ static void fs_image_handle_skip(void)
 		break;
 
 	case FSIMG_STATE_DRAM_TYPE:
-		printf("### DRAM_TYPE: next fw: state=%d\n", state);
 		fs_image_next_fw();
 		break;
 
 	case FSIMG_STATE_DRAM_FW:
 	case FSIMG_STATE_DRAM_TIMING:
-		printf("### FSIMG_STATE_DRAM_FW|TIMING: state=%d\n", state);
 		state = FSIMG_STATE_DRAM_TYPE;
 		fs_image_skip(fsimg->remaining);
 		break;
@@ -869,7 +804,7 @@ void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init)
 	do {
 		jobs = jobs_todo;
 		spl_sdp_stream_continue(&fs_image_sdp_stream_ops, true);
-		printf("### Jobs not done: 0x%x\n", jobs);
+		debug("Jobs not done: 0x%x\n", jobs);
 	} while (jobs);
 }
 
@@ -916,7 +851,6 @@ static int fs_image_gen_load_mmc(uint32_t offs, unsigned int size, void *buf)
 	if (boot_part == 7)
 		boot_part = 0;
 	if (cur_part != boot_part) {
-		puts("### sel boot_part\n");
 		err = blk_dselect_hwpart(blk_desc, boot_part);
 		if (err) {
 			printf("Cannot switch to part %d on mmc0\n", boot_part);
