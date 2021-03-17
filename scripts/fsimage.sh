@@ -70,6 +70,9 @@ FSH_FLAGS_CRC32=0x4000
 # Possible fields in show command
 fields="offset magic size os padsize type descr typedescr flags crc32 version"
 
+# Several blanks, used for indendation
+bl="                                                                         "
+
 usage()
 {
     if [[ $# -gt 0 ]]; then
@@ -357,7 +360,7 @@ handle_command()
 {
     offset=$1
     if [[ $cmd = "list" ]]; then
-	printf "%2d: $wx %-5s $wx %s\n" $index $offset $magic $size "$typedescr"
+	printf "%2d: $wx $wx %s\n" $index $offset $size "${bl:0:$2}$typedescr"
     elif [ "$sel" = "$type" ] || [ "$sel" = "$typedescr" ] || [ $selnum -eq $index ]; then
 	do_$cmd
 	exit
@@ -374,7 +377,7 @@ parse_image()
 
 #    echo "in: offs=$offs remaining=$remaining" >&2
 
-    handle_command $offs
+    handle_command $offs $3
 
     offs=$(($offs + $headersize))
     found=0
@@ -387,7 +390,7 @@ parse_image()
 #		savedoffs=$offs
 #	    fi
 	    found=1
-	    parse_image $offs $size
+	    parse_image $offs $size $(($3 + 1))
 	    offs=$(($offs + $savedsize))
 	    remaining=$(($remaining - $savedsize))
 	else
@@ -494,12 +497,12 @@ wx="%0${#width}x"
 ws="%-${#width}s"
 
 if [[ $cmd = "list" ]]; then
-    printf " #  $ws magic $ws type (description)\n" offset size
+    printf " #  $ws $ws type (description)\n" offset size
     printf "%s\n" "-------------------------------------------------------------------------------"
 fi
 
 # Handle the image
-parse_image 0 $size
+parse_image 0 $size 0
 
 if [ $cmd != "list" ]; then
     echo "Image '$sel' not found"
