@@ -168,7 +168,7 @@
 #define CONFIG_BOOTFILE		"Image"
 #define CONFIG_PREBOOT
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	#define CONFIG_BOOTCOMMAND	"run selector; run set_bootargs; run kernel; run fdt; reset"
+	#define CONFIG_BOOTCOMMAND	"run selector; run set_bootargs; run kernel; run fdt; run failed_update_reset"
 #else
 	#define CONFIG_BOOTCOMMAND	"run set_bootargs; run kernel; run fdt"
 #endif
@@ -340,6 +340,10 @@
 		"done;"																												\
 		"saveenv;"																											\
 	"fi;'\0"																												\
+	"failed_update_reset="																									\
+		"if test \"x${BOOT_ORDER_OLD}\" != \"x${BOOT_ORDER}\"; then	"														\
+			"reset; "																										\
+		"fi;\0"																											\
 	NAND_BOOT_VALUES \
 	"boot_partition=undef\0" \
 	".boot_partition_mmc= setenv boot_partition 5\0"\
