@@ -787,8 +787,6 @@ ALL-$(CONFIG_ARCH_MX6) += uboot.nb0
 
 # Create disassembler listings if requested
 ALL-$(CONFIG_DISASM) += u-boot.dis
-ALL-$(CONFIG_SPL_DISASM) += spl/u-boot-spl.dis
-ALL-$(CONFIG_TPL_DISASM) += tpl/u-boot-tpl.dis
 
 ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
 ALL-$(CONFIG_NAND_U_BOOT) += u-boot-nand.bin
@@ -802,13 +800,29 @@ ifneq ($(CONFIG_SECURE_BOOT), y)
 ALL-$(CONFIG_RAMBOOT_PBL) += u-boot.pbl
 endif
 endif
+
+ifdef CONFIG_SPL_AUTOBUILD
 ALL-$(CONFIG_SPL) += spl/u-boot-spl.bin
+ALL-$(CONFIG_SPL_DISASM) += spl/u-boot-spl.dis
+endif
+
+PHONY += spl
+spl: spl/u-boot-spl.bin
+
 ifeq ($(CONFIG_MX6)$(CONFIG_SECURE_BOOT), yy)
 ALL-$(CONFIG_SPL_FRAMEWORK) += u-boot-ivt.img
 else
 ALL-$(CONFIG_SPL_FRAMEWORK) += u-boot.img
 endif
+
+ifdef CONFIG_TPL_AUTOBUILD
 ALL-$(CONFIG_TPL) += tpl/u-boot-tpl.bin
+ALL-$(CONFIG_TPL_DISASM) += tpl/u-boot-tpl.dis
+endif
+
+PHONY += tpl
+tpl: tpl/u-boot-tpl.bin
+
 ALL-$(CONFIG_OF_SEPARATE) += u-boot.dtb
 ifeq ($(CONFIG_SPL_FRAMEWORK),y)
 ALL-$(CONFIG_OF_SEPARATE) += u-boot-dtb.img

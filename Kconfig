@@ -210,7 +210,7 @@ config BUILD_ROM
 	  which are not shipped in the U-Boot source tree.
 	  Please, see doc/README.x86 for details.
 
-config  DISASM
+config DISASM
 	bool "Create a disassembler listing of U-Boot"
 	help
 	  Create a disassembler listing u-boot.dis after building.
@@ -219,12 +219,14 @@ config  DISASM
 config SPL_DISASM
 	bool "Create a disassembler listing of SPL"
 	depends on DISASM
+	depends on SPL
 	help
 	  Create a disassembler listing spl.dis after building.
 
 config TPL_DISASM
 	bool "Create a disassembler listing of TPL"
 	depends on DISASM
+	depends on TPL
 	help
 	  Create a disassembler listing tpl.dis after building.
 
