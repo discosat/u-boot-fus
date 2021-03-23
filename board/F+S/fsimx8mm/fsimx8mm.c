@@ -1182,27 +1182,40 @@ int board_phy_config(struct phy_device *phydev)
 #define FDT_EMMC        "emmc"
 #define FDT_CMA 	"/reserved-memory/linux,cma"
 
-int do_fdt_board_setup(void *fdt, bool for_linux)
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
 {
-	int offs;
-	const char *envvar;
 	unsigned int features = fs_board_get_features();
-	unsigned int board_type = fs_board_get_type();
-	int id = 0;
 
-	/* Make some room in the FDT */
-	if (!for_linux)
-		fdt_shrink_to_minimum(fdt, 8192);
-
-	/* The first part is set in U-Boot and Linux device tree */
+	/* Disable NAND if it is not available */
 	if (!(features & FEAT_NAND))
 		fs_fdt_enable(fdt, FDT_NAND, 0);
 
+	/* Disable eMMC if it is not available */
 	if (!(features & FEAT_EMMC))
 		fs_fdt_enable(fdt, FDT_EMMC, 0);
 
-	if (!for_linux)
-		return 0;
+	return 0;
+}
+
+/* Do any board-specific modifications on U-Boot device tree before starting */
+int board_fix_fdt(void *fdt)
+{
+	/* Make some room in the FDT */
+	fdt_shrink_to_minimum(fdt, 8192);
+
+	return do_fdt_board_setup_common(fdt);
+}
+
+/* Do any additional board-specific modifications on Linux device tree */
+int ft_board_setup(void *fdt, bd_t *bd)
+{
+	const char *envvar;
+	int offs;
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features = fs_board_get_features();
+
+	int id = 0;
 
 	/* The following stuff is only set in Linux device tree */
 	if (!(features & FEAT_SGTL5000))
@@ -1250,19 +1263,7 @@ int do_fdt_board_setup(void *fdt, bool for_linux)
 		}
 	}
 
-	return 0;
-}
-
-/* Do any board-specific modifications on U-Boot device tree before starting */
-int board_fix_fdt(void *fdt)
-{
-	return do_fdt_board_setup(fdt, false);
-}
-
-/* Do any additional board-specific modifications on Linux device tree */
-int ft_board_setup(void *fdt, bd_t *bd)
-{
-	return do_fdt_board_setup(fdt, true);
+	return do_fdt_board_setup_common(fdt);
 }
 
 #ifdef CONFIG_FASTBOOT_STORAGE_MMC
