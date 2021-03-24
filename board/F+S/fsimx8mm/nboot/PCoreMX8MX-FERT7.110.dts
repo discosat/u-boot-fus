@@ -13,14 +13,14 @@
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MM";
+		board-name = "PicoCoreMX8MX";
 		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 1GB Samsung */
-		dram-type = "lpddr4";
-		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+		/* DRAM: 1GB Intelligent Memory */
+		dram-type = "ddr3l";
+		dram-timing = "ddr3l_2x_im4g16d3fdbg107i";
 		dram-size = <0x400>;		/* In MiB */
-		dram-chips = <1>;
+		dram-chips = <2>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
 		boot-dev = "MMC3";
@@ -31,14 +31,13 @@
 		/* Board Features */
 		//have-nand;
 		have-emmc;
-		have-sgtl5000;
-		have-eth-phy;
-		have-wlan;
-		have-lvds;
-		//have-mipi-dsi;
+		//have-sgtl5000;
+		have-eth-switch;
+		//have-lvds;
+		have-mipi-dsi;
 		//have-rtc-pcf85063;
-		//have-rtc-pcf85263;
-		//have-security;
+		have-rtc-pcf85263;
+		have-security;
 		//have-can;
 		//have-eeprom;
 	};

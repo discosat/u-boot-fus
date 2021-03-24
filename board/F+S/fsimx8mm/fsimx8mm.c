@@ -65,10 +65,11 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FEAT_WLAN	(1<<7)
 #define FEAT_LVDS	(1<<8)
 #define FEAT_MIPI_DSI	(1<<9)
-#define FEAT_EXT_RTC	(1<<10)
-#define FEAT_SEC_CHIP	(1<<11)
-#define FEAT_CAN	(1<<12)
-#define FEAT_EEPROM	(1<<13)
+#define FEAT_RTC85063	(1<<10)
+#define FEAT_RTC85263	(1<<11)
+#define FEAT_SEC_CHIP	(1<<12)
+#define FEAT_CAN	(1<<13)
+#define FEAT_EEPROM	(1<<14)
 
 #define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
@@ -200,8 +201,10 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_LVDS;
 	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
 		features |= FEAT_MIPI_DSI;
-	if (fdt_getprop(fdt, offs, "have-ext_rtc", NULL))
-		features |= FEAT_EXT_RTC;
+	if (fdt_getprop(fdt, offs, "have-rtc-pcf85063", NULL))
+		features |= FEAT_RTC85063;
+	if (fdt_getprop(fdt, offs, "have-rtc-pcf85263", NULL))
+		features |= FEAT_RTC85263;
 	if (fdt_getprop(fdt, offs, "have-security", NULL))
 		features |= FEAT_SEC_CHIP;
 	if (fdt_getprop(fdt, offs, "have-can", NULL))

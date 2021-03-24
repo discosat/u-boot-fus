@@ -14,7 +14,7 @@
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MM";
-		board-rev = <110>;		/* Rev 1.10 */
+		board-rev = <120>;		/* Rev 1.20 */
 
 		/* DRAM: 1GB Samsung */
 		dram-type = "lpddr4";
@@ -36,7 +36,7 @@
 		have-wlan;
 		have-lvds;
 		//have-mipi-dsi;
-		//have-rtc-pcf85063;
+		have-rtc-pcf85063;
 		//have-rtc-pcf85263;
 		//have-security;
 		//have-can;

@@ -12,7 +12,7 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */  
+		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MX";
 		board-rev = <120>;		/* Rev 1.20 */
 
@@ -35,7 +35,8 @@
 		have-eth-switch;
 		//have-lvds;
 		have-mipi-dsi;
-		have-ext-rtc;
+		//have-rtc-pcf85063;
+		have-rtc-pcf85263;
 		have-security;
 		//have-can;
 		//have-eeprom;

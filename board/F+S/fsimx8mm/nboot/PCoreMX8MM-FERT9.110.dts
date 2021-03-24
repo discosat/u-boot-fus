@@ -12,11 +12,11 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */  
+		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MM";
 		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 1GB Samsung (different to Rev. 1.00!) */
+		/* DRAM: 1GB Samsung */
 		dram-type = "lpddr4";
 		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
 		dram-size = <0x400>;		/* In MiB */
@@ -35,8 +35,9 @@
 		have-eth-phy;
 		//have-wlan;
 		have-lvds;
-		//have-1x-mipi-dsi;
-		//have-ext-rtc;
+		//have-mipi-dsi;
+		//have-rtc-pcf85063;
+		//have-rtc-pcf85263;
 		//have-security;
 		//have-can;
 		//have-eeprom;
