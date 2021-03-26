@@ -70,8 +70,8 @@
 #include "fsl-imx8mm.dtsi"
 
 / {
-	model = "PicoCoreMX8MM";
-	compatible = "fus,picocoremx8mm", "fsl,imx8mm";
+	model = "PicoCoreMX8MX";
+	compatible = "fus,picocoremx8mx", "fsl,imx8mm";
 
 	aliases {
 		i2c4 = &i2c_gpio;
@@ -475,7 +475,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog_1>;
 
-	picocoremx8mm {
+	picocoremx8mx {
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
 				/* LVDS_RST */

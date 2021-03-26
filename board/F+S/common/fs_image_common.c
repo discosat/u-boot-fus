@@ -487,6 +487,7 @@ static void fs_image_copy(void *buf, unsigned int size)
 /* Skip data of given size */
 static void fs_image_skip(unsigned int size)
 {
+	debug("%d: skip=0x%x, state=0x%x\n", nest_level, size, state);
 	fsimg_stack[nest_level].remaining -= size;
 	count = size;
 	mode = FSIMG_MODE_SKIP;
@@ -549,6 +550,9 @@ static void fs_image_handle_header(void)
 	if (!nest_level && !fsimg->remaining)
 		fsimg->remaining = size;
 
+	debug("%d: Found %s, size=0x%x remaining=0x%x state=%d\n",
+	      nest_level, one_fsh.type, size, fsimg->remaining, state);
+
 	arch = fs_image_get_arch();
 	switch (state) {
 	case FSIMG_STATE_ANY:
@@ -595,6 +599,8 @@ static void fs_image_handle_header(void)
 
 			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
 			ram_timing = fdt_getprop(fdt, off, "dram-timing", NULL);
+
+			debug("Looking for: %s, %s\n", ram_type, ram_timing);
 
 			fs_image_enter(size, FSIMG_STATE_DRAM_TYPE);
 		} else
@@ -646,17 +652,20 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_BOARD_CFG:
 		/* We have our config, skip remaining configs */
+		debug("Got BOARD-CFG, ID=%s\n", board_id);
 		jobs &= ~FSIMG_JOB_CFG;
 		fs_image_skip(fsimg->remaining);
 		break;
 
 	case FSIMG_STATE_DRAM_FW:
 		/* DRAM training firmware loaded, now look for DRAM timing */
+		debug("Got DRAM-FW (%s)\n", ram_type);
 		fs_image_next_header(FSIMG_STATE_DRAM_TIMING);
 		break;
 
 	case FSIMG_STATE_DRAM_TIMING:
 		/* DRAM info complete, start it; job done if successful */
+		debug("Got DRAM-TIMING (%s)\n", ram_timing);
 		if (fs_image_init_dram())
 			jobs &= ~FSIMG_JOB_DRAM;
 		else
@@ -668,6 +677,7 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_ATF:
 		/* ATF loaded, job done */
+		debug("Got ATF\n");
 		jobs &= ~FSIMG_JOB_ATF;
 		fs_image_next_fw();
 		break;
@@ -685,6 +695,8 @@ static void fs_image_handle_skip(void)
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
 
 	if (fsimg->remaining) {
+		debug("%d: skip: remaining=0x%x state=0x%x\n",
+		      nest_level, fsimg->remaining, state);
 		fs_image_next_header(state);
 		return;
 	}
@@ -771,7 +783,7 @@ static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 		count -= chunk;
 
 		/* The next block for the interpreter is loaded, process it */
-		if (!count)
+		while (!count && (mode != FSIMG_MODE_DONE))
 			fs_image_handle();
 	}
 }
@@ -801,11 +813,11 @@ void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init)
 	spl_sdp_stream_image(&fs_image_sdp_stream_ops, true);
 
 	/* Stream until a valid NBoot with all jobs was downloaded */
-	do {
+	while (jobs) {
+		debug("Jobs not done: 0x%x\n", jobs);
 		jobs = jobs_todo;
 		spl_sdp_stream_continue(&fs_image_sdp_stream_ops, true);
-		debug("Jobs not done: 0x%x\n", jobs);
-	} while (jobs);
+	};
 }
 
 #ifdef CONFIG_MMC

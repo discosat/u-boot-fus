@@ -45,7 +45,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static const char *board_names[] = {
 	"PicoCoreMX8MM",
-	"PicoCoreMX8MM",
+	"PicoCoreMX8MX",
 	"(unknown)"
 };
 
