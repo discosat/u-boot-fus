@@ -115,7 +115,7 @@ const struct fs_board_info board_info[] = {
 		.flags = 0,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
-		.name = "PicoCoreMX8MM",
+		.name = "PicoCoreMX8MX",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
