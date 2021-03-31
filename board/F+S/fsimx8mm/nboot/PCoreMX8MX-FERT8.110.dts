@@ -32,7 +32,7 @@
 		//have-nand;
 		have-emmc;
 		//have-sgtl5000;
-		//have-eth-switch;
+		//have-eth-phy;
 		have-lvds;
 		//have-mipi-dsi;
 		//have-rtc-pcf85063;
