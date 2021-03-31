@@ -374,7 +374,7 @@ if [ $quiet -eq 1 ]; then
 fi
 
 # Concatenate all input files to a temporary file
-temp=$(mktemp -p . "$0-temp.XXXXXXXXXX")
+temp=$(mktemp -p . "${0##*/}-temp.XXXXXXXXXX")
 for i in $*; do
     if [[ "$i" = "-" ]]; then
 	echo "Add <stdin>" >&2

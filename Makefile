@@ -1124,7 +1124,7 @@ uboot.nb0:	u-boot.bin
 #		dd if=$< of=$@ conv=notrunc bs=1K
 
 quiet_cmd_addfsheader = FSIMG   $@
-cmd_addfsheader = scripts/addfsheader.sh $2 $< > $@
+cmd_addfsheader = $(srctree)/scripts/addfsheader.sh $2 $< > $@
 
 # Use V0.0 F&S header on Vybrid/i.MX6, otherwise V1.0 plus type/descr
 ifneq ($(CONFIG_TARGET_FSVYBRID)$(CONFIG_ARCH_MX6),)

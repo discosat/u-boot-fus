@@ -177,7 +177,7 @@ $(obj)/.%.bin.tmp: $(obj)/.%.elf.tmp
 	$(call cmd,dram_bin)
 
 quiet_cmd_fsimg = FSIMG   $@
-cmd_fsimg = scripts/addfsheader.sh -q -p 16 $2 $^ > $@
+cmd_fsimg = ${srctree}/scripts/addfsheader.sh -q -p 16 $2 $^ > $@
 
 $(obj)/%_timing.fs: $(obj)/.%_timing.bin.tmp
 	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
