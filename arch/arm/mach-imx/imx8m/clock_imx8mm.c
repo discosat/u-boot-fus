@@ -614,7 +614,7 @@ void enable_display_clk(unsigned char enable)
 #ifdef CONFIG_IMX8MN
 		clock_set_target_val(DISPLAY_DSI_PHY_REF_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(7) |CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV22));
 #else
-		clock_set_target_val(MIPI_DSI_PHY_REF_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(7) |CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV22));
+		clock_set_target_val(MIPI_DSI_PHY_REF_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0) |CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV2));
 #endif
 		clock_enable(CCGR_DISPMIX, true);
 	} else {
