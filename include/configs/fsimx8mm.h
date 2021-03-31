@@ -673,7 +673,7 @@
    the heap, so keep the real env size small to not waste malloc space. */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
 
-#define CONFIG_ENV_SIZE		0x2000		/* 8KB (### should be 16KB) */
+#define CONFIG_ENV_SIZE		0x4000		/* 16KB */
 
 /* Fallback values if values in the device tree are missing/damaged */
 #define CONFIG_ENV_MMC_OFFSET	0x100000
