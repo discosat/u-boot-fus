@@ -24,6 +24,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/mach-imx/sys_proto.h>
+#include <asm-generic/gpio.h>
 #include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -1316,6 +1317,21 @@ static int fec_phy_init(struct fec_priv *priv, struct udevice *dev)
 	return 0;
 }
 
+#if CONFIG_IS_ENABLED(DM_GPIO)
+/* FEC GPIO reset */
+static void fec_gpio_reset(struct fec_priv *priv)
+{
+	debug("fec_gpio_reset: fec_gpio_reset(dev)\n");
+	if (dm_gpio_is_valid(&priv->phy_reset_gpio)) {
+		dm_gpio_set_value(&priv->phy_reset_gpio, 1);
+		mdelay(priv->reset_delay);
+		dm_gpio_set_value(&priv->phy_reset_gpio, 0);
+		if (priv->reset_post_delay)
+			mdelay(priv->reset_post_delay);
+	}
+}
+#endif
+
 static int fecmxc_probe(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_platdata(dev);
@@ -1336,6 +1352,9 @@ static int fecmxc_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
+#if CONFIG_IS_ENABLED(DM_GPIO)
+	fec_gpio_reset(priv);
+#endif
 	/* Reset chip. */
 	writel(readl(&priv->eth->ecntrl) | FEC_ECNTRL_RESET,
 	       &priv->eth->ecntrl);
@@ -1412,6 +1431,7 @@ static int fecmxc_remove(struct udevice *dev)
 
 static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 {
+	int ret = 0;
 	struct eth_pdata *pdata = dev_get_platdata(dev);
 	struct fec_priv *priv = dev_get_priv(dev);
 	const char *phy_mode;
@@ -1429,10 +1449,28 @@ static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 		return -EINVAL;
 	}
 
-	/* TODO
-	 * Need to get the reset-gpio and related properties from DT
-	 * and implemet the enet reset code on .probe call
-	 */
+#if CONFIG_IS_ENABLED(DM_GPIO)
+	ret = gpio_request_by_name(dev, "phy-reset-gpios", 0,
+				   &priv->phy_reset_gpio, GPIOD_IS_OUT);
+	if (ret < 0)
+		return 0; /* property is optional, don't return error! */
+
+	priv->reset_delay = dev_read_u32_default(dev, "phy-reset-duration", 1);
+	if (priv->reset_delay > 1000) {
+		printf("FEC MXC: phy reset duration should be <= 1000ms\n");
+		/* property value wrong, use default value */
+		priv->reset_delay = 1;
+	}
+
+	priv->reset_post_delay = dev_read_u32_default(dev,
+						      "phy-reset-post-delay",
+						      0);
+	if (priv->reset_post_delay > 1000) {
+		printf("FEC MXC: phy reset post delay should be <= 1000ms\n");
+		/* property value wrong, use default value */
+		priv->reset_post_delay = 0;
+	}
+#endif
 
 	return 0;
 }

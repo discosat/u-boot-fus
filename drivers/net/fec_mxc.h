@@ -17,6 +17,8 @@
 #ifndef __FEC_MXC_H
 #define __FEC_MXC_H
 
+#include <asm-generic/gpio.h>
+
 /* Layout description of the FEC */
 struct ethernet_regs {
 	/* [10:2]addr = 00 */
@@ -242,7 +244,11 @@ struct fec_priv {
 	int phy_id;
 	int (*mii_postcall)(int);
 #endif
-
+#if CONFIG_IS_ENABLED(DM_GPIO)
+	struct gpio_desc phy_reset_gpio;
+	uint32_t reset_delay;
+	uint32_t reset_post_delay;
+#endif
 #ifdef CONFIG_DM_ETH
 	u32 interface;
 #endif
