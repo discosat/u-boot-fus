@@ -446,6 +446,14 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("bd_fdt", bd_fdt, 0);
 	setup_var("bd_rootfs", bd_rootfs, 0);
 
+	setup_var("console", current_bi->console, 1);
+	setup_var("login", current_bi->login, 1);
+	setup_var("mtdparts", current_bi->mtdparts, 1);
+	setup_var("network", current_bi->network, 1);
+	setup_var("init", current_bi->init, 1);
+	setup_var("bootfdt", "set_bootfdt", 1);
+	setup_var("bootargs", "set_bootargs", 1);
+
 	/* Set some variables by runnning another variable */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
 	sprintf(var_name, ".kernel_%s_A", bd_kernel);
@@ -462,13 +470,6 @@ void fs_board_late_init_common(const char *serial_name)
 	sprintf(var_name, ".rootfs_%s", bd_rootfs);
 	setup_var("rootfs", var_name, 1);
 #endif
-	setup_var("console", current_bi->console, 1);
-	setup_var("login", current_bi->login, 1);
-	setup_var("mtdparts", current_bi->mtdparts, 1);
-	setup_var("network", current_bi->network, 1);
-	setup_var("init", current_bi->init, 1);
-	setup_var("bootfdt", "set_bootfdt", 1);
-	setup_var("bootargs", "set_bootargs", 1);
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
