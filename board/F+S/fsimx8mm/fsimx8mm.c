@@ -1193,10 +1193,16 @@ int board_phy_config(struct phy_device *phydev)
 #endif /* CONFIG_FEC_MXC */
 
 #define RDC_PDAP70      0x303d0518
-#define FDT_UART_C	"serial3"
+#define FDT_UART_C      "serial3"
 #define FDT_NAND        "nand"
 #define FDT_EMMC        "emmc"
-#define FDT_CMA 	"/reserved-memory/linux,cma"
+#define FDT_CMA         "/reserved-memory/linux,cma"
+#define FDT_RTC85063    "rtcpcf85063"
+#define FDT_RTC85263    "rtcpcf85263"
+#define FDT_EEPROM      "eeprom"
+#define FDT_CAN         "mcp2518fd"
+#define FDT_SGTL5000    "sgtl5000"
+#define FDT_I2C_SWITCH  "i2c4"
 
 /* Do all fixups that are done on both, U-Boot and Linux device tree */
 static int do_fdt_board_setup_common(void *fdt)
@@ -1234,13 +1240,29 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	int id = 0;
 
 	/* The following stuff is only set in Linux device tree */
-	if (!(features & FEAT_SGTL5000))
-		fs_fdt_enable(fdt, "i2c0/sgtl5000", 0);
+	/* Disable RTC85063 if it is not available */
+	if (!(features & FEAT_RTC85063))
+		fs_fdt_enable(fdt, FDT_RTC85063, 0);
 
-	if (!(features & FEAT_ETH_A) && (board_type == BT_PICOCOREMX8MX)) {
-		fs_fdt_enable(fdt, "i2c4/ksz9893", 0); /* Disables switch */
-		fs_fdt_enable(fdt, "i2c4", 0); /* Disable i2c4 (i2c_gpio) */
-	}
+	/* Disable RTC85263 if it is not available */
+	if (!(features & FEAT_RTC85263))
+		fs_fdt_enable(fdt, FDT_RTC85263, 0);
+
+	/* Disable EEPROM if it is not available */
+	if (!(features & FEAT_EEPROM))
+		fs_fdt_enable(fdt, FDT_EEPROM, 0);
+
+	/* Disable CAN-FD if it is not available */
+	if (!(features & FEAT_CAN))
+		fs_fdt_enable(fdt, FDT_CAN, 0);
+
+	/* Disable SGTL5000 if it is not available */
+	if (!(features & FEAT_SGTL5000))
+		fs_fdt_enable(fdt, FDT_SGTL5000, 0);
+
+	/* Disable I2C for switch if it is not available */
+	if (!(features & FEAT_ETH_A) && (board_type == BT_PICOCOREMX8MX))
+		fs_fdt_enable(fdt, FDT_I2C_SWITCH, 0);
 
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
