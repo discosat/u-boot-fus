@@ -1068,8 +1068,12 @@ void fs_ethaddr_init(void)
 		fs_eth_set_ethaddr(eth_id++);
 	if (features & FEAT_ETH_B)
 		fs_eth_set_ethaddr(eth_id++);
-	if (features & FEAT_WLAN)
-		fs_eth_set_ethaddr(eth_id++);
+	/* All fsimx8mm boards have the same WLAN module
+	 * which have an integrated mac address. So we don´t
+	 * have to set an own mac address for the module.
+	 */
+//	if (features & FEAT_WLAN)
+//		fs_eth_set_ethaddr(eth_id++);
 }
 
 static int setup_fec(void)
@@ -1275,8 +1279,12 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (features & FEAT_ETH_B)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		if (features & FEAT_WLAN)
-			fs_fdt_set_macaddr(fdt, offs, id++);
+		/* All fsimx8mm boards have the same WLAN module
+		 * which have an integrated mac address. So we don´t
+		 * have to set an own mac address for the module.
+		 */
+//		if (features & FEAT_WLAN)
+//			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
 	/*TODO: Its workaround to use UART4 */
