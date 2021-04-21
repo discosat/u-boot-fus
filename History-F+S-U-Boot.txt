@@ -1,9 +1,99 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-Y2021.04 (21.04.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Improve OTG support for fsimx8mm
+- Add fsimx8mx support
+- Add support for static board config
+- Add support to read phy address from device-tree for fec_mxc
+- Improve imx8mm_pins.h I2C* pads
+- Improve serial mxc driver clear fifo before reset
+- Improve spl setting for all fsimx8* boards
+- Fix fsimx8mx RAM timings
+- Improve DRAM size configuration for fsimx8mx
+- Improve DRAM size detection for fsimx8mx
+- Use legacy ethernet driver for fsimx8mx
+- Fix fsimx8mx nand defconfig
+- Improve support for static board config
+- Improve MIPI-DSI PMS restriction values
+- Fix build warnigs for n535521 mipi driver
+- Disable display support for fsimx8mx
+- Improve linux,cma size settings for fsimx8mx
+- Improve fsimx8mx defconfigs
+- Add fsimx8mx_nano support
+- Disable display support for fsimx8mx_nano
+- Improve fsimx8mx support
+- Improve bd71837 pmic driver
+- Add possibility to set cma size via DTS for fsimx8mx
+- Improve fixed config for fsimx8mx
+- Improve FDT support and naming for fsimx8mx-nano
+- Improve fsimx8mm target
+- Improve fec_mxc fixed link support for DM
+- Remove target fsimx8mx
+- Remove arch/arm/mach-imx/mx8mx
+- Fix compilation warnings for fsimx8mm
+- Improve feature support for fsimx8mm
+- Improve fsimx8mm SPL settings
+- Improve fsimx8mm mac address setup
+- Add support for I2C_GPIO to configure switch on fsimx8mm
+- Append for commit "Add support for I2C_GPIO to configure switch on fsimx8mm"
+- Also use memalign_simple() in SPL, not only malloc_simple()
+- Add Kconfig options to create a disassembler listing
+- New version of addfsheader as a script, remove old C version
+- Add fsimage script
+- Fix Kconfig prompt for MXC GPIO driver
+- Add streaming option to SDP protocol
+- Add fs_image library to load and handle F&S images on fsimx8mm
+- Change SPL on fsimx8mm to use F&S NBoot images to boot
+- Add nboot build process for fsimx8mm
+- Add fs_board_get_boot_device_from_fuses() to fs_board_common.c
+- cli_hush: Add support for indirect parameter expansion
+- mxs_nand: Reduce malloc usage in SPL
+- mxs_nand_spl: Do not stop when ONFI version is unknown
+- fs_image.c: Have two copies of BOARD-CFG and FIRMWARE
+- Use new MTD partition layout on fsimx8mm, clean up boot srategies
+- Have environment in NAND or MMC on fsimx8mm
+- Move fs_image.[ch] from fsimx8mm to common
+- fsimx8mm: Add nboot-info for BOARD-CFGs, use .*.tmp files in Makefile
+- fsimx8mm: Identify boot system with NXP boot devices
+- fdt_support.c: Fix bug in fdt_getprop_u32_default_node()
+- Allow using function fdt_print() from outside of cmd/fdt.c
+- Add fsimage command to handle NBoot images
+- fsimx8mm: Get rid of fs_nboot_args and use cfg_info instead
+- fsimx8mm: Add fuse subcommand for fsimage
+- Handle kernel, fdt and rootfs according to boot device
+- fsimx8mm: On eMMC, load environment from boot partition
+- Allow NAND environment offsets in device tree
+- fsimx8mm: When loading U-Boot, provide offset values from nboot-info
+- fsimx8mm: Have separate nboot-info for NAND and MMC
+- fsimx8mm: Add MMC loading/saving, refactor fsimage code
+- Also use indendation in scripts/fsimage.sh
+- Also write U-BOOT files in command fsimage save
+- Fix nand_spl_load_image() in case of bad blocks
+- fsimx8mm: Drop debug output, rename MTD partition Spl to NBoot
+- fsimx8mm: Handle device tree fixup more cleanly
+- Add CONFIG_SPL/TPL_AUTOBUILD, do not build SPL by default on fsimx8mm
+- fsimx8mm: Add all current BOARD-CFGs
+- fsimx8mm: Fix handling for PicoCoreMX8MX
+- Fix addfsheade.sh for yocto build
+- Set boardinfo.name to PicoCoreMX8MX for boards with 8mx config
+- Fix have-eth-switch config entry to have-eth-phy
+- Fix DSI_PHY_REF clock settings
+- Fix CONFIG_ENV_SIZE to 16KB
+- Add support for resetting phy via device tree entry
+- Fix-up for devicetrees fsimx8mm
+- Improve fs_board_common environment variable setup
+- Improve fsimx8mm KSZ9893 Switch setup
+- Improve fsimx8mm linux fdt fixups
+- Remove setting ethaddr for WLAN on fsimx8mm
+- Change NBoot version to current one
+
 
 u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: PicoCoreMX8MM
 
 - Update history file to u-boot-2018.03-fsimx8mm-B2020.08
@@ -16,24 +106,28 @@ Supported boards: PicoCoreMX8MM
 - Revert to F&S timer implementation on i.MX
 - void compiler warning in ubi.c on ARM64
 
+
+
 u-boot-2018.03-fsimx8m(m,n)-Y2020.06 (18.06.2020)
--------------------------------------------
+-------------------------------------------------
 Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 
 - Improve eMMC support for fsimx8m(m,n)
 - Improve nand environment support for iMX8MN
 
 
+
 u-boot-2018.03-fsimx8mm-Y2020.06 (16.06.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 
 - Add support for fsimx8mn to boot from emmc
 - Add support for fsimx8mm to boot from emmc
 
 
+
 u-boot-2018.03-fsimx8mn-Y2020.06 (09.06.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 
 - Move PMIC initialization to late init (fsimx8mm only)
@@ -43,14 +137,18 @@ Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
 - Revert back to F&S version of FAT configuration
 - Improve imx8mm mipi clock settings
 
+
+
 u-boot-2018.03-fsimx8m-Y2020.05 (02.06.2020)
--------------------------------------------
+--------------------------------------------
 Supported boards: PicoCoreMX8MM, armStoneMX8M
 
 - Improve max frequency for HS200 or HS400 modes
 
+
+
 u-boot-2018.03-fsimx8mm-Y2020.05 (14.05.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: PicoCoreMX8MM, armStoneMX8M
 
 - Improve support for j070wvtc0211 panel
@@ -78,6 +176,8 @@ Supported boards: PicoCoreMX8MM, armStoneMX8M
 - Merge branch imx_v2018.03_4.14.98_2.3.0
 - Add NXP U-Boot branch imx_v2018.03_4.14.98_2.3.0
 
+
+
 u-boot-2018.03-fsimx6-B2020.04 (21.04.2020)
 -------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
@@ -93,7 +193,7 @@ Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
 
 
 u-boot-2018.03-fsimx6ul-Y2020.03 (26.03.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
                   QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
                   CONT1, efusA7UL, PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2
@@ -105,7 +205,7 @@ Not tested:       CUBEA5, armStoneA5,
 
 
 u-boot-2018.03-fsimx6sx-Y2020.03 (24.03.2020)
--------------------------------------------
+---------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
                   QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
                   CONT1
