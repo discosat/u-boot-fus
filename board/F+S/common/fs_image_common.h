@@ -109,14 +109,6 @@ void fs_image_set_board_id_compare(const char *id);
 
 #ifdef CONFIG_SPL_BUILD
 
-/* Load mode */
-enum fsimg_mode {
-	FSIMG_MODE_HEADER,		/* Loading F&S header */
-	FSIMG_MODE_IMAGE,		/* Loading F&S image */
-	FSIMG_MODE_SKIP,		/* Skipping data */
-	FSIMG_MODE_DONE,		/* F&S image done */
-};
-
 typedef void (*basic_init_t)(void);
 
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */

@@ -389,6 +389,14 @@ void fs_image_set_board_id_compare(const char *id)
 #define FSIMG_FW_JOBS (FSIMG_JOB_DRAM | FSIMG_JOB_ATF)
 #endif
 
+/* Load mode */
+enum fsimg_mode {
+	FSIMG_MODE_HEADER,		/* Loading F&S header */
+	FSIMG_MODE_IMAGE,		/* Loading F&S image */
+	FSIMG_MODE_SKIP,		/* Skipping data */
+	FSIMG_MODE_DONE,		/* F&S image done */
+};
+
 static enum fsimg_state {
 	FSIMG_STATE_ANY,
 	FSIMG_STATE_BOARD_CFG,
@@ -446,7 +454,7 @@ static void fs_image_set_board_id(const char id[MAX_DESCR_LEN])
 	fs_image_set_board_id_compare(id);
 }
 
-/* Load next header in image */
+/* State machine: Load next header in sub-image */
 static void fs_image_next_header(enum fsimg_state new_state)
 {
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
@@ -466,7 +474,7 @@ static void fs_image_next_header(enum fsimg_state new_state)
 	}
 }
 
-/* Enter a new (sub-) image with given size and load the header */
+/* State machine: Enter a new sub-image with given size and load the header */
 static void fs_image_enter(unsigned int size, enum fsimg_state new_state)
 {
 	fsimg_stack[nest_level].remaining -= size;
@@ -475,7 +483,7 @@ static void fs_image_enter(unsigned int size, enum fsimg_state new_state)
 	fs_image_next_header(new_state);
 }
 
-/* Load image of given size to given address and switch to new state */
+/* State machine: Load data of given size to given address, go to new state */
 static void fs_image_copy(void *buf, unsigned int size)
 {
 	fsimg_stack[nest_level].remaining -= size;
@@ -484,7 +492,7 @@ static void fs_image_copy(void *buf, unsigned int size)
 	mode = FSIMG_MODE_IMAGE;
 }
 
-/* Skip data of given size */
+/* State machine: Skip data of given size */
 static void fs_image_skip(unsigned int size)
 {
 	debug("%d: skip=0x%x, state=0x%x\n", nest_level, size, state);
@@ -493,6 +501,7 @@ static void fs_image_skip(unsigned int size)
 	mode = FSIMG_MODE_SKIP;
 }
 
+/* State machine: If match, load, otherwise skip this sub-image */
 static void fs_image_copy_or_skip(struct fs_header_v1_0 *fsh,
 				  const char *type, const char *descr,
 				  void *addr, unsigned int size)
@@ -503,7 +512,7 @@ static void fs_image_copy_or_skip(struct fs_header_v1_0 *fsh,
 		fs_image_skip(size);
 }
 
-/* Get the next FIRMWARE job */
+/* State machine: Get the next FIRMWARE job */
 static enum fsimg_state fs_image_get_fw_state(void)
 {
 	if (jobs & FSIMG_JOB_DRAM)
@@ -516,7 +525,7 @@ static enum fsimg_state fs_image_get_fw_state(void)
 	return FSIMG_STATE_ANY;
 }
 
-/* Switch to next FIRMWARE state or skip remaining images */
+/* State machine: Switch to next FIRMWARE state or skip remaining images */
 static void fs_image_next_fw(void)
 {
 	enum fsimg_state next = fs_image_get_fw_state();
@@ -529,7 +538,7 @@ static void fs_image_next_fw(void)
 	}
 }
 
-/* Process the next F&S header */
+/* State machine: Loading the F&S header of the (sub-)image is done */
 static void fs_image_handle_header(void)
 {
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
@@ -639,6 +648,7 @@ static void fs_image_handle_header(void)
 	}
 }
 
+/* State machine: Loading the data part of a sub-image is complete */
 static void fs_image_handle_image(void)
 {
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
@@ -690,6 +700,7 @@ static void fs_image_handle_image(void)
 	}
 }
 
+/* State machine: Skipping a part of a sub-image is complete */
 static void fs_image_handle_skip(void)
 {
 	struct fsimg *fsimg = &fsimg_stack[nest_level];
@@ -736,7 +747,7 @@ static void fs_image_handle_skip(void)
 	}
 }
 
-/* Handle the next part of an image */
+/* State machine: Handle the next part of the image when data is loaded */
 static void fs_image_handle(void)
 {
 	switch (mode) {
@@ -759,6 +770,7 @@ static void fs_image_handle(void)
 	}
 }
 
+/* Start state machine for a new F&S image */
 static void fs_image_start(unsigned int size, unsigned int jobs_todo,
 			   basic_init_t basic_init)
 {
@@ -768,6 +780,7 @@ static void fs_image_start(unsigned int size, unsigned int jobs_todo,
 	fs_image_enter(size, FSIMG_STATE_ANY);
 }
 
+/* Handle a chunk of data that was received via SDP on USB */
 static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 {
 	unsigned int chunk;
@@ -788,6 +801,7 @@ static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 	}
 }
 
+/* This is called when the SDP protocol starts a new file */
 static void fs_image_sdp_new_file(u32 dnl_address, u32 size)
 {
 	fs_image_start(size, jobs, basic_init_callback);
