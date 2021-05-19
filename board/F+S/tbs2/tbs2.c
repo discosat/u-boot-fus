@@ -55,7 +55,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define INSTALL_RAM "ram@43800000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
-#define UPDATE_DEF "mmc,usb"
+#define UPDATE_DEF "mmc0,mmc2"
 #define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
 #elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
 #define UPDATE_DEF "mmc"
