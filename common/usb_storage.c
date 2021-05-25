@@ -99,6 +99,16 @@ struct us_data {
 	unsigned short	max_xfer_blk;		/* maximum transfer blocks */
 };
 
+/*
+ * ### 23.03.2018 HK: Some USB sticks can not work with more than 65534 blocks
+ * in one go, so use at most 65534. In addition we have a time limit of 5s for
+ * bulk transfers (see usb.h). The more blocks we transfer in one go, the
+ * higher the risk that we exceed the 5s limit on very slow devices. Therefore
+ * we reduce the number again quite considerably. Using 32768 will transfer at
+ * most 16 MB in one go. This should be fine with all USB 2.0 storage devices.
+ */
+#define USB_MAX_XFER_BLK	32768
+
 #if !CONFIG_IS_ENABLED(BLK)
 static struct us_data usb_stor[USB_MAX_STOR_DEV];
 #endif
@@ -153,7 +163,7 @@ int usb_stor_info(void)
 
 	if (usb_max_devs > 0) {
 		for (i = 0; i < usb_max_devs; i++) {
-			printf("  Device %d: ", i);
+			printf("Device %d:\n", i);
 			dev_print(&usb_dev_desc[i]);
 		}
 		return 0;
@@ -954,16 +964,25 @@ static void usb_stor_set_max_xfer_blk(struct usb_device *udev,
 	 * Windows 7 limiting transfers to 128 sectors for both USB2 and USB3
 	 * and Apple Mac OS X 10.11 limiting transfers to 256 sectors for USB2
 	 * and 2048 for USB3 devices.
+	 * ### 19.02.2019: No, there are other limits; see comment to
+	 *                 USB_MAX_XFER_BLK at beginning of file
 	 */
-	unsigned short blk = 240;
+//###	unsigned short blk = 240;
+	unsigned short blk = USB_MAX_XFER_BLK;
 
 #if CONFIG_IS_ENABLED(DM_USB)
 	size_t size;
 	int ret;
 
 	ret = usb_get_max_xfer_size(udev, (size_t *)&size);
-	if ((ret >= 0) && (size < blk * 512))
+	if (ret < 0) {
+		/* unimplemented, let's use default 20 */
+		blk = 20;
+	} else {
+		if (size > USB_MAX_XFER_BLK * 512)
+			size = USB_MAX_XFER_BLK * 512;
 		blk = size / 512;
+	}
 #endif
 
 	us->max_xfer_blk = blk;

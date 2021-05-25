@@ -12,6 +12,18 @@
 #include <net.h>
 #include "eth_internal.h"
 
+void eth_parse_enetaddr(const char *addr, uchar *enetaddr)
+{
+	char *end;
+	int i;
+
+	for (i = 0; i < 6; ++i) {
+		enetaddr[i] = addr ? simple_strtoul(addr, &end, 16) : 0;
+		if (addr)
+			addr = (*end) ? end + 1 : end;
+	}
+}
+
 int eth_env_get_enetaddr_by_index(const char *base_name, int index,
 				 uchar *enetaddr)
 {

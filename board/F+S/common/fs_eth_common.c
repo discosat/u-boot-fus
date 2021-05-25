@@ -77,7 +77,11 @@ static int get_otp_mac(void *otp_addr, uchar *enetaddr)
 void fs_eth_set_ethaddr(int index)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+#if defined(CONFIG_ARCH_IMX8M)
+	struct fuse_bank *bank = &ocotp->bank[6];
+#else
 	struct fuse_bank *bank = &ocotp->bank[4];
+#endif
 	uchar enetaddr[6];
 	int count, i;
 	int offs = index;

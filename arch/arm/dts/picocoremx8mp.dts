@@ -33,7 +33,7 @@
 	compatible = "fus,picocoremx8mp", "fsl,imx8mp";
 
 	chosen {
-		bootargs = "console=ttymxc1,115200 earlycon=ec_imx6q,0x30890000,115200";
+		bootargs = "console=ttymxc1,115200";
 		stdout-path = &uart2;
 	};
 
@@ -41,19 +41,19 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000 0 0x80000000>;
 	};
-#if 0
+
 	reg_usb1_host_vbus: regulator-usb1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_host_vbus";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb1_pwr>;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
 	};
-
+#if 0
 	reg_usb2_otg_vbus: regulator-usb2-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb2_host_vbus";
@@ -96,13 +96,20 @@
 };
 
 &eqos {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+	/delete-property/ assigned-clock-rates;
+	compatible = "fsl,imx-eqos";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
+	phy-reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
 	status = "okay";
 
 	mdio {
+		compatible = "snps,dwmac-mdio";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -120,6 +127,8 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
+	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
 	status = "okay";
 
 	mdio {
@@ -183,7 +192,7 @@
 
 	pmic: pca9450@25 {
 		reg = <0x25>;
-		compatible = "nxp,pca9450c";
+		compatible = "nxp,pca9450b";
 		/* PMIC PCA9450 PMIC_nINT GPIO1_IO3 */
 		pinctrl-0 = <&pinctrl_pmic>;
 		gpio_intr = <&gpio4 19 GPIO_ACTIVE_LOW>;
@@ -290,7 +299,18 @@
 };
 
 &lcdif1 {
-	status = "okay";
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+	/delete-property/ assigned-clock-rates;
+
+	status = "disabled";
+};
+
+&mipi_dsi {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+	/delete-property/ assigned-clock-rates;
+	status = "disabled";
 };
 
 &snvs_pwrkey {
@@ -306,7 +326,6 @@
 
 #ifdef CONFIG_PICOCOREMX8MP_USB_HOST
 &usb3_phy0 {
-	compatible = "simple-bus";
 	status = "okay";
 };
 
@@ -318,12 +337,15 @@
 
 #ifdef CONFIG_PICOCOREMX8MP_USB_OTG
 &usb3_phy1 {
-	compatible = "simple-bus";
 	status = "okay";
 };
 
 &usb_dwc3_1 {
 	dr_mode = "otg";
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+	usb-role-switch;
 	status = "okay";
 };
 #endif

@@ -21,7 +21,7 @@
 
 #include "imx_env.h"
 
-/* disable FAT write becaue its dosn't work
+/* disable FAT write becaue its doesn't work
  *  with F&S FAT driver
  */
 #undef CONFIG_FAT_WRITE
@@ -56,12 +56,10 @@
 
 #endif
 
-//#define CONFIG_FS_MMC_COMMON
 /* Add F&S update */
 #define CONFIG_CMD_UPDATE
 #define CONFIG_CMD_READ
 #define CONFIG_SERIAL_TAG
-#define CONFIG_FASTBOOT_USB_DEV 0
 
 #define CONFIG_REMAKE_ELF
 /* ENET Config */
@@ -69,13 +67,14 @@
 #define CONFIG_SYS_DISCOVER_PHY
 
 #if defined(CONFIG_CMD_NET)
-#define CONFIG_ETHPRIME                 "FEC" /* Set eqos to primary since we use its MDIO */
+#define CONFIG_ETHPRIME                 "eth1" /* Set qos to primary since we use its MDIO */
+#define FDT_SEQ_MACADDR_FROM_ENV
 
 #define CONFIG_FEC_XCV_TYPE             RGMII
-#define CONFIG_FEC_MXC_PHYADDR          5
+//#define CONFIG_FEC_MXC_PHYADDR          5
 #define FEC_QUIRK_ENET_MAC
 
-#define DWC_NET_PHYADDR			5
+//#define DWC_NET_PHYADDR					4
 #ifdef CONFIG_DWC_ETH_QOS
 #define CONFIG_SYS_NONCACHED_MEMORY     (1 * SZ_1M)     /* 1M */
 #endif
@@ -83,11 +82,6 @@
 #define PHY_ANEG_TIMEOUT 20000
 
 #define CONFIG_PHY_ATHEROS
-#if 0
-#define CONFIG_PHY_NATSEMI
-#define CONFIG_SYS_FAULT_ECHO_LINK_DOWN
-#define CONFIG_NET_RANDOM_ETHADDR
-#endif
 #define CONFIG_NETMASK		255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
@@ -239,7 +233,6 @@
 	".console_none=setenv console\0"				\
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
 	".console_display=setenv console console=tty1\0"		\
-	"ethaddr=00:05:51:07:55:83\0"	\
 	"login=undef\0"							\
 	".login_none=setenv login login_tty=null\0"			\
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\
@@ -334,11 +327,11 @@
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #endif
 
-#define CONFIG_SYS_CBSIZE		2048
-#define CONFIG_SYS_MAXARGS		64
-#define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
+/* Input and print buffer sizes */
+#define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
+#define CONFIG_SYS_PBSIZE	640	/* Print Buffer Size */
+#define CONFIG_SYS_MAXARGS	16	/* max number of command args */
+#define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE /* Boot Arg Buffer Size */
 
 #define CONFIG_IMX_BOOTAUX
 

@@ -32,6 +32,7 @@
 #include <mmc.h>
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
+#include "../common/fs_eth_common.h"	/* fs_eth_*() */
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -133,63 +134,45 @@ int ft_board_setup(void *blob, bd_t *bd)
 }
 #endif
 
-#ifdef CONFIG_FEC_MXC
-#define FEC_RST_PAD IMX_GPIO_NR(4, 28)
-static iomux_v3_cfg_t const fec1_rst_pads[] = {
-	MX8MP_PAD_SAI3_RXFS__GPIO4_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static void setup_iomux_fec(void)
+void fs_ethaddr_init(void)
 {
-	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads,
-					 ARRAY_SIZE(fec1_rst_pads));
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+	int eth_id = 0;
 
-	gpio_request(FEC_RST_PAD, "fec1_rst");
-	gpio_direction_output(FEC_RST_PAD, 0);
-	mdelay(1);
-	gpio_direction_output(FEC_RST_PAD, 1);
+	/* Set MAC addresses as environment variables */
+	switch (fs_board_get_type())
+	{
+	case BT_PICOCOREMX8MP:
+		if (features2 & FEAT2_8MP_ETH_A) {
+			fs_eth_set_ethaddr(eth_id++);
+		}
+		if (features2 & FEAT2_8MP_ETH_B) {
+			fs_eth_set_ethaddr(eth_id++);
+		}
+		break;
+	default:
+		break;
+	}
 }
 
+#ifdef CONFIG_FEC_MXC
 static int setup_fec(void)
 {
 	struct iomuxc_gpr_base_regs *gpr =
 		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
 
-	setup_iomux_fec();
-
 	/* Enable RGMII TX clk output */
 	setbits_le32(&gpr->gpr[1], BIT(22));
 
-	//return set_clk_enet(ENET_125MHZ);
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_DWC_ETH_QOS
-
-#define EQOS_RST_PAD IMX_GPIO_NR(1, 11)
-static iomux_v3_cfg_t const eqos_rst_pads[] = {
-	MX8MP_PAD_GPIO1_IO11__GPIO1_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static void setup_iomux_eqos(void)
-{
-	imx_iomux_v3_setup_multiple_pads(eqos_rst_pads,
-					 ARRAY_SIZE(eqos_rst_pads));
-
-	gpio_request(EQOS_RST_PAD, "eqos_rst");
-	gpio_direction_output(EQOS_RST_PAD, 0);
-	mdelay(1);
-	gpio_direction_output(EQOS_RST_PAD, 1);
-	//mdelay(100);
-}
-
 static int setup_eqos(void)
 {
 	struct iomuxc_gpr_base_regs *gpr =
 		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
-
-	setup_iomux_eqos();
 
 	/* set INTF as RGMII, enable RGMII TXC clock */
 	clrsetbits_le32(&gpr->gpr[1],
@@ -211,7 +194,6 @@ int board_phy_config(struct phy_device *phydev)
 
 #ifdef CONFIG_USB_TCPC
 struct tcpc_port port1;
-struct tcpc_port port2;
 
 static int setup_pd_switch(uint8_t i2c_bus, uint8_t addr)
 {
@@ -259,16 +241,14 @@ static int setup_pd_switch(uint8_t i2c_bus, uint8_t addr)
 int pd_switch_snk_enable(struct tcpc_port *port)
 {
 	if (port == &port1) {
-		debug("Setup pd switch on port 1\n");
-		return setup_pd_switch(1, 0x72);
+		return setup_pd_switch(port->cfg.i2c_bus, port->cfg.addr);
 	} else
 		return -EINVAL;
 }
 
-/* Port2 is the power supply, port 1 does not support power */
 struct tcpc_port_config port1_config = {
-	.i2c_bus = 1, /*i2c2*/
-	.addr = 0x50,
+	.i2c_bus = 2, /*i2c3*/
+	.addr = 0x52,
 	.port_type = TYPEC_PORT_UFP,
 	.max_snk_mv = 20000,
 	.max_snk_ma = 3000,
@@ -276,16 +256,6 @@ struct tcpc_port_config port1_config = {
 	.op_snk_mv = 15000,
 	.switch_setup_func = &pd_switch_snk_enable,
 	.disable_pd = true,
-};
-
-struct tcpc_port_config port2_config = {
-	.i2c_bus = 2, /*i2c3*/
-	.addr = 0x50,
-	.port_type = TYPEC_PORT_UFP,
-	.max_snk_mv = 20000,
-	.max_snk_ma = 3000,
-	.max_snk_mw = 45000,
-	.op_snk_mv = 15000,
 };
 
 #define USB_TYPEC_SEL IMX_GPIO_NR(1, 9)
@@ -307,34 +277,7 @@ void ss_mux_select(enum typec_cc_polarity pol)
 static int setup_typec(void)
 {
 	int ret;
-	struct gpio_desc per_12v_desc;
 
-	debug("tcpc_init port 2\n");
-	ret = tcpc_init(&port2, port2_config, NULL);
-	if (ret) {
-		printf("%s: tcpc port2 init failed, err=%d\n",
-		       __func__, ret);
-	} else if (tcpc_pd_sink_check_charging(&port2)) {
-		printf("Power supply on USB2\n");
-
-		/* Enable PER 12V, any check before it? */
-		ret = dm_gpio_lookup_name("gpio@20_1", &per_12v_desc);
-		if (ret) {
-			printf("%s lookup gpio@20_1 failed ret = %d\n", __func__, ret);
-			return -ENODEV;
-		}
-
-		ret = dm_gpio_request(&per_12v_desc, "per_12v_en");
-		if (ret) {
-			printf("%s request per_12v failed ret = %d\n", __func__, ret);
-			return -EIO;
-		}
-
-		/* Enable PER 12V regulator */
-		dm_gpio_set_dir_flags(&per_12v_desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
-	}
-
-	debug("tcpc_init port 1\n");
 	imx_iomux_v3_setup_multiple_pads(ss_mux_gpio, ARRAY_SIZE(ss_mux_gpio));
 	gpio_request(USB_TYPEC_SEL, "typec_sel");
 	gpio_request(USB_TYPEC_EN, "typec_en");
@@ -342,7 +285,7 @@ static int setup_typec(void)
 
 	ret = tcpc_init(&port1, port1_config, &ss_mux_select);
 	if (ret) {
-		printf("%s: tcpc port1 init failed, err=%d\n",
+		printf("%s: tcpc port init failed, err=%d\n",
 		       __func__, ret);
 	} else {
 		return ret;
@@ -379,18 +322,17 @@ static struct dwc3_device dwc3_device_data = {
 #ifdef CONFIG_SPL_BUILD
 	.maximum_speed = USB_SPEED_HIGH,
 #else
-	.maximum_speed = USB_SPEED_HIGH,
-	//.maximum_speed = USB_SPEED_SUPER,
+	.maximum_speed = USB_SPEED_SUPER,
 #endif
 	.base = USB2_BASE_ADDR,
 	.dr_mode = USB_DR_MODE_PERIPHERAL,
-	.index = 0,
+	.index = 1,
 	.power_down_scale = 2,
 };
 
-int usb_gadget_handle_interrupts(void)
+int usb_gadget_handle_interrupts(int index)
 {
-	dwc3_uboot_handle_interrupt(0);
+	dwc3_uboot_handle_interrupt(index);
 	return 0;
 }
 
@@ -434,17 +376,20 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 
 #if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
 #define USB1_PWR_EN IMX_GPIO_NR(1, 12)
-#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
+//#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
 int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
 
-	//printf("### usb_init: %s id:%d \n", (init)?"OTG":"HOST", index);
+	debug("USB%d: %s init.\n", index, (init)?"otg":"host");
+
+	if (index == 0 && init == USB_INIT_DEVICE)
+		/* usb host only */
+		return 0;
+
 	imx8m_usb_power(index, true);
 
-	if (index == 0 && init == USB_INIT_DEVICE) {
-		gpio_request(USB2_PWR_EN, "usb2_pwr");
-		gpio_direction_output(USB2_PWR_EN, 0);
+	if (index == 1 && init == USB_INIT_DEVICE) {
 #ifdef CONFIG_USB_TCPC
 		ret = tcpc_setup_ufp_mode(&port1);
 		if (ret)
@@ -452,13 +397,13 @@ int board_usb_init(int index, enum usb_init_type init)
 #endif
 		dwc3_nxp_usb_phy_init(&dwc3_device_data);
 		return dwc3_uboot_init(&dwc3_device_data);
-	} else if (index == 0 && init == USB_INIT_HOST) {
+	} else if (index == 1 && init == USB_INIT_HOST) {
 #ifdef CONFIG_USB_TCPC
 		ret = tcpc_setup_dfp_mode(&port1);
 #endif
 		return ret;
-	} else if (index == 1 && init == USB_INIT_HOST) {
-		/* Enable GPIO1_IO12 for 5V VBUS */
+	} else if (index == 0 && init == USB_INIT_HOST) {
+		/* Enable host power */
 		gpio_request(USB1_PWR_EN, "usb1_pwr");
 		gpio_direction_output(USB1_PWR_EN, 1);
 	}
@@ -469,15 +414,20 @@ int board_usb_init(int index, enum usb_init_type init)
 int board_usb_cleanup(int index, enum usb_init_type init)
 {
 	int ret = 0;
-	if (index == 0 && init == USB_INIT_DEVICE) {
+
+	if (index == 0 && init == USB_INIT_DEVICE)
+		/* usb host only */
+		return 0;
+
+	debug("USB%d: %s cleanup.\n", index, (init)?"otg":"host");
+	if (index == 1 && init == USB_INIT_DEVICE) {
 		dwc3_uboot_exit(index);
-		gpio_direction_output(USB2_PWR_EN, 1);
-	} else if (index == 0 && init == USB_INIT_HOST) {
+	} else if (index == 1 && init == USB_INIT_HOST) {
 #ifdef CONFIG_USB_TCPC
 		ret = tcpc_disable_src_vbus(&port1);
 #endif
-	} else if (index == 1 && init == USB_INIT_HOST) {
-		/* Disable GPIO1_IO12 for 5V VBUS */
+	} else if (index == 0 && init == USB_INIT_HOST) {
+		/* Disable host power */
 		gpio_direction_output(USB1_PWR_EN, 0);
 	}
 
@@ -494,7 +444,7 @@ int board_typec_get_mode(int index)
 	enum typec_cc_polarity pol;
 	enum typec_cc_state state;
 
-	if (index == 0) {
+	if (index == 1) {
 		tcpc_setup_ufp_mode(&port1);
 
 		ret = tcpc_get_cc_status(&port1, &pol, &state);
@@ -511,10 +461,12 @@ int board_typec_get_mode(int index)
 #endif
 #endif
 
+#ifdef CONFIG_DM_VIDEO
 #define FSL_SIP_GPC			0xC2000000
 #define FSL_SIP_CONFIG_GPC_PM_DOMAIN	0x3
 #define DISPMIX				13
 #define MIPI				15
+#endif
 
 int board_init(void)
 {
@@ -541,9 +493,11 @@ int board_init(void)
 	init_usb_clk();
 #endif
 
+#ifdef CONFIG_DM_VIDEO
 	/* enable the dispmix & mipi phy power domain */
 	call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, DISPMIX, true, 0);
 	call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, MIPI, true, 0);
+#endif
 
 	return 0;
 }
@@ -559,6 +513,9 @@ int board_late_init(void)
 	}
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
+
+	/* Set mac addresses for corresponding boards */
+	fs_ethaddr_init();
 
 	return 0;
 }

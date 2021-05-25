@@ -42,7 +42,7 @@
 
 #define USB_BUFSIZ	512
 
-#define HUB_SHORT_RESET_TIME	20
+#define HUB_SHORT_RESET_TIME	40
 #define HUB_LONG_RESET_TIME	200
 
 #define PORT_OVERCURRENT_MAX_SCAN_COUNT		3
@@ -197,8 +197,9 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	/*
 	 * Do a minimum delay of the larger value of 100ms or pgood_delay
 	 * so that the power can stablize before the devices are queried
+	 * 07.08.2019 F&S: 300ms as minimum seems to work better.
 	 */
-	hub->query_delay = get_timer(0) + max(100, (int)pgood_delay);
+	hub->query_delay = get_timer(0) + max(300, (int)pgood_delay);
 
 	/*
 	 * Record the power-on timeout here. The max. delay (timeout)
