@@ -52,6 +52,15 @@
 	model = "TBS2";
 	compatible = "fus,tbs2", "fsl,imx8mm";
 
+	aliases {
+		emmc = &usdhc3;
+	};
+
+	config {
+		/* Environment in MMC is in a Boot partition by default */
+		u-boot,mmc-env-offset = <0x100000>;
+		u-boot,mmc-env-offset-redundant = <0x104000>;
+	};
 
 	chosen {
 		bootargs = "console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200";
@@ -232,6 +241,9 @@ pmic: bd71837@4b {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <11>;
+	phy-reset-post-delay=<1>;
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
 	status = "okay";

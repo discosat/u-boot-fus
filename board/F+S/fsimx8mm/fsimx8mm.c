@@ -53,6 +53,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
+#define BT_TBS2 		2
 
 /* Board features; these values can be resorted and redefined at will */
 #define FEAT_ETH_A	(1<<0)
@@ -118,6 +119,19 @@ const struct fs_board_info board_info[] = {
 		.name = "PicoCoreMX8MX",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 2 (BT_TBS2) */
+		.name = "TBS2",
+		.bootdelay = "3",
+		.updatecheck = "mmc0,mmc2",
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.console = ".console_serial",
@@ -315,6 +329,7 @@ int board_nand_init(struct nand_chip *nand)
  *   -------------------------------------------------------------
  *   PicoCoreMX8MM  4 lanes*  24 bit²    24 bit²
  *   PicoCoreMX8MN  4 lanes*  24 bit²    24 bit²
+ *   TBS2           4 lanes*  -          -
  *
  * The entry marked with * is the default port.
  * The entry marked with ² only work with a MIPI to LVDS converter
@@ -921,6 +936,7 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
  *    --------------------------------------------------------------------
  *    PicoCoreMX8MM       GPIO1_12 (GPIO1_IO12)(*) -
  *    PicoCoreMX8MN       GPIO1_12 (GPIO1_IO12)(*) -
+ *    TBS2                GPIO1_12 (GPIO1_IO12)    -
  *
  * (*) Signal on SKIT is active low, usually USB_OTG_PWR is active high
  *
@@ -931,6 +947,7 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
  *    -------------------------------------------------------------------------
  *    PicoCoreMX8MM       GPIO1_14 (GPIO1_IO14)(*) -
  *    PicoCoreMX8MN       GPIO1_14 (GPIO1_IO14)(*) -
+ *    TBS2                -                        -
  *
  * (*) Signal on SKIT is active low, usually USB_HOST_PWR is active high
  *
@@ -1024,6 +1041,8 @@ int board_late_init(void)
 		gpio_request (VLCD_ON_8MX_PAD, "VLCD_ON");
 		gpio_direction_output (VLCD_ON_8MX_PAD, 1);
 		break;
+	default:
+		break;
 	}
 	/* backlight on */
 	gpio_direction_output (BL_ON_PAD, 1);
@@ -1068,7 +1087,7 @@ void fs_ethaddr_init(void)
 		fs_eth_set_ethaddr(eth_id++);
 	if (features & FEAT_ETH_B)
 		fs_eth_set_ethaddr(eth_id++);
-	/* All fsimx8mm boards have the same WLAN module
+	/* All fsimx8mm boards have a WLAN module
 	 * which have an integrated mac address. So we don´t
 	 * have to set an own mac address for the module.
 	 */
@@ -1197,6 +1216,7 @@ int board_phy_config(struct phy_device *phydev)
 #endif /* CONFIG_FEC_MXC */
 
 #define RDC_PDAP70      0x303d0518
+#define RDC_PDAP105     0x303d05A4
 #define FDT_UART_C      "serial3"
 #define FDT_NAND        "nand"
 #define FDT_EMMC        "emmc"
@@ -1279,7 +1299,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (features & FEAT_ETH_B)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		/* All fsimx8mm boards have the same WLAN module
+		/* All fsimx8mm boards have a WLAN module
 		 * which have an integrated mac address. So we don´t
 		 * have to set an own mac address for the module.
 		 */
@@ -1292,6 +1312,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	if (!envvar || !strcmp(envvar, "disable")) {
 		/* Disable UART4 for M4. Enabled by ATF. */
 		writel(0xff, RDC_PDAP70);
+		writel(0xff, RDC_PDAP105);
 	} else {
 		/* Disable UART_C in DT */
 		fs_fdt_enable(fdt, FDT_UART_C, 0);

@@ -109,13 +109,6 @@ config TARGET_FSIMX8MX_NANO
 	select SUPPORT_SPL
 	select IMX8M_LPDDR3
 
-config TARGET_TBS2
-	bool "Support tbs2 boards from F&S"
-	select IMX8MM
-	select SUPPORT_SPL
-	select IMX8M_LPDDR3
-	select IMX8M_LPDDR4
-
 endchoice
 
 config SYS_SOC
@@ -132,6 +125,5 @@ source "board/F+S/fsimx8mm/Kconfig"
 source "board/F+S/fsimx8m/Kconfig"
 source "board/F+S/fsimx8mn/Kconfig"
 source "board/F+S/fsimx8mx_nano/Kconfig"
-source "board/F+S/tbs2/Kconfig"
 
 endif

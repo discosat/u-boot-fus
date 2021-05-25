@@ -50,7 +50,8 @@ BOARD_CONFIGS = \
 	PCoreMX8MX-FERT7.120.fs \
 	PCoreMX8MX-FERT7.110.fs \
 	PCoreMX8MX-FERT8.120.fs \
-	PCoreMX8MX-FERT8.110.fs
+	PCoreMX8MX-FERT8.110.fs \
+	TBS2-FERT1.111.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
