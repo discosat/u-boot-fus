@@ -41,8 +41,6 @@
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
 #define CONFIG_SYS_SDRAM_BASE		0x40000000
-#define PHYS_SDRAM					0x40000000
-#define PHYS_SDRAM_SIZE				0x40000000 /* 1GB DDR */
 #define CONFIG_NR_DRAM_BANKS		1
 
 /* i.MX 8M Mini has 256KB of internal SRAM,
@@ -61,12 +59,6 @@
 
 /* The final stack sizes are set up in board.c using the settings below */
 #define CONFIG_SYS_STACK_SIZE	(128*1024)
-
-/* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
-   untested) ### If not set, test from beginning of RAM to before stack. */
-#define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
-
 
 /************************************************************************
  * Clock Settings and Timers
@@ -308,7 +300,6 @@
 #define CONFIG_PHY_GIGE
 #define IMX_FEC_BASE			0x30BE0000
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL_KSZ8XXX
 #define CONFIG_LIB_RAND
 #define CONFIG_NET_RANDOM_ETHADDR
@@ -359,6 +350,7 @@
 /*#define CONFIG_SYS_ENV_OFFSET_REDUND   0xFFFFFFFF */
 
 #define CONFIG_ETHPRIME                 "FEC"
+#define FDT_SEQ_MACADDR_FROM_ENV
 #define CONFIG_NETMASK		255.255.255.0
 #define CONFIG_IPADDR		10.0.0.252
 #define CONFIG_SERVERIP		10.0.0.122
@@ -403,7 +395,6 @@
 	".console_none=setenv console\0"				\
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
 	".console_display=setenv console console=tty1\0"		\
-	"ethaddr=00:05:51:07:55:83\0"	\
 	"login=undef\0"							\
 	".login_none=setenv login login_tty=null\0"			\
 	".login_serial=setenv login login_tty=${sercon},${baudrate}\0"	\

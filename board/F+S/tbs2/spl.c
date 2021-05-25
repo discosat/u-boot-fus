@@ -38,6 +38,8 @@ static struct fs_nboot_args nbootargs;
 
 #define BT_TBS2				0
 
+#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
 struct i2c_pads_info i2c_pad_tbs2 = {
@@ -53,34 +55,49 @@ struct i2c_pads_info i2c_pad_tbs2 = {
 	},
 };
 
+ulong board_serial_base(void)
+{
+	return UART1_BASE_ADDR;
+}
+
+static iomux_v3_cfg_t const uart_pads_tbs2[] = {
+	IMX8MM_PAD_SAI2_RXC_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	IMX8MM_PAD_SAI2_RXFS_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
+static void config_uart_pads(void)
+{
+	/* Setup UART pads */
+	imx_iomux_v3_setup_multiple_pads(uart_pads_tbs2, ARRAY_SIZE(uart_pads_tbs2));
+}
+
 static void fs_board_init_nboot_args(void)
 {
+	int dram_size = 0;
+
 	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
 	nbootargs.dwSize = 16*4;
 	nbootargs.dwNBOOT_VER = 1;
 	/* 1 GB RAM */
-	long MemSize = 0x40000000;
+	dram_size = 0x40000000;
 	/* Number of DRAM chips */
 	long NumDram = 0x2;
 	/* eMMC size */
 	long FlashSize = 0x100000000;
-	/* Serial debug port */
-	long dwDbgSerPortPA = UART1_BASE_ADDR;
 
 	/* Setup TBS2 settings */
 	nbootargs.chBoardType = BT_TBS2;
-	nbootargs.chBoardRev = 100;
+	nbootargs.chBoardRev = 111;
 	nbootargs.chFeatures2 = 1<<0 | 1<<1 | 1<<2;
-
-	/* Setup RAM settings */
-	if(rom_pointer[1])
-		nbootargs.dwMemSize = (MemSize - rom_pointer[1]) >> 20;
-	else
-		nbootargs.dwMemSize = MemSize >> 20;
 
 	nbootargs.dwNumDram = NumDram;
 	nbootargs.dwFlashSize = FlashSize;
-	nbootargs.dwDbgSerPortPA = dwDbgSerPortPA;
+	nbootargs.dwDbgSerPortPA = board_serial_base();
+
+	if(rom_pointer[1])
+		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
+	else
+		nbootargs.dwMemSize = dram_size >> 20;
 }
 
 #ifdef CONFIG_POWER
@@ -90,6 +107,7 @@ int power_init_board(void)
 	struct pmic *p;
 	int ret;
 
+	setup_i2c(I2C_PMIC_0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_tbs2);
 	ret = power_bd71837_init(I2C_PMIC_0);
 	if (ret)
 		printf("power init failed");
@@ -112,9 +130,6 @@ int power_init_board(void)
 
 	/* increase NVCC_DRAM_1V35 to 1.35v for DDR3L */
 	pmic_reg_write(p, BD71837_BUCK8_VOLT, 0x37);
-
-	/* setup ldo5 to 1V1 for intel switch */
-	pmic_reg_write(p, BD71837_LDO5_VOLT, 0xe3);
 
 	/* lock the PMIC regs */
 	pmic_reg_write(p, BD71837_REGLOCK, 0x11);
@@ -150,7 +165,7 @@ static iomux_v3_cfg_t const usdhc1_pads[] = {
 	IMX8MM_PAD_SD1_DATA1_USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	IMX8MM_PAD_SD1_DATA2_USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 	IMX8MM_PAD_SD1_DATA3_USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-//	IMX8MM_PAD_SD1_RESET_B_GPIO2_IO10 | MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL),
+	IMX8MM_PAD_SD1_RESET_B_GPIO2_IO10 | MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL),
 };
 
 #if defined(CONFIG_SD_BOOT)
@@ -252,27 +267,6 @@ int board_fit_config_name_match(const char *name)
 }
 #endif
 
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
-#define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
-
-static iomux_v3_cfg_t const wdog_pads[] = {
-	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const uart_pads[] = {
-	IMX8MM_PAD_SAI2_RXC_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_SAI2_RXFS_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-void setup_board_f(void)
-{
-	struct wdog_regs *wdog = (struct wdog_regs*) WDOG1_BASE_ADDR;
-	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
-	set_wdog_reset(wdog);
-
-	imx_iomux_v3_setup_multiple_pads(uart_pads, ARRAY_SIZE(uart_pads));
-}
-
 void board_init_f(ulong dummy)
 {
 	int ret;
@@ -283,10 +277,13 @@ void board_init_f(ulong dummy)
 
 	arch_cpu_init();
 
-	fs_board_init_nboot_args();
-	setup_board_f();
+	board_early_init_f();
 
 	timer_init();
+
+	fs_board_init_nboot_args();
+
+	config_uart_pads();
 
 	preloader_console_init();
 
@@ -295,17 +292,15 @@ void board_init_f(ulong dummy)
 		debug("spl_init() failed: %d\n", ret);
 		hang();
 	}
-
 	enable_tzc380();
 
-	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_tbs2);
-
 	power_init_board();
+
 
 	/* DDR initialization */
 	if(spl_dram_init())
 	{
- 		printf("This UBoot can't be started. RAM initialization fails.\n");
+		printf("This UBoot can't be started. RAM initialization fails.\n");
 		while(1);
 	}
 

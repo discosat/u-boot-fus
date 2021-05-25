@@ -38,6 +38,7 @@
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
+#include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #include <nand.h>
 #include "sec_mipi_dphy_ln14lpp.h"
 #include "sec_mipi_pll_1432x.h"
@@ -52,6 +53,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FEAT2_ETH		(1<<0)		/* 0: no LAN, 1; has LAN */
 #define FEAT2_EMMC		(1<<1)		/* 0: no eMMC, 1: has eMMC */
 #define FEAT2_WLAN		(1<<2)		/* 0: no WLAN, 1: has WLAN */
+
+#define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
 #define INSTALL_RAM "ram@43800000"
 #if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
@@ -75,7 +78,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define RDC_PDAP70     0x303d0518
 #define FDT_UART_C	"/serial@30a60000"
 
-
 const struct fs_board_info board_info[1] = {
 	{	/* 0 (BT_TBS2) */
 		.name = "TBS2",
@@ -96,8 +98,18 @@ const struct fs_board_info board_info[1] = {
 
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
+static iomux_v3_cfg_t const wdog_pads[] = {
+	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
+};
+
 int board_early_init_f(void)
 {
+	struct wdog_regs *wdog = (struct wdog_regs*) WDOG1_BASE_ADDR;
+
+	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
+
+	set_wdog_reset(wdog);
+
 	return 0;
 }
 
@@ -128,6 +140,7 @@ int checkboard(void)
 
 /* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
 static int setup_fec(void);
+void fs_ethaddr_init(void);
 int board_init(void)
 {
 	unsigned int board_type = fs_board_get_type();
@@ -200,7 +213,6 @@ int mmc_map_to_kernel_blk(int devno)
  * the host power will be switched by using the pad as GPIO.
  */
 
-
 int board_usb_init(int index, enum usb_init_type init)
 {
 	debug("board_usb_init %d, type %d\n", index, init);
@@ -224,6 +236,7 @@ int board_usb_cleanup(int index, enum usb_init_type init)
  * environment, i.e. environment variables that can't be defined as a constant
  * value at compile time.
  */
+
 int board_late_init(void)
 {
 	/* Remove 'fdtcontroladdr' env. because we are using
@@ -234,11 +247,13 @@ int board_late_init(void)
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
+	/* Set mac addresses for corresponding boards */
+	fs_ethaddr_init();
 	return 0;
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
-#ifdef CONFIG_CMD_NET
+#ifdef CONFIG_FEC_MXC
 #define FEC_RST_PAD IMX_GPIO_NR(1, 5)
 static iomux_v3_cfg_t const fec1_rst_pads[] = {
 	IMX8MM_PAD_GPIO1_IO05_GPIO1_IO5 | MUX_PAD_CTRL(NO_PAD_CTRL),
@@ -259,6 +274,13 @@ static void setup_iomux_fec(void)
 		udelay (100);
 		break;
 	}
+}
+
+void fs_ethaddr_init(void)
+{
+	int eth_id = 0;
+
+	fs_eth_set_ethaddr(eth_id++);
 }
 
 static int setup_fec(void)
@@ -301,7 +323,7 @@ int board_phy_config(struct phy_device *phydev)
 
 	return 0;
 }
-#endif /* CONFIG_CMD_NET */
+#endif /* CONFIG_FEC_MXC */
 
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Do any additional board-specific device tree modifications */
@@ -326,8 +348,8 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		if (pargs->chFeatures2 & FEAT2_WLAN)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 
-	/*TODO: Its workaround to use UART4 */
-	envvar = env_get("m4_uart4");
+		/*TODO: Its workaround to use UART4 */
+		envvar = env_get("m4_uart4");
 
 		if (!envvar || !strcmp(envvar, "disable")) {
 			/* Disable UART4 for M4. Enabled by ATF. */
