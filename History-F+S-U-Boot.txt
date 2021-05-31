@@ -1,0 +1,16 @@
+History of Changes for U-Boot on F&S Boards and Modules
+-------------------------------------------------------
+
+
+u-boot-2020.04-fsimx8mp-Y2021.06 (31.05.2021)
+-------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Start version for fsimx8mp
+- imx8m: fix cache setup for dynamic sdram size
+- Add fsimx8mp support
+- Add FUS optimized FAT driver
+- Add FUS system promt support
+- Add support to use . operator
+- Improve fsimx8mp support
+- Update history file to u-boot-2020.04-fsimx8mp-Y2021.06
