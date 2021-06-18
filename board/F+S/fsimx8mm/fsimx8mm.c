@@ -1227,7 +1227,8 @@ int board_phy_config(struct phy_device *phydev)
 #define FDT_CAN         "mcp2518fd"
 #define FDT_SGTL5000    "sgtl5000"
 #define FDT_I2C_SWITCH  "i2c4"
-
+#define FDT_TEMP_ALERT   "/thermal-zones/cpu-thermal/trips/trip0"
+#define FDT_TEMP_CRIT    "/thermal-zones/cpu-thermal/trips/trip1"
 /* Do all fixups that are done on both, U-Boot and Linux device tree */
 static int do_fdt_board_setup_common(void *fdt)
 {
@@ -1260,8 +1261,9 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	int offs;
 	unsigned int board_type = fs_board_get_type();
 	unsigned int features = fs_board_get_features();
-
+	int minc, maxc;
 	int id = 0;
+	fdt32_t tmp_val[1];
 
 	/* The following stuff is only set in Linux device tree */
 	/* Disable RTC85063 if it is not available */
@@ -1328,6 +1330,25 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			tmp[1] = cpu_to_fdt32(0x28000000);
 			fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
 		}
+	}
+
+	/* Set CPU temp grade */
+	get_cpu_temp_grade(&minc, &maxc);
+	/* Sanity check for get_cpu_temp_grade() */
+	if ((minc > -500) && maxc < 500) {
+
+		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_ALERT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
+		}
+		tmp_val[0]=cpu_to_fdt32(maxc*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_CRIT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
+		}
+	} else {
+		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
 	}
 
 	return do_fdt_board_setup_common(fdt);
