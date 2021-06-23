@@ -1,6 +1,21 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-B2021.06 (23.06.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Change DACR to client access control to fix cache errors
+- Improve fsimx8mm mac address setup
+- Set tbs2.c UPDATE_DEF to mmc0,mmc2
+- Improve support for architecture tbs2
+- Merge architecture tbs2 into fsimx8mm
+- Add part command to uboot console
+- Add dynamic setting of cpu temp ranges for fsimx8mm
+- Add config for PCoreMX8MM-FERT13.130
+
+
+
 u-boot-2018.03-fsimx8mm-Y2021.04 (21.04.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
