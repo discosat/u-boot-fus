@@ -35,10 +35,9 @@
 
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 //#include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
+#include "fs_lpddr4_common.h"
 
 DECLARE_GLOBAL_DATA_PTR;
-
-extern struct dram_timing_info dram_timing_k4f6e3s4hm_mgcj;
 
 static struct fs_nboot_args nbootargs;
 
@@ -311,19 +310,38 @@ int power_init_board(void)
 
 static int spl_dram_init(void)
 {
+	uint32_t memsize = 0;
+	const struct lpddr4_info* ram_info = 0;
+	unsigned int lpddr4_mr_bc;
+
 	switch (nbootargs.chBoardType)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
 		/* TODO: change RAM detection
-		 *  Simple detection: Rev. 1.00 k4f6e3s4hm_mgcj
+		 *  Simple detection:	Rev. 1.00
+		 *		k4f6e3s4hm_mgcj
+		 *		k4f8e3s4hd_mgcj
 		 */
-		if(ddr_init(&dram_timing_k4f6e3s4hm_mgcj))
-		{
+		lpddr4_mr_bc = fs_init_ram();
+		if(!lpddr4_mr_bc) {
 			return 1;
 		}
 		break;
 	}
+
+	ram_info = get_dram_info(lpddr4_mr_bc);
+
+	if (!ram_info)
+		return 1;
+
+	memsize = ram_info->total_density * ram_info->memory_number;
+
+	if(rom_pointer[1])
+		nbootargs.dwMemSize = (memsize - rom_pointer[1]) >> 20;
+	else
+		nbootargs.dwMemSize = memsize >> 20;
+
 
 	return 0;
 }
