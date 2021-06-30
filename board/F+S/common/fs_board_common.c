@@ -85,6 +85,12 @@ unsigned int fs_board_get_rev(void)
 	return fs_board_get_nboot_args()->chBoardRev;
 }
 
+/* Get the board features */
+unsigned int fs_board_get_features(void)
+{
+	return fs_board_get_nboot_args()->chFeatures2;
+}
+
 // ### TODO: In case of SPL, return board specific port number -> board code */
 #ifndef CONFIG_SPL_BUILD
 ulong board_serial_base(void)

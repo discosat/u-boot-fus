@@ -80,6 +80,8 @@ unsigned int fs_board_get_type(void);
 /* Get board revision (major * 100 + minor, e.g. 120 for rev 1.20) */
 unsigned int fs_board_get_rev(void);
 
+unsigned int fs_board_get_features(void);
+
 /* Issue reset signal on up to three gpios (~0: gpio unused) */
 void fs_board_issue_reset(uint active_us, uint delay_us,
 			  uint gpio0, uint gpio1, uint gpio2);
