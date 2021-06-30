@@ -68,6 +68,7 @@
 #define BT_BEMA9X     3
 #define BT_CONT1      4
 #define BT_PCOREMX6SX 6
+#define BT_VAND3      17
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -147,7 +148,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[8] = {
+const struct fs_board_info board_info[19] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
 		.bootdelay = "3",
@@ -230,6 +231,49 @@ const struct fs_board_info board_info[8] = {
 		.flags = 0,
 	},
 	{	/* 7 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 8 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 9 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 10 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 11 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 12 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 13 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 14 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 15 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 16 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 17 (BT_VAND3) */
+		.name = "VAND3",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
+	{	/* 18 (unknown) */
 		.name = "unknown",
 	},
 };
@@ -910,6 +954,9 @@ void board_display_set_power(int port, int on)
 		gpio = IMX_GPIO_NR(3, 27);
 		value = !on;
 		break;
+
+	case BT_VAND3:
+		return;
 	}
 
 	/* Switch on when first user enables and off when last user disables */
@@ -1160,6 +1207,14 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad[] = {
 #endif
 };
 
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_vand3[] = {
+#ifdef CONFIG_FS_USB_PWR_USBNC
+	IOMUX_PADS(PAD_QSPI1A_SS0_B__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_QSPI1A_SS0_B__GPIO4_IO_22 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
+};
+
 /* Init one USB port */
 int board_ehci_hcd_init(int index)
 {
@@ -1197,6 +1252,10 @@ int board_ehci_hcd_init(int index)
 			cfg.id_pad = usb_otg1_id_pad_cont1;
 			cfg.id_gpio = IMX_GPIO_NR(4, 17);
 			break;
+		/* These boards have only HOST function on this port */
+		case BT_VAND3:
+			cfg.mode = FS_USB_HOST;
+			break;
 
 		/* These boards have only DEVICE function on this port */
 		case BT_PICOCOMA9X:
@@ -1218,7 +1277,13 @@ int board_ehci_hcd_init(int index)
 #ifndef CONFIG_FS_USB_PWR_USBNC
 			cfg.pwr_gpio = IMX_GPIO_NR(1, 12);
 #endif
-		break;
+			break;
+		case BT_VAND3:
+			cfg.pwr_pad = usb_otg2_pwr_pad_vand3;
+#ifndef CONFIG_FS_USB_PWR_USBNC
+			cfg.pwr_gpio = IMX_GPIO_NR(4, 22);
+#endif
+			break;
 
 		/* These boards can not switch host power, it is always on */
 		case BT_CONT1:
@@ -1821,6 +1886,55 @@ static iomux_v3_cfg_t const enet_pads_rmii2[] = {
 	IOMUX_PADS(PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+static iomux_v3_cfg_t const enet_pads_rmii1_vand3[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_MDIO__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_MDC__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_ENET1_TX_CLK__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC0 (ENET1) */
+	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TD1__ENET1_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TX_CTL__ENET1_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RXC__ENET1_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD0__ENET1_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD1__ENET1_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RX_CTL__ENET1_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* Interrupt signal for PHY */
+	IOMUX_PADS(PAD_RGMII1_TD3__GPIO5_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_RGMII1_TD2__GPIO5_IO_8 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const enet_pads_rmii2_vand3[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_CRS__ENET2_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_COL__ENET2_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_ENET2_TX_CLK__ENET2_REF_CLK2 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC1 (ENET2) */
+	IOMUX_PADS(PAD_RGMII2_TD0__ENET2_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TD1__ENET2_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TX_CTL__ENET2_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RXC__ENET2_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD0__ENET2_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD1__ENET2_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RX_CTL__ENET2_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* Interrupt signal for PHY */
+	IOMUX_PADS(PAD_RGMII2_TD3__GPIO5_IO_21 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_RGMII2_TD2__GPIO5_IO_20 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+
 /*
  * Allocate MII bus (if appropriate), find PHY and probe FEC. Besides the
  * error code as return value, also return pointer to new MII bus in *pbus.
@@ -2012,6 +2126,70 @@ int board_eth_init(bd_t *bd)
 		if (!ret && (features2 & FEAT2_ETH_B))
 			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RMII,
 					&bus, 1, 17, PHY_INTERFACE_MODE_RMII);
+		break;
+
+	case BT_VAND3:
+		if (features2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 100 MBit/s LAN on RGMII1 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii1_vand3);
+
+			/*
+			 * ENET1 (FEC0) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 17 to generate the REF
+			 * clock on the pin and bit 13 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (features2 & FEAT2_ETH_B) {
+			/* IOMUX for ENET2, use 100 MBit/s LAN on RGMII2 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii2_vand3);
+
+			/*
+			 * ENET2 (FEC1) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 18 to generate the REF
+			 * clock on the pin and bit 14 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		/*
+		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
+		 * reset pulse width and 100us delay before the first MDIO
+		 * access can be done.
+		 */
+		fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 8), IMX_GPIO_NR(5, 20), ~0);
+
+		/* Probe FEC ports, each PHY on its own MII bus */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RMII,
+					&bus, 0, 0, PHY_INTERFACE_MODE_RMII);
+		bus = NULL;
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RMII,
+					&bus, 1, 3, PHY_INTERFACE_MODE_RMII);
 		break;
 
 	case BT_CONT1:
@@ -2295,7 +2473,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		/* WLAN MAC address only required on Silex based board revs */
 		if ((pargs->chFeatures2 & FEAT2_WLAN)
-		    && (board_type == BT_EFUSA9X) && (board_rev >= 120))
+		    && (((board_type == BT_EFUSA9X) && (board_rev >= 120)) || (board_type == BT_VAND3)))
 			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 1);
 	}
 
