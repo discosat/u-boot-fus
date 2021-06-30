@@ -1,12 +1,12 @@
 /*
  * fsimx8mp.c
  *
- * (C) Copyright 2020
+ * (C) Copyright 2021
  * Patrik Jakob, F&S Elektronik Systeme GmbH, jakob@fs-net.de
  * Anatol Derksen, F&S Elektronik Systeme GmbH, derksen@fs-net.de
  * Philipp Gerbach, F&S Elektronik Systeme GmbH, gerbach@fs-net.de
  *
- * Board specific functions for F&S boards based on Freescale i.MX8MM CPU
+ * Board specific functions for F&S boards based on Freescale i.MX8MP CPU
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -33,17 +33,20 @@
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include <imx_thermal.h> /* for temp ranges */
 
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MP 	0
 
-#define FEAT2_8MP_ETH_A  	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
-#define FEAT2_8MP_ETH_B		(1<<1)	/* 0: no LAN1,  1: has LAN1 */
-#define FEAT2_8MP_DISP_A	(1<<2)	/* 0: MIPI-DSI, 1: LVDS lanes 0-3 */
-#define FEAT2_8MX_DISP_B	(1<<3)	/* 0: HDMI,     1: LVDS lanes 0-4 or (4-7 if DISP_A=1) */
-#define FEAT2_8MX_AUDIO 	(1<<4)	/* 0: no Audio, 1: Audio */
-#define FEAT2_8MX_EXT_RTC   (1<<5)	/* 0: internal RTC, 1: external RTC */
+#define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
+#define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
+#define FEAT_DISP_A	(1<<2)	/* 0: MIPI-DSI, 1: LVDS lanes 0-3 */
+#define FEAT_DISP_B	(1<<3)	/* 0: HDMI,     1: LVDS lanes 0-4 or (4-7 if DISP_A=1) */
+#define FEAT_AUDIO 	(1<<4)	/* 0: no Audio, 1: Analog Audio Codec */
+#define FEAT_EXT_RTC	(1<<5)	/* 0: internal RTC, 1: external RTC */
+
+#define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
@@ -70,22 +73,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SELECTOR ".selector_mmc"
 #define BOOT_PARTITION ".boot_partition_mmc"
 #define ROOTFS_PARTITION ".rootfs_partition_mmc"
-#elif CONFIG_ENV_IS_IN_NAND
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#define SET_ROOTFS ".set_rootfs_nand"
-#define SELECTOR ".selector_nand"
-#define BOOT_PARTITION ".boot_partition_nand"
-#define ROOTFS_PARTITION ".rootfs_partition_nand"
-#else /* Default = Nand */
-#define ROOTFS ".rootfs_ubifs"
-#define KERNEL ".kernel_nand"
-#define FDT ".fdt_nand"
-#define SET_ROOTFS ".set_rootfs_nand"
-#define SELECTOR ".selector_nand"
-#define BOOT_PARTITION ".boot_partition_nand"
-#define ROOTFS_PARTITION ".rootfs_partition_nand"
 #endif
 
 const struct fs_board_info board_info[] = {
@@ -128,8 +115,166 @@ int board_early_init_f(void)
 }
 
 #ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
+#define FDT_LDB_LVDS0	"ldb/lvds-channel@0"
+#define FDT_LDB_LVDS1	"ldb/lvds-channel@1"
+#define FDT_TEMP_ALERT	"/thermal-zones/cpu-thermal/trips/trip0"
+#define FDT_TEMP_CRIT	"/thermal-zones/cpu-thermal/trips/trip1"
+/* Do any additional board-specific modifications on Linux device tree */
+int ft_board_setup(void *fdt, bd_t *bd)
 {
+	int offs;
+	unsigned int features = fs_board_get_features();
+	int minc, maxc;
+	int id = 0;
+	uint32_t temp_range;
+
+	/* get CPU temp grade from the fuses */
+	temp_range = get_cpu_temp_grade(&minc, &maxc);
+
+	if(temp_range == TEMP_COMMERCIAL){
+		/* no wlan abailable */
+		fs_fdt_enable(fdt, "wlan-reset", 0);
+		/* no eeprom available */
+		fs_fdt_enable(fdt, "eeprom", 0);
+		/* no MIPI_CSI2 availble */
+		fs_fdt_enable(fdt, "mipi_csi_1", 0);
+		/* disable image sensing interface for MIPI_CSI2 */
+		fs_fdt_enable(fdt, "isi_1", 0);
+		/* no VPU */
+		fs_fdt_enable(fdt, "vpu_g1", 0);
+		fs_fdt_enable(fdt, "vpu_g2", 0);
+		fs_fdt_enable(fdt, "vpu_vc8000e", 0);
+		/* no ISP */
+		fs_fdt_enable(fdt, "isp_0", 0);
+		fs_fdt_enable(fdt, "isp_1", 0);
+		/* no NPU */
+		fs_fdt_enable(fdt, "vipsi", 0);
+	}
+
+	/* Disable fec node if it is not availale */
+	if (!(features & FEAT_ETH_A)) {
+		fs_fdt_enable(fdt, "ethernet0", 0);
+	}
+
+	/* Disable eqos node if it is not availale */
+	if (!(features & FEAT_ETH_B)) {
+		fs_fdt_enable(fdt, "ethernet1", 0);
+	}
+
+	/* Display A/B options */
+	/* -------------------------------------
+	 *                 |    0      |   1   |
+	 * -------------------------------------
+	 * DISP_A (DSI_A): | MIPI_DSI1 | LVDS0 |
+	 * -------------------------------------
+	 * DISP_B (DSI_B): |   HDMI    | LVDS1 |
+	 * -------------------------------------
+	 * */
+
+	if (!(features & FEAT_DISP_A)) {
+		/* enable mipi_dsi1 */
+		fs_fdt_enable(fdt, "mipi_dsi", 1);
+		fs_fdt_enable(fdt, "lcdif1", 1);
+	}else{
+		/* disable mipi_dsi1 */
+		fs_fdt_enable(fdt, "mipi_dsi", 0);
+
+		/* enable LVDS0 */
+		fs_fdt_enable(fdt, "lcdif2", 1);
+		fs_fdt_enable(fdt, "ldb_phy", 1);
+		fs_fdt_enable(fdt, "ldb", 1);
+		/* TODO: use default LVDS1.
+		 * 8 lanes mode is currently not working
+		 * */
+		//fs_fdt_enable(fdt, FDT_LDB_LVDS0, 0);
+	}
+
+	if (!(features & FEAT_DISP_B)) {
+		/* enable HDMI */
+		fs_fdt_enable(fdt, "irqsteer_hdmi", 1);
+		fs_fdt_enable(fdt, "hdmimix_clk", 1);
+		fs_fdt_enable(fdt, "hdmimix_reset", 1);
+		fs_fdt_enable(fdt, "hdmi_pavi", 1);
+		fs_fdt_enable(fdt, "hdmi", 1);
+		fs_fdt_enable(fdt, "hdmiphy", 1);
+		fs_fdt_enable(fdt, "lcdif3", 1);
+		/* disable LVDS1 */
+		if(!(features & FEAT_DISP_A)) {
+			fs_fdt_enable(fdt, "ldb_phy", 0);
+			fs_fdt_enable(fdt, "ldb", 0);
+		}
+	}else{
+		/* disble HDMI */
+		fs_fdt_enable(fdt, "irqsteer_hdmi", 0);
+		fs_fdt_enable(fdt, "hdmimix_clk", 0);
+		fs_fdt_enable(fdt, "hdmimix_reset", 0);
+		fs_fdt_enable(fdt, "hdmi_pavi", 0);
+		fs_fdt_enable(fdt, "hdmi", 0);
+		fs_fdt_enable(fdt, "hdmiphy", 0);
+		fs_fdt_enable(fdt, "lcdif3", 0);
+		/* enable LVDS1 */
+		fs_fdt_enable(fdt, "lcdif2", 1);
+		fs_fdt_enable(fdt, "ldb_phy", 1);
+		fs_fdt_enable(fdt, "ldb", 1);
+		fs_fdt_enable(fdt, FDT_LDB_LVDS1, 1);
+	}
+
+	/* Disable SGTL5000 if it is not available */
+	if (!(features & FEAT_AUDIO)) {
+		/* disable all sgtl5000 regulators */
+		fs_fdt_enable(fdt, "/regulators/reg_sgtl5000_vdda", 0);
+		fs_fdt_enable(fdt, "/regulators/reg_sgtl5000_vddio", 0);
+		fs_fdt_enable(fdt, "/regulators/reg_sgtl5000_vddd", 0);
+		/* disable i2c sgtl5000 */
+		fs_fdt_enable(fdt, "sgtl5000", 0);
+		/* disable sgtl5000 platform driver */
+		fs_fdt_enable(fdt, "sound-sgtl5000", 0);
+	}
+
+	/* The following stuff is only set in Linux device tree */
+	/* Disable RTC85263 if it is not available */
+	if (!(features & FEAT_EXT_RTC)) {
+		fs_fdt_enable(fdt, "rtcpcf85263", 0);
+		/* enable internal RTC */
+		fs_fdt_enable(fdt, "snvs_rtc", 1);
+	}else {
+		/* enable external RTC */
+		fs_fdt_enable(fdt, "rtcpcf85263", 1);
+		/* disable internal RTC */
+		fs_fdt_enable(fdt, "snvs_rtc", 0);
+	}
+
+	/* Set bdinfo entries */
+	offs = fs_fdt_path_offset(fdt, "/bdinfo");
+	if (offs >= 0) {
+		/* Set common bdinfo entries */
+		fs_fdt_set_bdinfo(fdt, offs);
+
+		/* MAC addresses */
+		if (features & FEAT_ETH_A)
+			fs_fdt_set_macaddr(fdt, offs, id++);
+		if (features & FEAT_ETH_B)
+			fs_fdt_set_macaddr(fdt, offs, id++);
+	}
+
+	/* Sanity check for get_cpu_temp_grade() */
+	if ((minc > -500) && maxc < 500) {
+		fdt32_t tmp_val[1];
+
+		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_ALERT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
+		}
+		tmp_val[0]=cpu_to_fdt32(maxc*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_CRIT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
+		}
+	} else {
+		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
+	}
+
 	return 0;
 }
 #endif
@@ -143,16 +288,40 @@ void fs_ethaddr_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MP:
-		if (features2 & FEAT2_8MP_ETH_A) {
+		if (features2 & FEAT_ETH_A) {
 			fs_eth_set_ethaddr(eth_id++);
 		}
-		if (features2 & FEAT2_8MP_ETH_B) {
+		if (features2 & FEAT_ETH_B) {
 			fs_eth_set_ethaddr(eth_id++);
 		}
 		break;
 	default:
 		break;
 	}
+}
+
+/* Check board type */
+int checkboard(void)
+{
+	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
+	unsigned int features = fs_board_get_features();
+	int minc, maxc;
+	uint32_t temp_range = get_cpu_temp_grade(&minc, &maxc);
+
+	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
+		board_rev / 100, board_rev % 100);
+	if ((features & FEAT_ETH_MASK) == FEAT_ETH_MASK)
+		puts ("2x ");
+	if (features & FEAT_ETH_MASK)
+		puts ("LAN, ");
+	if (temp_range != TEMP_COMMERCIAL)
+		puts ("WLAN, ");
+
+	puts ("eMMC, ");
+	printf ("%dx DRAM)\n", fs_board_get_nboot_args()->dwNumDram);
+
+	return 0;
 }
 
 #ifdef CONFIG_FEC_MXC
@@ -502,6 +671,19 @@ int board_init(void)
 	return 0;
 }
 
+/*TODO: video support is not available for now.
+ * first disable bl_on and vlcd_on
+ * */
+#define BL_ON_PAD IMX_GPIO_NR(5, 3)
+static iomux_v3_cfg_t const bl_on_pads[] = {
+	MX8MP_PAD_SPDIF_TX__GPIO5_IO03 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+#define VLCD_ON_PAD IMX_GPIO_NR(5, 2)
+static iomux_v3_cfg_t const vlcd_on_pads[] = {
+	MX8MP_PAD_SAI3_MCLK__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 int board_late_init(void)
 {
 
@@ -516,6 +698,17 @@ int board_late_init(void)
 
 	/* Set mac addresses for corresponding boards */
 	fs_ethaddr_init();
+
+	/*TODO: video support is not available for now. */
+	imx_iomux_v3_setup_multiple_pads (bl_on_pads, ARRAY_SIZE (bl_on_pads));
+	/* backlight off */
+	gpio_request (BL_ON_PAD, "BL_ON");
+	gpio_direction_output (BL_ON_PAD, 0);
+
+	imx_iomux_v3_setup_multiple_pads (vlcd_on_pads, ARRAY_SIZE (vlcd_on_pads));
+	/* vlcd_on off */
+	gpio_request (VLCD_ON_PAD, "VLCD_ON");
+	gpio_direction_output (VLCD_ON_PAD, 0);
 
 	return 0;
 }

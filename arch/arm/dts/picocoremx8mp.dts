@@ -29,7 +29,7 @@
 #include "imx8mp.dtsi"
 
 / {
-	model = "NXP i.MX8MPlus PCoreMX8MP board";
+	model = "F&S PicoCoreMX8MP";
 	compatible = "fus,picocoremx8mp", "fsl,imx8mp";
 
 	chosen {
