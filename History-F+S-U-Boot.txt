@@ -1,6 +1,16 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2021.07 (09.07.2021)
+-------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Improve DRAM timings for k4f6e3s4hm
+- Add DRAM timings for k4f8e3s4hd
+- Improve ddr_init function
+- Add support to handle different LPDDR4 chips
+- Improve fs_board_common support
+- Improve fsimx8mp support
 
 u-boot-2020.04-fsimx8mp-Y2021.06 (31.05.2021)
 -------------------------------------------
@@ -13,4 +23,3 @@ Supported boards: PicoCoreMX8MP
 - Add FUS system promt support
 - Add support to use . operator
 - Improve fsimx8mp support
-- Update history file to u-boot-2020.04-fsimx8mp-Y2021.06
