@@ -117,8 +117,11 @@ int board_early_init_f(void)
 #ifdef CONFIG_OF_BOARD_SETUP
 #define FDT_LDB_LVDS0	"ldb/lvds-channel@0"
 #define FDT_LDB_LVDS1	"ldb/lvds-channel@1"
-#define FDT_TEMP_ALERT	"/thermal-zones/cpu-thermal/trips/trip0"
-#define FDT_TEMP_CRIT	"/thermal-zones/cpu-thermal/trips/trip1"
+#define FDT_CPU_TEMP_ALERT	"/thermal-zones/cpu-thermal/trips/trip0"
+#define FDT_CPU_TEMP_CRIT	"/thermal-zones/cpu-thermal/trips/trip1"
+#define FDT_SOC_TEMP_ALERT	"/thermal-zones/soc-thermal/trips/trip0"
+#define FDT_SOC_TEMP_CRIT	"/thermal-zones/soc-thermal/trips/trip1"
+
 /* Do any additional board-specific modifications on Linux device tree */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
@@ -262,12 +265,23 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fdt32_t tmp_val[1];
 
 		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_TEMP_ALERT);
+		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_ALERT);
 		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
 			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
 		}
 		tmp_val[0]=cpu_to_fdt32(maxc*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_TEMP_CRIT);
+		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_CRIT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
+		}
+
+		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_ALERT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
+		}
+		tmp_val[0]=cpu_to_fdt32(maxc*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_CRIT);
 		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
 			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
 		}
