@@ -134,6 +134,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	/* get CPU temp grade from the fuses */
 	temp_range = get_cpu_temp_grade(&minc, &maxc);
 
+#if 0 /* TODO: need to rework */
 	if(temp_range == TEMP_COMMERCIAL){
 		/* no wlan abailable */
 		fs_fdt_enable(fdt, "wlan-reset", 0);
@@ -153,6 +154,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		/* no NPU */
 		fs_fdt_enable(fdt, "vipsi", 0);
 	}
+#endif
 
 	/* Disable fec node if it is not availale */
 	if (!(features & FEAT_ETH_A)) {
