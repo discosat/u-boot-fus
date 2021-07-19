@@ -322,6 +322,7 @@ static int spl_dram_init(void)
 		 *  Simple detection:	Rev. 1.00
 		 *		k4f6e3s4hm_mgcj
 		 *		k4f8e3s4hd_mgcj
+		 *              fl4c2001g_d9
 		 */
 		lpddr4_mr_bc = fs_init_ram();
 		if(!lpddr4_mr_bc) {
@@ -331,7 +332,6 @@ static int spl_dram_init(void)
 	}
 
 	ram_info = get_dram_info(lpddr4_mr_bc);
-
 	if (!ram_info)
 		return 1;
 

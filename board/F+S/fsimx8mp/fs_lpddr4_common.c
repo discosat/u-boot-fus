@@ -26,6 +26,7 @@ extern unsigned int lpddr4_mr_read(unsigned int mr_rank, unsigned int mr_addr);
 /* generated dram timings */
 extern struct dram_timing_info dram_timing_k4f6e3s4hm_mgcj;
 extern struct dram_timing_info dram_timing_k4f8e3s4hd_mgcj;
+extern struct dram_timing_info dram_timing_fl4c2001g_d9;
 
 /* Description table of different lpddr4 sdram chips */
 static const struct lpddr4_info lpddr4_table[] = {
@@ -42,6 +43,13 @@ static const struct lpddr4_info lpddr4_table[] = {
 			.total_density = 0x40000000,
 			.memory_number = 1,
 			.dram_timings = &dram_timing_k4f8e3s4hd_mgcj
+	},
+	{
+			.name = "Longsys",
+			.id = 0x01051108,
+			.total_density = 0x40000000,
+			.memory_number = 1,
+			.dram_timings = &dram_timing_fl4c2001g_d9
 	},
 };
 
