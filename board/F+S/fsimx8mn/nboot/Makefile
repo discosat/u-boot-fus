@@ -33,34 +33,19 @@ NBOOT_VERSION = 2021.07
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
-	PCoreMX8MM-FERT3.130.fs \
-	PCoreMX8MM-FERT3.120.fs \
-	PCoreMX8MM-FERT3.110.fs \
-	PCoreMX8MM-FERT4.130.fs \
-	PCoreMX8MM-FERT4.120.fs \
-	PCoreMX8MM-FERT4.110.fs \
-	PCoreMX8MM-FERT9.130.fs \
-	PCoreMX8MM-FERT9.120.fs \
-	PCoreMX8MM-FERT9.110.fs \
-	PCoreMX8MM-FERT12.130.fs \
-	PCoreMX8MM-FERT13.130.fs \
+	PCoreMX8MN-FERT3.130.fs \
+	PCoreMX8MN-FERT3.120.fs \
+	PCoreMX8MN-FERT4.130.fs \
 	PCoreMX8MX-FERT5.120.fs \
-	PCoreMX8MX-FERT5.110.fs \
 	PCoreMX8MX-FERT6.120.fs \
-	PCoreMX8MX-FERT6.110.fs \
-	PCoreMX8MX-FERT7.120.fs \
-	PCoreMX8MX-FERT7.110.fs \
-	PCoreMX8MX-FERT8.120.fs \
-	PCoreMX8MX-FERT8.110.fs \
-	TBS2-FERT1.111.fs
+	PCoreMX8MX-FERT6.110.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
-	ddr3l_2x_im4g16d3fdbg107i_timing.fs \
+	ddr3l_2x_k4b2g1646fbym_timing.fs \
 	ddr3l_2x_mt41k128m16tw_timing.fs
 RT_LPDDR4 := \
-	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f8e304hb_mgcj_timing.fs
+	lpddr4_k4f8e3s4hd_mgcl_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
@@ -118,7 +103,7 @@ NXP_LPDDR4 = lpddr4_pmu_train_1d_imem.bin lpddr4_pmu_train_1d_dmem.bin \
 	lpddr4_pmu_train_2d_imem.bin lpddr4_pmu_train_2d_dmem.bin
 NXP_DDR4 = ddr4_imem_1d$(NANO).bin ddr4_dmem_1d$(NANO).bin \
 	ddr4_imem_2d$(NANO).bin ddr4_dmem_2d$(NANO).bin
-NXP_ATF = bl31-imx8mm.bin
+NXP_ATF = bl31-imx8mn.bin
 
 # Add path for NXP firmware images
 NXP_PATH = $(srctree)/board/F+S/NXP-Firmware
@@ -199,6 +184,7 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 
 %_atf.fs: $(NXP_PATH_ATF)
 	$(call cmd,fsimg,-t ATF -d $(*F))
+	hexdump -C $@ | head -n 10
 
 %_firmware.fs: $(OBJ_FIRMWARE_FILES)
 	$(call cmd,fsimg,-t FIRMWARE -d $(*F))
@@ -230,12 +216,12 @@ $(obj)/%.fs: $(obj)/.%.dtb.tmp
 %_board_configs.fs: $(OBJ_BOARD_CONFIGS)
 	$(call cmd,fsimg,-t BOARD-CONFIGS -d $(*F))
 
-#./scripts/dtc/dtc -O dtb -o arch/arm/dts/picocoremx8mm.dtb -b 0 -i
+#./scripts/dtc/dtc -O dtb -o arch/arm/dts/picocoremx8mn.dtb -b 0 -i
 #	arch/arm/dts/  -Wno-unit_address_vs_reg -Wno-simple_bus_reg
 #	-Wno-unit_address_format -Wno-pci_bridge
 #	-Wno-pci_device_bus_num -Wno-pci_device_reg  -d
-#	arch/arm/dts/.picocoremx8mm.dtb.d.dtc.tmp
-#	arch/arm/dts/.picocoremx8mm.dtb.dts.tmp
+#	arch/arm/dts/.picocoremx8mn.dtb.d.dtc.tmp
+#	arch/arm/dts/.picocoremx8mn.dtb.dts.tmp
 #	$(call cmd,fsimg)
 
 $(obj)/addfsheader.sh.fs: $(srctree)/scripts/addfsheader.sh

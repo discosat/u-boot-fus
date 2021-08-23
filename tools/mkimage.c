@@ -514,6 +514,20 @@ int main(int argc, char **argv)
 		} else if (params.type == IH_TYPE_PBLIMAGE) {
 			/* PBL has special Image format, implements its' own */
 			pbl_load_uboot(ifd, &params);
+		} else if (params.type == IH_TYPE_IMX8IMAGE) {
+			/* i.MX8/8X has special Image format */
+			int ret;
+
+			ret = imx8image_copy_image(ifd, &params);
+			if (ret)
+				return ret;
+		} else if (params.type == IH_TYPE_IMX8MIMAGE) {
+			/* i.MX8M has special Image format */
+			int ret;
+
+			ret = imx8mimage_copy_image(ifd, &params);
+			if (ret)
+				return ret;
 		} else {
 			copy_file(ifd, params.datafile, pad_len);
 		}

@@ -914,6 +914,14 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 					blk_desc, img[2].img, start,
 					img[2].size, img[2].type);
 			}
+/*
+ * TODO for 8MN:
+ * For 8MN the offset of the secondary image is set in the fuses
+ * (see 6.1.6.2 Secondary Image Boot in iMX8M Nano Ref Manual).
+ * The offset in bootpartition1 is 0x0 for first SPL
+ * and 0x100000(1MB) secondary SPL.
+ */
+#ifndef CONFIG_IMX8MN
 			if (!err && (i == 1)) {
 				/*
 				 * Write Secondary Image Table for redundant
@@ -935,6 +943,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 					blk_desc, &local_buffer.block, start,
 					blk_desc->blksz, "SECONDARY-SPL-INFO");
 			}
+#endif
 		}
 
 		if (err)

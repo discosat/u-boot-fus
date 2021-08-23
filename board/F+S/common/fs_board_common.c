@@ -534,6 +534,65 @@ const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
 
 #include <fdtdec.h>
 
+#ifdef CONFIG_IMX8MN
+/* Definitions in boot_cfg (fuse bank 1, word 3) */
+#define BOOT_CFG_DEVSEL_SHIFT 12
+#define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
+#define BOOT_CFG_FORCE_ALT_USDHC BIT(11)
+#define BOOT_CFG_ALT_SEL_SHIFT 9
+#define BOOT_CFG_ALT_SEL_MASK (3 << BOOT_CFG_ALT_SEL_SHIFT)
+enum boot_device usdhc_alt[] = {
+	SD1_BOOT,
+	MMC1_BOOT,
+	MMC2_BOOT,
+	SD3_BOOT,
+};
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB (returned by spl_boot_device()), but is basically fused to boot from
+ * NAND (returned here).
+ */
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	u32 alt;
+	bool force_alt_usdhc;
+	enum boot_device boot_dev = USB_BOOT;
+
+	/* boot_cfg is in fuse bank 1, word 3 */
+	if (fuse_read(1, 3, &val)) {
+		puts("Error reading boot_cfg\n");
+		return boot_dev;
+	}
+
+	force_alt_usdhc = val & BOOT_CFG_FORCE_ALT_USDHC;
+	alt = (val & BOOT_CFG_ALT_SEL_MASK) >> BOOT_CFG_ALT_SEL_SHIFT;
+	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
+	case 0x2: // eMMC(SD3)
+		boot_dev = MMC3_BOOT;
+		if (force_alt_usdhc)
+			boot_dev = usdhc_alt[alt];
+		break;
+
+	case 0x3: // SD(SD2)
+		boot_dev = SD2_BOOT;
+		if (force_alt_usdhc)
+			boot_dev = usdhc_alt[alt];
+		break;
+
+	case 0x4: // NAND(256 pages)
+	case 0x5: // NAND(512 pages)
+		boot_dev = NAND_BOOT;
+		break;
+
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+#else
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
 #define BOOT_CFG_DEVSEL_MASK (7 << BOOT_CFG_DEVSEL_SHIFT)
@@ -577,5 +636,6 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 
 	return boot_dev;
 }
+#endif /* CONFIG_IMX8MN */
 
 #endif /* HAVE_BOARD_CFG */
