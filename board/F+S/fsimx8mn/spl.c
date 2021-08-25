@@ -422,7 +422,6 @@ void board_init_f(ulong dummy)
 {
 	int ret;
 	enum boot_device boot_dev;
-	struct src *src;
 
 	/* Clear the BSS. */
 	memset(__bss_start, 0, __bss_end - __bss_start);
@@ -449,10 +448,16 @@ void board_init_f(ulong dummy)
 	}
 	enable_tzc380();
 
-	/* Determine if we are running on primary or secondary SPL */
-	src = (struct src *)SRC_BASE_ADDR;
-	if (readl(&src->gpr10) & (1 << 30))
-		secondary = true;
+#if 0
+	// ### TODO: How do we determine this on i.MX8MN?
+	{
+		struct src *src;
+		/* Determine if we are running on primary or secondary SPL */
+		src = (struct src *)SRC_BASE_ADDR;
+		if (readl(&src->gpr10) & (1 << 30))
+			secondary = true;
+	}
+#endif
 
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
