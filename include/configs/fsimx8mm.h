@@ -419,10 +419,10 @@
 	".fdt_ubifs_B=setenv fdt ubi part TargetFS\\\\;"		\
 	" ubifsmount ubi0:rootfs_B\\\\;"				\
 	" ubifsload ${fdtaddr} /boot/${bootfdt}" BOOT_WITH_FDT		\
-	".rootfs_ubifs_A=setenv rootfs rootfstype=squashfs"		\
+	".rootfs_ubifs_A=setenv rootfs 'rootfstype=squashfs"		\
 	" ubi.block=0,rootfs_A ubi.mtd=TargetFS,2048"			\
 	" root=/dev/ubiblock0_0 rootwait ro'\0"				\
-	".rootfs_ubifs_B=setenv rootfs rootfstype=squashfs"		\
+	".rootfs_ubifs_B=setenv rootfs 'rootfstype=squashfs"		\
 	" ubi.block=0,rootfs_B ubi.mtd=TargetFS,2048"			\
 	" root=/dev/ubiblock0_1 rootwait ro'\0"
 #else
