@@ -8,40 +8,37 @@
 
 /dts-v1/;
 
-#include ".nboot-info-nand.dtsi.tmp"
+#include ".nboot-info-mmc.dtsi.tmp"
 
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MN_MX";
-		board-rev = <120>;		/* Rev 1.20 */
+		board-name = "PicoCoreMX8MN-DDR3L";
+		board-rev = <110>;		/* Rev 1.10 */
 
 		/* DRAM: 512MB Micron */
 		dram-type = "ddr3l";
-		dram-timing = "ddr3l_2x_mt41k128m16tw";
+		dram-timing = "ddr3l_2x_k4b2g1646fbym";
 		dram-size = <0x200>;		/* In MiB */
 		dram-chips = <2>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
-		boot-dev = "NAND";
+		boot-dev = "MMC3";
 		fuse-bankword = <0x00010003>;	/* MSW: Bank, LSW: Fuse-Word */
-//		fuse-bankword = <0x00020003>;	/* MSW: Bank, LSW: Fuse-Word */
 		fuse-mask = <0x10007fff>;
-//		fuse-mask = <0x00000f00>;
-		fuse-value = <0x10004040>;
-//		fuse-value = <0x00000C00>;
+		fuse-value = <0x10002800>;
 
 		/* Board Features */
-		have-nand;
-		//have-emmc;
+		//have-nand;
+		have-emmc;
 		have-sgtl5000;
 		have-eth-phy;
-		//have-lvds;
-		have-mipi-dsi;
+		have-lvds;
+		//have-mipi-dsi;
 		//have-rtc-pcf85063;
 		have-rtc-pcf85263;
-		have-security;
+		//have-security;
 		have-can;
-		have-eeprom;
+		//have-eeprom;
 	};
 };

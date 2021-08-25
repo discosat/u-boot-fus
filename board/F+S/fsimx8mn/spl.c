@@ -39,8 +39,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MX 0x1
 
 static const char *board_names[] = {
-	"PicoCoreMX8MN",
-	"PicoCoreMX8MX-Nano",
+	"PicoCoreMX8MN-LPDDR4",
+	"PicoCoreMX8MN-DDR3L",
 	"(unknown)"
 };
 

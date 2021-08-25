@@ -103,7 +103,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 const struct fs_board_info board_info[] = {
 	{	/* 0 (BT_PICOCOREMX8MM) */
-		.name = "PicoCoreMX8MM",
+		.name = "PicoCoreMX8MM-LPDDR4",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -116,7 +116,7 @@ const struct fs_board_info board_info[] = {
 		.flags = 0,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
-		.name = "PicoCoreMX8MX",
+		.name = "PicoCoreMX8MM-DDR3L",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -788,7 +788,7 @@ void enable_tc358764(struct display_info_t const *dev)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
-		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mx_pads));
+		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mm_pads));
 		gpio_request (LVDS_RST_8MM_PAD, "LVDS_RST");
 		gpio_direction_output (LVDS_RST_8MM_PAD, 0);
 		/* period of reset signal > 50 ns */

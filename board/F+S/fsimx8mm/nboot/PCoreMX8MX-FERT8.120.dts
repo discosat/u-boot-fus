@@ -13,7 +13,7 @@
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MX";
+		board-name = "PicoCoreMX8MM-DDR3L";
 		board-rev = <120>;		/* Rev 1.20 */
 
 		/* DRAM: 1GB Intelligent Memory */

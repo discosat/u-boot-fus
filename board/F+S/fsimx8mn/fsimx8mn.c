@@ -99,7 +99,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 const struct fs_board_info board_info[] = {
 	{	/* 0 (BT_PICOCOREMX8MN) */
-		.name = "PicoCoreMX8MN",
+		.name = "PicoCoreMX8MN-LPDDR4",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -112,7 +112,7 @@ const struct fs_board_info board_info[] = {
 		.flags = 0,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
-		.name = "PicoCoreMX8MX-Nano",
+		.name = "PicoCoreMX8MN-DDR3L",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,

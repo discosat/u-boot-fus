@@ -8,13 +8,13 @@
 
 /dts-v1/;
 
-#include ".nboot-info-nand.dtsi.tmp"
+#include ".nboot-info-mmc.dtsi.tmp"
 
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MM-LPDDR4";
-		board-rev = <130>;		/* Rev 1.30 */
+		board-name = "PicoCoreMX8MN-LPDDR4";
+		board-rev = <120>;		/* Rev 1.20 */
 
 		/* DRAM: 1GB Samsung */
 		dram-type = "lpddr4";
@@ -23,21 +23,21 @@
 		dram-chips = <1>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
-		boot-dev = "NAND";
+		boot-dev = "MMC3";
 		fuse-bankword = <0x00010003>;	/* MSW: Bank, LSW: Fuse-Word */
 		fuse-mask = <0x10007fff>;
-		fuse-value = <0x10003700>;
+		fuse-value = <0x10002600>;
 
 		/* Board Features */
-		have-nand;
-		//have-emmc;
+		//have-nand;
+		have-emmc;
 		have-sgtl5000;
 		have-eth-phy;
-		//have-wlan;
-		//have-lvds;
-		have-mipi-dsi;
-		//have-rtc-pcf85063;
-		have-rtc-pcf85263;
+		have-wlan;
+		have-lvds;
+		//have-mipi-dsi;
+		have-rtc-pcf85063;
+		//have-rtc-pcf85263;
 		//have-security;
 		//have-can;
 		//have-eeprom;

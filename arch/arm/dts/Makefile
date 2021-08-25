@@ -471,10 +471,11 @@ dtb-$(CONFIG_ARCH_IMX8M) += fsl-imx8mq-evk.dtb \
 		fsl-imx8mm-evk.dtb \
 		fsl-imx8mn-ddr4-evk.dtb \
 		fsl-imx8mn-evk.dtb \
-		picocoremx8mm.dtb \
-		picocoremx8mx.dtb \
+		picocoremx8mm-lpddr4.dtb \
+		picocoremx8mm-ddr3l.dtb \
 		armstonemx8m.dtb \
-		picocoremx8mn.dtb \
+		picocoremx8mn-lpddr4.dtb \
+		picocoremx8mn-ddr3l.dtb \
 		tbs2.dtb
 
 dtb-$(CONFIG_ARCH_IMX8) += fsl-imx8dx-17x17-val.dtb \

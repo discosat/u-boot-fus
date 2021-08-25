@@ -36,9 +36,11 @@ BOARD_CONFIGS = \
 	PCoreMX8MN-FERT3.130.fs \
 	PCoreMX8MN-FERT3.120.fs \
 	PCoreMX8MN-FERT4.130.fs \
-	PCoreMX8MX-FERT5.120.fs \
-	PCoreMX8MX-FERT6.120.fs \
-	PCoreMX8MX-FERT6.110.fs
+	PCoreMX8MN-FERT4.120.fs \
+	PCoreMX8MN-FERT5.120.fs \
+	PCoreMX8MN-FERT5.110.fs \
+	PCoreMX8MN-FERT6.120.fs \
+	PCoreMX8MN-FERT6.110.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
@@ -184,7 +186,6 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 
 %_atf.fs: $(NXP_PATH_ATF)
 	$(call cmd,fsimg,-t ATF -d $(*F))
-	hexdump -C $@ | head -n 10
 
 %_firmware.fs: $(OBJ_FIRMWARE_FILES)
 	$(call cmd,fsimg,-t FIRMWARE -d $(*F))

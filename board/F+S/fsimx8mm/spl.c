@@ -45,8 +45,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_TBS2          0x2
 
 static const char *board_names[] = {
-	"PicoCoreMX8MM",
-	"PicoCoreMX8MX",
+	"PicoCoreMX8MM-LPDDR4",
+	"PicoCoreMX8MM-DDR3L",
 	"TBS2",
 	"(unknown)"
 };
