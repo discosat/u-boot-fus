@@ -29,7 +29,7 @@
 #ifndef CONFIG_SPL_BUILD
 
 /* String used for system prompt */
-static char fs_sys_prompt[20];
+static char fs_sys_prompt[32];
 
 /* Store a pointer to the current board info */
 static const struct fs_board_info *current_bi;
