@@ -24,9 +24,11 @@
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
 		boot-dev = "MMC3";
-		fuse-bankword = <0x00010003>;	/* MSW: Bank, LSW: Fuse-Word */
-		fuse-mask = <0x10007fff>;
-		fuse-value = <0x10002800>;
+
+		/* Fuse settings, fuse-bankword: MSW: Bank, LSW: Fuse-Word */
+		fuse-bankword = <0x00010003 0x00020001 0x00020002>;
+		fuse-mask =     <0x1000fe00 0xfffdffff 0x0000003f>;
+		fuse-value =    <0x10002000 0x00000000 0x00000000>;
 
 		/* Board Features */
 		//have-nand;
