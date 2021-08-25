@@ -57,11 +57,11 @@
 		 * (0x1000 = 4096 bytes).
 		 */
 		board-cfg-size = <0x2000>;		/* 8 KiB */
-		spl-start = <0x00000000 0x00100000>;
-		spl-size = <0x00037c00>;		/* 223 KiB */
+		spl-start = <0x00008000 0x00100000>;
+		spl-size = <0x00038000>;		/* 224 KiB */
 		nboot-start = <###MMC_START###>;
 		nboot-size = <0x000C0000>;		/* 768 KiB */
-		uboot-start = <0x00200000 0x00500000>;
+		uboot-start = <0x00140000 0x00440000>;
 		uboot-size = <0x00300000>;		/* 3 MiB */
 	};
 };

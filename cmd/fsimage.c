@@ -818,7 +818,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	struct blk_desc *blk_desc;
 	int offs = fs_image_get_info_offs(fdt);
 	int err, lasterr;
-	int i;
+	unsigned int i, count;
 	int success = 0;
 	unsigned int cur_part, boot_part;
 	unsigned long start;
@@ -834,19 +834,26 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	if (err)
 		return err;
 
-	/* Switch to the partition that we boot from */
-	cur_part = mmc->part_config & PART_ACCESS_MASK;
+	/* Determine the boot partition */
 	boot_part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
 	if (boot_part == 7)
 		boot_part = 0;
-	if (cur_part != boot_part) {
-		err = blk_dselect_hwpart(blk_desc, boot_part);
-		if (err) {
-			printf("Cannot switch to part %d on mmc%d\n",
-			       boot_part, mmc_dev);
-			return err;
+
+#ifdef CONFIG_IMX8MN
+	/* If booting from User space, check the fused secondary image offset */
+	if (!boot_part && img[2].si.count > 1) {
+		u32 secondary_offset_fuses = fs_board_get_secondary_offset();
+		u32 secondary_offset_nboot = fdt32_to_cpu(img[2].si.start[1]);
+
+		if (secondary_offset_fuses != secondary_offset_nboot) {
+			printf("Secondary Image Offset in fuses is at 0x%08x,"
+			       " NBOOT wants 0x%08x\n"
+			       "Fix this first (e.g. burn fuses)!\n",
+			       secondary_offset_fuses, secondary_offset_nboot);
+			return -EINVAL;
 		}
 	}
+#endif
 
 	/*
 	 * Save sequence:
@@ -879,14 +886,39 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
          *     i.e. implement fs_image_get_start_index().
 	 */
 	lasterr = 0;
-	for (i = 0; i < max(img[1].si.count, img[2].si.count); i++) {
+	cur_part = mmc->part_config & PART_ACCESS_MASK;
+	count = max(img[1].si.count, img[2].si.count);
+	if (count > 2)
+		count = 2;		/* Ignore any extra values */
+
+	for (i = 0; i < count; i++) {
+#ifdef CONFIG_IMX8MN
+		/* Switch to other boot partition */
+		if (boot_part && (i > 0))
+			boot_part = 3 - boot_part;
+#endif
+		/* Switch to the partition that we boot from */
+		if ((mmc->part_config & PART_ACCESS_MASK) != boot_part) {
+			err = blk_dselect_hwpart(blk_desc, boot_part);
+			if (err) {
+				printf("Cannot switch to part %d on mmc%d\n",
+				       boot_part, mmc_dev);
+				return err;
+			}
+		}
 		printf("Saving copy %d to mmc%d, part %d:\n",
 		       i, mmc_dev, boot_part);
 
 		err = 0;
 		if (i < img[1].si.count) {
 			/* Invalidate BOARD-CFG/FIRMWARE */
-			start = fdt32_to_cpu(img[1].si.start[i]);
+#ifdef CONFIG_IMX8MN
+			/* Only use first entry when writing to boot part */
+			if (boot_part)
+				start = fdt32_to_cpu(img[1].si.start[0]);
+			else
+#endif
+				start = fdt32_to_cpu(img[1].si.start[i]);
 			err = fs_image_invalidate_mmc(blk_desc, start,
 						      img[0].type);
 			if (!err) {
@@ -905,7 +937,12 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		}
 		if (!err && (i < img[1].si.count)) {
 			/* Invalidate SPL */
-			start = fdt32_to_cpu(img[2].si.start[i]);
+#ifdef CONFIG_IMX8MN
+			if (boot_part)
+				start = 0; /* Always 0 in boot part */
+			else
+#endif
+				start = fdt32_to_cpu(img[2].si.start[i]);
 			err = fs_image_invalidate_mmc(blk_desc, start,
 						      img[2].type);
 			if (!err) {
@@ -914,14 +951,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 					blk_desc, img[2].img, start,
 					img[2].size, img[2].type);
 			}
-/*
- * TODO for 8MN:
- * For 8MN the offset of the secondary image is set in the fuses
- * (see 6.1.6.2 Secondary Image Boot in iMX8M Nano Ref Manual).
- * The offset in bootpartition1 is 0x0 for first SPL
- * and 0x100000(1MB) secondary SPL.
- */
-#ifndef CONFIG_IMX8MN
+#ifdef CONFIG_IMX8MM
 			if (!err && (i == 1)) {
 				/*
 				 * Write Secondary Image Table for redundant
@@ -1361,7 +1391,7 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 		printf("  0x%02x 0x%02x 0x%08x -> 0x%08x", fuse_bw >> 16,
 		       fuse_bw & 0xffff, cur_val, fuse_val);
 		if (cur_val == fuse_val)
-			puts("(unchanged)\n");
+			puts(" (unchanged)");
 		else if (cur_val & ~fuse_val) {
 			ret |= 1;
 			puts(" (impossible)");
@@ -1434,6 +1464,8 @@ static int do_fsimage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			  ARRAY_SIZE(cmd_fsimage_sub));
 	if (!cp)
 		return CMD_RET_USAGE;
+	if (flag == CMD_FLAG_REPEAT && !cp->repeatable)
+		return CMD_RET_SUCCESS;
 
 	return cp->cmd(cmdtp, flag, argc, argv);
 }

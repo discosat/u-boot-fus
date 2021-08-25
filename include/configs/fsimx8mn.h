@@ -20,7 +20,7 @@
  * ----------------
  * unused
  *
- * OCRAM layout SPL                  U-Boot
+ * OCRAM layout SPL                 U-Boot
  * ---------------------------------------------------------
  * 0x0090_0000: (Region reserved by ROM loader)(64KB)
  * 0x0091_0000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
@@ -82,7 +82,7 @@
  * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
  * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
  * 0x0050_0000: UBoot_A (3MB)              nboot-info: uboot-start[0]
- * 0x0080_0000: UBoot_B/UBootRedund (3MB)  nboot-info: uboot-start[1]
+ * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
  * 0x00B0_0000: UserDef (2MB)
  * 0x00D0_0000: Kernel_A (32MB)
  * 0x02D0_0000: FDT_A (1MBKB)
@@ -103,40 +103,75 @@
  *
  * eMMC Layout
  * -----------
- * NBoot is located in Boot1 or Boot2 HW-Partition (boot offset 0x0000):
- * 0x0000_0000: Space for MBR (512B, unused)
- * 0x0000_0200: Secondary Image Table (512B)
- * 0x0000_0400: SPL Copy 0 (223KB)         Defined by i.MX8MN
- * 0x0003_8000: --- (32KB, free)
+ * Scenario 1: NBoot is in Boot1/Boot2 HW-Partition
+ *
+ * Boot1/2 HW-Partition (Boot Offset for the Primary Image is 0x0000):
+ * 0x0000_0000: SPL Copy 0/1 (224KB)       i.MX8MN (always 0)
+ * 0x0003_8000: --- (free, 32KB)
+ * 0x0004_0000: BOARD-CFG Copy 0/1 (8KB)   nboot-info: nboot-start[0]
+ * 0x0004_2000: FIRMWARE Copy 0/1 (760KB)
+ * 0x0010_0000: --- (free, for compatibility reasons with fsimx8mm, 224KB)
+ * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
+ * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
+ * 0x0014_0000: --- (free, may be used for U-Boot in the future)
+ *
+ * User HW-Partition:
+ * 0x0000_0000: --- (free, space for GPT, 32KB)
+ * 0x0000_8000: --- (free, 1248KB, may be used for UserDef/M4 image)
+ * 0x0014_0000: U-Boot A (3MB)
+ * 0x0044_0000: U-Boot B (3MB)
+ * 0x0074_0000: --- (free, 768KB)
+ * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
+ *
+ * The goal here is to move U-Boot to the Boot partition in the next release
+ * to get the whole 8MB reserved region in User space empty for UserDef/M4
+ * image and to make writing whole filesystem images easier. Currently U-Boot
+ * is always destroyed when this region is not skipped when writing.
+ *
+ * Remarks:
+ * - In this scenario, setting the fuses for the Secondary Image Offset is not
+ *   necessary.
+ * - spl-start of nboot-info is ignored and silently assumed to be 0.
+ * - nboot-start[] of nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
+ *   Makefile, but only nboot-start[0] and uboot-start[0] are taken for both
+ *   copies in the two Boot HW-Partitions.
+ * - If eMMC is configured to boot from Boot1, then this is the Primary Image
+ *   and Boot2 is the Secondary Image. If eMMC is configured to boot from
+ *   Boot2, then this is the Primary Image and Boot1 is the Secondary Image.
+ * - The U-Boot environment is always stored with the Primary Image, i.e. the
+ *   partition that is configured for boot.
+ * - The reserved region size at the beginning of the User HW-Partition can
+ *   stay at 8MB as with NXP, for example to hold the UserDef data or an M4
+ *   image. Or it can be reduced to the size of the partition table which is
+ *   one simple sector when using MBR.
+ *
+ * Scenario 2: NBoot is in User HW-Partition
+ *
+ * Boot1/2 HW-Partition:
+ * 0x0000_0000: --- (completely empty)
+ *
+ * User HW-Partition (Boot Offset for the Primary Image is 0x8000):
+ * 0x0000_0000: --- (space for GPT, 32KB)
+ * 0x0000_8000: SPL Copy 0 (224KB)         i.MX8MN; nboot-info: spl-start[0]
  * 0x0004_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
  * 0x0004_2000: FIRMWARE Copy 0 (760KB)
- * 0x0010_0000: --- (1KB, free)
- * 0x0010_0400: SPL Copy 1 (223KB)         Defined by Secondary Image Offset
- * 0x0013_8000: UBootEnv (16KB)
- * 0x0013_C000: UBootEnvRed (16KB)
- * 0x0014_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0014_2000: FIRMWARE Copy 1 (760KB)
- *
- * User HW partition:
- * 0x0000_0000: GPT
- * 0x0000_8000: --- (free, e.g. M4 image)
- * 0x0020_0000: UBoot_A (3MB)              nboot-info: mmc-u-boot[0]
- * 0x0050_0000: UBoot_B (3MB)              nboot-info: mmc-u-boot[1]
+ * 0x0010_0000: SPL Copy 1 (224KB)         Secondary Image Offset, spl-start[1]
+ * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
+ * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
+ * 0x0014_0000: U-Boot A (3MB)
+ * 0x0044_0000: U-Boot B (3MB)
+ * 0x0074_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x0074_2000: FIRMWARE Copy 1 (760KB)
  * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
  *
  * Remarks:
- * - nboot-start[] is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the Makefile
- * - If the system should boot from the User HW partition or SD card, the boot
- *   offset is 0x8000. In this case we could use the fsimx8mm layout where the
- *   U-Boot environment ist located at 0x10000 before the second copy of NBoot.
- *   However this would need modifications in the device tree files for the
- *   new U-Boot environment location.
+ * - In this scenario, the fuses for the Secondary Image Offset have to be set
+ *   to 2 (=1MB). This value can be set to 1MB*2^n, so this is the smallest
+ *   possible setting.
  * - The reserved region size stays at 8MB as with NXP.
- * - The boot partition requirement is 2 MB and will also work for small eMMC.
- *   If FIRMWARE part grows above 760K, we will need a larger Boot partition.
- * - There is room in the User partiton from 0x00008000 to 0x00200000 to store
- *   some user data or an M4 image. Optionally we can increase the U-Boot size
- *   to almost 4MB by using this space if U-Boot grows larger in the future.
+ * - nboot-start[] of nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
+ *   Makefile, and both entries for spl-start, nboot-start and uboot-start are
+ *   actually used.
  */
 
 #ifndef __FSIMX8MN_H
@@ -198,7 +233,7 @@
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
 #define CONFIG_FUS_BOARDCFG_MMC0 0x00040000
-#define CONFIG_FUS_BOARDCFG_MMC1 0x00140000
+#define CONFIG_FUS_BOARDCFG_MMC1 0x00740000
 
 #define CONFIG_SYS_SPL_MALLOC_START	0x42200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000	/* 512 KB */

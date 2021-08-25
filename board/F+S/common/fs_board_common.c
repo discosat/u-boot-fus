@@ -592,6 +592,31 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 
 	return boot_dev;
 }
+
+#define IMG_CNTN_SET1_OFFSET_SHIFT 19
+#define IMG_CNTN_SET1_OFFSET_MASK 0x0f
+u32 fs_board_get_secondary_offset(void)
+{
+	u32 val;
+
+	/* Secondary boot image offset is in fuse bank 2, word 1 */
+	if (fuse_read(2, 1, &val)) {
+		puts("Error reading secondary image offset from fuses\n");
+		return 0;
+	}
+
+	val >>= IMG_CNTN_SET1_OFFSET_SHIFT;
+	val &= IMG_CNTN_SET1_OFFSET_MASK;
+	if (val == 0)
+		val = 2;
+	else if (val == 2)
+		val = 0;
+	val += 20;
+	val = 1 << val;
+
+	return val;
+}
+
 #else
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
