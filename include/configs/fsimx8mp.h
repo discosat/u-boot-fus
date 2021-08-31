@@ -26,6 +26,11 @@
  */
 #undef CONFIG_FAT_WRITE
 
+/* need for F&S bootaux */
+#define M4_BOOTROM_BASE_ADDR           MCU_BOOTROM_BASE_ADDR
+#define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
+#define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
+
 #define CONFIG_SYS_UART_PORT	1	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
