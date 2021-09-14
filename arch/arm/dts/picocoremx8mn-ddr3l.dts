@@ -29,6 +29,8 @@
 /* USB */
 #define CONFIG_PICOCOREMX8MX_USB_OTG1
 
+#define CONFIG_PICOCOREMX8MX_USB_OTG1_TYPEC
+
 /* I2C */
 #define CONFIG_PICOCOREMX8MX_I2C_A
 #define CONFIG_PICOCOREMX8MX_I2C_B
@@ -324,6 +326,21 @@
 			};
 		};
 	};
+#ifdef CONFIG_PICOCOREMX8MX_USB_OTG1_TYPEC
+	/* USB Type-C Chip */
+	typec_ptn5110: ptn5110@52 {
+		compatible = "usb,tcpci";
+		reg = <0x52>;
+		src-pdos = <0x380190c8>;
+		snk-pdos = <0x380190c8 0x3802d0c8>;
+		max-snk-mv = <9000>;
+		max-snk-ma = <2000>;
+		op-snk-mw = <9000>;
+		max-snk-mw = <18000>;
+		port-type = "drp";
+		default-role = "sink";
+	};
+#endif
 };
 #endif
 
@@ -445,7 +462,11 @@
 
 #ifdef CONFIG_PICOCOREMX8MX_USB_OTG1
 &usbotg1 {
+#ifdef CONFIG_PICOCOREMX8MX_USB_OTG1_TYPEC
+	extcon = <&typec_ptn5110>;
+#else
 	dr_mode = "otg";
+#endif
 	#ifdef CONFIG_USB_OTG_PWR
 	vbus-supply = <&reg_usb_otg_pwr>;
 	#else

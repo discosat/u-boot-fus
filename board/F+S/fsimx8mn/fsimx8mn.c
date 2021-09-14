@@ -29,6 +29,9 @@
 #include <spl.h>
 #include <asm/mach-imx/dma.h>
 #include <power/bd71837.h>
+#ifdef CONFIG_USB_TCPC
+#include "../common/tcpc.h"
+#endif
 #include <usb.h>
 #include <sec_mipi_dsim.h>
 #include <imx_mipi_dsi_bridge.h>
@@ -272,6 +275,10 @@ int checkboard(void)
 }
 
 /* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
+#ifdef CONFIG_USB_TCPC
+#define  USB_INIT_UNKNOWN (USB_INIT_DEVICE + 1)
+static int setup_typec(void);
+#endif
 static int setup_fec(void);
 void fs_ethaddr_init(void);
 static int board_setup_ksz9893r(void);
@@ -282,6 +289,10 @@ int board_init(void)
 
 	/* Prepare command prompt string */
 	fs_board_init_common(&board_info[board_type]);
+
+#ifdef CONFIG_USB_TCPC
+	setup_typec();
+#endif
 
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
@@ -909,6 +920,106 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
 	return boot_part;
 }
 
+#ifdef CONFIG_USB_TCPC
+struct tcpc_port port;
+
+struct tcpc_port_config port_config = {
+	.i2c_bus = 0,
+	.addr = 0x52,
+	.port_type = TYPEC_PORT_UFP,
+	.max_snk_mv = 5000,
+	.max_snk_ma = 3000,
+	.max_snk_mw = 40000,
+	.op_snk_mv = 9000,
+	.switch_setup_func = NULL,
+};
+
+static int setup_typec(void)
+{
+	int ret;
+
+	switch (fs_board_get_type())
+	{
+	case BT_PICOCOREMX8MN:
+		port_config.i2c_bus = 3;
+		break;
+	case BT_PICOCOREMX8MX:
+		port_config.i2c_bus = 0;
+		break;
+	}
+
+	debug("tcpc_init port\n");
+	ret = tcpc_init(&port, port_config, NULL);
+	if (ret) {
+		port.i2c_dev = NULL;
+	}
+	return ret;
+}
+
+int board_usb_init(int index, enum usb_init_type init)
+{
+	int ret = 0;
+	struct tcpc_port *port_ptr = &port;
+
+	debug("board_usb_init %d, type %d\n", index, init);
+
+	imx8m_usb_power(index, true);
+
+	if (index == 0) {
+		if (port.i2c_dev) {
+			if (init == USB_INIT_HOST)
+				tcpc_setup_dfp_mode(port_ptr);
+			else
+				tcpc_setup_ufp_mode(port_ptr);
+		}
+	}
+
+	return ret;
+}
+
+int board_usb_cleanup(int index, enum usb_init_type init)
+{
+	int ret = 0;
+	struct tcpc_port *port_ptr = &port;
+
+	debug("board_usb_cleanup %d, type %d\n", index, init);
+
+	if (index == 0) {
+		if (port.i2c_dev) {
+			if (init == USB_INIT_HOST)
+				ret = tcpc_disable_src_vbus(port_ptr);
+		}
+	}
+
+	imx8m_usb_power(index, false);
+	return ret;
+}
+
+int board_ehci_usb_phy_mode(struct udevice *dev)
+{
+	int ret = 0;
+	enum typec_cc_polarity pol;
+	enum typec_cc_state state;
+	struct tcpc_port *port_ptr = &port;
+
+	if (port.i2c_dev) {
+		if (dev->seq == 0) {
+
+			tcpc_setup_ufp_mode(port_ptr);
+
+			ret = tcpc_get_cc_status(port_ptr, &pol, &state);
+			if (!ret) {
+				if (state == TYPEC_STATE_SRC_RD_RA || state == TYPEC_STATE_SRC_RD)
+					return USB_INIT_HOST;
+			}
+		}
+
+		return USB_INIT_DEVICE;
+	}
+	else
+		return USB_INIT_UNKNOWN;
+}
+#else
 /*
  * USB Host support.
  *
@@ -967,6 +1078,7 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 	imx8m_usb_power (index, false);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_BOARD_LATE_INIT
 /*
