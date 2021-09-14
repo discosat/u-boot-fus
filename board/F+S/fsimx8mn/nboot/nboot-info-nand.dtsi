@@ -58,10 +58,10 @@
 		 * 
 		 */
 		board-cfg-size = <0x2000>;		/* 8 KiB */
-		spl-start = <0x00100000 0x00280000>;
+		spl-start = <0x00080000 0x00200000>;
 		spl-size = <0x00040000>;		/* 256 KiB */
 		nboot-start = <###NAND_START###>;
-		nboot-size = <0x00100000>;		/* 1 MiB */
+		nboot-size = <0x00140000>;		/* 1280 KiB */
 		uboot-start = <0x00500000 0x00800000>;
 		uboot-size = <0x00300000>;		/* 3 MiB */
 	};

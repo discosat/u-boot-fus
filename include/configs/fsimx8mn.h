@@ -64,20 +64,15 @@
  * Actually now, when SPL/FCB/DBBT/HDMI is written by NXP tool kobs:
  * 0x0000_0000: FCB Copy 0 (128KB)                          \
  * 0x0002_0000: FCB Copy 1 (128KB)                           |
- * 0x0004_0000: FCB Copy 2 (128KB)                           |
- * 0x0006_0000: FCB Copy 3 (128KB)                           |
- * 0x0008_0000: DBBT Copy 0 (128KB)                          |
- * 0x000A_0000: DBBT Copy 1 (128KB)                          |
- * 0x000C_0000: DBBT Copy 2 (128KB)                          |
- * 0x000E_0000: DBBT Copy 3 (128KB)                          |
- * 0x0010_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
- * 0x0014_0000: HDMI-FW Copy 0 (256KB, unused but written)   |
- * 0x0018_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
- * 0x0018_2000: FIRMWARE Copy 0 (1016KB)                     |
- * 0x0028_0000: SPL Copy 1 (256KB)         Defined by FCB    |
- * 0x002C_0000: HDMI-FW Copy 1 (256KB, unused but written)   |
- * 0x0030_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0030_2000: FIRMWARE Copy 1 (1016KB)                    /
+ * 0x0004_0000: DBBT Copy 0 (128KB)                          |
+ * 0x0006_0000: DBBT Copy 1 (128KB)                          |
+ * 0x0008_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
+ * 0x000C_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
+ * 0x000C_2000: FIRMWARE Copy 0 (1272KB)                     |
+ * 0x0020_0000: SPL Copy 1 (256KB)         Defined by Fuse   |
+ * 0x0024_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x0024_2000: FIRMWARE Copy 1 (1272KB)                    /
+ * 0x0038_0000: Free (512KB)
  * 0x0040_0000: Refresh (512KB)
  * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
  * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
@@ -91,6 +86,9 @@
  * 0x04F0_0000: TargetFS as UBI Volumes
  *
  * Remarks:
+ * - In this scenario, the fuses for the Secondary Image Offset have to be set
+ *   to 1 (=2MB). This value can be set to 1MB*2^n, but the values for 0 and 2
+ *   are switched so 0 becomes 4MB and 2 becomes 1MB.
  * - nboot-start[] is initialized with CONFIG_FUS_BOARDCFG_NAND0/1.
  * - If Kernel and FDT are part of the Rootfs, these partitions are dropped.
  * - If no Update with Set A and B is used, all _B partitions are dropped;
@@ -228,8 +226,8 @@
 #define CONFIG_SPL_GPIO_SUPPORT
 
 /* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_NAND0 0x180000
-#define CONFIG_FUS_BOARDCFG_NAND1 0x300000
+#define CONFIG_FUS_BOARDCFG_NAND0 0xC0000
+#define CONFIG_FUS_BOARDCFG_NAND1 0x240000
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
 #define CONFIG_FUS_BOARDCFG_MMC0 0x00040000
