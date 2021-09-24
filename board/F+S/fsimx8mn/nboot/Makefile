@@ -33,6 +33,8 @@ NBOOT_VERSION = 2021.09
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
+	PCoreMX8MN-FERT1.120.fs \
+	PCoreMX8MN-FERT1.110.fs \
 	PCoreMX8MN-FERT3.130.fs \
 	PCoreMX8MN-FERT3.120.fs \
 	PCoreMX8MN-FERT4.130.fs \
@@ -44,6 +46,7 @@ BOARD_CONFIGS = \
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
+	ddr3l_k4b2g1646fbym_timing.fs \
 	ddr3l_2x_k4b2g1646fbym_timing.fs \
 	ddr3l_2x_mt41k128m16tw_timing.fs
 RT_LPDDR4 := \
