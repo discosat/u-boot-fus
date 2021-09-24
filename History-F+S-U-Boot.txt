@@ -1,6 +1,33 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mn-Y2021.09 (24.09.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Add support for board GAR3
+- Add support for board vand3
+- Increase NBoot version to 2021.07
+- F&S Update Framework interface fixed
+- Improve environment variables for fsimx8mm F&S Updater
+- Move enum fsimg_mode from fs_image_common.h to fs_image_common.c
+- Change fsimx8mn to use NBoot
+- Add -ddr3l/-lpddr4 to device tree names for fsimx8mm/fsimx8mn
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Allow optional board-fdt in BOARD-CFG files
+- Add correct fuse values for fsimx8mn
+- Increase size for fs_sys_prompt[]
+- Handle new eMMC layout on fsimx8mn
+- On fsimx8mn, disable code to detect if running on secondary SPL
+- In fat_fus.c, handle files > 2GB better
+- Remove unused folder fsimx8mx_nano
+- Fix building process for fsimx8mm
+- Adjust NAND areas for fsimx8mn nboot
+- Add USB Type C OTG functionality
+- Add variant of PCoreMX8MN
+
+
+
 u-boot-2018.03-fsimx8mm-B2021.06 (23.06.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
