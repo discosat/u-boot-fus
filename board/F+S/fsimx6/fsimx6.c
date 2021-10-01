@@ -77,8 +77,8 @@
 #define FEAT2_DEFAULT FEAT2_ETH_A
 
 /* Device tree paths */
-#define FDT_NAND	"/soc/gpmi-nand@00112000"
-#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_NAND	"nand"
+#define FDT_ETH_A	"ethernet0"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
