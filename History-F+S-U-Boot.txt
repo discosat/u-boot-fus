@@ -1,6 +1,23 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2021.10 (15.10.2021)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix fsimx6 usb power polarity
+- Fix imx6 display
+- Fix fsimx6 absolut pathes for Linux device tree adaption
+- phy: Fix u-boot coruption when fixed-phy is used
+- kconfig: Avoid format overflow warning from GCC 8.1
+- net: unaligned copying of unsigned long
+- net: nfs: remove superfluous conversions
+- net: nfs: remove superfluous packed attribute
+- Fix pmoda9 LCD pads
+
+
+
 u-boot-2018.03-fsimx8mn-Y2021.09 (24.09.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MN
