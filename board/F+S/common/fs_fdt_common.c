@@ -124,7 +124,7 @@ int fs_fdt_path_offset(void *fdt, const char *path)
 }
 
 /* Enable or disable node given by path, overwrite any existing status value */
-void fs_fdt_enable(void *fdt, const char *path, int enable)
+int fs_fdt_enable(void *fdt, const char *path, int enable)
 {
 	int offs, err, len;
 	const void *val;
@@ -132,19 +132,22 @@ void fs_fdt_enable(void *fdt, const char *path, int enable)
 
 	offs = fdt_path_offset(fdt, path);
 	if (offs < 0)
-		return;
+		return offs;
 
 	/* Do not change if status already exists and has this value */
 	val = fdt_getprop(fdt, offs, "status", &len);
 	if (val && len && !strcmp(val, str))
-		return;
+		return -1;
 
 	/* No, set new value */
 	err = fdt_setprop_string(fdt, offs, "status", str);
 	if (err) {
 		printf("## Can not set status of node %s: err=%s\n",
 		       path, fdt_strerror(err));
+		return err;
 	}
+
+	return  0;
 }
 
 /* Store common board specific values in node bdinfo */

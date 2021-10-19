@@ -77,8 +77,10 @@
 #define FEAT2_DEFAULT FEAT2_ETH_A
 
 /* Device tree paths */
-#define FDT_NAND	"nand"
-#define FDT_ETH_A	"ethernet0"
+#define FDT_NAND         "nand"
+#define FDT_NAND_LEGACY  "/soc/gpmi-nand@00112000"
+#define FDT_ETH_A        "ethernet0"
+#define FDT_ETH_A_LEGACY "/soc/aips-bus@02100000/ethernet@02188000"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -1704,13 +1706,19 @@ void __led_toggle(led_id_t id)
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
-	int offs;
+	int offs,err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	printf("   Setting run-time properties\n");
 
 	/* Set ECC strength for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
+
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_NAND_LEGACY);
+	}
+
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 			       pargs->chECCtype, 1);
@@ -1734,8 +1742,13 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(pargs->chFeatures2 & FEAT2_ETH_A))
-		fs_fdt_enable(fdt, FDT_ETH_A, 0);
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A)){
+		err = fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		if(err){
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_A_LEGACY, 0);
+		}
+	}
 #if 0
 	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
