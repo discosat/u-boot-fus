@@ -1,6 +1,15 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2021.10.1 (19.10.2021)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix DTS adaption to support backwards compatibility
+
+
+
 u-boot-2018.03-fsimx6-B2021.10 (15.10.2021)
 -------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
