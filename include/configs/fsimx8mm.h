@@ -367,10 +367,10 @@
 	"mtdparts=" MTDPARTS_1 MTDPARTS_2_U MTDPARTS_3_A MTDPARTS_3_B MTDPARTS_4
 #define BOOT_FROM_NAND							\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
- 	".kernel_nand_A=setenv kernel nand read ${loadaddr} Kernel_A\0" \
- 	".kernel_nand_B=setenv kernel nand read ${loadaddr} Kernel_B\0" \
- 	".fdt_nand_A=setenv fdt nand read ${fdtaddr} FDT_A" BOOT_WITH_FDT \
- 	".fdt_nand_B=setenv fdt nand read ${fdtaddr} FDT_B" BOOT_WITH_FDT
+	".kernel_nand_A=setenv kernel nand read ${loadaddr} Kernel_A\0" \
+	".kernel_nand_B=setenv kernel nand read ${loadaddr} Kernel_B\0" \
+	".fdt_nand_A=setenv fdt nand read ${fdtaddr} FDT_A" BOOT_WITH_FDT \
+	".fdt_nand_B=setenv fdt nand read ${fdtaddr} FDT_B" BOOT_WITH_FDT
 #else
 #define BOOT_FROM_NAND
 #endif
@@ -382,14 +382,16 @@
 	  MTDPARTS_1 MTDPARTS_2_U MTDPARTS_4 "\0"			\
 	".ubivol_std=ubi part TargetFS;"				\
 	" ubi create rootfs_A ${rootfs_size};"				\
-	" ubi create rootfs_B\0"					\
+	" ubi create rootfs_B ${rootfs_size};"				\
+	" ubi create data\0"						\
 	".ubivol_ubi=ubi part TargetFS;"				\
 	" ubi create kernel_A ${kernel_size} s;"			\
 	" ubi create kernel_B ${kernel_size} s;"			\
-	" ubi create fdt_A ${fdt_site} s;"				\
-	" ubi create fdt_B ${fdt_site} s;"				\
+	" ubi create fdt_A ${fdt_size} s;"				\
+	" ubi create fdt_B ${fdt_size} s;"				\
 	" ubi create rootfs_A ${rootfs_size};"				\
-	" ubi create rootfs_A ${rootfs_size};\0"			\
+	" ubi create rootfs_B ${rootfs_size};"				\
+	" ubi create data\0"						\
 	".kernel_ubi_A=setenv kernel ubi part TargetFS\\\\;"		\
 	" ubi read . kernel_A\0"					\
 	".kernel_ubi_B=setenv kernel ubi part TargetFS\\\\;"		\
@@ -516,7 +518,7 @@
 #define BOOT_FROM_NAND							\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
 	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0"	\
- 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT
+	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT
 #else
 #define BOOT_FROM_NAND
 #endif
