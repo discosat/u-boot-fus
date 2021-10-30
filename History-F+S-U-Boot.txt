@@ -1,6 +1,16 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mn-Y2021.10 (30.10.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Correct boot from ubi environments to create F&S Updater volumes
+- Add env import/export cmd
+- Fix commands to create F&S Updater volumes in fsimx8mn
+
+
+
 u-boot-2018.03-fsimx6-B2021.10.1 (19.10.2021)
 ---------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
