@@ -16,6 +16,7 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <environment.h>
 
 #ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
@@ -40,6 +41,7 @@
 #include <i2c.h>
 #include <asm/mach-imx/mxc_i2c.h>
 
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -306,6 +308,30 @@ int board_early_init_f(void)
 	return 0;
 }
 
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev_from_fuses()) {
+		case NAND_BOOT:
+			return ENVL_NAND;
+		case SD1_BOOT:
+		case SD2_BOOT:
+		case SD3_BOOT:
+		case SD4_BOOT:
+		case MMC1_BOOT:
+		case MMC2_BOOT:
+		case MMC3_BOOT:
+		case MMC4_BOOT:
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
+}
+
 /* Check board type */
 int checkboard(void)
 {
@@ -418,18 +444,9 @@ void board_nand_init(void)
 	int reg;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mxs_nand_fus_platform_data pdata;
-#ifdef CONFIG_ENV_IS_IN_MMC
-	unsigned int board_type = fs_board_get_type();
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
-	switch (board_type) {
-
-	case BT_PCOREMX6SX:
-		if (features2 & FEAT2_EMMC)
-			return;
-		break;
-	}
-#endif
+	if (get_boot_device() != NAND_BOOT)
+		return;
 
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nfc_pads);

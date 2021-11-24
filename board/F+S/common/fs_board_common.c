@@ -18,9 +18,9 @@
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"
+#include <fuse.h>			/* fuse_read() */
 
 #ifdef HAVE_BOARD_CFG
-#include <fuse.h>			/* fuse_read() */
 #include "fs_image_common.h"		/* fs_image_*() */
 #endif
 
@@ -102,15 +102,6 @@ ulong board_serial_base(void)
 	return pargs->dwDbgSerPortPA;
 }
 
-enum boot_device fs_board_get_boot_dev(void)
-{
-#ifdef CONFIG_ENV_IS_IN_MMC
-	return MMC2_BOOT;
-#else
-	return NAND_BOOT;
-#endif
-}
-
 /* Get the NBoot version */
 const char *fs_board_get_nboot_version(void)
 {
@@ -138,6 +129,74 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {
 	/* Save state to pass it to Linux later */
 	nboot_args.chECCstate |= (unsigned char)state;
+}
+
+/* Definitions in boot_cfg (fuse bank 0, word 5) */
+#define BOOT_CFG_DEVSEL_SHIFT 4
+#define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
+#ifdef CONFIG_TARGET_FSIMX6UL
+#define BOOT_CFG_PORTSEL_SHIFT 11
+#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
+#else
+#define BOOT_CFG_PORTSEL_SHIFT 3
+#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
+#endif
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB, but is basically fused to boot from NAND (returned here).
+ */
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	u32 port;
+	enum boot_device boot_dev = USB_BOOT;
+
+#ifdef CONFIG_TARGET_FSIMX6UL
+	/* boot_cfg1 is in fuse bank 0, word 5 */
+	if (fuse_read(0, 5, &val)) {
+		puts("Error reading boot_cfg1\n");
+		return boot_dev;
+	}
+	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
+#else
+	/* boot_cfg2 is in fuse bank 0, word 6 */
+	if (fuse_read(0, 6, &val)) {
+		puts("Error reading boot_cfg2\n");
+		return boot_dev;
+	}
+	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
+
+	/* boot_cfg1 is in fuse bank 0, word 5 */
+	if (fuse_read(0, 5, &val)) {
+		puts("Error reading boot_cfg1\n");
+		return boot_dev;
+	}
+#endif
+	val = (val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT;
+	if (val >= 0x4)
+		val &= 0xE;
+
+	switch (val) {
+	case 0x04:
+		boot_dev = SD1_BOOT + port;
+		break;
+	case 0x06:
+		boot_dev = MMC1_BOOT + port;
+		break;
+	case 0x08:
+		boot_dev = NAND_BOOT;
+		break;
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+
+enum boot_device fs_board_get_boot_dev(void)
+{
+	return fs_board_get_boot_dev_from_fuses();
 }
 #endif /* !HAVE_BOARD_CFG */
 
