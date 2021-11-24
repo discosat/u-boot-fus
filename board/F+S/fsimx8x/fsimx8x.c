@@ -385,28 +385,19 @@ int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
 
-	debug("board_usb_init %d, type %d\n", index, init);
-
 	if (index == 0) {
 		if (init == USB_INIT_DEVICE) {
-			struct power_domain pd;
-			int ret;
+#if !CONFIG_IS_ENABLED(DM_USB_GADGET) && !CONFIG_IS_ENABLED(DM_USB)
+			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0, SC_PM_PW_MODE_ON);
+			if (ret != SC_ERR_NONE)
+				printf("conn_usb0 Power up failed! (error = %d)\n", ret);
 
-			/* Power on usb */
-			if (!power_domain_lookup_name("conn_usb0", &pd)) {
-				ret = power_domain_on(&pd);
-				if (ret)
-					printf("conn_usb0 Power up failed! (error = %d)\n", ret);
-			}
-
-			if (!power_domain_lookup_name("conn_usb0_phy", &pd)) {
-				ret = power_domain_on(&pd);
-				if (ret)
-					printf("conn_usb0_phy Power up failed! (error = %d)\n", ret);
-			}
+			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0_PHY, SC_PM_PW_MODE_ON);
+			if (ret != SC_ERR_NONE)
+				printf("conn_usb0_phy Power up failed! (error = %d)\n", ret);
+#endif
 		}
 	}
-
 	return ret;
 }
 
@@ -414,28 +405,19 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 {
 	int ret = 0;
 
-	debug("board_usb_cleanup %d, type %d\n", index, init);
-
 	if (index == 0) {
 		if (init == USB_INIT_DEVICE) {
-			struct power_domain pd;
-			int ret;
+#if !CONFIG_IS_ENABLED(DM_USB_GADGET) && !CONFIG_IS_ENABLED(DM_USB)
+			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0_PHY, SC_PM_PW_MODE_OFF);
+			if (ret != SC_ERR_NONE)
+				printf("conn_usb0_phy Power down failed! (error = %d)\n", ret);
 
-			/* Power off usb */
-			if (!power_domain_lookup_name("conn_usb0", &pd)) {
-				ret = power_domain_off(&pd);
-				if (ret)
-					printf("conn_usb0 Power down failed! (error = %d)\n", ret);
-			}
-
-			if (!power_domain_lookup_name("conn_usb0_phy", &pd)) {
-				ret = power_domain_off(&pd);
-				if (ret)
-					printf("conn_usb0_phy Power down failed! (error = %d)\n", ret);
-			}
+			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0, SC_PM_PW_MODE_OFF);
+			if (ret != SC_ERR_NONE)
+				printf("conn_usb0 Power down failed! (error = %d)\n", ret);
+#endif
 		}
 	}
-
 	return ret;
 }
 #endif
