@@ -90,7 +90,8 @@
 #define M4_DRAM_MAX_CODE_SIZE 0x10000000
 
 /* Device tree paths */
-#define FDT_NAND	"/soc/gpmi-nand@01806000"
+#define FDT_NAND	"nand"
+#define FDT_EMMC	"emmc"
 #define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
 #define FDT_ETH_B	"/soc/aips-bus@02100000/ethernet@021b4000"
 #define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
@@ -2455,6 +2456,30 @@ static void fs_fdt_reserve_ram(void *fdt)
 	}
 }
 
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features = pargs->chFeatures2;
+
+	/* Disable NAND node only for board type BT_PCOREMX6SX.
+	 * These two board types can either have eMMC or NAND. EFUSA9X can have
+	 * both, therefore we only disable the NAND node in case of PCOREMX6SX.
+	 */
+	if (board_type == BT_PCOREMX6SX) {
+		/* Disable NAND if it is not available */
+		if ((features & FEAT2_EMMC))
+			fs_fdt_enable(fdt, FDT_NAND, 0);
+	}
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT2_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
@@ -2500,7 +2525,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
 		fs_fdt_enable(fdt, FDT_ETH_B, 0);
 
-	return 0;
+	return do_fdt_board_setup_common(fdt);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 
