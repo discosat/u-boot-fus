@@ -365,12 +365,14 @@ void fs_board_late_init_common(const char *serial_name)
 		char *p = current_bi->name;
 		char *l = lcasename;
 		char c;
+		int len = 0;
 
 		do {
 			c = *p++;
 			if ((c >= 'A') && (c <= 'Z'))
 				c += 'a' - 'A';
 			*l++ = c;
+			len++;
 		} while (c);
 
 #ifdef CONFIG_MX6QDL
@@ -382,18 +384,45 @@ void fs_board_late_init_common(const char *serial_name)
 #elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 		/*
 		 * In case of i.MX6ULL, append a second 'l' if the name already
-		 * ends with 'ul', otherwise append 'ull'. This results in the
-		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
+		 * have a substring with 'ul', otherwise append 'ull'.
+		 * This results in the names efusa7ull, cubea7ull,
+		 * picocom1.2ull, cube2.0ull, picocoremx6ul100 ...
 		 */
 		if (is_mx6ull()) {
-			l--;
-			/* Names have > 2 chars, so negative index is valid */
-			if ((l[-2] != 'u') || (l[-1] != 'l')) {
-				*l++ = 'u';
+			int i = 0;
+			bool found = false;
+			p = lcasename;
+			do {
+				if (*p == 'u' && *++p == 'l')
+				{
+					i += 2;
+					*l = '\0';
+					do {
+						//*l-- = *l;
+						*l = l[-1];
+						l--;
+						len--;
+					} while (i != len);
+					*l = 'l';
+					found = true;
+					break;
+				}
+				p++;
+				i++;
+			} while (*p);
+
+			if (!found) {
+				l--;
+				/* Names have > 2 chars, so negative index
+				 * is valid
+				 */
+				if ((l[-2] != 'u') || (l[-1] != 'l')) {
+					*l++ = 'u';
+					*l++ = 'l';
+				}
 				*l++ = 'l';
+				*l++ = '\0';
 			}
-			*l++ = 'l';
-			*l++ = '\0';
 		}
 #endif
 		env_set("platform", lcasename);
