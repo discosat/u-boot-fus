@@ -113,39 +113,6 @@
 		 * Shouldn't be used at A core and Linux side.
 		 *
 		 */
-		decoder_boot: decoder_boot@0x84000000 {
-			no-map;
-			reg = <0 0x84000000 0 0x2000000>;
-		};
-		encoder_boot: encoder_boot@0x86000000 {
-			no-map;
-			reg = <0 0x86000000 0 0x200000>;
-		};
-		rpmsg_reserved: rpmsg@0x90000000 {
-			no-map;
-			reg = <0 0x90000000 0 0x400000>;
-		};
-		rpmsg_dma_reserved:rpmsg_dma@0x90400000 {
-			compatible = "shared-dma-pool";
-			no-map;
-			reg = <0 0x90400000 0 0x1C00000>;
-		};
-		decoder_rpc: decoder_rpc@0x92000000 {
-			no-map;
-			reg = <0 0x92000000 0 0x200000>;
-		};
-		encoder_rpc: encoder_rpc@0x92200000 {
-			no-map;
-			reg = <0 0x92200000 0 0x200000>;
-		};
-		dsp_reserved: dsp@0x92400000 {
-			no-map;
-			reg = <0 0x92400000 0 0x2000000>;
-		};
-		encoder_reserved: encoder_reserved@0x94400000 {
-			no-map;
-			reg = <0 0x94400000 0 0x800000>;
-		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -3294,7 +3261,6 @@
 
 	dsp: dsp@596e8000 {
 		compatible = "fsl,imx8qxp-dsp";
-		reserved-region = <&dsp_reserved>;
 		reg = <0x0 0x596e8000 0x0 0x88000>;
 		clocks = <&clk IMX8QXP_AUD_DSP_IPG>,
 			<&clk IMX8QXP_AUD_OCRAM_IPG>,
@@ -3390,7 +3356,6 @@
 		reg = <0x0 0x5f010000 0x0 0x10000>, /* Controller reg*/
 		      <0x0 0x7ff00000 0x0 0x80000>; /* PCI cfg space */
 		reg-names = "dbi", "config";
-		reserved-region = <&rpmsg_reserved>;
 		#address-cells = <3>;
 		#size-cells = <2>;
 		device_type = "pci";
@@ -3454,8 +3419,6 @@
 
 	vpu_decoder: vpu_decoder@2c000000 {
 		compatible = "nxp,imx8qm-b0-vpudec", "nxp,imx8qxp-b0-vpudec";
-		boot-region = <&decoder_boot>;
-		rpc-region = <&decoder_rpc>;
 		reg = <0x0 0x2c000000 0x0 0x1000000>;
 		reg-names = "vpu_regs";
 		power-domains = <&pd_vpu_dec>;
@@ -3467,10 +3430,6 @@
 		compatible = "nxp,imx8qxp-b0-vpuenc";
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		boot-region = <&encoder_boot>;
-		rpc-region = <&encoder_rpc>;
-		reserved-region = <&encoder_reserved>;
 		reg = <0x0 0x2d000000 0x0 0x1000000>,	/*VPU Encoder*/
 			<0x0 0x2c000000 0x0 0x2000000>; /*VPU*/
 		reg-names = "vpu_regs";
@@ -3512,7 +3471,6 @@
 			status = "disabled";
 			mub-partition = <3>;
 			power-domains = <&pd_lsio_mu5a>;
-			memory-region = <&rpmsg_dma_reserved>;
 		};
 	};
 

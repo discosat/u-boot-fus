@@ -779,7 +779,8 @@ dtb-$(CONFIG_ARCH_IMX8) += \
 	fsl-imx8dxl-evk-lcdif.dtb \
 	fsl-imx8dxl-ddr3-evk.dtb \
 	imx8-deneb.dtb \
-	imx8-giedi.dtb
+	imx8-giedi.dtb \
+	efusmx8x.dtb
 
 dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mm-evk.dtb \

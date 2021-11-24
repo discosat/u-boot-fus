@@ -174,6 +174,12 @@ config TARGET_IMX8DXL_DDR3_EVK
 	select BOARD_LATE_INIT
 	select IMX8DXL
 
+config TARGET_FSIMX8X
+	bool "Support fsimx8x boards from F&S"
+	select BOARD_LATE_INIT
+	select SUPPORT_SPL
+	select IMX8QXP
+
 endchoice
 
 source "board/freescale/imx8qm_mek/Kconfig"
@@ -186,6 +192,7 @@ source "board/advantech/imx8qm_rom7720_a1/Kconfig"
 source "board/toradex/apalis-imx8/Kconfig"
 source "board/toradex/colibri-imx8x/Kconfig"
 source "board/siemens/capricorn/Kconfig"
+source "board/F+S/fsimx8x/Kconfig"
 
 config SNVS_SEC_SC
 	bool "Support SNVS configuration"
