@@ -90,12 +90,16 @@
 #define M4_DRAM_MAX_CODE_SIZE 0x10000000
 
 /* Device tree paths */
-#define FDT_NAND	"nand"
-#define FDT_EMMC	"emmc"
-#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
-#define FDT_ETH_B	"/soc/aips-bus@02100000/ethernet@021b4000"
-#define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
-#define FDT_RES_MEM	"/reserved-memory"
+#define FDT_NAND         "nand"
+#define FDT_NAND_LEGACY  "/soc/gpmi-nand@01806000"
+#define FDT_EMMC         "emmc"
+#define FDT_ETH_A        "ethernet0"
+#define FDT_ETH_A_LEGACY "/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_ETH_B        "ethernet1"
+#define FDT_ETH_B_LEGACY "/soc/aips-bus@02100000/ethernet@021b4000"
+#define FDT_RPMSG        "rpmsg"
+#define FDT_RPMSG_LEGACY "/soc/aips-bus@02200000/rpmsg"
+#define FDT_RES_MEM      "/reserved-memory"
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -2445,6 +2449,10 @@ static void fs_fdt_reserve_ram(void *fdt)
 	if (!vring_size)
 	vring_size = RPMSG_SIZE;
 	offs = fs_fdt_path_offset(fdt, FDT_RPMSG);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_RPMSG_LEGACY);
+	}
 	if (offs >= 0) {
 		fdt32_t tmp[2];
 		vring_base = base + size -vring_size;
@@ -2483,7 +2491,7 @@ static int do_fdt_board_setup_common(void *fdt)
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
-	int offs;
+	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
@@ -2495,6 +2503,11 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	/* Set ECC strength for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_NAND_LEGACY);
+	}
+
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 			       pargs->chECCtype, 1);
@@ -2520,10 +2533,21 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(pargs->chFeatures2 & FEAT2_ETH_A))
-		fs_fdt_enable(fdt, FDT_ETH_A, 0);
-	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
-		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_A_LEGACY, 0);
+		}
+	}
+
+	if (!(pargs->chFeatures2 & FEAT2_ETH_B)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_B, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_B_LEGACY, 0);
+		}
+	}
 
 	return do_fdt_board_setup_common(fdt);
 }
