@@ -324,7 +324,7 @@ const char *bootdelay_process(void)
 				 mfgtools\n");
 	} else if (is_boot_from_usb()) {
 		printf("Boot from USB for uuu\n");
-#ifdef FASTBOOT
+#ifdef CONFIG_FASTBOOT
 		env_set("bootcmd", "fastboot 0");
 #endif
 	} else {
