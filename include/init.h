@@ -191,6 +191,9 @@ struct global_data;
  */
 void arch_setup_gd(struct global_data *gd_ptr);
 
+char	*get_board_name(void);
+char	*get_sys_prompt(void);
+
 /* common/board_r.c */
 void board_init_r(struct global_data *id, ulong dest_addr)
 	__attribute__ ((noreturn));

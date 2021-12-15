@@ -348,6 +348,21 @@ void serial_stdio_init(void)
 {
 }
 
+int serial_get_alias_seq(void)
+{
+	int seq, err;
+
+	if (!gd->cur_serial_dev)
+		return -ENXIO;
+
+	err = fdtdec_get_alias_seq(gd->fdt_blob, "serial",
+				   dev_of_offset(gd->cur_serial_dev), &seq);
+	if (err < 0)
+		return err;
+
+	return seq;
+}
+
 #if defined(CONFIG_DM_STDIO)
 
 #if CONFIG_IS_ENABLED(SERIAL_PRESENT)

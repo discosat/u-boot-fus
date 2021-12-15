@@ -617,7 +617,11 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_DRAM_TYPE:
 		if (fs_image_match(&one_fsh, "DRAM-TYPE", ram_type))
+#ifdef CONFIG_IMX8
+			fs_image_enter(size, FSIMG_STATE_DRAM_TIMING);
+#else
 			fs_image_enter(size, FSIMG_STATE_DRAM_FW);
+#endif
 		else
 			fs_image_skip(size);
 		break;

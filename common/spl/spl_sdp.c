@@ -10,12 +10,7 @@
 #include <g_dnl.h>
 #include <sdp.h>
 
-static struct spl_image_info *image;
-
-void board_sdp_cleanup(void)
-{
-	usb_gadget_release(CONFIG_SPL_SDP_USB_DEV);
-}
+static struct spl_image_info *image = NULL;
 
 int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 {
@@ -24,13 +19,7 @@ int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 
 	/* Should not return, unless in single mode when it returns after one
 	   SDP command */
-	if (single)
-		ret = spl_sdp_handle(controller_index, image, ops, single);
-	else
-		ret = spl_sdp_handle(controller_index, NULL, ops, single);
-
-	if (!single)
-		return -EINVAL;
+	ret = spl_sdp_handle(controller_index, image, ops, single);
 
 	return ret;
 }
@@ -53,20 +42,12 @@ int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single)
 	int index;
 	int controller_index = CONFIG_SPL_SDP_USB_DEV;
 
-	index = board_usb_gadget_port_auto();
-	if (index >= 0)
-		controller_index = index;
-
-	usb_gadget_initialize(controller_index);
+	board_usb_init(controller_index, USB_INIT_DEVICE);
 
 	g_dnl_clear_detach();
-	ret = g_dnl_register("usb_dnl_sdp");
-	if (ret) {
-		pr_err("SDP dnl register failed: %d\n", ret);
-		return ret;
-	}
+	g_dnl_register("usb_dnl_sdp");
 
-	ret = sdp_init(controller_index);
+	ret = sdp_init(controller_index);;
 	if (ret) {
 		pr_err("SDP init failed: %d\n", ret);
 		return -ENODEV;
@@ -80,7 +61,6 @@ int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single)
 	ret = spl_sdp_stream_continue(ops, single);
 	debug("SDP ended\n");
 
-	usb_gadget_release(controller_index);
 	return ret;
 }
 
@@ -89,7 +69,7 @@ static int spl_sdp_load_image(struct spl_image_info *spl_image,
 {
 	int ret = 0;
 	image = spl_image;
-	ret = spl_sdp_stream_image(NULL, true);
+	ret = spl_sdp_stream_image(NULL, false);
 	return ret;
 }
 

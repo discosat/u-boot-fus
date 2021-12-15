@@ -332,6 +332,8 @@ void pl01x_serial_initialize(void);
 void pxa_serial_initialize(void);
 void sh_serial_initialize(void);
 
+#endif
+
 /**
  * serial_printf() - Write a formatted string to the serial console
  *
@@ -350,5 +352,6 @@ void serial_putc_raw(const char ch);
 void serial_puts(const char *str);
 int serial_getc(void);
 int serial_tstc(void);
-
+#ifdef CONFIG_DM_SERIAL
+int	serial_get_alias_seq(void);
 #endif

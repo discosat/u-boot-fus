@@ -22,7 +22,33 @@
 #include <asm/arch/lpcg.h>
 #include <bootm.h>
 
+#include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
+#include "../common/fs_board_common.h"	/* fs_board_*() */
+//#include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include "../common/fs_image_common.h"	/* fs_image_*() */
+
 DECLARE_GLOBAL_DATA_PTR;
+
+#define BT_EFUSMX8X 	0
+
+/* Board features; these values can be resorted and redefined at will */
+#define FEAT_ETH_A	(1<<0)
+#define FEAT_ETH_B	(1<<1)
+#define FEAT_ETH_A_PHY	(1<<2)
+#define FEAT_ETH_B_PHY	(1<<3)
+#define FEAT_NAND	(1<<4)
+#define FEAT_EMMC	(1<<5)
+#define FEAT_SGTL5000	(1<<6)
+#define FEAT_WLAN	(1<<7)
+#define FEAT_LVDS	(1<<8)
+#define FEAT_MIPI_DSI	(1<<9)
+#define FEAT_RTC85063	(1<<10)
+#define FEAT_RTC85263	(1<<11)
+#define FEAT_SEC_CHIP	(1<<12)
+#define FEAT_CAN	(1<<13)
+#define FEAT_EEPROM	(1<<14)
+
+#define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
 #define ENET_INPUT_PAD_CTRL	((SC_PAD_CONFIG_OD_IN << PADRING_CONFIG_SHIFT) | (SC_PAD_ISO_OFF << PADRING_LPCONFIG_SHIFT) \
 						| (SC_PAD_28FDSOI_DSE_18V_10MA << PADRING_DSE_SHIFT) | (SC_PAD_28FDSOI_PS_PU << PADRING_PULL_SHIFT))
@@ -35,53 +61,120 @@ DECLARE_GLOBAL_DATA_PTR;
 			 (SC_PAD_28FDSOI_DSE_DV_HIGH << PADRING_DSE_SHIFT) | \
 			 (SC_PAD_28FDSOI_PS_PU << PADRING_PULL_SHIFT))
 
-#define UART_PAD_CTRL	((SC_PAD_CONFIG_OUT_IN << PADRING_CONFIG_SHIFT) | \
-			 (SC_PAD_ISO_OFF << PADRING_LPCONFIG_SHIFT) | \
-			 (SC_PAD_28FDSOI_DSE_DV_HIGH << PADRING_DSE_SHIFT) | \
-			 (SC_PAD_28FDSOI_PS_PU << PADRING_PULL_SHIFT))
+#define INSTALL_RAM "ram@83800000"
+#if defined(CONFIG_MMC) && defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#define UPDATE_DEF "mmc,usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
+#elif defined(CONFIG_MMC) && defined(CONFIG_FS_FAT)
+#define UPDATE_DEF "mmc"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
+#elif defined(CONFIG_USB_STORAGE) && defined(CONFIG_FS_FAT)
+#define UPDATE_DEF "usb"
+#define INSTALL_DEF INSTALL_RAM "," UPDATE_DEF
+#else
+#define UPDATE_DEF NULL
+#define INSTALL_DEF INSTALL_RAM
+#endif
 
-static iomux_cfg_t uart2_pads[] = {
-	SC_P_UART2_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	SC_P_UART2_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+#define INIT_DEF ".init_fs_updater"
+#else
+#define INIT_DEF ".init_init"
+#endif
+
+const struct fs_board_info board_info[] = {
+	{	/* 0 (BT_EFUSMX8X) */
+		.name = "efusMX8X",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* (last) (unknown board) */
+		.name = "unknown",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
 };
 
-static void setup_iomux_uart(void)
+/* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
+static void fs_spl_setup_cfg_info(void)
 {
-	imx8_iomux_setup_multiple_pads(uart2_pads, ARRAY_SIZE(uart2_pads));
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	int i;
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+	const char *tmp;
+	unsigned int features;
+
+	memset(cfg, 0, sizeof(struct cfg_info));
+
+	//###nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+
+	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
+	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
+		if (!strcmp(tmp, board_info[i].name))
+			break;
+	}
+	cfg->board_type = i;
+
+	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	cfg->boot_dev = fs_board_get_boot_dev_from_name(tmp);
+
+	cfg->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "board-rev", 100);
+	cfg->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "dram-chips", 1);
+	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "dram-size", 0x400);
+
+	features = 0;
+	if (fdt_getprop(fdt, offs, "have-nand", NULL))
+		features |= FEAT_NAND;
+	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+		features |= FEAT_EMMC;
+	if (fdt_getprop(fdt, offs, "have-sgtl5000", NULL))
+		features |= FEAT_SGTL5000;
+	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
+		features |= FEAT_ETH_A;
+		features |= FEAT_ETH_B;
+	}
+	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+		features |= FEAT_WLAN;
+	if (fdt_getprop(fdt, offs, "have-lvds", NULL))
+		features |= FEAT_LVDS;
+	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
+		features |= FEAT_MIPI_DSI;
+	if (fdt_getprop(fdt, offs, "have-rtc-pcf85063", NULL))
+		features |= FEAT_RTC85063;
+	if (fdt_getprop(fdt, offs, "have-rtc-pcf85263", NULL))
+		features |= FEAT_RTC85263;
+	if (fdt_getprop(fdt, offs, "have-security", NULL))
+		features |= FEAT_SEC_CHIP;
+	if (fdt_getprop(fdt, offs, "have-can", NULL))
+		features |= FEAT_CAN;
+	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
+		features |= FEAT_EEPROM;
+	cfg->features = features;
 }
 
 int board_early_init_f(void)
 {
-	int ret;
-
-	/* Set UART2 clock root to 80 MHz */
-	sc_pm_clock_rate_t rate = 80000000;
-
-	/* Power up UART2 */
-	ret = sc_pm_set_resource_power_mode(-1, SC_R_UART_2, SC_PM_PW_MODE_ON);
-	if (ret)
-		return ret;
-
-	ret = sc_pm_set_clock_rate(-1, SC_R_UART_2, 2, &rate);
-	if (ret)
-		return ret;
-
-	/* Enable UART2 clock root */
-	ret = sc_pm_clock_enable(-1, SC_R_UART_2, 2, true, false);
-	if (ret)
-		return ret;
-
-	lpcg_all_clock_on(LPUART_2_LPCG);
-
-	setup_iomux_uart();
-
-/* Dual bootloader feature will require CAAM access, but JR0 and JR1 will be
- * assigned to seco for imx8, use JR3 instead.
- */
-#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_DUAL_BOOTLOADER)
-	sc_pm_set_resource_power_mode(-1, SC_R_CAAM_JR3, SC_PM_PW_MODE_ON);
-	sc_pm_set_resource_power_mode(-1, SC_R_CAAM_JR3_OUT, SC_PM_PW_MODE_ON);
-#endif
+	fs_spl_setup_cfg_info();
 
 	return 0;
 }
@@ -229,6 +322,42 @@ int board_phy_config(struct phy_device *phydev)
 	return 0;
 }
 #endif
+
+#define FDT_NAND        "nand"
+#define FDT_EMMC        "emmc"
+#define FDT_CMA         "/reserved-memory/linux,cma"
+#define FDT_RTC85063    "rtcpcf85063"
+#define FDT_RTC85263    "rtcpcf85263"
+#define FDT_EEPROM      "eeprom"
+#define FDT_CAN         "mcp2518fd"
+#define FDT_SGTL5000    "sgtl5000"
+#define FDT_I2C_SWITCH  "i2c4"
+#define FDT_TEMP_ALERT   "/thermal-zones/cpu-thermal/trips/trip0"
+#define FDT_TEMP_CRIT    "/thermal-zones/cpu-thermal/trips/trip1"
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	unsigned int features = fs_board_get_features();
+
+	/* Disable NAND if it is not available */
+	if (!(features & FEAT_NAND))
+		fs_fdt_enable(fdt, FDT_NAND, 0);
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
+/* Do any board-specific modifications on U-Boot device tree before starting */
+int board_fix_fdt(void *fdt)
+{
+	/* Make some room in the FDT */
+	fdt_shrink_to_minimum(fdt, 8192);
+
+	return do_fdt_board_setup_common(fdt);
+}
 
 int checkboard(void)
 {

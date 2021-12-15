@@ -14,8 +14,7 @@ Free Space:
 
  * OCRAM layout SPL                 U-Boot
  * ---------------------------------------------------------
- * 0x0010_0000: ATF                 ATF       (64KB) CONFIG_SPL_ATF_ADDR
- * 0x0011_0000: SPL                 SPL       (128KB) (loaded by ROM-Loader, address defined by ATF)
+ * 0x0010_0000: SPL                 SPL       (196KB) (loaded by ROM-Loader, address defined by imximage.cfg)
  * 0x0013_0000: DRAM Timing Data              (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
  * 0x0013_4000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
  * 0x0013_6000: BSS data            cfg_info  (8KB)  CONFIG_SPL_BSS_START_ADDR
@@ -23,42 +22,18 @@ Free Space:
  * 0x0013_C000: Stack + Global Data ---       (16KB) CONFIG_SPL_STACK
  * 0x0013_FFFF: END (8X)
  *
- * The SPL must not exceed 128KB (0x20000).
-*/
-
-/*
-#define OCRAM_BASE		0x100000
-#define OCRAM_ALIAS_SIZE 0x18000
-
-Free Space:
-0x110000 - 0x140000
+ * The SPL must not exceed 196KB (0x30000).
 
 
 
- * OCRAM layout SPL                 U-Boot
+ * DRAM layout  SPL                 U-Boot
  * ---------------------------------------------------------
- * 0x0000_0000: ATF                 ATF       (96KB) CONFIG_SPL_ATF_ADDR
- * 0x0010_0000: ATF (Mirrored)      ATF       (96KB) CONFIG_SPL_ATF_ADDR
- * 0x0011_8000: SPL                 SPL       (192KB) (loaded by ROM-Loader, address defined by ATF)
- * 0x0013_0000: BSS data            cfg_info  (4KB)  CONFIG_SPL_BSS_START_ADDR
- * 0x0013_8000: MALLOC_F pool       ---       (16KB) CONFIG_MALLOC_F_ADDR
- * 0x0013_FFF0: Stack + Global Data ---       (16KB) CONFIG_SPL_STACK
- * 0x0013_FFFF: END (8X)
- * 0x0014_0000: DRAM Timing Data              (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
- * 0x0014_0000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
+ * 0x8000_0000: ATF                 ATF       (128KB) CONFIG_SPL_ATF_ADDR
+ * 0x8002_0000: UBoot               UBoot     (~700KB) CONFIG_SYS_TEXT_BASE
+ * 0xBFFF_FFFF: END (8X)
  *
- * The SPL must not exceed 128KB (0x20000).
 */
 
-#if 0
-#define CONFIG_SPL_STACK		0x013fff0
-#define CONFIG_SPL_BSS_START_ADDR      0x00130000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
-#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
-#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
-#define CONFIG_SERIAL_LPUART_BASE	0x5a060000
-#define CONFIG_MALLOC_F_ADDR		0x00138000
-#endif
 
 #ifndef __FSIMX8X_H
 #define __FSIMX8X_H
@@ -84,31 +59,31 @@ Free Space:
  * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
  * CONFIG_SYS_SPL_MALLOC_START
  */
-#define CONFIG_FUS_BOARDCFG_ADDR	0x00140000
+#define CONFIG_FUS_BOARDCFG_ADDR	0x00134000
 #define CONFIG_SPL_BSS_START_ADDR      0x00136000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
+#define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
 
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
-#define CONFIG_SPL_STACK		0x13FFF0
+#define CONFIG_SPL_STACK		0x13C000
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
 #define CONFIG_FUS_BOARDCFG_MMC0 0x00040000
 #define CONFIG_FUS_BOARDCFG_MMC1 0x00740000
 
-//#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
-//#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
+#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
+#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
 
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
-#define CONFIG_SPL_ATF_ADDR 0x00000000
+#define CONFIG_SPL_ATF_ADDR 0x80000000
 #define CONFIG_SPL_TEE_ADDR 0xfe000000
 
 /* TCM Address where DRAM Timings are loaded to */
-#define CONFIG_SPL_DRAM_TIMING_ADDR 0x00140000
+#define CONFIG_SPL_DRAM_TIMING_ADDR 0x00130000
 
 #define CONFIG_MALLOC_F_ADDR		0x00138000
 

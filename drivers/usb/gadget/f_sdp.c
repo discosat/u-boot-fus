@@ -831,6 +831,12 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
+			struct spl_image_info spl_image_tmp = {};
+
+			/* If we don't have a spl_image struct yet, use the temporary one */
+			if (!spl_image)
+				spl_image = &spl_image_tmp;
+
 #if defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
 			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
 				sdp_func->dnl_bytes);
@@ -947,14 +953,15 @@ int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image,
 #else
 		flag = sdp_handle_in_ep(NULL);
 #endif
-		if (sdp_func->ep_int_enable)
-			sdp_handle_out_ep();
 		if (single) {
 			if ((last_state != SDP_STATE_IDLE)
 			    && (sdp_func->state == SDP_STATE_IDLE))
-				break;
+				flag = SDP_EXIT;
 			last_state = sdp_func->state;
 		}
+
+		if (sdp_func->ep_int_enable)
+			sdp_handle_out_ep();
 	}
 	return 0;
 }

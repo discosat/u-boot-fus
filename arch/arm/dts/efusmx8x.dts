@@ -21,8 +21,8 @@
 #include "fsl-imx8qxp.dtsi"
 
 / {
-	model = "F&S efusMX8X";
-	compatible = "fus,imx8qxp-efusmx8x", "fsl,imx8qxp";
+	model = "efusMX8X";
+	compatible = "fus,efusmx8x", "fsl,imx8qxp";
 
 	chosen {
 		bootargs = "console=ttyLP2,115200 earlycon";
