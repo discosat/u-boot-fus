@@ -15,6 +15,7 @@
 
 /* UBoot IVT defines (so uboot recognizes the uboot with ivt)  */
 #define IS_UBOOT(pAddr)      	(__le32_to_cpup((__le32*)(pAddr + 0x3c)) == 0x12345678)
+#define IS_UBOOT_7ULP(pAddr)	(__le32_to_cpup((__le32*)(pAddr + 0xc3c)) == 0x12345678)
 #define IS_UBOOT_IVT(pAddr)  	(__le32_to_cpup((__le32*)(pAddr + 0x3c + HAB_HEADER)) == 0x12345678)
 #define IS_UIMAGE(pAddr)     	(__be32_to_cpup((__be32*)(pAddr)) == 0x27051956)
 #define IS_UIMAGE_IVT(pAddr)	(__be32_to_cpup((__be32*)(pAddr + HAB_HEADER)) == 0x27051956)

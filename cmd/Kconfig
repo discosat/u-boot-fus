@@ -360,7 +360,7 @@ config CMD_FSIMAGE
 
 config CMD_FSIMAGE_IMX6
 	bool "Handle F&S images, e.g. U-Boot"
-	depends on TARGET_FSIMX6SX || TARGET_FSIMX6UL
+	depends on TARGET_FSIMX6SX || TARGET_FSIMX6UL || TARGET_FSIMX7ULP
 	depends on !CMD_FSIMAGE
 	help
 	  Save F&S image U-Boot.

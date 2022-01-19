@@ -14,7 +14,8 @@
 #include <mmc.h>
 #include <nand.h>
 #include <asm/mach-imx/checkboot.h>
-#include <asm/arch-mx6/sys_proto.h>
+//#include <asm/arch-mx6/sys_proto.h>
+#include <asm/mach-imx/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <jffs2/jffs2.h>		/* struct mtd_device + part_info */
 #include "../board/F+S/common/fs_board_common.h"	/* fs_board_*() */
@@ -28,6 +29,15 @@ struct storage_info {
 };
 
 static u8 local_buffer[0x200] __aligned(ARCH_DMA_MINALIGN);
+u32 get_image_length(u32 addr);
+
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+	const char *uboot_mtd_names[] = {"UBoot_A", "UBoot_B"};
+#elif defined CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND
+	const char *uboot_mtd_names[] = {"UBoot", "UBootRed"};
+#else
+	const char *uboot_mtd_names[] = {"UBoot"};
+#endif
 
 /* Return the F&S architecture */
 const char *fs_image_get_arch(void)
@@ -49,14 +59,6 @@ static int report_return_code(int return_code)
 /* ------------- NAND handling --------------------------------------------- */
 
 #ifdef CONFIG_CMD_NAND
-
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-	const char *uboot_mtd_names[] = {"UBoot_A", "UBoot_B"};
-#elif defined CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND
-	const char *uboot_mtd_names[] = {"UBoot", "UBootRed"};
-#else
-	const char *uboot_mtd_names[] = {"UBoot"};
-#endif
 
 static int fs_image_setup_storage_info(struct storage_info *si,
 				        struct part_info *part)
@@ -303,6 +305,8 @@ static int fs_image_save_uboot_to_mmc(unsigned long addr, int mmc_dev)
 	struct mmc *mmc = find_mmc_device(mmc_dev);
 	struct blk_desc *blk_desc;
 	unsigned int cur_part;
+	unsigned int dest_part = 0;
+	unsigned int img_size = CONFIG_BOARD_SIZE_LIMIT;
 	int err;
 
 	if (!mmc) {
@@ -311,23 +315,29 @@ static int fs_image_save_uboot_to_mmc(unsigned long addr, int mmc_dev)
 	}
 	blk_desc = mmc_get_blk_desc(mmc);
 
-	/* Switch to User partition (0) */
+	if (is_mx7ulp())
+	{
+		dest_part = 1;
+		img_size = get_image_length(addr);
+	}
+
+	/* Switch to specific partition (0 or 1) */
 	cur_part = mmc->part_config & PART_ACCESS_MASK;
-	if (cur_part != 0) {
-		err = blk_dselect_hwpart(blk_desc, 0);
+	if (cur_part != dest_part) {
+		err = blk_dselect_hwpart(blk_desc, dest_part);
 		if (err) {
-			printf("Cannot switch to part 0 on mmc%d\n", mmc_dev);
+			printf("Cannot switch to part %d on mmc%d\n", dest_part, mmc_dev);
 			return err;
 		}
 	}
 
 	/* Actually save U-Boot */
-	printf("Saving U-Boot to mmc%d, part 0:\n", mmc_dev);
+	printf("Saving U-Boot to mmc%d, part %d:\n", mmc_dev, dest_part);
 	err = fs_image_invalidate_mmc(blk_desc, CONFIG_SYS_MMC_U_BOOT_START,
 					uboot_mtd_names[0]);
 	if (!err) {
 		err = fs_image_save_image_to_mmc(blk_desc, (void *) addr,
-			CONFIG_SYS_MMC_U_BOOT_START, CONFIG_BOARD_SIZE_LIMIT,
+			CONFIG_SYS_MMC_U_BOOT_START, img_size,
 			uboot_mtd_names[0]);
 		if (err)
 			return err;
@@ -361,9 +371,20 @@ static int do_fsimage_arch(cmd_tbl_t *cmdtp, int flag, int argc,
 	return report_return_code(0);
 }
 
+u32 get_image_length(u32 addr)
+{
+	struct ivt *ivt = (struct ivt *)addr;
+	signed long offset = (signed long)((signed long)addr - (signed long)ivt->self);
+	struct boot_data *data = (struct boot_data *)(ivt->boot + offset);
+	return data->length;
+}
+
 LOADER_TYPE GetImageType(u32 addr)
 {
 	if (IS_UBOOT(addr))
+		return LOADER_UBOOT;
+
+	if (IS_UBOOT_7ULP(addr))
 		return LOADER_UBOOT;
 
 	if (IS_UBOOT_IVT(addr))
@@ -405,6 +426,7 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	switch (fs_board_get_boot_dev_from_fuses()) {
+#ifdef CONFIG_CMD_MMC
 		case SD1_BOOT:
 		case MMC1_BOOT:
 		case SD2_BOOT:
@@ -416,10 +438,13 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 			mmc_dev = get_mmc_boot_device();
 			err = fs_image_save_uboot_to_mmc(addr, mmc_dev);
 			break;
+#endif
+#ifdef CONFIG_CMD_NAND
 		case NAND_BOOT:
 			mmc_dev = -1;
 			err = fs_image_save_uboot_to_nand(addr);
 			break;
+#endif
 		default:
 			err = -ENODEV;
 	}

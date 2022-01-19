@@ -132,12 +132,19 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 }
 
 /* Definitions in boot_cfg (fuse bank 0, word 5) */
+#ifdef CONFIG_MX6ULL
 #define BOOT_CFG_DEVSEL_SHIFT 4
 #define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
-#ifdef CONFIG_TARGET_FSIMX6UL
 #define BOOT_CFG_PORTSEL_SHIFT 11
 #define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
+#elif CONFIG_ARCH_MX7ULP
+#define BOOT_CFG_DEVSEL_SHIFT 8
+#define BOOT_CFG_DEVSEL_MASK (1 << BOOT_CFG_DEVSEL_SHIFT)
+#define BOOT_CFG_PORTSEL_SHIFT 9
+#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
 #else
+#define BOOT_CFG_DEVSEL_SHIFT 4
+#define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
 #define BOOT_CFG_PORTSEL_SHIFT 3
 #define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
 #endif
@@ -146,13 +153,14 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
  * currently active boot device. For example the board can currently boot from
  * USB, but is basically fused to boot from NAND (returned here).
  */
+#if defined (CONFIG_MX6ULL) || defined (CONFIG_MX6SX) || defined (CONFIG_MX6QDL)
 enum boot_device fs_board_get_boot_dev_from_fuses(void)
 {
 	u32 val;
 	u32 port;
 	enum boot_device boot_dev = USB_BOOT;
 
-#ifdef CONFIG_TARGET_FSIMX6UL
+#ifdef CONFIG_MX6ULL
 	/* boot_cfg1 is in fuse bank 0, word 5 */
 	if (fuse_read(0, 5, &val)) {
 		puts("Error reading boot_cfg1\n");
@@ -193,7 +201,35 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 
 	return boot_dev;
 }
+#elif defined (CONFIG_ARCH_MX7ULP)
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	u32 port;
+	enum boot_device boot_dev = USB_BOOT;
 
+	/* boot_cfg1 is in fuse bank 2, word 4 */
+	if (fuse_read(2, 4, &val)) {
+		puts("Error reading boot_cfg1\n");
+		return boot_dev;
+	}
+
+	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
+	val = (val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT;
+	switch (val) {
+	case 0x00:
+		boot_dev = MMC1_BOOT + port;
+		break;
+	case 0x01:
+		boot_dev = SD1_BOOT + port;
+		break;
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+#endif
 enum boot_device fs_board_get_boot_dev(void)
 {
 	return fs_board_get_boot_dev_from_fuses();
@@ -401,6 +437,9 @@ void fs_board_late_init_common(const char *serial_name)
 #endif
 	bool is_nand = (fs_board_get_boot_dev() == NAND_BOOT);
 	const char *bd_kernel, *bd_fdt, *bd_rootfs;
+#ifdef CONFIG_ARCH_MX7ULP
+	const char *bd_auxcore;
+#endif
 	char var_name[20];
 
 	/* Set sercon variable if not already set */
@@ -510,8 +549,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("updatecheck", current_bi->updatecheck, 0);
 	setup_var("installcheck", current_bi->installcheck, 0);
 	setup_var("recovercheck", current_bi->recovercheck, 0);
+#ifndef CONFIG_ARCH_MX7ULP
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
+#endif
 #ifdef CONFIG_FS_BOARD_MODE_RO
 	setup_var("mode", "ro", 0);
 #else
@@ -525,14 +566,23 @@ void fs_board_late_init_common(const char *serial_name)
 		else
 			bd_kernel = "nand";
 		bd_fdt = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	} else {
 		bd_kernel = "mmc";
 		bd_fdt = bd_kernel;
 		bd_rootfs = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	}
 	setup_var("bd_kernel", bd_kernel, 0);
 	setup_var("bd_fdt", bd_fdt, 0);
 	setup_var("bd_rootfs", bd_rootfs, 0);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bd_auxcore", bd_auxcore, 0);
+#endif
 
 	setup_var("console", current_bi->console, 1);
 	setup_var("login", current_bi->login, 1);
@@ -541,6 +591,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("init", current_bi->init, 1);
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("bootargs", "set_bootargs", 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bootauxfile", "power_mode_switch.img", 0);
+#endif
+
 
 	/* Set some variables by runnning another variable */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
@@ -557,7 +611,12 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("fdt", var_name, 1);
 	sprintf(var_name, ".rootfs_%s", bd_rootfs);
 	setup_var("rootfs", var_name, 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	sprintf(var_name, ".auxcore_%s", bd_auxcore);
+	setup_var("auxcore", var_name, 1);
 #endif
+#endif
+
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
