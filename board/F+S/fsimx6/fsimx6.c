@@ -61,7 +61,7 @@
 #define BT_ARMSTONEA9R2 4
 #define BT_QBLISSA9R2 6
 #define BT_NETDCUA9   7
-#define BT_EFUSA9R2   29
+#define BT_EFUSA9R2   8 /* in N-Boot number 29 */
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -228,69 +228,6 @@ const struct fs_board_info board_info[30] = {
 		.network = ".network_off",
 		.init = ".init_init",
 		.flags = 0,
-	},
-	{	/* 8 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 9 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 10 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 11 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 12 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 13 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 14 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 15 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 16 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 17 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 18 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 19 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 20 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 21 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 22 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 23 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 24 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 25 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 26 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 27 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 28 (unknown) */
-		.name = "unknown",
 	},
 	{	/* 29 (BT_EFUSA9r2) */
 		.name = "efusA9r2",

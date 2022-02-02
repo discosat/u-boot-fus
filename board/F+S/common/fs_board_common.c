@@ -86,7 +86,12 @@ struct fs_nboot_args *fs_board_get_nboot_args(void)
 /* Get board type (zero-based) */
 unsigned int fs_board_get_type(void)
 {
-	return fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+	int BoardType = fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+#ifdef CONFIG_TARGET_FSIMX6
+	if (BoardType >= 29)
+		BoardType -= 21;
+#endif
+	return BoardType;
 }
 
 /* Get board revision (major * 100 + minor, e.g. 120 for rev 1.20) */
