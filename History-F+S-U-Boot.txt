@@ -1,6 +1,21 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2020.04.1 (01.02.2022)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, efusA9r2, PicoMODA9,
+                   NetDCUA9, QBlissA9, QBlissA9r2, armStoneA5, CUBEA5, Cube2.0
+Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add Ethernet support for efusA9r2
+- Add support for efusA9r2
+
+
+
 u-boot-2018.03-fsimx8mn-Y2021.10 (30.10.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MN

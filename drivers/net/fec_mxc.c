@@ -1174,8 +1174,9 @@ err1:
 	return ret;
 }
 
-int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
-				 uint32_t addr, enum xceiver_type xcv_type)
+int fecmxc_initialize_multi_type_if_mode(bd_t *bd, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type,
+				 phy_interface_t if_mode)
 {
 	uint32_t base_mii;
 	struct mii_dev *bus = NULL;
@@ -1206,7 +1207,7 @@ int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
 	if (!bus)
 		return -ENOMEM;
 #ifdef CONFIG_PHYLIB
-	phydev = phy_find_by_mask(bus, 1 << phy_id, PHY_INTERFACE_MODE_RGMII);
+	phydev = phy_find_by_mask(bus, 1 << phy_id, if_mode);
 	if (!phydev) {
 		mdio_unregister(bus);
 		free(bus);
@@ -1224,6 +1225,13 @@ int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
 		free(bus);
 	}
 	return ret;
+}
+
+int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
+			 	uint32_t addr, enum xceiver_type xcv_type)
+{
+	return fecmxc_initialize_multi_type_if_mode(bd, dev_id, phy_id, addr,
+					xcv_type, PHY_INTERFACE_MODE_RGMII);
 }
 
 int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
