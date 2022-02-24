@@ -237,7 +237,11 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 #endif
 enum boot_device fs_board_get_boot_dev(void)
 {
+#ifdef CONFIG_TARGET_FSVYBRID
+	return NAND_BOOT;
+#else
 	return fs_board_get_boot_dev_from_fuses();
+#endif
 }
 #endif /* !HAVE_BOARD_CFG */
 

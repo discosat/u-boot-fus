@@ -155,8 +155,6 @@
 #endif
 
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
-#define CONFIG_SYS_UART_PORT	0	/* Default UART port */
-#define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
 #define CONFIG_SPL_MAX_SIZE		(140 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
@@ -182,7 +180,6 @@
 #define CONFIG_SPL_STACK		0x91fff0
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
 
 /* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
@@ -358,19 +355,19 @@
 #ifdef CONFIG_CMD_NAND
 #define MTDPARTS_DEFAULT						\
 	"mtdparts=" MTDPARTS_1 MTDPARTS_2_U MTDPARTS_3_A MTDPARTS_3_B MTDPARTS_4
-#define BOOT_FROM_NAND							\
+#define FS_BOOT_FROM_NAND						\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
 	".kernel_nand_A=setenv kernel nand read ${loadaddr} Kernel_A\0" \
 	".kernel_nand_B=setenv kernel nand read ${loadaddr} Kernel_B\0" \
 	".fdt_nand_A=setenv fdt nand read ${fdtaddr} FDT_A" BOOT_WITH_FDT \
 	".fdt_nand_B=setenv fdt nand read ${fdtaddr} FDT_B" BOOT_WITH_FDT
 #else
-#define BOOT_FROM_NAND
+#define FS_BOOT_FROM_NAND
 #endif
 
 /* In case of UBI, load kernel and FDT directly from UBI volumes */
 #ifdef CONFIG_CMD_UBI
-#define BOOT_FROM_UBI							\
+#define FS_BOOT_FROM_UBI						\
 	".mtdparts_ubionly=setenv mtdparts mtdparts="			\
 	  MTDPARTS_1 MTDPARTS_2_U MTDPARTS_4 "\0"			\
 	".ubivol_std=ubi part TargetFS;"				\
@@ -394,7 +391,7 @@
 	".fdt_ubi_B=setenv fdt ubi part TargetFS\\\\;"			\
 	" ubi read ${fdtaddr} fdt_B" BOOT_WITH_FDT
 #else
-#define BOOT_FROM_UBI
+#define FS_BOOT_FROM_UBI
 #endif
 
 /*
@@ -403,7 +400,7 @@
  * rootfs in directory /boot.
  */
 #ifdef CONFIG_CMD_UBIFS
-#define BOOT_FROM_UBIFS							\
+#define FS_BOOT_FROM_UBIFS						\
 	".kernel_ubifs_A=setenv kernel ubi part TargetFS\\\\;"		\
 	" ubifsmount ubi0:rootfs_A\\\\; ubifsload . /boot/${bootfile}\0"\
 	".kernel_ubifs_B=setenv kernel ubi part TargetFS\\\\;"		\
@@ -421,7 +418,7 @@
 	" ubi.block=0,rootfs_B ubi.mtd=TargetFS,2048"			\
 	" root=/dev/ubiblock0_1 rootwait ro'\0"
 #else
-#define BOOT_FROM_UBIFS
+#define FS_BOOT_FROM_UBIFS
 #endif
 
 /*
@@ -430,7 +427,7 @@
  * typically formated with FAT.
  */
 #ifdef CONFIG_CMD_MMC
-#define BOOT_FROM_MMC							\
+#define FS_BOOT_FROM_MMC						\
 	".kernel_mmc_A=setenv kernel mmc rescan\\\\;"			\
 	" load mmc ${mmcdev}:5\0"					\
 	".kernel_mmc_B=setenv kernel mmc rescan\\\\;"			\
@@ -444,20 +441,20 @@
 	".rootfs_mmc_B=setenv rootfs root=/dev/mmcblk${mmcdev}p8"	\
 	" rootfstype=squashfs rootwait\0"
 #else
-#define BOOT_FROM_MMC
+#define FS_BOOT_FROM_MMC
 #endif
 
 /* Loading from USB is not supported for updates yet */
-#define BOOT_FROM_USB
+#define FS_BOOT_FROM_USB
 
 /* Loading from TFTP is not supported for updates yet */
-#define BOOT_FROM_TFTP
+#define FS_BOOT_FROM_TFTP
 
 /* Loading from NFS is not supported for updates yet */
-#define BOOT_FROM_NFS
+#define FS_BOOT_FROM_NFS
 
 /* Generic settings for booting with updates on A/B */
-#define BOOT_SYSTEM		\
+#define FS_BOOT_SYSTEM							\
 	".init_fs_updater=setenv init init=/sbin/preinit.sh\0"		\
 	"BOOT_ORDER=A B\0"						\
 	"BOOT_ORDER_OLD=A B\0"						\
@@ -508,17 +505,17 @@
 #ifdef CONFIG_CMD_NAND
 #define MTDPARTS_DEFAULT						\
 	"mtdparts=" MTDPARTS_1 MTDPARTS_2 MTDPARTS_3 MTDPARTS_4
-#define BOOT_FROM_NAND							\
+#define FS_BOOT_FROM_NAND						\
 	".mtdparts_std=setenv mtdparts " MTDPARTS_DEFAULT "\0"		\
 	".kernel_nand=setenv kernel nand read ${loadaddr} Kernel\0"	\
 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT
 #else
-#define BOOT_FROM_NAND
+#define FS_BOOT_FROM_NAND
 #endif
 
 /* In case of UBI, load kernel and FDT directly from UBI volumes */
 #ifdef CONFIG_CMD_UBI
-#define BOOT_FROM_UBI							\
+#define FS_BOOT_FROM_UBI						\
 	".mtdparts_ubionly=setenv mtdparts mtdparts="			\
 	  MTDPARTS_1 MTDPARTS_2 MTDPARTS_4 "\0"				\
 	".ubivol_std=ubi part TargetFS; ubi create rootfs\0"		\
@@ -529,11 +526,11 @@
 	".fdt_ubi=setenv fdt ubi part TargetFS\\\\;"			\
 	" ubi read ${fdtaddr} fdt" BOOT_WITH_FDT
 #else
-#define BOOT_FROM_UBI
+#define FS_BOOT_FROM_UBI
 #endif
 
 #ifdef CONFIG_CMD_UBIFS
-#define BOOT_FROM_UBIFS							\
+#define FS_BOOT_FROM_UBIFS						\
 	".kernel_ubifs=setenv kernel ubi part TargetFS\\\\;"		\
 	" ubifsmount ubi0:rootfs\\\\; ubifsload . /boot/${bootfile}\0"	\
 	".fdt_ubifs=setenv fdt ubi part TargetFS\\\\;"			\
@@ -542,7 +539,7 @@
 	".rootfs_ubifs=setenv rootfs rootfstype=ubifs ubi.mtd=TargetFS" \
 	" root=ubi0:rootfs\0"
 #else
-#define BOOT_FROM_UBIFS
+#define FS_BOOT_FROM_UBIFS
 #endif
 
 /*
@@ -551,18 +548,18 @@
  * typically formated with FAT.
  */
 #ifdef CONFIG_CMD_MMC
-#define BOOT_FROM_MMC							\
+#define FS_BOOT_FROM_MMC						\
 	".kernel_mmc=setenv kernel mmc rescan\\\\;"			\
 	" load mmc ${mmcdev} . ${bootfile}\0"				\
 	".fdt_mmc=setenv fdt mmc rescan\\\\;"				\
 	" load mmc ${mmcdev} ${fdtaddr} \\\\${bootfdt}" BOOT_WITH_FDT	\
 	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${mmcdev}p2 rootwait\0"
 #else
-#define BOOT_FROM_MMC
+#define FS_BOOT_FROM_MMC
 #endif
 
 /* In case of USB, the layout is the same as on MMC. */
-#define BOOT_FROM_USB							\
+#define FS_BOOT_FROM_USB						\
 	".kernel_usb=setenv kernel usb start\\\\;"			\
 	" load usb 0 . ${bootfile}\0"					\
 	".fdt_usb=setenv fdt usb start\\\\;"				\
@@ -570,12 +567,12 @@
 	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0"
 
 /* In case of TFTP, kernel and device tree are loaded from TFTP server */
-#define BOOT_FROM_TFTP							\
+#define FS_BOOT_FROM_TFTP						\
 	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0"		\
 	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT
 
 /* In case of NFS, kernel, device tree and rootfs are loaded from NFS server */
-#define BOOT_FROM_NFS							\
+#define FS_BOOT_FROM_NFS						\
 	".kernel_nfs=setenv kernel nfs ."				\
 	" ${serverip}:${rootpath}/${bootfile}\0"			\
 	".fdt_nfs=setenv fdt nfs ${fdtaddr}"				\
@@ -584,7 +581,7 @@
 	" nfsroot=${serverip}:${rootpath}\0"
 
 /* Generic settings when not booting with updates A/B */
-#define BOOT_SYSTEM
+#define FS_BOOT_SYSTEM
 
 #endif /* CONFIG_FS_UPDATE_SUPPORT */
 
@@ -642,14 +639,14 @@
 	"fdt=undef\0"							\
 	"fdtaddr=0x43000000\0"						\
 	".fdt_none=setenv fdt booti\0"					\
-	BOOT_FROM_NAND							\
-	BOOT_FROM_UBI							\
-	BOOT_FROM_UBIFS							\
-	BOOT_FROM_MMC							\
-	BOOT_FROM_USB							\
-	BOOT_FROM_TFTP							\
-	BOOT_FROM_NFS							\
-	BOOT_SYSTEM							\
+	FS_BOOT_FROM_NAND						\
+	FS_BOOT_FROM_UBI						\
+	FS_BOOT_FROM_UBIFS						\
+	FS_BOOT_FROM_MMC						\
+	FS_BOOT_FROM_USB						\
+	FS_BOOT_FROM_TFTP						\
+	FS_BOOT_FROM_NFS						\
+	FS_BOOT_SYSTEM							\
 	FILESIZE2BLOCKCOUNT						\
 	FSBOOTDELAY							\
 	FAILED_UPDATE_RESET						\

@@ -335,7 +335,6 @@
  * Network Options
  *****************************************************************************/
 /* ### TODO: check if needed - for network on variables */
-#define CONFIG_BOOTP_HOSTNAME
 #define CONFIG_BOOTP_SEND_HOSTNAME
 #define CONFIG_NET_RETRY_COUNT	5
 #define CONFIG_ARP_TIMEOUT	2000UL
