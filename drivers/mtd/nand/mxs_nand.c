@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale i.MX28 NAND flash driver
  *
@@ -10,8 +11,6 @@
  * Copyright (C) 2010-2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -245,12 +244,12 @@ static int mxs_nand_get_ecc_strength(struct mtd_info *mtd)
 				break;
 			ecc_strength += 2;
 		}
-		/*
+	/*
 		 * if all supported ecc cannot satisfy the bbm
 		 * requirement, change * the ecc layout to meta
 		 * with ecc type.
 		 *
-		 */
+	 */
 		if (ecc_strength > max_ecc_strength_supported) {
 			ecc_strength = chip->ecc_strength_ds;
 			ecc_for_meta = true;
@@ -264,12 +263,12 @@ static int mxs_nand_get_ecc_strength(struct mtd_info *mtd)
 		ecc_strength = chip->ecc_strength_ds;
 		ecc_strength += ecc_strength & 1;
 #if defined(CONFIG_NAND_MXS_BCH_LEGACY_GEO)
-		ecc_strength = ((page_oob_size - MXS_NAND_METADATA_SIZE) * 8)
+	ecc_strength = ((page_oob_size - MXS_NAND_METADATA_SIZE) * 8)
 			/(galois_field * mxs_nand_ecc_chunk_cnt(mtd->writesize));
 		ecc_strength += ecc_strength & 1;
 		ecc_strength = min(ecc_strength, MXS_NAND_MAX_ECC_STRENGTH);
 #endif
-	}
+}
 	return 0;
 };
 
@@ -297,8 +296,8 @@ static inline uint32_t mxs_nand_get_mark_offset(uint32_t page_data_size,
 		block_mark_bit_offset -= MXS_NAND_METADATA_SIZE * 8
 					+ chunk_ecc_size_in_bits;
 	else
-		/* Subtract the metadata bits. */
-		block_mark_bit_offset -= MXS_NAND_METADATA_SIZE * 8;
+	/* Subtract the metadata bits. */
+	block_mark_bit_offset -= MXS_NAND_METADATA_SIZE * 8;
 
 	/*
 	 * Compute the chunk number (starting at zero) in which the block mark

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -72,7 +71,7 @@ int board_video_skip(void)
 			       displays[i].mode.name, ret);
 	} else {
 		if (strcmp(panel, "NULL"))
-			printf("unsupported panel %s\n", panel);
+		printf("unsupported panel %s\n", panel);
 		return -EINVAL;
 	}
 

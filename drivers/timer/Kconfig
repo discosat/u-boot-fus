@@ -142,4 +142,11 @@ config BLINK_VYBRID
 	  example for blinking LEDs. Blinking speed can be set with
 	  the blink command.
 
+config STM32_TIMER
+        bool "STM32 timer support"
+	depends on TIMER
+	help
+	  Select this to enable support for the timer found on
+	  STM32 devices.
+
 endmenu

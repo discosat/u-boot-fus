@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -289,8 +288,8 @@ u32 decode_pll(enum pll_clocks pll)
 		break;
 
 	default:
-		return 0;
-	}
+			return 0;
+		}
 
 	/* Check if PLL is enabled */
 	if (!(val & (1 << 13)))
@@ -304,7 +303,7 @@ u32 decode_pll(enum pll_clocks pll)
 	do_div(temp64, denom);
 
 	return (infreq * div + (u32)temp64) / post_div;
-}
+	}
 
 u32 mxc_get_pll_pfd(enum pll_clocks pll, int pfd_num)
 {
@@ -589,7 +588,7 @@ int freq_is_accurate(unsigned int freq_is, unsigned int freq_target)
 
 	accuracy = (freq_is * 100 + freq_target / 2) / freq_target;
 	return (accuracy >= 100 - TOLERANCE) && (accuracy <= 100 + TOLERANCE);
-}
+	}
 
 /* Power up PLL5; returns -1 if waiting for lock times out */
 int enable_video_pll(void)
@@ -625,7 +624,7 @@ void disable_video_pll(void)
 	writel(BM_ANADIG_PLL_VIDEO_ENABLE, &imx_ccm->analog_pll_video_clr);
 	writel(BM_ANADIG_PLL_VIDEO_BYPASS | BM_ANADIG_PLL_VIDEO_POWERDOWN,
 	       &imx_ccm->analog_pll_video_set);
-}
+	}
 
 /* Set PLL5 frequency; returns -1 if freqency is out of range */
 int setup_video_pll(u32 freq_khz)
@@ -663,8 +662,8 @@ int setup_video_pll(u32 freq_khz)
 			vid_div++;
 			if (vid_div == 2)
 				vid_div++;
+			}
 		}
-	}
 	divider = pre_div_rate / MXC_HCLK;
 	temp64 = (u64) (pre_div_rate - (divider * MXC_HCLK));
 	temp64 *= mfd;
@@ -684,7 +683,7 @@ int setup_video_pll(u32 freq_khz)
 	writel(BF_PMU_MISC2_VIDEO_DIV(vid_div), &imx_ccm->pmu_misc2_set);
 
 	return 0;
-}
+	}
 
 void enable_ldb_di_clk(int channel)
 {
@@ -696,7 +695,7 @@ void enable_ldb_di_clk(int channel)
 	else
 		ccgr3 |= MXC_CCM_CCGR3_LDB_DI0_MASK;
 	writel(ccgr3, &imx_ccm->CCGR3);
-}
+		}
 
 /* This function is CPU/graphics specfic, see clock-ipuv3.c/clock-mxsfb.c */
 extern void switch_ldb_di_clk_src(unsigned new_ldb_di_clk_src, unsigned ldb_di);
@@ -728,7 +727,7 @@ int set_lvds_clk(void *addr, unsigned int di, unsigned int ldb_di,
 		tmp_khz = (pll_base_clock * 18 + divider/2) / divider;
 		if (!freq_is_accurate(tmp_khz, freq_khz))
 			divider = 0;	/* Result exceeds requested accuracy */
-	}
+		}
 
 	if (divider) {
 		/* PLL2_PFDn is OK, set clock divider and ungate PFD */
@@ -1087,14 +1086,14 @@ int enable_pcie_clock(void)
 	clrbits_le32(&ccm_regs->cbcmr, MXC_CCM_CBCMR_PCIE_AXI_CLK_SEL);
 
 	if (!is_mx6sx()) {
-		/* Party time! Ungate the clock to the PCIe. */
+	/* Party time! Ungate the clock to the PCIe. */
 #ifdef CONFIG_SATA
-		ungate_sata_clock();
+	ungate_sata_clock();
 #endif
-		ungate_pcie_clock();
+	ungate_pcie_clock();
 
-		return enable_enet_pll(BM_ANADIG_PLL_ENET_ENABLE_SATA |
-				       BM_ANADIG_PLL_ENET_ENABLE_PCIE);
+	return enable_enet_pll(BM_ANADIG_PLL_ENET_ENABLE_SATA |
+			       BM_ANADIG_PLL_ENET_ENABLE_PCIE);
 	} else {
 		/* Party time! Ungate the clock to the PCIe. */
 		ungate_disp_axi_clock();

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2008 - 2009
  * Windriver, <www.windriver.com>
@@ -10,8 +11,6 @@
  *
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <config.h>
 #include <common.h>
@@ -4501,7 +4500,7 @@ struct cmd_dispatch_info {
 
 static const struct cmd_dispatch_info cmd_dispatch_info[] = {
 #ifdef CONFIG_FSL_FASTBOOT
-	{
+{
 		.cmd = "reboot-bootloader",
 		.cb = cb_reboot_bootloader,
 	},
@@ -4524,13 +4523,13 @@ static const struct cmd_dispatch_info cmd_dispatch_info[] = {
 	},
 #endif
 #ifdef CONFIG_AVB_SUPPORT
-	{
+{
 		.cmd = "set_active",
 		.cb = cb_set_active_avb,
 	},
 #endif
 #ifndef CONFIG_NOT_UUU_BUILD
-	{
+{
 		.cmd = "UCmd:",
 		.cb = cb_run_uboot_cmd,
 	},

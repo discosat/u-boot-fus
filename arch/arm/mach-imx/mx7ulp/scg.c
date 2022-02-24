@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,8 +11,6 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/pcc.h>
 #include <asm/arch/sys_proto.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 scg_p scg1_regs = (scg_p)SCG1_RBASE;
 
@@ -513,7 +510,7 @@ u32 decode_pll(enum pll_clocks pll)
 		infreq = infreq / pre_div;
 
 		if (denom)
-			return infreq * mult + infreq * num / denom;
+		return infreq * mult + infreq * num / denom;
 		else
 			return infreq * mult;
 
@@ -545,7 +542,7 @@ u32 decode_pll(enum pll_clocks pll)
 		infreq = infreq / pre_div;
 
 		if (denom)
-			return infreq * mult + infreq * num / denom;
+		return infreq * mult + infreq * num / denom;
 		else
 			return infreq * mult;
 

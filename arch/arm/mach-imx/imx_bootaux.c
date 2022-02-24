@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2018 F&S Elektronik Systeme GmbH
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -83,9 +82,9 @@ int arch_auxiliary_core_set_reset_address(ulong boot_private_data)
 		stack = *(u32 *)boot_private_data;
 		pc = *(u32 *)(boot_private_data + 4);
 
-		/* Set the stack and pc to M4 bootROM */
-		writel(stack, M4_BOOTROM_BASE_ADDR);
-		writel(pc, M4_BOOTROM_BASE_ADDR + 4);
+	/* Set the stack and pc to M4 bootROM */
+	writel(stack, M4_BOOTROM_BASE_ADDR);
+	writel(pc, M4_BOOTROM_BASE_ADDR + 4);
 	}
 
 	return 0;
@@ -270,7 +269,7 @@ static int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 			if (arch_auxiliary_core_get(0) != aux_stopped) {
 				printf("Aux core still running, abort!\n");
-				return CMD_RET_FAILURE;
+		return CMD_RET_FAILURE;
 			}
 
 			ret = arch_auxiliary_core_set_reset_address(addr);

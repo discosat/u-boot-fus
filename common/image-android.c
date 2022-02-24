@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2011 Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -98,7 +97,7 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 				sprintf(commandline, "%s ", bootargs);
 		}
 
-		if (*hdr->cmdline) {
+	if (*hdr->cmdline) {
 			if (strlen(hdr->cmdline) + 1 >
 				sizeof(commandline) - strlen(commandline)) {
 				printf("cmdline in bootimg is too long!\n");

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2017 NXP Semiconductors
  *
  * Configuration settings for the i.MX7D Pico board.
- *
- * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #ifndef __PICO_IMX7D_CONFIG_H
@@ -106,18 +105,18 @@
 		"fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
 	"bootscript=echo Running bootscript from mmc ...; " \
 		"source\0" \
-	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
-	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
+	"loadimage=load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
+	"loadfdt=load mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
 		"run mmcargs; " \
 		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
+		"if run loadfdt; then " \
+			"bootz ${loadaddr} - ${fdt_addr}; " \
+		"else " \
 				"if test ${boot_fdt} = try; then " \
 					"bootz; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+			"echo WARN: Cannot load the DT; " \
 				"fi; " \
 			"fi; " \
 		"else " \
@@ -135,13 +134,13 @@
 		"fi; " \
 		"${get_cmd} ${image}; " \
 		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
+		"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+			"bootz ${loadaddr} - ${fdt_addr}; " \
+		"else " \
 				"if test ${boot_fdt} = try; then " \
 					"bootz; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+			"echo WARN: Cannot load the DT; " \
 				"fi; " \
 			"fi; " \
 		"else " \
@@ -154,12 +153,12 @@
 		   "if run loadbootscript; then " \
 			   "run bootscript; " \
 		   "else " \
-			   "if run loadimage; then " \
-				   "run mmcboot; " \
-			   "else run netboot; " \
-			   "fi; " \
+		"if run loadimage; then " \
+			"run mmcboot; " \
+		"else run netboot; " \
+		"fi; " \
 		   "fi; " \
-	   "else run netboot; fi"
+	"else run netboot; fi"
 #endif
 
 #define CONFIG_SYS_MEMTEST_START	0x80000000

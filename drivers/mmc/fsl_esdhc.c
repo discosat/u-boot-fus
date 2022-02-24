@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2007, 2010-2012 Freescale Semiconductor, Inc
  * Andy Fleming
@@ -7,8 +8,6 @@
  * Kyle Harris, Nexus Technologies, Inc. kharris@nexus-tech.net
  *
  * Copyright 2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>

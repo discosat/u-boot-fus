@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/arch/clock.h>
@@ -308,10 +307,10 @@ static int setup_fec(int fec_id)
 	gpio_direction_output(gpio, 1);
 
 	if (0 == fec_id) {
-		/* Use 125M anatop REF_CLK1 for ENET1, clear gpr1[13], gpr1[17]*/
-		clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
-			(IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK |
-			 IOMUXC_GPR_GPR1_GPR_ENET1_CLK_DIR_MASK), 0);
+	/* Use 125M anatop REF_CLK1 for ENET1, clear gpr1[13], gpr1[17]*/
+	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
+		(IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK |
+		 IOMUXC_GPR_GPR1_GPR_ENET1_CLK_DIR_MASK), 0);
 	} else {
 		/* Use 125M anatop REF_CLK2 for ENET2, clear gpr1[14], gpr1[18]*/
 		clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
@@ -667,7 +666,7 @@ int power_init_board(void)
 	 * the MIPI DSI and MIPI CSI inputs.
 	 */
 	pmic_clrsetbits(dev, PFUZE3000_VLD4CTL, 0xF, 0xA);
-	
+
 	/* change sw3 mode to avoid DDR power off */
 	sw3mode = pmic_reg_read(dev, PFUZE3000_SW3MODE);
 	ret = pmic_reg_write(dev, PFUZE3000_SW3MODE, sw3mode | 0x20);

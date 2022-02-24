@@ -15,6 +15,7 @@
 #include <net.h>			/* eth_init(), eth_halt() */
 #include <miiphy.h>
 #include <netdev.h>			/* ne2000_initialize() */
+#include <environment.h>		/* eth_parse_enetaddr() */
 #endif
 #ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			/* PON_*, POFF_* */

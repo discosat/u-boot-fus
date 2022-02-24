@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008, Freescale Semiconductor, Inc
  * Andy Fleming
  *
  * Based vaguely on the Linux code
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <config.h>
@@ -1381,7 +1380,7 @@ static int sd_set_card_speed(struct mmc *mmc, enum bus_mode mode)
 	return 0;
 }
 
-int sd_select_bus_width(struct mmc *mmc, int w)
+static int sd_select_bus_width(struct mmc *mmc, int w)
 {
 	int err;
 	struct mmc_cmd cmd;

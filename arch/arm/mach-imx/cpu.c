@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
  * (C) Copyright 2009-2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <bootm.h>
@@ -249,7 +248,7 @@ int print_cpuinfo(void)
 	       (cpurev & 0x0000F) >> 0);
 	max_freq = get_cpu_speed_grade_hz();
 	if (!max_freq || max_freq == mxc_get_clock(MXC_ARM_CLK)) {
-		printf(" at %d MHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
+		printf(" at %dMHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	} else {
 		printf(", %d MHz (running at %d MHz)\n", max_freq / 1000000,
 		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
@@ -275,10 +274,10 @@ int print_cpuinfo(void)
 		struct udevice *thermal_dev;
 		int cpu_tmp;
 
-		ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
-		if (!ret) {
-			ret = thermal_get_temp(thermal_dev, &cpu_tmp);
-			if (!ret)
+	ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
+	if (!ret) {
+		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+		if (!ret)
 				printf(" running at %dC", cpu_tmp);
 		}
 	}
@@ -437,7 +436,7 @@ u32 get_cpu_speed_grade_hz(void)
 	if (is_imx8mm())
 		val &= 0x7;
 	else
-		val &= 0x3;
+	val &= 0x3;
 
 	switch(val) {
 	case OCOTP_TESTER3_SPEED_GRADE0:

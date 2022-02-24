@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 #include <common.h>
 #include <dm.h>
@@ -9,8 +8,6 @@
 #include <power-domain-uclass.h>
 #include <dm/uclass-internal.h>
 #include <dm/device-internal.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 static inline struct power_domain_ops *power_domain_dev_ops(struct udevice *dev)
 {

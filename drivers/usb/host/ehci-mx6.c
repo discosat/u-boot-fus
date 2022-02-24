@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  * Copyright (C) 2010 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -589,7 +588,7 @@ static int mx6_init_after_reset(struct ehci_ctrl *dev)
 
 static const struct ehci_ops mx6_ehci_ops = {
 	.powerup_fixup		= ehci_mx6_powerup_fixup,
-	.init_after_reset 	= mx6_init_after_reset
+	.init_after_reset = mx6_init_after_reset
 };
 
 /**

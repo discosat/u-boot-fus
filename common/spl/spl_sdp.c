@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2016 Toradex
  * Author: Stefan Agner <stefan.agner@toradex.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -10,8 +9,6 @@
 #include <usb.h>
 #include <g_dnl.h>
 #include <sdp.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 void board_sdp_cleanup(void)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
@@ -5,8 +6,6 @@
  * Aneesh V <aneesh@ti.com>
  *
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -17,8 +16,6 @@
 #include <errno.h>
 #include <mmc.h>
 #include <image.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
@@ -69,7 +66,7 @@ extern int mmc_load_image_parse_container_dual_uboot(struct spl_image_info *spl_
 #else
 static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
-				     struct mmc *mmc, unsigned long sector)
+			      struct mmc *mmc, unsigned long sector)
 {
 	struct image_header *header = (struct image_header *)(CONFIG_SYS_TEXT_BASE -
 					 sizeof(struct image_header));
@@ -187,7 +184,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		err = part_get_info(mmc_get_blk_desc(mmc), type_part, &info);
 		if (err)
 			continue;
-		if (info.sys_ind ==
+		if (info.sys_ind == 
 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION_TYPE) {
 			partition = type_part;
 			break;
@@ -334,6 +331,14 @@ int __weak spl_boot_part(struct mmc *mmc)
 	return part;
 }
 
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
+__weak
+int spl_boot_partition(const u32 boot_device)
+{
+	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION;
+}
+#endif
+
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
@@ -382,18 +387,18 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 	switch (boot_mode) {
 	case MMCSD_MODE_EMMCBOOT:
 		part = spl_boot_part(mmc);
-		if (CONFIG_IS_ENABLED(MMC_TINY))
-			err = mmc_switch_part(mmc, part);
-		else
-			err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
+			if (CONFIG_IS_ENABLED(MMC_TINY))
+				err = mmc_switch_part(mmc, part);
+			else
+				err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
 
-		if (err) {
+			if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-			puts("spl: mmc partition switch failed\n");
+				puts("spl: mmc partition switch failed\n");
 #endif
-			return err;
-		}
-		/* Fall through */
+				return err;
+			}
+			/* Fall through */
 	case MMCSD_MODE_RAW:
 		debug("spl: mmc boot mode: raw\n");
 
@@ -403,8 +408,11 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 				return err;
 		}
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
-		err = mmc_load_image_raw_partition(spl_image, mmc,
-			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION);
+		err = spl_boot_partition(bootdev->boot_device);
+		if (!err)
+			return err;
+
+		err = mmc_load_image_raw_partition(spl_image, mmc, err);
 		if (!err)
 			return err;
 #endif

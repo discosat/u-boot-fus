@@ -1,4 +1,5 @@
 source "drivers/net/phy/Kconfig"
+source "drivers/net/pfe_eth/Kconfig"
 
 config MII
 	bool
@@ -12,6 +13,13 @@ config DM_ETH
 	  The eth_*() interface will be implemented by the UC_ETH class
 	  This is currently implemented in net/eth.c
 	  Look in include/net.h for details.
+
+config DRIVER_TI_CPSW
+	bool "TI Common Platform Ethernet Switch"
+	select PHYLIB
+	help
+	  This driver supports the TI three port switch gigabit ethernet
+	  subsystem found in the TI SoCs.
 
 menuconfig NETDEVICES
 	bool "Network device support"
@@ -357,7 +365,7 @@ config RENESAS_RAVB
 
 config MPC8XX_FEC
 	bool "Fast Ethernet Controller on MPC8XX"
-	depends on 8xx
+	depends on MPC8xx
 	select MII
 	help
 	  This driver implements support for the Fast Ethernet Controller
@@ -436,5 +444,12 @@ config SYS_DPAA_QBMAN
 		     ARCH_LS1046A
 	help
 	  QBman fixups to allow deep sleep in DPAA 1 SOCs
+
+config TSEC_ENET
+	select PHYLIB
+	bool "Enable Three-Speed Ethernet Controller"
+	help
+	  This driver implements support for the (Enhanced) Three-Speed
+	  Ethernet Controller found on Freescale SoCs.
 
 endif # NETDEVICES

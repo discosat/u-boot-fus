@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
  * (C) Copyright 2009 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -158,7 +157,7 @@ u32 get_cpu_speed_grade_hz(void)
 			return 696000000;
 		default:
 			return 0;
-		}
+	}
 	}
 	/* ULL: 2b'00: Reserved, 2b'01: 528MHz, 2b'10: 792MHz, 2b'11: 900MHz */
 	if (is_mx6ull()) {
@@ -171,7 +170,7 @@ u32 get_cpu_speed_grade_hz(void)
 			return 900000000;
 		default:
 			return 0;
-		}
+	}
 	}
 
 	switch (val) {

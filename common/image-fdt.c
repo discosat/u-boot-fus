@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2013, Google Inc.
  *
@@ -7,8 +8,6 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -22,6 +21,9 @@
 #ifndef CONFIG_SYS_FDT_PAD
 #define CONFIG_SYS_FDT_PAD 0x3000
 #endif
+
+/* adding a ramdisk needs 0x44 bytes in version 2008.10 */
+#define FDT_RAMDISK_OVERHEAD	0x80
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -451,7 +453,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 				fdt_error("fdt size != image size");
 				goto error;
 			}
-		} else {
+	} else {
 			debug("## No Flattened Device Tree\n");
 			goto no_fdt;
 		}

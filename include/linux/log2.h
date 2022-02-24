@@ -3,11 +3,6 @@
  *
  * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _LINUX_LOG2_H
@@ -42,7 +37,7 @@ int __ilog2_u64(u64 n)
  * is_power_of_2() - check if a value is a power of two
  * @n: the value to check
  *
- * Determine whether some value is a power of two, where zero is
+ *  Determine whether some value is a power of two, where zero is
  * *not* considered a power of two.
  * Return: true if @n is a power of 2, otherwise false.
  */
@@ -78,7 +73,7 @@ unsigned long __rounddown_pow_of_two(unsigned long n)
  *
  * constant-capable log of base 2 calculation
  * - this can be used to initialise global variables from constant data, hence
- * the massive ternary operator construction
+ *   the massive ternary operator construction
  *
  * selects the appropriately-sized optimised version depending on sizeof(n)
  */

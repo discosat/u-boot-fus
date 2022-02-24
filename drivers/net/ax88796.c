@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (c) 2017 Hartmut Keller, F&S Elektronik Systeme GmbH <keller@fs-net.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>			/* CONFIG_* */
@@ -244,7 +243,7 @@ static void ax88796_eep_send(struct ax88796_priv_data *ax,
 	do {
 		if (bits & (1 << --bitcount))
 			memr |= AX_MEMR_EEI;
-		else
+	else
 			memr &= ~AX_MEMR_EEI;
 		AX_OUT(ax, AX_MEMR, memr);
 		udelay(EEP_DELAY);
@@ -279,7 +278,7 @@ int ax88796_get_prom(u8 *mac_addr, struct ax88796_priv_data *ax)
 		/* De-assert chip select */
 		AX_OUT(ax, AX_MEMR, memr);
 		udelay(EEP_DELAY);
-	}
+}
 
 	return 0;
 }
@@ -338,7 +337,7 @@ static int ax88796_phy_read(struct mii_dev *bus, int phy_addr, int dev_addr,
 		bits <<= 1;
 		if (tmp & AX_MEMR_MDI)
 			bits |= 1;
-	}
+}
 
 	return (u16)bits;
 }
@@ -462,11 +461,11 @@ static void ax88796_RxEvent(struct eth_device *dev)
 
 	AX_IN(ax, AX_RSR);		/* FIXME: Should we evaluate RSR? */
 	while (1) {
-		/*
+/*
 		 * Read incoming packet header; different to regular NE2000
 		 * devices, the AX88796 duplicates the CURP register for
 		 * reading in page 0, so no need to switch to page 1 here.
-		 */
+ */
 		cur = AX_IN(ax, AX_CURP);
 		pkt = AX_IN(ax, AX_BNDRY);
 
@@ -563,7 +562,7 @@ static void ax88796_Overflow(struct eth_device *dev)
 	isr = AX_IN(ax, AX_ISR);
 	if (ax->tx_running && !(isr & (AX_ISR_TxP | AX_ISR_TxE))) {
 		AX_OUT(ax, AX_CR, AX_CR_NODMA | AX_CR_TXPKT | AX_CR_START);
-	}
+}
 }
 
 /* Handle any events that are signalled in ISR */
@@ -578,11 +577,11 @@ static void ax88796_poll(struct eth_device *dev)
 		if (isr == 0)
 			break;
 
-		/*
+/*
 		 * The CNT interrupt triggers when the MSB of one of the error
 		 * counters is set. We don't much care about these counters, but
 		 * we should read their values to reset them.
-		 */
+ */
 		if (isr & AX_ISR_CNT) {
 			/* Read the tally counters to clear them. */
 			AX_IN(ax, AX_FER);
@@ -672,7 +671,7 @@ static int ax88796_send(struct eth_device *dev, void *packet, int length)
 				return 0;
 			printf("Transmission error, TSR=0x%02x\n", ax->tsr);
 			return -1;
-		}
+	}
 	} while (get_timer(start) < TX_TIMEOUT);
 
 	printf("Transmission timeout\n");
@@ -689,7 +688,7 @@ static int ax88796_recv(struct eth_device *dev)
 
 /* Start up hardware, prepare to sedn/receive packets */
 static int ax88796_init(struct eth_device *dev, bd_t *bd)
-{
+	{
 	struct ax88796_priv_data *ax = dev->priv;
 
 	if (!ax->base_addr)
@@ -762,7 +761,7 @@ int ax88796_write_hwaddr(struct eth_device *dev)
 	AX_OUT(ax, AX_CR, AX_CR_NODMA | AX_CR_PAGE0);
 
 	return 0;
-}
+	}
 
 /* Register an AX88796 ethernet device (including PHY) */
 int ax88796_initialize(int dev_id, uint32_t base_addr, int mode)

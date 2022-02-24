@@ -28,7 +28,8 @@ config TARGET_MX7ULP_14X14_ARM2
 	select MX7ULP
 
 config TARGET_MX7ULP_EVK
-	bool "Support mx7ulp EVK board"
+        bool "Support mx7ulp EVK board"
+	select SYS_ARCH_TIMER
 	select BOARD_LATE_INIT
 	select MX7ULP
 

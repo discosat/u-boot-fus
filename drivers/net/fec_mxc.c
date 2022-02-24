@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2009 Ilya Yanok, Emcraft Systems Ltd <yanok@emcraft.com>
  * (C) Copyright 2008,2009 Eric Jarrige <eric.jarrige@armadeus.org>
  * (C) Copyright 2008 Armadeus Systems nc
  * (C) Copyright 2007 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  * (C) Copyright 2007 Pengutronix, Juergen Beisert <j.beisert@pengutronix.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <dm.h>
+#include <environment.h>
 #include <malloc.h>
 #include <memalign.h>
 #include <miiphy.h>
@@ -513,9 +513,9 @@ static int fec_open(struct eth_device *edev)
 	speed = CONFIG_FEC_FIXED_SPEED;
 #else
 	if (fec->bus) {
-		miiphy_wait_aneg(edev);
-		speed = miiphy_speed(edev->name, fec->phy_id);
-		miiphy_duplex(edev->name, fec->phy_id);
+	miiphy_wait_aneg(edev);
+	speed = miiphy_speed(edev->name, fec->phy_id);
+	miiphy_duplex(edev->name, fec->phy_id);
 	}
 #endif
 
@@ -1134,13 +1134,13 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec->dev_id = (dev_id == -1) ? 0 : dev_id;
 	fec->bus = bus;
 	if (bus)
-		fec_mii_setspeed(bus->priv);
+	fec_mii_setspeed(bus->priv);
 #ifdef CONFIG_PHYLIB
 	fec->phydev = phydev;
 	if (phydev) {
-		phy_connect_dev(phydev, edev);
-		/* Configure phy */
-		phy_config(phydev);
+	phy_connect_dev(phydev, edev);
+	/* Configure phy */
+	phy_config(phydev);
 	}
 #else
 	fec->phy_id = phy_id;
@@ -1404,7 +1404,7 @@ static int fecmxc_probe(struct udevice *dev)
 		priv->xcv_type = RGMII;
 		break;
 	default:
-		priv->xcv_type = CONFIG_FEC_XCV_TYPE;
+	priv->xcv_type = CONFIG_FEC_XCV_TYPE;
 		printf("Unsupported interface type %d defaulting to %d\n",
 		       priv->interface, priv->xcv_type);
 		break;
@@ -1488,6 +1488,7 @@ static const struct udevice_id fecmxc_ids[] = {
 	{ .compatible = "fsl,imx6sl-fec" },
 	{ .compatible = "fsl,imx6sx-fec" },
 	{ .compatible = "fsl,imx6ul-fec" },
+	{ .compatible = "fsl,imx53-fec" },
 	{ .compatible = "fsl,imx7d-fec" },
 	{ }
 };
