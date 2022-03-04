@@ -40,7 +40,6 @@ int	arch_early_init_r(void);
 
 /* board/.../... */
 int	board_init(void);
-void	board_quiesce_devices(void);
 
 /* cpu/.../interrupt.c */
 int	arch_interrupt_init	(void);

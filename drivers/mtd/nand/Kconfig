@@ -142,21 +142,30 @@ config NAND_MXC
 
 config NAND_MXS
 	bool "MXS NAND support"
-	depends on MX23 || MX28 || MX6 || MX7
+	depends on MX23 || MX28 || MX6 || MX7 || IMX8 || IMX8M
+	select SYS_NAND_SELF_INIT
 	imply CMD_NAND
 	select APBH_DMA
-	select APBH_DMA_BURST if ARCH_MX6 || ARCH_MX7
-	select APBH_DMA_BURST8 if ARCH_MX6 || ARCH_MX7
+	select APBH_DMA_BURST if ARCH_MX6 || ARCH_MX7 || ARCH_IMX8 || ARCH_IMX8M
+	select APBH_DMA_BURST8 if ARCH_MX6 || ARCH_MX7 || ARCH_IMX8 || ARCH_IMX8M
 	help
 	  This enables NAND driver for the NAND flash controller on the
 	  MXS processors.
 
-config NAND_MXS_BCH_LEGACY_GEO
-	bool "Keep using legacy bch geometry for MXS NAND driver"
-	depends on NAND_MXS
+if NAND_MXS
+
+config NAND_MXS_DT
+	bool "Support MXS NAND controller as a DT device"
+	depends on OF_CONTROL && MTD
 	help
-	  Users can use legacy bch geometry in u-boot by enabling this configuration.
-	  NOTICE: the feature must be enabled/disabled in both u-boot and kernel.
+	  Enable the driver for MXS NAND flash on platforms using
+	  device tree.
+
+config NAND_MXS_USE_MINIMUM_ECC
+	bool "Use minimum ECC strength supported by the controller"
+	default false
+
+endif
 
 config NAND_MXS_FUS
 	bool "MXS NAND support (F&S)"

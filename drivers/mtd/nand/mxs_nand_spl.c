@@ -7,7 +7,7 @@
 #include <common.h>
 #include <nand.h>
 #include <malloc.h>
-#include <linux/mtd/rawnand.h>
+#include "mxs_nand.h"
 
 static struct mtd_info *mtd;
 static struct nand_chip nand_chip;
@@ -56,140 +56,35 @@ static void mxs_nand_command(struct mtd_info *mtd, unsigned int command,
 	}
 }
 
-static u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
+#if defined (CONFIG_SPL_NAND_IDENT)
+
+/* Trying to detect the NAND flash using ONFi, JEDEC, and (extended) IDs */
+static int mxs_flash_full_ident(struct mtd_info *mtd)
 {
-	int i;
-	while (len--) {
-		crc ^= *p++ << 8;
-		for (i = 0; i < 8; i++)
-			crc = (crc << 1) ^ ((crc & 0x8000) ? 0x8005 : 0);
+	int nand_maf_id, nand_dev_id;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	const struct nand_flash_dev *type;
+
+	type = nand_get_flash_type(mtd, chip, &nand_maf_id, &nand_dev_id, NULL);
+
+	if (IS_ERR(type)) {
+		chip->select_chip(mtd, -1);
+		return PTR_ERR(type);
 	}
 
-	return crc;
+	return 0;
 }
 
-/* Parse the Extended Parameter Page. */
-static int nand_flash_detect_ext_param_page(struct mtd_info *mtd,
-		struct nand_chip *chip, struct nand_onfi_params *p)
-{
-	struct onfi_ext_param_page *ep;
-	struct onfi_ext_section *s;
-	struct onfi_ext_ecc_info *ecc;
-	uint8_t *cursor;
-	int ret = -EINVAL;
-	int len;
-	int i;
+#else
 
-	len = le16_to_cpu(p->ext_param_page_length) * 16;
-	ep = malloc(len);
-	if (!ep) {
-		printf("can't malloc memory 0x%x\n", len);
-		return -ENOMEM;
-	}
-
-	/* Send our own NAND_CMD_PARAM. */
-	chip->cmdfunc(mtd, NAND_CMD_PARAM, 0, -1);
-
-	/* Use the Change Read Column command to skip the ONFI param pages. */
-	chip->cmdfunc(mtd, NAND_CMD_RNDOUT,
-			sizeof(*p) * p->num_of_param_pages , -1);
-
-	/* Read out the Extended Parameter Page. */
-	chip->read_buf(mtd, (uint8_t *)ep, len);
-	if ((onfi_crc16(ONFI_CRC_BASE, ((uint8_t *)ep) + 2, len - 2)
-		!= le16_to_cpu(ep->crc))) {
-		printf("fail in the CRC.\n");
-		goto ext_out;
-	}
-
-	/*
-	 * Check the signature.
-	 * Do not strictly follow the ONFI spec, maybe changed in future.
-	 */
-	if (strncmp((char *)ep->sig, "EPPS", 4)) {
-		printf("The signature is invalid.\n");
-		goto ext_out;
-	}
-
-	/* find the ECC section. */
-	cursor = (uint8_t *)(ep + 1);
-	for (i = 0; i < ONFI_EXT_SECTION_MAX; i++) {
-		s = ep->sections + i;
-		if (s->type == ONFI_SECTION_TYPE_2)
-			break;
-		cursor += s->length * 16;
-	}
-	if (i == ONFI_EXT_SECTION_MAX) {
-		printf("We can not find the ECC section.\n");
-		goto ext_out;
-	}
-
-	/* get the info we want. */
-	ecc = (struct onfi_ext_ecc_info *)cursor;
-
-	if (!ecc->codeword_size) {
-		printf("Invalid codeword size\n");
-		goto ext_out;
-	}
-
-	chip->ecc_strength_ds = ecc->ecc_bits;
-	chip->ecc_step_ds = 1 << ecc->codeword_size;
-	ret = 0;
-
-ext_out:
-	free(ep);
-	return ret;
-}
-
-/* Extract the bits of per cell from the 3rd byte of the extended ID */
-static int nand_get_bits_per_cell(u8 cellinfo)
-{
-	int bits;
-
-	bits = cellinfo & NAND_CI_CELLTYPE_MSK;
-	bits >>= NAND_CI_CELLTYPE_SHIFT;
-	return bits + 1;
-}
-
-static inline bool is_full_id_nand(struct nand_flash_dev *type)
-{
-	return type->id_len;
-}
-
-static bool find_full_id_nand(struct mtd_info *mtd, struct nand_chip *chip,
-		   struct nand_flash_dev *type, u8 *id_data, int *busw)
-{
-	if (!strncmp((char *)type->id, (char *)id_data, type->id_len)) {
-		mtd->writesize = type->pagesize;
-		mtd->erasesize = type->erasesize;
-		mtd->oobsize = type->oobsize;
-
-		chip->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
-		chip->chipsize = (uint64_t)type->chipsize << 20;
-		chip->options |= type->options;
-		chip->ecc_strength_ds = NAND_ECC_STRENGTH(type);
-		chip->ecc_step_ds = NAND_ECC_STEP(type);
-		chip->onfi_timing_mode_default =
-					type->onfi_timing_mode_default;
-
-		*busw = type->options & NAND_BUSWIDTH_16;
-
-		if (!mtd->name)
-			mtd->name = type->name;
-
-		return true;
-	}
-	return false;
-}
-
-static int mxs_flash_ident(struct mtd_info *mtd, struct nand_flash_dev *type)
+/* Trying to detect the NAND flash using ONFi only */
+static int mxs_flash_onfi_ident(struct mtd_info *mtd)
 {
 	register struct nand_chip *chip = mtd_to_nand(mtd);
-	int i, val;
+	int i;
 	u8 mfg_id, dev_id;
 	u8 id_data[8];
 	struct nand_onfi_params *p = &chip->onfi_params;
-	int busw = 0;
 
 	/* Reset the chip */
 	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
@@ -210,18 +105,6 @@ static int mxs_flash_ident(struct mtd_info *mtd, struct nand_flash_dev *type)
 		return -1;
 	}
 	debug("0x%02x:0x%02x ", mfg_id, dev_id);
-
-	if (!type)
-		type = nand_flash_ids;
-
-	for (; type->name != NULL; type++) {
-		if (is_full_id_nand(type)) {
-			if (find_full_id_nand(mtd, chip, type, id_data, &busw))
-				goto ident_done;
-		} else if (dev_id == type->dev_id) {
-			break;
-		}
-	}
 
 	/* read ONFI */
 	chip->onfi_version = 0;
@@ -247,47 +130,25 @@ static int mxs_flash_ident(struct mtd_info *mtd, struct nand_flash_dev *type)
 	chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;
 	chip->badblockbits = 8;
 
-	/* Check version */
-	val = le16_to_cpu(p->revision);
-	if (val & (1 << 5))
-		chip->onfi_version = 23;
-	else if (val & (1 << 4))
-		chip->onfi_version = 22;
-	else if (val & (1 << 3))
-		chip->onfi_version = 21;
-	else if (val & (1 << 2))
-		chip->onfi_version = 20;
-	else if (val & (1 << 1))
-		chip->onfi_version = 10;
-
-	if (!chip->onfi_version) {
-		printf("unsupported ONFI version: %d\n", val);
-		chip->onfi_version = INT_MAX;
-//		return 0;
-	}
-
-	if (p->ecc_bits != 0xff) {
-		chip->ecc_strength_ds = p->ecc_bits;
-		chip->ecc_step_ds = 512;
-	} else if (chip->onfi_version >= 21 &&
-		(onfi_feature(chip) & ONFI_FEATURE_EXT_PARAM_PAGE)) {
-
-		if (nand_flash_detect_ext_param_page(mtd, chip, p))
-			printf("Failed to detect ONFI extended param page\n");
-	} else {
-		printf("Could not retrieve ONFI ECC requirements\n");
-	}
-
-ident_done:
-	chip->page_shift = ffs(mtd->writesize) - 1;
-	chip->phys_erase_shift = ffs(mtd->erasesize) - 1;
-	debug("ecc_strength_ds %u, ecc_step_ds %u\n", chip->ecc_strength_ds, chip->ecc_step_ds);
-	debug("erasesize=%x (>>%d)\n", mtd->erasesize, chip->phys_erase_shift);
-	debug("writesize=%x (>>%d)\n", mtd->writesize, chip->page_shift);
+	debug("erasesize=%d (>>%d)\n", mtd->erasesize, chip->phys_erase_shift);
+	debug("writesize=%d (>>%d)\n", mtd->writesize, chip->page_shift);
 	debug("oobsize=%d\n", mtd->oobsize);
-	debug("chipsize=%llx\n", chip->chipsize);
+	debug("chipsize=%lld\n", chip->chipsize);
 
 	return 0;
+}
+
+#endif /* CONFIG_SPL_NAND_IDENT */
+
+static int mxs_flash_ident(struct mtd_info *mtd)
+{
+	int ret;
+#if defined (CONFIG_SPL_NAND_IDENT)
+	ret = mxs_flash_full_ident(mtd);
+#else
+	ret = mxs_flash_onfi_ident(mtd);
+#endif
+	return ret;
 }
 
 static int mxs_read_page_ecc(struct mtd_info *mtd, void *buf, unsigned int page)
@@ -322,23 +183,25 @@ static int is_badblock(struct mtd_info *mtd, loff_t offs, int allowbbt)
 /* setup mtd and nand structs and init mxs_nand driver */
 extern int mxs_nand_realloc(struct mtd_info *mtd);
 
-static int mxs_nand_spl_init(void)
+void nand_init(void)
 {
 	/* return if already initalized */
 	if (nand_chip.numchips)
-		return 0;
+		return;
 
 	/* init mxs nand driver */
-	board_nand_init(&nand_chip);
+	mxs_nand_init_spl(&nand_chip);
 	mtd = nand_to_mtd(&nand_chip);
 	/* set mtd functions */
 	nand_chip.cmdfunc = mxs_nand_command;
+	nand_chip.scan_bbt = nand_default_bbt;
 	nand_chip.numchips = 1;
 
 	/* identify flash device */
-	if (mxs_flash_ident(mtd, NULL)) {
+	if (mxs_flash_ident(mtd)) {
 		printf("Failed to identify\n");
-		return -1;
+		nand_chip.numchips = 0; /* If fail, don't use nand */
+		return;
 	}
 
 	/* allocate and initialize buffers */
@@ -352,8 +215,7 @@ static int mxs_nand_spl_init(void)
 	/* setup flash layout (does not scan as we override that) */
 	mtd->size = nand_chip.chipsize;
 	nand_chip.scan_bbt(mtd);
-
-	return 0;
+	mxs_nand_setup_ecc(mtd);
 }
 
 int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
@@ -365,10 +227,9 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	uint8_t *page_buf = NULL;
 	uint32_t page_off;
 
-	if (mxs_nand_spl_init())
-		return -ENODEV;
-
 	chip = mtd_to_nand(mtd);
+	if (!chip->numchips)
+		return -ENODEV;
 
 	/*
 	 * Use the same buffer where the regular mxs_nand driver loads the
@@ -428,10 +289,6 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 int nand_default_bbt(struct mtd_info *mtd)
 {
 	return 0;
-}
-
-void nand_init(void)
-{
 }
 
 void nand_deselect(void)

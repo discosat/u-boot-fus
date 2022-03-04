@@ -1819,7 +1819,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			max_bitflips = max((unsigned int)max_bitflips,
 					   mtd->ecc_stats.corrected -
 					   prev_corrected);
-		} else {
+				} else {
 //###			printk("+");//###
 			memcpy(buf, chip->buffers->databuf + col, bytes);
 			buf += bytes;
@@ -2108,19 +2108,19 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 			/* If we are in the skip region, read as empty */
 			memset(buf, 0xFF, len);
 		} else {
-			if (ops->mode == MTD_OPS_RAW)
+		if (ops->mode == MTD_OPS_RAW)
 				chip->ecc.read_oob_raw(mtd, chip, page);
-			else
+		else
 				chip->ecc.read_oob(mtd, chip, page);
-			buf = nand_transfer_oob(chip, buf, ops, len);
+		buf = nand_transfer_oob(chip, buf, ops, len);
 
-			if (chip->options & NAND_NEED_READRDY) {
-				/* Apply delay or wait for ready/busy pin */
-				if (!chip->dev_ready)
-					udelay(chip->chip_delay);
-				else
-					nand_wait_ready(mtd);
-			}
+		if (chip->options & NAND_NEED_READRDY) {
+			/* Apply delay or wait for ready/busy pin */
+			if (!chip->dev_ready)
+				udelay(chip->chip_delay);
+			else
+				nand_wait_ready(mtd);
+		}
 		}
 		max_bitflips = max(max_bitflips,
 				   mtd->ecc_stats.corrected - prev_corrected);
@@ -2672,7 +2672,7 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		writelen -= bytes;
 	} while (writelen);
 
-	chip->select_chip(mtd, -1);
+			chip->select_chip(mtd, -1);
 
 	ops->retlen = ops->len - writelen;
 	if (unlikely(oob))
@@ -3046,7 +3046,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 			instr->state = MTD_ERASE_DONE;
 	}
 	if (chipnr != -1)
-		chip->select_chip(mtd, -1);
+			chip->select_chip(mtd, -1);
 
 	ret = instr->state == MTD_ERASE_DONE ? 0 : -EIO;
 
@@ -3783,7 +3783,7 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
  */
 static void nand_decode_id(struct mtd_info *mtd, struct nand_chip *chip,
 			   const struct nand_flash_dev *type, u8 id_data[8],
-			   int *busw)
+				int *busw)
 {
 	int maf_id = id_data[0];
 
@@ -3880,7 +3880,7 @@ static bool find_full_id_nand(struct mtd_info *mtd, struct nand_chip *chip,
 /*
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
-static const struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
+const struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 						  struct nand_chip *chip,
 						  int *maf_id, int *dev_id,
 						  const struct nand_flash_dev *type)
@@ -4034,6 +4034,7 @@ ident_done:
 		mtd->erasesize >> 10, mtd->writesize, mtd->oobsize);
 	return type;
 }
+EXPORT_SYMBOL(nand_get_flash_type);
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 DECLARE_GLOBAL_DATA_PTR;
@@ -4695,7 +4696,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	 * all other cases, i.e. if ecc->total is still 0, compute it now.
 	 */
 	if (!ecc->total)
-		ecc->total = ecc->steps * ecc->bytes;
+	ecc->total = ecc->steps * ecc->bytes;
 
 	/* Allow subpage writes up to ecc.steps. Not possible for MLC flash */
 	if (!(chip->options & NAND_NO_SUBPAGE_WRITE) && nand_is_slc(chip)) {

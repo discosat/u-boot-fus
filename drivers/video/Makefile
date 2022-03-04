@@ -33,6 +33,7 @@ obj-$(CONFIG_S3C64XX_XLCD) += s3c64xx_xlcd.o
 obj-$(CONFIG_VIDEO_BCM2835) += bcm2835.o
 obj-$(CONFIG_VIDEO_COREBOOT) += coreboot.o
 obj-$(CONFIG_VIDEO_DA8XX) += da8xx-fb.o videomodes.o
+obj-$(CONFIG_VIDEO_EFI) += efi.o
 obj-$(CONFIG_VIDEO_LCD_ANX9804) += anx9804.o
 obj-$(CONFIG_VIDEO_LCD_HITACHI_TX18D42VM) += hitachi_tx18d42vm_lcd.o
 obj-$(CONFIG_VIDEO_LCD_SSD2828) += ssd2828.o

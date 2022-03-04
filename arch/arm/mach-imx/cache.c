@@ -12,7 +12,7 @@
 
 static void enable_ca7_smp(void)
 {
-	uint32_t val;
+	u32 val;
 
 	/* Read MIDR */
 	asm volatile ("mrc p15, 0, %0, c0, c0, 0\n\t" : "=r"(val));
@@ -66,7 +66,10 @@ void enable_caches(void)
 #else
 void enable_caches(void)
 {
-	/* Set ACTLR.SMP bit for Cortex-A7, even the caches are disabled by u-boot */
+	/*
+	 * Set ACTLR.SMP bit for Cortex-A7, even if the caches are
+	 * disabled by u-boot
+	 */
 	enable_ca7_smp();
 
 	puts("WARNING: Caches not enabled\n");

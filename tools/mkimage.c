@@ -529,6 +529,13 @@ int main(int argc, char **argv)
 			ret = imx8mimage_copy_image(ifd, &params);
 			if (ret)
 				return ret;
+		} else if (params.type == IH_TYPE_ZYNQMPBIF) {
+			/* Image file is meta, walk through actual targets */
+			int ret;
+
+			ret = zynqmpbif_copy_image(ifd, &params);
+			if (ret)
+				return ret;
 		} else {
 			copy_file(ifd, params.datafile, pad_len);
 		}

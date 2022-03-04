@@ -184,6 +184,8 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 	char  *paddr = NULL;
 	ulong addr;
 
+	net_boot_file_name_explicit = false;
+
 	switch (argc) {
 	case 1:
 		break;
@@ -237,9 +239,11 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 
 	/* If name not given use default name made from IP address */
 	net_boot_file_name[0] = 0;
-	if (pname)
+	if (pname) {
+		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, pname,
 			      sizeof(net_boot_file_name));
+	}
 
 	bootstage_mark(BOOTSTAGE_ID_NET_START);
 

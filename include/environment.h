@@ -314,7 +314,7 @@ long long env_get_offset(long long defautl_offset);
 /**
  * env_get_char() - Get a character from the early environment
  *
- * This reads from the pre-relocation environemnt
+ * This reads from the pre-relocation environment
  *
  * @index: Index of character to read (0 = first)
  * @return character read, or -ve on error

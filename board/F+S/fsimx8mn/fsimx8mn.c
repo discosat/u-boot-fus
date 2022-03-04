@@ -305,14 +305,12 @@ int board_init(void)
 	return 0;
 }
 
-extern int mxs_nand_register(struct nand_chip *nand);
+extern void mxs_nand_register(void);
 
-int board_nand_init(struct nand_chip *nand)
+void board_nand_init(void)
 {
 	if (fs_board_get_features() & FEAT_NAND)
-		return mxs_nand_register(nand);
-
-	return -ENODEV;
+		mxs_nand_register();
 }
 
 #ifdef CONFIG_VIDEO_MXS

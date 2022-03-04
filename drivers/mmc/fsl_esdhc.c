@@ -1043,7 +1043,7 @@ static int esdhc_init_common(struct fsl_esdhc_priv *priv, struct mmc *mmc)
 #endif
 
 	/* Set the initial clock speed */
-	mmc_set_clock(mmc, 400000, false);
+	mmc_set_clock(mmc, 400000, MMC_CLK_ENABLE);
 
 	/* MX6SX/MX6UL have irqstaten cleared, so enable all valid bits */
 	esdhc_write32(&regs->irqstaten, 0xFFFFFFFF);
