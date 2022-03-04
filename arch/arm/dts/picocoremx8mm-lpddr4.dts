@@ -139,8 +139,6 @@
 
 	regulators {
 		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		#ifdef CONFIG_USB_OTG_PWR
 		reg_usb_otg_pwr: regulator-usbotg1 {
