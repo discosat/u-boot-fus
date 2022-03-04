@@ -155,12 +155,15 @@ static int mxs_read_page_ecc(struct mtd_info *mtd, void *buf, unsigned int page)
 {
 	register struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
+	unsigned int ecc_failures = mtd->ecc_stats.failed;
 
 	chip->cmdfunc(mtd, NAND_CMD_READ0, 0x0, page);
 	ret = nand_chip.ecc.read_page(mtd, chip, buf, 1, page);
+	if ((mtd->ecc_stats.failed - ecc_failures) > 0)
+		ret = -EBADMSG;
 	if (ret < 0) {
 		printf("read_page failed %d\n", ret);
-		return -1;
+		return ret;
 	}
 	return 0;
 }
@@ -226,6 +229,7 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	unsigned int sz = 0;
 	uint8_t *page_buf = NULL;
 	uint32_t page_off;
+	int err;
 
 	chip = mtd_to_nand(mtd);
 	if (!chip->numchips)
@@ -248,8 +252,9 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	debug("%s offset:0x%08x len:%d page:%x\n", __func__, offs, size, page);
 
 	while (size) {
-		if (mxs_read_page_ecc(mtd, page_buf, page) < 0)
-			return -1;
+		err = mxs_read_page_ecc(mtd, page_buf, page);
+		if (err < 0)
+			return err;
 
 		if (size > (mtd->writesize - page_off))
 			sz = (mtd->writesize - page_off);
