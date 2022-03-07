@@ -322,6 +322,7 @@ int board_init(void)
 	return 0;
 }
 
+#ifndef CONFIG_NAND_MXS_DT
 extern void mxs_nand_register(void);
 
 void board_nand_init(void)
@@ -329,6 +330,7 @@ void board_nand_init(void)
 	if (fs_board_get_features() & FEAT_NAND)
 		mxs_nand_register();
 }
+#endif
 
 #ifdef CONFIG_VIDEO_MXS
 /*
