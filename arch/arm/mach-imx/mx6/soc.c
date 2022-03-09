@@ -535,7 +535,7 @@ static void imx_set_pcie_phy_power_down(void)
 	}
 }
 
-bool is_usb_boot(void)
+__weak bool is_usb_boot(void)
 {
 	if (gd->flags & GD_FLG_ARCH_IMX_USB_BOOT)
 		return true;
