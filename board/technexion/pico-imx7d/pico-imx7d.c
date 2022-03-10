@@ -105,11 +105,7 @@ static struct i2c_pads_info i2c_pad_info4 = {
 
 int dram_init(void)
 {
-#ifdef CONFIG_IMX_TRUSTY_OS
-	gd->ram_size = ((ulong)CONFIG_DDR_MB * 1024 * 1024) - TRUSTY_OS_RAM_SIZE;
-#else
-	gd->ram_size = ((ulong)CONFIG_DDR_MB * 1024 * 1024);
-#endif
+	gd->ram_size = imx_ddr_size();
 
 	return 0;
 }
@@ -487,8 +483,8 @@ int board_mmc_init(bd_t *bis)
 			usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
 			break;
 		case 1:
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc3_emmc_pads, ARRAY_SIZE(usdhc3_emmc_pads));
+	imx_iomux_v3_setup_multiple_pads(
+			usdhc3_emmc_pads, ARRAY_SIZE(usdhc3_emmc_pads));
 			gpio_request(USDHC3_CD_GPIO, "usdhc3_cd");
 			gpio_direction_input(USDHC3_CD_GPIO);
 			usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
@@ -502,7 +498,7 @@ int board_mmc_init(bd_t *bis)
 			ret = fsl_esdhc_initialize(bis, &usdhc_cfg[i]);
 			if (ret)
 				return ret;
-	}
+}
 
 	return 0;
 }
@@ -643,7 +639,7 @@ int board_ehci_hcd_init(int port)
 	default:
 		printf("MXC USB port %d not yet supported\n", port);
 		return 1;
-	}
+}
 	return 0;
 }
 #endif

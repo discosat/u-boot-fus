@@ -112,7 +112,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 9 0>;
 			enable-active-high;
-		};
+	};
 
 		reg_usb_otg2_vbus: usb_otg2_vbus {
 			compatible = "regulator-fixed";
@@ -651,13 +651,13 @@
 				MX6SX_PAD_SD1_CLK__AUDMUX_AUD5_RXFS   0x130b0
 				MX6SX_PAD_SD1_DATA3__AUDMUX_AUD5_RXD  0x130b0
 			>;
-		};
+	};
 
 		pinctrl_egalax_int: egalax_intgrp {
 			fsl,pins = <
 				MX6SX_PAD_SD4_RESET_B__GPIO6_IO_22      0x80000000
 			>;
-		};
+	};
 
 		pinctrl_enet1_1: enet1grp-1 {
 			fsl,pins = <
@@ -676,7 +676,7 @@
 				MX6SX_PAD_RGMII1_RD3__ENET1_RX_DATA_3   0x3081
 				MX6SX_PAD_RGMII1_RX_CTL__ENET1_RX_EN    0x3081
 			>;
-		};
+};
 
 		pinctrl_enet2_1: enet2grp-1 {
 			fsl,pins = <
@@ -930,7 +930,7 @@
 			fsl,pins = <
 				MX6SX_PAD_GPIO1_IO13__WDOG1_WDOG_ANY 0x30b0
 			>;
-		};
+	};
 	};
 };
 &csi2 {

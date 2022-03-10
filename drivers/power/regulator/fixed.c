@@ -52,8 +52,8 @@ static int fixed_regulator_ofdata_to_platdata(struct udevice *dev)
 	/* Get optional ramp up delay */
 	dev_pdata->startup_delay_us = dev_read_u32_default(dev,
 							"startup-delay-us", 0);
-	dev_pdata->off_on_delay_us = dev_read_u32_default(dev,
-						     "off-on-delay-us", 0);
+	dev_pdata->off_on_delay_us =
+			dev_read_u32_default(dev, "u-boot,off-on-delay-us", 0);
 
 	return 0;
 }
@@ -127,9 +127,8 @@ static int fixed_regulator_set_enable(struct udevice *dev, bool enable)
 		udelay(dev_pdata->startup_delay_us);
 	debug("%s: done\n", __func__);
 
-	if (!enable && dev_pdata->off_on_delay_us) {
+	if (!enable && dev_pdata->off_on_delay_us)
 		udelay(dev_pdata->off_on_delay_us);
-	}
 
 	return 0;
 }

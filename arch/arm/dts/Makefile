@@ -53,7 +53,9 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-puma-ddr1866.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
+	meson-gxbb-nanopi-k2.dtb \
 	meson-gxbb-odroidc2.dtb \
+	meson-gxbb-nanopi-k2.dtb \
 	meson-gxl-s905x-p212.dtb \
 	meson-gxl-s905x-libretech-cc.dtb \
 	meson-gxl-s905x-khadas-vim.dtb
@@ -129,6 +131,8 @@ dtb-$(CONFIG_ARCH_UNIPHIER_SLD8) += \
 
 dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-cc108.dtb \
+	zynq-cse-nand.dtb \
+	zynq-cse-nor.dtb \
 	zynq-cse-qspi-single.dtb \
 	zynq-microzed.dtb \
 	zynq-minized.dtb \
@@ -145,11 +149,14 @@ dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-zc770-xm013.dtb \
 	zynq-zed.dtb \
 	zynq-zturn.dtb \
-	zynq-zybo.dtb
+	zynq-zybo.dtb \
+	zynq-zybo-z7.dtb
 dtb-$(CONFIG_ARCH_ZYNQMP) += \
+	avnet-ultra96-rev1.dtb			\
 	zynqmp-mini-emmc0.dtb			\
 	zynqmp-mini-emmc1.dtb			\
 	zynqmp-mini-nand.dtb			\
+	zynqmp-mini-qspi.dtb			\
 	zynqmp-zcu100-revC.dtb			\
 	zynqmp-zcu102-revA.dtb			\
 	zynqmp-zcu102-revB.dtb			\
@@ -191,7 +198,7 @@ dtb-$(CONFIG_ARCH_SOCFPGA) +=				\
 	socfpga_cyclone5_is1.dtb			\
 	socfpga_cyclone5_socdk.dtb			\
 	socfpga_cyclone5_dbm_soc1.dtb			\
-	socfpga_cyclone5_de0_nano_soc.dtb			\
+	socfpga_cyclone5_de0_nano_soc.dtb		\
 	socfpga_cyclone5_de1_soc.dtb			\
 	socfpga_cyclone5_de10_nano.dtb			\
 	socfpga_cyclone5_sockit.dtb			\
@@ -385,6 +392,9 @@ dtb-$(CONFIG_MACH_SUN50I_H5) += \
 	sun50i-h5-orangepi-pc2.dtb \
 	sun50i-h5-orangepi-prime.dtb \
 	sun50i-h5-orangepi-zero-plus2.dtb
+dtb-$(CONFIG_MACH_SUN50I_H6) += \
+	sun50i-h6-orangepi-one-plus.dtb \
+	sun50i-h6-pine-h64.dtb
 dtb-$(CONFIG_MACH_SUN50I) += \
 	sun50i-a64-amarula-relic.dtb \
 	sun50i-a64-bananapi-m64.dtb \
@@ -392,7 +402,8 @@ dtb-$(CONFIG_MACH_SUN50I) += \
 	sun50i-a64-olinuxino.dtb \
 	sun50i-a64-orangepi-win.dtb \
 	sun50i-a64-pine64-plus.dtb \
-	sun50i-a64-pine64.dtb
+	sun50i-a64-pine64.dtb \
+	sun50i-a64-sopine-baseboard.dtb
 dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-optimus.dtb \
 	sun9i-a80-cubieboard4.dtb \
@@ -460,7 +471,9 @@ dtb-$(CONFIG_MX6UL) += \
 	imx6ul-geam.dtb \
 	imx6ul-isiot-emmc.dtb \
 	imx6ul-isiot-nand.dtb \
-	imx6ul-opos6uldev.dtb
+	imx6ul-opos6uldev.dtb \
+	imx6ul-14x14-evk.dtb \
+	imx6ul-9x9-evk.dtb
 
 dtb-$(CONFIG_MX6ULL) += \
 	imx6ull-14x14-ddr3-arm2.dtb \
@@ -621,7 +634,8 @@ dtb-$(CONFIG_ARCH_ASPEED) += ast2500-evb.dtb
 dtb-$(CONFIG_ARCH_STI) += stih410-b2260.dtb
 
 dtb-$(CONFIG_TARGET_STM32MP1) += \
-	stm32mp157c-ed1.dtb
+	stm32mp157c-ed1.dtb \
+	stm32mp157c-ev1.dtb
 
 targets += $(dtb-y)
 

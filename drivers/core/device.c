@@ -26,9 +26,7 @@
 #include <dm/util.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#ifdef CONFIG_POWER_DOMAIN
 #include <power-domain.h>
-#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -233,6 +231,14 @@ int device_bind(struct udevice *parent, const struct driver *drv,
 				  offset_to_ofnode(of_offset), 0, devp);
 }
 
+int device_bind_ofnode(struct udevice *parent, const struct driver *drv,
+		       const char *name, void *platdata, ofnode node,
+		       struct udevice **devp)
+{
+	return device_bind_common(parent, drv, name, platdata, 0, node, 0,
+				  devp);
+}
+
 int device_bind_by_name(struct udevice *parent, bool pre_reloc_only,
 			const struct driver_info *info, struct udevice **devp)
 {
@@ -299,6 +305,7 @@ static void *alloc_priv(int size, uint flags)
 
 int device_probe(struct udevice *dev)
 {
+	struct power_domain pd;
 	const struct driver *drv;
 	int size = 0;
 	int ret;
@@ -378,9 +385,7 @@ int device_probe(struct udevice *dev)
 	if (dev->parent && device_get_uclass_id(dev) != UCLASS_PINCTRL)
 		pinctrl_select_state(dev, "default");
 
-#ifdef CONFIG_POWER_DOMAIN
 	if (dev->parent && device_get_uclass_id(dev) != UCLASS_POWER_DOMAIN) {
-		struct power_domain pd;
 		if (!power_domain_get(dev, &pd)) {
 			if (!(dev->driver->flags & DM_FLAG_IGNORE_POWER_ON)) {
 				ret = power_domain_on(&pd);
@@ -391,7 +396,6 @@ int device_probe(struct udevice *dev)
 			}
 		}
 	}
-#endif
 
 	ret = uclass_pre_probe_device(dev);
 	if (ret)
@@ -597,16 +601,16 @@ int device_get_child_by_of_offset(struct udevice *parent, int node,
 	return device_get_device_tail(dev, ret, devp);
 }
 
-static struct udevice *_device_find_global_by_of_offset(struct udevice *parent,
-							int of_offset)
+static struct udevice *_device_find_global_by_ofnode(struct udevice *parent,
+						     ofnode ofnode)
 {
 	struct udevice *dev, *found;
 
-	if (dev_of_offset(parent) == of_offset)
+	if (ofnode_equal(dev_ofnode(parent), ofnode))
 		return parent;
 
 	list_for_each_entry(dev, &parent->child_head, sibling_node) {
-		found = _device_find_global_by_of_offset(dev, of_offset);
+		found = _device_find_global_by_ofnode(dev, ofnode);
 		if (found)
 			return found;
 	}
@@ -614,11 +618,18 @@ static struct udevice *_device_find_global_by_of_offset(struct udevice *parent,
 	return NULL;
 }
 
-int device_get_global_by_of_offset(int of_offset, struct udevice **devp)
+int device_find_global_by_ofnode(ofnode ofnode, struct udevice **devp)
+{
+	*devp = _device_find_global_by_ofnode(gd->dm_root, ofnode);
+
+	return *devp ? 0 : -ENOENT;
+}
+
+int device_get_global_by_ofnode(ofnode ofnode, struct udevice **devp)
 {
 	struct udevice *dev;
 
-	dev = _device_find_global_by_of_offset(gd->dm_root, of_offset);
+	dev = _device_find_global_by_ofnode(gd->dm_root, ofnode);
 	return device_get_device_tail(dev, dev ? 0 : -ENOENT, devp);
 }
 

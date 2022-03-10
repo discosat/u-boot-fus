@@ -64,7 +64,6 @@
 /************************************************************************
  * High Level Configuration Options
  ************************************************************************/
-#define CONFIG_MP			/* Multi processor support */
 
 /*####define CONFIG_IMX_THERMAL*/	/* Read CPU temperature */
 
@@ -100,7 +99,6 @@
  * Memory Layout
  ************************************************************************/
 /* Physical addresses of DDR and CPU-internal SRAM */
-#define CONFIG_NR_DRAM_BANKS	1
 #define CONFIG_SYS_SDRAM_BASE	MMDC0_ARB_BASE_ADDR
 
 /* MX6 has 128KB (Solo/DualLite) or 256KB (Dual/Quad) of internal SRAM,
@@ -327,8 +325,6 @@
 #define MTDPARTS_UBIONLY	"setenv mtdparts "
 
 #else
-#define CONFIG_MTD_DEVICE		/* Create MTD device */
-
 /* Define MTD partition info */
 #if CONFIG_SYS_MAX_NAND_DEVICE > 1
 #define MTDIDS_DEFAULT		"nand0=gpmi-nand0,nand1=gpmi-nand1"

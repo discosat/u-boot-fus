@@ -5,6 +5,7 @@
  * Copyright 2011, 2013 Freescale Semiconductor, Inc.
  * author Andy Fleming
  */
+#include <common.h>
 #include <phy.h>
 #include <config.h>
 

@@ -697,7 +697,6 @@
 #define CONFIG_SYS_MALLOC_LEN	((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
-#define CONFIG_NR_DRAM_BANKS		1
 #define CONFIG_BAUDRATE			115200
 
 #define CONFIG_MXC_UART
@@ -793,9 +792,6 @@
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 #define MXS_NAND_MAX_ECC_STRENGTH 62
 
-#ifdef CONFIG_CMD_UBI
-#define CONFIG_MTD_DEVICE
-#endif
 #endif
 
 /* Framebuffer */

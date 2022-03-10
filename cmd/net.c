@@ -239,6 +239,8 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 
 	/* If name not given use default name made from IP address */
 	net_boot_file_name[0] = 0;
+	if (!pname)
+		pname = env_get("bootfile");
 	if (pname) {
 		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, pname,

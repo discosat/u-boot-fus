@@ -225,11 +225,8 @@ static int on_bootfile(const char *name, const char *value, enum env_op op,
 	switch (op) {
 	case env_op_create:
 	case env_op_overwrite:
-		if (value == NULL)
-			return -1;
-		else
-			copy_filename(net_boot_file_name, value,
-				      sizeof(net_boot_file_name));
+		copy_filename(net_boot_file_name, value,
+			      sizeof(net_boot_file_name));
 		break;
 	default:
 		break;
@@ -335,6 +332,16 @@ void net_auto_load(void)
 	const char *s = env_get("autoload");
 
 	if (s != NULL && strcmp(s, "NFS") == 0) {
+		if (net_check_prereq(NFS)) {
+/* We aren't expecting to get a serverip, so just accept the assigned IP */
+#ifdef CONFIG_BOOTP_SERVERIP
+			net_set_state(NETLOOP_SUCCESS);
+#else
+			printf("Cannot autoload with NFS\n");
+			net_set_state(NETLOOP_FAIL);
+#endif
+			return;
+		}
 		/*
 		 * Use NFS to load the bootfile.
 		 */
@@ -348,6 +355,16 @@ void net_auto_load(void)
 		 * Do not use TFTP to load the bootfile.
 		 */
 		net_set_state(NETLOOP_SUCCESS);
+		return;
+	}
+	if (net_check_prereq(TFTPGET)) {
+/* We aren't expecting to get a serverip, so just accept the assigned IP */
+#ifdef CONFIG_BOOTP_SERVERIP
+		net_set_state(NETLOOP_SUCCESS);
+#else
+		printf("Cannot autoload with TFTPGET\n");
+		net_set_state(NETLOOP_FAIL);
+#endif
 		return;
 	}
 	tftp_start(TFTPGET);
@@ -1343,7 +1360,7 @@ static int net_check_prereq(enum proto_t protocol)
 		/* Fall through */
 	case TFTPGET:
 	case TFTPPUT:
-		if (net_server_ip.s_addr == 0) {
+		if (net_server_ip.s_addr == 0 && !is_serverip_in_cmd()) {
 			puts("*** ERROR: `serverip' not set\n");
 			return 1;
 		}
@@ -1504,14 +1521,39 @@ void net_set_udp_header(uchar *pkt, struct in_addr dest, int dport, int sport,
 
 void copy_filename(char *dst, const char *src, int size)
 {
-	if (*src && (*src == '"')) {
+	if (src && *src && (*src == '"')) {
 		++src;
 		--size;
 	}
 
-	while ((--size > 0) && *src && (*src != '"'))
+	while ((--size > 0) && src && *src && (*src != '"'))
 		*dst++ = *src++;
 	*dst = '\0';
+}
+
+int is_serverip_in_cmd(void)
+{
+	return !!strchr(net_boot_file_name, ':');
+}
+
+int net_parse_bootfile(struct in_addr *ipaddr, char *filename, int max_len)
+{
+	char *colon;
+
+	if (net_boot_file_name[0] == '\0')
+		return 0;
+
+	colon = strchr(net_boot_file_name, ':');
+	if (colon) {
+		if (ipaddr)
+			*ipaddr = string_to_ip(net_boot_file_name);
+		strncpy(filename, colon + 1, max_len);
+	} else {
+		strncpy(filename, net_boot_file_name, max_len);
+	}
+	filename[max_len - 1] = '\0';
+
+	return 1;
 }
 
 #if	defined(CONFIG_CMD_NFS)		|| \

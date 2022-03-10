@@ -890,8 +890,10 @@ void set_wdog_reset(struct wdog_regs *wdog)
 
 void reset_misc(void)
 {
+#ifndef CONFIG_SPL_BUILD
 #ifdef CONFIG_VIDEO_MXS
 	lcdif_power_down();
+#endif
 #endif
 }
 
@@ -1114,6 +1116,11 @@ void finish_anatop_bypass(void)
 }
 #endif
 
+
+/*
+ * gpr_init() function is common for boards using MX6S, MX6DL, MX6D,
+ * MX6Q and MX6QP processors
+ */
 void gpr_init(void)
 {
 	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;

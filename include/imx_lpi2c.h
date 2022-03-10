@@ -1,13 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2016 Freescale Semiconductors, Inc.
  *
  * I2CLP driver for i.MX
  *
- * SPDX-License-Identifier:	GPL-2.0+
- *
  */
 #ifndef __IMX_LPI2C_H__
 #define __IMX_LPI2C_H__
+
+#include <clk.h>
 
 struct imx_lpi2c_bus {
 	int index;
@@ -16,6 +17,7 @@ struct imx_lpi2c_bus {
 	int speed;
 	struct i2c_pads_info *pads_info;
 	struct udevice *bus;
+	struct clk per_clk;
 };
 
 struct imx_lpi2c_reg {

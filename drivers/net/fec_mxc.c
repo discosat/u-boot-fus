@@ -15,7 +15,6 @@
 #include <miiphy.h>
 #include <net.h>
 #include <netdev.h>
-#include "fec_mxc.h"
 
 #include <asm/io.h>
 #include <linux/errno.h>
@@ -25,6 +24,8 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/mach-imx/sys_proto.h>
 #include <asm-generic/gpio.h>
+
+#include "fec_mxc.h"
 #include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;

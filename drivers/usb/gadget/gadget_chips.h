@@ -154,14 +154,6 @@
 #else
 #define gadget_is_cdns3(g)        0
 #endif
-
-
-/*
- * CONFIG_USB_GADGET_SX2
- * CONFIG_USB_GADGET_AU1X00
- * ...
- */
-
 /**
  * usb_gadget_controller_number - support bcdDevice id convention
  * @gadget: the controller being driven
@@ -220,6 +212,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 	else if (gadget_is_fotg210(gadget))
 		return 0x22;
 	else if (gadget_is_cdns3(gadget))
+		return 0x23;
+	else if (gadget_is_dwc3(gadget))
 		return 0x23;
 	return -ENOENT;
 }

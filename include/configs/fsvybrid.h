@@ -356,7 +356,6 @@
 /************************************************************************
  * Generic MTD Settings
  ************************************************************************/
-#define CONFIG_MTD_DEVICE		/* Create MTD device */
 
 /* Define MTD partition info */
 #if CONFIG_SYS_MAX_NAND_DEVICE > 1
