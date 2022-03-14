@@ -1,8 +1,6 @@
+/* SPDX-License-Identifier:     GPL-2.0+ */
 /*
- * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:     GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef DT_BINDINGS_RSCRC_IMX_H
@@ -39,8 +37,8 @@
 #define SC_R_PERF                       23
 #define SC_R_USB_1_PHY                  24
 #define SC_R_DC_0_WARP                  25
-#define SC_R_UNUSED7                    26
-#define SC_R_UNUSED8                    27
+#define SC_R_DC_0_INTEGRAL0             26
+#define SC_R_DC_0_INTEGRAL1             27
 #define SC_R_DC_0_VIDEO0                28
 #define SC_R_DC_0_VIDEO1                29
 #define SC_R_DC_0_FRAC0                 30
@@ -336,7 +334,7 @@
 #define SC_R_SAI_2                      320
 #define SC_R_IRQSTR_SCU2                321
 #define SC_R_IRQSTR_DSP                 322
-#define SC_R_ELCDIF_PLL                 323
+#define SC_R_UNUSED5                    323
 #define SC_R_OCRAM                      324
 #define SC_R_AUDIO_PLL_0                325
 #define SC_R_PI_0                       326
@@ -563,4 +561,3 @@
 #define SC_R_NONE                       0xFFF0
 
 #endif /* DT_BINDINGS_RSCRC_IMX_H */
-

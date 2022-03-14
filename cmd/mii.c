@@ -374,13 +374,13 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 					rcode = 1;
 					continue;
 				}
-				val = (val & ~mask) | (data & mask);
+					val = (val & ~mask) | (data & mask);
 				if (miiphy_write(devname, addr, reg, val)) {
 					mii_err(addr, reg, 1);
-					rcode = 1;
+						rcode = 1;
+					}
 				}
 			}
-		}
 	} else if (strncmp(op, "du", 2) == 0) {
 		ushort regs[6];
 		int ok = 1;

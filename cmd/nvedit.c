@@ -1008,7 +1008,8 @@ NXTARG:		;
 	}
 
 	if (chk) {
-		envp->crc = crc32(0, envp->data, ENV_SIZE);
+		envp->crc = crc32(0, envp->data,
+				size ? size - offsetof(env_t, data) : ENV_SIZE);
 #ifdef CONFIG_ENV_ADDR_REDUND
 		envp->flags = ACTIVE_FLAG;
 #endif

@@ -15,6 +15,7 @@
 #include <miiphy.h>
 #include <net.h>
 #include <netdev.h>
+#include <power/regulator.h>
 
 #include <asm/io.h>
 #include <linux/errno.h>
@@ -123,6 +124,32 @@ static int fec_mdio_read(struct ethernet_regs *eth, uint8_t phyaddr,
 	return val;
 }
 
+static int fec_get_clk_rate(void *udev, int idx)
+{
+#if IS_ENABLED(CONFIG_IMX8)
+	struct fec_priv *fec;
+	struct udevice *dev;
+	int ret;
+
+	dev = udev;
+	if (!dev) {
+		ret = uclass_get_device(UCLASS_ETH, idx, &dev);
+		if (ret < 0) {
+			debug("Can't get FEC udev: %d\n", ret);
+			return ret;
+		}
+	}
+
+	fec = dev_get_priv(dev);
+	if (fec)
+		return fec->clk_rate;
+
+	return -EINVAL;
+#else
+	return imx_get_fecclk();
+#endif
+}
+
 static void fec_mii_setspeed(struct ethernet_regs *eth)
 {
 	/*
@@ -140,9 +167,20 @@ static void fec_mii_setspeed(struct ethernet_regs *eth)
 	 * Given that ceil(clkrate / 5000000) <= 64, the calculation for
 	 * holdtime cannot result in a value greater than 3.
 	 */
-	u32 pclk = imx_get_fecclk();
-	u32 speed = DIV_ROUND_UP(pclk, 5000000);
-	u32 hold = DIV_ROUND_UP(pclk, 100000000) - 1;
+	u32 pclk;
+	u32 speed;
+	u32 hold;
+	int ret;
+
+	ret = fec_get_clk_rate(NULL, 0);
+	if (ret < 0) {
+		printf("Can't find FEC0 clk rate: %d\n", ret);
+		return;
+	}
+	pclk = ret;
+	speed = DIV_ROUND_UP(pclk, 5000000);
+	hold = DIV_ROUND_UP(pclk, 100000000) - 1;
+
 #ifdef FEC_QUIRK_ENET_MAC
 	speed--;
 #endif
@@ -1355,11 +1393,35 @@ static int fecmxc_probe(struct udevice *dev)
 		return -ENODEV;
 	}
 #endif
-	init_clk_fec(dev->seq);
+
+	if (IS_ENABLED(CONFIG_IMX8)) {
+		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ipg clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ipg_clk);
+		if (ret < 0) {
+			debug("Can't enable FEC ipg clk: %d\n", ret);
+			return ret;
+		}
+
+		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
+	}
 
 	ret = fec_alloc_descs(priv);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_DM_REGULATOR
+	if (priv->phy_supply) {
+		ret = regulator_autoset(priv->phy_supply);
+		if (ret) {
+			printf("%s: Error enabling phy supply\n", dev->name);
+			return ret;
+		}
+	}
+#endif
 
 #if CONFIG_IS_ENABLED(DM_GPIO)
 	fec_gpio_reset(priv);
@@ -1435,6 +1497,11 @@ static int fecmxc_remove(struct udevice *dev)
 	mdio_unregister(priv->bus);
 	mdio_free(priv->bus);
 
+#ifdef CONFIG_DM_REGULATOR
+	if (priv->phy_supply)
+		regulator_set_enable(priv->phy_supply, false);
+#endif
+
 	return 0;
 }
 
@@ -1458,9 +1525,13 @@ static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_DM_REGULATOR
+	device_get_supply_regulator(dev, "phy-supply", &priv->phy_supply);
+#endif
+
 #if CONFIG_IS_ENABLED(DM_GPIO)
 	ret = gpio_request_by_name(dev, "phy-reset-gpios", 0,
-				   &priv->phy_reset_gpio, GPIOD_IS_OUT);
+			     &priv->phy_reset_gpio, GPIOD_IS_OUT);
 	if (ret < 0)
 		return 0; /* property is optional, don't return error! */
 

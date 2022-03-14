@@ -16,6 +16,7 @@
 #ifndef __FEC_MXC_H
 #define __FEC_MXC_H
 
+#include <clk.h>
 #include <asm-generic/gpio.h>
 
 /* Layout description of the FEC */
@@ -243,6 +244,9 @@ struct fec_priv {
 	int phy_id;
 	int (*mii_postcall)(int);
 #endif
+#ifdef CONFIG_DM_REGULATOR
+	struct udevice *phy_supply;
+#endif
 #if CONFIG_IS_ENABLED(DM_GPIO)
 	struct gpio_desc phy_reset_gpio;
 	uint32_t reset_delay;
@@ -251,6 +255,8 @@ struct fec_priv {
 #ifdef CONFIG_DM_ETH
 	u32 interface;
 #endif
+	struct clk ipg_clk;
+	u32 clk_rate;
 };
 
 void imx_get_mac_from_fuse(int dev_id, unsigned char *mac);

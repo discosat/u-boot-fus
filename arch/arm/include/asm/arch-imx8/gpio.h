@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef __ASM_ARCH_IMX8_GPIO_H

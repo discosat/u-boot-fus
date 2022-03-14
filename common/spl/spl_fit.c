@@ -6,6 +6,7 @@
 
 #include <common.h>
 #include <errno.h>
+#include <fpga.h>
 #include <image.h>
 #include <linux/libfdt.h>
 #include <spl.h>
@@ -169,14 +170,6 @@ __weak int get_tee_load(ulong *load)
 }
 #endif
 
-#ifdef CONFIG_SPL_FPGA_SUPPORT
-__weak int spl_load_fpga_image(struct spl_load_info *info, size_t length,
-			       int nr_sectors, int sector_offset)
-{
-	return 0;
-}
-#endif
-
 /**
  * spl_load_fit_image(): load the image described in a certain FIT node
  * @info:	points to information about the device to load data from
@@ -198,7 +191,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 			      void *fit, ulong base_offset, int node,
 			      struct spl_image_info *image_info)
 {
-	int offset, sector_offset;
+	int offset;
 	size_t length;
 	int len;
 	ulong size;
@@ -261,16 +254,9 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 
 		overhead = get_aligned_image_overhead(info, offset);
 		nr_sectors = get_aligned_image_size(info, length, offset);
-		sector_offset = sector + get_aligned_image_offset(info, offset);
 
-#ifdef CONFIG_SPL_FPGA_SUPPORT
-		if (type == IH_TYPE_FPGA) {
-			return spl_load_fpga_image(info, length, nr_sectors,
-						   sector_offset);
-		}
-#endif
-
-		if (info->read(info, sector_offset,
+		if (info->read(info,
+			       sector + get_aligned_image_offset(info, offset),
 			       nr_sectors, (void *)load_ptr) != nr_sectors)
 			return -EIO;
 
@@ -301,10 +287,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	board_fit_image_post_process(&src, &length);
 #endif
 
-	if (IS_ENABLED(CONFIG_SPL_OS_BOOT)	&&
-	    IS_ENABLED(CONFIG_SPL_GZIP)		&&
-	    image_comp == IH_COMP_GZIP		&&
-	    type == IH_TYPE_KERNEL) {
+	if (IS_ENABLED(CONFIG_SPL_GZIP) && image_comp == IH_COMP_GZIP) {
 		size = length;
 		if (gunzip((void *)load_addr, CONFIG_SYS_BOOTM_LEN,
 			   src, &size)) {
@@ -457,19 +440,21 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 			printf("%s: Cannot load the FPGA: %i\n", __func__, ret);
 			return ret;
 		}
+
+		debug("FPGA bitstream at: %x, size: %x\n",
+		      (u32)spl_image->load_addr, spl_image->size);
+
+		ret = fpga_load(0, (const void *)spl_image->load_addr,
+				spl_image->size, BIT_FULL);
+		if (ret) {
+			printf("%s: Cannot load the image to the FPGA\n",
+			       __func__);
+			return ret;
+		}
+
 		puts("FPGA image loaded from FIT\n");
 		node = -1;
 	}
-#endif
-
-#if defined(CONFIG_DUAL_BOOTLOADER) && defined(CONFIG_IMX_TRUSTY_OS)
-	int rbindex;
-	rbindex = spl_fit_get_rbindex(fit, images);
-	if (rbindex < 0) {
-		printf("Error! Can't get rollback index!\n");
-		return -1;
-	} else
-		spl_image->rbindex = rbindex;
 #endif
 
 	/*

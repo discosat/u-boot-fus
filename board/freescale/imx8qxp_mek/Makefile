@@ -5,7 +5,5 @@
 #
 
 obj-y += imx8qxp_mek.o
+obj-$(CONFIG_SPL_BUILD) += spl.o
 
-ifdef CONFIG_SPL_BUILD
-obj-y += spl.o
-endif

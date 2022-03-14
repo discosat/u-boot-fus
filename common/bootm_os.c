@@ -509,7 +509,7 @@ __weak void arch_preboot_os(void)
 /* Allow for board specific config before we boot */
 __weak void board_preboot_os(void)
 {
-	/* please define platform specific arch_preboot_os() */
+	/* please define board specific board_preboot_os() */
 }
 
 int boot_selected_os(int argc, char * const argv[], int state,

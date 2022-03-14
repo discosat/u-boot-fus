@@ -252,7 +252,6 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 						/* SDR mode @1.2V I/O */
 #define EXT_CSD_CARD_TYPE_HS200		(EXT_CSD_CARD_TYPE_HS200_1_8V | \
 					 EXT_CSD_CARD_TYPE_HS200_1_2V)
-
 #define EXT_CSD_CARD_TYPE_HS400_1_8V	BIT(6)
 #define EXT_CSD_CARD_TYPE_HS400_1_2V	BIT(7)
 #define EXT_CSD_CARD_TYPE_HS400		(EXT_CSD_CARD_TYPE_HS400_1_8V | \
@@ -340,7 +339,6 @@ enum mmc_voltage {
 #define MMC_ALL_SIGNAL_VOLTAGE (MMC_SIGNAL_VOLTAGE_120 |\
 				MMC_SIGNAL_VOLTAGE_180 |\
 				MMC_SIGNAL_VOLTAGE_330)
-
 
 /* Maximum block size for MMC */
 #define MMC_MAX_BLOCK_LEN	512
@@ -799,6 +797,25 @@ int mmc_rpmb_read(struct mmc *mmc, void *addr, unsigned short blk,
 		  unsigned short cnt, unsigned char *key);
 int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 		   unsigned short cnt, unsigned char *key);
+
+/**
+ * mmc_rpmb_route_frames() - route RPMB data frames
+ * @mmc		Pointer to a MMC device struct
+ * @req		Request data frames
+ * @reqlen	Length of data frames in bytes
+ * @rsp		Supplied buffer for response data frames
+ * @rsplen	Length of supplied buffer for response data frames
+ *
+ * The RPMB data frames are routed to/from some external entity, for
+ * example a Trusted Exectuion Environment in an arm TrustZone protected
+ * secure world. It's expected that it's the external entity who is in
+ * control of the RPMB key.
+ *
+ * Returns 0 on success, < 0 on error.
+ */
+int mmc_rpmb_route_frames(struct mmc *mmc, void *req, unsigned long reqlen,
+			  void *rsp, unsigned long rsplen);
+
 int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 			    unsigned int count, bool is_rel_write);
 int mmc_rpmb_response(struct mmc *mmc, struct s_rpmb *s,

@@ -38,10 +38,12 @@ obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 obj-y += mmc_env.o
 obj-$(CONFIG_FSL_MFGPROT) += cmd_mfgprot.o
 endif
+ifeq ($(SOC),$(filter $(SOC),mx5 mx6 mx7))
+obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
+endif
 ifeq ($(SOC),$(filter $(SOC),mx6 mx7))
 obj-y 	+= cache.o init.o
 obj-$(CONFIG_FEC_MXC) += mac.o
-obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
 obj-$(CONFIG_IMX_RDC) += rdc-sema.o
 ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
@@ -76,6 +78,21 @@ obj-$(CONFIG_BLINK_IMX) += blink_timer.o
 obj-$(CONFIG_USE_IRQ) += interrupts.o
 obj-$(CONFIG_CMD_DEKBLOB) += cmd_dek.o
 obj-$(CONFIG_IMX_VSERVICE) += imx_vservice.o
+endif
+
+ifneq ($(CONFIG_BOARD_SIZE_LIMIT),)
+BOARD_SIZE_CHECK = \
+        @actual=`wc -c $@ | awk '{print $$1}'`; \
+        limit=`printf "%d" $(CONFIG_BOARD_SIZE_LIMIT)`; \
+        if test $$actual -gt $$limit; then \
+                echo "$@ exceeds file size limit:" >&2 ; \
+                echo "  limit:  $$limit bytes" >&2 ; \
+                echo "  actual: $$actual bytes" >&2 ; \
+                echo "  excess: $$((actual - limit)) bytes" >&2; \
+                exit 1; \
+        fi
+else
+BOARD_SIZE_CHECK =
 endif
 
 PLUGIN = board/$(BOARDDIR)/plugin
@@ -151,6 +168,7 @@ endif
 
 u-boot.imx: u-boot.bin u-boot.cfgout $(PLUGIN).bin $(QSPI_HEADER) FORCE
 	$(call if_changed,mkimage)
+	$(BOARD_SIZE_CHECK)
 ifeq ($(CONFIG_QSPI_BOOT),y)
 	@awk '{s="0000000"$$1;l=length(s);if(!((NR-1)%4))printf "%08x ",(NR-1)*4; \
 		for(i=1;i<8;i+=2)printf " %s",substr(s,l-i,2);if(!(NR%4))printf "\n";}' \
@@ -163,16 +181,7 @@ ifeq ($(CONFIG_QSPI_BOOT),y)
 	@echo "Packed QSPI header with $@"
 endif
 
-ifeq ($(CONFIG_MULTI_DTB_FIT),y)
-MKIMAGEFLAGS_u-boot-dtb.imx = -n $(filter-out $(PLUGIN).bin $< $(PHONY),$^) \
-	-T $(IMAGE_TYPE) -e $(CONFIG_SYS_TEXT_BASE)
-u-boot-dtb.imx: MKIMAGEOUTPUT = u-boot-dtb.imx.log
-
-u-boot-dtb.imx: u-boot-fit-dtb.bin u-boot-dtb.cfgout $(PLUGIN).bin FORCE
-ifeq ($(DEPFILE_EXISTS),0)
-	$(call if_changed,mkimage)
-endif
-else ifeq ($(CONFIG_OF_SEPARATE),y)
+ifeq ($(CONFIG_OF_SEPARATE),y)
 MKIMAGEFLAGS_u-boot-dtb.imx = -n $(filter-out $(PLUGIN).bin $(QSPI_HEADER) $< $(PHONY),$^) \
 	-T $(IMAGE_TYPE) -e $(CONFIG_SYS_TEXT_BASE)
 u-boot-dtb.imx: MKIMAGEOUTPUT = u-boot-dtb.imx.log
@@ -282,5 +291,5 @@ obj-$(CONFIG_MX5) += mx5/
 obj-$(CONFIG_MX6) += mx6/
 obj-$(CONFIG_MX7) += mx7/
 obj-$(CONFIG_ARCH_MX7ULP) += mx7ulp/
-obj-$(CONFIG_IMX8) += imx8/
 obj-$(CONFIG_IMX8M) += imx8m/
+obj-$(CONFIG_ARCH_IMX8) += imx8/

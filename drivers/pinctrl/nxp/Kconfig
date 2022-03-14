@@ -71,7 +71,7 @@ config PINCTRL_IMX8M
 	  This provides a simple pinctrl driver for i.MX8M SoC familiy.
 	  This feature depends on device tree configuration. This driver
 	  is different from the linux one, this is a simple implementation,
-	  only parses the 'fsl,pins' property and configure related
+	  only parses the 'fsl,pins' property and configures related
 	  registers.
 
 config PINCTRL_IMX8
@@ -86,5 +86,5 @@ config PINCTRL_IMX8
 	  This provides a simple pinctrl driver for i.MX8 SoC familiy.
 	  This feature depends on device tree configuration. This driver
 	  is different from the linux one, this is a simple implementation,
-	  only parses the 'fsl,pins' property and configure related
+	  only parses the 'fsl,pins' property and configures related
 	  registers.

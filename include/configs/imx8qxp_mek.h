@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8QXP_MEK_H
@@ -242,14 +241,14 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-				"if run loadfdt; then " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if run loadfdt; then " \
 					"run boot_os; " \
-				"else " \
-					"echo WARN: Cannot load the DT; " \
-				"fi; " \
 			"else " \
-				"echo wait for boot; " \
+				"echo WARN: Cannot load the DT; " \
+			"fi; " \
+		"else " \
+			"echo wait for boot; " \
 			"fi;" \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} earlycon " \
@@ -270,15 +269,15 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-			"${get_cmd} ${loadaddr} ${image}; " \
-			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+		"${get_cmd} ${loadaddr} ${image}; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
 					"run boot_os; " \
-				"else " \
-					"echo WARN: Cannot load the DT; " \
-				"fi; " \
 			"else " \
-				"booti; " \
+				"echo WARN: Cannot load the DT; " \
+			"fi; " \
+		"else " \
+			"booti; " \
 			"fi;" \
 		"fi;\0"
 
@@ -293,11 +292,11 @@
 				   "else run netboot; " \
 				   "fi; " \
 			    "else " \
-				   "if run loadimage; then " \
-					   "run mmcboot; " \
-				   "else run netboot; " \
-				   "fi; " \
-			 "fi; " \
+			   "if run loadimage; then " \
+				   "run mmcboot; " \
+			   "else run netboot; " \
+			   "fi; " \
+		   "fi; " \
 		   "fi; " \
 	   "else booti ${loadaddr} - ${fdt_addr}; fi"
 
@@ -319,7 +318,7 @@
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #else
-#define CONFIG_ENV_OFFSET       (64 * SZ_64K)
+#define CONFIG_ENV_OFFSET		(64 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
@@ -332,7 +331,7 @@
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32*1024)) * 1024)
+#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32 * 1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define CONFIG_NR_DRAM_BANKS		4

@@ -68,23 +68,21 @@ static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 			      struct mmc *mmc, unsigned long sector)
 {
-	struct image_header *header = (struct image_header *)(CONFIG_SYS_TEXT_BASE -
-					 sizeof(struct image_header));
+	unsigned long count;
+	struct image_header *header;
+	struct blk_desc *bd = mmc_get_blk_desc(mmc);
 	int ret = 0;
 
-#if !defined(CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE) || defined(CONFIG_SPL_LOAD_FIT)
-	unsigned long count = 0;
+	header = spl_get_load_buffer(-sizeof(*header), bd->blksz);
 
 	/* read image header to find the image size & load address */
-	count = blk_dread(mmc_get_blk_desc(mmc), sector, 1, header);
+	count = blk_dread(bd, sector, 1, header);
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
-#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-		puts("mmc_load_image_raw_sector: mmc block read error\n");
-#endif
-		return -1;
+		ret = -EIO;
+		goto end;
 	}
-#endif
+
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 	    image_get_magic(header) == FDT_MAGIC) {
 		struct spl_load_info load;
@@ -100,6 +98,7 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		ret = mmc_load_legacy(spl_image, mmc, sector, header);
 	}
 
+end:
 	if (ret) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		puts("mmc_load_image_raw_sector: mmc block read error\n");
@@ -162,7 +161,8 @@ static int spl_mmc_find_device(struct mmc **mmcp, u32 boot_device)
 #endif
 	if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-		printf("spl: could not find mmc device. error: %d\n", err);
+		printf("spl: could not find mmc device %d. error: %d\n",
+		       mmc_dev, err);
 #endif
 		return err;
 	}

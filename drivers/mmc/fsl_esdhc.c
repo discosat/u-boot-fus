@@ -13,6 +13,7 @@
 #include <config.h>
 #include <common.h>
 #include <command.h>
+#include <clk.h>
 #include <errno.h>
 #include <hwconfig.h>
 #include <mmc.h>
@@ -125,6 +126,7 @@ struct esdhc_soc_data {
  */
 struct fsl_esdhc_priv {
 	struct fsl_esdhc_cfg esdhc;
+	struct clk per_clk;
 	unsigned int clock;
 #if !CONFIG_IS_ENABLED(BLK)
 	struct mmc *mmc;
@@ -714,7 +716,7 @@ static void esdhc_set_strobe_dll(struct mmc *mmc)
 {
 	struct fsl_esdhc_priv *priv = dev_get_priv(mmc->dev);
 	struct fsl_esdhc *regs = (struct fsl_esdhc *)priv->esdhc.esdhc_base;
-	u32 v;
+	u32 val;
 
 	if (priv->clock > ESDHC_STROBE_DLL_CLK_FREQ) {
 		writel(ESDHC_STROBE_DLL_CTRL_RESET, &regs->strobe_dllctrl);
@@ -723,16 +725,16 @@ static void esdhc_set_strobe_dll(struct mmc *mmc)
 		 * enable strobe dll ctrl and adjust the delay target
 		 * for the uSDHC loopback read clock
 		 */
-		v = ESDHC_STROBE_DLL_CTRL_ENABLE |
+		val = ESDHC_STROBE_DLL_CTRL_ENABLE |
 			(priv->strobe_dll_delay_target <<
 			 ESDHC_STROBE_DLL_CTRL_SLV_DLY_TARGET_SHIFT);
-		writel(v, &regs->strobe_dllctrl);
+		writel(val, &regs->strobe_dllctrl);
 		/* wait 1us to make sure strobe dll status register stable */
 		mdelay(1);
-		v = readl(&regs->strobe_dllstat);
-		if (!(v & ESDHC_STROBE_DLL_STS_REF_LOCK))
+		val = readl(&regs->strobe_dllstat);
+		if (!(val & ESDHC_STROBE_DLL_STS_REF_LOCK))
 			pr_warn("HS400 strobe DLL status REF not lock!\n");
-		if (!(v & ESDHC_STROBE_DLL_STS_SLV_LOCK))
+		if (!(val & ESDHC_STROBE_DLL_STS_SLV_LOCK))
 			pr_warn("HS400 strobe DLL status SLV not lock!\n");
 	}
 }
@@ -1544,10 +1546,26 @@ static int fsl_esdhc_probe(struct udevice *dev)
 
 	init_clk_usdhc(dev->seq);
 
-	priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
-	if (priv->esdhc.sdhc_clk <= 0) {
-		dev_err(dev, "Unable to get clk for %s\n", dev->name);
-		return -EINVAL;
+	if (IS_ENABLED(CONFIG_CLK)) {
+		/* Assigned clock already set clock */
+		ret = clk_get_by_name(dev, "per", &priv->per_clk);
+		if (ret) {
+			printf("Failed to get per_clk\n");
+			return ret;
+		}
+		ret = clk_enable(&priv->per_clk);
+		if (ret) {
+			printf("Failed to enable per_clk\n");
+			return ret;
+		}
+
+		priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
+	} else {
+		priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
+		if (priv->esdhc.sdhc_clk <= 0) {
+			dev_err(dev, "Unable to get clk for %s\n", dev->name);
+			return -EINVAL;
+		}
 	}
 
 	ret = fsl_esdhc_init(priv, plat);

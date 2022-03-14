@@ -576,6 +576,7 @@ config TARGET_PICO_IMX6DL
 config TARGET_PICO_IMX6UL
 	bool "PICO-IMX6UL-EMMC"
 	select MX6UL
+	select SUPPORT_SPL
 
 config TARGET_PICOSOM_IMX6UL
 	bool "Support picosom-imx6ul"

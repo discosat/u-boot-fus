@@ -1783,15 +1783,12 @@ static int mmc_set_lowest_voltage(struct mmc *mmc, enum bus_mode mode,
 	switch (mode) {
 	case MMC_HS_400_ES:
 	case MMC_HS_400:
-		if (mmc->cardtype & EXT_CSD_CARD_TYPE_HS400_1_8V)
-			card_mask |= MMC_SIGNAL_VOLTAGE_180;
-		if (mmc->cardtype & EXT_CSD_CARD_TYPE_HS400_1_2V)
-			card_mask |= MMC_SIGNAL_VOLTAGE_120;
-		break;
 	case MMC_HS_200:
-		if (mmc->cardtype & EXT_CSD_CARD_TYPE_HS200_1_8V)
+		if (mmc->cardtype & (EXT_CSD_CARD_TYPE_HS200_1_8V |
+		    EXT_CSD_CARD_TYPE_HS400_1_8V))
 			card_mask |= MMC_SIGNAL_VOLTAGE_180;
-		if (mmc->cardtype & EXT_CSD_CARD_TYPE_HS200_1_2V)
+		if (mmc->cardtype & (EXT_CSD_CARD_TYPE_HS200_1_2V |
+		    EXT_CSD_CARD_TYPE_HS400_1_2V))
 			card_mask |= MMC_SIGNAL_VOLTAGE_120;
 		break;
 	case MMC_DDR_52:
@@ -1836,7 +1833,7 @@ static const struct mode_width_tuning mmc_modes_by_pref[] = {
 #if CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
 	{
 		.mode = MMC_HS_400,
-		.widths = MMC_MODE_8BIT | MMC_MODE_4BIT,
+		.widths = MMC_MODE_8BIT,
 		.tuning = MMC_CMD_SEND_TUNING_BLOCK_HS200
 	},
 #endif
@@ -2042,8 +2039,10 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 
 			if (mwt->mode == MMC_HS_400) {
 				err = mmc_select_hs400(mmc);
-				if (err)
+				if (err) {
+					printf("Select HS400 failed %d\n", err);
 					goto error;
+				}
 			} else if (mwt->mode == MMC_HS_400_ES) {
 				err = mmc_select_hs400es(mmc);
 				if (err)
@@ -2070,7 +2069,8 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 
 				/* configure the bus mode (host) */
 				mmc_select_mode(mmc, mwt->mode);
-				mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
+				mmc_set_clock(mmc, mmc->tran_speed,
+					      MMC_CLK_ENABLE);
 #ifdef MMC_SUPPORTS_TUNING
 
 				/* execute tuning if needed */
