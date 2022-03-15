@@ -345,6 +345,11 @@ config CMD_THOR_DOWNLOAD
 	  There is no documentation about this within the U-Boot source code
 	  but you should be able to find something on the interwebs.
 
+config CMD_FSIMAGE
+	bool "Handle F&S images, e.g. U-Boot"
+	help
+	  Save F&S images like U-Boot.
+
 config CMD_ZBOOT
 	bool "zboot - x86 boot command"
 	help
