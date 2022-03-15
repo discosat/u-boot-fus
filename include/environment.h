@@ -61,22 +61,49 @@
 #endif	/* CONFIG_ENV_IS_IN_FLASH */
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
+/*
+ * We do not want to break exisiting configs, so if the MMC specific values
+ * are missing, use the generic values instead
+ */
+# if !defined(CONFIG_ENV_MMC_OFFSET) && defined(CONFIG_ENV_OFFSET)
+#  define CONFIG_ENV_MMC_OFFSET CONFIG_ENV_OFFSET
+# endif
+#if 0
+# if !defined(CONFIG_ENV_MMC_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#  define CONFIG_ENV_MMC_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+# endif
+#endif
 # ifdef CONFIG_ENV_OFFSET_REDUND
 #  define CONFIG_SYS_REDUNDAND_ENVIRONMENT
 # endif
 #endif
 
 #if defined(CONFIG_ENV_IS_IN_NAND)
+/*
+ * We do not want to break exisiting configs, so if the NAND specific values
+ * are missing, use the generic values instead
+ */
+# if !defined(CONFIG_ENV_NAND_OFFSET) && defined(CONFIG_ENV_OFFSET)
+#  define CONFIG_ENV_NAND_OFFSET CONFIG_ENV_OFFSET
+# endif
+#if 0
+# if !defined(CONFIG_ENV_NAND_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#  define CONFIG_ENV_NAND_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+# endif
+#endif
+# if !defined(CONFIG_ENV_NAND_RANGE) && defined(CONFIG_ENV_RANGE)
+#  define CONFIG_ENV_NAND_RANGE CONFIG_ENV_RANGE
+# endif
 # if defined(CONFIG_ENV_OFFSET_OOB)
 #  ifdef CONFIG_ENV_OFFSET_REDUND
 #   error "CONFIG_ENV_OFFSET_REDUND is not supported when CONFIG_ENV_OFFSET_OOB"
 #   error "is set"
 #  endif
 extern unsigned long nand_env_oob_offset;
-#  define CONFIG_ENV_OFFSET nand_env_oob_offset
+#  define CONFIG_ENV_NAND_OFFSET nand_env_oob_offset
 # else
-#  ifndef CONFIG_ENV_OFFSET
-#   error "Need to define CONFIG_ENV_OFFSET when using CONFIG_ENV_IS_IN_NAND"
+#  ifndef CONFIG_ENV_NAND_OFFSET
+#   error "Need to define CONFIG_ENV_NAND_OFFSET when using CONFIG_ENV_IS_IN_NAND"
 #  endif
 #  ifdef CONFIG_ENV_OFFSET_REDUND
 #   define CONFIG_SYS_REDUNDAND_ENVIRONMENT

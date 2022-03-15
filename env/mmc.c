@@ -29,8 +29,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if !defined(CONFIG_ENV_OFFSET)
-#define CONFIG_ENV_OFFSET 0
+#if !defined(CONFIG_ENV_MMC_OFFSET)
+#define CONFIG_ENV_MMC_OFFSET 0
 #endif
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)
@@ -87,7 +87,7 @@ static inline s64 mmc_offset(int copy)
 			return val;
 	}
 
-	defvalue = CONFIG_ENV_OFFSET;
+	defvalue = CONFIG_ENV_MMC_OFFSET;
 	propname = dt_prop.offset;
 
 #if defined(CONFIG_ENV_OFFSET_REDUND)
@@ -101,7 +101,7 @@ static inline s64 mmc_offset(int copy)
 #else
 static inline s64 mmc_offset(int copy)
 {
-	s64 offset = CONFIG_ENV_OFFSET;
+	s64 offset = CONFIG_ENV_MMC_OFFSET;
 
 #if defined(CONFIG_ENV_OFFSET_REDUND)
 	if (copy)

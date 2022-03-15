@@ -43,6 +43,21 @@
  * least one bad block in addition to the required size of the partition. E.g.
  * UBoot is 512KB, but the UBoot partition is 768KB to allow for two bad blocks
  * (256KB) in this memory region.
+ *
+ * eMMC flash layout with separate Kernel/FDT MTD partition
+ * -------------------------------------------------------------------------
+ * BOOTPARTITION1
+ * 0x0000_0000 - 0x0000_FFFF: NBoot: NBoot image, primary copy (64KB)
+ * 0x0001_0000 - 0x0001_FFFF: NBoot: NBoot image, secondary copy (64KB)
+ * 0x0002_0000 - 0x0002_1FFF: NBoot: NBoot configuration (4KB)
+ * 0x0002_2000 - 0x0005_FFFF: M4: M4 image (248KB)
+ * 0x0010_0000 - 0x0010_3FFF: UBootEnv (16KB)
+ * 0x0010_4000 - 0x0010_7FFF: UBootEnvRed (16KB)
+ *
+ * User HW partition only:
+ * 0x0020_0000: UBoot_A (3MB)              nboot-info: mmc-u-boot[0]
+ * 0x0050_0000: UBoot_B (3MB)              nboot-info: mmc-u-boot[1]
+ * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
  */
 
 #ifndef __FSIMX6UL_CONFIG_H
@@ -236,6 +251,11 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 #define CONFIG_SYS_FSL_USDHC_NUM       1
 
+#ifdef CONFIG_ENV_IS_IN_MMC
+#define CONFIG_SYS_MMC_ENV_DEV 0
+#define CONFIG_SYS_MMC_ENV_PART 1 /* NBoot, UBoot and UbootEnv in BootPart1 */
+#endif
+
 
 /************************************************************************
  * NOR Flash
@@ -345,9 +365,12 @@
 /* Environment settings for large blocks (128KB). The environment is held in
    the heap, so keep the real env size small to not waste malloc space. */
 #define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
-#define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
-#define CONFIG_ENV_OFFSET	0x00200000	/* See NAND layout above */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
+
+#define CONFIG_ENV_MMC_OFFSET	0x000100000	/* See MMC layout above */
+
+#define CONFIG_ENV_NAND_RANGE	0x00040000	/* 2 blocks = 256KB */
+#define CONFIG_ENV_NAND_OFFSET	0x00200000	/* See NAND layout above */
 
 /* When saving the environment, we usually have a short period of time between
    erasing the NAND region and writing the new data where no valid environment
@@ -414,6 +437,9 @@
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
+	"bd_kernel=undef\0" \
+	"bd_fdt=undef\0" \
+	"bd_rootfs=undef\0" \
 	"console=undef\0" \
 	".console_none=setenv console\0" \
 	".console_serial=setenv console console=${sercon},${baudrate}\0" \
@@ -425,18 +451,20 @@
 	"mtdids=undef\0" \
 	"mtdparts=undef\0" \
 	".mtdparts_std=" MTDPARTS_STD "\0" \
+	"mmcdev=undef\0" \
+	"usdhcdev=undef\0" \
 	".network_off=setenv network\0" \
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0" \
 	"rootfs=undef\0" \
 	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
-	".rootfs_mmc=setenv rootfs root=/dev/mmcblk0p1 rootwait\0" \
+	".rootfs_mmc=setenv rootfs root=/dev/mmcblk${usdhcdev}p2 rootwait\0" \
 	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0" \
 	"kernel=undef\0" \
 	".kernel_nand=setenv kernel nboot Kernel\0" \
 	".kernel_tftp=setenv kernel tftpboot . ${bootfile}\0" \
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
-	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc 0 . ${bootfile}\0" \
+	".kernel_mmc=setenv kernel mmc rescan\\\\; load mmc ${mmcdev} . ${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
 	"fdt=undef\0" \
 	"fdtaddr=82000000\0" \
@@ -444,7 +472,7 @@
 	".fdt_nand=setenv fdt nand read ${fdtaddr} FDT" BOOT_WITH_FDT \
 	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_nfs=setenv fdt nfs ${fdtaddr} ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT \
-	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
+	".fdt_mmc=setenv fdt mmc rescan\\\\; load mmc ${mmcdev} ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	".fdt_usb=setenv fdt usb start\\\\; load usb 0 ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
 	EXTRA_UBI \
 	"mode=undef\0" \

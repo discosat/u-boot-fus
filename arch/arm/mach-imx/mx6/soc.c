@@ -488,8 +488,11 @@ __weak int board_mmc_get_env_dev(int devno)
 
 static int mmc_get_boot_dev(void)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
-	u32 soc_sbmr = readl(&src_regs->sbmr1);
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+	u32 cfg4 = readl(&fuse->cfg4);
 	u32 bootsel;
 	int devno;
 
@@ -499,14 +502,14 @@ static int mmc_get_boot_dev(void)
 	 * Chapter "8.5.3.1 Expansion Device eFUSE Configuration"
 	 * i.MX6SL/SX/UL has same layout.
 	 */
-	bootsel = (soc_sbmr & 0x000000FF) >> 6;
+	bootsel = (cfg4 & 0x000000FF) >> 6;
 
 	/* No boot from sd/mmc */
 	if (bootsel != 1)
 		return -1;
 
 	/* BOOT_CFG2[3] and BOOT_CFG2[4] */
-	devno = (soc_sbmr & 0x00001800) >> 11;
+	devno = (cfg4 & 0x00001800) >> 11;
 
 	return devno;
 }
@@ -580,6 +583,53 @@ const struct boot_mode soc_boot_modes[] = {
 	{NULL,		0},
 };
 #endif
+
+enum boot_device get_boot_device(void)
+{
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+	uint cfg4 = readl(&fuse->cfg4);
+	uint bt_mem_ctl = (cfg4 & 0x000000FF) >> 4 ;
+	uint bt_mem_type = (cfg4 & 0x00000008) >> 3;
+	uint bt_dev_port = (cfg4 & 0x00001800) >> 11;
+
+	switch (bt_mem_ctl) {
+	case 0x0:
+		if (bt_mem_type)
+			boot_dev = ONE_NAND_BOOT;
+		else
+			boot_dev = WEIM_NOR_BOOT;
+		break;
+	case 0x2:
+			boot_dev = SATA_BOOT;
+		break;
+	case 0x3:
+		if (bt_mem_type)
+			boot_dev = I2C_BOOT;
+		else
+			boot_dev = SPI_NOR_BOOT;
+		break;
+	case 0x4:
+	case 0x5:
+		boot_dev = bt_dev_port + SD1_BOOT;
+		break;
+	case 0x6:
+	case 0x7:
+		boot_dev = bt_dev_port + MMC1_BOOT;
+		break;
+	case 0x8 ... 0xf:
+		boot_dev = NAND_BOOT;
+		break;
+	default:
+		boot_dev = UNKNOWN_BOOT;
+		break;
+	}
+
+    return boot_dev;
+}
 
 void reset_misc(void)
 {

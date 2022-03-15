@@ -12,6 +12,8 @@
 #ifndef __FS_BOARD_COMMON_H__
 #define __FS_BOARD_COMMON_H__
 
+#include <asm/mach-imx/boot_mode.h>	/* enum boot_device */
+
 #define FSHWCONFIG_ARGS_ID 0x4E424F54	/* Magic number for dwID: 'NBOT' */ 
 struct fs_nboot_args {
 	u32	dwID;			/* 'NBOT' if valid */
@@ -45,6 +47,8 @@ struct fs_m4_args
 	u32	dwReserved[3];
 };
 
+#define BI_FLAGS_UBIONLY (1 << 0)
+
 struct fs_board_info {
 	char *name;			/* Device name */
 	char *bootdelay;		/* Default value for bootdelay */
@@ -56,9 +60,7 @@ struct fs_board_info {
 	char *mtdparts;			/* Default variable for mtdparts */
 	char *network;			/* Default variable for network */
 	char *init;			/* Default variable for init */
-	char *rootfs;			/* Default variable for rootfs */
-	char *kernel;			/* Default variable for kernel */
-	char *fdt;			/* Default variable for device tree */
+	unsigned int flags;		/* Special settings, see BI_FLAGS_* */
 };
 
 /* List NBoot args for debugging */

@@ -36,8 +36,8 @@
 #error CONFIG_ENV_SIZE_REDUND should be the same as CONFIG_ENV_SIZE
 #endif
 
-#ifndef CONFIG_ENV_RANGE
-#define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
+#ifndef CONFIG_ENV_NAND_RANGE
+#define CONFIG_ENV_NAND_RANGE	CONFIG_ENV_SIZE
 #endif
 
 #if defined(ENV_IS_EMBEDDED)
@@ -126,7 +126,7 @@ static int env_nand_init(void)
  */
 static int writeenv(size_t offset, u_char *buf)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + CONFIG_ENV_NAND_RANGE;
 	size_t amount_saved = 0;
 	size_t blocksize, len;
 	struct mtd_info *mtd;
@@ -192,15 +192,15 @@ static int env_nand_save(void)
 		{
 			.name = "NAND",
 			.erase_opts = {
-				.length = CONFIG_ENV_RANGE,
-				.offset = CONFIG_ENV_OFFSET,
+				.length = CONFIG_ENV_NAND_RANGE,
+				.offset = CONFIG_ENV_NAND_OFFSET,
 			},
 		},
 #ifdef CONFIG_ENV_OFFSET_REDUND
 		{
 			.name = "redundant NAND",
 			.erase_opts = {
-				.length = CONFIG_ENV_RANGE,
+				.length = CONFIG_ENV_NAND_RANGE,
 				.offset = CONFIG_ENV_OFFSET_REDUND,
 			},
 		},
@@ -208,7 +208,7 @@ static int env_nand_save(void)
 	};
 
 
-	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+	if (CONFIG_ENV_NAND_RANGE < CONFIG_ENV_SIZE)
 		return 1;
 
 	ret = env_export(env_new);
@@ -247,7 +247,7 @@ static int readenv(size_t offset, u_char *buf)
 #else
 static int readenv(size_t offset, u_char *buf)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + CONFIG_ENV_NAND_RANGE;
 	size_t amount_loaded = 0;
 	size_t blocksize, len;
 	struct mtd_info *mtd;
@@ -333,7 +333,7 @@ static int env_nand_load(void)
 		goto done;
 	}
 
-	read1_fail = readenv(CONFIG_ENV_OFFSET, (u_char *) tmp_env1);
+	read1_fail = readenv(CONFIG_ENV_NAND_OFFSET, (u_char *) tmp_env1);
 	read2_fail = readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *) tmp_env2);
 
 	ret = env_import_redund((char *)tmp_env1, read1_fail, (char *)tmp_env2,
@@ -372,7 +372,7 @@ static int env_nand_load(void)
 	}
 #endif
 
-	ret = readenv(CONFIG_ENV_OFFSET, (u_char *)buf);
+	ret = readenv(CONFIG_ENV_NAND_OFFSET, (u_char *)buf);
 	if (ret) {
 		set_default_env("!readenv() failed");
 		return -EIO;
