@@ -744,13 +744,16 @@ static int mmc_get_boot_dev(void)
 
 int mmc_get_env_dev(void)
 {
-	int devno = mmc_get_boot_dev();
+	int envdev = mmc_get_boot_dev();
+	int devno;
+
+	devno = board_mmc_get_env_dev(envdev);
 
 	/* If not boot from sd/mmc, use default value */
 	if (devno < 0)
 	    return env_get_ulong("mmcdev", 10, CONFIG_SYS_MMC_ENV_DEV);
 
-	return board_mmc_get_env_dev(devno);
+	return devno;
 }
 
 #ifdef CONFIG_SYS_MMC_ENV_PART
@@ -761,13 +764,16 @@ __weak int board_mmc_get_env_part(int devno)
 
 uint mmc_get_env_part(struct mmc *mmc)
 {
-	int devno = mmc_get_boot_dev();
+	int envdev = mmc_get_boot_dev();
+	int devno;
+
+	devno = board_mmc_get_env_part(envdev);
 
 	/* If not boot from sd/mmc, use default value */
 	if (devno < 0)
 		return CONFIG_SYS_MMC_ENV_PART;
 
-	return board_mmc_get_env_part(devno);
+	return devno;
 }
 #endif
 
