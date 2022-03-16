@@ -386,11 +386,33 @@ int board_early_init_f(void)
 	return 0;
 }
 
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX6UL:
+	case BT_PCOREMX6UL100:
+		if (features2 & FEAT2_EMMC) {
+			 boot_dev = MMC2_BOOT;
+			 break;
+		}
+	default:
+		boot_dev = NAND_BOOT;
+		break;
+	}
+
+	return boot_dev;
+}
+
 /* Return the appropriate environment depending on the fused boot device */
 enum env_location env_get_location(enum env_operation op, int prio)
 {
 	if (prio == 0) {
-		switch (fs_board_get_boot_dev_from_fuses()) {
+		switch (fs_board_get_boot_dev()) {
 		case NAND_BOOT:
 			return ENVL_NAND;
 		case SD1_BOOT:

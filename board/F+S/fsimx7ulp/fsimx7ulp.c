@@ -156,6 +156,24 @@ int board_early_init_f(void)
 	return 0;
 }
 
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX7ULP:
+		if (features2 & FEAT2_EMMC) {
+			boot_dev = MMC1_BOOT;
+			break;
+		}
+	}
+
+	return boot_dev;
+}
+
 /* Return the appropriate environment depending on the fused boot device */
 enum env_location env_get_location(enum env_operation op, int prio)
 {
