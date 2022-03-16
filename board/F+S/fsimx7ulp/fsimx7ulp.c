@@ -30,15 +30,15 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct fs_nboot_args nbootargs;
 
-#define BT_PICOCOREMX7ULP 	0
+#define BT_PCOREMX7ULP 	0
 
 /* Board features; these values can be resorted and redefined at will */
-#define FEAT_EMMC	(1<<0)
-#define FEAT_RTC85063	(1<<1)
-#define FEAT_QSPI	(1<<2)
-#define FEAT_SGTL5000	(1<<3)
-#define FEAT_WLAN	(1<<4)
-#define FEAT_MIPI_DSI	(1<<5)
+#define FEAT2_EMMC	(1<<0)
+#define FEAT2_RTC85063	(1<<1)
+#define FEAT2_QSPI	(1<<2)
+#define FEAT2_AUDIO	(1<<3)
+#define FEAT2_WLAN	(1<<4)
+#define FEAT2_MIPI_DSI	(1<<5)
 
 
 #define UART_PAD_CTRL	(PAD_CTL_PUS_UP)
@@ -65,7 +65,7 @@ static struct fs_nboot_args nbootargs;
 #endif
 
 const struct fs_board_info board_info[] = {
-	{	/* 0 (BT_PICOCOREMX7ULP) */
+	{	/* 0 (BT_PCOREMX7ULP) */
 		.name = "PicoCoreMX7ULP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -185,11 +185,11 @@ int checkboard(void)
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
 		board_rev / 100, board_rev % 100);
-	if (features2 & FEAT_WLAN)
+	if (features2 & FEAT2_WLAN)
 		puts ("WLAN, ");
-	if (features2 & FEAT_EMMC)
+	if (features2 & FEAT2_EMMC)
 		puts ("eMMC, ");
-	if (features2 & FEAT_QSPI)
+	if (features2 & FEAT2_QSPI)
 		puts("QSPI, ");
 	printf("%dx DRAM)\n", pargs->dwNumDram);
 
@@ -430,7 +430,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		 * which have an integrated mac address. So we don´t
 		 * have to set an own mac address for the module.
 		 */
-//		if (features & FEAT_WLAN)
+//		if (features & FEAT2_WLAN)
 //			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
