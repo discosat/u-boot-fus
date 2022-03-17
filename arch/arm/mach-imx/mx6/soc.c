@@ -719,8 +719,11 @@ __weak int board_mmc_get_env_dev(int devno)
 
 static int mmc_get_boot_dev(void)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
-	u32 soc_sbmr = readl(&src_regs->sbmr1);
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+	u32 cfg4 = readl(&fuse->cfg4);
 	u32 bootsel;
 	int devno;
 
@@ -730,14 +733,14 @@ static int mmc_get_boot_dev(void)
 	 * Chapter "8.5.3.1 Expansion Device eFUSE Configuration"
 	 * i.MX6SL/SX/UL has same layout.
 	 */
-	bootsel = (soc_sbmr & 0x000000FF) >> 6;
+	bootsel = (cfg4 & 0x000000FF) >> 6;
 
 	/* No boot from sd/mmc */
 	if (is_usb_boot() || bootsel != 1)
 		return -1;
 
 	/* BOOT_CFG2[3] and BOOT_CFG2[4] */
-	devno = (soc_sbmr & 0x00001800) >> 11;
+	devno = (cfg4 & 0x00001800) >> 11;
 
 	return devno;
 }
@@ -833,10 +836,14 @@ const struct boot_mode soc_boot_modes[] = {
 enum boot_device get_boot_device(void)
 {
 	enum boot_device boot_dev = UNKNOWN_BOOT;
-	uint soc_sbmr = readl(SRC_BASE_ADDR + 0x4);
-	uint bt_mem_ctl = (soc_sbmr & 0x000000FF) >> 4 ;
-	uint bt_mem_type = (soc_sbmr & 0x00000008) >> 3;
-	uint bt_dev_port = (soc_sbmr & 0x00001800) >> 11;
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+	uint cfg4 = readl(&fuse->cfg4);
+	uint bt_mem_ctl = (cfg4 & 0x000000FF) >> 4 ;
+	uint bt_mem_type = (cfg4 & 0x00000008) >> 3;
+	uint bt_dev_port = (cfg4 & 0x00001800) >> 11;
 
 	switch (bt_mem_ctl) {
 	case 0x0:
