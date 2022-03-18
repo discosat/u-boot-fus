@@ -28,8 +28,6 @@ source "drivers/board/Kconfig"
 
 source "drivers/ddr/fsl/Kconfig"
 
-source "drivers/ddr/imx8m/Kconfig"
-
 source "drivers/dfu/Kconfig"
 
 source "drivers/dma/Kconfig"
@@ -41,6 +39,8 @@ source "drivers/firmware/Kconfig"
 source "drivers/fpga/Kconfig"
 
 source "drivers/gpio/Kconfig"
+
+source "drivers/hwspinlock/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
@@ -113,6 +113,8 @@ source "drivers/tpm/Kconfig"
 source "drivers/usb/Kconfig"
 
 source "drivers/video/Kconfig"
+
+source "drivers/virtio/Kconfig"
 
 source "drivers/w1/Kconfig"
 

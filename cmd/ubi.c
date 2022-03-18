@@ -103,7 +103,6 @@ static int ubi_check(char *name)
 	return 1;
 }
 
-
 static int verify_mkvol_req(const struct ubi_device *ubi,
 			    const struct ubi_mkvol_req *req)
 {
@@ -418,7 +417,7 @@ static int ubi_dev_scan(struct mtd_info *info, const char *vid_header_offset)
 	return 0;
 }
 
-int ubi_detach(void)
+static int ubi_detach(void)
 {
 #ifdef CONFIG_CMD_UBIFS
 	/*
@@ -472,7 +471,7 @@ int set_ubi_part(const char *part_name, const char *vid_header_offset)
 	strncpy(current_part_name, part_name, 80);
 
 	return 0;
-	}
+}
 
 static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -489,7 +488,6 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		return ubi_detach();
 	}
-
 	if (!strcmp(argv[1], "part") && (argc >= 2) && (argc <= 4)) {
 		/* Print current partition */
 		if (argc == 2) {
@@ -557,11 +555,11 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			       size);
 		}
 
-		return ubi_create_vol(argv[2], size, dynamic, id);
+			return ubi_create_vol(argv[2], size, dynamic, id);
 	}
 
 	if (!strncmp(argv[1], "remove", 6) && (argc == 3))
-		return ubi_remove_vol(argv[2]);
+			return ubi_remove_vol(argv[2]);
 
 	if (!strncmp(argv[1], "write", 5) && (argc >= 5) && (argc <= 6)) {
 		addr = parse_loadaddr(argv[2], NULL);

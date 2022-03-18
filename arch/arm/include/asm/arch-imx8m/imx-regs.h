@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2017-2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __IMX8M_REGS_H_

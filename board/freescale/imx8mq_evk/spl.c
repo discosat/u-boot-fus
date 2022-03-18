@@ -1,27 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2017 NXP
+ * Copyright 2018 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <spl.h>
 #include <asm/io.h>
 #include <errno.h>
 #include <asm/io.h>
-#include <asm/mach-imx/iomux-v3.h>
 #include <asm/arch/ddr.h>
 #include <asm/arch/imx8mq_pins.h>
 #include <asm/arch/sys_proto.h>
-#include <power/pmic.h>
-#include <power/pfuze100_pmic.h>
-#include "../common/pfuze.h"
 #include <asm/arch/clock.h>
+#include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <fsl_esdhc.h>
 #include <mmc.h>
-#include <asm/arch/imx8m_ddr.h>
+#include <power/pmic.h>
+#include <power/pfuze100_pmic.h>
+#include <spl.h>
+#include "../common/pfuze.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -118,26 +118,27 @@ int board_mmc_init(bd_t *bis)
 	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
 		switch (i) {
 		case 0:
+			init_clk_usdhc(0);
 			usdhc_cfg[0].sdhc_clk = mxc_get_clock(USDHC1_CLK_ROOT);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc1_pads, ARRAY_SIZE(usdhc1_pads));
+			imx_iomux_v3_setup_multiple_pads(usdhc1_pads,
+							 ARRAY_SIZE(usdhc1_pads));
 			gpio_request(USDHC1_PWR_GPIO, "usdhc1_reset");
 			gpio_direction_output(USDHC1_PWR_GPIO, 0);
 			udelay(500);
 			gpio_direction_output(USDHC1_PWR_GPIO, 1);
 			break;
 		case 1:
+			init_clk_usdhc(1);
 			usdhc_cfg[1].sdhc_clk = mxc_get_clock(USDHC2_CLK_ROOT);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc2_pads, ARRAY_SIZE(usdhc2_pads));
+			imx_iomux_v3_setup_multiple_pads(usdhc2_pads,
+							 ARRAY_SIZE(usdhc2_pads));
 			gpio_request(USDHC2_PWR_GPIO, "usdhc2_reset");
 			gpio_direction_output(USDHC2_PWR_GPIO, 0);
 			udelay(500);
 			gpio_direction_output(USDHC2_PWR_GPIO, 1);
 			break;
 		default:
-			printf("Warning: you configured more USDHC controllers"
-				"(%d) than supported by the board\n", i + 1);
+			printf("Warning: you configured more USDHC controllers(%d) than supported by the board\n", i + 1);
 			return -EINVAL;
 		}
 
@@ -224,7 +225,7 @@ void board_init_f(ulong dummy)
 
 	arch_cpu_init();
 
-	init_uart_clk(0); /* Init UART0 clock */
+	init_uart_clk(0);
 
 	board_early_init_f();
 

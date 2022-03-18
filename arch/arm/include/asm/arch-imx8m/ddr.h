@@ -1,11 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifndef __ASM_ARCH_MX8M_DDR_H
-#define __ASM_ARCH_MX8M_DDR_H
+#ifndef __ASM_ARCH_IMX8M_DDR_H
+#define __ASM_ARCH_IMX8M_DDR_H
+
+#include <asm/io.h>
+#include <asm/types.h>
 
 #define DDRC_DDR_SS_GPR0		0x3d000000
 #define DDRC_IPS_BASE_ADDR_0		0x3f400000
@@ -353,194 +355,6 @@ enum msg_response {
 	TRAIN_FAIL = 0xff,
 };
 
-#define DDRC_MSTR_0             0x3d400000
-#define DDRC_STAT_0             0x3d400004
-#define DDRC_MSTR1_0            0x3d400008
-#define DDRC_MRCTRL0_0          0x3d400010
-#define DDRC_MRCTRL1_0          0x3d400014
-#define DDRC_MRSTAT_0           0x3d400018
-#define DDRC_MRCTRL2_0          0x3d40001c
-#define DDRC_DERATEEN_0         0x3d400020
-#define DDRC_DERATEINT_0        0x3d400024
-#define DDRC_MSTR2_0            0x3d400028
-#define DDRC_PWRCTL_0           0x3d400030
-#define DDRC_PWRTMG_0           0x3d400034
-#define DDRC_HWLPCTL_0          0x3d400038
-#define DDRC_HWFFCCTL_0         0x3d40003c
-#define DDRC_HWFFCSTAT_0        0x3d400040
-#define DDRC_RFSHCTL0_0         0x3d400050
-#define DDRC_RFSHCTL1_0         0x3d400054
-#define DDRC_RFSHCTL2_0         0x3d400058
-#define DDRC_RFSHCTL3_0         0x3d400060
-#define DDRC_RFSHTMG_0          0x3d400064
-#define DDRC_ECCCFG0_0          0x3d400070
-#define DDRC_ECCCFG1_0          0x3d400074
-#define DDRC_ECCSTAT_0          0x3d400078
-#define DDRC_ECCCLR_0           0x3d40007c
-#define DDRC_ECCERRCNT_0        0x3d400080
-#define DDRC_ECCCADDR0_0        0x3d400084
-#define DDRC_ECCCADDR1_0        0x3d400088
-#define DDRC_ECCCSYN0_0         0x3d40008c
-#define DDRC_ECCCSYN1_0         0x3d400090
-#define DDRC_ECCCSYN2_0         0x3d400094
-#define DDRC_ECCBITMASK0_0      0x3d400098
-#define DDRC_ECCBITMASK1_0      0x3d40009c
-#define DDRC_ECCBITMASK2_0      0x3d4000a0
-#define DDRC_ECCUADDR0_0        0x3d4000a4
-#define DDRC_ECCUADDR1_0        0x3d4000a8
-#define DDRC_ECCUSYN0_0         0x3d4000ac
-#define DDRC_ECCUSYN1_0         0x3d4000b0
-#define DDRC_ECCUSYN2_0         0x3d4000b4
-#define DDRC_ECCPOISONADDR0_0   0x3d4000b8
-#define DDRC_ECCPOISONADDR1_0   0x3d4000bc
-#define DDRC_CRCPARCTL0_0       0x3d4000c0
-#define DDRC_CRCPARCTL1_0       0x3d4000c4
-#define DDRC_CRCPARCTL2_0       0x3d4000c8
-#define DDRC_CRCPARSTAT_0       0x3d4000cc
-#define DDRC_INIT0_0            0x3d4000d0
-#define DDRC_INIT1_0            0x3d4000d4
-#define DDRC_INIT2_0            0x3d4000d8
-#define DDRC_INIT3_0            0x3d4000dc
-#define DDRC_INIT4_0            0x3d4000e0
-#define DDRC_INIT5_0            0x3d4000e4
-#define DDRC_INIT6_0            0x3d4000e8
-#define DDRC_INIT7_0            0x3d4000ec
-#define DDRC_DIMMCTL_0          0x3d4000f0
-#define DDRC_RANKCTL_0          0x3d4000f4
-#define DDRC_DRAMTMG0_0         0x3d400100
-#define DDRC_DRAMTMG1_0         0x3d400104
-#define DDRC_DRAMTMG2_0         0x3d400108
-#define DDRC_DRAMTMG3_0         0x3d40010c
-#define DDRC_DRAMTMG4_0         0x3d400110
-#define DDRC_DRAMTMG5_0         0x3d400114
-#define DDRC_DRAMTMG6_0         0x3d400118
-#define DDRC_DRAMTMG7_0         0x3d40011c
-#define DDRC_DRAMTMG8_0         0x3d400120
-#define DDRC_DRAMTMG9_0         0x3d400124
-#define DDRC_DRAMTMG10_0        0x3d400128
-#define DDRC_DRAMTMG11_0        0x3d40012c
-#define DDRC_DRAMTMG12_0        0x3d400130
-#define DDRC_DRAMTMG13_0        0x3d400134
-#define DDRC_DRAMTMG14_0        0x3d400138
-#define DDRC_DRAMTMG15_0        0x3d40013C
-#define DDRC_DRAMTMG16_0        0x3d400140
-#define DDRC_DRAMTMG17_0        0x3d400144
-
-#define DDRC_ZQCTL0_0           0x3d400180
-#define DDRC_ZQCTL1_0           0x3d400184
-#define DDRC_ZQCTL2_0           0x3d400188
-#define DDRC_ZQSTAT_0           0x3d40018c
-#define DDRC_DFITMG0_0          0x3d400190
-#define DDRC_DFITMG1_0          0x3d400194
-#define DDRC_DFILPCFG0_0        0x3d400198
-#define DDRC_DFILPCFG1_0        0x3d40019c
-#define DDRC_DFIUPD0_0          0x3d4001a0
-#define DDRC_DFIUPD1_0          0x3d4001a4
-#define DDRC_DFIUPD2_0          0x3d4001a8
-
-#define DDRC_DFIMISC_0          0x3d4001b0
-#define DDRC_DFITMG2_0          0x3d4001b4
-#define DDRC_DFITMG3_0          0x3d4001b8
-#define DDRC_DFISTAT_0          0x3d4001bc
-
-#define DDRC_DBICTL_0           0x3d4001c0
-#define DDRC_DFIPHYMSTR_0       0x3d4001c4
-#define DDRC_TRAINCTL0_0        0x3d4001d0
-#define DDRC_TRAINCTL1_0        0x3d4001d4
-#define DDRC_TRAINCTL2_0        0x3d4001d8
-#define DDRC_TRAINSTAT_0        0x3d4001dc
-#define DDRC_ADDRMAP0_0         0x3d400200
-#define DDRC_ADDRMAP1_0         0x3d400204
-#define DDRC_ADDRMAP2_0         0x3d400208
-#define DDRC_ADDRMAP3_0         0x3d40020c
-#define DDRC_ADDRMAP4_0         0x3d400210
-#define DDRC_ADDRMAP5_0         0x3d400214
-#define DDRC_ADDRMAP6_0         0x3d400218
-#define DDRC_ADDRMAP7_0         0x3d40021c
-#define DDRC_ADDRMAP8_0         0x3d400220
-#define DDRC_ADDRMAP9_0         0x3d400224
-#define DDRC_ADDRMAP10_0        0x3d400228
-#define DDRC_ADDRMAP11_0        0x3d40022c
-
-#define DDRC_ODTCFG_0           0x3d400240
-#define DDRC_ODTMAP_0           0x3d400244
-#define DDRC_SCHED_0            0x3d400250
-#define DDRC_SCHED1_0           0x3d400254
-#define DDRC_PERFHPR1_0         0x3d40025c
-#define DDRC_PERFLPR1_0         0x3d400264
-#define DDRC_PERFWR1_0          0x3d40026c
-#define DDRC_PERFVPR1_0         0x3d400274
-
-#define DDRC_PERFVPW1_0         0x3d400278
-
-#define DDRC_DQMAP0_0           0x3d400280
-#define DDRC_DQMAP1_0           0x3d400284
-#define DDRC_DQMAP2_0           0x3d400288
-#define DDRC_DQMAP3_0           0x3d40028c
-#define DDRC_DQMAP4_0           0x3d400290
-#define DDRC_DQMAP5_0           0x3d400294
-#define DDRC_DBG0_0             0x3d400300
-#define DDRC_DBG1_0             0x3d400304
-#define DDRC_DBGCAM_0           0x3d400308
-#define DDRC_DBGCMD_0           0x3d40030c
-#define DDRC_DBGSTAT_0          0x3d400310
-
-#define DDRC_SWCTL_0            0x3d400320
-#define DDRC_SWSTAT_0           0x3d400324
-#define DDRC_OCPARCFG0_0        0x3d400330
-#define DDRC_OCPARCFG1_0        0x3d400334
-#define DDRC_OCPARCFG2_0        0x3d400338
-#define DDRC_OCPARCFG3_0        0x3d40033c
-#define DDRC_OCPARSTAT0_0       0x3d400340
-#define DDRC_OCPARSTAT1_0       0x3d400344
-#define DDRC_OCPARWLOG0_0       0x3d400348
-#define DDRC_OCPARWLOG1_0       0x3d40034c
-#define DDRC_OCPARWLOG2_0       0x3d400350
-#define DDRC_OCPARAWLOG0_0      0x3d400354
-#define DDRC_OCPARAWLOG1_0      0x3d400358
-#define DDRC_OCPARRLOG0_0       0x3d40035c
-#define DDRC_OCPARRLOG1_0       0x3d400360
-#define DDRC_OCPARARLOG0_0      0x3d400364
-#define DDRC_OCPARARLOG1_0      0x3d400368
-#define DDRC_POISONCFG_0        0x3d40036C
-#define DDRC_POISONSTAT_0       0x3d400370
-#define DDRC_ADVECCINDEX_0      0x3d400003
-#define DDRC_ADVECCSTAT_0       0x3d400003
-#define DDRC_ECCPOISONPAT0_0    0x3d400003
-#define DDRC_ECCPOISONPAT1_0    0x3d400003
-#define DDRC_ECCPOISONPAT2_0    0x3d400003
-#define DDRC_HIFCTL_0           0x3d400003
-
-#define DDRC_PSTAT_0            0x3d4003fc
-#define DDRC_PCCFG_0            0x3d400400
-#define DDRC_PCFGR_0_0          0x3d400404
-#define DDRC_PCFGR_1_0          0x3d4004b4
-#define DDRC_PCFGR_2_0          0x3d400564
-#define DDRC_PCFGR_3_0          0x3d400614
-#define DDRC_PCFGW_0_0          0x3d400408
-#define DDRC_PCFGW_1_0          0x3d400408
-#define DDRC_PCFGW_2_0          0x3d400568
-#define DDRC_PCFGW_3_0          0x3d400618
-#define DDRC_PCFGC_0_0          0x3d40040c
-#define DDRC_PCFGIDMASKCH_0     0x3d400410
-#define DDRC_PCFGIDVALUECH_0    0x3d400414
-#define DDRC_PCTRL_0_0          0x3d400490
-#define DDRC_PCTRL_1_0          0x3d400540
-#define DDRC_PCTRL_2_0          0x3d4005f0
-#define DDRC_PCTRL_3_0          0x3d4006a0
-#define DDRC_PCFGQOS0_0_0       0x3d400494
-#define DDRC_PCFGQOS1_0_0       0x3d400498
-#define DDRC_PCFGWQOS0_0_0      0x3d40049c
-#define DDRC_PCFGWQOS1_0_0      0x3d4004a0
-#define DDRC_SARBASE0_0         0x3d400f04
-#define DDRC_SARSIZE0_0         0x3d400f08
-#define DDRC_SBRCTL_0           0x3d400f24
-#define DDRC_SBRSTAT_0          0x3d400f28
-#define DDRC_SBRWDATA0_0        0x3d400f2c
-#define DDRC_SBRWDATA1_0        0x3d400f30
-#define DDRC_PDCH_0             0x3d400f34
-
-/**********************/
 #define DDRC_MSTR(X)             (DDRC_IPS_BASE_ADDR(X) + 0x00)
 #define DDRC_STAT(X)             (DDRC_IPS_BASE_ADDR(X) + 0x04)
 #define DDRC_MSTR1(X)            (DDRC_IPS_BASE_ADDR(X) + 0x08)
@@ -685,30 +499,24 @@ enum msg_response {
 #define DDRC_OCPARARLOG1(X)      (DDRC_IPS_BASE_ADDR(X) + 0x368)
 #define DDRC_POISONCFG(X)        (DDRC_IPS_BASE_ADDR(X) + 0x36C)
 #define DDRC_POISONSTAT(X)       (DDRC_IPS_BASE_ADDR(X) + 0x370)
-#define DDRC_ADVECCINDEX(X)      (DDRC_IPS_BASE_ADDR(X) + 0x3)
-#define DDRC_ADVECCSTAT(X)       (DDRC_IPS_BASE_ADDR(X) + 0x3)
-#define DDRC_ECCPOISONPAT0(X)    (DDRC_IPS_BASE_ADDR(X) + 0x3)
-#define DDRC_ECCPOISONPAT1(X)    (DDRC_IPS_BASE_ADDR(X) + 0x3)
-#define DDRC_ECCPOISONPAT2(X)    (DDRC_IPS_BASE_ADDR(X) + 0x3)
-#define DDRC_HIFCTL(X)           (DDRC_IPS_BASE_ADDR(X) + 0x3)
 
 #define DDRC_PSTAT(X)            (DDRC_IPS_BASE_ADDR(X) + 0x3fc)
 #define DDRC_PCCFG(X)            (DDRC_IPS_BASE_ADDR(X) + 0x400)
 #define DDRC_PCFGR_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x404)
-#define DDRC_PCFGR_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1*0xb0+0x404)
-#define DDRC_PCFGR_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2*0xb0+0x404)
-#define DDRC_PCFGR_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3*0xb0+0x404)
+#define DDRC_PCFGR_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1 * 0xb0 + 0x404)
+#define DDRC_PCFGR_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2 * 0xb0 + 0x404)
+#define DDRC_PCFGR_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3 * 0xb0 + 0x404)
 #define DDRC_PCFGW_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x408)
-#define DDRC_PCFGW_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1*0xb0+0x408)
-#define DDRC_PCFGW_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2*0xb0+0x408)
-#define DDRC_PCFGW_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3*0xb0+0x408)
+#define DDRC_PCFGW_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1 * 0xb0 + 0x408)
+#define DDRC_PCFGW_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2 * 0xb0 + 0x408)
+#define DDRC_PCFGW_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3 * 0xb0 + 0x408)
 #define DDRC_PCFGC_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x40c)
 #define DDRC_PCFGIDMASKCH(X)     (DDRC_IPS_BASE_ADDR(X) + 0x410)
 #define DDRC_PCFGIDVALUECH(X)    (DDRC_IPS_BASE_ADDR(X) + 0x414)
 #define DDRC_PCTRL_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490)
-#define DDRC_PCTRL_1(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 1*0xb0)
-#define DDRC_PCTRL_2(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 2*0xb0)
-#define DDRC_PCTRL_3(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 3*0xb0)
+#define DDRC_PCTRL_1(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 1 * 0xb0)
+#define DDRC_PCTRL_2(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 2 * 0xb0)
+#define DDRC_PCTRL_3(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 3 * 0xb0)
 #define DDRC_PCFGQOS0_0(X)       (DDRC_IPS_BASE_ADDR(X) + 0x494)
 #define DDRC_PCFGQOS1_0(X)       (DDRC_IPS_BASE_ADDR(X) + 0x498)
 #define DDRC_PCFGWQOS0_0(X)      (DDRC_IPS_BASE_ADDR(X) + 0x49c)
@@ -825,9 +633,9 @@ enum msg_response {
 #define DDRC_DFITMG3_SHADOW(X)         (DDRC_IPS_BASE_ADDR(X) + 0x21b8)
 #define DDRC_ODTCFG_SHADOW(X)          (DDRC_IPS_BASE_ADDR(X) + 0x2240)
 
-#define DDRPHY_CalBusy(X)                    (IP2APB_DDRPHY_IPS_BASE_ADDR(X) + 4*0x020097)
+#define DDRPHY_CalBusy(X) (IP2APB_DDRPHY_IPS_BASE_ADDR(X) + 4 * 0x020097)
 
-#define DRC_PERF_MON_BASE_ADDR(X)            (0x3d800000 + (X * 0x2000000))
+#define DRC_PERF_MON_BASE_ADDR(X)            (0x3d800000 + ((X) * 0x2000000))
 #define DRC_PERF_MON_CNT0_CTL(X)             (DRC_PERF_MON_BASE_ADDR(X) + 0x0)
 #define DRC_PERF_MON_CNT1_CTL(X)             (DRC_PERF_MON_BASE_ADDR(X) + 0x4)
 #define DRC_PERF_MON_CNT2_CTL(X)             (DRC_PERF_MON_BASE_ADDR(X) + 0x8)
@@ -852,5 +660,80 @@ enum msg_response {
 #define DRC_PERF_MON_MRR13_DAT(X)            (DRC_PERF_MON_BASE_ADDR(X) + 0x74)
 #define DRC_PERF_MON_MRR14_DAT(X)            (DRC_PERF_MON_BASE_ADDR(X) + 0x78)
 #define DRC_PERF_MON_MRR15_DAT(X)            (DRC_PERF_MON_BASE_ADDR(X) + 0x7C)
+
+/* user data type */
+enum fw_type {
+	FW_1D_IMAGE,
+	FW_2D_IMAGE,
+};
+
+struct dram_cfg_param {
+	unsigned int reg;
+	unsigned int val;
+};
+
+struct dram_fsp_msg {
+	unsigned int drate;
+	enum fw_type fw_type;
+	struct dram_cfg_param *fsp_cfg;
+	unsigned int fsp_cfg_num;
+};
+
+struct dram_timing_info {
+	/* umctl2 config */
+	struct dram_cfg_param *ddrc_cfg;
+	unsigned int ddrc_cfg_num;
+	/* ddrphy config */
+	struct dram_cfg_param *ddrphy_cfg;
+	unsigned int ddrphy_cfg_num;
+	/* ddr fsp train info */
+	struct dram_fsp_msg *fsp_msg;
+	unsigned int fsp_msg_num;
+	/* ddr phy trained CSR */
+	struct dram_cfg_param *ddrphy_trained_csr;
+	unsigned int ddrphy_trained_csr_num;
+	/* ddr phy PIE */
+	struct dram_cfg_param *ddrphy_pie;
+	unsigned int ddrphy_pie_num;
+	/* initialized drate table */
+	unsigned int fsp_table[4];
+};
+
+extern struct dram_timing_info dram_timing;
+
+void ddr_load_train_firmware(enum fw_type type);
+int ddr_init(struct dram_timing_info *timing_info);
+int ddr_cfg_phy(struct dram_timing_info *timing_info);
+void load_lpddr4_phy_pie(void);
+void ddrphy_trained_csr_save(struct dram_cfg_param *param, unsigned int num);
+void dram_config_save(struct dram_timing_info *info, unsigned long base);
+
+/* utils function for ddr phy training */
+int wait_ddrphy_training_complete(void);
+void ddrphy_init_set_dfi_clk(unsigned int drate);
+void ddrphy_init_read_msg_block(enum fw_type type);
+
+static inline void reg32_write(unsigned long addr, u32 val)
+{
+	writel(val, addr);
+}
+
+static inline u32 reg32_read(unsigned long addr)
+{
+	return readl(addr);
+}
+
+static inline void reg32setbit(unsigned long addr, u32 bit)
+{
+	setbits_le32(addr, (1 << bit));
+}
+
+#define dwc_ddrphy_apb_wr(addr, data) \
+	reg32_write(IP2APB_DDRPHY_IPS_BASE_ADDR(0) + 4 * (addr), data)
+#define dwc_ddrphy_apb_rd(addr) \
+	reg32_read(IP2APB_DDRPHY_IPS_BASE_ADDR(0) + 4 * (addr))
+
+extern struct dram_cfg_param ddrphy_trained_csr[];
+extern uint32_t ddrphy_trained_csr_num;
 
 #endif

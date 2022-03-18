@@ -7,7 +7,7 @@
 #include <common.h>
 #include <asm/arch/ddr.h>
 #include <asm/arch/lpddr4_define.h>
-#include <asm/arch/imx8m_ddr.h>
+#include <asm/arch/ddr.h>
 
 static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	/* Start to config, default 3200mbps */

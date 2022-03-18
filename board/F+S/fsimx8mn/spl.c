@@ -23,7 +23,7 @@
 #include <fsl_esdhc.h>
 #include <mmc.h>
 #include <nand.h>
-#include <asm/arch/imx8m_ddr.h>
+#include <asm/arch/ddr.h>
 
 #include <asm/sections.h>
 #include <sdp.h>

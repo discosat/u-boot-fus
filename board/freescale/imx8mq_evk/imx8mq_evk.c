@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #include <common.h>
@@ -25,15 +23,12 @@
 #include <spl.h>
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
-#include <dm.h>
 #include "../common/tcpc.h"
 #include "../common/pfuze.h"
 #include <usb.h>
 #include <dwc3-uboot.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-#define QSPI_PAD_CTRL	(PAD_CTL_DSE2 | PAD_CTL_HYS)
 
 #define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
 
@@ -42,27 +37,6 @@ DECLARE_GLOBAL_DATA_PTR;
 static iomux_v3_cfg_t const wdog_pads[] = {
 	IMX8MQ_PAD_GPIO1_IO02__WDOG1_WDOG_B | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
-
-#ifdef CONFIG_FSL_QSPI
-static iomux_v3_cfg_t const qspi_pads[] = {
-	IMX8MQ_PAD_NAND_ALE__QSPI_A_SCLK | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_CE0_B__QSPI_A_SS0_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MQ_PAD_NAND_DATA00__QSPI_A_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA01__QSPI_A_DATA1 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA02__QSPI_A_DATA2 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA03__QSPI_A_DATA3 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-};
-
-int board_qspi_init(void)
-{
-	imx_iomux_v3_setup_multiple_pads(qspi_pads, ARRAY_SIZE(qspi_pads));
-
-	set_clk_qspi();
-
-	return 0;
-}
-#endif
 
 static iomux_v3_cfg_t const uart_pads[] = {
 	IMX8MQ_PAD_UART1_RXD__UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
@@ -74,7 +48,6 @@ int board_early_init_f(void)
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
-
 	set_wdog_reset(wdog);
 
 	imx_iomux_v3_setup_multiple_pads(uart_pads, ARRAY_SIZE(uart_pads));
@@ -82,10 +55,11 @@ int board_early_init_f(void)
 	return 0;
 }
 
-#ifdef CONFIG_BOARD_POSTCLK_INIT
-int board_postclk_init(void)
+#ifdef CONFIG_FSL_QSPI
+int board_qspi_init(void)
 {
-	/* TODO */
+	set_clk_qspi();
+
 	return 0;
 }
 #endif
@@ -100,13 +74,6 @@ int dram_init(void)
 
 	return 0;
 }
-
-#ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_FEC_MXC
 #define FEC_RST_PAD IMX_GPIO_NR(1, 9)
@@ -127,8 +94,8 @@ static void setup_iomux_fec(void)
 
 static int setup_fec(void)
 {
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
-		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
+	struct iomuxc_gpr_base_regs *gpr =
+		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
 
 	setup_iomux_fec();
 
@@ -137,7 +104,6 @@ static int setup_fec(void)
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
 	return set_clk_enet(ENET_125MHZ);
 }
-
 
 int board_phy_config(struct phy_device *phydev)
 {
@@ -295,7 +261,9 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 
 int board_init(void)
 {
+#ifdef CONFIG_FSL_QSPI
 	board_qspi_init();
+#endif
 
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
@@ -385,10 +353,3 @@ size_t display_count = ARRAY_SIZE(displays);
 
 #endif /* CONFIG_VIDEO_IMXDCSS */
 
-/* return hard code board id for imx8m_ref */
-#if defined(CONFIG_ANDROID_THINGS_SUPPORT) && defined(CONFIG_ARCH_IMX8M)
-int get_imx8m_baseboard_id(void)
-{
-	return IMX8M_REF_3G;
-}
-#endif

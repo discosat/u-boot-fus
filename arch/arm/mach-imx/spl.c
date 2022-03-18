@@ -178,7 +178,7 @@ u32 spl_boot_device(void)
 }
 #endif /* CONFIG_MX6 || CONFIG_MX7 || CONFIG_IMX8M || CONFIG_IMX8 */
 
-#ifdef CONFIG_SPL_USB_GADGET_SUPPORT
+#ifdef CONFIG_SPL_USB_GADGET
 int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 {
 	put_unaligned(CONFIG_USB_GADGET_PRODUCT_NUM + 0xfff, &dev->idProduct);
@@ -292,15 +292,18 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 	if (spl_image->flags & SPL_FIT_FOUND) {
 		image_entry();
 	} else {
-		/* HAB looks for the CSF at the end of the authenticated data therefore,
-		 * we need to subtract the size of the CSF from the actual filesize */
-		offset = spl_image->size - CONFIG_CSF_SIZE;
-		if (!imx_hab_authenticate_image(spl_image->load_addr,
-						offset + IVT_SIZE + CSF_PAD_SIZE,
-						offset)) {
+		/*
+		 * HAB looks for the CSF at the end of the authenticated
+		 * data therefore, we need to subtract the size of the
+		 * CSF from the actual filesize
+		 */
+	offset = spl_image->size - CONFIG_CSF_SIZE;
+	if (!imx_hab_authenticate_image(spl_image->load_addr,
+						offset + IVT_SIZE +
+						CSF_PAD_SIZE, offset)) {
 			image_entry();
 		} else {
-			puts("spl: ERROR:  image authentication unsuccessful\n");
+			puts("spl: ERROR:  image authentication fail\n");
 			hang();
 		}
 	}
@@ -308,10 +311,12 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 
 ulong board_spl_fit_size_align(ulong size)
 {
-	/* HAB authenticate_image requests the IVT offset is aligned to 0x1000 */
-#define ALIGN_SIZE		0x1000
+	/*
+	 * HAB authenticate_image requests the IVT offset is
+	 * aligned to 0x1000
+	 */
 
-	size = ALIGN(size, ALIGN_SIZE);
+	size = ALIGN(size, 0x1000);
 	size += CONFIG_CSF_SIZE;
 
 	return size;
@@ -319,7 +324,8 @@ ulong board_spl_fit_size_align(ulong size)
 
 void board_spl_fit_post_load(ulong load_addr, size_t length)
 {
-	uint32_t offset = length - CONFIG_CSF_SIZE;
+	u32 offset = length - CONFIG_CSF_SIZE;
+
 	if (imx_hab_authenticate_image(load_addr,
 					offset + IVT_SIZE + CSF_PAD_SIZE,
 					offset)) {

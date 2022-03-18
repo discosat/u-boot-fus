@@ -143,7 +143,6 @@ static int pca953x_write_regs(struct udevice *dev, int reg, u8 *val)
 		/* Auto increment */
 		ret = dm_i2c_write(dev, (reg << 3) | 0x80, val, info->bank_count);
 	} else {
-		dev_err(dev, "Unsupported now\n");
 		return -EINVAL;
 	}
 
@@ -307,14 +306,6 @@ static int pca953x_probe(struct udevice *dev)
 		return ret;
 	}
 
-	/* Clear the polarity registers to no invert */
-	memset(val, 0, MAX_BANK);
-	ret = pca953x_write_regs(dev, PCA953X_INVERT, val);
-	if (ret) {
-		dev_err(dev, "Error writing invert register\n");
-		return ret;
-	}
-
 	tmp = dev_read_prop(dev, "label", &size);
 
 	if (tmp) {
@@ -323,6 +314,14 @@ static int pca953x_probe(struct udevice *dev)
 		snprintf(name, sizeof(name), "%s@%x_", label, info->addr);
 	} else {
 		snprintf(name, sizeof(name), "gpio@%x_", info->addr);
+	}
+
+	/* Clear the polarity registers to no invert */
+	memset(val, 0, MAX_BANK);
+	ret = pca953x_write_regs(dev, PCA953X_INVERT, val);
+	if (ret < 0) {
+		dev_err(dev, "Error writing invert register\n");
+		return ret;
 	}
 
 	str = strdup(name);

@@ -174,6 +174,9 @@ void dev_print (struct blk_desc *dev_desc)
 		       dev_desc->product,
 		       dev_desc->revision);
 		break;
+	case IF_TYPE_VIRTIO:
+		printf("%s VirtIO Block Device\n", dev_desc->vendor);
+		break;
 	case IF_TYPE_DOC:
 	case IF_TYPE_UNKNOWN:
 	default:
@@ -299,6 +302,9 @@ static void print_part_header(const char *type, struct blk_desc *dev_desc)
 		break;
 	case IF_TYPE_NVME:
 		puts ("NVMe");
+		break;
+	case IF_TYPE_VIRTIO:
+		puts("VirtIO");
 		break;
 	default:
 		puts ("UNKNOWN");

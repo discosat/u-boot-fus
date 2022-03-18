@@ -510,8 +510,8 @@ void build_image(int ofd)
 			 * image's IVT reserved1
 			 */
 			if (rom_version == ROM_V1) {
-				imx_header[IMAGE_IVT_ID].fhdr.reserved1 =
-					sld_header_off - header_image_off;
+			imx_header[IMAGE_IVT_ID].fhdr.reserved1 =
+				sld_header_off - header_image_off;
 			}
 			sld_fd = open(sld_img, O_RDONLY | O_BINARY);
 			if (sld_fd < 0) {

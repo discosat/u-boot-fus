@@ -26,7 +26,7 @@
 #include <fsl_esdhc.h>
 #include <mmc.h>
 #ifdef CONFIG_IMX8M_LPDDR4
-#include <asm/arch/imx8m_ddr.h>
+#include <asm/arch/ddr.h>
 #else
 #include "ddr/ddr.h"
 #endif

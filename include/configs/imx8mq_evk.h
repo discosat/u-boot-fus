@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8M_EVK_H
@@ -9,7 +8,6 @@
 
 #include <linux/sizes.h>
 #include <asm/arch/imx-regs.h>
-#include "imx_env.h"
 
 #ifdef CONFIG_SECURE_BOOT
 #define CONFIG_CSF_SIZE			0x2000 /* 8K region */
@@ -32,7 +30,6 @@
 #define CONFIG_SPL_STACK		0x187FF0
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
 #define CONFIG_SPL_MMC_SUPPORT
 #define CONFIG_SPL_BSS_START_ADDR      0x00180000
@@ -43,9 +40,10 @@
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
 
-#define CONFIG_MALLOC_F_ADDR		0x182000 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
-
-#define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
+/* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_MALLOC_F_ADDR		0x182000
+/* For RAW image gives a error info not panic */
+#define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
 #undef CONFIG_DM_MMC
 #undef CONFIG_DM_PMIC
@@ -67,11 +65,7 @@
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_BOARD_LATE_INIT
-
-/* Flat Device Tree Definitions */
-#define CONFIG_OF_BOARD_SETUP
 
 #undef CONFIG_CMD_EXPORTENV
 #undef CONFIG_CMD_IMPORTENV
@@ -196,9 +190,9 @@
 #define CONFIG_SYS_INIT_RAM_ADDR        0x40000000
 #define CONFIG_SYS_INIT_RAM_SIZE        0x80000
 #define CONFIG_SYS_INIT_SP_OFFSET \
-        (CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 #define CONFIG_SYS_INIT_SP_ADDR \
-        (CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
+	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_ENV_OFFSET               (64 * SZ_64K)
@@ -207,15 +201,15 @@
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
+#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2 * 1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define PHYS_SDRAM                      0x40000000
 #define PHYS_SDRAM_SIZE			0xC0000000 /* 3GB DDR */
-#define CONFIG_NR_DRAM_BANKS		1
 
-#define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
+#define CONFIG_SYS_MEMTEST_START	PHYS_SDRAM
+#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
+					(PHYS_SDRAM_SIZE >> 1))
 
 #define CONFIG_BAUDRATE			115200
 
@@ -225,10 +219,10 @@
 /* Monitor Command Prompt */
 #undef CONFIG_SYS_PROMPT
 #define CONFIG_SYS_PROMPT		"u-boot=> "
-#define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
-#define CONFIG_SYS_CBSIZE              2048
-#define CONFIG_SYS_MAXARGS             64
-#define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
+#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
+#define CONFIG_SYS_CBSIZE		1024
+#define CONFIG_SYS_MAXARGS		64
+#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
 					sizeof(CONFIG_SYS_PROMPT) + 16)
 
@@ -244,17 +238,7 @@
 #define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
-#define CONFIG_FSL_QSPI    /* enable the QUADSPI driver */
 #ifdef CONFIG_FSL_QSPI
-#define CONFIG_CMD_SF
-#define	CONFIG_SPI_FLASH
-#define	CONFIG_SPI_FLASH_STMICRO
-#define	CONFIG_SPI_FLASH_BAR
-#define	CONFIG_SF_DEFAULT_BUS		0
-#define	CONFIG_SF_DEFAULT_CS		0
-#define	CONFIG_SF_DEFAULT_SPEED		40000000
-#define	CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
-
 #define FSL_QSPI_FLASH_SIZE		(SZ_32M)
 #define FSL_QSPI_FLASH_NUM		1
 #endif
@@ -292,6 +276,9 @@
 
 #define CONFIG_OF_SYSTEM_SETUP
 
+#ifndef CONFIG_SPL_BUILD
+#define CONFIG_DM_PMIC
+
 /* Framebuffer */
 #ifdef CONFIG_VIDEO
 #define CONFIG_VIDEO_IMXDCSS
@@ -306,7 +293,5 @@
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "imx8mq_evk_android.h"
-#elif defined (CONFIG_ANDROID_THINGS_SUPPORT)
-#include "imx8mq_evk_androidthings.h"
 #endif
 #endif

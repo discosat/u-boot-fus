@@ -68,7 +68,6 @@ int fecmxc_initialize_multi_type_if_mode(bd_t *bis, int dev_id, int phy_id,
 #define AX88796_MODE_BUS16_DP8	1	/* Buswidth 16, data port width 8 */
 #define AX88796_MODE_BUS16_DP16	2	/* Buswidth 16, data port width 16 */
 int ax88796_initialize(int dev_id, uint32_t base_addr, int mode); 
-int ftgmac100_initialize(bd_t *bits);
 int ftmac100_initialize(bd_t *bits);
 int ftmac110_initialize(bd_t *bits);
 void gt6426x_eth_initialize(bd_t *bis);
@@ -81,7 +80,7 @@ int mcffec_initialize(bd_t *bis);
 int mvgbe_initialize(bd_t *bis);
 int mvneta_initialize(bd_t *bis, int base_addr, int devnum, int phy_addr);
 int natsemi_initialize(bd_t *bis);
-int ne2000_initialize(u8 dev_num, int base_addr);
+int ne2k_register(void);
 int npe_initialize(bd_t *bis);
 int ns8382x_initialize(bd_t *bis);
 int pcnet_initialize(bd_t *bis);

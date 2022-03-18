@@ -82,9 +82,9 @@ int arch_auxiliary_core_set_reset_address(ulong boot_private_data)
 		stack = *(u32 *)boot_private_data;
 		pc = *(u32 *)(boot_private_data + 4);
 
-	/* Set the stack and pc to M4 bootROM */
-	writel(stack, M4_BOOTROM_BASE_ADDR);
-	writel(pc, M4_BOOTROM_BASE_ADDR + 4);
+		/* Set the stack and pc to M4 bootROM */
+		writel(stack, M4_BOOTROM_BASE_ADDR);
+		writel(pc, M4_BOOTROM_BASE_ADDR + 4);
 	}
 
 	return 0;

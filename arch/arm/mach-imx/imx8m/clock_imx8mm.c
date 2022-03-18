@@ -15,6 +15,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+static struct anamix_pll *ana_pll = (struct anamix_pll *)ANATOP_BASE_ADDR;
+
+u32 get_root_clk(enum clk_root_index clock_id);
+
 #ifdef CONFIG_SECURE_BOOT
 void hab_caam_clock_enable(unsigned char enable)
 {
@@ -48,16 +52,16 @@ u32 decode_intpll(enum clk_root_src intpll)
 
 	switch (intpll) {
 	case ARM_PLL_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)ARM_PLL_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)ARM_PLL_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->arm_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->arm_pll_div_ctl);
 		break;
 	case GPU_PLL_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)GPU_PLL_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)GPU_PLL_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->gpu_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->gpu_pll_div_ctl);
 		break;
 	case VPU_PLL_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)VPU_PLL_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)VPU_PLL_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->vpu_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->vpu_pll_div_ctl);
 		break;
 	case SYSTEM_PLL1_800M_CLK:
 	case SYSTEM_PLL1_400M_CLK:
@@ -68,8 +72,8 @@ u32 decode_intpll(enum clk_root_src intpll)
 	case SYSTEM_PLL1_100M_CLK:
 	case SYSTEM_PLL1_80M_CLK:
 	case SYSTEM_PLL1_40M_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)SYS_PLL1_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)SYS_PLL1_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll1_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll1_div_ctl);
 		break;
 	case SYSTEM_PLL2_1000M_CLK:
 	case SYSTEM_PLL2_500M_CLK:
@@ -80,12 +84,12 @@ u32 decode_intpll(enum clk_root_src intpll)
 	case SYSTEM_PLL2_125M_CLK:
 	case SYSTEM_PLL2_100M_CLK:
 	case SYSTEM_PLL2_50M_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)SYS_PLL2_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)SYS_PLL2_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll2_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll2_div_ctl);
 		break;
 	case SYSTEM_PLL3_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)SYS_PLL3_GNRL_CTL);
-		pll_div_ctl = readl((void __iomem *)SYS_PLL3_DIV_CTL);
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll3_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll3_div_ctl);
 		break;
 	default:
 		return -EINVAL;
@@ -194,24 +198,24 @@ u32 decode_fracpll(enum clk_root_src frac_pll)
 
 	switch (frac_pll) {
 	case DRAM_PLL1_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)DRAM_PLL_GNRL_CTL);
-		pll_fdiv_ctl0 = readl((void __iomem *)DRAM_PLL_FDIV_CTL0);
-		pll_fdiv_ctl1 = readl((void __iomem *)DRAM_PLL_FDIV_CTL1);
+		pll_gnrl_ctl = readl(&ana_pll->dram_pll_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->dram_pll_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->dram_pll_fdiv_ctl1);
 		break;
 	case AUDIO_PLL1_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)AUDIO_PLL1_GNRL_CTL);
-		pll_fdiv_ctl0 = readl((void __iomem *)AUDIO_PLL1_FDIV_CTL0);
-		pll_fdiv_ctl1 = readl((void __iomem *)AUDIO_PLL1_FDIV_CTL1);
+		pll_gnrl_ctl = readl(&ana_pll->audio_pll1_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll1_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll1_fdiv_ctl1);
 		break;
 	case AUDIO_PLL2_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)AUDIO_PLL2_GNRL_CTL);
-		pll_fdiv_ctl0 = readl((void __iomem *)AUDIO_PLL2_FDIV_CTL0);
-		pll_fdiv_ctl1 = readl((void __iomem *)AUDIO_PLL2_FDIV_CTL1);
+		pll_gnrl_ctl = readl(&ana_pll->audio_pll2_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll2_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll2_fdiv_ctl1);
 		break;
 	case VIDEO_PLL_CLK:
-		pll_gnrl_ctl = readl((void __iomem *)VIDEO_PLL1_GNRL_CTL);
-		pll_fdiv_ctl0 = readl((void __iomem *)VIDEO_PLL1_FDIV_CTL0);
-		pll_fdiv_ctl1 = readl((void __iomem *)VIDEO_PLL1_FDIV_CTL1);
+		pll_gnrl_ctl = readl(&ana_pll->video_pll1_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->video_pll1_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->video_pll1_fdiv_ctl1);
 		break;
 	default:
 		printf("Not supported\n");
@@ -353,10 +357,10 @@ int fracpll_configure(enum pll_clocks pll, u32 freq)
 		setbits_le32(GPC_BASE_ADDR + 0xF8, 1 << 5);
 		writel(SRC_DDR1_ENABLE_MASK, SRC_BASE_ADDR + 0x1004);
 
-		pll_base = (void __iomem *)DRAM_PLL_GNRL_CTL;
+		pll_base = &ana_pll->dram_pll_gnrl_ctl;
 		break;
 	case ANATOP_VIDEO_PLL:
-		pll_base = (void __iomem *)VIDEO_PLL1_GNRL_CTL;
+		pll_base = &ana_pll->video_pll1_gnrl_ctl;
 		break;
 	default:
 		return 0;
@@ -463,8 +467,8 @@ int intpll_configure(enum pll_clocks pll, enum intpll_out_freq freq)
 
 	switch (pll) {
 	case ANATOP_SYSTEM_PLL1:
-		pll_gnrl_ctl = (void __iomem *)SYS_PLL1_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)SYS_PLL1_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->sys_pll1_gnrl_ctl;
+		pll_div_ctl = &ana_pll->sys_pll1_div_ctl;
 		pll_clke_masks = INTPLL_DIV20_CLKE_MASK |
 			INTPLL_DIV10_CLKE_MASK | INTPLL_DIV8_CLKE_MASK |
 			INTPLL_DIV6_CLKE_MASK | INTPLL_DIV5_CLKE_MASK |
@@ -472,8 +476,8 @@ int intpll_configure(enum pll_clocks pll, enum intpll_out_freq freq)
 			INTPLL_DIV2_CLKE_MASK | INTPLL_CLKE_MASK;
 		break;
 	case ANATOP_SYSTEM_PLL2:
-		pll_gnrl_ctl = (void __iomem *)SYS_PLL2_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)SYS_PLL2_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->sys_pll2_gnrl_ctl;
+		pll_div_ctl = &ana_pll->sys_pll2_div_ctl;
 		pll_clke_masks = INTPLL_DIV20_CLKE_MASK |
 			INTPLL_DIV10_CLKE_MASK | INTPLL_DIV8_CLKE_MASK |
 			INTPLL_DIV6_CLKE_MASK | INTPLL_DIV5_CLKE_MASK |
@@ -481,23 +485,23 @@ int intpll_configure(enum pll_clocks pll, enum intpll_out_freq freq)
 			INTPLL_DIV2_CLKE_MASK | INTPLL_CLKE_MASK;
 		break;
 	case ANATOP_SYSTEM_PLL3:
-		pll_gnrl_ctl = (void __iomem *)SYS_PLL3_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)SYS_PLL3_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->sys_pll3_gnrl_ctl;
+		pll_div_ctl = &ana_pll->sys_pll3_div_ctl;
 		pll_clke_masks = INTPLL_CLKE_MASK;
 		break;
 	case ANATOP_ARM_PLL:
-		pll_gnrl_ctl = (void __iomem *)ARM_PLL_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)ARM_PLL_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->arm_pll_gnrl_ctl;
+		pll_div_ctl = &ana_pll->arm_pll_div_ctl;
 		pll_clke_masks = INTPLL_CLKE_MASK;
 		break;
 	case ANATOP_GPU_PLL:
-		pll_gnrl_ctl = (void __iomem *)GPU_PLL_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)GPU_PLL_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->gpu_pll_gnrl_ctl;
+		pll_div_ctl = &ana_pll->gpu_pll_div_ctl;
 		pll_clke_masks = INTPLL_CLKE_MASK;
 		break;
 	case ANATOP_VPU_PLL:
-		pll_gnrl_ctl = (void __iomem *)VPU_PLL_GNRL_CTL;
-		pll_div_ctl = (void __iomem *)VPU_PLL_DIV_CTL;
+		pll_gnrl_ctl = &ana_pll->vpu_pll_gnrl_ctl;
+		pll_div_ctl = &ana_pll->vpu_pll_div_ctl;
 		pll_clke_masks = INTPLL_CLKE_MASK;
 		break;
 	default:
@@ -632,21 +636,21 @@ int clock_init()
 	 * sys pll2 fixed at 1GHz
 	 * Here we only enable the outputs.
 	 */
-	val_cfg0 = readl(SYS_PLL1_GNRL_CTL);
+	val_cfg0 = readl(&ana_pll->sys_pll1_gnrl_ctl);
 	val_cfg0 |= INTPLL_CLKE_MASK | INTPLL_DIV2_CLKE_MASK |
 		INTPLL_DIV3_CLKE_MASK | INTPLL_DIV4_CLKE_MASK |
 		INTPLL_DIV5_CLKE_MASK | INTPLL_DIV6_CLKE_MASK |
 		INTPLL_DIV8_CLKE_MASK | INTPLL_DIV10_CLKE_MASK |
 		INTPLL_DIV20_CLKE_MASK;
-	writel(val_cfg0, SYS_PLL1_GNRL_CTL);
+	writel(val_cfg0, &ana_pll->sys_pll1_gnrl_ctl);
 
-	val_cfg0 = readl(SYS_PLL2_GNRL_CTL);
+	val_cfg0 = readl(&ana_pll->sys_pll2_gnrl_ctl);
 	val_cfg0 |= INTPLL_CLKE_MASK | INTPLL_DIV2_CLKE_MASK |
 		INTPLL_DIV3_CLKE_MASK | INTPLL_DIV4_CLKE_MASK |
 		INTPLL_DIV5_CLKE_MASK | INTPLL_DIV6_CLKE_MASK |
 		INTPLL_DIV8_CLKE_MASK | INTPLL_DIV10_CLKE_MASK |
 		INTPLL_DIV20_CLKE_MASK;
-	writel(val_cfg0, SYS_PLL2_GNRL_CTL);
+	writel(val_cfg0, &ana_pll->sys_pll2_gnrl_ctl);
 
 	/* Configure ARM at 1.2GHz */
 	clock_set_target_val(ARM_A53_CLK_ROOT, CLK_ROOT_ON | \

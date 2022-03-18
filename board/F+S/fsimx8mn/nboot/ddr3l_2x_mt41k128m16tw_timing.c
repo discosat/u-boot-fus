@@ -7,12 +7,10 @@
  *
  * Align with uboot version:
  * imx_v2019.04_5.4.x and above version
- * For imx_v2018.03_4.14.78_1.0.0_ga ~ imx_v2018.04_4.19.35_1.1.0_ga:
- * please replace #include <asm/arch/ddr.h> with #include <asm/arch/imx8m_ddr.h>
  */
 
 #include <linux/kernel.h>
-#include <asm/arch/imx8m_ddr.h>
+#include <asm/arch/ddr.h>
 
 static struct dram_cfg_param ddr3l_ddrc_cfg[] = {
 	/** Initialize DDRC registers **/

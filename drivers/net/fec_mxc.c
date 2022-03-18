@@ -620,7 +620,7 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 	writel(0x00000000, &fec->eth->gaddr1);
 	writel(0x00000000, &fec->eth->gaddr2);
 
-	/* Do not access reserved register for i.MX6UL/6ULL/i.MX8/i.MX8M */
+	/* Do not access reserved register */
 	if (!is_mx6ul() && !is_mx6ull() && !is_imx8() && !is_imx8m()) {
 		/* clear MIB RAM */
 		for (i = mib_ptr; i <= mib_ptr + 0xfc; i += 4)
@@ -1467,7 +1467,7 @@ static int fecmxc_probe(struct udevice *dev)
 		priv->xcv_type = RGMII;
 		break;
 	default:
-	priv->xcv_type = CONFIG_FEC_XCV_TYPE;
+		priv->xcv_type = CONFIG_FEC_XCV_TYPE;
 		printf("Unsupported interface type %d defaulting to %d\n",
 		       priv->interface, priv->xcv_type);
 		break;
@@ -1531,7 +1531,7 @@ static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 
 #if CONFIG_IS_ENABLED(DM_GPIO)
 	ret = gpio_request_by_name(dev, "phy-reset-gpios", 0,
-			     &priv->phy_reset_gpio, GPIOD_IS_OUT);
+				   &priv->phy_reset_gpio, GPIOD_IS_OUT);
 	if (ret < 0)
 		return 0; /* property is optional, don't return error! */
 

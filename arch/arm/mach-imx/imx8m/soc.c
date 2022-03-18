@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2017-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -97,6 +96,7 @@ static struct mm_region imx8m_mem_map[] = {
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_OUTER_SHARE
 	}, {
+		/* CAAM */
 		.virt = 0x100000UL,
 		.phys = 0x100000UL,
 		.size = 0x8000UL,
@@ -104,6 +104,7 @@ static struct mm_region imx8m_mem_map[] = {
 			 PTE_BLOCK_NON_SHARE |
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
 	}, {
+		/* TCM */
 		.virt = 0x7C0000UL,
 		.phys = 0x7C0000UL,
 		.size = 0x80000UL,
@@ -252,29 +253,29 @@ u32 get_cpu_rev(void)
 		return (type << 12) | reg;
 	} else {
 		/* iMX8MQ */
-		if (reg == CHIP_REV_1_0) {
-			/*
-			 * For B0 chip, the DIGPROG is not updated, still TO1.0.
+	if (reg == CHIP_REV_1_0) {
+		/*
+		 * For B0 chip, the DIGPROG is not updated, still TO1.0.
 			 * we have to check ROM version or OCOTP_READ_FUSE_DATA
-			 */
+		 */
 			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40))
 				== 0xff0055aa) {
 				/* 0xff0055aa is magic number for B1 */
 				reg = CHIP_REV_2_1;
 			} else {
 				rom_version = readb((void __iomem *)ROM_VERSION_A0);
-				if (rom_version != CHIP_REV_1_0) {
+		if (rom_version != CHIP_REV_1_0) {
 					rom_version = readb((void __iomem *)ROM_VERSION_B0);
 					if (rom_version == CHIP_REV_2_0)
-						reg = CHIP_REV_2_0;
-				}
-			}
+				reg = CHIP_REV_2_0;
+		}
+	}
 		}
 
 		type = get_cpu_variant_type(type);
 
-		return (type << 12) | reg;
-	}
+	return (type << 12) | reg;
+}
 }
 
 static void imx_set_wdog_powerdown(bool enable)

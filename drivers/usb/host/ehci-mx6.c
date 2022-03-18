@@ -467,7 +467,7 @@ int ehci_mx6_common_init(struct usb_ehci *ehci, int index)
 	return 0;
 }
 
-#ifndef CONFIG_DM_USB
+#if !CONFIG_IS_ENABLED(DM_USB)
 static const struct ehci_ops mx6_ehci_ops = {
 	.powerup_fixup		= ehci_mx6_powerup_fixup,
 };
