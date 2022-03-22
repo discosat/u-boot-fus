@@ -39,10 +39,9 @@ int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single)
 {
 	int ret;
-	int index;
 	int controller_index = CONFIG_SPL_SDP_USB_DEV;
 
-	board_usb_init(controller_index, USB_INIT_DEVICE);
+	usb_gadget_initialize(controller_index);
 
 	g_dnl_clear_detach();
 	g_dnl_register("usb_dnl_sdp");

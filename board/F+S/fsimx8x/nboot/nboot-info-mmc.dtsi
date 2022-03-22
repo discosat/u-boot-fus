@@ -44,7 +44,7 @@
  *     | (free)    |                                      |
  *     +-----------+                                     /
  *
- * SPL is stored separately as requird by the ROM loader.
+ * SPL is stored separately as required by the ROM loader.
  */
 
 / {
@@ -58,9 +58,9 @@
 		 */
 		board-cfg-size = <0x2000>;		/* 8 KiB */
 		spl-start = <0x00008000 0x00100000>;
-		spl-size = <0x00038000>;		/* 224 KiB */
+		spl-size = <0x00080000>;		/* 512 KiB */
 		nboot-start = <###MMC_START###>;
-		nboot-size = <0x000C0000>;		/* 768 KiB */
+		nboot-size = <0x00020000>;		/* 128 KiB */
 		uboot-start = <0x00140000 0x00440000>;
 		uboot-size = <0x00300000>;		/* 3 MiB */
 	};

@@ -16,7 +16,9 @@
 #include <common.h>			/* Types */
 #include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <asm/io.h>			/* __raw_readl() */
-
+#if defined(CONFIG_ARCH_IMX8)
+#include <asm/arch/sys_proto.h>
+#else
 /* Read a MAC address from OTP memory */
 static int get_otp_mac(void *otp_addr, uchar *enetaddr)
 {
@@ -71,21 +73,23 @@ static int get_otp_mac(void *otp_addr, uchar *enetaddr)
 
 	return (int)(val + 1);
 }
-
+#endif
 
 /* Set the ethaddr environment variable according to index */
 void fs_eth_set_ethaddr(int index)
 {
+	uchar enetaddr[6];
+	int i;
+	int offs = index;
+#if !defined(CONFIG_ARCH_IMX8)
+	int count;
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 #if defined(CONFIG_ARCH_IMX8M)
 	struct fuse_bank *bank = &ocotp->bank[9];
 #else
 	struct fuse_bank *bank = &ocotp->bank[4];
 #endif
-	uchar enetaddr[6];
-	int count, i;
-	int offs = index;
-
+#endif
 	/*
 	 * Try to fulfil the request in the following order:
 	 *   1. From environment variable
@@ -106,6 +110,11 @@ void fs_eth_set_ethaddr(int index)
 	 * word 0 is fuse_regs[0], word 1 is fuse_regs[4] and word 2 is
 	 * fuse_regs[8].
 	 */
+#if defined(CONFIG_ARCH_IMX8)
+	imx_get_mac_from_fuse(index, enetaddr);
+	if (!(enetaddr[0]|enetaddr[1]|enetaddr[2]|enetaddr[3]|enetaddr[4]|enetaddr[5]))
+		string_to_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
+#else
 #if defined(CONFIG_ARCH_IMX8M)
 	count = get_otp_mac(&bank->fuse_regs[0], enetaddr);
 #else
@@ -113,8 +122,9 @@ void fs_eth_set_ethaddr(int index)
 #endif
 	if (count <= offs) {
 		offs -= count;
-		eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
+		string_to_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 	}
+#endif
 
 	i = 6;
 	do {

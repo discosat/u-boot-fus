@@ -22,6 +22,7 @@
 #include <malloc.h>
 #include <bootm.h>
 #include <hang.h>
+#include <mmc.h>
 #include <fdt_support.h>
 #include <power-domain.h>
 #include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
@@ -90,28 +91,38 @@ static void config_uart(int board_type)
 static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 				const char *type)
 {
+	struct udevice *dev;
+
 	if (boot_dev_init_done)
 		return 0;
 
 	used_boot_dev = boot_dev;
 	switch (boot_dev) {
-#if 0
-#ifdef CONFIG_NAND_MXS
-	case NAND_BOOT:
-		fs_spl_init_nand_pads();
-		if (start)
-			nand_init();
-		break;
-#endif
 #ifdef CONFIG_MMC
-	case MMC3_BOOT:
-		fs_spl_init_emmc_pads();
-		if (start)
-			mmc_initialize(NULL);
-		break;
-		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
+	case MMC1_BOOT:
+		/* Initialize MMC with driver model */
+		uclass_find_first_device(UCLASS_MMC, &dev);
+		for (; dev; uclass_find_next_device(&dev)) {
+			if (device_probe(dev))
+				continue;
+		}
 #endif
-#endif
+	case FLEXSPI_BOOT:
+		/* Initialize NAND with driver model */
+		uclass_find_first_device(UCLASS_SPI_FLASH, &dev);
+		for (; dev; uclass_find_next_device(&dev)) {
+			if (device_probe(dev))
+				continue;
+		}
+		/* Initialize NAND with driver model */
+		uclass_find_first_device(UCLASS_MTD, &dev);
+		for (; dev; uclass_find_next_device(&dev)) {
+			if (device_probe(dev))
+				continue;
+		}
+//	UCLASS_MTD,		/* NAND */
+//	UCLASS_SPI,		/* SPI bus */
+//	UCLASS_SPI_FLASH,	/* SPI flash */
 	case USB_BOOT:
 		/* Nothing to do */
 		break;
@@ -283,6 +294,18 @@ void spl_board_init(void)
 	}
 #endif
 	puts("Normal Boot\n");
+}
+
+/* Return the sector number where U-Boot starts in eMMC (User HW partition) */
+unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+{
+	return uboot_offs / 512;
+}
+
+/* U-Boot is always loaded from the User HW partition */
+int spl_mmc_emmc_boot_partition(struct mmc *mmc)
+{
+	return 0;
 }
 
 #ifdef CONFIG_SPL_LOAD_FIT

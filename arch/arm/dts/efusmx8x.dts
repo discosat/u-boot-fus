@@ -29,6 +29,11 @@
 		stdout-path = &lpuart2;
 	};
 
+	aliases {
+		usb0 = &usbg1;
+		usb1 = &usbh3;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x00000000 0x80000000 0 0x40000000>;
@@ -56,16 +61,6 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		reg_usb_otg1_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "usb_otg1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio4 3 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
 	};
 
 	lvds0_panel {
@@ -101,6 +96,20 @@
 		};
 	};
 
+	usbg1: usbg1 {
+		compatible = "fsl,imx27-usb-gadget";
+		dr_mode = "peripheral";
+		chipidea,usb = <&usbotg1>;
+		status = "okay";
+		u-boot,dm-spl;
+	};
+
+	usbh3: usbh3 {
+		compatible = "Cadence,usb3-host";
+		dr_mode = "host";
+		cdns3,usb = <&usbotg3>;
+		status = "okay";
+	};
 };
 
 &{/imx8qx-pm} {
@@ -131,6 +140,14 @@
 	u-boot,dm-spl;
 };
 
+&pd_conn_usb2 {
+	u-boot,dm-spl;
+};
+
+&pd_conn_usb2_phy {
+	u-boot,dm-spl;
+};
+
 &pd_dma {
 	u-boot,dm-spl;
 };
@@ -152,7 +169,6 @@
 
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
-				SC_P_USB_SS3_TC0_LSIO_GPIO4_IO03	0x06000048
 				SC_P_COMP_CTL_GPIO_1V8_3V3_GPIORHB_PAD	0x000514a0
 			>;
 		};
@@ -714,21 +730,21 @@
 };
 
 &usbotg1 {
-
-	u-boot,dm-spl;
-
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg1>;
-	srp-disable;
-	hnp-disable;
-	adp-disable;
-	dr_mode = "otg";
-	status = "okay";
+	u-boot,dm-spl;
+};
+
+&usbphynop1 {
+	compatible = "cdns,usb3-phy";
+	reg = <0x0 0x5B160000 0x0 0x40000>;
+	#phy-cells = <0>;
+	u-boot,dm-spl;
 };
 
 &usbotg3 {
-	dr_mode = "otg";
-	status = "okay";
+	phys = <&usbphynop1>;
+	u-boot,dm-spl;
 };
 
 &wu {

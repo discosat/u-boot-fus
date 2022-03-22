@@ -14,7 +14,7 @@
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "efusMX8X";
-		board-rev = <110>;		/* Rev 1.00 */
+		board-rev = <110>;		/* Rev 1.10 */
 
 		/* DRAM: 1024MB Foresee */
 		dram-type = "lpddr4";
@@ -26,9 +26,9 @@
 		boot-dev = "MMC1";
 
 		/* Fuse settings, fuse-bankword: MSW: Bank, LSW: Fuse-Word */
-		fuse-bankword = <0x00010003 0x00020001 0x00020002>;
-		fuse-mask =     <0x1000fe00 0xfffdffff 0x0000003f>;
-		fuse-value =    <0x10002000 0x00000000 0x00000000>;
+		fuse-bankword = <0x00000012 0x00000013 0x000002d0>;
+		fuse-mask =     <0x0000003f 0x00000001 0x1f000000>;
+		fuse-value =    <0x00000002 0x00000001 0x02000000>;
 
 		/* Board Features */
 		//have-nand;

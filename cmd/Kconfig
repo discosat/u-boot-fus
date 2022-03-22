@@ -495,6 +495,13 @@ config CMD_THOR_DOWNLOAD
 	  There is no documentation about this within the U-Boot source code
 	  but you should be able to find something on the interwebs.
 
+config CMD_FSIMAGE
+	bool "Handle F&S images, e.g. NBoot"
+	depends on FS_IMAGE_COMMON
+	help
+	  Save F&S images or show information about them and the current
+	  board configuration.
+
 config CMD_ZBOOT
 	bool "zboot - x86 boot command"
 	help
@@ -1339,6 +1346,15 @@ config CMD_SETEXPR
 	    variable.
 	  Also supports loading the value at a memory location into a variable.
 	  If CONFIG_REGEX is enabled, setexpr also supports a gsub function.
+
+config CMD_UPDATE
+	bool "update/install/recover (F&S)"
+	help
+	  Add command update to check for scripts located on specific media
+          (MMC, USB, MTD, UBI, UBIFS, RAM, NET) to perform either an update,
+          a recovery or a basic installation. Call
+	     help update
+	  in U-Boot for more information.
 
 endmenu
 

@@ -177,7 +177,9 @@ void fs_fdt_set_bdinfo(void *fdt, int offs)
 	fs_fdt_set_string(fdt, offs, "board_revision", rev, 1);
 	fs_fdt_set_getenv(fdt, offs, "platform", 0);
 	fs_fdt_set_getenv(fdt, offs, "arch", 1);
+#ifndef CONFIG_ARCH_IMX8
 	fs_fdt_set_string(fdt, offs, "reset_cause", get_reset_cause(), 1);
+#endif
 	fs_fdt_set_string(fdt, offs, "nboot_version",
 			  fs_board_get_nboot_version(), 1);
 	fs_fdt_set_string(fdt, offs, "u-boot_version", version_string, 1);

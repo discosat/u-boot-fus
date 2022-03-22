@@ -382,23 +382,52 @@ const char *bootdelay_process(void)
 	return s;
 }
 
+#ifdef CONFIG_CMD_UPDATE
+/*
+ * Board-specific code can reimplement board_check_for_recover() if needed
+ */
+enum update_action __board_check_for_recover(void) {
+	return UPDATE_ACTION_UPDATE;
+}
+enum update_action board_check_for_recover(void)
+	__attribute__((weak, alias("__board_check_for_recover")));
+#endif
+
 void autoboot_command(const char *s)
 {
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
-		bool lock;
-		int prev;
+#ifdef CONFIG_CMD_UPDATE
+		/* Before the boot command is executed, check if we should
+		   load a system recovery or update script; which of these
+		   should be tested is platform dependend. For example a
+		   special button must be pressed at boot time to start a
+		   recovery. So you have to override board_check_recovery() in
+		   this case. By default we only check for updates. */
+		if (update_script(board_check_for_recover(), NULL, NULL, 0))
+#endif
+		{
+			bool lock;
+			int prev;
 
-		lock = IS_ENABLED(CONFIG_AUTOBOOT_KEYED) &&
-			!IS_ENABLED(CONFIG_AUTOBOOT_KEYED_CTRLC);
-		if (lock)
-			prev = disable_ctrlc(1); /* disable Ctrl-C checking */
+			lock = IS_ENABLED(CONFIG_AUTOBOOT_KEYED) &&
+				!IS_ENABLED(CONFIG_AUTOBOOT_KEYED_CTRLC);
+			if (lock)
+				prev = disable_ctrlc(1); /* disable Ctrl-C checking */
 
-		run_command_list(s, -1, 0);
+			run_command_list(s, -1, 0);
 
-		if (lock)
-			disable_ctrlc(prev);	/* restore Ctrl-C checking */
+			if (lock)
+				disable_ctrlc(prev);	/* restore Ctrl-C checking */
+
+#ifdef CONFIG_CMD_UPDATE
+			/* The bootcmd usually only returns if booting failed.
+			   Then we assume that the system is not correctly
+			   installed and try to load an install script */
+			update_script(UPDATE_ACTION_INSTALL, NULL, NULL, 0);
+#endif
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_USE_AUTOBOOT_MENUKEY) &&

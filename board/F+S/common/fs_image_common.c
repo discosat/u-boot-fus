@@ -1015,6 +1015,7 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 		break;
 #endif
 #ifdef CONFIG_MMC
+	case MMC1_BOOT:
 	case MMC3_BOOT:
 		offs[0] = CONFIG_FUS_BOARDCFG_MMC0;
 		offs[1] = CONFIG_FUS_BOARDCFG_MMC1;
