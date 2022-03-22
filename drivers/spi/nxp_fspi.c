@@ -34,12 +34,14 @@
  */
 
 #include <common.h>
-#include <asm/io.h>
+#include <clk.h>
+#include <dm.h>
+#include <dm/device_compat.h>
 #include <malloc.h>
 #include <spi.h>
 #include <spi-mem.h>
-#include <dm.h>
-#include <clk.h>
+#include <asm/io.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/iopoll.h>
@@ -49,9 +51,11 @@
 /*
  * The driver only uses one single LUT entry, that is updated on
  * each call of exec_op(). Index 0 is preset at boot with a basic
- * read operation, so let's use the last entry (31).
+ * read operation, so let's use the middle entry (15).
+ * for some platforms, this is the last entry
  */
-#define	SEQID_LUT			31
+#define	SEQID_LUT			15
+#define	SEQID_AHB_LUT			14
 
 /* Registers used by the driver */
 #define FSPI_MCR0			0x00
@@ -202,9 +206,13 @@
 
 #define FSPI_DLLACR			0xC0
 #define FSPI_DLLACR_OVRDEN		BIT(8)
+#define FSPI_DLLACR_SLVDLY(x)          ((x) << 3)
+#define FSPI_DLLACR_DLLEN              BIT(0)
 
 #define FSPI_DLLBCR			0xC4
 #define FSPI_DLLBCR_OVRDEN		BIT(8)
+#define FSPI_DLLBCR_SLVDLY(x)          ((x) << 3)
+#define FSPI_DLLBCR_DLLEN              BIT(0)
 
 #define FSPI_STS0			0xE0
 #define FSPI_STS0_DLPHB(x)		((x) << 8)
@@ -239,6 +247,10 @@
 #define FSPI_LUT_OFFSET			(SEQID_LUT * 4 * 4)
 #define FSPI_LUT_REG(idx) \
 	(FSPI_LUT_BASE + FSPI_LUT_OFFSET + (idx) * 4)
+
+#define FSPI_AHB_LUT_OFFSET			(SEQID_AHB_LUT * 4 * 4)
+#define FSPI_AHB_LUT_REG(idx) \
+	(FSPI_LUT_BASE + FSPI_AHB_LUT_OFFSET + (idx) * 4)
 
 /* register map end */
 
@@ -302,6 +314,9 @@
 #define POLL_TOUT		5000
 #define NXP_FSPI_MAX_CHIPSELECT		4
 
+/* access memory via IPS only due to this errata */
+#define NXP_FSPI_QUIRK_ERR050601    BIT(0)
+
 struct nxp_fspi_devtype_data {
 	unsigned int rxfifo;
 	unsigned int txfifo;
@@ -318,14 +333,50 @@ static const struct nxp_fspi_devtype_data lx2160a_data = {
 	.little_endian = true,  /* little-endian    */
 };
 
+static const struct nxp_fspi_devtype_data imx8mm_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.little_endian = true,  /* little-endian    */
+};
+
+static const struct nxp_fspi_devtype_data imx8qxp_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.little_endian = true,  /* little-endian    */
+};
+
+static const struct nxp_fspi_devtype_data imx8dxl_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = NXP_FSPI_QUIRK_ERR050601,
+	.little_endian = true,  /* little-endian    */
+};
+
+static const struct nxp_fspi_devtype_data imx8ulp_data = {
+	.rxfifo = SZ_1K,       /* (128  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.little_endian = true,  /* little-endian    */
+};
+
 struct nxp_fspi {
 	struct udevice *dev;
 	void __iomem *iobase;
 	void __iomem *ahb_addr;
 	u32 memmap_phy;
 	u32 memmap_phy_size;
+	u32 dll_slvdly;
 	struct clk clk, clk_en;
 	const struct nxp_fspi_devtype_data *devtype_data;
+#define FSPI_DTR_ODD_ADDR       (1 << 0)
+	int flags;
+
 };
 
 /*
@@ -349,6 +400,11 @@ static u32 fspi_readl(struct nxp_fspi *f, void __iomem *addr)
 		return in_le32(addr);
 	else
 		return in_be32(addr);
+}
+
+static inline int nxp_fspi_ips_access_only(struct nxp_fspi *f)
+{
+	return f->devtype_data->quirks & NXP_FSPI_QUIRK_ERR050601;
 }
 
 static int nxp_fspi_check_buswidth(struct nxp_fspi *f, u8 width)
@@ -484,11 +540,12 @@ static void nxp_fspi_prepare_lut(struct nxp_fspi *f,
 		 * Due to FlexSPI controller limitation number of PAD for dummy
 		 * buswidth needs to be programmed as equal to data buswidth.
 		 */
-					      LUT_PAD(op->data.buswidth),
+					      LUT_PAD(op->dummy.buswidth),
 					      op->dummy.nbytes * 8 /
 					      op->dummy.buswidth);
 		lutidx++;
 	}
+	//  2 * op->dummy.nbytes * 8 /
 
 	/* read/write data bytes */
 	if (op->data.nbytes) {
@@ -511,6 +568,13 @@ static void nxp_fspi_prepare_lut(struct nxp_fspi *f,
 	for (i = 0; i < ARRAY_SIZE(lutval); i++)
 		fspi_writel(f, lutval[i], base + FSPI_LUT_REG(i));
 
+
+	if (op->data.nbytes && op->data.dir == SPI_MEM_DATA_IN &&
+		op->addr.nbytes) {
+		for (i = 0; i < ARRAY_SIZE(lutval); i++)
+			fspi_writel(f, lutval[i], base + FSPI_AHB_LUT_REG(i));
+	}
+
 	dev_dbg(f->dev, "CMD[%x] lutval[0:%x \t 1:%x \t 2:%x \t 3:%x]\n",
 		op->cmd.opcode, lutval[0], lutval[1], lutval[2], lutval[3]);
 
@@ -519,7 +583,7 @@ static void nxp_fspi_prepare_lut(struct nxp_fspi *f,
 	fspi_writel(f, FSPI_LCKER_LOCK, f->iobase + FSPI_LCKCR);
 }
 
-#if CONFIG_IS_ENABLED(CONFIG_CLK)
+#if CONFIG_IS_ENABLED(CLK)
 static int nxp_fspi_clk_prep_enable(struct nxp_fspi *f)
 {
 	int ret;
@@ -807,13 +871,13 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	int ret, i;
 	u32 reg;
 
-#if CONFIG_IS_ENABLED(CONFIG_CLK)
+#if CONFIG_IS_ENABLED(CLK)
 	/* disable and unprepare clock to avoid glitch pass to controller */
 	nxp_fspi_clk_disable_unprep(f);
 
 	/* the default frequency, we will change it later if necessary. */
 	ret = clk_set_rate(&f->clk, 20000000);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = nxp_fspi_clk_prep_enable(f);
@@ -834,8 +898,16 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	fspi_writel(f, FSPI_DLLACR_OVRDEN, base + FSPI_DLLACR);
 	fspi_writel(f, FSPI_DLLBCR_OVRDEN, base + FSPI_DLLBCR);
 
+	if (f->dll_slvdly) {
+		fspi_writel(f, FSPI_DLLACR_DLLEN | FSPI_DLLACR_SLVDLY(4),
+			    base + FSPI_DLLACR);
+		fspi_writel(f, FSPI_DLLBCR_DLLEN | FSPI_DLLBCR_SLVDLY(4),
+			    base + FSPI_DLLBCR);
+	}
+
 	/* enable module */
-	fspi_writel(f, FSPI_MCR0_AHB_TIMEOUT(0xFF) | FSPI_MCR0_IP_TIMEOUT(0xFF),
+	fspi_writel(f, (u32)FSPI_MCR0_AHB_TIMEOUT(0xFF) |
+		    FSPI_MCR0_IP_TIMEOUT(0xFF)/* | FSPI_MCR0_OCTCOMB_EN*/,
 		    base + FSPI_MCR0);
 
 	/*
@@ -862,10 +934,10 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 		    base + FSPI_AHBCR);
 
 	/* AHB Read - Set lut sequence ID for all CS. */
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHA1CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHA2CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHB1CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHB2CR2);
+	fspi_writel(f, SEQID_AHB_LUT, base + FSPI_FLSHA1CR2);
+	fspi_writel(f, SEQID_AHB_LUT, base + FSPI_FLSHA2CR2);
+	fspi_writel(f, SEQID_AHB_LUT, base + FSPI_FLSHB1CR2);
+	fspi_writel(f, SEQID_AHB_LUT, base + FSPI_FLSHB2CR2);
 
 	return 0;
 }
@@ -897,14 +969,14 @@ static int nxp_fspi_claim_bus(struct udevice *dev)
 
 static int nxp_fspi_set_speed(struct udevice *bus, uint speed)
 {
-#if CONFIG_IS_ENABLED(CONFIG_CLK)
+#if CONFIG_IS_ENABLED(CLK)
 	struct nxp_fspi *f = dev_get_priv(bus);
 	int ret;
 
 	nxp_fspi_clk_disable_unprep(f);
 
 	ret = clk_set_rate(&f->clk, speed);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = nxp_fspi_clk_prep_enable(f);
@@ -920,10 +992,10 @@ static int nxp_fspi_set_mode(struct udevice *bus, uint mode)
 	return 0;
 }
 
-static int nxp_fspi_ofdata_to_platdata(struct udevice *bus)
+static int nxp_fspi_of_to_plat(struct udevice *bus)
 {
 	struct nxp_fspi *f = dev_get_priv(bus);
-#if CONFIG_IS_ENABLED(CONFIG_CLK)
+#if CONFIG_IS_ENABLED(CLK)
 	int ret;
 #endif
 
@@ -949,7 +1021,10 @@ static int nxp_fspi_ofdata_to_platdata(struct udevice *bus)
 	f->ahb_addr = map_physmem(ahb_addr, ahb_size, MAP_NOCACHE);
 	f->memmap_phy_size = ahb_size;
 
-#if CONFIG_IS_ENABLED(CONFIG_CLK)
+	/* check if need to set the slave delay line */
+	dev_read_u32(bus, "nxp,fspi-dll-slvdly", &f->dll_slvdly);
+
+#if CONFIG_IS_ENABLED(CLK)
 	ret = clk_get_by_name(bus, "fspi_en", &f->clk_en);
 	if (ret) {
 		dev_err(bus, "failed to get fspi_en clock\n");
@@ -983,6 +1058,10 @@ static const struct dm_spi_ops nxp_fspi_ops = {
 
 static const struct udevice_id nxp_fspi_ids[] = {
 	{ .compatible = "nxp,lx2160a-fspi", .data = (ulong)&lx2160a_data, },
+	{ .compatible = "nxp,imx8mm-fspi", .data = (ulong)&imx8mm_data, },
+	{ .compatible = "nxp,imx8qxp-fspi", .data = (ulong)&imx8qxp_data, },
+	{ .compatible = "nxp,imx8dxl-fspi", .data = (ulong)&imx8dxl_data, },
+	{ .compatible = "nxp,imx8ulp-fspi", .data = (ulong)&imx8ulp_data, },
 	{ }
 };
 
@@ -991,7 +1070,7 @@ U_BOOT_DRIVER(nxp_fspi) = {
 	.id	= UCLASS_SPI,
 	.of_match = nxp_fspi_ids,
 	.ops	= &nxp_fspi_ops,
-	.ofdata_to_platdata = nxp_fspi_ofdata_to_platdata,
+	.ofdata_to_platdata = nxp_fspi_of_to_plat,
 	.priv_auto_alloc_size = sizeof(struct nxp_fspi),
 	.probe	= nxp_fspi_probe,
 };
