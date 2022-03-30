@@ -6,8 +6,8 @@
 -----------------------------
 
 This document describes a step-by-step procedure on how to sign and securely
-boot an U-Boot image. It is assumed that the reader is familiar with basic
-HAB concepts and with the PKI tree generation.
+boot an U-Boot image for non-SPL targets. It is assumed that the reader is
+familiar with basic HAB concepts and with the PKI tree generation.
 
 Details about HAB can be found in the application note AN4581[1] and in the
 introduction_habv4.txt document.

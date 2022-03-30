@@ -1464,7 +1464,7 @@ static int do_fsimage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			  ARRAY_SIZE(cmd_fsimage_sub));
 	if (!cp)
 		return CMD_RET_USAGE;
-	if (flag == CMD_FLAG_REPEAT && !cp->repeatable)
+	if (flag == CMD_FLAG_REPEAT && !cmd_is_repeatable(cp))
 		return CMD_RET_SUCCESS;
 
 	return cp->cmd(cmdtp, flag, argc, argv);

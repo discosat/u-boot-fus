@@ -461,14 +461,14 @@ static int ar8031_phy_fixup(struct phy_device *phydev)
 
 	/* To enable AR8031 ouput a 125MHz clk from CLK_25M */
 	if (!is_mx6dqp()) {
-		phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x7);
-		phy_write(phydev, MDIO_DEVAD_NONE, 0xe, 0x8016);
-		phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x4007);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x7);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0xe, 0x8016);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x4007);
 
-		val = phy_read(phydev, MDIO_DEVAD_NONE, 0xe);
-		val &= 0xffe3;
-		val |= 0x18;
-		phy_write(phydev, MDIO_DEVAD_NONE, 0xe, val);
+	val = phy_read(phydev, MDIO_DEVAD_NONE, 0xe);
+	val &= 0xffe3;
+	val |= 0x18;
+	phy_write(phydev, MDIO_DEVAD_NONE, 0xe, val);
 	}
 
 	/* set the IO voltage to 1.8v */
@@ -833,7 +833,6 @@ int board_eth_init(bd_t *bis)
 }
 
 #ifdef CONFIG_USB_EHCI_MX6
-#ifdef CONFIG_DM_USB
 int board_ehci_hcd_init(int port)
 {
 	switch (port) {
@@ -852,69 +851,6 @@ int board_ehci_hcd_init(int port)
 	}
 	return 0;
 }
-#else
-#define USB_OTHERREGS_OFFSET	0x800
-#define UCTRL_PWR_POL		(1 << 9)
-
-static iomux_v3_cfg_t const usb_otg_pads[] = {
-	IOMUX_PADS(PAD_EIM_D22__USB_OTG_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_RX_ER__USB_OTG_ID | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
-static iomux_v3_cfg_t const usb_hc1_pads[] = {
-	IOMUX_PADS(PAD_ENET_TXD1__GPIO1_IO29 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
-int board_ehci_hcd_init(int port)
-{
-	u32 *usbnc_usb_ctrl;
-
-	switch (port) {
-	case 0:
-		SETUP_IOMUX_PADS(usb_otg_pads);
-
-		/*
-		  * Set daisy chain for otg_pin_id on 6q.
-		 *  For 6dl, this bit is reserved.
-		 */
-		imx_iomux_set_gpr_register(1, 13, 1, 0);
-
-		usbnc_usb_ctrl = (u32 *)(USB_BASE_ADDR + USB_OTHERREGS_OFFSET +
-				 port * 4);
-
-		setbits_le32(usbnc_usb_ctrl, UCTRL_PWR_POL);
-		break;
-	case 1:
-		SETUP_IOMUX_PADS(usb_hc1_pads);
-		gpio_request(IMX_GPIO_NR(1, 29), "USB HC1 Power Enable");
-		break;
-	default:
-		printf("MXC USB port %d not yet supported\n", port);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int board_ehci_power(int port, int on)
-{
-	switch (port) {
-	case 0:
-		break;
-	case 1:
-		if (on)
-			gpio_direction_output(IMX_GPIO_NR(1, 29), 1);
-		else
-			gpio_direction_output(IMX_GPIO_NR(1, 29), 0);
-		break;
-	default:
-		printf("MXC USB port %d not yet supported\n", port);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#endif
 #endif
 
 int board_early_init_f(void)
@@ -1065,16 +1001,16 @@ int power_init_board(void)
 
 	/* VGEN3 and VGEN5 corrected on i.mx6qp board */
 	if (!is_mx6dqp()) {
-		/* Increase VGEN3 from 2.5 to 2.8V */
+	/* Increase VGEN3 from 2.5 to 2.8V */
 		reg = pmic_reg_read(dev, PFUZE100_VGEN3VOL);
-		reg &= ~LDO_VOL_MASK;
-		reg |= LDOB_2_80V;
+	reg &= ~LDO_VOL_MASK;
+	reg |= LDOB_2_80V;
 		pmic_reg_write(dev, PFUZE100_VGEN3VOL, reg);
 
-		/* Increase VGEN5 from 2.8 to 3V */
+	/* Increase VGEN5 from 2.8 to 3V */
 		reg = pmic_reg_read(dev, PFUZE100_VGEN5VOL);
-		reg &= ~LDO_VOL_MASK;
-		reg |= LDOB_3_00V;
+	reg &= ~LDO_VOL_MASK;
+	reg |= LDOB_3_00V;
 		pmic_reg_write(dev, PFUZE100_VGEN5VOL, reg);
 	}
 
@@ -1144,7 +1080,7 @@ void ldo_mode_set(int ldo_bypass)
 	if (!p) {
 		printf("No PMIC found!\n");
 		return;
-	}
+}
 
 	/* increase VDDARM/VDDSOC to support 1.2G chip */
 	if (check_1_2G()) {
@@ -1739,5 +1675,23 @@ void board_init_f(ulong dummy)
 
 	/* load/boot image from boot device */
 	board_init_r(NULL, 0);
+}
+#endif
+
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	if (is_mx6dq()) {
+		if (!strcmp(name, "imx6q-sabresd"))
+			return 0;
+	} else if (is_mx6dqp()) {
+		if (!strcmp(name, "imx6qp-sabresd"))
+			return 0;
+	} else if (is_mx6dl()) {
+		if (!strcmp(name, "imx6dl-sabresd"))
+			return 0;
+	}
+
+	return -1;
 }
 #endif

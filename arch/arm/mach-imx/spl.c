@@ -230,7 +230,8 @@ u32 spl_boot_mode(const u32 boot_device)
 	/* for MMC return either RAW or FAT mode */
 	case BOOT_DEVICE_MMC1:
 	case BOOT_DEVICE_MMC2:
-#if defined(CONFIG_SPL_FAT_SUPPORT)
+	case BOOT_DEVICE_MMC2_2:
+#if defined(CONFIG_SPL_FS_FAT)
 		return MMCSD_MODE_FS;
 #elif defined(CONFIG_SUPPORT_EMMC_BOOT)
 		return MMCSD_MODE_EMMCBOOT;
@@ -297,8 +298,8 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 		 * data therefore, we need to subtract the size of the
 		 * CSF from the actual filesize
 		 */
-	offset = spl_image->size - CONFIG_CSF_SIZE;
-	if (!imx_hab_authenticate_image(spl_image->load_addr,
+		offset = spl_image->size - CONFIG_CSF_SIZE;
+		if (!imx_hab_authenticate_image(spl_image->load_addr,
 						offset + IVT_SIZE +
 						CSF_PAD_SIZE, offset)) {
 			image_entry();
@@ -327,8 +328,8 @@ void board_spl_fit_post_load(ulong load_addr, size_t length)
 	u32 offset = length - CONFIG_CSF_SIZE;
 
 	if (imx_hab_authenticate_image(load_addr,
-					offset + IVT_SIZE + CSF_PAD_SIZE,
-					offset)) {
+				       offset + IVT_SIZE + CSF_PAD_SIZE,
+				       offset)) {
 		puts("spl: ERROR:  image authentication unsuccessful\n");
 		hang();
 	}

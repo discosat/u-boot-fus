@@ -64,6 +64,7 @@ obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 ifeq ($(SOC),$(filter $(SOC),vf610))
 obj-y += ddrmc-vf610.o
+obj-$(CONFIG_DDRMC_VF610_CALIBRATION) += ddrmc-vf610-calibration.o
 endif
 ifeq ($(SOC),$(filter $(SOC),imx8))
 obj-$(CONFIG_HAVE_SC_FIRMWARE) += sci/

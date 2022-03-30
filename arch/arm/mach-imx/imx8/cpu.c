@@ -105,13 +105,13 @@ int arch_cpu_init_dm(void)
 
 	if ((is_imx8qm() || is_imx8qxp()) && is_soc_rev(CHIP_REV_A)) {
 		pass_over = get_pass_over_info();
-		if (pass_over && pass_over->g_ap_mu == 0) {
-			/*
-			 * When ap_mu is 0, means the U-Boot booted
-			 * from first container
-			 */
-			sc_misc_boot_status(-1, SC_MISC_BOOT_STATUS_SUCCESS);
-		}
+	if (pass_over && pass_over->g_ap_mu == 0) {
+		/*
+		 * When ap_mu is 0, means the U-Boot booted
+		 * from first container
+		 */
+		sc_misc_boot_status(-1, SC_MISC_BOOT_STATUS_SUCCESS);
+	}
 	}
 
 #ifdef CONFIG_IMX_SMMU
@@ -1707,7 +1707,7 @@ static int cpu_imx_get_info(struct udevice *dev, struct cpu_info *info)
 static int cpu_imx_get_count(struct udevice *dev)
 {
 	if (is_imx8qxp())
-		return 4;
+	return 4;
 	else if (is_imx8dxl())
 		return 2;
 	else

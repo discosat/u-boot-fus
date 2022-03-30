@@ -32,7 +32,6 @@
 
 #define CONFIG_SERIAL_TAG
 
-#define CONFIG_BOUNCE_BUFFER
 #define CONFIG_FSL_USDHC
 #define CONFIG_SUPPORT_EMMC_BOOT /* eMMC specific */
 

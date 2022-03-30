@@ -33,15 +33,27 @@
 #include <fsl_esdhc.h>
 #endif
 
-#if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
 static u32 reset_cause = -1;
 
-#ifndef CONFIG_ARCH_MX7ULP
+u32 get_imx_reset_cause(void)
+{
+	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+
+	if (reset_cause == -1) {
+		reset_cause = readl(&src_regs->srsr);
+/* preserve the value for U-Boot proper */
+#if !defined(CONFIG_SPL_BUILD)
+		writel(reset_cause, &src_regs->srsr);
+#endif
+	}
+
+	return reset_cause;
+}
+
+#if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
 const char *get_reset_cause(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-
-	switch (gd->arch.reset_cause) {
+	switch (get_imx_reset_cause()) {
 	case 0x00001:
 	case 0x00011:
 		return "POR";
@@ -92,12 +104,6 @@ void get_reboot_reason(char *ret)
 	writel(reset_cause, &src_regs->srsr);
 }
 #endif
-#endif
-
-u32 get_imx_reset_cause(void)
-{
-	return reset_cause;
-}
 #endif
 
 #if defined(CONFIG_MX53) || defined(CONFIG_MX6)

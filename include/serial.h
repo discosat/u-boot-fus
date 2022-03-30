@@ -237,9 +237,7 @@ struct dm_serial_ops {
 	 * Get a current config for this device.
 	 *
 	 * @dev: Device pointer
-	 * @parity: parity to use
-	 * @bits: bits number to use
-	 * @stop: stop bits number to use
+	 * @serial_config: Returns config information (see SERIAL_... above)
 	 * @return 0 if OK, -ve on error
 	 */
 	int (*getconfig)(struct udevice *dev, uint *serial_config);
@@ -259,6 +257,7 @@ struct dm_serial_ops {
 	 *
 	 * @dev: Device pointer
 	 * @info: struct serial_device_info to fill
+	 * @return 0 if OK, -ve on error
 	 */
 	int (*getinfo)(struct udevice *dev, struct serial_device_info *info);
 };
@@ -282,6 +281,39 @@ struct serial_dev_priv {
 
 /* Access the serial operations for a device */
 #define serial_get_ops(dev)	((struct dm_serial_ops *)(dev)->driver->ops)
+
+/**
+ * serial_getconfig() - Get the uart configuration
+ * (parity, 5/6/7/8 bits word length, stop bits)
+ *
+ * Get a current config for this device.
+ *
+ * @dev: Device pointer
+ * @serial_config: Returns config information (see SERIAL_... above)
+ * @return 0 if OK, -ve on error
+ */
+int serial_getconfig(struct udevice *dev, uint *config);
+
+/**
+ * serial_setconfig() - Set up the uart configuration
+ * (parity, 5/6/7/8 bits word length, stop bits)
+ *
+ * Set up a new config for this device.
+ *
+ * @dev: Device pointer
+ * @serial_config: number of bits, parity and number of stopbits to use
+ * @return 0 if OK, -ve on error
+ */
+int serial_setconfig(struct udevice *dev, uint config);
+
+/**
+ * serial_getinfo() - Get serial device information
+ *
+ * @dev: Device pointer
+ * @info: struct serial_device_info to fill
+ * @return 0 if OK, -ve on error
+ */
+int serial_getinfo(struct udevice *dev, struct serial_device_info *info);
 
 void atmel_serial_initialize(void);
 void mcf_serial_initialize(void);
@@ -310,9 +342,6 @@ void	serial_putc_raw(const char);
 void	serial_puts   (const char *);
 int	serial_getc   (void);
 int	serial_tstc   (void);
-int	serial_getconfig(uint *config);
-int	serial_setconfig(uint config);
-int	serial_getinfo(struct serial_device_info *info);
 #ifdef CONFIG_DM_SERIAL
 int	serial_get_alias_seq(void);
 #endif

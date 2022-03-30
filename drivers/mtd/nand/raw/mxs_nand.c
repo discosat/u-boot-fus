@@ -382,7 +382,7 @@ static void mxs_nand_select_chip(struct mtd_info *mtd, int chip)
  * because the the operation is the same.
  */
 static void mxs_nand_swap_block_mark(struct bch_geometry *geo,
-					uint8_t *data_buf, uint8_t *oob_buf)
+				     uint8_t *data_buf, uint8_t *oob_buf)
 {
 	uint32_t bit_offset = geo->block_mark_bit_offset;
 	uint32_t buf_offset = geo->block_mark_byte_offset;
@@ -1295,10 +1295,6 @@ int mxs_nand_init_spl(struct nand_chip *nand)
 	nand->ecc.read_page	= mxs_nand_ecc_read_page;
 
 	nand->ecc.mode		= NAND_ECC_HW;
-	nand->ecc.bytes		= 9;
-	nand->ecc.size		= 512;
-//###	nand->ecc.strength	= 8;
-	nand->ecc.strength	= 4; //###
 
 	return 0;
 }

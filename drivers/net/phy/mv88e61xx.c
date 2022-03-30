@@ -738,9 +738,9 @@ static int mv88e61xx_fixed_port_setup(struct phy_device *phydev, u8 port)
 	if (priv->id == PORT_SWITCH_ID_6071) {
 		val |= PORT_REG_PHYS_CTRL_SPD100;
 	} else {
-		val |= PORT_REG_PHYS_CTRL_PCS_AN_EN |
-		       PORT_REG_PHYS_CTRL_PCS_AN_RST |
-		       PORT_REG_PHYS_CTRL_SPD1000;
+	val |= PORT_REG_PHYS_CTRL_PCS_AN_EN |
+	       PORT_REG_PHYS_CTRL_PCS_AN_RST |
+	       PORT_REG_PHYS_CTRL_SPD1000;
 	}
 
 	if (port == CONFIG_MV88E61XX_CPU_PORT)
