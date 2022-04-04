@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 Stefan Roese <sr@denx.de>
- * Copyright 2018 NXP
  */
 
 #include <common.h>
@@ -22,8 +21,6 @@ static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
 static int spl_nor_load_image(struct spl_image_info *spl_image,
 			      struct spl_boot_device *bootdev)
 {
-	const struct image_header *header;
-
 	int ret;
 	__maybe_unused const struct image_header *header;
 	__maybe_unused struct spl_load_info load;

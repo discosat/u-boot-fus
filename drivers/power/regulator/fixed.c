@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015 Samsung Electronics
- *  Copyright 2017 NXP
  *
  *  Przemyslaw Marczak <p.marczak@samsung.com>
  */

@@ -518,7 +518,7 @@ static int do_onenand_dump(cmd_tbl_t * cmdtp, int flag, int argc, char * const a
 static int do_onenand_markbad(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	int ret = 0;
-	ulong ofs;
+	ulong addr;
 
 	argc -= 2;
 	argv += 2;
@@ -527,17 +527,17 @@ static int do_onenand_markbad(cmd_tbl_t * cmdtp, int flag, int argc, char * cons
 		return CMD_RET_USAGE;
 
 	while (argc > 0) {
-		ofs = simple_strtoul(*argv, NULL, 16);
+		addr = simple_strtoul(*argv, NULL, 16);
 
 		if (mtd_block_markbad(mtd, addr)) {
 			printf("block 0x%08lx NOT marked "
 				"as bad! ERROR %d\n",
-				ofs, ret);
+				addr, ret);
 			ret = 1;
 		} else {
 			printf("block 0x%08lx successfully "
 				"marked as bad\n",
-				ofs);
+				addr);
 		}
 		--argc;
 		++argv;

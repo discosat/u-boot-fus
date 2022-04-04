@@ -19,7 +19,7 @@ extern char * strchr(const char * s, int c);
 #endif
 extern void * memcpy(void *, const void *, __kernel_size_t);
 
-#ifdef CONFIG_USE_ARCH_MEMMOVE
+#if CONFIG_IS_ENABLED(USE_ARCH_MEMMOVE)
 #define __HAVE_ARCH_MEMMOVE
 #endif
 extern void * memmove(void *, const void *, __kernel_size_t);
