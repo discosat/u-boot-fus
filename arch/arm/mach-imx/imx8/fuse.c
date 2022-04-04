@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2020 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  *
@@ -10,7 +10,7 @@
 #include <asm/io.h>
 #include <console.h>
 #include <fuse.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -24,7 +24,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FSL_ECC_WORD_END_2	 0x1FF
 #endif
 
-#ifdef CONFIG_IMX8QXP
+#if defined(CONFIG_IMX8QXP) || defined(CONFIG_IMX8DXL)
 #define FSL_ECC_WORD_START_2	 0x220
 #define FSL_ECC_WORD_END_2	 0x31F
 
@@ -54,11 +54,8 @@ int fuse_sense(u32 bank, u32 word, u32 *val)
 	return ret;
 #else
 	sc_err_t err;
-	sc_ipc_t ipc;
 
-	ipc = gd->arch.ipc_channel_handle;
-
-	err = sc_misc_otp_fuse_read(ipc, word, val);
+	err = sc_misc_otp_fuse_read(-1, word, val);
 	if (err != SC_ERR_NONE) {
 		printf("fuse read error: %d\n", err);
 		return -EIO;
@@ -74,7 +71,7 @@ int fuse_prog(u32 bank, u32 word, u32 val)
 		printf("Invalid bank argument, ONLY bank 0 is supported\n");
 		return -EINVAL;
 	}
-#ifdef CONFIG_IMX8QXP
+#if defined(CONFIG_IMX8QXP) || defined(CONFIG_IMX8DXL)
 	if ((word >= FSL_QXP_FUSE_GAP_START) && (word <= FSL_QXP_FUSE_GAP_END)) {
 		printf("Invalid word argument for this SoC\n");
 		return -EINVAL;

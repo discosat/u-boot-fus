@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2009
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -13,8 +12,6 @@
 #include <mapmem.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * Image booting support
@@ -40,11 +37,11 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 		debug("*  kernel: cmdline image address = 0x%08lx\n", ld);
 	}
 
-	ret = booti_setup(ld, &relocated_addr, &image_size);
+	ret = booti_setup(ld, &relocated_addr, &image_size, false);
 	if (ret != 0)
 		return 1;
 
-#if defined(CONFIG_SECURE_BOOT) && !defined(CONFIG_AVB_SUPPORT)
+#ifdef CONFIG_SECURE_BOOT
 	extern int authenticate_image(
 		uint32_t ddr_start, uint32_t raw_image_size);
 	if (authenticate_image(ld, image_size) != 0) {

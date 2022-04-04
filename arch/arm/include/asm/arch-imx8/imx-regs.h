@@ -1,18 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017, 2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018-2019 NXP
  *
  */
 
-#ifndef __ASM_ARCH_IMX_REGS_H__
-#define __ASM_ARCH_IMX_REGS_H__
+#ifndef __ASM_ARCH_IMX8_REGS_H__
+#define __ASM_ARCH_IMX8_REGS_H__
 
 #define ARCH_MXC
 
-#define MU_BASE_ADDR(id)	((0x5D1B0000UL + (id*0x10000)))
-
-#define LPUART_BASE			0x5A060000
+#define LPUART_BASE		0x5A060000
 
 #define GPT1_BASE_ADDR		0x5D140000
 #define SCU_LPUART_BASE		0x33220000
@@ -31,10 +28,10 @@
 #define LPI2C5_BASE_ADDR	0x5A840000
 
 #ifdef CONFIG_IMX8QXP
-#define LVDS0_PHYCTRL_BASE 0x56221000
-#define LVDS1_PHYCTRL_BASE 0x56241000
-#define MIPI0_SS_BASE 0x56220000
-#define MIPI1_SS_BASE 0x56240000
+#define LVDS0_PHYCTRL_BASE	0x56221000
+#define LVDS1_PHYCTRL_BASE	0x56241000
+#define MIPI0_SS_BASE		0x56220000
+#define MIPI1_SS_BASE		0x56240000
 #endif
 
 #ifdef CONFIG_IMX8QM
@@ -42,10 +39,6 @@
 #define LVDS1_PHYCTRL_BASE 0x57241000
 #define MIPI0_SS_BASE 0x56220000
 #define MIPI1_SS_BASE 0x57220000
-#endif
-
-#ifdef CONFIG_LPUART
-#define LPUART_BASE		SCU_LPUART_BASE
 #endif
 
 #define APBH_DMA_ARB_BASE_ADDR	0x5B810000
@@ -59,6 +52,7 @@
 
 #define USB_BASE_ADDR		0x5b0d0000
 #define USB_PHY0_BASE_ADDR	0x5b100000
+#define USB_PHY1_BASE_ADDR	0x5b110000
 
 #define CAAM_ARB_BASE_ADDR	(0x31800000)
 #define CONFIG_SYS_FSL_SEC_ADDR (0x31400000)
@@ -141,4 +135,4 @@ struct usbphy_regs {
 };
 #endif
 
-#endif /* __ASM_ARCH_IMX_REGS_H__ */
+#endif /* __ASM_ARCH_IMX8_REGS_H__ */

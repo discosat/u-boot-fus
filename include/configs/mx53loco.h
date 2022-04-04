@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
  * Jason Liu <r64343@freescale.com>
  *
  * Configuration settings for Freescale MX53 low cost board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -29,12 +28,10 @@
 #define CONFIG_MXC_UART_BASE	UART1_BASE
 
 /* MMC Configs */
-#define CONFIG_FSL_ESDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 #define CONFIG_SYS_FSL_ESDHC_NUM	2
 
 /* Eth Configs */
-#define CONFIG_MII
 
 #define CONFIG_FEC_MXC
 #define IMX_FEC_BASE	FEC_BASE_ADDR
@@ -64,7 +61,6 @@
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
-#define CONFIG_CONS_INDEX		1
 
 /* Command definition */
 
@@ -153,7 +149,6 @@
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS	2
 #define PHYS_SDRAM_1			CSD0_BASE_ADDR
 #define PHYS_SDRAM_1_SIZE		(gd->bd->bi_dram[0].size)
 #define PHYS_SDRAM_2			CSD1_BASE_ADDR

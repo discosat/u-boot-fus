@@ -218,18 +218,6 @@ int board_qspi_init(void)
 }
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
-int mmc_map_to_kernel_blk(int dev_no)
-{
-	return dev_no;
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}
-#endif
-
 #ifdef CONFIG_FEC_MXC
 int board_eth_init(bd_t *bis)
 {
@@ -283,6 +271,7 @@ int board_phy_config(struct phy_device *phydev)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX7D_PAD_ECSPI1_SCLK__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX7D_PAD_ECSPI1_MOSI__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -304,6 +293,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 19)) : -1;
 }
+#endif
 #endif
 
 int board_early_init_f(void)
@@ -546,7 +536,9 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
+#endif
 #endif
 
 #ifdef CONFIG_FSL_QSPI

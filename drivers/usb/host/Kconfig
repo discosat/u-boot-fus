@@ -21,6 +21,14 @@ config USB_XHCI_DWC3
 	  Say Y or if your system has a Dual Role SuperSpeed
 	  USB controller based on the DesignWare USB3 IP Core.
 
+config USB_XHCI_DWC3_OF_SIMPLE
+	bool "DesignWare USB3 DRD Generic OF Simple Glue Layer"
+	depends on DM_USB
+	default y if DRA7XX
+	help
+	  Support USB2/3 functionality in simple SoC integrations with
+	  USB controller based on the DesignWare USB3 IP Core.
+
 config USB_XHCI_MVEBU
 	bool "MVEBU USB 3.0 support"
 	default y
@@ -67,6 +75,7 @@ config USB_XHCI_STI
 config USB_XHCI_ZYNQMP
 	bool "Support for Xilinx ZynqMP on-chip xHCI USB controller"
 	depends on ARCH_ZYNQMP
+	depends on DM_USB
 	help
 	  Enables support for the on-chip xHCI controller on Xilinx ZynqMP SoCs.
 
@@ -105,7 +114,7 @@ endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
 	bool "EHCI HCD (USB 2.0) support"
-	default y if ARCH_MX5 || ARCH_MX6
+	default y if ARCH_MX5 || ARCH_MX6 || ARCH_IMX8
 	select USB_HOST
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
@@ -174,18 +183,23 @@ config USB_EHCI_MSM
 	bool "Support for Qualcomm on-chip EHCI USB controller"
 	depends on DM_USB
 	select USB_ULPI_VIEWPORT
+	select MSM8916_USB_PHY
 	default n
 	---help---
 	  Enables support for the on-chip EHCI controller on Qualcomm
 	  Snapdragon SoCs.
-	  This driver supports combination of Chipidea USB controller
-	  and Synapsys USB PHY in host mode only.
 
 config USB_EHCI_PCI
 	bool "Support for PCI-based EHCI USB controller"
 	default y if X86
 	help
 	  Enables support for the PCI-based EHCI controller.
+
+config USB_EHCI_TEGRA
+	bool "Support for NVIDIA Tegra on-chip EHCI USB controller"
+	depends on TEGRA
+	---help---
+	  Enable support for Tegra on-chip EHCI USB controller
 
 config USB_EHCI_ZYNQ
 	bool "Support for Xilinx Zynq on-chip EHCI USB controller"
@@ -198,6 +212,7 @@ config USB_EHCI_GENERIC
 	bool "Support for generic EHCI USB controller"
 	depends on OF_CONTROL
 	depends on DM_USB
+	default ARCH_SUNXI
 	default n
 	---help---
 	  Enables support for generic EHCI controller.
@@ -228,6 +243,7 @@ config USB_OHCI_GENERIC
 	bool "Support for generic OHCI USB controller"
 	depends on OF_CONTROL
 	depends on DM_USB
+	default ARCH_SUNXI
 	select USB_HOST
 	---help---
 	  Enables support for generic OHCI controller.
@@ -261,3 +277,15 @@ config USB_DWC2
 	  Hi-Speed (480 Mbps), Full-Speed (12 Mbps), and Low-Speed (1.5 Mbps)
 	  operation is compliant to the controller Supplement. If you want to
 	  enable this controller in host mode, say Y.
+
+if USB_DWC2
+config USB_DWC2_BUFFER_SIZE
+	int "Data buffer size in kB"
+	default 64
+	---help---
+	  By default 64 kB buffer is used but if amount of RAM avaialble on
+	  the target is not enough to accommodate allocation of buffer of
+	  that size it is possible to shrink it. Smaller sizes should be fine
+	  because larger transactions could be split in smaller ones.
+
+endif # USB_DWC2

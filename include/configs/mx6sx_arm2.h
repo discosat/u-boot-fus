@@ -25,7 +25,6 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #ifdef CONFIG_DM_ETH
@@ -35,7 +34,6 @@
 #endif
 #define CONFIG_FEC_MXC_PHYADDR          1
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
 
 /* I2C configs */
@@ -115,7 +113,7 @@
 	"bootargs=console=ttymxc0,115200 ubi.mtd=4 "  \
 		"root=ubi0:rootfs rootfstype=ubifs "		     \
 		"mtdparts=gpmi-nand:64m(boot),16m(kernel),16m(dtb),1m(misc),-(rootfs)\0"\
-	"bootcmd=nand read ${loadaddr} 0x4000000 0x800000;"\
+	"bootcmd=nand read ${loadaddr} 0x4000000 0xc00000;"\
 		"nand read ${fdt_addr} 0x5000000 0x100000;"\
 		"bootz ${loadaddr} - ${fdt_addr}\0"
 
@@ -203,7 +201,6 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x10000)
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 #define PHYS_SDRAM_SIZE			SZ_1G
 
@@ -218,30 +215,10 @@
 
 #define CONFIG_ENV_SIZE			SZ_8K
 
-#ifdef CONFIG_NAND_BOOT
-#define CONFIG_CMD_NAND
-#elif defined CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#elif defined CONFIG_NOR_BOOT
-#define CONFIG_MTD_NOR_FLASH
-#endif
-
 #ifdef CONFIG_FSL_QSPI
 #define CONFIG_SYS_FSL_QSPI_AHB
 #define FSL_QSPI_FLASH_SIZE		SZ_32M
 #define FSL_QSPI_FLASH_NUM		2
-#define CONFIG_SF_DEFAULT_BUS		1
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	40000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
-#endif
-
-
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_SF_DEFAULT_BUS  3
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
 #endif
 
 #ifdef CONFIG_NOR_BOOT
@@ -255,20 +232,15 @@
 #define CONFIG_SYS_FLASH_EMPTY_INFO
 #endif
 
-#ifdef CONFIG_CMD_NAND
-#define CONFIG_CMD_NAND_TRIMFFS
+#ifdef CONFIG_NAND_MXS
 
 /* NAND stuff */
-#define CONFIG_NAND_MXS
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		0x40000000
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
 #endif
 
 

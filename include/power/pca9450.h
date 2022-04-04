@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef PCA9450_H_

@@ -161,7 +161,7 @@
 	    flash: at45@0 {
 	        #address-cells = <1>;
 	        #size-cells = <1>;
-	        compatible = "atmel,at45";
+	        compatible = "atmel,at45", "jedec,spi-nor";
 	        spi-max-frequency = <20000000>;
 	        reg = <0>;
 	    };
@@ -688,6 +688,27 @@
 				MX7D_PAD_SD3_DATA7__SD3_DATA7 0x5b
 			>;
 		};
+		
+		pinctrl_qspi1_1: qspi1grp_1 {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA00__QSPI_A_DATA0 0x51
+				MX7D_PAD_EPDC_DATA01__QSPI_A_DATA1 0x51
+				MX7D_PAD_EPDC_DATA02__QSPI_A_DATA2 0x51
+				MX7D_PAD_EPDC_DATA03__QSPI_A_DATA3 0x51
+				MX7D_PAD_EPDC_DATA04__QSPI_A_DQS 0x51
+				MX7D_PAD_EPDC_DATA05__QSPI_A_SCLK 0x51
+				MX7D_PAD_EPDC_DATA06__QSPI_A_SS0_B 0x51
+				MX7D_PAD_EPDC_DATA07__QSPI_A_SS1_B 0x51
+				MX7D_PAD_EPDC_DATA08__QSPI_B_DATA0 0x51
+				MX7D_PAD_EPDC_DATA09__QSPI_B_DATA1 0x51
+				MX7D_PAD_EPDC_DATA10__QSPI_B_DATA2 0x51
+				MX7D_PAD_EPDC_DATA11__QSPI_B_DATA3 0x51
+				MX7D_PAD_EPDC_DATA12__QSPI_B_DQS 0x51
+				MX7D_PAD_EPDC_DATA13__QSPI_B_SCLK 0x51
+				MX7D_PAD_EPDC_DATA14__QSPI_B_SS0_B 0x51
+				MX7D_PAD_EPDC_DATA15__QSPI_B_SS1_B 0x51
+			>;
+		};
 	};
 };
 
@@ -698,14 +719,14 @@
 	imx7d-19x19-ddr3-arm2 {
 		pinctrl_hog_2: hoggrp-2 {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO03__GPIO1_IO3 0x80000000
-				MX7D_PAD_GPIO1_IO07__GPIO1_IO7 0x80000000
+				MX7D_PAD_LPSR_GPIO1_IO03__GPIO1_IO3 0x80000000
+				MX7D_PAD_LPSR_GPIO1_IO07__GPIO1_IO7 0x80000000
 			>;
 		};
 
 		pinctrl_mipi_csi: mipicsigrp-1 {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO01__ANATOP_24M_OUT 0x3
+				MX7D_PAD_LPSR_GPIO1_IO01__ANATOP_24M_OUT 0x3
 			>;
 		};
 	};
@@ -813,4 +834,49 @@
 	tuning-step = <2>;
 	vmmc-supply = <&reg_sd3_vmmc>;
 	status = "okay";
+};
+
+&qspi1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_qspi1_1>;
+	pinctrl-1 = <&pinctrl_qspi1_1>;
+	status = "okay";
+	fsl,qspi-has-second-chip = <1>;
+	ddrsmp=<0>;
+
+	flash0: n25q512ax3@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q512ax3", "jedec,spi-nor";
+		spi-max-frequency = <29000000>;
+		spi-nor,ddr-quad-read-dummy = <6>;
+		reg = <0>;
+	};
+
+	flash1: n25q512ax3@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q512ax3", "jedec,spi-nor";
+		spi-max-frequency = <29000000>;
+		spi-nor,ddr-quad-read-dummy = <6>;
+		reg = <1>;
+	};
+
+	flash2: n25q512ax3@2 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q512ax3", "jedec,spi-nor";
+		spi-max-frequency = <29000000>;
+		spi-nor,ddr-quad-read-dummy = <6>;
+		reg = <2>;
+	};
+
+	flash3: n25q512ax3@3 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q512ax3", "jedec,spi-nor";
+		spi-max-frequency = <29000000>;
+		spi-nor,ddr-quad-read-dummy = <6>;
+		reg = <3>;
+	};
 };

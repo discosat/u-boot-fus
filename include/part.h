@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2000-2004
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #ifndef _PART_H
 #define _PART_H
@@ -249,7 +248,7 @@ static inline int blk_get_device_part_str(const char *ifname,
  */
 #ifdef CONFIG_SPL_BUILD
 # define part_print_ptr(x)	NULL
-# if defined(CONFIG_SPL_EXT_SUPPORT) || defined(CONFIG_SPL_FAT_SUPPORT) || \
+# if defined(CONFIG_SPL_FS_EXT4) || defined(CONFIG_SPL_FS_FAT) || \
 	defined(CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION) || \
 	defined(CONFIG_DUAL_BOOTLOADER)
 #  define part_get_info_ptr(x)	x
@@ -383,6 +382,7 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf);
  * @return - '0' on success, otherwise error
  */
 int write_backup_gpt_partitions(struct blk_desc *dev_desc, void *buf);
+
 /**
  * gpt_verify_headers() - Function to read and CRC32 check of the GPT's header
  *                        and partition table entries (PTE)

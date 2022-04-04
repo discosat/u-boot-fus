@@ -186,7 +186,7 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 };
 #endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 static iomux_v3_cfg_t const nand_pads[] = {
 	MX6_PAD_NAND_DATA00__RAWNAND_DATA00 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
 	MX6_PAD_NAND_DATA01__RAWNAND_DATA01 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
@@ -216,8 +216,9 @@ static void setup_gpmi_nand(void)
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nand_pads);
 
-	setup_gpmi_io_clk((3 << MXC_CCM_CSCDR1_BCH_PODF_OFFSET) |
-			  (3 << MXC_CCM_CSCDR1_GPMI_PODF_OFFSET));
+	setup_gpmi_io_clk((MXC_CCM_CS2CDR_ENFC_CLK_PODF(0) |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED(3) |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL(3)));
 
 	/* enable apbh clock gating */
 	setbits_le32(&mxc_ccm->CCGR0, MXC_CCM_CCGR0_APBHDMA_MASK);
@@ -225,6 +226,7 @@ static void setup_gpmi_nand(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 /* pin conflicts with eim nor */
 static iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX6_PAD_CSI_DATA06__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -247,9 +249,10 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 26)) : -1;
 }
 #endif
+#endif
 
 #ifdef CONFIG_MTD_NOR_FLASH
-/* pin conflicts with nand usdhc2 lcd enet */
+/* pin conflicts with nand usdhc2 lcd enet, ecspi */
 static iomux_v3_cfg_t const eimnor_pads[] = {
 	MX6_PAD_CSI_DATA00__EIM_AD00 | MUX_PAD_CTRL(WEIM_NOR_PAD_CTRL),
 	MX6_PAD_CSI_DATA01__EIM_AD01 | MUX_PAD_CTRL(WEIM_NOR_PAD_CTRL),
@@ -462,22 +465,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 #define USDHC1_VSELECT IMX_GPIO_NR(1, 5)
 #define USDHC2_CD_GPIO	IMX_GPIO_NR(4, 17)
 #define USDHC2_PWR_GPIO	IMX_GPIO_NR(4, 10)
-
-int board_mmc_get_env_dev(int devno)
-{
-	if (devno == 1 && mx6_esdhc_fused(USDHC1_BASE_ADDR))
-		devno = 0;
-
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	if (devno == 0 && mx6_esdhc_fused(USDHC1_BASE_ADDR))
-		devno = 1;
-
-	return devno;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -960,10 +947,12 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
 #endif
+#endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand();
 #endif
 

@@ -59,6 +59,15 @@ config DWC_AHCI
 	  Enable this driver to support Sata devices through
 	  Synopsys DWC AHCI module.
 
+config IMX_AHCI
+	bool "Enable IMX AHCI driver support"
+	select SCSI_AHCI
+	depends on AHCI
+	depends on DM_SCSI
+	help
+	  Enable this driver to support Sata devices through
+	  i.MX AHCI module.
+
 config DWC_AHSATA
 	bool "Enable DWC AHSATA driver support"
 	select LIBATA
@@ -78,12 +87,6 @@ config MVSATA_IDE
 	help
 	  Enable this driver to support the SATA controller found in
 	  some Marvell SoCs, running in IDE compatibility mode using PIO.
-
-config SATA_IMX
-	bool "Enable SATA driver support for i.MX8QM"
-	select LIBATA
-	help
-	  Enable this driver to support the SATA controller found in i.MX8QM SoCs.
 
 config SATA_MV
 	bool "Enable Marvell SATA controller driver support"
@@ -105,4 +108,15 @@ config SATA_SIL3114
 	help
 	  Enable this driver to support the SIL3114 SATA controllers.
 
+config AHCI_MVEBU
+	bool "Marvell EBU AHCI SATA support"
+	depends on ARCH_MVEBU
+	depends on AHCI
+	select SCSI_AHCI
+	select DM_SCSI
+	help
+	  This option enables support for the Marvell EBU SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
 endmenu

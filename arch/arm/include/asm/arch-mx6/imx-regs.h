@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __ASM_ARCH_MX6_IMX_REGS_H__
@@ -262,7 +261,7 @@
 #define ARM_BASE_ADDR               (ATZ2_BASE_ADDR)
 #else
 #define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR)
-#define ARM_BASE_ADDR		    (ATZ2_BASE_ADDR + 0x40000)
+#define ARM_BASE_ADDR		    	(ATZ2_BASE_ADDR + 0x40000)
 #endif
 
 #define CONFIG_SYS_FSL_SEC_OFFSET   0

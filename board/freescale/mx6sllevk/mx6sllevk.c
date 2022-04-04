@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/arch/clock.h>
@@ -449,14 +448,4 @@ int checkboard(void)
 	puts("Board: MX6SLL EVK\n");
 
 	return 0;
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno;
 }

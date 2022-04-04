@@ -393,26 +393,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[3] = {
 
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(2, 10)
 
-int board_mmc_get_env_dev(int dev_no)
-{
-#ifdef CONFIG_MXC_SPI
-	dev_no -= 2;
-#else
-	dev_no--;
-#endif
-
-	return dev_no;
-}
-
-int mmc_map_to_kernel_blk(int dev_no)
-{
-#ifdef CONFIG_MXC_SPI
-	return dev_no + 2;
-#else
-	return dev_no + 1;
-#endif
-}
-
 int board_mmc_getcd(struct mmc *mmc)
 {
 	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
@@ -510,27 +490,6 @@ int board_mmc_init(bd_t *bis)
 	return 0;
 }
 #endif
-#endif
-
-#ifdef CONFIG_MXC_SPI
-iomux_v3_cfg_t const ecspi4_pads[] = {
-	MX6_PAD_SD2_CLK__ECSPI4_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_DATA3__ECSPI4_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_CMD__ECSPI4_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_DATA2__GPIO6_IO_10 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-void setup_spinor(void)
-{
-	SETUP_IOMUX_PADS(ecspi4_pads);
-	gpio_request(IMX_GPIO_NR(6, 10), "ecspi cs");
-	gpio_direction_output(IMX_GPIO_NR(6, 10), 0);
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(6, 10)) : -1;
-}
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH
@@ -778,10 +737,6 @@ int board_init(void)
 
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
-#endif
-
-#ifdef CONFIG_MXC_SPI
-	setup_spinor();
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH

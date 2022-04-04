@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuration settings for the mini-box PICOSAM9G45 board.
  * (C) Copyright 2015 Inter Act B.V.
@@ -7,8 +8,6 @@
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
  * Lead Tech Design <www.leadtechdesign.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -58,16 +57,11 @@
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
 
-/* Enable the watchdog */
-#define CONFIG_AT91SAM9_WATCHDOG
-#define CONFIG_HW_WATCHDOG
-
 /*
  * Command line configuration.
  */
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS	2
 #define PHYS_SDRAM_1		ATMEL_BASE_CS1	/* on DDRSDRC1 */
 #define PHYS_SDRAM_1_SIZE	0x08000000	/* 128 MB */
 #define PHYS_SDRAM_2		ATMEL_BASE_CS6	/* on DDRSDRC0 */

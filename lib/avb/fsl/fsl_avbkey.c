@@ -27,7 +27,12 @@
 #include "fsl_atx_attributes.h"
 #include <asm/mach-imx/hab.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/mach-imx/sci/sci.h>
+#ifdef CONFIG_ARCH_IMX8
+#include <asm/arch/sci/sci.h>
+#endif
+#ifdef CONFIG_SPL_BUILD
+#include <spl.h>
+#endif
 
 #define INITFLAG_FUSE_OFFSET 0
 #define INITFLAG_FUSE_MASK 0x00000001
@@ -39,14 +44,35 @@
 
 extern int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value);
 
-#ifdef AVB_RPMB
-static int mmc_dev_no = -1;
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+int spl_get_mmc_dev(void)
+{
+	u32 dev_no = spl_boot_device();
+	switch (dev_no) {
+	case BOOT_DEVICE_MMC1:
+		return 0;
+	case BOOT_DEVICE_MMC2:
+	case BOOT_DEVICE_MMC2_2:
+		return 1;
+	}
 
+#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
+	printf("spl: unsupported mmc boot device.\n");
+#endif
+
+	return -ENODEV;
+}
+#endif
+
+#ifdef AVB_RPMB
 struct mmc *get_mmc(void) {
-	extern int mmc_get_env_devno(void);
+	int mmc_dev_no;
 	struct mmc *mmc;
-	if (mmc_dev_no < 0 && (mmc_dev_no = mmc_get_env_dev()) < 0)
-		return NULL;
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+	mmc_dev_no = spl_get_mmc_dev();
+#else
+	mmc_dev_no = mmc_get_env_dev();
+#endif
 	mmc = find_mmc_device(mmc_dev_no);
 	if (!mmc || mmc_init(mmc))
 		return NULL;
@@ -70,7 +96,11 @@ int read_keyslot_package(struct keyslot_package* kp) {
 	unsigned char* fill = NULL;
 	int ret = 0;
 	/* load tee from boot1 of eMMC. */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+	int mmcc = spl_get_mmc_dev();
+#else
 	int mmcc = mmc_get_env_dev();
+#endif
 	struct blk_desc *dev_desc = NULL;
 
 	struct mmc *mmc;
@@ -82,7 +112,7 @@ int read_keyslot_package(struct keyslot_package* kp) {
 		printf("boota: cannot find '%d' mmc device\n", mmcc);
 		return -1;
 	}
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	original_part = mmc->block_dev.hwpart;
 	dev_desc = blk_get_dev("mmc", mmcc);
 #else
@@ -92,7 +122,7 @@ int read_keyslot_package(struct keyslot_package* kp) {
 		printf("** Block device MMC %d not supported\n", mmcc);
 		return -1;
 	}
-#ifdef CONFIG_BLK
+#if CONFIG_IS_ENABLED(BLK)
 	original_part = dev_desc->hwpart;
 #endif
 
@@ -110,7 +140,7 @@ int read_keyslot_package(struct keyslot_package* kp) {
 		ret = -1;
 		goto fail;
 	}
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	mmc->block_dev.hwpart = KEYSLOT_HWPARTITION_ID;
 #else
 	dev_desc->hwpart = KEYSLOT_HWPARTITION_ID;
@@ -129,7 +159,7 @@ fail:
 	if (fill != NULL)
 		free(fill);
 	/* Return to original partition */
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	if (mmc->block_dev.hwpart != original_part) {
 		if (mmc_switch_part(mmc, original_part) != 0)
 			return -1;
@@ -155,23 +185,40 @@ bool rpmbkey_is_set(void)
 	struct blk_desc *desc = NULL;
 
 	/* Get current mmc device. */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+	mmcc = spl_get_mmc_dev();
+#else
 	mmcc = mmc_get_env_dev();
+#endif
 	mmc = find_mmc_device(mmcc);
 	if (!mmc) {
 		printf("error - cannot find '%d' mmc device\n", mmcc);
 		return false;
 	}
 
+#if !CONFIG_IS_ENABLED(BLK)
+	original_part = mmc->block_dev.hwpart;
+	desc = blk_get_dev("mmc", mmcc);
+#else
 	desc = mmc_get_blk_desc(mmc);
 	original_part = desc->hwpart;
+#endif
 
 	/* Switch to the RPMB partition */
+#if !CONFIG_IS_ENABLED(BLK)
+	if (mmc->block_dev.hwpart != MMC_PART_RPMB) {
+#else
 	if (desc->hwpart != MMC_PART_RPMB) {
+#endif
 		if (mmc_switch_part(mmc, MMC_PART_RPMB) != 0) {
 			printf("ERROR - can't switch to rpmb partition \n");
 			return false;
 		}
+#if !CONFIG_IS_ENABLED(BLK)
+		mmc->block_dev.hwpart = MMC_PART_RPMB;
+#else
 		desc->hwpart = MMC_PART_RPMB;
+#endif
 	}
 
 	/* Try to read the first one block, return count '1' means the rpmb
@@ -184,10 +231,18 @@ bool rpmbkey_is_set(void)
 		ret = true;
 
 	/* return to original partition. */
+#if !CONFIG_IS_ENABLED(BLK)
+	if (mmc->block_dev.hwpart != original_part) {
+#else
 	if (desc->hwpart != original_part) {
+#endif
 		if (mmc_switch_part(mmc, original_part) != 0)
 			ret = false;
+#if !CONFIG_IS_ENABLED(BLK)
+		mmc->block_dev.hwpart = original_part;
+#else
 		desc->hwpart = original_part;
+#endif
 	}
 	/* remember to free the buffer */
 	if (buf != NULL)
@@ -530,7 +585,11 @@ int gen_rpmb_key(struct keyslot_package *kp) {
 
 	int ret = -1;
 	/* load tee from boot1 of eMMC. */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+	int mmcc = spl_get_mmc_dev();
+#else
 	int mmcc = mmc_get_env_dev();
+#endif
 	struct blk_desc *dev_desc = NULL;
 
 	struct mmc *mmc;
@@ -539,7 +598,7 @@ int gen_rpmb_key(struct keyslot_package *kp) {
 		printf("boota: cannot find '%d' mmc device\n", mmcc);
 		return -1;
 	}
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	original_part = mmc->block_dev.hwpart;
 	dev_desc = blk_get_dev("mmc", mmcc);
 #else
@@ -598,7 +657,7 @@ int gen_rpmb_key(struct keyslot_package *kp) {
 	}
 
 	/* program key to mmc */
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	if (mmc->block_dev.hwpart != MMC_PART_RPMB) {
 		if (mmc_switch_part(mmc, MMC_PART_RPMB) != 0) {
 			ret = -1;
@@ -624,7 +683,7 @@ int gen_rpmb_key(struct keyslot_package *kp) {
 
 fail:
 	/* Return to original partition */
-#ifndef CONFIG_BLK
+#if !CONFIG_IS_ENABLED(BLK)
 	if (mmc->block_dev.hwpart != original_part) {
 		if (mmc_switch_part(mmc, original_part) != 0)
 			ret = -1;
@@ -732,6 +791,7 @@ int check_rpmb_blob(struct mmc *mmc)
 	int ret = 0;
 	char original_part;
 	struct keyslot_package kp;
+	struct blk_desc *dev_desc = NULL;
 
 	read_keyslot_package(&kp);
 	if (strcmp(kp.magic, KEYPACK_MAGIC)) {
@@ -747,13 +807,22 @@ int check_rpmb_blob(struct mmc *mmc)
 	fill_secure_keyslot_package(&kp);
 
 	/* switch to boot1 partition. */
+#if !CONFIG_IS_ENABLED(BLK)
 	original_part = mmc->block_dev.hwpart;
+#else
+	dev_desc = mmc_get_blk_desc(mmc);
+	original_part = dev_desc->hwpart;
+#endif
 	if (mmc_switch_part(mmc, KEYSLOT_HWPARTITION_ID) != 0) {
 		printf("ERROR - can't switch to boot1 partition! \n");
 		ret = -1;
 		goto fail;
 	} else
+#if !CONFIG_IS_ENABLED(BLK)
 		mmc->block_dev.hwpart = KEYSLOT_HWPARTITION_ID;
+#else
+		dev_desc->hwpart = KEYSLOT_HWPARTITION_ID;
+#endif
 	/* write power-on write protection for boot1 partition. */
 	if (mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 			EXT_CSD_BOOT_WP, BOOT1_PWR_WP)) {
@@ -763,11 +832,19 @@ int check_rpmb_blob(struct mmc *mmc)
 	}
 fail:
 	/* return to original partition. */
+#if !CONFIG_IS_ENABLED(BLK)
 	if (mmc->block_dev.hwpart != original_part) {
 		if (mmc_switch_part(mmc, original_part) != 0)
 			return -1;
 		mmc->block_dev.hwpart = original_part;
 	}
+#else
+	if (dev_desc->hwpart != original_part) {
+		if (mmc_switch_part(mmc, original_part) != 0)
+			return -1;
+		dev_desc->hwpart = original_part;
+	}
+#endif
 
 	return ret;
 }
@@ -1071,6 +1148,18 @@ extern struct imx_sec_config_fuse_t const imx_sec_config_fuse;
 /* Check hab status, this is basically copied from imx_hab_is_enabled() */
 bool hab_is_enabled(void)
 {
+#ifdef CONFIG_ARCH_IMX8
+	sc_err_t err;
+	uint16_t lc;
+
+	err = sc_seco_chip_info(-1, &lc, NULL, NULL, NULL);
+	if (err != SC_ERR_NONE) {
+		printf("Error in get lifecycle\n");
+		return false;
+	}
+
+	if (lc != 0x80)
+#else
 	struct imx_sec_config_fuse_t *fuse =
 		(struct imx_sec_config_fuse_t *)&imx_sec_config_fuse;
 	uint32_t reg;
@@ -1078,11 +1167,15 @@ bool hab_is_enabled(void)
 
 	ret = fuse_read(fuse->bank, fuse->word, &reg);
 	if (ret) {
-		puts("\nSecure boot fuse read error\n");
-		return ret;
+		puts("\nSecure boot fuse read error!\n");
+		return false;
 	}
 
-	return (reg & HAB_ENABLED_BIT) == HAB_ENABLED_BIT;
+	if (!((reg & HAB_ENABLED_BIT) == HAB_ENABLED_BIT))
+#endif
+		return false;
+	else
+		return true;
 }
 
 int do_rpmb_key_set(uint8_t *key, uint32_t key_size)
@@ -1102,7 +1195,11 @@ int do_rpmb_key_set(uint8_t *key, uint32_t key_size)
 	memcpy(rpmb_key, key, RPMBKEY_LENGTH);
 
 	/* Get current mmc device. */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_MMC_SUPPORT)
+	mmcc = spl_get_mmc_dev();
+#else
 	mmcc = mmc_get_env_dev();
+#endif
 	mmc = find_mmc_device(mmcc);
 	if (!mmc) {
 		printf("error - cannot find '%d' mmc device\n", mmcc);
@@ -1216,24 +1313,11 @@ int avb_set_public_key(uint8_t *staged_buffer, uint32_t size) {
 
 int fastboot_get_mppubk(uint8_t *staged_buffer, uint32_t *size) {
 
-#ifdef CONFIG_ARCH_IMX8
-	sc_err_t err;
-	uint16_t lc;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
-
-	err = sc_seco_chip_info(ipcHndl, &lc, NULL, NULL, NULL);
-	if (err != SC_ERR_NONE) {
-		printf("Error in get lifecycle\n");
-		return -1;
-	}
-
-	if (lc != 0x80) {
-#else
 	if (!hab_is_enabled()) {
-#endif
 		ERR("Error. This command can only be used when hab is closed!!\n");
 		return -1;
 	}
+
 	if ((staged_buffer == NULL) || (size == NULL)) {
 		ERR("Error. Get null staged_buffer!\n");
 		return -1;

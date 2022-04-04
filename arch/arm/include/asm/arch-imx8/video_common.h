@@ -8,7 +8,7 @@
 #ifndef __ASM_ARCH_VIDEO_COMMON_H__
 #define __ASM_ARCH_VIDEO_COMMON_H__
 
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <linux/fb.h>
 
 #define	PS2KHZ(ps)	(1000000000UL / (ps))

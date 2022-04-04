@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2014 Gateworks Corporation
  * Author: Tim Harvey <tharvey@gateworks.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 #ifndef __IMX6_SPL_CONFIG_H
 #define __IMX6_SPL_CONFIG_H
@@ -44,7 +43,7 @@
 #endif
 
 /* Define the payload for FAT/EXT support */
-#if defined(CONFIG_SPL_FAT_SUPPORT) || defined(CONFIG_SPL_EXT_SUPPORT)
+#if defined(CONFIG_SPL_FS_FAT) || defined(CONFIG_SPL_FS_EXT4)
 # ifdef CONFIG_OF_CONTROL
 #  define CONFIG_SPL_FS_LOAD_PAYLOAD_NAME	"u-boot-dtb.img"
 # else

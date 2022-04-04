@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2017-2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifndef __ARCH_MX8M_SYS_PROTO_H
-#define __ARCH_MX8M_SYS_PROTO_H
+#ifndef __ARCH_IMX8M_SYS_PROTO_H
+#define __ARCH_NMX8M_SYS_PROTO_H
 
 #include <asm/mach-imx/sys_proto.h>
 

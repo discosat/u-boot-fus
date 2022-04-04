@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2002-2010
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef	__ASM_GBL_DATA_H
@@ -76,8 +75,8 @@ struct arch_global_data {
 	unsigned long mem2_clk;
 #endif
 
-#ifdef CONFIG_HAVE_SC_FIRMWARE
-	uint64_t ipc_channel_handle;
+#ifdef CONFIG_ARCH_IMX8
+	struct udevice *scu_dev;
 #endif
 };
 

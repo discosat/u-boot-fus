@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
  *
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -33,12 +32,8 @@
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/pfuze.h"
-
-#ifdef CONFIG_SATA
-#include <asm/mach-imx/sata.h>
-#endif
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -153,54 +148,9 @@ static struct i2c_pads_info i2c_pad_info2 = {
 #endif
 #endif
 
-static iomux_v3_cfg_t const i2c3_pads[] = {
-	IOMUX_PADS(PAD_EIM_A24__GPIO5_IO04	| MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
 static iomux_v3_cfg_t const port_exp[] = {
 	IOMUX_PADS(PAD_SD2_DAT0__GPIO1_IO15	| MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
-
-#ifdef CONFIG_PCA953X
-
-/*Define for building port exp gpio, pin starts from 0*/
-#define PORTEXP_IO_NR(chip, pin) \
-	((chip << 5) + pin)
-
-/*Get the chip addr from a ioexp gpio*/
-#define PORTEXP_IO_TO_CHIP(gpio_nr) \
-	(gpio_nr >> 5)
-
-/*Get the pin number from a ioexp gpio*/
-#define PORTEXP_IO_TO_PIN(gpio_nr) \
-	(gpio_nr & 0x1f)
-
-static int port_exp_direction_output(unsigned gpio, int value)
-{
-	int ret;
-
-	i2c_set_bus_num(2);
-	ret = i2c_probe(PORTEXP_IO_TO_CHIP(gpio));
-	if (ret)
-		return ret;
-
-	ret = pca953x_set_dir(PORTEXP_IO_TO_CHIP(gpio),
-		(1 << PORTEXP_IO_TO_PIN(gpio)),
-		(PCA953X_DIR_OUT << PORTEXP_IO_TO_PIN(gpio)));
-
-	if (ret)
-		return ret;
-
-	ret = pca953x_set_val(PORTEXP_IO_TO_CHIP(gpio),
-		(1 << PORTEXP_IO_TO_PIN(gpio)),
-		(value << PORTEXP_IO_TO_PIN(gpio)));
-
-	if (ret)
-		return ret;
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_MTD_NOR_FLASH
 static iomux_v3_cfg_t const eimnor_pads[] = {
@@ -347,26 +297,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 	{USDHC1_BASE_ADDR, 0, 4},
 	{USDHC3_BASE_ADDR},
 };
-
-int board_mmc_get_env_dev(int devno)
-{
-	/*
-	 * need ubstract 1 to map to the mmc3 device id
-	 * see the comments in board_mmc_init function
-	 */
-	if (devno == 2)
-		devno--;
-
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	if (devno == 1)
-		devno = 2;
-
-	return devno;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -674,14 +604,7 @@ void setup_spinor(void)
 {
 	SETUP_IOMUX_PADS(ecspi1_pads);
 
-	gpio_request(IMX_GPIO_NR(3, 19), "escpi cs");
 	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
-	gpio_direction_output(IMX_GPIO_NR(3, 19), 0);
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 1) ? (IMX_GPIO_NR(3, 19)) : -1;
 }
 #endif
 
@@ -712,11 +635,6 @@ int board_init(void)
 #endif
 #endif
 
-	/* I2C 3 Steer */
-	gpio_request(IMX_GPIO_NR(5, 4), "steer logic");
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 1);
-	SETUP_IOMUX_PADS(i2c3_pads);
-
 	gpio_request(IMX_GPIO_NR(1, 15), "expander en");
 	gpio_direction_output(IMX_GPIO_NR(1, 15), 1);
 	SETUP_IOMUX_PADS(port_exp);
@@ -727,10 +645,6 @@ int board_init(void)
 
 #ifdef CONFIG_MXC_SPI
 	setup_spinor();
-#endif
-
-#ifdef CONFIG_SATA
-	setup_sata();
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH
@@ -1000,7 +914,6 @@ int checkboard(void)
 }
 
 #ifdef CONFIG_USB_EHCI_MX6
-#ifdef CONFIG_DM_USB
 int board_ehci_hcd_init(int port)
 {
 	switch (port) {
@@ -1019,94 +932,6 @@ int board_ehci_hcd_init(int port)
 	}
 	return 0;
 }
-#else
-#define USB_HOST1_PWR     PORTEXP_IO_NR(0x32, 7)
-#define USB_OTG_PWR       PORTEXP_IO_NR(0x34, 1)
-
-iomux_v3_cfg_t const usb_otg_pads[] = {
-	IOMUX_PADS(PAD_ENET_RX_ER__USB_OTG_ID | MUX_PAD_CTRL(OTG_ID_PAD_CTRL)),
-};
-
-int board_ehci_hcd_init(int port)
-{
-	switch (port) {
-	case 0:
-		SETUP_IOMUX_PADS(usb_otg_pads);
-
-		/*
-		  * Set daisy chain for otg_pin_id on 6q.
-		 *  For 6dl, this bit is reserved.
-		 */
-		imx_iomux_set_gpr_register(1, 13, 1, 0);
-		break;
-	case 1:
-		break;
-	default:
-		printf("MXC USB port %d not yet supported\n", port);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-int board_ehci_power(int port, int on)
-{
-#ifdef CONFIG_PCA953X
-	switch (port) {
-	case 0:
-		if (on)
-			port_exp_direction_output(USB_OTG_PWR, 1);
-		else
-			port_exp_direction_output(USB_OTG_PWR, 0);
-		break;
-	case 1:
-		if (on)
-			port_exp_direction_output(USB_HOST1_PWR, 1);
-		else
-			port_exp_direction_output(USB_HOST1_PWR, 0);
-		break;
-	default:
-		printf("MXC USB port %d not yet supported\n", port);
-		return -EINVAL;
-	}
-#elif defined(CONFIG_DM_PCA953X)
-	struct gpio_desc desc;
-	int ret;
-
-	switch (port) {
-	case 0:
-		ret = dm_gpio_lookup_name("gpio@34_1", &desc);
-		if (ret)
-			return ret;
-
-		dm_gpio_request(&desc, "usb_otg_pwr");
-		dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT);
-
-		if (on)
-			dm_gpio_set_value(&desc, 1);
-		else
-			dm_gpio_set_value(&desc, 0);
-		break;
-	case 1:
-		ret = dm_gpio_lookup_name("gpio@32_7", &desc);
-		if (ret)
-			return ret;
-
-		dm_gpio_request(&desc, "usb_host1_pwr");
-		dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT);
-
-		if (on)
-			dm_gpio_set_value(&desc, 1);
-		else
-			dm_gpio_set_value(&desc, 0);
-		break;
-	default:
-		printf("MXC USB port %d not yet supported\n", port);
-		return -EINVAL;
-	}
-#endif
-	return 0;
-}
-#endif
 #endif
 
 #ifdef CONFIG_FSL_FASTBOOT
@@ -1505,5 +1330,23 @@ void board_init_f(ulong dummy)
 
 	/* load/boot image from boot device */
 	board_init_r(NULL, 0);
+}
+#endif
+
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	if (is_mx6dq()) {
+		if (!strcmp(name, "imx6q-sabreauto"))
+			return 0;
+	} else if (is_mx6dqp()) {
+		if (!strcmp(name, "imx6qp-sabreauto"))
+			return 0;
+	} else if (is_mx6dl()) {
+		if (!strcmp(name, "imx6dl-sabreauto"))
+			return 0;
+	}
+
+	return -1;
 }
 #endif

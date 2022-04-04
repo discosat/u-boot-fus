@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2005-2006 Atmel Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <clk.h>
@@ -144,7 +143,7 @@ struct macb_device {
 
 static int macb_is_gem(struct macb_device *macb)
 {
-	return MACB_BFEXT(IDNUM, macb_readl(macb, MID)) == 0x2;
+	return MACB_BFEXT(IDNUM, macb_readl(macb, MID)) >= 0x2;
 }
 
 #ifndef cpu_is_sama5d2
@@ -915,7 +914,7 @@ static int macb_recv(struct eth_device *netdev)
 		if (length >= 0) {
 			net_process_received_packet(packet, length);
 			reclaim_rx_buffers(macb, macb->next_rx_tail);
-		} else if (length < 0) {
+		} else {
 			return length;
 		}
 	}
@@ -1062,14 +1061,13 @@ static int macb_enable_clk(struct udevice *dev)
 		return -EINVAL;
 
 	/*
-	 * Zynq clock driver didn't support for enable or disable
-	 * clock. Hence, clk_enable() didn't apply for Zynq
+	 * If clock driver didn't support enable or disable then
+	 * we get -ENOSYS from clk_enable(). To handle this, we
+	 * don't fail for ret == -ENOSYS.
 	 */
-#ifndef CONFIG_MACB_ZYNQ
 	ret = clk_enable(&clk);
-	if (ret)
+	if (ret && ret != -ENOSYS)
 		return ret;
-#endif
 
 	clk_rate = clk_get_rate(&clk);
 	if (!clk_rate)
@@ -1152,7 +1150,9 @@ static int macb_eth_ofdata_to_platdata(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_platdata(dev);
 
-	pdata->iobase = devfdt_get_addr(dev);
+	pdata->iobase = (phys_addr_t)dev_remap_addr(dev);
+	if (!pdata->iobase)
+		return -EINVAL;
 
 	return macb_late_eth_ofdata_to_platdata(dev);
 }

@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Bluewater Systems Snapper 9260 and 9G20 modules
  *
  * (C) Copyright 2011 Bluewater Systems
  *   Author: Andre Renaud <andre@bluewatersys.com>
  *   Author: Ryan Mallon <ryan@bluewatersys.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -28,7 +27,6 @@
 #define CONFIG_SKIP_LOWLEVEL_INIT
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS		1
 #define CONFIG_SYS_SDRAM_BASE		ATMEL_BASE_CS1
 #define CONFIG_SYS_SDRAM_SIZE		(64 * 1024 * 1024) /* 64MB */
 #define CONFIG_SYS_INIT_SP_ADDR		(ATMEL_BASE_SRAM1 + 0x1000 - \
@@ -39,7 +37,6 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_SDRAM_BASE + (1024 * 1024))
 
 /* NAND Flash */
-#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		ATMEL_BASE_CS3
 #define CONFIG_SYS_NAND_DBW_8

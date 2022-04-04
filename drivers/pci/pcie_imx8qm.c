@@ -7,7 +7,7 @@
 
 #include <linux/errno.h>
 #include <asm/io.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <common.h>
 #include <linux/sizes.h>
 #include <imx8_hsio.h>

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * SEC Descriptor Construction Library
  * Basic job descriptor construction
  *
  * Copyright 2014 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  */
 

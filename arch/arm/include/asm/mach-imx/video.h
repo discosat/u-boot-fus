@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __IMX_VIDEO_H_
@@ -16,6 +16,8 @@
 #include <asm/arch/video_common.h>
 #elif defined(CONFIG_VIDEO_MXS)
 #include <mxsfb.h>
+#elif defined(CONFIG_VIDEO_IMX_LCDIFV3)
+#include <imx_lcdifv3.h>
 #elif defined(CONFIG_VIDEO_IMXDCSS)
 #include <asm/arch/video_common.h>
 #endif

@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  *
  * Configuration settings for the Armadeus Project motherboard APF27
  *
  * Copyright (C) 2008-2013 Eric Jarrige <eric.jarrige@armadeus.org>
- *
- * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -42,14 +41,13 @@
 #define CONFIG_BOOTP_BOOTFILESIZE
 #define CONFIG_BOOTP_DNS2
 
-#define CONFIG_HOSTNAME	CONFIG_BOARD_NAME
+#define CONFIG_HOSTNAME	"apf27"
 #define CONFIG_ROOTPATH	"/tftpboot/" __stringify(CONFIG_BOARD_NAME) "-root"
 
 /*
  * Memory configurations
  */
 #define CONFIG_NR_DRAM_POPULATED 1
-#define CONFIG_NR_DRAM_BANKS	2
 
 #define ACFG_SDRAM_MBYTE_SYZE 64
 
@@ -155,7 +153,6 @@
  * Serial Driver
  */
 #define CONFIG_MXC_UART
-#define CONFIG_CONS_INDEX		1
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /*
@@ -186,15 +183,12 @@
 /*
  * Partitions & Filsystems
  */
-#define CONFIG_MTD_DEVICE
-#define CONFIG_MTD_PARTITIONS
 
 /*
  * Ethernet (on SOC imx FEC)
  */
 #define CONFIG_FEC_MXC
 #define CONFIG_FEC_MXC_PHYADDR		0x1f
-#define CONFIG_MII				/* MII PHY management	*/
 
 /*
  * FPGA

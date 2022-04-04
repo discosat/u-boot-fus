@@ -1,20 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2015 Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
 #include <ram.h>
+#include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/periph.h>
 #include <asm/arch/grf_rk3036.h>
 #include <asm/arch/boot_mode.h>
 #include <asm/arch/sdram_rk3036.h>
-#include <asm/gpio.h>
 #include <dm/pinctrl.h>
 
 DECLARE_GLOBAL_DATA_PTR;

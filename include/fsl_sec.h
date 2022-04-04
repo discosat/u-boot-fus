@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Common internal memory map for some Freescale SoCs
  *
  * Copyright 2014 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FSL_SEC_H
@@ -28,6 +27,8 @@
 #elif defined(CONFIG_SYS_FSL_HAS_SEC)
 #error Neither CONFIG_SYS_FSL_SEC_LE nor CONFIG_SYS_FSL_SEC_BE is defined
 #endif
+
+#define BLOB_SIZE(x)		((x) + 32 + 16) /* Blob buffer size */
 
 /* Security Engine Block (MS = Most Sig., LS = Least Sig.) */
 #if CONFIG_SYS_FSL_SEC_COMPAT >= 4
@@ -123,10 +124,18 @@ typedef struct ccsr_sec {
 	u32	chanum_ls;	/* CHA Number Register, LS */
 	u32	secvid_ms;	/* SEC Version ID Register, MS */
 	u32	secvid_ls;	/* SEC Version ID Register, LS */
+#if defined(CONFIG_FSL_LSCH2) || defined(CONFIG_FSL_LSCH3)
+	u8	res9[0x6f020];
+#else
 	u8	res9[0x6020];
+#endif
 	u32	qilcr_ms;	/* Queue Interface LIODN CFG Register, MS */
 	u32	qilcr_ls;	/* Queue Interface LIODN CFG Register, LS */
+#if defined(CONFIG_FSL_LSCH2) || defined(CONFIG_FSL_LSCH3)
+	u8	res10[0x8ffd8];
+#else
 	u8	res10[0x8fd8];
+#endif
 } ccsr_sec_t;
 
 #define SEC_CTPR_MS_AXI_LIODN		0x08000000
@@ -221,8 +230,6 @@ struct sg_entry {
 #define SG_ENTRY_OFFSET_MASK	0x00001FFF
 #define SG_ENTRY_OFFSET_SHIFT	0
 };
-
-#define BLOB_SIZE(x)		((x) + 32 + 16) /* Blob buffer size */
 
 #if defined(CONFIG_MX6) || defined(CONFIG_MX7) || \
 	defined(CONFIG_MX7ULP) || defined(CONFIG_IMX8M)

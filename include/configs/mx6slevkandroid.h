@@ -12,8 +12,6 @@
 
 #include <asm/mach-imx/mxc_key_defs.h>
 
-#define CONFIG_CMD_FASTBOOT
-#define CONFIG_ANDROID_BOOT_IMAGE
 /* lock/unlock stuff */
 #define CONFIG_FASTBOOT_LOCK
 #define FSL_FASTBOOT_FB_DEV "mmc"
@@ -41,6 +39,7 @@
 #undef CONFIG_SYS_CBSIZE
 #define CONFIG_SYS_CBSIZE 2048
 #endif
+
 #ifdef CONFIG_SYS_MAXARGS
 #undef CONFIG_SYS_MAXARGS
 #define CONFIG_SYS_MAXARGS     64

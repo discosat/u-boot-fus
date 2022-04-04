@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2011 Samsung Electronics
  *
  * Configuration settings for the SAMSUNG ORIGEN (EXYNOS4210) board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_ORIGEN_H
@@ -18,7 +17,6 @@
 #define CONFIG_SYS_DCACHE_OFF		1
 
 /* ORIGEN has 4 bank of DRAM */
-#define CONFIG_NR_DRAM_BANKS		4
 #define CONFIG_SYS_SDRAM_BASE		0x40000000
 #define PHYS_SDRAM_1			CONFIG_SYS_SDRAM_BASE
 #define SDRAM_BANK_SIZE			(256 << 20)	/* 256 MB */
@@ -31,7 +29,6 @@
 #define CONFIG_MACH_TYPE		MACH_TYPE_ORIGEN
 
 /* select serial console configuration */
-#define CONFIG_SERIAL2
 
 /* Console configuration */
 #define CONFIG_DEFAULT_CONSOLE		"console=ttySAC1,115200n8\0"

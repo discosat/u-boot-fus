@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright (C) 2015-2017 Altera Corporation <www.altera.com>
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #ifndef __CONFIG_SOCFGPA_ARRIA10_H__
@@ -16,8 +15,6 @@
 /*
  * U-Boot general configurations
  */
-/* Cache options */
-#define CONFIG_SYS_DCACHE_OFF
 
 /* Memory configurations  */
 #define PHYS_SDRAM_1_SIZE		0x40000000

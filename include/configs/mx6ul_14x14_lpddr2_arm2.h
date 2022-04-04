@@ -8,14 +8,6 @@
 #ifndef __MX6UL_14X14_LPDDR2_ARM2_CONFIG_H
 #define __MX6UL_14X14_LPDDR2_ARM2_CONFIG_H
 
-#ifdef  CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#elif defined(CONFIG_NOR_BOOT)
-#define CONFIG_MTD_NOR_FLASH
-#define CONFIG_SYS_FLASH_PROTECTION
-#elif defined CONFIG_NAND_BOOT
-#define CONFIG_CMD_NAND
-#endif
 #ifdef CONFIG_MTD_NOR_FLASH
 /*
  * Conflicts with SD1/SD2/VIDEO/ENET
@@ -33,17 +25,10 @@
 
 #define PHYS_SDRAM_SIZE			SZ_256M
 
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_SF_DEFAULT_BUS  1
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
 
 #ifdef CONFIG_DM_ETH
 #define CONFIG_CMD_MII
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define CONFIG_FEC_ENET_DEV 1  /* The ENET1 has pin conflict with UART1 */
 
 #if (CONFIG_FEC_ENET_DEV == 0)
@@ -66,8 +51,6 @@
 #endif
 #endif
 
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_MICREL
 #define CONFIG_FEC_MXC_MDIO_BASE ENET2_BASE_ADDR
 #endif
 

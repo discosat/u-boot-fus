@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale i.MX23/i.MX28 LCDIF driver
  *
  * Copyright (C) 2011-2013 Marek Vasut <marex@denx.de>
- *
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <malloc.h>

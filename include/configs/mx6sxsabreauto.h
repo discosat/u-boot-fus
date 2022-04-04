@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
  * Copyright 2019 NXP
  *
  * Configuration settings for the Freescale i.MX6SX Sabreauto board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -22,7 +21,7 @@
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 #ifdef CONFIG_NAND_BOOT
-#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(nandboot),16m(nandkernel),16m(nanddtb),16m(nandtee),-(nandrootfs) "
+#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(nandboot),16m(nandkernel),16m(nanddtb),16m(nandtee),-(nandrootfs)"
 #else
 #define MFG_NAND_PARTITION ""
 #endif
@@ -63,7 +62,7 @@
 	CONFIG_MFG_ENV_SETTINGS_DEFAULT \
 	"initrd_addr=0x86800000\0" \
 	"initrd_high=0xffffffff\0" \
-	"sd_dev=0\0" \
+	"sd_dev=2\0" \
 	"mtdparts=" MFG_NAND_PARTITION \
 	"\0"\
 
@@ -76,11 +75,11 @@
 	"fdt_addr=0x83000000\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"console=ttymxc0\0" \
-	"bootargs=console=ttymxc0,115200 ubi.mtd=6 "  \
+	"bootargs=console=ttymxc0,115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
 		MFG_NAND_PARTITION \
 		"\0" \
-	"bootcmd=nand read ${loadaddr} 0x4000000 0x800000;"\
+	"bootcmd=nand read ${loadaddr} 0x4000000 0xc00000;"\
 		"nand read ${fdt_addr} 0x5000000 0x100000;"\
 		"if test ${tee} = yes; then " \
 			"nand read ${tee_addr} 0x6000000 0x400000;"\
@@ -192,7 +191,6 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x10000)
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
@@ -219,13 +217,13 @@
 #define CONFIG_SYS_NAND_BASE           0x40000000
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_ONFI_DETECTION
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
 
 /* Network */
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 
 #define CONFIG_FEC_ENET_DEV 1  /* Use onboard ethernet as default */
 
@@ -265,10 +263,6 @@
 
 #ifdef CONFIG_FSL_QSPI
 #define CONFIG_SYS_FSL_QSPI_AHB
-#define CONFIG_SF_DEFAULT_BUS		0
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	40000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
 #define FSL_QSPI_FLASH_SIZE		SZ_32M
 #define FSL_QSPI_FLASH_NUM		2
 #endif
@@ -277,7 +271,7 @@
 
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 #define CONFIG_MMCROOT			"/dev/mmcblk2p2"  /* USDHC3 */
-#define CONFIG_SYS_MMC_ENV_DEV		0  /*USDHC3*/
+#define CONFIG_SYS_MMC_ENV_DEV		2  /*USDHC3*/
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
 #if defined(CONFIG_ENV_IS_IN_MMC)

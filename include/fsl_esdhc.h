@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * FSL SD/MMC Defines
  *-------------------------------------------------------------------
  *
  * Copyright 2007-2008,2010-2011 Freescale Semiconductor, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef  __FSL_ESDHC_H__
@@ -107,6 +106,7 @@
 #define PROCTL_INIT		0x00000020
 #define PROCTL_DTW_4		0x00000002
 #define PROCTL_DTW_8		0x00000004
+#define PROCTL_D3CD		0x00000008
 
 #define CMDARG			0x0002e008
 

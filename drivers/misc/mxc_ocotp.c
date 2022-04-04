@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2013 ADVANSEE
  * Benoît Thébaudeau <benoit.thebaudeau@advansee.com>
@@ -8,8 +9,6 @@
  * http://git.freescale.com/git/cgit.cgi/imx/uboot-imx.git/tree/drivers/misc/imx_otp.c?h=imx_v2009.08_1.1.0&id=9aa74e6,
  * which is:
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -36,7 +35,16 @@
 #define BM_OUT_STATUS_LOCKED			0x00000800
 #define BM_OUT_STATUS_PROGFAIL			0x00001000
 #elif defined(CONFIG_IMX8M)
+#ifdef CONFIG_IMX8MP
+#undef BM_CTRL_ADDR
+#undef BM_CTRL_ERROR
+#undef BM_CTRL_BUSY
+#define BM_CTRL_ADDR			0x000001ff
+#define BM_CTRL_ERROR			0x00000400
+#define BM_CTRL_BUSY			0x00000200
+#else
 #define BM_CTRL_ADDR			0x000000ff
+#endif
 #else
 #define BM_CTRL_ADDR			0x0000007f
 #endif
@@ -83,7 +91,11 @@
 #define FUSE_BANKS	31
 #elif defined(CONFIG_IMX8M)
 #define FUSE_BANK_SIZE	0x40
+#ifdef CONFIG_IMX8MP
+#define FUSE_BANKS	96
+#else
 #define FUSE_BANKS	64
+#endif
 #else
 #error "Unsupported architecture\n"
 #endif

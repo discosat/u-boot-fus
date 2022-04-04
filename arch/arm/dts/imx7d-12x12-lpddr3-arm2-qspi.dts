@@ -49,7 +49,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <0>;
@@ -58,7 +58,7 @@
 	flash1: n25q256a@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <1>;
@@ -67,7 +67,7 @@
 	flash2: n25q256a@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <2>;
@@ -76,7 +76,7 @@
 	flash3: n25q256a@3 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <3>;

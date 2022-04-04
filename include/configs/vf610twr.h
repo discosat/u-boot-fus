@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * Configuration settings for the Freescale Vybrid vf610twr board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -38,16 +37,12 @@
 #define CONFIG_SYS_NAND_BASE		NFC_BASE_ADDR
 
 /* Dynamic MTD partition support */
-#define CONFIG_MTD_PARTITIONS
-#define CONFIG_MTD_DEVICE
 #endif
 
-#define CONFIG_FSL_ESDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 #define CONFIG_SYS_FSL_ESDHC_NUM	1
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RMII
 #define CONFIG_FEC_MXC_PHYADDR          0
@@ -183,7 +178,6 @@
 #define CONFIG_SYS_MEMTEST_END		0x87C00000
 
 /* Physical memory map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			(0x80000000)
 #define PHYS_SDRAM_SIZE			(128 * 1024 * 1024)
 

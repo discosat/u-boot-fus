@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 - 2016 Xilinx, Inc.
  * Copyright (C) 2017 National Instruments Corp
  * Written by Michal Simek
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -102,7 +101,7 @@ static int pca954x_ofdata_to_platdata(struct udevice *dev)
 	struct pca954x_priv *priv = dev_get_priv(dev);
 	const struct chip_desc *chip = &chips[dev_get_driver_data(dev)];
 
-	priv->addr = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev), "reg", 0);
+	priv->addr = dev_read_u32_default(dev, "reg", 0);
 	if (!priv->addr) {
 		debug("MUX not found\n");
 		return -ENODEV;

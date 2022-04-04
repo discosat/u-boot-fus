@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
@@ -16,8 +17,6 @@
  * DENX Software Engineering GmbH
  *
  * Configuation settings for the smartweb.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -63,7 +62,6 @@
  * SDRAM: 1 bank, 64 MB, base address 0x20000000
  * Already initialized before u-boot gets started.
  */
-#define CONFIG_NR_DRAM_BANKS		1
 #define CONFIG_SYS_SDRAM_BASE		ATMEL_BASE_CS1
 #define CONFIG_SYS_SDRAM_SIZE		(64 * SZ_1M)
 
@@ -79,7 +77,6 @@
 	ROUND(3 * CONFIG_ENV_SIZE + (4 * SZ_1M), 0x1000)
 
 /* NAND flash settings */
-#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		ATMEL_BASE_CS3
 #define CONFIG_SYS_NAND_DBW_8
@@ -87,8 +84,6 @@
 #define CONFIG_SYS_NAND_MASK_CLE	(1 << 22)
 #define CONFIG_SYS_NAND_ENABLE_PIN	AT91_PIN_PC14
 #define CONFIG_SYS_NAND_READY_PIN	AT91_PIN_PC13
-
-#define CONFIG_MTD_DEVICE
 
 /* general purpose I/O */
 #define CONFIG_ATMEL_LEGACY		/* required until (g)pio is fixed */
@@ -117,13 +112,6 @@
 	"root=/dev/nfs ip=dhcp nfsroot=${serverip}:/srv/nfs/rootfs; "	\
 	"dhcp"
 
-/* Enable the watchdog */
-#define CONFIG_AT91SAM9_WATCHDOG
-#if !defined(CONFIG_SPL_BUILD)
-#define CONFIG_HW_WATCHDOG
-#endif
-#define CONFIG_AT91_HW_WDT_TIMEOUT	15
-
 #if !defined(CONFIG_SPL_BUILD)
 /* USB configuration */
 #define CONFIG_USB_ATMEL
@@ -135,8 +123,6 @@
 #define CONFIG_SYS_USB_OHCI_MAX_ROOT_PORTS	2
 
 /* USB DFU support */
-#define CONFIG_MTD_DEVICE
-#define CONFIG_MTD_PARTITIONS
 
 #define CONFIG_USB_GADGET_AT91
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2010
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -6,8 +7,6 @@
  * Andreas Heppel <aheppel@sysgo.de>
  *
  * (C) Copyright 2008 Atmel Corporation
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -18,19 +17,6 @@
 #include <search.h>
 #include <errno.h>
 #include <dm/device-internal.h>
-
-#ifndef CONFIG_ENV_SPI_BUS
-# define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
-#endif
-#ifndef CONFIG_ENV_SPI_CS
-# define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
-#endif
-#ifndef CONFIG_ENV_SPI_MAX_HZ
-# define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
-#endif
-#ifndef CONFIG_ENV_SPI_MODE
-# define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
-#endif
 
 #ifndef CONFIG_SPL_BUILD
 #define CMD_SAVEENV
@@ -59,9 +45,10 @@ static int setup_flash_device(void)
 
 	/* speed and mode will be read from DT */
 	ret = spi_flash_probe_bus_cs(CONFIG_ENV_SPI_BUS, CONFIG_ENV_SPI_CS,
-				     0, 0, &new);
+				     CONFIG_ENV_SPI_MAX_HZ, CONFIG_ENV_SPI_MODE,
+				     &new);
 	if (ret) {
-		set_default_env("!spi_flash_probe_bus_cs() failed");
+		set_default_env("spi_flash_probe_bus_cs() failed", 0);
 		return ret;
 	}
 
@@ -73,7 +60,7 @@ static int setup_flash_device(void)
 			CONFIG_ENV_SPI_CS,
 			CONFIG_ENV_SPI_MAX_HZ, CONFIG_ENV_SPI_MODE);
 		if (!env_flash) {
-			set_default_env("!spi_flash_probe() failed");
+			set_default_env("spi_flash_probe() failed", 0);
 			return -EIO;
 		}
 	}
@@ -174,7 +161,7 @@ static int env_sf_load(void)
 	tmp_env2 = (env_t *)memalign(ARCH_DMA_MINALIGN,
 			CONFIG_ENV_SIZE);
 	if (!tmp_env1 || !tmp_env2) {
-		set_default_env("!malloc() failed");
+		set_default_env("malloc() failed", 0);
 		ret = -EIO;
 		goto out;
 	}
@@ -269,7 +256,7 @@ static int env_sf_load(void)
 
 	buf = (char *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
 	if (!buf) {
-		set_default_env("!malloc() failed");
+		set_default_env("malloc() failed", 0);
 		return -EIO;
 	}
 
@@ -280,7 +267,7 @@ static int env_sf_load(void)
 	ret = spi_flash_read(env_flash,
 		env_get_offset(CONFIG_ENV_OFFSET), CONFIG_ENV_SIZE, buf);
 	if (ret) {
-		set_default_env("!spi_flash_read() failed");
+		set_default_env("spi_flash_read() failed", 0);
 		goto err_read;
 	}
 
@@ -298,10 +285,17 @@ out:
 }
 #endif
 
+#ifdef CONFIG_ENV_ADDR
+__weak void *env_sf_get_env_addr(void)
+{
+	return (void *)CONFIG_ENV_ADDR;
+}
+#endif
+
 #if defined(INITENV) && defined(CONFIG_ENV_ADDR)
 static int env_sf_init(void)
 {
-	env_t *env_ptr = (env_t *)(CONFIG_ENV_ADDR);
+	env_t *env_ptr = (env_t *)env_sf_get_env_addr();
 
 	if (crc32(0, env_ptr->data, ENV_SIZE) == env_ptr->crc) {
 		gd->env_addr	= (ulong)&(env_ptr->data);

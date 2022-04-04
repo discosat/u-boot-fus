@@ -179,7 +179,7 @@ static iomux_v3_cfg_t const usdhc2_emmc_pads[] = {
 #endif
 #endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 static iomux_v3_cfg_t const nand_pads[] = {
 	MX6_PAD_NAND_DATA00__RAWNAND_DATA00 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
 	MX6_PAD_NAND_DATA01__RAWNAND_DATA01 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
@@ -209,8 +209,9 @@ static void setup_gpmi_nand(void)
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nand_pads);
 
-	setup_gpmi_io_clk((3 << MXC_CCM_CSCDR1_BCH_PODF_OFFSET) |
-			  (3 << MXC_CCM_CSCDR1_GPMI_PODF_OFFSET));
+	setup_gpmi_io_clk((MXC_CCM_CS2CDR_ENFC_CLK_PODF(0) |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED(3) |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL(3)));
 
 	/* enable apbh clock gating */
 	setbits_le32(&mxc_ccm->CCGR0, MXC_CCM_CCGR0_APBHDMA_MASK);
@@ -218,6 +219,7 @@ static void setup_gpmi_nand(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 /* pin conflicts with eim nor */
 static iomux_v3_cfg_t const ecspi2_pads[] = {
 	MX6_PAD_CSI_DATA02__ECSPI2_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -239,6 +241,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 1 && cs == 0) ? (IMX_GPIO_NR(4, 22)) : -1;
 }
+#endif
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH
@@ -891,10 +894,12 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
 #endif
+#endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand();
 #endif
 

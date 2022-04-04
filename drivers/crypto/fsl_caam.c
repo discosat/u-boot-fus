@@ -156,7 +156,7 @@ u32 caam_decap_blob(u32 plain_text, u32 blob_addr, u32 size)
 
 	flush_dcache_range((uintptr_t)blob_addr & ALIGN_MASK,
 			   ((uintptr_t)blob_addr & ALIGN_MASK)
-			    + ROUND(size + CAAM_PAD_LEN, ARCH_DMA_MINALIGN));
+			   + ROUND(size + CAAM_PAD_LEN, ARCH_DMA_MINALIGN));
 	flush_dcache_range((uintptr_t)plain_text & ALIGN_MASK,
 			   (plain_text & ALIGN_MASK)
 			   + ROUND(size, ARCH_DMA_MINALIGN));
@@ -359,8 +359,8 @@ static int do_job(u32 *desc)
 			   + ROUND(DESC_MAX_SIZE, ARCH_DMA_MINALIGN));
 
 	flush_dcache_range((uintptr_t)g_jrdata.outrings & ALIGN_MASK,
-			   ((uintptr_t)g_jrdata.outrings & ALIGN_MASK)
-			   + ROUND(DESC_MAX_SIZE, ARCH_DMA_MINALIGN));
+			  ((uintptr_t)g_jrdata.outrings & ALIGN_MASK)
+			  + ROUND(DESC_MAX_SIZE, ARCH_DMA_MINALIGN));
 
 	/* Inform HW that a new JR is available */
 #ifndef CONFIG_ARCH_IMX8
@@ -540,7 +540,7 @@ static void do_inst_desc(u32 *desc, u32 status)
 			debug("RNG - Instantiation of SH0 and SH1\n");
 			/* Add the sh1 descriptor */
 			memcpy(pdesc, rng_inst_sh1_desc,
-			       sizeof(rng_inst_sh1_desc));
+				sizeof(rng_inst_sh1_desc));
 		} else {
 			debug("RNG - Instantiation of SH1 only\n");
 			/* Modify the SH0 descriptor to instantiate only SH1 */

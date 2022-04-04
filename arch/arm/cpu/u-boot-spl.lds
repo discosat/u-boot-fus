@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2004-2008 Texas Instruments
  *
  * (C) Copyright 2002
  * Gary Jennejohn, DENX Software Engineering, <garyj@denx.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
@@ -21,6 +20,7 @@ SECTIONS
 		*(.vectors)
 		CPUDIR/start.o (.text*)
 		*(.text*)
+		*(.glue*)
 	}
 
 	. = ALIGN(4);
@@ -78,8 +78,8 @@ SECTIONS
 	.ARM.exidx : { *(.ARM.exidx*) }
 }
 
-#if defined(CONFIG_SPL_MAX_SIZE)
-ASSERT(__image_copy_end - __image_copy_start < (CONFIG_SPL_MAX_SIZE), \
+#if defined(IMAGE_MAX_SIZE)
+ASSERT(__image_copy_end - __image_copy_start < (IMAGE_MAX_SIZE), \
 	"SPL image too big");
 #endif
 

@@ -12,6 +12,20 @@
     #define MFG_BOOT_CMD "bootz "
 #endif
 
+#ifdef CONFIG_USB_PORT_AUTO
+    #define FASTBOOT_CMD "echo \"Run fastboot ...\"; fastboot auto; "
+#else
+    #define FASTBOOT_CMD "echo \"Run fastboot ...\"; fastboot 0; "
+#endif
+
+/* define the nandfit partiton environment for uuu */
+#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MQ) || \
+	defined(CONFIG_IMX8QM) || defined(CONFIG_IMX8QXP)
+#define MFG_NAND_FIT_PARTITION "nandfit_part=yes\0"
+#else
+#define MFG_NAND_FIT_PARTITION ""
+#endif
+
 #define CONFIG_MFG_ENV_SETTINGS_DEFAULT \
 	"mfgtool_args=setenv bootargs console=${console},${baudrate} " \
 		"rdinit=/linuxrc " \
@@ -26,9 +40,8 @@
                 MFG_BOOT_CMD "${loadaddr} ${initrd_addr} ${fdt_addr}; " \
             "fi; " \
         "else " \
-            "echo \"Run fastboot ...\"; fastboot 0; "  \
+		FASTBOOT_CMD  \
         "fi;\0" \
+	MFG_NAND_FIT_PARTITION \
 
 #endif
-
-#define CONFIG_FAT_WRITE

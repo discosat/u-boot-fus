@@ -8,12 +8,6 @@
 #ifndef __MX6ULL_DDR3_ARM2_CONFIG_H
 #define __MX6ULL_DDR3_ARM2_CONFIG_H
 
-#ifdef  CONFIG_SPI_BOOT
-
-#define CONFIG_MXC_SPI
-#elif defined CONFIG_NAND_BOOT
-#define CONFIG_CMD_NAND
-#endif
 
 #define BOOTARGS_CMA_SIZE   ""
 
@@ -39,17 +33,9 @@
 #undef CONFIG_POWER
 #endif
 
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_SF_DEFAULT_BUS  0
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
-
 #ifdef CONFIG_DM_ETH
 #define CONFIG_CMD_MII
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define CONFIG_FEC_ENET_DEV 1
 
 #if (CONFIG_FEC_ENET_DEV == 0)
@@ -72,8 +58,6 @@
 #endif
 #endif
 
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_MICREL
 #define CONFIG_FEC_MXC_MDIO_BASE ENET2_BASE_ADDR
 #endif
 

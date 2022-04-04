@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) Freescale Semiconductor, Inc. 2006.
  *
  * (C) Copyright 2010
  * Heiko Schocher, DENX Software Engineering, hs@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 /*
  * ve8313 board configuration file
@@ -114,12 +113,9 @@
 /*
  * FLASH on the Local Bus
  */
-#define CONFIG_SYS_FLASH_CFI		/* use the Common Flash Interface */
-#define CONFIG_FLASH_CFI_DRIVER		/* use the CFI driver */
 #define CONFIG_SYS_FLASH_BASE		0xFE000000
 #define CONFIG_SYS_FLASH_SIZE		32	/* size in MB */
 #define CONFIG_SYS_FLASH_EMPTY_INFO		/* display empty sectors */
-#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE	/* buffer up multiple bytes */
 
 #define CONFIG_SYS_NOR_BR_PRELIM	(CONFIG_SYS_FLASH_BASE \
 					| BR_PS_16	/* 16 bit */ \
@@ -234,7 +230,6 @@
 /*
  * Serial Port
  */
-#define CONFIG_CONS_INDEX	1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	1
 #define CONFIG_SYS_NS16550_CLK		get_bus_freq(0)
@@ -266,7 +261,6 @@
 /*
  * TSEC
  */
-#define CONFIG_TSEC_ENET		/* TSEC ethernet support */
 
 #define CONFIG_TSEC1
 #ifdef CONFIG_TSEC1
@@ -439,7 +433,7 @@
 
 #define CONFIG_NETDEV		eth0
 
-#define CONFIG_HOSTNAME		ve8313
+#define CONFIG_HOSTNAME		"ve8313"
 #define CONFIG_UBOOTPATH	ve8313/u-boot.bin
 
 #define CONFIG_EXTRA_ENV_SETTINGS \

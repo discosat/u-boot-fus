@@ -1,15 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Sysam AMCORE board configuration
  *
  * (C) Copyright 2016  Angelo Dureghello <angelo@sysam.it>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __AMCORE_CONFIG_H
 #define __AMCORE_CONFIG_H
 
-#define CONFIG_HOSTNAME			AMCORE
+#define CONFIG_HOSTNAME			"AMCORE"
 
 #define CONFIG_MCFTMR
 #define CONFIG_MCFUART
@@ -59,9 +58,6 @@
 #define CONFIG_SYS_MAX_FLASH_SECT	1024
 #define CONFIG_SYS_FLASH_ERASE_TOUT	1000
 
-#define CONFIG_SYS_FLASH_CFI
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE
 /* amcore design has flash data bytes wired swapped */
 #define CONFIG_SYS_WRITE_SWAPPED_DATA
 /* reserve 128-4KB */

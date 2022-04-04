@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2017-2019 NXP
- *
- * SPDX-License-Identifier: GPL-2.0
+ * Copyright 2017 NXP
  */
 
 #include <common.h>
@@ -11,7 +10,7 @@
 #include <asm/arch/power-domain.h>
 #include <dm/device-internal.h>
 #include <dm/device.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -38,8 +37,8 @@ static int imx8_power_domain_on(struct power_domain *power_domain)
 	struct udevice *dev = power_domain->dev;
 	struct imx8_power_domain_platdata *pdata;
 	struct imx8_power_domain_priv *ppriv;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 	sc_err_t ret;
+	int err;
 
 	struct power_domain parent_domain;
 	struct udevice *parent = dev_get_parent(dev);
@@ -47,25 +46,30 @@ static int imx8_power_domain_on(struct power_domain *power_domain)
 	/* Need to power on parent node first */
 	if (device_get_uclass_id(parent) == UCLASS_POWER_DOMAIN) {
 		parent_domain.dev = parent;
-		imx8_power_domain_on(&parent_domain);
+		err = imx8_power_domain_on(&parent_domain);
+		if (err)
+			return err;
 	}
 
 	pdata = (struct imx8_power_domain_platdata *)dev_get_platdata(dev);
 	ppriv = (struct imx8_power_domain_priv *)dev_get_priv(dev);
 
-	debug("%s(power_domain=%s) resource_id %d\n", __func__, dev->name, pdata->resource_id);
+	debug("%s(power_domain=%s) resource_id %d\n", __func__, dev->name,
+	      pdata->resource_id);
 
 	/* Already powered on */
 	if (ppriv->state_on)
 		return 0;
 
 	if (pdata->resource_id != SC_R_NONE) {
-		if (!sc_rm_is_resource_owned(ipcHndl, pdata->resource_id))
+		if (!sc_rm_is_resource_owned(-1, pdata->resource_id))
 			printf("%s [%d] not owned by curr partition\n", dev->name, pdata->resource_id);
 
-		ret = sc_pm_set_resource_power_mode(ipcHndl, pdata->resource_id, SC_PM_PW_MODE_ON);
+		ret = sc_pm_set_resource_power_mode(-1, pdata->resource_id,
+						    SC_PM_PW_MODE_ON);
 		if (ret) {
-			printf("Error: %s Power up failed! (error = %d)\n", dev->name, ret);
+			printf("Error: %s Power up failed! (error = %d)\n",
+			       dev->name, ret);
 			return -EIO;
 		}
 	}
@@ -83,11 +87,10 @@ static int imx8_power_domain_off_node(struct power_domain *power_domain)
 	struct imx8_power_domain_priv *ppriv;
 	struct imx8_power_domain_priv *child_ppriv;
 	struct imx8_power_domain_platdata *pdata;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 	sc_err_t ret;
 
-	ppriv = (struct imx8_power_domain_priv *)dev_get_priv(dev);
-	pdata = (struct imx8_power_domain_platdata *)dev_get_platdata(dev);
+	ppriv = dev_get_priv(dev);
+	pdata = dev_get_platdata(dev);
 
 	debug("%s, %s, state_on %d\n", __func__, dev->name, ppriv->state_on);
 
@@ -99,22 +102,24 @@ static int imx8_power_domain_off_node(struct power_domain *power_domain)
 	for (device_find_first_child(dev, &child);
 		child;
 		device_find_next_child(&child)) {
-
 		if (device_active(child)) {
-			child_ppriv = (struct imx8_power_domain_priv *)dev_get_priv(child);
+			child_ppriv =
+			(struct imx8_power_domain_priv *)dev_get_priv(child);
 			if (child_ppriv->state_on)
 				return -EPERM;
 		}
 	}
 
 	if (pdata->resource_id != SC_R_NONE) {
-		ret = sc_pm_set_resource_power_mode(ipcHndl, pdata->resource_id, SC_PM_PW_MODE_OFF);
+		ret = sc_pm_set_resource_power_mode(-1, pdata->resource_id,
+						    SC_PM_PW_MODE_OFF);
 		if (ret) {
-			if (!sc_rm_is_resource_owned(ipcHndl, pdata->resource_id)) {
+			if (!sc_rm_is_resource_owned(-1, pdata->resource_id)) {
 				printf("%s not owned by curr partition %d\n", dev->name, pdata->resource_id);
 				return 0;
 			}
-			printf("Error: %s Power off failed! (error = %d)\n", dev->name, ret);
+			printf("Error: %s Power off failed! (error = %d)\n",
+			       dev->name, ret);
 			return -EIO;
 		}
 	}
@@ -133,40 +138,48 @@ static int imx8_power_domain_off_parentnodes(struct power_domain *power_domain)
 	struct imx8_power_domain_priv *ppriv;
 	struct imx8_power_domain_priv *child_ppriv;
 	struct imx8_power_domain_platdata *pdata;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 	sc_err_t ret;
 	struct power_domain parent_pd;
 
 	if (device_get_uclass_id(parent) == UCLASS_POWER_DOMAIN) {
-		pdata = (struct imx8_power_domain_platdata *)dev_get_platdata(parent);
+		pdata =
+		(struct imx8_power_domain_platdata *)dev_get_platdata(parent);
 		ppriv = (struct imx8_power_domain_priv *)dev_get_priv(parent);
 
-		debug("%s, %s, state_on %d\n", __func__, parent->name, ppriv->state_on);
+		debug("%s, %s, state_on %d\n", __func__, parent->name,
+		      ppriv->state_on);
 
 		/* Already powered off */
 		if (!ppriv->state_on)
 			return 0;
 
-		/* Check if all sibling nodes are off. If yes, power off parent */
-		for (device_find_first_child(parent, &child);
-			child;
-			device_find_next_child(&child)) {
-
+		/*
+		 * Check if all sibling nodes are off. If yes,
+		 * power off parent
+		 */
+		for (device_find_first_child(parent, &child); child;
+		     device_find_next_child(&child)) {
 			if (device_active(child)) {
-				child_ppriv = (struct imx8_power_domain_priv *)dev_get_priv(child);
-				if (child_ppriv->state_on) { /* Find a power on sibling */
-					debug("sibling %s, state_on %d\n", child->name, child_ppriv->state_on);
+				child_ppriv = (struct imx8_power_domain_priv *)
+						dev_get_priv(child);
+				/* Find a power on sibling */
+				if (child_ppriv->state_on) {
+					debug("sibling %s, state_on %d\n",
+					      child->name,
+					      child_ppriv->state_on);
 					return 0;
 				}
 			}
-
 		}
 
 		/* power off parent */
 		if (pdata->resource_id != SC_R_NONE) {
-			ret = sc_pm_set_resource_power_mode(ipcHndl, pdata->resource_id, SC_PM_PW_MODE_OFF);
+			ret = sc_pm_set_resource_power_mode(-1,
+							    pdata->resource_id,
+							    SC_PM_PW_MODE_OFF);
 			if (ret) {
-				printf("Error: %s Power off failed! (error = %d)\n", parent->name, ret);
+				printf("%s Power off failed! (error = %d)\n",
+				       parent->name, ret);
 				return -EIO;
 			}
 		}
@@ -179,27 +192,27 @@ static int imx8_power_domain_off_parentnodes(struct power_domain *power_domain)
 	}
 
 	return 0;
-
 }
 
 static int imx8_power_domain_off(struct power_domain *power_domain)
 {
 	int ret;
+
 	debug("%s(power_domain=%p)\n", __func__, power_domain);
 
 	/* Turn off the node */
 	ret = imx8_power_domain_off_node(power_domain);
 	if (ret) {
 		debug("Can't power off the node of dev %s, ret = %d\n",
-			power_domain->dev->name, ret);
+		      power_domain->dev->name, ret);
 		return ret;
 	}
 
 	/* Turn off parent nodes, if sibling nodes are all off */
 	ret = imx8_power_domain_off_parentnodes(power_domain);
 	if (ret) {
-		printf("Error: Failed to power off parent nodes of dev %s, ret = %d\n",
-			power_domain->dev->name, ret);
+		printf("Failed to power off parent nodes of dev %s, ret = %d\n",
+		       power_domain->dev->name, ret);
 		return ret;
 	}
 
@@ -207,7 +220,7 @@ static int imx8_power_domain_off(struct power_domain *power_domain)
 }
 
 static int imx8_power_domain_of_xlate(struct power_domain *power_domain,
-				       struct ofnode_phandle_args *args)
+				      struct ofnode_phandle_args *args)
 {
 	debug("%s(power_domain=%p)\n", __func__, power_domain);
 
@@ -225,22 +238,23 @@ static int imx8_power_domain_bind(struct udevice *dev)
 	debug("%s(dev=%p)\n", __func__, dev);
 
 	offset = dev_of_offset(dev);
-	for (offset = fdt_first_subnode(gd->fdt_blob, offset);
-		offset > 0;
-		offset = fdt_next_subnode(gd->fdt_blob, offset)) {
-
+	for (offset = fdt_first_subnode(gd->fdt_blob, offset); offset > 0;
+	     offset = fdt_next_subnode(gd->fdt_blob, offset)) {
 		/* Bind the subnode to this driver */
 		name = fdt_get_name(gd->fdt_blob, offset, NULL);
 
 		ret = device_bind_with_driver_data(dev, dev->driver, name,
-						   dev->driver_data, offset_to_ofnode(offset), NULL);
+						   dev->driver_data,
+						   offset_to_ofnode(offset),
+						   NULL);
 
 		if (ret == -ENODEV)
-			printf("Driver '%s' refuses to bind\n", dev->driver->name);
+			printf("Driver '%s' refuses to bind\n",
+			       dev->driver->name);
 
 		if (ret)
-			printf("Error binding driver '%s': %d\n", dev->driver->name,
-				ret);
+			printf("Error binding driver '%s': %d\n",
+			       dev->driver->name, ret);
 	}
 
 	return 0;

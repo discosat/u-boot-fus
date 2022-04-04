@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Common board functions for siemens AT91SAM9G45 based boards
  * (C) Copyright 2013 Siemens AG
@@ -7,8 +8,6 @@
  * (C) Copyright 2007-2008
  * Stelian Pop <stelian@popies.net>
  * Lead Tech Design <www.leadtechdesign.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -56,7 +55,6 @@
 #define CONFIG_BOOTP_BOOTFILESIZE
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS		1
 #define CONFIG_SYS_SDRAM_BASE           ATMEL_BASE_CS6
 #define CONFIG_SYS_SDRAM_SIZE		0x08000000
 
@@ -65,7 +63,6 @@
 
 /* NAND flash */
 #ifdef CONFIG_CMD_NAND
-#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE		1
 #define CONFIG_SYS_NAND_BASE			ATMEL_BASE_CS3
 #define CONFIG_SYS_NAND_DBW_8
@@ -82,9 +79,6 @@
 #define CONFIG_RMII
 #define CONFIG_NET_RETRY_COUNT		20
 #define CONFIG_AT91_WANTS_COMMON_PHY
-
-#define CONFIG_MTD_DEVICE
-#define CONFIG_MTD_PARTITIONS
 
 /* DFU class support */
 #define CONFIG_SYS_DFU_DATA_BUF_SIZE	(SZ_1M)

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -12,7 +11,7 @@
 
 __weak int board_mmc_get_env_dev(int devno)
 {
-	return CONFIG_SYS_MMC_ENV_DEV;
+	return devno;
 }
 
 int mmc_get_env_dev(void)

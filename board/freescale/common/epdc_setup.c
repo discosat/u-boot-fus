@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Peng Fan <Peng.Fan@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <lcd.h>
@@ -33,7 +32,7 @@ int board_setup_waveform_file(ulong waveform_buf)
 	else
 		mmc_dev = mmc_get_env_devno();
 
-	sprintf(addr, "%lx", waveform_buf);
+	sprintf(addr, "%lx", (ulong)CONFIG_SYS_LOAD_ADDR);
 
 	fs_argv[0] = "fatload";
 	fs_argv[1] = "mmc";
@@ -52,6 +51,8 @@ int board_setup_waveform_file(ulong waveform_buf)
 	file_len = env_get_hex("filesize", 0);
 	if (!file_len)
 		return -1;
+
+	memcpy((void *)waveform_buf, (const void *)CONFIG_SYS_LOAD_ADDR, file_len);
 
 	flush_cache(waveform_buf, roundup(file_len, ARCH_DMA_MINALIGN));
 
@@ -113,7 +114,7 @@ int board_setup_logo_file(void *display_buf)
 	if (!buf)
 		return -ENOMEM;
 
-	sprintf(addr, "%lx", (ulong)buf);
+	sprintf(addr, "%lx", (ulong)CONFIG_SYS_LOAD_ADDR);
 
 	fs_argv[0] = "fatload";
 	fs_argv[1] = "mmc";
@@ -129,6 +130,8 @@ int board_setup_logo_file(void *display_buf)
 		free(buf);
 		return -1;
 	}
+
+	memcpy((void *)buf, (const void *)CONFIG_SYS_LOAD_ADDR, file_len);
 
 	if (strncmp(buf, "P5", 2)) {
 		printf("Wrong format for epdc logo, use PGM-P5 format.\n");

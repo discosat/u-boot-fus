@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -65,8 +64,8 @@ void ft_fixup_enet_phy_connect_type(void *fdt)
 		do_fixup_by_path(fdt, enet_path, "phy-connection-type",
 				 phy_string_for_interface(
 				 PHY_INTERFACE_MODE_RGMII_ID),
-				 sizeof(phy_string_for_interface(
-				 PHY_INTERFACE_MODE_RGMII_ID)),
+				 strlen(phy_string_for_interface(
+				 PHY_INTERFACE_MODE_RGMII_ID)) + 1,
 				 1);
 	}
 }

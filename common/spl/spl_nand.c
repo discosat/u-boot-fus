@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011
  * Corscience GmbH & Co. KG - Simon Schwarz <schwarz@corscience.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <config.h>
@@ -26,18 +25,14 @@ uint32_t __weak spl_nand_get_uboot_raw_page(void)
 }
 
 #if defined(CONFIG_SPL_NAND_RAW_ONLY)
-int spl_nand_load_image(struct spl_image_info *spl_image,
+static int spl_nand_load_image(struct spl_image_info *spl_image,
 			struct spl_boot_device *bootdev)
 {
 	nand_init();
 	nand_spl_load_image(spl_nand_get_uboot_raw_page(),
 						CONFIG_SYS_NAND_U_BOOT_SIZE,
 						(void *)CONFIG_SYS_NAND_U_BOOT_DST);
-#if defined(CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE)
-	spl_set_header_raw_atf(spl_image);
-#else
 	spl_set_header_raw_uboot(spl_image);
-#endif
 	nand_deselect();
 
 	return 0;
@@ -104,8 +99,8 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 #endif
 	nand_init();
 
-	/*use CONFIG_SYS_TEXT_BASE as temporary storage area */
-	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE);
+	header = spl_get_load_buffer(0, sizeof(*header));
+
 #ifdef CONFIG_SPL_OS_BOOT
 	if (!spl_start_uboot()) {
 		/*

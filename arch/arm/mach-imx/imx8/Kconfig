@@ -1,10 +1,5 @@
 if ARCH_IMX8
 
-config HAVE_SC_FIRMWARE
-	bool
-	help
-	  Have SCU on the SoC
-
 config RECOVER_SPL_DATA_SECTION
 	bool
 	help
@@ -17,22 +12,56 @@ config IMX_SMMU
 
 config AHAB_BOOT
 	bool "Support i.MX8 AHAB features"
+	imply CMD_DEKBLOB
 	help
 	  This option enables the support for AHAB secure boot.
 
+config BOOTAUX_RESERVED_MEM_BASE
+	hex "Define the reserved memory base address"
+	default 0x0
+	help
+	  reserve DDR memory for bootaux
+
+config BOOTAUX_RESERVED_MEM_SIZE
+	hex "Define the reserved memory size"
+	default 0x0
+	help
+	  This memory will be reserved by system and linux cannot access.
+
+config IMX_LOAD_HDMI_FIMRWARE
+	bool "Enable HDMI firmware loading"
+	depends on ARCH_IMX8 || VIDEO_IMX_HDP_LOAD
+	help
+	  This enable the hdmi firmware loading. It depends on the "hdp" and
+	  "hdprx" commands.
+
 config IMX8
 	bool
-	default y
+
+config MU_BASE_SPL
+	hex "MU base address used in SPL"
+	default 0x5d1b0000
+	help
+	  SPL runs in EL3 mode, it use MU0_A to communicate with SCU.
+	  So we could not reuse the one in dts which is for normal U-Boot.
 
 config IMX8QM
-	bool
-	select HAVE_SC_FIRMWARE
+	select IMX8
+	select SUPPORT_SPL
 	select RECOVER_SPL_DATA_SECTION
+	bool
 
 config IMX8QXP
-	bool
-	select HAVE_SC_FIRMWARE
+	select IMX8
+	select SUPPORT_SPL
 	select RECOVER_SPL_DATA_SECTION
+	bool
+
+config IMX8DXL
+	select IMX8
+	select SUPPORT_SPL
+	select RECOVER_SPL_DATA_SECTION
+	bool
 
 config SYS_SOC
 	default "imx8"
@@ -44,31 +73,32 @@ config IMX8_TRUSTY_XEN
 	bool "Support Trusty Xen feature"
 
 choice
-	prompt "MX8 board select"
+	prompt "i.MX8 board select"
 	optional
+
+config TARGET_IMX8QXP_MEK
+	bool "Support i.MX8QXP MEK board"
+	select BOARD_LATE_INIT
+	select IMX8QXP
+
+config TARGET_IMX8QM_MEK
+	bool "Support i.MX8QM MEK board"
+	select BOARD_LATE_INIT
+	select IMX8QM
 
 config TARGET_IMX8QM_LPDDR4_ARM2
 	bool "Support i.MX8QM lpddr4 validation board"
 	select BOARD_LATE_INIT
-	select SUPPORT_SPL
 	select IMX8QM
 
 config TARGET_IMX8QM_DDR4_ARM2
 	bool "Support i.MX8QM ddr4 validation board"
 	select BOARD_LATE_INIT
-	select SUPPORT_SPL
-	select IMX8QM
-
-config TARGET_IMX8QM_MEK
-	bool "Support i.MX8QM MEK board"
-	select BOARD_LATE_INIT
-	select SUPPORT_SPL
 	select IMX8QM
 
 config TARGET_IMX8QXP_LPDDR4_ARM2
 	bool "Support i.MX8QXP lpddr4 validation board"
 	select BOARD_LATE_INIT
-        select SUPPORT_SPL
 	select IMX8QXP
 
 config TARGET_IMX8QXP_DDR3_ARM2
@@ -81,10 +111,9 @@ config TARGET_IMX8X_17X17_VAL
 	select BOARD_LATE_INIT
 	select IMX8QXP
 
-config TARGET_IMX8QXP_MEK
-	bool "Support i.MX8QXP MEK board"
+config TARGET_IMX8DXL_PHANTOM_MEK
+	bool "Support i.MX8DXL PHANTOM MEK board"
 	select BOARD_LATE_INIT
-	select SUPPORT_SPL
 	select IMX8QXP
 
 config TARGET_IMX8DX_MEK
@@ -93,12 +122,19 @@ config TARGET_IMX8DX_MEK
 	select SUPPORT_SPL
 	select IMX8QXP
 
+config TARGET_IMX8DXL_EVK
+	bool "Support i.MX8DXL EVK board"
+	select BOARD_LATE_INIT
+	select IMX8DXL
+
 endchoice
 
-source "board/freescale/imx8qm_arm2/Kconfig"
+source "board/freescale/imx8qxp_mek/Kconfig"
 source "board/freescale/imx8qm_mek/Kconfig"
 source "board/freescale/imx8qxp_arm2/Kconfig"
-source "board/freescale/imx8qxp_mek/Kconfig"
+source "board/freescale/imx8qm_arm2/Kconfig"
+source "board/freescale/imx8dxl_phantom_mek/Kconfig"
+source "board/freescale/imx8dxl_evk/Kconfig"
 
 config SNVS_SEC_SC
 	bool "Support SNVS configuration"

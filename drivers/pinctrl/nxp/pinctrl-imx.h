@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Peng Fan <van.freenix@gmail.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __DRIVERS_PINCTRL_IMX_H
@@ -56,9 +55,11 @@ int imx_pinctrl_probe(struct udevice *dev, struct imx_pinctrl_soc_info *info);
 int imx_pinctrl_remove(struct udevice *dev);
 
 #ifdef CONFIG_PINCTRL_IMX_SCU
-int imx_pinctrl_scu_process_pins(struct imx_pinctrl_soc_info *info, u32 *pin_data, int npins);
+int imx_pinctrl_scu_conf_pins(struct imx_pinctrl_soc_info *info,
+			      u32 *pin_data, int npins);
 #else
-static inline int imx_pinctrl_scu_process_pins(struct imx_pinctrl_soc_info *info, u32 *pin_data, int npins)
+static inline int imx_pinctrl_scu_conf_pins(struct imx_pinctrl_soc_info *info,
+					    u32 *pin_data, int npins)
 {
 	return 0;
 }

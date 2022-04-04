@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
@@ -24,7 +25,6 @@
 
 			CPU_SLEEP: cpu-sleep {
 				compatible = "arm,idle-state";
-				local-timer-stop;
 				arm,psci-suspend-param = <0x0000000>;
 				entry-latency-us = <700>;
 				exit-latency-us = <250>;
@@ -33,7 +33,6 @@
 
 			CLUSTER_SLEEP: cluster-sleep {
 				compatible = "arm,idle-state";
-				local-timer-stop;
 				arm,psci-suspend-param = <0x1000000>;
 				entry-latency-us = <1000>;
 				exit-latency-us = <700>;

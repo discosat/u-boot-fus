@@ -40,7 +40,6 @@
 #define CONFIG_SPL_STACK		0x187FF0
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
 #define CONFIG_SPL_BSS_START_ADDR      0x00180000
 #define CONFIG_SPL_BSS_MAX_SIZE        0x2000	/* 8 KB */
@@ -123,7 +122,7 @@
 	"fdt_addr=0x43000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
 	"boot_fdt=try\0" \
-	"fdt_file=fsl-imx8mq-phanbell.dtb\0" \
+	"fdt_file=imx8mq-phanbell.dtb\0" \
 	"initrd_addr=0x43800000\0"		\
 	"initrd_high=0xffffffffffffffff\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
@@ -204,7 +203,6 @@
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define PHYS_SDRAM                      0x40000000
 #define PHYS_SDRAM_SIZE			0xC0000000
-#define CONFIG_NR_DRAM_BANKS		1
 
 #define CONFIG_BAUDRATE			115200
 
@@ -233,16 +231,10 @@
 #define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
-#define CONFIG_FSL_QSPI    /* enable the QUADSPI driver */
 #ifdef CONFIG_FSL_QSPI
-#define CONFIG_CMD_SF
-#define	CONFIG_SPI_FLASH
-#define	CONFIG_SPI_FLASH_STMICRO
-#define	CONFIG_SPI_FLASH_BAR
 #define	CONFIG_SF_DEFAULT_BUS		0
 #define	CONFIG_SF_DEFAULT_CS		0
 #define	CONFIG_SF_DEFAULT_SPEED		40000000
-#define	CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
 
 #define FSL_QSPI_FLASH_SIZE		(SZ_32M)
 #define FSL_QSPI_FLASH_NUM		1

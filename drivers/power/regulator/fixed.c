@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015 Samsung Electronics
- *  Copyright 2017 NXP
  *
  *  Przemyslaw Marczak <p.marczak@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -14,8 +12,6 @@
 #include <asm/gpio.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 struct fixed_regulator_platdata {
 	struct gpio_desc gpio; /* GPIO for regulator enable control */
@@ -55,8 +51,8 @@ static int fixed_regulator_ofdata_to_platdata(struct udevice *dev)
 	/* Get optional ramp up delay */
 	dev_pdata->startup_delay_us = dev_read_u32_default(dev,
 							"startup-delay-us", 0);
-	dev_pdata->off_on_delay_us = dev_read_u32_default(dev,
-						     "off-on-delay-us", 0);
+	dev_pdata->off_on_delay_us =
+			dev_read_u32_default(dev, "u-boot,off-on-delay-us", 0);
 
 	return 0;
 }
@@ -130,9 +126,8 @@ static int fixed_regulator_set_enable(struct udevice *dev, bool enable)
 		udelay(dev_pdata->startup_delay_us);
 	debug("%s: done\n", __func__);
 
-	if (!enable && dev_pdata->off_on_delay_us) {
+	if (!enable && dev_pdata->off_on_delay_us)
 		udelay(dev_pdata->off_on_delay_us);
-	}
 
 	return 0;
 }

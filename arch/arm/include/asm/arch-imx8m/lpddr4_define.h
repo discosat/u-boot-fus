@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __LPDDR4_DEFINE_H_
@@ -26,15 +25,10 @@
 #ifdef DDR_ONE_RANK
 #define LPDDR4_CS			0x1
 #else
-#define LPDDR4_CS 			0x3
+#define LPDDR4_CS			0x3
 #endif
 
 /* PHY training feature */
-#define LPDDR4_HDT_CTL_2D		0xC8
-#define LPDDR4_HDT_CTL_3200_1D		0xC8
-#define LPDDR4_HDT_CTL_400_1D		0xC8
-#define LPDDR4_HDT_CTL_100_1D		0xC8
-
 #define LPDDR4_HDT_CTL_2D		0xC8
 #define LPDDR4_HDT_CTL_3200_1D		0xC8
 #define LPDDR4_HDT_CTL_400_1D		0xC8
@@ -44,6 +38,8 @@
 #define LPDDR4_TRAIN_SEQ_P2		0x121f
 #define LPDDR4_TRAIN_SEQ_P1		0x121f
 #define LPDDR4_TRAIN_SEQ_P0		0x121f
+#define LPDDR4_TRAIN_SEQ_100		0x121f
+#define LPDDR4_TRAIN_SEQ_400		0x121f
 
 /* 2D share & weight */
 #define LPDDR4_2D_WEIGHT		0x1f7f
@@ -71,15 +67,15 @@
 #define LPDDR4_RON80			3
 
 #define LPDDR4_PHY_ADDR_RON60		0x1
-#define LPDDR4_PHY_ADDR_RON40   	0x3
-#define LPDDR4_PHY_ADDR_RON30   	0x7
-#define LPDDR4_PHY_ADDR_RON24   	0xf
-#define LPDDR4_PHY_ADDR_RON20   	0x1f
+#define LPDDR4_PHY_ADDR_RON40		0x3
+#define LPDDR4_PHY_ADDR_RON30		0x7
+#define LPDDR4_PHY_ADDR_RON24		0xf
+#define LPDDR4_PHY_ADDR_RON20		0x1f
 
 /* for read channel */
 #define LPDDR4_RON			LPDDR4_RON40
 #define LPDDR4_PHY_RTT			30
-#define LPDDR4_PHY_VREF_VALUE 		17
+#define LPDDR4_PHY_VREF_VALUE		17
 
 /* for write channel */
 #define LPDDR4_PHY_RON			30
@@ -91,8 +87,10 @@
 #define LPDDR4_VREF_VALUE_CA		((1 << 6) | (0xd))
 #define LPDDR4_VREF_VALUE_DQ_RANK0	((1 << 6) | (0xd))
 #define LPDDR4_VREF_VALUE_DQ_RANK1	((1 << 6) | (0xd))
-#define LPDDR4_MR22_RANK0		((0 << 5) | (0 << 4) | (0 << 3) | (LPDDR4_RTT40))
-#define LPDDR4_MR22_RANK1		((1 << 5) | (0 << 4) | (1 << 3) | (LPDDR4_RTT40))
+#define LPDDR4_MR22_RANK0		((0 << 5) | (1 << 4) | (0 << 3) | \
+					(LPDDR4_RTT40))
+#define LPDDR4_MR22_RANK1		((1 << 5) | (1 << 4) | (1 << 3) | \
+					(LPDDR4_RTT40))
 
 #define LPDDR4_MR3_PU_CAL		1
 

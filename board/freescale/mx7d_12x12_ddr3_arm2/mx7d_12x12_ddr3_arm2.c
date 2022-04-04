@@ -53,19 +53,9 @@ static void setup_iomux_uart(void)
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
 }
 
-#ifdef CONFIG_FSL_ESDHC
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 1;
-}
-
-int mmc_map_to_kernel_blk(int dev_no)
-{
-	return dev_no + 1;
-}
-#endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX7D_PAD_SD1_RESET_B__ECSPI4_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX7D_PAD_SD1_WP__ECSPI4_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -90,6 +80,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 	return (bus == 3 && cs == 0) ? (IMX_GPIO_NR(5, 3)) : -1;
 }
 #endif
+#endif
 
 int board_early_init_f(void)
 {
@@ -104,7 +95,9 @@ int board_init(void)
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
+#endif
 #endif
 
 	return 0;

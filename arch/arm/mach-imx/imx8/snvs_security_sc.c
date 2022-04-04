@@ -23,13 +23,9 @@
 #include <log.h>
 #include <stddef.h>
 #include <common.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <asm/arch-imx8/imx8-pins.h>
 #include <asm/arch-imx8/snvs_security_sc.h>
-#include <asm/global_data.h>
-
-/* Access to gd */
-DECLARE_GLOBAL_DATA_PTR;
 
 #define SC_WRITE_CONF 1
 
@@ -313,14 +309,13 @@ static sc_err_t check_write_secvio_config(u32 id, u32 *_p1, u32 *_p2,
 					  u32 _cnt)
 {
 	sc_err_t sciErr = 0;
-	sc_ipc_t ipc = gd->arch.ipc_channel_handle;
 	u32 d1 = ptr_value(_p1);
 	u32 d2 = ptr_value(_p2);
 	u32 d3 = ptr_value(_p3);
 	u32 d4 = ptr_value(_p4);
 	u32 d5 = ptr_value(_p5);
 
-	sciErr = sc_seco_secvio_config(ipc, id, SC_WRITE_CONF, &d1, &d2, &d3,
+	sciErr = sc_seco_secvio_config(-1, id, SC_WRITE_CONF, &d1, &d2, &d3,
 				       &d4, &d4, _cnt);
 	if (sciErr != SC_ERR_NONE) {
 		printf("Failed to set secvio configuration\n");
@@ -458,13 +453,17 @@ static int apply_snvs_config(struct snvs_security_sc_conf *cnf)
 		goto exit;
 
 	/* Lock access */
-	sciErr = SC_CHECK_WRITE1(SC_CONF_OFFSET_OF(hp.lock), &cnf->hp.lock);
-	if (sciErr != SC_ERR_NONE)
-		goto exit;
+	if (cnf->hp.lock) {
+		sciErr = SC_CHECK_WRITE1(SC_CONF_OFFSET_OF(hp.lock), &cnf->hp.lock);
+		if (sciErr != SC_ERR_NONE)
+			goto exit;
+	}
 
-	sciErr = SC_CHECK_WRITE1(SC_CONF_OFFSET_OF(lp.lock), &cnf->lp.lock);
-	if (sciErr != SC_ERR_NONE)
-		goto exit;
+	if (cnf->lp.lock) {
+		sciErr = SC_CHECK_WRITE1(SC_CONF_OFFSET_OF(lp.lock), &cnf->lp.lock);
+		if (sciErr != SC_ERR_NONE)
+			goto exit;
+	}
 
 exit:
 	return (sciErr == SC_ERR_NONE) ? 0 : -EIO;
@@ -472,8 +471,7 @@ exit:
 
 static sc_err_t dgo_write(u32 _id, u8 _access, u32 *_pdata)
 {
-	sc_ipc_t ipc = gd->arch.ipc_channel_handle;
-	sc_err_t sciErr = sc_seco_secvio_dgo_config(ipc, _id, _access, _pdata);
+	sc_err_t sciErr = sc_seco_secvio_dgo_config(-1, _id, _access, _pdata);
 
 	if (sciErr != SC_ERR_NONE) {
 		printf("Failed to set dgo configuration\n");
@@ -534,8 +532,7 @@ exit:
 
 static sc_err_t pad_write(u32 _pad, u32 _value)
 {
-	sc_ipc_t ipc = gd->arch.ipc_channel_handle;
-	sc_err_t sciErr = sc_pad_set(ipc, _pad, _value);
+	sc_err_t sciErr = sc_pad_set(-1, _pad, _value);
 
 	if (sciErr != SC_ERR_NONE) {
 		printf("Failed to set pad configuration\n");
@@ -830,7 +827,6 @@ static int do_snvs_sec_status(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	int sciErr;
 	u32 idx;
-	sc_ipc_t ipc = gd->arch.ipc_channel_handle;
 
 	u32 data[5];
 
@@ -902,7 +898,7 @@ static int do_snvs_sec_status(cmd_tbl_t *cmdtp, int flag, int argc,
 	for (idx = 0; idx < ARRAY_SIZE(pads); idx++) {
 		u8 pad_id = pads[idx];
 
-		sciErr = sc_pad_get(ipc, pad_id, &data[0]);
+		sciErr = sc_pad_get(-1, pad_id, &data[0]);
 		if (sciErr == 0)
 			printf("\t- Pin %d: %.8x\n", pad_id, data[0]);
 		else
@@ -914,7 +910,7 @@ static int do_snvs_sec_status(cmd_tbl_t *cmdtp, int flag, int argc,
 	for (idx = 0; idx < ARRAY_SIZE(fuses); idx++) {
 		u32 fuse_id = fuses[idx];
 
-		sciErr = sc_misc_otp_fuse_read(ipc, fuse_id, &data[0]);
+		sciErr = sc_misc_otp_fuse_read(-1, fuse_id, &data[0]);
 		if (sciErr == 0)
 			printf("\t- Fuse %d: %.8x\n", fuse_id, data[0]);
 		else
@@ -926,7 +922,7 @@ static int do_snvs_sec_status(cmd_tbl_t *cmdtp, int flag, int argc,
 	for (idx = 0; idx < ARRAY_SIZE(snvs); idx++) {
 		struct snvs_reg *reg = &snvs[idx];
 
-		sciErr = sc_seco_secvio_config(ipc, reg->id, 0, &data[0],
+		sciErr = sc_seco_secvio_config(-1, reg->id, 0, &data[0],
 					       &data[1], &data[2], &data[3],
 					       &data[4], reg->nb);
 		if (sciErr == 0) {
@@ -946,7 +942,7 @@ static int do_snvs_sec_status(cmd_tbl_t *cmdtp, int flag, int argc,
 	for (idx = 0; idx < ARRAY_SIZE(dgo); idx++) {
 		u8 dgo_id = dgo[idx];
 
-		sciErr = sc_seco_secvio_dgo_config(ipc, dgo_id, 0, &data[0]);
+		sciErr = sc_seco_secvio_dgo_config(-1, dgo_id, 0, &data[0]);
 		if (sciErr == 0)
 			printf("\t- DGO %.2x: %.8x\n", dgo_id, data[0]);
 		else

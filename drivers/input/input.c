@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Translate key codes into ASCII
  *
  * Copyright (c) 2011 The Chromium OS Authors.
  * (C) Copyright 2004 DENX Software Engineering, Wolfgang Denk, wd@denx.de
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -653,7 +652,7 @@ int input_stdio_register(struct stdio_dev *dev)
 	int error;
 
 	error = stdio_register(dev);
-
+#if !defined(CONFIG_SPL_BUILD) || CONFIG_IS_ENABLED(ENV_SUPPORT)
 	/* check if this is the standard input device */
 	if (!error && strcmp(env_get("stdin"), dev->name) == 0) {
 		/* reassign the console */
@@ -661,6 +660,9 @@ int input_stdio_register(struct stdio_dev *dev)
 				console_assign(stdin, dev->name))
 			return -1;
 	}
+#else
+	error = error;
+#endif
 
 	return 0;
 }

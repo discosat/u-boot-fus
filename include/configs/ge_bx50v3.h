@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Timesys Corporation
  * Copyright (C) 2015 General Electric Company
@@ -5,8 +6,6 @@
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  *
  * Configuration settings for the GE MX6Q Bx50v3 boards.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __GE_BX50V3_CONFIG_H
@@ -15,19 +14,7 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/mach-imx/gpio.h>
 
-#define BX50V3_BOOTARGS_EXTRA
-#if defined(CONFIG_TARGET_GE_B450V3)
-#define CONFIG_BOARD_NAME	"General Electric B450v3"
-#elif defined(CONFIG_TARGET_GE_B650V3)
-#define CONFIG_BOARD_NAME	"General Electric B650v3"
-#elif defined(CONFIG_TARGET_GE_B850V3)
-#define CONFIG_BOARD_NAME	"General Electric B850v3"
-#undef BX50V3_BOOTARGS_EXTRA
-#define BX50V3_BOOTARGS_EXTRA	"video=DP-1:1024x768@60 " \
-				"video=HDMI-A-1:1024x768@60 "
-#else
-#define CONFIG_BOARD_NAME	"General Electric BA16 Generic"
-#endif
+#define CONFIG_BOARD_NAME	"General Electric Bx50v3"
 
 #define CONFIG_MXC_UART_BASE	UART3_BASE
 #define CONSOLE_DEV	"ttymxc2"
@@ -44,11 +31,7 @@
 #define CONFIG_REVISION_TAG
 #define CONFIG_SYS_MALLOC_LEN		(10 * SZ_1M)
 
-#define CONFIG_HW_WATCHDOG
-#define CONFIG_IMX_WATCHDOG
 #define CONFIG_WATCHDOG_TIMEOUT_MSECS 6000
-
-#define CONFIG_LAST_STAGE_INIT
 
 #define CONFIG_MXC_UART
 
@@ -63,10 +46,8 @@
 #endif
 
 /* MMC Configs */
-#define CONFIG_FSL_ESDHC
 #define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR      0
-#define CONFIG_BOUNCE_BUFFER
 
 /* USB Configs */
 #ifdef CONFIG_USB
@@ -82,7 +63,6 @@
 /* Networking Configs */
 #ifdef CONFIG_NET
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RGMII
 #define CONFIG_ETHPRIME		"FEC"
@@ -91,22 +71,14 @@
 #endif
 
 /* Serial Flash */
-#ifdef CONFIG_CMD_SF
-#define CONFIG_SF_DEFAULT_BUS		0
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	20000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
-#endif
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
-#define CONFIG_CONS_INDEX	1
 
 #define CONFIG_LOADADDR	0x12000000
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"bootcause=POR\0" \
-	"bootlimit=10\0" \
 	"image=/boot/fitImage\0" \
 	"fdt_high=0xffffffff\0" \
 	"dev=mmc\0" \
@@ -118,7 +90,7 @@
 		"ro rootwait cma=128M " \
 		"bootcause=${bootcause} " \
 		"${quiet} console=${console} ${rtc_status} " \
-		BX50V3_BOOTARGS_EXTRA "\0" \
+		"${videoargs}" "\0" \
 	"doquiet=" \
 		"if ext2load ${dev} ${devnum}:5 0x7000A000 /boot/console; " \
 			"then setenv quiet; fi\0" \
@@ -128,6 +100,7 @@
 	"swappartitions=" \
 		"setexpr partnum 3 - ${partnum}\0" \
 	"failbootcmd=" \
+		"bx50_backlight_enable; " \
 		"msg=\"Monitor failed to start.  Try again, or contact GE Service for support.\"; " \
 		"echo $msg; " \
 		"setenv stdout vga; " \
@@ -184,7 +157,6 @@
 #define CONFIG_SYS_LOAD_ADDR           CONFIG_LOADADDR
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS           1
 #define PHYS_SDRAM                     MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE          PHYS_SDRAM
@@ -200,13 +172,6 @@
 #define CONFIG_ENV_SIZE		(8 * 1024)
 #define CONFIG_ENV_OFFSET		(768 * 1024)
 #define CONFIG_ENV_SECT_SIZE		(64 * 1024)
-#define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
-#define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
-#define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
-#define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-
-#ifndef CONFIG_SYS_DCACHE_OFF
-#endif
 
 #define CONFIG_SYS_FSL_USDHC_NUM	3
 

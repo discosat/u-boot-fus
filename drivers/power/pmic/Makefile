@@ -1,13 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # Copyright (C) 2012 Samsung Electronics
 # Lukasz Majewski <l.majewski@samsung.com>
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 obj-$(CONFIG_$(SPL_)DM_PMIC) += pmic-uclass.o
+obj-$(CONFIG_DM_PMIC_FAN53555) += fan53555.o
 obj-$(CONFIG_DM_PMIC_MAX77686) += max77686.o
 obj-$(CONFIG_DM_PMIC_MAX8998) += max8998.o
+obj-$(CONFIG_DM_PMIC_MC34708) += mc34708.o
 obj-$(CONFIG_$(SPL_)DM_PMIC_PFUZE100) += pfuze100.o
 obj-$(CONFIG_$(SPL_)DM_PMIC_BD71837) += bd71837.o
 obj-$(CONFIG_$(SPL_)DM_PMIC_PCA9450) += pca9450.o
@@ -25,13 +25,13 @@ obj-$(CONFIG_DM_PMIC_TPS65910) += pmic_tps65910_dm.o
 obj-$(CONFIG_$(SPL_)PMIC_PALMAS) += palmas.o
 obj-$(CONFIG_$(SPL_)PMIC_LP873X) += lp873x.o
 obj-$(CONFIG_$(SPL_)PMIC_LP87565) += lp87565.o
+obj-$(CONFIG_PMIC_STPMU1) += stpmu1.o
 
 obj-$(CONFIG_POWER_LTC3676) += pmic_ltc3676.o
 obj-$(CONFIG_POWER_MAX77696) += pmic_max77696.o
 obj-$(CONFIG_POWER_MAX8998) += pmic_max8998.o
 obj-$(CONFIG_POWER_MAX8997) += pmic_max8997.o
 obj-$(CONFIG_POWER_MUIC_MAX8997) += muic_max8997.o
-obj-$(CONFIG_POWER_MAX77686) += pmic_max77686.o
 obj-$(CONFIG_POWER_BD71837) += pmic_bd71837.o
 obj-$(CONFIG_POWER_PCA9450) += pmic_pca9450.o
 obj-$(CONFIG_POWER_PFUZE100) += pmic_pfuze100.o

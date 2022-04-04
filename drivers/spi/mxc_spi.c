@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2008, Guennadi Liakhovetski <lg@denx.de>
- *
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -64,7 +63,7 @@ static inline struct mxc_spi_slave *to_mxc_spi_slave(struct spi_slave *slave)
 static void mxc_spi_cs_activate(struct mxc_spi_slave *mxcs)
 {
 	if (CONFIG_IS_ENABLED(DM_SPI)) {
-		dm_gpio_set_value(&mxcs->ss, mxcs->ss_pol);
+		dm_gpio_set_value(&mxcs->ss, 0);
 	} else {
 		if (mxcs->gpio > 0)
 			gpio_set_value(mxcs->gpio, mxcs->ss_pol);
@@ -74,7 +73,7 @@ static void mxc_spi_cs_activate(struct mxc_spi_slave *mxcs)
 static void mxc_spi_cs_deactivate(struct mxc_spi_slave *mxcs)
 {
 	if (CONFIG_IS_ENABLED(DM_SPI)) {
-		dm_gpio_set_value(&mxcs->ss, !(mxcs->ss_pol));
+		dm_gpio_set_value(&mxcs->ss, 1);
 	} else {
 		if (mxcs->gpio > 0)
 			gpio_set_value(mxcs->gpio, !(mxcs->ss_pol));
@@ -404,10 +403,6 @@ int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	return mxc_spi_xfer_internal(mxcs, bitlen, dout, din, flags);
 }
 
-void spi_init(void)
-{
-}
-
 /*
  * Some SPI devices require active chip-select over multiple
  * transactions, we achieve this using a GPIO. Still, the SPI
@@ -519,7 +514,7 @@ static int mxc_spi_probe(struct udevice *bus)
 	if (plat->base == FDT_ADDR_T_NONE)
 		return -ENODEV;
 
-	ret = dm_gpio_set_value(&plat->ss, !(mxcs->ss_pol));
+	ret = dm_gpio_set_value(&plat->ss, 1);
 	if (ret) {
 		dev_err(bus, "Setting cs error\n");
 		return ret;

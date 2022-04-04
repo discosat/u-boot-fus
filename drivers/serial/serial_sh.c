@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * SuperH SCIF device driver.
  * Copyright (C) 2013  Renesas Electronics Corporation
  * Copyright (C) 2007,2008,2010, 2014 Nobuhiro Iwamatsu
  * Copyright (C) 2002 - 2008  Paul Mundt
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -248,7 +247,9 @@ U_BOOT_DRIVER(serial_sh) = {
 	.platdata_auto_alloc_size = sizeof(struct sh_serial_platdata),
 	.probe	= sh_serial_probe,
 	.ops	= &sh_serial_ops,
+#if !CONFIG_IS_ENABLED(OF_CONTROL)
 	.flags	= DM_FLAG_PRE_RELOC,
+#endif
 	.priv_auto_alloc_size = sizeof(struct uart_port),
 };
 
@@ -270,6 +271,8 @@ U_BOOT_DRIVER(serial_sh) = {
 # define SCIF_BASE	SCIF6_BASE
 #elif defined(CONFIG_CONS_SCIF7)
 # define SCIF_BASE	SCIF7_BASE
+#elif defined(CONFIG_CONS_SCIFA0)
+# define SCIF_BASE	SCIFA0_BASE
 #else
 # error "Default SCIF doesn't set....."
 #endif

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010-2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /* #define DEBUG */
@@ -15,6 +14,9 @@
 #include <memalign.h>
 #include <sata.h>
 #include <search.h>
+#ifdef CONFIG_DM_SCSI
+#include <scsi.h>
+#endif
 
 #if defined(CONFIG_ENV_SIZE_REDUND) || defined(CONFIG_ENV_OFFSET_REDUND)
 #error ENV REDUND not supported
@@ -23,8 +25,6 @@
 #if !defined(CONFIG_ENV_OFFSET) || !defined(CONFIG_ENV_SIZE)
 #error CONFIG_ENV_OFFSET or CONFIG_ENV_SIZE not defined
 #endif
-
-DECLARE_GLOBAL_DATA_PTR;
 
 __weak int sata_get_env_dev(void)
 {
@@ -51,12 +51,19 @@ static int env_sata_save(void)
 	struct blk_desc *sata = NULL;
 	int env_sata, ret;
 
+#ifndef CONFIG_DM_SCSI
 	if (sata_initialize())
 		return 1;
 
 	env_sata = sata_get_env_dev();
 
 	sata = sata_get_dev(env_sata);
+#else
+	scsi_scan(false);
+	env_sata = sata_get_env_dev();
+
+	sata = blk_get_dev("scsi", env_sata);
+#endif
 	if (sata == NULL) {
 		printf("Unknown SATA(%d) device for environment!\n",
 		       env_sata);
@@ -97,19 +104,27 @@ static int env_sata_load(void)
 	struct blk_desc *sata = NULL;
 	int env_sata;
 
+#ifndef CONFIG_DM_SCSI
 	if (sata_initialize())
 		return -EIO;
 
 	env_sata = sata_get_env_dev();
 
 	sata = sata_get_dev(env_sata);
+#else
+	scsi_scan(false);
+	env_sata = sata_get_env_dev();
+
+	sata = blk_get_dev("scsi", env_sata);
+#endif
+
 	if (sata == NULL) {
 		printf("Unknown SATA(%d) device for environment!\n", env_sata);
 		return -EIO;
 	}
 
 	if (read_env(sata, CONFIG_ENV_SIZE, env_get_offset(CONFIG_ENV_OFFSET), buf)) {
-		set_default_env(NULL);
+		set_default_env(NULL, 0);
 		return -EIO;
 	}
 

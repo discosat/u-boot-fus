@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) Copyright 2015 Google, Inc
- *
- * SPDX-License-Identifier:	GPL-2.0
  */
 
 #include <common.h>
 #include <bitfield.h>
 #include <clk-uclass.h>
+#include <div64.h>
 #include <dm.h>
 #include <dt-structs.h>
 #include <errno.h>
@@ -371,6 +371,50 @@ static int rockchip_vop_set_clk(struct rk3288_cru *cru, struct rk3288_grf *grf,
 	}
 
 	return 0;
+}
+
+static u32 rockchip_clk_gcd(u32 a, u32 b)
+{
+	while (b != 0) {
+		int r = b;
+
+		b = a % b;
+		a = r;
+	}
+	return a;
+}
+
+static ulong rockchip_i2s_get_clk(struct rk3288_cru *cru, uint gclk_rate)
+{
+	unsigned long long rate;
+	uint val;
+	int n, d;
+
+	val = readl(&cru->cru_clksel_con[8]);
+	n = (val & I2S0_FRAC_NUMER_MASK) >> I2S0_FRAC_NUMER_SHIFT;
+	d = (val & I2S0_FRAC_DENOM_MASK) >> I2S0_FRAC_DENOM_SHIFT;
+
+	rate = (unsigned long long)gclk_rate * n;
+	do_div(rate, d);
+
+	return (ulong)rate;
+}
+
+static ulong rockchip_i2s_set_clk(struct rk3288_cru *cru, uint gclk_rate,
+				  uint freq)
+{
+	int n, d;
+	int v;
+
+	/* set frac divider */
+	v = rockchip_clk_gcd(gclk_rate, freq);
+	n = gclk_rate / v;
+	d = freq / v;
+	assert(freq == gclk_rate / n * d);
+	writel(d << I2S0_FRAC_NUMER_SHIFT | n << I2S0_FRAC_DENOM_SHIFT,
+	       &cru->cru_clksel_con[8]);
+
+	return rockchip_i2s_get_clk(cru, gclk_rate);
 }
 #endif /* CONFIG_SPL_BUILD */
 
@@ -770,6 +814,9 @@ static ulong rk3288_clk_set_rate(struct clk *clk, ulong rate)
 		new_rate = rockchip_spi_set_clk(cru, gclk_rate, clk->id, rate);
 		break;
 #ifndef CONFIG_SPL_BUILD
+	case SCLK_I2S0:
+		new_rate = rockchip_i2s_set_clk(cru, gclk_rate, rate);
+		break;
 	case SCLK_MAC:
 		new_rate = rockchip_mac_set_clk(priv->cru, rate);
 		break;
@@ -893,12 +940,35 @@ static int __maybe_unused rk3288_clk_set_parent(struct clk *clk, struct clk *par
 	return -ENOENT;
 }
 
+static int rk3288_clk_enable(struct clk *clk)
+{
+	switch (clk->id) {
+	case HCLK_USBHOST0:
+	case HCLK_HSIC:
+		return 0;
+
+	case SCLK_MAC:
+	case SCLK_MAC_RX:
+	case SCLK_MAC_TX:
+	case SCLK_MACREF:
+	case SCLK_MACREF_OUT:
+	case ACLK_GMAC:
+	case PCLK_GMAC:
+		/* Required to successfully probe the Designware GMAC driver */
+		return 0;
+	}
+
+	debug("%s: unsupported clk %ld\n", __func__, clk->id);
+	return -ENOENT;
+}
+
 static struct clk_ops rk3288_clk_ops = {
 	.get_rate	= rk3288_clk_get_rate,
 	.set_rate	= rk3288_clk_set_rate,
 #if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 	.set_parent	= rk3288_clk_set_parent,
 #endif
+	.enable = rk3288_clk_enable,
 };
 
 static int rk3288_clk_ofdata_to_platdata(struct udevice *dev)
@@ -906,7 +976,7 @@ static int rk3288_clk_ofdata_to_platdata(struct udevice *dev)
 #if !CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct rk3288_clk_priv *priv = dev_get_priv(dev);
 
-	priv->cru = (struct rk3288_cru *)devfdt_get_addr(dev);
+	priv->cru = dev_read_addr_ptr(dev);
 #endif
 
 	return 0;

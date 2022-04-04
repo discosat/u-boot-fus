@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2004-2011
  * Texas Instruments, <www.ti.com>
@@ -8,8 +9,6 @@
  * Derived from Beagle Board and 3430 SDP code by
  *	Richard Woodruff <r-woodruff2@ti.com>
  *	Syed Mohammed Khasim <khasim@ti.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -40,18 +39,6 @@
 #define OMAP3EVM_GPIO_ETH_RST_GEN2 7
 
 DECLARE_GLOBAL_DATA_PTR;
-
-static const struct ns16550_platdata omap3_evm_serial = {
-	.base = OMAP34XX_UART1,
-	.reg_shift = 2,
-	.clock = V_NS16550_CLK,
-	.fcr = UART_FCR_DEFVAL,
-};
-
-U_BOOT_DEVICE(omap3_evm_uart) = {
-	"ns16550_serial",
-	&omap3_evm_serial
-};
 
 static u32 omap3_evm_version;
 

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2014
  * Dirk Eibach,  Guntermann & Drunck GmbH, dirk.eibach@gdsys.cc
  *
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -18,10 +17,6 @@
 #define CONFIG_MPC8308		1 /* MPC8308 CPU specific */
 #define CONFIG_HRCON		1 /* HRCON board specific */
 
-#define CONFIG_BOARD_EARLY_INIT_R
-#define CONFIG_LAST_STAGE_INIT
-
-#define CONFIG_FSL_ESDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR	CONFIG_SYS_MPC83xx_ESDHC_ADDR
 
 /*
@@ -207,8 +202,6 @@
  * FLASH on the Local Bus
  */
 #if 1
-#define CONFIG_SYS_FLASH_CFI		/* use the Common Flash Interface */
-#define CONFIG_FLASH_CFI_DRIVER		/* use the CFI driver */
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_FLASH_CFI_LEGACY
 #define CONFIG_SYS_FLASH_LEGACY_512Kx16
@@ -216,7 +209,6 @@
 
 #define CONFIG_SYS_FLASH_BASE		0xFE000000 /* FLASH base address */
 #define CONFIG_SYS_FLASH_SIZE		8 /* FLASH size is up to 8M */
-#define CONFIG_SYS_FLASH_PROTECTION	1 /* Use h/w Flash protection. */
 
 /* Window base at flash base */
 #define CONFIG_SYS_LBLAWBAR0_PRELIM	CONFIG_SYS_FLASH_BASE
@@ -277,7 +269,6 @@
 /*
  * Serial Port
  */
-#define CONFIG_CONS_INDEX	2
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	1
 #define CONFIG_SYS_NS16550_CLK		get_bus_freq(0)
@@ -470,14 +461,12 @@ void fpga_control_clear(unsigned int bus, int pin);
 /*
  * TSEC
  */
-#define CONFIG_TSEC_ENET	/* TSEC ethernet support */
 #define CONFIG_SYS_TSEC1_OFFSET	0x24000
 #define CONFIG_SYS_TSEC1	(CONFIG_SYS_IMMR+CONFIG_SYS_TSEC1_OFFSET)
 
 /*
  * TSEC ethernet configuration
  */
-#define CONFIG_MII		1 /* MII PHY management */
 #define CONFIG_TSEC1
 #define CONFIG_TSEC1_NAME	"eTSEC0"
 #define TSEC1_PHY_ADDR		1
@@ -584,7 +573,7 @@ void fpga_control_clear(unsigned int bus, int pin);
 #define CONFIG_LOADADDR	800000	/* default location for tftp and bootm */
 
 
-#define CONFIG_HOSTNAME		hrcon
+#define CONFIG_HOSTNAME		"hrcon"
 #define CONFIG_ROOTPATH		"/opt/nfsroot"
 #define CONFIG_BOOTFILE		"uImage"
 

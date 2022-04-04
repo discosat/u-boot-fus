@@ -194,16 +194,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[CONFIG_SYS_FSL_USDHC_NUM] = {
 #define USDHC2_PWR_GPIO	IMX_GPIO_NR(4, 27)
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(3, 22)
 
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno;
-}
-
 int board_mmc_getcd(struct mmc *mmc)
 {
 	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
@@ -342,6 +332,7 @@ int power_init_board(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX6_PAD_ECSPI1_SCLK__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX6_PAD_ECSPI1_MOSI__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -362,6 +353,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 11)) : -1;
 }
+#endif
 #endif
 
 #ifdef CONFIG_VIDEO_MXS
@@ -714,7 +706,9 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
+#endif
 #endif
 
 #ifdef	CONFIG_MXC_EPDC

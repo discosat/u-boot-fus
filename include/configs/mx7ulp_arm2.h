@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Configuration settings for the Freescale i.MX7ULP ARM2 board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __MX7ULP_ARM2_CONFIG_H
@@ -29,19 +29,13 @@
 #define CONFIG_CMD_FUSE
 #define CONFIG_MXC_OCOTP
 
-#define CONFIG_BOUNCE_BUFFER
-#define CONFIG_FSL_ESDHC
 #define CONFIG_FSL_USDHC
 #define CONFIG_SUPPORT_EMMC_BOOT /* eMMC specific */
 
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
-#ifndef CONFIG_DM_MMC
 #define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
-#else
-#define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC2 */
-#endif
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
@@ -53,7 +47,6 @@
 #define WDOG_BASE_ADDR		 WDG1_RBASE
 
 
-#define CONFIG_SYS_ARCH_TIMER
 #define CONFIG_SYS_HZ_CLOCK 1000000 /* Fixed at 1Mhz from TSTMR */
 
 #define CONFIG_INITRD_TAG
@@ -73,7 +66,6 @@
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
-#define CONFIG_CONS_INDEX		1
 #define CONFIG_BAUDRATE			115200
 
 #define CONFIG_SYS_CACHELINE_SIZE      64
@@ -86,10 +78,8 @@
 #define CONFIG_SYS_MAXARGS		256
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 
-#define CONFIG_SYS_TEXT_BASE        0x67800000
-#define PHYS_SDRAM			        0x60000000
+#define PHYS_SDRAM			0x60000000ul
 #ifdef CONFIG_TARGET_MX7ULP_10X10_ARM2
 #define PHYS_SDRAM_SIZE			    SZ_1G   /*LPDDR2 1G*/
 #define CONFIG_SYS_MEMTEST_END      0x9E000000
@@ -196,10 +186,6 @@
 /* QSPI configs */
 #ifdef CONFIG_FSL_QSPI
 #define CONFIG_SYS_FSL_QSPI_AHB
-#define CONFIG_SF_DEFAULT_BUS           0
-#define CONFIG_SF_DEFAULT_CS            0
-#define CONFIG_SF_DEFAULT_SPEED         40000000
-#define CONFIG_SF_DEFAULT_MODE          SPI_MODE_0
 #ifdef CONFIG_TARGET_MX7ULP_10X10_ARM2
 #define FSL_QSPI_FLASH_NUM              2
 #define FSL_QSPI_FLASH_SIZE             SZ_32M

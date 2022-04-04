@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale i.MX28 APBH DMA driver
  *
@@ -8,7 +9,6 @@
  * Copyright (C) 2010-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2017 NXP
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <linux/list.h>

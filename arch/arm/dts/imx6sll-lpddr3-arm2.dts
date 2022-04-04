@@ -104,6 +104,7 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+			u-boot,off-on-delay-us = <20000>;
 			enable-active-high;
 		};
 
@@ -121,6 +122,7 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+			u-boot,off-on-delay-us = <20000>;
 			enable-active-high;
 		};
 
@@ -225,6 +227,7 @@
 			sw4_reg: sw4 {
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
 			};
 
 			swbst_reg: swbst {
@@ -328,10 +331,10 @@
 
 			VCOM_reg: VCOM {
 				regulator-name = "VCOM";
-				/* 2's-compliment, -4325000 */
-				regulator-min-microvolt = <0xffbe0178>;
-				/* 2's-compliment, -500000 */
-				regulator-max-microvolt = <0xfff85ee0>;
+				/* Real max value: -500000 */
+				regulator-max-microvolt = <4325000>;
+				/* Real min value: -4325000 */
+				regulator-min-microvolt = <500000>;
 			};
 
 			VNEG_reg: VNEG {
@@ -723,10 +726,10 @@
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
 	lcd-supply = <&reg_lcd>;
-	display = <&display>;
+	display = <&display0>;
 	status = "okay";
 
-	display: display {
+	display0: display@0 {
 		bits-per-pixel = <16>;
 		bus-width = <24>;
 
@@ -832,7 +835,7 @@
 	#size-cells = <0>;
 
 	flash: m25p80@0 {
-		compatible = "st,m25p32";
+		compatible = "st,m25p32", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

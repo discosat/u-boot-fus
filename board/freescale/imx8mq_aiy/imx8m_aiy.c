@@ -191,10 +191,15 @@ int get_tee_load(ulong *load)
 }
 #endif
 
-int dram_init(void)
+int board_phys_sdram_size(phys_size_t *size)
 {
 	int baseboard_id;
-	uint32_t ddr_size = 0;
+
+	if (!size) {
+		printf("Invalid parameter!\n");
+		return -EINVAL;
+	}
+
 	/* different boards have different DDR type, distinguish the DDR
 	 * type by board id.
 	 */
@@ -202,29 +207,24 @@ int dram_init(void)
 	if ((baseboard_id == AIY_MICRON_1G) ||
 			(baseboard_id == AIY_HYNIX_1G)) {
 		/* 1G DDR size */
-		ddr_size = 0x40000000;
+		*size = 0x40000000;
 #ifndef CONFIG_AIY_LPDDR4_3G
 	} else if (baseboard_id == AIY_KINGSTON_2G) {
 		/* 2G DDR size */
-		ddr_size = 0x80000000;
+		*size = 0x80000000;
 #else
 	} else if (baseboard_id == AIY_MICRON_3G) {
 		/* 3G DDR size */
-		ddr_size = 0xc0000000;
+		*size = 0xc0000000;
 #endif
 	} else {
 		printf("ddr size not support!\n");
-		return -1;
+		return -EPERM;
 	}
-
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		gd->ram_size = ddr_size - rom_pointer[1];
-	else
-		gd->ram_size = ddr_size;
 
 	return 0;
 }
+
 
 #ifdef CONFIG_OF_BOARD_SETUP
 int ft_board_setup(void *blob, bd_t *bd)
@@ -259,7 +259,7 @@ static int setup_fec(void)
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
 	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
-			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
+			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT, 0);
 	return set_clk_enet(ENET_125MHZ);
 }
 
@@ -439,9 +439,9 @@ int board_late_init(void)
 	if ((baseboard_id == AIY_MICRON_1G) ||
 			(baseboard_id == AIY_HYNIX_1G)) {
 		/* 1G DDR size */
-		env_set("bootargs_ram_capacity", "cma=296M galcore.contiguousSize=33554432 androidboot.gui_resolution=720p");
+		env_set("bootargs_ram_capacity", "cma=296M galcore.contiguousSize=33554432 androidboot.displaymode=720p androidboot.lcd_density=160");
 	} else {
-		env_set("bootargs_ram_capacity", "cma=384M androidboot.gui_resolution=1080p");
+		env_set("bootargs_ram_capacity", "cma=384M androidboot.lcd_density=213");
 	}
 
 	return 0;

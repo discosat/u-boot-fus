@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * composite.c - infrastructure for Composite USB Gadgets
  *
  * Copyright (C) 2006-2008 David Brownell
  * U-Boot porting: Lukasz Majewski <l.majewski@samsung.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #undef DEBUG
 
@@ -13,6 +12,9 @@
 #include "u_os_desc.h"
 
 #define USB_BUFSIZ	4096
+
+/* Helper type for accessing packed u16 pointers */
+typedef struct { __le16 val; } __packed __le16_packed;
 
 static struct usb_composite_driver *composite;
 static struct usb_configuration *os_desc_config;
@@ -35,6 +37,11 @@ struct usb_os_string {
 	__u8	bMS_VendorCode;
 	__u8	bPad;
 } __packed;
+
+static inline void le16_add_cpu_packed(__le16_packed *var, u16 val)
+{
+	var->val = cpu_to_le16(le16_to_cpu(var->val) + val);
+}
 
 /**
  * usb_add_function() - add a function to a configuration
@@ -188,7 +195,7 @@ static int config_buf(struct usb_configuration *config,
 	int				len = USB_BUFSIZ - USB_DT_CONFIG_SIZE;
 	void				*next = buf + USB_DT_CONFIG_SIZE;
 	struct usb_descriptor_header    **descriptors;
-	struct usb_config_descriptor	*c = buf;
+	struct usb_config_descriptor	*c;
 	int				status;
 	struct usb_function		*f;
 
@@ -349,8 +356,8 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	 */
 	usb_ext = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
 	bos->bNumDeviceCaps++;
-	bos->wTotalLength = cpu_to_le16(le16_to_cpu(bos->wTotalLength) +
-					USB_DT_USB_EXT_CAP_SIZE);
+	le16_add_cpu_packed((__le16_packed *)&bos->wTotalLength,
+			    USB_DT_USB_EXT_CAP_SIZE);
 	usb_ext->bLength = USB_DT_USB_EXT_CAP_SIZE;
 	usb_ext->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
 	usb_ext->bDevCapabilityType = USB_CAP_TYPE_EXT;
@@ -365,8 +372,8 @@ static int bos_desc(struct usb_composite_dev *cdev)
 
 		ss_cap = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
 		bos->bNumDeviceCaps++;
-		bos->wTotalLength = cpu_to_le16(le16_to_cpu(bos->wTotalLength) +
-						USB_DT_USB_SS_CAP_SIZE);
+		le16_add_cpu_packed((__le16_packed *)&bos->wTotalLength,
+				    USB_DT_USB_SS_CAP_SIZE);
 		ss_cap->bLength = USB_DT_USB_SS_CAP_SIZE;
 		ss_cap->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
 		ss_cap->bDevCapabilityType = USB_SS_CAP_TYPE;
@@ -507,7 +514,7 @@ static int set_config(struct usb_composite_dev *cdev,
 			ep = (struct usb_endpoint_descriptor *)*descriptors;
 			addr = ((ep->bEndpointAddress & 0x80) >> 3)
 			     |	(ep->bEndpointAddress & 0x0f);
-			__set_bit(addr, f->endpoints);
+			generic_set_bit(addr, f->endpoints);
 		}
 
 		result = f->set_alt(f, tmp, 0);
@@ -626,20 +633,21 @@ done:
  * the host side.
  */
 
-static void collect_langs(struct usb_gadget_strings **sp, __le16 *buf)
+static void collect_langs(struct usb_gadget_strings **sp, void *buf)
 {
 	const struct usb_gadget_strings	*s;
 	u16				language;
-	__le16				*tmp;
+	__le16_packed			*tmp;
+	__le16_packed			*end = (buf + 252);
 
 	while (*sp) {
 		s = *sp;
 		language = cpu_to_le16(s->language);
-		for (tmp = buf; *tmp && tmp < &buf[126]; tmp++) {
-			if (*tmp == language)
+		for (tmp = buf; tmp->val && tmp < end; tmp++) {
+			if (tmp->val == language)
 				goto repeat;
 		}
-		*tmp++ = language;
+		tmp->val = language;
 repeat:
 		sp++;
 	}
@@ -1041,6 +1049,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		case USB_DT_DEVICE:
 			cdev->desc.bNumConfigurations =
 				count_configs(cdev, USB_DT_DEVICE);
+
 			cdev->desc.bMaxPacketSize0 =
 				cdev->gadget->ep0->maxpacket;
 			if (gadget->speed >= USB_SPEED_SUPER) {
@@ -1240,6 +1249,9 @@ unknown:
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
 
+		if (!cdev->config)
+			goto done;
+
 		/*
 		 * functions always handle their interfaces and endpoints...
 		 * punt other recipients (other, WUSB, ...) to the current
@@ -1284,7 +1296,7 @@ unknown:
 			value = f->setup(f, ctrl);
 		else {
 			c = cdev->config;
-			if (c && c->setup)
+			if (c->setup)
 				value = c->setup(c, ctrl);
 		}
 

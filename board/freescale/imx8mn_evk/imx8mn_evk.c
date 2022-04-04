@@ -45,62 +45,16 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 };
 
 #ifdef CONFIG_FSL_FSPI
-#define QSPI_PAD_CTRL	(PAD_CTL_DSE2 | PAD_CTL_HYS)
-static iomux_v3_cfg_t const qspi_pads[] = {
-	IMX8MN_PAD_NAND_ALE__QSPI_A_SCLK | MUX_PAD_CTRL(QSPI_PAD_CTRL | PAD_CTL_PE | PAD_CTL_PUE),
-	IMX8MN_PAD_NAND_CE0_B__QSPI_A_SS0_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MN_PAD_NAND_DQS__QSPI_A_DQS | MUX_PAD_CTRL(QSPI_PAD_CTRL) | MUX_MODE_SION,
-	IMX8MN_PAD_NAND_DATA00__QSPI_A_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MN_PAD_NAND_DATA01__QSPI_A_DATA1 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MN_PAD_NAND_DATA02__QSPI_A_DATA2 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MN_PAD_NAND_DATA03__QSPI_A_DATA3 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-};
-
 int board_qspi_init(void)
 {
-	imx_iomux_v3_setup_multiple_pads(qspi_pads, ARRAY_SIZE(qspi_pads));
-
 	set_clk_qspi();
 
 	return 0;
 }
 #endif
 
-#ifdef CONFIG_MXC_SPI
-#define SPI_PAD_CTRL	(PAD_CTL_DSE2 | PAD_CTL_HYS)
-static iomux_v3_cfg_t const ecspi1_pads[] = {
-	IMX8MN_PAD_ECSPI1_SCLK__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI1_MOSI__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI1_MISO__ECSPI1_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI1_SS0__GPIO5_IO9 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const ecspi2_pads[] = {
-	IMX8MN_PAD_ECSPI2_SCLK__ECSPI2_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI2_MOSI__ECSPI2_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI2_MISO__ECSPI2_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	IMX8MN_PAD_ECSPI2_SS0__GPIO5_IO13 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static void setup_spi(void)
-{
-	imx_iomux_v3_setup_multiple_pads(ecspi1_pads, ARRAY_SIZE(ecspi1_pads));
-	imx_iomux_v3_setup_multiple_pads(ecspi2_pads, ARRAY_SIZE(ecspi2_pads));
-	gpio_request(IMX_GPIO_NR(5, 9), "ECSPI1 CS");
-	gpio_request(IMX_GPIO_NR(5, 13), "ECSPI2 CS");
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	if (bus == 0)
-		return IMX_GPIO_NR(5, 9);
-	else
-		return IMX_GPIO_NR(5, 13);
-}
-#endif
-
 #ifdef CONFIG_NAND_MXS
+#ifdef CONFIG_SPL_BUILD
 #define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
 #define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
 static iomux_v3_cfg_t const gpmi_pads[] = {
@@ -120,10 +74,15 @@ static iomux_v3_cfg_t const gpmi_pads[] = {
 	IMX8MN_PAD_NAND_WE_B__RAWNAND_WE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 	IMX8MN_PAD_NAND_WP_B__RAWNAND_WP_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 };
+#endif
 
 static void setup_gpmi_nand(void)
 {
+#ifdef CONFIG_SPL_BUILD
 	imx_iomux_v3_setup_multiple_pads(gpmi_pads, ARRAY_SIZE(gpmi_pads));
+#endif
+
+	init_nand_clk();
 }
 #endif
 
@@ -137,38 +96,14 @@ int board_early_init_f(void)
 
 	imx_iomux_v3_setup_multiple_pads(uart_pads, ARRAY_SIZE(uart_pads));
 
+	init_uart_clk(1);
+
 #ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand(); /* SPL will call the board_early_init_f */
 #endif
 
 	return 0;
 }
-
-#ifdef CONFIG_BOARD_POSTCLK_INIT
-int board_postclk_init(void)
-{
-	/* TODO */
-	return 0;
-}
-#endif
-
-int dram_init(void)
-{
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		gd->ram_size = PHYS_SDRAM_SIZE - rom_pointer[1];
-	else
-		gd->ram_size = PHYS_SDRAM_SIZE;
-
-	return 0;
-}
-
-#ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_FEC_MXC
 #define FEC_RST_PAD IMX_GPIO_NR(4, 22)
@@ -189,13 +124,13 @@ static void setup_iomux_fec(void)
 
 static int setup_fec(void)
 {
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
-		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
+	struct iomuxc_gpr_base_regs *gpr =
+		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
 
 	setup_iomux_fec();
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
+	clrsetbits_le32(&gpr->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
 	return set_clk_enet(ENET_125MHZ);
 }
@@ -291,7 +226,7 @@ struct tcpc_port_config port2_config = {
 	.i2c_bus = 1, /*i2c2*/
 	.addr = 0x52,
 	.port_type = TYPEC_PORT_UFP,
-	.max_snk_mv = 5000,
+	.max_snk_mv = 9000,
 	.max_snk_ma = 3000,
 	.max_snk_mw = 40000,
 	.op_snk_mv = 9000,
@@ -397,10 +332,6 @@ int board_init(void)
 	setup_typec();
 #endif
 
-#ifdef CONFIG_MXC_SPI
-	setup_spi();
-#endif
-
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
 #endif
@@ -410,16 +341,6 @@ int board_init(void)
 #endif
 
 	return 0;
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 1;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno + 1;
 }
 
 #ifdef CONFIG_VIDEO_MXS

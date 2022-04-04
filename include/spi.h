@@ -1,14 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Common SPI Interface: Controller-specific definitions
  *
  * (C) Copyright 2001
  * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _SPI_H_
 #define _SPI_H_
+
+#include <common.h>
 
 /* SPI mode flags */
 #define SPI_CPHA	BIT(0)			/* clock phase */
@@ -115,13 +116,6 @@ struct spi_slave {
 #define SPI_XFER_MMAP		BIT(2)	/* Memory Mapped start */
 #define SPI_XFER_MMAP_END	BIT(3)	/* Memory Mapped End */
 };
-
-/**
- * Initialization, must be called once on start up.
- *
- * TODO: I don't think we really need this.
- */
-void spi_init(void);
 
 /**
  * spi_do_alloc_slave - Allocate a new SPI slave (internal)
@@ -402,6 +396,15 @@ struct dm_spi_ops {
 	 */
 	int (*xfer)(struct udevice *dev, unsigned int bitlen, const void *dout,
 		    void *din, unsigned long flags);
+
+	/**
+	 * Optimized handlers for SPI memory-like operations.
+	 *
+	 * Optimized/dedicated operations for interactions with SPI memory. This
+	 * field is optional and should only be implemented if the controller
+	 * has native support for memory like operations.
+	 */
+	const struct spi_controller_mem_ops *mem_ops;
 
 	/**
 	 * Set transfer speed.

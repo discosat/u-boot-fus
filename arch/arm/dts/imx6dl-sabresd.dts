@@ -1,10 +1,6 @@
-/*
- * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2013 Freescale Semiconductor, Inc.
 
 /dts-v1/;
 
@@ -106,10 +102,10 @@
 
                         VCOM_reg: VCOM {
                                 regulator-name = "VCOM";
-                                /* 2's-compliment, -4325000 */
-                                regulator-min-microvolt = <0xffbe0178>;
-                                /* 2's-compliment, -500000 */
-                                regulator-max-microvolt = <0xfff85ee0>;
+                                /* Real max: -500000 */
+                                regulator-max-microvolt = <4325000>;
+                                /* Real min: -4325000 */
+                                regulator-min-microvolt = <500000>;
                         };
 
                         VNEG_reg: VNEG {
@@ -127,6 +123,11 @@
                         };
                 };
         };
+};
+
+&ipu1_csi1_from_ipu1_csi1_mux {
+	clock-lanes = <0>;
+	data-lanes = <1 2>;
 };
 
 &ldb {

@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2014 Topic Embedded Products
  *
  * Configuration for Zynq Evaluation and Development Board - Miami
  * See zynq-common.h for Zynq common configs
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_TOPIC_MIAMI_H
@@ -43,19 +42,13 @@
 /* FPGA commands that we don't use */
 
 /* Extras */
-#define CONFIG_CMD_MEMTEST
 #undef CONFIG_SYS_MEMTEST_START
 #define CONFIG_SYS_MEMTEST_START	0
 #undef CONFIG_SYS_MEMTEST_END
 #define CONFIG_SYS_MEMTEST_END	0x18000000
 
 /* Faster flash, ours may run at 108 MHz */
-#undef CONFIG_SF_DEFAULT_SPEED
-#define CONFIG_SF_DEFAULT_SPEED	108000000
-#define CONFIG_SF_DEFAULT_MODE SPI_MODE_0
-#define CONFIG_ENV_SPI_MAX_HZ CONFIG_SF_DEFAULT_SPEED
 #undef CONFIG_SPI_FLASH_WINBOND
-#undef CONFIG_SPI_FLASH_ISSI
 
 /* Setup proper boot sequences for Miami boards */
 

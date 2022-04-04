@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Generated code from MX8M_DDR_tool
  * Align with uboot-imx_v2018.03_4.14.78_1.0.0_ga
  */
 
 #include <linux/kernel.h>
-#include <asm/arch/imx8m_ddr.h>
+#include <asm/arch/ddr.h>
 
 struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{0x3d400020, 0x00000213},

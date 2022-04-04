@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * epautoconf.c -- endpoint autoconfiguration for usb gadget drivers
  *
  * Copyright (C) 2004 David Brownell
- *
- * SPDX-License-Identifier:	GPL-2.0+
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * Ported to U-Boot by: Thomas Smits <ts.smits@gmail.com> and
  *                      Remy Bohmer <linux@bohmer.net>
@@ -146,6 +143,7 @@ static int ep_matches(
 	/* MATCH!! */
 
 	/* report address */
+	desc->bEndpointAddress &= 0xF0;
 	if (isdigit(ep->name[2])) {
 		u8	num = simple_strtoul(&ep->name[2], NULL, 10);
 		desc->bEndpointAddress |= num;

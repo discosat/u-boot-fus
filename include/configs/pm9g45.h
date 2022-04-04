@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2010
  * Ilko Iliev <iliev@ronetix.at>
@@ -9,8 +10,6 @@
  * Lead Tech Design <www.leadtechdesign.com>
  *
  * Configuation settings for the PM9G45 board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -66,13 +65,11 @@
 #define CONFIG_JFFS2_PART_SIZE		(256 * 1024 * 1024) /* partition */
 
 /* SDRAM */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			0x70000000
 #define PHYS_SDRAM_SIZE			0x08000000	/* 128 megs */
 
 /* NAND flash */
 #ifdef CONFIG_CMD_NAND
-#define CONFIG_NAND_ATMEL
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		0x40000000
 #define CONFIG_SYS_NAND_DBW_8		1

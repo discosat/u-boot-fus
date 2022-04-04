@@ -32,7 +32,6 @@
 #define CONFIG_SPL_STACK		0x187FF0
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
 #define CONFIG_SPL_GPIO_SUPPORT
 #define CONFIG_SPL_MMC_SUPPORT
 #define CONFIG_SPL_BSS_START_ADDR      0x00180000
@@ -66,23 +65,22 @@
 #define CONFIG_SPL_NAND_SUPPORT
 #define CONFIG_SPL_DMA_SUPPORT
 #define CONFIG_SPL_NAND_MXS
+#define CONFIG_SPL_NAND_BASE
+#define CONFIG_SPL_NAND_IDENT
 #define CONFIG_SYS_NAND_U_BOOT_OFFS 	0x4000000 /* Put the FIT out of first 64MB boot area */
 
 /* Set a redundant offset in nand FIT mtdpart. The new uuu will burn full boot image (not only FIT part) to the mtdpart, so we check both two offsets */
 #define CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND \
 	(CONFIG_SYS_NAND_U_BOOT_OFFS + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512 - 0x8400)
 #endif
+#define CONFIG_SPL_DMA_SUPPORT
 
 #endif /* CONFIG_SPL_BUILD*/
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_BOARD_LATE_INIT
-
-/* Flat Device Tree Definitions */
-#define CONFIG_OF_BOARD_SETUP
 
 #undef CONFIG_CMD_EXPORTENV
 #undef CONFIG_CMD_IMPORTENV
@@ -139,7 +137,7 @@
 	"fdt_high=0xffffffffffffffff\0" \
 	"mtdparts=" MFG_NAND_PARTITION "\0" \
 	"console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200\0" \
-	"bootargs=console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200 ubi.mtd=5 "  \
+	"bootargs=console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:rootfs rootfstype=ubifs "		     \
 		MFG_NAND_PARTITION \
 		"\0" \
@@ -245,12 +243,10 @@
 #define PHYS_SDRAM                      0x40000000
 #ifdef CONFIG_TARGET_IMX8MQ_DDR3L_ARM2
 #define PHYS_SDRAM_SIZE			0x80000000 /* 2GB DDR3L for two rank */
-#define CONFIG_NR_DRAM_BANKS		1
 #else
 #define PHYS_SDRAM_SIZE			0xc0000000 /* 3GB */
 #define PHYS_SDRAM_2				0x100000000
 #define PHYS_SDRAM_2_SIZE			0x40000000 /* 1GB */
-#define CONFIG_NR_DRAM_BANKS		2
 #endif
 
 
@@ -285,14 +281,6 @@
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_FSL_QSPI
-#define CONFIG_CMD_SF
-#define	CONFIG_SPI_FLASH
-#define	CONFIG_SPI_FLASH_GIGADEVICE
-#define	CONFIG_SF_DEFAULT_BUS		0
-#define	CONFIG_SF_DEFAULT_CS		1
-#define	CONFIG_SF_DEFAULT_SPEED		40000000
-#define	CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
-
 #define FSL_QSPI_FLASH_SIZE		(SZ_2M)
 #define FSL_QSPI_FLASH_NUM		2
 #endif
@@ -305,8 +293,7 @@
 /* I2C Configs */
 #define CONFIG_SYS_I2C_SPEED		  100000
 
-#ifdef CONFIG_CMD_NAND
-#define CONFIG_NAND_MXS
+#ifdef CONFIG_NAND_MXS
 #define CONFIG_CMD_NAND_TRIMFFS
 
 /* NAND stuff */
@@ -314,14 +301,9 @@
 #define CONFIG_SYS_NAND_BASE           0x20000000
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_ONFI_DETECTION
-
-/* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
 #ifdef CONFIG_CMD_UBI
-#define CONFIG_MTD_PARTITIONS
 #define CONFIG_MTD_DEVICE
 #endif
 

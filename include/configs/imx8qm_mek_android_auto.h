@@ -17,7 +17,7 @@
 #define NS_ARCH_ARM64 1
 #endif
 
-#define CONFIG_SKIP_RESOURCE_CHECING
+#define CONFIG_SKIP_RESOURCE_CHECKING
 /* USB OTG controller configs */
 #ifdef CONFIG_USB_EHCI_HCD
 #ifndef CONFIG_MXC_USB_PORTSC
@@ -37,30 +37,22 @@
 #define CONFIG_FASTBOOT_LOCK
 #define FSL_FASTBOOT_FB_DEV "mmc"
 
-#define KEYSLOT_HWPARTITION_ID   2
-#define KEYSLOT_BLKS             0x3FFF
+#define KEYSLOT_HWPARTITION_ID	2
+#define KEYSLOT_BLKS		0x3FFF
+
+#ifdef CONFIG_IMX_LOAD_HDMI_FIMRWARE
+#define IMX_HDMI_FIRMWARE_LOAD_ADDR (CONFIG_SYS_SDRAM_BASE + SZ_64M)
+#define IMX_HDMITX_FIRMWARE_SIZE 0x20000
+#define IMX_HDMIRX_FIRMWARE_SIZE 0x20000
+#endif
 
 #ifdef CONFIG_SYS_MALLOC_LEN
 #undef CONFIG_SYS_MALLOC_LEN
 #define CONFIG_SYS_MALLOC_LEN           (64 * SZ_1M)
 #endif
 
-#define CONFIG_USB_FUNCTION_FASTBOOT
-#define CONFIG_CMD_FASTBOOT
-
-#define CONFIG_ANDROID_BOOT_IMAGE
-#define CONFIG_FASTBOOT_FLASH
-
-#define CONFIG_FSL_FASTBOOT
 #define CONFIG_FASTBOOT_USB_DEV 1
 #define CONFIG_ANDROID_RECOVERY
-
-#if defined CONFIG_SYS_BOOT_SATA
-#define CONFIG_FASTBOOT_STORAGE_SATA
-#define CONFIG_FASTBOOT_SATA_NO 0
-#else
-#define CONFIG_FASTBOOT_STORAGE_MMC
-#endif
 
 #define CONFIG_CMD_BOOTA
 #define CONFIG_SUPPORT_RAW_INITRD
@@ -73,9 +65,6 @@
 	"splashpos=m,m\0"	  \
 	"fdt_high=0xffffffffffffffff\0"	  \
 	"initrd_high=0xffffffffffffffff\0" \
-
-#define CONFIG_FASTBOOT_BUF_ADDR   0x98000000
-#define CONFIG_FASTBOOT_BUF_SIZE   0x19000000
 
 /* Undefine some macros to save boot time */
 #undef CONFIG_FEC_MXC
@@ -98,13 +87,9 @@
 #undef CONFIG_PHYLIB
 #undef CONFIG_PHY_ATHEROS
 #undef CONFIG_CMD_FUSE
-#undef CONFIG_CMD_USB_MASS_STORAGE
 #undef CONFIG_USB_FUNCTION_MASS_STORAGE
+#undef CONFIG_CMD_USB_MASS_STORAGE
 #undef CONFIG_FAT_WRITE
-
-#if defined(CONFIG_XEN)
-#include "imx8qm_mek_android_auto_xen.h"
-#endif
 
 #ifdef CONFIG_IMX_TRUSTY_OS
 #define AVB_RPMB
@@ -116,6 +101,7 @@
 #define CONFIG_SYS_SPL_PTE_RAM_BASE 0x801F8000
 #endif
 #endif
+
 
 #ifdef CONFIG_SPL_BUILD
 #undef CONFIG_BLK

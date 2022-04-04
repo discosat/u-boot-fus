@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) Freescale Semiconductor, Inc. 2006.
  * Author: Jason Jin<Jason.jin@freescale.com>
  *         Zhang Wei<wei.zhang@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  *
  * with the reference on libata and ahci drvier in kernel
  *
@@ -26,16 +25,6 @@
 #include <ahci.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
-
-#ifdef CONFIG_SCSI_AHCI_PLAT
-#ifdef CONFIG_FSL_HSIO
-#define HW_PP2C		0xAC
-#define HW_PP3C		0xB0
-#define HW_PP4C		0xB4
-#define HW_PP5C		0xB8
-#define HW_PAXIC	0xC0
-#endif
-#endif
 
 static int ata_io_flush(struct ahci_uc_priv *uc_priv, u8 port);
 
@@ -202,16 +191,6 @@ static int ahci_host_init(struct ahci_uc_priv *uc_priv)
 
 	debug("ahci_host_init: start\n");
 
-#ifdef CONFIG_SCSI_AHCI_PLAT
-#ifdef CONFIG_FSL_HSIO
-	writel((1 << 28) | (1 << 24) | readl(mmio + HW_PAXIC), mmio + HW_PAXIC);
-	writel(0x2718461C, mmio + HW_PP2C);
-	writel(0x0D081907, mmio + HW_PP3C);
-	writel(0x06000815, mmio + HW_PP4C);
-	writel(0x800C96A4, mmio + HW_PP5C);
-#endif
-#endif
-
 	cap_save = readl(mmio + HOST_CAP);
 	cap_save &= ((1 << 28) | (1 << 17));
 	cap_save |= (1 << 27);  /* Staggered Spin-up. Not needed. */
@@ -251,8 +230,10 @@ static int ahci_host_init(struct ahci_uc_priv *uc_priv)
 	debug("cap 0x%x  port_map 0x%x  n_ports %d\n",
 	      uc_priv->cap, uc_priv->port_map, uc_priv->n_ports);
 
+#if !defined(CONFIG_DM_SCSI)
 	if (uc_priv->n_ports > CONFIG_SYS_SCSI_MAX_SCSI_ID)
 		uc_priv->n_ports = CONFIG_SYS_SCSI_MAX_SCSI_ID;
+#endif
 
 	for (i = 0; i < uc_priv->n_ports; i++) {
 		if (!(port_map & (1 << i)))
@@ -291,11 +272,6 @@ static int ahci_host_init(struct ahci_uc_priv *uc_priv)
 		ret = ahci_link_up(uc_priv, i);
 		if (ret) {
 			printf("SATA link %d timeout.\n", i);
-#ifdef CONFIG_SCSI_AHCI_PLAT
-#ifdef CONFIG_FSL_HSIO
-			return -ENODEV;
-#endif
-#endif
 			continue;
 		} else {
 			debug("SATA link ok.\n");
@@ -667,8 +643,8 @@ static int ahci_device_data_io(struct ahci_uc_priv *uc_priv, u8 port, u8 *fis,
 
 	debug("Enter %s: for port %d\n", __func__, port);
 
-	if (port > uc_priv->n_ports) {
-		printf("Invalid port number %d\n", port);
+	if (port >= uc_priv->n_ports) {
+		debug("Invalid port number %d\n", port);
 		return -1;
 	}
 
@@ -1006,7 +982,7 @@ static int ahci_start_ports(struct ahci_uc_priv *uc_priv)
 
 	linkmap = uc_priv->link_port_map;
 
-	for (i = 0; i < CONFIG_SYS_SCSI_MAX_SCSI_ID; i++) {
+	for (i = 0; i < uc_priv->n_ports; i++) {
 		if (((linkmap >> i) & 0x01)) {
 			if (ahci_port_start(uc_priv, (u8) i)) {
 				printf("Can not start port %d\n", i);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_sdp.c -- USB HID Serial Download Protocol
  *
@@ -13,8 +14,6 @@
  * SKIP_DCD_HEADER are only stubs.
  *
  * Parts of the implementation are based on f_dfu and f_thor.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <errno.h>
@@ -70,6 +69,8 @@ struct hid_report {
 
 #define SDP_COMMAND_LEN		16
 
+#define SDP_HID_PACKET_SIZE_EP1 1024
+
 struct sdp_command {
 	u16 cmd;
 	u32 addr;
@@ -81,8 +82,10 @@ struct sdp_command {
 
 enum sdp_state {
 	SDP_STATE_IDLE,
+	SDP_STATE_RX_CMD,
 	SDP_STATE_RX_DCD_DATA,
 	SDP_STATE_RX_FILE_DATA,
+	SDP_STATE_RX_FILE_DATA_BUSY,
 	SDP_STATE_TX_SEC_CONF,
 	SDP_STATE_TX_SEC_CONF_BUSY,
 	SDP_STATE_TX_REGISTER,
@@ -101,8 +104,8 @@ struct f_sdp {
 	enum sdp_state			state;
 	enum sdp_state			next_state;
 	u32				dnl_address;
+	u32				dnl_bytes;
 	u32				dnl_bytes_remaining;
-	u32				last_dnl_file_bytes;
 	u32				jmp_address;
 	bool				always_send_status;
 	u32				error_status;
@@ -113,8 +116,12 @@ struct f_sdp {
 	/* EP1 IN */
 	struct usb_ep			*in_ep;
 	struct usb_request		*in_req;
+	/* EP1 OUT */
+	struct usb_ep			*out_ep;
+	struct usb_request		*out_req;
 
 	bool				configuration_done;
+	bool				ep_int_enable;
 };
 
 static struct f_sdp *sdp_func;
@@ -128,7 +135,7 @@ static struct usb_interface_descriptor sdp_intf_runtime = {
 	.bLength =		sizeof(sdp_intf_runtime),
 	.bDescriptorType =	USB_DT_INTERFACE,
 	.bAlternateSetting =	0,
-	.bNumEndpoints =	1,
+	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_HID,
 	.bInterfaceSubClass =	0,
 	.bInterfaceProtocol =	0,
@@ -158,6 +165,16 @@ static struct usb_endpoint_descriptor in_desc = {
 	.bInterval =		1,
 };
 
+static struct usb_endpoint_descriptor out_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT, /*USB_DT_CS_ENDPOINT*/
+
+	.bEndpointAddress =	1 | USB_DIR_OUT,
+	.bmAttributes =		USB_ENDPOINT_XFER_INT,
+	.wMaxPacketSize =	64,
+	.bInterval =		1,
+};
+
 static struct usb_endpoint_descriptor in_hs_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT, /*USB_DT_CS_ENDPOINT*/
@@ -165,13 +182,24 @@ static struct usb_endpoint_descriptor in_hs_desc = {
 	.bEndpointAddress =	1 | USB_DIR_IN,
 	.bmAttributes =	USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	512,
-	.bInterval =		1,
+	.bInterval =		3,
+};
+
+static struct usb_endpoint_descriptor out_hs_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT, /*USB_DT_CS_ENDPOINT*/
+
+	.bEndpointAddress =	1 | USB_DIR_OUT,
+	.bmAttributes =		USB_ENDPOINT_XFER_INT,
+	.wMaxPacketSize =	SDP_HID_PACKET_SIZE_EP1,
+	.bInterval =		3,
 };
 
 static struct usb_descriptor_header *sdp_runtime_descs[] = {
 	(struct usb_descriptor_header *)&sdp_intf_runtime,
 	(struct usb_descriptor_header *)&sdp_hid_desc,
 	(struct usb_descriptor_header *)&in_desc,
+	(struct usb_descriptor_header *)&out_desc,
 	NULL,
 };
 
@@ -179,6 +207,7 @@ static struct usb_descriptor_header *sdp_runtime_hs_descs[] = {
 	(struct usb_descriptor_header *)&sdp_intf_runtime,
 	(struct usb_descriptor_header *)&sdp_hid_desc,
 	(struct usb_descriptor_header *)&in_hs_desc,
+	(struct usb_descriptor_header *)&out_hs_desc,
 	NULL,
 };
 
@@ -307,7 +336,7 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->state = SDP_STATE_RX_FILE_DATA;
 		sdp->dnl_address = cmd->addr ? be32_to_cpu(cmd->addr) : CONFIG_SDP_LOADADDR;
 		sdp->dnl_bytes_remaining = be32_to_cpu(cmd->cnt);
-		sdp->last_dnl_file_bytes = sdp->dnl_bytes_remaining;
+		sdp->dnl_bytes = sdp->dnl_bytes_remaining;
 		sdp->next_state = SDP_STATE_IDLE;
 
 		printf("Downloading file of size %d to 0x%08x... ",
@@ -356,7 +385,7 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 	int status = req->status;
 	u8 *data = req->buf;
 	u8 report = data[0];
-	int datalen = req->length - 1;
+	int datalen = req->actual - 1;
 
 	if (status != 0) {
 		pr_err("Status: %d\n", status);
@@ -379,18 +408,23 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 		sdp->dnl_bytes_remaining -= datalen;
 	}
 
-	if (sdp->state == SDP_STATE_RX_FILE_DATA) {
+	if (sdp->state == SDP_STATE_RX_FILE_DATA_BUSY) {
 		memcpy(sdp_ptr(sdp->dnl_address), req->buf + 1, datalen);
 		sdp->dnl_address += datalen;
 	}
 
-	if (sdp->dnl_bytes_remaining)
+	if (sdp->dnl_bytes_remaining) {
+		sdp->state = SDP_STATE_RX_FILE_DATA;
 		return;
+	}
 
+#ifndef CONFIG_SPL_BUILD
+	env_set_hex("filesize", sdp->dnl_bytes);
+#endif
 	printf("done\n");
 
 	switch (sdp->state) {
-	case SDP_STATE_RX_FILE_DATA:
+	case SDP_STATE_RX_FILE_DATA_BUSY:
 		sdp->state = SDP_STATE_TX_SEC_CONF;
 		break;
 	case SDP_STATE_RX_DCD_DATA:
@@ -471,10 +505,12 @@ static int sdp_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 			case 1:
 				value = SDP_COMMAND_LEN + 1;
 				req->complete = sdp_rx_command_complete;
+				sdp_func->ep_int_enable = false;
 				break;
 			case 2:
 				value = len;
 				req->complete = sdp_rx_data_complete;
+				sdp_func->state = SDP_STATE_RX_FILE_DATA_BUSY;
 				break;
 			}
 		}
@@ -505,11 +541,17 @@ static int sdp_bind(struct usb_configuration *c, struct usb_function *f)
 		return id;
 	sdp_intf_runtime.bInterfaceNumber = id;
 
-	struct usb_ep *ep;
+	struct usb_ep *ep_in, *ep_out;
 
 	/* allocate instance-specific endpoints */
-	ep = usb_ep_autoconfig(gadget, &in_desc);
-	if (!ep) {
+	ep_in = usb_ep_autoconfig(gadget, &in_desc);
+	if (!ep_in) {
+		rv = -ENODEV;
+		goto error;
+	}
+
+	ep_out = usb_ep_autoconfig(gadget, &out_desc);
+	if (!ep_out) {
 		rv = -ENODEV;
 		goto error;
 	}
@@ -517,9 +559,11 @@ static int sdp_bind(struct usb_configuration *c, struct usb_function *f)
 	if (gadget_is_dualspeed(gadget)) {
 		/* Assume endpoint addresses are the same for both speeds */
 		in_hs_desc.bEndpointAddress = in_desc.bEndpointAddress;
+		out_hs_desc.bEndpointAddress = out_desc.bEndpointAddress;
 	}
 
-	sdp->in_ep = ep; /* Store IN EP for enabling @ setup */
+	sdp->in_ep = ep_in; /* Store IN EP for enabling @ setup */
+	sdp->out_ep = ep_out;
 
 	cdev->req->context = sdp;
 
@@ -552,18 +596,29 @@ static struct usb_request *alloc_ep_req(struct usb_ep *ep, unsigned length)
 }
 
 
-static struct usb_request *sdp_start_ep(struct usb_ep *ep)
+static struct usb_request *sdp_start_ep(struct usb_ep *ep, bool in)
 {
 	struct usb_request *req;
 
-	req = alloc_ep_req(ep, 65);
+	if (in)
+		req = alloc_ep_req(ep, 65);
+	else
+		req = alloc_ep_req(ep, 2048);
+/*
+ * OUT endpoint request length should be an integral multiple of
+ * maxpacket size 1024, else we break on certain controllers like
+ * DWC3 that expect bulk OUT requests to be divisible by maxpacket size.
+ */
 	debug("%s: ep:%p req:%p\n", __func__, ep, req);
 
 	if (!req)
 		return NULL;
 
 	memset(req->buf, 0, req->length);
-	req->complete = sdp_tx_complete;
+	if (in)
+		req->complete = sdp_tx_complete;
+	else
+		req->complete = sdp_rx_command_complete;
 
 	return req;
 }
@@ -576,19 +631,27 @@ static int sdp_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	debug("%s: intf: %d alt: %d\n", __func__, intf, alt);
 
-	if (gadget_is_dualspeed(gadget) && gadget->speed == USB_SPEED_HIGH)
+	if (gadget_is_dualspeed(gadget) && gadget->speed == USB_SPEED_HIGH) {
 		result = usb_ep_enable(sdp->in_ep, &in_hs_desc);
-	else
+		result |= usb_ep_enable(sdp->out_ep, &out_hs_desc);
+	} else {
 		result = usb_ep_enable(sdp->in_ep, &in_desc);
+		result |= usb_ep_enable(sdp->out_ep, &out_desc);
+	}
 	if (result)
 		return result;
-	sdp->in_req = sdp_start_ep(sdp->in_ep);
+
+	sdp->in_req = sdp_start_ep(sdp->in_ep, true);
 	sdp->in_req->context = sdp;
+	sdp->out_req = sdp_start_ep(sdp->out_ep, false);
+	sdp->out_req->context = sdp;
 
 	sdp->in_ep->driver_data = cdev; /* claim */
+	sdp->out_ep->driver_data = cdev; /* claim */
 
 	sdp->altsetting = alt;
 	sdp->state = SDP_STATE_IDLE;
+	sdp->ep_int_enable = true;
 
 	return 0;
 }
@@ -605,10 +668,17 @@ static void sdp_disable(struct usb_function *f)
 	struct f_sdp *sdp = func_to_sdp(f);
 
 	usb_ep_disable(sdp->in_ep);
+	usb_ep_disable(sdp->out_ep);
 
 	if (sdp->in_req) {
-		free(sdp->in_req);
+		free(sdp->in_req->buf);
+		usb_ep_free_request(sdp->in_ep, sdp->in_req);
 		sdp->in_req = NULL;
+	}
+	if (sdp->out_req) {
+		free(sdp->out_req->buf);
+		usb_ep_free_request(sdp->out_ep, sdp->out_req);
+		sdp->out_req = NULL;
 	}
 }
 
@@ -767,11 +837,11 @@ static void sdp_handle_in_ep(void)
 
 #ifdef CONFIG_PARSE_CONTAINER
 			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
-				sdp_func->last_dnl_file_bytes);
+				sdp_func->dnl_bytes);
 #else
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
 				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
-					sdp_func->last_dnl_file_bytes);
+					sdp_func->dnl_bytes);
 #endif
 			if (sdp_func->jmp_address == 0) {
 				panic("Error in search header, failed to jump\n");
@@ -828,6 +898,27 @@ static void sdp_handle_in_ep(void)
 	};
 }
 
+static void sdp_handle_out_ep(void)
+{
+	int rc;
+
+	if (sdp_func->state == SDP_STATE_IDLE) {
+		sdp_func->out_req->complete = sdp_rx_command_complete;
+		rc = usb_ep_queue(sdp_func->out_ep, sdp_func->out_req, 0);
+		if (rc)
+			printf("error in submission: %s\n",
+			       sdp_func->out_ep->name);
+		sdp_func->state = SDP_STATE_RX_CMD;
+	} else if (sdp_func->state == SDP_STATE_RX_FILE_DATA) {
+		sdp_func->out_req->complete = sdp_rx_data_complete;
+		rc = usb_ep_queue(sdp_func->out_ep, sdp_func->out_req, 0);
+		if (rc)
+			printf("error in submission: %s\n",
+			       sdp_func->out_ep->name);
+		sdp_func->state = SDP_STATE_RX_FILE_DATA_BUSY;
+	}
+}
+
 void sdp_handle(int controller_index)
 {
 	printf("SDP: handle requests...\n");
@@ -841,6 +932,8 @@ void sdp_handle(int controller_index)
 		usb_gadget_handle_interrupts(controller_index);
 
 		sdp_handle_in_ep();
+		if (sdp_func->ep_int_enable)
+			sdp_handle_out_ep();
 	}
 }
 

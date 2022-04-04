@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
  * (C) Copyright 2009 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -678,7 +677,7 @@ int arch_cpu_init(void)
 
 __weak int board_mmc_get_env_dev(int devno)
 {
-	return CONFIG_SYS_MMC_ENV_DEV;
+	return devno;
 }
 
 static int mmc_get_boot_dev(void)
@@ -855,8 +854,10 @@ void set_wdog_reset(struct wdog_regs *wdog)
 
 void reset_misc(void)
 {
+#ifndef CONFIG_SPL_BUILD
 #ifdef CONFIG_VIDEO_MXS
 	lcdif_power_down();
+#endif
 #endif
 }
 
@@ -959,6 +960,35 @@ void imx_setup_hdmi(void)
 	}
 }
 #endif
+
+/*
+ * gpr_init() function is common for boards using MX6S, MX6DL, MX6D,
+ * MX6Q and MX6QP processors
+ */
+void gpr_init(void)
+{
+	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
+
+	/*
+	 * If this function is used in a common MX6 spl implementation
+	 * we have to ensure that it is only called for suitable cpu types,
+	 * otherwise it breaks hardware parts like enet1, can1, can2, etc.
+	 */
+	if (!is_mx6dqp() && !is_mx6dq() && !is_mx6sdl())
+		return;
+
+	/* enable AXI cache for VDOA/VPU/IPU */
+	writel(0xF00000CF, &iomux->gpr[4]);
+	if (is_mx6dqp()) {
+		/* set IPU AXI-id1 Qos=0x1 AXI-id0/2/3 Qos=0x7 */
+		writel(0x77177717, &iomux->gpr[6]);
+		writel(0x77177717, &iomux->gpr[7]);
+	} else {
+		/* set IPU AXI-id0 Qos=0xf(bypass) AXI-id1 Qos=0x7 */
+		writel(0x007F007F, &iomux->gpr[6]);
+		writel(0x007F007F, &iomux->gpr[7]);
+	}
+}
 
 #ifdef CONFIG_LDO_BYPASS_CHECK
 DECLARE_GLOBAL_DATA_PTR;
@@ -1078,20 +1108,3 @@ void finish_anatop_bypass(void)
 		set_arm_freq_400M(false);
 }
 #endif
-
-void gpr_init(void)
-{
-	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
-
-	/* enable AXI cache for VDOA/VPU/IPU */
-	writel(0xF00000CF, &iomux->gpr[4]);
-	if (is_mx6dqp()) {
-		/* set IPU AXI-id1 Qos=0x1 AXI-id0/2/3 Qos=0x7 */
-		writel(0x77177717, &iomux->gpr[6]);
-		writel(0x77177717, &iomux->gpr[7]);
-	} else {
-		/* set IPU AXI-id0 Qos=0xf(bypass) AXI-id1 Qos=0x7 */
-		writel(0x007F007F, &iomux->gpr[6]);
-		writel(0x007F007F, &iomux->gpr[7]);
-	}
-}

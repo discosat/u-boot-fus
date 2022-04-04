@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 
 struct smmu_sid {
 	sc_rsrc_t rsrc;
@@ -11,4 +11,4 @@ struct smmu_sid {
 	char dev_name[32];
 };
 
-sc_err_t imx8_config_smmu_sid(struct smmu_sid *dev_sids, int size);
+int imx8_config_smmu_sid(struct smmu_sid *dev_sids, int size);

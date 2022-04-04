@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2012, The Chromium Authors
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #define DEBUG
 
 #include <common.h>
-#if defined(CONFIG_EFI_LOADER) && \
-	!defined(CONFIG_SPL_BUILD) && !defined(API_BUILD)
+#if CONFIG_IS_ENABLED(EFI_LOADER) && !defined(API_BUILD)
 #include <efi_api.h>
 #endif
 #include <display_options.h>
@@ -20,8 +18,7 @@
 /* Test efi_loader specific printing */
 static void efi_ut_print(void)
 {
-#if defined(CONFIG_EFI_LOADER) && \
-    !defined(CONFIG_SPL_BUILD) && !defined(API_BUILD)
+#if CONFIG_IS_ENABLED(EFI_LOADER) && !defined(API_BUILD)
 	char str[10];
 	u8 buf[sizeof(struct efi_device_path_sd_mmc_path) +
 	       sizeof(struct efi_device_path)];

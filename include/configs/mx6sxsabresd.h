@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
  *
  * Configuration settings for the Freescale i.MX6SX Sabresd board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -67,14 +66,12 @@
 #define UPDATE_M4_ENV ""
 #endif /* CONFIG_IMX_BOOTAUX */
 
-#define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
-
 #define CONFIG_MFG_ENV_SETTINGS \
     CONFIG_MFG_ENV_SETTINGS_DEFAULT \
 	"initrd_addr=0x86800000\0" \
 	"initrd_high=0xffffffff\0" \
-    "emmc_dev=2\0"\
-    "sd_dev=1\0" \
+    "emmc_dev=3\0"\
+    "sd_dev=3\0" \
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
@@ -177,7 +174,6 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x10000)
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
@@ -215,7 +211,6 @@
 
 /* Network */
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 
 #define CONFIG_FEC_ENET_DEV 0
 
@@ -252,8 +247,10 @@
 #ifdef CONFIG_CMD_PCI
 #define CONFIG_PCI_SCAN_SHOW
 #define CONFIG_PCIE_IMX
+#ifndef CONFIG_DM_PCI
 #define CONFIG_PCIE_IMX_PERST_GPIO	IMX_GPIO_NR(2, 0)
 #define CONFIG_PCIE_IMX_POWER_GPIO	IMX_GPIO_NR(2, 1)
+#endif
 #endif
 
 #define CONFIG_IMX_THERMAL
@@ -266,10 +263,6 @@
 #define FSL_QSPI_FLASH_SIZE		SZ_32M
 #endif
 #define FSL_QSPI_FLASH_NUM		2
-#define CONFIG_SF_DEFAULT_BUS		1
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	40000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
 #endif
 
 #ifndef CONFIG_SPL_BUILD
@@ -301,7 +294,7 @@
 
 #define CONFIG_SYS_FSL_USDHC_NUM	3
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* USDHC4 */
-#define CONFIG_SYS_MMC_ENV_DEV		2  /*USDHC4*/
+#define CONFIG_SYS_MMC_ENV_DEV		3  /*USDHC4*/
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
 #if defined(CONFIG_ANDROID_SUPPORT)

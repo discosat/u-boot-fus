@@ -15,6 +15,10 @@
 	model = "Freescale i.MX6 ULL 9x9 EVK Board";
 	compatible = "fsl,imx6ull-9x9-evk", "fsl,imx6ull";
 
+	aliases {
+		spi5 = &soft_spi;
+	};
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 5000000>;
@@ -81,6 +85,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			u-boot,off-on-delay-us = <20000>;
 			enable-active-high;
 		};
 	};
@@ -122,7 +127,7 @@
 			"CPU-Capture", "Capture";
 	};
 
-	spi4 {
+	soft_spi: soft-spi {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_spi4>;
@@ -171,9 +176,17 @@
 		396000	1175000
 		198000	1175000
 	>;
-	arm-supply = <&sw1c_reg>;
-	soc-supply = <&sw1c_reg>;
 	fsl,arm-soc-shared = <1>;
+};
+
+&reg_arm {
+	vin-supply = <&sw1c_reg>;
+	regulator-allow-bypass;
+};
+
+&reg_soc {
+	vin-supply = <&sw1c_reg>;
+	regulator-allow-bypass;
 };
 
 &csi {
@@ -232,11 +245,10 @@
 };
 
 &gpc {
-	fsl,cpu_pupscr_sw2iso = <0x1>;
+	fsl,cpu_pupscr_sw2iso = <0xf>;
 	fsl,cpu_pupscr_sw = <0x0>;
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
-	fsl,wdog-reset = <1>; /* watchdog select of reset source */
 	fsl,ldo-bypass = <1>;
 };
 
@@ -742,7 +754,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <0>;
@@ -828,5 +840,5 @@
 &wdog1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog>;
-	fsl,wdog_b;
+	fsl,ext-reset-output;
 };

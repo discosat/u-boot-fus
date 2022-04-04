@@ -1,9 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # Copyright 2000-2008
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_DWAPB_GPIO)	+= dwapb_gpio.o
@@ -60,3 +58,5 @@ obj-$(CONFIG_MVEBU_GPIO)	+= mvebu_gpio.o
 obj-$(CONFIG_MSM_GPIO)		+= msm_gpio.o
 obj-$(CONFIG_$(SPL_)PCF8575_GPIO)	+= pcf8575_gpio.o
 obj-$(CONFIG_PM8916_GPIO)	+= pm8916_gpio.o
+obj-$(CONFIG_MT7621_GPIO)	+= mt7621_gpio.o
+obj-$(CONFIG_MSCC_SGPIO)	+= mscc_sgpio.o

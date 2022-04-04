@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef __ASM_ARCH_IMX8_GPIO_H
@@ -17,6 +16,6 @@ struct gpio_regs {
 #endif
 
 /* IMX8 the GPIO index is from 0 not 1 */
-#define IMX_GPIO_NR(port, index)		(((port)*32)+((index)&31))
+#define IMX_GPIO_NR(port, index)		(((port) * 32) + ((index) & 31))
 
 #endif /* __ASM_ARCH_IMX8_GPIO_H */

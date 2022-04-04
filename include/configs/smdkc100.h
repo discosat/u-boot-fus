@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2009 Samsung Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
@@ -5,8 +6,6 @@
  * Inki Dae <inki.dae@samsung.com>
  *
  * Configuation settings for the SAMSUNG SMDKC100 board.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -45,16 +44,12 @@
 /*
  * select serial console configuration
  */
-#define CONFIG_SERIAL0			1	/* use SERIAL 0 on SMDKC100 */
 
 /* PWM */
 #define CONFIG_PWM			1
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
-
-#define CONFIG_MTD_DEVICE
-#define CONFIG_MTD_PARTITIONS
 
 #define CONFIG_BOOTCOMMAND	"run ubifsboot"
 
@@ -122,7 +117,6 @@
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_SYS_SDRAM_BASE
 
 /* SMDKC100 has 1 banks of DRAM, we use only one in U-Boot */
-#define CONFIG_NR_DRAM_BANKS	1
 #define PHYS_SDRAM_1		CONFIG_SYS_SDRAM_BASE	/* SDRAM Bank #1 */
 #define PHYS_SDRAM_1_SIZE	(128 << 20)	/* 0x8000000, 128 MB Bank #1 */
 

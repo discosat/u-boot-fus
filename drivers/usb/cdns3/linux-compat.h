@@ -8,7 +8,6 @@
 #ifndef __CDNS3_LINUX_COMPAT__
 #define __CDNS3_LINUX_COMPAT__
 
-#define WARN(val, format, arg...)	debug(format, ##arg)
 #define dev_WARN(dev, format, arg...)	debug(format, ##arg)
 
 static inline void *devm_kzalloc(struct device *dev, unsigned int size,

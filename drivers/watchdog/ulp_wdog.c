@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -33,14 +32,14 @@ struct wdog_regs {
 #define WDGCS1_WDGE                      (1<<7)
 #define WDGCS1_WDGUPDATE                 (1<<5)
 
+#define WDGCS2_RCS                       (1<<2)
+#define WDGCS2_ULK                       (1<<3)
 #define WDGCS2_FLG                       (1<<6)
 
 #define WDG_BUS_CLK                      (0x0)
 #define WDG_LPO_CLK                      (0x1)
 #define WDG_32KHZ_CLK                    (0x2)
 #define WDG_EXT_CLK                      (0x3)
-
-DECLARE_GLOBAL_DATA_PTR;
 
 void hw_watchdog_set_timeout(u16 val)
 {
@@ -54,8 +53,10 @@ void hw_watchdog_reset(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG_BASE_ADDR;
 
-	writel(REFRESH_WORD0, &wdog->cnt);
-	writel(REFRESH_WORD1, &wdog->cnt);
+	dmb();
+	__raw_writel(REFRESH_WORD0, &wdog->cnt);
+	__raw_writel(REFRESH_WORD1, &wdog->cnt);
+	dmb();
 }
 
 void hw_watchdog_init(void)
@@ -63,8 +64,13 @@ void hw_watchdog_init(void)
 	u8 val;
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG_BASE_ADDR;
 
-	writel(UNLOCK_WORD0, &wdog->cnt);
-	writel(UNLOCK_WORD1, &wdog->cnt);
+	dmb();
+	__raw_writel(UNLOCK_WORD0, &wdog->cnt);
+	__raw_writel(UNLOCK_WORD1, &wdog->cnt);
+	dmb();
+
+	/* Wait WDOG Unlock */
+	while (!(readl(&wdog->cs2) & WDGCS2_ULK));
 
 	val = readb(&wdog->cs2);
 	val |= WDGCS2_FLG;
@@ -76,6 +82,9 @@ void hw_watchdog_init(void)
 	writeb(WDG_LPO_CLK, &wdog->cs2);/* setting 1-kHz clock source */
 	writeb((WDGCS1_WDGE | WDGCS1_WDGUPDATE), &wdog->cs1);/* enable counter running */
 
+	/* Wait WDOG reconfiguration */
+	while (!(readl(&wdog->cs2) & WDGCS2_RCS));
+
 	hw_watchdog_reset();
 }
 
@@ -83,14 +92,22 @@ void reset_cpu(ulong addr)
 {
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG_BASE_ADDR;
 
-	writel(UNLOCK_WORD0, &wdog->cnt);
-	writel(UNLOCK_WORD1, &wdog->cnt);
+	dmb();
+	__raw_writel(UNLOCK_WORD0, &wdog->cnt);
+	__raw_writel(UNLOCK_WORD1, &wdog->cnt);
+	dmb();
+
+	/* Wait WDOG Unlock */
+	while (!(readl(&wdog->cs2) & WDGCS2_ULK));
 
 	hw_watchdog_set_timeout(5); /* 5ms timeout */
 	writel(0, &wdog->win);
 
 	writeb(WDG_LPO_CLK, &wdog->cs2);/* setting 1-kHz clock source */
 	writeb(WDGCS1_WDGE, &wdog->cs1);/* enable counter running */
+
+	/* Wait WDOG reconfiguration */
+	while (!(readl(&wdog->cs2) & WDGCS2_RCS));
 
 	hw_watchdog_reset();
 

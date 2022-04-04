@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuation settings for the Renesas Technology RSK 7203
  *
  * Copyright (C) 2008 Nobuhiro Iwamatsu
  * Copyright (C) 2008 Renesas Solutions Corp.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __RSK7203_H
@@ -41,8 +40,6 @@
 #define CONFIG_SYS_BOOTMAPSZ		(8 * 1024 * 1024)
 
 /* FLASH */
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_SYS_FLASH_CFI
 #define CONFIG_SYS_FLASH_CFI_WIDTH FLASH_CFI_16BIT
 #undef	CONFIG_SYS_FLASH_QUIET_TEST
 #define CONFIG_SYS_FLASH_EMPTY_INFO	/* print 'E' for empty sector on flinfo */
@@ -59,7 +56,6 @@
 
 /* Board Clock */
 #define CONFIG_SYS_CLK_FREQ	33333333
-#define CONFIG_SH_TMU_CLK_FREQ CONFIG_SYS_CLK_FREQ
 #define CONFIG_SH_SCIF_CLK_FREQ CONFIG_SYS_CLK_FREQ
 #define CMT_CLK_DIVIDER	32	/* 8 (default), 32, 128 or 512 */
 #define CONFIG_SH_CMT_CLK_FREQ (CONFIG_SYS_CLK_FREQ / CMT_CLK_DIVIDER)

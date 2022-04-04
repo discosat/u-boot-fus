@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2006-2010
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -144,12 +143,8 @@
 /*
  * FLASH on the Local Bus
  */
-#define CONFIG_SYS_FLASH_CFI		/* use the Common Flash Interface */
-#define CONFIG_FLASH_CFI_DRIVER		/* use the CFI driver */
 #define CONFIG_SYS_FLASH_BASE		0xFE000000	/* start of FLASH   */
 #define CONFIG_SYS_FLASH_SIZE		32	/* max flash size in MB */
-#define CONFIG_SYS_FLASH_PROTECTION	1	/* Use h/w Flash protection. */
-/* #define CONFIG_SYS_FLASH_USE_BUFFER_WRITE */
 
 #define CONFIG_SYS_BR0_PRELIM	(CONFIG_SYS_FLASH_BASE \
 				| BR_PS_16	/* 16 bit port  */ \
@@ -304,7 +299,6 @@
 /*
  * Serial Port
  */
-#define CONFIG_CONS_INDEX     1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE    1
 #define CONFIG_SYS_NS16550_CLK		get_bus_freq(0)
@@ -395,7 +389,6 @@
 /*
  * TSEC configuration
  */
-#define CONFIG_TSEC_ENET	/* TSEC ethernet support */
 
 #if defined(CONFIG_TSEC_ENET)
 
@@ -687,7 +680,7 @@
 #define CONFIG_HAS_ETH0
 #endif
 
-#define CONFIG_HOSTNAME		mpc8349emds
+#define CONFIG_HOSTNAME		"mpc8349emds"
 #define CONFIG_ROOTPATH		"/nfsroot/rootfs"
 #define CONFIG_BOOTFILE		"uImage"
 

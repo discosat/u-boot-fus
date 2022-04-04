@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
  * Copyright 2017 NXP
  *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #ifndef _POWER_DOMAIN_H
@@ -102,7 +102,36 @@ int power_domain_lookup_name(const char *name, struct power_domain *power_domain
  * @power_domain	A pointer to a power domain struct to initialize.
  * @return 0 if OK, or a negative error code.
  */
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_get(struct udevice *dev, struct power_domain *power_domain);
+#else
+static inline
+int power_domain_get(struct udevice *dev, struct power_domain *power_domain)
+{
+	return -ENOSYS;
+}
+#endif
+
+/**
+ * power_domain_get_by_index - Get the indexed power domain for a device.
+ *
+ * @dev:		The client device.
+ * @power_domain:	A pointer to a power domain struct to initialize.
+ * @index:		Power domain index to be powered on.
+ *
+ * @return 0 if OK, or a negative error code.
+ */
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
+int power_domain_get_by_index(struct udevice *dev,
+			      struct power_domain *power_domain, int index);
+#else
+static inline
+int power_domain_get_by_index(struct udevice *dev,
+			      struct power_domain *power_domain, int index)
+{
+	return -ENOSYS;
+}
+#endif
 
 /**
  * power_domain_free - Free a previously requested power domain.
@@ -111,7 +140,14 @@ int power_domain_get(struct udevice *dev, struct power_domain *power_domain);
  *		requested by power_domain_get().
  * @return 0 if OK, or a negative error code.
  */
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_free(struct power_domain *power_domain);
+#else
+static inline int power_domain_free(struct power_domain *power_domain)
+{
+	return -ENOSYS;
+}
+#endif
 
 /**
  * power_domain_on - Enable power to a power domain.
@@ -120,7 +156,14 @@ int power_domain_free(struct power_domain *power_domain);
  *		requested by power_domain_get().
  * @return 0 if OK, or a negative error code.
  */
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_on(struct power_domain *power_domain);
+#else
+static inline int power_domain_on(struct power_domain *power_domain)
+{
+	return -ENOSYS;
+}
+#endif
 
 /**
  * power_domain_off - Disable power ot a power domain.
@@ -129,6 +172,13 @@ int power_domain_on(struct power_domain *power_domain);
  *		requested by power_domain_get().
  * @return 0 if OK, or a negative error code.
  */
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_off(struct power_domain *power_domain);
+#else
+static inline int power_domain_off(struct power_domain *power_domain)
+{
+	return -ENOSYS;
+}
+#endif
 
 #endif

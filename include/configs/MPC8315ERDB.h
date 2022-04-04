@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2007-2010 Freescale Semiconductor, Inc.
  *
  * Dave Liu <daveliu@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -185,13 +184,10 @@
 /*
  * FLASH on the Local Bus
  */
-#define CONFIG_SYS_FLASH_CFI		/* use the Common Flash Interface */
-#define CONFIG_FLASH_CFI_DRIVER	/* use the CFI driver */
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 
 #define CONFIG_SYS_FLASH_BASE		0xFE000000 /* FLASH base address */
 #define CONFIG_SYS_FLASH_SIZE		8	/* FLASH size is 8M */
-#define CONFIG_SYS_FLASH_PROTECTION	1	/* Use h/w Flash protection. */
 
 					/* Window base at flash base */
 #define CONFIG_SYS_LBLAWBAR0_PRELIM	CONFIG_SYS_FLASH_BASE
@@ -229,7 +225,6 @@
 #define CONFIG_SYS_NAND_BASE		0xE0600000
 #endif
 
-#define CONFIG_MTD_DEVICE
 #define CONFIG_MTD_PARTITION
 
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -279,7 +274,6 @@
 /*
  * Serial Port
  */
-#define CONFIG_CONS_INDEX	1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	1
 #define CONFIG_SYS_NS16550_CLK		(CONFIG_83XX_CLKIN * 2)
@@ -364,7 +358,6 @@
 /*
  * TSEC
  */
-#define CONFIG_TSEC_ENET	/* TSEC ethernet support */
 #define CONFIG_SYS_TSEC1_OFFSET	0x24000
 #define CONFIG_SYS_TSEC1	(CONFIG_SYS_IMMR+CONFIG_SYS_TSEC1_OFFSET)
 #define CONFIG_SYS_TSEC2_OFFSET	0x25000
@@ -373,7 +366,6 @@
 /*
  * TSEC ethernet configuration
  */
-#define CONFIG_MII		1 /* MII PHY management */
 #define CONFIG_TSEC1		1
 #define CONFIG_TSEC1_NAME	"eTSEC0"
 #define CONFIG_TSEC2		1

@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale USB PHY Register Definitions
- *
- * SPDX-License-Identifier: GPL-2.0+
  *
  */
 
@@ -22,5 +21,8 @@
 #define USBPHY_CTRL_OTG_ID				(1 << 27)
 #define USBPHY_CTRL_CLKGATE				(1 << 30)
 #define USBPHY_CTRL_SFTRST				(1 << 31)
+
+#define USBNC_PHY_STATUS_OFFSET	0x23C
+#define USBNC_PHYSTATUS_ID_DIG	(1 << 4) /* otg_id status */
 
 #endif /* __REGS_USBPHY_H__ */

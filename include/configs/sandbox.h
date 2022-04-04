@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -34,7 +34,6 @@
 #define CONFIG_SYS_MALLOC_LEN		(32 << 20)	/* 32MB  */
 
 #define CONFIG_SYS_CBSIZE		1024	/* Console I/O Buffer Size */
-#define CONFIG_DISPLAY_BOARDINFO_LATE
 
 /* turn on command-line edit/c/auto */
 
@@ -56,7 +55,6 @@
 #define CONFIG_SYS_SDRAM_BASE		0
 #define CONFIG_SYS_SDRAM_SIZE		(128 << 20)
 #define CONFIG_SYS_MONITOR_BASE	0
-#define CONFIG_NR_DRAM_BANKS		1
 
 #define CONFIG_SYS_BAUDRATE_TABLE	{4800, 9600, 19200, 38400, 57600,\
 					115200}

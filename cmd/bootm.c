@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2009
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -174,14 +173,12 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #endif
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 	case IMAGE_FORMAT_ANDROID:
-	default:
-		/* Android use AVB verify. Also here we cannot get IMAGE_FORMAT_ANDROID */
+		/* Do this authentication in boota command */
 		break;
-#else
+#endif
 	default:
 		printf("Not valid image format for Authentication, Please check\n");
 		return 1;
-#endif /* CONFIG_ANDROID_BOOT_IMAGE */
 	}
 #endif
 #endif

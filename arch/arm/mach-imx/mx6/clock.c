@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -61,17 +60,10 @@ void setup_gpmi_io_clk(u32 cfg)
 
 	setbits_le32(&imx_ccm->CCGR4, MXC_CCM_CCGR4_QSPI2_ENFC_MASK);
 #elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
-	/*
-	 * config gpmi and bch clock to 100 MHz
-	 * bch/gpmi select PLL2 PFD2 400M
-	 * 100M = 400M / 4
-	 */
-	clrbits_le32(&imx_ccm->cscmr1,
-			 MXC_CCM_CSCMR1_BCH_CLK_SEL |
-			 MXC_CCM_CSCMR1_GPMI_CLK_SEL);
-	clrsetbits_le32(&imx_ccm->cscdr1,
-			MXC_CCM_CSCDR1_BCH_PODF_MASK |
-			MXC_CCM_CSCDR1_GPMI_PODF_MASK,
+	clrsetbits_le32(&imx_ccm->cs2cdr,
+			MXC_CCM_CS2CDR_ENFC_CLK_PODF_MASK |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED_MASK |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL_MASK,
 			cfg);
 #else
 	clrbits_le32(&imx_ccm->CCGR2, MXC_CCM_CCGR2_IOMUX_IPT_CLK_IO_MASK);
@@ -1127,7 +1119,7 @@ u32 imx_get_fecclk(void)
 	return mxc_get_clock(MXC_IPG_CLK);
 }
 
-#if defined(CONFIG_SATA) || defined(CONFIG_PCIE_IMX)
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI) || defined(CONFIG_PCIE_IMX)
 static int enable_enet_pll(uint32_t en)
 {
 	struct mxc_ccm_reg *const imx_ccm
@@ -1154,7 +1146,7 @@ static int enable_enet_pll(uint32_t en)
 }
 #endif
 
-#ifdef CONFIG_SATA
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI)
 static void ungate_sata_clock(void)
 {
 	struct mxc_ccm_reg *const imx_ccm =
@@ -1238,7 +1230,7 @@ int enable_pcie_clock(void)
 
 	if (!is_mx6sx()) {
 	/* Party time! Ungate the clock to the PCIe. */
-#ifdef CONFIG_SATA
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI)
 		ungate_sata_clock();
 #endif
 		ungate_pcie_clock();

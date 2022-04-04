@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2008,2010 Freescale Semiconductor, Inc
  * Andy Fleming
  *
  * Based (loosely) on the Linux code
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _MMC_H_
@@ -253,7 +252,6 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 						/* SDR mode @1.2V I/O */
 #define EXT_CSD_CARD_TYPE_HS200		(EXT_CSD_CARD_TYPE_HS200_1_8V | \
 					 EXT_CSD_CARD_TYPE_HS200_1_2V)
-
 #define EXT_CSD_CARD_TYPE_HS400_1_8V	BIT(6)
 #define EXT_CSD_CARD_TYPE_HS400_1_2V	BIT(7)
 #define EXT_CSD_CARD_TYPE_HS400		(EXT_CSD_CARD_TYPE_HS400_1_8V | \
@@ -329,7 +327,7 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 #define MMC_QUIRK_RETRY_SEND_CID	BIT(0)
 #define MMC_QUIRK_RETRY_SET_BLOCKLEN	BIT(1)
 
-#define BOOT1_PWR_WP	(0x83)
+#define BOOT1_PWR_WP   (0x83)
 
 enum mmc_voltage {
 	MMC_SIGNAL_VOLTAGE_000 = 0,
@@ -341,7 +339,6 @@ enum mmc_voltage {
 #define MMC_ALL_SIGNAL_VOLTAGE (MMC_SIGNAL_VOLTAGE_120 |\
 				MMC_SIGNAL_VOLTAGE_180 |\
 				MMC_SIGNAL_VOLTAGE_330)
-
 
 /* Maximum block size for MMC */
 #define MMC_MAX_BLOCK_LEN	512
@@ -711,6 +708,12 @@ int mmc_initialize(bd_t *bis);
 int mmc_init(struct mmc *mmc);
 int mmc_send_tuning(struct mmc *mmc, u32 opcode, int *cmd_error);
 
+#if CONFIG_IS_ENABLED(MMC_UHS_SUPPORT) || \
+    CONFIG_IS_ENABLED(MMC_HS200_SUPPORT) || \
+    CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
+int mmc_deinit(struct mmc *mmc);
+#endif
+
 /**
  * mmc_of_parse() - Parse the device tree to get the capabilities of the host
  *
@@ -738,6 +741,9 @@ int mmc_voltage_to_mv(enum mmc_voltage voltage);
  * @return 0 if OK, -ve on error
  */
 int mmc_set_clock(struct mmc *mmc, uint clock, bool disable);
+
+#define MMC_CLK_ENABLE		false
+#define MMC_CLK_DISABLE		true
 
 struct mmc *find_mmc_device(int dev_num);
 int mmc_set_dev(int dev_num);
@@ -795,13 +801,43 @@ int mmc_rpmb_read(struct mmc *mmc, void *addr, unsigned short blk,
 		  unsigned short cnt, unsigned char *key);
 int mmc_rpmb_write(struct mmc *mmc, void *addr, unsigned short blk,
 		   unsigned short cnt, unsigned char *key);
+
+/**
+ * mmc_rpmb_route_frames() - route RPMB data frames
+ * @mmc		Pointer to a MMC device struct
+ * @req		Request data frames
+ * @reqlen	Length of data frames in bytes
+ * @rsp		Supplied buffer for response data frames
+ * @rsplen	Length of supplied buffer for response data frames
+ *
+ * The RPMB data frames are routed to/from some external entity, for
+ * example a Trusted Exectuion Environment in an arm TrustZone protected
+ * secure world. It's expected that it's the external entity who is in
+ * control of the RPMB key.
+ *
+ * Returns 0 on success, < 0 on error.
+ */
+int mmc_rpmb_route_frames(struct mmc *mmc, void *req, unsigned long reqlen,
+			  void *rsp, unsigned long rsplen);
+
 int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 			    unsigned int count, bool is_rel_write);
 int mmc_rpmb_response(struct mmc *mmc, struct s_rpmb *s,
 			     unsigned int count, unsigned short expected);
+
 #ifdef CONFIG_CMD_BKOPS_ENABLE
 int mmc_set_bkops_enable(struct mmc *mmc);
 #endif
+
+/**
+ * Start device initialization and return immediately; it does not block on
+ * polling OCR (operation condition register) status. Useful for checking
+ * the presence of SD/eMMC when no card detect logic is available.
+ *
+ * @param mmc	Pointer to a MMC device struct
+ * @return 0 on success, <0 on error.
+ */
+int mmc_get_op_cond(struct mmc *mmc);
 
 /**
  * Start device initialization and return immediately; it does not block on
@@ -810,7 +846,7 @@ int mmc_set_bkops_enable(struct mmc *mmc);
  * initializatin.
  *
  * @param mmc	Pointer to a MMC device struct
- * @return 0 on success, IN_PROGRESS on waiting for OCR status, <0 on error.
+ * @return 0 on success, <0 on error.
  */
 int mmc_start_init(struct mmc *mmc);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Freescale i.MX28 APBH Register Definitions
  *
@@ -7,8 +8,6 @@
  * Based on code from LTIB:
  * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __REGS_APBH_H__

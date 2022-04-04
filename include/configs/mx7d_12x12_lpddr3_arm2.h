@@ -17,7 +17,6 @@
 #define PHYS_SDRAM_SIZE			SZ_2G
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME                 "eth0"
@@ -26,24 +25,10 @@
 #endif
 #define CONFIG_FEC_MXC_PHYADDR          1
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
 
 /* ENET1 */
 #define IMX_FEC_BASE			ENET_IPS_BASE_ADDR
-
-#ifdef CONFIG_QSPI_BOOT
-#define CONFIG_FSL_QSPI
-#elif defined CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#endif
-
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_SF_DEFAULT_BUS  0
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
 
 /* #define CONFIG_SPLASH_SCREEN*/
 /* #define CONFIG_MXC_EPDC*/

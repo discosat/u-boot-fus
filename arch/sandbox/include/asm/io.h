@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 2011 The Chromium OS Authors.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __SANDBOX_ASM_IO_H
@@ -171,6 +170,18 @@ static inline void _insw(volatile u16 *port, void *buf, int ns)
 }
 
 static inline void _outsw(volatile u16 *port, const void *buf, int ns)
+{
+}
+
+static inline void memset_io(volatile void *addr, unsigned char val, int count)
+{
+}
+
+static inline void memcpy_fromio(void *dst, const volatile void *src, int count)
+{
+}
+
+static inline void memcpy_toio(volatile void *dst, const void *src, int count)
 {
 }
 

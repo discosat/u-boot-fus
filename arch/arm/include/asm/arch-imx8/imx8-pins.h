@@ -1,16 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2020 NXP
  */
 
 #ifndef __ASM_ARCH_IMX8_PINS_H__
 #define __ASM_ARCH_IMX8_PINS_H__
 
 #if defined(CONFIG_IMX8QM)
-#include "imx8qm_pads.h"
+#include <dt-bindings/pinctrl/pads-imx8qm.h>
 #elif defined(CONFIG_IMX8QXP)
-#include "imx8qxp_pads.h"
+#include <dt-bindings/pinctrl/pads-imx8qxp.h>
+#elif defined(CONFIG_IMX8DXL)
+#include <dt-bindings/pinctrl/pads-imx8dxl.h>
 #else
 #error "No pin header"
 #endif

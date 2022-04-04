@@ -1,12 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0+
 #
 # (C) Copyright 2000-2006
 # Wolfgang Denk, DENX Software Engineering, wd@denx.de.
-#
-# SPDX-License-Identifier:	GPL-2.0+
-#
 
 # Enable all the config-independent tools
 ifneq ($(HOST_TOOLS_ALL),)
+CONFIG_KIRKWOOD = y
 CONFIG_LCD_LOGO = y
 CONFIG_CMD_LOADS = y
 CONFIG_CMD_NET = y
@@ -94,6 +93,8 @@ dumpimage-mkimage-objs := aisimage.o \
 			common/image.o \
 			imagetool.o \
 			imximage.o \
+			imx8image.o \
+			imx8mimage.o \
 			kwbimage.o \
 			lib/md5.o \
 			lpc32xximage.o \
@@ -103,17 +104,21 @@ dumpimage-mkimage-objs := aisimage.o \
 			pblimage.o \
 			pbl_crc32.o \
 			vybridimage.o \
+			stm32image.o \
 			$(ROCKCHIP_OBS) \
 			socfpgaimage.o \
+			lib/crc16.o \
 			lib/sha1.o \
 			lib/sha256.o \
 			common/hash.o \
 			ublimage.o \
 			zynqimage.o \
 			zynqmpimage.o \
+			zynqmpbif.o \
 			$(LIBFDT_OBJS) \
 			gpimage.o \
 			gpimage-common.o \
+			mtk_image.o \
 			$(RSA_OBJS-y)
 
 dumpimage-objs := $(dumpimage-mkimage-objs) dumpimage.o
@@ -122,7 +127,7 @@ fit_info-objs   := $(dumpimage-mkimage-objs) fit_info.o
 fit_check_sign-objs   := $(dumpimage-mkimage-objs) fit_check_sign.o
 file2include-objs := file2include.o
 
-ifneq ($(CONFIG_MX23)$(CONFIG_MX28),)
+ifneq ($(CONFIG_MX23)$(CONFIG_MX28)$(CONFIG_FIT_SIGNATURE),)
 # Add CONFIG_MXS into host CFLAGS, so we can check whether or not register
 # the mxsimage support within tools/mxsimage.c .
 HOSTCFLAGS_mxsimage.o += -DCONFIG_MXS
@@ -132,6 +137,7 @@ ifdef CONFIG_FIT_SIGNATURE
 # This affects include/image.h, but including the board config file
 # is tricky, so manually define this options here.
 HOST_EXTRACFLAGS	+= -DCONFIG_FIT_SIGNATURE
+HOST_EXTRACFLAGS	+= -DCONFIG_FIT_SIGNATURE_MAX_SIZE=$(CONFIG_FIT_SIGNATURE_MAX_SIZE)
 endif
 
 ifdef CONFIG_SYS_U_BOOT_OFFS
@@ -248,7 +254,8 @@ HOST_EXTRACFLAGS += -include $(srctree)/include/compiler.h \
 		-I$(srctree)/tools \
 		-DUSE_HOSTCC \
 		-D__KERNEL_STRICT_NAMES \
-		-D_GNU_SOURCE
+		-D_GNU_SOURCE \
+		-std=gnu99
 
 __build:	$(LOGO-y)
 

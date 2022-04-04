@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2013 Samsung Electronics
  *
  * Common configuration settings for the SAMSUNG EXYNOS boards.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __EXYNOS_COMMON_H
@@ -34,9 +33,6 @@
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (80 << 20))
 
 /* select serial console configuration */
-
-/* SD/MMC configuration */
-#define CONFIG_BOUNCE_BUFFER
 
 /* PWM */
 #define CONFIG_PWM

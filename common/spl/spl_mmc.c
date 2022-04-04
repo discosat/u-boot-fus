@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2010
  * Texas Instruments, <www.ti.com>
@@ -6,7 +7,6 @@
  *
  * Copyright 2018 NXP
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -18,9 +18,7 @@
 #include <mmc.h>
 #include <image.h>
 
-DECLARE_GLOBAL_DATA_PTR;
-
-int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
+static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
 {
 	u32 image_size_sectors;
@@ -69,25 +67,23 @@ extern int mmc_load_image_parse_container_dual_uboot(struct spl_image_info *spl_
 #else
 static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
-				     struct mmc *mmc, unsigned long sector)
+			      struct mmc *mmc, unsigned long sector)
 {
-	struct image_header *header = (struct image_header *)(CONFIG_SYS_TEXT_BASE -
-					 sizeof(struct image_header));
+	unsigned long count;
+	struct image_header *header;
+	struct blk_desc *bd = mmc_get_blk_desc(mmc);
 	int ret = 0;
 
-#if !defined(CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE) || defined(CONFIG_SPL_LOAD_FIT)
-	unsigned long count = 0;
+	header = spl_get_load_buffer(-sizeof(*header), bd->blksz);
 
 	/* read image header to find the image size & load address */
-	count = blk_dread(mmc_get_blk_desc(mmc), sector, 1, header);
+	count = blk_dread(bd, sector, 1, header);
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
-#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-		puts("mmc_load_image_raw_sector: mmc block read error\n");
-#endif
-		return -1;
+		ret = -EIO;
+		goto end;
 	}
-#endif
+
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 	    image_get_magic(header) == FDT_MAGIC) {
 		struct spl_load_info load;
@@ -103,6 +99,7 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		ret = mmc_load_legacy(spl_image, mmc, sector, header);
 	}
 
+end:
 	if (ret) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		puts("mmc_load_image_raw_sector: mmc block read error\n");
@@ -165,7 +162,8 @@ static int spl_mmc_find_device(struct mmc **mmcp, u32 boot_device)
 #endif
 	if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-		printf("spl: could not find mmc device. error: %d\n", err);
+		printf("spl: could not find mmc device %d. error: %d\n",
+		       mmc_dev, err);
 #endif
 		return err;
 	}
@@ -187,7 +185,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		err = part_get_info(mmc_get_blk_desc(mmc), type_part, &info);
 		if (err)
 			continue;
-		if (info.sys_ind ==
+		if (info.sys_ind == 
 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION_TYPE) {
 			partition = type_part;
 			break;
@@ -216,8 +214,10 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 static int mmc_load_image_raw_os(struct spl_image_info *spl_image,
 				 struct mmc *mmc)
 {
-	unsigned long count;
 	int ret;
+
+#if defined(CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR)
+	unsigned long count;
 
 	count = blk_dread(mmc_get_blk_desc(mmc),
 		CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR,
@@ -229,6 +229,7 @@ static int mmc_load_image_raw_os(struct spl_image_info *spl_image,
 #endif
 		return -1;
 	}
+#endif	/* CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR */
 
 	ret = mmc_load_image_raw_sector(spl_image, mmc,
 		CONFIG_SYS_MMCSD_RAW_MODE_KERNEL_SECTOR);
@@ -259,7 +260,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc)
 {
 	int err = -ENOSYS;
 
-#ifdef CONFIG_SPL_FAT_SUPPORT
+#ifdef CONFIG_SPL_FS_FAT
 	if (!spl_start_uboot()) {
 		err = spl_load_image_fat_os(spl_image, mmc_get_blk_desc(mmc),
 			CONFIG_SYS_MMCSD_FS_BOOT_PARTITION);
@@ -274,7 +275,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc)
 		return err;
 #endif
 #endif
-#ifdef CONFIG_SPL_EXT_SUPPORT
+#ifdef CONFIG_SPL_FS_EXT4
 	if (!spl_start_uboot()) {
 		err = spl_load_image_ext_os(spl_image, mmc_get_blk_desc(mmc),
 			CONFIG_SYS_MMCSD_FS_BOOT_PARTITION);
@@ -290,7 +291,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc)
 #endif
 #endif
 
-#if defined(CONFIG_SPL_FAT_SUPPORT) || defined(CONFIG_SPL_EXT_SUPPORT)
+#if defined(CONFIG_SPL_FS_FAT) || defined(CONFIG_SPL_FS_EXT4)
 	err = -ENOENT;
 #endif
 
@@ -305,7 +306,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc)
 
 u32 __weak spl_boot_mode(const u32 boot_device)
 {
-#if defined(CONFIG_SPL_FAT_SUPPORT) || defined(CONFIG_SPL_EXT_SUPPORT)
+#if defined(CONFIG_SPL_FS_FAT) || defined(CONFIG_SPL_FS_EXT4)
 	return MMCSD_MODE_FS;
 #elif defined(CONFIG_SUPPORT_EMMC_BOOT)
 	return MMCSD_MODE_EMMCBOOT;
@@ -313,6 +314,14 @@ u32 __weak spl_boot_mode(const u32 boot_device)
 	return MMCSD_MODE_RAW;
 #endif
 }
+
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
+__weak
+int spl_boot_partition(const u32 boot_device)
+{
+	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION;
+}
+#endif
 
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
@@ -330,10 +339,10 @@ int __weak mmc_load_image_parse_container(struct spl_image_info *spl_image,
 
 #ifdef CONFIG_DUAL_BOOTLOADER
 int __weak mmc_load_image_parse_container_dual_bootloader(struct spl_image_info *spl_image,
-				     struct mmc *mmc, unsigned long sector)
+					struct mmc *mmc, unsigned long sector)
 {
 	return -ENODEV;
-};
+}
 #endif
 #endif
 
@@ -397,8 +406,11 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 				return err;
 		}
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
-		err = mmc_load_image_raw_partition(spl_image, mmc,
-			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION);
+		err = spl_boot_partition(bootdev->boot_device);
+		if (!err)
+			return err;
+
+		err = mmc_load_image_raw_partition(spl_image, mmc, err);
 		if (!err)
 			return err;
 #endif
@@ -409,7 +421,7 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 								mmc);
 #else
 		err = mmc_load_image_raw_sector_dual_uboot(spl_image,
-							   mmc);
+								mmc);
 #endif
 #else
 #ifdef CONFIG_PARSE_CONTAINER

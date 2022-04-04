@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2007,2009 Wind River Systems <www.windriver.com>
  * Copyright 2007 Embedded Specialties, Inc.
  * Copyright 2004, 2007 Freescale Semiconductor.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /*
@@ -53,7 +52,6 @@
 #define CONFIG_FSL_PCIE_RESET   1	/* need PCIe reset errata */
 #endif
 
-#define CONFIG_TSEC_ENET		/* tsec ethernet support */
 #define CONFIG_ENV_OVERWRITE
 
 #define CONFIG_INTERRUPTS		/* enable pci, srio, ddr interrupts */
@@ -85,7 +83,6 @@
 #define CONFIG_SYS_CCSRBAR_PHYS_LOW	CONFIG_SYS_CCSRBAR
 
 /* DDR Setup */
-#undef CONFIG_FSL_DDR_INTERACTIVE
 #undef CONFIG_DDR_ECC			/* only for ECC DDR module */
 /*
  * A hardware errata caused the LBC SDRAM SPD and the DDR2 SPD
@@ -247,8 +244,6 @@
 
 #define CONFIG_SYS_MONITOR_BASE	CONFIG_SYS_TEXT_BASE	/* start of monitor */
 
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_SYS_FLASH_CFI
 #define CONFIG_SYS_FLASH_EMPTY_INFO
 
 /* CS5 = Local bus peripherals controlled by the EPLD */
@@ -386,7 +381,6 @@
 #define CONFIG_SYS_MALLOC_LEN		(1024 * 1024) /* Reserved for malloc */
 
 /* Serial Port */
-#define CONFIG_CONS_INDEX	1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	1
 #define CONFIG_SYS_NS16550_CLK		(400000000 / CONFIG_SYS_CLK_DIV)
@@ -452,7 +446,6 @@
 
 #if defined(CONFIG_TSEC_ENET)
 
-#define CONFIG_MII		1	/* MII PHY management */
 #define CONFIG_TSEC1	1
 #define CONFIG_TSEC1_NAME	"eTSEC0"
 #define CONFIG_TSEC2	1
@@ -522,7 +515,7 @@
 
 #define CONFIG_IPADDR	 192.168.0.55
 
-#define CONFIG_HOSTNAME	 sbc8548
+#define CONFIG_HOSTNAME	 "sbc8548"
 #define CONFIG_ROOTPATH	 "/opt/eldk/ppc_85xx"
 #define CONFIG_BOOTFILE	 "/uImage"
 #define CONFIG_UBOOTPATH /u-boot.bin	/* TFTP server */

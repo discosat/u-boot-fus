@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014 Gateworks Corporation
  * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Author: Tim Harvey <tharvey@gateworks.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -98,9 +97,32 @@ u32 spl_boot_device(void)
 }
 
 #elif defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8)
-/* Translate iMX7/iMX8M boot device to the SPL boot device enumeration */
+/* Translate iMX7/i.MX8M boot device to the SPL boot device enumeration */
 u32 spl_boot_device(void)
 {
+#if defined(CONFIG_MX7)
+	unsigned int bmode = readl(&src_base->sbmr2);
+
+	/*
+	 * Check for BMODE if serial downloader is enabled
+	 * BOOT_MODE - see IMX7DRM Table 6-24
+	 */
+	if (((bmode >> 24) & 0x03) == 0x01) /* Serial Downloader */
+		return BOOT_DEVICE_BOARD;
+
+	/*
+	 * The above method does not detect that the boot ROM used
+	 * serial downloader in case the boot ROM decided to use the
+	 * serial downloader as a fall back (primary boot source failed).
+	 *
+	 * Infer that the boot ROM used the USB serial downloader by
+	 * checking whether the USB PHY is currently active... This
+	 * assumes that SPL did not (yet) initialize the USB PHY...
+	 */
+	if (is_boot_from_usb())
+		return BOOT_DEVICE_BOARD;
+#endif
+
 	enum boot_device boot_device_spl = get_boot_device();
 
 #if defined(CONFIG_SPL_IMX_ROMAPI_SUPPORT)
@@ -118,18 +140,18 @@ u32 spl_boot_device(void)
 		return BOOT_DEVICE_MMC1;
 #elif defined(CONFIG_IMX8)
 	case MMC1_BOOT:
-                return BOOT_DEVICE_MMC1;
+		return BOOT_DEVICE_MMC1;
 	case SD2_BOOT:
 		return BOOT_DEVICE_MMC2_2;
-        case SD3_BOOT:
-                return BOOT_DEVICE_MMC1;
+	case SD3_BOOT:
+		return BOOT_DEVICE_MMC1;
 	case FLEXSPI_BOOT:
 		return BOOT_DEVICE_SPI;
 #elif defined(CONFIG_IMX8M)
 	case SD1_BOOT:
 	case MMC1_BOOT:
 		return BOOT_DEVICE_MMC1;
-#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN)
+#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 	case SD2_BOOT:
 	case MMC2_BOOT:
 		return BOOT_DEVICE_MMC1;
@@ -154,9 +176,9 @@ u32 spl_boot_device(void)
 		return BOOT_DEVICE_NONE;
 	}
 }
-#endif /* CONFIG_MX6 || CONFIG_MX7 || CONFIG_IMX8M || CONFIG_IMX8 */
+#endif /* CONFIG_MX7 || CONFIG_IMX8M || CONFIG_IMX8 */
 
-#ifdef CONFIG_SPL_USB_GADGET_SUPPORT
+#ifdef CONFIG_SPL_USB_GADGET
 int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 {
 	put_unaligned(CONFIG_USB_GADGET_PRODUCT_NUM + 0xfff, &dev->idProduct);
@@ -203,12 +225,13 @@ u32 spl_boot_mode(const u32 boot_device)
 		hang();
 	}
 
-#else /* defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8) */
+#else /* defined(CONFIG_MX7) || defined(CONFIG_IMX8M) */
 	switch (spl_boot_device()) {
 	/* for MMC return either RAW or FAT mode */
 	case BOOT_DEVICE_MMC1:
 	case BOOT_DEVICE_MMC2:
-#if defined(CONFIG_SPL_FAT_SUPPORT)
+	case BOOT_DEVICE_MMC2_2:
+#if defined(CONFIG_SPL_FS_FAT)
 		return MMCSD_MODE_FS;
 #elif defined(CONFIG_SUPPORT_EMMC_BOOT)
 		return MMCSD_MODE_EMMCBOOT;
@@ -270,15 +293,18 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 	if (spl_image->flags & SPL_FIT_FOUND) {
 		image_entry();
 	} else {
-		/* HAB looks for the CSF at the end of the authenticated data therefore,
-		 * we need to subtract the size of the CSF from the actual filesize */
+		/*
+		 * HAB looks for the CSF at the end of the authenticated
+		 * data therefore, we need to subtract the size of the
+		 * CSF from the actual filesize
+		 */
 		offset = spl_image->size - CONFIG_CSF_SIZE;
 		if (!imx_hab_authenticate_image(spl_image->load_addr,
-						offset + IVT_SIZE + CSF_PAD_SIZE,
-						offset)) {
+						offset + IVT_SIZE +
+						CSF_PAD_SIZE, offset)) {
 			image_entry();
 		} else {
-			puts("spl: ERROR:  image authentication unsuccessful\n");
+			puts("spl: ERROR:  image authentication fail\n");
 			hang();
 		}
 	}
@@ -286,10 +312,12 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 
 ulong board_spl_fit_size_align(ulong size)
 {
-	/* HAB authenticate_image requests the IVT offset is aligned to 0x1000 */
-#define ALIGN_SIZE		0x1000
+	/*
+	 * HAB authenticate_image requests the IVT offset is
+	 * aligned to 0x1000
+	 */
 
-	size = ALIGN(size, ALIGN_SIZE);
+	size = ALIGN(size, 0x1000);
 	size += CONFIG_CSF_SIZE;
 
 	return size;
@@ -297,10 +325,11 @@ ulong board_spl_fit_size_align(ulong size)
 
 void board_spl_fit_post_load(ulong load_addr, size_t length)
 {
-	uint32_t offset = length - CONFIG_CSF_SIZE;
+	u32 offset = length - CONFIG_CSF_SIZE;
+
 	if (imx_hab_authenticate_image(load_addr,
-					offset + IVT_SIZE + CSF_PAD_SIZE,
-					offset)) {
+				       offset + IVT_SIZE + CSF_PAD_SIZE,
+				       offset)) {
 		puts("spl: ERROR:  image authentication unsuccessful\n");
 		hang();
 	}

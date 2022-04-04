@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
  *
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <asm/arch/clock.h>
@@ -31,6 +30,7 @@
 #include <usb.h>
 #include <usb/ehci-ci.h>
 #include <asm/mach-imx/video.h>
+#include <power/regulator.h>
 
 #ifdef CONFIG_IMX_RDC
 #include <asm/mach-imx/rdc-sema.h>
@@ -38,7 +38,7 @@
 #endif
 
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -205,7 +205,7 @@ static iomux_v3_cfg_t const phy_control_pads[] = {
 	MX6_PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
-#ifdef CONFIG_PCIE_IMX
+#if defined(CONFIG_PCIE_IMX) && !defined(CONFIG_DM_PCI)
 iomux_v3_cfg_t const pcie_pads[] = {
 	MX6_PAD_ENET1_COL__GPIO2_IO_0 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* POWER */
 	MX6_PAD_ENET1_CRS__GPIO2_IO_1 | MUX_PAD_CTRL(NO_PAD_CTRL),	/* RESET */
@@ -593,16 +593,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[3] = {
 #define USDHC3_PWR_GPIO	IMX_GPIO_NR(2, 11)
 #define USDHC4_CD_GPIO	IMX_GPIO_NR(6, 21)
 
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 1;
-}
-
-int mmc_map_to_kernel_blk(int dev_no)
-{
-	return dev_no + 1;
-}
-
 int board_mmc_getcd(struct mmc *mmc)
 {
 	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
@@ -684,36 +674,8 @@ int board_mmc_init(bd_t *bis)
 
 #ifdef CONFIG_FSL_QSPI
 
-#ifndef CONFIG_DM_SPI
-#define QSPI_PAD_CTRL1	\
-	(PAD_CTL_SRE_FAST | PAD_CTL_SPEED_HIGH | \
-	 PAD_CTL_PKE | PAD_CTL_PUE | PAD_CTL_PUS_47K_UP | PAD_CTL_DSE_40ohm)
-
-static iomux_v3_cfg_t const quadspi_pads[] = {
-	MX6_PAD_NAND_WP_B__QSPI2_A_DATA_0	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_READY_B__QSPI2_A_DATA_1	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_CE0_B__QSPI2_A_DATA_2	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_CE1_B__QSPI2_A_DATA_3	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_ALE__QSPI2_A_SS0_B		| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_CLE__QSPI2_A_SCLK		| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA07__QSPI2_A_DQS	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA01__QSPI2_B_DATA_0	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA00__QSPI2_B_DATA_1	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_WE_B__QSPI2_B_DATA_2	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_RE_B__QSPI2_B_DATA_3	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA03__QSPI2_B_SS0_B	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA02__QSPI2_B_SCLK	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-	MX6_PAD_NAND_DATA05__QSPI2_B_DQS	| MUX_PAD_CTRL(QSPI_PAD_CTRL1),
-};
-#endif
-
 int board_qspi_init(void)
 {
-#ifndef CONFIG_DM_SPI
-	/* Set the iomux */
-	imx_iomux_v3_setup_multiple_pads(quadspi_pads,
-					 ARRAY_SIZE(quadspi_pads));
-#endif
 	/* Set the clock */
 	enable_qspi_clk(1);
 
@@ -882,9 +844,9 @@ int board_init(void)
 	 */
 	imx_iomux_v3_setup_pad(wdog_b_pad);
 
-	/* Active high for ncp692 */
-	gpio_request(IMX_GPIO_NR(4, 16), "ncp692_en");
-	gpio_direction_output(IMX_GPIO_NR(4, 16), 1);
+#if defined(CONFIG_DM_REGULATOR)
+	regulators_enable_boot_on(false);
+#endif
 
 #ifdef CONFIG_SYS_I2C
 	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
@@ -901,7 +863,7 @@ int board_init(void)
 	board_qspi_init();
 #endif
 
-#ifdef CONFIG_PCIE_IMX
+#if defined(CONFIG_PCIE_IMX) && !defined(CONFIG_DM_PCI)
 	setup_pcie();
 #endif
 

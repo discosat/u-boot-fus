@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2004-2011
  * Texas Instruments, <www.ti.com>
@@ -10,8 +11,6 @@
  *	Richard Woodruff <r-woodruff2@ti.com>
  *	Syed Mohammed Khasim <khasim@ti.com>
  *
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <dm.h>
@@ -71,18 +70,6 @@ static struct {
 	char env_var[16];
 	char env_setting[64];
 } expansion_config;
-
-static const struct ns16550_platdata beagle_serial = {
-	.base = OMAP34XX_UART3,
-	.reg_shift = 2,
-	.clock = V_NS16550_CLK,
-	.fcr = UART_FCR_DEFVAL,
-};
-
-U_BOOT_DEVICE(beagle_uart) = {
-	"ns16550_serial",
-	&beagle_serial
-};
 
 /*
  * Routine: board_init
@@ -520,6 +507,14 @@ int misc_init_r(void)
 
 	if (generate_fake_mac)
 		omap_die_id_usbethaddr();
+
+#if defined(CONFIG_MTDIDS_DEFAULT) && defined(CONFIG_MTDPARTS_DEFAULT)
+	if (strlen(CONFIG_MTDIDS_DEFAULT))
+		env_set("mtdids", CONFIG_MTDIDS_DEFAULT);
+
+	if (strlen(CONFIG_MTDPARTS_DEFAULT))
+		env_set("mtdparts", CONFIG_MTDPARTS_DEFAULT);
+#endif
 
 	return 0;
 }

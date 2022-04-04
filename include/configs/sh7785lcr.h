@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuation settings for the Renesas Technology R0P7785LC0011RL board
  *
  * Copyright (C) 2008 Yoshihiro Shimoda <shimoda.yoshihiro@renesas.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __SH7785LCR_H
@@ -47,7 +46,6 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
 					(SH7785LCR_SDRAM_SIZE) - \
 					 4 * 1024 * 1024)
-#undef	CONFIG_SYS_ALT_MEMTEST
 #undef	CONFIG_SYS_MEMTEST_SCRATCH
 #undef	CONFIG_SYS_LOADS_BAUD_CHANGE
 
@@ -61,8 +59,6 @@
 #define CONFIG_SYS_BOOTMAPSZ		(8 * 1024 * 1024)
 
 /* FLASH */
-#define CONFIG_FLASH_CFI_DRIVER
-#define CONFIG_SYS_FLASH_CFI
 #undef	CONFIG_SYS_FLASH_QUIET_TEST
 #define CONFIG_SYS_FLASH_EMPTY_INFO
 #define CONFIG_SYS_FLASH_BASE		(SH7785LCR_FLASH_BASE_1)
@@ -77,7 +73,6 @@
 #define CONFIG_SYS_FLASH_LOCK_TOUT	(3 * 1000)
 #define CONFIG_SYS_FLASH_UNLOCK_TOUT	(3 * 1000)
 
-#undef	CONFIG_SYS_FLASH_PROTECTION
 #undef	CONFIG_SYS_DIRECT_FLASH_TFTP
 
 /* R8A66597 */
@@ -128,8 +123,6 @@
 /* Board Clock */
 /* The SCIF used external clock. system clock only used timer. */
 #define CONFIG_SYS_CLK_FREQ	50000000
-#define CONFIG_SH_TMU_CLK_FREQ CONFIG_SYS_CLK_FREQ
 #define CONFIG_SH_SCIF_CLK_FREQ CONFIG_SYS_CLK_FREQ
-#define CONFIG_SYS_TMU_CLK_DIV		4
 
 #endif	/* __SH7785LCR_H */

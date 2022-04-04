@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2006 Freescale Semiconductor, Inc.
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __CONFIG_H
@@ -69,8 +68,6 @@
  * System IO Config
  */
 #define CONFIG_SYS_SICRL		0x00000000
-
-#define CONFIG_BOARD_EARLY_INIT_R
 
 /*
  * IMMR new address
@@ -185,11 +182,8 @@
 /*
  * FLASH on the Local Bus
  */
-#define CONFIG_SYS_FLASH_CFI		/* use the Common Flash Interface */
-#define CONFIG_FLASH_CFI_DRIVER		/* use the CFI driver */
 #define CONFIG_SYS_FLASH_BASE	0xFE000000	/* FLASH base address */
 #define CONFIG_SYS_FLASH_SIZE	16	/* FLASH size is 16M */
-#define CONFIG_SYS_FLASH_PROTECTION	1	/* Use h/w Flash protection. */
 
 					/* Window base at flash base */
 #define CONFIG_SYS_LBLAWBAR0_PRELIM	CONFIG_SYS_FLASH_BASE
@@ -286,7 +280,6 @@
 /*
  * Serial Port
  */
-#define CONFIG_CONS_INDEX	1
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	1
 #define CONFIG_SYS_NS16550_CLK		get_bus_freq(0)

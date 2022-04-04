@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Google, Inc
  * Written by Simon Glass <sjg@chromium.org>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
 #include <errno.h>
+#include <fpga.h>
 #include <image.h>
 #include <linux/libfdt.h>
 #include <spl.h>
@@ -17,7 +17,6 @@
 
 __weak void board_spl_fit_post_load(ulong load_addr, size_t length)
 {
-
 }
 
 __weak ulong board_spl_fit_size_align(ulong size)
@@ -204,16 +203,19 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	const void *data;
 	bool external_data = false;
 
+	if (IS_ENABLED(CONFIG_SPL_FPGA_SUPPORT) ||
+	    (IS_ENABLED(CONFIG_SPL_OS_BOOT) && IS_ENABLED(CONFIG_SPL_GZIP))) {
+		if (fit_image_get_type(fit, node, &type))
+			puts("Cannot get image type.\n");
+		else
+			debug("%s ", genimg_get_type_name(type));
+	}
+
 	if (IS_ENABLED(CONFIG_SPL_OS_BOOT) && IS_ENABLED(CONFIG_SPL_GZIP)) {
 		if (fit_image_get_comp(fit, node, &image_comp))
 			puts("Cannot get image compression format.\n");
 		else
 			debug("%s ", genimg_get_comp_name(image_comp));
-
-		if (fit_image_get_type(fit, node, &type))
-			puts("Cannot get image type.\n");
-		else
-			debug("%s ", genimg_get_type_name(type));
 	}
 
 	if (fit_image_get_load(fit, node, &load_addr))
@@ -271,14 +273,20 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 		src = (void *)data;
 	}
 
+#ifdef CONFIG_SPL_FIT_SIGNATURE
+	printf("## Checking hash(es) for Image %s ... ",
+	       fit_get_name(fit, node, NULL));
+	if (!fit_image_verify_with_data(fit, node,
+					 src, length))
+		return -EPERM;
+	puts("OK\n");
+#endif
+
 #ifdef CONFIG_SPL_FIT_IMAGE_POST_PROCESS
 	board_fit_image_post_process(&src, &length);
 #endif
 
-	if (IS_ENABLED(CONFIG_SPL_OS_BOOT)	&&
-	    IS_ENABLED(CONFIG_SPL_GZIP)		&&
-	    image_comp == IH_COMP_GZIP		&&
-	    type == IH_TYPE_KERNEL) {
+	if (IS_ENABLED(CONFIG_SPL_GZIP) && image_comp == IH_COMP_GZIP) {
 		size = length;
 		if (gunzip((void *)load_addr, CONFIG_SYS_BOOTM_LEN,
 			   src, &size)) {
@@ -431,6 +439,33 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		spl_image->rbindex = rbindex;
 #endif
 
+#ifdef CONFIG_SPL_FPGA_SUPPORT
+	node = spl_fit_get_image_node(fit, images, "fpga", 0);
+	if (node >= 0) {
+		/* Load the image and set up the spl_image structure */
+		ret = spl_load_fit_image(info, sector, fit, base_offset, node,
+					 spl_image);
+		if (ret) {
+			printf("%s: Cannot load the FPGA: %i\n", __func__, ret);
+			return ret;
+		}
+
+		debug("FPGA bitstream at: %x, size: %x\n",
+		      (u32)spl_image->load_addr, spl_image->size);
+
+		ret = fpga_load(0, (const void *)spl_image->load_addr,
+				spl_image->size, BIT_FULL);
+		if (ret) {
+			printf("%s: Cannot load the image to the FPGA\n",
+			       __func__);
+			return ret;
+		}
+
+		puts("FPGA image loaded from FIT\n");
+		node = -1;
+	}
+#endif
+
 	/*
 	 * Find the U-Boot image using the following search order:
 	 *   - start at 'firmware' (e.g. an ARM Trusted Firmware)
@@ -438,7 +473,8 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 *   - fall back to using the first 'loadables' entry
 	 */
 	if (node < 0)
-		node = spl_fit_get_image_node(fit, images, "firmware", 0);
+		node = spl_fit_get_image_node(fit, images, FIT_FIRMWARE_PROP,
+					      0);
 #ifdef CONFIG_SPL_OS_BOOT
 	if (node < 0)
 		node = spl_fit_get_image_node(fit, images, FIT_KERNEL_PROP, 0);
@@ -498,6 +534,10 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 
 		if (!spl_fit_image_get_os(fit, node, &os_type))
 			debug("Loadable is %s\n", genimg_get_os_name(os_type));
+#if CONFIG_IS_ENABLED(FIT_IMAGE_TINY)
+		else
+			os_type = IH_OS_U_BOOT;
+#endif
 
 		if (os_type == IH_OS_U_BOOT) {
 			spl_fit_append_fdt(&image_info, info, sector,

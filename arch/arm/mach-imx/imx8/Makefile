@@ -1,15 +1,11 @@
 #
-# Copyright 2017 NXP
+# Copyright 2018 NXP
 #
 # SPDX-License-Identifier:	GPL-2.0+
 #
+
+obj-y += cpu.o iomux.o fuse.o lpcg.o clock.o
 obj-y += lowlevel_init.o
-obj-y += cpu.o
-obj-y += clock.o
-obj-y += lpcg.o
-obj-y += fsl_mu_hal.o
-obj-y += fuse.o
-obj-y += iomux.o
 obj-$(CONFIG_SPL_BUILD) += image.o
 obj-$(CONFIG_SPL_BUILD) += parser.o
 ifneq ($(CONFIG_SPL_BUILD),y)

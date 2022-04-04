@@ -43,21 +43,8 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 #endif
 
 #ifdef CONFIG_FSL_FSPI
-#define QSPI_PAD_CTRL	(PAD_CTL_DSE2 | PAD_CTL_HYS)
-static iomux_v3_cfg_t const qspi_pads[] = {
-	IMX8MM_PAD_NAND_ALE_QSPI_A_SCLK | MUX_PAD_CTRL(QSPI_PAD_CTRL | PAD_CTL_PE | PAD_CTL_PUE),
-	IMX8MM_PAD_NAND_CE0_B_QSPI_A_SS0_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MM_PAD_NAND_DATA00_QSPI_A_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA01_QSPI_A_DATA1 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA02_QSPI_A_DATA2 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MM_PAD_NAND_DATA03_QSPI_A_DATA3 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-};
-
 int board_qspi_init(void)
 {
-	imx_iomux_v3_setup_multiple_pads(qspi_pads, ARRAY_SIZE(qspi_pads));
-
 	set_clk_qspi();
 
 	return 0;
@@ -77,6 +64,8 @@ static void setup_spi(void)
 {
 	imx_iomux_v3_setup_multiple_pads(ecspi1_pads, ARRAY_SIZE(ecspi1_pads));
 	gpio_request(IMX_GPIO_NR(5, 9), "ECSPI1 CS");
+
+	init_clk_ecspi(0);
 }
 
 int board_spi_cs_gpio(unsigned bus, unsigned cs)
@@ -86,6 +75,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 #endif
 
 #ifdef CONFIG_NAND_MXS
+#ifdef CONFIG_SPL_BUILD
 #define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
 #define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
 static iomux_v3_cfg_t const gpmi_pads[] = {
@@ -105,10 +95,15 @@ static iomux_v3_cfg_t const gpmi_pads[] = {
 	IMX8MM_PAD_NAND_WE_B_RAWNAND_WE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 	IMX8MM_PAD_NAND_WP_B_RAWNAND_WP_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 };
+#endif
 
 static void setup_gpmi_nand(void)
 {
+#ifdef CONFIG_SPL_BUILD
 	imx_iomux_v3_setup_multiple_pads(gpmi_pads, ARRAY_SIZE(gpmi_pads));
+#endif
+
+	init_nand_clk();
 }
 #endif
 
@@ -124,38 +119,14 @@ int board_early_init_f(void)
 
 	imx_iomux_v3_setup_multiple_pads(uart_pads, ARRAY_SIZE(uart_pads));
 
+	init_uart_clk(1);
+
 #ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand(); /* SPL will call the board_early_init_f */
 #endif
 
 	return 0;
 }
-
-#ifdef CONFIG_BOARD_POSTCLK_INIT
-int board_postclk_init(void)
-{
-	/* TODO */
-	return 0;
-}
-#endif
-
-int dram_init(void)
-{
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		gd->ram_size = PHYS_SDRAM_SIZE - rom_pointer[1];
-	else
-		gd->ram_size = PHYS_SDRAM_SIZE;
-
-	return 0;
-}
-
-#ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_FEC_MXC
 #ifndef CONFIG_TARGET_IMX8MM_DDR3L_VAL
@@ -179,7 +150,7 @@ static void setup_iomux_fec(void)
 static int setup_fec(void)
 {
 #ifdef CONFIG_TARGET_IMX8MM_DDR3L_VAL
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
+	struct iomuxc_gpr_base_regs *gpr
 		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
 	/*
 	* GPR1 bit 13:
@@ -187,18 +158,18 @@ static int setup_fec(void)
 	* 0:enet1 rmii clock comes from external phy or osc
 	*/
 
-	setbits_le32(&iomuxc_gpr_regs->gpr[1],
+	setbits_le32(&gpr->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK);
 	return set_clk_enet(ENET_50MHZ);
 #else
 
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
+	struct iomuxc_gpr_base_regs *gpr
 		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
 
 	setup_iomux_fec();
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
+	clrsetbits_le32(&gpr->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
 	return set_clk_enet(ENET_125MHZ);
 #endif
@@ -425,16 +396,6 @@ int board_init(void)
 #endif
 
 	return 0;
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 1;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno + 1;
 }
 
 int board_late_init(void)

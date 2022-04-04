@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Configuration header file for TI's k2g-evm
  *
  * (C) Copyright 2015
  *     Texas Instruments Incorporated, <www.ti.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __CONFIG_K2G_EVM_H
@@ -15,8 +14,6 @@
 
 /* Platform type */
 #define CONFIG_SOC_K2G
-
-#define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 
 /* U-Boot general configuration */
 #define CONFIG_EXTRA_ENV_KS2_BOARD_SETTINGS				\
@@ -88,9 +85,6 @@
 #define PHY_ANEG_TIMEOUT	10000 /* PHY needs longer aneg time */
 
 #define CONFIG_ENV_SIZE			(256 << 10)  /* 256 KiB */
-
-#define CONFIG_SF_DEFAULT_BUS		1
-#define CONFIG_SF_DEFAULT_CS		0
 
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_CADENCE_QSPI
