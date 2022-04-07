@@ -285,14 +285,10 @@ const char *fs_board_get_nboot_version(void)
 	return fs_image_get_nboot_version(NULL);
 }
 
-/* Set RAM size */
-int dram_init(void)
+/* Set RAM size; optee will be subtracted in dram_init() */
+int board_phys_sdram_size(phys_size_t *size)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-
-	/* rom_pointer[1] holds the size of the TEE */
-	gd->ram_size =
-		(fs_board_get_cfg_info()->dram_size << 20) - rom_pointer[1];
+	*size = fs_board_get_cfg_info()->dram_size << 20;
 
 	return 0;
 }

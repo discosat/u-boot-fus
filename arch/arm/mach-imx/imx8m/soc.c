@@ -31,6 +31,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef PHYS_SDRAM
+#define PHYS_SDRAM CONFIG_SYS_SDRAM_BASE
+#endif
+
 #if defined(CONFIG_SECURE_BOOT) || defined(CONFIG_AVB_ATX) || defined(CONFIG_IMX_TRUSTY_OS)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 1,
@@ -131,18 +135,14 @@ static struct mm_region imx8m_mem_map[] = {
 		/* DRAM1 */
 		.virt = 0x40000000UL,
 		.phys = 0x40000000UL,
-#ifdef PHYS_SDRAM_SIZE
-		.size = PHYS_SDRAM_SIZE,
-#else
 		.size = 0x0,
-#endif
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 #ifdef CONFIG_IMX_TRUSTY_OS
 			 PTE_BLOCK_INNER_SHARE
 #else
 			 PTE_BLOCK_OUTER_SHARE
 #endif
-#if CONFIG_NR_DRAM_BANKS > 1
+#ifdef PHYS_SDRAM_2_SIZE
 	}, {
 		/* DRAM2 */
 		.virt = 0x100000000UL,
@@ -156,6 +156,11 @@ static struct mm_region imx8m_mem_map[] = {
 #endif
 #endif
 	}, {
+		/* empty entrie to split table entry 5
+		* if needed when TEEs are used
+		*/
+		0,
+	}, {
 		/* List terminator */
 		0,
 	}
@@ -165,19 +170,121 @@ struct mm_region *mem_map = imx8m_mem_map;
 
 void enable_caches(void)
 {
-#ifdef PHYS_SDRAM_SIZE
-	/* If OPTEE runs, remove OPTEE memory from MMU table to avoid speculative prefetch */
-	if (rom_pointer[1]) {
-		imx8m_mem_map[5].size -= rom_pointer[1];
+	/*
+	 * If OPTEE runs, remove OPTEE memory from MMU table to avoid
+	 * speculative prefetch
+	 */
+	int i = 0;
+	/* make sure that initial entry value matches imx8m_mem_map for DRAM1 */
+	int entry = 5;
+	u64 attrs = imx8m_mem_map[entry].attrs;
+	while (i < CONFIG_NR_DRAM_BANKS && entry < ARRAY_SIZE(imx8m_mem_map)) {
+		if (gd->bd->bi_dram[i].start == 0)
+			break;
+		imx8m_mem_map[entry].phys = gd->bd->bi_dram[i].start;
+		imx8m_mem_map[entry].virt = gd->bd->bi_dram[i].start;
+		imx8m_mem_map[entry].size = gd->bd->bi_dram[i].size;
+		imx8m_mem_map[entry].attrs = attrs;
+		debug("Added memory mapping (%d): %llx %llx\n", entry,
+			imx8m_mem_map[entry].phys, imx8m_mem_map[entry].size);
+		i++;entry++;
 	}
-#else
-	imx8m_mem_map[5].size = gd->ram_size;
-#endif
-	/* If OPTEE runs, remove OPTEE memory from MMU table to avoid speculative prefetch. */
-	/* Already done in spl */
 
 	icache_enable();
 	dcache_enable();
+}
+
+__weak int board_phys_sdram_size(phys_size_t *size)
+{
+#ifdef PHYS_SDRAM_SIZE
+	if (size) {
+		*size = PHYS_SDRAM_SIZE;
+		return 0;
+	}
+#endif
+	return -EINVAL;
+}
+
+int dram_init(void)
+{
+	phys_size_t sdram_size;
+	int ret;
+
+	ret = board_phys_sdram_size(&sdram_size);
+	if (ret)
+		return ret;
+
+	/* rom_pointer[1] contains the size of TEE occupies */
+	if (rom_pointer[1])
+		sdram_size -= rom_pointer[1];
+
+#ifdef PHYS_SDRAM_2_SIZE
+	sdram_size += PHYS_SDRAM_2_SIZE;
+#endif
+
+	gd->ram_size = sdram_size;
+
+	return 0;
+}
+
+int dram_init_banksize(void)
+{
+	int bank = 0;
+	int ret;
+	phys_size_t sdram_size;
+
+	ret = board_phys_sdram_size(&sdram_size);
+	if (ret)
+		return ret;
+
+	gd->bd->bi_dram[bank].start = PHYS_SDRAM;
+	if (rom_pointer[1]) {
+		phys_addr_t optee_start = (phys_addr_t)rom_pointer[0];
+		phys_size_t optee_size = (size_t)rom_pointer[1];
+
+		/* Entry 0 defines region from start of RAM to start of optee */
+		gd->bd->bi_dram[bank].size = optee_start - PHYS_SDRAM;
+
+		/* If optee reaches end of RAM, no additional entry required */
+		if ((optee_start + optee_size) < (PHYS_SDRAM + sdram_size)) {
+			if (++bank >= CONFIG_NR_DRAM_BANKS) {
+				puts("CONFIG_NR_DRAM_BANKS is not enough\n");
+				return -1;
+			}
+
+			/* Add entry 1 for region from end of optee to end of RAM */
+			gd->bd->bi_dram[bank].start = optee_start + optee_size;
+			gd->bd->bi_dram[bank].size = PHYS_SDRAM +
+				sdram_size - gd->bd->bi_dram[bank].start;
+		}
+	} else {
+		/* No optee, entry 0 is from start of RAM to end of RAM */
+		gd->bd->bi_dram[bank].size = sdram_size;
+	}
+
+#ifdef PHYS_SDRAM_2_SIZE
+	if (++bank >= CONFIG_NR_DRAM_BANKS) {
+		puts("CONFIG_NR_DRAM_BANKS is not enough for SDRAM_2\n");
+		return -1;
+	}
+	gd->bd->bi_dram[bank].start = PHYS_SDRAM_2;
+	gd->bd->bi_dram[bank].size = PHYS_SDRAM_2_SIZE;
+#endif
+
+	return 0;
+}
+
+phys_size_t get_effective_memsize(void)
+{
+	/* return the first bank as effective memory */
+	if (rom_pointer[1])
+		return ((phys_addr_t)rom_pointer[0] - PHYS_SDRAM);
+
+#ifdef PHYS_SDRAM_2_SIZE
+	return gd->ram_size - PHYS_SDRAM_2_SIZE;
+#else
+	return gd->ram_size;
+#endif
 }
 
 static u32 get_cpu_variant_type(u32 type)
