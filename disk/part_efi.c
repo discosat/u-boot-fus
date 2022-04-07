@@ -697,9 +697,18 @@ err:
 	return ret;
 }
 
-static void gpt_convert_efi_name_to_char(char *s, efi_char16_t *es, int n)
+/**
+ * gpt_convert_efi_name_to_char() - convert u16 string to char string
+ *
+ * TODO: this conversion only supports ANSI characters
+ *
+ * @s:	target buffer
+ * @es:	u16 string to be converted
+ * @n:	size of target buffer
+ */
+static void gpt_convert_efi_name_to_char(char *s, void *es, int n)
 {
-	char *ess = (char *)es;
+	char *ess = es;
 	int i, j;
 
 	memset(s, '\0', n);
@@ -1054,17 +1063,10 @@ static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 	}
 
 	if (validate_gpt_entries(pgpt_head, *pgpt_pte)) {
-
-#if !defined(CONFIG_DUAL_BOOTLOADER) || !defined(CONFIG_SPL_BUILD)
-	/* Heap memory is very limited in SPL, if the dual bootloader is
-	 * enabled, just load pte to dram instead of oc-ram. In such case,
-	 * this part of  memory shouldn't be freed. But in common routine,
-	 * don't forget to free the memory after use.
-	 */
 		free(*pgpt_pte);
-#endif
 		return 0;
 	}
+
 	/* We're done, all's well */
 	return 1;
 }
@@ -1118,6 +1120,7 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 		       __func__, (ulong)count);
 		return NULL;
 	}
+
 	/* Read GPT Entries from device */
 	blk = le64_to_cpu(pgpt_head->partition_entry_lba);
 	blk_cnt = BLOCK_CNT(count, dev_desc);

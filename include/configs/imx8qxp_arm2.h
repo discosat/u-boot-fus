@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8QXP_ARM2_H
@@ -13,71 +12,50 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-
 #define CONFIG_PARSE_CONTAINER
+#define CONFIG_SPL_TEXT_BASE				0x100000
+#define CONFIG_SPL_MAX_SIZE				(192 * 1024)
+#define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 
-#ifdef CONFIG_QSPI_BOOT
-#define CONFIG_SPL_SPI_LOAD
-#endif
-
-#define CONFIG_SPL_TEXT_BASE            0x0
-#define CONFIG_SPL_MAX_SIZE             (124 * 1024)
-#define CONFIG_SYS_MONITOR_LEN          (1024 * 1024)
-
-#ifdef CONFIG_NAND_BOOT
-#ifndef CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_NAND_RAW_ONLY
-#endif
-#define CONFIG_SPL_NAND_SUPPORT
-#define CONFIG_SPL_DMA_SUPPORT
-#define CONFIG_SPL_NAND_MXS
 #define CONFIG_SYS_NAND_U_BOOT_OFFS     (0x8000000)  /*Put the FIT out of first 128MB boot area */
 #define CONFIG_SPL_NAND_BOOT
 #define CONFIG_SYS_NAND_U_BOOT_DST		0x80000000
 #define CONFIG_SYS_NAND_U_BOOT_SIZE     (1024 * 1024 )
-
 #define CONFIG_SYS_NAND_U_BOOT_START    0x80000000
-#endif
-
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR         0x1040 /* (32K + 2Mb)/sector_size */
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION              0
+#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR		0x1040 /* (32K + 2Mb)/sector_size */
+#define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
+#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
-
-#define CONFIG_SPL_WATCHDOG_SUPPORT
-#define CONFIG_SPL_DRIVERS_MISC_SUPPORT
-#define CONFIG_SPL_LDSCRIPT             "arch/arm/cpu/armv8/u-boot-spl.lds"
-#define CONFIG_SPL_STACK                0x013E000
-#define CONFIG_SPL_LIBCOMMON_SUPPORT
-#define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
-#define CONFIG_SPL_BSS_START_ADDR      0x00138000
-#define CONFIG_SPL_BSS_MAX_SIZE        0x8000	/* 20 KB */
-#define CONFIG_SYS_SPL_MALLOC_START    0x00120000
-#define CONFIG_SYS_SPL_MALLOC_SIZE     0x18000   /* 60 KB */
-#define CONFIG_SERIAL_LPUART_BASE      0x5a060000
+#define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
+/*
+ * The memory layout on stack:  DATA section save + gd + early malloc
+ * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
+ * CONFIG_SYS_SPL_MALLOC_START
+ */
+#define CONFIG_SPL_STACK		0x013fff0
+#define CONFIG_SPL_BSS_START_ADDR      0x00130000
+#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
+#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
+#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
+#define CONFIG_SERIAL_LPUART_BASE	0x5a060000
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
-#define CONFIG_MALLOC_F_ADDR            0x00120000 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_MALLOC_F_ADDR		0x00138000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
 
 #define CONFIG_OF_EMBED
-#define CONFIG_ATF_TEXT_BASE 0x80000000
-#define CONFIG_SYS_ATF_START 0x80000000
-/* #define CONFIG_FIT */
-
-/* Since the SPL runs before ATF, MU1 will not be started yet, so use MU0 */
-#define SC_IPC_CH                       SC_IPC_AP_CH0
-
 #endif
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
 #define CONFIG_ARCH_MISC_INIT
+
+#define CONFIG_CMD_READ
 
 /* Flat Device Tree Definitions */
 #define CONFIG_OF_BOARD_SETUP
@@ -110,24 +88,10 @@
 
 #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 
-/* FUSE command */
-#define CONFIG_CMD_FUSE
-
-/* GPIO configs */
-#define CONFIG_MXC_GPIO
-
-/* ENET Config */
-#define CONFIG_MII
-
-#define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #define FEC_QUIRK_ENET_MAC
 
-#define CONFIG_PHY_GIGE /* Support for 1000BASE-X */
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_ATHEROS
-
-/* ENET0 connects AR8031 on CPU board, ENET1 connects to base board and MUX with ESAI, default is ESAI */
+/* ENET0 connects AR8031 on CPU board, ENET1 connects to base board */
 #define CONFIG_FEC_ENET_DEV 0
 
 #if (CONFIG_FEC_ENET_DEV == 0)
@@ -141,10 +105,10 @@
 #define CONFIG_ETHPRIME                 "eth1"
 #endif
 
-/* ENET0 MDIO are shared */
-#define CONFIG_FEC_MXC_MDIO_BASE	0x5B040000
-
+#ifndef CONFIG_LIB_RAND
 #define CONFIG_LIB_RAND
+#endif
+
 #define CONFIG_NET_RANDOM_ETHADDR
 
 /* MAX7322 */
@@ -166,7 +130,7 @@
 	"m4boot_0=run loadm4image_0; dcache flush; bootaux ${loadaddr} 0\0" \
 
 #ifdef CONFIG_NAND_BOOT
-#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:128m(nandboot),16m(nandfit),32m(nandkernel),16m(nanddtb),8m(nandtee),-(nandrootfs) "
+#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:128m(nandboot),16m(nandfit),32m(nandkernel),16m(nanddtb),8m(nandtee),-(nandrootfs)"
 #endif
 
 #define CONFIG_MFG_ENV_SETTINGS \
@@ -182,7 +146,7 @@
 #ifdef CONFIG_NAND_BOOT
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	CONFIG_MFG_ENV_SETTINGS \
-	"bootargs=console=ttyLP0,115200 ubi.mtd=6 "  \
+	"bootargs=console=ttyLP0,115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
 		MFG_NAND_PARTITION \
 		"\0"\
@@ -335,7 +299,6 @@
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
-#define CONFIG_NR_DRAM_BANKS		4
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
 #if defined(CONFIG_TARGET_IMX8QXP_DDR3_ARM2) || defined(CONFIG_TARGET_IMX8X_17X17_VAL)
@@ -354,9 +317,8 @@
 #define CONFIG_BAUDRATE			115200
 
 /* Monitor Command Prompt */
-#define CONFIG_HUSH_PARSER
 #define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
-#define CONFIG_SYS_CBSIZE              1024
+#define CONFIG_SYS_CBSIZE              2048
 #define CONFIG_SYS_MAXARGS             64
 #define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
@@ -371,14 +333,8 @@
 #define CONFIG_CMD_PCA953X_INFO
 #endif
 
-#define CONFIG_IMX_SMMU
-
 /* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
 #ifdef CONFIG_FSL_FSPI
-#define CONFIG_SF_DEFAULT_BUS		0
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	40000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
 #define FSL_FSPI_FLASH_SIZE		SZ_64M
 #define FSL_FSPI_FLASH_NUM		1
 #define FSPI0_BASE_ADDR			0x5d120000
@@ -386,8 +342,9 @@
 #define CONFIG_SYS_FSL_FSPI_AHB
 #endif
 
-#ifdef CONFIG_CMD_NAND
-#define CONFIG_NAND_MXS
+#define CONFIG_SERIAL_TAG
+
+#ifdef CONFIG_NAND_MXS
 #define CONFIG_CMD_NAND_TRIMFFS
 
 /* NAND stuff */
@@ -395,15 +352,21 @@
 #define CONFIG_SYS_NAND_BASE           0x40000000
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_ONFI_DETECTION
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
-/* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
 #endif
 
 /* USB Config */
-#ifdef CONFIG_CMD_USB
+#ifndef CONFIG_SPL_BUILD
+#define CONFIG_CMD_USB
+#define CONFIG_USB_STORAGE
+#define CONFIG_USBD_HS
+
+#define CONFIG_CMD_USB_MASS_STORAGE
+#define CONFIG_USB_GADGET_MASS_STORAGE
+#define CONFIG_USB_FUNCTION_MASS_STORAGE
+#endif
+
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 /* USB OTG controller configs */
@@ -412,11 +375,7 @@
 #define CONFIG_USB_ETHER_ASIX
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #endif
-#endif /* CONFIG_CMD_USB */
 
-#ifdef CONFIG_USB_GADGET
-#define CONFIG_USBD_HS
-#endif
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "imx8qxp_arm2_android.h"
@@ -435,8 +394,4 @@
 #endif
 
 #define CONFIG_OF_SYSTEM_SETUP
-
-#define CONFIG_CMD_READ
-#define CONFIG_SERIAL_TAG
-
 #endif /* __IMX8QXP_ARM2_H */

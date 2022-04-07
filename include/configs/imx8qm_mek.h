@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2017-2019 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __IMX8QM_MEK_H
@@ -12,15 +11,10 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-
-#ifdef CONFIG_SPL_SPI_SUPPORT
-#define CONFIG_SPL_SPI_LOAD
-#endif
-
 #define CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_TEXT_BASE           0x0
-#define CONFIG_SPL_MAX_SIZE            (124 * 1024)
-#define CONFIG_SYS_MONITOR_LEN         (1024 * 1024)
+#define CONFIG_SPL_TEXT_BASE				0x100000
+#define CONFIG_SPL_MAX_SIZE				(192 * 1024)
+#define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR                0x1040 /* (flash.bin_offset + 2Mb)/sector_size */
 #define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
@@ -33,37 +27,28 @@
 #define CONFIG_SYS_UBOOT_BASE 0x08281000
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION             0
 
-
-#define CONFIG_SPL_WATCHDOG_SUPPORT
-#define CONFIG_SPL_DRIVERS_MISC_SUPPORT
-#define CONFIG_SPL_LDSCRIPT            "arch/arm/cpu/armv8/u-boot-spl.lds"
-#define CONFIG_SPL_STACK               0x013E000
-#define CONFIG_SPL_LIBCOMMON_SUPPORT
-#define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_SERIAL_SUPPORT
-#define CONFIG_SPL_BSS_START_ADDR      0x00138000
-#define CONFIG_SPL_BSS_MAX_SIZE        0x1000  /* 4 KB */
-#define CONFIG_SYS_SPL_MALLOC_START    0x00120000
-#define CONFIG_SYS_SPL_MALLOC_SIZE     0x18000  /* 12 KB */
-#define CONFIG_SERIAL_LPUART_BASE      0x5a060000
+#define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
+/*
+ * The memory layout on stack:  DATA section save + gd + early malloc
+ * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
+ * CONFIG_SYS_SPL_MALLOC_START
+ */
+#define CONFIG_SPL_STACK		0x013fff0
+#define CONFIG_SPL_BSS_START_ADDR      0x00130000
+#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
+#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
+#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
+#define CONFIG_SERIAL_LPUART_BASE	0x5a060000
 #define CONFIG_SYS_ICACHE_OFF
 #define CONFIG_SYS_DCACHE_OFF
-#define CONFIG_MALLOC_F_ADDR           0x00120000 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_MALLOC_F_ADDR		0x00138000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
 
 #define CONFIG_OF_EMBED
-#define CONFIG_ATF_TEXT_BASE 0x80000000
-#define CONFIG_SYS_ATF_START 0x80000000
-/* #define CONFIG_FIT */
-
-/* Since the SPL runs before ATF, MU1 will not be started yet, so use MU0 */
-#define SC_IPC_CH                      SC_IPC_AP_CH0
-
 #endif
-
 
 #define CONFIG_REMAKE_ELF
 
@@ -91,42 +76,14 @@
 
 #define CONFIG_ENV_OVERWRITE
 
-#ifdef CONFIG_SATA_IMX
-#define CONFIG_SCSI
-#define CONFIG_SCSI_AHCI
-#define CONFIG_SCSI_AHCI_PLAT
-#define CONFIG_SYS_SCSI_MAX_SCSI_ID 1
-#define CONFIG_CMD_SCSI
-#define CONFIG_SYS_SCSI_MAX_LUN 1
-#define CONFIG_SYS_SCSI_MAX_DEVICE      (CONFIG_SYS_SCSI_MAX_SCSI_ID * CONFIG_SYS_SCSI_MAX_LUN)
-#define CONFIG_SYS_SCSI_MAXDEVICE       CONFIG_SYS_SCSI_MAX_DEVICE
-#define CONFIG_SYS_SATA_MAX_DEVICE	1
-#endif
-
-#define CONFIG_FSL_HSIO
-#define CONFIG_PCIE_IMX8X
+#define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
-#define CONFIG_PCI
-#define CONFIG_PCI_PNP
 #define CONFIG_PCI_SCAN_SHOW
 
 #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
-/* FUSE command */
-#define CONFIG_CMD_FUSE
 
-/* GPIO configs */
-#define CONFIG_MXC_GPIO
-
-/* ENET Config */
-#define CONFIG_MII
-
-#define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #define FEC_QUIRK_ENET_MAC
-
-#define CONFIG_PHY_GIGE /* Support for 1000BASE-X */
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_ATHEROS
 
 /* ENET0 connects AR8031 on CPU board, ENET1 connects to base board */
 #define CONFIG_FEC_ENET_DEV 0
@@ -141,10 +98,9 @@
 #define CONFIG_ETHPRIME                 "eth1"
 #endif
 
-/* ENET0 MDIO are shared */
-#define CONFIG_FEC_MXC_MDIO_BASE	0x5B040000
-
+#ifndef CONFIG_LIB_RAND
 #define CONFIG_LIB_RAND
+#endif
 #define CONFIG_NET_RANDOM_ETHADDR
 
 #ifdef CONFIG_AHAB_BOOT
@@ -155,11 +111,11 @@
 
 #define JAILHOUSE_ENV \
 	"jh_mmcboot=" \
-		"setenv fdt_file fsl-imx8qm-mek-root.dtb;"\
+		"setenv fdt_file imx8qm-mek-root.dtb;"\
 		"setenv boot_os 'scu_rm dtb ${fdt_addr}; booti ${loadaddr} - ${fdt_addr};'; " \
 		"run mmcboot; \0" \
 	"jh_netboot=" \
-		"setenv fdt_file fsl-imx8qm-mek-root.dtb;"\
+		"setenv fdt_file imx8qm-mek-root.dtb;"\
 		"setenv boot_os 'scu_rm dtb ${fdt_addr}; booti ${loadaddr} - ${fdt_addr};'; " \
 		"run netboot; \0"
 
@@ -168,8 +124,8 @@
             "xenhyper_bootargs=console=dtuart dtuart=/serial@5a060000 dom0_mem=2048M dom0_max_vcpus=2 dom0_vcpus_pin=true hmp-unsafe=true\0" \
             "xenlinux_bootargs= \0" \
             "xenlinux_console=hvc0 earlycon=xen\0" \
-            "xenlinux_addr=0x92000000\0" \
-	    "dom0fdt_file=fsl-imx8qm-mek-dom0.dtb\0" \
+            "xenlinux_addr=0x9e000000\0" \
+	    "dom0fdt_file=imx8qm-mek-dom0.dtb\0" \
             "xenboot_common=" \
                 "${get_cmd} ${loadaddr} xen;" \
                 "${get_cmd} ${fdt_addr} ${dom0fdt_file};" \
@@ -248,8 +204,8 @@
 		"source\0" \
 	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
 	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
-	"hdp_addr=0x84000000\0" \
-	"hdprx_addr=0x84800000\0" \
+	"hdp_addr=0x9c000000\0" \
+	"hdprx_addr=0x9c800000\0" \
 	"hdp_file=hdmitxfw.bin\0" \
 	"hdprx_file=hdmirxfw.bin\0" \
 	"loadhdp=fatload mmc ${mmcdev}:${mmcpart} ${hdp_addr} ${hdp_file}\0" \
@@ -259,7 +215,6 @@
 	"auth_os=auth_cntr ${cntr_addr}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
 		"if run loadhdp; then; hdp load ${hdp_addr}; fi;" \
-		"if run loadhdprx; then; hdprx load ${hdprx_addr}; fi;" \
 		"run mmcargs; " \
 		"if test ${sec_boot} = yes; then " \
 			"if run auth_os; then " \
@@ -336,7 +291,6 @@
 
 #define CONFIG_SYS_INIT_SP_ADDR         0x80200000
 
-
 /* Default environment is in SD */
 #define CONFIG_ENV_SIZE			0x2000
 
@@ -363,7 +317,6 @@
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
-#define CONFIG_NR_DRAM_BANKS		4
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
 #define PHYS_SDRAM_1_SIZE		0x80000000	/* 2 GB */
@@ -376,7 +329,6 @@
 #define CONFIG_BAUDRATE			115200
 
 /* Monitor Command Prompt */
-#define CONFIG_HUSH_PARSER
 #define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
 #define CONFIG_SYS_CBSIZE              2048
 #define CONFIG_SYS_MAXARGS             64
@@ -391,10 +343,6 @@
 
 /* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
 #ifdef CONFIG_FSL_FSPI
-#define CONFIG_SF_DEFAULT_BUS		0
-#define CONFIG_SF_DEFAULT_CS		0
-#define CONFIG_SF_DEFAULT_SPEED	40000000
-#define CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
 #define FSL_FSPI_FLASH_SIZE		SZ_64M
 #define FSL_FSPI_FLASH_NUM		1
 #define FSPI0_BASE_ADDR			0x5d120000
@@ -414,14 +362,12 @@
 #define CONFIG_USB_GADGET_MASS_STORAGE
 #define CONFIG_USB_FUNCTION_MASS_STORAGE
 
-#define CONFIG_USB_EHCI_HCD
 #endif
 
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
 /* USB OTG controller configs */
 #ifdef CONFIG_USB_EHCI_HCD
-#define CONFIG_USB_EHCI_MX6
 #define CONFIG_USB_HOST_ETHER
 #define CONFIG_USB_ETHER_ASIX
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
@@ -445,8 +391,6 @@
 #include "imx8qm_mek_android.h"
 #elif defined (CONFIG_ANDROID_AUTO_SUPPORT)
 #include "imx8qm_mek_android_auto.h"
-#elif defined (CONFIG_IMX8_TRUSTY_XEN)
-#include "imx8qm_mek_trusty_xen.h"
 #endif
 
 #endif /* __IMX8QM_MEK_H */

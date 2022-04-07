@@ -71,7 +71,7 @@ build configuration:
 1.3 Creating the CSF description file
 --------------------------------------
 
-The CSF contains all the commands that the ROM executes during the secure
+The CSF contains all the commands that the HAB executes during the secure
 boot. These commands instruct the HAB on which memory areas of the image
 to authenticate, which keys to install, use and etc.
 
@@ -90,14 +90,14 @@ the U-Boot build, the example below is a log for mx7dsabresd_defconfig target:
   Data Size:    667648 Bytes = 652.00 KiB = 0.64 MiB
   Load Address: 877ff420
   Entry Point:  87800000
-  HAB Blocks:   877ff400 00000000 0009ec00
-                ^^^^^^^^ ^^^^^^^^ ^^^^^^^^
-                |        |        |
-                |        |        ------- (1)
-                |        |
-                |        ---------------- (2)
+  HAB Blocks:   0x877ff400 0x00000000 0x0009ec00
+                ^^^^^^^^^^ ^^^^^^^^^^ ^^^^^^^^^^
+                |          |          |
+                |          |          ------- (1)
+                |          |
+                |          ------------------ (2)
                 |
-                ------------------------- (3)
+                ----------------------------- (3)
 
   (1)   Size of area in file u-boot-dtb.imx to sign.
         This area should include the IVT, the Boot Data the DCD
@@ -386,7 +386,7 @@ The tool objcopy can be used for padding the image.
 
 - Pad the zImage:
 
-  $ objcopy -I binary -O binary --pad-to 0x6EA000 --gap-fill=0x00 \
+  $ objcopy -I binary -O binary --pad-to 0x64A000 --gap-fill=0x00 \
 	zImage zImage_pad.bin
 
 2.2 Generating Image Vector Table

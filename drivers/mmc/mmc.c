@@ -768,7 +768,7 @@ int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value)
 
 #if !CONFIG_IS_ENABLED(MMC_TINY)
 static int mmc_set_card_speed(struct mmc *mmc, enum bus_mode mode,
-			      bool hsdowngrade)
+				bool hsdowngrade)
 {
 	int err;
 	int speed_bits;

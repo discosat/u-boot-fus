@@ -7,7 +7,7 @@
  *
  * Linux IPU driver for MX51:
  *
- * (C) Copyright 2005-2010 Freescale Semiconductor, Inc.
+ * (C) Copyright 2005-2016 Freescale Semiconductor, Inc.
  */
 
 /* #define DEBUG */

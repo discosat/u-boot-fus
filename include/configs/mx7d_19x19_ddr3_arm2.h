@@ -17,7 +17,6 @@
 #define PHYS_SDRAM_SIZE			SZ_1G
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME                 "eth0"
@@ -26,7 +25,6 @@
 #endif
 #define CONFIG_FEC_MXC_PHYADDR          0
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
 
 /* ENET2 */
@@ -34,12 +32,6 @@
 
 #define CONFIG_FEC_MXC_MDIO_BASE	ENET_IPS_BASE_ADDR
 
-/* For QSPI, not use DM driver, because DTS does not have it supported */
-#ifdef CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#endif
-
-#define CONFIG_FSL_QSPI   /* Enable the QSPI flash at default */
 
 #ifndef CONFIG_DM_I2C
 #define CONFIG_SYS_I2C
@@ -57,15 +49,6 @@
 #define CONFIG_POWER_PFUZE3000_I2C_ADDR	0x08
 #endif
 
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_CMD_SF
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI_FLASH_ATMEL
-#define CONFIG_SF_DEFAULT_BUS  0
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
 
 #include "mx7d_arm2.h"
 

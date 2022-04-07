@@ -244,15 +244,15 @@ fill_dir_slot(fat_itr *itr, const char *l_name)
 		counter--;
 		if (!fat_itr_next(itr))
 			if (!itr->dent && !itr->is_root && flush_dir_table(itr))
-				return -1;
+		return -1;
 	}
 
 	if (!itr->dent && !itr->is_root)
-/*
+			/*
 		 * don't care return value here because we have already
 		 * finished completing an entry with name, only ending up
 		 * no more entry left
- */
+			 */
 		flush_dir_table(itr);
 
 	return 0;

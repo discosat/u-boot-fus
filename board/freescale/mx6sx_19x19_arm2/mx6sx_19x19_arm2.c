@@ -503,27 +503,6 @@ int board_mmc_init(bd_t *bis)
 }
 #endif
 
-#ifdef CONFIG_MXC_SPI
-iomux_v3_cfg_t const ecspi4_pads[] = {
-	MX6_PAD_SD2_CLK__ECSPI4_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_DATA3__ECSPI4_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_CMD__ECSPI4_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_SD2_DATA2__GPIO6_IO_10 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-void setup_spinor(void)
-{
-	SETUP_IOMUX_PADS(ecspi4_pads);
-	gpio_request(IMX_GPIO_NR(6, 10), "ecspi cs");
-	gpio_direction_output(IMX_GPIO_NR(6, 10), 0);
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(6, 10)) : -1;
-}
-#endif
-
 #ifdef CONFIG_MTD_NOR_FLASH
 iomux_v3_cfg_t eimnor_pads[] = {
 	MX6_PAD_QSPI1A_SCLK__WEIM_DATA_0   | MUX_PAD_CTRL(WEIM_NOR_PAD_CTRL2),
@@ -790,10 +769,6 @@ int board_init(void)
 
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
-#endif
-
-#ifdef CONFIG_MXC_SPI
-	setup_spinor();
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH

@@ -16,7 +16,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		status = "okay";
@@ -177,7 +177,7 @@
 	spi_flash1: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p32";
+		compatible = "st,m25p32", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -405,10 +405,10 @@
 
 			VCOM_reg: VCOM {
 				regulator-name = "VCOM";
-				/* 2's-compliment, -4325000 */
-				regulator-min-microvolt = <0xffbe0178>;
-				/* 2's-compliment, -500000 */
-				regulator-max-microvolt = <0xfff85ee0>;
+				/* Real max value: -500000 */
+				regulator-max-microvolt = <4325000>;
+				/* Real min value: -4325000 */
+				regulator-min-microvolt = <500000>;
 			};
 
 			VNEG_reg: VNEG {
@@ -860,7 +860,7 @@
 	imx7d-12x12-lpddr3-arm2 {
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x30
+				MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT	0x30
 			>;
 		};
 	};
@@ -868,19 +868,19 @@
 	imx7d-sdb {
 		pinctrl_usbotg1_vbus: usbotg1vbusgrp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO05__GPIO1_IO5 	  0x14
+				MX7D_PAD_LPSR_GPIO1_IO05__GPIO1_IO5 	  0x14
 			>;
 		};
 
 		pinctrl_usbotg2_vbus: usbotg2vbusgrp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO07__GPIO1_IO7    0x14
+				MX7D_PAD_LPSR_GPIO1_IO07__GPIO1_IO7    0x14
 			>;
 		};
 
 		pinctrl_wdog: wdoggrp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B 0x74
+				MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B 0x74
 			>;
 		};
 	};
@@ -1033,5 +1033,5 @@
 &wdog1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog>;
-	fsl,wdog_b;
+	fsl,ext-reset-output;
 };

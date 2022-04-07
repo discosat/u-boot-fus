@@ -28,13 +28,9 @@
 #define CONFIG_IMX_THERMAL
 
 /* MMC Configs */
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
 #define CONFIG_SUPPORT_EMMC_BOOT /* eMMC specific */
-
-#define CONFIG_BAUDRATE			115200
 
 #undef CONFIG_BOOTM_NETBSD
 #undef CONFIG_BOOTM_PLAN9
@@ -51,20 +47,12 @@
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_SPEED		100000
 
-#undef CONFIG_CMD_IMLS
-
 #define CONFIG_LOADADDR			0x80800000
 #define CONFIG_SYS_TEXT_BASE		0x87800000
 
-#ifdef CONFIG_DM_SPI
 #define CONFIG_SYS_AUXCORE_BOOTDATA 0x68000000 /* Set to QSPI1 B flash at default */
 #define SF_QSPI1_B_CS_NUM 2
-#define SF_QSPI1_B_BUS_NUM 1
-#else
-#define CONFIG_SYS_AUXCORE_BOOTDATA 0x62000000 /* Set to QSPI1 B flash at default */
-#define SF_QSPI1_B_CS_NUM 1
 #define SF_QSPI1_B_BUS_NUM 0
-#endif
 
 #ifdef CONFIG_IMX_BOOTAUX
 
@@ -114,7 +102,7 @@
 	"bootargs=console=ttymxc0,115200 ubi.mtd=5 "  \
 		"root=ubi0:rootfs rootfstype=ubifs "		     \
 		"mtdparts=gpmi-nand:64m(boot),16m(kernel),16m(dtb),1m(misc),-(rootfs)\0"\
-	"bootcmd=nand read ${loadaddr} 0x4000000 0x800000;"\
+	"bootcmd=nand read ${loadaddr} 0x4000000 0xc00000;"\
 		"nand read ${fdt_addr} 0x5000000 0x100000;"\
 		"bootz ${loadaddr} - ${fdt_addr}\0"
 
@@ -206,7 +194,6 @@
 #define CONFIG_SYS_HZ			1000
 
 /* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
@@ -222,16 +209,7 @@
 
 #ifdef CONFIG_FSL_QSPI
 #define CONFIG_SYS_FSL_QSPI_AHB
-#define	CONFIG_SF_DEFAULT_CS		0
-#define	CONFIG_SF_DEFAULT_SPEED		40000000
-#define	CONFIG_SF_DEFAULT_MODE		SPI_MODE_0
-#ifdef CONFIG_DM_SPI
 #define FSL_QSPI_FLASH_NUM		4
-#define	CONFIG_SF_DEFAULT_BUS		1  /* Have set the QSPI to SPI 1 in imx7d.dtsi alias*/
-#else
-#define FSL_QSPI_FLASH_NUM		2  /* Non-DM driver only supports 2 flash, one is on A port, another is on B port*/
-#define	CONFIG_SF_DEFAULT_BUS		0
-#endif
 #define FSL_QSPI_FLASH_SIZE		SZ_64M
 #define QSPI0_BASE_ADDR			QSPI1_IPS_BASE_ADDR
 #define QSPI0_AMBA_BASE			QSPI0_ARB_BASE_ADDR
@@ -250,8 +228,6 @@
 #endif
 
 #ifdef CONFIG_NAND_MXS
-#define CONFIG_CMD_NAND
-#define CONFIG_CMD_NAND_TRIMFFS
 
 /* NAND stuff */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -260,9 +236,6 @@
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
 #endif
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
@@ -291,9 +264,8 @@
 #define	CONFIG_VIDEO_LOGO
 #define	CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
-#define	CONFIG_CMD_BMP
-#define	CONFIG_BMP_16BPP
-#define	CONFIG_VIDEO_BMP_RLE8
+#define CONFIG_BMP_16BPP
+#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #define CONFIG_IMX_VIDEO_SKIP
 #endif
@@ -302,7 +274,6 @@
 /*
  * Framebuffer and LCD
  */
-#define CONFIG_CMD_BMP
 #define CONFIG_SPLASH_SCREEN
 
 #undef LCD_TEST_PATTERN

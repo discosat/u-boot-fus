@@ -7,7 +7,7 @@
 #include <common.h>
 #include <linux/errno.h>
 #include <asm/io.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <malloc.h>
 #include <command.h>
@@ -39,8 +39,7 @@ static struct scu_rm_part_data rm_part_data[SC_MAX_PARTS];
 static int partition_alloc(bool isolated, bool restricted, bool grant, sc_rm_pt_t *pt)
 {
 	sc_rm_pt_t parent_part, os_part;
-	sc_ipc_t ipc_handle;
-	sc_err_t err;
+	int err;
 	int i;
 
 	for (i = 0; i < SC_MAX_PARTS; i++) {
@@ -53,25 +52,23 @@ static int partition_alloc(bool isolated, bool restricted, bool grant, sc_rm_pt_
 		return -EINVAL;
 	}
 
-	ipc_handle = gd->arch.ipc_channel_handle;
-
-	err = sc_rm_get_partition(ipc_handle, &parent_part);
+	err = sc_rm_get_partition(-1, &parent_part);
 	if (err != SC_ERR_NONE) {
 		puts("sc_rm_get_partition failure\n");
 		return -EINVAL;
 	}
 
 	debug("isolated %d, restricted %d, grant %d\n", isolated, restricted, grant);
-	err = sc_rm_partition_alloc(ipc_handle, &os_part, false, isolated,
+	err = sc_rm_partition_alloc(-1, &os_part, false, isolated,
 				    restricted, grant, false);
 	if (err != SC_ERR_NONE) {
 		printf("sc_rm_partition_alloc failure %d\n", err);
 		return -EINVAL;
 	}
 
-	err = sc_rm_set_parent(ipc_handle, os_part, parent_part);
+	err = sc_rm_set_parent(-1, os_part, parent_part);
 	if (err != SC_ERR_NONE) {
-		sc_rm_partition_free(ipc_handle, os_part);
+		sc_rm_partition_free(-1, os_part);
 		return -EINVAL;
 	}
 
@@ -113,8 +110,7 @@ static int do_part_alloc(int argc, char * const argv[])
 
 static int do_part_dtb(int argc, char * const argv[])
 {
-	sc_ipc_t ipc_handle;
-	sc_err_t err;
+	int err;
 	sc_rm_pt_t pt;
 	char *pathp = "/domu";
 	int nodeoffset, subnode;
@@ -125,8 +121,6 @@ static int do_part_dtb(int argc, char * const argv[])
 	bool init_ignore_domu_power = false;
 	char *tmp;
 	void *fdt;
-
-	ipc_handle = gd->arch.ipc_channel_handle;
 
 	tmp = env_get("domu-init-ignore-poweroff");
 	if (tmp && !strncmp(tmp, "yes", 3)) {
@@ -195,7 +189,7 @@ static int do_part_dtb(int argc, char * const argv[])
 					  sizeof(u32));
 			if (ret) {
 				printf("Could not set reg property %d\n", ret);
-				sc_rm_partition_free(ipc_handle, pt);
+				sc_rm_partition_free(-1, pt);
 				goto free_data;
 			}
 
@@ -205,20 +199,20 @@ static int do_part_dtb(int argc, char * const argv[])
 					case SC_R_MU_2A:
 					case SC_R_MU_3A:
 					case SC_R_MU_4A:
-						err = sc_pm_set_resource_power_mode(ipc_handle, rsrc_data[i], SC_PM_PW_MODE_ON);
+						err = sc_pm_set_resource_power_mode(-1, rsrc_data[i], SC_PM_PW_MODE_ON);
 						if (err)
 							debug("power on resource %d, err %d\n", rsrc_data[i], err);
 						break;
 					default:
 						if (init_ignore_domu_power)
 							break;
-						err = sc_pm_set_resource_power_mode(ipc_handle, rsrc_data[i], SC_PM_PW_MODE_OFF);
+						err = sc_pm_set_resource_power_mode(-1, rsrc_data[i], SC_PM_PW_MODE_OFF);
 						if (err)
 							debug("power off resource %d, err %d\n", rsrc_data[i], err);
 						break;
 					}
-					if (sc_rm_is_resource_owned(ipc_handle, rsrc_data[i])) {
-						err = sc_rm_assign_resource(ipc_handle, pt, rsrc_data[i]);
+					if (sc_rm_is_resource_owned(-1, rsrc_data[i])) {
+						err = sc_rm_assign_resource(-1, pt, rsrc_data[i]);
 						debug("pt %d, resource %d, err %d\n", pt, rsrc_data[i], err);
 					}
 				}
@@ -226,8 +220,8 @@ static int do_part_dtb(int argc, char * const argv[])
 
 			if (pad_size > 0) {
 				for (i = 0; i < pad_size >> 2; i++) {
-					if (sc_rm_is_pad_owned(ipc_handle, pad_data[i])) {
-						err = sc_rm_assign_pad(ipc_handle, pt, pad_data[i]);
+					if (sc_rm_is_pad_owned(-1, pad_data[i])) {
+						err = sc_rm_assign_pad(-1, pt, pad_data[i]);
 						debug("pt %d, pad %d, err %d\n", pt, pad_data[i], err);
 					}
 				}
@@ -250,9 +244,7 @@ static int do_part_dtb(int argc, char * const argv[])
 static int do_part_free(int argc, char * const argv[])
 {
 	sc_rm_pt_t os_part;
-	sc_ipc_t ipc_handle;
-	sc_err_t err;
-	ipc_handle = gd->arch.ipc_channel_handle;
+	int err;
 	int i;
 
 	if (argc == 0)
@@ -260,7 +252,7 @@ static int do_part_free(int argc, char * const argv[])
 
 	os_part = simple_strtoul(argv[0], NULL, 10);
 
-	err = sc_rm_partition_free(ipc_handle, os_part);
+	err = sc_rm_partition_free(-1, os_part);
 	if (err != SC_ERR_NONE) {
 		printf("free partiiton %d err %d\n", os_part, err);
 		return CMD_RET_FAILURE;
@@ -279,13 +271,11 @@ static int do_part_free(int argc, char * const argv[])
 static int do_resource_assign(int argc, char * const argv[])
 {
 	sc_rm_pt_t os_part;
-	sc_ipc_t ipc_handle;
-	sc_err_t err;
+	int err;
 	sc_rsrc_t resource;
 	sc_pad_t pad;
 	int i, flag;
 
-	ipc_handle = gd->arch.ipc_channel_handle;
 
 	if (argc < 3)
 		return CMD_RET_FAILURE;
@@ -308,9 +298,9 @@ static int do_resource_assign(int argc, char * const argv[])
 	}
 
 	if (flag)
-		err = sc_rm_assign_pad(ipc_handle, os_part, pad);
+		err = sc_rm_assign_pad(-1, os_part, pad);
 	else
-		err = sc_rm_assign_resource(ipc_handle, os_part, resource);
+		err = sc_rm_assign_resource(-1, os_part, resource);
 	if (err != SC_ERR_NONE) {
 		printf("assign resource/pad error %d\n", err);
 		return CMD_RET_FAILURE;
@@ -345,7 +335,7 @@ static int do_part_test(int argc, char * const argv[])
 
 	resource = simple_strtoul(argv[0], NULL, 10);
 
-	err = sc_pm_set_resource_power_mode(gd->arch.ipc_channel_handle, resource, SC_PM_PW_MODE_ON);
+	err = sc_pm_set_resource_power_mode(-1, resource, SC_PM_PW_MODE_ON);
 	if (err == SC_ERR_NOACCESS)
 		puts("NO ACCESS\n");
 

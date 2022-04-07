@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, NVIDIA CORPORATION.
  * Copyright 2017 NXP
+ *
  */
 
 #ifndef _POWER_DOMAIN_H

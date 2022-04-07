@@ -6,6 +6,7 @@
  * Aneesh V <aneesh@ti.com>
  *
  * Copyright 2018 NXP
+ *
  */
 #include <common.h>
 #include <dm.h>
@@ -17,7 +18,7 @@
 #include <mmc.h>
 #include <image.h>
 
-int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
+static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
 {
 	u32 image_size_sectors;
@@ -66,7 +67,7 @@ extern int mmc_load_image_parse_container_dual_uboot(struct spl_image_info *spl_
 #else
 static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
-			      struct mmc *mmc, unsigned long sector)
+				     struct mmc *mmc, unsigned long sector)
 {
 	unsigned long count;
 	struct image_header *header;
@@ -184,7 +185,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		err = part_get_info(mmc_get_blk_desc(mmc), type_part, &info);
 		if (err)
 			continue;
-		if (info.sys_ind == 
+		if (info.sys_ind ==
 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION_TYPE) {
 			partition = type_part;
 			break;
@@ -361,7 +362,7 @@ int __weak mmc_load_image_parse_container_dual_bootloader(struct spl_image_info 
 				     struct mmc *mmc, unsigned long sector)
 {
 	return -ENODEV;
-};
+}
 #endif
 #endif
 

@@ -4,6 +4,7 @@ config IMX8M
 	bool
 	select HAS_CAAM
 	select ROM_UNIFIED_SECTIONS
+	select ARMV8_SPL_EXCEPTION_VECTORS
 
 config SYS_SOC
 	default "imx8m"
@@ -20,6 +21,20 @@ config IMX8MN
 	bool
 	select IMX8M
 
+config IMX8MP
+	bool
+	select IMX8M
+
+config SECURE_STICKY_BITS_LOCKUP
+	bool "Enable workaround to fix sticky bits lock up issue"
+	depends on IMX8MQ && SECURE_BOOT
+	default y
+
+config IMX_UNIQUE_ID
+	hex "Enable workaround to fix sticky bits lock up issue"
+	depends on IMX8MQ && SECURE_BOOT && !SECURE_STICKY_BITS_LOCKUP
+	default 0x0
+
 choice
 	prompt	"NXP i.MX8M board select"
 	optional
@@ -27,7 +42,6 @@ choice
 config TARGET_IMX8MQ_EVK
 	bool "imx8mq_evk"
 	select IMX8MQ
-	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 
 config TARGET_IMX8MQ_DDR3L_ARM2
@@ -37,11 +51,6 @@ config TARGET_IMX8MQ_DDR3L_ARM2
 
 config TARGET_IMX8MQ_DDR4_ARM2
 	bool "imx8mq_ddr4_arm2"
-	select IMX8MQ
-	select SUPPORT_SPL
-
-config TARGET_IMX8MQ_PHANBELL
-	bool "imx8mq_phanbell"
 	select IMX8MQ
 	select SUPPORT_SPL
 
@@ -66,13 +75,11 @@ config TARGET_IMX8MM_DDR3L_VAL
 config TARGET_IMX8MM_EVK
 	bool "imx8mm LPDDR4 EVK board"
 	select IMX8MM
-	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 
 config TARGET_IMX8MM_DDR4_EVK
 	bool "imx8mm DDR4 EVK board"
 	select IMX8MM
-	select SUPPORT_SPL
 	select IMX8M_DDR4
 
 config TARGET_IMX8MN_EVK
@@ -86,6 +93,12 @@ config TARGET_IMX8MN_DDR4_EVK
 	select IMX8MN
 	select SUPPORT_SPL
 	select IMX8M_DDR4
+
+config TARGET_IMX8MP_EVK
+	bool "imx8mp LPDDR4 EVK board"
+	select IMX8MP
+	select SUPPORT_SPL
+	select IMX8M_LPDDR4
 
 config TARGET_FSIMX8MM
 	bool "Support fsimx8mm boards from F&S"
@@ -111,11 +124,11 @@ endchoice
 
 source "board/freescale/imx8mq_evk/Kconfig"
 source "board/freescale/imx8mq_arm2/Kconfig"
-source "board/freescale/imx8mq_phanbell/Kconfig"
 source "board/freescale/imx8mq_aiy/Kconfig"
 source "board/freescale/imx8mm_evk/Kconfig"
 source "board/freescale/imx8mm_val/Kconfig"
 source "board/freescale/imx8mn_evk/Kconfig"
+source "board/freescale/imx8mp_evk/Kconfig"
 source "board/F+S/fsimx8mm/Kconfig"
 source "board/F+S/fsimx8m/Kconfig"
 source "board/F+S/fsimx8mn/Kconfig"

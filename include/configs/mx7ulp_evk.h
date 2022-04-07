@@ -11,7 +11,7 @@
 
 #include <linux/sizes.h>
 #include <asm/arch/imx-regs.h>
-#include "configs/imx_env.h"
+#include "imx_env.h"
 
 #ifdef CONFIG_SECURE_BOOT
 #ifndef CONFIG_CSF_SIZE
@@ -201,10 +201,6 @@
 /* QSPI configs */
 #ifdef CONFIG_FSL_QSPI
 #define CONFIG_SYS_FSL_QSPI_AHB
-#define CONFIG_SF_DEFAULT_BUS           0
-#define CONFIG_SF_DEFAULT_CS            0
-#define CONFIG_SF_DEFAULT_SPEED         40000000
-#define CONFIG_SF_DEFAULT_MODE          SPI_MODE_0
 #define FSL_QSPI_FLASH_NUM              1
 #define FSL_QSPI_FLASH_SIZE             SZ_8M
 #define QSPI0_BASE_ADDR                 0x410A5000

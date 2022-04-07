@@ -70,8 +70,8 @@
     CONFIG_MFG_ENV_SETTINGS_DEFAULT \
 	"initrd_addr=0x86800000\0" \
 	"initrd_high=0xffffffff\0" \
-    "emmc_dev=2\0"\
-    "sd_dev=1\0" \
+    "emmc_dev=3\0"\
+    "sd_dev=3\0" \
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
@@ -247,8 +247,10 @@
 #ifdef CONFIG_CMD_PCI
 #define CONFIG_PCI_SCAN_SHOW
 #define CONFIG_PCIE_IMX
+#ifndef CONFIG_DM_PCI
 #define CONFIG_PCIE_IMX_PERST_GPIO	IMX_GPIO_NR(2, 0)
 #define CONFIG_PCIE_IMX_POWER_GPIO	IMX_GPIO_NR(2, 1)
+#endif
 #endif
 
 #define CONFIG_IMX_THERMAL
@@ -292,7 +294,7 @@
 
 #define CONFIG_SYS_FSL_USDHC_NUM	3
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* USDHC4 */
-#define CONFIG_SYS_MMC_ENV_DEV		2  /*USDHC4*/
+#define CONFIG_SYS_MMC_ENV_DEV		3  /*USDHC4*/
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
 #if defined(CONFIG_ANDROID_SUPPORT)

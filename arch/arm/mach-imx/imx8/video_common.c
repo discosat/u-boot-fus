@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <i2c.h>
 #include <asm/arch/sys_proto.h>
 
@@ -194,7 +194,6 @@ int lvds_soc_setup(int lvds_id, sc_pm_clock_rate_t pixel_clock)
 	sc_err_t err;
 	sc_rsrc_t lvds_rsrc, mipi_rsrc;
 	const char *pd_name;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 
 	struct power_domain pd;
 	int ret;
@@ -221,19 +220,19 @@ int lvds_soc_setup(int lvds_id, sc_pm_clock_rate_t pixel_clock)
 	}
 
 	/* Setup clocks */
-	err = sc_pm_set_clock_rate(ipcHndl, lvds_rsrc, SC_PM_CLK_BYPASS, &pixel_clock);
+	err = sc_pm_set_clock_rate(-1, lvds_rsrc, SC_PM_CLK_BYPASS, &pixel_clock);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS set rate SC_PM_CLK_BYPASS failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_set_clock_rate(ipcHndl, lvds_rsrc, SC_PM_CLK_PER, &pixel_clock);
+	err = sc_pm_set_clock_rate(-1, lvds_rsrc, SC_PM_CLK_PER, &pixel_clock);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS set rate SC_PM_CLK_BYPASS failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_set_clock_rate(ipcHndl, lvds_rsrc, SC_PM_CLK_PHY, &pixel_clock);
+	err = sc_pm_set_clock_rate(-1, lvds_rsrc, SC_PM_CLK_PHY, &pixel_clock);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS set rate SC_PM_CLK_BYPASS failed! (error = %d)\n", err);
 		return -EIO;
@@ -245,39 +244,39 @@ int lvds_soc_setup(int lvds_id, sc_pm_clock_rate_t pixel_clock)
 		  */
 
 		/* Configure to LVDS mode not MIPI DSI */
-		err = sc_misc_set_control(ipcHndl, mipi_rsrc, SC_C_MODE, 1);
+		err = sc_misc_set_control(-1, mipi_rsrc, SC_C_MODE, 1);
 		if (err != SC_ERR_NONE) {
 			printf("LVDS sc_misc_set_control SC_C_MODE failed! (error = %d)\n", err);
 			return -EIO;
 		}
 
 		/* Configure to LVDS mode with single channel */
-		err = sc_misc_set_control(ipcHndl, mipi_rsrc, SC_C_DUAL_MODE, 0);
+		err = sc_misc_set_control(-1, mipi_rsrc, SC_C_DUAL_MODE, 0);
 		if (err != SC_ERR_NONE) {
 			printf("LVDS sc_misc_set_control SC_C_DUAL_MODE failed! (error = %d)\n", err);
 			return -EIO;
 		}
 
-		err = sc_misc_set_control(ipcHndl, mipi_rsrc, SC_C_PXL_LINK_SEL, lvds_id);
+		err = sc_misc_set_control(-1, mipi_rsrc, SC_C_PXL_LINK_SEL, lvds_id);
 		if (err != SC_ERR_NONE) {
 			printf("LVDS sc_misc_set_control SC_C_PXL_LINK_SEL failed! (error = %d)\n", err);
 			return -EIO;
 		}
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, lvds_rsrc, SC_PM_CLK_BYPASS, true, false);
+	err = sc_pm_clock_enable(-1, lvds_rsrc, SC_PM_CLK_BYPASS, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS enable clock SC_PM_CLK_BYPASS failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, lvds_rsrc, SC_PM_CLK_PER, true, false);
+	err = sc_pm_clock_enable(-1, lvds_rsrc, SC_PM_CLK_PER, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS enable clock SC_PM_CLK_PER failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, lvds_rsrc, SC_PM_CLK_PHY, true, false);
+	err = sc_pm_clock_enable(-1, lvds_rsrc, SC_PM_CLK_PHY, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("LVDS enable clock SC_PM_CLK_PHY failed! (error = %d)\n", err);
 		return -EIO;
@@ -342,7 +341,6 @@ int display_controller_setup(sc_pm_clock_rate_t pixel_clock)
 	sc_rsrc_t dc_rsrc, pll0_rsrc, pll1_rsrc;
 	sc_pm_clock_rate_t pll_clk;
 	const char *pll1_pd_name;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 	u32 dc_lpcg;
 
 	int dc_id = gdc;
@@ -381,111 +379,111 @@ int display_controller_setup(sc_pm_clock_rate_t pixel_clock)
 	else
 		pll_clk = 675000000;
 
-	err = sc_pm_set_clock_rate(ipcHndl, pll0_rsrc, SC_PM_CLK_PLL, &pll_clk);
+	err = sc_pm_set_clock_rate(-1, pll0_rsrc, SC_PM_CLK_PLL, &pll_clk);
 	if (err != SC_ERR_NONE) {
 		printf("PLL0 set clock rate failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_set_clock_rate(ipcHndl, pll1_rsrc, SC_PM_CLK_PLL, &pll_clk);
+	err = sc_pm_set_clock_rate(-1, pll1_rsrc, SC_PM_CLK_PLL, &pll_clk);
 	if (err != SC_ERR_NONE) {
 		printf("PLL1 set clock rate failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_set_clock_rate(ipcHndl, dc_rsrc, SC_PM_CLK_MISC0, &pixel_clock);
+	err = sc_pm_set_clock_parent(-1, dc_rsrc, SC_PM_CLK_MISC0, 2);
+	if (err != SC_ERR_NONE) {
+		printf("DISP0 set clock parent failed! (error = %d)\n", err);
+		return -EIO;
+	}
+
+	err = sc_pm_set_clock_parent(-1, dc_rsrc, SC_PM_CLK_MISC1, 3);
+	if (err != SC_ERR_NONE) {
+		printf("DISP0 set clock parent failed! (error = %d)\n", err);
+		return -EIO;
+	}
+
+	err = sc_pm_set_clock_rate(-1, dc_rsrc, SC_PM_CLK_MISC0, &pixel_clock);
 	if (err != SC_ERR_NONE) {
 		printf("DISP0 set clock rate failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_set_clock_parent(ipcHndl, dc_rsrc, SC_PM_CLK_MISC0, 2);
-	if (err != SC_ERR_NONE) {
-		printf("DISP0 set clock parent failed! (error = %d)\n", err);
-		return -EIO;
-	}
-
-	err = sc_pm_set_clock_parent(ipcHndl, dc_rsrc, SC_PM_CLK_MISC1, 3);
-	if (err != SC_ERR_NONE) {
-		printf("DISP0 set clock parent failed! (error = %d)\n", err);
-		return -EIO;
-	}
-
-	err = sc_pm_set_clock_rate(ipcHndl, dc_rsrc, SC_PM_CLK_MISC1, &pixel_clock);
+	err = sc_pm_set_clock_rate(-1, dc_rsrc, SC_PM_CLK_MISC1, &pixel_clock);
 	if (err != SC_ERR_NONE) {
 		printf("DISP1 set clock rate failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, pll0_rsrc, SC_PM_CLK_PLL, true, false);
+	err = sc_pm_clock_enable(-1, pll0_rsrc, SC_PM_CLK_PLL, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("PLL0 clock enable failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, pll1_rsrc, SC_PM_CLK_PLL, true, false);
+	err = sc_pm_clock_enable(-1, pll1_rsrc, SC_PM_CLK_PLL, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("PLL1 clock enable failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, dc_rsrc, SC_PM_CLK_MISC0, true, false);
+	err = sc_pm_clock_enable(-1, dc_rsrc, SC_PM_CLK_MISC0, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("DISP0 clock enable failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_pm_clock_enable(ipcHndl, dc_rsrc, SC_PM_CLK_MISC1, true, false);
+	err = sc_pm_clock_enable(-1, dc_rsrc, SC_PM_CLK_MISC1, true, false);
 	if (err != SC_ERR_NONE) {
 		printf("DISP1 clock enable failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	LPCG_AllClockOn(dc_lpcg);
+	lpcg_all_clock_on(dc_lpcg);
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST1_ADDR, 0);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST1_ADDR, 0);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control fSC_C_PXL_LINK_MST1_ADDR ailed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST1_ENB, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST1_ENB, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_PXL_LINK_MST1_ENB failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST1_VLD, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST1_VLD, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_PXL_LINK_MST1_VLD failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST2_ADDR, 0);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST2_ADDR, 0);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_PXL_LINK_MST2_ADDR ailed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST2_ENB, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST2_ENB, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_PXL_LINK_MST2_ENB failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_PXL_LINK_MST2_VLD, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_PXL_LINK_MST2_VLD, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_PXL_LINK_MST2_VLD failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_SYNC_CTRL0, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_SYNC_CTRL0, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_SYNC_CTRL0 failed! (error = %d)\n", err);
 		return -EIO;
 	}
 
-	err = sc_misc_set_control(ipcHndl, dc_rsrc, SC_C_SYNC_CTRL1, 1);
+	err = sc_misc_set_control(-1, dc_rsrc, SC_C_SYNC_CTRL1, 1);
 	if (err != SC_ERR_NONE) {
 		printf("DC Set control SC_C_SYNC_CTRL1 failed! (error = %d)\n", err);
 		return -EIO;

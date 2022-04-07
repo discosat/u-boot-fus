@@ -14,9 +14,9 @@
 
 #define PADRING_IFMUX_EN_SHIFT		31
 #define PADRING_IFMUX_EN_MASK		BIT(31)
-#define PADRING_GP_EN_SHIFT		30
+#define PADRING_GP_EN_SHIFT			30
 #define PADRING_GP_EN_MASK		BIT(30)
-#define PADRING_IFMUX_SHIFT		27
+#define PADRING_IFMUX_SHIFT			27
 #define PADRING_IFMUX_MASK		GENMASK(29, 27)
 
 static int imx_pinconf_scu_set(struct imx_pinctrl_soc_info *info, u32 pad,
@@ -28,6 +28,7 @@ static int imx_pinconf_scu_set(struct imx_pinctrl_soc_info *info, u32 pad,
 	 * Mux should be done in pmx set, but we do not have a good api
 	 * to handle that in scfw, so config it in pad conf func
 	 */
+
 	if (!sc_rm_is_pad_owned(-1, pad)) {
 		debug("Pad[%u] is not owned by curr partition\n", pad);
 		return -EPERM;

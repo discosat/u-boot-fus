@@ -64,6 +64,9 @@ struct driver_info;
 /* DM should ignore the power domain on for this driver */
 #define DM_FLAG_IGNORE_POWER_ON		(1 << 11)
 
+/* DM should ignore the assign default clocks for this driver */
+#define DM_FLAG_IGNORE_DEFAULT_CLKS		(1 << 12)
+
 /*
  * One or multiple of these flags are passed to device_remove() so that
  * a selective device removal as specified by the remove-stage and the
@@ -249,6 +252,7 @@ struct driver {
 	int (*child_post_bind)(struct udevice *dev);
 	int (*child_pre_probe)(struct udevice *dev);
 	int (*child_post_remove)(struct udevice *dev);
+	int (*handle_interrupts)(struct udevice *dev);
 	int priv_auto_alloc_size;
 	int platdata_auto_alloc_size;
 	int per_child_auto_alloc_size;

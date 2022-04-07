@@ -57,15 +57,12 @@
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
 #define CONFIG_SYS_I2C_SPEED		100000
-
-#ifdef CONFIG_DM_GPIO
-#define CONFIG_DM_74X164
 #endif
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_NAND_BOOT
-#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(boot),16m(kernel),16m(dtb),16m(tee),-(rootfs) "
+#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(nandboot),16m(nandkernel),16m(nanddtb),16m(nandtee),-(nandrootfs)"
 #else
 #define MFG_NAND_PARTITION ""
 #endif
@@ -81,6 +78,8 @@
 	"emmc_dev=1\0"\
 	"emmc_ack=1\0"\
 	"sd_dev=1\0" \
+	"mtdparts=" MFG_NAND_PARTITION \
+	"\0"\
 
 #if defined(CONFIG_NAND_BOOT)
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -91,12 +90,12 @@
 	"fdt_high=0xffffffff\0"	  \
 	"tee_addr=0x84000000\0" \
 	"console=ttymxc0\0" \
-	"bootargs=console=ttymxc0,115200 ubi.mtd=4 "  \
+	"bootargs=console=ttymxc0,115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:rootfs rootfstype=ubifs "		     \
 		BOOTARGS_CMA_SIZE \
 		MFG_NAND_PARTITION \
 		"\0" \
-	"bootcmd=nand read ${loadaddr} 0x4000000 0x800000;"\
+	"bootcmd=nand read ${loadaddr} 0x4000000 0xc00000;"\
 		"nand read ${fdt_addr} 0x5000000 0x100000;"\
 		"if test ${tee} = yes; then " \
 			"nand read ${tee_addr} 0x6000000 0x400000;"\
@@ -140,18 +139,18 @@
 		"if test ${tee} = yes; then " \
 			"run loadfdt; run loadtee; bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} " \
@@ -171,18 +170,18 @@
 			"${get_cmd} ${fdt_addr} ${fdt_file}; " \
 			"bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 		"findtee="\
@@ -193,7 +192,7 @@
 					"setenv tee_file uTee-6ulevk; fi; " \
 				"if test $fdt_file = undefined; then " \
 					"echo WARNING: Could not determine tee to use; fi; " \
-		"fi;\0" \
+			"fi;\0" \
 		"findfdt="\
 			"if test $fdt_file = undefined; then " \
 				"if test $board_name = EVK && test $board_rev = 9X9; then " \
@@ -250,19 +249,14 @@
 #endif
 
 /* NAND stuff */
-#ifdef CONFIG_CMD_NAND
-#define CONFIG_CMD_NAND_TRIMFFS
-
-#define CONFIG_NAND_MXS
+#ifdef CONFIG_NAND_MXS
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 #define CONFIG_SYS_NAND_BASE		0x40000000
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_ONFI_DETECTION
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
-#define CONFIG_APBH_DMA
-#define CONFIG_APBH_DMA_BURST
-#define CONFIG_APBH_DMA_BURST8
 #endif
 
 #define CONFIG_ENV_SIZE			SZ_8K
@@ -306,6 +300,8 @@
 #define CONFIG_FEC_XCV_TYPE		RMII
 #define CONFIG_ETHPRIME			"eth1"
 #endif
+
+#define CONFIG_FEC_MXC_MDIO_BASE ENET2_BASE_ADDR
 #endif
 
 #define CONFIG_IMX_THERMAL

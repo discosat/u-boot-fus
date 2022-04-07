@@ -16,7 +16,7 @@
 #include <thermal.h>
 #include <dm/device-internal.h>
 #include <dm/device.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -30,10 +30,9 @@ struct imx_sc_thermal_plat {
 
 static int read_temperature(struct udevice *dev, int *temp)
 {
-	sc_err_t sciErr;
+	int sciErr;
 	int16_t celsius;
 	int8_t tenths;
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 
 	sc_rsrc_t *sensor_rsrc =
 		(sc_rsrc_t *)dev_get_driver_data(dev);
@@ -43,7 +42,7 @@ static int read_temperature(struct udevice *dev, int *temp)
 	if (!temp)
 		return -EINVAL;
 
-	sciErr = sc_misc_get_temp(ipcHndl, sensor_rsrc[pdata->id], SC_C_TEMP, &celsius, &tenths);
+	sciErr = sc_misc_get_temp(-1, sensor_rsrc[pdata->id], SC_C_TEMP, &celsius, &tenths);
 	if (sciErr) {
 		printf("Error: get temperature failed! (error = %d)\n", sciErr);
 		return -EIO;

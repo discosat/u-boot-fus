@@ -3,8 +3,8 @@
  * Copyright 2018 NXP
  */
 
-#ifndef _SC_PADS_H
-#define _SC_PADS_H
+#ifndef SC_PADS_H
+#define SC_PADS_H
 
 #define SC_P_PCIE_CTRL0_PERST_B                  0	/* HSIO.PCIE0.PERST_B, LSIO.GPIO4.IO00 */
 #define SC_P_PCIE_CTRL0_CLKREQ_B                 1	/* HSIO.PCIE0.CLKREQ_B, LSIO.GPIO4.IO01 */
@@ -751,11 +751,7 @@
 #define SC_P_QSPI0B_SS1_B_LSIO_KPP0_ROW3                        SC_P_QSPI0B_SS1_B                  2
 #define SC_P_QSPI0B_SS1_B_LSIO_GPIO3_IO24                       SC_P_QSPI0B_SS1_B                  4
 
-/*!
- * @name Fake Pad Mux Definitions
- * format: name padid 0
- */
-/*@{*/
+/* Fake Pad Mux Definitions */
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_PCIESEP_PAD          SC_P_COMP_CTL_GPIO_1V8_3V3_PCIESEP         0
 #define SC_P_COMP_CTL_GPIO_3V3_USB3IO_PAD               SC_P_COMP_CTL_GPIO_3V3_USB3IO              0
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_SD1FIX0_PAD          SC_P_COMP_CTL_GPIO_1V8_3V3_SD1FIX0         0
@@ -773,6 +769,4 @@
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_GPIORHD_PAD          SC_P_COMP_CTL_GPIO_1V8_3V3_GPIORHD         0
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_QSPI0A_PAD           SC_P_COMP_CTL_GPIO_1V8_3V3_QSPI0A          0
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_QSPI0B_PAD           SC_P_COMP_CTL_GPIO_1V8_3V3_QSPI0B          0
-/*@}*/
-
-#endif				/* _SC_PADS_H *
+#endif /* SC_PADS_H */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018 NXP
  */
 #include <common.h>
 #include <spl.h>
@@ -12,7 +12,7 @@
 #include <nand.h>
 #include <asm/arch/image.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/mach-imx/sci/sci.h>
+#include <asm/arch/sci/sci.h>
 #include <asm/mach-imx/boot_mode.h>
 
 #define MMC_DEV		0
@@ -97,17 +97,16 @@ static int read(u32 start, u32 len, void *load_addr)
 #ifdef CONFIG_AHAB_BOOT
 static int authenticate_image(struct boot_img_t *img, int image_index)
 {
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
 	sc_faddr_t start, end;
 	sc_rm_mr_t mr;
-	sc_err_t err;
+	int err;
 	int ret = 0;
 
 	debug("img %d, dst 0x%llx, src 0x%x, size 0x%x\n",
 	      image_index, img->dst, img->offset, img->size);
 
 	/* Find the memreg and set permission for seco pt */
-	err = sc_rm_find_memreg(ipcHndl, &mr,
+	err = sc_rm_find_memreg(-1, &mr,
 				img->dst & ~(CONFIG_SYS_CACHELINE_SIZE - 1),
 				ALIGN(img->dst + img->size, CONFIG_SYS_CACHELINE_SIZE));
 
@@ -117,11 +116,11 @@ static int authenticate_image(struct boot_img_t *img, int image_index)
 		return -ENOMEM;
 	}
 
-	err = sc_rm_get_memreg_info(ipcHndl, mr, &start, &end);
+	err = sc_rm_get_memreg_info(-1, mr, &start, &end);
 	if (!err)
 		debug("memreg %u 0x%llx -- 0x%llx\n", mr, start, end);
 
-	err = sc_rm_set_memreg_permissions(ipcHndl, mr,
+	err = sc_rm_set_memreg_permissions(-1, mr,
 					   SECO_PT, SC_RM_PERM_FULL);
 	if (err) {
 		printf("set permission failed for img %d, error %d\n",
@@ -129,7 +128,7 @@ static int authenticate_image(struct boot_img_t *img, int image_index)
 		return -EPERM;
 	}
 
-	err = sc_seco_authenticate(ipcHndl, SC_SECO_VERIFY_IMAGE,
+	err = sc_seco_authenticate(-1, SC_SECO_VERIFY_IMAGE,
 					1 << image_index);
 	if (err) {
 		printf("authenticate img %d failed, return %d\n",
@@ -137,7 +136,7 @@ static int authenticate_image(struct boot_img_t *img, int image_index)
 		ret = -EIO;
 	}
 
-	err = sc_rm_set_memreg_permissions(ipcHndl, mr,
+	err = sc_rm_set_memreg_permissions(-1, mr,
 					   SECO_PT, SC_RM_PERM_NONE);
 	if (err) {
 		printf("remove permission failed for img %d, error %d\n",
@@ -180,9 +179,6 @@ static struct boot_img_t *read_auth_image(struct container_hdr *container,
 
 static int read_auth_container(struct spl_image_info *spl_image)
 {
-#ifdef CONFIG_AHAB_BOOT
-	sc_ipc_t ipcHndl = gd->arch.ipc_channel_handle;
-#endif
 	struct container_hdr *container = NULL;
 	uint16_t length;
 	int ret;
@@ -233,7 +229,7 @@ static int read_auth_container(struct spl_image_info *spl_image)
 	memcpy((void *)SEC_SECURE_RAM_BASE, (const void *)container,
 	       ALIGN(length, CONFIG_SYS_CACHELINE_SIZE));
 
-	ret = sc_seco_authenticate(ipcHndl, SC_SECO_AUTH_CONTAINER,
+	ret = sc_seco_authenticate(-1, SC_SECO_AUTH_CONTAINER,
 					SECO_LOCAL_SEC_SEC_SECURE_RAM_BASE);
 	if (ret) {
 		printf("authenticate container hdr failed, return %d\n", ret);
@@ -264,7 +260,7 @@ static int read_auth_container(struct spl_image_info *spl_image)
 
 end_auth:
 #ifdef CONFIG_AHAB_BOOT
-	if (sc_seco_authenticate(ipcHndl, SC_SECO_REL_CONTAINER, 0) != SC_ERR_NONE)
+	if (sc_seco_authenticate(-1, SC_SECO_REL_CONTAINER, 0) != SC_ERR_NONE)
 		printf("Error: release container failed!\n");
 #endif
 out:
@@ -295,13 +291,13 @@ int mmc_load_image_parse_container(struct spl_image_info *spl_image,
 		ret = check_rpmb_blob(mmc);
 #endif
 #if defined(CONFIG_IMX8_TRUSTY_XEN)
-		struct mmc *rpmb_mmc;
+	struct mmc *rpmb_mmc;
 
-		rpmb_mmc = find_mmc_device(0);
-		if (ret = mmc_init(rpmb_mmc))
-			printf("mmc init failed %s\n", __func__);
-		else
-			ret = check_rpmb_blob(rpmb_mmc);
+	rpmb_mmc = find_mmc_device(0);
+	if (ret = mmc_init(rpmb_mmc))
+		printf("mmc init failed %s\n", __func__);
+	else
+	ret = check_rpmb_blob(rpmb_mmc);
 #endif
 	}
 	return ret;

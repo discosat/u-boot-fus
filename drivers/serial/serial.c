@@ -332,9 +332,9 @@ int serial_assign(const char *name)
 
 	for (s = serial_devices; s; s = s->next) {
 		if (!strcmp(s->name, name)) {
-		serial_current = s;
-		return 0;
-	}
+			serial_current = s;
+			return 0;
+		}
 	}
 
 	return -EINVAL;

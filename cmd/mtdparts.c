@@ -166,6 +166,40 @@ static inline const char *__board_get_mtdparts_default(void)
 const char *board_get_mtdparts_default(void)
 	__attribute__((weak, alias("__board_get_mtdparts_default")));
 
+#ifdef CONFIG_MTDPARTS_SKIP_INVALID
+int skip_counter = 0;
+/*
+ * find a seperator to locate the next entry
+ * @param p pointer of the pointer of input char string
+ * @param sp seperator charactor
+ * @param n find the nth seperator
+ * @param limit the looking scope
+ * @return 1 on success, otherwise 0
+ */
+static int find_seperator(const char **p, char sp, int n, int limit)
+{
+	int i, j;
+
+	/* n = 0 means do nothing */
+	if (!n)
+		return 1;
+
+	i = j = 0;
+
+	while (*p && (**p != '\0') && (i < limit)) {
+		if (**p == sp) {
+			(*p)++;
+			j++;
+			if (j == n)
+				return 1;
+		}
+		(*p)++;
+		i++;
+	}
+
+	return 0;
+}
+#endif
 /**
  * Parses a string into a number.  The number stored at ptr is
  * potentially suffixed with K (for kilobytes, or 1024 bytes),
@@ -1584,10 +1618,16 @@ static int parse_mtdparts(const char *const mtdparts)
 
 	/* Skip the useless prefix, if any */
 	if (strncmp(p, "mtdparts=", 9) == 0)
-		p += 9;
+	p += 9;
 
 	while (*p != '\0') {
 		err = 1;
+#ifdef CONFIG_MTDPARTS_SKIP_INVALID
+		if (!find_seperator(&p, ';', skip_counter, MTDPARTS_MAXLEN)) {
+			printf("goes wrong when skip invalid parts\n");
+			return 1;
+		}
+#endif
 		if ((device_parse(p, &p, &dev) != 0) || (!dev))
 			break;
 
@@ -1658,8 +1698,20 @@ static int parse_mtdids(const char *const ids)
 		p++;
 
 		/* check if requested device exists */
-		if (mtd_device_validate(type, num, &size) != 0)
+		if (mtd_device_validate(type, num, &size) != 0) {
+#ifdef CONFIG_MTDPARTS_SKIP_INVALID
+			if (find_seperator(&p, ',', 1, MTDIDS_MAXLEN)) {
+				printf("current device is invalid, skip it and check the next one\n");
+				skip_counter++;
+				continue;
+			} else {
+				printf("the only deivce is invalid\n");
+				return 1;
+			}
+#else
 			return 1;
+#endif
+		}
 
 		/* locate <mtd-id> */
 		mtd_id = p;

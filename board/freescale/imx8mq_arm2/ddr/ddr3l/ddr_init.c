@@ -19,6 +19,11 @@
 
 #include "../wait_ddrphy_training_complete.c"
 
+static inline void reg32clrbit(unsigned long addr, u32 bit)
+{
+	clrbits_le32(addr, (1 << bit));
+}
+
 volatile unsigned int tmp;
 void umctl2_cfg(void){
 	reg32_write(DDRC_DBG1(0), 0x00000001);
@@ -124,18 +129,19 @@ void umctl2_cfg(void){
 	reg32_write(DDRC_PCFGWQOS1_0(0), 0x000005fd);
 }
 
-void ddr_init(void)
+void ddr_init(struct dram_timing_info *timing_info)
 {
 	/* change the clock source of dram_apb_clk_root  */
-	reg32_write(CCM_IP_CLK_ROOT_GEN_TAGET_CLR(1),(0x7<<24)|(0x7<<16));
-	reg32_write(CCM_IP_CLK_ROOT_GEN_TAGET_SET(1),(0x4<<24)|(0x3<<16));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+		     CLK_ROOT_SOURCE_SEL(4) |
+		     CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV4));
 
 	/* disable the clock gating */
 	reg32_write(0x303A00EC,0x0000ffff);
 	reg32setbit(0x303A00F8,5);
 	reg32_write(SRC_DDRC_RCR_ADDR + 0x04, 0x8F000000);
 
-	dram_pll_init(DRAM_PLL_OUT_400M);
+	dram_pll_init(MHZ(400));
 
 	reg32_write(SRC_DDRC_RCR_ADDR, 0x8F000006);
 

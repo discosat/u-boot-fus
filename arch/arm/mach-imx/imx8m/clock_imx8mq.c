@@ -15,6 +15,8 @@
 
 static struct anamix_pll *ana_pll = (struct anamix_pll *)ANATOP_BASE_ADDR;
 
+static u32 get_root_clk(enum clk_root_index clock_id);
+
 static u32 decode_frac_pll(enum clk_root_src frac_pll)
 {
 	u32 pll_cfg0, pll_cfg1, pllout;
@@ -275,6 +277,8 @@ static u32 get_root_src_clk(enum clk_root_src root_src)
 	case SYSTEM_PLL2_50M_CLK:
 	case SYSTEM_PLL3_CLK:
 		return decode_sscg_pll(root_src);
+	case ARM_A53_ALT_CLK:
+		return get_root_clk(ARM_A53_CLK_ROOT);
 	default:
 		return 0;
 	}
@@ -329,28 +333,53 @@ int enable_i2c_clk(unsigned char enable, unsigned int i2c_num)
 	return 0;
 }
 
-unsigned int mxc_get_clock(enum clk_root_index clk)
+u32 get_arm_core_clk(void)
+{
+	enum clk_root_src root_src;
+	u32 root_src_clk;
+
+	if (clock_get_src(CORE_SEL_CFG, &root_src) < 0)
+		return 0;
+
+	root_src_clk = get_root_src_clk(root_src);
+
+	return root_src_clk;
+}
+
+unsigned int mxc_get_clock(enum mxc_clock clk)
 {
 	u32 val;
 
-	if (clk >= CLK_ROOT_MAX)
-		return 0;
-
-	if (clk == MXC_ARM_CLK)
-		return get_root_clk(ARM_A53_CLK_ROOT);
-
-	if (clk == MXC_IPG_CLK) {
+	switch (clk) {
+	case MXC_ARM_CLK:
+		return get_arm_core_clk();
+	case MXC_IPG_CLK:
 		clock_get_target_val(IPG_CLK_ROOT, &val);
 		val = val & 0x3;
 		return get_root_clk(AHB_CLK_ROOT) / (val + 1);
+	case MXC_CSPI_CLK:
+		return get_root_clk(ECSPI1_CLK_ROOT);
+	case MXC_ESDHC_CLK:
+		return get_root_clk(USDHC1_CLK_ROOT);
+	case MXC_ESDHC2_CLK:
+		return get_root_clk(USDHC2_CLK_ROOT);
+	case MXC_I2C_CLK:
+		return get_root_clk(I2C1_CLK_ROOT);
+	case MXC_UART_CLK:
+		return get_root_clk(UART1_CLK_ROOT);
+	case MXC_QSPI_CLK:
+		return get_root_clk(QSPI_CLK_ROOT);
+	default:
+		printf("Unsupported mxc_clock %d\n", clk);
+		break;
 	}
 
-	return get_root_clk(clk);
+	return 0;
 }
 
 u32 imx_get_uartclk(void)
 {
-	return mxc_get_clock(UART1_CLK_ROOT);
+	return mxc_get_clock(MXC_UART_CLK);
 }
 
 void mxs_set_lcdclk(u32 base_addr, u32 freq)
@@ -542,59 +571,53 @@ u32 imx_get_fecclk(void)
 	return get_root_clk(ENET_AXI_CLK_ROOT);
 }
 
-#define DRAM_BYPASS_ROOT_CONFIG(_rate, _m, _p, _s, _k)			\
-	{							\
-		.clk	=	(_rate),			\
-		.alt_root_sel	=	(_m),				\
-		.alt_pre_div	=	(_p),				\
-		.apb_root_sel	=	(_s),				\
-		.apb_pre_div	=	(_k),				\
-	}
-
-struct dram_bypass_clk_setting {
-	enum dram_bypassclk_val clk;
-	int alt_root_sel;
-	enum root_pre_div alt_pre_div;
-	int apb_root_sel;
-	enum root_pre_div apb_pre_div;
+static struct dram_bypass_clk_setting imx8mq_dram_bypass_tbl[] = {
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(100), 2, CLK_ROOT_PRE_DIV1, 2,
+				CLK_ROOT_PRE_DIV2),
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(250), 3, CLK_ROOT_PRE_DIV2, 2,
+				CLK_ROOT_PRE_DIV2),
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(400), 1, CLK_ROOT_PRE_DIV2, 3,
+				CLK_ROOT_PRE_DIV2),
 };
 
-static struct dram_bypass_clk_setting imx8mm_dram_bypass_tbl[] = {
-	DRAM_BYPASS_ROOT_CONFIG(DRAM_BYPASSCLK_100M, 2, CLK_ROOT_PRE_DIV1, 2, CLK_ROOT_PRE_DIV2),
-	DRAM_BYPASS_ROOT_CONFIG(DRAM_BYPASSCLK_250M, 3, CLK_ROOT_PRE_DIV2, 2, CLK_ROOT_PRE_DIV2),
-	DRAM_BYPASS_ROOT_CONFIG(DRAM_BYPASSCLK_400M, 1, CLK_ROOT_PRE_DIV2, 3, CLK_ROOT_PRE_DIV2),
-};
-
-void dram_enable_bypass(enum dram_bypassclk_val clk_val)
+void dram_enable_bypass(ulong clk_val)
 {
 	int i;
 	struct dram_bypass_clk_setting *config;
 
-	for (i = 0; i < ARRAY_SIZE(imx8mm_dram_bypass_tbl); i++) {
-		if (clk_val == imx8mm_dram_bypass_tbl[i].clk)
+	for (i = 0; i < ARRAY_SIZE(imx8mq_dram_bypass_tbl); i++) {
+		if (clk_val == imx8mq_dram_bypass_tbl[i].clk)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(imx8mm_dram_bypass_tbl)) {
-		printf("No matched freq table %u\n", clk_val);
+	if (i == ARRAY_SIZE(imx8mq_dram_bypass_tbl)) {
+		printf("No matched freq table %lu\n", clk_val);
 		return;
 	}
 
-	config = &imx8mm_dram_bypass_tbl[i];
+	config = &imx8mq_dram_bypass_tbl[i];
 
-	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(config->alt_root_sel) | CLK_ROOT_PRE_DIV(config->alt_pre_div));
-	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(config->apb_root_sel) | CLK_ROOT_PRE_DIV(config->apb_pre_div));
-	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(config->alt_root_sel) |
+			     CLK_ROOT_PRE_DIV(config->alt_pre_div));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(config->apb_root_sel) |
+			     CLK_ROOT_PRE_DIV(config->apb_pre_div));
+	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(1));
 }
 
 void dram_disable_bypass(void)
 {
-	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(4) | CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV5));
+	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(0));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(4) |
+			     CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV5));
 }
 
 #ifdef CONFIG_SPL_BUILD
-void dram_pll_init(enum dram_pll_out_val pll_val)
+void dram_pll_init(ulong pll_val)
 {
 	u32 val;
 	void __iomem *pll_control_reg = &ana_pll->dram_pll_cfg0;
@@ -605,40 +628,48 @@ void dram_pll_init(enum dram_pll_out_val pll_val)
 	setbits_le32(pll_control_reg, SSCG_PLL_BYPASS2_MASK);
 
 	switch (pll_val) {
-	case DRAM_PLL_OUT_800M:
+	case MHZ(800):
 		val = readl(pll_cfg_reg2);
-		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK | SSCG_PLL_FEEDBACK_DIV_F2_MASK |
-			 SSCG_PLL_FEEDBACK_DIV_F1_MASK | SSCG_PLL_REF_DIVR2_MASK);
+		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F2_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F1_MASK |
+			 SSCG_PLL_REF_DIVR2_MASK);
 		val |= SSCG_PLL_OUTPUT_DIV_VAL(0);
 		val |= SSCG_PLL_FEEDBACK_DIV_F2_VAL(11);
 		val |= SSCG_PLL_FEEDBACK_DIV_F1_VAL(39);
 		val |= SSCG_PLL_REF_DIVR2_VAL(29);
 		writel(val, pll_cfg_reg2);
 		break;
-	case DRAM_PLL_OUT_600M:
+	case MHZ(600):
 		val = readl(pll_cfg_reg2);
-		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK | SSCG_PLL_FEEDBACK_DIV_F2_MASK |
-			 SSCG_PLL_FEEDBACK_DIV_F1_MASK | SSCG_PLL_REF_DIVR2_MASK);
+		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F2_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F1_MASK |
+			 SSCG_PLL_REF_DIVR2_MASK);
 		val |= SSCG_PLL_OUTPUT_DIV_VAL(1);
 		val |= SSCG_PLL_FEEDBACK_DIV_F2_VAL(17);
 		val |= SSCG_PLL_FEEDBACK_DIV_F1_VAL(39);
 		val |= SSCG_PLL_REF_DIVR2_VAL(29);
 		writel(val, pll_cfg_reg2);
 		break;
-	case DRAM_PLL_OUT_400M:
+	case MHZ(400):
 		val = readl(pll_cfg_reg2);
-		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK | SSCG_PLL_FEEDBACK_DIV_F2_MASK |
-			 SSCG_PLL_FEEDBACK_DIV_F1_MASK | SSCG_PLL_REF_DIVR2_MASK);
+		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F2_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F1_MASK |
+			 SSCG_PLL_REF_DIVR2_MASK);
 		val |= SSCG_PLL_OUTPUT_DIV_VAL(1);
 		val |= SSCG_PLL_FEEDBACK_DIV_F2_VAL(11);
 		val |= SSCG_PLL_FEEDBACK_DIV_F1_VAL(39);
 		val |= SSCG_PLL_REF_DIVR2_VAL(29);
 		writel(val, pll_cfg_reg2);
 		break;
-	case DRAM_PLL_OUT_167M:
+	case MHZ(167):
 		val = readl(pll_cfg_reg2);
-		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK | SSCG_PLL_FEEDBACK_DIV_F2_MASK |
-			 SSCG_PLL_FEEDBACK_DIV_F1_MASK | SSCG_PLL_REF_DIVR2_MASK);
+		val &= ~(SSCG_PLL_OUTPUT_DIV_VAL_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F2_MASK |
+			 SSCG_PLL_FEEDBACK_DIV_F1_MASK |
+			 SSCG_PLL_REF_DIVR2_MASK);
 		val |= SSCG_PLL_OUTPUT_DIV_VAL(3);
 		val |= SSCG_PLL_FEEDBACK_DIV_F2_VAL(8);
 		val |= SSCG_PLL_FEEDBACK_DIV_F1_VAL(45);
@@ -666,7 +697,7 @@ void dram_pll_init(enum dram_pll_out_val pll_val)
 int frac_pll_init(u32 pll, enum frac_pll_out_val val)
 {
 	void __iomem *pll_cfg0, __iomem *pll_cfg1;
-	u32 val_cfg0, val_cfg1;
+	u32 val_cfg0, val_cfg1, divq;
 	int ret;
 
 	switch (pll) {
@@ -674,14 +705,17 @@ int frac_pll_init(u32 pll, enum frac_pll_out_val val)
 		pll_cfg0 = &ana_pll->arm_pll_cfg0;
 		pll_cfg1 = &ana_pll->arm_pll_cfg1;
 
-		if (val == FRAC_PLL_OUT_1000M)
+		if (val == FRAC_PLL_OUT_1000M) {
 			val_cfg1 = FRAC_PLL_INT_DIV_CTL_VAL(49);
-		else
+			divq = 0;
+		} else {
 			val_cfg1 = FRAC_PLL_INT_DIV_CTL_VAL(79);
+			divq = 1;
+		}
 		val_cfg0 = FRAC_PLL_CLKE_MASK | FRAC_PLL_REFCLK_SEL_OSC_25M |
 			FRAC_PLL_LOCK_SEL_MASK | FRAC_PLL_NEWDIV_VAL_MASK |
 			FRAC_PLL_REFCLK_DIV_VAL(4) |
-			FRAC_PLL_OUTPUT_DIV_VAL(0);
+			FRAC_PLL_OUTPUT_DIV_VAL(divq);
 		break;
 	default:
 		return -EINVAL;
@@ -790,15 +824,12 @@ int clock_init(void)
 	grade = get_cpu_temp_grade(NULL, NULL);
 	if (!grade) {
 		frac_pll_init(ANATOP_ARM_PLL, FRAC_PLL_OUT_1000M);
-		clock_set_target_val(ARM_A53_CLK_ROOT, CLK_ROOT_ON |
-			     CLK_ROOT_SOURCE_SEL(1) |
-			     CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV1));
 	} else {
-		frac_pll_init(ANATOP_ARM_PLL, FRAC_PLL_OUT_1600M);
-		clock_set_target_val(ARM_A53_CLK_ROOT, CLK_ROOT_ON |
-			     CLK_ROOT_SOURCE_SEL(1) |
-			     CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV2));
+		frac_pll_init(ANATOP_ARM_PLL, FRAC_PLL_OUT_800M);
 	}
+	/* Bypass CCM A53 ROOT, Switch to ARM PLL -> MUX-> CPU */
+	clock_set_target_val(CORE_SEL_CFG, CLK_ROOT_SOURCE_SEL(1));
+
 	/*
 	 * According to ANAMIX SPEC
 	 * sys pll1 fixed at 800MHz
@@ -837,7 +868,7 @@ int clock_init(void)
  * Dump some clockes.
  */
 #ifndef CONFIG_SPL_BUILD
-int do_mx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
+int do_imx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
 	u32 freq;
@@ -882,17 +913,17 @@ int do_mx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 	printf("SYS_PLL2_50    %8d MHz\n", freq / 1000000);
 	freq = decode_sscg_pll(SYSTEM_PLL3_CLK);
 	printf("SYS_PLL3       %8d MHz\n", freq / 1000000);
-	freq = mxc_get_clock(UART1_CLK_ROOT);
+	freq = mxc_get_clock(MXC_UART_CLK);
 	printf("UART1          %8d MHz\n", freq / 1000000);
-	freq = mxc_get_clock(USDHC1_CLK_ROOT);
+	freq = mxc_get_clock(MXC_ESDHC_CLK);
 	printf("USDHC1         %8d MHz\n", freq / 1000000);
-	freq = mxc_get_clock(QSPI_CLK_ROOT);
+	freq = mxc_get_clock(MXC_QSPI_CLK);
 	printf("QSPI           %8d MHz\n", freq / 1000000);
 	return 0;
 }
 
 U_BOOT_CMD(
-	clocks,	CONFIG_SYS_MAXARGS, 1, do_mx8m_showclocks,
+	clocks,	CONFIG_SYS_MAXARGS, 1, do_imx8m_showclocks,
 	"display clocks",
 	""
 );

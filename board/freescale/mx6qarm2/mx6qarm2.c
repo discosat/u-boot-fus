@@ -20,7 +20,7 @@
 #include <asm/arch/sys_proto.h>
 
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -189,16 +189,6 @@ int board_mmc_init(bd_t *bis)
 	return 0;
 }
 #endif
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 2;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno + 2;
-}
 #endif
 
 #define MII_MMD_ACCESS_CTRL_REG		0xd

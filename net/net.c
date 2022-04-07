@@ -212,26 +212,6 @@ int __maybe_unused net_busy_flag;
 
 /**********************************************************************/
 
-static int on_bootfile(const char *name, const char *value, enum env_op op,
-	int flags)
-{
-	if (flags & H_PROGRAMMATIC)
-		return 0;
-
-	switch (op) {
-	case env_op_create:
-	case env_op_overwrite:
-		copy_filename(net_boot_file_name, value,
-			      sizeof(net_boot_file_name));
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-U_BOOT_ENV_CALLBACK(bootfile, on_bootfile);
-
 static int on_ipaddr(const char *name, const char *value, enum env_op op,
 	int flags)
 {
@@ -469,7 +449,7 @@ restart:
 		net_dev_exists = 1;
 		/* In case of TFTPPUT, NetBootFileXferSize is the send size */
 		if (protocol != TFTPPUT)
-			net_boot_file_size = 0;
+		net_boot_file_size = 0;
 		switch (protocol) {
 		case TFTPGET:
 		case TFTPPUT:
@@ -859,7 +839,7 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 	case IPPROTO_UDP:
 		net_set_udp_header(pkt + eth_hdr_size, dest, dport, sport,
 				   payload_len);
-		pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
+	pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
 		break;
 	default:
 		return -EINVAL;

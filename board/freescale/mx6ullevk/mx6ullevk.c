@@ -46,104 +46,6 @@ DECLARE_GLOBAL_DATA_PTR;
 			PAD_CTL_SRE_FAST)
 #define GPMI_PAD_CTRL2 (GPMI_PAD_CTRL0 | GPMI_PAD_CTRL1)
 
-#ifdef CONFIG_SYS_I2C
-#define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
-/* I2C1 for PMIC and EEPROM */
-static struct i2c_pads_info i2c_pad_info1 = {
-	.scl = {
-		.i2c_mode =  MX6_PAD_UART4_TX_DATA__I2C1_SCL | PC,
-		.gpio_mode = MX6_PAD_UART4_TX_DATA__GPIO1_IO28 | PC,
-		.gp = IMX_GPIO_NR(1, 28),
-	},
-	.sda = {
-		.i2c_mode = MX6_PAD_UART4_RX_DATA__I2C1_SDA | PC,
-		.gpio_mode = MX6_PAD_UART4_RX_DATA__GPIO1_IO29 | PC,
-		.gp = IMX_GPIO_NR(1, 29),
-	},
-};
-
-#ifdef CONFIG_POWER
-#define I2C_PMIC       0
-int power_init_board(void)
-{
-	if (is_mx6ull_9x9_evk()) {
-		struct pmic *pfuze;
-		int ret;
-		unsigned int reg, rev_id;
-
-		ret = power_pfuze3000_init(I2C_PMIC);
-		if (ret)
-			return ret;
-
-		pfuze = pmic_get("PFUZE3000");
-		ret = pmic_probe(pfuze);
-		if (ret)
-			return ret;
-
-		pmic_reg_read(pfuze, PFUZE3000_DEVICEID, &reg);
-		pmic_reg_read(pfuze, PFUZE3000_REVID, &rev_id);
-		printf("PMIC: PFUZE3000 DEV_ID=0x%x REV_ID=0x%x\n",
-		       reg, rev_id);
-
-		/* disable Low Power Mode during standby mode */
-		pmic_reg_read(pfuze, PFUZE3000_LDOGCTL, &reg);
-		reg |= 0x1;
-		pmic_reg_write(pfuze, PFUZE3000_LDOGCTL, reg);
-
-		/* SW1B step ramp up time from 2us to 4us/25mV */
-		reg = 0x40;
-		pmic_reg_write(pfuze, PFUZE3000_SW1BCONF, reg);
-
-		/* SW1B mode to APS/PFM */
-		reg = 0xc;
-		pmic_reg_write(pfuze, PFUZE3000_SW1BMODE, reg);
-
-		/* SW1B standby voltage set to 0.975V */
-		reg = 0xb;
-		pmic_reg_write(pfuze, PFUZE3000_SW1BSTBY, reg);
-	}
-
-	return 0;
-}
-
-#ifdef CONFIG_LDO_BYPASS_CHECK
-void ldo_mode_set(int ldo_bypass)
-{
-	unsigned int value;
-	u32 vddarm;
-
-	struct pmic *p = pmic_get("PFUZE3000");
-
-	if (!p) {
-		printf("No PMIC found!\n");
-		return;
-	}
-
-	/* switch to ldo_bypass mode */
-	if (ldo_bypass) {
-		prep_anatop_bypass();
-		/* decrease VDDARM to 1.275V */
-		pmic_reg_read(p, PFUZE3000_SW1BVOLT, &value);
-		value &= ~0x1f;
-		value |= PFUZE3000_SW1AB_SETP(12750);
-		pmic_reg_write(p, PFUZE3000_SW1BVOLT, value);
-
-		set_anatop_bypass(1);
-		vddarm = PFUZE3000_SW1AB_SETP(11750);
-
-		pmic_reg_read(p, PFUZE3000_SW1BVOLT, &value);
-		value &= ~0x1f;
-		value |= vddarm;
-		pmic_reg_write(p, PFUZE3000_SW1BVOLT, value);
-
-		finish_anatop_bypass();
-
-		printf("switch to ldo_bypass mode!\n");
-	}
-}
-#endif
-#endif
-#endif
 
 #ifdef CONFIG_DM_PMIC
 int power_init_board(void)
@@ -168,16 +70,13 @@ int power_init_board(void)
 	pmic_reg_write(dev, PFUZE3000_LDOGCTL, reg);
 
 	/* SW1B step ramp up time from 2us to 4us/25mV */
-	reg = 0x40;
-	pmic_reg_write(dev, PFUZE3000_SW1BCONF, reg);
+	pmic_reg_write(dev, PFUZE3000_SW1BCONF, 0x40);
 
 	/* SW1B mode to APS/PFM */
-	reg = 0xc;
-	pmic_reg_write(dev, PFUZE3000_SW1BMODE, reg);
+	pmic_reg_write(dev, PFUZE3000_SW1BMODE, 0xc);
 
 	/* SW1B standby voltage set to 0.975V */
-	reg = 0xb;
-	pmic_reg_write(dev, PFUZE3000_SW1BSTBY, reg);
+	pmic_reg_write(dev, PFUZE3000_SW1BSTBY, 0xb);
 
 	return 0;
 }
@@ -297,8 +196,9 @@ static void setup_gpmi_nand(void)
 	/* config gpmi nand iomux */
 	imx_iomux_v3_setup_multiple_pads(nand_pads, ARRAY_SIZE(nand_pads));
 
-	setup_gpmi_io_clk((3 << MXC_CCM_CSCDR1_BCH_PODF_OFFSET) |
-			  (3 << MXC_CCM_CSCDR1_GPMI_PODF_OFFSET));
+	setup_gpmi_io_clk((MXC_CCM_CS2CDR_ENFC_CLK_PODF(0) |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED(3) |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL(3)));
 
 	/* enable apbh clock gating */
 	setbits_le32(&mxc_ccm->CCGR0, MXC_CCM_CCGR0_APBHDMA_MASK);
@@ -352,16 +252,6 @@ int board_phy_config(struct phy_device *phydev)
 	return 0;
 }
 #endif
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno;
-}
 
 #ifdef CONFIG_VIDEO_MXS
 static iomux_v3_cfg_t const lcd_pads[] = {
@@ -452,10 +342,6 @@ int board_init(void)
 {
 	/* Address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
-
-#ifdef CONFIG_SYS_I2C
-	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
-#endif
 
 #ifdef	CONFIG_FEC_MXC
 	setup_fec(CONFIG_FEC_ENET_DEV);

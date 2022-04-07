@@ -12,13 +12,13 @@
 #include <dm/uclass-internal.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
+#include <bootm.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 void spl_board_init(void)
 {
 	struct udevice *dev;
-	int offset;
 
 	uclass_find_first_device(UCLASS_MISC, &dev);
 
@@ -27,23 +27,6 @@ void spl_board_init(void)
 			continue;
 	}
 
-	offset = fdt_node_offset_by_compatible(gd->fdt_blob, -1, "nxp,imx8-pd");
-	while (offset != -FDT_ERR_NOTFOUND) {
-		lists_bind_fdt(gd->dm_root, offset_to_ofnode(offset),
-			       NULL, true);
-		offset = fdt_node_offset_by_compatible(gd->fdt_blob, offset,
-						       "nxp,imx8-pd");
-	}
-
-	uclass_find_first_device(UCLASS_POWER_DOMAIN, &dev);
-
-	for (; dev; uclass_find_next_device(&dev)) {
-		if (device_probe(dev))
-			continue;
-	}
-
-	arch_cpu_init();
-
 	board_early_init_f();
 
 	timer_init();
@@ -51,6 +34,11 @@ void spl_board_init(void)
 	preloader_console_init();
 
 	puts("Normal Boot\n");
+}
+
+void spl_board_prepare_for_boot(void)
+{
+	board_quiesce_devices();
 }
 
 #ifdef CONFIG_SPL_LOAD_FIT
@@ -65,11 +53,10 @@ int board_fit_config_name_match(const char *name)
 
 void board_init_f(ulong dummy)
 {
-	/* Clear global data */
-	memset((void *)gd, 0, sizeof(gd_t));
-
 	/* Clear the BSS. */
 	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	arch_cpu_init();
 
 	board_init_r(NULL, 0);
 }

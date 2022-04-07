@@ -13,12 +13,12 @@
 
 #ifdef CONFIG_MXC_SPI  /* Pin conflict between SPI-NOR and SD2 */
 #define CONFIG_SYS_FSL_USDHC_NUM    2
-#define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC3 */
+#define CONFIG_SYS_MMC_ENV_DEV		2   /* USDHC3 */
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk2p2"  /* USDHC3 */
 #else
 #define CONFIG_SYS_FSL_USDHC_NUM    3
-#define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC3 */
+#define CONFIG_SYS_MMC_ENV_DEV		2   /* USDHC3 */
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk2p2"  /* USDHC3 */
 #endif

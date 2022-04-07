@@ -17,19 +17,6 @@
 
 #define PHYS_SDRAM_SIZE			SZ_1G
 
-#ifdef CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#endif
-
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_CMD_SF
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI_FLASH_ATMEL
-#define CONFIG_SF_DEFAULT_BUS  3
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
 
 #include "mx7d_arm2.h"
 

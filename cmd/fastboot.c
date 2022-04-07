@@ -41,10 +41,18 @@ static int do_fastboot_usb(int argc, char *const argv[],
 	char *usb_controller;
 	char *endp;
 	int ret;
+	int index;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
 
+	if (!strcmp(argv[1], "auto")) {
+		index = board_usb_gadget_port_auto();
+		if (index >= 0)
+			controller_index = index;
+		else
+			return CMD_RET_USAGE;
+	} else {
 	usb_controller = argv[1];
 	controller_index = simple_strtoul(usb_controller, &endp, 0);
 	if (*endp != '\0') {
@@ -54,6 +62,7 @@ static int do_fastboot_usb(int argc, char *const argv[],
 #ifdef CONFIG_FASTBOOT_USB_DEV
 	controller_index = CONFIG_FASTBOOT_USB_DEV;
 #endif
+	}
 
 	ret = usb_gadget_initialize(controller_index);
 	if (ret) {

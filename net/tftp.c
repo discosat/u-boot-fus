@@ -279,8 +279,8 @@ static void update_block_number(void)
 		tftp_block_wrap_offset += tftp_block_size * TFTP_SEQUENCE_SIZE;
 		timeout_count = 0; /* we've done well, reset the timeout */
 	}
-	show_block_marker();
-}
+		show_block_marker();
+	}
 
 /* The TFTP get or put is complete */
 static void tftp_complete(void)

@@ -8,9 +8,9 @@
  * Based on code from LTIB:
  * Freescale GPMI NFC NAND Flash Driver
  *
- * Copyright (C) 2010-2016 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  */
 
 #include <common.h>
@@ -26,8 +26,7 @@
 #include <asm/mach-imx/regs-bch.h>
 #include <asm/mach-imx/regs-gpmi.h>
 #include <asm/arch/sys_proto.h>
-#include <nand.h>
-#include "mxs_nand.h"
+#include <mxs_nand.h>
 
 #define	MXS_NAND_DMA_DESCRIPTOR_COUNT		4
 
@@ -48,14 +47,6 @@
 #define	MXS_NAND_BCH_TIMEOUT			10000
 
 struct nand_ecclayout fake_ecc_layout;
-
-static uint8_t scan_ff_pattern[] = { 0xff };
-static struct nand_bbt_descr gpmi_bbt_descr = {
-	.options	= 0,
-	.offs		= 0,
-	.len		= 1,
-	.pattern	= scan_ff_pattern
-};
 
 /*
  * Cache management functions
@@ -121,53 +112,32 @@ static uint32_t mxs_nand_aux_status_offset(void)
 	return (MXS_NAND_METADATA_SIZE + 0x3) & ~0x3;
 }
 
-static inline int mxs_nand_calc_mark_offset(struct bch_geometry *geo,
-					    uint32_t page_data_size)
+static inline bool mxs_nand_bbm_in_data_chunk(struct bch_geometry *geo, struct mtd_info *mtd,
+		unsigned int *chunk_num)
 {
-	uint32_t chunk_data_size_in_bits = geo->ecc_chunk_size * 8;
-	uint32_t chunk_ecc_size_in_bits = geo->ecc_strength * geo->gf_len;
-	uint32_t chunk_total_size_in_bits;
-	uint32_t block_mark_chunk_number;
-	uint32_t block_mark_chunk_bit_offset;
-	uint32_t block_mark_bit_offset;
+	unsigned int i, j;
 
-	chunk_total_size_in_bits =
-			chunk_data_size_in_bits + chunk_ecc_size_in_bits;
+	if (geo->ecc_chunk0_size != geo->ecc_chunkn_size) {
+		dev_err(this->dev, "The size of chunk0 must equal to chunkn\n");
+		return false;
+	}
 
-	/* Compute the bit offset of the block mark within the physical page. */
-	block_mark_bit_offset = page_data_size * 8;
+	i = (mtd->writesize * 8 - MXS_NAND_METADATA_SIZE * 8) /
+		(geo->gf_len * geo->ecc_strength +
+				geo->ecc_chunkn_size * 8);
 
-	/* Subtract the metadata bits. */
-	block_mark_bit_offset -= MXS_NAND_METADATA_SIZE * 8;
+	j = (mtd->writesize * 8 - MXS_NAND_METADATA_SIZE * 8) -
+		(geo->gf_len * geo->ecc_strength +
+				geo->ecc_chunkn_size * 8) * i;
 
-	/*
-	 * Compute the chunk number (starting at zero) in which the block mark
-	 * appears.
-	 */
-	block_mark_chunk_number =
-			block_mark_bit_offset / chunk_total_size_in_bits;
+	if (j < geo->ecc_chunkn_size * 8) {
+		*chunk_num = i+1;
+		dev_dbg(this->dev, "Set ecc to %d and bbm in chunk %d\n",
+				geo->ecc_strength, *chunk_num);
+		return true;
+	}
 
-	/*
-	 * Compute the bit offset of the block mark within its chunk, and
-	 * validate it.
-	 */
-	block_mark_chunk_bit_offset = block_mark_bit_offset -
-			(block_mark_chunk_number * chunk_total_size_in_bits);
-
-	if (block_mark_chunk_bit_offset > chunk_data_size_in_bits)
-		return -EINVAL;
-
-	/*
-	 * Now that we know the chunk number in which the block mark appears,
-	 * we can subtract all the ECC bits that appear before it.
-	 */
-	block_mark_bit_offset -=
-		block_mark_chunk_number * chunk_ecc_size_in_bits;
-
-	geo->block_mark_byte_offset = block_mark_bit_offset >> 3;
-	geo->block_mark_bit_offset = block_mark_bit_offset & 0x7;
-
-	return 0;
+	return false;
 }
 
 static inline int mxs_nand_calc_ecc_layout_by_info(struct bch_geometry *geo,
@@ -177,6 +147,7 @@ static inline int mxs_nand_calc_ecc_layout_by_info(struct bch_geometry *geo,
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mxs_nand_info *nand_info = nand_get_controller_data(chip);
+	unsigned int block_mark_bit_offset;
 
 	switch (ecc_step) {
 	case SZ_512:
@@ -189,45 +160,51 @@ static inline int mxs_nand_calc_ecc_layout_by_info(struct bch_geometry *geo,
 		return -EINVAL;
 	}
 
-	geo->ecc_chunk_size = ecc_step;
+	geo->ecc_chunk0_size = ecc_step;
+	geo->ecc_chunkn_size = ecc_step;
 	geo->ecc_strength = round_up(ecc_strength, 2);
 
 	/* Keep the C >= O */
-	if (geo->ecc_chunk_size < mtd->oobsize)
+	if (geo->ecc_chunkn_size < mtd->oobsize)
 		return -EINVAL;
 
 	if (geo->ecc_strength > nand_info->max_ecc_strength_supported)
 		return -EINVAL;
 
-	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunk_size;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
+
+	/* For bit swap. */
+	block_mark_bit_offset = mtd->writesize * 8 -
+		(geo->ecc_strength * geo->gf_len * (geo->ecc_chunk_count - 1)
+				+ MXS_NAND_METADATA_SIZE * 8);
+
+	geo->block_mark_byte_offset = block_mark_bit_offset / 8;
+	geo->block_mark_bit_offset  = block_mark_bit_offset % 8;
 
 	return 0;
 }
 
-static inline int mxs_nand_calc_ecc_layout(struct bch_geometry *geo,
+static inline int mxs_nand_legacy_calc_ecc_layout(struct bch_geometry *geo,
 					   struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mxs_nand_info *nand_info = nand_get_controller_data(chip);
+	unsigned int block_mark_bit_offset;
 
 	/* The default for the length of Galois Field. */
 	geo->gf_len = 13;
 
 	/* The default for chunk size. */
-	geo->ecc_chunk_size = 512;
+	geo->ecc_chunk0_size = 512;
+	geo->ecc_chunkn_size = 512;
 
-	if (geo->ecc_chunk_size < mtd->oobsize) {
+	if (geo->ecc_chunkn_size < mtd->oobsize) {
 		geo->gf_len = 14;
-		geo->ecc_chunk_size *= 2;
+		geo->ecc_chunk0_size *= 2;
+		geo->ecc_chunkn_size *= 2;
 	}
 
-	if (mtd->oobsize > geo->ecc_chunk_size) {
-		printf("Not support the NAND chips whose oob size is larger then %d bytes!\n",
-		       geo->ecc_chunk_size);
-		return -EINVAL;
-	}
-
-	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunk_size;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
 
 	/*
 	 * Determine the ECC layout with the formula:
@@ -242,6 +219,84 @@ static inline int mxs_nand_calc_ecc_layout(struct bch_geometry *geo,
 
 	geo->ecc_strength = min(round_down(geo->ecc_strength, 2),
 				nand_info->max_ecc_strength_supported);
+
+	block_mark_bit_offset = mtd->writesize * 8 -
+		(geo->ecc_strength * geo->gf_len * (geo->ecc_chunk_count - 1)
+				+ MXS_NAND_METADATA_SIZE * 8);
+
+	geo->block_mark_byte_offset = block_mark_bit_offset / 8;
+	geo->block_mark_bit_offset  = block_mark_bit_offset % 8;
+
+	return 0;
+}
+
+static inline int mxs_nand_calc_ecc_for_large_oob(struct bch_geometry *geo,
+					   struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(chip);
+	unsigned int block_mark_bit_offset;
+	unsigned int max_ecc;
+	unsigned int bbm_chunk;
+	unsigned int i;
+
+	/* sanity check for the minimum ecc nand required */
+	if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
+		return -EINVAL;
+	geo->ecc_strength = chip->ecc_strength_ds;
+
+	/* calculate the maximum ecc platform can support*/
+	geo->gf_len = 14;
+	geo->ecc_chunk0_size = 1024;
+	geo->ecc_chunkn_size = 1024;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
+	max_ecc = ((mtd->oobsize - MXS_NAND_METADATA_SIZE) * 8)
+			/ (geo->gf_len * geo->ecc_chunk_count);
+	max_ecc = min(round_down(max_ecc, 2),
+				nand_info->max_ecc_strength_supported);
+
+
+	/* search a supported ecc strength that makes bbm */
+	/* located in data chunk  */
+	geo->ecc_strength = chip->ecc_strength_ds;
+	while (!(geo->ecc_strength > max_ecc)) {
+		if (mxs_nand_bbm_in_data_chunk(geo, mtd, &bbm_chunk))
+			break;
+		geo->ecc_strength += 2;
+	}
+
+	/* if none of them works, keep using the minimum ecc */
+	/* nand required but changing ecc page layout  */
+	if (geo->ecc_strength > max_ecc) {
+		geo->ecc_strength = chip->ecc_strength_ds;
+		/* add extra ecc for meta data */
+		geo->ecc_chunk0_size = 0;
+		geo->ecc_chunk_count = (mtd->writesize / geo->ecc_chunkn_size) + 1;
+		geo->ecc_for_meta = 1;
+		/* check if oob can afford this extra ecc chunk */
+		if (mtd->oobsize * 8 < MXS_NAND_METADATA_SIZE * 8 +
+				geo->gf_len * geo->ecc_strength
+				* geo->ecc_chunk_count) {
+			printf("unsupported NAND chip with new layout\n");
+			return -EINVAL;
+		}
+
+		/* calculate in which chunk bbm located */
+		bbm_chunk = (mtd->writesize * 8 - MXS_NAND_METADATA_SIZE * 8 -
+			geo->gf_len * geo->ecc_strength) /
+			(geo->gf_len * geo->ecc_strength +
+					geo->ecc_chunkn_size * 8) + 1;
+	}
+
+	/* calculate the number of ecc chunk behind the bbm */
+	i = (mtd->writesize / geo->ecc_chunkn_size) - bbm_chunk + 1;
+
+	block_mark_bit_offset = mtd->writesize * 8 -
+		(geo->ecc_strength * geo->gf_len * (geo->ecc_chunk_count - i)
+				+ MXS_NAND_METADATA_SIZE * 8);
+
+	geo->block_mark_byte_offset = block_mark_bit_offset / 8;
+	geo->block_mark_bit_offset  = block_mark_bit_offset % 8;
 
 	return 0;
 }
@@ -564,7 +619,7 @@ static bool mxs_nand_erased_page(struct mtd_info *mtd, struct nand_chip *nand,
 	struct bch_geometry *geo = &nand_info->bch_geometry;
 	unsigned int flip_bits = 0, flip_bits_noecc = 0;
 	unsigned int threshold;
-	unsigned int base = geo->ecc_chunk_size * chunk;
+	unsigned int base = geo->ecc_chunkn_size * chunk;
 	uint32_t *dma_buf = (uint32_t *)buf;
 	int i;
 
@@ -572,7 +627,7 @@ static bool mxs_nand_erased_page(struct mtd_info *mtd, struct nand_chip *nand,
 	if (threshold > geo->ecc_strength)
 		threshold = geo->ecc_strength;
 
-	for (i = 0; i < geo->ecc_chunk_size; i++) {
+	for (i = 0; i < geo->ecc_chunkn_size; i++) {
 		flip_bits += hweight8(~buf[base + i]);
 		if (flip_bits > threshold)
 			return false;
@@ -653,6 +708,12 @@ static int mxs_nand_ecc_read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	d->cmd.pio_words[4] = (dma_addr_t)nand_info->data_buf;
 	d->cmd.pio_words[5] = (dma_addr_t)nand_info->oob_buf;
 
+	if (nand_info->en_randomizer) {
+		d->cmd.pio_words[2] |= GPMI_ECCCTRL_RANDOMIZER_ENABLE |
+				       GPMI_ECCCTRL_RANDOMIZER_TYPE2;
+		d->cmd.pio_words[3] |= (page % 256) << 16;
+	}
+
 	mxs_dma_desc_append(channel, d);
 
 	/* Compile the DMA descriptor - disable the BCH block. */
@@ -716,8 +777,9 @@ static int mxs_nand_ecc_read_page(struct mtd_info *mtd, struct nand_chip *nand,
 			continue;
 
 		if (status[i] == 0xff) {
-			if (is_mx6dqp() || is_mx7() ||
-			    is_mx6ul() || is_imx8() || is_imx8m())
+			if (!nand_info->en_randomizer &&
+			    (is_mx6dqp() || is_mx7() || is_mx6ul()
+			    || is_imx8() || is_imx8m()))
 				if (readl(&bch_regs->hw_bch_debug1))
 					flag = 1;
 			continue;
@@ -802,6 +864,19 @@ static int mxs_nand_ecc_write_page(struct mtd_info *mtd,
 	d->cmd.pio_words[3] = (mtd->writesize + mtd->oobsize);
 	d->cmd.pio_words[4] = (dma_addr_t)nand_info->data_buf;
 	d->cmd.pio_words[5] = (dma_addr_t)nand_info->oob_buf;
+
+	if (nand_info->en_randomizer) {
+		d->cmd.pio_words[2] |= GPMI_ECCCTRL_RANDOMIZER_ENABLE |
+				       GPMI_ECCCTRL_RANDOMIZER_TYPE2;
+		/*
+		 * Write NAND page number needed to be randomized
+		 * to GPMI_ECCCOUNT register.
+		 *
+		 * The value is between 0-255. For additional details
+		 * check 9.6.6.4 of i.MX7D Applications Processor reference
+		 */
+		d->cmd.pio_words[3] |= (page % 256) << 16;
+	}
 
 	mxs_dma_desc_append(channel, d);
 
@@ -1032,20 +1107,23 @@ static int mxs_nand_set_geometry(struct mtd_info *mtd, struct bch_geometry *geo)
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
 
-	if (chip->ecc.strength > 0 && chip->ecc.size > 0)
-		return mxs_nand_calc_ecc_layout_by_info(geo, mtd,
-				chip->ecc.strength, chip->ecc.size);
-
-	if (nand_info->use_minimum_ecc ||
-		mxs_nand_calc_ecc_layout(geo, mtd)) {
-		if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
+	if (chip->ecc_strength_ds > nand_info->max_ecc_strength_supported) {
+		printf("unsupported NAND chip, minimum ecc required %d\n"
+			, chip->ecc_strength_ds);
 			return -EINVAL;
-
-		return mxs_nand_calc_ecc_layout_by_info(geo, mtd,
-				chip->ecc_strength_ds, chip->ecc_step_ds);
 	}
 
-	return 0;
+	if ((!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0) &&
+			(mtd->oobsize < 1024)) || nand_info->legacy_bch_geometry) {
+		dev_warn(this->dev, "use legacy bch geometry\n");
+		return mxs_nand_legacy_calc_ecc_layout(geo, mtd);
+	}
+
+	if (mtd->oobsize > 1024 || chip->ecc_step_ds < mtd->oobsize)
+		return mxs_nand_calc_ecc_for_large_oob(geo, mtd);
+
+	return mxs_nand_calc_ecc_layout_by_info(geo, mtd,
+				chip->ecc_strength_ds, chip->ecc_step_ds);
 }
 
 /*
@@ -1066,11 +1144,13 @@ int mxs_nand_setup_ecc(struct mtd_info *mtd)
 	uint32_t tmp;
 	int ret;
 
+	nand_info->en_randomizer = 0;
+	nand_info->oobsize = mtd->oobsize;
+	nand_info->writesize = mtd->writesize;
+
 	ret = mxs_nand_set_geometry(mtd, geo);
 	if (ret)
 		return ret;
-
-	mxs_nand_calc_mark_offset(geo, mtd->writesize);
 
 	/* Configure BCH and set NFC geometry */
 	mxs_reset_block(&bch_regs->hw_bch_ctrl_reg);
@@ -1079,18 +1159,20 @@ int mxs_nand_setup_ecc(struct mtd_info *mtd)
 	tmp = (geo->ecc_chunk_count - 1) << BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
 	tmp |= MXS_NAND_METADATA_SIZE << BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
 	tmp |= (geo->ecc_strength >> 1) << BCH_FLASHLAYOUT0_ECC0_OFFSET;
-	tmp |= geo->ecc_chunk_size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
+	tmp |= geo->ecc_chunk0_size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
 	tmp |= (geo->gf_len == 14 ? 1 : 0) <<
 		BCH_FLASHLAYOUT0_GF13_0_GF14_1_OFFSET;
 	writel(tmp, &bch_regs->hw_bch_flash0layout0);
+	nand_info->bch_flash0layout0 = tmp;
 
 	tmp = (mtd->writesize + mtd->oobsize)
 		<< BCH_FLASHLAYOUT1_PAGE_SIZE_OFFSET;
 	tmp |= (geo->ecc_strength >> 1) << BCH_FLASHLAYOUT1_ECCN_OFFSET;
-	tmp |= geo->ecc_chunk_size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
+	tmp |= geo->ecc_chunkn_size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT;
 	tmp |= (geo->gf_len == 14 ? 1 : 0) <<
 		BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
 	writel(tmp, &bch_regs->hw_bch_flash0layout1);
+	nand_info->bch_flash0layout1 = tmp;
 
 	/* Set erase threshold to ecc strength for mx6ul, mx6qp and mx7 */
 	if (is_mx6dqp() || is_mx7() ||
@@ -1323,7 +1405,6 @@ int mxs_nand_init_ctrl(struct mxs_nand_info *nand_info)
 
 	nand_set_controller_data(nand, nand_info);
 	nand->options |= NAND_NO_SUBPAGE_WRITE;
-	nand->badblock_pattern	= &gpmi_bbt_descr;
 
 	if (nand_info->dev)
 		nand->flash_node = dev_of_offset(nand_info->dev);
@@ -1353,7 +1434,7 @@ int mxs_nand_init_ctrl(struct mxs_nand_info *nand_info)
 
 	nand->ecc.layout	= &fake_ecc_layout;
 	nand->ecc.mode		= NAND_ECC_HW;
-	nand->ecc.size		= nand_info->bch_geometry.ecc_chunk_size;
+	nand->ecc.size		= nand_info->bch_geometry.ecc_chunkn_size;
 	nand->ecc.strength	= nand_info->bch_geometry.ecc_strength;
 
 	/* second phase scan */
@@ -1413,3 +1494,139 @@ __weak void board_nand_init(void)
 	mxs_nand_register();
 }
 #endif
+
+/*
+ * Read NAND layout for FCB block generation.
+ */
+void mxs_nand_get_layout(struct mtd_info *mtd, struct mxs_nand_layout *l)
+{
+	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
+	u32 tmp;
+
+	tmp = readl(&bch_regs->hw_bch_flash0layout0);
+	l->nblocks = (tmp & BCH_FLASHLAYOUT0_NBLOCKS_MASK) >>
+			BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
+	l->meta_size = (tmp & BCH_FLASHLAYOUT0_META_SIZE_MASK) >>
+			BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
+
+	tmp = readl(&bch_regs->hw_bch_flash0layout1);
+	l->data0_size = 4 * ((tmp & BCH_FLASHLAYOUT0_DATA0_SIZE_MASK) >>
+			BCH_FLASHLAYOUT0_DATA0_SIZE_OFFSET);
+	l->ecc0 = (tmp & BCH_FLASHLAYOUT0_ECC0_MASK) >>
+			BCH_FLASHLAYOUT0_ECC0_OFFSET;
+	l->datan_size = 4 * ((tmp & BCH_FLASHLAYOUT1_DATAN_SIZE_MASK) >>
+			BCH_FLASHLAYOUT1_DATAN_SIZE_OFFSET);
+	l->eccn = (tmp & BCH_FLASHLAYOUT1_ECCN_MASK) >>
+			BCH_FLASHLAYOUT1_ECCN_OFFSET;
+	l->gf_len = (tmp & BCH_FLASHLAYOUT1_GF13_0_GF14_1_MASK) >>
+			BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
+}
+
+/*
+ * Set BCH to specific layout used by ROM bootloader to read FCB.
+ */
+void mxs_nand_mode_fcb_62bit(struct mtd_info *mtd)
+{
+	u32 tmp;
+	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
+
+	nand_info->en_randomizer = 1;
+
+	mtd->writesize = 1024;
+	mtd->oobsize = 1862 - 1024;
+
+	/* 8 ecc_chunks_*/
+	tmp = 7	<< BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
+	/* 32 bytes for metadata */
+	tmp |= 32 << BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
+	/* using ECC62 level to be performed */
+	tmp |= 0x1F << BCH_FLASHLAYOUT0_ECC0_OFFSET;
+	/* 0x20 * 4 bytes of the data0 block */
+	tmp |= 0x20 << BCH_FLASHLAYOUT0_DATA0_SIZE_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT0_GF13_0_GF14_1_OFFSET;
+	writel(tmp, &bch_regs->hw_bch_flash0layout0);
+
+	/* 1024 for data + 838 for OOB */
+	tmp = 1862 << BCH_FLASHLAYOUT1_PAGE_SIZE_OFFSET;
+	/* using ECC62 level to be performed */
+	tmp |= 0x1F << BCH_FLASHLAYOUT1_ECCN_OFFSET;
+	/* 0x20 * 4 bytes of the data0 block */
+	tmp |= 0x20 << BCH_FLASHLAYOUT1_DATAN_SIZE_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
+	writel(tmp, &bch_regs->hw_bch_flash0layout1);
+}
+
+/*
+ * Set BCH to specific layout used by ROM bootloader to read FCB.
+ */
+void mxs_nand_mode_fcb_40bit(struct mtd_info *mtd)
+{
+	u32 tmp;
+	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
+
+	/* no randomizer in this setting*/
+	nand_info->en_randomizer = 0;
+
+	mtd->writesize = 1024;
+	mtd->oobsize = 1576 - 1024;
+
+	/* 8 ecc_chunks_*/
+	tmp = 7	<< BCH_FLASHLAYOUT0_NBLOCKS_OFFSET;
+	/* 32 bytes for metadata */
+	tmp |= 32 << BCH_FLASHLAYOUT0_META_SIZE_OFFSET;
+	/* using ECC40 level to be performed */
+	tmp |= 0x14 << BCH_FLASHLAYOUT0_ECC0_OFFSET;
+	/* 0x20 * 4 bytes of the data0 block */
+	tmp |= 0x20 << BCH_FLASHLAYOUT0_DATA0_SIZE_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT0_GF13_0_GF14_1_OFFSET;
+	writel(tmp, &bch_regs->hw_bch_flash0layout0);
+
+	/* 1024 for data + 552 for OOB */
+	tmp = 1576 << BCH_FLASHLAYOUT1_PAGE_SIZE_OFFSET;
+	/* using ECC40 level to be performed */
+	tmp |= 0x14 << BCH_FLASHLAYOUT1_ECCN_OFFSET;
+	/* 0x20 * 4 bytes of the data0 block */
+	tmp |= 0x20 << BCH_FLASHLAYOUT1_DATAN_SIZE_OFFSET;
+	tmp |= 0 << BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
+	writel(tmp, &bch_regs->hw_bch_flash0layout1);
+}
+
+/*
+ * Restore BCH to normal settings.
+ */
+void mxs_nand_mode_normal(struct mtd_info *mtd)
+{
+	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
+
+	nand_info->en_randomizer = 0;
+
+	mtd->writesize = nand_info->writesize;
+	mtd->oobsize = nand_info->oobsize;
+
+	writel(nand_info->bch_flash0layout0, &bch_regs->hw_bch_flash0layout0);
+	writel(nand_info->bch_flash0layout1, &bch_regs->hw_bch_flash0layout1);
+}
+
+uint32_t mxs_nand_mark_byte_offset(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(chip);
+	struct bch_geometry *geo = &nand_info->bch_geometry;
+
+	return geo->block_mark_byte_offset;
+}
+
+uint32_t mxs_nand_mark_bit_offset(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(chip);
+	struct bch_geometry *geo = &nand_info->bch_geometry;
+
+	return geo->block_mark_bit_offset;
+}

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2007, 2010-2012 Freescale Semiconductor, Inc
+ * Copyright 2007, 2010-2011 Freescale Semiconductor, Inc
  * Andy Fleming
  *
  * Based vaguely on the pxa mmc code:
  * (C) Copyright 2003
  * Kyle Harris, Nexus Technologies, Inc. kharris@nexus-tech.net
- *
  * Copyright 2019 NXP
+ *
  */
 
 #include <config.h>
@@ -276,7 +276,7 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 		esdhc_clrsetbits32(&regs->wml, WML_RD_WML_MASK, wml_value);
 #ifndef CONFIG_SYS_FSL_ESDHC_USE_PIO
 #if defined(CONFIG_FSL_LAYERSCAPE) || defined(CONFIG_S32V234) || \
-	defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
+		defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
 		addr = virt_to_phys((void *)(data->dest));
 		if (upper_32_bits(addr))
 			printf("Error found for upper 32 bits\n");
@@ -313,7 +313,7 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 					wml_value << 16);
 #ifndef CONFIG_SYS_FSL_ESDHC_USE_PIO
 #if defined(CONFIG_FSL_LAYERSCAPE) || defined(CONFIG_S32V234) || \
-	defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
+		defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
 		addr = virt_to_phys((void *)(data->src));
 		if (upper_32_bits(addr))
 			printf("Error found for upper 32 bits\n");
@@ -1591,9 +1591,7 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	 * work as expected.
 	 */
 
-	init_clk_usdhc(dev->seq);
-
-	if (IS_ENABLED(CONFIG_CLK)) {
+	if (CONFIG_IS_ENABLED(CLK)) {
 		/* Assigned clock already set clock */
 		ret = clk_get_by_name(dev, "per", &priv->per_clk);
 		if (ret) {
@@ -1608,10 +1606,12 @@ static int fsl_esdhc_probe(struct udevice *dev)
 
 		priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
 	} else {
+		init_clk_usdhc(dev->seq);
+
 		priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
 		if (priv->esdhc.sdhc_clk <= 0) {
-			dev_err(dev, "Unable to get clk for %s\n", dev->name);
-			return -EINVAL;
+		dev_err(dev, "Unable to get clk for %s\n", dev->name);
+		return -EINVAL;
 		}
 	}
 

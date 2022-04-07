@@ -14,7 +14,6 @@
 #define FSL_FASTBOOT_FB_DEV "mmc"
 #endif
 
-#define CONFIG_ANDROID_BOOT_IMAGE
 #define CONFIG_CMD_FSL_CAAM_KB
 #define CONFIG_SHA1
 #define CONFIG_SHA256

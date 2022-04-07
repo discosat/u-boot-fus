@@ -8,7 +8,7 @@
 #include "avb_util.h"
 #include "avb_version.h"
 
-#define NUM_GUIDS 3
+#define NUM_GUIDS 2
 
 /* Substitutes all variables (e.g. $(ANDROID_SYSTEM_PARTUUID)) with
  * values. Returns NULL on OOM, otherwise the cmdline with values
@@ -19,9 +19,8 @@ char* avb_sub_cmdline(AvbOps* ops,
                       const char* ab_suffix,
                       bool using_boot_for_vbmeta,
                       const AvbCmdlineSubstList* additional_substitutions) {
-  const char* part_name_str[NUM_GUIDS] = {"system", "boot", "vbmeta"};
-  const char* replace_str[NUM_GUIDS] = {"$(ANDROID_SYSTEM_PARTUUID)",
-                                        "$(ANDROID_BOOT_PARTUUID)",
+  const char* part_name_str[NUM_GUIDS] = {"boot", "vbmeta"};
+  const char* replace_str[NUM_GUIDS] = {"$(ANDROID_BOOT_PARTUUID)",
                                         "$(ANDROID_VBMETA_PARTUUID)"};
   char* ret = NULL;
   AvbIOResult io_ret;
@@ -31,7 +30,7 @@ char* avb_sub_cmdline(AvbOps* ops,
    * partition.
    */
   if (using_boot_for_vbmeta) {
-    part_name_str[2] = "boot";
+    part_name_str[1] = "boot";
   }
 
   /* Replace unique partition GUIDs */
@@ -203,7 +202,7 @@ AvbSlotVerifyResult avb_append_options(
     AvbAlgorithmType algorithm_type,
     AvbHashtreeErrorMode hashtree_error_mode) {
   AvbSlotVerifyResult ret;
-  const char* verity_mode;
+  const char* verity_mode = NULL;
   bool is_device_unlocked;
   AvbIOResult io_ret;
 
@@ -301,7 +300,7 @@ AvbSlotVerifyResult avb_append_options(
   if (toplevel_vbmeta->flags & AVB_VBMETA_IMAGE_FLAGS_HASHTREE_DISABLED) {
     verity_mode = "disabled";
   } else {
-    const char* dm_verity_mode;
+    const char* dm_verity_mode = NULL;
     char* new_ret;
 
     switch (hashtree_error_mode) {

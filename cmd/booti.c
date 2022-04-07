@@ -41,7 +41,7 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret != 0)
 		return 1;
 
-#if defined(CONFIG_SECURE_BOOT) && !defined(CONFIG_AVB_SUPPORT)
+#ifdef CONFIG_SECURE_BOOT
 	extern int authenticate_image(
 		uint32_t ddr_start, uint32_t raw_image_size);
 	if (authenticate_image(ld, image_size) != 0) {

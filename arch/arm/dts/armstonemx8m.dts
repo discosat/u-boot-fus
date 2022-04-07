@@ -312,6 +312,7 @@
 	compatible = "simple-bus";
 };
 
+/*###
 &gpu {
 	status = "okay";
 };
@@ -319,4 +320,4 @@
 &vpu {
 	status = "okay";
 };
-
+*/

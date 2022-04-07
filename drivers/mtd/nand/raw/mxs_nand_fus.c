@@ -1656,7 +1656,7 @@ static void mxs_nand_init_cont(struct mtd_info *mtd, uint32_t oobavail,
 		((mtd->ecc_strength >> 1) << BCH_FLASHLAYOUT1_ECCN_OFFSET) |
 		(chip->ecc.size >> MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT);	
 	if (priv->gf == 14)
-		layout1 |= BCH_FLASHLAYOUT1_GF13_0_GF14_1;
+		layout1 |= BCH_FLASHLAYOUT1_GF13_0_GF14_1_MASK;
 
 	switch (index) {
 	case 0:

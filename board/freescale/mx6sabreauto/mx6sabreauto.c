@@ -32,12 +32,8 @@
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/pfuze.h"
-
-#ifdef CONFIG_SATA
-#include <asm/mach-imx/sata.h>
-#endif
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -151,10 +147,6 @@ static struct i2c_pads_info i2c_pad_info2 = {
 };
 #endif
 #endif
-
-static iomux_v3_cfg_t const i2c3_pads[] = {
-	IOMUX_PADS(PAD_EIM_A24__GPIO5_IO04	| MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
 
 static iomux_v3_cfg_t const port_exp[] = {
 	IOMUX_PADS(PAD_SD2_DAT0__GPIO1_IO15	| MUX_PAD_CTRL(NO_PAD_CTRL)),
@@ -305,26 +297,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 	{USDHC1_BASE_ADDR, 0, 4},
 	{USDHC3_BASE_ADDR},
 };
-
-int board_mmc_get_env_dev(int devno)
-{
-	/*
-	 * need ubstract 1 to map to the mmc3 device id
-	 * see the comments in board_mmc_init function
-	 */
-	if (devno == 2)
-		devno--;
-
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	if (devno == 1)
-		devno = 2;
-
-	return devno;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -632,14 +604,7 @@ void setup_spinor(void)
 {
 	SETUP_IOMUX_PADS(ecspi1_pads);
 
-	gpio_request(IMX_GPIO_NR(3, 19), "escpi cs");
 	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
-	gpio_direction_output(IMX_GPIO_NR(3, 19), 0);
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 1) ? (IMX_GPIO_NR(3, 19)) : -1;
 }
 #endif
 
@@ -670,11 +635,6 @@ int board_init(void)
 #endif
 #endif
 
-	/* I2C 3 Steer */
-	gpio_request(IMX_GPIO_NR(5, 4), "steer logic");
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 1);
-	SETUP_IOMUX_PADS(i2c3_pads);
-
 	gpio_request(IMX_GPIO_NR(1, 15), "expander en");
 	gpio_direction_output(IMX_GPIO_NR(1, 15), 1);
 	SETUP_IOMUX_PADS(port_exp);
@@ -685,10 +645,6 @@ int board_init(void)
 
 #ifdef CONFIG_MXC_SPI
 	setup_spinor();
-#endif
-
-#ifdef CONFIG_SATA
-	setup_sata();
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH

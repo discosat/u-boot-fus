@@ -17,11 +17,9 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static void hdmi_rx_set_power(int onoff)
 {
-	sc_ipc_t ipch = gd->arch.ipc_channel_handle;
-
-	SC_PM_SET_RESOURCE_POWER_MODE(ipch, SC_R_ISI_CH0, onoff);
-	SC_PM_SET_RESOURCE_POWER_MODE(ipch, SC_R_HDMI_RX, onoff);
-	SC_PM_SET_RESOURCE_POWER_MODE(ipch, SC_R_HDMI_RX_BYPASS, onoff);
+	SC_PM_SET_RESOURCE_POWER_MODE(-1, SC_R_ISI_CH0, onoff);
+	SC_PM_SET_RESOURCE_POWER_MODE(-1, SC_R_HDMI_RX, onoff);
+	SC_PM_SET_RESOURCE_POWER_MODE(-1, SC_R_HDMI_RX_BYPASS, onoff);
 }
 
 int do_hdprx(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
@@ -38,7 +36,6 @@ int do_hdprx(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		const int iram_size   = 0x10000;
 		const int dram_size   = 0x8000;
 		const char *s;
-		sc_ipc_t ipch = gd->arch.ipc_channel_handle;
 
 		if (argc > 2) {
 			address = simple_strtoul(argv[2], NULL, 0);
@@ -59,7 +56,7 @@ int do_hdprx(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 
 		s = env_get("hdprx_authenticate_fw");
 		if (s && !strcmp(s, "yes"))
-			SC_MISC_AUTH(ipch, SC_SECO_AUTH_HDMI_RX_FW, 0);
+			SC_MISC_AUTH(-1, SC_SECO_AUTH_HDMI_RX_FW, 0);
 		printf("Loading hdp rx firmware Complete\n");
 		/* do not turn off hdmi power or firmware load will be lost */
 	} else {

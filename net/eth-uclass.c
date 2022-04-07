@@ -3,8 +3,8 @@
  * (C) Copyright 2001-2015
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  * Joe Hershberger, National Instruments
- *
  * Copyright 2017 NXP
+ *
  */
 
 #include <common.h>
@@ -14,6 +14,7 @@
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
 #include "eth_internal.h"
+#include <eth_phy.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -323,7 +324,7 @@ void eth_halt(void)
 	eth_get_ops(current)->stop(current);
 	priv = current->uclass_priv;
 	if (priv)
-		priv->state = ETH_STATE_PASSIVE;
+	priv->state = ETH_STATE_PASSIVE;
 }
 
 int eth_is_active(struct udevice *dev)
@@ -452,6 +453,10 @@ static int eth_post_bind(struct udevice *dev)
 		       dev->name);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_DM_ETH_PHY
+	eth_phy_binds_nodes(dev);
+#endif
 
 	return 0;
 }

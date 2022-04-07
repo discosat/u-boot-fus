@@ -382,6 +382,7 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf);
  * @return - '0' on success, otherwise error
  */
 int write_backup_gpt_partitions(struct blk_desc *dev_desc, void *buf);
+
 /**
  * gpt_verify_headers() - Function to read and CRC32 check of the GPT's header
  *                        and partition table entries (PTE)

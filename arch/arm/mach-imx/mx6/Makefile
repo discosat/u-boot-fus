@@ -5,6 +5,7 @@
 #
 # (C) Copyright 2011 Freescale Semiconductor, Inc.
 # Copyright 2018 NXP
+#
 
 obj-y	:= soc.o clock.o
 obj-$(CONFIG_SPL_BUILD)	     += ddr.o

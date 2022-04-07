@@ -8,6 +8,7 @@
  * Based on code from LTIB:
  * Copyright 2008-2010, 2016 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2017 NXP
+ *
  */
 
 #ifndef __MX28_REGS_BCH_H__
@@ -35,6 +36,7 @@ struct mxs_bch_regs {
 	mxs_reg_32(hw_bch_flash2layout1)
 	mxs_reg_32(hw_bch_flash3layout0)
 	mxs_reg_32(hw_bch_flash3layout1)
+	mxs_reg_32(hw_bch_debug0)
 	mxs_reg_32(hw_bch_dbgkesread)
 	mxs_reg_32(hw_bch_dbgcsferead)
 	mxs_reg_32(hw_bch_dbgsyndegread)
@@ -151,9 +153,9 @@ struct mxs_bch_regs {
 #define	BCH_FLASHLAYOUT0_ECC0_ECC28			(0xe << 12)
 #define	BCH_FLASHLAYOUT0_ECC0_ECC30			(0xf << 12)
 #define	BCH_FLASHLAYOUT0_ECC0_ECC32			(0x10 << 12)
-#define	BCH_FLASHLAYOUT0_GF13_0_GF14_1			(1 << 10)
+#define	BCH_FLASHLAYOUT0_GF13_0_GF14_1_MASK		(1 << 10)
 #define	BCH_FLASHLAYOUT0_GF13_0_GF14_1_OFFSET		10
-#define	BCH_FLASHLAYOUT0_DATA0_SIZE_MASK		0xfff
+#define	BCH_FLASHLAYOUT0_DATA0_SIZE_MASK		0x3ff
 #define	BCH_FLASHLAYOUT0_DATA0_SIZE_OFFSET		0
 
 #define	BCH_FLASHLAYOUT1_PAGE_SIZE_MASK			(0xffff << 16)
@@ -182,9 +184,9 @@ struct mxs_bch_regs {
 #define	BCH_FLASHLAYOUT1_ECCN_ECC28			(0xe << 12)
 #define	BCH_FLASHLAYOUT1_ECCN_ECC30			(0xf << 12)
 #define	BCH_FLASHLAYOUT1_ECCN_ECC32			(0x10 << 12)
-#define	BCH_FLASHLAYOUT1_GF13_0_GF14_1			(1 << 10)
+#define	BCH_FLASHLAYOUT1_GF13_0_GF14_1_MASK		(1 << 10)
 #define	BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET		10
-#define	BCH_FLASHLAYOUT1_DATAN_SIZE_MASK		0xfff
+#define	BCH_FLASHLAYOUT1_DATAN_SIZE_MASK		0x3ff
 #define	BCH_FLASHLAYOUT1_DATAN_SIZE_OFFSET		0
 
 #define	BCH_DEBUG0_RSVD1_MASK				(0x1f << 27)

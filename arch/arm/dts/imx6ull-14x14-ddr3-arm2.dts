@@ -47,6 +47,7 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			u-boot,off-on-delay-us = <20000>;
 			enable-active-high;
 		};
 
@@ -115,9 +116,17 @@
 		396000	1175000
 		198000	1175000
 	>;
-	arm-supply = <&sw1a_reg>;
-	soc-supply = <&sw1a_reg>;
 	fsl,arm-soc-shared = <1>;
+};
+
+&reg_arm {
+	vin-supply = <&sw1a_reg>;
+	regulator-allow-bypass;
+};
+
+&reg_soc {
+	vin-supply = <&sw1a_reg>;
+	regulator-allow-bypass;
 };
 
 &csi {
@@ -140,7 +149,7 @@
 	flash: n25q032@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,n25q032";
+		compatible = "st,n25q032", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -194,7 +203,7 @@
 };
 
 &gpc {
-	fsl,cpu_pupscr_sw2iso = <0x1>;
+	fsl,cpu_pupscr_sw2iso = <0xf>;
 	fsl,cpu_pupscr_sw = <0x0>;
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
@@ -242,8 +251,8 @@
 			};
 
 			sw3b_reg: sw3b {
-				regulator-min-microvolt = <400000>;
-				regulator-max-microvolt = <1975000>;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
 
@@ -378,10 +387,10 @@
 
 			VCOM_reg: VCOM {
 				regulator-name = "VCOM";
-				/* 2's-compliment, -4325000 */
-				regulator-min-microvolt = <0xffbe0178>;
-				/* 2's-compliment, -500000 */
-				regulator-max-microvolt = <0xfff85ee0>;
+				/* Real max: -500000 */
+				regulator-max-microvolt = <4325000>;
+				/* Real min: -4325000 */
+				regulator-min-microvolt = <500000>;
 			};
 
 			VNEG_reg: VNEG {
@@ -479,48 +488,48 @@
 
                 pinctrl_epdc0: epdcgrp0 {
                         fsl,pins = <
-				MX6UL_PAD_ENET2_RX_DATA0__EPDC_SDDO08                    0x10b1
-				MX6UL_PAD_ENET2_RX_DATA1__EPDC_SDDO09                    0x10b1
-				MX6UL_PAD_ENET2_RX_EN__EPDC_SDDO10                       0x10b1
-				MX6UL_PAD_ENET2_TX_DATA0__EPDC_SDDO11                    0x10b1
-				MX6UL_PAD_ENET2_TX_DATA1__EPDC_SDDO12                    0x10b1
-				MX6UL_PAD_ENET2_TX_EN__EPDC_SDDO13                       0x10b1
-				MX6UL_PAD_ENET2_TX_CLK__EPDC_SDDO14                      0x10b1
-				MX6UL_PAD_ENET2_RX_ER__EPDC_SDDO15                       0x10b1
-				MX6UL_PAD_LCD_CLK__EPDC_SDCLK                            0x10b1
-				MX6UL_PAD_LCD_ENABLE__EPDC_SDLE                          0x10b1
-				MX6UL_PAD_LCD_HSYNC__EPDC_SDOE                           0x10b1
-				MX6UL_PAD_LCD_VSYNC__EPDC_SDCE0                          0x10b1
-				MX6UL_PAD_LCD_DATA00__EPDC_SDDO00                        0x10b1
-				MX6UL_PAD_LCD_DATA01__EPDC_SDDO01                        0x10b1
-				MX6UL_PAD_LCD_DATA02__EPDC_SDDO02                        0x10b1
-				MX6UL_PAD_LCD_DATA03__EPDC_SDDO03                        0x10b1
-				MX6UL_PAD_LCD_DATA04__EPDC_SDDO04                        0x10b1
-				MX6UL_PAD_LCD_DATA05__EPDC_SDDO05                        0x10b1
-				MX6UL_PAD_LCD_DATA06__EPDC_SDDO06                        0x10b1
-				MX6UL_PAD_LCD_DATA07__EPDC_SDDO07                        0x10b1
-				MX6UL_PAD_LCD_DATA14__EPDC_SDSHR                         0x10b1
-				MX6UL_PAD_LCD_DATA15__EPDC_GDRL                          0x10b1
-				MX6UL_PAD_LCD_DATA16__EPDC_GDCLK                         0x10b1
-				MX6UL_PAD_LCD_DATA17__EPDC_GDSP                          0x10b1
-				MX6UL_PAD_LCD_RESET__EPDC_GDOE                           0x10b1
+				MX6ULL_PAD_ENET2_RX_DATA0__EPDC_SDDO08                    0x10b1
+				MX6ULL_PAD_ENET2_RX_DATA1__EPDC_SDDO09                    0x10b1
+				MX6ULL_PAD_ENET2_RX_EN__EPDC_SDDO10                       0x10b1
+				MX6ULL_PAD_ENET2_TX_DATA0__EPDC_SDDO11                    0x10b1
+				MX6ULL_PAD_ENET2_TX_DATA1__EPDC_SDDO12                    0x10b1
+				MX6ULL_PAD_ENET2_TX_EN__EPDC_SDDO13                       0x10b1
+				MX6ULL_PAD_ENET2_TX_CLK__EPDC_SDDO14                      0x10b1
+				MX6ULL_PAD_ENET2_RX_ER__EPDC_SDDO15                       0x10b1
+				MX6ULL_PAD_LCD_CLK__EPDC_SDCLK                            0x10b1
+				MX6ULL_PAD_LCD_ENABLE__EPDC_SDLE                          0x10b1
+				MX6ULL_PAD_LCD_HSYNC__EPDC_SDOE                           0x10b1
+				MX6ULL_PAD_LCD_VSYNC__EPDC_SDCE0                          0x10b1
+				MX6ULL_PAD_LCD_DATA00__EPDC_SDDO00                        0x10b1
+				MX6ULL_PAD_LCD_DATA01__EPDC_SDDO01                        0x10b1
+				MX6ULL_PAD_LCD_DATA02__EPDC_SDDO02                        0x10b1
+				MX6ULL_PAD_LCD_DATA03__EPDC_SDDO03                        0x10b1
+				MX6ULL_PAD_LCD_DATA04__EPDC_SDDO04                        0x10b1
+				MX6ULL_PAD_LCD_DATA05__EPDC_SDDO05                        0x10b1
+				MX6ULL_PAD_LCD_DATA06__EPDC_SDDO06                        0x10b1
+				MX6ULL_PAD_LCD_DATA07__EPDC_SDDO07                        0x10b1
+				MX6ULL_PAD_LCD_DATA14__EPDC_SDSHR                         0x10b1
+				MX6ULL_PAD_LCD_DATA15__EPDC_GDRL                          0x10b1
+				MX6ULL_PAD_LCD_DATA16__EPDC_GDCLK                         0x10b1
+				MX6ULL_PAD_LCD_DATA17__EPDC_GDSP                          0x10b1
+				MX6ULL_PAD_LCD_RESET__EPDC_GDOE                           0x10b1
                         >;
                 };
 
 		pinctrl_esai: esaigrp {
 			fsl,pins = <
-				MX6UL_PAD_CSI_DATA00__ESAI_TX_HF_CLK     0x1b0b0
-				MX6UL_PAD_CSI_DATA01__ESAI_RX_HF_CLK     0x1b0b0
-				MX6UL_PAD_CSI_DATA04__ESAI_TX_FS         0x1b0b0
-				MX6UL_PAD_CSI_DATA05__ESAI_TX_CLK        0x1b0b0
-				MX6UL_PAD_CSI_DATA07__ESAI_T0            0x1b0b0
-				MX6UL_PAD_CSI_HSYNC__ESAI_TX1            0x1b0b0
-				MX6UL_PAD_CSI_PIXCLK__ESAI_TX2_RX3       0x1b0b0
-				MX6UL_PAD_CSI_MCLK__ESAI_TX3_RX2         0x1b0b0
-				MX6UL_PAD_CSI_DATA02__ESAI_RX_FS         0x1b0b0
-				MX6UL_PAD_CSI_DATA03__ESAI_RX_CLK        0x1b0b0
-				MX6UL_PAD_CSI_DATA06__ESAI_TX5_RX0       0x1b0b0
-				MX6UL_PAD_CSI_VSYNC__ESAI_TX4_RX1        0x1b0b0
+				MX6ULL_PAD_CSI_DATA00__ESAI_TX_HF_CLK     0x1b0b0
+				MX6ULL_PAD_CSI_DATA01__ESAI_RX_HF_CLK     0x1b0b0
+				MX6ULL_PAD_CSI_DATA04__ESAI_TX_FS         0x1b0b0
+				MX6ULL_PAD_CSI_DATA05__ESAI_TX_CLK        0x1b0b0
+				MX6ULL_PAD_CSI_DATA07__ESAI_T0            0x1b0b0
+				MX6ULL_PAD_CSI_HSYNC__ESAI_TX1            0x1b0b0
+				MX6ULL_PAD_CSI_PIXCLK__ESAI_TX2_RX3       0x1b0b0
+				MX6ULL_PAD_CSI_MCLK__ESAI_TX3_RX2         0x1b0b0
+				MX6ULL_PAD_CSI_DATA02__ESAI_RX_FS         0x1b0b0
+				MX6ULL_PAD_CSI_DATA03__ESAI_RX_CLK        0x1b0b0
+				MX6ULL_PAD_CSI_DATA06__ESAI_TX5_RX0       0x1b0b0
+				MX6ULL_PAD_CSI_VSYNC__ESAI_TX4_RX1        0x1b0b0
 			>;
 		};
 
@@ -943,7 +952,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <0>;
@@ -954,7 +963,7 @@
 	flash1: n25q256a@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <1>;
@@ -963,7 +972,7 @@
 	flash2: n25q256a@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <2>;
@@ -972,7 +981,7 @@
 	flash3: n25q256a@3 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <3>;
@@ -1036,5 +1045,5 @@
 &wdog1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog>;
-	fsl,wdog_b;
+	fsl,ext-reset-output;
 };

@@ -25,6 +25,13 @@
 		stdout-path = &uart2;
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD_3V3";
@@ -33,7 +40,7 @@
 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		startup-delay-us = <100>;
-		off-on-delay-us = <12000>;
+		u-boot,off-on-delay-us = <12000>;
 	};
 };
 
@@ -514,7 +521,6 @@
 &usbotg1 {
 	status = "okay";
 	extcon = <&typec_ptn5110_1>;
-	dr_mode = "otg";
 };
 
 &usbotg2 {

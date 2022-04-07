@@ -167,7 +167,7 @@ The CSF contains all the commands that the AHAB executes during the secure
 boot. These commands instruct the AHAB on which memory areas of the image
 to authenticate, which keys to install, use and etc.
 
-CSF examples are available under doc/imx/ahab/csf_examples/
+CSF examples are available under doc/imx/hab/ahab/csf_examples/
 directory.
 
 This csf_boot_image.txt file example should be updated with the offset values
@@ -274,8 +274,8 @@ No events should be returned after this command:
   No SECO Events Found!
 
 U-Boot will decode the SECO events and provide more details on the failure,
-for example in case container image was signed with wrong keys and are not
-matching the OTP SRK hashes:
+for example in case container is not signed (signature is missing), but the
+device is not OEM closed:
 
   => ahab_status
   Lifecycle: 0x0020, NXP closed
@@ -284,8 +284,8 @@ matching the OTP SRK hashes:
           CMD = AHAB_AUTH_CONTAINER_REQ (0x87)
           IND = AHAB_NO_AUTHENTICATION_IND (0xEE)
 
-Note: In case your SRK fuses are not programmed yet the event 0x0087FA00 may
-also be displayed.
+Note: In case the signature is incorrect (signed with wrong keys which are not
+matching the OTP SRK hashes) the event 0x0087FA00 is also displayed.
 
 1.5.6 Close the device
 -----------------------
@@ -325,7 +325,7 @@ generated to the <work> directory to save it for later:
 
   $ cd <work>/imx-mkimage
   $ cp iMX8QX/flash.bin ..
-  $ make SOC=iMX8QX flash_linux
+  $ make SOC=iMX8QX flash_kernel
   $ mv iMX8QX/flash.bin iMX8QX/flash_os.bin
   $ cp iMX8QX/flash_os.bin ..
 
@@ -333,7 +333,7 @@ generated to the <work> directory to save it for later:
 
     $ cd <work>/imx-mkimage
     $ cp iMX8QM/flash.bin ..
-    $ make SOC=iMX8QM flash_linux
+    $ make SOC=iMX8QM flash_kernel
     $ mv iMX8QM/flash.bin iMX8QM/flash_os.bin
     $ cp iMX8QM/flash_os.bin ..
 
@@ -350,7 +350,7 @@ Keep in mind the offsets above to be used with CST/CSF
 2.2 Creating the CSF description file for OS container image
 -------------------------------------------------------------
 
-CSF examples are available under doc/imx/ahab/csf_examples/
+CSF examples are available under doc/imx/hab/ahab/csf_examples/
 directory.
 
 This csf_linux_img.txt file example should be updated with the offset values

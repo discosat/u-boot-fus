@@ -64,17 +64,6 @@ int board_qspi_init(void)
 }
 #endif
 
-int dram_init(void)
-{
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		gd->ram_size = PHYS_SDRAM_SIZE - rom_pointer[1];
-	else
-		gd->ram_size = PHYS_SDRAM_SIZE;
-
-	return 0;
-}
-
 #ifdef CONFIG_FEC_MXC
 #define FEC_RST_PAD IMX_GPIO_NR(1, 9)
 static iomux_v3_cfg_t const fec1_rst_pads[] = {
@@ -100,7 +89,7 @@ static int setup_fec(void)
 	setup_iomux_fec();
 
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
+	clrsetbits_le32(&gpr->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
 	return set_clk_enet(ENET_125MHZ);
 }
@@ -279,11 +268,6 @@ int board_init(void)
 	return 0;
 }
 
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
-}
-
 int board_late_init(void)
 {
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
@@ -352,4 +336,3 @@ struct display_info_t const displays[] = {{
 size_t display_count = ARRAY_SIZE(displays);
 
 #endif /* CONFIG_VIDEO_IMXDCSS */
-

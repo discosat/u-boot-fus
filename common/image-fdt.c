@@ -6,8 +6,6 @@
  *
  * (C) Copyright 2000-2006
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- *
- * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  */
 
 #include <common.h>
@@ -90,7 +88,7 @@ static void boot_fdt_reserve_region(struct lmb *lmb, uint64_t addr,
 {
 	long ret;
 
-	ret = lmb_reserve(lmb, addr, size);
+	ret = lmb_reserve_overlap(lmb, addr, size);
 	if (ret >= 0) {
 		debug("   reserving fdt memory region: addr=%llx size=%llx\n",
 		      (unsigned long long)addr, (unsigned long long)size);
@@ -482,16 +480,16 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 		if (android_image_get_second(hdr, &fdt_data, &fdt_len) != 0)
 			goto no_fdt;
 
-		fdt_blob = (char *)fdt_data;
+			fdt_blob = (char *)fdt_data;
 		if (fdt_check_header(fdt_blob) != 0)
 			goto no_fdt;
 
 		if (fdt_totalsize(fdt_blob) != fdt_len)
-			goto error;
+				goto error;
 
 		debug("## Using FDT found in Android image second area\n");
 #endif
-	} else {
+		} else {
 		debug("## No Flattened Device Tree\n");
 		goto no_fdt;
 	}

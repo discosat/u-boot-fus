@@ -14,7 +14,6 @@
 #include <post.h>
 #include <u-boot/sha256.h>
 #include <bootcount.h>
-
 #ifdef is_boot_from_usb
 #include <environment.h>
 #endif
@@ -388,7 +387,7 @@ void autoboot_command(const char *s)
 			int prev = disable_ctrlc(1);
 #endif
 
-			run_command_list(s, -1, 0);
+		run_command_list(s, -1, 0);
 
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
 			/* Restore Control C checking */

@@ -456,6 +456,33 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	}
 #endif
 
+#ifdef CONFIG_SPL_FPGA_SUPPORT
+	node = spl_fit_get_image_node(fit, images, "fpga", 0);
+	if (node >= 0) {
+		/* Load the image and set up the spl_image structure */
+		ret = spl_load_fit_image(info, sector, fit, base_offset, node,
+					 spl_image);
+		if (ret) {
+			printf("%s: Cannot load the FPGA: %i\n", __func__, ret);
+			return ret;
+		}
+
+		debug("FPGA bitstream at: %x, size: %x\n",
+		      (u32)spl_image->load_addr, spl_image->size);
+
+		ret = fpga_load(0, (const void *)spl_image->load_addr,
+				spl_image->size, BIT_FULL);
+		if (ret) {
+			printf("%s: Cannot load the image to the FPGA\n",
+			       __func__);
+			return ret;
+		}
+
+		puts("FPGA image loaded from FIT\n");
+		node = -1;
+	}
+#endif
+
 	/*
 	 * Find the U-Boot image using the following search order:
 	 *   - start at 'firmware' (e.g. an ARM Trusted Firmware)

@@ -49,7 +49,7 @@
 #include <linux/err.h>
 #include <efi_loader.h>
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;

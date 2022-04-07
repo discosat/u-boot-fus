@@ -327,7 +327,7 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 #define MMC_QUIRK_RETRY_SEND_CID	BIT(0)
 #define MMC_QUIRK_RETRY_SET_BLOCKLEN	BIT(1)
 
-#define BOOT1_PWR_WP	(0x83)
+#define BOOT1_PWR_WP   (0x83)
 
 enum mmc_voltage {
 	MMC_SIGNAL_VOLTAGE_000 = 0,
@@ -826,6 +826,7 @@ int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 			    unsigned int count, bool is_rel_write);
 int mmc_rpmb_response(struct mmc *mmc, struct s_rpmb *s,
 			     unsigned int count, unsigned short expected);
+
 #ifdef CONFIG_CMD_BKOPS_ENABLE
 int mmc_set_bkops_enable(struct mmc *mmc);
 #endif

@@ -137,14 +137,29 @@ int board_postclk_init(void)
 
 static void disable_wdog(u32 wdog_base)
 {
-	writel(UNLOCK_WORD0, (wdog_base + 0x04));
-	writel(UNLOCK_WORD1, (wdog_base + 0x04));
+	u32 val_cs = readl(wdog_base + 0x00);
+
+	if (!(val_cs & 0x80))
+		return;
+
+	dmb();
+	__raw_writel(REFRESH_WORD0, (wdog_base + 0x04)); /* Refresh the CNT */
+	__raw_writel(REFRESH_WORD1, (wdog_base + 0x04));
+	dmb();
+
+	if (!(val_cs & 800)) {
+		dmb();
+		__raw_writel(UNLOCK_WORD0, (wdog_base + 0x04));
+		__raw_writel(UNLOCK_WORD1, (wdog_base + 0x04));
+		dmb();
+
+		while (!(readl(wdog_base + 0x00) & 0x800));
+	}
 	writel(0x0, (wdog_base + 0x0C)); /* Set WIN to 0 */
 	writel(0x400, (wdog_base + 0x08)); /* Set timeout to default 0x400 */
 	writel(0x120, (wdog_base + 0x00)); /* Disable it and set update */
 
-	writel(REFRESH_WORD0, (wdog_base + 0x04)); /* Refresh the CNT */
-	writel(REFRESH_WORD1, (wdog_base + 0x04));
+	while (!(readl(wdog_base + 0x00) & 0x400));
 }
 
 void init_wdog(void)
@@ -330,7 +345,7 @@ void arch_preboot_os(void)
 #ifdef CONFIG_ENV_IS_IN_MMC
 __weak int board_mmc_get_env_dev(int devno)
 {
-	return CONFIG_SYS_MMC_ENV_DEV;
+	return devno;
 }
 
 int mmc_get_env_dev(void)
@@ -353,30 +368,39 @@ int mmc_get_env_dev(void)
 int ft_system_setup(void *blob, bd_t *bd)
 {
 	if (get_boot_device() == USB_BOOT) {
-		int rc;
-		int nodeoff = fdt_path_offset(blob, "/ahb-bridge0@40000000/usdhc@40370000");
-		if (nodeoff < 0)
-			return 0; /* Not found, skip it */
+		int i = 0;
+		const char *nodes_path[] = {
+			"/ahb-bridge0@40000000/usdhc@40370000",
+			"/bus@40000000/mmc@40370000"
+		};
+		int size_array = ARRAY_SIZE(nodes_path);
 
-		printf("Found usdhc0 node\n");
-		if (fdt_get_property(blob, nodeoff, "vqmmc-supply", NULL) != NULL) {
-			rc = fdt_delprop(blob, nodeoff, "vqmmc-supply");
-			if (!rc) {
-				printf("Removed vqmmc-supply property\n");
+		for (i = 0; i < size_array; i++) {
+			int rc;
+			int nodeoff = fdt_path_offset(blob, nodes_path[i]);
+			if (nodeoff < 0)
+				continue; /* Not found, skip it */
+
+			printf("Found usdhc0 node\n");
+			if (fdt_get_property(blob, nodeoff, "vqmmc-supply", NULL) != NULL) {
+				rc = fdt_delprop(blob, nodeoff, "vqmmc-supply");
+				if (!rc) {
+					printf("Removed vqmmc-supply property\n");
 
 add:
-				rc = fdt_setprop(blob, nodeoff, "no-1-8-v", NULL, 0);
-				if (rc == -FDT_ERR_NOSPACE) {
-					rc = fdt_increase_size(blob, 32);
-					if (!rc)
-						goto add;
-				} else if (rc) {
-					printf("Failed to add no-1-8-v property, %d\n", rc);
+					rc = fdt_setprop(blob, nodeoff, "no-1-8-v", NULL, 0);
+					if (rc == -FDT_ERR_NOSPACE) {
+						rc = fdt_increase_size(blob, 32);
+						if (!rc)
+							goto add;
+					} else if (rc) {
+						printf("Failed to add no-1-8-v property, %d\n", rc);
+					} else {
+						printf("Added no-1-8-v property\n");
+					}
 				} else {
-					printf("Added no-1-8-v property\n");
+					printf("Failed to remove vqmmc-supply property, %d\n", rc);
 				}
-			} else {
-				printf("Failed to remove vqmmc-supply property, %d\n", rc);
 			}
 		}
 	}
@@ -415,6 +439,7 @@ bool is_usb_boot(void)
 	return get_boot_device() == USB_BOOT;
 }
 
+#ifdef CONFIG_FSL_FASTBOOT
 #ifdef CONFIG_SERIAL_TAG
 void get_board_serial(struct tag_serialnr *serialnr)
 {
@@ -427,3 +452,4 @@ void get_board_serial(struct tag_serialnr *serialnr)
 	serialnr->high = (fuse->cfg2 & 0xFFFF) + ((fuse->cfg3 & 0xFFFF) << 16);
 }
 #endif /*CONFIG_SERIAL_TAG*/
+#endif /*CONFIG_FSL_FASTBOOT*/

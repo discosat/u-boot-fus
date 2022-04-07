@@ -32,7 +32,7 @@ static long do_fpga_get_device(char *arg)
 
 static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 				cmd_tbl_t *cmdtp, int argc, char *const argv[])
-{
+		{
 	size_t local_data_size;
 	long local_fpga_data;
 
@@ -41,7 +41,7 @@ static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 	if (argc != cmdtp->maxargs) {
 		debug("fpga: incorrect parameters passed\n");
 		return CMD_RET_USAGE;
-	}
+		}
 
 	*dev = do_fpga_get_device(argv[0]);
 
@@ -49,14 +49,14 @@ static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 	if (!local_fpga_data) {
 		debug("fpga: zero fpga_data address\n");
 			return CMD_RET_USAGE;
-	}
+			}
 	*fpga_data = local_fpga_data;
 
 	local_data_size = simple_strtoul(argv[2], NULL, 16);
 	if (!local_data_size) {
 		debug("fpga: zero size\n");
 			return CMD_RET_USAGE;
-	}
+		}
 	*data_size = local_data_size;
 
 	return 0;
@@ -75,7 +75,7 @@ int do_fpga_loads(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	if (argc < 5) {
 		debug("fpga: incorrect parameters passed\n");
 		return CMD_RET_USAGE;
-			}
+	}
 
 	if (argc == 6)
 		fpga_sec_info.userkey_addr = (u8 *)(uintptr_t)
@@ -97,7 +97,7 @@ int do_fpga_loads(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		    fpga_sec_info.encflag >= FPGA_NO_ENC_OR_NO_AUTH) {
 		debug("fpga: Use <fpga load> for NonSecure bitstream\n");
 		return CMD_RET_USAGE;
-		}
+	}
 
 		if (fpga_sec_info.encflag == FPGA_ENC_USR_KEY &&
 		    !fpga_sec_info.userkey_addr) {
@@ -396,7 +396,7 @@ static int do_fpga_wrapper(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (!fpga_cmd) {
 		debug("fpga: non existing command\n");
 		return CMD_RET_USAGE;
-	}
+}
 
 	argc -= 2;
 	argv += 2;

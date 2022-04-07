@@ -205,7 +205,7 @@ int env_load(void)
 				best_prio = prio;
 		} else {
 			debug("Failed (%d)\n", ret);
-		}
+	}
 	}
 
 	/*

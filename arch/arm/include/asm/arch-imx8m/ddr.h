@@ -8,6 +8,7 @@
 
 #include <asm/io.h>
 #include <asm/types.h>
+#include <asm/arch/ddr.h>
 
 #define DDRC_DDR_SS_GPR0		0x3d000000
 #define DDRC_IPS_BASE_ADDR_0		0x3f400000
@@ -503,20 +504,20 @@ enum msg_response {
 #define DDRC_PSTAT(X)            (DDRC_IPS_BASE_ADDR(X) + 0x3fc)
 #define DDRC_PCCFG(X)            (DDRC_IPS_BASE_ADDR(X) + 0x400)
 #define DDRC_PCFGR_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x404)
-#define DDRC_PCFGR_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1 * 0xb0 + 0x404)
-#define DDRC_PCFGR_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2 * 0xb0 + 0x404)
-#define DDRC_PCFGR_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3 * 0xb0 + 0x404)
+#define DDRC_PCFGR_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1*0xb0+0x404)
+#define DDRC_PCFGR_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2*0xb0+0x404)
+#define DDRC_PCFGR_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3*0xb0+0x404)
 #define DDRC_PCFGW_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x408)
-#define DDRC_PCFGW_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1 * 0xb0 + 0x408)
-#define DDRC_PCFGW_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2 * 0xb0 + 0x408)
-#define DDRC_PCFGW_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3 * 0xb0 + 0x408)
+#define DDRC_PCFGW_1(X)          (DDRC_IPS_BASE_ADDR(X) + 1*0xb0+0x408)
+#define DDRC_PCFGW_2(X)          (DDRC_IPS_BASE_ADDR(X) + 2*0xb0+0x408)
+#define DDRC_PCFGW_3(X)          (DDRC_IPS_BASE_ADDR(X) + 3*0xb0+0x408)
 #define DDRC_PCFGC_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x40c)
 #define DDRC_PCFGIDMASKCH(X)     (DDRC_IPS_BASE_ADDR(X) + 0x410)
 #define DDRC_PCFGIDVALUECH(X)    (DDRC_IPS_BASE_ADDR(X) + 0x414)
 #define DDRC_PCTRL_0(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490)
-#define DDRC_PCTRL_1(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 1 * 0xb0)
-#define DDRC_PCTRL_2(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 2 * 0xb0)
-#define DDRC_PCTRL_3(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 3 * 0xb0)
+#define DDRC_PCTRL_1(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 1*0xb0)
+#define DDRC_PCTRL_2(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 2*0xb0)
+#define DDRC_PCTRL_3(X)          (DDRC_IPS_BASE_ADDR(X) + 0x490 + 3*0xb0)
 #define DDRC_PCFGQOS0_0(X)       (DDRC_IPS_BASE_ADDR(X) + 0x494)
 #define DDRC_PCFGQOS1_0(X)       (DDRC_IPS_BASE_ADDR(X) + 0x498)
 #define DDRC_PCFGWQOS0_0(X)      (DDRC_IPS_BASE_ADDR(X) + 0x49c)
@@ -528,6 +529,8 @@ enum msg_response {
 #define DDRC_SBRWDATA0(X)        (DDRC_IPS_BASE_ADDR(X) + 0xf2c)
 #define DDRC_SBRWDATA1(X)        (DDRC_IPS_BASE_ADDR(X) + 0xf30)
 #define DDRC_PDCH(X)             (DDRC_IPS_BASE_ADDR(X) + 0xf34)
+#define DDRC_SBRSTART0(X)        (DDRC_IPS_BASE_ADDR(X) + 0xf38)
+#define DDRC_SBRRANGE0(X)        (DDRC_IPS_BASE_ADDR(X) + 0xf40)
 
 #define DDRC_FREQ1_DERATEEN(X)         (DDRC_IPS_BASE_ADDR(X) + 0x2020)
 #define DDRC_FREQ1_DERATEINT(X)        (DDRC_IPS_BASE_ADDR(X) + 0x2024)
@@ -633,7 +636,7 @@ enum msg_response {
 #define DDRC_DFITMG3_SHADOW(X)         (DDRC_IPS_BASE_ADDR(X) + 0x21b8)
 #define DDRC_ODTCFG_SHADOW(X)          (DDRC_IPS_BASE_ADDR(X) + 0x2240)
 
-#define DDRPHY_CalBusy(X) (IP2APB_DDRPHY_IPS_BASE_ADDR(X) + 4 * 0x020097)
+#define DDRPHY_CalBusy(X)                    (IP2APB_DDRPHY_IPS_BASE_ADDR(X) + 4*0x020097)
 
 #define DRC_PERF_MON_BASE_ADDR(X)            (0x3d800000 + ((X) * 0x2000000))
 #define DRC_PERF_MON_CNT0_CTL(X)             (DRC_PERF_MON_BASE_ADDR(X) + 0x0)
@@ -707,6 +710,11 @@ int ddr_cfg_phy(struct dram_timing_info *timing_info);
 void load_lpddr4_phy_pie(void);
 void ddrphy_trained_csr_save(struct dram_cfg_param *param, unsigned int num);
 void dram_config_save(struct dram_timing_info *info, unsigned long base);
+void board_dram_ecc_scrub(void);
+void ddrc_inline_ecc_scrub(unsigned int start_address,
+			   unsigned int range_address);
+void ddrc_inline_ecc_scrub_end(unsigned int start_address,
+			       unsigned int range_address);
 
 /* utils function for ddr phy training */
 int wait_ddrphy_training_complete(void);

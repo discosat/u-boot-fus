@@ -179,15 +179,17 @@ static void config_uart(int board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MN:
-		/* Setup UART pads */
+		/* Setup UART1 on UART1 pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mn,
 						 ARRAY_SIZE(uart_pads_mn));
+		init_uart_clk(0);
 		break;
 
 	case BT_PICOCOREMX8MX:
-		/* Setup UART pads */
+		/* Setup UART1 on SAI2 pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mx,
 						 ARRAY_SIZE(uart_pads_mx));
+		init_uart_clk(0);
 		break;
 	}
 

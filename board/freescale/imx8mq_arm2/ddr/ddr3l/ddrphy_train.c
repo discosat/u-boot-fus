@@ -36,9 +36,6 @@
 #define DDR3_PHY_RTT            DDR3_PHY_RTT120
 
 
-#define dwc_ddrphy_apb_wr(addr, data)  reg32_write(IP2APB_DDRPHY_IPS_BASE_ADDR(0)+4*(addr), data)
-#define dwc_ddrphy_apb_rd(addr)        (reg32_read(IP2APB_DDRPHY_IPS_BASE_ADDR(0)+4*(addr)))
-
 void ddr3_phyinit_train_1600mts(void){
 	dwc_ddrphy_apb_wr(0xd0000,0x0); /* DWC_DDRPHYA_APBONLY0_MicroContMuxSel */
 	dwc_ddrphy_apb_wr(0x1005f,0x3ff); /*  DWC_DDRPHYA_DBYTE0_TxSlewRate_b0_p0 */

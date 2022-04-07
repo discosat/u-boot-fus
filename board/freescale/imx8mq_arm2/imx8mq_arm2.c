@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2017-2019 NXP
  */
 
 #include <common.h>
@@ -19,7 +17,6 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <asm/mach-imx/dma.h>
 #include <asm/arch/clock.h>
 #include <spl.h>
 #include <power/pmic.h>
@@ -29,8 +26,6 @@
 #include <dwc3-uboot.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-#define QSPI_PAD_CTRL	(PAD_CTL_DSE2 | PAD_CTL_HYS)
 
 #define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
 #define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
@@ -44,28 +39,8 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 };
 
 #ifdef CONFIG_FSL_QSPI
-static iomux_v3_cfg_t const qspi_pads[] = {
-	IMX8MQ_PAD_NAND_ALE__QSPI_A_SCLK | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_CLE__QSPI_B_SCLK | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MQ_PAD_NAND_CE0_B__QSPI_A_SS0_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_CE2_B__QSPI_B_SS0_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MQ_PAD_NAND_DATA00__QSPI_A_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA01__QSPI_A_DATA1 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA02__QSPI_A_DATA2 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA03__QSPI_A_DATA3 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-
-	IMX8MQ_PAD_NAND_DATA04__QSPI_B_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA05__QSPI_B_DATA1 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA06__QSPI_B_DATA2 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-	IMX8MQ_PAD_NAND_DATA07__QSPI_B_DATA3 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
-};
-
 int board_qspi_init(void)
 {
-	imx_iomux_v3_setup_multiple_pads(qspi_pads, ARRAY_SIZE(qspi_pads));
-
 	set_clk_qspi();
 
 	return 0;
@@ -73,6 +48,7 @@ int board_qspi_init(void)
 #endif
 
 #ifdef CONFIG_NAND_MXS
+#ifdef CONFIG_SPL_BUILD
 static iomux_v3_cfg_t const gpmi_pads[] = {
 	IMX8MQ_PAD_NAND_ALE__RAWNAND_ALE | MUX_PAD_CTRL(NAND_PAD_CTRL),
 	IMX8MQ_PAD_NAND_CE0_B__RAWNAND_CE0_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
@@ -90,10 +66,13 @@ static iomux_v3_cfg_t const gpmi_pads[] = {
 	IMX8MQ_PAD_NAND_WE_B__RAWNAND_WE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 	IMX8MQ_PAD_NAND_WP_B__RAWNAND_WP_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 };
+#endif
 
 static void setup_gpmi_nand(void)
 {
+#ifdef CONFIG_SPL_BUILD
 	imx_iomux_v3_setup_multiple_pads(gpmi_pads, ARRAY_SIZE(gpmi_pads));
+#endif
 
 	init_nand_clk();
 }
@@ -121,52 +100,6 @@ int board_early_init_f(void)
 	return 0;
 }
 
-#ifdef CONFIG_BOARD_POSTCLK_INIT
-int board_postclk_init(void)
-{
-	/* TODO */
-	return 0;
-}
-#endif
-
-int dram_init(void)
-{
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		gd->ram_size = PHYS_SDRAM_SIZE - rom_pointer[1];
-	else
-		gd->ram_size = PHYS_SDRAM_SIZE;
-
-#if CONFIG_NR_DRAM_BANKS > 1
-	gd->ram_size += PHYS_SDRAM_2_SIZE;
-#endif
-
-	return 0;
-}
-
-int dram_init_banksize(void)
-{
-	gd->bd->bi_dram[0].start = PHYS_SDRAM;
-	if (rom_pointer[1])
-		gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE -rom_pointer[1];
-	else
-		gd->bd->bi_dram[0].size = PHYS_SDRAM_SIZE;
-
-#if CONFIG_NR_DRAM_BANKS > 1
-	gd->bd->bi_dram[1].start = PHYS_SDRAM_2;
-	gd->bd->bi_dram[1].size = PHYS_SDRAM_2_SIZE;
-#endif
-
-	return 0;
-}
-
-#ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
-{
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_FEC_MXC
 #ifndef CONFIG_TARGET_IMX8MQ_DDR3L_ARM2
 #define FEC_RST_PAD IMX_GPIO_NR(1, 9)
@@ -188,15 +121,15 @@ static void setup_iomux_fec(void)
 static int setup_fec(void)
 {
 #ifdef CONFIG_TARGET_IMX8MQ_DDR3L_ARM2
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
-		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
+	struct iomuxc_gpr_base_regs *gpr =
+		(struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
 	/*
 	* GPR1 bit 13:
 	* 1:enet1 rmii clock comes from ccm->pad->loopback, SION bit for the pad (iomuxc_sw_input_on_pad_enet_td2) should be set also;
 	* 0:enet1 rmii clock comes from external phy or osc
 	*/
 
-	setbits_le32(&iomuxc_gpr_regs->gpr[1],
+	setbits_le32(&gpr->gpr[1],
 			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK);
 	return set_clk_enet(ENET_50MHZ);
 #else
@@ -304,12 +237,11 @@ int board_init(void)
 	setup_fec();
 #endif
 
-	return 0;
-}
+#if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
+	init_usb_clk();
+#endif
 
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
+	return 0;
 }
 
 int board_late_init(void)
@@ -328,12 +260,4 @@ int board_late_init(void)
 #endif
 
 	return 0;
-}
-
-phys_size_t get_effective_memsize(void)
-{
-	if (rom_pointer[1])
-		return (PHYS_SDRAM_SIZE - rom_pointer[1]);
-	else
-		return PHYS_SDRAM_SIZE;
 }

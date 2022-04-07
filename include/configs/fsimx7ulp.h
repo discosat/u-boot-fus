@@ -42,7 +42,6 @@
 /*####define CONFIG_IMX_THERMAL*/	/* Read CPU temperature */
 
 /*### TODO: check if needed NXP specific mx7ulp_evk */
-#define CONFIG_SYS_ARCH_TIMER
 #define CONFIG_SYS_HZ_CLOCK	1000000 /* Fixed at 1Mhz from TSTMR */
 
 #define CONFIG_BOARD_POSTCLK_INIT

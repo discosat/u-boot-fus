@@ -4,8 +4,6 @@
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  * Copyright 2018 NXP
- *
- * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  */
 
 #ifndef __SYS_PROTO_IMX6_

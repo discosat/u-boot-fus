@@ -105,13 +105,13 @@ int arch_cpu_init_dm(void)
 
 	if ((is_imx8qm() || is_imx8qxp()) && is_soc_rev(CHIP_REV_A)) {
 		pass_over = get_pass_over_info();
-	if (pass_over && pass_over->g_ap_mu == 0) {
+		if (pass_over && pass_over->g_ap_mu == 0) {
 		/*
 		 * When ap_mu is 0, means the U-Boot booted
 		 * from first container
 		 */
 		sc_misc_boot_status(-1, SC_MISC_BOOT_STATUS_SUCCESS);
-	}
+		}
 	}
 
 #ifdef CONFIG_IMX_SMMU
@@ -378,10 +378,10 @@ int imx8_config_smmu_sid(struct smmu_sid *dev_sids, int size)
 					      dev_sids[i].rsrc,
 					      dev_sids[i].sid);
 		if (sciErr) {
-			if (!check_owned_resource(dev_sids[i].rsrc)) {
-				printf("%s rsrc[%d] not owned\n", __func__, dev_sids[i].rsrc);
-				continue;
-			}
+		if (!check_owned_resource(dev_sids[i].rsrc)) {
+			printf("%s rsrc[%d] not owned\n", __func__, dev_sids[i].rsrc);
+			continue;
+		}
 			printf("set master sid error %d\n", sciErr);
 			return sciErr;
 		}
@@ -600,7 +600,7 @@ int mmc_get_env_dev(void)
 
 	sc_misc_get_boot_dev(-1, &dev_rsrc);
 
-	switch (dev_rsrc) {
+	switch(dev_rsrc) {
 	case SC_R_SDHC_0:
 		devno = 0;
 		break;
@@ -1073,10 +1073,10 @@ static int config_smmu_resource_sid(int rsrc, int sid)
 	err = sc_rm_set_master_sid(-1, rsrc, sid);
 	debug("set_master_sid rsrc=%d sid=0x%x err=%d\n", rsrc, sid, err);
 	if (err != SC_ERR_NONE) {
-		if (!check_owned_resource(rsrc)) {
-			printf("%s rsrc[%d] not owned\n", __func__, rsrc);
-			return -1;
-		}
+	if (!check_owned_resource(rsrc)) {
+		printf("%s rsrc[%d] not owned\n", __func__, rsrc);
+		return -1;
+	}
 		pr_err("fail set_master_sid rsrc=%d sid=0x%x err=%d\n", rsrc, sid, err);
 		return -EINVAL;
 	}
@@ -1111,11 +1111,11 @@ static int config_smmu_fdt_device_sid(void *blob, int device_offset, int sid)
 					       0, -1, NULL);
 	for (i = 0; i < count; i++) {
 		rsrc = get_srsc_from_fdt_node_power_domain(blob, device_offset, i);
-		debug("configure node %s sid 0x%x rsrc=%d\n", name, sid, rsrc);
-		if (rsrc < 0) {
-			debug("failed to determine SC_R_* for node %s\n", name);
-			return rsrc;
-		}
+	debug("configure node %s sid 0x%x rsrc=%d\n", name, sid, rsrc);
+	if (rsrc < 0) {
+		debug("failed to determine SC_R_* for node %s\n", name);
+		return rsrc;
+	}
 
 		config_smmu_resource_sid(rsrc, sid);
 	}
@@ -1232,18 +1232,18 @@ static int get_owned_memreg(sc_rm_mr_t mr, sc_faddr_t *addr_start,
 	bool owned;
 
 	owned = sc_rm_is_memreg_owned(-1, mr);
-	if (owned) {
+		if (owned) {
 		ret = sc_rm_get_memreg_info(-1, mr, &start, &end);
 		if (ret) {
 			printf("Memreg get info failed, %d\n", ret);
-			return -EINVAL;
+				return -EINVAL;
 		}
-		debug("0x%llx -- 0x%llx\n", start, end);
+				debug("0x%llx -- 0x%llx\n", start, end);
 		*addr_start = reserve_optee_shm(start);
-		*addr_end = end;
+				*addr_end = end;
 
-		return 0;
-	}
+				return 0;
+			}
 
 	return -EINVAL;
 }
@@ -1481,7 +1481,7 @@ void enable_caches(void)
 		return;
 	}
 
-	for (i = 0; i < MAX_MEM_MAP_REGIONS; i++) {
+	for (i = 0;i < MAX_MEM_MAP_REGIONS;i++) {
 		debug("[%d] vir = 0x%llx phys = 0x%llx size = 0x%llx attrs = 0x%llx\n",
 		      i, imx8_mem_map[i].virt, imx8_mem_map[i].phys,
 		      imx8_mem_map[i].size, imx8_mem_map[i].attrs);
@@ -1548,7 +1548,7 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 		ret = sc_misc_otp_fuse_read(-1, word[i], &val[i]);
 		if (ret < 0)
 			goto err;
-	}
+}
 
 	mac[0] = val[0];
 	mac[1] = val[0] >> 8;

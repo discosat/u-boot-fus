@@ -31,7 +31,7 @@
 #include <asm/mach-imx/video.h>
 
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -262,22 +262,6 @@ static void setup_iomux_uart(void)
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
 }
 
-int board_mmc_get_env_dev(int devno)
-{
-	if (devno == 2)
-		devno--;
-
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int dev_no)
-{
-	if (dev_no == 1)
-		dev_no++;
-
-	return dev_no;
-}
-
 #ifdef CONFIG_FEC_MXC
 static int setup_fec(int fec_id)
 {
@@ -287,9 +271,9 @@ static int setup_fec(int fec_id)
 	int ret;
 	unsigned int gpio;
 
-	ret = gpio_lookup_name("gpio_spi@0_5", NULL, NULL, &gpio);
+	ret = gpio_lookup_name("gpio-expander@0_5", NULL, NULL, &gpio);
 	if (ret) {
-		printf("GPIO: 'gpio_spi@0_5' not found\n");
+		printf("GPIO: 'gpio-expander@0_5' not found\n");
 		return -ENODEV;
 	}
 
@@ -611,16 +595,6 @@ int board_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_CMD_BMODE
-static const struct boot_mode board_boot_modes[] = {
-	/* 4 bit bus width */
-	{"sd1", MAKE_CFGVAL(0x10, 0x10, 0x00, 0x00)},
-	{"emmc", MAKE_CFGVAL(0x10, 0x2a, 0x00, 0x00)},
-	/* TODO: Nand */
-	{"qspi", MAKE_CFGVAL(0x00, 0x40, 0x00, 0x00)},
-	{NULL,   0},
-};
-#endif
 
 #ifdef CONFIG_DM_PMIC
 int power_init_board(void)
@@ -660,9 +634,6 @@ int power_init_board(void)
 int board_late_init(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
-#ifdef CONFIG_CMD_BMODE
-	add_board_boot_modes(board_boot_modes);
-#endif
 
 	env_set("tee", "no");
 #ifdef CONFIG_IMX_OPTEE

@@ -259,6 +259,7 @@ static void setup_iomux_uart(void)
 }
 
 #ifdef CONFIG_FSL_QSPI
+#ifndef CONFIG_DM_SPI
 
 static iomux_v3_cfg_t const quadspi_pads[] = {
 	MX7D_PAD_EPDC_DATA00__QSPI_A_DATA0 | MUX_PAD_CTRL(QSPI_PAD_CTRL),
@@ -280,11 +281,14 @@ static iomux_v3_cfg_t const quadspi_pads[] = {
 	MX7D_PAD_EPDC_DATA15__QSPI_B_SS1_B | MUX_PAD_CTRL(QSPI_PAD_CTRL),
 
 };
+#endif
 
 int board_qspi_init(void)
 {
+#ifndef CONFIG_DM_SPI
 	/* Set the iomux */
 	imx_iomux_v3_setup_multiple_pads(quadspi_pads, ARRAY_SIZE(quadspi_pads));
+#endif
 
 	/* Set the clock */
 	set_clk_qspi();
@@ -432,6 +436,7 @@ int board_phy_config(struct phy_device *phydev)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX7D_PAD_ECSPI1_SCLK__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX7D_PAD_ECSPI1_MOSI__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -453,6 +458,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 19)) : -1;
 }
+#endif
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX7
@@ -505,7 +511,9 @@ int board_init(void)
 	gpio_set_value(IMX_GPIO_NR(1, 3), 1);
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
+#endif
 #endif
 
 #ifdef CONFIG_FEC_MXC

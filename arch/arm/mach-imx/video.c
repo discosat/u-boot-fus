@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
+ *
  */
 
 #include <common.h>
@@ -57,6 +58,10 @@ int board_video_skip(void)
 				&displays[i].mode,
 				displays[i].pixfmt, PATTERN_RGB);
 
+#elif defined(CONFIG_VIDEO_IMX_LCDIFV3)
+		ret = lcdifv3_panel_setup(displays[i].mode,
+					displays[i].pixfmt,
+				    displays[i].bus);
 #endif
 		if (!ret) {
 			if (displays[i].enable)
@@ -71,7 +76,7 @@ int board_video_skip(void)
 			       displays[i].mode.name, ret);
 	} else {
 		if (strcmp(panel, "NULL"))
-		printf("unsupported panel %s\n", panel);
+			printf("unsupported panel %s\n", panel);
 		return -EINVAL;
 	}
 

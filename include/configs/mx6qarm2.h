@@ -113,11 +113,8 @@
 
 /* Physical Memory Map */
 #if defined(CONFIG_MX6DQ_POP_LPDDR2)
-#define CONFIG_NR_DRAM_BANKS		2
 #define PHYS_SDRAM_0			MMDC0_ARB_BASE_ADDR
 #define PHYS_SDRAM_1			MMDC1_ARB_BASE_ADDR
-#else
-#define CONFIG_NR_DRAM_BANKS		1
 #endif
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
@@ -133,7 +130,7 @@
 /* Environment organization */
 #define CONFIG_ENV_OFFSET		(14 * 64 * 1024)
 #define CONFIG_ENV_SIZE			(8 * 1024)
-#define CONFIG_SYS_MMC_ENV_DEV		1
+#define CONFIG_SYS_MMC_ENV_DEV		3
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user partition */
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* SDHC4 */
 

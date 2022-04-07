@@ -51,17 +51,10 @@ void setup_gpmi_io_clk(u32 cfg)
 
 	setbits_le32(&imx_ccm->CCGR4, MXC_CCM_CCGR4_QSPI2_ENFC_MASK);
 #elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
-	/*
-	 * config gpmi and bch clock to 100 MHz
-	 * bch/gpmi select PLL2 PFD2 400M
-	 * 100M = 400M / 4
-	 */
-	clrbits_le32(&imx_ccm->cscmr1,
-			 MXC_CCM_CSCMR1_BCH_CLK_SEL |
-			 MXC_CCM_CSCMR1_GPMI_CLK_SEL);
-	clrsetbits_le32(&imx_ccm->cscdr1,
-			MXC_CCM_CSCDR1_BCH_PODF_MASK |
-			MXC_CCM_CSCDR1_GPMI_PODF_MASK,
+	clrsetbits_le32(&imx_ccm->cs2cdr,
+			MXC_CCM_CS2CDR_ENFC_CLK_PODF_MASK |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED_MASK |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL_MASK,
 			cfg);
 #else
 	clrbits_le32(&imx_ccm->CCGR2, MXC_CCM_CCGR2_IOMUX_IPT_CLK_IO_MASK);
@@ -745,9 +738,9 @@ int set_lvds_clk(void *addr, unsigned int di, unsigned int ldb_di,
 		if (ret) {
 			printf("Can not set display freq %ukHz\n", freq_khz);
 			return ret;	/* Not possible with PLL5 */
-		}
-		enable_video_pll();
 	}
+		enable_video_pll();
+}
 
 	reg = readl(&imx_ccm->cscmr2);
 	if (ldb_di == 1)
@@ -976,7 +969,7 @@ u32 imx_get_fecclk(void)
 	return mxc_get_clock(MXC_IPG_CLK);
 }
 
-#if defined(CONFIG_SATA) || defined(CONFIG_PCIE_IMX)
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI) || defined(CONFIG_PCIE_IMX)
 static int enable_enet_pll(uint32_t en)
 {
 	struct mxc_ccm_reg *const imx_ccm
@@ -1003,7 +996,7 @@ static int enable_enet_pll(uint32_t en)
 }
 #endif
 
-#ifdef CONFIG_SATA
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI)
 static void ungate_sata_clock(void)
 {
 	struct mxc_ccm_reg *const imx_ccm =
@@ -1087,13 +1080,13 @@ int enable_pcie_clock(void)
 
 	if (!is_mx6sx()) {
 	/* Party time! Ungate the clock to the PCIe. */
-#ifdef CONFIG_SATA
-	ungate_sata_clock();
+#if defined(CONFIG_SATA) || defined(CONFIG_IMX_AHCI)
+		ungate_sata_clock();
 #endif
-	ungate_pcie_clock();
+		ungate_pcie_clock();
 
-	return enable_enet_pll(BM_ANADIG_PLL_ENET_ENABLE_SATA |
-			       BM_ANADIG_PLL_ENET_ENABLE_PCIE);
+		return enable_enet_pll(BM_ANADIG_PLL_ENET_ENABLE_SATA |
+				       BM_ANADIG_PLL_ENET_ENABLE_PCIE);
 	} else {
 		/* Party time! Ungate the clock to the PCIe. */
 		ungate_disp_axi_clock();

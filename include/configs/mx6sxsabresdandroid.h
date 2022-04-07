@@ -10,8 +10,6 @@
 #define __MX6SX_SABRESD_ANDROID_H
 #include "mx_android_common.h"
 
-#define CONFIG_CMD_FASTBOOT
-#define CONFIG_ANDROID_BOOT_IMAGE
 /* For NAND we don't support lock/unlock */
 #ifndef CONFIG_NAND_BOOT
 #define CONFIG_FASTBOOT_LOCK
@@ -30,6 +28,7 @@
 #undef CONFIG_SYS_CBSIZE
 #define CONFIG_SYS_CBSIZE 2048
 #endif
+
 #ifdef CONFIG_SYS_MAXARGS
 #undef CONFIG_SYS_MAXARGS
 #define CONFIG_SYS_MAXARGS     64

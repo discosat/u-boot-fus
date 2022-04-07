@@ -58,6 +58,7 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
+			u-boot,off-on-delay-us = <20000>;
 		};
 
 		reg_usb_otg1_vbus: usb_otg1_vbus {
@@ -133,9 +134,17 @@
 		792000  1175000
 		396000  1175000
 	>;
-	arm-supply = <&sw1a_reg>;
-	soc-supply = <&sw1a_reg>;
 	fsl,arm-soc-shared = <1>;
+};
+
+&reg_arm {
+	vin-supply = <&sw1a_reg>;
+	regulator-allow-bypass;
+};
+
+&reg_soc {
+	vin-supply = <&sw1a_reg>;
+	regulator-allow-bypass;
 };
 
 &ecspi4 {
@@ -197,8 +206,6 @@
 };
 
 &gpc {
-	fsl,cpu_pupscr_sw2iso = <0x2>;
-	fsl,cpu_pupscr_sw = <0x1>;
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
 	fsl,ldo-bypass = <1>; /* use ldo-bypass, u-boot will check it and configure */
@@ -392,10 +399,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat_0
 		     &pinctrl_lcdif_ctrl_0>;
-	display = <&display>;
+	display = <&display0>;
 	status = "okay";
 
-	display: display {
+	display0: display@0 {
 		bits-per-pixel = <16>;
 		bus-width = <24>;
 
@@ -445,7 +452,7 @@
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		reg = <0>;
 	};
@@ -453,7 +460,7 @@
 	flash1: n25q256a@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spi-flash";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 		reg = <1>;
 	};

@@ -18,7 +18,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "macronix,mx25r6435f";
+		compatible = "macronix,mx25r6435f", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
 	};
 };

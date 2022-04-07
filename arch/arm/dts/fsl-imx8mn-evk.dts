@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018-2019 NXP
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright 2019 NXP
  */
 
 /dts-v1/;
@@ -25,6 +16,13 @@
 		stdout-path = &uart2;
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD_3V3";
@@ -33,7 +31,7 @@
 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		startup-delay-us = <100>;
-		off-on-delay-us = <12000>;
+		u-boot,off-on-delay-us = <12000>;
 	};
 };
 
@@ -489,7 +487,6 @@
 &usbotg1 {
 	status = "okay";
 	extcon = <&typec_ptn5110_1>;
-	dr_mode = "otg";
 };
 
 &usbotg2 {

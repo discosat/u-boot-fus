@@ -19,11 +19,11 @@ obj-$(CONFIG_ENV_IS_IN_ONENAND) += onenand.o
 obj-$(CONFIG_ENV_IS_IN_SATA) += sata.o
 obj-$(CONFIG_ENV_IS_IN_REMOTE) += remote.o
 obj-$(CONFIG_ENV_IS_IN_UBI) += ubi.o
+obj-$(CONFIG_ENV_DEFAULT_NOWHERE) += nowhere.o
 else
 obj-$(CONFIG_$(SPL_TPL_)ENV_SUPPORT) += attr.o
 obj-$(CONFIG_$(SPL_TPL_)ENV_SUPPORT) += flags.o
 obj-$(CONFIG_$(SPL_TPL_)ENV_SUPPORT) += callback.o
-obj-$(CONFIG_ENV_DEFAULT_NOWHERE) += nowhere.o
 endif
 
 obj-$(CONFIG_$(SPL_TPL_)ENV_IS_NOWHERE) += nowhere.o

@@ -33,15 +33,13 @@
 #include <usb.h>
 #include <usb/ehci-ci.h>
 #include <asm/arch/mx6-ddr.h>
+#include <power/regulator.h>
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 #include <lcd.h>
 #include <mxc_epdc_fb.h>
 #endif
-#ifdef CONFIG_SATA
-#include <asm/mach-imx/sata.h>
-#endif
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -182,12 +180,6 @@ static iomux_v3_cfg_t const ecspi1_pads[] = {
 static void setup_spi(void)
 {
 	SETUP_IOMUX_PADS(ecspi1_pads);
-	gpio_request(IMX_GPIO_NR(4, 9), "ECSPI1 CS");
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 9)) : -1;
 }
 #endif
 
@@ -260,7 +252,7 @@ static struct i2c_pads_info i2c_pad_info1 = {
 };
 #endif
 
-#ifdef CONFIG_PCIE_IMX
+#if defined(CONFIG_PCIE_IMX) && !defined(CONFIG_DM_PCI)
 iomux_v3_cfg_t const pcie_pads[] = {
 	IOMUX_PADS(PAD_EIM_D19__GPIO3_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* POWER */
 	IOMUX_PADS(PAD_GPIO_17__GPIO7_IO12 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* RESET */
@@ -342,16 +334,6 @@ struct fsl_esdhc_cfg usdhc_cfg[3] = {
 
 #define USDHC2_CD_GPIO	IMX_GPIO_NR(2, 2)
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(2, 0)
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno - 1;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno + 1;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -868,6 +850,10 @@ int board_init(void)
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
+#if defined(CONFIG_DM_REGULATOR)
+	regulators_enable_boot_on(false);
+#endif
+
 #ifdef CONFIG_MXC_SPI
 	setup_spi();
 #endif
@@ -876,16 +862,12 @@ int board_init(void)
 	setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
 #endif
 
-#ifdef CONFIG_PCIE_IMX
+#if defined(CONFIG_PCIE_IMX) && !defined(CONFIG_DM_PCI)
 	setup_pcie();
 #endif
 
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 	setup_epdc();
-#endif
-
-#ifdef CONFIG_SATA
-	setup_sata();
 #endif
 
 #ifdef CONFIG_FEC_MXC

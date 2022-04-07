@@ -419,6 +419,7 @@ int board_phy_config(struct phy_device *phydev)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX7D_PAD_UART3_RX_DATA__ECSPI1_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX7D_PAD_UART3_TX_DATA__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -439,6 +440,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 7)) : -1;
 }
+#endif
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX7
@@ -491,7 +493,9 @@ int board_init(void)
 	gpio_set_value(IMX_GPIO_NR(1, 3), 1);
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
+#endif
 #endif
 
 #ifdef CONFIG_MTD_NOR_FLASH

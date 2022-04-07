@@ -29,7 +29,7 @@
 #include <pca953x.h>
 #include <asm/mach-imx/video.h>
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #include "../common/recovery_keypad.h"
@@ -268,20 +268,6 @@ int board_early_init_f(void)
 	setup_iomux_uart();
 
 	return 0;
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	/*
-	 * need subtract 2 to map to the mmc device id
-	 * see the comments in board_mmc_init function
-	 */
-	return devno - 2;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	return devno + 2;
 }
 
 #ifdef CONFIG_VIDEO_MXS

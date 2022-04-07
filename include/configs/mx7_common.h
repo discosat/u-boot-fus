@@ -31,7 +31,6 @@
 
 /* allow to overwrite serial and ethaddr */
 #define CONFIG_ENV_OVERWRITE
-#define CONFIG_BAUDRATE                 115200
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_CBSIZE		2048

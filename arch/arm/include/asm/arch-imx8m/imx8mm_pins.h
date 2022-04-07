@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2018 NXP
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 or later,
- * available at https://www.gnu.org/licenses/gpl-2.0.html.
  */
 
 #ifndef __ASM_ARCH_IMX8MM_PINS_H__

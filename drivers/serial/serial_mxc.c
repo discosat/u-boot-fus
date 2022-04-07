@@ -230,7 +230,7 @@ static void mxc_serial_putc(const struct serial_device *sdev, const char c)
 	struct mxc_uart *base = sdev->priv;
 
 	mxc_ll_putc(base, c);
-}
+			}
 
 /*
  * Output a string to the serial port.
@@ -241,7 +241,7 @@ static void mxc_serial_puts(const struct serial_device *sdev, const char *s)
 
 	while (*s)
 		mxc_ll_putc(base, *s++);
-}
+	}
 
 
 /*
@@ -262,13 +262,25 @@ static int mxc_serial_getc(const struct serial_device *sdev)
 /*
  * Test whether a character is in the RX buffer
  */
+static int one_time_rx_line_always_low_workaround_needed = 1;
 static int mxc_serial_tstc(const struct serial_device *sdev)
 {
 	struct mxc_uart *base = sdev->priv;
 
 	/* If receive fifo is empty, return false */
 	if (readl(&base->ts) & UTS_RXEMPTY)
-	return 0;
+		return 0;
+
+	/* Empty RX FIFO if receiver is stuck because of RXD line being low */
+	if (one_time_rx_line_always_low_workaround_needed) {
+		one_time_rx_line_always_low_workaround_needed = 0;
+		if (!(readl(&base->sr2) & USR2_RDR)) {
+			while (!(readl(&base->ts) & UTS_RXEMPTY)) {
+				(void) readl(&base->rxd);
+			}
+			return 0;
+		}
+	}
 
 	return 1;
 }

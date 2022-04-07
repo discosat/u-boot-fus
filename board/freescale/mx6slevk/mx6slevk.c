@@ -34,7 +34,7 @@
 #include <mxc_epdc_fb.h>
 #endif
 #ifdef CONFIG_FSL_FASTBOOT
-#include <fsl_fastboot.h>
+#include <fb_fsl.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include "../common/recovery_keypad.h"
 #include <recovery.h>
@@ -247,11 +247,6 @@ static void setup_iomux_fec(void)
 	gpio_request(ETH_PHY_POWER, "eth_pwr");
 	gpio_direction_output(ETH_PHY_POWER , 1);
 	udelay(15000);
-}
-
-int board_mmc_get_env_dev(int devno)
-{
-	return devno;
 }
 
 #ifdef CONFIG_SYS_I2C

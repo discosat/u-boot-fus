@@ -18,10 +18,6 @@
 #define DDR_RTT 5
 #define MR6_VALUE 0x1f
 
-
-#define dwc_ddrphy_apb_wr(addr, data)  reg32_write(IP2APB_DDRPHY_IPS_BASE_ADDR(0)+4*(addr), data)
-#define dwc_ddrphy_apb_rd(addr)        (reg32_read(IP2APB_DDRPHY_IPS_BASE_ADDR(0)+4*(addr)))
-
 void ddr4_phyinit_train_2400mts(){
 	dwc_ddrphy_apb_wr(0x1005f,0x2ff); /* DWC_DDRPHYA_DBYTE0_TxSlewRate_b0_p0 */
 	dwc_ddrphy_apb_wr(0x1015f,0x2ff); /* DWC_DDRPHYA_DBYTE0_TxSlewRate_b1_p0 */

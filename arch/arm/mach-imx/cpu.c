@@ -24,6 +24,10 @@
 #include <ipu_pixfmt.h>
 #include <thermal.h>
 #include <sata.h>
+#include <dm/device-internal.h>
+#include <dm/uclass-internal.h>
+
+#include <asm/mach-imx/video.h>
 
 #ifdef CONFIG_VIDEO_GIS
 #include <gis.h>
@@ -42,7 +46,10 @@ u32 get_imx_reset_cause(void)
 	if (reset_cause == -1) {
 		reset_cause = readl(&src_regs->srsr);
 /* preserve the value for U-Boot proper */
-#if !defined(CONFIG_SPL_BUILD)
+#if !defined(CONFIG_SPL_BUILD) && !defined(CONFIG_ANDROID_BOOT_IMAGE)
+		/* We will read the ssrs states later for android so we don't
+		 * clear the states here.
+		 */
 		writel(reset_cause, &src_regs->srsr);
 #endif
 	}
@@ -99,7 +106,7 @@ void get_reboot_reason(char *ret)
 {
 	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 
-	strcpy(ret, (char *)get_reset_cause());
+	strcpy(ret, (const char *)get_reset_cause());
 	/* clear the srsr here, its state has been recorded in reset_cause */
 	writel(reset_cause, &src_regs->srsr);
 }
@@ -164,6 +171,8 @@ unsigned imx_ddr_size(void)
 const char *get_imx_type(u32 imxtype)
 {
 	switch (imxtype) {
+	case MXC_CPU_IMX8MP:
+		return "8MP";	/* Quad-core version of the imx8mp */
 	case MXC_CPU_IMX8MN:
 		return "8MNano Quad";/* Quad-core version of the imx8mn */
 	case MXC_CPU_IMX8MND:
@@ -347,9 +356,23 @@ u32 get_ahb_clk(void)
 
 void arch_preboot_os(void)
 {
-#if defined(CONFIG_PCIE_IMX)
+#if defined(CONFIG_PCIE_IMX) && !CONFIG_IS_ENABLED(DM_PCI)
 	imx_pcie_remove();
 #endif
+
+#if defined(CONFIG_IMX_AHCI)
+	struct udevice *dev;
+	int rc;
+
+	rc = uclass_find_device(UCLASS_AHCI, 0, &dev);
+	if (!rc && dev) {
+		rc = device_remove(dev, DM_REMOVE_NORMAL);
+		if (rc)
+			printf("Cannot remove SATA device '%s' (err=%d)\n",
+				dev->name, rc);
+	}
+#endif
+
 #if defined(CONFIG_SATA)
 	sata_remove(0);
 #if defined(CONFIG_MX6)
@@ -370,6 +393,9 @@ void arch_preboot_os(void)
 #endif
 #if defined(CONFIG_VIDEO_MXS)
 	lcdif_power_down();
+#endif
+#if defined(CONFIG_VIDEO_IMX_LCDIFV3)
+	lcdifv3_power_down();
 #endif
 #if defined(CONFIG_VIDEO_IMXDCSS)
 	imx8m_fb_disable();
@@ -434,7 +460,7 @@ u32 get_cpu_speed_grade_hz(void)
 	val = readl(&fuse->tester3);
 	val >>= OCOTP_TESTER3_SPEED_SHIFT;
 
-	if (is_imx8mn()) {
+	if (is_imx8mn() || is_imx8mp()) {
 		val &= 0xf;
 		return 2300000000 - val * 100000000;
 	}
@@ -442,7 +468,7 @@ u32 get_cpu_speed_grade_hz(void)
 	if (is_imx8mm())
 		val &= 0x7;
 	else
-	val &= 0x3;
+		val &= 0x3;
 
 	switch(val) {
 	case OCOTP_TESTER3_SPEED_GRADE0:
@@ -466,6 +492,9 @@ u32 get_cpu_speed_grade_hz(void)
  */
 #define OCOTP_TESTER3_TEMP_SHIFT	6
 
+/* iMX8MP uses OCOTP_TESTER3[6:5] for Market segment */
+#define IMX8MP_OCOTP_TESTER3_TEMP_SHIFT	5
+
 u32 get_cpu_temp_grade(int *minc, int *maxc)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
@@ -475,6 +504,9 @@ u32 get_cpu_temp_grade(int *minc, int *maxc)
 	uint32_t val;
 
 	val = readl(&fuse->tester3);
+	if (is_imx8mp())
+		val >>= IMX8MP_OCOTP_TESTER3_TEMP_SHIFT;
+	else
 	val >>= OCOTP_TESTER3_TEMP_SHIFT;
 	val &= 0x3;
 
@@ -497,7 +529,7 @@ u32 get_cpu_temp_grade(int *minc, int *maxc)
 }
 #endif
 
-#if (defined(CONFIG_MX7) || defined(CONFIG_IMX8M)) && !defined(CONFIG_IMX8MN)
+#if defined(CONFIG_MX7) || defined(CONFIG_IMX8MQ) || defined(CONFIG_IMX8MM)
 enum boot_device get_boot_device(void)
 {
 	struct bootrom_sw_info **p =

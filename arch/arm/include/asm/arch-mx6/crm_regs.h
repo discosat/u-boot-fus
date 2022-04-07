@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2011-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2011 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 #ifndef __ARCH_ARM_MACH_MX6_CCM_REGS_H__
@@ -455,11 +455,11 @@ struct mxc_ccm_reg {
 #define MXC_CCM_CS2CDR_ENFC_CLK_SEL_DQ(v)		(((v) & 0x3) << 16)
 
 #define MXC_CCM_CS2CDR_ENFC_CLK_SEL_MASK		\
-	((is_mx6dqp() || is_mx6ul() || is_mx6ull()) ?	\
+	((is_mx6dqp() || is_mx6ul() || is_mx6ull()) ? \
 	 MXC_CCM_CS2CDR_ENFC_CLK_SEL_MASK_DQP :		\
 	 MXC_CCM_CS2CDR_ENFC_CLK_SEL_MASK_DQ)
 #define MXC_CCM_CS2CDR_ENFC_CLK_SEL_OFFSET		\
-	((is_mx6dqp() || is_mx6ul() || is_mx6ull()) ?	\
+	((is_mx6dqp() || is_mx6ul() || is_mx6ull()) ? \
 	 MXC_CCM_CS2CDR_ENFC_CLK_SEL_OFFSET_DQP :	\
 	 MXC_CCM_CS2CDR_ENFC_CLK_SEL_OFFSET_DQ)
 #define MXC_CCM_CS2CDR_ENFC_CLK_SEL(v)			\
@@ -846,10 +846,10 @@ struct mxc_ccm_reg {
 #define MXC_CCM_CCGR3_PXP_AXI_MASK				(3 << MXC_CCM_CCGR3_PXP_AXI_OFFSET)
 #define MXC_CCM_CCGR3_EPDC_AXI_OFFSET			4
 #define MXC_CCM_CCGR3_EPDC_AXI_MASK				(3 << MXC_CCM_CCGR3_EPDC_AXI_OFFSET)
-#define MXC_CCM_CCGR3_LCDIF_AXI_OFFSET				6
-#define MXC_CCM_CCGR3_LCDIF_AXI_MASK				(3 << MXC_CCM_CCGR3_LCDIF_AXI_OFFSET)
-#define MXC_CCM_CCGR3_LCDIF_PIX_OFFSET				8
-#define MXC_CCM_CCGR3_LCDIF_PIX_MASK				(3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
+#define MXC_CCM_CCGR3_LCDIF_AXI_OFFSET			6
+#define MXC_CCM_CCGR3_LCDIF_AXI_MASK			(3 << MXC_CCM_CCGR3_LCDIF_AXI_OFFSET)
+#define MXC_CCM_CCGR3_LCDIF_PIX_OFFSET			8
+#define MXC_CCM_CCGR3_LCDIF_PIX_MASK			(3 << MXC_CCM_CCGR3_LCDIF_PIX_OFFSET)
 #define MXC_CCM_CCGR3_EPDC_PIX_OFFSET			10
 #define MXC_CCM_CCGR3_EPDC_PIX_MASK				(3 << MXC_CCM_CCGR3_EPDC_PIX_OFFSET)
 

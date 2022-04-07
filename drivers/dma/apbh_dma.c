@@ -8,6 +8,7 @@
  * Based on code from LTIB:
  * Copyright (C) 2010-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2017 NXP
+ *
  */
 
 #include <linux/list.h>

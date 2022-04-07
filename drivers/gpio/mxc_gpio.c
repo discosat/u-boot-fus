@@ -7,7 +7,7 @@
  * Stefano Babic, DENX Software Engineering, <sbabic@denx.de>
  *
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ *
  */
 #include <common.h>
 #include <errno.h>
@@ -334,7 +334,7 @@ static int mxc_gpio_probe(struct udevice *dev)
 	char name[18], *str;
 
 	banknum = plat->bank_index;
-#if defined(CONFIG_IMX8)
+#if defined(CONFIG_ARCH_IMX8)
 	sprintf(name, "GPIO%d_", banknum);
 #else
 	sprintf(name, "GPIO%d_", banknum + 1);

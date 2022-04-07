@@ -3,6 +3,9 @@
  * Freescale i.MX23/i.MX28 LCDIF driver
  *
  * Copyright (C) 2011-2013 Marek Vasut <marex@denx.de>
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
+ *
  */
 #include <common.h>
 #include <malloc.h>
@@ -73,7 +76,7 @@ void mxs_lcd_get_panel(struct display_panel *dispanel)
 	dispanel->reg_base = panel.isaBase;
 	dispanel->gdfindex = panel.gdfIndex;
 	dispanel->gdfbytespp = panel.gdfBytesPP;
-	}
+}
 }
 
 /*

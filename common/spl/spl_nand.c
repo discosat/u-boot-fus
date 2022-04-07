@@ -32,11 +32,7 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 	nand_spl_load_image(spl_nand_get_uboot_raw_page(),
 						CONFIG_SYS_NAND_U_BOOT_SIZE,
 						(void *)CONFIG_SYS_NAND_U_BOOT_DST);
-#if defined(CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE)
-	spl_set_header_raw_atf(spl_image);
-#else
 	spl_set_header_raw_uboot(spl_image);
-#endif
 	nand_deselect();
 
 	return 0;

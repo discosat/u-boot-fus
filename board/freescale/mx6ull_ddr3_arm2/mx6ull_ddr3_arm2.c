@@ -160,7 +160,7 @@ static iomux_v3_cfg_t const usdhc1_pads[] = {
 };
 #endif
 
-#if !defined(CONFIG_CMD_NAND) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
+#if !defined(CONFIG_NAND_MXS) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
 static iomux_v3_cfg_t const usdhc2_pads[] = {
 	/* usdhc2_clk, nand_re_b, qspi1b_clk */
 	MX6_PAD_NAND_RE_B__USDHC2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -194,7 +194,7 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 };
 #endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 static iomux_v3_cfg_t const nand_pads[] = {
 	MX6_PAD_NAND_DATA00__RAWNAND_DATA00 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
 	MX6_PAD_NAND_DATA01__RAWNAND_DATA01 | MUX_PAD_CTRL(GPMI_PAD_CTRL2),
@@ -224,8 +224,9 @@ static void setup_gpmi_nand(void)
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nand_pads);
 
-	setup_gpmi_io_clk((3 << MXC_CCM_CSCDR1_BCH_PODF_OFFSET) |
-			  (3 << MXC_CCM_CSCDR1_GPMI_PODF_OFFSET));
+	setup_gpmi_io_clk((MXC_CCM_CS2CDR_ENFC_CLK_PODF(0) |
+			MXC_CCM_CS2CDR_ENFC_CLK_PRED(3) |
+			MXC_CCM_CS2CDR_ENFC_CLK_SEL(3)));
 
 	/* enable apbh clock gating */
 	setbits_le32(&mxc_ccm->CCGR0, MXC_CCM_CCGR0_APBHDMA_MASK);
@@ -233,6 +234,7 @@ static void setup_gpmi_nand(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 static iomux_v3_cfg_t const ecspi1_pads[] = {
 	MX6_PAD_CSI_DATA06__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
 	MX6_PAD_CSI_DATA04__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
@@ -253,6 +255,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 {
 	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 26)) : -1;
 }
+#endif
 #endif
 
 #ifdef CONFIG_FEC_MXC
@@ -380,7 +383,7 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 #else
 	{USDHC1_BASE_ADDR, 0, 4},
 #endif
-#if !defined(CONFIG_CMD_NAND) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
+#if !defined(CONFIG_NAND_MXS) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
 	{USDHC2_BASE_ADDR, 0, 4},
 #endif
 };
@@ -389,22 +392,6 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 #define USDHC1_PWR_GPIO	IMX_GPIO_NR(1, 9)
 #define USDHC1_VSELECT IMX_GPIO_NR(1, 5)
 #define USDHC2_PWR_GPIO	IMX_GPIO_NR(4, 10)
-
-int board_mmc_get_env_dev(int devno)
-{
-	if (devno == 1 && mx6_esdhc_fused(USDHC1_BASE_ADDR))
-		devno = 0;
-
-	return devno;
-}
-
-int mmc_map_to_kernel_blk(int devno)
-{
-	if (devno == 0 && mx6_esdhc_fused(USDHC1_BASE_ADDR))
-		devno = 1;
-
-	return devno;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -419,7 +406,7 @@ int board_mmc_getcd(struct mmc *mmc)
 		ret = !gpio_get_value(USDHC1_CD_GPIO);
 #endif
 		break;
-#if !defined(CONFIG_CMD_NAND) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
+#if !defined(CONFIG_NAND_MXS) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
 	case USDHC2_BASE_ADDR:
 		ret = 1;
 		break;
@@ -456,7 +443,7 @@ int board_mmc_init(bd_t *bis)
 			gpio_direction_output(USDHC1_VSELECT, 0);
 			gpio_direction_output(USDHC1_PWR_GPIO, 1);
 			break;
-#if !defined(CONFIG_CMD_NAND) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
+#if !defined(CONFIG_NAND_MXS) && !defined(CONFIG_MX6ULL_DDR3_ARM2_QSPIB_REWORK)
 		case 1:
 			SETUP_IOMUX_PADS(usdhc2_pads);
 			gpio_request(USDHC2_PWR_GPIO, "usdhc2 pwr");
@@ -1066,10 +1053,12 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_MXC_SPI
+#ifndef CONFIG_DM_SPI
 	setup_spinor();
 #endif
+#endif
 
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 	setup_gpmi_nand();
 #endif
 

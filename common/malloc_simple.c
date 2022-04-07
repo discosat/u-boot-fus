@@ -68,7 +68,7 @@ void *calloc(size_t nmemb, size_t elem_size)
 	ptr = malloc(size);
 	if (!ptr)
 		return ptr;
-		memset(ptr, '\0', size);
+	memset(ptr, '\0', size);
 
 	return ptr;
 }

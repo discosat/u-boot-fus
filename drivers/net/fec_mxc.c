@@ -6,7 +6,6 @@
  * (C) Copyright 2007 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  * (C) Copyright 2007 Pengutronix, Juergen Beisert <j.beisert@pengutronix.de>
  */
-
 #include <common.h>
 #include <dm.h>
 #include <environment.h>
@@ -28,6 +27,7 @@
 
 #include "fec_mxc.h"
 #include <asm/arch/sys_proto.h>
+#include <eth_phy.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -133,9 +133,9 @@ static int fec_get_clk_rate(void *udev, int idx)
 
 	dev = udev;
 	if (!dev) {
-		ret = uclass_get_device(UCLASS_ETH, idx, &dev);
+		ret = uclass_get_device_by_seq(UCLASS_ETH, idx, &dev);
 		if (ret < 0) {
-			debug("Can't get FEC udev: %d\n", ret);
+			debug("Can't get FEC udev%d: %d\n", idx, ret);
 			return ret;
 		}
 	}
@@ -150,7 +150,7 @@ static int fec_get_clk_rate(void *udev, int idx)
 #endif
 }
 
-static void fec_mii_setspeed(struct ethernet_regs *eth)
+static void fec_mii_setspeed(struct ethernet_regs *eth, int idx)
 {
 	/*
 	 * Set MII_SPEED = (1/(mii_speed * 2)) * System Clock
@@ -172,7 +172,7 @@ static void fec_mii_setspeed(struct ethernet_regs *eth)
 	u32 hold;
 	int ret;
 
-	ret = fec_get_clk_rate(NULL, 0);
+	ret = fec_get_clk_rate(NULL, idx);
 	if (ret < 0) {
 		printf("Can't find FEC0 clk rate: %d\n", ret);
 		return;
@@ -610,7 +610,7 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 	fec_reg_setup(fec);
 
 	if (fec->bus && (fec->xcv_type != SEVENWIRE))
-		fec_mii_setspeed(fec->bus->priv);
+		fec_mii_setspeed(fec->bus->priv, fec->dev_id);
 
 	/* Set Opcode/Pause Duration Register */
 	writel(0x00010020, &fec->eth->op_pause);	/* FIXME 0xffff0020; */
@@ -1098,7 +1098,7 @@ struct mii_dev *fec_get_miibus(ulong base_addr, int dev_id)
 		free(bus);
 		return NULL;
 	}
-	fec_mii_setspeed(eth);
+	fec_mii_setspeed(eth, dev_id);
 	return bus;
 }
 
@@ -1173,7 +1173,7 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec->dev_id = (dev_id == -1) ? 0 : dev_id;
 	fec->bus = bus;
 	if (bus)
-	fec_mii_setspeed(bus->priv);
+	fec_mii_setspeed(bus->priv, fec->dev_id);
 #ifdef CONFIG_PHYLIB
 	fec->phydev = phydev;
 	if (phydev) {
@@ -1395,6 +1395,7 @@ static int fecmxc_probe(struct udevice *dev)
 #endif
 
 	if (IS_ENABLED(CONFIG_IMX8)) {
+		struct clk ref_clk, clk_2x_txclk;
 		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
 		if (ret < 0) {
 			debug("Can't get FEC ipg clk: %d\n", ret);
@@ -1404,6 +1405,35 @@ static int fecmxc_probe(struct udevice *dev)
 		if (ret < 0) {
 			debug("Can't enable FEC ipg clk: %d\n", ret);
 			return ret;
+		}
+
+		ret = clk_get_by_name(dev, "ahb", &priv->ahb_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ahb clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ahb_clk);
+		if (ret < 0) {
+			debug("Can't enable FEC ahb clk: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_get_by_name(dev, "enet_clk_ref", &ref_clk);
+		if (ret >= 0) {
+			ret = clk_enable(&ref_clk);
+			if (ret < 0) {
+				debug("Can't enable FEC ref clk: %d\n", ret);
+				return ret;
+			}
+		}
+
+		ret = clk_get_by_name(dev, "enet_2x_txclk", &clk_2x_txclk);
+		if (ret >= 0) {
+			ret = clk_enable(&clk_2x_txclk);
+			if (ret < 0) {
+				debug("Can't enable FEC 2x_tx clk: %d\n", ret);
+				return ret;
+			}
 		}
 
 		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
@@ -1439,17 +1469,27 @@ static int fecmxc_probe(struct udevice *dev)
 	}
 
 	fec_reg_setup(priv);
-
 	priv->dev_id = dev->seq;
+
+#ifdef CONFIG_DM_ETH_PHY
+	bus = eth_phy_get_mdio_bus(dev);
+#endif
+
+	if (!bus) {
 #ifdef CONFIG_FEC_MXC_MDIO_BASE
 	bus = fec_get_miibus((ulong)CONFIG_FEC_MXC_MDIO_BASE, dev->seq);
 #else
 	bus = fec_get_miibus((ulong)priv->eth, dev->seq);
 #endif
+	}
 	if (!bus) {
 		ret = -ENOMEM;
 		goto err_mii;
 	}
+
+#ifdef CONFIG_DM_ETH_PHY
+	eth_phy_set_mdio_bus(dev, bus);
+#endif
 
 	priv->bus = bus;
 	priv->interface = pdata->phy_interface;
@@ -1467,7 +1507,7 @@ static int fecmxc_probe(struct udevice *dev)
 		priv->xcv_type = RGMII;
 		break;
 	default:
-		priv->xcv_type = CONFIG_FEC_XCV_TYPE;
+	priv->xcv_type = CONFIG_FEC_XCV_TYPE;
 		printf("Unsupported interface type %d defaulting to %d\n",
 		       priv->interface, priv->xcv_type);
 		break;
@@ -1562,6 +1602,7 @@ static const struct udevice_id fecmxc_ids[] = {
 	{ .compatible = "fsl,imx6ul-fec" },
 	{ .compatible = "fsl,imx53-fec" },
 	{ .compatible = "fsl,imx7d-fec" },
+	{ .compatible = "fsl,imx8qm-fec" },
 	{ }
 };
 

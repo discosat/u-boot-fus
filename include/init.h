@@ -181,10 +181,6 @@ int init_func_vid(void);
 int checkboard(void);
 int show_board_info(void);
 
-#ifdef CONFIG_ANDROID_BOOT_IMAGE
-void get_reboot_reason(char *ret);
-#endif
-
 #endif	/* __ASSEMBLY__ */
 /* Put only stuff here that the assembler can digest */
 

@@ -169,7 +169,7 @@ config ARM_ERRATA_833471
 	bool
 
 config ARM_ERRATA_845369
-	bool
+       bool
 
 config ARM_ERRATA_852421
 	bool
@@ -784,7 +784,7 @@ config ARCH_MX6
 
 if ARCH_MX6
 config SPL_LDSCRIPT
-	default "arch/arm/mach-omap2/u-boot-spl.lds"
+        default "arch/arm/mach-omap2/u-boot-spl.lds"
 endif
 
 config ARCH_MX5
@@ -1002,7 +1002,6 @@ config ARCH_ZYNQMP
 	imply BOARD_LATE_INIT
 	imply CMD_DM
 	imply FAT_WRITE
-	imply DM_USB_GADGET
 	imply MP
 	imply DM_USB_GADGET
 
@@ -1669,7 +1668,7 @@ endmenu
 
 config SPL_LDSCRIPT
 	default "arch/arm/cpu/arm926ejs/mxs/u-boot-spl.lds" if (ARCH_MX23 || ARCH_MX28) && !SPL_FRAMEWORK
-	default "arch/arm/cpu/arm1136/u-boot-spl.lds" if CPU_ARM1136
+        default "arch/arm/cpu/arm1136/u-boot-spl.lds" if CPU_ARM1136
 	default "arch/arm/cpu/armv8/u-boot-spl.lds" if ARM64
 
 

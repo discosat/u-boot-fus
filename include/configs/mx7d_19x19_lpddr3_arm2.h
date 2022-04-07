@@ -21,7 +21,6 @@
 #endif
 
 #define CONFIG_FEC_MXC
-#define CONFIG_MII
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME                 "eth0"
@@ -30,7 +29,6 @@
 #endif
 #define CONFIG_FEC_MXC_PHYADDR          0
 
-#define CONFIG_PHYLIB
 #define CONFIG_PHY_ATHEROS
 
 /* ENET2 */
@@ -41,17 +39,7 @@
 /* QSPI conflict with EIMNOR */
 /* FEC0 conflict with EIMNOR */
 /* ECSPI conflict with UART */
-#ifdef CONFIG_QSPI_BOOT
-#define CONFIG_FSL_QSPI
-#elif defined CONFIG_SPI_BOOT
-#define CONFIG_MXC_SPI
-#elif defined CONFIG_NOR_BOOT
-#define CONFIG_MTD_NOR_FLASH
-#undef CONFIG_FEC_MXC
-#elif defined CONFIG_NAND_BOOT
-#define CONFIG_NAND_MXS
-#else
-#define CONFIG_MTD_NOR_FLASH
+#ifdef CONFIG_MTD_NOR_FLASH
 #undef CONFIG_FEC_MXC
 #endif
 
@@ -71,15 +59,6 @@
 #define CONFIG_POWER_PFUZE3000_I2C_ADDR	0x08
 #endif
 
-#ifdef CONFIG_MXC_SPI
-#define CONFIG_CMD_SF
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI_FLASH_ATMEL
-#define CONFIG_SF_DEFAULT_BUS  0
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
-#define CONFIG_SF_DEFAULT_CS   0
-#endif
 
 #include "mx7d_arm2.h"
 

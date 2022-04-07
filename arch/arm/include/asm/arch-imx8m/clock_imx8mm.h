@@ -1,25 +1,42 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2018 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef _ASM_ARCH_IMX8MM_CLOCK_H
 #define _ASM_ARCH_IMX8MM_CLOCK_H
 
-/* Mainly for compatible to imx common code. */
-enum mxc_clock {
-	MXC_ARM_CLK = 0,
-	MXC_IPG_CLK,
-	MXC_CSPI_CLK,
-	MXC_ESDHC_CLK,
-	MXC_ESDHC2_CLK,
-	MXC_ESDHC3_CLK,
-	MXC_I2C_CLK,
-	MXC_UART_CLK,
-	MXC_QSPI_CLK,
+#define PLL_1443X_RATE(_rate, _m, _p, _s, _k)			\
+	{							\
+		.rate	=	(_rate),			\
+		.mdiv	=	(_m),				\
+		.pdiv	=	(_p),				\
+		.sdiv	=	(_s),				\
+		.kdiv	=	(_k),				\
+	}
+
+#define LOCK_STATUS 	BIT(31)
+#define LOCK_SEL_MASK	BIT(29)
+#define CLKE_MASK	BIT(11)
+#define RST_MASK	BIT(9)
+#define BYPASS_MASK	BIT(4)
+#define	MDIV_SHIFT	12
+#define	MDIV_MASK	GENMASK(21, 12)
+#define PDIV_SHIFT	4
+#define PDIV_MASK	GENMASK(9, 4)
+#define SDIV_SHIFT	0
+#define SDIV_MASK	GENMASK(2, 0)
+#define KDIV_SHIFT	0
+#define KDIV_MASK	GENMASK(15, 0)
+
+struct imx_int_pll_rate_table {
+	u32 rate;
+	int mdiv;
+	int pdiv;
+	int sdiv;
+	int kdiv;
 };
 
 enum pll_clocks {
@@ -35,17 +52,109 @@ enum pll_clocks {
 	ANATOP_DRAM_PLL,
 };
 
-enum clk_slice_type {
-	CORE_CLOCK_SLICE,
-	BUS_CLOCK_SLICE,
-	IP_CLOCK_SLICE,
-	AHB_CLOCK_SLICE,
-	IPG_CLOCK_SLICE,
-	CORE_SEL_CLOCK_SLICE,
-	DRAM_SEL_CLOCK_SLICE,
+#ifdef CONFIG_IMX8MP
+enum clk_root_index {
+	ARM_A53_CLK_ROOT		= 0,
+	ARM_M7_CLK_ROOT			= 1,
+	ML_CLK_ROOT			= 2,
+	GPU3D_CORE_CLK_ROOT		= 3,
+	GPU3D_SHADER_CLK_ROOT		= 4,
+	GPU2D_CLK_ROOT			= 5,
+	AUDIO_AXI_CLK_ROOT		= 6,
+	HSIO_AXI_CLK_ROOT		= 7,
+	MEDIA_ISP_CLK_ROOT		= 8,
+	MAIN_AXI_CLK_ROOT		= 16,
+	ENET_AXI_CLK_ROOT		= 17,
+	NAND_USDHC_BUS_CLK_ROOT		= 18,
+	VPU_BUS_CLK_ROOT		= 19,
+	MEDIA_AXI_CLK_ROOT		= 20,
+	MEDIA_APB_CLK_ROOT		= 21,
+	HDMI_APB_CLK_ROOT		= 22,
+	HDMI_AXI_CLK_ROOT		= 23,
+	GPU_AXI_CLK_ROOT		= 24,
+	GPU_AHB_CLK_ROOT		= 25,
+	NOC_CLK_ROOT			= 26,
+	NOC_IO_CLK_ROOT			= 27,
+	ML_AXI_CLK_ROOT			= 28,
+	ML_AHB_CLK_ROOT			= 29,
+	AHB_CLK_ROOT			= 32,
+	IPG_CLK_ROOT			= 33,
+	AUDIO_AHB_CLK_ROOT		= 34,
+	MIPI_DSI_ESC_RX_CLK_ROOT	= 36,
+	MEDIA_DISP2_CLK_ROOT		= 38,
+	DRAM_SEL_CFG			= 48,
+	CORE_SEL_CFG			= 49,
+	DRAM_ALT_CLK_ROOT		= 64,
+	DRAM_APB_CLK_ROOT		= 65,
+	VPU_G1_CLK_ROOT			= 66,
+	VPU_G2_CLK_ROOT			= 67,
+	CAN1_CLK_ROOT			= 68,
+	CAN2_CLK_ROOT			= 69,
+	PCIE_PHY_CLK_ROOT		= 71,
+	PCIE_AUX_CLK_ROOT		= 72,
+	I2C5_CLK_ROOT			= 73,
+	I2C6_CLK_ROOT			= 74,
+	SAI1_CLK_ROOT			= 75,
+	SAI2_CLK_ROOT			= 76,
+	SAI3_CLK_ROOT			= 77,
+	SAI4_CLK_ROOT			= 78,
+	SAI5_CLK_ROOT			= 79,
+	SAI6_CLK_ROOT			= 80,
+	ENET_QOS_CLK_ROOT		= 81,
+	ENET_QOS_TIMER_CLK_ROOT		= 82,
+	ENET_REF_CLK_ROOT		= 83,
+	ENET_TIMER_CLK_ROOT		= 84,
+	ENET_PHY_REF_CLK_ROOT		= 85,
+	NAND_CLK_ROOT			= 86,
+	QSPI_CLK_ROOT			= 87,
+	USDHC1_CLK_ROOT			= 88,
+	USDHC2_CLK_ROOT			= 89,
+	I2C1_CLK_ROOT			= 90,
+	I2C2_CLK_ROOT			= 91,
+	I2C3_CLK_ROOT			= 92,
+	I2C4_CLK_ROOT			= 93,
+	UART1_CLK_ROOT			= 94,
+	UART2_CLK_ROOT			= 95,
+	UART3_CLK_ROOT			= 96,
+	UART4_CLK_ROOT			= 97,
+	USB_CORE_REF_CLK_ROOT		= 98,
+	USB_PHY_REF_CLK_ROOT		= 99,
+	GIC_CLK_ROOT			= 100,
+	ECSPI1_CLK_ROOT			= 101,
+	ECSPI2_CLK_ROOT			= 102,
+	PWM1_CLK_ROOT			= 103,
+	PWM2_CLK_ROOT			= 104,
+	PWM3_CLK_ROOT			= 105,
+	PWM4_CLK_ROOT			= 106,
+	GPT1_CLK_ROOT			= 107,
+	GPT2_CLK_ROOT			= 108,
+	GPT3_CLK_ROOT			= 109,
+	GPT4_CLK_ROOT			= 110,
+	GPT5_CLK_ROOT			= 111,
+	GPT6_CLK_ROOT			= 112,
+	TRACE_CLK_ROOT			= 113,
+	WDOG_CLK_ROOT			= 114,
+	WRCLK_CLK_ROOT			= 115,
+	IPP_DO_CLKO1			= 116,
+	IPP_DO_CLKO2			= 117,
+	HDMI_FDCC_TST_CLK_ROOT		= 118,
+	HDMI_27M_CLK_ROOT		= 119,
+	HDMI_REF_266M_CLK_ROOT		= 120,
+	USDHC3_CLK_ROOT			= 121,
+	MEDIA_CAM1_PIX_CLK_ROOT		= 122,
+	MEDIA_MIPI_PHY1_REF_CLK_ROOT	= 123,
+	MEDIA_DISP1_PIX_CLK_ROOT	= 124,
+	MEDIA_CAM2_PIX_CLK_ROOT		= 125,
+	MEDIA_LDB_CLK_ROOT	= 126,
+	MEMREPAIR_CLK_ROOT	= 127,
+	MEDIA_MIPI_TEST_BYTE_CLK	= 130,
+	ECSPI3_CLK_ROOT			= 131,
+	PDM_CLK_ROOT			= 132,
+	VPU_VC8000E_CLK_ROOT		= 133,
+	SAI7_CLK_ROOT			= 134,
+	CLK_ROOT_MAX,
 };
-
-#ifdef CONFIG_IMX8MN
+#elif defined(CONFIG_IMX8MN)
 enum clk_root_index {
 	ARM_A53_CLK_ROOT		= 0,
 	ARM_M7_CLK_ROOT			= 1,
@@ -257,7 +366,8 @@ enum clk_root_src {
 	EXT_CLK_2,
 	EXT_CLK_3,
 	EXT_CLK_4,
-	OSC_HDMI_CLK
+	OSC_HDMI_CLK,
+	ARM_A53_ALT_CLK,
 };
 
 enum clk_ccgr_index {
@@ -280,6 +390,7 @@ enum clk_ccgr_index {
 	CCGR_GPT2 = 17,
 	CCGR_GPT3 = 18,
 	CCGR_GPT4 = 19,
+	CCGR_AAM_8MP = 20,
 	CCGR_GPT5 = 20,
 	CCGR_GPT6 = 21,
 	CCGR_HS = 22,
@@ -311,7 +422,9 @@ enum clk_ccgr_index {
 	CCGR_RAWNAND = 48,
 	CCGR_RDC = 49,
 	CCGR_ROM = 50,
+	CCGR_I2C5_8MP = 51,
 	CCGR_SAI1 = 51,
+	CCGR_I2C6_8MP = 52,
 	CCGR_SAI2 = 52,
 	CCGR_SAI3 = 53,
 	CCGR_SAI4 = 54,
@@ -323,13 +436,16 @@ enum clk_ccgr_index {
 	CCGR_SEC_DEBUG = 60,
 	CCGR_SEMA1 = 61,
 	CCGR_SEMA2 = 62,
+	CCGR_IRQ_STEER_8MP = 63,
 	CCGR_SIM_DISPLAY = 63,
 	CCGR_SIM_ENET = 64,
 	CCGR_SIM_M = 65,
 	CCGR_SIM_MAIN = 66,
 	CCGR_SIM_S = 67,
 	CCGR_SIM_WAKEUP = 68,
+	CCGR_GPU2D_8MP = 69,
 	CCGR_SIM_HSIO = 69,
+	CCGR_GPU3D_8MP = 70,
 	CCGR_SIM_VPU = 70,
 	CCGR_SNVS = 71,
 	CCGR_TRACE = 72,
@@ -338,6 +454,7 @@ enum clk_ccgr_index {
 	CCGR_UART3 = 75,
 	CCGR_UART4 = 76,
 	CCGR_USB_MSCALE_PL301 = 77,
+	CCGR_USB_PHY_8MP = 79,
 	CCGR_GPU3D = 79,
 	CCGR_USDHC1 = 81,
 	CCGR_USDHC2 = 82,
@@ -403,210 +520,6 @@ enum clk_src_index {
 	CLK_SRC_VIDEO_PLL1 = 37,
 };
 
-enum root_pre_div {
-	CLK_ROOT_PRE_DIV1 = 0,
-	CLK_ROOT_PRE_DIV2,
-	CLK_ROOT_PRE_DIV3,
-	CLK_ROOT_PRE_DIV4,
-	CLK_ROOT_PRE_DIV5,
-	CLK_ROOT_PRE_DIV6,
-	CLK_ROOT_PRE_DIV7,
-	CLK_ROOT_PRE_DIV8,
-};
-
-enum root_post_div {
-	CLK_ROOT_POST_DIV1 = 0,
-	CLK_ROOT_POST_DIV2,
-	CLK_ROOT_POST_DIV3,
-	CLK_ROOT_POST_DIV4,
-	CLK_ROOT_POST_DIV5,
-	CLK_ROOT_POST_DIV6,
-	CLK_ROOT_POST_DIV7,
-	CLK_ROOT_POST_DIV8,
-	CLK_ROOT_POST_DIV9,
-	CLK_ROOT_POST_DIV10,
-	CLK_ROOT_POST_DIV11,
-	CLK_ROOT_POST_DIV12,
-	CLK_ROOT_POST_DIV13,
-	CLK_ROOT_POST_DIV14,
-	CLK_ROOT_POST_DIV15,
-	CLK_ROOT_POST_DIV16,
-	CLK_ROOT_POST_DIV17,
-	CLK_ROOT_POST_DIV18,
-	CLK_ROOT_POST_DIV19,
-	CLK_ROOT_POST_DIV20,
-	CLK_ROOT_POST_DIV21,
-	CLK_ROOT_POST_DIV22,
-	CLK_ROOT_POST_DIV23,
-	CLK_ROOT_POST_DIV24,
-	CLK_ROOT_POST_DIV25,
-	CLK_ROOT_POST_DIV26,
-	CLK_ROOT_POST_DIV27,
-	CLK_ROOT_POST_DIV28,
-	CLK_ROOT_POST_DIV29,
-	CLK_ROOT_POST_DIV30,
-	CLK_ROOT_POST_DIV31,
-	CLK_ROOT_POST_DIV32,
-	CLK_ROOT_POST_DIV33,
-	CLK_ROOT_POST_DIV34,
-	CLK_ROOT_POST_DIV35,
-	CLK_ROOT_POST_DIV36,
-	CLK_ROOT_POST_DIV37,
-	CLK_ROOT_POST_DIV38,
-	CLK_ROOT_POST_DIV39,
-	CLK_ROOT_POST_DIV40,
-	CLK_ROOT_POST_DIV41,
-	CLK_ROOT_POST_DIV42,
-	CLK_ROOT_POST_DIV43,
-	CLK_ROOT_POST_DIV44,
-	CLK_ROOT_POST_DIV45,
-	CLK_ROOT_POST_DIV46,
-	CLK_ROOT_POST_DIV47,
-	CLK_ROOT_POST_DIV48,
-	CLK_ROOT_POST_DIV49,
-	CLK_ROOT_POST_DIV50,
-	CLK_ROOT_POST_DIV51,
-	CLK_ROOT_POST_DIV52,
-	CLK_ROOT_POST_DIV53,
-	CLK_ROOT_POST_DIV54,
-	CLK_ROOT_POST_DIV55,
-	CLK_ROOT_POST_DIV56,
-	CLK_ROOT_POST_DIV57,
-	CLK_ROOT_POST_DIV58,
-	CLK_ROOT_POST_DIV59,
-	CLK_ROOT_POST_DIV60,
-	CLK_ROOT_POST_DIV61,
-	CLK_ROOT_POST_DIV62,
-	CLK_ROOT_POST_DIV63,
-	CLK_ROOT_POST_DIV64,
-};
-
-struct clk_root_map {
-	enum clk_root_index entry;
-	enum clk_slice_type slice_type;
-	u32 slice_index;
-	u8 src_mux[8];
-};
-
-struct ccm_ccgr {
-	u32 ccgr;
-	u32 ccgr_set;
-	u32 ccgr_clr;
-	u32 ccgr_tog;
-};
-
-struct ccm_root {
-	u32 target_root;
-	u32 target_root_set;
-	u32 target_root_clr;
-	u32 target_root_tog;
-	u32 misc;
-	u32 misc_set;
-	u32 misc_clr;
-	u32 misc_tog;
-	u32 nm_post;
-	u32 nm_post_root_set;
-	u32 nm_post_root_clr;
-	u32 nm_post_root_tog;
-	u32 nm_pre;
-	u32 nm_pre_root_set;
-	u32 nm_pre_root_clr;
-	u32 nm_pre_root_tog;
-	u32 db_post;
-	u32 db_post_root_set;
-	u32 db_post_root_clr;
-	u32 db_post_root_tog;
-	u32 db_pre;
-	u32 db_pre_root_set;
-	u32 db_pre_root_clr;
-	u32 db_pre_root_tog;
-	u32 reserved[4];
-	u32 access_ctrl;
-	u32 access_ctrl_root_set;
-	u32 access_ctrl_root_clr;
-	u32 access_ctrl_root_tog;
-};
-
-struct ccm_reg {
-	u32 reserved_0[4096];
-	struct ccm_ccgr ccgr_array[192];
-	u32 reserved_1[3328];
-	struct ccm_root core_root[5];
-	u32 reserved_2[352];
-	struct ccm_root bus_root[12];
-	u32 reserved_3[128];
-	struct ccm_root ahb_ipg_root[4];
-	u32 reserved_4[384];
-	struct ccm_root dram_sel;
-	struct ccm_root core_sel;
-	u32 reserved_5[448];
-	struct ccm_root ip_root[78];
-};
-
-enum dram_pll_out_val {
-	DRAM_PLL_OUT_100M,
-	DRAM_PLL_OUT_167M,
-	DRAM_PLL_OUT_266M,
-	DRAM_PLL_OUT_667M,
-	DRAM_PLL_OUT_400M,
-	DRAM_PLL_OUT_600M,
-	DRAM_PLL_OUT_750M,
-	DRAM_PLL_OUT_800M,
-};
-
-enum dram_bypassclk_val {
-	DRAM_BYPASSCLK_100M,
-	DRAM_BYPASSCLK_250M,
-	DRAM_BYPASSCLK_400M,
-};
-
-#define AUDIO_PLL1_GNRL_CTL			(0x30360000)
-#define AUDIO_PLL1_FDIV_CTL0			(0x30360004)
-#define AUDIO_PLL1_FDIV_CTL1			(0x30360008)
-#define AUDIO_PLL1_SSCG_CTL			(0x3036000c)
-#define AUDIO_PLL1_MNIT_CTL			(0x30360010)
-#define AUDIO_PLL2_GNRL_CTL			(0x30360014)
-#define AUDIO_PLL2_FDIV_CTL0			(0x30360018)
-#define AUDIO_PLL2_FDIV_CTL1			(0x3036001c)
-#define AUDIO_PLL2_SSCG_CTL			(0x30360020)
-#define AUDIO_PLL2_MNIT_CTL			(0x30360024)
-#define VIDEO_PLL1_GNRL_CTL			(0x30360028)
-#define VIDEO_PLL1_FDIV_CTL0			(0x3036002c)
-#define VIDEO_PLL1_FDIV_CTL1			(0x30360030)
-#define VIDEO_PLL1_SSCG_CTL			(0x30360034)
-#define VIDEO_PLL1_MNIT_CTL			(0x30360038)
-#define DRAM_PLL_GNRL_CTL			(0x30360050)
-#define DRAM_PLL_FDIV_CTL0			(0x30360054)
-#define DRAM_PLL_FDIV_CTL1			(0x30360058)
-#define DRAM_PLL_SSCG_CTL			(0x3036005c)
-#define DRAM_PLL_MNIT_CTL			(0x30360060)
-#define GPU_PLL_GNRL_CTL			(0x30360064)
-#define GPU_PLL_DIV_CTL				(0x30360068)
-#define GPU_PLL_LOCKED_CTL			(0x3036006c)
-#define GPU_PLL_MNIT_CTL			(0x30360070)
-#define VPU_PLL_GNRL_CTL			(0x30360074)
-#define VPU_PLL_DIV_CTL				(0x30360078)
-#define VPU_PLL_LOCKED_CTL			(0x3036007c)
-#define VPU_PLL_MNIT_CTL			(0x30360080)
-#define ARM_PLL_GNRL_CTL			(0x30360084)
-#define ARM_PLL_DIV_CTL				(0x30360088)
-#define ARM_PLL_LOCKED_CTL			(0x3036008c)
-#define ARM_PLL_MNIT_CTL			(0x30360090)
-#define SYS_PLL1_GNRL_CTL			(0x30360094)
-#define SYS_PLL1_DIV_CTL			(0x30360098)
-#define SYS_PLL1_LOCKED_CTL			(0x3036009c)
-#define SYS_PLL1_MNIT_CTL			(0x30360100)
-#define SYS_PLL2_GNRL_CTL			(0x30360104)
-#define SYS_PLL2_DIV_CTL			(0x30360108)
-#define SYS_PLL2_LOCKED_CTL			(0x3036010c)
-#define SYS_PLL2_MNIT_CTL			(0x30360110)
-#define SYS_PLL3_GNRL_CTL			(0x30360114)
-#define SYS_PLL3_DIV_CTL			(0x30360118)
-#define SYS_PLL3_LOCKED_CTL			(0x3036011c)
-#define SYS_PLL3_MNIT_CTL			(0x30360120)
-#define ANAMIX_MISC_CTL				(0x30360124)
-#define DIGPROG					(0x30360800)
-
 #define INTPLL_LOCK_MASK			BIT(31)
 #define INTPLL_LOCK_SEL_MASK			BIT(29)
 #define INTPLL_EXT_BYPASS_MASK			BIT(28)
@@ -663,315 +576,4 @@ enum dram_bypassclk_val {
 #define INTPLL_AFC_EN_MASK		BIT(2)
 #define INTPLL_ICP_MASK			GENMASK(1, 0)
 
-/* CORE clock generation: i ranges from 0 to 4 */
-#define CCM_CORE_CLK_ROOT_GEN_TAGET(i)		(0x30388000UL + 0x80 * (i) + 0x00)
-#define CCM_CORE_CLK_ROOT_GEN_TAGET_SET(i)	(0x30388000UL + 0x80 * (i) + 0x04)
-#define CCM_CORE_CLK_ROOT_GEN_TAGET_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x08)
-#define CCM_CORE_CLK_ROOT_GEN_TAGET_TOGGLE(i)	(0x30388000UL + 0x80 * (i) + 0x0c)
-#define CCM_CORE_CLK_ROOT_GEN_MISC(i)		(0x30388000UL + 0x80 * (i) + 0x10)
-#define CCM_CORE_CLK_ROOT_GEN_MISC_SET(i)	(0x30388000UL + 0x80 * (i) + 0x14)
-#define CCM_CORE_CLK_ROOT_GEN_MISC_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x18)
-#define CCM_CORE_CLK_ROOT_GEN_MISC_TOGGLE(i)	(0x30388000UL + 0x80 * (i) + 0x1c)
-#define CCM_CORE_CLK_ROOT_GEN_NM_POST(i)	(0x30388000UL + 0x80 * (i) + 0x20)
-#define CCM_CORE_CLK_ROOT_GEN_NM_POST_SET(i)	(0x30388000UL + 0x80 * (i) + 0x24)
-#define CCM_CORE_CLK_ROOT_GEN_NM_POST_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x28)
-#define CCM_CORE_CLK_ROOT_GEN_NM_POST_TOGGLE(i)	(0x30388000UL + 0x80 * (i) + 0x2c)
-#define CCM_CORE_CLK_ROOT_GEN_NM_PRE(i)		(0x30388000UL + 0x80 * (i) + 0x30)
-#define CCM_CORE_CLK_ROOT_GEN_NM_PRE_SET(i)	(0x30388000UL + 0x80 * (i) + 0x3c)
-#define CCM_CORE_CLK_ROOT_GEN_NM_PRE_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x38)
-#define CCM_CORE_CLK_ROOT_GEN_NM_PRE_TOGGLE(i)	(0x30388000UL + 0x80 * (i) + 0x3c)
-#define CCM_CORE_CLK_ROOT_GEN_DB_POST(i)	(0x30388000UL + 0x80 * (i) + 0x40)
-#define CCM_CORE_CLK_ROOT_GEN_DB_POST_SET(i)	(0x30388000UL + 0x80 * (i) + 0x44)
-#define CCM_CORE_CLK_ROOT_GEN_DB_POST_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x48)
-#define CCM_CORE_CLK_ROOT_GEN_DB_POST_TOGGL(i)	(0x30388000UL + 0x80 * (i) + 0x4c)
-#define CCM_CORE_CLK_ROOT_GEN_DB_PRE(i)		(0x30388000UL + 0x80 * (i) + 0x50)
-#define CCM_CORE_CLK_ROOT_GEN_DB_PRE_SET(i)	(0x30388000UL + 0x80 * (i) + 0x54)
-#define CCM_CORE_CLK_ROOT_GEN_DB_PRE_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x58)
-#define CCM_CORE_CLK_ROOT_GEN_DB_PRE_TOGGLE(i)	(0x30388000UL + 0x80 * (i) + 0x5c)
-#define CCM_CORE_CLK_ROOT_GEN_ACC_CTRL(i)	(0x30388000UL + 0x80 * (i) + 0x70)
-#define CCM_CORE_CLK_ROOT_GEN_ACC_CTRL_SET(i)	(0x30388000UL + 0x80 * (i) + 0x74)
-#define CCM_CORE_CLK_ROOT_GEN_ACC_CTRL_CLR(i)	(0x30388000UL + 0x80 * (i) + 0x78)
-#define CCM_CORE_CLK_ROOT_GEN_ACC_CTRL_TOGGLE(i) (0x30388000UL + 0x80 * (i) +0x7c)
-
-
-/* BUS clock generation: i ranges from 0 to 11 */
-#define CCM_BUS_CLK_ROOT_GEN_TAGET(i)		(0x30388800UL + 0x80 * (i) + 0x00)
-#define CCM_BUS_CLK_ROOT_GEN_TAGET_SET(i)	(0x30388800UL + 0x80 * (i) + 0x04)
-#define CCM_BUS_CLK_ROOT_GEN_TAGET_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x08)
-#define CCM_BUS_CLK_ROOT_GEN_TAGET_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x0c)
-#define CCM_BUS_CLK_ROOT_GEN_MISC(i)		(0x30388800UL + 0x80 * (i) + 0x10)
-#define CCM_BUS_CLK_ROOT_GEN_MISC_SET(i)	(0x30388800UL + 0x80 * (i) + 0x14)
-#define CCM_BUS_CLK_ROOT_GEN_MISC_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x18)
-#define CCM_BUS_CLK_ROOT_GEN_MISC_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x1c)
-#define CCM_BUS CLK_ROOT_GEN_NM_POST(i)		(0x30388800UL + 0x80 * (i) + 0x20)
-#define CCM_BUS_CLK_ROOT_GEN_NM_POST_SET(i)	(0x30388800UL + 0x80 * (i) + 0x24)
-#define CCM_BUS_CLK_ROOT_GEN_NM_POST_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x28)
-#define CCM_BUS_CLK_ROOT_GEN_NM_POST_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x2c)
-#define CCM_BUS_CLK_ROOT_GEN_NM_PRE(i)		(0x30388800UL + 0x80 * (i) + 0x30)
-#define CCM_BUS_CLK_ROOT_GEN_NM_PRE_SET(i)	(0x30388800UL + 0x80 * (i) + 0x3c)
-#define CCM_BUS_CLK_ROOT_GEN_NM_PRE_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x38)
-#define CCM_BUS_CLK_ROOT_GEN_NM_PRE_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x3c)
-#define CCM_BUS_CLK_ROOT_GEN_DB_POST(i)		(0x30388800UL + 0x80 * (i) + 0x40)
-#define CCM_BUS_CLK_ROOT_GEN_DB_POST_SET(i)	(0x30388800UL + 0x80 * (i) + 0x44)
-#define CCM_BUS_CLK_ROOT_GEN_DB_POST_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x48)
-#define CCM_BUS_CLK_ROOT_GEN_DB_POST_TOGGL(i)	(0x30388800UL + 0x80 * (i) + 0x4c)
-#define CCM_BUS_CLK_ROOT_GEN_DB_PRE(i)		(0x30388800UL + 0x80 * (i) + 0x50)
-#define CCM_BUS_CLK_ROOT_GEN_DB_PRE_SET(i)	(0x30388800UL + 0x80 * (i) + 0x54)
-#define CCM_BUS_CLK_ROOT_GEN_DB_PRE_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x58)
-#define CCM_BUS_CLK_ROOT_GEN_DB_PRE_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x5c)
-#define CCM_BUS_CLK_ROOT_GEN_ACC_CTRL(i)	(0x30388800UL + 0x80 * (i) + 0x70)
-#define CCM_BUS_CLK_ROOT_GEN_ACC_CTRL_SET(i)	(0x30388800UL + 0x80 * (i) + 0x74)
-#define CCM_BUS_CLK_ROOT_GEN_ACC_CTRL_CLR(i)	(0x30388800UL + 0x80 * (i) + 0x78)
-#define CCM_BUS_CLK_ROOT_GEN_ACC_CTRL_TOGGLE(i)	(0x30388800UL + 0x80 * (i) + 0x7c)
-
-/* IP clock generation: i ranges from 0 to 77 */
-#define CCM_IP_CLK_ROOT_GEN_TAGET(i)		(0x3038a000UL + 0x80 * (i) + 0x00)
-#define CCM_IP_CLK_ROOT_GEN_TAGET_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x04)
-#define CCM_IP_CLK_ROOT_GEN_TAGET_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x08)
-#define CCM_IP_CLK_ROOT_GEN_TAGET_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x0c)
-#define CCM_IP_CLK_ROOT_GEN_MISC(i)		(0x3038a000UL + 0x80 * (i) + 0x10)
-#define CCM_IP_CLK_ROOT_GEN_MISC_SET(i)		(0x3038a000UL + 0x80 * (i) + 0x14)
-#define CCM_IP_CLK_ROOT_GEN_MISC_CLR(i)		(0x3038a000UL + 0x80 * (i) + 0x18)
-#define CCM_IP_CLK_ROOT_GEN_MISC_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x1c)
-#define CCM_IP_CLK_ROOT_GEN_NM_POST(i)		(0x3038a000UL + 0x80 * (i) + 0x20)
-#define CCM_IP_CLK_ROOT_GEN_NM_POST_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x24)
-#define CCM_IP_CLK_ROOT_GEN_NM_POST_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x28)
-#define CCM_IP_CLK_ROOT_GEN_NM_POST_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x2c)
-#define CCM_IP_CLK_ROOT_GEN_NM_PRE(i)		(0x3038a000UL + 0x80 * (i) + 0x30)
-#define CCM_IP_CLK_ROOT_GEN_NM_PRE_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x3c)
-#define CCM_IP_CLK_ROOT_GEN_NM_PRE_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x38)
-#define CCM_IP_CLK_ROOT_GEN_NM_PRE_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x3c)
-#define CCM_IP_CLK_ROOT_GEN_DB_POST(i)		(0x3038a000UL + 0x80 * (i) + 0x40)
-#define CCM_IP_CLK_ROOT_GEN_DB_POST_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x44)
-#define CCM_IP_CLK_ROOT_GEN_DB_POST_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x48)
-#define CCM_IP_CLK_ROOT_GEN_DB_POST_TOGGL(i)	(0x3038a000UL + 0x80 * (i) + 0x4c)
-#define CCM_IP_CLK_ROOT_GEN_DB_PRE(i)		(0x3038a000UL + 0x80 * (i) + 0x50)
-#define CCM_IP_CLK_ROOT_GEN_DB_PRE_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x54)
-#define CCM_IP_CLK_ROOT_GEN_DB_PRE_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x58)
-#define CCM_IP_CLK_ROOT_GEN_DB_PRE_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x5c)
-#define CCM_IP_CLK_ROOT_GEN_ACC_CTRL(i)		(0x3038a000UL + 0x80 * (i) + 0x70)
-#define CCM_IP_CLK_ROOT_GEN_ACC_CTRL_SET(i)	(0x3038a000UL + 0x80 * (i) + 0x74)
-#define CCM_IP_CLK_ROOT_GEN_ACC_CTRL_CLR(i)	(0x3038a000UL + 0x80 * (i) + 0x78)
-#define CCM_IP_CLK_ROOT_GEN_ACC_CTRL_TOGGLE(i)	(0x3038a000UL + 0x80 * (i) + 0x7c)
-
-/* AHB clock generation: i ranges from 0 to 1*/
-#define CCM_AHB_CLK_ROOT_GEN_TAGET(i)		(0x30389000UL + 0x80 * (i) + 0x00)
-#define CCM_AHB_CLK_ROOT_GEN_TAGET_SET(i)	(0x30389000UL + 0x80 * (i) + 0x04)
-#define CCM_AHB_CLK_ROOT_GEN_TAGET_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x08)
-#define CCM_AHB_CLK_ROOT_GEN_TAGET_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x0c)
-#define CCM_AHB_CLK_ROOT_GEN_MISC(i)		(0x30389000UL + 0x80 * (i) + 0x10)
-#define CCM_AHB_CLK_ROOT_GEN_MISC_SET(i)	(0x30389000UL + 0x80 * (i) + 0x14)
-#define CCM_AHB_CLK_ROOT_GEN_MISC_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x18)
-#define CCM_AHB_CLK_ROOT_GEN_MISC_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x1c)
-#define CCM_AHB CLK_ROOT_GEN_NM_POST(i)		(0x30389000UL + 0x80 * (i) + 0x20)
-#define CCM_AHB_CLK_ROOT_GEN_NM_POST_SET(i)	(0x30389000UL + 0x80 * (i) + 0x24)
-#define CCM_AHB_CLK_ROOT_GEN_NM_POST_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x28)
-#define CCM_AHB_CLK_ROOT_GEN_NM_POST_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x2c)
-#define CCM_AHB_CLK_ROOT_GEN_NM_PRE(i)		(0x30389000UL + 0x80 * (i) + 0x30)
-#define CCM_AHB_CLK_ROOT_GEN_NM_PRE_SET(i)	(0x30389000UL + 0x80 * (i) + 0x3c)
-#define CCM_AHB_CLK_ROOT_GEN_NM_PRE_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x38)
-#define CCM_AHB_CLK_ROOT_GEN_NM_PRE_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x3c)
-#define CCM_AHB_CLK_ROOT_GEN_DB_POST(i)		(0x30389000UL + 0x80 * (i) + 0x40)
-#define CCM_AHB_CLK_ROOT_GEN_DB_POST_SET(i)	(0x30389000UL + 0x80 * (i) + 0x44)
-#define CCM_AHB_CLK_ROOT_GEN_DB_POST_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x48)
-#define CCM_AHB_CLK_ROOT_GEN_DB_POST_TOGGL(i)	(0x30389000UL + 0x80 * (i) + 0x4c)
-#define CCM_AHB_CLK_ROOT_GEN_DB_PRE(i)		(0x30389000UL + 0x80 * (i) + 0x50)
-#define CCM_AHB_CLK_ROOT_GEN_DB_PRE_SET(i)	(0x30389000UL + 0x80 * (i) + 0x54)
-#define CCM_AHB_CLK_ROOT_GEN_DB_PRE_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x58)
-#define CCM_AHB_CLK_ROOT_GEN_DB_PRE_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x5c)
-#define CCM_AHB_CLK_ROOT_GEN_ACC_CTRL(i)	(0x30389000UL + 0x80 * (i) + 0x70)
-#define CCM_AHB_CLK_ROOT_GEN_ACC_CTRL_SET(i)	(0x30389000UL + 0x80 * (i) + 0x74)
-#define CCM_AHB_CLK_ROOT_GEN_ACC_CTRL_CLR(i)	(0x30389000UL + 0x80 * (i) + 0x78)
-#define CCM_AHB_CLK_ROOT_GEN_ACC_CTRL_TOGGLE(i)	(0x30389000UL + 0x80 * (i) + 0x7c)
-
-/* IPG clock generation: i ranges from 0 to 1*/
-#define CCM_IPG_CLK_ROOT_GEN_TAGET(i)		(0x30389080UL + 0x80 * (i) + 0x00)
-#define CCM_IPG_CLK_ROOT_GEN_TAGET_SET(i)	(0x30389080UL + 0x80 * (i) + 0x04)
-#define CCM_IPG_CLK_ROOT_GEN_TAGET_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x08)
-#define CCM_IPG_CLK_ROOT_GEN_TAGET_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x0c)
-#define CCM_IPG_CLK_ROOT_GEN_MISC(i)		(0x30389080UL + 0x80 * (i) + 0x10)
-#define CCM_IPG_CLK_ROOT_GEN_MISC_SET(i)	(0x30389080UL + 0x80 * (i) + 0x14)
-#define CCM_IPG_CLK_ROOT_GEN_MISC_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x18)
-#define CCM_IPG_CLK_ROOT_GEN_MISC_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x1c)
-#define CCM_IPG CLK_ROOT_GEN_NM_POST(i)		(0x30389080UL + 0x80 * (i) + 0x20)
-#define CCM_IPG_CLK_ROOT_GEN_NM_POST_SET(i)	(0x30389080UL + 0x80 * (i) + 0x24)
-#define CCM_IPG_CLK_ROOT_GEN_NM_POST_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x28)
-#define CCM_IPG_CLK_ROOT_GEN_NM_POST_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x2c)
-#define CCM_IPG_CLK_ROOT_GEN_NM_PRE(i)		(0x30389080UL + 0x80 * (i) + 0x30)
-#define CCM_IPG_CLK_ROOT_GEN_NM_PRE_SET(i)	(0x30389080UL + 0x80 * (i) + 0x3c)
-#define CCM_IPG_CLK_ROOT_GEN_NM_PRE_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x38)
-#define CCM_IPG_CLK_ROOT_GEN_NM_PRE_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x3c)
-#define CCM_IPG_CLK_ROOT_GEN_DB_POST(i)		(0x30389080UL + 0x80 * (i) + 0x40)
-#define CCM_IPG_CLK_ROOT_GEN_DB_POST_SET(i)	(0x30389080UL + 0x80 * (i) + 0x44)
-#define CCM_IPG_CLK_ROOT_GEN_DB_POST_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x48)
-#define CCM_IPG_CLK_ROOT_GEN_DB_POST_TOGGL(i)	(0x30389080UL + 0x80 * (i) + 0x4c)
-#define CCM_IPG_CLK_ROOT_GEN_DB_PRE(i)		(0x30389080UL + 0x80 * (i) + 0x50)
-#define CCM_IPG_CLK_ROOT_GEN_DB_PRE_SET(i)	(0x30389080UL + 0x80 * (i) + 0x54)
-#define CCM_IPG_CLK_ROOT_GEN_DB_PRE_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x58)
-#define CCM_IPG_CLK_ROOT_GEN_DB_PRE_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x5c)
-#define CCM_IPG_CLK_ROOT_GEN_ACC_CTRL(i)	(0x30389080UL + 0x80 * (i) + 0x70)
-#define CCM_IPG_CLK_ROOT_GEN_ACC_CTRL_SET(i)	(0x30389080UL + 0x80 * (i) + 0x74)
-#define CCM_IPG_CLK_ROOT_GEN_ACC_CTRL_CLR(i)	(0x30389080UL + 0x80 * (i) + 0x78)
-#define CCM_IPG_CLK_ROOT_GEN_ACC_CTRL_TOGGLE(i)	(0x30389080UL + 0x80 * (i) + 0x7c)
-
-/* CORE_SEL clock generation */
-#define CCM_CORE_SEL_CLK_ROOT_GEN_TAGET		(0x30389880UL + 0x00)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_TAGET_SET	(0x30389880UL + 0x04)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_TAGET_CLR	(0x30389880UL + 0x08)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_TAGET_TOGGLE	(0x30389880UL + 0x0c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_MISC		(0x30389880UL + 0x10)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_MISC_SET	(0x30389880UL + 0x14)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_MISC_CLR	(0x30389880UL + 0x18)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_MISC_TOGGLE	(0x30389880UL + 0x1c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_POST	(0x30389880UL + 0x20)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_POST_SET	(0x30389880UL + 0x24)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_POST_CLR	(0x30389880UL + 0x28)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_POST_TOGGLE (0x30389880UL + 0x2c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_PRE	(0x30389880UL + 0x30)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_PRE_SET	(0x30389880UL + 0x3c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_PRE_CLR	(0x30389880UL + 0x38)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_NM_PRE_TOGGLE	(0x30389880UL + 0x3c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_POST	(0x30389880UL + 0x40)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_POST_SET	(0x30389880UL + 0x44)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_POST_CLR	(0x30389880UL + 0x48)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_POST_TOGGL	(0x30389880UL + 0x4c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_PRE	(0x30389880UL + 0x50)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_PRE_SET	(0x30389880UL + 0x54)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_PRE_CLR	(0x30389880UL + 0x58)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_DB_PRE_TOGGLE	(0x30389880UL + 0x5c)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_ACC_CTRL	(0x30389880UL + 0x70)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_ACC_CTRL_SET	(0x30389880UL + 0x74)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_ACC_CTRL_CLR	(0x30389880UL + 0x78)
-#define CCM_CORE_SEL_CLK_ROOT_GEN_ACC_CTRL_TOGGLE (0x30389880UL + 0x7c)
-
-/* DRAM_SEL clock generation */
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_TAGET		(0x30389800UL + 0x00)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_TAGET_SET	(0x30389800UL + 0x04)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_TAGET_CLR	(0x30389800UL + 0x08)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_TAGET_TOGGLE	(0x30389800UL + 0x0c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_MISC		(0x30389800UL + 0x10)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_MISC_SET	(0x30389800UL + 0x14)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_MISC_CLR	(0x30389800UL + 0x18)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_MISC_TOGGLE	(0x30389800UL + 0x1c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_POST	(0x30389800UL + 0x20)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_POST_SET	(0x30389800UL + 0x24)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_POST_CLR	(0x30389800UL + 0x28)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_POST_TOGGLE (0x30389800UL + 0x2c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_PRE	(0x30389800UL + 0x30)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_PRE_SET	(0x30389800UL + 0x3c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_PRE_CLR	(0x30389800UL + 0x38)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_NM_PRE_TOGGLE	(0x30389800UL + 0x3c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_POST	(0x30389800UL + 0x40)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_POST_SET	(0x30389800UL + 0x44)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_POST_CLR	(0x30389800UL + 0x48)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_POST_TOGGL	(0x30389800UL + 0x4c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_PRE	(0x30389800UL + 0x50)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_PRE_SET	(0x30389800UL + 0x54)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_PRE_CLR	(0x30389800UL + 0x58)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_DB_PRE_TOGGLE	(0x30389800UL + 0x5c)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_ACC_CTRL	(0x30389800UL + 0x70)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_ACC_CTRL_SET	(0x30389800UL + 0x74)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_ACC_CTRL_CLR	(0x30389800UL + 0x78)
-#define CCM_DRAM_SEL_CLK_ROOT_GEN_ACC_CTRL_TOGGLE (0x30389800UL + 0x7c)
-
-/* CCGR: i ranges from 0 to 191 */
-#define CCM_CCGR(i)		(0x30384000UL + 0x10 * (i) + 0x00)
-#define CCM_CCGR_SET(i)		(0x30384000UL + 0x10 * (i) + 0x04)
-#define CCM_CCGR_CLR(i)		(0x30384000UL + 0x10 * (i) + 0x08)
-#define CCM_CCGR_TOGGLE(i)	(0x30384000UL + 0x10 * (i) + 0x0c)
-
-/* Source Control: i ranges from 0 to 38 */
-#define CCM_SRC(i)		(0x30380800UL + 0x10 * (i) + 0x00)
-#define CCM_SRC_SET(i)		(0x30380800UL + 0x10 * (i) + 0x04)
-#define CCM_SRC_CLR(i)		(0x30380800UL + 0x10 * (i) + 0x08)
-#define CCM_SRC_TOGGLE(i)	(0x30380800UL + 0x10 * (i) + 0x0c)
-
-/* Observe Control: i ranges from 0 to 7 */
-#define CCM_OBSERVE(i)		(0x30380400UL + 0x10 * (i) + 0x00)
-#define CCM_OBSERVE_SET(i)	(0x30380400UL + 0x10 * (i) + 0x04)
-#define CCM_OBSERVE_CLR(i)	(0x30380400UL + 0x10 * (i) + 0x08)
-#define CCM_OBSERVE_TOGGLE(i)	(0x30380400UL + 0x10 * (i) + 0x0c)
-
-/* Generic Control: i ranges from 0 to 9 */
-#define CCM_GEN(i)		(0x30380000UL + 0x10 * (i) + 0x00)
-#define CCM_GEN_SET(i)		(0x30380000UL + 0x10 * (i) + 0x04)
-#define CCM_GEN_CLR(i)		(0x30380000UL + 0x10 * (i) + 0x08)
-#define CCM_GEN_TOGGLE(i)	(0x30380000UL + 0x10 * (i) + 0x0c)
-
-#define CCGR_CLK_ON_MASK	0x03
-#define CLK_SRC_ON_MASK		0x03
-
-#define CLK_ROOT_ON		BIT(28)
-#define CLK_ROOT_OFF		(0 << 28)
-#define CLK_ROOT_ENABLE_MASK	BIT(28)
-#define CLK_ROOT_ENABLE_SHIFT	28
-#define CLK_ROOT_SOURCE_SEL(n)	(((n) & 0x7) << 24)
-
-/* For SEL, only use 1 bit */
-#define CLK_ROOT_SRC_MUX_MASK	0x07000000
-#define CLK_ROOT_SRC_MUX_SHIFT	24
-#define CLK_ROOT_SRC_0		0x00000000
-#define CLK_ROOT_SRC_1		0x01000000
-#define CLK_ROOT_SRC_2		0x02000000
-#define CLK_ROOT_SRC_3		0x03000000
-#define CLK_ROOT_SRC_4		0x04000000
-#define CLK_ROOT_SRC_5		0x05000000
-#define CLK_ROOT_SRC_6		0x06000000
-#define CLK_ROOT_SRC_7		0x07000000
-
-#define CLK_ROOT_PRE_DIV_MASK	(0x00070000)
-#define CLK_ROOT_PRE_DIV_SHIFT	16
-#define CLK_ROOT_PRE_DIV(n)	(((n) << 16) & 0x00070000)
-
-#define CLK_ROOT_AUDO_SLOW_EN	0x1000
-
-#define CLK_ROOT_AUDO_DIV_MASK	0x700
-#define CLK_ROOT_AUDO_DIV_SHIFT	0x8
-#define CLK_ROOT_AUDO_DIV(n)	(((n) << 8) & 0x700)
-
-/* For CORE: mask is 0x7; For IPG: mask is 0x3 */
-#define CLK_ROOT_POST_DIV_MASK		0x3f
-#define CLK_ROOT_CORE_POST_DIV_MASK	0x7
-#define CLK_ROOT_IPG_POST_DIV_MASK	0x3
-#define CLK_ROOT_POST_DIV_SHIFT		0
-#define CLK_ROOT_POST_DIV(n)		((n) & 0x3f)
-
-/* TODO check more */
-#define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_125M_CLK		0x01000000
-#define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_50M_CLK		0x02000000
-#define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK		0x03000000
-#define ENET_AXI_CLK_ROOT_FROM_PLL_SYS_PFD4_CLK			0x07000000
-#define ENET_AXI_CLK_ROOT_FROM_SYS1_PLL_266M			0x01000000
-#define ENET1_TIME_CLK_ROOT_FROM_PLL_ENET_MAIN_100M_CLK		0x01000000
-#define ENET_PHY_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK	0x01000000
-
-enum enet_freq {
-	ENET_25MHZ = 0,
-	ENET_50MHZ,
-	ENET_125MHZ,
-};
-void dram_pll_init(enum dram_pll_out_val pll_val);
-void dram_enable_bypass(enum dram_bypassclk_val clk_val);
-void dram_disable_bypass(void);
-u32 imx_get_fecclk(void);
-u32 imx_get_uartclk(void);
-int clock_init(void);
-u32 mxc_get_clock(enum mxc_clock clk);
-int clock_enable(enum clk_ccgr_index index, bool enable);
-int clock_root_enabled(enum clk_root_index clock_id);
-int clock_root_cfg(enum clk_root_index clock_id, enum root_pre_div pre_div,
-		   enum root_post_div post_div, enum clk_root_src clock_src);
-int clock_set_target_val(enum clk_root_index clock_id, u32 val);
-int clock_get_target_val(enum clk_root_index clock_id, u32 *val);
-int clock_get_prediv(enum clk_root_index clock_id, enum root_pre_div *pre_div);
-int clock_get_postdiv(enum clk_root_index clock_id,
-		      enum root_post_div *post_div);
-int clock_get_src(enum clk_root_index clock_id, enum clk_root_src *p_clock_src);
-void mxs_set_lcdclk(u32 base_addr, u32 freq);
-int set_clk_qspi(void);
-void enable_ocotp_clk(unsigned char enable);
-int enable_i2c_clk(unsigned char enable, unsigned int i2c_num);
-int set_clk_enet(enum enet_freq type);
-void hab_caam_clock_enable(unsigned char enable);
-void enable_usboh3_clk(unsigned char enable);
 #endif
