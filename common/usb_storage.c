@@ -106,8 +106,19 @@ struct us_data {
  * higher the risk that we exceed the 5s limit on very slow devices. Therefore
  * we reduce the number again quite considerably. Using 32768 will transfer at
  * most 16 MB in one go. This should be fine with all USB 2.0 storage devices.
+ *
+ * ### 04.07.2022 HK: Some USB3.1 sticks seem to have trouble when bit 15 of
+ * the block count is set. So further reduce length to 0x7000 (28672).
+ * Actually with newer SCSI versions, there is a register where the maximum
+ * number of blocks for one transfer can be read out. We should change the
+ * code below to read that register, but this is rather complicated. And
+ * because it is optional anyway and does not exist in earlier SCSI versions,
+ * we may still have to rely on this default value here. Newer U-Boot versions
+ * only read at most 256 blocks, but that slows down USB access considerably
+ * because USB polling for transfer completion is very slow in U-Boot and that
+ * happens with each single transfer.
  */
-#define USB_MAX_XFER_BLK	32768
+#define USB_MAX_XFER_BLK	0x7000
 
 #if !CONFIG_IS_ENABLED(BLK)
 static struct us_data usb_stor[USB_MAX_STOR_DEV];
