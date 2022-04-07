@@ -567,6 +567,43 @@ void enable_display_clk(unsigned char enable)
 }
 #endif
 
+void init_uart_clk(u32 index)
+{
+	/*
+	 * set uart clock root
+	 * 24M OSC
+	 */
+	switch (index) {
+	case 0:
+		clock_enable(CCGR_UART1, 0);
+		clock_set_target_val(UART1_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_UART1, 1);
+		return;
+	case 1:
+		clock_enable(CCGR_UART2, 0);
+		clock_set_target_val(UART2_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_UART2, 1);
+		return;
+	case 2:
+		clock_enable(CCGR_UART3, 0);
+		clock_set_target_val(UART3_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_UART3, 1);
+		return;
+	case 3:
+		clock_enable(CCGR_UART4, 0);
+		clock_set_target_val(UART4_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_UART4, 1);
+		return;
+	default:
+		printf("Invalid uart index\n");
+		return;
+	}
+}
+
 void init_wdog_clk(void)
 {
 	clock_enable(CCGR_WDOG1, 0);
@@ -577,6 +614,72 @@ void init_wdog_clk(void)
 	clock_enable(CCGR_WDOG1, 1);
 	clock_enable(CCGR_WDOG2, 1);
 	clock_enable(CCGR_WDOG3, 1);
+}
+
+void init_clk_usdhc(u32 index)
+{
+	/*
+	 * set usdhc clock root
+	 * sys pll1 400M
+	 */
+	switch (index) {
+	case 0:
+		clock_enable(CCGR_USDHC1, 0);
+		clock_set_target_val(USDHC1_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(1));
+		clock_enable(CCGR_USDHC1, 1);
+		return;
+	case 1:
+		clock_enable(CCGR_USDHC2, 0);
+		clock_set_target_val(USDHC2_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(1));
+		clock_enable(CCGR_USDHC2, 1);
+		return;
+	case 2:
+		clock_enable(CCGR_USDHC3, 0);
+		clock_set_target_val(USDHC3_CLK_ROOT, CLK_ROOT_ON |
+				     CLK_ROOT_SOURCE_SEL(1));
+		clock_enable(CCGR_USDHC3, 1);
+		return;
+	default:
+		printf("Invalid usdhc index\n");
+		return;
+	}
+}
+
+void init_clk_ecspi(u32 index)
+{
+	switch (index) {
+	case 0:
+		clock_enable(CCGR_ECSPI1, 0);
+		clock_set_target_val(ECSPI1_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_ECSPI1, 1);
+		return;
+	case 1:
+		clock_enable(CCGR_ECSPI2, 0);
+		clock_set_target_val(ECSPI2_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_ECSPI2, 1);
+	case 2:
+		clock_enable(CCGR_ECSPI3, 0);
+		clock_set_target_val(ECSPI3_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
+		clock_enable(CCGR_ECSPI3, 1);
+		return;
+	default:
+		printf("Invalid ecspi index\n");
+		return;
+	}
+}
+
+void init_nand_clk(void)
+{
+	/*
+	 * set rawnand root
+	 * sys pll1 400M
+	 */
+	clock_enable(CCGR_RAWNAND, 0);
+	clock_set_target_val(NAND_CLK_ROOT, CLK_ROOT_ON |
+		CLK_ROOT_SOURCE_SEL(3) | CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4)); /* 100M */
+	clock_enable(CCGR_RAWNAND, 1);
 }
 
 int clock_init()
@@ -632,64 +735,17 @@ int clock_init()
 	clock_enable(CCGR_GIC, 1);
 #endif
 
-	/*
-	 * set uart clock root
-	 * 24M OSC
-	 */
-	clock_enable(CCGR_UART1, 0);
-	clock_enable(CCGR_UART2, 0);
-	clock_enable(CCGR_UART3, 0);
-	clock_enable(CCGR_UART4, 0);
-	clock_set_target_val(UART1_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(UART2_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(UART3_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(UART4_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_enable(CCGR_UART1, 1);
-	clock_enable(CCGR_UART2, 1);
-	clock_enable(CCGR_UART3, 1);
-	clock_enable(CCGR_UART4, 1);
-
-	/*
-	 * set usdhc clock root
-	 * sys pll1 400M
-	 */
-	clock_enable(CCGR_USDHC1, 0);
-	clock_enable(CCGR_USDHC2, 0);
-	clock_enable(CCGR_USDHC3, 0);
-	clock_set_target_val(NAND_USDHC_BUS_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
-	clock_set_target_val(USDHC1_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
-	clock_set_target_val(USDHC2_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
-	clock_set_target_val(USDHC3_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
-	clock_enable(CCGR_USDHC1, 1);
-	clock_enable(CCGR_USDHC2, 1);
-	clock_enable(CCGR_USDHC3, 1);
+	clock_set_target_val(NAND_USDHC_BUS_CLK_ROOT, CLK_ROOT_ON |
+						CLK_ROOT_SOURCE_SEL(1));
 
 	clock_enable(CCGR_DDR1, 0);
 	clock_set_target_val(DRAM_ALT_CLK_ROOT,CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
 	clock_set_target_val(DRAM_APB_CLK_ROOT,CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
 	clock_enable(CCGR_DDR1, 1);
 
-	/*
-	 * set rawnand root
-	 * sys pll1 400M
-	 */
-	clock_enable(CCGR_RAWNAND, 0);
-	clock_set_target_val(NAND_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(3) | CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4)); /* 100M */
-	clock_enable(CCGR_RAWNAND, 1);
-
 	init_wdog_clk();
 
 	clock_enable(CCGR_TEMP_SENSOR, 1);
-
-	clock_enable(CCGR_ECSPI1, 0);
-	clock_enable(CCGR_ECSPI2, 0);
-	clock_enable(CCGR_ECSPI3, 0);
-	clock_set_target_val(ECSPI1_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(ECSPI2_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(ECSPI3_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_enable(CCGR_ECSPI1, 1);
-	clock_enable(CCGR_ECSPI2, 1);
-	clock_enable(CCGR_ECSPI3, 1);
 
 	clock_enable(CCGR_SEC_DEBUG, 1);
 

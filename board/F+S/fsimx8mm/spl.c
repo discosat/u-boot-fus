@@ -188,16 +188,18 @@ static void config_uart(int board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MM:
-		/* Setup UART pads */
+		/* Setup UART1 on UART1 pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mm,
 						 ARRAY_SIZE(uart_pads_mm));
+		init_uart_clk(0);
 		break;
 
 	case BT_PICOCOREMX8MX:
 	case BT_TBS2:
-		/* Setup UART pads */
+		/* Setup UART1 on SAI2 pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mx,
 						 ARRAY_SIZE(uart_pads_mx));
+		init_uart_clk(0);
 		break;
 	}
 
@@ -308,15 +310,19 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 #ifdef CONFIG_NAND_MXS
 	case NAND_BOOT:
 		fs_spl_init_nand_pads();
-		if (start)
+		if (start) {
+			init_nand_clk();
 			nand_init();
+		}
 		break;
 #endif
 #ifdef CONFIG_MMC
 	case MMC3_BOOT:
 		fs_spl_init_emmc_pads();
-		if (start)
+		if (start) {
+			init_clk_usdhc(2);
 			mmc_initialize(NULL);
+		}
 		break;
 		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
 #endif

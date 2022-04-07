@@ -252,6 +252,7 @@ static iomux_v3_cfg_t const emmc_pads[] = {
 
 static void fs_spl_init_emmc_pads(void)
 {
+	/* Setup USDHC3 on NAND pads */
 	imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
 	boot_dev_init_done = true;
 }
@@ -300,15 +301,19 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 #ifdef CONFIG_NAND_MXS
 	case NAND_BOOT:
 		fs_spl_init_nand_pads();
-		if (start)
+		if (start) {
+			init_nand_clk();
 			nand_init();
+		}
 		break;
 #endif
 #ifdef CONFIG_MMC
 	case MMC3_BOOT:
 		fs_spl_init_emmc_pads();
-		if (start)
+		if (start) {
+			init_clk_usdhc(2);
 			mmc_initialize(NULL);
+		}
 		break;
 		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
 #endif
