@@ -829,9 +829,6 @@ ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
 ALL-$(CONFIG_TARGET_FSVYBRID) += uboot.nb0
 ALL-$(CONFIG_ARCH_MX6) += uboot.nb0
 
-# Create disassembler listings if requested
-ALL-$(CONFIG_DISASM) += u-boot.dis
-
 ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
 ALL-$(CONFIG_NAND_U_BOOT) += u-boot-nand.bin
 ALL-$(CONFIG_ONENAND_U_BOOT) += u-boot-onenand.bin
@@ -847,7 +844,6 @@ endif
 
 ifdef CONFIG_SPL_AUTOBUILD
 ALL-$(CONFIG_SPL) += spl/u-boot-spl.bin
-ALL-$(CONFIG_SPL_DISASM) += spl/u-boot-spl.dis
 endif
 
 PHONY += spl
@@ -865,7 +861,6 @@ endif
 
 ifdef CONFIG_TPL_AUTOBUILD
 ALL-$(CONFIG_TPL) += tpl/u-boot-tpl.bin
-ALL-$(CONFIG_TPL_DISASM) += tpl/u-boot-tpl.dis
 endif
 
 PHONY += tpl
@@ -1264,11 +1259,9 @@ u-boot-spl.kwb: u-boot.img spl/u-boot-spl.bin FORCE
 u-boot.sha1:	u-boot.bin
 		tools/ubsha1 u-boot.bin
 
-quiet_cmd_disasm = DISASM  $@
-cmd_disasm = $(OBJDUMP) -d $< > $@
-
-%.dis:	%
-	$(call cmd,disasm)
+# Create disassembler listings if requested
+quiet_cmd_disasm = DISASM  $(2).dis
+cmd_disasm = $(OBJDUMP) -d $(2) > $(2).dis
 
 OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_BOARD_SIZE_LIMIT) -I binary -O binary
 uboot.nb0:	u-boot.bin
@@ -1580,6 +1573,7 @@ ifeq ($(CONFIG_KALLSYMS),y)
 	$(call cmd,smap)
 	$(call cmd,u-boot__) common/system_map.o
 endif
+	$(if $(CONFIG_DISASM),$(call cmd,disasm,$@))
 
 ifeq ($(CONFIG_RISCV),y)
 	@tools/prelink-riscv $@ 0
@@ -1734,6 +1728,7 @@ spl/u-boot-spl: tools prepare \
 		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb) \
 		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_TPL_OF_PLATDATA),dts/dt.dtb)
 	$(Q)$(MAKE) obj=spl -f $(srctree)/scripts/Makefile.spl all
+	$(if $(CONFIG_SPL_DISASM),$(call cmd,disasm,$@))
 
 spl/sunxi-spl.bin: spl/u-boot-spl
 	@:
@@ -1748,8 +1743,9 @@ spl/boot.bin: spl/u-boot-spl
 	@:
 
 tpl/u-boot-tpl.bin: tools prepare \
-		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb)
+	$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb)
 	$(Q)$(MAKE) obj=tpl -f $(srctree)/scripts/Makefile.spl all
+	$(if $(CONFIG_TPL_DISASM),$(call cmd,disasm,$(basename $@)))
 
 TAG_SUBDIRS := $(patsubst %,$(srctree)/%,$(u-boot-dirs) include)
 
