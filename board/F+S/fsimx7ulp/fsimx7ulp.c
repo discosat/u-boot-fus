@@ -436,7 +436,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 {
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	int offs;
-
+	int id = 0;
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
 	if (offs >= 0) {
@@ -448,6 +448,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		 * which have an integrated mac address. So we don´t
 		 * have to set an own mac address for the module.
 		 */
+		fs_fdt_set_macaddr(fdt, offs, id++);
 //		if (features & FEAT2_WLAN)
 //			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
