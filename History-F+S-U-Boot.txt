@@ -1,6 +1,19 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx7ulp-Y2022.05 (11.05.2022)
+----------------------------------------------
+Supported boards: PicoCoreMX7ULP
+
+- Improve imx7ulp bootaux command
+- Improve imx7ulp reset cause handling
+- Increaseth fsimx7ulp default CMA size
+- Add picocoremx7ulp spi flash device support
+- Set mac address in bdinfo for fsimx7ulp
+- Fix fsimx7ulp reloction error
+
+
+
 u-boot-2018.03-fsimx6ul-B2022.04 (11.04.2022)
 ---------------------------------------------
 Supported boards: efusA7UL PicoCOM1.2 PicoCoreMX6UL PicoCoreMX6UL100 PicoCOMA7
