@@ -28,8 +28,6 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct fs_nboot_args nbootargs;
-
 #define BT_PCOREMX7ULP 	0
 
 /* Board features; these values can be resorted and redefined at will */
@@ -109,39 +107,25 @@ static void setup_iomux_uart(void)
 /* Check how to add more dynamically, SPL? */
 void fs_board_init_nboot_args(void)
 {
-	struct fs_nboot_args *pargs = (struct fs_nboot_args*)
-				(CONFIG_SYS_SDRAM_BASE + 0x00001000);
+	/* Before relocation we do not have variables, so prepare
+	 * a temporary struct at a fix ram position. This will be
+     * copied to a real variable later in board_init()
+     */
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* initalize ram area with zero before set */
 	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
 
-    	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
-	nbootargs.dwSize = 16*4;
-	nbootargs.dwNBOOT_VER = 1;
-
-	nbootargs.dwMemSize = PHYS_SDRAM_SIZE >> 20;
-
-	nbootargs.dwNumDram = CONFIG_NR_DRAM_BANKS;
-	nbootargs.dwFlashSize = 0x0;		/* size of NAND flash in MB */
-	nbootargs.dwDbgSerPortPA = LPUART_BASE;
-
-	/* get board type */
-        nbootargs.chBoardType = 0x0;
-	/* get board revision */
-        nbootargs.chBoardRev = 120;
-
 	/* fill nboot args first after ram initialization */
-	pargs = fs_board_get_nboot_args();
-
-	pargs->dwID = nbootargs.dwID;
-	pargs->dwSize = nbootargs.dwSize;
-	pargs->dwNBOOT_VER = nbootargs.dwNBOOT_VER;
-	pargs->dwMemSize = nbootargs.dwMemSize;
-	pargs->dwNumDram = nbootargs.dwNumDram;
-	pargs->dwFlashSize = nbootargs.dwFlashSize;
-	pargs->dwDbgSerPortPA = nbootargs.dwDbgSerPortPA;
-	pargs->chBoardRev = nbootargs.chBoardRev;
-	pargs->chBoardType = nbootargs.chBoardType;
+	pargs->dwID =  FSHWCONFIG_ARGS_ID;
+	pargs->dwSize = 16*4;
+	pargs->dwNBOOT_VER =  1;
+	pargs->dwMemSize = PHYS_SDRAM_SIZE >> 20;
+	pargs->dwNumDram = CONFIG_NR_DRAM_BANKS;
+	pargs->dwFlashSize = 0x0;
+	pargs->dwDbgSerPortPA = LPUART_BASE;
+	pargs->chBoardRev = 120;
+	pargs->chBoardType = 0x0;
 	pargs->chFeatures2 = 0x3F;
 }
 
