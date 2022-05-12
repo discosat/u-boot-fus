@@ -33,8 +33,8 @@ NBOOT_VERSION = 2021.12
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
-	efusMX8X-FERT1.110.fs \
-	efusMX8X-FERT1.100.fs
+	EFUSMX8X-FERT1.110.fs \
+	EFUSMX8X-FERT1.100.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=

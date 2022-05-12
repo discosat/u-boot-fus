@@ -28,6 +28,7 @@
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #include "../common/fs_image_common.h"	/* fs_image_*() */
+#include "../common/tcpc.h"
 
 #include <power/regulator.h>
 

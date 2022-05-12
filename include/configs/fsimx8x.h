@@ -17,8 +17,8 @@ Free Space:
  * 0x0010_0000: SPL                 SPL       (196KB) (loaded by ROM-Loader, address defined by imximage.cfg)
  * 0x0013_0000: DRAM Timing Data              (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
  * 0x0013_4000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
- * 0x0013_6000: BSS data            cfg_info  (8KB)  CONFIG_SPL_BSS_START_ADDR
- * 0x0013_8000: MALLOC_F pool       ---       (16KB) CONFIG_MALLOC_F_ADDR
+ * 0x0013_6000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
+ * 0x0013_6800: MALLOC_F pool       ---       (22KB) CONFIG_MALLOC_F_ADDR
  * 0x0013_C000: Stack + Global Data ---       (16KB) CONFIG_SPL_STACK
  * 0x0013_FFFF: END (8X)
  *
@@ -184,12 +184,12 @@ Free Space:
  */
 #define CONFIG_FUS_BOARDCFG_ADDR	0x00134000
 #define CONFIG_SPL_BSS_START_ADDR      0x00136000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
+#define CONFIG_SPL_BSS_MAX_SIZE		0x800	/* 2 KB */
 
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
-#define CONFIG_SPL_STACK		0x13C000
+#define CONFIG_SPL_STACK		0x13FFF0
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
 #define CONFIG_FUS_BOARDCFG_MMC0 0x00080000
@@ -208,7 +208,7 @@ Free Space:
 /* TCM Address where DRAM Timings are loaded to */
 #define CONFIG_SPL_DRAM_TIMING_ADDR 0x00130000
 
-#define CONFIG_MALLOC_F_ADDR		0x00138000
+#define CONFIG_MALLOC_F_ADDR		0x00136800
 
 #define CONFIG_SERIAL_LPUART_BASE	0x5a080000
 
