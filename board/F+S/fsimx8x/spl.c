@@ -14,6 +14,7 @@
 #include <asm/arch/iomux.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/lpcg.h>
+#include <asm/gpio.h>
 #include <dm/uclass.h>
 #include <dm/device.h>
 #include <dm/uclass-internal.h>
@@ -283,8 +284,21 @@ void board_init_f(ulong dummy)
 	board_init_r(NULL, 0);
 }
 
+/* BL_ON */
+#define BL_ON_PAD IMX_GPIO_NR(3, 24)
+#define GPIO_PAD_CTRL	((SC_PAD_CONFIG_NORMAL << PADRING_CONFIG_SHIFT) | (SC_PAD_ISO_OFF << PADRING_LPCONFIG_SHIFT) \
+						| (SC_PAD_28FDSOI_DSE_DV_HIGH << PADRING_DSE_SHIFT) | (SC_PAD_28FDSOI_PS_PU << PADRING_PULL_SHIFT))
+static iomux_cfg_t bl_on_pad = SC_P_QSPI0B_SS1_B | MUX_MODE_ALT(4) | MUX_PAD_CTRL(GPIO_PAD_CTRL);
+
 void spl_board_init(void)
 {
+	/* Power up UART2 */
+	sc_pm_set_resource_power_mode(-1, SC_R_GPIO_3, SC_PM_PW_MODE_ON);
+
+	imx8_iomux_setup_pad(bl_on_pad);
+	/* backlight off*/
+	gpio_request(BL_ON_PAD, "BL_ON");
+	gpio_direction_output(BL_ON_PAD, 0);
 
 #ifndef CONFIG_SPL_USB_SDP_SUPPORT
 	/* Serial download mode */
