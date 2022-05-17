@@ -846,6 +846,11 @@ Free Space:
 #define CONFIG_FEC_XCV_TYPE		RGMII
 #define FEC_QUIRK_ENET_MAC
 
+#define CONFIG_NETMASK		255.255.255.0
+#define CONFIG_IPADDR		10.0.0.252
+#define CONFIG_SERVERIP		10.0.0.122
+#define CONFIG_GATEWAYIP	10.0.0.5
+#define CONFIG_ROOTPATH		"/rootfs"
 
 /* Framebuffer */
 #ifdef CONFIG_VIDEO
