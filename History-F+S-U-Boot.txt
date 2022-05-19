@@ -1,6 +1,12 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2021.07.3 (19.05.2022)
+Supported boards: PicoCoreMX8MP
+
+- Add DRAM timings for nt6an512t32av-j2i
+- Add F&S u-boot bootaux functionality
+
 u-boot-2020.04-fsimx8mp-Y2021.07 (19.07.2021)
 Supported boards: PicoCoreMX8MP
 
