@@ -27,6 +27,7 @@ extern unsigned int lpddr4_mr_read(unsigned int mr_rank, unsigned int mr_addr);
 extern struct dram_timing_info dram_timing_k4f6e3s4hm_mgcj;
 extern struct dram_timing_info dram_timing_k4f8e3s4hd_mgcj;
 extern struct dram_timing_info dram_timing_fl4c2001g_d9;
+extern struct dram_timing_info dram_timing_nt6an512t32av_j2i;
 
 /* Description table of different lpddr4 sdram chips */
 static const struct lpddr4_info lpddr4_table[] = {
@@ -51,6 +52,13 @@ static const struct lpddr4_info lpddr4_table[] = {
 			.memory_number = 1,
 			.dram_timings = &dram_timing_fl4c2001g_d9
 	},
+	{
+			.name = "Nanya",
+			.id = 0x05000010,
+			.total_density = 0x80000000,
+			.memory_number = 1,
+			.dram_timings = &dram_timing_nt6an512t32av_j2i
+	}
 };
 
 /* Get pointer to a descriptor for given mr basic configuration value.
