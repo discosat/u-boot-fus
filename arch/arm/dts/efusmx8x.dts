@@ -498,15 +498,13 @@
 		ethphy0: ethernet-phy@4 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <4>;
-			at803x,eee-disabled;
-			at803x,vddio-1p8v;
+			qca,clk-out-frequency = <25000000>;
 		};
 
 		ethphy1: ethernet-phy@5 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <5>;
-			at803x,eee-disabled;
-			at803x,vddio-1p8v;
+			qca,clk-out-frequency = <25000000>;
 		};
 	};
 };
