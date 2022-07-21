@@ -633,11 +633,13 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 	writel((uint32_t)addr, &fec->eth->erdsr);
 
 #ifndef CONFIG_PHYLIB
-	if (fec->xcv_type != SEVENWIRE)
-		miiphy_restart_aneg(dev);
+	if (fec->xcv_type != SEVENWIRE) {
+		int ret = miiphy_restart_aneg(dev);
+		if (ret)
+			return ret;
+	}
 #endif
-	fec_open(dev);
-	return 0;
+	return fec_open(dev);
 }
 
 /**
@@ -950,9 +952,15 @@ static int fec_recv(struct eth_device *dev)
 #endif
 			len = frame_length;
 		} else {
-			if (bd_status & FEC_RBD_ERR)
-				debug("error frame: 0x%08lx 0x%08x\n",
+			if (bd_status & FEC_RBD_ERR) {
+#if 1
+				putc('E');
+#else
+				debug("error frame: 0x%08x 0x%08x\n",
 				      addr, bd_status);
+#endif
+				len = -1;
+			}
 		}
 
 		/*

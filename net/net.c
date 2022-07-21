@@ -567,11 +567,11 @@ restart:
 
 		/*
 		 *	Check the ethernet for a new packet.  The ethernet
-		 *	receive routine will process it.
-		 *	Most drivers return the most recent packet size, but not
-		 *	errors that may have happened.
+		 *	receive routine will process it. In case of error,
+		 *	force immediate timeout.
 		 */
-		eth_rx();
+		if (eth_rx() < 0)
+			time_start = get_timer(0) - time_delta - 1;
 
 		/*
 		 *	Abort if ctrl-c was pressed.
