@@ -45,7 +45,7 @@ __weak void arch_setup_gd(struct global_data *gd_ptr)
 ulong board_init_f_alloc_reserve(ulong top)
 {
 	/* Reserve early malloc arena */
-#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+#if CONFIG_VAL(SYS_MALLOC_F_LEN) && !defined(CONFIG_MALLOC_F_ADDR)
 	top -= CONFIG_VAL(SYS_MALLOC_F_LEN);
 #endif
 	/* LAST : reserve GD (rounded up to a multiple of 16 bytes) */
@@ -120,7 +120,7 @@ void board_init_f_init_reserve(ulong base)
 	 * Use gd as it is now properly set for all architectures.
 	 */
 
-#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+#if CONFIG_VAL(SYS_MALLOC_F_LEN) && !defined(CONFIG_MALLOC_F_ADDR)
 	/* go down one 'early malloc arena' */
 	gd->malloc_base = base;
 	/* next alloc will be higher by one 'early malloc arena' size */
