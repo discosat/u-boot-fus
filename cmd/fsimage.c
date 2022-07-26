@@ -240,9 +240,6 @@ static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
 
 	*used_boot_dev = boot_dev;
 	boot_dev_fuses = fs_board_get_boot_dev_from_fuses();
-
-	printf("boot_dev_cfg = %d\n",boot_dev_cfg);
-	printf("boot_dev_fuses = %d\n",boot_dev_fuses);
 	if (boot_dev_fuses != boot_dev_cfg) {
 		if (boot_dev_fuses != USB_BOOT) {
 			printf("Error: New BOARD-CFG wants to boot from %s but"
@@ -1439,8 +1436,6 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 #else
 		cur_val = 0;
 #endif
-		printf("cur_val = 0x%x\n",cur_val);
-		printf("fuse_val = 0x%x\n",fuse_val);
 		if (cur_val != fuse_val) {
 			ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
 			if (ret) {

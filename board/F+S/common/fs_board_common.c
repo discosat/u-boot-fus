@@ -570,34 +570,28 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 		break;
 
 	case 0x1: // USB
-	printf("USB\n");
 		boot_dev = USB_BOOT;
 		break;
 
 	case 0x2: // eMMC0
-	printf("eMMC0\n");
 		boot_dev = MMC1_BOOT;
 		break;
 
 	case 0x3: // SD1
-	printf("SD1\n");
 		boot_dev = SD2_BOOT;
 		break;
 
 	case 0x4: // NAND(128 pages)
 	case 0x5: // NAND( 32 pages)
-	printf("NAND\n");
 		boot_dev = NAND_BOOT;
 		break;
 
 	case 0x6: // FlexSPI(default)
 	case 0x7: // FlexSPI(Hyperflash 3.0)
-	printf("FlexSPI\n");
 		boot_dev = FLEXSPI_BOOT;
 		break;
 
 	default:
-	printf("Default\n");
 		break;
 	}
 
