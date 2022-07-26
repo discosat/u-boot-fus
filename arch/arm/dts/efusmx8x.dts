@@ -749,6 +749,7 @@
 };
 
 &usbotg3 {
+	compatible = "Cadence,usb3-host";
 	phys = <&usbphynop1>;
 	u-boot,dm-spl;
 };

@@ -42,6 +42,7 @@
 
 static int asynch_allowed;
 char usb_started; /* flag for the started/stopped USB status */
+#define MAX_PREPARE_RETRIES 3
 
 #if !CONFIG_IS_ENABLED(DM_USB)
 static struct usb_device usb_dev[USB_MAX_DEVICE];
@@ -1030,6 +1031,7 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 			      struct usb_device *parent)
 {
 	int err;
+	int tries = MAX_PREPARE_RETRIES;
 
 	/*
 	 * Allocate usb 3.0 device context.
@@ -1042,6 +1044,7 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 		printf("Cannot allocate device context to get SLOT_ID\n");
 		return err;
 	}
+retry:
 	err = usb_setup_descriptor(dev, do_read);
 	if (err)
 		return err;
@@ -1054,6 +1057,11 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 	err = usb_set_address(dev); /* set address */
 
 	if (err < 0) {
+		/* If setting the address failed, reset and try again */
+		debug("Reset again\n");
+		if ((--tries > 0) && !usb_hub_port_reset(dev, parent))
+			goto retry;
+
 		printf("\n      USB device not accepting new address " \
 			"(error=%lX)\n", dev->status);
 		return err;
@@ -1070,6 +1078,22 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 		err = usb_setup_descriptor(dev, true);
 		if (err)
 			return err;
+	}
+
+	/*
+	 * usb_setup_descriptor() only reads the descriptor in case of Full
+	 * Speed. Experience has shown that reading the device descriptor
+	 * later in usb_select_config() may still fail. Therefore actually
+	 * read the device descriptor here already, then we can try again if
+	 * this fails. This helped to bring up some problematic devices.
+	 */
+	err = get_descriptor_len(dev, USB_DT_DEVICE_SIZE, USB_DT_DEVICE_SIZE);
+	if (err) {
+		puts("Retry...\n");
+		if ((--tries > 0) && !usb_hub_port_reset(dev, parent))
+			goto retry;
+
+		return err;
 	}
 
 	return 0;
@@ -1272,6 +1296,7 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 			       uint8_t *hub_address, uint8_t *hub_port)
 {
 	/* Find out the nearest parent which is high speed */
+#if 0
 	while (udev->parent->parent != NULL)
 		if (udev->parent->speed != USB_SPEED_HIGH) {
 			udev = udev->parent;
@@ -1280,6 +1305,16 @@ void usb_find_usb2_hub_address_port(struct usb_device *udev,
 			*hub_port = udev->portnr;
 			return;
 		}
+#else
+	while (udev->parent) {
+		if (udev->parent->speed == USB_SPEED_HIGH) {
+			*hub_address = udev->parent->devnum;
+			*hub_port = udev->portnr;
+			return;
+		}
+		udev = udev->parent;
+	}
+#endif
 
 	printf("Error: Cannot find high speed parent of usb-1 device\n");
 	*hub_address = 0;
