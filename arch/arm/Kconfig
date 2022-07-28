@@ -1887,7 +1887,6 @@ source "board/xilinx/Kconfig"
 source "board/xilinx/zynq/Kconfig"
 source "board/xilinx/zynqmp/Kconfig"
 source "board/phytium/durian/Kconfig"
-source "board/F+S/common/Kconfig"
 
 source "arch/arm/Kconfig.debug"
 

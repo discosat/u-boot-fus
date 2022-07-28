@@ -13,6 +13,155 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+/*
+#define OCRAM_BASE		0x900000
+
+ * TCM layout (SPL)
+ * ----------------
+ * unused
+ *
+ * OCRAM layout SPL                 U-Boot
+ * ---------------------------------------------------------
+ * 0x0090_0000: (Region reserved by ROM loader)(64KB)
+ * 0x0091_0000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
+ * 0x0091_2000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
+ * 0x0091_2800: MALLOC_F pool       ---       (34KB) CONFIG_MALLOC_F_ADDR
+ * 0x0091_B000: ---                 ---       (4KB)
+ * 0x0091_FFF0: Global Data + Stack --- 	  (20KB) CONFIG_SPL_STACK
+ * 0x0092_0000: SPL (<= ~208KB) (loaded by ROM-Loader, address defined by ATF)
+ *     DRAM-FW: Training Firmware (up to 96KB, immediately behind end of SPL)
+ * 0x0096_C000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
+ * 0x0097_0000: ATF (8MP)           ATF       (64KB) CONFIG_SPL_ATF_ADDR
+ * 0x0098_FFFF: END (8MP)
+ *
+ * The sum of SPL and DDR_FW must not exceed 232KB (0x3A000). However there is
+ * still room to extend this region if SPL grows larger in the future.
+ * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
+
+
+ * NAND flash layout
+ * -------------------------------------------------------------------------
+ * Planned when U-Boot can write SPL/FCB/DBBT:
+ * 0x0000_0000: BCB Copy 0 (FCB+DBBT) (128KB)               \
+ * 0x0002_0000: BCB Copy 1 (FCB+DBBT) (128KB)                |
+ * 0x0004_0000: SPL Copy 0 (256KB)                           |
+ * 0x0008_0000: SPL Copy 1 (256KB)                           | "NBoot"
+ * 0x000C_0000: Reserve in case of bad blocks (256KB)        |
+ * 0x0010_0000: BOARD-CFG Copy 0 (8KB)                       |
+ * 0x0010_2000: FIRMWARE Copy 0 (1528KB)                     |
+ * 0x0028_0000: BOARD-CFG Copy 1 (8KB)                       |
+ * 0x0028_0000: FIRMWARE Copy 1 (1528KB)                    /
+ * 0x0040_0000: Refresh ...
+ * Actually now, when SPL/FCB/DBBT/HDMI is written by NXP tool kobs:
+ * 0x0000_0000: FCB Copy 0 (128KB)                          \
+ * 0x0002_0000: FCB Copy 1 (128KB)                           |
+ * 0x0004_0000: DBBT Copy 0 (128KB)                          |
+ * 0x0006_0000: DBBT Copy 1 (128KB)                          |
+ * 0x0008_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
+ * 0x000C_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
+ * 0x000C_2000: FIRMWARE Copy 0 (1272KB)                     |
+ * 0x0020_0000: SPL Copy 1 (256KB)         Defined by Fuse   |
+ * 0x0024_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x0024_2000: FIRMWARE Copy 1 (1272KB)                    /
+ * 0x0038_0000: Free (512KB)
+ * 0x0040_0000: Refresh (512KB)
+ * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
+ * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
+ * 0x0050_0000: UBoot_A (3MB)              nboot-info: uboot-start[0]
+ * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
+ * 0x00B0_0000: UserDef (2MB)
+ * 0x00D0_0000: Kernel_A (32MB)
+ * 0x02D0_0000: FDT_A (1MBKB)
+ * 0x02E0_0000: Kernel_B (32MB, opt)
+ * 0x04E0_0000: FDT_B (1MB, opt)
+ * 0x04F0_0000: TargetFS as UBI Volumes
+ *
+ * Remarks:
+ * - In this scenario, the fuses for the Secondary Image Offset have to be set
+ *   to 1 (=2MB). This value can be set to 1MB*2^n, but the values for 0 and 2
+ *   are switched so 0 becomes 4MB and 2 becomes 1MB.
+ * - nboot-start[] is initialized with CONFIG_FUS_BOARDCFG_NAND0/1.
+ * - If Kernel and FDT are part of the Rootfs, these partitions are dropped.
+ * - If no Update with Set A and B is used, all _B partitions are dropped;
+ *   UBoot_B is replaced by UserDef. This keeps all offsets up to and
+ *   including FDT_A fix and also mtd numbers in Linux. In other words: the
+ *   version with Update support just inserts Kernel_B and FDT_B in front of
+ *   TargetFS and renames UserDef to UBoot_B.
+ * - If the size of U-Boot will increase in the future, only UBoot_B must be
+ *   moved. All other hardcoded offsets stay as they are.
+ *
+ * eMMC Layout
+ * -----------
+ * Scenario 1: NBoot is in Boot1/Boot2 HW-Partition
+ *
+ * Boot1/2 HW-Partition (Boot Offset for the Primary Image is 0x0000):
+ * 0x0000_0000: SPL Copy 0/1 (512KB)       i.MX8X (always 0)
+ * 0x0008_0000: BOARD-CFG Copy 0/1 (8KB)   nboot-info: nboot-start[0]
+ * 0x0008_2000: FIRMWARE Copy 0/1 (120KB)
+ * 0x0010_0000: --- (free, for compatibility reasons with fsimx8mm, 224KB)
+ * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
+ * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
+ * 0x0014_0000: --- (free, may be used for U-Boot in the future)
+ *
+ * User HW-Partition:
+ * 0x0000_0000: --- (free, space for GPT, 32KB)
+ * 0x0000_8000: --- (free, 1248KB, may be used for UserDef/M4 image)
+ * 0x0014_0000: U-Boot A (3MB)
+ * 0x0044_0000: U-Boot B (3MB)
+ * 0x0074_0000: --- (free, 768KB)
+ * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
+ *
+ * The goal here is to move U-Boot to the Boot partition in the next release
+ * to get the whole 8MB reserved region in User space empty for UserDef/M4
+ * image and to make writing whole filesystem images easier. Currently U-Boot
+ * is always destroyed when this region is not skipped when writing.
+ *
+ * Remarks:
+ * - In this scenario, setting the fuses for the Secondary Image Offset is not
+ *   necessary.
+ * - spl-start of nboot-info is ignored and silently assumed to be 0.
+ * - nboot-start[] of nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
+ *   Makefile, but only nboot-start[0] and uboot-start[0] are taken for both
+ *   copies in the two Boot HW-Partitions.
+ * - If eMMC is configured to boot from Boot1, then this is the Primary Image
+ *   and Boot2 is the Secondary Image. If eMMC is configured to boot from
+ *   Boot2, then this is the Primary Image and Boot1 is the Secondary Image.
+ * - The U-Boot environment is always stored with the Primary Image, i.e. the
+ *   partition that is configured for boot.
+ * - The reserved region size at the beginning of the User HW-Partition can
+ *   stay at 8MB as with NXP, for example to hold the UserDef data or an M4
+ *   image. Or it can be reduced to the size of the partition table which is
+ *   one simple sector when using MBR.
+ *
+ * Scenario 2: NBoot is in User HW-Partition
+ *
+ * Boot1/2 HW-Partition:
+ * 0x0000_0000: --- (completely empty)
+ *
+ * User HW-Partition (Boot Offset for the Primary Image is 0x8000):
+ * 0x0000_0000: --- (space for GPT, 32KB)
+ * 0x0000_8000: SPL Copy 0 (224KB)         i.MX8X; nboot-info: spl-start[0]
+ * 0x0004_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
+ * 0x0004_2000: FIRMWARE Copy 0 (760KB)
+ * 0x0010_0000: SPL Copy 1 (224KB)         Secondary Image Offset, spl-start[1]
+ * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
+ * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
+ * 0x0014_0000: U-Boot A (3MB)
+ * 0x0044_0000: U-Boot B (3MB)
+ * 0x0074_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x0074_2000: FIRMWARE Copy 1 (760KB)
+ * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
+ *
+ * Remarks:
+ * - In this scenario, the fuses for the Secondary Image Offset have to be set
+ *   to 2 (=1MB). This value can be set to 1MB*2^n, so this is the smallest
+ *   possible setting.
+ * - The reserved region size stays at 8MB as with NXP.
+ * - nboot-start[] of nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
+ *   Makefile, and both entries for spl-start, nboot-start and uboot-start are
+ *   actually used.
+ */
+
 #ifndef __FSIMX8MP_H
 #define __FSIMX8MP_H
 
@@ -34,22 +183,43 @@
 #define CONFIG_SYS_UART_PORT	1	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
-#define DEV_NAME_SIZE 20
 #define CONFIG_SPL_MAX_SIZE		(152 * 1024)
-#define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
+#define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 #define CONFIG_SYS_UBOOT_BASE	(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
 
-#ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_STACK		0x187FF0
-#define CONFIG_SPL_BSS_START_ADDR      0x0095e000
-#define CONFIG_SPL_BSS_MAX_SIZE        0x2000	/* 8 KB */
-#define CONFIG_SYS_SPL_MALLOC_START    0x42200000
-#define CONFIG_SYS_SPL_MALLOC_SIZE     SZ_512K	/* 512 KB */
+/*
+ * The memory layout on stack:  DATA section save + gd + early malloc
+ * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
+ * CONFIG_SYS_SPL_MALLOC_START
+ */
+#define CONFIG_FUS_BOARDCFG_ADDR	0x00910000
+#define CONFIG_SPL_BSS_START_ADDR      0x00912000
+#define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
 
-#define CONFIG_MALLOC_F_ADDR		0x184000 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#ifdef CONFIG_SPL_BUILD
+#define CONFIG_SPL_STACK		0x91FFF0
+
+/* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
+#define CONFIG_FUS_BOARDCFG_MMC0 0x00080000
+#define CONFIG_FUS_BOARDCFG_MMC1 0x00740000
+
+#define CONFIG_SYS_SPL_MALLOC_START    0x42200000
+#define CONFIG_SYS_SPL_MALLOC_SIZE     SZ_1M //SZ_512K	/* 512 KB */
+#define CONFIG_SYS_ICACHE_OFF
+#define CONFIG_SYS_DCACHE_OFF
+
+/* These addresses are hardcoded in ATF */
+#define CONFIG_SPL_USE_ATF_ENTRYPOINT
+#define CONFIG_SPL_ATF_ADDR 0x00970000
+#define CONFIG_SPL_TEE_ADDR 0xfe000000
+
+/* TCM Address where DRAM Timings are loaded to */
+#define CONFIG_SPL_DRAM_TIMING_ADDR 0x0096C000
+
+#define CONFIG_MALLOC_F_ADDR		0x912800 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
@@ -259,7 +429,7 @@
 	".kernel_nfs=setenv kernel nfs . ${serverip}:${rootpath}/${bootfile}\0" \
 	".kernel_usb=setenv kernel usb start\\\\; load usb 0 . ${bootfile}\0" \
 	"fdt=undef\0"							\
-	"fdtaddr=0x43000000\0"						\
+	"fdtaddr=0x43100000\0"						\
 	FDT_MEM 							\
 	".fdt_none=setenv fdt booti\0"					\
 	".fdt_tftp=setenv fdt tftpboot ${fdtaddr} ${bootfdt}" BOOT_WITH_FDT \
@@ -292,17 +462,21 @@
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 #define CONFIG_SYS_INIT_RAM_ADDR	0x40000000
-#define CONFIG_SYS_INIT_RAM_SIZE	0x80000
-#define CONFIG_SYS_INIT_SP_OFFSET \
-	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_RAM_SIZE	0x00200000
+#define CONFIG_SYS_INIT_SP_OFFSET	CONFIG_SYS_INIT_RAM_SIZE
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-#define CONFIG_ENV_OVERWRITE
-#define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
-#define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
-#define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
-#define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
+/************************************************************************
+ * Environment
+ ************************************************************************/
+
+/* Environment settings for large blocks (128KB). The environment is held in
+   the heap, so keep the real env size small to not waste malloc space. */
+#define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
+
+/* Fallback values if values in the device tree are missing/damaged */
+//#define CONFIG_ENV_OFFSET_REDUND 0x104000
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		SZ_32M
@@ -320,6 +494,13 @@
 #define CONFIG_SYS_MEMTEST_START	0x40000000
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
 					(PHYS_SDRAM_SIZE >> 1))
+
+/* have to define for F&S serial_mxc driver */
+#define UART1_BASE UART1_BASE_ADDR
+#define UART2_BASE UART2_BASE_ADDR
+#define UART3_BASE UART3_BASE_ADDR
+#define UART4_BASE UART4_BASE_ADDR
+#define UART5_BASE 0xFFFFFFFF
 
 #define CONFIG_MXC_UART_BASE		UART2_BASE_ADDR
 
@@ -347,8 +528,9 @@
  * (s. mmc_get_env_dev in mmc_env.c)
  */
 #define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
+//#define CONFIG_SYS_MMC_ENV_PART		0 /* Use mmc_get_env_part() */
 /* number of available  */
-#define CONFIG_SYS_FSL_USDHC_NUM	2 /* use USDHC1 and USDHC3 */
+//#define CONFIG_SYS_FSL_USDHC_NUM	1 /* use USDHC1 and USDHC3 */
 
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
@@ -370,6 +552,7 @@
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_CMD_USB
 #define CONFIG_USB_STORAGE
+#define CONFIG_USBD_HS
 
 #define CONFIG_CMD_USB_MASS_STORAGE
 #define CONFIG_USB_GADGET_MASS_STORAGE
@@ -377,7 +560,6 @@
 #endif
 
 #define CONFIG_USB_MAX_CONTROLLER_COUNT         2
-#define CONFIG_USBD_HS
 #define CONFIG_USB_GADGET_VBUS_DRAW 2
 
 #ifdef CONFIG_DM_VIDEO

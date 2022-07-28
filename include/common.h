@@ -47,13 +47,4 @@
 # include <env_internal.h>
 #endif
 
-#ifndef __ASSEMBLY__		/* put C only stuff in this section */
-enum update_action {
-	UPDATE_ACTION_NONE=0,
-	UPDATE_ACTION_UPDATE,
-	UPDATE_ACTION_INSTALL,
-	UPDATE_ACTION_RECOVER
-};
-#endif	/* __ASSEMBLY__ */
-
 #endif	/* __COMMON_H_ */

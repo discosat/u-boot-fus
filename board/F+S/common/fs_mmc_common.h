@@ -13,7 +13,7 @@
 #define __FS_MMC_COMMON_H__
 
 #include <asm/mach-imx/iomux-v3.h>	/* iomuc_v3_cfg_t */
-#include <fsl_esdhc.h>			/* struct fsl_esdhc_cfg */
+#include <fsl_esdhc_imx.h>			/* struct fsl_esdhc_cfg */
 
 /*
  * Usage of fs_mmc_setup()

@@ -192,42 +192,56 @@ static int serial_stub_start(struct stdio_dev *sdev)
 {
 	struct serial_device *dev = sdev->priv;
 
-	return dev->start();
+	if (dev && dev->start)
+		return dev->start(dev);
+
+	return 0;
 }
 
 static int serial_stub_stop(struct stdio_dev *sdev)
 {
 	struct serial_device *dev = sdev->priv;
 
-	return dev->stop();
+	if (dev && dev->stop)
+		return dev->stop(dev);
+
+	return 0;
 }
 
 static void serial_stub_putc(struct stdio_dev *sdev, const char ch)
 {
 	struct serial_device *dev = sdev->priv;
 
-	dev->putc(ch);
+	if (dev && dev->putc)
+		dev->putc(dev, ch);
 }
 
 static void serial_stub_puts(struct stdio_dev *sdev, const char *str)
 {
 	struct serial_device *dev = sdev->priv;
 
-	dev->puts(str);
+	if (dev && dev->puts)
+		dev->puts(dev, str);
 }
 
 static int serial_stub_getc(struct stdio_dev *sdev)
 {
 	struct serial_device *dev = sdev->priv;
 
-	return dev->getc();
+	if (dev && dev->getc)
+		return dev->getc(dev);
+
+	return 0;
 }
 
 static int serial_stub_tstc(struct stdio_dev *sdev)
 {
 	struct serial_device *dev = sdev->priv;
 
-	return dev->tstc();
+	if (dev && dev->tstc)
+		return dev->tstc(dev);
+
+	return 0;
 }
 
 /**
@@ -299,7 +313,7 @@ void serial_reinit_all(void)
 	struct serial_device *s;
 
 	for (s = serial_devices; s; s = s->next)
-		s->start();
+		s->start(s);
 }
 
 /**
@@ -353,8 +367,11 @@ static struct serial_device *get_current(void)
  */
 int serial_init(void)
 {
+	struct serial_device *sdev = get_current();
+
 	gd->flags |= GD_FLG_SERIAL_READY;
-	return get_current()->start();
+
+	return sdev->start(sdev);
 }
 
 /**
@@ -369,7 +386,9 @@ int serial_init(void)
  */
 void serial_setbrg(void)
 {
-	get_current()->setbrg();
+	struct serial_device *sdev = get_current();
+
+	sdev->setbrg(sdev);
 }
 
 /**
@@ -385,7 +404,9 @@ void serial_setbrg(void)
  */
 int serial_getc(void)
 {
-	return get_current()->getc();
+	struct serial_device *sdev = get_current();
+
+	return sdev->getc(sdev);
 }
 
 /**
@@ -400,7 +421,9 @@ int serial_getc(void)
  */
 int serial_tstc(void)
 {
-	return get_current()->tstc();
+	struct serial_device *sdev = get_current();
+
+	return sdev->tstc(sdev);
 }
 
 /**
@@ -416,7 +439,9 @@ int serial_tstc(void)
  */
 void serial_putc(const char c)
 {
-	get_current()->putc(c);
+	struct serial_device *sdev = get_current();
+
+	sdev->putc(sdev, c);
 }
 
 /**
@@ -434,7 +459,9 @@ void serial_putc(const char c)
  */
 void serial_puts(const char *s)
 {
-	get_current()->puts(s);
+	struct serial_device *sdev = get_current();
+
+	sdev->puts(sdev, s);
 }
 
 /**
@@ -451,9 +478,9 @@ void serial_puts(const char *s)
  */
 void default_serial_puts(const char *s)
 {
-	struct serial_device *dev = get_current();
+	struct serial_device *sdev = get_current();
 	while (*s)
-		dev->putc(*s++);
+		sdev->putc(sdev, *s++);
 }
 
 #if CONFIG_POST & CONFIG_SYS_POST_UART

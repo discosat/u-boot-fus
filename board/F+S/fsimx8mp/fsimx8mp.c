@@ -16,6 +16,7 @@
 #include <miiphy.h>
 #include <netdev.h>
 #include <asm/io.h>
+#include <env_internal.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm-generic/gpio.h>
 #include <asm/arch/imx8mp_pins.h>
@@ -26,13 +27,16 @@
 #include <spl.h>
 #include <asm/mach-imx/dma.h>
 #include <power/pmic.h>
-#include "../../freescale/common/tcpc.h"
+#ifdef CONFIG_USB_TCPC
+#include "../common/tcpc.h"
+#endif
 #include <usb.h>
 #include <dwc3-uboot.h>
 #include <mmc.h>
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include "../common/fs_image_common.h"	/* fs_image_*() */
 #include <imx_thermal.h> /* for temp ranges */
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -44,7 +48,12 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FEAT_DISP_A	(1<<2)	/* 0: MIPI-DSI, 1: LVDS lanes 0-3 */
 #define FEAT_DISP_B	(1<<3)	/* 0: HDMI,     1: LVDS lanes 0-4 or (4-7 if DISP_A=1) */
 #define FEAT_AUDIO 	(1<<4)	/* 0: no Audio, 1: Analog Audio Codec */
-#define FEAT_EXT_RTC	(1<<5)	/* 0: internal RTC, 1: external RTC */
+#define FEAT_WLAN	(1<<5)	/* 0: no WLAN,  1: has WLAN */
+#define FEAT_EXT_RTC	(1<<6)	/* 0: internal RTC, 1: external RTC */
+#define FEAT_NAND	(1<<7)	/* 0: no NAND,  1: has NAND */
+#define FEAT_EMMC	(1<<8)	/* 0: no EMMC,  1: has EMMC */
+#define FEAT_SEC_CHIP	(1<<9)	/* 0: no SE050,  1: has SE050 */
+#define FEAT_EEPROM	(1<<10)	/* 0: no EEPROM,  1: has EEPROM */
 
 #define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
@@ -99,10 +108,70 @@ const struct fs_board_info board_info[] = {
 	},
 };
 
+/* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
+
+/* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
+static void fs_spl_setup_cfg_info(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	int i;
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+	const char *tmp;
+	unsigned int features;
+
+	memset(cfg, 0, sizeof(struct cfg_info));
+
+	//###nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+
+	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
+	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
+		if (!strcmp(tmp, board_info[i].name))
+			break;
+	}
+	cfg->board_type = i;
+
+	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	cfg->boot_dev = fs_board_get_boot_dev_from_name(tmp);
+
+	cfg->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "board-rev", 100);
+	cfg->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "dram-chips", 1);
+	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "dram-size", 0x400);
+
+	features = 0;
+	if (fdt_getprop(fdt, offs, "have-nand", NULL))
+		features |= FEAT_NAND;
+	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+		features |= FEAT_EMMC;
+	if (fdt_getprop(fdt, offs, "have-audio", NULL))
+		features |= FEAT_AUDIO;
+	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
+		features |= FEAT_ETH_A;
+		features |= FEAT_ETH_B;
+	}
+	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+		features |= FEAT_WLAN;
+	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
+		features |= FEAT_DISP_A;
+	if (fdt_getprop(fdt, offs, "have-hdmi", NULL))
+		features |= FEAT_DISP_B;
+	if (fdt_getprop(fdt, offs, "have-ext-rtc", NULL))
+		features |= FEAT_EXT_RTC;
+	if (fdt_getprop(fdt, offs, "have-security", NULL))
+		features |= FEAT_SEC_CHIP;
+	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
+		features |= FEAT_EEPROM;
+	cfg->features = features;
+}
+
 static iomux_v3_cfg_t const wdog_pads[] = {
 	MX8MP_PAD_GPIO1_IO02__WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
 
+/* Do some very early board specific setup */
 int board_early_init_f(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
@@ -111,10 +180,51 @@ int board_early_init_f(void)
 
 	set_wdog_reset(wdog);
 
+	fs_spl_setup_cfg_info();
+
 	return 0;
 }
 
+/* Return the HW partition where U-Boot environment is on eMMC */
+unsigned int mmc_get_env_part(struct mmc *mmc)
+{
+	unsigned int boot_part;
+
+	boot_part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
+	if (boot_part == 7)
+		boot_part = 0;
+
+	return boot_part;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	enum env_location env_loc = ENVL_UNKNOWN;
+
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev())
+		{
+		case FLEXSPI_BOOT:
+			env_loc = ENVL_SPI_FLASH;
+			break;
+		case MMC1_BOOT:
+			env_loc = ENVL_MMC;
+			break;
+		default:
+#if defined(CONFIG_ENV_IS_NOWHERE)
+		env_loc = ENVL_NOWHERE;
+#endif
+			break;
+		}
+	}
+
+	return env_loc;
+}
+
 #ifdef CONFIG_OF_BOARD_SETUP
+#define FDT_NAND        "nand"
+#define FDT_EMMC        "emmc"
 #define FDT_LDB_LVDS0	"ldb/lvds-channel@0"
 #define FDT_LDB_LVDS1	"ldb/lvds-channel@1"
 #define FDT_CPU_TEMP_ALERT	"/thermal-zones/cpu-thermal/trips/trip0"
@@ -293,11 +403,37 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	return 0;
 }
+
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	unsigned int features = fs_board_get_features();
+
+	/* Disable NAND if it is not available */
+	if (!(features & FEAT_NAND))
+		fs_fdt_enable(fdt, FDT_NAND, 0);
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
+/* Do any board-specific modifications on U-Boot device tree before starting */
+int board_fix_fdt(void *fdt)
+{
+
+	/* Make some room in the FDT */
+	fdt_shrink_to_minimum(fdt, 8192);
+
+	return do_fdt_board_setup_common(fdt);
+}
 #endif
 
 void fs_ethaddr_init(void)
 {
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+	unsigned int features2 = fs_board_get_features();
 	int eth_id = 0;
 
 	/* Set MAC addresses as environment variables */
@@ -333,9 +469,10 @@ int checkboard(void)
 		puts ("LAN, ");
 	if (temp_range != TEMP_COMMERCIAL)
 		puts ("WLAN, ");
+	if (features & FEAT_EMMC)
+		puts ("eMMC, ");
 
-	puts ("eMMC, ");
-	printf ("%dx DRAM)\n", fs_board_get_nboot_args()->dwNumDram);
+	printf ("%dx DRAM)\n", fs_board_get_cfg_info()->dram_chips);
 
 	return 0;
 }
@@ -755,17 +892,17 @@ bool is_power_key_pressed(void) {
 }
 #endif
 
-#ifdef CONFIG_SPL_MMC_SUPPORT
-
-#define UBOOT_RAW_SECTOR_OFFSET 0x40
-unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+#ifdef CONFIG_FASTBOOT_STORAGE_MMC
+int mmc_map_to_kernel_blk(int devno)
 {
-	u32 boot_dev = spl_boot_device();
-	switch (boot_dev) {
-		case BOOT_DEVICE_MMC2:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - UBOOT_RAW_SECTOR_OFFSET;
-		default:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
-	}
+	return devno + 1;
 }
-#endif
+#endif /* CONFIG_FASTBOOT_STORAGE_MMC */
+
+#ifdef CONFIG_BOARD_POSTCLK_INIT
+int board_postclk_init(void)
+{
+	/* TODO */
+	return 0;
+}
+#endif /* CONFIG_BOARD_POSTCLK_INIT */

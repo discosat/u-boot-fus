@@ -29,8 +29,23 @@
 #include "imx8mp.dtsi"
 
 / {
-	model = "F&S PicoCoreMX8MP";
+	model = "PicoCoreMX8MP";
 	compatible = "fus,picocoremx8mp", "fsl,imx8mp";
+
+	aliases {
+		emmc = &usdhc3;
+	};
+
+	config {
+		/* Environment in NAND must match UBootEnv MTD partition */
+		u-boot,nand-env-range = <0x00040000>;
+		u-boot,nand-env-offset = <0x480000>;
+		u-boot,nand-env-offset-redundant = <0x4c0000>;
+
+		/* Environment in MMC is in a Boot partition by default */
+		u-boot,mmc-env-offset = <0x100000>;
+		u-boot,mmc-env-offset-redundant = <0x104000>;
+	};
 
 	chosen {
 		bootargs = "console=ttymxc1,115200";

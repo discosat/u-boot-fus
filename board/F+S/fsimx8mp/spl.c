@@ -24,7 +24,6 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <power/pmic.h>
-
 #include <power/pca9450.h>
 #include <asm/arch/clock.h>
 #include <asm/mach-imx/gpio.h>
@@ -32,18 +31,35 @@
 #include <fsl_esdhc_imx.h>
 #include <mmc.h>
 #include <asm/arch/ddr.h>
+#include <dwc3-uboot.h>
 
+#include <asm/mach-imx/boot_mode.h>	/* BOOT_TYPE_* */
+#include "../common/fs_image_common.h"	/* fs_image_*() */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
-//#include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
-#include "fs_lpddr4_common.h"
+#include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
+#include <usb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct fs_nboot_args nbootargs;
-
 #define BT_PICOCOREMX8MP 0x0
 
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+static const char *board_names[] = {
+	"PicoCoreMX8MP",
+	"(unknown)"
+};
+
+static unsigned int board_type;
+static unsigned int board_rev;
+static const char *board_name;
+static const char *board_fdt;
+static enum boot_device used_boot_dev;	/* Boot device used for NAND/MMC */
+static bool boot_dev_init_done;
+static unsigned int uboot_offs;
+static bool secondary;			/* 0: primary, 1: secondary SPL */
+static bool usb_initialized = false;
+
+#ifdef CONFIG_POWER
+#define I2C_PMIC_8MP	4
 
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
@@ -60,215 +76,12 @@ struct i2c_pads_info i2c_pad_info_8mp = {
 	},
 };
 
-int spl_board_boot_device(enum boot_device boot_dev_spl)
-{
-#ifdef CONFIG_SPL_BOOTROM_SUPPORT
-	return BOOT_DEVICE_BOOTROM;
-#else
-	switch (boot_dev_spl) {
-	case SD1_BOOT:
-	case MMC1_BOOT:
-	case SD2_BOOT:
-	case MMC2_BOOT:
-		return BOOT_DEVICE_MMC1;
-	case SD3_BOOT:
-	case MMC3_BOOT:
-		return BOOT_DEVICE_MMC2;
-	case QSPI_BOOT:
-		return BOOT_DEVICE_NOR;
-	case NAND_BOOT:
-		return BOOT_DEVICE_NAND;
-	case USB_BOOT:
-		return BOOT_DEVICE_BOARD;
-	default:
-		return BOOT_DEVICE_NONE;
-	}
-#endif
-}
-
-static iomux_v3_cfg_t const uart_pads_mp[] = {
-	MX8MP_PAD_SAI3_TXFS__UART2_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	MX8MP_PAD_SAI3_TXC__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-ulong board_serial_base(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	case BT_PICOCOREMX8MP:
-		return UART2_BASE_ADDR;
-	default:
-		break;
-	}
-
-	return UART2_BASE_ADDR;
-}
-
-
-static void config_uart_pads(void)
-{
-	switch (nbootargs.chBoardType)
-	{
-	default:
-	case BT_PICOCOREMX8MP:
-		/* Setup UART pads */
-		imx_iomux_v3_setup_multiple_pads(uart_pads_mp, ARRAY_SIZE(uart_pads_mp));
-		/* enable uart clock */
-		init_uart_clk(1);
-		break;
-	}
-}
-
-#define USDHC1_CD_GPIO	IMX_GPIO_NR(1, 6)
-#define USDHC1_PWR_GPIO IMX_GPIO_NR(2, 10)
-
-#define USDHC_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE |PAD_CTL_PE | \
-			 PAD_CTL_FSEL2)
-#define USDHC_GPIO_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_DSE1)
-#define USDHC_CD_PAD_CTRL (PAD_CTL_PE |PAD_CTL_PUE |PAD_CTL_HYS | PAD_CTL_DSE4)
-
-
-static iomux_v3_cfg_t const usdhc3_pads[] = {
-	MX8MP_PAD_NAND_WE_B__USDHC3_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_WP_B__USDHC3_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_DATA04__USDHC3_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_DATA05__USDHC3_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_DATA06__USDHC3_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_DATA07__USDHC3_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_RE_B__USDHC3_DATA4 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_CE2_B__USDHC3_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_CE3_B__USDHC3_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_NAND_CLE__USDHC3_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const usdhc1_pads[] = {
-	MX8MP_PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX8MP_PAD_SD1_RESET_B__GPIO2_IO10 | MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL),
-	MX8MP_PAD_GPIO1_IO06__USDHC1_CD_B    | MUX_PAD_CTRL(USDHC_CD_PAD_CTRL),
-};
-
-static struct fsl_esdhc_cfg usdhc_cfg[2] = {
-	{USDHC1_BASE_ADDR, 0, 4},
-	{USDHC3_BASE_ADDR, 0, 8},
-};
-
-int board_mmc_init(bd_t *bis)
-{
-	int i, ret;
-	/*
-	 * According to the board_mmc_init() the following map is done:
-	 * (U-Boot device node)    (Physical Port)
-	 * mmc0                    USDHC1
-	 * mmc1                    USDHC2
-	 */
-	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
-		switch (i) {
-		case 0:
-			init_clk_usdhc(1);
-			usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc1_pads, ARRAY_SIZE(usdhc1_pads));
-			gpio_request(USDHC1_PWR_GPIO, "usdhc1_reset");
-			gpio_direction_output(USDHC1_PWR_GPIO, 0);
-			udelay(500);
-			gpio_direction_output(USDHC1_PWR_GPIO, 1);
-			gpio_request(USDHC1_CD_GPIO, "usdhc1 cd");
-			gpio_direction_input(USDHC1_CD_GPIO);
-			break;
-		case 1:
-			init_clk_usdhc(2);
-			usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc3_pads, ARRAY_SIZE(usdhc3_pads));
-			break;
-		default:
-			printf("Warning: you configured more USDHC controllers"
-				"(%d) than supported by the board\n", i + 1);
-			return -EINVAL;
-		}
-
-		ret = fsl_esdhc_initialize(bis, &usdhc_cfg[i]);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int board_mmc_getcd(struct mmc *mmc)
-{
-	struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
-	int ret = 0;
-
-	switch (cfg->esdhc_base) {
-	case USDHC3_BASE_ADDR:
-		ret = 1;
-		break;
-	case USDHC1_BASE_ADDR:
-		ret = !gpio_get_value(USDHC1_CD_GPIO);
-		return ret;
-	}
-
-	return 1;
-}
-
-static void fs_board_init_nboot_args(void)
-{
-	int dram_size = 0;
-
-	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
-	nbootargs.dwSize = 16*4;
-	nbootargs.dwNBOOT_VER = 1;
-
-#if defined(FUS_CONFIG_BOARDTYPE) && defined(FUS_CONFIG_BOARDREV) && defined(FUS_CONFIG_FEAT2)
-	nbootargs.chBoardType = FUS_CONFIG_BOARDTYPE;
-	nbootargs.chBoardRev  = FUS_CONFIG_BOARDREV;
-	nbootargs.chFeatures2  = FUS_CONFIG_FEAT2;
-#define STRING2(x) #x
-#define STRING(x) STRING2(x)
-#pragma message "FUS_CONFIG_BOARDTYPE = " STRING(FUS_CONFIG_BOARDTYPE)
-#pragma message "FUS_CONFIG_BOARDREV = " STRING(FUS_CONFIG_BOARDREV)
-#pragma message "FUS_CONFIG_FEAT2 = " STRING(FUS_CONFIG_FEAT2)
-#warning "Using fixed config values! This Uboot is not portable!"
-#else
-#error "Board Config not set! \
-Please set CONFIG_FUS_BOARDTYPE, CONFIG_FUS_BOARDREV and CONFIG_FUS_FEATURES2 according to the documentation"
-#endif
-
-	switch (nbootargs.chBoardType)
-	{
-	case BT_PICOCOREMX8MP:
-		/* size of NAND flash in MB */
-		nbootargs.dwFlashSize = 0;
-		/* HOTFIX: Set ram size hard to 2GB defined in board header */
-		dram_size = PHYS_SDRAM_SIZE;
-		/* HOTFIX: Set number of DRAMs hard to 1 */
-		nbootargs.dwNumDram = 1;
-		break;
-	}
-
-	nbootargs.dwDbgSerPortPA = board_serial_base();
-
-	if(rom_pointer[1])
-		nbootargs.dwMemSize = (dram_size - rom_pointer[1]) >> 20;
-	else
-		nbootargs.dwMemSize = dram_size >> 20;
-
-}
-
-#ifdef CONFIG_POWER
-#define I2C_PMIC_8MP	4
 int power_init_board(void)
 {
 	struct pmic *p;
 	int ret;
 
-	switch (nbootargs.chBoardType)
+	switch (board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
@@ -281,7 +94,7 @@ int power_init_board(void)
 		printf("power init failed");
 	p = pmic_get("PCA9450");
 	if(!p)
-		printf("NULL...\n");
+		printf("PMIC structure is NULL.\n");
 	pmic_probe(p);
 
 	/* BUCKxOUT_DVS0/1 control BUCK123 output */
@@ -308,46 +121,281 @@ int power_init_board(void)
 }
 #endif
 
-static int spl_dram_init(void)
-{
-	uint32_t memsize = 0;
-	const struct lpddr4_info* ram_info = 0;
-	unsigned int lpddr4_mr_bc;
+#define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
-	switch (nbootargs.chBoardType)
+static iomux_v3_cfg_t const wdog_pads[] = {
+	MX8MP_PAD_GPIO1_IO02__WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
+};
+
+static void wdog_init(void)
+{
+	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
+
+	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
+
+	set_wdog_reset(wdog);
+}
+
+#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+
+static iomux_v3_cfg_t const uart_pads_mp[] = {
+	MX8MP_PAD_SAI3_TXFS__UART2_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX8MP_PAD_SAI3_TXC__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
+static void config_uart(int board_type)
+{
+	switch (board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
-		/* TODO: change RAM detection
-		 *  Simple detection:	Rev. 1.00
-		 *		k4f6e3s4hm_mgcj
-		 *		k4f8e3s4hd_mgcj
-		 *              fl4c2001g_d9
-		 */
-		lpddr4_mr_bc = fs_init_ram();
-		if(!lpddr4_mr_bc) {
-			return 1;
-		}
+		/* Setup UART pads */
+		imx_iomux_v3_setup_multiple_pads(uart_pads_mp, ARRAY_SIZE(uart_pads_mp));
+		/* enable uart clock */
+		init_uart_clk(1);
 		break;
 	}
 
-	ram_info = get_dram_info(lpddr4_mr_bc);
-	if (!ram_info)
-		return 1;
+	preloader_console_init();
+}
 
-	memsize = ram_info->total_density * ram_info->memory_number;
+#ifdef CONFIG_MMC
+/* Pad settings if using eMMC */
+#define USDHC_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE |PAD_CTL_PE | \
+			 PAD_CTL_FSEL2)
+#define USDHC_GPIO_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_DSE1)
+#define USDHC_CD_PAD_CTRL (PAD_CTL_PE |PAD_CTL_PUE |PAD_CTL_HYS | PAD_CTL_DSE4)
 
-	if(rom_pointer[1])
-		nbootargs.dwMemSize = (memsize - rom_pointer[1]) >> 20;
-	else
-		nbootargs.dwMemSize = memsize >> 20;
+#define USDHC3_RST_GPIO IMX_GPIO_NR(3, 16)
 
+static iomux_v3_cfg_t const emmc_pads[] = {
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_WE_B__USDHC3_CLK,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_WP_B__USDHC3_CMD,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_DATA04__USDHC3_DATA0,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_DATA05__USDHC3_DATA1,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_DATA06__USDHC3_DATA2,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_DATA07__USDHC3_DATA3,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_RE_B__USDHC3_DATA4,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CE2_B__USDHC3_DATA5,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CE3_B__USDHC3_DATA6,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CLE__USDHC3_DATA7,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CE1_B__USDHC3_STROBE,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_READY_B__USDHC3_RESET_B,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_READY_B__GPIO3_IO16,
+};
+
+static void fs_spl_init_emmc_pads(void)
+{
+	imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
+	boot_dev_init_done = true;
+}
+
+int board_mmc_getcd(struct mmc *mmc)
+{
+	return 1;			/* eMMC always present */
+}
+
+int board_mmc_init(bd_t *bd)
+{
+	struct fsl_esdhc_cfg esdhc;
+	int ret = 0;
+
+	switch (used_boot_dev) {
+	case MMC1_BOOT:
+		init_clk_usdhc(0);
+		esdhc.esdhc_base = USDHC1_BASE_ADDR;
+		esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
+		break;
+
+	case MMC2_BOOT:
+		init_clk_usdhc(1);
+		esdhc.esdhc_base = USDHC2_BASE_ADDR;
+		esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+		break;
+
+	case MMC3_BOOT:
+		init_clk_usdhc(2);
+		esdhc.esdhc_base = USDHC3_BASE_ADDR;
+		esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
+		esdhc.max_bus_width = 8;
+		gpio_direction_output(USDHC3_RST_GPIO, 0);
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	ret = fsl_esdhc_initialize(bd, &esdhc);
+
+	return ret;
+}
+#endif /* CONFIG_MMC */
+
+/* Configure (and optionally start) the given boot device */
+static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
+				const char *type)
+{
+	if (boot_dev_init_done)
+		return 0;
+
+	used_boot_dev = boot_dev;
+	switch (boot_dev) {
+#ifdef CONFIG_MMC
+	case MMC3_BOOT:
+		fs_spl_init_emmc_pads();
+		if (start)
+			mmc_initialize(NULL);
+		break;
+		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
+#endif
+	case USB_BOOT:
+		/* Nothing to do */
+		break;
+
+	default:
+		printf("Can not handle %s boot device %s\n", type,
+		       fs_board_get_name_from_boot_dev(boot_dev));
+		return -ENODEV;
+	}
 
 	return 0;
 }
 
+/* Do the basic board setup when we have our final BOARD-CFG */
+static void basic_init(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	int i;
+	char c;
+	int index;
+	const char *boot_dev_name;
+	enum boot_device boot_dev;
+
+	board_name = fdt_getprop(fdt, offs, "board-name", NULL);
+	for (i = 0; i < ARRAY_SIZE(board_names); i++) {
+		if (!strcmp(board_name, board_names[i]))
+			break;
+	}
+	board_type = i;
+
+	/*
+	 * If an fdt-name is not given, use board name in lower case. Please
+	 * note that this name is only used for the U-Boot device tree. The
+	 * Linux device tree name is defined by executing U-Boot's environment
+	 * variable set_bootfdt.
+	 */
+	board_fdt = fdt_getprop(fdt, offs, "board-fdt", NULL);
+	if (!board_fdt) {
+		static char board_name_lc[32];
+
+		i = 0;
+		do {
+			c = board_name[i];
+			if ((c >= 'A') && (c <= 'Z'))
+				c += 'a' - 'A';
+			board_name_lc[i++] = c;
+		} while (c);
+
+		board_fdt = (const char *)&board_name_lc[0];
+	}
+
+	board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						 "board-rev", 100);
+	config_uart(board_type);
+	if (secondary)
+		puts("Warning! Running secondary SPL, please check if"
+		     " primary SPL is damaged.\n");
+
+	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
+
+	/* Get U-Boot offset */
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+	index = 0;			/* ### TODO: Select slot A or B */
+#else
+	index = 0;
+#endif
+	offs = fs_image_get_info_offs(fdt);
+	uboot_offs = fdt_getprop_u32_default_node(fdt, offs, index,
+						  "uboot-start", 0);
+
+	/* We need to have the boot device pads active when starting U-Boot */
+	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
+
+	power_init_board();
+}
+
+void board_init_f(ulong dummy)
+{
+	int ret;
+	enum boot_device boot_dev;
+	struct src *src;
+
+	/* Clear the BSS. */
+	memset(__bss_start, 0, __bss_end - __bss_start);
+
+	arch_cpu_init();
+
+	wdog_init();
+	timer_init();
+
+#if 0
+	/*
+	 * Enable this to have early debug output before BOARD-CFG is loaded
+	 * You have to provide the board type, we do not know it yet
+	 */
+	config_uart(BT_PICOCOREMX8MP);
+#endif
+
+	/* Init malloc_f pool and boot stages */
+	ret = spl_init();
+	if (ret) {
+		debug("spl_init() failed: %d\n", ret);
+		hang();
+	}
+	enable_tzc380();
+
+	/* Determine if we are running on primary or secondary SPL */
+	src = (struct src *)SRC_BASE_ADDR;
+	if (readl(&src->gpr10) & (1 << 30))
+		secondary = true;
+
+	/* Try loading from the current boot dev. If this fails, try USB. */
+	boot_dev = get_boot_device();
+	if (boot_dev != USB_BOOT) {
+		if (fs_spl_init_boot_dev(boot_dev, true, "current")
+		    || fs_image_load_system(boot_dev, secondary, basic_init))
+			boot_dev = USB_BOOT;
+	}
+	if (boot_dev == USB_BOOT) {
+		bool need_cfg = true;
+
+		/* Try loading a BOARD-CFG from the fused boot device first */
+		boot_dev = fs_board_get_boot_dev_from_fuses();
+		if (!fs_spl_init_boot_dev(boot_dev, true, "fused")
+		    && !fs_image_load_system(boot_dev, secondary, NULL))
+			need_cfg = false;
+
+		/* Load the system from USB with Serial Download Protocol */
+		fs_image_all_sdp(need_cfg, basic_init);
+	}
+
+	/* At this point we have a valid system configuration */
+	board_init_r(NULL, 0);
+}
+
+/* BL_ON */
+#define BL_ON_PAD IMX_GPIO_NR(5, 3)
+static iomux_v3_cfg_t const bl_on_pad =
+	MX8MP_PAD_SPDIF_TX__GPIO5_IO03 | MUX_PAD_CTRL(NO_PAD_CTRL);
+
 void spl_board_init(void)
 {
+	imx_iomux_v3_setup_pad(bl_on_pad);
+	/* backlight off*/
+	gpio_request(BL_ON_PAD, "BL_ON");
+	gpio_direction_output(BL_ON_PAD, 0);
+
 	/* Set GIC clock to 500Mhz for OD VDD_SOC. Kernel driver does not allow to change it.
 	 * Should set the clock after PMIC setting done.
 	 * Default is 400Mhz (system_pll1_800m with div = 2) set by ROM for ND VDD_SOC
@@ -358,75 +406,216 @@ void spl_board_init(void)
 	clock_enable(CCGR_GIC, 1);
 #endif
 
+#ifndef CONFIG_SPL_USB_SDP_SUPPORT
+	/* Serial download mode */
+	if (is_usb_boot()) {
+		puts("Back to ROM, SDP\n");
+		restore_boot_params();
+	}
+#endif
 	puts("Normal Boot\n");
 }
 
-#ifdef CONFIG_SPL_LOAD_FIT
-int board_fit_config_name_match(const char *name)
+/* Return the sector number where U-Boot starts in eMMC (User HW partition) */
+unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
-	/* Just empty function now - can't decide what to choose */
-	debug("%s: %s\n", __func__, name);
+	return uboot_offs / 512;
+}
+
+/* U-Boot is always loaded from the User HW partition */
+int spl_boot_partition(const u32 boot_device)
+{
+	return 0;
+}
+
+/* U-Boot is always loaded from the User HW partition */
+int spl_mmc_emmc_boot_partition(struct mmc *mmc)
+{
+	return 0;
+}
+
+#if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
+
+#define USB_PHY_CTRL0			0xF0040
+#define USB_PHY_CTRL0_REF_SSP_EN	BIT(2)
+
+#define USB_PHY_CTRL1			0xF0044
+#define USB_PHY_CTRL1_RESET		BIT(0)
+#define USB_PHY_CTRL1_COMMONONN		BIT(1)
+#define USB_PHY_CTRL1_ATERESET		BIT(3)
+#define USB_PHY_CTRL1_VDATSRCENB0	BIT(19)
+#define USB_PHY_CTRL1_VDATDETENB0	BIT(20)
+
+#define USB_PHY_CTRL2			0xF0048
+#define USB_PHY_CTRL2_TXENABLEN0	BIT(8)
+
+#define USB_PHY_CTRL6			0xF0058
+
+#define HSIO_GPR_BASE                               (0x32F10000U)
+#define HSIO_GPR_REG_0                              (HSIO_GPR_BASE)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT    (1)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN          (0x1U << HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT)
+
+
+static struct dwc3_device dwc3_device_data = {
+	.maximum_speed = USB_SPEED_HIGH,
+	.base = USB2_BASE_ADDR,
+	.dr_mode = USB_DR_MODE_PERIPHERAL,
+	.index = 1,
+	.power_down_scale = 2,
+};
+
+int usb_gadget_handle_interrupts(int index)
+{
+	dwc3_uboot_handle_interrupt(index);
+	return 0;
+}
+
+static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
+{
+	u32 RegData;
+
+	/* enable usb clock via hsio gpr */
+	RegData = readl(HSIO_GPR_REG_0);
+	RegData |= HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN;
+	writel(RegData, HSIO_GPR_REG_0);
+
+	/* USB3.0 PHY signal fsel for 100M ref */
+	RegData = readl(dwc3->base + USB_PHY_CTRL0);
+	RegData = (RegData & 0xfffff81f) | (0x2a<<5);
+	writel(RegData, dwc3->base + USB_PHY_CTRL0);
+
+	RegData = readl(dwc3->base + USB_PHY_CTRL6);
+	RegData &=~0x1;
+	writel(RegData, dwc3->base + USB_PHY_CTRL6);
+
+	RegData = readl(dwc3->base + USB_PHY_CTRL1);
+	RegData &= ~(USB_PHY_CTRL1_VDATSRCENB0 | USB_PHY_CTRL1_VDATDETENB0 |
+			USB_PHY_CTRL1_COMMONONN);
+	RegData |= USB_PHY_CTRL1_RESET | USB_PHY_CTRL1_ATERESET;
+	writel(RegData, dwc3->base + USB_PHY_CTRL1);
+
+	RegData = readl(dwc3->base + USB_PHY_CTRL0);
+	RegData |= USB_PHY_CTRL0_REF_SSP_EN;
+	writel(RegData, dwc3->base + USB_PHY_CTRL0);
+
+	RegData = readl(dwc3->base + USB_PHY_CTRL2);
+	RegData |= USB_PHY_CTRL2_TXENABLEN0;
+	writel(RegData, dwc3->base + USB_PHY_CTRL2);
+
+	RegData = readl(dwc3->base + USB_PHY_CTRL1);
+	RegData &= ~(USB_PHY_CTRL1_RESET | USB_PHY_CTRL1_ATERESET);
+	writel(RegData, dwc3->base + USB_PHY_CTRL1);
+}
+
+#define USB1_PWR_EN IMX_GPIO_NR(1, 12)
+//#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
+int board_usb_init(int index, enum usb_init_type init)
+{
+	int ret = 0;
+
+	if(usb_initialized)
+		return 0;
+
+	if (index == 0 && init == USB_INIT_DEVICE)
+		/* usb host only */
+		return 0;
+
+	if (!usb_initialized)
+		imx8m_usb_power(index, true);
+
+	if (index == 1 && init == USB_INIT_DEVICE) {
+		if (!usb_initialized) {
+			usb_initialized = true;
+			dwc3_nxp_usb_phy_init(&dwc3_device_data);
+			return dwc3_uboot_init(&dwc3_device_data);
+		}
+	} else if (index == 1 && init == USB_INIT_HOST) {
+		return ret;
+	} else if (index == 0 && init == USB_INIT_HOST) {
+		/* Enable host power */
+		gpio_request(USB1_PWR_EN, "usb1_pwr");
+		gpio_direction_output(USB1_PWR_EN, 1);
+	}
 
 	return 0;
 }
+
+int board_usb_cleanup(int index, enum usb_init_type init)
+{
+	int ret = 0;
+
+	if (index == 0 && init == USB_INIT_DEVICE)
+		/* usb host only */
+		return 0;
+
+	debug("USB%d: %s cleanup.\n", index, (init)?"otg":"host");
+	if (index == 1 && init == USB_INIT_DEVICE) {
+		if (usb_initialized) {
+			usb_initialized = false;
+			dwc3_uboot_exit(index);
+		}
+	} else if (index == 0 && init == USB_INIT_HOST) {
+		/* Disable host power */
+		gpio_direction_output(USB1_PWR_EN, 0);
+	}
+
+	imx8m_usb_power(index, false);
+
+	return ret;
+}
 #endif
 
-void board_init_f(ulong dummy)
+
+/*
+ * Provide our own boot order, which in fact has just one entry: the current
+ * boot device. Unfortunately the regular SPL infrastructure of U-Boot uses an
+ * own set of boot devices (defined in arch/arm/include/asm/spl.h) that
+ * differs from NXP's definitions in arch/arm/include/asm/mach-imx/boot_mode.h.
+ * Here only BOOT_DEVICE_MMC1, BOOT_DEVICE_MMC2 and BOOT_DEVICE_MMC2_2 are
+ * known as MMC devices. These values do not actually refer to a hardware
+ * device of this number, they simply mean the MMC index. So BOOT_DEVICE_MMC1
+ * is the first MMC device with index 0 and both BOOT_DEVICE_MMC2 as well as
+ * BOOT_DEVICE_MMC2_2 point to the second MMC device with index 1. See
+ * spl_mmc_get_device_index() in common/spl/spl_mmc.c. So at some point, the
+ * NXP boot device has to be converted to U-Boot's device. This happens in
+ * spl_boot_device() in arch/arm/mach-imx/spl.c.
+ *
+ * Unfortunately this mapping there does not fit our needs. We only have one
+ * MMC device active in SPL, and this is the boot device. It will always be on
+ * index 0, no matter what USDHC port we actually boot from. So we always have
+ * to map to BOOT_DEVICE_MMC1. By overwriting the weak board_boot_order() in
+ * common/spl/spl.c, we can change this to our needs.
+ */
+void board_boot_order(u32 *spl_boot_list)
 {
-	int ret;
-	struct fs_nboot_args *pargs = (struct fs_nboot_args*)(CONFIG_SYS_SDRAM_BASE + 0x00001000);
-
-	/* Clear the BSS. */
-	memset(__bss_start, 0, __bss_end - __bss_start);
-
-	arch_cpu_init();
-
-	board_early_init_f();
-
-	timer_init();
-
-	fs_board_init_nboot_args();
-
-	config_uart_pads();
-
-	preloader_console_init();
-
-	ret = spl_init();
-	if (ret) {
-		debug("spl_init() failed: %d\n", ret);
-		hang();
+	switch (get_boot_device()) {
+	case MMC1_BOOT:
+	case MMC2_BOOT:
+	case MMC3_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_MMC1;
+		break;
+	case NAND_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_NAND;
+		break;
+	case USB_BOOT:
+		spl_boot_list[0] = BOOT_DEVICE_BOARD;
+		break;
+	default:
+		spl_boot_list[0] = BOOT_DEVICE_NONE;
+		break;
 	}
-
-	enable_tzc380();
-
-	power_init_board();
-
-	/* DDR initialization */
-	if(spl_dram_init())
-	{
-		printf("This UBoot can't be started. RAM initialization fails.\n");
-		while(1);
-	}
-
-	printf("DDRInfo: RAM initialization success.\n");
-
-	/* initalize ram area with zero before set */
-	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
-	/* fill nboot args first after ram initialisation */
-	pargs = fs_board_get_nboot_args();
-
-	pargs->dwID = nbootargs.dwID;
-	pargs->dwSize = nbootargs.dwSize;
-	pargs->dwNBOOT_VER = nbootargs.dwNBOOT_VER;
-	pargs->dwMemSize = nbootargs.dwMemSize;
-	pargs->dwNumDram = nbootargs.dwNumDram;
-	pargs->dwFlashSize = nbootargs.dwFlashSize;
-	pargs->dwDbgSerPortPA = nbootargs.dwDbgSerPortPA;
-	pargs->chBoardRev = nbootargs.chBoardRev;
-	pargs->chBoardType = nbootargs.chBoardType;
-	pargs->chFeatures2 = nbootargs.chFeatures2;
-
-	printf("Using fixed config: 0x%x\n",nbootargs.chFeatures2);
-
-	board_init_r(NULL, 0);
 }
+
+#ifdef CONFIG_SPL_LOAD_FIT
+/*
+ * This function is called for each appended device tree. If we signal a match
+ * (return value 0), the referenced device tree (and only this) is loaded
+ * behind U-Boot. So from the view of U-Boot, it always has the right device
+ * tree when starting. See doc/README.multi-dtb-fit for details.
+ */
+int board_fit_config_name_match(const char *name)
+{
+	return strcmp(name, board_fdt);
+}
+#endif

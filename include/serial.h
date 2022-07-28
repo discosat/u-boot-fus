@@ -7,17 +7,18 @@ struct serial_device {
 	/* enough bytes to match alignment of following func pointer */
 	char	name[16];
 
-	int	(*start)(void);
-	int	(*stop)(void);
-	void	(*setbrg)(void);
-	int	(*getc)(void);
-	int	(*tstc)(void);
-	void	(*putc)(const char c);
-	void	(*puts)(const char *s);
+	int	(*start)(const struct serial_device *sdev);
+	int	(*stop)(const struct serial_device *sdev);
+	void	(*setbrg)(const struct serial_device *sdev);
+	int	(*getc)(const struct serial_device *sdev);
+	int	(*tstc)(const struct serial_device *sdev);
+	void	(*putc)(const struct serial_device *sdev, const char c);
+	void	(*puts)(const struct serial_device *sdev, const char *s);
 #if CONFIG_POST & CONFIG_SYS_POST_UART
-	void	(*loop)(int);
+	void	(*loop)(const struct serial_device *sdev, int);
 #endif
-	struct serial_device	*next;
+	void	*priv;
+	struct serial_device *next;
 };
 
 void default_serial_puts(const char *s);
@@ -332,6 +333,8 @@ void pl01x_serial_initialize(void);
 void pxa_serial_initialize(void);
 void sh_serial_initialize(void);
 
+#endif
+
 /**
  * serial_printf() - Write a formatted string to the serial console
  *
@@ -350,5 +353,6 @@ void serial_putc_raw(const char ch);
 void serial_puts(const char *str);
 int serial_getc(void);
 int serial_tstc(void);
-
+#ifdef CONFIG_DM_SERIAL
+int	serial_get_alias_seq(void);
 #endif

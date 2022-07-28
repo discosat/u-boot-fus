@@ -2,7 +2,6 @@
 /*
 * Copyright 2018 NXP
 */
-
 #include <common.h>
 #include <errno.h>
 #include <asm/io.h>
@@ -103,7 +102,7 @@ int wait_ddrphy_training_complete(void)
 			debug("Training PASS\n");
 			return 0;
 		} else if (mail == 0xff) {
-			printf("Training FAILED\n");
+			debug("Training FAILED\n");
 			return -1;
 		}
 	}

@@ -645,20 +645,6 @@ ifeq ($(CONFIG_XTENSA),)
 LDPPFLAGS	+= -ansi
 endif
 
-
-ifneq ($(CONFIG_FUS_BOARDTYPE),)
-KBUILD_CFLAGS	+= -DFUS_CONFIG_BOARDTYPE=$(CONFIG_FUS_BOARDTYPE)
-endif
-
-ifneq ($(CONFIG_FUS_BOARDREV),)
-KBUILD_CFLAGS	+= -DFUS_CONFIG_BOARDREV=$(CONFIG_FUS_BOARDREV)
-endif
-
-ifneq ($(CONFIG_FUS_FEATURES2),)
-KBUILD_CFLAGS	+= -DFUS_CONFIG_FEAT2=$(CONFIG_FUS_FEATURES2)
-endif
-
-
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
@@ -863,6 +849,11 @@ endif
 # Always append ALL so that arch config.mk's can add custom ones
 ALL-y += u-boot.srec u-boot.bin u-boot.sym System.map binary_size_check
 
+# Add uboot.nb0 for F&S boards on all i.MX6 and Vybrid variants
+ALL-$(CONFIG_TARGET_FSVYBRID) += uboot.nb0
+ALL-$(CONFIG_ARCH_MX6) += uboot.nb0
+
+ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
 ALL-$(CONFIG_ONENAND_U_BOOT) += u-boot-onenand.bin
 ifeq ($(CONFIG_SPL_FSL_PBL),y)
 ALL-$(CONFIG_RAMBOOT_PBL) += u-boot-with-spl-pbl.bin
@@ -1378,6 +1369,36 @@ u-boot.sha1:	u-boot.bin
 
 u-boot.dis:	u-boot
 		$(OBJDUMP) -d $< > $@
+
+OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_BOARD_SIZE_LIMIT) -I binary -O binary
+uboot.nb0:	u-boot.bin
+		$(call if_changed,objcopy)
+#		dd if=/dev/zero bs=1K count=$(CONFIG_BOARD_SIZE_LIMIT) \
+#			 | tr '\000' '\377' >$@
+#		dd if=$< of=$@ conv=notrunc bs=1K
+
+quiet_cmd_addfsheader = FSIMG   $@
+cmd_addfsheader = $(srctree)/scripts/addfsheader.sh $2 $< > $@
+
+# Use V0.0 F&S header on Vybrid/i.MX6, otherwise V1.0 plus type/descr
+ifneq ($(CONFIG_TARGET_FSVYBRID)$(CONFIG_ARCH_MX6),)
+FSIMG_OPT = -v 0.0
+else
+FSIMG_OPT = -c -p 16 -t U-BOOT -d $(BOARD)
+endif
+ifdef CONFIG_SPL_LOAD_FIT
+addfsheader_target = u-boot-dtb.img
+else
+addfsheader_target = u-boot.bin
+endif
+uboot.fs:	$(addfsheader_target)
+	$(call cmd,addfsheader,$(FSIMG_OPT))
+
+PHONY += nboot
+NBOOT_PATH = board/$(BOARDDIR)/nboot
+nboot: SPL
+	$(Q)$(MAKE) $(build)=$(NBOOT_PATH) $@
+
 
 ifneq ($(CONFIG_SPL_PAYLOAD),)
 SPL_PAYLOAD := $(CONFIG_SPL_PAYLOAD:"%"=%)
@@ -1969,6 +1990,7 @@ CLEAN_DIRS  += $(MODVERDIR) \
 			$(filter-out include, $(shell ls -1 $d 2>/dev/null))))
 
 CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h tools/version.h \
+	       uboot.nb0 uboot.fs			  \
 	       boot* u-boot* MLO* SPL System.map fit-dtb.blob* \
 	       u-boot-ivt.img.log u-boot-dtb.imx.log SPL.log u-boot.imx.log \
 	       lpc32xx-* bl31.c bl31.elf bl31_*.bin image.map tispl.bin* \
@@ -2004,6 +2026,7 @@ clean: $(clean-dirs)
 		-o -name '*.lex.c' -o -name '*.tab.[ch]' \
 		-o -name '*.asn1.[ch]' \
 		-o -name '*.symtypes' -o -name 'modules.order' \
+		-o -name '*.fs' \
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
 		-o -name 'dsdt.aml' -o -name 'dsdt.asl.tmp' -o -name 'dsdt.c' \
 		-o -name '*.efi' -o -name '*.gcno' -o -name '*.so' \) \

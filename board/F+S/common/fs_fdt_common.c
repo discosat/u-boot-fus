@@ -151,8 +151,10 @@ void fs_fdt_enable(void *fdt, const char *path, int enable)
 void fs_fdt_set_bdinfo(void *fdt, int offs)
 {
 	char rev[6];
-	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_rev = fs_board_get_rev();
+
+#ifndef HAVE_BOARD_CFG
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* NAND info, names and features */
 #ifdef CONFIG_TARGET_FSVYBRID
@@ -164,18 +166,22 @@ void fs_fdt_set_bdinfo(void *fdt, int offs)
 #else
 	fs_fdt_set_u32str(fdt, offs, "ecc_strength", pargs->chECCtype, 1);
 #endif
+	fs_fdt_set_u32str(fdt, offs, "features1", pargs->chFeatures1, 1);
+	fs_fdt_set_u32str(fdt, offs, "features2", pargs->chFeatures2, 1);
 	fs_fdt_set_u32str(fdt, offs, "nand_state", pargs->chECCstate, 1);
+#endif /* !HAVE_BOARD_CFG */
+	fs_fdt_set_string(fdt, offs, "boot_dev",
+		fs_board_get_name_from_boot_dev(fs_board_get_boot_dev()), 1);
 	fs_fdt_set_string(fdt, offs, "board_name", get_board_name(), 0);
 	sprintf(rev, "%d.%02d", board_rev / 100, board_rev % 100);
 	fs_fdt_set_string(fdt, offs, "board_revision", rev, 1);
 	fs_fdt_set_getenv(fdt, offs, "platform", 0);
 	fs_fdt_set_getenv(fdt, offs, "arch", 1);
-	fs_fdt_set_u32str(fdt, offs, "features1", pargs->chFeatures1, 1);
-	fs_fdt_set_u32str(fdt, offs, "features2", pargs->chFeatures2, 1);
+#ifndef CONFIG_ARCH_IMX8
 	fs_fdt_set_string(fdt, offs, "reset_cause", get_reset_cause(), 1);
-	memcpy(rev, &pargs->dwNBOOT_VER, 4);
-	rev[4] = 0;
-	fs_fdt_set_string(fdt, offs, "nboot_version", rev, 1);
+#endif
+	fs_fdt_set_string(fdt, offs, "nboot_version",
+			  fs_board_get_nboot_version(), 1);
 	fs_fdt_set_string(fdt, offs, "u-boot_version", version_string, 1);
 }
 

@@ -128,6 +128,7 @@ struct f_sdp {
 };
 
 static struct f_sdp *sdp_func;
+static const struct sdp_stream_ops *stream_ops;
 
 static inline struct f_sdp *func_to_sdp(struct usb_function *f)
 {
@@ -333,6 +334,10 @@ static void sdp_rx_command_complete(struct usb_ep *ep, struct usb_request *req)
 		printf("Downloading file of size %d to 0x%08x... ",
 		       sdp->dnl_bytes_remaining, sdp->dnl_address);
 
+		if (stream_ops && stream_ops->new_file) {
+			stream_ops->new_file(sdp->dnl_address,
+					     sdp->dnl_bytes_remaining);
+		}
 		break;
 	case SDP_ERROR_STATUS:
 		sdp->always_send_status = true;
@@ -375,7 +380,7 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 	struct f_sdp *sdp = req->context;
 	int status = req->status;
 	u8 *data = req->buf;
-	u8 report = data[0];
+	u8 report = *data++;
 	int datalen = req->actual - 1;
 
 	if (status != 0) {
@@ -394,13 +399,15 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 		 * specified in the HID descriptor. This leads to longer
 		 * transfers than the file length, no problem for us.
 		 */
-		sdp->dnl_bytes_remaining = 0;
-	} else {
-		sdp->dnl_bytes_remaining -= datalen;
+		datalen = sdp->dnl_bytes_remaining;
 	}
+	sdp->dnl_bytes_remaining -= datalen;
 
 	if (sdp->state == SDP_STATE_RX_FILE_DATA_BUSY) {
-		memcpy(sdp_ptr(sdp->dnl_address), req->buf + 1, datalen);
+		if (stream_ops && stream_ops->rx_data)
+			stream_ops->rx_data(data, datalen);
+		else
+			memcpy(sdp_ptr(sdp->dnl_address), data, datalen);
 		sdp->dnl_address += datalen;
 	}
 
@@ -824,6 +831,12 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
+			struct spl_image_info spl_image_tmp = {};
+
+			/* If we don't have a spl_image struct yet, use the temporary one */
+			if (!spl_image)
+				spl_image = &spl_image_tmp;
+
 #if defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
 			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
 				sdp_func->dnl_bytes);
@@ -910,12 +923,18 @@ static void sdp_handle_out_ep(void)
 }
 
 #ifndef CONFIG_SPL_BUILD
-int sdp_handle(int controller_index)
+int sdp_handle(int controller_index,
+		const struct sdp_stream_ops *ops, bool single)
 #else
-int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image)
+int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image,
+		const struct sdp_stream_ops *ops, bool single)
 #endif
 {
 	int flag = 0;
+	enum sdp_state last_state = SDP_STATE_IDLE;
+
+	stream_ops = ops;
+
 	printf("SDP: handle requests...\n");
 	while (1) {
 		if (ctrlc()) {
@@ -934,9 +953,17 @@ int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image)
 #else
 		flag = sdp_handle_in_ep(NULL);
 #endif
+		if (single) {
+			if ((last_state != SDP_STATE_IDLE)
+			    && (sdp_func->state == SDP_STATE_IDLE))
+				flag = SDP_EXIT;
+			last_state = sdp_func->state;
+		}
+
 		if (sdp_func->ep_int_enable)
 			sdp_handle_out_ep();
 	}
+	return 0;
 }
 
 int sdp_add(struct usb_configuration *c)

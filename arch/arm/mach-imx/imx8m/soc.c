@@ -221,9 +221,6 @@ int dram_init(void)
 	else
 		gd->ram_size = sdram_size;
 
-	/* also update the SDRAM size in the mem_map used externally */
-	imx8m_mem_map[5].size = sdram_size;
-
 #ifdef PHYS_SDRAM_2_SIZE
 	gd->ram_size += PHYS_SDRAM_2_SIZE;
 #endif
@@ -1183,11 +1180,21 @@ int arch_misc_init(void)
 #define FSL_SIP_CONFIG_GPC_PM_DOMAIN	0x03
 
 #ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_IMX8MP)
+static uint32_t gpc_pu_m_core_offset[4] = {
+	0xb00, 0xb40, 0xb80, 0xbc0,
+};
+#define PU_REQ 0xd8
+#define PDN_REQ 0xe4
+#else
 static uint32_t gpc_pu_m_core_offset[11] = {
 	0xc00, 0xc40, 0xc80, 0xcc0,
 	0xdc0, 0xe00, 0xe40, 0xe80,
 	0xec0, 0xf00, 0xf40,
 };
+#define PU_REQ 0xf8
+#define PDN_REQ 0x104
+#endif
 
 #define PGC_PCR				0
 
@@ -1211,7 +1218,7 @@ void imx8m_usb_power_domain(uint32_t domain_id, bool on)
 
 	imx_gpc_set_m_core_pgc(gpc_pu_m_core_offset[domain_id], true);
 
-	reg = GPC_BASE_ADDR + (on ? 0xf8 : 0x104);
+	reg = GPC_BASE_ADDR + (on ? PU_REQ : PDN_REQ);
 	val = 1 << (domain_id > 3 ? (domain_id + 3) : domain_id);
 	writel(val, reg);
 	while (readl(reg) & val)
@@ -1345,7 +1352,7 @@ void do_error(struct pt_regs *pt_regs, unsigned int esr)
 #endif
 #endif
 
-#if defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
+#if defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP) && !defined(CONFIG_TARGET_FSIMX8MN) && !defined(CONFIG_TARGET_FSIMX8MP)
 enum env_location env_get_location(enum env_operation op, int prio)
 {
 	enum boot_device dev = get_boot_device();
