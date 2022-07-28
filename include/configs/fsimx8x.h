@@ -638,6 +638,7 @@ Free Space:
 	"platform=undef\0"						\
 	"arch=fsimx8x\0"						\
 	"bootfdt=undef\0"						\
+	"usb_pgood_delay=500\0"						\
 	"m4_uart4=disable\0"						\
 	"fdt_high=0xffffffffffffffff\0"					\
 	"set_bootfdt=setenv bootfdt ${platform}.dtb\0"			\
