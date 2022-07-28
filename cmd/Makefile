@@ -174,6 +174,9 @@ obj-$(CONFIG_CMD_AXI) += axi.o
 obj-$(CONFIG_CMD_PMIC) += pmic.o
 obj-$(CONFIG_CMD_REGULATOR) += regulator.o
 
+# Handle F&S images, e.g. NBoot
+obj-$(CONFIG_CMD_FSIMAGE) += fsimage.o
+
 obj-$(CONFIG_CMD_BLOB) += blob.o
 
 # Android Verified Boot 2.0
