@@ -74,14 +74,10 @@ DECLARE_GLOBAL_DATA_PTR;
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define ROOTFS ".rootfs_mmc"
-#define KERNEL ".kernel_mmc"
-#define FDT ".fdt_mmc"
-#define SET_ROOTFS ".set_rootfs_mmc"
-#define SELECTOR ".selector_mmc"
-#define BOOT_PARTITION ".boot_partition_mmc"
-#define ROOTFS_PARTITION ".rootfs_partition_mmc"
+#ifdef CONFIG_FS_UPDATE_SUPPORT
+#define INIT_DEF ".init_fs_updater"
+#else
+#define INIT_DEF ".init_init"
 #endif
 
 const struct fs_board_info board_info[] = {
@@ -95,16 +91,8 @@ const struct fs_board_info board_info[] = {
 		.login = ".login_serial",
 		.mtdparts = ".mtdparts_std",
 		.network = ".network_off",
-		.init = ".init_init",
-		.rootfs = ROOTFS,
-		.kernel = KERNEL,
-		.fdt = FDT,
-#ifdef CONFIG_FS_UPDATE_SUPPORT
-		.set_rootfs = SET_ROOTFS,
-		.selector = SELECTOR,
-		.boot_partition = BOOT_PARTITION,
-		.rootfs_partition = ROOTFS_PARTITION
-#endif
+		.init = INIT_DEF,
+		.flags = 0,
 	},
 };
 
