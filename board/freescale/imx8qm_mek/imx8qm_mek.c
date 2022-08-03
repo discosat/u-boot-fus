@@ -1,17 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2017-2018 NXP
+ * Copyright 2018 NXP
  */
-#include <common.h>
-#include <malloc.h>
-#include <errno.h>
-#include <netdev.h>
-#include <fsl_ifc.h>
-#include <fdt_support.h>
-#include <linux/libfdt.h>
-#include <environment.h>
-#include <fsl_esdhc.h>
-#include <i2c.h>
 
 #include <asm/io.h>
 #include <asm/gpio.h>

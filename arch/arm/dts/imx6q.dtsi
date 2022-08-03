@@ -9,6 +9,7 @@
 / {
 	aliases {
 		ipu1 = &ipu2;
+		video1 = &ipu2;
 		spi4 = &ecspi5;
 	};
 
@@ -193,6 +194,7 @@
 				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
 			clock-names = "bus", "core";
 			power-domains = <&pd_pu>;
+			#cooling-cells = <2>;
 		};
 
 		ipu2: ipu@02800000 {

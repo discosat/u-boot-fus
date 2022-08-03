@@ -33,6 +33,7 @@
 		i2c1 = &i2c2;
 		i2c2 = &i2c3;
 		ipu0 = &ipu1;
+		video0 = &ipu1;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
@@ -238,9 +239,9 @@
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &gpc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 2 &gpc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 3 &gpc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 4 &gpc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+					<0 0 0 2 &gpc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &gpc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &gpc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_PCIE_AXI>,
 				 <&clks IMX6QDL_CLK_LVDS1_GATE>,
 				 <&clks IMX6QDL_CLK_PCIE_REF_125M>;
@@ -911,22 +912,22 @@
 				clock-names = "ipg";
 
 				pgc {
-				#address-cells = <1>;
-				#size-cells = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 
 					power-domain@0 {
-					reg = <0>;
+						reg = <0>;
 						#power-domain-cells = <0>;
 					};
 					pd_pu: power-domain@1 {
 						reg = <1>;
 						#power-domain-cells = <0>;
 						power-supply = <&reg_pu>;
-				clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
-					 <&clks IMX6QDL_CLK_GPU3D_SHADER>,
-					 <&clks IMX6QDL_CLK_GPU2D_CORE>,
-					 <&clks IMX6QDL_CLK_GPU2D_AXI>,
-					 <&clks IMX6QDL_CLK_OPENVG_AXI>,
+						clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
+						         <&clks IMX6QDL_CLK_GPU3D_SHADER>,
+						         <&clks IMX6QDL_CLK_GPU2D_CORE>,
+						         <&clks IMX6QDL_CLK_GPU2D_AXI>,
+						         <&clks IMX6QDL_CLK_OPENVG_AXI>,
 						         <&clks IMX6QDL_CLK_VPU_AXI>;
 					};
 				};
@@ -1041,9 +1042,9 @@
 			ranges;
 
 			crypto: caam@2100000 {
-                                compatible = "fsl,sec-v4.0";
-                                #address-cells = <1>;
-                                #size-cells = <1>;
+				compatible = "fsl,sec-v4.0";
+				#address-cells = <1>;
+				#size-cells = <1>;
 				reg = <0x2100000 0x10000>;
                                 ranges = <0 0x2100000 0x40000>;
                                 interrupt-parent = <&intc>; /* interrupts = <0 92 0x4>; */
@@ -1062,18 +1063,18 @@
 					status = "disabled";
 				};
 
-                                sec_jr0: jr0@1000 {
-                                        compatible = "fsl,sec-v4.0-job-ring";
-                                        reg = <0x1000 0x1000>;
+				sec_jr0: jr0@1000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x1000 0x1000>;
 					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-                                };
-
-                                sec_jr1: jr1@2000 {
-                                        compatible = "fsl,sec-v4.0-job-ring";
-                                        reg = <0x2000 0x1000>;
-					interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
-                                };
 				};
+
+				sec_jr1: jr1@2000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x2000 0x1000>;
+					interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
 
 			aipstz@0217c000 { /* AIPSTZ2 */
 				reg = <0x0217c000 0x4000>;
@@ -1343,7 +1344,7 @@
 						mipi_mux_0: endpoint {
 							remote-endpoint = <&ipu1_di0_mipi>;
 						};
-			};
+					};
 
 					port@1 {
 						reg = <1>;

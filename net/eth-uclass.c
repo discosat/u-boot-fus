@@ -470,6 +470,26 @@ static int eth_pre_unbind(struct udevice *dev)
 	return 0;
 }
 
+static bool eth_dev_get_mac_address(struct udevice *dev, u8 mac[ARP_HLEN])
+{
+#if IS_ENABLED(CONFIG_OF_CONTROL)
+	const uint8_t *p;
+
+	p = dev_read_u8_array_ptr(dev, "mac-address", ARP_HLEN);
+	if (!p)
+		p = dev_read_u8_array_ptr(dev, "local-mac-address", ARP_HLEN);
+
+	if (!p)
+		return false;
+
+	memcpy(mac, p, ARP_HLEN);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
 static int eth_post_probe(struct udevice *dev)
 {
 	struct eth_device_priv *priv = dev->uclass_priv;
@@ -504,9 +524,13 @@ static int eth_post_probe(struct udevice *dev)
 
 	priv->state = ETH_STATE_INIT;
 
-	/* Check if the device has a MAC address in ROM */
-	if (eth_get_ops(dev)->read_rom_hwaddr)
-		eth_get_ops(dev)->read_rom_hwaddr(dev);
+	/* Check if the device has a valid MAC address in device tree */
+	if (!eth_dev_get_mac_address(dev, pdata->enetaddr) ||
+	    !is_valid_ethaddr(pdata->enetaddr)) {
+		/* Check if the device has a MAC address in ROM */
+		if (eth_get_ops(dev)->read_rom_hwaddr)
+			eth_get_ops(dev)->read_rom_hwaddr(dev);
+	}
 
 	eth_env_get_enetaddr_by_index("eth", dev->seq, env_enetaddr);
 	if (!is_zero_ethaddr(env_enetaddr)) {
@@ -538,6 +562,8 @@ static int eth_post_probe(struct udevice *dev)
 		return -EINVAL;
 #endif
 	}
+
+	eth_write_hwaddr(dev);
 
 	return 0;
 }

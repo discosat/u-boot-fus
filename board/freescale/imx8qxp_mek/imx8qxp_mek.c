@@ -244,7 +244,7 @@ int checkboard(void)
 	print_bootinfo();
 
 	return 0;
-}
+	}
 
 #ifdef CONFIG_FSL_HSIO
 
@@ -264,7 +264,7 @@ static void imx8qxp_hsio_initialize(void)
 		ret = power_domain_on(&pd);
 		if (ret)
 			printf("hsio_pcie1 Power up failed! (error = %d)\n", ret);
-	}
+}
 
 	if (!power_domain_lookup_name("hsio_gpio", &pd)) {
 		ret = power_domain_on(&pd);

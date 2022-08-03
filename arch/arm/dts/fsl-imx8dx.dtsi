@@ -324,7 +324,7 @@
 				#power-domain-cells = <0>;
 				power-domains = <&pd_lsio>;
 			};
-			pd_lsio_gpio6:PD_LSIO_GPIO_6 {
+			pd_lsio_gpio6: PD_LSIO_GPIO_6 {
 				reg = <SC_R_GPIO_6>;
 				#power-domain-cells = <0>;
 				power-domains = <&pd_lsio>;
@@ -967,8 +967,8 @@
 						#power-domain-cells = <0>;
 						#address-cells = <1>;
 						#size-cells = <0>;
-					};
-				};
+		};
+	};
 			};
 			pd_dma_lpuart2: PD_DMA_UART2 {
 				reg = <SC_R_UART_2>;
@@ -2613,7 +2613,7 @@
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio0>;
+		power-domains = <&pd_lsio_gpio0>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2624,7 +2624,7 @@
 		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio1>;
+		power-domains = <&pd_lsio_gpio1>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2635,7 +2635,7 @@
 		interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio2>;
+		power-domains = <&pd_lsio_gpio2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2646,7 +2646,7 @@
 		interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio3>;
+		power-domains = <&pd_lsio_gpio3>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2668,7 +2668,7 @@
 		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio5>;
+		power-domains = <&pd_lsio_gpio5>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2679,7 +2679,7 @@
 		interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio6>;
+		power-domains = <&pd_lsio_gpio6>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
@@ -2690,7 +2690,7 @@
 		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
-                power-domains = <&pd_lsio_gpio7>;
+		power-domains = <&pd_lsio_gpio7>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};

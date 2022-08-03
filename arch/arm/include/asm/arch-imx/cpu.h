@@ -66,8 +66,8 @@
 #define CHIP_REV_2_5            0x25
 #define CHIP_REV_3_0            0x30
 
-#define CHIP_REV_A				0x0
-#define CHIP_REV_B				0x1
+#define CHIP_REV_A		0x0
+#define CHIP_REV_B		0x1
 #define CHIP_REV_C				0x2
 
 #define BOARD_REV_1_0           0x0

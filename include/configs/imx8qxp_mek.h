@@ -12,10 +12,8 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_TEXT_BASE				0x100000
 #define CONFIG_SPL_MAX_SIZE				(192 * 1024)
-#define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
+#define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR		0x1040 /* (32K + 2Mb)/sector_size */
 #define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
@@ -35,12 +33,10 @@
  */
 #define CONFIG_SPL_STACK		0x013fff0
 #define CONFIG_SPL_BSS_START_ADDR      0x00130000
-#define CONFIG_SPL_BSS_MAX_SIZE        0x1000	/* 4 KB */
+#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
 #define CONFIG_SYS_SPL_MALLOC_START	0x82200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
-#define CONFIG_SERIAL_LPUART_BASE      0x5a060000
-#define CONFIG_SYS_ICACHE_OFF
-#define CONFIG_SYS_DCACHE_OFF
+#define CONFIG_SERIAL_LPUART_BASE	0x5a060000
 #define CONFIG_MALLOC_F_ADDR		0x00138000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
@@ -72,7 +68,6 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
 #define CONFIG_ENV_OVERWRITE
 
@@ -181,14 +176,14 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-				"if run loadfdt; then " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if run loadfdt; then " \
 					"run boot_os; " \
-				"else " \
-					"echo WARN: Cannot load the DT; " \
-				"fi; " \
 			"else " \
-				"echo wait for boot; " \
+				"echo WARN: Cannot load the DT; " \
+			"fi; " \
+		"else " \
+			"echo wait for boot; " \
 			"fi;" \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} earlycon " \
@@ -209,15 +204,15 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-			"${get_cmd} ${loadaddr} ${image}; " \
-			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+		"${get_cmd} ${loadaddr} ${image}; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
 					"run boot_os; " \
-				"else " \
-					"echo WARN: Cannot load the DT; " \
-				"fi; " \
 			"else " \
-				"booti; " \
+				"echo WARN: Cannot load the DT; " \
+			"fi; " \
+		"else " \
+			"booti; " \
 			"fi;" \
 		"fi;\0"
 
@@ -232,11 +227,11 @@
 				   "else run netboot; " \
 				   "fi; " \
 			    "else " \
-				   "if run loadimage; then " \
-					   "run mmcboot; " \
-				   "else run netboot; " \
-				   "fi; " \
-			 "fi; " \
+			   "if run loadimage; then " \
+				   "run mmcboot; " \
+			   "else run netboot; " \
+			   "fi; " \
+		   "fi; " \
 		   "fi; " \
 	   "else booti ${loadaddr} - ${fdt_addr}; fi"
 
@@ -257,7 +252,7 @@
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #else
-#define CONFIG_ENV_OFFSET       (64 * SZ_64K)
+#define CONFIG_ENV_OFFSET		(64 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
@@ -269,7 +264,7 @@
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32*1024)) * 1024)
+#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32 * 1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000

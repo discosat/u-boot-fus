@@ -11,6 +11,7 @@
 #include <dm/lists.h>
 #include <dm/uclass.h>
 #include <errno.h>
+#include <thermal.h>
 #include <asm/arch/sci/sci.h>
 #include <asm/arch/clock.h>
 #include <power-domain.h>
@@ -106,11 +107,11 @@ int arch_cpu_init_dm(void)
 	if ((is_imx8qm() || is_imx8qxp()) && is_soc_rev(CHIP_REV_A)) {
 		pass_over = get_pass_over_info();
 		if (pass_over && pass_over->g_ap_mu == 0) {
-		/*
-		 * When ap_mu is 0, means the U-Boot booted
-		 * from first container
-		 */
-		sc_misc_boot_status(-1, SC_MISC_BOOT_STATUS_SUCCESS);
+			/*
+			 * When ap_mu is 0, means the U-Boot booted
+			 * from first container
+			 */
+			sc_misc_boot_status(-1, SC_MISC_BOOT_STATUS_SUCCESS);
 		}
 	}
 
@@ -600,7 +601,7 @@ int mmc_get_env_dev(void)
 
 	sc_misc_get_boot_dev(-1, &dev_rsrc);
 
-	switch(dev_rsrc) {
+	switch (dev_rsrc) {
 	case SC_R_SDHC_0:
 		devno = 0;
 		break;
@@ -1232,18 +1233,18 @@ static int get_owned_memreg(sc_rm_mr_t mr, sc_faddr_t *addr_start,
 	bool owned;
 
 	owned = sc_rm_is_memreg_owned(-1, mr);
-		if (owned) {
+	if (owned) {
 		ret = sc_rm_get_memreg_info(-1, mr, &start, &end);
 		if (ret) {
 			printf("Memreg get info failed, %d\n", ret);
-				return -EINVAL;
+			return -EINVAL;
 		}
-				debug("0x%llx -- 0x%llx\n", start, end);
+		debug("0x%llx -- 0x%llx\n", start, end);
 		*addr_start = reserve_optee_shm(start);
-				*addr_end = end;
+		*addr_end = end;
 
-				return 0;
-			}
+		return 0;
+	}
 
 	return -EINVAL;
 }
@@ -1481,7 +1482,7 @@ void enable_caches(void)
 		return;
 	}
 
-	for (i = 0;i < MAX_MEM_MAP_REGIONS;i++) {
+	for (i = 0; i < MAX_MEM_MAP_REGIONS; i++) {
 		debug("[%d] vir = 0x%llx phys = 0x%llx size = 0x%llx attrs = 0x%llx\n",
 		      i, imx8_mem_map[i].virt, imx8_mem_map[i].phys,
 		      imx8_mem_map[i].size, imx8_mem_map[i].attrs);
@@ -1491,7 +1492,7 @@ void enable_caches(void)
 	dcache_enable();
 }
 
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 u64 get_page_table_size(void)
 {
 	u64 one_pt = MAX_PTE_ENTRIES * sizeof(u64);
@@ -1548,7 +1549,7 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 		ret = sc_misc_otp_fuse_read(-1, word[i], &val[i]);
 		if (ret < 0)
 			goto err;
-}
+	}
 
 	mac[0] = val[0];
 	mac[1] = val[0] >> 8;
@@ -1658,39 +1659,50 @@ const char *get_core_name(struct udevice *dev)
 		return "?";
 }
 
+#if IS_ENABLED(CONFIG_IMX_SCU_THERMAL)
+static int cpu_imx_get_temp(void)
+{
+	struct udevice *thermal_dev;
+	int cpu_tmp, ret;
+
+	ret = uclass_get_device_by_name(UCLASS_THERMAL, "cpu-thermal0",
+					&thermal_dev);
+
+	if (!ret) {
+		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+		if (ret)
+			return 0xdeadbeef;
+	} else {
+		return 0xdeadbeef;
+	}
+
+	return cpu_tmp;
+}
+#else
+static int cpu_imx_get_temp(void)
+{
+	return 0;
+}
+#endif
+
 int cpu_imx_get_desc(struct udevice *dev, char *buf, int size)
 {
 	struct cpu_imx_platdata *plat = dev_get_platdata(dev);
-	int len;
+	int ret;
 
 	if (size < 100)
 		return -ENOSPC;
 
-	len = snprintf(buf, size, "NXP i.MX8%s Rev%s %s at %u MHz",
-		 plat->type, plat->rev, plat->name, plat->freq_mhz);
+	ret = snprintf(buf, size, "NXP i.MX8%s Rev%s %s at %u MHz",
+		       plat->type, plat->rev, plat->name, plat->freq_mhz);
 
-#if defined(CONFIG_IMX_SC_THERMAL)
-	struct udevice *thermal_dev;
-	int cpu_tmp, ret;
-
-	if (!strcmp(plat->name, "A72"))
-		ret = uclass_get_device_by_name(UCLASS_THERMAL, "cpu-thermal1", &thermal_dev);
-	else
-		ret = uclass_get_device_by_name(UCLASS_THERMAL, "cpu-thermal0", &thermal_dev);
-
-	if (!ret) {
-		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
-
-		if (!ret)
-			len += snprintf(buf + len, size," at %dC", cpu_tmp);
-		else
-			len += snprintf(buf + len, size," - invalid sensor data");
-	} else {
-		len += snprintf(buf + len, size, " - invalid sensor device");
+	if (IS_ENABLED(CONFIG_IMX_SCU_THERMAL)) {
+		buf = buf + ret;
+		size = size - ret;
+		ret = snprintf(buf, size, " at %dC", cpu_imx_get_temp());
 	}
-#endif
 
-	len += snprintf(buf + len, size, "\n");
+	snprintf(buf + ret, size - ret, "\n");
 
 	return 0;
 }
@@ -1744,6 +1756,23 @@ static const struct udevice_id cpu_imx8_ids[] = {
 	{ .compatible = "arm,cortex-a72" },
 	{ }
 };
+
+static ulong imx8_get_cpu_rate(void)
+{
+	ulong rate;
+	int ret;
+	int type = is_cortex_a35() ? SC_R_A35 : is_cortex_a53() ?
+		   SC_R_A53 : SC_R_A72;
+
+	ret = sc_pm_get_clock_rate(-1, type, SC_PM_CLK_CPU,
+				   (sc_pm_clock_rate_t *)&rate);
+	if (ret) {
+		printf("Could not read CPU frequency: %d\n", ret);
+		return 0;
+	}
+
+	return rate;
+}
 
 static int imx8_cpu_probe(struct udevice *dev)
 {

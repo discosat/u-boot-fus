@@ -1,3 +1,6 @@
+menu "i.MX8M DDR controllers"
+	depends on ARCH_IMX8M
+
 config IMX8M_DRAM
 	bool "imx8m dram"
 
@@ -36,3 +39,5 @@ config IMX8M_DRAM_INLINE_ECC
 	help
 	  Select this config if you want to use inline ecc feature for
 	  imx8mp-evk board.
+
+endmenu

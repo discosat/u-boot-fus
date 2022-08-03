@@ -391,7 +391,7 @@ void arch_preboot_os(void)
 	/* Entry for GIS */
 	mxc_disable_gis();
 #endif
-#if defined(CONFIG_VIDEO_MXS)
+#if defined(CONFIG_VIDEO_MXS) && !defined(CONFIG_DM_VIDEO)
 	lcdif_power_down();
 #endif
 #if defined(CONFIG_VIDEO_IMX_LCDIFV3)
@@ -468,7 +468,7 @@ u32 get_cpu_speed_grade_hz(void)
 	if (is_imx8mm())
 		val &= 0x7;
 	else
-		val &= 0x3;
+	val &= 0x3;
 
 	switch(val) {
 	case OCOTP_TESTER3_SPEED_GRADE0:

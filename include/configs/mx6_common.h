@@ -61,9 +61,6 @@
 #define CONFIG_FSL_USDHC
 #define CONFIG_SUPPORT_EMMC_BOOT
 
-/* Fuses */
-#define CONFIG_MXC_OCOTP
-
 /* Secure boot (HAB) support */
 #ifdef CONFIG_SECURE_BOOT
 #define CONFIG_CSF_SIZE			0x4000

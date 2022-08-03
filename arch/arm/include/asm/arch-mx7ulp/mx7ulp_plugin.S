@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (C) 2016 Freescale Semiconductor, Inc.
- *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright 2019 NXP
  */
 
 #include <config.h>
@@ -56,10 +44,10 @@ before_calling_rom___pu_irom_hwcnfg_setup:
 	blx r4
 after_calling_rom___pu_irom_hwcnfg_setup:
 
-
-/* To return to ROM from plugin, we need to fill in these argument.
+/*
+ * To return to ROM from plugin, we need to fill in these argument.
  * Here is what need to do:
- * Need to construct the paramters for this function before return to ROM:
+ * Need to construct the parameters for this function before return to ROM:
  * plugin_download(void **start, size_t *bytes, UINT32 *ivt_offset)
  */
 	pop {r0-r4, lr}

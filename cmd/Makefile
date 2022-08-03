@@ -46,7 +46,6 @@ obj-$(CONFIG_CMD_SOUND) += sound.o
 ifdef CONFIG_POST
 obj-$(CONFIG_CMD_DIAG) += diag.o
 endif
-obj-$(CONFIG_CMD_DISPLAY) += display.o
 obj-$(CONFIG_CMD_DTIMG) += dtimg.o
 obj-$(CONFIG_CMD_ECHO) += echo.o
 obj-$(CONFIG_ENV_IS_IN_EEPROM) += eeprom.o
@@ -146,6 +145,7 @@ obj-$(CONFIG_CMD_UNIVERSE) += universe.o
 obj-$(CONFIG_CMD_UNZIP) += unzip.o
 obj-$(CONFIG_CMD_UPDATE) += update.o
 obj-$(CONFIG_CMD_VIRTIO) += virtio.o
+obj-$(CONFIG_CMD_WDT) += wdt.o
 obj-$(CONFIG_CMD_LZMADEC) += lzmadec.o
 
 obj-$(CONFIG_CMD_USB) += usb.o disk.o
@@ -187,6 +187,8 @@ obj-$(CONFIG_CMD_BLOB) += blob.o
 # Android Verified Boot 2.0
 obj-$(CONFIG_CMD_AVB) += avb.o
 
+obj-$(CONFIG_ARM) += arm/
+obj-$(CONFIG_RISCV) += riscv/
 obj-$(CONFIG_X86) += x86/
 
 obj-$(CONFIG_ARCH_MVEBU) += mvebu/

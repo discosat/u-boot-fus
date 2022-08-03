@@ -32,7 +32,7 @@ static long do_fpga_get_device(char *arg)
 
 static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 				cmd_tbl_t *cmdtp, int argc, char *const argv[])
-		{
+{
 	size_t local_data_size;
 	long local_fpga_data;
 
@@ -41,22 +41,22 @@ static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 	if (argc != cmdtp->maxargs) {
 		debug("fpga: incorrect parameters passed\n");
 		return CMD_RET_USAGE;
-		}
+	}
 
 	*dev = do_fpga_get_device(argv[0]);
 
 	local_fpga_data = simple_strtol(argv[1], NULL, 16);
 	if (!local_fpga_data) {
 		debug("fpga: zero fpga_data address\n");
-			return CMD_RET_USAGE;
-			}
+		return CMD_RET_USAGE;
+	}
 	*fpga_data = local_fpga_data;
 
 	local_data_size = simple_strtoul(argv[2], NULL, 16);
 	if (!local_data_size) {
 		debug("fpga: zero size\n");
-			return CMD_RET_USAGE;
-		}
+		return CMD_RET_USAGE;
+	}
 	*data_size = local_data_size;
 
 	return 0;
@@ -64,7 +64,7 @@ static int do_fpga_check_params(long *dev, long *fpga_data, size_t *data_size,
 
 #if defined(CONFIG_CMD_FPGA_LOAD_SECURE)
 int do_fpga_loads(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
-		{
+{
 	size_t data_size = 0;
 	long fpga_data, dev;
 	int ret;
@@ -93,17 +93,17 @@ int do_fpga_loads(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	fpga_sec_info.encflag = (u8)simple_strtoul(argv[4], NULL, 16);
 	fpga_sec_info.authflag = (u8)simple_strtoul(argv[3], NULL, 16);
 
-		if (fpga_sec_info.authflag >= FPGA_NO_ENC_OR_NO_AUTH &&
-		    fpga_sec_info.encflag >= FPGA_NO_ENC_OR_NO_AUTH) {
+	if (fpga_sec_info.authflag >= FPGA_NO_ENC_OR_NO_AUTH &&
+	    fpga_sec_info.encflag >= FPGA_NO_ENC_OR_NO_AUTH) {
 		debug("fpga: Use <fpga load> for NonSecure bitstream\n");
 		return CMD_RET_USAGE;
 	}
 
-		if (fpga_sec_info.encflag == FPGA_ENC_USR_KEY &&
-		    !fpga_sec_info.userkey_addr) {
+	if (fpga_sec_info.encflag == FPGA_ENC_USR_KEY &&
+	    !fpga_sec_info.userkey_addr) {
 		debug("fpga: User key not provided\n");
 		return CMD_RET_USAGE;
-		}
+	}
 
 	ret = do_fpga_check_params(&dev, &fpga_data, &data_size,
 				   cmdtp, argc, argv);
@@ -144,7 +144,7 @@ static int do_fpga_info(cmd_tbl_t *cmdtp, int flag, int argc,
 	long dev = do_fpga_get_device(argv[0]);
 
 	return fpga_info(dev);
-	}
+}
 
 static int do_fpga_dump(cmd_tbl_t *cmdtp, int flag, int argc,
 			char * const argv[])
@@ -159,7 +159,7 @@ static int do_fpga_dump(cmd_tbl_t *cmdtp, int flag, int argc,
 		return ret;
 
 	return fpga_dump(dev, (void *)fpga_data, data_size);
-	}
+}
 
 static int do_fpga_load(cmd_tbl_t *cmdtp, int flag, int argc,
 			char * const argv[])
@@ -279,84 +279,84 @@ static int do_fpga_loadmk(cmd_tbl_t *cmdtp, int flag, int argc,
 		return CMD_RET_USAGE;
 	}
 
-		switch (genimg_get_format(fpga_data)) {
+	switch (genimg_get_format(fpga_data)) {
 #if defined(CONFIG_IMAGE_FORMAT_LEGACY)
-		case IMAGE_FORMAT_LEGACY:
-			{
+	case IMAGE_FORMAT_LEGACY:
+	{
 		image_header_t *hdr = (image_header_t *)fpga_data;
-				ulong data;
+		ulong data;
 		u8 comp;
 
-				comp = image_get_comp(hdr);
-				if (comp == IH_COMP_GZIP) {
+		comp = image_get_comp(hdr);
+		if (comp == IH_COMP_GZIP) {
 #if defined(CONFIG_GZIP)
-					ulong image_buf = image_get_data(hdr);
-					ulong image_size = ~0UL;
+			ulong image_buf = image_get_data(hdr);
+			ulong image_size = ~0UL;
 
 			data = image_get_load(hdr);
 
 			if (gunzip((void *)data, ~0UL, (void *)image_buf,
-						   &image_size) != 0) {
-						puts("GUNZIP: error\n");
+				   &image_size) != 0) {
+				puts("GUNZIP: error\n");
 				return CMD_RET_FAILURE;
-					}
-					data_size = image_size;
-#else
-					puts("Gunzip image is not supported\n");
-					return 1;
-#endif
-				} else {
-					data = (ulong)image_get_data(hdr);
-					data_size = image_get_data_size(hdr);
-				}
-		return fpga_load(dev, (void *)data, data_size,
-					       BIT_FULL);
 			}
+			data_size = image_size;
+#else
+			puts("Gunzip image is not supported\n");
+			return 1;
+#endif
+		} else {
+			data = (ulong)image_get_data(hdr);
+			data_size = image_get_data_size(hdr);
+		}
+		return fpga_load(dev, (void *)data, data_size,
+				  BIT_FULL);
+	}
 #endif
 #if defined(CONFIG_FIT)
-		case IMAGE_FORMAT_FIT:
-			{
-				const void *fit_hdr = (const void *)fpga_data;
-				int noffset;
-				const void *fit_data;
+	case IMAGE_FORMAT_FIT:
+	{
+		const void *fit_hdr = (const void *)fpga_data;
+		int noffset;
+		const void *fit_data;
 
 		if (!fit_uname) {
-					puts("No FIT subimage unit name\n");
+			puts("No FIT subimage unit name\n");
 			return CMD_RET_FAILURE;
-				}
+		}
 
-				if (!fit_check_format(fit_hdr)) {
-					puts("Bad FIT image format\n");
+		if (!fit_check_format(fit_hdr)) {
+			puts("Bad FIT image format\n");
 			return CMD_RET_FAILURE;
-				}
+		}
 
-				/* get fpga component image node offset */
+		/* get fpga component image node offset */
 		noffset = fit_image_get_node(fit_hdr, fit_uname);
-				if (noffset < 0) {
+		if (noffset < 0) {
 			printf("Can't find '%s' FIT subimage\n", fit_uname);
 			return CMD_RET_FAILURE;
-				}
+		}
 
-				/* verify integrity */
-				if (!fit_image_verify(fit_hdr, noffset)) {
-					puts ("Bad Data Hash\n");
+		/* verify integrity */
+		if (!fit_image_verify(fit_hdr, noffset)) {
+			puts("Bad Data Hash\n");
 			return CMD_RET_FAILURE;
-				}
+		}
 
-				/* get fpga subimage data address and length */
-		if (fit_image_get_data(fit_hdr, noffset, &fit_data,
-				       &data_size)) {
-					puts("Fpga subimage data not found\n");
+		/* get fpga subimage/external data address and length */
+		if (fit_image_get_data_and_size(fit_hdr, noffset,
+					       &fit_data, &data_size)) {
+			puts("Fpga subimage data not found\n");
 			return CMD_RET_FAILURE;
-				}
+		}
 
 		return fpga_load(dev, fit_data, data_size, BIT_FULL);
-			}
+	}
 #endif
-		default:
-			puts("** Unknown image type\n");
+	default:
+		puts("** Unknown image type\n");
 		return CMD_RET_FAILURE;
-		}
+	}
 }
 #endif
 
@@ -396,7 +396,7 @@ static int do_fpga_wrapper(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (!fpga_cmd) {
 		debug("fpga: non existing command\n");
 		return CMD_RET_USAGE;
-}
+	}
 
 	argc -= 2;
 	argv += 2;

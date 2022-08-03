@@ -503,6 +503,12 @@ int arch_cpu_init(void)
 			writel(0x200, &ocotp->ctrl_clr);
 	}
 
+	if (is_imx8mq()) {
+		clock_enable(CCGR_OCOTP, 1);
+		if (readl(&ocotp->ctrl) & 0x200)
+			writel(0x200, &ocotp->ctrl_clr);
+	}
+
 	return 0;
 }
 
@@ -1155,7 +1161,7 @@ enum env_location env_get_location(enum env_operation op, int prio)
 		break;
 #endif
 	default:
-#if defined(CONFIG_ENV_DEFAULT_NOWHERE) || defined(CONFIG_ENV_IS_NOWHERE)
+#ifdef CONFIG_ENV_IS_NOWHERE
 		env_loc = ENVL_NOWHERE;
 #endif
 		break;

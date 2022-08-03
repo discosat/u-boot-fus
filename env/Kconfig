@@ -2,33 +2,18 @@ menu "Environment"
 
 config ENV_IS_NOWHERE
 	bool "Environment is not stored"
-	depends on !ENV_IS_IN_EEPROM
-	depends on !ENV_IS_IN_EXT4
-	depends on !ENV_IS_IN_FAT
-	depends on !ENV_IS_IN_FLASH
-	depends on !ENV_IS_IN_MMC
-	depends on !ENV_IS_IN_NAND
-	depends on !ENV_IS_IN_NVRAM
-	depends on !ENV_IS_IN_ONENAND
-	depends on !ENV_IS_IN_REMOTE
-	depends on !ENV_IS_IN_SATA
-	depends on !ENV_IS_IN_SPI_FLASH
-	depends on !ENV_IS_IN_UBI
-	default y
+	default y if !ENV_IS_IN_EEPROM && !ENV_IS_IN_EXT4 && \
+		     !ENV_IS_IN_FAT && !ENV_IS_IN_FLASH && \
+		     !ENV_IS_IN_MMC && !ENV_IS_IN_NAND && \
+		     !ENV_IS_IN_NVRAM && !ENV_IS_IN_ONENAND && \
+		     !ENV_IS_IN_REMOTE && !ENV_IS_IN_SPI_FLASH && \
+		     !ENV_IS_IN_UBI && !ENV_IS_IN_SATA
 	help
 	  Define this if you don't want to or can't have an environment stored
 	  on a storage medium. In this case the environment will still exist
 	  while U-Boot is running, but once U-Boot exits it will not be
 	  stored. U-Boot will therefore always start up with a default
 	  environment.
-
-config ENV_DEFAULT_NOWHERE
-	depends on !ENV_IS_NOWHERE
-	default y if IMX8MN || IMX8MP
-	bool "Environment is not stored if no matched location"
-	help
-	  Define this when multiple ENV locations are defined and use nowhere as
-	  default when no storage medium is matched.
 
 config ENV_IS_IN_EEPROM
 	bool "Environment in EEPROM"
@@ -316,7 +301,7 @@ config ENV_IS_IN_SATA
 
 config ENV_IS_IN_SPI_FLASH
 	bool "Environment is in SPI flash"
-	depends on !CHAIN_OF_TRUST
+	depends on !CHAIN_OF_TRUST && SPI
 	default y if ARMADA_XP
 	default y if INTEL_BAYTRAIL
 	default y if INTEL_BRASWELL
@@ -374,14 +359,14 @@ config ENV_SPI_CS
 	  Value of the SPI chip select for environment.
 
 config USE_ENV_SPI_MAX_HZ
-	bool "SPI flash bus for environment"
+	bool "SPI flash max frequency for environment"
 	depends on ENV_IS_IN_SPI_FLASH
 	help
 	  Force the SPI max work clock for environment.
 	  If not defined, use CONFIG_SF_DEFAULT_SPEED.
 
 config ENV_SPI_MAX_HZ
-	int "Value of SPI flash max work for environment"
+	int "Value of SPI flash max frequency for environment"
 	depends on USE_ENV_SPI_MAX_HZ
 	help
 	  Value of the SPI max work clock for environment.
@@ -493,7 +478,7 @@ config ENV_EXT4_FILE
 	  It's a string of the EXT4 file name. This file use to store the
 	  environment (explicit path to the file)
 
-if ARCH_ROCKCHIP || ARCH_SUNXI || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_VERSAL || ARC
+if ARCH_ROCKCHIP || ARCH_SUNXI || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_VERSAL || ARC || ARCH_STM32MP
 
 config ENV_OFFSET
 	hex "Environment Offset"

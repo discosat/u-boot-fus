@@ -77,3 +77,4 @@ obj-$(CONFIG_SNI_AVE) += sni_ave.o
 obj-y += ti/
 obj-$(CONFIG_MEDIATEK_ETH) += mtk_eth.o
 obj-y += mscc_eswitch/
+obj-$(CONFIG_HIGMACV300_ETH) += higmacv300.o

@@ -1507,7 +1507,7 @@ static int fecmxc_probe(struct udevice *dev)
 		priv->xcv_type = RGMII;
 		break;
 	default:
-	priv->xcv_type = CONFIG_FEC_XCV_TYPE;
+		priv->xcv_type = CONFIG_FEC_XCV_TYPE;
 		printf("Unsupported interface type %d defaulting to %d\n",
 		       priv->interface, priv->xcv_type);
 		break;
@@ -1603,6 +1603,7 @@ static const struct udevice_id fecmxc_ids[] = {
 	{ .compatible = "fsl,imx53-fec" },
 	{ .compatible = "fsl,imx7d-fec" },
 	{ .compatible = "fsl,imx8qm-fec" },
+	{ .compatible = "fsl,mvf600-fec" },
 	{ }
 };
 

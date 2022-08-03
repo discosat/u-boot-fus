@@ -200,15 +200,6 @@ u32 __weak get_board_rev(void)
 }
 #endif
 
-#ifndef CONFIG_SKIP_LOWLEVEL_INIT
-/* enable all periherial can be accessed in nosec mode */
-static void init_csu(void)
-{
-	int i = 0;
-	for (i = 0; i < CSU_NUM_REGS; i++)
-		writel(CSU_INIT_SEC_LEVEL0, CSU_IPS_BASE_ADDR + i * 4);
-}
-
 static void imx_enet_mdio_fixup(void)
 {
 	struct iomuxc_gpr_base_regs *gpr_regs =
@@ -225,6 +216,26 @@ static void imx_enet_mdio_fixup(void)
 		setbits_le32(&gpr_regs->gpr[0],
 			     IOMUXC_GPR_GPR0_ENET_MDIO_OPEN_DRAIN_MASK);
 	}
+}
+
+static void init_cpu_basic(void)
+{
+	imx_enet_mdio_fixup();
+
+#ifdef CONFIG_APBH_DMA
+	/* Start APBH DMA */
+	mxs_dma_init();
+#endif
+}
+
+#ifndef CONFIG_SKIP_LOWLEVEL_INIT
+/* enable all periherial can be accessed in nosec mode */
+static void init_csu(void)
+{
+	int i = 0;
+
+	for (i = 0; i < CSU_NUM_REGS; i++)
+		writel(CSU_INIT_SEC_LEVEL0, CSU_IPS_BASE_ADDR + i * 4);
 }
 
 static void imx_gpcv2_init(void)
@@ -340,14 +351,9 @@ int arch_cpu_init(void)
 	/* Disable PDE bit of WMCR register */
 	imx_wdog_disable_powerdown();
 
-	imx_enet_mdio_fixup();
+	init_cpu_basic();
 
 	set_epdc_qos();
-
-#ifdef CONFIG_APBH_DMA
-	/* Start APBH DMA */
-	mxs_dma_init();
-#endif
 
 #if CONFIG_IS_ENABLED(IMX_RDC)
 	isolate_resource();
@@ -360,6 +366,13 @@ int arch_cpu_init(void)
 	/* Secure init function such RNG */
 	imx_sec_init();
 #endif
+
+	return 0;
+}
+#else
+int arch_cpu_init(void)
+{
+	init_cpu_basic();
 
 	return 0;
 }
@@ -450,7 +463,7 @@ void s_init(void)
 void reset_misc(void)
 {
 #ifndef CONFIG_SPL_BUILD
-#ifdef CONFIG_VIDEO_MXS
+#if defined(CONFIG_VIDEO_MXS) && !defined(CONFIG_DM_VIDEO)
 	lcdif_power_down();
 #endif
 #endif

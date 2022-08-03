@@ -380,7 +380,7 @@ static void sdp_rx_data_complete(struct usb_ep *ep, struct usb_request *req)
 		 */
 		datalen = sdp->dnl_bytes_remaining;
 	}
-	sdp->dnl_bytes_remaining -= datalen;
+		sdp->dnl_bytes_remaining -= datalen;
 
 	if (sdp->state == SDP_STATE_RX_FILE_DATA) {
 		if (stream_ops && stream_ops->rx_data)

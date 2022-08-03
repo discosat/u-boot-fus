@@ -791,7 +791,6 @@
 
 #define CONFIG_MXC_GPIO
 
-#define CONFIG_MXC_OCOTP
 #define CONFIG_CMD_FUSE
 
 #ifndef CONFIG_DM_I2C

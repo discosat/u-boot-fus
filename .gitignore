@@ -36,12 +36,13 @@
 #
 # Top-level generic files
 #
-fit-dtb.blob
+fit-dtb.blob*
 /MLO*
 /SPL*
 /System.map
 /u-boot*
 /boards.cfg
+/*.log
 /uboot.nb0
 
 #

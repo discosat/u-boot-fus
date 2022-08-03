@@ -22,6 +22,7 @@
 #include <dm.h>
 #include <asm/mach-types.h>
 #include <power/regulator.h>
+#include <linux/usb/otg.h>
 #include <asm/arch/sys_proto.h>
 
 #include "ehci.h"
@@ -205,7 +206,7 @@ static int mx6_init_after_reset(struct ehci_ctrl *dev)
 
 static const struct ehci_ops mx6_ehci_ops = {
 	.powerup_fixup		= ehci_mx6_powerup_fixup,
-	.init_after_reset 	= mx6_init_after_reset
+	.init_after_reset = mx6_init_after_reset
 };
 
 /**
@@ -306,32 +307,80 @@ static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
 	struct usb_platdata *plat = dev_get_platdata(dev);
 	struct ehci_mx6_priv_data *priv = dev_get_priv(dev);
 	int of_offset = dev_of_offset(dev);
-	const char *mode;
+	enum usb_dr_mode dr_mode;
 	const struct fdt_property *extcon;
 
-	mode = fdt_getprop(gd->fdt_blob, of_offset, "dr_mode", NULL);
-	if (mode) {
-		if (strcmp(mode, "peripheral") == 0)
-			priv->init_type = USB_INIT_DEVICE;
-		else if (strcmp(mode, "host") == 0)
-			priv->init_type = USB_INIT_HOST;
-		else if (strcmp(mode, "otg") == 0)
-			priv->init_type = USB_INIT_UNKNOWN;
-		else
-			return -EINVAL;
-	} else {
-		extcon = fdt_get_property(gd->fdt_blob, of_offset,
+	extcon = fdt_get_property(gd->fdt_blob, of_offset,
 			"extcon", NULL);
-		if (extcon)
-			priv->init_type = board_ehci_usb_phy_mode(dev);
-		else
-			priv->init_type = USB_INIT_UNKNOWN;
+	if (extcon) {
+		priv->init_type = board_ehci_usb_phy_mode(dev);
+		goto check_type;
 	}
 
+	dr_mode = usb_get_dr_mode(dev_of_offset(dev));
+
+	switch (dr_mode) {
+	case USB_DR_MODE_HOST:
+		plat->init_type = USB_INIT_HOST;
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		plat->init_type = USB_INIT_DEVICE;
+		break;
+	case USB_DR_MODE_OTG:
+	case USB_DR_MODE_UNKNOWN:
+		plat->init_type = USB_INIT_UNKNOWN;
+		break;
+	};
+
+check_type:
 	if (priv->init_type != USB_INIT_UNKNOWN && priv->init_type != plat->init_type) {
 		debug("Request USB type is %u, board forced type is %u\n",
 			plat->init_type, priv->init_type);
 		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int ehci_usb_bind(struct udevice *dev)
+{
+	/*
+	 * TODO:
+	 * This driver is only partly converted to DT probing and still uses
+	 * a tremendous amount of hard-coded addresses. To make things worse,
+	 * the driver depends on specific sequential indexing of controllers,
+	 * from which it derives offsets in the PHY and ANATOP register sets.
+	 *
+	 * Here we attempt to calculate these indexes from DT information as
+	 * well as we can. The USB controllers on all existing iMX6 SoCs
+	 * are placed next to each other, at addresses incremented by 0x200,
+	 * and iMX7 their addresses are shifted by 0x10000.
+	 * Thus, the index is derived from the multiple of 0x200 (0x10000 for
+	 * iMX7) offset from the first controller address.
+	 *
+	 * However, to complete conversion of this driver to DT probing, the
+	 * following has to be done:
+	 * - DM clock framework support for iMX must be implemented
+	 * - usb_power_config() has to be converted to clock framework
+	 *   -> Thus, the ad-hoc "index" variable goes away.
+	 * - USB PHY handling has to be factored out into separate driver
+	 *   -> Thus, the ad-hoc "index" variable goes away from the PHY
+	 *      code, the PHY driver must parse it's address from DT. This
+	 *      USB driver must find the PHY driver via DT phandle.
+	 *   -> usb_power_config() shall be moved to PHY driver
+	 * With these changes in place, the ad-hoc indexing goes away and
+	 * the driver is fully converted to DT probing.
+	 */
+	u32 controller_spacing;
+
+	if (dev->req_seq == -1) {
+		if (IS_ENABLED(CONFIG_MX6))
+			controller_spacing = 0x200;
+		else
+			controller_spacing = 0x10000;
+		fdt_addr_t addr = devfdt_get_addr_index(dev, 0);
+
+		dev->req_seq = (addr - USB_BASE_ADDR) / controller_spacing;
 	}
 
 	return 0;
@@ -442,6 +491,7 @@ U_BOOT_DRIVER(usb_mx6) = {
 	.id	= UCLASS_USB,
 	.of_match = mx6_usb_ids,
 	.ofdata_to_platdata = ehci_usb_ofdata_to_platdata,
+	.bind	= ehci_usb_bind,
 	.probe	= ehci_usb_probe,
 	.remove = ehci_usb_remove,
 	.ops	= &ehci_usb_ops,

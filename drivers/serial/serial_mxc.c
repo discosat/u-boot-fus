@@ -415,6 +415,7 @@ static int mxc_serial_ofdata_to_platdata(struct udevice *dev)
 }
 
 static const struct udevice_id mxc_serial_ids[] = {
+	{ .compatible = "fsl,imx6sx-uart" },
 	{ .compatible = "fsl,imx6ul-uart" },
 	{ .compatible = "fsl,imx6sx-uart" },
 	{ .compatible = "fsl,imx6q-uart" },

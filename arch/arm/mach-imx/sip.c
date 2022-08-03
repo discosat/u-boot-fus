@@ -22,8 +22,12 @@ unsigned long call_imx_sip(unsigned long id, unsigned long reg0,
 	return regs.regs[0];
 }
 
-/* do an SMC call to return 2 registers by having reg1 passed in by reference */
-unsigned long call_imx_sip_ret2(unsigned long id, unsigned long reg0, unsigned long *reg1, unsigned long reg2, unsigned long reg3)
+/*
+ * Do an SMC call to return 2 registers by having reg1 passed in by reference
+ */
+unsigned long call_imx_sip_ret2(unsigned long id, unsigned long reg0,
+				unsigned long *reg1, unsigned long reg2,
+				unsigned long reg3)
 {
 	struct pt_regs regs;
 
@@ -35,6 +39,7 @@ unsigned long call_imx_sip_ret2(unsigned long id, unsigned long reg0, unsigned l
 
 	smc_call(&regs);
 
-    *reg1 = regs.regs[1];
+	*reg1 = regs.regs[1];
+
 	return regs.regs[0];
 }

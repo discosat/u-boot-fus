@@ -13,21 +13,27 @@
 #include <miiphy.h>
 #include <phy.h>
 
-static int mdio_write_ranges(struct phy_device *phydev, struct mii_dev *bus,
+static int mdio_write_ranges(struct mii_dev *bus,
 			     int addrlo,
 			     int addrhi, int devadlo, int devadhi,
 			     int reglo, int reghi, unsigned short data,
 			     int extended)
 {
+	struct phy_device *phydev;
 	int addr, devad, reg;
 	int err;
 
 	for (addr = addrlo; addr <= addrhi; addr++) {
+		phydev = bus->phymap[addr];
+
 		for (devad = devadlo; devad <= devadhi; devad++) {
 			for (reg = reglo; reg <= reghi; reg++) {
-				if (!extended)
+				if (!phydev)
 					err = bus->write(bus, addr, devad,
 							 reg, data);
+				else if (!extended)
+					err = phy_write_mmd(phydev, devad,
+							    reg, data);
 				else
 					err = phydev->drv->writeext(phydev,
 							addr, devad, reg, data);
@@ -41,23 +47,27 @@ static int mdio_write_ranges(struct phy_device *phydev, struct mii_dev *bus,
 	return 0;
 }
 
-static int mdio_read_ranges(struct phy_device *phydev, struct mii_dev *bus,
+static int mdio_read_ranges(struct mii_dev *bus,
 			    int addrlo,
 			    int addrhi, int devadlo, int devadhi,
 			    int reglo, int reghi, int extended)
 {
 	int addr, devad, reg;
+	struct phy_device *phydev;
 
 	printf("Reading from bus %s\n", bus->name);
 	for (addr = addrlo; addr <= addrhi; addr++) {
+		phydev = bus->phymap[addr];
 		printf("PHY at address 0x%02x:\n", addr);
 
 		for (devad = devadlo; devad <= devadhi; devad++) {
 			for (reg = reglo; reg <= reghi; reg++) {
 				int val;
 
-				if (!extended)
+				if (!phydev)
 					val = bus->read(bus, addr, devad, reg);
+				else if (!extended)
+					val = phy_read_mmd(phydev, devad, reg);
 				else
 					val = phydev->drv->readext(phydev, addr,
 						devad, reg);
@@ -198,11 +208,11 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	/* Only 'r' or 'w' here */
 	if (op[1] == 'x') {
 		if (!phydev || !phydev->drv ||
-		    (!phydev->drv->writeext && (op[0] == 'w')) ||
-		    (!phydev->drv->readext && (op[0] == 'r'))) {
-			puts("PHY does not have extended functions\n");
+			    (!phydev->drv->writeext && (op[0] == 'w')) ||
+			    (!phydev->drv->readext && (op[0] == 'r'))) {
+				puts("PHY does not have extended functions\n");
 			return CMD_RET_FAILURE;
-		}
+			}
 		extended = 1;
 	}
 
@@ -210,11 +220,11 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	miiphy_set_current_dev(bus->name);
 
 	if (op[0] == 'w') {
-		ret = mdio_write_ranges(phydev, bus, addrlo, addrhi, devadlo,
-					devadhi, reglo, reghi, data, extended);
+		ret = mdio_write_ranges(bus, addrlo, addrhi, devadlo, devadhi,
+					reglo, reghi, data, extended);
 	} else {
-		ret = mdio_read_ranges(phydev, bus, addrlo, addrhi, devadlo,
-				       devadhi, reglo, reghi, extended);
+		ret = mdio_read_ranges(bus, addrlo, addrhi, devadlo, devadhi,
+				       reglo, reghi, extended);
 	}
 	if (ret) {
 		printf("Error %d\n", ret);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2007, 2010-2011 Freescale Semiconductor, Inc
+ * Copyright 2019 NXP Semiconductors
  * Andy Fleming
  *
  * Based vaguely on the pxa mmc code:
@@ -28,6 +29,10 @@
 #include <dm/pinctrl.h>
 #include <asm/arch/sys_proto.h>
 
+#if !CONFIG_IS_ENABLED(BLK)
+#include "mmc_private.h"
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define SDHCI_IRQ_EN_BITS		(IRQSTATEN_CC | IRQSTATEN_TC | \
@@ -37,6 +42,7 @@ DECLARE_GLOBAL_DATA_PTR;
 				IRQSTATEN_DEBE | IRQSTATEN_BRR | IRQSTATEN_BWR | \
 				IRQSTATEN_DINT)
 #define MAX_TUNING_LOOP 40
+#define ESDHC_DRIVER_STAGE_VALUE 0xffffffff
 
 struct fsl_esdhc {
 	uint    dsaddr;		/* SDMA system address register */
@@ -276,7 +282,7 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 		esdhc_clrsetbits32(&regs->wml, WML_RD_WML_MASK, wml_value);
 #ifndef CONFIG_SYS_FSL_ESDHC_USE_PIO
 #if defined(CONFIG_FSL_LAYERSCAPE) || defined(CONFIG_S32V234) || \
-		defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
+	defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
 		addr = virt_to_phys((void *)(data->dest));
 		if (upper_32_bits(addr))
 			printf("Error found for upper 32 bits\n");
@@ -313,7 +319,7 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 					wml_value << 16);
 #ifndef CONFIG_SYS_FSL_ESDHC_USE_PIO
 #if defined(CONFIG_FSL_LAYERSCAPE) || defined(CONFIG_S32V234) || \
-		defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
+	defined(CONFIG_IMX8) || defined(CONFIG_IMX8M)
 		addr = virt_to_phys((void *)(data->src));
 		if (upper_32_bits(addr))
 			printf("Error found for upper 32 bits\n");
@@ -1465,7 +1471,9 @@ void fdt_fixup_esdhc(void *blob, bd_t *bd)
 #endif
 
 #if CONFIG_IS_ENABLED(DM_MMC)
+#ifndef CONFIG_PPC
 #include <asm/arch/clock.h>
+#endif
 __weak void init_clk_usdhc(u32 index)
 {
 }
@@ -1485,12 +1493,17 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	fdt_addr_t addr;
 	unsigned int val;
 	struct mmc *mmc;
+#if !CONFIG_IS_ENABLED(BLK)
+	struct blk_desc *bdesc;
+#endif
 	int ret;
 
 	addr = dev_read_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
-
+#ifdef CONFIG_PPC
+	priv->esdhc.esdhc_base = lower_32_bits(addr);
+#else
 #ifdef CONFIG_MX6
 	if (mx6_esdhc_fused(addr)) {
 		printf("ESDHC@0x%lx is fused, disable it\n", addr);
@@ -1499,6 +1512,7 @@ static int fsl_esdhc_probe(struct udevice *dev)
 #endif
 
 	priv->esdhc.esdhc_base = addr;
+#endif
 	priv->dev = dev;
 	if (data) {
 		priv->esdhc.flags = data->flags;
@@ -1591,6 +1605,8 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	 * work as expected.
 	 */
 
+	init_clk_usdhc(dev->seq);
+
 	if (CONFIG_IS_ENABLED(CLK)) {
 		/* Assigned clock already set clock */
 		ret = clk_get_by_name(dev, "per", &priv->per_clk);
@@ -1606,12 +1622,14 @@ static int fsl_esdhc_probe(struct udevice *dev)
 
 		priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
 	} else {
-		init_clk_usdhc(dev->seq);
-
+#ifndef CONFIG_PPC
 		priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
+#else
+		priv->esdhc.sdhc_clk = gd->arch.sdhc_clk;
+#endif
 		if (priv->esdhc.sdhc_clk <= 0) {
-		dev_err(dev, "Unable to get clk for %s\n", dev->name);
-		return -EINVAL;
+			dev_err(dev, "Unable to get clk for %s\n", dev->name);
+			return -EINVAL;
 		}
 	}
 
@@ -1624,6 +1642,26 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	mmc = &plat->mmc;
 	mmc->cfg = &plat->cfg;
 	mmc->dev = dev;
+#if !CONFIG_IS_ENABLED(BLK)
+	mmc->priv = priv;
+
+	/* Setup dsr related values */
+	mmc->dsr_imp = 0;
+	mmc->dsr = ESDHC_DRIVER_STAGE_VALUE;
+	/* Setup the universal parts of the block interface just once */
+	bdesc = mmc_get_blk_desc(mmc);
+	bdesc->if_type = IF_TYPE_MMC;
+	bdesc->removable = 1;
+	bdesc->devnum = mmc_get_next_devnum();
+	bdesc->block_read = mmc_bread;
+	bdesc->block_write = mmc_bwrite;
+	bdesc->block_erase = mmc_berase;
+
+	/* setup initial part type */
+	bdesc->part_type = mmc->cfg->part_type;
+	mmc_list_add(mmc);
+#endif
+
 	upriv->mmc = mmc;
 
 	return esdhc_init_common(priv, mmc);

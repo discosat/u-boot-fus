@@ -209,7 +209,8 @@ name11_12:
 	return 1;
 }
 
-static int flush_dir_table(fat_itr *itr);
+static int new_dir_table(fat_itr *itr);
+static int flush_dir(fat_itr *itr);
 
 /*
  * Fill dir_slot entries with appropriate name, id, and attr
@@ -242,18 +243,17 @@ fill_dir_slot(fat_itr *itr, const char *l_name)
 		memcpy(itr->dent, slotptr, sizeof(dir_slot));
 		slotptr--;
 		counter--;
-		if (!fat_itr_next(itr))
-			if (!itr->dent && !itr->is_root && flush_dir_table(itr))
-		return -1;
-	}
 
-	if (!itr->dent && !itr->is_root)
-			/*
-		 * don't care return value here because we have already
-		 * finished completing an entry with name, only ending up
-		 * no more entry left
-			 */
-		flush_dir_table(itr);
+		if (itr->remaining == 0)
+			flush_dir(itr);
+
+		/* allocate a cluster for more entries */
+		if (!fat_itr_next(itr))
+			if (!itr->dent &&
+			    (!itr->is_root || itr->fsdata->fatsize == 32) &&
+			    new_dir_table(itr))
+				return -1;
+	}
 
 	return 0;
 }
@@ -388,29 +388,23 @@ static __u32 determine_fatent(fsdata *mydata, __u32 entry)
 }
 
 /**
- * set_cluster() - write data to cluster
+ * set_sectors() - write data to sectors
  *
- * Write 'size' bytes from 'buffer' into the specified cluster.
+ * Write 'size' bytes from 'buffer' into the specified sector.
  *
  * @mydata:	data to be written
- * @clustnum:	cluster to be written to
+ * @startsect:	sector to be written to
  * @buffer:	data to be written
  * @size:	bytes to be written (but not more than the size of a cluster)
  * Return:	0 on success, -1 otherwise
  */
 static int
-set_cluster(fsdata *mydata, u32 clustnum, u8 *buffer, u32 size)
+set_sectors(fsdata *mydata, u32 startsect, u8 *buffer, u32 size)
 {
-	u32 idx = 0;
-	u32 startsect;
+	u32 nsects = 0;
 	int ret;
 
-	if (clustnum > 0)
-		startsect = clust_to_sect(mydata, clustnum);
-	else
-		startsect = mydata->rootdir_sect;
-
-	debug("clustnum: %d, startsect: %d\n", clustnum, startsect);
+	debug("startsect: %d\n", startsect);
 
 	if ((unsigned long)buffer & (ARCH_DMA_MINALIGN - 1)) {
 		ALLOC_CACHE_ALIGN_BUFFER(__u8, tmpbuf, mydata->sect_size);
@@ -429,17 +423,16 @@ set_cluster(fsdata *mydata, u32 clustnum, u8 *buffer, u32 size)
 			size -= mydata->sect_size;
 		}
 	} else if (size >= mydata->sect_size) {
-		idx = size / mydata->sect_size;
-		ret = disk_write(startsect, idx, buffer);
-		if (ret != idx) {
+		nsects = size / mydata->sect_size;
+		ret = disk_write(startsect, nsects, buffer);
+		if (ret != nsects) {
 			debug("Error writing data (got %d)\n", ret);
 			return -1;
 		}
 
-		startsect += idx;
-		idx *= mydata->sect_size;
-		buffer += idx;
-		size -= idx;
+		startsect += nsects;
+		buffer += nsects * mydata->sect_size;
+		size -= nsects * mydata->sect_size;
 	}
 
 	if (size) {
@@ -455,6 +448,44 @@ set_cluster(fsdata *mydata, u32 clustnum, u8 *buffer, u32 size)
 	}
 
 	return 0;
+}
+
+/**
+ * set_cluster() - write data to cluster
+ *
+ * Write 'size' bytes from 'buffer' into the specified cluster.
+ *
+ * @mydata:	data to be written
+ * @clustnum:	cluster to be written to
+ * @buffer:	data to be written
+ * @size:	bytes to be written (but not more than the size of a cluster)
+ * Return:	0 on success, -1 otherwise
+ */
+static int
+set_cluster(fsdata *mydata, u32 clustnum, u8 *buffer, u32 size)
+{
+	return set_sectors(mydata, clust_to_sect(mydata, clustnum),
+			   buffer, size);
+}
+
+static int
+flush_dir(fat_itr *itr)
+{
+	fsdata *mydata = itr->fsdata;
+	u32 startsect, sect_offset, nsects;
+
+	if (!itr->is_root || mydata->fatsize == 32)
+		return set_cluster(mydata, itr->clust, itr->block,
+				   mydata->clust_size * mydata->sect_size);
+
+	sect_offset = itr->clust * mydata->clust_size;
+	startsect = mydata->rootdir_sect + sect_offset;
+	/* do not write past the end of rootdir */
+	nsects = min_t(u32, mydata->clust_size,
+		       mydata->rootdir_size - sect_offset);
+
+	return set_sectors(mydata, startsect, itr->block,
+			   nsects * mydata->sect_size);
 }
 
 static __u8 tmpbuf_cluster[MAX_CLUSTSIZE] __aligned(ARCH_DMA_MINALIGN);
@@ -590,30 +621,22 @@ static int find_empty_cluster(fsdata *mydata)
 }
 
 /*
- * Write directory entries in itr's buffer to block device
+ * Allocate a cluster for additional directory entries
  */
-static int flush_dir_table(fat_itr *itr)
+static int new_dir_table(fat_itr *itr)
 {
 	fsdata *mydata = itr->fsdata;
 	int dir_newclust = 0;
 	unsigned int bytesperclust = mydata->clust_size * mydata->sect_size;
 
-	if (set_cluster(mydata, itr->clust, itr->block, bytesperclust) != 0) {
-		printf("error: writing directory entry\n");
-		return -1;
-	}
-
-	if (mydata->fatsize == 32) {
-		dir_newclust = find_empty_cluster(mydata);
-		set_fatent_value(mydata, itr->clust, dir_newclust);
+	dir_newclust = find_empty_cluster(mydata);
+	set_fatent_value(mydata, itr->clust, dir_newclust);
+	if (mydata->fatsize == 32)
 		set_fatent_value(mydata, dir_newclust, 0xffffff8);
-	} else {
-		dir_newclust = itr->clust + 1;
-		if (dir_newclust > 1) {
-			printf("error: fail to get empty clust for directory entry\n");
-			return -1;
-		}
-	}
+	else if (mydata->fatsize == 16)
+		set_fatent_value(mydata, dir_newclust, 0xfff8);
+	else if (mydata->fatsize == 12)
+		set_fatent_value(mydata, dir_newclust, 0xff8);
 
 	itr->clust = dir_newclust;
 	itr->next_clust = dir_newclust;
@@ -698,7 +721,7 @@ static int check_overflow(fsdata *mydata, __u32 clustnum, loff_t size)
  */
 static int
 set_contents(fsdata *mydata, dir_entry *dentptr, loff_t pos, __u8 *buffer,
-	      loff_t maxsize, loff_t *gotsize)
+	     loff_t maxsize, loff_t *gotsize)
 {
 	unsigned int bytesperclust = mydata->clust_size * mydata->sect_size;
 	__u32 curclust = START(dentptr);
@@ -960,7 +983,10 @@ static dir_entry *find_directory_entry(fat_itr *itr, char *filename)
 			return itr->dent;
 	}
 
-	if (!itr->dent && !itr->is_root && flush_dir_table(itr))
+	/* allocate a cluster for more entries */
+	if (!itr->dent &&
+	    (!itr->is_root || itr->fsdata->fatsize == 32) &&
+	    new_dir_table(itr))
 		/* indicate that allocating dent failed */
 		itr->dent = NULL;
 
@@ -998,10 +1024,10 @@ again:
 		if (last_slash == filename) {
 			/* avoid ""(null) directory */
 			*dirname = "/";
-	} else {
+		} else {
 			*last_slash = '\0';
 			*dirname = filename;
-	}
+		}
 
 		*last_slash_cont = '\0';
 		*basename = last_slash_cont + 1;
@@ -1013,42 +1039,34 @@ again:
 	return 0;
 }
 
+/**
+ * normalize_longname() - check long file name and convert to lower case
+ *
+ * We assume here that the FAT file system is using an 8bit code page.
+ * Linux typically uses CP437, EDK2 assumes CP1250.
+ *
+ * @l_filename:	preallocated buffer receiving the normalized name
+ * @filename:	filename to normalize
+ * Return:	0 on success, -1 on failure
+ */
 static int normalize_longname(char *l_filename, const char *filename)
 {
-	const char *p, legal[] = "!#$%&\'()-.@^`_{}~";
-	unsigned char c;
-	int name_len;
+	const char *p, illegal[] = "<>:\"/\\|?*";
 
-	/* Check that the filename is valid */
-	for (p = filename; p < filename + strlen(filename); p++) {
-		c = *p;
+	if (strlen(filename) >= VFAT_MAXLEN_BYTES)
+		return -1;
 
-		if (('0' <= c) && (c <= '9'))
-			continue;
-		if (('A' <= c) && (c <= 'Z'))
-			continue;
-		if (('a' <= c) && (c <= 'z'))
-			continue;
-		if (strchr(legal, c))
-			continue;
-		/* extended code */
-		if ((0x80 <= c) && (c <= 0xff))
-			continue;
-
+	for (p = filename; *p; ++p) {
+		if ((unsigned char)*p < 0x20)
+			return -1;
+		if (strchr(illegal, *p))
 		return -1;
 	}
 
-	/* Normalize it */
-	name_len = strlen(filename);
-	if (name_len >= VFAT_MAXLEN_BYTES)
-		/* should return an error? */
-		name_len = VFAT_MAXLEN_BYTES - 1;
+	strcpy(l_filename, filename);
+	downcase(l_filename, VFAT_MAXLEN_BYTES);
 
-	memcpy(l_filename, filename, name_len);
-	l_filename[name_len] = 0; /* terminate the string */
-	downcase(l_filename, INT_MAX);
-
-		return 0;
+	return 0;
 }
 
 int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
@@ -1079,7 +1097,7 @@ int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
 		printf("FAT: illegal filename (%s)\n", filename);
 		ret = -EINVAL;
 		goto exit;
-		}
+	}
 
 	itr = malloc_cache_aligned(sizeof(fat_itr));
 	if (!itr) {
@@ -1097,7 +1115,7 @@ int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
 	if (ret) {
 		printf("%s: doesn't exist (%d)\n", parent, ret);
 		goto exit;
-			}
+	}
 
 	retdent = find_directory_entry(itr, l_filename);
 
@@ -1119,7 +1137,7 @@ int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
 
 		/* Update file size in a directory entry */
 		retdent->size = cpu_to_le32(pos + size);
-				} else {
+	} else {
 		/* Create a new file */
 
 		if (itr->is_root) {
@@ -1128,42 +1146,44 @@ int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
 			    !strcmp(l_filename, "..")) {
 				ret = -EINVAL;
 				goto exit;
-				}
 			}
+		}
 
 		if (!itr->dent) {
 			printf("Error: allocating new dir entry\n");
 			ret = -EIO;
 			goto exit;
-			}
+		}
 
 		if (pos) {
 			/* No hole allowed */
 			ret = -EINVAL;
 			goto exit;
-			}
+		}
 
 		memset(itr->dent, 0, sizeof(*itr->dent));
 
-		/* Set short name to set alias checksum field in dir_slot */
+		/* Calculate checksum for short name */
 		set_name(itr->dent, filename);
+
+		/* Set long name entries */
 		if (fill_dir_slot(itr, filename)) {
 			ret = -EIO;
 			goto exit;
 		}
 
-		/* Set attribute as archive for regular file */
+		/* Set short name entry */
 		fill_dentry(itr->fsdata, itr->dent, filename, 0, size, 0x20);
 
 		retdent = itr->dent;
-		}
+	}
 
 	ret = set_contents(mydata, retdent, pos, buffer, size, actwrite);
 	if (ret < 0) {
 		printf("Error: writing contents\n");
 		ret = -EIO;
 		goto exit;
-		}
+	}
 	debug("attempt to write 0x%llx bytes\n", *actwrite);
 
 	/* Flush fat buffer */
@@ -1172,11 +1192,10 @@ int file_fat_write_at(const char *filename, loff_t pos, void *buffer,
 		printf("Error: flush fat buffer\n");
 		ret = -EIO;
 		goto exit;
-		}
+	}
 
 	/* Write directory table to device */
-	ret = set_cluster(mydata, itr->clust, itr->block,
-			  mydata->clust_size * mydata->sect_size);
+	ret = flush_dir(itr);
 	if (ret) {
 		printf("Error: writing directory entry\n");
 		ret = -EIO;
@@ -1253,14 +1272,13 @@ static int delete_dentry(fat_itr *itr)
 	memset(dentptr, 0, sizeof(*dentptr));
 	dentptr->name[0] = 0xe5;
 
-	if (set_cluster(mydata, itr->clust, itr->block,
-			mydata->clust_size * mydata->sect_size) != 0) {
+	if (flush_dir(itr)) {
 		printf("error: writing directory entry\n");
 		return -EIO;
 	}
 
 	return 0;
-	}
+}
 
 int fat_unlink(const char *filename)
 {
@@ -1281,7 +1299,7 @@ int fat_unlink(const char *filename)
 		printf("Error: cannot remove root\n");
 		ret = -EINVAL;
 		goto exit;
-		}
+	}
 
 	itr = malloc_cache_aligned(sizeof(fat_itr));
 	if (!itr) {
@@ -1297,24 +1315,24 @@ int fat_unlink(const char *filename)
 	total_sector = fsdata.total_sect;
 
 	ret = fat_itr_resolve(itr, dirname, TYPE_DIR);
-				if (ret) {
+	if (ret) {
 		printf("%s: doesn't exist (%d)\n", dirname, ret);
 		ret = -ENOENT;
-					goto exit;
-				}
+		goto exit;
+	}
 
 	if (!find_directory_entry(itr, basename)) {
 		printf("%s: doesn't exist\n", basename);
 		ret = -ENOENT;
-				goto exit;
-			}
+		goto exit;
+	}
 
 	if (fat_itr_isdir(itr)) {
 		n_entries = fat_dir_entries(itr);
 		if (n_entries < 0) {
 			ret = n_entries;
-				goto exit;
-			}
+			goto exit;
+		}
 		if (n_entries > 2) {
 			printf("Error: directory is not empty: %d\n",
 			       n_entries);
@@ -1353,20 +1371,20 @@ int fat_mkdir(const char *new_dirname)
 	split_filename(dirname_copy, &parent, &dirname);
 	if (!strlen(dirname)) {
 		ret = -EINVAL;
-				goto exit;
-			}
+		goto exit;
+	}
 
 	if (normalize_longname(l_dirname, dirname)) {
 		printf("FAT: illegal filename (%s)\n", dirname);
 		ret = -EINVAL;
 		goto exit;
-		}
+	}
 
 	itr = malloc_cache_aligned(sizeof(fat_itr));
 	if (!itr) {
 		ret = -ENOMEM;
-				goto exit;
-			}
+		goto exit;
+	}
 
 	ret = fat_itr_root(itr, &datablock);
 	if (ret)
@@ -1375,10 +1393,10 @@ int fat_mkdir(const char *new_dirname)
 	total_sector = datablock.total_sect;
 
 	ret = fat_itr_resolve(itr, parent, TYPE_DIR);
-			if (ret) {
+	if (ret) {
 		printf("%s: doesn't exist (%d)\n", parent, ret);
-				goto exit;
-			}
+		goto exit;
+	}
 
 	retdent = find_directory_entry(itr, l_dirname);
 
@@ -1386,7 +1404,7 @@ int fat_mkdir(const char *new_dirname)
 		printf("%s: already exists\n", l_dirname);
 		ret = -EEXIST;
 		goto exit;
-		} else {
+	} else {
 		if (itr->is_root) {
 			/* root dir cannot have "." or ".." */
 			if (!strcmp(l_dirname, ".") ||
@@ -1456,8 +1474,7 @@ int fat_mkdir(const char *new_dirname)
 	}
 
 	/* Write directory table to device */
-	ret = set_cluster(mydata, itr->clust, itr->block,
-			mydata->clust_size * mydata->sect_size);
+	ret = flush_dir(itr);
 	if (ret)
 		printf("Error: writing directory entry\n");
 
