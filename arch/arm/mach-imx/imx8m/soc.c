@@ -26,7 +26,8 @@
 #ifdef CONFIG_IMX_SEC_INIT
 #include <fsl_caam.h>
 #endif
-#include <environment.h>
+#include <env.h>
+#include <env_internal.h>
 #include <efi_loader.h>
 
 DECLARE_GLOBAL_DATA_PTR;

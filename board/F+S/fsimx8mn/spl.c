@@ -20,7 +20,6 @@
 #include <power/bd71837.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <fsl_esdhc.h>
 #include <mmc.h>
 #include <nand.h>
 #include <asm/arch/ddr.h>
@@ -115,31 +114,31 @@ int power_init_board(void)
 
 
 	/* decrease RESET key long push time from the default 10s to 10ms */
-	pmic_reg_write(p, BD71837_PWRONCONFIG1, 0x0);
+	pmic_reg_write(p, BD718XX_PWRONCONFIG1, 0x0);
 
 	/* unlock the PMIC regs */
-	pmic_reg_write(p, BD71837_REGLOCK, 0x1);
+	pmic_reg_write(p, BD718XX_REGLOCK, 0x1);
 
 	/* increase VDD_SOC to typical value 0.85v before first DRAM access */
-	pmic_reg_write(p, BD71837_BUCK1_VOLT_RUN, 0x0f);
+	pmic_reg_write(p, BD718XX_BUCK1_VOLT_RUN, 0x0f);
 
 	switch (board_type)
 	{
 	case BT_PICOCOREMX8MN:
 		/* increase VDD_DRAM to 0.975v f-*or 3Ghz DDR */
-		pmic_reg_write(p, BD71837_BUCK5_VOLT, 0x83);
+		pmic_reg_write(p, BD718XX_1ST_NODVS_BUCK_VOLT, 0x83);
 		break;
 	case BT_PICOCOREMX8MX:
 		/* increase VDD_DRAM to 0.9v for 3Ghz DDR */
-		pmic_reg_write(p, BD71837_BUCK5_VOLT, 0x2);
+		pmic_reg_write(p, BD718XX_1ST_NODVS_BUCK_VOLT, 0x2);
 
 		/* increase NVCC_DRAM_1V35 to 1.35v for DDR3L */
-		pmic_reg_write(p, BD71837_BUCK8_VOLT, 0x37);
+		pmic_reg_write(p, BD718XX_4TH_NODVS_BUCK_VOLT, 0x37);
 		break;
 	}
 
 	/* lock the PMIC regs */
-	pmic_reg_write(p, BD71837_REGLOCK, 0x11);
+	pmic_reg_write(p, BD718XX_REGLOCK, 0x11);
 
 	return 0;
 }

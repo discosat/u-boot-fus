@@ -14,6 +14,7 @@
 
 #include <asm/cache.h>
 #include <asm/byteorder.h>	/* for nton* / ntoh* stuff */
+#include <env.h>
 #include <linux/if_ether.h>
 
 #define DEBUG_LL_STATE 0	/* Link local state machine changes */
@@ -827,7 +828,7 @@ static inline int is_valid_ethaddr(const u8 *addr)
 static inline void net_random_ethaddr(uchar *addr)
 {
 	int i;
-	unsigned int seed = get_timer(0);
+	unsigned int seed = get_ticks();
 
 	for (i = 0; i < 6; i++)
 		addr[i] = rand_r(&seed);
@@ -885,5 +886,16 @@ unsigned int random_port(void);
 int update_tftp(ulong addr, char *interface, char *devstring);
 
 /**********************************************************************/
+
+/**
+ * eth_parse_enetaddr() - Parse a MAC address
+ *
+ * Convert a string MAC address
+ *
+ * @addr: MAC address in aa:bb:cc:dd:ee:ff format, where each part is a 2-digit
+ *	hex value
+ * @enetaddr: Place to put MAC address (6 bytes)
+ */
+void eth_parse_enetaddr(const char *addr, uint8_t *enetaddr);
 
 #endif /* __NET_H__ */

@@ -65,7 +65,11 @@
 #define MMC_MODE_DDR_52MHz	MMC_CAP(MMC_DDR_52)
 #define MMC_MODE_HS200		MMC_CAP(MMC_HS_200)
 #define MMC_MODE_HS400		MMC_CAP(MMC_HS_400)
-#define MMC_MODE_HS400_ES      MMC_CAP(MMC_HS_400_ES)
+#define MMC_MODE_HS400_ES	MMC_CAP(MMC_HS_400_ES)
+
+#define MMC_CAP_NONREMOVABLE	BIT(14)
+#define MMC_CAP_NEEDS_POLL	BIT(15)
+#define MMC_CAP_CD_ACTIVE_HIGH  BIT(16)
 
 #define MMC_MODE_8BIT		BIT(30)
 #define MMC_MODE_4BIT		BIT(29)
@@ -225,10 +229,12 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 #define EXT_CSD_HS_TIMING		185	/* R/W */
 #define EXT_CSD_REV			192	/* RO */
 #define EXT_CSD_CARD_TYPE		196	/* RO */
+#define EXT_CSD_PART_SWITCH_TIME	199	/* RO */
 #define EXT_CSD_SEC_CNT			212	/* RO, 4 bytes */
 #define EXT_CSD_HC_WP_GRP_SIZE		221	/* RO */
 #define EXT_CSD_HC_ERASE_GRP_SIZE	224	/* RO */
 #define EXT_CSD_BOOT_MULT		226	/* RO */
+#define EXT_CSD_GENERIC_CMD6_TIME       248     /* RO */
 #define EXT_CSD_BKOPS_SUPPORT		502	/* RO */
 
 /*
@@ -263,7 +269,7 @@ static inline bool mmc_is_tuning_cmd(uint cmdidx)
 #define EXT_CSD_DDR_BUS_WIDTH_4	5	/* Card is in 4 bit DDR mode */
 #define EXT_CSD_DDR_BUS_WIDTH_8	6	/* Card is in 8 bit DDR mode */
 #define EXT_CSD_DDR_FLAG	BIT(2)	/* Flag for DDR mode */
-#define EXT_CSD_BUS_WIDTH_STROBE (1 << 7) /* Enhanced strobe mode */
+#define EXT_CSD_BUS_WIDTH_STROBE BIT(7)	/* Enhanced strobe mode */
 
 #define EXT_CSD_TIMING_LEGACY	0	/* no high speed */
 #define EXT_CSD_TIMING_HS	1	/* HS */
@@ -422,14 +428,6 @@ struct dm_mmc_ops {
 	int (*set_ios)(struct udevice *dev);
 
 	/**
-	 * send_init_stream() - send the initialization stream: 74 clock cycles
-	 * This is used after power up before sending the first command
-	 *
-	 * @dev:	Device to update
-	 */
-	void (*send_init_stream)(struct udevice *dev);
-
-	/**
 	 * get_cd() - See whether a card is present
 	 *
 	 * @dev:	Device to check
@@ -456,22 +454,20 @@ struct dm_mmc_ops {
 	int (*execute_tuning)(struct udevice *dev, uint opcode);
 #endif
 
-#if CONFIG_IS_ENABLED(MMC_UHS_SUPPORT)
 	/**
 	 * wait_dat0() - wait until dat0 is in the target state
 	 *		(CLK must be running during the wait)
 	 *
 	 * @dev:	Device to check
 	 * @state:	target state
-	 * @timeout:	timeout in us
+	 * @timeout_us:	timeout in us
 	 * @return 0 if dat0 is in the target state, -ve on error
 	 */
-	int (*wait_dat0)(struct udevice *dev, int state, int timeout);
-#endif
+	int (*wait_dat0)(struct udevice *dev, int state, int timeout_us);
 
 #if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
 	/* set_enhanced_strobe() - set HS400 enhanced strobe */
-	void (*set_enhanced_strobe)(struct udevice *dev);
+	int (*set_enhanced_strobe)(struct udevice *dev);
 #endif
 };
 
@@ -480,20 +476,18 @@ struct dm_mmc_ops {
 int dm_mmc_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 		    struct mmc_data *data);
 int dm_mmc_set_ios(struct udevice *dev);
-void dm_mmc_send_init_stream(struct udevice *dev);
 int dm_mmc_get_cd(struct udevice *dev);
 int dm_mmc_get_wp(struct udevice *dev);
 int dm_mmc_execute_tuning(struct udevice *dev, uint opcode);
-int dm_mmc_wait_dat0(struct udevice *dev, int state, int timeout);
+int dm_mmc_wait_dat0(struct udevice *dev, int state, int timeout_us);
 
 /* Transition functions for compatibility */
 int mmc_set_ios(struct mmc *mmc);
-void mmc_send_init_stream(struct mmc *mmc);
 int mmc_getcd(struct mmc *mmc);
 int mmc_getwp(struct mmc *mmc);
 int mmc_execute_tuning(struct mmc *mmc, uint opcode);
-int mmc_wait_dat0(struct mmc *mmc, int state, int timeout);
-void mmc_set_enhanced_strobe(struct mmc *mmc);
+int mmc_wait_dat0(struct mmc *mmc, int state, int timeout_us);
+int mmc_set_enhanced_strobe(struct mmc *mmc);
 
 #else
 struct mmc_ops {
@@ -611,6 +605,8 @@ struct mmc {
 	u8 part_attr;
 	u8 wr_rel_set;
 	u8 part_config;
+	u8 gen_cmd6_time;	/* units: 10 ms */
+	u8 part_switch_time;	/* units: 10 ms */
 	uint tran_speed;
 	uint legacy_speed; /* speed for the legacy mode provided by the card */
 	uint read_bl_len;
@@ -871,7 +867,6 @@ void mmc_set_preinit(struct mmc *mmc, int preinit);
 #else
 #define mmc_host_is_spi(mmc)	0
 #endif
-struct mmc *mmc_spi_init(uint bus, uint cs, uint speed, uint mode);
 
 void board_mmc_power_init(void);
 int board_mmc_init(bd_t *bis);
@@ -882,6 +877,9 @@ extern uint mmc_get_env_part(struct mmc *mmc);
 # endif
 int mmc_get_env_dev(void);
 int mmc_map_to_kernel_blk(int dev_no);
+
+/* Minimum partition switch timeout in units of 10-milliseconds */
+#define MMC_MIN_PART_SWITCH_TIME	30 /* 300 ms */
 
 /* Set block count limit because of 16 bit register limit on some hardware*/
 #ifndef CONFIG_SYS_MMC_MAX_BLK_COUNT

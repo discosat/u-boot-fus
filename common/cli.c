@@ -12,6 +12,7 @@
 #include <cli.h>
 #include <cli_hush.h>
 #include <console.h>
+#include <env.h>
 #include <fdtdec.h>
 #include <malloc.h>
 
@@ -45,7 +46,11 @@ char *get_board_name(void) __attribute__((weak, alias("__get_board_name")));
 
 static inline char *__get_sys_prompt(void)
 {
+#ifdef CONFIG_CMDLINE_PS_SUPPORT
+	return env_get("PS1");
+#else
 	return CONFIG_SYS_PROMPT;
+#endif
 }
 
 char *get_sys_prompt(void) __attribute__((weak, alias("__get_sys_prompt")));

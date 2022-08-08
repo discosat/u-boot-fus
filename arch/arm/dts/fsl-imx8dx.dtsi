@@ -1015,9 +1015,9 @@
 						#power-domain-cells = <0>;
 						#address-cells = <1>;
 						#size-cells = <0>;
-					};
-				};
 			};
+		};
+	};
 			pd_dma_lpspi0: PD_DMA_SPI_0 {
 				reg = <SC_R_SPI_0>;
 				#power-domain-cells = <0>;
@@ -2782,7 +2782,7 @@
 		interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&wu>;
 		clocks = <&clk IMX8QXP_UART1_CLK>,
-			<&clk IMX8QXP_UART1_IPG_CLK>;
+			 <&clk IMX8QXP_UART1_IPG_CLK>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX8QXP_UART1_CLK>;
 		assigned-clock-rates = <80000000>;
@@ -2799,7 +2799,7 @@
 		interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&wu>;
 		clocks = <&clk IMX8QXP_UART2_CLK>,
-			<&clk IMX8QXP_UART2_IPG_CLK>;
+			 <&clk IMX8QXP_UART2_IPG_CLK>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX8QXP_UART2_CLK>;
 		assigned-clock-rates = <80000000>;
@@ -2816,7 +2816,7 @@
 		interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&wu>;
 		clocks = <&clk IMX8QXP_UART3_CLK>,
-			<&clk IMX8QXP_UART3_IPG_CLK>;
+			 <&clk IMX8QXP_UART3_IPG_CLK>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX8QXP_UART3_CLK>;
 		assigned-clock-rates = <80000000>;

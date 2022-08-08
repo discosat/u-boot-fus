@@ -17,7 +17,7 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/setup.h>
-#include <environment.h>
+#include <env.h>
 
 #include "fb_fsl_common.h"
 

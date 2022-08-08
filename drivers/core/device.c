@@ -388,7 +388,8 @@ int device_probe(struct udevice *dev)
 	if (dev->parent && device_get_uclass_id(dev) != UCLASS_PINCTRL)
 		pinctrl_select_state(dev, "default");
 
-	if (dev->parent && device_get_uclass_id(dev) != UCLASS_POWER_DOMAIN) {
+	if (CONFIG_IS_ENABLED(POWER_DOMAIN) && dev->parent &&
+	    device_get_uclass_id(dev) != UCLASS_POWER_DOMAIN) {
 		if (!power_domain_get(dev, &pd)) {
 			if (!(dev->driver->flags & DM_FLAG_IGNORE_POWER_ON)) {
 				ret = power_domain_on(&pd);
@@ -416,9 +417,12 @@ int device_probe(struct udevice *dev)
 			goto fail;
 	}
 
-
-	/* Process 'assigned-{clocks/clock-parents/clock-rates}' properties */
-	if (!(dev->driver->flags & DM_FLAG_IGNORE_DEFAULT_CLKS)) {
+	/* Only handle devices that have a valid ofnode */
+	if (dev_of_valid(dev) && !(dev->driver->flags & DM_FLAG_IGNORE_DEFAULT_CLKS)) {
+		/*
+		 * Process 'assigned-{clocks/clock-parents/clock-rates}'
+		 * properties
+		 */
 		ret = clk_set_defaults(dev);
 		if (ret)
 			goto fail;
@@ -529,6 +533,7 @@ static int device_get_device_tail(struct udevice *dev, int ret,
 	return 0;
 }
 
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 /**
  * device_find_by_ofnode() - Return device associated with given ofnode
  *
@@ -555,6 +560,7 @@ static int device_find_by_ofnode(ofnode node, struct udevice **devp)
 
 	return -ENODEV;
 }
+#endif
 
 int device_get_child(struct udevice *parent, int index, struct udevice **devp)
 {
@@ -820,6 +826,7 @@ int device_set_name(struct udevice *dev, const char *name)
 	return 0;
 }
 
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 bool device_is_compatible(struct udevice *dev, const char *compat)
 {
 	return ofnode_device_is_compatible(dev_ofnode(dev), compat);
@@ -882,3 +889,4 @@ int dev_enable_by_path(const char *path)
 
 	return lists_bind_fdt(parent, node, NULL, false);
 }
+#endif

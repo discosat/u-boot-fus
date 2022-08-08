@@ -17,7 +17,7 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/setup.h>
-#include <environment.h>
+#include <env.h>
 #ifdef CONFIG_DM_SCSI
 #include <scsi.h>
 #endif

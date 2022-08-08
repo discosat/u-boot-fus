@@ -58,7 +58,6 @@
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE
 
 /* MMC */
-#define CONFIG_FSL_USDHC
 #define CONFIG_SUPPORT_EMMC_BOOT
 
 /* Secure boot (HAB) support */

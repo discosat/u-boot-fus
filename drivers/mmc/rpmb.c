@@ -83,7 +83,7 @@ int mmc_rpmb_request(struct mmc *mmc, const struct s_rpmb *s,
 
 	cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
 	cmd.cmdarg = 0;
-	cmd.resp_type = MMC_RSP_R1b;
+	cmd.resp_type = MMC_RSP_R1;
 
 	data.src = (const char *)s;
 	data.blocks = count;
@@ -307,7 +307,7 @@ static int send_write_mult_block(struct mmc *mmc, const struct s_rpmb *frm,
 {
 	struct mmc_cmd cmd = {
 		.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK,
-		.resp_type = MMC_RSP_R1b,
+		.resp_type = MMC_RSP_R1,
 	};
 	struct mmc_data data = {
 		.src = (const void *)frm,

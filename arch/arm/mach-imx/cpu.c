@@ -33,8 +33,8 @@
 #include <gis.h>
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
-#include <fsl_esdhc.h>
+#ifdef CONFIG_FSL_ESDHC_IMX
+#include <fsl_esdhc_imx.h>
 #endif
 
 static u32 reset_cause = -1;
@@ -329,7 +329,7 @@ int cpu_eth_init(bd_t *bis)
 	return rc;
 }
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 /*
  * Initializes on-chip MMC controllers.
  * to override, implement board_mmc_init()
@@ -374,10 +374,12 @@ void arch_preboot_os(void)
 #endif
 
 #if defined(CONFIG_SATA)
-	sata_remove(0);
+	if (!is_mx6sdl()) {
+		sata_remove(0);
 #if defined(CONFIG_MX6)
-	disable_sata_clock();
+		disable_sata_clock();
 #endif
+	}
 #endif
 
 #if 0 /* function need to be exist in board file defined(CONFIG_LDO_BYPASS_CHECK) */

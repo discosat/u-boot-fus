@@ -23,6 +23,7 @@
 #include <linux/mtd/mtd.h>
 #include <command.h>
 #include <console.h>
+#include <env.h>
 #include <watchdog.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
@@ -947,7 +948,7 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 {
 	int r;
 	size_t cnt;
-#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
+#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 	image_header_t *hdr;
 #endif
 #if defined(CONFIG_FIT)
@@ -985,7 +986,7 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 #endif
 
 	switch (genimg_get_format ((void *)addr)) {
-#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
+#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY:
 		hdr = (image_header_t *)addr;
 

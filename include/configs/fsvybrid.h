@@ -230,7 +230,6 @@
 /************************************************************************
  * SD/MMC Card
  ************************************************************************/
-#define CONFIG_FSL_ESDHC		/* use Freescale ESDHC driver */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	/* Not used */
 /*#define CONFIG_MMC_TRACE*/
 

@@ -156,6 +156,11 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc < 2)
 		return CMD_RET_USAGE;
 
+#ifdef CONFIG_DM_MDIO
+	/* probe DM MII device before any operation so they are all accesible */
+	dm_mdio_probe_devices();
+#endif
+
 	op = argv[1];
 
 	switch (op[0]) {
@@ -211,7 +216,7 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			    (!phydev->drv->writeext && (op[0] == 'w')) ||
 			    (!phydev->drv->readext && (op[0] == 'r'))) {
 				puts("PHY does not have extended functions\n");
-			return CMD_RET_FAILURE;
+				return CMD_RET_FAILURE;
 			}
 		extended = 1;
 	}
@@ -221,10 +226,10 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	if (op[0] == 'w') {
 		ret = mdio_write_ranges(bus, addrlo, addrhi, devadlo, devadhi,
-					reglo, reghi, data, extended);
+				  reglo, reghi, data, extended);
 	} else {
 		ret = mdio_read_ranges(bus, addrlo, addrhi, devadlo, devadhi,
-				       reglo, reghi, extended);
+				 reglo, reghi, extended);
 	}
 	if (ret) {
 		printf("Error %d\n", ret);

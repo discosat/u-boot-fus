@@ -16,7 +16,7 @@
 #include <common.h>			/* Types */
 #include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <asm/io.h>			/* __raw_readl() */
-#include <environment.h>		/* eth_parse_enetaddr() */
+#include <env.h>			/* eth_parse_enetaddr() */
 
 /* Read a MAC address from OTP memory */
 static int get_otp_mac(void *otp_addr, uchar *enetaddr)

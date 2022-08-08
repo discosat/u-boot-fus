@@ -36,6 +36,7 @@ typedef u8 sc_misc_dma_group_t;
  * This type is used report boot status.
  */
 typedef u8 sc_misc_boot_status_t;
+typedef u8 sc_misc_temp_t;
 
 /*
  * This type is used report boot status.

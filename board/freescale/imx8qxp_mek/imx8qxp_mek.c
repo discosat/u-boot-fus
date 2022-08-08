@@ -4,10 +4,10 @@
  */
 
 #include <common.h>
+#include <env.h>
 #include <errno.h>
 #include <linux/libfdt.h>
-#include <environment.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc_imx.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/clock.h>
@@ -56,21 +56,11 @@ static void setup_iomux_uart(void)
 
 int board_early_init_f(void)
 {
+	sc_pm_clock_rate_t rate = SC_80MHZ;
 	int ret;
+
 	/* Set UART0 clock root to 80 MHz */
-	sc_pm_clock_rate_t rate = 80000000;
-
-	/* Power up UART0 */
-	ret = sc_pm_set_resource_power_mode(-1, SC_R_UART_0, SC_PM_PW_MODE_ON);
-	if (ret)
-		return ret;
-
-	ret = sc_pm_set_clock_rate(-1, SC_R_UART_0, 2, &rate);
-	if (ret)
-		return ret;
-
-	/* Enable UART0 clock root */
-	ret = sc_pm_clock_enable(-1, SC_R_UART_0, 2, true, false);
+	ret = sc_pm_setup_uart(SC_R_UART_0, rate);
 	if (ret)
 		return ret;
 
@@ -244,7 +234,7 @@ int checkboard(void)
 	print_bootinfo();
 
 	return 0;
-	}
+}
 
 #ifdef CONFIG_FSL_HSIO
 

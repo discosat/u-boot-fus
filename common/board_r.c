@@ -18,7 +18,8 @@
 #include <command.h>
 #include <console.h>
 #include <dm.h>
-#include <environment.h>
+#include <env.h>
+#include <env_internal.h>
 #include <fdtdec.h>
 #include <ide.h>
 #include <initcall.h>
@@ -49,6 +50,9 @@
 #include <linux/err.h>
 #include <efi_loader.h>
 #include <wdt.h>
+#if defined(CONFIG_GPIO_HOG)
+#include <asm/gpio.h>
+#endif
 #ifdef CONFIG_FSL_FASTBOOT
 #include <fb_fsl.h>
 #endif
@@ -250,6 +254,10 @@ static int initr_malloc(void)
 	      gd->malloc_ptr / 1024);
 #endif
 	/* The malloc area is immediately below the monitor copy in DRAM */
+	/*
+	 * This value MUST match the value of gd->start_addr_sp in board_f.c:
+	 * reserve_noncached().
+	 */
 	malloc_start = gd->relocaddr - TOTAL_MALLOC_LEN;
 	mem_malloc_init((ulong)map_sysmem(malloc_start, TOTAL_MALLOC_LEN),
 			TOTAL_MALLOC_LEN);
@@ -451,7 +459,7 @@ static int initr_env(void)
 	if (should_load_env())
 		env_relocate();
 	else
-		set_default_env(NULL, 0);
+		env_set_default(NULL, 0);
 #ifdef CONFIG_OF_CONTROL
 	env_set_hex("fdtcontroladdr",
 		    (unsigned long)map_to_sysmem(gd->fdt_blob));
@@ -583,15 +591,6 @@ static int initr_net(void)
 static int initr_post(void)
 {
 	post_run(NULL, POST_RAM | post_bootmode_get(0));
-	return 0;
-}
-#endif
-
-#if defined(CONFIG_CMD_PCMCIA) && !defined(CONFIG_IDE)
-static int initr_pcmcia(void)
-{
-	puts("PCMCIA:");
-	pcmcia_init();
 	return 0;
 }
 #endif
@@ -745,7 +744,7 @@ static init_fnc_t init_sequence_r[] = {
 	stdio_init_tables,
 	initr_serial,
 	initr_announce,
-#if defined(CONFIG_WDT)
+#if CONFIG_IS_ENABLED(WDT)
 	initr_watchdog,
 #endif
 	INIT_FUNC_WATCHDOG_RESET
@@ -844,6 +843,9 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_CMD_NET
 	initr_ethaddr,
 #endif
+#if defined(CONFIG_GPIO_HOG)
+	gpio_hog_probe_all,
+#endif
 #ifdef CONFIG_BOARD_LATE_INIT
 	board_late_init,
 #endif
@@ -863,9 +865,6 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #ifdef CONFIG_POST
 	initr_post,
-#endif
-#if defined(CONFIG_CMD_PCMCIA) && !defined(CONFIG_IDE)
-	initr_pcmcia,
 #endif
 #if defined(CONFIG_IDE) && !defined(CONFIG_BLK)
 	initr_ide,

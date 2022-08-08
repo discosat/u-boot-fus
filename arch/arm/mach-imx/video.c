@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <env.h>
 #include <linux/errno.h>
 #include <asm/mach-imx/video.h>
 

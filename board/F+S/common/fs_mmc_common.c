@@ -11,7 +11,7 @@
 
 #include <config.h>
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 
 #include <common.h>			/* Types, container_of(), ... */
 #include <asm/gpio.h>			/* gpio_get_value(), ... */
@@ -162,4 +162,4 @@ int get_mmc_boot_device()
 	return mmc_boot_device;
 }
 
-#endif /* CONFIG_FSL_ESDHC */
+#endif /* CONFIG_FSL_ESDHC_IMX */

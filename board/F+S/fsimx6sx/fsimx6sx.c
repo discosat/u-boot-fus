@@ -16,11 +16,11 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
-#include <environment.h>
+#include <env_internal.h>
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 #include <mmc.h>
-#include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
+#include <fsl_esdhc_imx.h>		/* fsl_esdhc_initialize(), ... */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 #endif
 
@@ -504,7 +504,7 @@ void board_nand_init(void)
 #endif
 }
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 /*
  * SD/MMC support.
  *
@@ -707,7 +707,7 @@ int board_mmc_init(bd_t *bd)
 
 	return ret;
 }
-#endif /* CONFIG_FSL_ESDHC */
+#endif /* CONFIG_FSL_ESDHC_IMX */
 
 #ifdef CONFIG_VIDEO_MXS
 /*

@@ -18,7 +18,8 @@
 #include <common.h>
 #include <i2c.h>
 #include <miiphy.h>
-#include <fsl_esdhc.h>
+#include <env.h>
+#include <fsl_esdhc_imx.h>
 #include <linux/sizes.h>
 #include <mmc.h>
 #include <mxsfb.h>

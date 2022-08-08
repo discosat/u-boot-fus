@@ -32,8 +32,6 @@
 
 #define CONFIG_SERIAL_TAG
 
-#define CONFIG_FSL_USDHC
-
 #define CONFIG_SYS_FSL_USDHC_NUM        1
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0

@@ -767,9 +767,6 @@
 #define CONFIG_IMX_BOOTAUX
 
 /* USDHC */
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
-
 #ifdef CONFIG_SD_BOOT
 /* SPL use the CONFIG_SYS_MMC_ENV_DEV in
  * serial download mode. Otherwise use

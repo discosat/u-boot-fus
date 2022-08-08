@@ -15,16 +15,15 @@
 #include <net.h>			/* eth_init(), eth_halt() */
 #include <miiphy.h>
 #include <netdev.h>			/* ne2000_initialize() */
-#include <environment.h>		/* eth_parse_enetaddr() */
 #endif
 #ifdef CONFIG_CMD_LCD
 #include <cmd_lcd.h>			/* PON_*, POFF_* */
 #endif
 #include <serial.h>			/* struct serial_device */
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 #include <mmc.h>
-#include <fsl_esdhc.h>			/* fsl_esdhc_initialize(), ... */
+#include <fsl_esdhc_imx.h>		/* fsl_esdhc_initialize(), ... */
 #endif
 
 #ifdef CONFIG_LED_STATUS_CMD
@@ -343,7 +342,7 @@ void board_nand_init(void)
 #endif
 }
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 struct fsl_esdhc_cfg esdhc_cfg[] = {
 	{
 		.esdhc_base = ESDHC0_BASE_ADDR,
@@ -422,7 +421,7 @@ int board_mmc_init(bd_t *bis)
 	esdhc_cfg[index].sdhc_clk = vybrid_get_esdhc_clk(index);
 	return fsl_esdhc_initialize(bis, &esdhc_cfg[index]);
 }
-#endif /* CONFIG_FSL_ESDHC */
+#endif /* CONFIG_FSL_ESDHC_IMX */
 
 #ifdef CONFIG_USB_EHCI_VYBRID
 int board_ehci_hcd_init(int port)
