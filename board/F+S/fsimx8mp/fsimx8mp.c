@@ -42,6 +42,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MP 	0
+#define BT_ARMSTONEMX8MP 	1
 
 #define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
 #define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
@@ -83,6 +84,19 @@ DECLARE_GLOBAL_DATA_PTR;
 const struct fs_board_info board_info[] = {
 	{	/* 0 (BT_PICOCOREMX8MP) */
 		.name = "PicoCoreMX8MP",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 1 (BT_ARMSTONEMX8MP) */
+		.name = "armStoneMX8MP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -428,6 +442,7 @@ void fs_ethaddr_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MP:
+	case BT_ARMSTONEMX8MP:
 		if (features2 & FEAT_ETH_A) {
 			fs_eth_set_ethaddr(eth_id++);
 		}
@@ -587,11 +602,22 @@ void ss_mux_select(enum typec_cc_polarity pol)
 static int setup_typec(void)
 {
 	int ret;
+	unsigned int board_type = fs_board_get_type();
 
 	imx_iomux_v3_setup_multiple_pads(ss_mux_gpio, ARRAY_SIZE(ss_mux_gpio));
 	gpio_request(USB_TYPEC_SEL, "typec_sel");
 	gpio_request(USB_TYPEC_EN, "typec_en");
 	gpio_direction_output(USB_TYPEC_EN, 0);
+
+	switch(board_type) {
+	default:
+	case BT_PICOCOREMX8MP:
+		port1_config.i2c_bus = 2; /* i2c3 */
+		break;
+	case BT_ARMSTONEMX8MP:
+		port1_config.i2c_bus = 0; /* i2c1 */
+		break;
+	}
 
 	ret = tcpc_init(&port1, port1_config, &ss_mux_select);
 	if (ret) {
@@ -686,10 +712,11 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 
 #if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
 #define USB1_PWR_EN IMX_GPIO_NR(1, 12)
-//#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
+#define USB1_RESET IMX_GPIO_NR(1, 6)
 int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
+	unsigned int board_type = fs_board_get_type();
 
 	debug("USB%d: %s init.\n", index, (init)?"otg":"host");
 
@@ -713,6 +740,14 @@ int board_usb_init(int index, enum usb_init_type init)
 #endif
 		return ret;
 	} else if (index == 0 && init == USB_INIT_HOST) {
+
+		if(board_type == BT_ARMSTONEMX8MP) {
+			/* Set reset pin to high */
+			gpio_request(USB1_RESET, "usb1_reset");
+			gpio_direction_output(USB1_RESET, 0);
+			gpio_request(USB1_RESET, "usb1_reset");
+			gpio_direction_output(USB1_RESET, 1);
+		}
 		/* Enable host power */
 		gpio_request(USB1_PWR_EN, "usb1_pwr");
 		gpio_direction_output(USB1_PWR_EN, 1);
@@ -827,13 +862,20 @@ static iomux_v3_cfg_t const vlcd_on_pads[] = {
 
 int board_late_init(void)
 {
+	unsigned int board_type = fs_board_get_type();
 
-	if (fs_board_get_type() == BT_PICOCOREMX8MP)
-	{
+	switch(board_type) {
+	default:
+	case BT_PICOCOREMX8MP:
 		env_set("platform", "picocoremx8mp");
-		/* TODO: porting to F&S boot process */
-		env_set("sercon", "ttymxc1");
+		break;
+	case BT_ARMSTONEMX8MP:
+		env_set("platform", "armstonemx8mp");
+		break;
 	}
+
+	env_set("sercon", "ttymxc1");
+
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
@@ -894,3 +936,72 @@ int board_postclk_init(void)
 	return 0;
 }
 #endif /* CONFIG_BOARD_POSTCLK_INIT */
+#ifndef CONFIG_SPL_BUILD
+
+#define USDHC_NONE -1
+
+static int usdhc_boot_device = -1;
+static int mmc_boot_device = -1;
+static int usdhc_pos_in_init[] =
+{
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE
+};
+
+
+int get_usdhc_boot_device()
+{
+	unsigned int board_type = fs_board_get_type();
+	switch(board_type) {
+	default:
+	case BT_PICOCOREMX8MP:
+		return 2;
+	case BT_ARMSTONEMX8MP:
+		return 0;
+	}
+
+	return 2;
+}
+
+int get_mmc_boot_device()
+{
+	unsigned int board_type = fs_board_get_type();
+	switch(board_type) {
+	default:
+	case BT_PICOCOREMX8MP:
+		return 2;
+	case BT_ARMSTONEMX8MP:
+		return 0;
+	}
+	return 2;
+}
+
+/* Override board_mmc_get_env_dev to get boot dev from fuse settings */
+int board_mmc_get_env_dev(int devno)
+{
+#if defined(CONFIG_DM_MMC) && defined(CONFIG_BLK)
+	if(!find_mmc_device(devno)) {
+		/* Check device tree node for usdhc[devno]
+                 */
+		debug("Device %d is not available.", devno);
+		return USDHC_NONE;
+	} else {
+		/* Use NXP aliases for mmc devices:
+		 * mmc0 = &usdhc1
+		 * mmc1 = &usdhc2
+		 * mmc2 = &usdhc3
+		 * mmc3 = &usdhc4
+		 */
+		usdhc_boot_device = devno;
+		mmc_boot_device =   devno;
+	}
+#else
+	usdhc_boot_device = devno;
+	mmc_boot_device = usdhc_pos_in_init[devno];
+#endif
+
+	return mmc_boot_device;
+}
+#endif

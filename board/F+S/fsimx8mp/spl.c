@@ -42,9 +42,11 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MP 0x0
+#define BT_ARMSTONEMX8MP 0x1
 
 static const char *board_names[] = {
 	"PicoCoreMX8MP",
+	"armStoneMX8MP",
 	"(unknown)"
 };
 
@@ -85,6 +87,7 @@ int power_init_board(void)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
+	case BT_ARMSTONEMX8MP:
 		setup_i2c(I2C_PMIC_8MP, CONFIG_SYS_I2C_SPEED, 0x30, &i2c_pad_info_8mp);
 		ret = power_pca9450b_init(I2C_PMIC_8MP);
 		break;
@@ -143,23 +146,52 @@ static iomux_v3_cfg_t const uart_pads_mp[] = {
 	MX8MP_PAD_SAI3_TXC__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
+#define UART_AUTOMOD_CTRL (PAD_CTL_DSE2 | PAD_CTL_PUE | PAD_CTL_PE)
+#define SHDN_R232_PAD IMX_GPIO_NR(1, 3)
+#define AUTONLINE_R232_PAD IMX_GPIO_NR(1, 4)
+
+static iomux_v3_cfg_t const uart_auto_mode[] = {
+	MX8MP_PAD_GPIO1_IO03__GPIO1_IO03 | MUX_PAD_CTRL(UART_AUTOMOD_CTRL),
+	MX8MP_PAD_GPIO1_IO04__GPIO1_IO04 | MUX_PAD_CTRL(UART_AUTOMOD_CTRL),
+};
+
 static void config_uart(int board_type)
 {
 	switch (board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
-		/* Setup UART pads */
-		imx_iomux_v3_setup_multiple_pads(uart_pads_mp, ARRAY_SIZE(uart_pads_mp));
-		/* enable uart clock */
-		init_uart_clk(1);
+		break;
+	case BT_ARMSTONEMX8MP:
+		/* Initialize SHDN_RS232 and AUTONLINE_RS232
+		 *  to auto online mode.
+		 *  */
+		imx_iomux_v3_setup_multiple_pads(uart_auto_mode, ARRAY_SIZE(uart_auto_mode));
+		gpio_request (SHDN_R232_PAD, "SHDN");
+		gpio_direction_output (SHDN_R232_PAD, 1);
+		gpio_request (AUTONLINE_R232_PAD, "ONLINE");
+		gpio_direction_output (AUTONLINE_R232_PAD, 0);
 		break;
 	}
+
+	/* Setup UART pads */
+	imx_iomux_v3_setup_multiple_pads(uart_pads_mp, ARRAY_SIZE(uart_pads_mp));
+	/* enable uart clock */
+	init_uart_clk(1);
 
 	preloader_console_init();
 }
 
 #ifdef CONFIG_MMC
+/*
+ * SD/MMC support.
+ *
+ *   Board             USDHC   CD-Pin                 Slot
+ *   ----------------------------------------------------------------------
+ *   PicoCoreMX8MP:    USDHC3  NA                     On-board eMMC
+ *   ----------------------------------------------------------------------
+ *   armStoneMX8MP:    USDHC1  NA                     On-board eMMC
+ */
 /* Pad settings if using eMMC */
 #define USDHC_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE |PAD_CTL_PE | \
 			 PAD_CTL_FSEL2)
@@ -168,7 +200,7 @@ static void config_uart(int board_type)
 
 #define USDHC3_RST_GPIO IMX_GPIO_NR(3, 16)
 
-static iomux_v3_cfg_t const emmc_pads[] = {
+static iomux_v3_cfg_t const usdhc3_pads_int[] = {
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_WE_B__USDHC3_CLK,
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_WP_B__USDHC3_CMD,
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_DATA04__USDHC3_DATA0,
@@ -184,9 +216,24 @@ static iomux_v3_cfg_t const emmc_pads[] = {
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_READY_B__GPIO3_IO16,
 };
 
-static void fs_spl_init_emmc_pads(void)
+static iomux_v3_cfg_t const usdhc1_pads_int[] = {
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_CLK__USDHC1_CLK,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_CMD__USDHC1_CMD,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA0__USDHC1_DATA0,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA1__USDHC1_DATA1,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA2__USDHC1_DATA2,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA3__USDHC1_DATA3,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA4__USDHC1_DATA4,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA5__USDHC1_DATA5,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA6__USDHC1_DATA6,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_DATA7__USDHC1_DATA7,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_STROBE__USDHC1_STROBE,
+	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_RESET_B__USDHC1_RESET_B,
+};
+
+static void fs_spl_init_emmc_pads(iomux_v3_cfg_t const *emmc_pads, unsigned size)
 {
-	imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
+	imx_iomux_v3_setup_multiple_pads(emmc_pads, size);
 	boot_dev_init_done = true;
 }
 
@@ -205,6 +252,7 @@ int board_mmc_init(bd_t *bd)
 		init_clk_usdhc(0);
 		esdhc.esdhc_base = USDHC1_BASE_ADDR;
 		esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
+		esdhc.max_bus_width = 8;
 		break;
 
 	case MMC2_BOOT:
@@ -240,8 +288,13 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 	used_boot_dev = boot_dev;
 	switch (boot_dev) {
 #ifdef CONFIG_MMC
-	case MMC3_BOOT:
-		fs_spl_init_emmc_pads();
+	case MMC1_BOOT: /* armStoneMX8MP */
+		fs_spl_init_emmc_pads(usdhc1_pads_int, ARRAY_SIZE(usdhc1_pads_int));
+		if (start)
+			mmc_initialize(NULL);
+		break;
+	case MMC3_BOOT: /* PicoCoreMX8MP */
+		fs_spl_init_emmc_pads(usdhc3_pads_int, ARRAY_SIZE(usdhc3_pads_int));
 		if (start)
 			mmc_initialize(NULL);
 		break;
@@ -344,9 +397,9 @@ void board_init_f(ulong dummy)
 	 * Enable this to have early debug output before BOARD-CFG is loaded
 	 * You have to provide the board type, we do not know it yet
 	 */
-	config_uart(BT_PICOCOREMX8MP);
+	//config_uart(BT_PICOCOREMX8MP);
+	config_uart(BT_ARMSTONEMX8MP);
 #endif
-
 	/* Init malloc_f pool and boot stages */
 	ret = spl_init();
 	if (ret) {
@@ -384,17 +437,28 @@ void board_init_f(ulong dummy)
 	board_init_r(NULL, 0);
 }
 
-/* BL_ON */
-#define BL_ON_PAD IMX_GPIO_NR(5, 3)
-static iomux_v3_cfg_t const bl_on_pad =
-	MX8MP_PAD_SPDIF_TX__GPIO5_IO03 | MUX_PAD_CTRL(NO_PAD_CTRL);
-
 void spl_board_init(void)
 {
+	iomux_v3_cfg_t bl_on_pad;
+	unsigned bl_on_gpio;
+
+	switch (board_type)
+	{
+	default:
+	case BT_PICOCOREMX8MP:
+		bl_on_pad = MX8MP_PAD_SPDIF_TX__GPIO5_IO03 | MUX_PAD_CTRL(NO_PAD_CTRL);
+		bl_on_gpio = IMX_GPIO_NR(5, 3);
+		break;
+	case BT_ARMSTONEMX8MP:
+		bl_on_pad = MX8MP_PAD_SAI3_RXFS__GPIO4_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL);
+		bl_on_gpio = IMX_GPIO_NR(4, 28);
+		break;
+	}
+
 	imx_iomux_v3_setup_pad(bl_on_pad);
 	/* backlight off*/
-	gpio_request(BL_ON_PAD, "BL_ON");
-	gpio_direction_output(BL_ON_PAD, 0);
+	gpio_request(bl_on_gpio, "BL_ON");
+	gpio_direction_output(bl_on_gpio, 0);
 
 	/* Set GIC clock to 500Mhz for OD VDD_SOC. Kernel driver does not allow to change it.
 	 * Should set the clock after PMIC setting done.
@@ -509,7 +573,7 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 }
 
 #define USB1_PWR_EN IMX_GPIO_NR(1, 12)
-//#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
+#define USB1_RESET IMX_GPIO_NR(1, 6) /* armStoneMX8MP */
 int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
@@ -533,6 +597,13 @@ int board_usb_init(int index, enum usb_init_type init)
 	} else if (index == 1 && init == USB_INIT_HOST) {
 		return ret;
 	} else if (index == 0 && init == USB_INIT_HOST) {
+		if(board_type == BT_ARMSTONEMX8MP) {
+			/* Set reset pin to high */
+			gpio_request(USB1_RESET, "usb1_reset");
+			gpio_direction_output(USB1_RESET, 0);
+			gpio_request(USB1_RESET, "usb1_reset");
+			gpio_direction_output(USB1_RESET, 1);
+		}
 		/* Enable host power */
 		gpio_request(USB1_PWR_EN, "usb1_pwr");
 		gpio_direction_output(USB1_PWR_EN, 1);

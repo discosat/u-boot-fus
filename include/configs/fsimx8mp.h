@@ -415,7 +415,7 @@
 	"mtdids=undef\0"						\
 	"mtdparts=undef\0"						\
 	".mtdparts_std=" MTDPARTS_STD "\0"				\
-	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0"		\
+	"mmcdev=undef\0"						\
 	".network_off=setenv network\0"					\
 	".network_on=setenv network ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}\0" \
 	".network_dhcp=setenv network ip=dhcp\0"			\
@@ -528,11 +528,6 @@
  * (s. mmc_get_env_dev in mmc_env.c)
  */
 #define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
-//#define CONFIG_SYS_MMC_ENV_PART		0 /* Use mmc_get_env_part() */
-/* number of available  */
-//#define CONFIG_SYS_FSL_USDHC_NUM	1 /* use USDHC1 and USDHC3 */
-
-
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
