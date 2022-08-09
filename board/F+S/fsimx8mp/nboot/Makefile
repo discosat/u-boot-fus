@@ -39,7 +39,8 @@ BOARD_CONFIGS = \
 	PCoreMX8MP-FERT4.110.fs \
 	PCoreMX8MP-FERT5.110.fs \
 	PCoreMX8MP-FERT6.110.fs \
-	armStoneMX8MP-FERT1.100.fs
+	armStoneMX8MP-FERT4.100.fs \
+	armStoneMX8MP-FERT2.100.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
