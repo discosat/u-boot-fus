@@ -1,0 +1,17 @@
+History of Changes for U-Boot on F&S Boards and Modules
+-------------------------------------------------------
+
+u-boot-2020.04-fsimx8x-Y2022.08 (09.08.2022)
+---------------------------------------------
+Supported boards: efusMX8X
+
+- Add efusMX8X prototype
+- Enable DRAM initialization through SCU IOCTL
+- Add SDP streaming functionality
+- Enable NBoot for efusMX8X
+- Enable QuadSPI NAND
+- Fix MALLOC_F area in SPL
+- Enable ethernet for efusMX8X
+- Add delay for USB host storage devices
+
+based on NXP version rel_imx_5.4.70_2.3.2
