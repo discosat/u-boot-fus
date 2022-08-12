@@ -34,8 +34,8 @@
 
 	config {
 		/* Environment in MMC is in a Boot partition by default */
-		u-boot,mmc-env-offset = <0x100000>;
-		u-boot,mmc-env-offset-redundant = <0x104000>;
+		u-boot,mmc-env-offset = <0x138000>;
+		u-boot,mmc-env-offset-redundant = <0x13C000>;
 	};
 
 	chosen {
