@@ -433,8 +433,6 @@ int board_fix_fdt(void *fdt)
 #if 0
 	/* Make some room in the FDT */
 	fdt_shrink_to_minimum(fdt, 8192);
-#else
-	fdt_increase_size(fdt, 8192);
 #endif
 	return do_fdt_board_setup_common(fdt);
 }
