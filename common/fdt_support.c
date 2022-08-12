@@ -46,7 +46,7 @@ u32 fdt_getprop_u32_default_node(const void *fdt, int off, int cell,
 	if (len < ((cell + 1) * sizeof(uint32_t)))
 		return dflt;
 
-	return fdt32_to_cpu(*val);
+	return fdt32_to_cpu(val[cell]);
 }
 
 /**

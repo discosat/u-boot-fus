@@ -39,6 +39,10 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
+#ifndef CONFIG_BOOTFILE
+#define CONFIG_BOOTFILE "uImage"
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if	defined(CONFIG_ENV_IS_IN_EEPROM)	|| \
@@ -759,6 +763,23 @@ ulong env_get_ulong(const char *name, int base, ulong default_val)
 	const char *str = env_get(name);
 
 	return str ? simple_strtoul(str, NULL, base) : default_val;
+}
+
+const char *get_bootfile(void)
+{
+	const char *p;
+
+	p = env_get("bootfile");
+	if (p)
+		return p;
+	return CONFIG_BOOTFILE;
+}
+
+const char *parse_bootfile(const char *buffer)
+{
+	if ((buffer[0] == '.') && (buffer[1] == 0))
+		return get_bootfile();
+	return buffer;
 }
 
 #ifndef CONFIG_SPL_BUILD

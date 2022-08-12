@@ -694,14 +694,13 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		addr = parse_loadaddr(argv[3], NULL);
 	else
 		addr = get_loadaddr();
-	if (argc >= 5) {
-		filename = argv[4];
-	} else {
-		filename = env_get("bootfile");
-		if (!filename) {
-			puts("** No boot file defined **\n");
-			return 1;
-		}
+	if (argc >= 5)
+		filename = parse_bootfile(argv[4]);
+	else
+		filename = get_bootfile();
+	if (!filename) {
+		puts("** No boot file defined **\n");
+		return 1;
 	}
 	if (argc >= 6)
 		bytes = simple_strtoul(argv[5], NULL, 16);
@@ -716,6 +715,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	efi_set_bootdev(argv[1], (argc > 2) ? argv[2] : "",
 			(argc > 4) ? argv[4] : "");
 #endif
+	set_fileaddr(addr);
 	time = get_timer(0);
 	ret = _fs_read(filename, addr, pos, bytes, 1, &len_read);
 	time = get_timer(time);
@@ -730,8 +730,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	}
 	puts("\n");
 
-	env_set_hex("fileaddr", addr);
-	env_set_hex("filesize", len_read);
+	env_set_fileinfo(len_read);
 
 	return 0;
 }

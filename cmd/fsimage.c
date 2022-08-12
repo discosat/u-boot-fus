@@ -1170,9 +1170,9 @@ static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned long addr;
 
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	fdt = fs_image_get_cfg_addr_check(false);
 	if (!fdt)
@@ -1211,8 +1211,8 @@ static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
 		printf("Loading %s failed (%d)\n", img.type, ret);
 	else {
 		/* Set parameters for loaded file */
-		env_set_hex("fileaddr", addr);
-		env_set_hex("filesize", img.size);
+		set_fileaddr(addr);
+		env_set_fileinfo(img.size);
 		printf("%s with size 0x%x loaded to address 0x%lx\n",
 		       img.type, img.size, addr);
 	}
@@ -1228,9 +1228,9 @@ static int do_fsimage_list(cmd_tbl_t *cmdtp, int flag, int argc,
 	struct fs_header_v1_0 *fsh;
 
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	fsh = (struct fs_header_v1_0 *)addr;
 	if (!fs_image_is_fs_image(fsh)) {
@@ -1270,9 +1270,9 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 		argc--;
 	}
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	/* If this is an U-Boot image, handle separately */
 	if (fs_image_match((void *)addr, "U-BOOT", NULL))
@@ -1358,9 +1358,9 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 		argc--;
 	}
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	ret = fs_image_find_board_cfg(addr, force, &cfg, NULL);
 	if (ret <= 0)
