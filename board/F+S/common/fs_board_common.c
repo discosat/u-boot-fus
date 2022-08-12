@@ -125,18 +125,17 @@ const char *fs_board_get_nboot_version(void)
 
 #ifdef CONFIG_IMX8M
 /* Set RAM size (as given by NBoot) and RAM base */
-#if 0
-/* NXP does dram_init of their own */
-int dram_init(void)
+int board_phys_sdram_size(phys_size_t *size)
 {
 	DECLARE_GLOBAL_DATA_PTR;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
-	gd->ram_size = pargs->dwMemSize << 20;
+	if (!size)
+		return -EINVAL;
 
+	*size =(pargs->dwMemSize << 20);
 	return 0;
 }
-#endif
 #endif
 
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
@@ -187,20 +186,14 @@ const char *fs_board_get_nboot_version(void)
 }
 
 /* Set RAM size */
-#if 0
-/* NXP does dram_init of their own */
-int dram_init(void)
+int board_phys_sdram_size(phys_size_t *size)
 {
-	DECLARE_GLOBAL_DATA_PTR;
+	if (!size)
+		return -EINVAL;
 
-	/* rom_pointer[1] holds the size of the TEE */
-	gd->ram_size =
-		(fs_board_get_cfg_info()->dram_size << 20) - rom_pointer[1];
-
+	*size =(fs_board_get_cfg_info()->dram_size << 20);
 	return 0;
 }
-#endif
-
 #endif /* HAVE_BOARD_CFG */
 
 /* ------------- Generic functions ----------------------------------------- */

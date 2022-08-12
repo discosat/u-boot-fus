@@ -37,6 +37,7 @@
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #include "../common/fs_image_common.h"	/* fs_image_*() */
+#include "../common/fs_mmc_common.h"	/* fs_image_*() */
 #include <imx_thermal.h> /* for temp ranges */
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -425,10 +426,16 @@ static int do_fdt_board_setup_common(void *fdt)
 /* Do any board-specific modifications on U-Boot device tree before starting */
 int board_fix_fdt(void *fdt)
 {
-
+	/* TODO:
+	 * Call of the function changes board info structure values (RAM config)
+	 * in global data.
+	 * */
+#if 0
 	/* Make some room in the FDT */
 	fdt_shrink_to_minimum(fdt, 8192);
-
+#else
+	fdt_increase_size(fdt, 8192);
+#endif
 	return do_fdt_board_setup_common(fdt);
 }
 #endif
@@ -942,6 +949,7 @@ int board_postclk_init(void)
 
 static int usdhc_boot_device = -1;
 static int mmc_boot_device = -1;
+#if !defined(CONFIG_DM_MMC) && !defined(CONFIG_BLK)
 static int usdhc_pos_in_init[] =
 {
 	USDHC_NONE,
@@ -949,7 +957,7 @@ static int usdhc_pos_in_init[] =
 	USDHC_NONE,
 	USDHC_NONE
 };
-
+#endif
 
 int get_usdhc_boot_device()
 {
