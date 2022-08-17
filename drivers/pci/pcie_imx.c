@@ -13,6 +13,7 @@
  */
 
 #include <common.h>
+#include <init.h>
 #include <pci.h>
 #if CONFIG_IS_ENABLED(CLK)
 #include <clk.h>

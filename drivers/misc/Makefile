@@ -12,6 +12,7 @@ obj-$(CONFIG_$(SPL_TPL_)CROS_EC_LPC) += cros_ec_lpc.o
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_CROS_EC_I2C) += cros_ec_i2c.o
 obj-$(CONFIG_CROS_EC_SPI) += cros_ec_spi.o
+obj-$(CONFIG_SANDBOX) += swap_case.o
 obj-$(CONFIG_IMX_M4_MU) += imx_m4_mu.o
 endif
 

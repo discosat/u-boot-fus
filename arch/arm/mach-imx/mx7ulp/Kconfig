@@ -3,6 +3,11 @@ if ARCH_MX7ULP
 config SYS_SOC
 	default "mx7ulp"
 
+config LDO_ENABLED_MODE
+	bool "i.MX7ULP LDO Enabled Mode"
+	help
+	  Select this option to enable the PMC1 LDO.
+
 config MX7ULP
 	select HAS_CAAM
 	bool
@@ -28,7 +33,8 @@ config TARGET_MX7ULP_14X14_ARM2
 	select MX7ULP
 
 config TARGET_MX7ULP_EVK
-	bool "Support mx7ulp EVK board"
+        bool "Support mx7ulp EVK board"
+	select MX7ULP
 	select SYS_ARCH_TIMER
 	select MX7ULP
 

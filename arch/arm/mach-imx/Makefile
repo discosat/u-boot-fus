@@ -13,16 +13,19 @@ ifeq ($(SOC),$(filter $(SOC),imx8m))
 ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
-obj-y += mmc_env.o
+obj-$(CONFIG_ENV_IS_IN_MMC) += mmc_env.o
 obj-$(CONFIG_FEC_MXC) += mac.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
-obj-$(CONFIG_SECURE_BOOT) += hab.o
+obj-$(CONFIG_SIMX_HAB) += hab.o
 obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
 obj-y += cpu.o
 endif
 
 ifeq ($(SOC),$(filter $(SOC),mx5 mx6))
 obj-y	+= cpu.o speed.o
+ifneq ($(CONFIG_MX51),y)
+obj-y	+= mmdc_size.o
+endif
 obj-$(CONFIG_GPT_TIMER) += timer.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 endif
@@ -53,15 +56,14 @@ ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 obj-$(CONFIG_SATA) += sata.o
-obj-$(CONFIG_SECURE_BOOT)    += hab.o
+obj-$(CONFIG_IMX_HAB)    += hab.o
 obj-$(CONFIG_FS_SECURE_BOOT) += checkboot.o
 obj-$(CONFIG_SYSCOUNTER_TIMER) += syscounter.o
 obj-$(CONFIG_IMX_TRUSTY_OS) += trusty.o
 endif
 ifeq ($(SOC),$(filter $(SOC),mx7ulp))
-obj-y  += cache.o
-obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
-obj-$(CONFIG_SECURE_BOOT) += hab.o
+obj-y  += cache.o mmdc_size.o
+obj-$(CONFIG_IMX_HAB) += hab.o
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 ifeq ($(SOC),$(filter $(SOC),vf610))
@@ -291,4 +293,5 @@ obj-$(CONFIG_MX7) += mx7/
 obj-$(CONFIG_ARCH_MX7ULP) += mx7ulp/
 obj-$(CONFIG_IMX8M) += imx8m/
 obj-$(CONFIG_ARCH_IMX8) += imx8/
-obj-$(CONFIG_CMD_WRITEBCB_MX7) += cmd_writebcb_mx7.o
+
+obj-$(CONFIG_SPL_BOOTROM_SUPPORT) += spl_imx_romapi.o

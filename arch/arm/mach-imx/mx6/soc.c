@@ -8,6 +8,7 @@
  */
 
 #include <common.h>
+#include <init.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -30,12 +31,6 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-enum ldo_reg {
-	LDO_ARM,
-	LDO_SOC,
-	LDO_PU,
-};
-
 struct scu_regs {
 	u32	ctrl;
 	u32	config;
@@ -57,7 +52,7 @@ U_BOOT_DEVICE(imx6_thermal) = {
 };
 #endif
 
-#if defined(CONFIG_SECURE_BOOT)
+#if defined(CONFIG_IMX_HAB)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 0,
 	.word = 6,
@@ -298,7 +293,7 @@ static void clear_ldo_ramp(void)
  * Possible values are from 0.725V to 1.450V in steps of
  * 0.025V (25mV).
  */
-static int set_ldo_voltage(enum ldo_reg ldo, u32 mv)
+int set_ldo_voltage(enum ldo_reg ldo, u32 mv)
 {
 	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
 	u32 val, step, old, reg = readl(&anatop->reg_core);

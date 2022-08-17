@@ -19,7 +19,7 @@
 #include <scsi.h>
 #endif
 
-#if defined(CONFIG_ENV_SIZE_REDUND) || defined(CONFIG_ENV_OFFSET_REDUND)
+#if defined(CONFIG_ENV_OFFSET_REDUND)
 #error ENV REDUND not supported
 #endif
 

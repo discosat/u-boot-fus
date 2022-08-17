@@ -16,7 +16,6 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <asm/mach-imx/spi.h>
 #include <asm/io.h>
 #include <linux/sizes.h>
 #include <common.h>
@@ -54,9 +53,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ENET_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |             \
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |             \
 	PAD_CTL_DSE_40ohm   | PAD_CTL_HYS)
-
-#define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED | \
-		      PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
 #define I2C_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
 		      PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |	\
@@ -322,7 +318,7 @@ int power_init_board(void)
 	if (ret < 0)
 		return ret;
 
-	/* set SW1AB staby volatage 0.975V*/
+	/* set SW1AB staby volatage 0.975V */
 	reg = pmic_reg_read(dev, PFUZE100_SW1ABSTBY);
 	reg &= ~0x3f;
 	reg |= 0x1b;
@@ -334,7 +330,7 @@ int power_init_board(void)
 	reg |= 0x40;
 	pmic_reg_write(dev, PFUZE100_SW1ABCONF, reg);
 
-	/* set SW1C staby volatage 0.975V*/
+	/* set SW1C staby volatage 0.975V */
 	reg = pmic_reg_read(dev, PFUZE100_SW1CSTBY);
 	reg &= ~0x3f;
 	reg |= 0x1b;
@@ -361,7 +357,7 @@ void ldo_mode_set(int ldo_bypass)
 	if (!p) {
 		printf("No pmic!\n");
 		return;
-	}
+}
 
 	/* swith to ldo_bypass mode */
 	if (ldo_bypass) {

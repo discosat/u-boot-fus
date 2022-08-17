@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017 NXP
+ *
+ * Peng Fan <peng.fan at nxp.com>
  */
 
 #include <linux/bitops.h>
@@ -238,7 +240,6 @@ struct dram_bypass_clk_setting {
 #define CLK_ROOT_IPG_POST_DIV_MASK	0x3
 #define CLK_ROOT_POST_DIV_SHIFT		0
 #define CLK_ROOT_POST_DIV(n)		((n) & 0x3f)
-
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_125M_CLK		0x01000000
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_50M_CLK		0x02000000
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK		0x03000000

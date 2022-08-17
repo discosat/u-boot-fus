@@ -99,27 +99,6 @@ struct us_data {
 	unsigned short	max_xfer_blk;		/* maximum transfer blocks */
 };
 
-/*
- * ### 23.03.2018 HK: Some USB sticks can not work with more than 65534 blocks
- * in one go, so use at most 65534. In addition we have a time limit of 5s for
- * bulk transfers (see usb.h). The more blocks we transfer in one go, the
- * higher the risk that we exceed the 5s limit on very slow devices. Therefore
- * we reduce the number again quite considerably. Using 32768 will transfer at
- * most 16 MB in one go. This should be fine with all USB 2.0 storage devices.
- *
- * ### 04.07.2022 HK: Some USB3.1 sticks seem to have trouble when bit 15 of
- * the block count is set. So further reduce length to 0x7000 (28672).
- * Actually with newer SCSI versions, there is a register where the maximum
- * number of blocks for one transfer can be read out. We should change the
- * code below to read that register, but this is rather complicated. And
- * because it is optional anyway and does not exist in earlier SCSI versions,
- * we may still have to rely on this default value here. Newer U-Boot versions
- * only read at most 256 blocks, but that slows down USB access considerably
- * because USB polling for transfer completion is very slow in U-Boot and that
- * happens with each single transfer.
- */
-#define USB_MAX_XFER_BLK	0x7000
-
 #if !CONFIG_IS_ENABLED(BLK)
 static struct us_data usb_stor[USB_MAX_STOR_DEV];
 #endif
@@ -959,36 +938,59 @@ do_retry:
 static void usb_stor_set_max_xfer_blk(struct usb_device *udev,
 				      struct us_data *us)
 {
-	unsigned short blk;
-	size_t __maybe_unused size;
-	int __maybe_unused ret;
-
-#if !CONFIG_IS_ENABLED(DM_USB)
-#ifdef CONFIG_USB_EHCI_HCD
 	/*
-	 * The U-Boot EHCI driver can handle any transfer length as long as
-	 * there is enough free heap space left, but the SCSI READ(10) and
-	 * WRITE(10) commands are limited to 65535 blocks.
-	 * ### 19.02.2019: No, there are other limits; see comment to
-	 *                 USB_MAX_XFER_BLK at beginning of file
+	 * Limit the total size of a transfer to 120 KB.
+	 *
+	 * Some devices are known to choke with anything larger. It seems like
+	 * the problem stems from the fact that original IDE controllers had
+	 * only an 8-bit register to hold the number of sectors in one transfer
+	 * and even those couldn't handle a full 256 sectors.
+	 *
+	 * Because we want to make sure we interoperate with as many devices as
+	 * possible, we will maintain a 240 sector transfer size limit for USB
+	 * Mass Storage devices.
+	 *
+	 * Tests show that other operating have similar limits with Microsoft
+	 * Windows 7 limiting transfers to 128 sectors for both USB2 and USB3
+	 * and Apple Mac OS X 10.11 limiting transfers to 256 sectors for USB2
+	 * and 2048 for USB3 devices.
+	 *
+	 * ### 09.08.2022 HK: Previously, the limit was set to 65535. But some
+	 * USB sticks can not work with more than 65534 blocks in one go, so
+	 * we used at most 65534. In addition there is a time limit of 5s for
+	 * bulk transfers (see usb.h). The more blocks we transfer in one go,
+	 * the higher the risk that we exceed the 5s limit on very slow devices.
+	 * Therefore we reduced the number again quite considerably to 32768.
+	 * This transferred at most 16 MB in one go and should be fine with all
+	 * USB 2.0 storage devices.
+	 *
+	 * In the meantime, mainline U-Boot also has addressed this issue as
+	 * seen above. However limiting to 240 sectors slows down USB access
+	 * considerably because USB polling for transfer completion is very
+	 * slow in U-Boot and that happens with each single transfer. So we
+	 * found a higher limit. Some USB3.1 sticks actually seem to have
+	 * trouble when bit 15 of the block count is set. So 0x7FFF should
+	 * be OK. To be safe, we use 0x7000 (28672, 14 MiB per transfer).
+	 *
+	 * With newer SCSI versions (SPC3), there is a register where the
+	 * maximum number of blocks for one transfer can be read out. We
+	 * should change the code below to read that register. Unfortunately
+	 * this is rather complicated. First load the page with the list of
+	 * available Virtual Product Data (VPD) pages, check for the
+	 * availability of the optional Block Limits VPD page (0xB0), load
+	 * the page and extract the MAXIMUM TRANSFER LENGTH field. If this
+	 * does not exist, use the default values anyway.
 	 */
-//###	blk = USHRT_MAX;
-	blk = USB_MAX_XFER_BLK;
-#else
-	blk = 20;
-#endif
-#else
+//###	unsigned short blk = 240;
+	unsigned short blk = 0x7000;
+
+#if CONFIG_IS_ENABLED(DM_USB)
+	size_t size;
+	int ret;
+
 	ret = usb_get_max_xfer_size(udev, (size_t *)&size);
-	if (ret < 0) {
-		/* unimplemented, let's use default 20 */
-		blk = 20;
-	} else {
-//###		if (size > USHRT_MAX * 512)
-//###			size = USHRT_MAX * 512;
-		if (size > USB_MAX_XFER_BLK * 512)
-			size = USB_MAX_XFER_BLK * 512;
+	if ((ret >= 0) && (size < blk * 512))
 		blk = size / 512;
-	}
 #endif
 
 	us->max_xfer_blk = blk;
@@ -1205,6 +1207,7 @@ retry_it:
 		srb->pdata = (unsigned char *)buf_addr;
 		if (usb_read_10(srb, ss, start, smallblks)) {
 			debug("Read ERROR\n");
+			ss->flags &= ~USB_READY;
 			usb_request_sense(srb, ss);
 			if (retry--)
 				goto retry_it;
@@ -1215,7 +1218,6 @@ retry_it:
 		blks -= smallblks;
 		buf_addr += srb->datalen;
 	} while (blks != 0);
-	ss->flags &= ~USB_READY;
 
 	debug("usb_read: end startblk " LBAF ", blccnt %x buffer %lx\n",
 	      start, smallblks, buf_addr);
@@ -1290,6 +1292,7 @@ retry_it:
 		srb->pdata = (unsigned char *)buf_addr;
 		if (usb_write_10(srb, ss, start, smallblks)) {
 			debug("Write ERROR\n");
+			ss->flags &= ~USB_READY;
 			usb_request_sense(srb, ss);
 			if (retry--)
 				goto retry_it;
@@ -1300,7 +1303,6 @@ retry_it:
 		blks -= smallblks;
 		buf_addr += srb->datalen;
 	} while (blks != 0);
-	ss->flags &= ~USB_READY;
 
 	debug("usb_write: end startblk " LBAF ", blccnt %x buffer %lx\n",
 	      start, smallblks, buf_addr);
@@ -1495,10 +1497,10 @@ int usb_stor_get_info(struct usb_device *dev, struct us_data *ss,
 	memset(pccb->pdata, 0, 8);
 	if (usb_read_capacity(pccb, ss) != 0) {
 		printf("READ_CAP ERROR\n");
+		ss->flags &= ~USB_READY;
 		cap[0] = 2880;
 		cap[1] = 0x200;
 	}
-	ss->flags &= ~USB_READY;
 	debug("Read Capacity returns: 0x%08x, 0x%08x\n", cap[0], cap[1]);
 #if 0
 	if (cap[0] > (0x200000 * 10)) /* greater than 10 GByte */

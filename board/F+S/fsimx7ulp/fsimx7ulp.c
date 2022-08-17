@@ -19,7 +19,7 @@
 #include <asm/gpio.h>
 #include <usb.h>
 #include <dm.h>
-#include <environment.h>		/* enum env_operation */
+#include <env_internal.h>		/* enum env_operation */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
@@ -386,7 +386,7 @@ void fs_eth_set_ethaddr(int index)
 	if (eth_env_get_enetaddr_by_index("eth", index, enetaddr))
 		return;
 
-	eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
+	string_to_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 
 	i = 6;
 	do {

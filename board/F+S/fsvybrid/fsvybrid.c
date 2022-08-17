@@ -590,7 +590,7 @@ void fs_eth_set_ethaddr(int index)
 		count = get_otp_mac(OTP_BASE_ADDR + 0x640, enetaddr);
 		if (count <= offs) {
 			offs -= count;
-			eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
+			string_to_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 		}
 	}
 

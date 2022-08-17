@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <irq_func.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>	/* CA5SCU_ICCIAR, N_IRQS, ... */
 

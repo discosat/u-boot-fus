@@ -11,6 +11,7 @@
  *
  */
 
+#include <cpu_func.h>
 #include <linux/list.h>
 
 #include <common.h>

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
-* Copyright 2018-2019 NXP
-*
-* SPDX-License-Identifier: GPL-2.0+
-*/
+ * Copyright 2018-2019 NXP
+ */
 
 #include <common.h>
 #include <errno.h>

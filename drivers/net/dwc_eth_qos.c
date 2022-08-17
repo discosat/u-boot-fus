@@ -29,6 +29,7 @@
  */
 #include <common.h>
 #include <clk.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <errno.h>
 #include <memalign.h>
@@ -1099,7 +1100,7 @@ static int eqos_adjust_link(struct udevice *dev)
 		ret = eqos->config->ops->eqos_disable_calibration(dev);
 		if (ret < 0) {
 			pr_err("eqos_disable_calibration() failed: %d",
-			      ret);
+			       ret);
 			return ret;
 		}
 	}
@@ -1218,7 +1219,7 @@ static int eqos_start(struct udevice *dev)
 	 * don't need to reconnect/reconfigure again
 	 */
 	if (!eqos->phy) {
-		int addr;
+		int addr = -1;
 #ifdef CONFIG_DM_ETH_PHY
 		addr = eth_phy_get_addr(dev);
 #endif
@@ -1227,15 +1228,15 @@ static int eqos_start(struct udevice *dev)
 #endif
 		eqos->phy = phy_connect(eqos->mii, addr, dev,
 					eqos->config->interface(dev));
-	if (!eqos->phy) {
-		pr_err("phy_connect() failed");
-		goto err_stop_resets;
-	}
-	ret = phy_config(eqos->phy);
-	if (ret < 0) {
-		pr_err("phy_config() failed: %d", ret);
-		goto err_shutdown_phy;
-	}
+		if (!eqos->phy) {
+			pr_err("phy_connect() failed");
+			goto err_stop_resets;
+		}
+		ret = phy_config(eqos->phy);
+		if (ret < 0) {
+			pr_err("phy_config() failed: %d", ret);
+			goto err_shutdown_phy;
+		}
 	}
 
 	ret = phy_startup(eqos->phy);
@@ -2072,7 +2073,7 @@ static int eqos_probe(struct udevice *dev)
 	eqos->mii = mdio_alloc();
 	if (!eqos->mii) {
 		pr_err("mdio_alloc() failed");
-			ret = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_remove_resources_tegra;
 	}
 	eqos->mii->read = eqos_mdio_read;

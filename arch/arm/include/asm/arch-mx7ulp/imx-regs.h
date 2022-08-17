@@ -1,16 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017, 2019 NXP
- *
  */
 
 #ifndef _MX7ULP_REGS_H_
 #define _MX7ULP_REGS_H_
 
-#define ARCH_MXC
-
 #include <linux/sizes.h>
+
+#define ARCH_MXC
 
 #define ROM_SW_INFO_ADDR        0x000001E8
 
@@ -969,9 +967,8 @@
 #define SNVS_LPCR_DPEN				(0x20)
 #define SNVS_LPCR_SRTC_ENV			(0x1)
 
-#include <asm/mach-imx/regs-lcdif.h>
-
 #if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
+#include <asm/mach-imx/regs-lcdif.h>
 
 #include <asm/types.h>
 
@@ -1146,11 +1143,6 @@ struct usbphy_regs {
 	u32	usb1_pfda_ctrl1_tog;		/* 0x14c */
 };
 
-#include <stdbool.h>
-bool is_usb_boot(void);
-#define is_boot_from_usb  is_usb_boot
-#define	disconnect_from_pc(void)	writel(0x0, USBOTG0_RBASE + 0x140)
-
 struct bootrom_sw_info {
 	u8 reserved_1;
 	u8 boot_dev_instance;
@@ -1162,6 +1154,11 @@ struct bootrom_sw_info {
 	u32 rom_tick_freq;
 	u32 reserved_3[3];
 };
+
+#include <stdbool.h>
+bool is_usb_boot(void);
+#define is_boot_from_usb  is_usb_boot
+#define	disconnect_from_pc(void)	writel(0x0, USBOTG0_RBASE + 0x140)
 
 #endif
 

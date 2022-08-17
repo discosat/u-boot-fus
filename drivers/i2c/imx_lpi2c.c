@@ -288,9 +288,9 @@ static int bus_i2c_set_bus_speed(struct udevice *bus, int speed)
 			return clock_rate;
 		}
 	} else {
-	clock_rate = imx_get_i2cclk(bus->seq);
-	if (!clock_rate)
-		return -EPERM;
+		clock_rate = imx_get_i2cclk(bus->seq);
+		if (!clock_rate)
+			return -EPERM;
 	}
 
 	mode = (readl(&regs->mcr) & LPI2C_MCR_MEN_MASK) >> LPI2C_MCR_MEN_SHIFT;
@@ -462,7 +462,6 @@ static int imx_lpi2c_probe(struct udevice *bus)
 	}
 
 	if (IS_ENABLED(CONFIG_CLK)) {
-		struct clk ipg_clk;
 		ret = clk_get_by_name(bus, "per", &i2c_bus->per_clk);
 		if (ret) {
 			dev_err(bus, "Failed to get per clk\n");
@@ -474,21 +473,21 @@ static int imx_lpi2c_probe(struct udevice *bus)
 			return ret;
 		}
 
-		ret = clk_get_by_name(bus, "ipg", &ipg_clk);
+		ret = clk_get_by_name(bus, "ipg", &i2c_bus->ipg_clk);
 		if (ret) {
 			dev_err(bus, "Failed to get ipg clk\n");
 			return ret;
 		}
-		ret = clk_enable(&ipg_clk);
+		ret = clk_enable(&i2c_bus->ipg_clk);
 		if (ret) {
 			dev_err(bus, "Failed to enable ipg clk\n");
 			return ret;
 		}
 	} else {
-	/* To i.MX7ULP, only i2c4-7 can be handled by A7 core */
-	ret = enable_i2c_clk(1, bus->seq);
-	if (ret < 0)
-		return ret;
+		/* To i.MX7ULP, only i2c4-7 can be handled by A7 core */
+		ret = enable_i2c_clk(1, bus->seq);
+		if (ret < 0)
+			return ret;
 	}
 
 	ret = bus_i2c_init(bus, 100000);

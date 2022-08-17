@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2017-2018 NXP
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_IMX8MM_H
@@ -75,6 +72,8 @@
 #define	IMX8MM_SYS_PLL2_333M			63
 #define	IMX8MM_SYS_PLL2_500M			64
 #define	IMX8MM_SYS_PLL2_1000M			65
+
+/* core */
 #define	IMX8MM_CLK_A53_SRC			66
 #define	IMX8MM_CLK_M4_SRC			67
 #define	IMX8MM_CLK_VPU_SRC			68

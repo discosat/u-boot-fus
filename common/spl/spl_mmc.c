@@ -4,9 +4,6 @@
  * Texas Instruments, <www.ti.com>
  *
  * Aneesh V <aneesh@ti.com>
- *
- * Copyright 2018 NXP
- *
  */
 #include <common.h>
 #include <dm.h>
@@ -95,6 +92,16 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		load.bl_len = mmc->read_bl_len;
 		load.read = h_spl_load_read;
 		ret = spl_load_simple_fit(spl_image, &load, sector, header);
+	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
+		struct spl_load_info load;
+
+		load.dev = mmc;
+		load.priv = NULL;
+		load.filename = NULL;
+		load.bl_len = mmc->read_bl_len;
+		load.read = h_spl_load_read;
+
+		ret = spl_load_imx_container(spl_image, &load, sector);
 	} else {
 		ret = mmc_load_legacy(spl_image, mmc, sector, header);
 	}
@@ -135,31 +142,25 @@ static int spl_mmc_get_device_index(u32 boot_device)
 
 static int spl_mmc_find_device(struct mmc **mmcp, u32 boot_device)
 {
-#if CONFIG_IS_ENABLED(DM_MMC)
-	struct udevice *dev;
-#endif
 	int err, mmc_dev;
 
 	mmc_dev = spl_mmc_get_device_index(boot_device);
 	if (mmc_dev < 0)
 		return mmc_dev;
 
+#if CONFIG_IS_ENABLED(DM_MMC)
+	err = mmc_init_device(mmc_dev);
+#else
 	err = mmc_initialize(NULL);
+#endif /* DM_MMC */
 	if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		printf("spl: could not initialize mmc. error: %d\n", err);
 #endif
 		return err;
 	}
-
-#if CONFIG_IS_ENABLED(DM_MMC)
-	err = uclass_get_device(UCLASS_MMC, mmc_dev, &dev);
-	if (!err)
-		*mmcp = mmc_get_mmc_dev(dev);
-#else
 	*mmcp = find_mmc_device(mmc_dev);
 	err = *mmcp ? 0 : -ENODEV;
-#endif
 	if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
 		printf("spl: could not find mmc device %d. error: %d\n",
@@ -345,12 +346,14 @@ int spl_boot_partition(const u32 boot_device)
 }
 #endif
 
-#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR
 	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
-}
+#else
+	return 0;
 #endif
+}
 
 #ifdef CONFIG_PARSE_CONTAINER
 int __weak mmc_load_image_parse_container(struct spl_image_info *spl_image,
@@ -399,20 +402,24 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 	err = -EINVAL;
 	switch (boot_mode) {
 	case MMCSD_MODE_EMMCBOOT:
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION
+		part = CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION;
+#else
 		part = spl_boot_part(mmc);
-
-		if (CONFIG_IS_ENABLED(MMC_TINY))
-			err = mmc_switch_part(mmc, part);
-		else
-			err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
-
-		if (err) {
-#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-			puts("spl: mmc partition switch failed\n");
 #endif
-			return err;
-		}
-		/* Fall through */
+
+			if (CONFIG_IS_ENABLED(MMC_TINY))
+				err = mmc_switch_part(mmc, part);
+			else
+				err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
+
+			if (err) {
+#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
+				puts("spl: mmc partition switch failed\n");
+#endif
+				return err;
+			}
+			/* Fall through */
 	case MMCSD_MODE_RAW:
 		debug("spl: mmc boot mode: raw\n");
 
@@ -421,6 +428,9 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 			if (!err)
 				return err;
 		}
+
+		raw_sect = spl_mmc_get_uboot_raw_sector(mmc);
+
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
 		err = mmc_load_image_raw_partition(spl_image, mmc, raw_part,
 						   raw_sect);

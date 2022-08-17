@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8QXP_MEK_H
@@ -26,11 +26,6 @@
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
-/*
- * The memory layout on stack:  DATA section save + gd + early malloc
- * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
- * CONFIG_SYS_SPL_MALLOC_START
- */
 #define CONFIG_SPL_STACK		0x013fff0
 #define CONFIG_SPL_BSS_START_ADDR      0x00130000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
@@ -43,13 +38,11 @@
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
-#define CONFIG_OF_EMBED
 #endif
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_ARCH_MISC_INIT
 
 #define CONFIG_CMD_READ
 
@@ -67,7 +60,6 @@
 #define USDHC2_BASE_ADDR                0x5B020000
 
 #define CONFIG_ENV_OVERWRITE
-
 
 #define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
@@ -347,13 +339,7 @@
 #define CONFIG_FEC_XCV_TYPE		RGMII
 #define FEC_QUIRK_ENET_MAC
 
-#ifndef CONFIG_LIB_RAND
-#define CONFIG_LIB_RAND
-#endif
-#define CONFIG_NET_RANDOM_ETHADDR
-
-/* Framebuffer */
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_DM_VIDEO
 #define CONFIG_VIDEO_IMXDPUV1
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_SPLASH_SCREEN
@@ -361,10 +347,7 @@
 #define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
 #endif
-
-#define CONFIG_OF_SYSTEM_SETUP
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "imx8qxp_mek_android.h"

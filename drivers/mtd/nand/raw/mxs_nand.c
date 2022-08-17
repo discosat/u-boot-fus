@@ -14,6 +14,7 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
@@ -1525,7 +1526,7 @@ void mxs_nand_get_layout(struct mtd_info *mtd, struct mxs_nand_layout *l)
 /*
  * Set BCH to specific layout used by ROM bootloader to read FCB.
  */
-void mxs_nand_mode_fcb_62bit(struct mtd_info *mtd)
+void mxs_nand_mode_fcb(struct mtd_info *mtd)
 {
 	u32 tmp;
 	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;

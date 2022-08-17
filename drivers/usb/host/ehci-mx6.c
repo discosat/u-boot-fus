@@ -44,7 +44,7 @@ static void ehci_mx6_powerup_fixup(struct ehci_ctrl *ctrl, uint32_t *status_reg,
 		result = ehci_readl(status_reg);
 		udelay(5);
 		if (!(result & EHCI_PS_PR))
-			break;
+		break;
 		usec--;
 	} while (usec > 0);
 
@@ -306,11 +306,10 @@ static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
 {
 	struct usb_platdata *plat = dev_get_platdata(dev);
 	struct ehci_mx6_priv_data *priv = dev_get_priv(dev);
-	int of_offset = dev_of_offset(dev);
 	enum usb_dr_mode dr_mode;
 	const struct fdt_property *extcon;
 
-	extcon = fdt_get_property(gd->fdt_blob, of_offset,
+	extcon = fdt_get_property(gd->fdt_blob, dev_of_offset(dev),
 			"extcon", NULL);
 	if (extcon) {
 		priv->init_type = board_ehci_usb_phy_mode(dev);

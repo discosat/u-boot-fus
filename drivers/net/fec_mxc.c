@@ -7,6 +7,7 @@
  * (C) Copyright 2007 Pengutronix, Juergen Beisert <j.beisert@pengutronix.de>
  */
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <env.h>
 #include <malloc.h>
@@ -124,30 +125,38 @@ static int fec_mdio_read(struct ethernet_regs *eth, uint8_t phyaddr,
 	return val;
 }
 
+#ifndef imx_get_fecclk
+u32 __weak imx_get_fecclk(void)
+{
+	return 0;
+}
+#endif
+
 static int fec_get_clk_rate(void *udev, int idx)
 {
-#if IS_ENABLED(CONFIG_IMX8)
 	struct fec_priv *fec;
 	struct udevice *dev;
 	int ret;
 
-	dev = udev;
-	if (!dev) {
-		ret = uclass_get_device_by_seq(UCLASS_ETH, idx, &dev);
-		if (ret < 0) {
-			debug("Can't get FEC udev%d: %d\n", idx, ret);
-			return ret;
+	if (IS_ENABLED(CONFIG_IMX8) ||
+	    CONFIG_IS_ENABLED(CLK_CCF)) {
+		dev = udev;
+		if (!dev) {
+			ret = uclass_get_device_by_seq(UCLASS_ETH, idx, &dev);
+			if (ret < 0) {
+				debug("Can't get FEC udev: %d\n", ret);
+				return ret;
+			}
 		}
+
+		fec = dev_get_priv(dev);
+		if (fec)
+			return fec->clk_rate;
+
+		return -EINVAL;
+	} else {
+		return imx_get_fecclk();
 	}
-
-	fec = dev_get_priv(dev);
-	if (fec)
-		return fec->clk_rate;
-
-	return -EINVAL;
-#else
-	return imx_get_fecclk();
-#endif
 }
 
 static void fec_mii_setspeed(struct ethernet_regs *eth, int idx)
@@ -552,9 +561,9 @@ static int fec_open(struct eth_device *edev)
 	speed = CONFIG_FEC_FIXED_SPEED;
 #else
 	if (fec->bus) {
-	miiphy_wait_aneg(edev);
-	speed = miiphy_speed(edev->name, fec->phy_id);
-	miiphy_duplex(edev->name, fec->phy_id);
+		miiphy_wait_aneg(edev);
+		speed = miiphy_speed(edev->name, fec->phy_id);
+		miiphy_duplex(edev->name, fec->phy_id);
 	}
 #endif
 
@@ -1173,13 +1182,13 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec->dev_id = (dev_id == -1) ? 0 : dev_id;
 	fec->bus = bus;
 	if (bus)
-	fec_mii_setspeed(bus->priv, fec->dev_id);
+		fec_mii_setspeed(bus->priv, fec->dev_id);
 #ifdef CONFIG_PHYLIB
 	fec->phydev = phydev;
 	if (phydev) {
-	phy_connect_dev(phydev, edev);
-	/* Configure phy */
-	phy_config(phydev);
+		phy_connect_dev(phydev, edev);
+		/* Configure phy */
+		phy_config(phydev);
 	}
 #else
 	fec->phy_id = phy_id;
@@ -1395,7 +1404,7 @@ static int fecmxc_probe(struct udevice *dev)
 #endif
 
 	if (IS_ENABLED(CONFIG_IMX8)) {
-		struct clk ref_clk, clk_2x_txclk;
+		struct clk clk_2x_txclk;
 		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
 		if (ret < 0) {
 			debug("Can't get FEC ipg clk: %d\n", ret);
@@ -1418,9 +1427,9 @@ static int fecmxc_probe(struct udevice *dev)
 			return ret;
 		}
 
-		ret = clk_get_by_name(dev, "enet_clk_ref", &ref_clk);
+		ret = clk_get_by_name(dev, "enet_clk_ref", &priv->clk_ref);
 		if (ret >= 0) {
-			ret = clk_enable(&ref_clk);
+			ret = clk_enable(&priv->clk_ref);
 			if (ret < 0) {
 				debug("Can't enable FEC ref clk: %d\n", ret);
 				return ret;
@@ -1434,6 +1443,47 @@ static int fecmxc_probe(struct udevice *dev)
 				debug("Can't enable FEC 2x_tx clk: %d\n", ret);
 				return ret;
 			}
+		}
+
+		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
+	} else if (CONFIG_IS_ENABLED(CLK_CCF)) {
+		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ipg clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ipg_clk);
+		if(ret)
+			return ret;
+
+		ret = clk_get_by_name(dev, "ahb", &priv->ahb_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ahb clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ahb_clk);
+		if (ret)
+			return ret;
+
+		ret = clk_get_by_name(dev, "enet_out", &priv->clk_enet_out);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_enet_out);
+			if (ret)
+				return ret;
+		}
+
+		ret = clk_get_by_name(dev, "enet_clk_ref", &priv->clk_ref);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_ref);
+			if (ret)
+				return ret;
+		}
+
+		ret = clk_get_by_name(dev, "ptp", &priv->clk_ptp);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_ptp);
+			if (ret)
+			return ret;
 		}
 
 		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
@@ -1477,9 +1527,9 @@ static int fecmxc_probe(struct udevice *dev)
 
 	if (!bus) {
 #ifdef CONFIG_FEC_MXC_MDIO_BASE
-	bus = fec_get_miibus((ulong)CONFIG_FEC_MXC_MDIO_BASE, dev->seq);
+		bus = fec_get_miibus((ulong)CONFIG_FEC_MXC_MDIO_BASE, dev->seq);
 #else
-	bus = fec_get_miibus((ulong)priv->eth, dev->seq);
+		bus = fec_get_miibus((ulong)priv->eth, dev->seq);
 #endif
 	}
 	if (!bus) {

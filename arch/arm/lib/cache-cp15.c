@@ -5,6 +5,7 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/system.h>
 #include <asm/cache.h>
 #include <linux/compiler.h>
@@ -188,12 +189,9 @@ static inline void mmu_setup(void)
 	asm volatile("mcr p15, 0, %0, c2, c0, 0"
 		     : : "r" (gd->arch.tlb_addr) : "memory");
 #endif
-	/*
-	 * initial value of Domain Access Control Register (DACR)
-	 * Set the access control to client (1U) for each of the 16 domains
-	 */
+	/* Set the access control to all-supervisor */
 	asm volatile("mcr p15, 0, %0, c3, c0, 0"
-		     : : "r" (0x55555555));
+		     : : "r" (~0));
 
 	arm_init_domains();
 
@@ -238,12 +236,18 @@ static void cache_disable(uint32_t cache_bit)
 		/* if cache isn;t enabled no need to disable */
 		if ((reg & CR_C) != CR_C)
 			return;
+#ifdef CONFIG_SYS_ARM_MMU
 		/* if disabling data cache, disable mmu too */
 		cache_bit |= CR_M;
+#endif
 	}
 	reg = get_cr();
 
+#ifdef CONFIG_SYS_ARM_MMU
 	if (cache_bit == (CR_C | CR_M)) {
+#elif defined(CONFIG_SYS_ARM_MPU)
+	if (cache_bit == CR_C) {
+#endif
 		flush_dcache_all();
 		set_cr(reg & ~CR_C);
 		flush_dcache_all();

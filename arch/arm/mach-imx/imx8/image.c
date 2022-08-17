@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2019 NXP
  */
 
 #include <common.h>
@@ -24,8 +24,8 @@ static int __get_container_size(ulong addr, u16 *header_length)
 	struct container_hdr *phdr;
 	struct boot_img_t *img_entry;
 	struct signature_block_hdr *sign_hdr;
-	uint8_t i = 0;
-	uint32_t max_offset = 0, img_end;
+	u8 i = 0;
+	u32 max_offset = 0, img_end;
 
 	phdr = (struct container_hdr *)addr;
 	if (phdr->tag != 0x87 && phdr->version != 0x0) {
@@ -50,7 +50,7 @@ static int __get_container_size(ulong addr, u16 *header_length)
 
 	if (phdr->sig_blk_offset != 0) {
 		sign_hdr = (struct signature_block_hdr *)(addr + phdr->sig_blk_offset);
-		uint16_t len = sign_hdr->length_lsb + (sign_hdr->length_msb << 8);
+		u16 len = sign_hdr->length_lsb + (sign_hdr->length_msb << 8);
 
 		if (phdr->sig_blk_offset + len > max_offset)
 			max_offset = phdr->sig_blk_offset + len;
@@ -63,7 +63,7 @@ static int __get_container_size(ulong addr, u16 *header_length)
 
 static int get_container_size(void *dev, int dev_type, unsigned long offset, u16 *header_length)
 {
-	uint8_t *buf = malloc(CONTAINER_HDR_ALIGNMENT);
+	u8 *buf = malloc(CONTAINER_HDR_ALIGNMENT);
 	int ret = 0;
 
 	if (!buf) {
@@ -75,8 +75,11 @@ static int get_container_size(void *dev, int dev_type, unsigned long offset, u16
 	if (dev_type == MMC_DEV) {
 		unsigned long count = 0;
 		struct mmc *mmc = (struct mmc*)dev;
-		count = blk_dread(mmc_get_blk_desc(mmc), offset/mmc->read_bl_len,
-					CONTAINER_HDR_ALIGNMENT/mmc->read_bl_len, buf);
+
+		count = blk_dread(mmc_get_blk_desc(mmc),
+				  offset / mmc->read_bl_len,
+				  CONTAINER_HDR_ALIGNMENT / mmc->read_bl_len,
+				  buf);
 		if (count == 0) {
 			printf("Read container image from MMC/SD failed\n");
 			return -EIO;
@@ -87,6 +90,7 @@ static int get_container_size(void *dev, int dev_type, unsigned long offset, u16
 #ifdef CONFIG_SPL_SPI_LOAD
 	if (dev_type == QSPI_DEV) {
 		struct spi_flash *flash = (struct spi_flash *)dev;
+
 		ret = spi_flash_read(flash, offset,
 					CONTAINER_HDR_ALIGNMENT, buf);
 		if (ret != 0) {
@@ -98,7 +102,8 @@ static int get_container_size(void *dev, int dev_type, unsigned long offset, u16
 
 #ifdef CONFIG_SPL_NAND_SUPPORT
 	if (dev_type == NAND_DEV) {
-		ret = nand_spl_load_image(offset, CONTAINER_HDR_ALIGNMENT, buf);
+		ret = nand_spl_load_image(offset, CONTAINER_HDR_ALIGNMENT,
+					  buf);
 		if (ret != 0) {
 			printf("Read container image from NAND failed\n");
 			return -EIO;
@@ -107,9 +112,8 @@ static int get_container_size(void *dev, int dev_type, unsigned long offset, u16
 #endif
 
 #ifdef CONFIG_SPL_NOR_SUPPORT
-	if (dev_type == QSPI_NOR_DEV) {
+	if (dev_type == QSPI_NOR_DEV)
 		memcpy(buf, (const void *)offset, CONTAINER_HDR_ALIGNMENT);
-	}
 #endif
 
 	ret = __get_container_size((ulong)buf, header_length);
@@ -122,6 +126,7 @@ static int get_container_size(void *dev, int dev_type, unsigned long offset, u16
 static unsigned long get_boot_device_offset(void *dev, int dev_type)
 {
 	unsigned long offset = 0;
+
 	if (dev_type == MMC_DEV) {
 		struct mmc *mmc = (struct mmc*)dev;
 
@@ -198,7 +203,7 @@ static int get_imageset_end(void *dev, int dev_type)
 }
 
 #ifdef CONFIG_SPL_SPI_LOAD
-unsigned long spl_spi_get_uboot_raw_sector(struct spi_flash *flash)
+unsigned long spl_spi_get_uboot_offs(struct spi_flash *flash)
 {
 	int end;
 

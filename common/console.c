@@ -113,7 +113,7 @@ static int console_setfile(int file, struct stdio_dev * dev)
 	case stdin:
 	case stdout:
 	case stderr:
-	/* Start new device */
+		/* Start new device */
 		if (dev->start) {
 			error = dev->start(dev);
 			/* If it's not started dont use it */
@@ -121,24 +121,24 @@ static int console_setfile(int file, struct stdio_dev * dev)
 				break;
 		}
 
-	/* Assign the new device (leaving the existing one started) */
+		/* Assign the new device (leaving the existing one started) */
 		stdio_devices[file] = dev;
 
-	/*
-	 * Update monitor functions
-	 * (to use the console stuff by other applications)
-	 */
-	switch (file) {
-	case stdin:
-		gd->jt->getc = getc;
-		gd->jt->tstc = tstc;
-		break;
-	case stdout:
-		gd->jt->putc = putc;
-		gd->jt->puts = puts;
-		gd->jt->printf = printf;
-		break;
-	}
+		/*
+		 * Update monitor functions
+		 * (to use the console stuff by other applications)
+		 */
+		switch (file) {
+		case stdin:
+			gd->jt->getc = getc;
+			gd->jt->tstc = tstc;
+			break;
+		case stdout:
+			gd->jt->putc  = putc;
+			gd->jt->puts  = puts;
+			gd->jt->printf = printf;
+			break;
+		}
 		break;
 
 	default:		/* Invalid file ID */
@@ -252,10 +252,12 @@ static void console_puts(int file, const char *s)
 	}
 }
 
+#if CONFIG_IS_ENABLED(SYS_CONSOLE_IS_IN_ENV)
 static inline void console_doenv(int file, struct stdio_dev *dev)
 {
 	iomux_doenv(file, dev->name);
 }
+#endif
 #else
 static inline int console_getc(int file)
 {
@@ -283,10 +285,12 @@ static inline void console_puts(int file, const char *s)
 	stdio_devices[file]->puts(stdio_devices[file], s);
 }
 
+#if CONFIG_IS_ENABLED(SYS_CONSOLE_IS_IN_ENV)
 static inline void console_doenv(int file, struct stdio_dev *dev)
 {
 	console_setfile(file, dev);
 }
+#endif
 #endif /* CONFIG_IS_ENABLED(CONSOLE_MUX) */
 
 /** U-Boot INITIAL CONSOLE-NOT COMPATIBLE FUNCTIONS *************************/
@@ -339,7 +343,7 @@ int fgetc(int file)
 		}
 	}
 
-		return -1;
+	return -1;
 }
 
 int ftstc(int file)
@@ -557,7 +561,7 @@ void puts(const char *s)
 			int ch = *s++;
 
 			printch(ch);
-}
+		}
 		return;
 	}
 #endif
@@ -782,21 +786,21 @@ void stdio_print_current_devices(void)
 	if (stdio_devices[stdin] == NULL) {
 		puts("No input devices available!\n");
 	} else {
-		printf("%s\n", stdio_devices[stdin]->name);
+		printf ("%s\n", stdio_devices[stdin]->name);
 	}
 
 	puts("Out:   ");
 	if (stdio_devices[stdout] == NULL) {
 		puts("No output devices available!\n");
 	} else {
-		printf("%s\n", stdio_devices[stdout]->name);
+		printf ("%s\n", stdio_devices[stdout]->name);
 	}
 
 	puts("Err:   ");
 	if (stdio_devices[stderr] == NULL) {
 		puts("No error devices available!\n");
 	} else {
-		printf("%s\n", stdio_devices[stderr]->name);
+		printf ("%s\n", stdio_devices[stderr]->name);
 	}
 }
 

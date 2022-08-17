@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright 2018-2019 NXP
+ * Copyright 2018 NXP
  *
  * Configuration settings for the Freescale i.MX6Q SabreSD board.
  */
@@ -82,6 +82,8 @@
 #else
 #define EMMC_ENV ""
 #endif
+
+#define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 
 #if defined(CONFIG_NAND_BOOT)
 	/*
@@ -288,8 +290,7 @@
 				"if test $board_name = SABRESD && test $board_rev = MX6DL; then " \
 					"setenv fdt_file imx6dl-sabresd.dtb; fi; " \
 				"if test $fdt_file = undefined; then " \
-					"echo WARNING: Could not determine dtb to use; " \
-				"fi; " \
+					"echo WARNING: Could not determine dtb to use; fi; " \
 			"fi;\0" \
 		"findtee="\
 			"if test $tee_file = undefined; then " \

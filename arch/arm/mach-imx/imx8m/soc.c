@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -15,6 +16,7 @@
 #include <asm/mach-imx/optee.h>
 #include <asm/mach-imx/syscounter.h>
 #include <asm/armv8/mmu.h>
+#include <dm/uclass.h>
 #include <errno.h>
 #include <fdt_support.h>
 #include <fdtdec.h>
@@ -36,7 +38,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define PHYS_SDRAM CONFIG_SYS_SDRAM_BASE
 #endif
 
-#if defined(CONFIG_SECURE_BOOT) || defined(CONFIG_AVB_ATX) || defined(CONFIG_IMX_TRUSTY_OS)
+#if defined(CONFIG_IMX_HAB) || defined(CONFIG_AVB_ATX) || defined(CONFIG_IMX_TRUSTY_OS)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 1,
 	.word = 3,
@@ -70,13 +72,12 @@ void enable_tzc380(void)
 	/* Enable TZASC and lock setting */
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN);
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN_LOCK);
-#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
-	setbits_le32(&gpr->gpr[10], GPR_TZASC_SWAP_ID);
-#endif
-
+	if (is_imx8mm() || is_imx8mn() || is_imx8mp())
+		setbits_le32(&gpr->gpr[10], BIT(1));
 	/*
-	 * set Region 0 attribute to allow secure and non-secure read/write permission
-	 * Found some masters like usb dwc3 controllers can't work with secure memory.
+	 * set Region 0 attribute to allow secure and non-secure
+	 * read/write permission. Found some masters like usb dwc3
+	 * controllers can't work with secure memory.
 	 */
 	writel(0xf0000000, TZASC_BASE_ADDR + 0x108);
 }
@@ -337,6 +338,34 @@ static u32 get_cpu_variant_type(u32 type)
 				return MXC_CPU_IMX8MNL;
 			break;
 		}
+	} else if (type == MXC_CPU_IMX8MP) {
+		u32 value0 = readl(&fuse->tester3);
+		u32 flag = 0;
+
+		if ((value0 & 0xc0000) == 0x80000) {
+			return MXC_CPU_IMX8MPD;
+		} else {
+			/* vpu disabled */
+			if ((value0 & 0x43000000) == 0x43000000)
+				flag = 1;
+
+			/* npu disabled*/
+			if ((value & 0x8) == 0x8)
+				flag |= (1 << 1);
+
+			/* isp disabled */
+			if ((value & 0x3) == 0x3)
+				flag |= (1 << 2);
+
+			switch (flag) {
+			case 7:
+				return MXC_CPU_IMX8MPL;
+			case 2:
+				return MXC_CPU_IMX8MP6;
+			default:
+				break;
+			}
+		}
 	}
 
 	return type;
@@ -354,30 +383,37 @@ u32 get_cpu_rev(void)
 
 	/* iMX8MP */
 	if (major_low == 0x43) {
-		return (MXC_CPU_IMX8MP << 12) | reg;
+		type = get_cpu_variant_type(MXC_CPU_IMX8MP);
 	} else if (major_low == 0x42) {
 		/* iMX8MN */
 		type = get_cpu_variant_type(MXC_CPU_IMX8MN);
-		return (type << 12) | reg;
 	 } else if (major_low == 0x41) {
-		/* iMX8MM */
 		type = get_cpu_variant_type(MXC_CPU_IMX8MM);
-		return (type << 12) | reg;
 	} else {
-		/* iMX8MQ */
 		if (reg == CHIP_REV_1_0) {
 			/*
-			 * For B0 chip, the DIGPROG is not updated, still TO1.0.
-			 * we have to check ROM version or OCOTP_READ_FUSE_DATA
+			 * For B0 chip, the DIGPROG is not updated,
+			 * it is still TO1.0. we have to check ROM
+			 * version or OCOTP_READ_FUSE_DATA.
+			 * 0xff0055aa is magic number for B1.
 			 */
-			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40))
-				== 0xff0055aa) {
-				/* 0xff0055aa is magic number for B1 */
+			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40)) == 0xff0055aa) {
+				/*
+				 * B2 uses same DIGPROG and OCOTP_READ_FUSE_DATA value with B1,
+				 * so have to check ROM to distinguish them
+				 */
+				rom_version = readl((void __iomem *)ROM_VERSION_B0);
+				rom_version &= 0xff;
+				if (rom_version == CHIP_REV_2_2)
+					reg = CHIP_REV_2_2;
+				else
 				reg = CHIP_REV_2_1;
 			} else {
-				rom_version = readb((void __iomem *)ROM_VERSION_A0);
+				rom_version =
+					readl((void __iomem *)ROM_VERSION_A0);
 				if (rom_version != CHIP_REV_1_0) {
-					rom_version = readb((void __iomem *)ROM_VERSION_B0);
+					rom_version = readl((void __iomem *)ROM_VERSION_B0);
+					rom_version &= 0xff;
 					if (rom_version == CHIP_REV_2_0)
 						reg = CHIP_REV_2_0;
 				}
@@ -385,9 +421,9 @@ u32 get_cpu_rev(void)
 		}
 
 		type = get_cpu_variant_type(type);
-
-		return (type << 12) | reg;
 	}
+
+	return (type << 12) | reg;
 }
 
 static void imx_set_wdog_powerdown(bool enable)
@@ -402,7 +438,25 @@ static void imx_set_wdog_powerdown(bool enable)
 	writew(enable, &wdog3->wmcr);
 }
 
-#if defined(CONFIG_SECURE_BOOT) && defined(CONFIG_IMX8MQ)
+int arch_cpu_init_dm(void)
+{
+	struct udevice *dev;
+	int ret;
+
+	if (CONFIG_IS_ENABLED(CLK)) {
+		ret = uclass_get_device_by_name(UCLASS_CLK,
+						"clock-controller@30380000",
+						&dev);
+		if (ret < 0) {
+			printf("Failed to find clock node. Check device tree\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_IMX_HAB) && defined(CONFIG_IMX8MQ)
 static bool is_hdmi_fused(void) {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 	struct fuse_bank *bank = &ocotp->bank[1];
@@ -456,18 +510,22 @@ int arch_cpu_init(void)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 	/*
-	 * Init timer at very early state, because pll setting will use it,
-	 * Rom Turnned off SCTR, enable it before timer_init
+	 * ROM might disable clock for SCTR,
+	 * enable the clock before timer_init.
 	 */
-
-	clock_enable(CCGR_SCTR, 1);
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		clock_enable(CCGR_SCTR, 1);
+	/*
+	 * Init timer at very early state, because sscg pll setting
+	 * will use it
+	 */
 	timer_init();
 
 	if (IS_ENABLED(CONFIG_SPL_BUILD)) {
 		clock_init();
 		imx_set_wdog_powerdown(false);
 
-#if defined(CONFIG_SECURE_BOOT) && defined(CONFIG_IMX8MQ)
+#if defined(CONFIG_IMX_HAB) && defined(CONFIG_IMX8MQ)
 		secure_lockup();
 #endif
 		if (is_imx8md() || is_imx8mmd() || is_imx8mmdl() || is_imx8mms() || is_imx8mmsl() ||
@@ -504,52 +562,23 @@ int arch_cpu_init(void)
 			writel(0x200, &ocotp->ctrl_clr);
 	}
 
-	if (is_imx8mq()) {
-		clock_enable(CCGR_OCOTP, 1);
-		if (readl(&ocotp->ctrl) & 0x200)
-			writel(0x200, &ocotp->ctrl_clr);
-	}
-
 	return 0;
 }
 
 #if defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
-struct rom_api
-{
-	uint16_t ver;
-	uint16_t tag;
-	uint32_t reserved1;
-	uint32_t (*download_image)(uint8_t * dest, uint32_t offset, uint32_t size,  uint32_t xor);
-	uint32_t (*query_boot_infor)(uint32_t info_type, uint32_t *info, uint32_t xor);
-};
-static struct rom_api* g_rom_api = (struct rom_api*)0x980;
-
-typedef enum {
-    BT_DEV_TYPE_SD = 1,
-    BT_DEV_TYPE_MMC = 2,
-    BT_DEV_TYPE_NAND = 3,
-    BT_DEV_TYPE_FLEXSPINOR = 4,
-
-    BT_DEV_TYPE_USB = 0xE,
-    BT_DEV_TYPE_MEM_DEV = 0xF,
-
-    BT_DEV_TYPE_INVALID = 0xFF
-} boot_dev_type_e;
-
-#define QUERY_BT_DEV		2
-
-#define ROM_API_OKAY		0xF0
+struct rom_api *g_rom_api = (struct rom_api *)0x980;
 
 enum boot_device get_boot_device(void)
 {
 	volatile gd_t *pgd = gd;
 	int ret;
-	uint32_t boot;
+	u32 boot;
 	u16 boot_type;
 	u8 boot_instance;
 	enum boot_device boot_dev = SD1_BOOT;
 
-	ret = g_rom_api->query_boot_infor(QUERY_BT_DEV, &boot, ((uintptr_t) &boot)^ QUERY_BT_DEV);
+	ret = g_rom_api->query_boot_infor(QUERY_BT_DEV, &boot,
+					  ((uintptr_t)&boot) ^ QUERY_BT_DEV);
         gd =  pgd;
 
 	if (ret != ROM_API_OKAY) {
@@ -745,6 +774,7 @@ static int check_mipi_dsi_nodes(void *blob)
 	}
 
 }
+#endif
 
 void board_quiesce_devices(void)
 {
@@ -753,7 +783,6 @@ void board_quiesce_devices(void)
 		disconnect_from_pc();
 #endif
 }
-#endif
 
 int disable_vpu_nodes(void *blob)
 {
@@ -768,10 +797,18 @@ int disable_vpu_nodes(void *blob)
 		"/vpu_h1@38320000"
 	};
 
+	const char *nodes_path_8mp[] = {
+		"/vpu_g1@38300000",
+		"/vpu_g2@38310000",
+		"/vpu_vc8000e@38320000"
+	};
+
 	if (is_imx8mq())
 		return disable_fdt_nodes(blob, nodes_path_8mq, ARRAY_SIZE(nodes_path_8mq));
 	else if (is_imx8mm())
 		return disable_fdt_nodes(blob, nodes_path_8mm, ARRAY_SIZE(nodes_path_8mm));
+	else if (is_imx8mp())
+		return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
 	else
 		return -EPERM;
 
@@ -928,9 +965,13 @@ usb_modify_speed:
 }
 #endif
 
+#if defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SYSRESET)
 void reset_cpu(ulong addr)
 {
-	struct watchdog_regs *wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
+       struct watchdog_regs *wdog = (struct watchdog_regs *)addr;
+
+       if (!addr)
+	       wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
 
 	/* Clear WDA to trigger WDOG_B immediately */
 	writew((SET_WCR_WT(1) | WCR_WDT | WCR_WDE | WCR_SRS), &wdog->wcr);
@@ -941,6 +982,7 @@ void reset_cpu(ulong addr)
 		 */
 	}
 }
+#endif
 
 #if defined(CONFIG_ARCH_MISC_INIT)
 #define FSL_SIP_BUILDINFO			0xC2000003
@@ -1014,6 +1056,7 @@ int imx8m_usb_power(int usb_id, bool on)
 {
 	if (usb_id > 1)
 		return -EINVAL;
+
 #ifdef CONFIG_SPL_BUILD
 	imx8m_usb_power_domain(2 + usb_id, on);
 #else
@@ -1021,6 +1064,7 @@ int imx8m_usb_power(int usb_id, bool on)
 			 2 + usb_id, on, 0))
 		return -EPERM;
 #endif
+
 	return 0;
 }
 

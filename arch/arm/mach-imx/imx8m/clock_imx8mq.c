@@ -308,7 +308,7 @@ static u32 get_root_clk(enum clk_root_index clock_id)
 	return root_src_clk / (post_podf + 1) / (pre_podf + 1);
 }
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable)
 {
 	/* The CAAM clock is always on for iMX8M */
@@ -434,13 +434,10 @@ void init_usb_clk(void)
 
 void init_nand_clk(void)
 {
-	/*
-	 * set rawnand root
-	 * sys pll1 400M
-	 */
 	clock_enable(CCGR_RAWNAND, 0);
-	clock_set_target_val(NAND_CLK_ROOT, CLK_ROOT_ON |
-		CLK_ROOT_SOURCE_SEL(3) | CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4)); /* 100M */
+	clock_set_target_val(NAND_CLK_ROOT,
+			     CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(3) |
+			     CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4));
 	clock_enable(CCGR_RAWNAND, 1);
 }
 
@@ -855,9 +852,10 @@ int clock_init(void)
 	clock_enable(CCGR_TSENSOR, 1);
 	clock_enable(CCGR_OCOTP, 1);
 
-	/* config GIC to sys_pll2_200m */
+	/* config GIC ROOT to sys_pll2_200m */
 	clock_enable(CCGR_GIC, 0);
-	clock_set_target_val(GIC_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(GIC_CLK_ROOT,
+			     CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
 	clock_enable(CCGR_GIC, 1);
 
 	return 0;

@@ -173,13 +173,17 @@
 #endif
 
 /* ID register values for different switch models */
+#define PORT_SWITCH_ID_6020		0x0200
+#define PORT_SWITCH_ID_6070		0x0700
+#define PORT_SWITCH_ID_6071		0x0710
 #define PORT_SWITCH_ID_6096		0x0980
 #define PORT_SWITCH_ID_6097		0x0990
 #define PORT_SWITCH_ID_6172		0x1720
 #define PORT_SWITCH_ID_6176		0x1760
+#define PORT_SWITCH_ID_6220		0x2200
 #define PORT_SWITCH_ID_6240		0x2400
+#define PORT_SWITCH_ID_6250		0x2500
 #define PORT_SWITCH_ID_6352		0x3520
-#define PORT_SWITCH_ID_6071		0x0710
 
 struct mv88e61xx_phy_priv {
 	struct mii_dev *mdio_bus;
@@ -888,25 +892,43 @@ static int mv88e61xx_phy_config_port(struct phy_device *phydev, u8 phy)
 /*
  * This function is used to pre-configure the required register
  * offsets, so that the indirect register access to the PHY registers
- * is possible. This is necessary to be able to read the chip ID
- * while driver probing or in get_phy_id().
+ * is possible. This is necessary to be able to read the PHY ID
+ * while driver probing or in get_phy_id(). The globalN register
+ * offsets must be initialized correctly for a detected switch,
+ * otherwise detection of the PHY ID won't work!
  */
-static void mv88e61xx_priv_reg_offs_pre_init(struct mv88e61xx_phy_priv *priv)
+static int mv88e61xx_priv_reg_offs_pre_init(struct phy_device *phydev)
 {
+	struct mv88e61xx_phy_priv *priv = phydev->priv;
+
 	/*
 	 * Initial 'port_reg_base' value must be an offset of existing
-	 * port register. The globalN register offsets must be correct,
-	 * otherwise detection of switch ID won't work!
+	 * port register, then reading the ID should succeed. First, try
+	 * to read via port registers with device address 0x10 (88E6096
+	 * and compatible switches).
 	 */
-#ifndef CONFIG_MV88E61XX_88E6020_FAMILY
-	priv->global1 = 0x1B;
-	priv->global2 = 0x1C;
 	priv->port_reg_base = 0x10;
-#else
-	priv->global1 = 0x0F + CONFIG_MV88E61XX_REGISTER_OFFSET;
-	priv->global2 = 0x07 + CONFIG_MV88E61XX_REGISTER_OFFSET;
+	priv->id = mv88e61xx_get_switch_id(phydev);
+	if (priv->id != 0xfff0) {
+		priv->global1 = 0x1B;
+		priv->global2 = 0x1C;
+		return 0;
+	}
+
+	/*
+	 * Now try via port registers with device address 0x08
+	 * (88E6020 and compatible switches).
+	 */
 	priv->port_reg_base = 0x08 + CONFIG_MV88E61XX_REGISTER_OFFSET;
-#endif
+	priv->id = mv88e61xx_get_switch_id(phydev);
+	if (priv->id != 0xfff0) {
+		priv->global1 = 0x0F + CONFIG_MV88E61XX_REGISTER_OFFSET;
+		priv->global2 = 0x07 + CONFIG_MV88E61XX_REGISTER_OFFSET;
+		return 0;
+	}
+
+	debug("%s Unknown ID 0x%x\n", __func__, priv->id);
+	return -ENODEV;
 }
 
 /*static*/ int mv88e61xx_probe(struct phy_device *phydev)
@@ -963,9 +985,11 @@ static void mv88e61xx_priv_reg_offs_pre_init(struct mv88e61xx_phy_priv *priv)
 
 	phydev->priv = priv;
 
-	mv88e61xx_priv_reg_offs_pre_init(priv);
+	res = mv88e61xx_priv_reg_offs_pre_init(phydev);
+	if (res < 0)
+		return res;
 
-	priv->id = mv88e61xx_get_switch_id(phydev);
+	debug("%s ID 0x%x\n", __func__, priv->id);
 
 	switch (priv->id) {
 	case PORT_SWITCH_ID_6096:
@@ -983,7 +1007,11 @@ static void mv88e61xx_priv_reg_offs_pre_init(struct mv88e61xx_phy_priv *priv)
 		priv->phy_ctrl1_en_det_ctrl =
 			PHY_REG_CTRL1_ENERGY_DET_SENSE_XMIT;
 		break;
+	case PORT_SWITCH_ID_6020:
+	case PORT_SWITCH_ID_6070:
 	case PORT_SWITCH_ID_6071:
+	case PORT_SWITCH_ID_6220:
+	case PORT_SWITCH_ID_6250:
 		priv->port_count = 7;
 		priv->port_stat_link_mask = BIT(12);
 		priv->port_stat_dup_mask = BIT(9);
@@ -1182,10 +1210,12 @@ int get_phy_id(struct mii_dev *bus, int smi_addr, int devad, u32 *phy_id)
 	/*
 	 * get_phy_id() can be called by framework before mv88e61xx driver
 	 * probing, in this case the global register offsets are not
-	 * initialised yet. Do this initialisation here before indirect
+	 * initialized yet. Do this initialization here before indirect
 	 * PHY register access.
 	 */
-	mv88e61xx_priv_reg_offs_pre_init(&temp_priv);
+	val = mv88e61xx_priv_reg_offs_pre_init(&temp_phy);
+	if (val < 0)
+		return val;
 
 	val = mv88e61xx_phy_read_indirect(&temp_mii, 0, devad, MII_PHYSID1);
 	if (val < 0)

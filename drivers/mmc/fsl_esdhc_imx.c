@@ -14,6 +14,7 @@
 #include <common.h>
 #include <command.h>
 #include <clk.h>
+#include <cpu_func.h>
 #include <errno.h>
 #include <hwconfig.h>
 #include <mmc.h>
@@ -968,7 +969,7 @@ static int esdhc_set_ios_common(struct fsl_esdhc_priv *priv, struct mmc *mmc)
 {
 	struct fsl_esdhc *regs = (struct fsl_esdhc *)priv->esdhc.esdhc_base;
 	int ret __maybe_unused;
-	uint clock;
+	u32 clock;
 
 #ifdef CONFIG_FSL_ESDHC_USE_PERIPHERAL_CLK
 	/* Select to use peripheral clock */
@@ -1679,6 +1680,7 @@ static const struct udevice_id fsl_esdhc_ids[] = {
 	{ .compatible = "fsl,imx7ulp-usdhc", },
 	{ .compatible = "fsl,imx8qm-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
 	{ .compatible = "fsl,imx8mm-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
+	{ .compatible = "fsl,imx8mn-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
 	{ .compatible = "fsl,imx8mq-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
 	{ .compatible = "fsl,esdhc", },
 	{ /* sentinel */ }

@@ -3,11 +3,13 @@
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
  */
+#include <init.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/sections.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/hab.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <fdt_support.h>
@@ -16,9 +18,25 @@
 #include <fsl_caam.h>
 #endif
 
+#define PMC0_BASE_ADDR		0x410a1000
+#define PMC0_CTRL		0x28
+#define PMC0_CTRL_LDOEN		BIT(31)
+#define PMC0_CTRL_LDOOKDIS	BIT(30)
+#define PMC0_CTRL_PMC1ON	BIT(24)
+#define PMC1_BASE_ADDR		0x40400000
+#define PMC1_RUN		0x8
+#define PMC1_STOP		0x10
+#define PMC1_VLPS		0x14
+#define PMC1_LDOVL_SHIFT	16
+#define PMC1_LDOVL_MASK		(0x3f << PMC1_LDOVL_SHIFT)
+#define PMC1_LDOVL_900		0x1e
+#define PMC1_LDOVL_950		0x23
+#define PMC1_STATUS		0x20
+#define PMC1_STATUS_LDOVLF	BIT(8)
+
 const char *get_reset_cause(void);
 
-#if defined(CONFIG_SECURE_BOOT)
+#if defined(CONFIG_IMX_HAB)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 29,
 	.word = 6,
@@ -29,8 +47,7 @@ struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 u32 get_cpu_rev(void)
 {
 	/* Check the ROM version for cpu revision */
-	uint32_t rom_version;
-	rom_version = readl((void __iomem *)ROM_VERSION_ADDR);
+	u32 rom_version = readl((void __iomem *)ROM_VERSION_ADDR);
 
 	rom_version &= 0xFF;
 	if (rom_version == CHIP_REV_1_0) {
@@ -181,6 +198,44 @@ void init_wdog(void)
 	disable_wdog(WDG2_RBASE);
 }
 
+#if defined(CONFIG_LDO_ENABLED_MODE)
+static void init_ldo_mode(void)
+{
+	unsigned int reg;
+
+	/* Set LDOOKDIS */
+	setbits_le32(PMC0_BASE_ADDR + PMC0_CTRL, PMC0_CTRL_LDOOKDIS);
+
+	/* Set LDOVL to 0.95V in PMC1_RUN */
+	reg = readl(PMC1_BASE_ADDR + PMC1_RUN);
+	reg &= ~PMC1_LDOVL_MASK;
+	reg |= (PMC1_LDOVL_950 << PMC1_LDOVL_SHIFT);
+	writel(PMC1_BASE_ADDR + PMC1_RUN, reg);
+
+	/* Wait for LDOVLF to be cleared */
+	reg = readl(PMC1_BASE_ADDR + PMC1_STATUS);
+	while (reg & PMC1_STATUS_LDOVLF)
+		;
+
+	/* Set LDOVL to 0.95V in PMC1_STOP */
+	reg = readl(PMC1_BASE_ADDR + PMC1_STOP);
+	reg &= ~PMC1_LDOVL_MASK;
+	reg |= (PMC1_LDOVL_950 << PMC1_LDOVL_SHIFT);
+	writel(PMC1_BASE_ADDR + PMC1_STOP, reg);
+
+	/* Set LDOVL to 0.90V in PMC1_VLPS */
+	reg = readl(PMC1_BASE_ADDR + PMC1_VLPS);
+	reg &= ~PMC1_LDOVL_MASK;
+	reg |= (PMC1_LDOVL_900 << PMC1_LDOVL_SHIFT);
+	writel(PMC1_BASE_ADDR + PMC1_VLPS, reg);
+
+	/* Set LDOEN bit */
+	setbits_le32(PMC0_BASE_ADDR + PMC0_CTRL, PMC0_CTRL_LDOEN);
+
+	/* Set the PMC1ON bit */
+	setbits_le32(PMC0_BASE_ADDR + PMC0_CTRL, PMC0_CTRL_PMC1ON);
+}
+#endif
 
 void s_init(void)
 {
@@ -199,6 +254,10 @@ void s_init(void)
 		writel((readl(SNVS_LP_LPCR) | SNVS_LPCR_SRTC_ENV), SNVS_LP_LPCR);
 #endif
 	}
+
+#if defined(CONFIG_LDO_ENABLED_MODE)
+	init_ldo_mode();
+#endif
 	return;
 }
 
@@ -215,6 +274,21 @@ void reset_cpu(ulong addr)
 const char *get_imx_type(u32 imxtype)
 {
 	return "7ULP";
+}
+
+#define PMC0_BASE_ADDR		0x410a1000
+#define PMC0_CTRL		0x28
+#define PMC0_CTRL_LDOEN		BIT(31)
+
+static bool ldo_mode_is_enabled(void)
+{
+	unsigned int reg;
+
+	reg = readl(PMC0_BASE_ADDR + PMC0_CTRL);
+	if (reg & PMC0_CTRL_LDOEN)
+		return true;
+	else
+		return false;
 }
 
 int print_cpuinfo(void)
@@ -247,6 +321,11 @@ int print_cpuinfo(void)
 #endif
 		break;
 	}
+
+	if (ldo_mode_is_enabled())
+		printf("PMC1:  LDO enabled mode\n");
+	else
+		printf("PMC1:  LDO bypass mode\n");
 
 	return 0;
 }
@@ -361,50 +440,6 @@ int mmc_get_env_dev(void)
 	devno = (bt1_cfg >> 9) & 0x7;
 
 	return board_mmc_get_env_dev(devno);
-}
-#endif
-
-#ifdef CONFIG_OF_SYSTEM_SETUP
-int ft_system_setup(void *blob, bd_t *bd)
-{
-	if (get_boot_device() == USB_BOOT) {
-		int i = 0;
-		const char *nodes_path[] = {
-			"/ahb-bridge0@40000000/usdhc@40370000",
-			"/bus@40000000/mmc@40370000"
-		};
-		int size_array = ARRAY_SIZE(nodes_path);
-
-		for (i = 0; i < size_array; i++) {
-			int rc;
-			int nodeoff = fdt_path_offset(blob, nodes_path[i]);
-			if (nodeoff < 0)
-				continue; /* Not found, skip it */
-
-			printf("Found usdhc0 node\n");
-			if (fdt_get_property(blob, nodeoff, "vqmmc-supply", NULL) != NULL) {
-				rc = fdt_delprop(blob, nodeoff, "vqmmc-supply");
-				if (!rc) {
-					printf("Removed vqmmc-supply property\n");
-
-add:
-					rc = fdt_setprop(blob, nodeoff, "no-1-8-v", NULL, 0);
-					if (rc == -FDT_ERR_NOSPACE) {
-						rc = fdt_increase_size(blob, 32);
-						if (!rc)
-							goto add;
-					} else if (rc) {
-						printf("Failed to add no-1-8-v property, %d\n", rc);
-					} else {
-						printf("Added no-1-8-v property\n");
-					}
-				} else {
-					printf("Failed to remove vqmmc-supply property, %d\n", rc);
-				}
-			}
-		}
-	}
-	return 0;
 }
 #endif
 

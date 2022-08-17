@@ -523,6 +523,13 @@ int main(int argc, char **argv)
 		} else if (params.type == IH_TYPE_PBLIMAGE) {
 			/* PBL has special Image format, implements its' own */
 			pbl_load_uboot(ifd, &params);
+		} else if (params.type == IH_TYPE_ZYNQMPBIF) {
+			/* Image file is meta, walk through actual targets */
+			int ret;
+
+			ret = zynqmpbif_copy_image(ifd, &params);
+			if (ret)
+				return ret;
 		} else if (params.type == IH_TYPE_IMX8IMAGE) {
 			/* i.MX8/8X has special Image format */
 			int ret;
@@ -537,18 +544,12 @@ int main(int argc, char **argv)
 			ret = imx8mimage_copy_image(ifd, &params);
 			if (ret)
 				return ret;
-		} else if (params.type == IH_TYPE_ZYNQMPBIF) {
-			/* Image file is meta, walk through actual targets */
+		} else if ((params.type == IH_TYPE_RKSD) ||
+				(params.type == IH_TYPE_RKSPI)) {
+			/* Rockchip has special Image format */
 			int ret;
 
-			ret = zynqmpbif_copy_image(ifd, &params);
-			if (ret)
-				return ret;
-		} else if (params.type == IH_TYPE_IMX8IMAGE) {
-			/* i.MX8/8X has special Image format */
-			int ret;
-
-			ret = imx8image_copy_image(ifd, &params);
+			ret = rockchip_copy_image(ifd, &params);
 			if (ret)
 				return ret;
 		} else {

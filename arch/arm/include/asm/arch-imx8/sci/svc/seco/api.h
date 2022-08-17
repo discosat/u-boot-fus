@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier:     GPL-2.0+ */
 /*
- * Copyright 2018 NXP
+ * Copyright 2019 NXP
  */
 
 #ifndef SC_SECO_API_H
@@ -28,11 +28,11 @@
 /*
  * This type is used to issue SECO authenticate commands.
  */
-typedef uint8_t sc_seco_auth_cmd_t;
+typedef u8 sc_seco_auth_cmd_t;
 
 /*
  * This type is used to return the RNG initialization status.
  */
-typedef uint32_t sc_seco_rng_stat_t;
+typedef u32 sc_seco_rng_stat_t;
 
 #endif /* SC_SECO_API_H */

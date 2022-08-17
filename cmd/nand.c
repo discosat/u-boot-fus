@@ -35,11 +35,12 @@
 #include <asm/mach-imx/checkboot.h>
 #endif
 
+#include "legacy-mtd-utils.h"
+
 #if defined(CONFIG_CMD_MTDPARTS)
 
 /* partition handling routines */
 int mtdparts_init(void);
-int id_parse(const char *id, const char **ret_id, u8 *dev_type, u8 *dev_num);
 int find_dev_and_part(const char *id, struct mtd_device **dev,
 		      u8 *part_num, struct part_info **part);
 #endif
@@ -305,9 +306,9 @@ static void nand_print_and_set_info(int idx)
 		printf("skip first %llu KiB, remaining ", mtd->skip >> 10);
 	printf("size %llu KiB, %swrite protected\n", mtd->size >> 10,
 	       nand_is_swprotected(mtd) ? "" : "not ");
-	printf("  Page size  %8d b\n", mtd->writesize);
-	printf("  OOB size   %8d b\n", mtd->oobsize);
-	printf("  Erase size %8d b\n", mtd->erasesize);
+	printf("  Page size   %8d b\n", mtd->writesize);
+	printf("  OOB size    %8d b\n", mtd->oobsize);
+	printf("  Erase size  %8d b\n", mtd->erasesize);
 	printf("  Subpagesize %8d b\n", chip->subpagesize);
 	printf("  Options     0x%08x\n", chip->options);
 	printf("  BBT options 0x%08x\n", chip->bbt_options);
@@ -686,7 +687,7 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				ret = check_flash_partition((u32)addr,
 						BACKUP_IMAGE, off, size);
 				if (!ret) {
-					ret = nand_write_skip_bad(mtd, off, &rwsize,
+				ret = nand_write_skip_bad(mtd, off, &rwsize,
 							  NULL, maxsize,
 							  (u_char *)addr,
 							  WITH_WR_VERIFY);
@@ -970,11 +971,11 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	if (r) {
 		puts("** Read error\n");
 		if (show)
-			bootstage_error(BOOTSTAGE_ID_NAND_HDR_READ);
+		bootstage_error(BOOTSTAGE_ID_NAND_HDR_READ);
 		return 1;
 	}
 	if (show)
-		bootstage_mark(BOOTSTAGE_ID_NAND_HDR_READ);
+	bootstage_mark(BOOTSTAGE_ID_NAND_HDR_READ);
 
 #ifdef CONFIG_FS_SECURE_BOOT
 	/* if the image have an ivt increment the pointer to the image itself.
@@ -991,7 +992,7 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 		hdr = (image_header_t *)addr;
 
 		if (show)
-			bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
+		bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
 		image_print_contents (hdr);
 
 		cnt = image_get_image_size (hdr);
@@ -1012,12 +1013,12 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 #endif
 	default:
 		if (show)
-			bootstage_error(BOOTSTAGE_ID_NAND_TYPE);
+		bootstage_error(BOOTSTAGE_ID_NAND_TYPE);
 		puts ("** Unknown image type\n");
 		return 1;
 	}
 	if (show)
-		bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
+	bootstage_mark(BOOTSTAGE_ID_NAND_TYPE);
 
 #ifdef CONFIG_FS_SECURE_BOOT
 	/* Decrease the pointer to point on the beginning of the image. So it
@@ -1038,12 +1039,12 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	if (r) {
 		puts("** Read error\n");
 		if (show)
-			bootstage_error(BOOTSTAGE_ID_NAND_READ);
+		bootstage_error(BOOTSTAGE_ID_NAND_READ);
 		return 1;
 	}
 
 	if (show)
-		bootstage_mark(BOOTSTAGE_ID_NAND_READ);
+	bootstage_mark(BOOTSTAGE_ID_NAND_READ);
 
 	/* Loading successful, set fileaddr and filesize */
 	env_set_fileinfo(cnt);
@@ -1064,12 +1065,12 @@ int nand_load_image(struct mtd_info *mtd, ulong offset, ulong addr, int show)
 	if (genimg_get_format ((void *)addr) == IMAGE_FORMAT_FIT) {
 		if (!fit_check_format (fit_hdr)) {
 			if (show)
-				bootstage_error(BOOTSTAGE_ID_NAND_FIT_READ);
+			bootstage_error(BOOTSTAGE_ID_NAND_FIT_READ);
 			puts ("** Bad FIT image format\n");
 			return 1;
 		}
 		if (show)
-			bootstage_mark(BOOTSTAGE_ID_NAND_FIT_READ_OK);
+		bootstage_mark(BOOTSTAGE_ID_NAND_FIT_READ_OK);
 		fit_print_contents (fit_hdr);
 	}
 #endif
@@ -1105,9 +1106,9 @@ static int do_nandboot(cmd_tbl_t *cmdtp, int flag, int argc,
 
 #if defined(CONFIG_CMD_MTDPARTS)
 	if (argc >= 2) {
-		struct mtd_device *dev;
-		struct part_info *part;
-		u8 pnum;
+	struct mtd_device *dev;
+	struct part_info *part;
+	u8 pnum;
 		char *p = (argc == 2) ? argv[1] : argv[2];
 
 		if (!(str2long(p, &addr)) && (mtdparts_init() == 0) &&
@@ -1127,7 +1128,7 @@ static int do_nandboot(cmd_tbl_t *cmdtp, int flag, int argc,
 
 			mtd = get_nand_dev_by_index(dev->id->num);
 			return nand_load_image_boot(cmdtp, mtd, part->offset,
-						    addr, argv[0]);
+					       addr, argv[0]);
 		}
 	}
 #endif
@@ -1159,7 +1160,7 @@ static int do_nandboot(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 U_BOOT_CMD(nboot, 4, 1, do_nandboot,
-	   "boot from NAND device",
+	"boot from NAND device",
 #ifdef CONFIG_CMD_MTDPARTS
 	   "[loadaddr] partition - load entire partition to loadaddr\n"
 	   "nboot "

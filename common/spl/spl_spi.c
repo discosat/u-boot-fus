@@ -78,6 +78,12 @@ static ulong spl_spi_fit_read(struct spl_load_info *load, ulong sector,
 	else
 		return 0;
 }
+
+unsigned int __weak spl_spi_get_uboot_offs(struct spi_flash *flash)
+{
+	return CONFIG_SYS_SPI_U_BOOT_OFFS;
+}
+
 /*
  * The main entry for SPI booting. It's necessary that SDRAM is already
  * configured and available since this code loads the main U-Boot image
@@ -87,7 +93,7 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 			      struct spl_boot_device *bootdev)
 {
 	int err = 0;
-	unsigned payload_offs = 0;
+	unsigned int payload_offs;
 	struct spi_flash *flash;
 	struct image_header *header;
 
@@ -106,7 +112,7 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 		return -ENODEV;
 	}
 
-	payload_offs = spl_spi_get_uboot_raw_sector(flash);
+	payload_offs = spl_spi_get_uboot_offs(flash);
 
 	header = spl_get_load_buffer(-sizeof(*header), sizeof(*header));
 
@@ -151,6 +157,17 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 			err = spl_load_simple_fit(spl_image, &load,
 						  payload_offs,
 						  header);
+		} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
+			struct spl_load_info load;
+
+			load.dev = flash;
+			load.priv = NULL;
+			load.filename = NULL;
+			load.bl_len = 1;
+			load.read = spl_spi_fit_read;
+
+			err = spl_load_imx_container(spl_image, &load,
+						     payload_offs);
 		} else {
 #ifdef CONFIG_PARSE_CONTAINER
 			err = spi_load_image_parse_container(spl_image,

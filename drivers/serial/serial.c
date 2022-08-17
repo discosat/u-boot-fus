@@ -125,6 +125,7 @@ serial_initfunc(ns16550_serial_initialize);
 serial_initfunc(pl01x_serial_initialize);
 serial_initfunc(pxa_serial_initialize);
 serial_initfunc(sh_serial_initialize);
+serial_initfunc(mtk_serial_initialize);
 serial_initfunc(vybrid_serial_initialize);
 
 /**
@@ -180,6 +181,7 @@ void serial_initialize(void)
 	pl01x_serial_initialize();
 	pxa_serial_initialize();
 	sh_serial_initialize();
+	mtk_serial_initialize();
 	vybrid_serial_initialize();
 
 	serial_assign(default_serial_console()->name);
@@ -332,9 +334,9 @@ int serial_assign(const char *name)
 
 	for (s = serial_devices; s; s = s->next) {
 		if (!strcmp(s->name, name)) {
-			serial_current = s;
-			return 0;
-		}
+		serial_current = s;
+		return 0;
+	}
 	}
 
 	return -EINVAL;

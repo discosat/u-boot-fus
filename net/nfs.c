@@ -33,6 +33,7 @@
 #include <mapmem.h>
 #include "nfs.h"
 #include "bootp.h"
+#include <time.h>
 
 #define NFS_RETRY_COUNT 30
 #ifndef CONFIG_NFS_TIMEOUT

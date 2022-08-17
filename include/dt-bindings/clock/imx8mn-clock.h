@@ -1,80 +1,79 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2017-2018 NXP
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright 2018-2019 NXP
  */
 
-#ifndef __DT_BINDINGS_CLOCK_IMX8MM_H
-#define __DT_BINDINGS_CLOCK_IMX8MM_H
+#ifndef __DT_BINDINGS_CLOCK_IMX8MN_H
+#define __DT_BINDINGS_CLOCK_IMX8MN_H
 
 #define	IMX8MN_CLK_DUMMY			0
 #define	IMX8MN_CLK_32K				1
 #define	IMX8MN_CLK_24M				2
-#define	IMX8MM_OSC_HDMI_CLK			3
+#define IMX8MN_OSC_HDMI_CLK			3
 #define	IMX8MN_CLK_EXT1				4
 #define	IMX8MN_CLK_EXT2				5
 #define	IMX8MN_CLK_EXT3				6
 #define	IMX8MN_CLK_EXT4				7
-#define	IMX8MM_AUDIO_PLL1_REF_SEL		8
-#define	IMX8MM_AUDIO_PLL2_REF_SEL		9
-#define	IMX8MM_VIDEO_PLL1_REF_SEL		10
-#define	IMX8MM_DRAM_PLL_REF_SEL			11
-#define	IMX8MM_GPU_PLL_REF_SEL			12
-#define	IMX8MM_VPU_PLL_REF_SEL			13
-#define	IMX8MM_ARM_PLL_REF_SEL			14
-#define	IMX8MM_SYS_PLL1_REF_SEL			15
-#define	IMX8MM_SYS_PLL2_REF_SEL			16
-#define	IMX8MM_SYS_PLL3_REF_SEL			17
-#define	IMX8MM_AUDIO_PLL1			18
-#define	IMX8MM_AUDIO_PLL2			19
-#define	IMX8MM_VIDEO_PLL1			20
-#define	IMX8MM_DRAM_PLL				21
-#define	IMX8MM_GPU_PLL                  	22
-#define	IMX8MM_VPU_PLL                  	23
-#define	IMX8MM_ARM_PLL                  	24
-#define	IMX8MM_SYS_PLL1                 	25
-#define	IMX8MM_SYS_PLL2                 	26
-#define	IMX8MM_SYS_PLL3                 	27
-#define	IMX8MM_AUDIO_PLL1_BYPASS        	28
-#define	IMX8MM_AUDIO_PLL2_BYPASS        	29
-#define	IMX8MM_VIDEO_PLL1_BYPASS		30
-#define	IMX8MM_DRAM_PLL_BYPASS          	31
-#define	IMX8MM_GPU_PLL_BYPASS           	32
-#define	IMX8MM_VPU_PLL_BYPASS           	33
-#define	IMX8MM_ARM_PLL_BYPASS           	34
-#define	IMX8MM_SYS_PLL1_BYPASS          	35
-#define	IMX8MM_SYS_PLL2_BYPASS          	36
-#define	IMX8MM_SYS_PLL3_BYPASS          	37
-#define	IMX8MM_AUDIO_PLL1_OUT           	38
-#define	IMX8MM_AUDIO_PLL2_OUT           	39
-#define	IMX8MM_VIDEO_PLL1_OUT			40
-#define	IMX8MM_DRAM_PLL_OUT             	41
-#define	IMX8MM_GPU_PLL_OUT              	42
-#define	IMX8MM_VPU_PLL_OUT              	43
-#define	IMX8MM_ARM_PLL_OUT              	44
-#define	IMX8MM_SYS_PLL1_OUT             	45
-#define	IMX8MM_SYS_PLL2_OUT             	46
-#define	IMX8MM_SYS_PLL3_OUT             	47
-#define	IMX8MM_SYS_PLL1_40M             	48
-#define	IMX8MM_SYS_PLL1_80M             	49
-#define	IMX8MM_SYS_PLL1_100M			50
-#define	IMX8MM_SYS_PLL1_133M            	51
-#define	IMX8MM_SYS_PLL1_160M            	52
-#define	IMX8MM_SYS_PLL1_200M            	53
-#define	IMX8MM_SYS_PLL1_266M            	54
-#define	IMX8MM_SYS_PLL1_400M            	55
-#define	IMX8MM_SYS_PLL1_800M            	56
-#define	IMX8MM_SYS_PLL2_50M             	57
-#define	IMX8MM_SYS_PLL2_100M            	58
-#define	IMX8MM_SYS_PLL2_125M            	59
-#define	IMX8MM_SYS_PLL2_166M			60
-#define	IMX8MM_SYS_PLL2_200M			61
-#define	IMX8MM_SYS_PLL2_250M			62
-#define	IMX8MM_SYS_PLL2_333M			63
-#define	IMX8MM_SYS_PLL2_500M			64
-#define	IMX8MM_SYS_PLL2_1000M			65
+#define IMX8MN_AUDIO_PLL1_REF_SEL		8
+#define IMX8MN_AUDIO_PLL2_REF_SEL		9
+#define IMX8MN_VIDEO_PLL1_REF_SEL		10
+#define IMX8MN_DRAM_PLL_REF_SEL			11
+#define IMX8MN_GPU_PLL_REF_SEL			12
+#define IMX8MN_VPU_PLL_REF_SEL			13
+#define IMX8MN_ARM_PLL_REF_SEL			14
+#define IMX8MN_SYS_PLL1_REF_SEL			15
+#define IMX8MN_SYS_PLL2_REF_SEL			16
+#define IMX8MN_SYS_PLL3_REF_SEL			17
+#define IMX8MN_AUDIO_PLL1			18
+#define IMX8MN_AUDIO_PLL2			19
+#define IMX8MN_VIDEO_PLL1			20
+#define IMX8MN_DRAM_PLL				21
+#define IMX8MN_GPU_PLL				22
+#define IMX8MN_VPU_PLL				23
+#define IMX8MN_ARM_PLL				24
+#define IMX8MN_SYS_PLL1				25
+#define IMX8MN_SYS_PLL2				26
+#define IMX8MN_SYS_PLL3				27
+#define IMX8MN_AUDIO_PLL1_BYPASS		28
+#define IMX8MN_AUDIO_PLL2_BYPASS		29
+#define IMX8MN_VIDEO_PLL1_BYPASS		30
+#define IMX8MN_DRAM_PLL_BYPASS			31
+#define IMX8MN_GPU_PLL_BYPASS			32
+#define IMX8MN_VPU_PLL_BYPASS			33
+#define IMX8MN_ARM_PLL_BYPASS			34
+#define IMX8MN_SYS_PLL1_BYPASS			35
+#define IMX8MN_SYS_PLL2_BYPASS			36
+#define IMX8MN_SYS_PLL3_BYPASS			37
+#define IMX8MN_AUDIO_PLL1_OUT			38
+#define IMX8MN_AUDIO_PLL2_OUT			39
+#define IMX8MN_VIDEO_PLL1_OUT			40
+#define IMX8MN_DRAM_PLL_OUT			41
+#define IMX8MN_GPU_PLL_OUT			42
+#define IMX8MN_VPU_PLL_OUT			43
+#define IMX8MN_ARM_PLL_OUT			44
+#define IMX8MN_SYS_PLL1_OUT			45
+#define IMX8MN_SYS_PLL2_OUT			46
+#define IMX8MN_SYS_PLL3_OUT			47
+#define IMX8MN_SYS_PLL1_40M			48
+#define IMX8MN_SYS_PLL1_80M			49
+#define IMX8MN_SYS_PLL1_100M			50
+#define IMX8MN_SYS_PLL1_133M			51
+#define IMX8MN_SYS_PLL1_160M			52
+#define IMX8MN_SYS_PLL1_200M			53
+#define IMX8MN_SYS_PLL1_266M			54
+#define IMX8MN_SYS_PLL1_400M			55
+#define IMX8MN_SYS_PLL1_800M			56
+#define IMX8MN_SYS_PLL2_50M			57
+#define IMX8MN_SYS_PLL2_100M			58
+#define IMX8MN_SYS_PLL2_125M			59
+#define IMX8MN_SYS_PLL2_166M			60
+#define IMX8MN_SYS_PLL2_200M			61
+#define IMX8MN_SYS_PLL2_250M			62
+#define IMX8MN_SYS_PLL2_333M			63
+#define IMX8MN_SYS_PLL2_500M			64
+#define IMX8MN_SYS_PLL2_1000M			65
+
+/* CORE CLOCK ROOT */
 #define	IMX8MN_CLK_A53_SRC			66
 #define	IMX8MN_CLK_M4_SRC			67
 #define	IMX8MN_CLK_VPU_SRC			68

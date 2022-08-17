@@ -6,9 +6,6 @@ config IMX8M
 	select ROM_UNIFIED_SECTIONS
 	select ARMV8_SPL_EXCEPTION_VECTORS
 
-config SYS_SOC
-	default "imx8m"
-
 config IMX8MQ
 	bool
 	select IMX8M
@@ -25,6 +22,9 @@ config IMX8MP
 	bool
 	select IMX8M
 
+config SYS_SOC
+	default "imx8m"
+
 config SECURE_STICKY_BITS_LOCKUP
 	bool "Enable workaround to fix sticky bits lock up issue"
 	depends on IMX8MQ && SECURE_BOOT
@@ -36,7 +36,7 @@ config IMX_UNIQUE_ID
 	default 0x0
 
 choice
-	prompt	"NXP i.MX8M board select"
+	prompt  "NXP i.MX8M board select"
 	optional
 
 config TARGET_IMX8MQ_EVK
@@ -75,11 +75,13 @@ config TARGET_IMX8MM_DDR3L_VAL
 config TARGET_IMX8MM_EVK
 	bool "imx8mm LPDDR4 EVK board"
 	select IMX8MM
+	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 
 config TARGET_IMX8MM_DDR4_EVK
 	bool "imx8mm DDR4 EVK board"
 	select IMX8MM
+	select SUPPORT_SPL
 	select IMX8M_DDR4
 
 config TARGET_IMX8MN_EVK

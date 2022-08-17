@@ -8,6 +8,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/vybrid-regs.h>	/* CA5SCU_ICCIAR, N_IRQS, ... */
+#include <irq_func.h>
 
 struct _irq_handler {
 	void *data;

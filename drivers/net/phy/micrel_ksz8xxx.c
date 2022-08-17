@@ -24,6 +24,7 @@ static struct phy_driver KSZ804_driver = {
 };
 
 #define MII_KSZPHY_OMSO		0x16
+#define KSZPHY_OMSO_FACTORY_TEST BIT(15)
 #define KSZPHY_OMSO_B_CAST_OFF	(1 << 9)
 
 static int ksz_genconfig_bcastoff(struct phy_device *phydev)

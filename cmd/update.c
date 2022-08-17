@@ -23,6 +23,7 @@
 #include <jffs2/load_kernel.h>		/* struct mtd_device, ... */
 #include <fs.h>				/* FS_TYPE_ANY, fs_read(), ... */
 #include <nand.h>			/* get_nand_dev_by_index() */
+#include <cpu_func.h>			/* flush_cache() */
 
 #ifndef CONFIG_CMD_SOURCE
 #error You need CONFIG_CMD_SOURCE when you define CONFIG_CMD_UPDATE

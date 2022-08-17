@@ -423,4 +423,5 @@ enum frac_pll_out_val {
 	FRAC_PLL_OUT_800M,
 };
 
+void init_nand_clk(void);
 #endif

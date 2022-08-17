@@ -73,6 +73,7 @@ struct mxs_nand_info {
 	struct mxs_dma_desc	**desc;
 	uint32_t		desc_index;
 
+	/* Hardware BCH interface and randomizer */
 	u32 en_randomizer;
 	u32 writesize;
 	u32 oobsize;

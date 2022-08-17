@@ -108,8 +108,8 @@ struct fcb_block {
 
 	/* The swap position of main area in spare area */
 	u32 spare_offset;
-#if !defined(CONFIG_MX6) || defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL)\
-|| defined(CONFIG_MX6ULL)
+
+	/* Actual for iMX7 only */
 	u32 onfi_sync_enable;
 	u32 onfi_sync_speed;
 	u32 onfi_sync_nand_data;
@@ -120,7 +120,6 @@ struct fcb_block {
 	u32 read_retry_enable;
 	u32 reserved4[1];
 	u32 fill_to_1024[183];
-#endif
 };
 
 #endif	/* _IMX_NAND_BCB_H_ */

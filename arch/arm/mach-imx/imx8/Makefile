@@ -4,13 +4,13 @@
 # SPDX-License-Identifier:	GPL-2.0+
 #
 
-obj-y += cpu.o iomux.o misc.o fuse.o lpcg.o clock.o
-obj-y += lowlevel_init.o
-obj-$(CONFIG_SPL_BUILD) += image.o
-obj-$(CONFIG_SPL_BUILD) += parser.o
-ifneq ($(CONFIG_SPL_BUILD),y)
-obj-y += partition.o
-endif
+obj-y += cpu.o iomux.o misc.o lowlevel_init.o lpcg.o clock.o
+obj-$(CONFIG_OF_SYSTEM_SETUP) += fdt.o
 obj-$(CONFIG_AHAB_BOOT) += ahab.o
-obj-$(CONFIG_VIDEO_IMXDPUV1) += video_common.o
+
+ifdef CONFIG_SPL_BUILD
+obj-$(CONFIG_SPL_LOAD_IMX_CONTAINER) += image.o parse-container.o
+else
+obj-y += partition.o
 obj-$(CONFIG_SNVS_SEC_SC) += snvs_security_sc.o
+endif

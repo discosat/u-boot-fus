@@ -36,6 +36,7 @@
 #include <asm/mach-imx/dma.h>
 #include <mtd/mxs_nand_fus.h>
 #include <nand.h>			/* nand_info[] */
+#include <cpu_func.h>			/* invalidate_dcache_range(), ... */
 
 #undef DEBUG
 #ifdef DEBUG

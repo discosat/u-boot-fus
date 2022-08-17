@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
  *
  * Configuration settings for the Freescale i.MX7ULP EVK board.
  */
@@ -11,13 +10,6 @@
 
 #include <linux/sizes.h>
 #include <asm/arch/imx-regs.h>
-#include "imx_env.h"
-
-#ifdef CONFIG_SECURE_BOOT
-#ifndef CONFIG_CSF_SIZE
-#define CONFIG_CSF_SIZE			0x4000
-#endif
-#endif
 
 #define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_SYS_BOOTM_LEN		0x1000000
@@ -25,10 +17,6 @@
 #define SRC_BASE_ADDR			CMC1_RBASE
 #define IRAM_BASE_ADDR			OCRAM_0_BASE
 #define IOMUXC_BASE_ADDR		IOMUXC1_RBASE
-
-/* Fuses */
-#define CONFIG_CMD_FUSE
-#define CONFIG_MXC_OCOTP
 
 #define CONFIG_SERIAL_TAG
 
@@ -207,7 +195,13 @@
 /* USB Configs */
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
 
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_IMX_OPTEE
+#define TEE_ENV "tee=yes\0"
+#else
+#define TEE_ENV "tee=no\0"
+#endif
+
+#ifdef CONFIG_DM_VIDEO
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
@@ -216,21 +210,9 @@
 #define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
-
-#define CONFIG_HX8363
-#define CONFIG_RM68200
 #endif
-
-#define CONFIG_OF_SYSTEM_SETUP
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "mx7ulp_evk_android.h"
-#endif
-
-#ifdef CONFIG_IMX_OPTEE
-#define TEE_ENV "tee=yes\0"
-#else
-#define TEE_ENV "tee=no\0"
 #endif
 #endif	/* __CONFIG_H */

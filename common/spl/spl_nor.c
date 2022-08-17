@@ -6,9 +6,8 @@
 #include <common.h>
 #include <spl.h>
 
-#ifdef CONFIG_SPL_LOAD_FIT
 static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
-			      ulong count, void *buf)
+			       ulong count, void *buf)
 {
 	debug("%s: sector %lx, count %lx, buf %p\n",
 	      __func__, sector, count, buf);
@@ -16,7 +15,11 @@ static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
 
 	return count;
 }
-#endif
+
+unsigned long __weak spl_nor_get_uboot_base(void)
+{
+	return CONFIG_SYS_UBOOT_BASE;
+}
 
 unsigned long  __weak spl_nor_get_uboot_base(void)
 {
@@ -61,6 +64,11 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 						  CONFIG_SYS_OS_BASE,
 						  (void *)header);
 
+#if defined CONFIG_SYS_SPL_ARGS_ADDR && defined CONFIG_CMD_SPL_NOR_OFS
+			memcpy((void *)CONFIG_SYS_SPL_ARGS_ADDR,
+			       (void *)CONFIG_CMD_SPL_NOR_OFS,
+			       CONFIG_CMD_SPL_WRITE_SIZE);
+#endif
 			return ret;
 		}
 #endif

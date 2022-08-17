@@ -30,6 +30,7 @@
 
 #ifdef CONFIG_MXC_SPI
 #include <spi.h>			/* SPI_MODE_*, spi_xfer(), ... */
+#include <u-boot/crc.h>			/* crc32() */
 #endif
 
 #ifdef CONFIG_VIDEO_MXS

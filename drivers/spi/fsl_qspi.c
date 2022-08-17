@@ -83,9 +83,6 @@ DECLARE_GLOBAL_DATA_PTR;
 /* Controller needs driver to swap endian */
 #define QUADSPI_QUIRK_SWAP_ENDIAN	BIT(0)
 
-#define QUADSPI_QUIRK_BYTE_ORDER_LE	BIT(1)
-
-
 enum fsl_qspi_devtype {
 	FSL_QUADSPI_VYBRID,
 	FSL_QUADSPI_IMX6SX,
@@ -166,7 +163,7 @@ static const struct fsl_qspi_devtype_data imx6sx_data = {
 	.rxfifo = 128,
 	.txfifo = 512,
 	.ahb_buf_size = 1024,
-	.driver_data = QUADSPI_QUIRK_BYTE_ORDER_LE,
+	.driver_data = 0,
 };
 
 static const struct fsl_qspi_devtype_data imx7d_data = {
@@ -174,7 +171,7 @@ static const struct fsl_qspi_devtype_data imx7d_data = {
 	.rxfifo = 128,
 	.txfifo = 512,
 	.ahb_buf_size = 1024,
-	.driver_data = QUADSPI_QUIRK_BYTE_ORDER_LE,
+	.driver_data = 0,
 };
 
 static const struct fsl_qspi_devtype_data imx6ul_data = {
@@ -182,7 +179,7 @@ static const struct fsl_qspi_devtype_data imx6ul_data = {
 	.rxfifo = 128,
 	.txfifo = 512,
 	.ahb_buf_size = 1024,
-	.driver_data = QUADSPI_QUIRK_BYTE_ORDER_LE,
+	.driver_data = 0,
 };
 
 static const struct fsl_qspi_devtype_data imx7ulp_data = {
@@ -190,7 +187,7 @@ static const struct fsl_qspi_devtype_data imx7ulp_data = {
 	.rxfifo = 64,
 	.txfifo = 64,
 	.ahb_buf_size = 128,
-	.driver_data = QUADSPI_QUIRK_BYTE_ORDER_LE,
+	.driver_data = 0,
 };
 
 static u32 qspi_read32(u32 flags, u32 *addr)
@@ -209,7 +206,7 @@ static inline int is_controller_busy(const struct fsl_qspi_priv *priv)
 {
 	u32 val;
 	const u32 mask = QSPI_SR_BUSY_MASK | QSPI_SR_AHB_ACC_MASK |
-			 QSPI_SR_IP_ACC_MASK;
+		   QSPI_SR_IP_ACC_MASK;
 	unsigned long timeout = 100; /* 100ms timeout */
 
 	unsigned long start = get_timer(0);
@@ -349,9 +346,7 @@ static void qspi_set_lut(struct fsl_qspi_priv *priv)
 			     INSTR0(LUT_CMD) | OPRND1(ADDR32BIT) |
 			     PAD1(LUT_PAD1) | INSTR1(LUT_ADDR));
 #endif
-	/*
-	 * Use IDATSZ in IPCR to determine the size and here set 0.
-	 */
+	/* Use IDATSZ in IPCR to determine the size and here set 0. */
 	qspi_write32(priv->flags, &regs->lut[lut_base + 1], OPRND0(0) |
 		     PAD0(LUT_PAD1) | INSTR0(LUT_WRITE));
 	qspi_write32(priv->flags, &regs->lut[lut_base + 2], 0);
@@ -497,7 +492,9 @@ static void qspi_enable_ddr_mode(struct fsl_qspi_priv *priv)
 	reg |= BIT(29);
 	qspi_write32(priv->flags, &regs->mcr, reg);
 
-	/* Enable the TDH to 1 for i.mx6ul and mx7d, it is reserved on other platforms */
+	/* Enable the TDH to 1 for some platforms like imx6ul, imx7d, etc
+	 * These two bits are reserved on other platforms
+	 */
 	reg = qspi_read32(priv->flags, &regs->flshcr);
 	reg &= ~(BIT(17));
 	reg |= BIT(16);
@@ -1009,8 +1006,8 @@ static int fsl_qspi_child_pre_probe(struct udevice *dev)
 
 static int fsl_qspi_probe(struct udevice *bus)
 {
-	u32 mcr_val;
 	u32 amba_size_per_chip;
+	u32 mcr_val;
 	struct fsl_qspi_platdata *plat = dev_get_platdata(bus);
 	struct fsl_qspi_priv *priv = dev_get_priv(bus);
 	struct dm_spi_bus *dm_spi_bus;
@@ -1065,7 +1062,7 @@ static int fsl_qspi_probe(struct udevice *bus)
 	mcr_val = qspi_read32(priv->flags, &priv->regs->mcr);
 
 	/* Set endianness to LE for i.mx */
-	if (priv->devtype_data->driver_data & QUADSPI_QUIRK_BYTE_ORDER_LE)
+	if (priv->devtype_data->driver_data & QUADSPI_QUIRK_SWAP_ENDIAN)
 		mcr_val = QSPI_MCR_END_CFD_LE;
 
 	qspi_write32(priv->flags, &priv->regs->mcr,

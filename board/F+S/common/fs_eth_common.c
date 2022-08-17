@@ -16,7 +16,6 @@
 #include <common.h>			/* Types */
 #include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <asm/io.h>			/* __raw_readl() */
-#include <env.h>			/* eth_parse_enetaddr() */
 
 /* Read a MAC address from OTP memory */
 static int get_otp_mac(void *otp_addr, uchar *enetaddr)
@@ -114,7 +113,7 @@ void fs_eth_set_ethaddr(int index)
 #endif
 	if (count <= offs) {
 		offs -= count;
-		eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
+		string_to_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);
 	}
 
 	i = 6;

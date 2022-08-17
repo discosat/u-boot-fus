@@ -7,7 +7,8 @@
 #include <asm/arch/sys_proto.h>
 
 unsigned long call_imx_sip(unsigned long id, unsigned long reg0,
-			   unsigned long reg1, unsigned long reg2, unsigned long reg3)
+			   unsigned long reg1, unsigned long reg2,
+			   unsigned long reg3)
 {
 	struct pt_regs regs;
 
