@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8QXP_MEK_H
@@ -12,13 +12,10 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_TEXT_BASE				0x100000
 #define CONFIG_SPL_MAX_SIZE				(192 * 1024)
 #define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR		0x1040 /* (32K + 2Mb)/sector_size */
-#define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
 
 /*
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
@@ -28,32 +25,23 @@
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
-/*
- * The memory layout on stack:  DATA section save + gd + early malloc
- * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
- * CONFIG_SYS_SPL_MALLOC_START
- */
 #define CONFIG_SPL_STACK		0x013fff0
 #define CONFIG_SPL_BSS_START_ADDR      0x00130000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
 #define CONFIG_SYS_SPL_MALLOC_START	0x82200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
 #define CONFIG_SERIAL_LPUART_BASE	0x5a060000
-#define CONFIG_SYS_ICACHE_OFF
-#define CONFIG_SYS_DCACHE_OFF
 #define CONFIG_MALLOC_F_ADDR		0x00138000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
-#define CONFIG_OF_EMBED
 #endif
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_ARCH_MISC_INIT
 
 #define CONFIG_CMD_READ
 
@@ -65,17 +53,12 @@
 #undef CONFIG_CMD_IMLS
 
 #undef CONFIG_CMD_CRC32
-#undef CONFIG_BOOTM_NETBSD
 
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
 #define CONFIG_ENV_OVERWRITE
-
 
 #define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
@@ -151,7 +134,7 @@
 	AHAB_ENV \
 	"script=boot.scr\0" \
 	"image=Image\0" \
-	"panel=NULL\0" \
+	"splashimage=0x9e000000\0" \
 	"console=ttyLP0\0" \
 	"fdt_addr=0x83000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
@@ -247,17 +230,13 @@
 
 #define CONFIG_SYS_INIT_SP_ADDR         0x80200000
 
-/* Default environment is in SD */
-#define CONFIG_ENV_SIZE			0x2000
 #ifdef CONFIG_QSPI_BOOT
-#define CONFIG_ENV_OFFSET       (4 * 1024 * 1024)
 #define CONFIG_ENV_SECT_SIZE	(128 * 1024)
 #define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #else
-#define CONFIG_ENV_OFFSET       (64 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
@@ -354,25 +333,19 @@
 
 #define CONFIG_FEC_XCV_TYPE		RGMII
 #define FEC_QUIRK_ENET_MAC
+#define PHY_ANEG_TIMEOUT 20000
 
-#ifndef CONFIG_LIB_RAND
-#define CONFIG_LIB_RAND
-#endif
-#define CONFIG_NET_RANDOM_ETHADDR
-
-/* Framebuffer */
-#ifdef CONFIG_VIDEO
-#define CONFIG_VIDEO_IMXDPUV1
-#define CONFIG_VIDEO_BMP_RLE8
+#ifdef CONFIG_DM_VIDEO
+#define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_LOGO
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
 #endif
-
-#define CONFIG_OF_SYSTEM_SETUP
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "imx8qxp_mek_android.h"

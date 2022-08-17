@@ -9,16 +9,18 @@
  */
 
 #include <common.h>
-#include <dm.h>
-#include <lcd.h>
-#include <mapmem.h>
 #include <bmp_layout.h>
 #include <command.h>
-#include <asm/byteorder.h>
+#include <dm.h>
+#include <gzip.h>
+#include <image.h>
+#include <lcd.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <splash.h>
 #include <video.h>
+#include <video_link.h>
+#include <asm/byteorder.h>
 
 static int bmp_info (ulong addr);
 
@@ -95,8 +97,8 @@ static int do_bmp_info(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	ulong addr;
 
 	switch (argc) {
-	case 1:		/* use load_addr as default address */
-		addr = load_addr;
+	case 1:		/* use image_load_addr as default address */
+		addr = image_load_addr;
 		break;
 	case 2:		/* use argument */
 		addr = simple_strtoul(argv[1], NULL, 16);
@@ -116,8 +118,8 @@ static int do_bmp_display(cmd_tbl_t * cmdtp, int flag, int argc, char * const ar
 	splash_get_pos(&x, &y);
 
 	switch (argc) {
-	case 1:		/* use load_addr as default address */
-		addr = load_addr;
+	case 1:		/* use image_load_addr as default address */
+		addr = image_load_addr;
 		break;
 	case 2:		/* use argument */
 		addr = simple_strtoul(argv[1], NULL, 16);
@@ -251,8 +253,15 @@ int bmp_display(ulong addr, int x, int y)
 	addr = map_to_sysmem(bmp);
 
 #ifdef CONFIG_DM_VIDEO
+#ifdef CONFIG_VIDEO_LINK
+	dev = video_link_get_video_device();
+	if (!dev) {
+		ret = -ENODEV;
+	} else {
+#else
 	ret = uclass_first_device_err(UCLASS_VIDEO, &dev);
 	if (!ret) {
+#endif
 		bool align = false;
 
 		if (CONFIG_IS_ENABLED(SPLASH_SCREEN_ALIGN) ||

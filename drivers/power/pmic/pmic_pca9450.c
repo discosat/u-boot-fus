@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- *
  */
 
 #include <common.h>
@@ -11,7 +10,9 @@
 #include <power/pca9450.h>
 
 static const char pca9450_name[] = "PCA9450";
-int power_pca9450a_init (unsigned char bus) {
+
+int power_pca9450a_init(unsigned char bus)
+{
 	struct pmic *p = pmic_alloc();
 
 	if (!p) {
@@ -26,12 +27,11 @@ int power_pca9450a_init (unsigned char bus) {
 	p->hw.i2c.tx_num = 1;
 	p->bus = bus;
 
-	printf("power_pca9450a_init\n");
-
 	return 0;
 }
 
-int power_pca9450b_init (unsigned char bus) {
+int power_pca9450b_init(unsigned char bus)
+{
 	struct pmic *p = pmic_alloc();
 
 	if (!p) {
@@ -45,8 +45,6 @@ int power_pca9450b_init (unsigned char bus) {
 	p->hw.i2c.addr = 0x25;
 	p->hw.i2c.tx_num = 1;
 	p->bus = bus;
-
-	printf("power_pca9450b_init\n");
 
 	return 0;
 }

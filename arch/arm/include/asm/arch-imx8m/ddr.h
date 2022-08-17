@@ -705,8 +705,8 @@ struct dram_timing_info {
 extern struct dram_timing_info dram_timing;
 
 void ddr_load_train_firmware(enum fw_type type);
-void ddr_init(struct dram_timing_info *timing_info);
-void ddr_cfg_phy(struct dram_timing_info *timing_info);
+int ddr_init(struct dram_timing_info *timing_info);
+int ddr_cfg_phy(struct dram_timing_info *timing_info);
 void load_lpddr4_phy_pie(void);
 void ddrphy_trained_csr_save(struct dram_cfg_param *param, unsigned int num);
 void dram_config_save(struct dram_timing_info *info, unsigned long base);
@@ -717,9 +717,12 @@ void ddrc_inline_ecc_scrub_end(unsigned int start_address,
 			       unsigned int range_address);
 
 /* utils function for ddr phy training */
-void wait_ddrphy_training_complete(void);
+int wait_ddrphy_training_complete(void);
 void ddrphy_init_set_dfi_clk(unsigned int drate);
 void ddrphy_init_read_msg_block(enum fw_type type);
+
+void update_umctl2_rank_space_setting(unsigned int pstat_num);
+void get_trained_CDD(unsigned int fsp);
 
 static inline void reg32_write(unsigned long addr, u32 val)
 {

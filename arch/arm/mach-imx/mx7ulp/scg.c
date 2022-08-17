@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP.
  */
 
 #include <common.h>
@@ -413,7 +412,10 @@ static u32 scg_nic_get_rate(enum scg_clk clk)
 		return 0;
 	}
 
-	/* On RevB, the nic_bus and nic_ext dividers are parallel not chained with nic div */
+	/*
+	 * On RevB, the nic_bus and nic_ext dividers are parallel
+	 * not chained with nic div
+	 */
 	if (soc_rev() >= CHIP_REV_2_0)
 		rate = nic0_rate;
 
@@ -1002,67 +1004,6 @@ void scg_a7_ddrclk_init(void)
 /* Clock source is System OSC <<0 */
 #define SCG1_APLL_CFG_CLKSRC_NUM        ((0x0) << SCG_PLL_CFG_CLKSRC_SHIFT)
 
-/*
- * A7 APLL = 24MHz / 1 * 22 / 1 / 1 = 528MHz,
- * system PLL is sourced from APLL,
- * APLL clock source is system OSC (24MHz)
- */
-#define SCG1_APLL_CFG_NUM_24M_OSC (SCG1_APLL_CFG_POSTDIV2_NUM     |   \
-				   SCG1_APLL_CFG_POSTDIV1_NUM     |   \
-				   (22 << SCG_PLL_CFG_MULT_SHIFT) |   \
-				   SCG1_APLL_CFG_PFDSEL_NUM       |   \
-				   SCG1_APLL_CFG_PREDIV_NUM       |   \
-				   SCG1_APLL_CFG_BYPASS_NUM       |   \
-				   SCG1_APLL_CFG_PLLSEL_NUM       |   \
-				   SCG1_APLL_CFG_CLKSRC_NUM)
-
-/* PFD0 Freq = A7 APLL(528MHz) * 18 / 27 = 352MHz */
-#define SCG1_APLL_PFD0_FRAC_NUM (27)
-
-
-void scg_a7_apll_init(void)
-{
-	u32 val = 0;
-
-	/* Disable A7 Auxiliary PLL */
-	val = readl(&scg1_regs->apllcsr);
-	val &= ~SCG_APLL_CSR_APLLEN_MASK;
-	writel(val, &scg1_regs->apllcsr);
-
-	/* Gate off A7 APLL PFD0 ~ PDF4  */
-	val = readl(&scg1_regs->apllpfd);
-	val |= 0x80808080;
-	writel(val, &scg1_regs->apllpfd);
-
-	/* ================ A7 APLL Configuration Start ============== */
-	/* Configure A7 Auxiliary PLL */
-	writel(SCG1_APLL_CFG_NUM_24M_OSC, &scg1_regs->apllcfg);
-
-	/* Enable A7 Auxiliary PLL */
-	val = readl(&scg1_regs->apllcsr);
-	val |= SCG_APLL_CSR_APLLEN_MASK;
-	writel(val, &scg1_regs->apllcsr);
-
-	/* Wait for A7 APLL clock ready */
-	while (!(readl(&scg1_regs->apllcsr) & SCG_APLL_CSR_APLLVLD_MASK))
-		;
-
-	/* Configure A7 APLL PFD0 */
-	val = readl(&scg1_regs->apllpfd);
-	val &= ~SCG_PLL_PFD0_FRAC_MASK;
-	val |= SCG1_APLL_PFD0_FRAC_NUM;
-	writel(val, &scg1_regs->apllpfd);
-
-	/* Un-gate A7 APLL PFD0 */
-	val = readl(&scg1_regs->apllpfd);
-	val &= ~SCG_PLL_PFD0_GATE_MASK;
-	writel(val, &scg1_regs->apllpfd);
-
-	/* Wait for A7 APLL PFD0 clock being valid */
-	while (!(readl(&scg1_regs->apllpfd) & SCG_PLL_PFD0_VALID_MASK))
-		;
-}
-
 /* SCG1(A7) FIRC DIV configurations */
 /* Disable FIRC DIV3 */
 #define SCG1_FIRCDIV_DIV3_NUM           ((0x0) << SCG_FIRCDIV_DIV3_SHIFT)
@@ -1157,9 +1098,11 @@ void scg_a7_init_core_clk(void)
 {
 	u32 val = 0;
 
-	/* The normal target frequency for ULP B0 is 500Mhz, but ROM set it to 413Mhz, need to change SPLL PFD0 FRAC */
+	/*
+	 * The normal target frequency for ULP B0 is 500Mhz,
+	 * but ROM set it to 413Mhz, need to change SPLL PFD0 FRAC
+	 */
 	if (soc_rev() >= CHIP_REV_2_0) {
-
 		/* Switch RCCR SCG to SOSC, firstly check the SOSC is valid */
 		if ((readl(&scg1_regs->sosccsr) & SCG_SOSC_CSR_SOSCVLD_MASK)) {
 			val = readl(&scg1_regs->rccr);
@@ -1167,15 +1110,18 @@ void scg_a7_init_core_clk(void)
 			val |= ((SCG_SCS_SYS_OSC) << SCG_CCR_SCS_SHIFT);
 			writel(val, &scg1_regs->rccr);
 
-			/* Swith the PLLS to SPLL clk */
+			/* Switch the PLLS to SPLL clk */
 			val = readl(&scg1_regs->spllcfg);
 			val &= ~SCG_PLL_CFG_PLLSEL_MASK;
 			writel(val, &scg1_regs->spllcfg);
 
-			/* Re-configure PFD0 to 19, A7 SPLL(528MHz) * 18 / 19 = 500MHz */
+			/*
+			 * Re-configure PFD0 to 19,
+			 * A7 SPLL(528MHz) * 18 / 19 = 500MHz
+			 */
 			scg_enable_pll_pfd(SCG_SPLL_PFD0_CLK, 19);
 
-			/* Swith the PLLS to SPLL PFD0 */
+			/* Switch the PLLS to SPLL PFD0 */
 			val = readl(&scg1_regs->spllcfg);
 			val |= SCG_PLL_CFG_PLLSEL_MASK;
 			writel(val, &scg1_regs->spllcfg);

@@ -4,25 +4,23 @@
  */
 
 #include <common.h>
+#include <fdt_support.h>
 #include <asm/io.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/mx7ulp-pins.h>
 #include <asm/arch/iomux.h>
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/gpio.h>
 #include <usb.h>
 #include <dm.h>
-#include <asm/mach-imx/video.h>
-#include <mipi_dsi_northwest.h>
-#include <imx_mipi_dsi_bridge.h>
-#include <mipi_dsi_panel.h>
 
-#ifdef CONFIG_FSL_FASTBOOT
-#include <fastboot.h>
-#include <asm/mach-imx/boot_mode.h>
-#ifdef CONFIG_ANDROID_RECOVERY
-#include <recovery.h>
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
+#ifdef CONFIG_BOOTLOADER_MENU
+#include "video.h"
+#include "dm/uclass.h"
+#include "video_font_data.h"
+#include "video_console.h"
+#include "recovery.h"
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -30,13 +28,17 @@ DECLARE_GLOBAL_DATA_PTR;
 #define QSPI_PAD_CTRL1	(PAD_CTL_PUS_UP | PAD_CTL_DSE)
 #define OTG_ID_GPIO_PAD_CTRL	(PAD_CTL_IBE_ENABLE)
 
-#define MIPI_GPIO_PAD_CTRL	(PAD_CTL_OBE_ENABLE)
-
 int dram_init(void)
 {
-	gd->ram_size = PHYS_SDRAM_SIZE;
+	gd->ram_size = imx_ddr_size();
 
 	return 0;
+}
+
+ulong board_get_usable_ram_top(ulong total_size)
+{
+	/* Reserve top 1M memory used by M core vring/buffer */
+	return gd->ram_top - SZ_1M;
 }
 
 static iomux_cfg_t const lpuart4_pads[] = {
@@ -91,123 +93,6 @@ int board_early_init_f(void)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_MXS
-
-#define MIPI_RESET_GPIO	IMX_GPIO_NR(3, 19)
-#define LED_PWM_EN_GPIO	IMX_GPIO_NR(6, 2)
-
-static iomux_cfg_t const mipi_reset_pad[] = {
-	MX7ULP_PAD_PTC19__PTC19 | MUX_PAD_CTRL(MIPI_GPIO_PAD_CTRL),
-};
-
-static iomux_cfg_t const led_pwm_en_pad[] = {
-	MX7ULP_PAD_PTF2__PTF2 | MUX_PAD_CTRL(MIPI_GPIO_PAD_CTRL),
-};
-
-struct mipi_dsi_client_dev hx8363_dev = {
-	.channel	= 0,
-	.lanes = 2,
-	.format  = MIPI_DSI_FMT_RGB888,
-	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE,
-};
-
-struct mipi_dsi_client_dev rm68200_dev = {
-	.channel	= 0,
-	.lanes = 2,
-	.format  = MIPI_DSI_FMT_RGB888,
-	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE,
-};
-
-int board_mipi_panel_reset(void)
-{
-	gpio_direction_output(MIPI_RESET_GPIO, 0);
-	udelay(1000);
-	gpio_direction_output(MIPI_RESET_GPIO, 1);
-	return 0;
-}
-
-int board_mipi_panel_shutdown(void)
-{
-	gpio_direction_output(MIPI_RESET_GPIO, 0);
-	gpio_direction_output(LED_PWM_EN_GPIO, 0);
-	return 0;
-}
-
-void setup_mipi_reset(void)
-{
-	mx7ulp_iomux_setup_multiple_pads(mipi_reset_pad, ARRAY_SIZE(mipi_reset_pad));
-	gpio_request(MIPI_RESET_GPIO, "mipi_panel_reset");
-}
-
-void do_enable_mipi_dsi(struct display_info_t const *dev)
-{
-	setup_mipi_reset();
-
-	/* Enable backlight */
-	mx7ulp_iomux_setup_multiple_pads(led_pwm_en_pad, ARRAY_SIZE(led_pwm_en_pad));
-	gpio_request(LED_PWM_EN_GPIO, "led_pwm_en");
-	gpio_direction_output(LED_PWM_EN_GPIO, 1);
-
-	/* Setup DSI host driver */
-	mipi_dsi_northwest_setup(DSI_RBASE, SIM0_RBASE);
-
-	if (!strcmp(dev->mode.name, "HX8363_WVGA")) {
-		/* Init hx8363 driver, must after dsi host driver setup */
-		hx8363_init();
-		hx8363_dev.name = dev->mode.name;
-		imx_mipi_dsi_bridge_attach(&hx8363_dev); /* attach hx8363 device */
-	} else {
-		rm68200_init();
-		rm68200_dev.name = dev->mode.name;
-		imx_mipi_dsi_bridge_attach(&rm68200_dev);
-	}
-
-}
-
-struct display_info_t const displays[] = {{
-	.bus = LCDIF_RBASE,
-	.addr = 0,
-	.pixfmt = 24,
-	.detect = NULL,
-	.enable = do_enable_mipi_dsi,
-	.mode	= {
-		.name			= "RM68200_WXGA",
-		.xres			= 720,
-		.yres			= 1280,
-		.pixclock		= 16040,
-		.left_margin	= 32,
-		.right_margin	= 32,
-		.upper_margin	= 14,
-		.lower_margin	= 16,
-		.hsync_len		= 8,
-		.vsync_len		= 2,
-		.sync			= 0,
-		.vmode			= FB_VMODE_NONINTERLACED
-} }, {
-	.bus = LCDIF_RBASE,
-	.addr = 0,
-	.pixfmt = 24,
-	.detect = NULL,
-	.enable	= do_enable_mipi_dsi,
-	.mode	= {
-		.name			= "HX8363_WVGA",
-		.xres           = 480,
-		.yres           = 854,
-		.pixclock       = 41042,
-		.left_margin    = 40,
-		.right_margin   = 60,
-		.upper_margin   = 3,
-		.lower_margin   = 3,
-		.hsync_len      = 8,
-		.vsync_len      = 4,
-		.sync           = 0,
-		.vmode          = FB_VMODE_NONINTERLACED
-} } };
-size_t display_count = ARRAY_SIZE(displays);
-#endif
-
 int board_init(void)
 {
 	/* address of boot parameters */
@@ -220,6 +105,60 @@ int board_init(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF_BOARD_SETUP)
+int ft_board_setup(void *blob, bd_t *bd)
+{
+	const char *path;
+	int rc, nodeoff;
+
+	if (get_boot_device() == USB_BOOT) {
+		path = fdt_get_alias(blob, "mmc0");
+		if (!path) {
+			puts("Not found mmc0\n");
+			return 0;
+		}
+
+		nodeoff = fdt_path_offset(blob, path);
+		if (nodeoff < 0)
+			return 0;
+
+		printf("Found usdhc0 node\n");
+		if (fdt_get_property(blob, nodeoff, "vqmmc-supply",
+		    NULL) != NULL) {
+			rc = fdt_delprop(blob, nodeoff, "vqmmc-supply");
+			if (!rc) {
+				puts("Removed vqmmc-supply property\n");
+add:
+				rc = fdt_setprop(blob, nodeoff,
+						 "no-1-8-v", NULL, 0);
+				if (rc == -FDT_ERR_NOSPACE) {
+					rc = fdt_increase_size(blob, 32);
+					if (!rc)
+						goto add;
+				} else if (rc) {
+					printf("Failed to add no-1-8-v property, %d\n", rc);
+				} else {
+					puts("Added no-1-8-v property\n");
+				}
+			} else {
+				printf("Failed to remove vqmmc-supply property, %d\n", rc);
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_BOOTLOADER_MENU
+static iomux_cfg_t const vol_pad[] = {
+	MX7ULP_PAD_PTA3__PTA3 | MUX_PAD_CTRL(PAD_CTL_IBE_ENABLE),
+};
+#define VOLP_GPIO	IMX_GPIO_NR(1, 3)
+bool is_vol_key_pressed(void);
+int show_bootloader_menu(void);
+#endif
+
 int board_late_init(void)
 {
 	env_set("tee", "no");
@@ -231,6 +170,16 @@ int board_late_init(void)
 	board_late_mmc_env_init();
 #endif
 
+#ifdef CONFIG_BOOTLOADER_MENU
+	mx7ulp_iomux_setup_multiple_pads(vol_pad, ARRAY_SIZE(vol_pad));
+	if (gpio_request(VOLP_GPIO, "volp"))
+		printf("request error\n");
+	gpio_direction_input(VOLP_GPIO);
+
+	if (is_vol_key_pressed())
+		show_bootloader_menu();
+#endif
+
 	return 0;
 }
 
@@ -238,9 +187,96 @@ int board_late_init(void)
 #ifdef CONFIG_ANDROID_RECOVERY
 int is_recovery_key_pressing(void)
 {
-	/* TODO: uboot can get the key event from M4 core*/
-	return 0;
+	return 0; /*TODO*/
 }
-
 #endif /*CONFIG_ANDROID_RECOVERY*/
 #endif /*CONFIG_FSL_FASTBOOT*/
+
+#ifdef CONFIG_ANDROID_SUPPORT
+bool is_power_key_pressed(void) {
+	/* the onoff button is 'pressed' by default on evk board */
+	return (bool)(!(readl(SNVS_HPSR_REVB) & (0x1 << 6)));
+}
+
+#ifdef CONFIG_BOOTLOADER_MENU
+char bootloader_menu[4][40] = {
+	"   * Power off the device\n",
+	"   * Start the device normally\n",
+	"   * Restart the bootloader\n",
+	"   * Boot into recovery mode\n"
+};
+
+bool is_vol_key_pressed(void) {
+	int ret = 0;
+	ret = gpio_get_value(VOLP_GPIO);
+	return (bool)(!!ret);
+}
+
+int show_bootloader_menu(void) {
+	struct udevice *dev, *dev_console;
+	uint32_t focus = 0, i;
+	bool stop_menu = false;
+
+	/* clear screen first */
+	if (uclass_first_device_err(UCLASS_VIDEO, &dev)) {
+		printf("no video device found!\n");
+		return -1;
+	}
+	video_clear(dev);
+
+	if (uclass_first_device_err(UCLASS_VIDEO_CONSOLE, &dev_console)) {
+		printf("no text console device found!\n");
+		return -1;
+	}
+
+	vidconsole_position_cursor(dev_console, 0, 1);
+	vidconsole_put_string(dev_console, "Press 'vol+' to choose an item, press\n");
+	vidconsole_put_string(dev_console, "power key to confirm:\n");
+	while (!stop_menu) {
+		/* reset the cursor position. */
+		vidconsole_position_cursor(dev_console, 0, 4);
+		/* show menu */
+		for (i = 0; i < 4; i++) {
+			/* reverse color for the 'focus' line. */
+			if (i == focus)
+				vidconsole_put_string(dev_console, "\x1b[7m");
+			/* show text */
+			vidconsole_put_string(dev_console, bootloader_menu[i]);
+			/* reset color back for the 'next' line. */
+			if (i == focus)
+				vidconsole_put_string(dev_console, "\x1b[0m");
+		}
+		/* check button status */
+		while (1) {
+			if (is_power_key_pressed()) {
+				switch (focus) {
+					case 0: /*TODO*/
+					case 1:
+						break;
+					case 2:
+						do_reset(NULL, 0, 0, NULL);
+						break;
+					case 3:
+						board_recovery_setup();
+						break;
+					default:
+						break;
+				}
+				stop_menu = true;
+				break;
+			} else if (is_vol_key_pressed()) {
+				focus++;
+				if (focus > 3)
+					focus = 0;
+				mdelay(400);
+				break;
+			}
+		}
+	}
+
+	/* clear screen before exit */
+	video_clear(dev);
+	return 0;
+}
+#endif /* CONFIG_BOOTLOADER_MENU */
+#endif /* CONFIG_ANDROID_SUPPORT*/

@@ -24,7 +24,7 @@
  *                            which the underlying physical block mark appears.
  * @block_mark_bit_offset:    The bit offset into the ECC-based page view at
  *                            which the underlying physical block mark appears.
-  * @ecc_for_meta:             The flag to indicate if there is a dedicate ecc
+ * @ecc_for_meta:             The flag to indicate if there is a dedicate ecc
  *                            for meta.
  */
 struct bch_geometry {
@@ -73,6 +73,7 @@ struct mxs_nand_info {
 	struct mxs_dma_desc	**desc;
 	uint32_t		desc_index;
 
+	/* Hardware BCH interface and randomizer */
 	u32 en_randomizer;
 	u32 writesize;
 	u32 oobsize;

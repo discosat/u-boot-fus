@@ -4,6 +4,7 @@
  * Copyright 2017 NXP
  */
 
+#include <init.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/imx-regs.h>
@@ -16,13 +17,12 @@
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/io.h>
 #include <common.h>
+#include <env.h>
+#include <fsl_esdhc_imx.h>
 #include <i2c.h>
 #include <miiphy.h>
-#include <fsl_esdhc.h>
 #include <linux/sizes.h>
 #include <mmc.h>
-#include <mxsfb.h>
-#include <asm/mach-imx/video.h>
 #include <power/pmic.h>
 #include <power/pfuze3000_pmic.h>
 #include "../common/pfuze.h"
@@ -54,7 +54,7 @@ int power_init_board(void)
 	int ret, dev_id, rev_id;
 	unsigned int reg;
 
-	ret = pmic_get("pfuze3000", &dev);
+	ret = pmic_get("pfuze3000@8", &dev);
 	if (ret == -ENODEV)
 		return 0;
 	if (ret != 0)
@@ -89,7 +89,7 @@ void ldo_mode_set(int ldo_bypass)
 	struct udevice *dev;
 	int ret;
 
-	ret = pmic_get("pfuze3000", &dev);
+	ret = pmic_get("pfuze3000@8", &dev);
 	if (ret == -ENODEV) {
 		printf("No PMIC found!\n");
 		return;
@@ -206,36 +206,35 @@ static void setup_gpmi_nand(void)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-static int setup_fec(int fec_id)
+static int setup_fec(void)
 {
 	struct iomuxc *const iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	int ret;
 
-	if (fec_id == 0) {
-		if (check_module_fused(MX6_MODULE_ENET1))
-			return -1;
-
-		/*
-		 * Use 50M anatop loopback REF_CLK1 for ENET1,
-		 * clear gpr1[13], set gpr1[17].
-		 */
-		clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC1_MASK,
-				IOMUX_GPR1_FEC1_CLOCK_MUX1_SEL_MASK);
-	} else {
-		if (check_module_fused(MX6_MODULE_ENET2))
-			return -1;
-
-		/*
-		 * Use 50M anatop loopback REF_CLK2 for ENET2,
-		 * clear gpr1[14], set gpr1[18].
-		 */
+	/*
+	 * Use 50M anatop loopback REF_CLK1 for ENET1,
+	 * clear gpr1[13], set gpr1[17].
+	 */
+	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC1_MASK,
+			IOMUX_GPR1_FEC1_CLOCK_MUX1_SEL_MASK);
+	/*
+	 * Use 50M anatop loopback REF_CLK2 for ENET2,
+	 * clear gpr1[14], set gpr1[18].
+	 */
+	if (!check_module_fused(MX6_MODULE_ENET2)) {
 		clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC2_MASK,
 				IOMUX_GPR1_FEC2_CLOCK_MUX1_SEL_MASK);
 	}
 
-	ret = enable_fec_anatop_clock(fec_id, ENET_50MHZ);
+	ret = enable_fec_anatop_clock(0, ENET_50MHZ);
 	if (ret)
 		return ret;
+
+	if (!check_module_fused(MX6_MODULE_ENET2)) {
+		ret = enable_fec_anatop_clock(1, ENET_50MHZ);
+		if (ret)
+			return ret;
+	}
 
 	enable_enet_clk(1);
 
@@ -253,47 +252,15 @@ int board_phy_config(struct phy_device *phydev)
 }
 #endif
 
-#ifdef CONFIG_VIDEO_MXS
+#ifdef CONFIG_DM_VIDEO
 static iomux_v3_cfg_t const lcd_pads[] = {
-	MX6_PAD_LCD_CLK__LCDIF_CLK | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_ENABLE__LCDIF_ENABLE | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_HSYNC__LCDIF_HSYNC | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_VSYNC__LCDIF_VSYNC | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA00__LCDIF_DATA00 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA01__LCDIF_DATA01 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA02__LCDIF_DATA02 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA03__LCDIF_DATA03 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA04__LCDIF_DATA04 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA05__LCDIF_DATA05 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA06__LCDIF_DATA06 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA07__LCDIF_DATA07 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA08__LCDIF_DATA08 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA09__LCDIF_DATA09 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA10__LCDIF_DATA10 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA11__LCDIF_DATA11 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA12__LCDIF_DATA12 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA13__LCDIF_DATA13 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA14__LCDIF_DATA14 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA15__LCDIF_DATA15 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA16__LCDIF_DATA16 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA17__LCDIF_DATA17 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA18__LCDIF_DATA18 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA19__LCDIF_DATA19 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA20__LCDIF_DATA20 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA21__LCDIF_DATA21 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA22__LCDIF_DATA22 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-	MX6_PAD_LCD_DATA23__LCDIF_DATA23 | MUX_PAD_CTRL(LCD_PAD_CTRL),
-
-	/* LCD_RST */
-	MX6_PAD_SNVS_TAMPER9__GPIO5_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL),
-
 	/* Use GPIO for Brightness adjustment, duty cycle = period. */
 	MX6_PAD_GPIO1_IO08__GPIO1_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
-void do_enable_parallel_lcd(struct display_info_t const *dev)
+static int setup_lcd(void)
 {
-	enable_lcdif_clock(dev->bus, 1);
+	enable_lcdif_clock(LCDIF1_BASE_ADDR, 1);
 
 	imx_iomux_v3_setup_multiple_pads(lcd_pads, ARRAY_SIZE(lcd_pads));
 
@@ -306,29 +273,11 @@ void do_enable_parallel_lcd(struct display_info_t const *dev)
 	/* Set Brightness to high */
 	gpio_request(IMX_GPIO_NR(1, 8), "backlight");
 	gpio_direction_output(IMX_GPIO_NR(1, 8) , 1);
-}
 
-struct display_info_t const displays[] = {{
-	.bus = MX6UL_LCDIF1_BASE_ADDR,
-	.addr = 0,
-	.pixfmt = 24,
-	.detect = NULL,
-	.enable	= do_enable_parallel_lcd,
-	.mode	= {
-		.name			= "TFT43AB",
-		.xres           = 480,
-		.yres           = 272,
-		.pixclock       = 108695,
-		.left_margin    = 8,
-		.right_margin   = 4,
-		.upper_margin   = 2,
-		.lower_margin   = 4,
-		.hsync_len      = 41,
-		.vsync_len      = 10,
-		.sync           = 0,
-		.vmode          = FB_VMODE_NONINTERLACED
-} } };
-size_t display_count = ARRAY_SIZE(displays);
+	return 0;
+}
+#else
+static inline int setup_lcd(void) { return 0; }
 #endif
 
 int board_early_init_f(void)
@@ -344,7 +293,7 @@ int board_init(void)
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
 #ifdef	CONFIG_FEC_MXC
-	setup_fec(CONFIG_FEC_ENET_DEV);
+	setup_fec();
 #endif
 
 #ifdef CONFIG_FSL_QSPI
@@ -392,6 +341,8 @@ int board_late_init(void)
 		env_set("usb_net_cmd", "usb start");
     }
 #endif
+
+	setup_lcd();
 
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();

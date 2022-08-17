@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018 NXP
- *
- * SPDX-License-Identifier: GPL-2.0+
+ * Copyright 2019 NXP
  */
 
 #ifndef __CDNS3_GADGET_EXPORT_H

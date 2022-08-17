@@ -12,19 +12,21 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_TEXT_BASE				0x100000
 #define CONFIG_SPL_MAX_SIZE				(128 * 1024)
 #define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR		0x1040 /* (32K + 2Mb)/sector_size */
-#define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
 
 /*
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
   * So 3rd container image may start from 0x8181000
  */
 #define CONFIG_SYS_UBOOT_BASE 0x08181000
+
+#define CONFIG_SYS_NAND_U_BOOT_OFFS     (0x8000000)  /*Put the FIT out of first 128MB boot area */
+#define CONFIG_SPL_NAND_BASE
+#define CONFIG_SPL_NAND_IDENT
+
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
@@ -39,21 +41,17 @@
 #define CONFIG_SYS_SPL_MALLOC_START	0x82200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
 #define CONFIG_SERIAL_LPUART_BASE	0x5a060000
-#define CONFIG_SYS_ICACHE_OFF
-#define CONFIG_SYS_DCACHE_OFF
 #define CONFIG_MALLOC_F_ADDR		0x82200000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
-#define CONFIG_OF_EMBED
 #endif
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_ARCH_MISC_INIT
 
 #define CONFIG_CMD_READ
 
@@ -65,14 +63,10 @@
 #undef CONFIG_CMD_IMLS
 
 #undef CONFIG_CMD_CRC32
-#undef CONFIG_BOOTM_NETBSD
 
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
 #define CONFIG_ENV_OVERWRITE
 
@@ -95,6 +89,10 @@
 	"loadm4image_0=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${m4_0_image}\0" \
 	"m4boot_0=run loadm4image_0; dcache flush; bootaux ${loadaddr} 0\0" \
 
+#ifdef CONFIG_NAND_BOOT
+#define MFG_NAND_PARTITION "mtdparts=gpmi-nand:128m(nandboot),16m(nandfit),32m(nandkernel),16m(nanddtb),8m(nandtee),-(nandrootfs)"
+#endif
+
 #define CONFIG_MFG_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS_DEFAULT \
 	"initrd_addr=0x83100000\0" \
@@ -104,11 +102,11 @@
 
 #define JAILHOUSE_ENV \
 	"jh_mmcboot=" \
-		"setenv fdt_file fsl-imx8dxl-evk-root.dtb;"\
+		"setenv fdt_file imx8dxl-evk-root.dtb;"\
 		"setenv boot_os 'scu_rm dtb ${fdt_addr}; booti ${loadaddr} - ${fdt_addr};'; " \
 		"run mmcboot; \0" \
 	"jh_netboot=" \
-		"setenv fdt_file fsl-imx8dxl-evk-root.dtb;"\
+		"setenv fdt_file imx8dxl-evk-root.dtb;"\
 		"setenv boot_os 'scu_rm dtb ${fdt_addr}; booti ${loadaddr} - ${fdt_addr};'; " \
 		"run netboot; \0"
 
@@ -117,7 +115,7 @@
             "xenlinux_bootargs= \0" \
             "xenlinux_console=hvc0 earlycon=xen\0" \
             "xenlinux_addr=0x9e000000\0" \
-			"dom0fdt_file=fsl-imx8dxl-evk-dom0.dtb\0" \
+			"dom0fdt_file=imx8dxl-evk-dom0.dtb\0" \
             "xenboot_common=" \
                 "${get_cmd} ${loadaddr} xen;" \
                 "${get_cmd} ${fdt_addr} ${dom0fdt_file};" \
@@ -143,6 +141,17 @@
             "\0" \
 
 /* Initial environment variables */
+#ifdef CONFIG_NAND_BOOT
+#define CONFIG_EXTRA_ENV_SETTINGS		\
+	CONFIG_MFG_ENV_SETTINGS \
+	"bootargs=console=ttyLP0,115200 ubi.mtd=nandrootfs "  \
+		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
+		MFG_NAND_PARTITION \
+		"\0"\
+	"console=ttyLP0,115200 earlycon\0" \
+	"mtdparts=" MFG_NAND_PARTITION "\0" \
+	"fdt_addr=0x83000000\0"
+#else
 #define CONFIG_EXTRA_ENV_SETTINGS		\
 	CONFIG_MFG_ENV_SETTINGS \
 	M4_BOOT_ENV \
@@ -151,14 +160,14 @@
 	AHAB_ENV \
 	"script=boot.scr\0" \
 	"image=Image\0" \
-	"panel=NULL\0" \
+	"splashimage=0x9e000000\0" \
 	"console=ttyLP0\0" \
 	"fdt_addr=0x83000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
 	"cntr_addr=0x98000000\0"			\
 	"cntr_file=os_cntr_signed.bin\0" \
 	"boot_fdt=try\0" \
-	"fdt_file=imx8dxl-evk.dtb\0" \
+	"fdt_file=undefined\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
@@ -220,7 +229,14 @@
 				"booti; " \
 			"fi;" \
 		"fi;\0"
+#endif
 
+#ifdef CONFIG_NAND_BOOT
+#define CONFIG_BOOTCOMMAND \
+	"nand read ${loadaddr} 0x9000000 0x2000000;"\
+	"nand read ${fdt_addr} 0xB000000 0x100000;"\
+	"booti ${loadaddr} - ${fdt_addr}"
+#else
 #define CONFIG_BOOTCOMMAND \
 	   "mmc dev ${mmcdev}; if mmc rescan; then " \
 		   "if run loadbootscript; then " \
@@ -239,6 +255,7 @@
 			 "fi; " \
 		   "fi; " \
 	   "else booti ${loadaddr} - ${fdt_addr}; fi"
+#endif
 
 /* Link Definitions */
 #define CONFIG_LOADADDR			0x80280000
@@ -247,17 +264,13 @@
 
 #define CONFIG_SYS_INIT_SP_ADDR         0x80200000
 
-/* Default environment is in SD */
-#define CONFIG_ENV_SIZE			0x2000
 #ifdef CONFIG_QSPI_BOOT
-#define CONFIG_ENV_OFFSET       (4 * 1024 * 1024)
 #define CONFIG_ENV_SECT_SIZE	(128 * 1024)
 #define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #else
-#define CONFIG_ENV_OFFSET       (64 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
@@ -276,7 +289,12 @@
 #define PHYS_SDRAM_2			0x880000000
 
 /* total DDR is 1GB */
+#if defined(CONFIG_TARGET_IMX8DXL_DDR3_EVK)
+#define PHYS_SDRAM_1_SIZE		0x20000000
+#else
 #define PHYS_SDRAM_1_SIZE		0x40000000	/* 1 GB */
+#endif
+
 #define PHYS_SDRAM_2_SIZE		0x00000000
 
 #define CONFIG_SYS_MEMTEST_START    0xA0000000
@@ -308,10 +326,21 @@
 #define FSL_FSPI_FLASH_NUM		1
 #define FSPI0_BASE_ADDR			0x5d120000
 #define FSPI0_AMBA_BASE			0
-#define CONFIG_SYS_FSL_FSPI_AHB
 #endif
 
 #define CONFIG_SERIAL_TAG
+
+#ifdef CONFIG_NAND_MXS
+#define CONFIG_CMD_NAND_TRIMFFS
+
+/* NAND stuff */
+#define CONFIG_SYS_MAX_NAND_DEVICE     1
+#define CONFIG_SYS_NAND_BASE           0x40000000
+#define CONFIG_SYS_NAND_5_ADDR_CYCLE
+#define CONFIG_SYS_NAND_ONFI_DETECTION
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
+
+#endif
 
 /* USB Config */
 #ifndef CONFIG_SPL_BUILD
@@ -344,11 +373,20 @@
 #define CONFIG_SYS_NONCACHED_MEMORY     (1 * SZ_1M)     /* 1M */
 #endif
 #define CONFIG_ETHPRIME                 "eth1"
+#define PHY_ANEG_TIMEOUT 20000
 
-#ifndef CONFIG_LIB_RAND
-#define CONFIG_LIB_RAND
+#if defined(CONFIG_DM_VIDEO)
+#define CONFIG_VIDEO_MXS
+#define CONFIG_VIDEO_LINK
+#define CONFIG_VIDEO_LOGO
+#define CONFIG_SPLASH_SCREEN
+#define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_CMD_BMP
+#define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+#define CONFIG_VIDEO_BMP_RLE8
+#define CONFIG_VIDEO_BMP_LOGO
 #endif
-#define CONFIG_NET_RANDOM_ETHADDR
 
-#define CONFIG_OF_SYSTEM_SETUP
 #endif /* __IMX8DXL_EVK_H */

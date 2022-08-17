@@ -8,7 +8,8 @@
 #include <common.h>
 
 #include <command.h>
-#include <environment.h>
+#include <env.h>
+#include <env_internal.h>
 #include <linux/stddef.h>
 #include <errno.h>
 #include <memalign.h>
@@ -18,7 +19,7 @@
 #include <scsi.h>
 #endif
 
-#if defined(CONFIG_ENV_SIZE_REDUND) || defined(CONFIG_ENV_OFFSET_REDUND)
+#if defined(CONFIG_ENV_OFFSET_REDUND)
 #error ENV REDUND not supported
 #endif
 
@@ -124,7 +125,7 @@ static int env_sata_load(void)
 	}
 
 	if (read_env(sata, CONFIG_ENV_SIZE, env_get_offset(CONFIG_ENV_OFFSET), buf)) {
-		set_default_env(NULL, 0);
+		env_set_default(NULL, 0);
 		return -EIO;
 	}
 

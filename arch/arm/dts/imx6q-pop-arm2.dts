@@ -14,7 +14,7 @@
 #include "imx6q.dtsi"
 
 / {
-	model = "Freescale i.MX6 Quad Armadillo2 Board";
+	model = "i.MX6 Quad Armadillo2 Board";
 	compatible = "fsl,imx6q-pop-arm2", "fsl,imx6q";
 
 	aliases {

@@ -1247,7 +1247,7 @@ int enable_pcie_clock(void)
 }
 #endif
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable)
 {
 	u32 reg;
@@ -1370,50 +1370,31 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 	return 0;
 }
 
-static void pre_misc_setting(void)
-{
-	/* Bypass IPU1 QoS generator */
-	writel(0x00000002, 0x00bb048c);
-	/* Bypass IPU2 QoS generator */
-	writel(0x00000002, 0x00bb050c);
-	/* Bandwidth THR for of PRE0 */
-	writel(0x00000200, 0x00bb0690);
-	/* Bandwidth THR for of PRE1 */
-	writel(0x00000200, 0x00bb0710);
-	/* Bandwidth THR for of PRE2 */
-	writel(0x00000200, 0x00bb0790);
-	/* Bandwidth THR for of PRE3 */
-	writel(0x00000200, 0x00bb0810);
-	/* Saturation THR for of PRE0 */
-	writel(0x00000010, 0x00bb0694);
-	/* Saturation THR for of PRE1 */
-	writel(0x00000010, 0x00bb0714);
-	/* Saturation THR for of PRE2 */
-	writel(0x00000010, 0x00bb0794);
-	/* Saturation THR for of PRE */
-	writel(0x00000010, 0x00bb0814);
-}
-
+#ifndef CONFIG_MX6SX
 void enable_ipu_clock(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	int reg;
-	reg = readl(&mxc_ccm->CCGR3);
-	reg |= MXC_CCM_CCGR3_IPU1_IPU_MASK;
-	writel(reg, &mxc_ccm->CCGR3);
+
+	setbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_IPU1_IPU_MASK);
 
 	if (is_mx6dqp()) {
 		setbits_le32(&mxc_ccm->CCGR6, MXC_CCM_CCGR6_PRG_CLK0_MASK);
 		setbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_IPU2_IPU_MASK);
-
-		/*
-		 * Since CONFIG_VIDEO_IPUV3 is always set in mx6sabre_common.h and
-		 * this misc setting is a must for mx6qp, this position is ok
-		 * to do such settings.
-		 */
-		pre_misc_setting();
 	}
 }
+
+void disable_ipu_clock(void)
+{
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+
+	clrbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_IPU1_IPU_MASK);
+
+	if (is_mx6dqp()) {
+		clrbits_le32(&mxc_ccm->CCGR6, MXC_CCM_CCGR6_PRG_CLK0_MASK);
+		clrbits_le32(&mxc_ccm->CCGR3, MXC_CCM_CCGR3_IPU2_IPU_MASK);
+	}
+}
+#endif
 
 #ifndef CONFIG_SPL_BUILD
 /*

@@ -41,6 +41,7 @@
 #include "fsl_caam_internal.h"
 #include "fsl/desc_constr.h"
 #include <fsl_caam.h>
+#include <cpu_func.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -262,6 +263,7 @@ void caam_open(void)
 	 */
 #ifndef CONFIG_ARCH_IMX8
 	u32 temp_reg;
+	u32 init_mask;
 
 	caam_clock_enable();
 
@@ -283,7 +285,8 @@ void caam_open(void)
 
 	/* Check if the RNG is already instantiated */
 	temp_reg = __raw_readl(CAAM_RDSTA);
-	if (temp_reg == (RDSTA_IF0 | RDSTA_IF1 | RDSTA_SKVN)) {
+	init_mask = RDSTA_IF0 | RDSTA_IF1 | RDSTA_SKVN;
+	if ((temp_reg & init_mask) == init_mask) {
 		printf("RNG already instantiated 0x%X\n", temp_reg);
 		return;
 	}
@@ -305,11 +308,13 @@ void caam_open(void)
 /*
  *  Descriptors to instantiate SH0, SH1, load the keys
  */
+#ifndef CONFIG_ARCH_IMX8
 static const u32 rng_inst_sh0_desc[] = {
 	/* Header, don't setup the size */
 	CAAM_HDR_CTYPE | CAAM_HDR_ONE | CAAM_HDR_START_INDEX(0),
 	/* Operation instantiation (sh0) */
-	CAAM_PROTOP_CTYPE | CAAM_C1_RNG | ALGO_RNG_SH(0) | ALGO_RNG_INSTANTIATE,
+	CAAM_PROTOP_CTYPE | CAAM_C1_RNG | ALGO_RNG_SH(0) | ALGO_RNG_PR |
+		ALGO_RNG_INSTANTIATE,
 };
 
 static const u32 rng_inst_sh1_desc[] = {
@@ -320,7 +325,7 @@ static const u32 rng_inst_sh1_desc[] = {
 	CAAM_C0_LOAD_IMM | CAAM_DST_CLEAR_WRITTEN | sizeof(u32),
 	0x00000001,
 	/* Operation instantiation (sh1) */
-	CAAM_PROTOP_CTYPE | CAAM_C1_RNG | ALGO_RNG_SH(1)
+	CAAM_PROTOP_CTYPE | CAAM_C1_RNG | ALGO_RNG_SH(1) | ALGO_RNG_PR
 		| ALGO_RNG_INSTANTIATE,
 };
 
@@ -334,6 +339,7 @@ static const u32 rng_inst_load_keys[] = {
 	/* Generate the Key */
 	CAAM_PROTOP_CTYPE | CAAM_C1_RNG | BM_ALGO_RNG_SK | ALGO_RNG_GENERATE,
 };
+#endif
 
 static int do_job(u32 *desc)
 {
@@ -612,11 +618,18 @@ static void kick_trng(u32 ent_delay)
 	val = (ent_delay << BS_TRNG_ENT_DLY) | samples;
 	__raw_writel(val, CAAM_RTSDCTL);
 
-	/* min. freq. count, equal to 1/2 of the entropy sample length */
+	/*
+	 * Recommended margins (min,max) for freq. count:
+	 *   freq_mul = RO_freq / TRNG_clk_freq
+	 *   rtfrqmin = (ent_delay x freq_mul) >> 1;
+	 *   rtfrqmax = (ent_delay x freq_mul) << 3;
+	 * Given current deployments of CAAM in i.MX SoCs, and to simplify
+	 * the configuration, we consider [1,16] to be a safe interval
+	 * for the freq_mul and the limits of the interval are used to compute
+	 * rtfrqmin, rtfrqmax
+	 */
 	__raw_writel(ent_delay >> 1, CAAM_RTFRQMIN);
-
-	/* max. freq. count, equal to 32 times the entropy sample length */
-	__raw_writel(ent_delay << 5, CAAM_RTFRQMAX);
+	__raw_writel(ent_delay << 7, CAAM_RTFRQMAX);
 
 	__raw_writel((retries << 16) | lrun_max, CAAM_RTSCMISC);
 	__raw_writel(poker_max, CAAM_RTPKRMAX);

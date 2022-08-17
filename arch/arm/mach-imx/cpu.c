@@ -3,8 +3,7 @@
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
- * (C) Copyright 2009-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
+ * (C) Copyright 2009 Freescale Semiconductor, Inc.
  */
 
 #include <bootm.h>
@@ -17,9 +16,6 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/mach-imx/boot_mode.h>
-#if defined(CONFIG_VIDEO_IMXDCSS)
-#include <asm/arch/video_common.h>
-#endif
 #include <imx_thermal.h>
 #include <ipu_pixfmt.h>
 #include <thermal.h>
@@ -27,14 +23,12 @@
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
 
-#include <asm/mach-imx/video.h>
-
 #ifdef CONFIG_VIDEO_GIS
 #include <gis.h>
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
-#include <fsl_esdhc.h>
+#ifdef CONFIG_FSL_ESDHC_IMX
+#include <fsl_esdhc_imx.h>
 #endif
 
 static u32 reset_cause = -1;
@@ -113,66 +107,19 @@ void get_reboot_reason(char *ret)
 #endif
 #endif
 
-#if defined(CONFIG_MX53) || defined(CONFIG_MX6)
-#if defined(CONFIG_MX53)
-#define MEMCTL_BASE	ESDCTL_BASE_ADDR
-#else
-#define MEMCTL_BASE	MMDC_P0_BASE_ADDR
-#endif
-static const unsigned char col_lookup[] = {9, 10, 11, 8, 12, 9, 9, 9};
-static const unsigned char bank_lookup[] = {3, 2};
-
-/* these MMDC registers are common to the IMX53 and IMX6 */
-struct esd_mmdc_regs {
-	uint32_t	ctl;
-	uint32_t	pdc;
-	uint32_t	otc;
-	uint32_t	cfg0;
-	uint32_t	cfg1;
-	uint32_t	cfg2;
-	uint32_t	misc;
-};
-
-#define ESD_MMDC_CTL_GET_ROW(mdctl)	((ctl >> 24) & 7)
-#define ESD_MMDC_CTL_GET_COLUMN(mdctl)	((ctl >> 20) & 7)
-#define ESD_MMDC_CTL_GET_WIDTH(mdctl)	((ctl >> 16) & 3)
-#define ESD_MMDC_CTL_GET_CS1(mdctl)	((ctl >> 30) & 1)
-#define ESD_MMDC_MISC_GET_BANK(mdmisc)	((misc >> 5) & 1)
-
-/*
- * imx_ddr_size - return size in bytes of DRAM according MMDC config
- * The MMDC MDCTL register holds the number of bits for row, col, and data
- * width and the MMDC MDMISC register holds the number of banks. Combine
- * all these bits to determine the meme size the MMDC has been configured for
- */
-unsigned imx_ddr_size(void)
-{
-	struct esd_mmdc_regs *mem = (struct esd_mmdc_regs *)MEMCTL_BASE;
-	unsigned ctl = readl(&mem->ctl);
-	unsigned misc = readl(&mem->misc);
-	int bits = 11 + 0 + 0 + 1;      /* row + col + bank + width */
-
-	bits += ESD_MMDC_CTL_GET_ROW(ctl);
-	bits += col_lookup[ESD_MMDC_CTL_GET_COLUMN(ctl)];
-	bits += bank_lookup[ESD_MMDC_MISC_GET_BANK(misc)];
-	bits += ESD_MMDC_CTL_GET_WIDTH(ctl);
-	bits += ESD_MMDC_CTL_GET_CS1(ctl);
-
-	/* The MX6 can do only 3840 MiB of DRAM */
-	if (bits == 32)
-		return 0xf0000000;
-
-	return 1 << bits;
-}
-#endif
-
 #if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
 
 const char *get_imx_type(u32 imxtype)
 {
 	switch (imxtype) {
 	case MXC_CPU_IMX8MP:
-		return "8MP";	/* Quad-core version of the imx8mp */
+		return "8MP[8]";	/* Quad-core version of the imx8mp */
+	case MXC_CPU_IMX8MPD:
+		return "8MP Dual[3]";	/* Dual-core version of the imx8mp */
+	case MXC_CPU_IMX8MPL:
+		return "8MP Lite[4]";	/* Quad-core Lite version of the imx8mp */
+	case MXC_CPU_IMX8MP6:
+		return "8MP[6]";	/* Quad-core version of the imx8mp, NPU fused */
 	case MXC_CPU_IMX8MN:
 		return "8MNano Quad";/* Quad-core version of the imx8mn */
 	case MXC_CPU_IMX8MND:
@@ -185,6 +132,12 @@ const char *get_imx_type(u32 imxtype)
 		return "8MNano DualLite";/* Dual-core Lite version of the imx8mn */
 	case MXC_CPU_IMX8MNSL:
 		return "8MNano SoloLite";/* Single-core Lite version of the imx8mn */
+	case MXC_CPU_IMX8MNUQ:
+		return "8MNano UltraLite Quad";/* Quad-core UltraLite version of the imx8mn */
+	case MXC_CPU_IMX8MNUD:
+		return "8MNano UltraLite Dual";/* Dual-core UltraLite version of the imx8mn */
+	case MXC_CPU_IMX8MNUS:
+		return "8MNano UltraLite Solo";/* Single-core UltraLite version of the imx8mn */
 	case MXC_CPU_IMX8MM:
 		return "8MMQ";	/* Quad-core version of the imx8mm */
 	case MXC_CPU_IMX8MML:
@@ -230,7 +183,7 @@ const char *get_imx_type(u32 imxtype)
 	case MXC_CPU_MX6ULL:
 		return "6ULL";	/* ULL version of the mx6 */
 	case MXC_CPU_MX6ULZ:
-		return "6ULZ";	/* ULL version of the mx6 */
+		return "6ULZ";	/* ULZ version of the mx6 */
 	case MXC_CPU_MX51:
 		return "51";
 	case MXC_CPU_MX53:
@@ -255,7 +208,7 @@ int print_cpuinfo(void)
 	struct udevice *thermal_dev;
 	int cpu_tmp, minc, maxc, ret;
 
-	printf("CPU:   Freescale i.MX%s rev%d.%d",
+	printf("CPU:   i.MX%s rev%d.%d",
 	       get_imx_type((cpurev & 0x1FF000) >> 12),
 	       (cpurev & 0x000F0) >> 4,
 	       (cpurev & 0x0000F) >> 0);
@@ -267,7 +220,7 @@ int print_cpuinfo(void)
 		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	}
 #else
-	printf("CPU:   Freescale i.MX%s rev%d.%d at %d MHz\n",
+	printf("CPU:   i.MX%s rev%d.%d at %d MHz\n",
 		get_imx_type((cpurev & 0x1FF000) >> 12),
 		(cpurev & 0x000F0) >> 4,
 		(cpurev & 0x0000F) >> 0,
@@ -332,7 +285,7 @@ int cpu_eth_init(bd_t *bis)
 	return rc;
 }
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 /*
  * Initializes on-chip MMC controllers.
  * to override, implement board_mmc_init()
@@ -377,10 +330,12 @@ void arch_preboot_os(void)
 #endif
 
 #if defined(CONFIG_SATA)
-	sata_remove(0);
+	if (!is_mx6sdl()) {
+		sata_remove(0);
 #if defined(CONFIG_MX6)
-	disable_sata_clock();
+		disable_sata_clock();
 #endif
+	}
 #endif
 #if defined(CONFIG_LDO_BYPASS_CHECK)
 	ldo_mode_set(check_ldo_bypass());
@@ -393,14 +348,8 @@ void arch_preboot_os(void)
 	/* Entry for GIS */
 	mxc_disable_gis();
 #endif
-#if defined(CONFIG_VIDEO_MXS)
+#if defined(CONFIG_VIDEO_MXS) && !defined(CONFIG_DM_VIDEO)
 	lcdif_power_down();
-#endif
-#if defined(CONFIG_VIDEO_IMX_LCDIFV3)
-	lcdifv3_power_down();
-#endif
-#if defined(CONFIG_VIDEO_IMXDCSS)
-	imx8m_fb_disable();
 #endif
 }
 

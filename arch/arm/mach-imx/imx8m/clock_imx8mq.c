@@ -308,7 +308,7 @@ static u32 get_root_clk(enum clk_root_index clock_id)
 	return root_src_clk / (post_podf + 1) / (pre_podf + 1);
 }
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable)
 {
 	/* The CAAM clock is always on for iMX8M */
@@ -350,7 +350,7 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 {
 	u32 val;
 
-	switch (clk) {
+	switch(clk) {
 	case MXC_ARM_CLK:
 		return get_arm_core_clk();
 	case MXC_IPG_CLK:
@@ -434,13 +434,10 @@ void init_usb_clk(void)
 
 void init_nand_clk(void)
 {
-	/*
-	 * set rawnand root
-	 * sys pll1 400M
-	 */
 	clock_enable(CCGR_RAWNAND, 0);
-	clock_set_target_val(NAND_CLK_ROOT, CLK_ROOT_ON |
-		CLK_ROOT_SOURCE_SEL(3) | CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4)); /* 100M */
+	clock_set_target_val(NAND_CLK_ROOT,
+			     CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(3) |
+			     CLK_ROOT_POST_DIV(CLK_ROOT_POST_DIV4));
 	clock_enable(CCGR_RAWNAND, 1);
 }
 
@@ -694,7 +691,7 @@ void dram_pll_init(ulong pll_val)
 		;
 }
 
-int frac_pll_init(u32 pll, enum frac_pll_out_val val)
+static int frac_pll_init(u32 pll, enum frac_pll_out_val val)
 {
 	void __iomem *pll_cfg0, __iomem *pll_cfg1;
 	u32 val_cfg0, val_cfg1, divq;
@@ -855,26 +852,43 @@ int clock_init(void)
 	clock_enable(CCGR_TSENSOR, 1);
 	clock_enable(CCGR_OCOTP, 1);
 
-	/* config GIC to sys_pll2_200m */
+	/* config GIC ROOT to sys_pll2_200m */
 	clock_enable(CCGR_GIC, 0);
-	clock_set_target_val(GIC_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(GIC_CLK_ROOT,
+			     CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
 	clock_enable(CCGR_GIC, 1);
 
 	return 0;
 }
 #endif
 
+int imx8m_dcss_clock_init(u32 pixclk)
+{
+	/* b_clk: bus_clk_root(4) sel 2nd input source and
+	   pre_div to 0; output should be 800M */
+	clock_set_target_val(DISPLAY_AXI_CLK_ROOT, CLK_ROOT_ON |CLK_ROOT_SOURCE_SEL(2));
+
+	/* rtr_clk: bus_clk_root(6) sel 1st input source
+		   and pre_div to 1; output should be 400M */
+	clock_set_target_val(DISPLAY_RTRM_CLK_ROOT,
+		CLK_ROOT_ON |CLK_ROOT_SOURCE_SEL(1) |CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV2));
+
+	return 0;
+}
+
 /*
  * Dump some clockes.
  */
 #ifndef CONFIG_SPL_BUILD
-int do_imx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_imx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
 	u32 freq;
 
 	freq = decode_frac_pll(ARM_PLL_CLK);
 	printf("ARM_PLL    %8d MHz\n", freq / 1000000);
+	freq = decode_sscg_pll(DRAM_PLL1_CLK);
+	printf("DRAM_PLL    %8d MHz\n", freq / 1000000);
 	freq = decode_sscg_pll(SYSTEM_PLL1_800M_CLK);
 	printf("SYS_PLL1_800    %8d MHz\n", freq / 1000000);
 	freq = decode_sscg_pll(SYSTEM_PLL1_400M_CLK);

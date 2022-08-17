@@ -3,8 +3,25 @@
  * Copyright 2018 NXP
  */
 
+&{/aliases} {
+	u-boot,dm-pre-reloc;
+	display0 = &lcdif;
+};
+
 &qspi {
 	flash0: n25q256a@0 {
-		compatible = "spi-flash";
+		compatible = "jedec,spi-nor";
 	};
+};
+
+&{/soc} {
+	u-boot,dm-pre-reloc;
+};
+
+&aips2 {
+	u-boot,dm-pre-reloc;
+};
+
+&iomuxc {
+	u-boot,dm-pre-reloc;
 };

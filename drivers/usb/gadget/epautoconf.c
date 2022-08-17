@@ -169,8 +169,8 @@ static int ep_matches(
 		put_unaligned(cpu_to_le16(size), &desc->wMaxPacketSize);
 	}
 
-	if (gadget->ops->match_ep)
-		return gadget->ops->match_ep(gadget, ep, desc);
+	if (gadget->ops->ep_conf)
+		return gadget->ops->ep_conf(gadget, ep, desc);
 
 	return 1;
 }
@@ -288,6 +288,9 @@ struct usb_ep *usb_ep_autoconfig(
 			return ep;
 #endif
 	}
+
+	if (gadget->ops->match_ep)
+		ep = gadget->ops->match_ep(gadget, desc, NULL);
 
 	/* Second, look at endpoints until an unclaimed one looks usable */
 	list_for_each_entry(ep, &gadget->ep_list, ep_list) {

@@ -4,10 +4,10 @@
  *
  */
 
-#include "fsl-imx8qxp-lpddr4-arm2.dts"
+#include "fsl-imx8qxp-lpddr4-val.dts"
 
 / {
-	model = "Freescale i.MX8QXP 17x17 Validation board";
+	model = "NXP i.MX8QXP 17x17 Validation board";
 };
 
 &i2c1 {

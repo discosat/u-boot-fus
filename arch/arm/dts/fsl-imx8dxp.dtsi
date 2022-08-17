@@ -6,7 +6,7 @@
 #include "fsl-imx8dx.dtsi"
 
 / {
-	model = "Freescale i.MX8DXP";
+	model = "NXP i.MX8DXP";
 	compatible = "fsl,imx8dxp", "fsl,imx8qxp";
 	
 	vpu_decoder: vpu_decoder@2c000000 {

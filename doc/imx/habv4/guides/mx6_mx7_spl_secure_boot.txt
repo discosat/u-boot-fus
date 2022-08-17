@@ -27,7 +27,7 @@ root of trust.
 
 The U-Boot provides support to secure boot configuration and also provide
 access to the HAB APIs exposed by the ROM vector table, the support is
-enabled by selecting the CONFIG_SECURE_BOOT option.
+enabled by selecting the CONFIG_IMX_HAB option.
 
 When built with this configuration the U-Boot correctly pads the final SPL
 image by aligning to the next 0xC00 address, so the CSF signature data
@@ -82,12 +82,12 @@ The diagram below illustrate a signed u-boot-ivt.img image layout:
 -------------------------------------
 
 The first step is to generate an U-Boot image supporting the HAB features
-mentioned above, this can be achieved by adding CONFIG_SECURE_BOOT to the
+mentioned above, this can be achieved by adding CONFIG_IMX_HAB to the
 build configuration:
 
 - Defconfig:
 
-  CONFIG_SECURE_BOOT=y
+  CONFIG_IMX_HAB=y
 
 - Kconfig:
 
@@ -176,6 +176,12 @@ complete procedure please refer to section "1.5 Programming SRK Hash" in
 mx6_mx7_secure_boot.txt document available under doc/imx/habv4/guides/
 directory.
 
+2. Secure boot in SDP mode
+---------------------------
+
+For secure boot in SDP mode, please refer to the "HABv4 closed chip support"
+chapter in the UUU documentation[2].
+
 References:
-[1] AN4581: "Secure Boot on i.MX 50, i.MX 53, i.MX 6 and i.MX 7 Series using
- HABv4" - Rev 2.
+[1] AN4581: "i.MX Secure Boot on HABv4 Supported Devices"
+[2] https://github.com/NXPmicro/mfgtools/releases/

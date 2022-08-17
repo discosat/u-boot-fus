@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017 NXP
+ *
+ * Peng Fan <peng.fan at nxp.com>
  */
 
 #include <linux/bitops.h>
 
 #ifdef CONFIG_IMX8MQ
 #include <asm/arch/clock_imx8mq.h>
-#elif defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
+#elif defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN) || \
+	defined(CONFIG_IMX8MP)
 #include <asm/arch/clock_imx8mm.h>
 #else
 #error "Error no clock.h"
@@ -238,7 +241,6 @@ struct dram_bypass_clk_setting {
 #define CLK_ROOT_IPG_POST_DIV_MASK	0x3
 #define CLK_ROOT_POST_DIV_SHIFT		0
 #define CLK_ROOT_POST_DIV(n)		((n) & 0x3f)
-
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_125M_CLK		0x01000000
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_50M_CLK		0x02000000
 #define ENET1_REF_CLK_ROOT_FROM_PLL_ENET_MAIN_25M_CLK		0x03000000
@@ -261,7 +263,7 @@ void init_uart_clk(u32 index);
 void init_usb_clk(void);
 void init_wdog_clk(void);
 void init_clk_ecspi(u32 index);
-unsigned int mxc_get_clock(enum mxc_clock  clk);
+unsigned int mxc_get_clock(enum mxc_clock clk);
 int clock_enable(enum clk_ccgr_index index, bool enable);
 int clock_root_enabled(enum clk_root_index clock_id);
 int clock_root_cfg(enum clk_root_index clock_id, enum root_pre_div pre_div,
@@ -274,6 +276,7 @@ int clock_get_postdiv(enum clk_root_index clock_id,
 int clock_get_src(enum clk_root_index clock_id, enum clk_root_src *p_clock_src);
 void mxs_set_lcdclk(u32 base_addr, u32 freq);
 int set_clk_qspi(void);
+void init_clk_fspi(int index);
 void enable_ocotp_clk(unsigned char enable);
 int enable_i2c_clk(unsigned char enable, unsigned int i2c_num);
 int set_clk_enet(enum enet_freq type);

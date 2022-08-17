@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
  *
  * Configuration settings for the Freescale i.MX7ULP EVK board.
  */
@@ -13,38 +12,15 @@
 #include <asm/arch/imx-regs.h>
 #include "imx_env.h"
 
-#ifdef CONFIG_SECURE_BOOT
-#ifndef CONFIG_CSF_SIZE
-#define CONFIG_CSF_SIZE			0x4000
-#endif
-#endif
-
 #define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_SYS_BOOTM_LEN		0x1000000
 
-#define SRC_BASE_ADDR			CMC1_RBASE
-#define IRAM_BASE_ADDR			OCRAM_0_BASE
-#define IOMUXC_BASE_ADDR		IOMUXC1_RBASE
-
-/* Fuses */
-#define CONFIG_CMD_FUSE
-#define CONFIG_MXC_OCOTP
-
 #define CONFIG_SERIAL_TAG
 
-#define CONFIG_FSL_USDHC
-#define CONFIG_SUPPORT_EMMC_BOOT /* eMMC specific */
-
-#define CONFIG_SYS_FSL_USDHC_NUM        1
-
-#define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define CONFIG_SYS_MMC_ENV_DEV          0	/* USDHC1 */
 #define CONFIG_SYS_MMC_ENV_PART         0	/* user area */
 #define CONFIG_MMCROOT                  "/dev/mmcblk0p2"  /* USDHC1 */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART    1
-
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#define CONFIG_ENV_SIZE			SZ_8K
 
 /* Using ULP WDOG for reset */
 #define WDOG_BASE_ADDR			WDG1_RBASE
@@ -98,6 +74,7 @@
 	"script=boot.scr\0" \
 	"image=zImage\0" \
 	"console=ttyLP0\0" \
+	"splashimage=0x78000000\0" \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
 	"fdt_file=" CONFIG_DEFAULT_FDT_FILE ".dtb\0" \
@@ -105,7 +82,7 @@
 	"tee_addr=0x64000000\0" \
 	"tee_file=uTee-7ulp\0" \
 	"boot_fdt=try\0" \
-	"earlycon=lpuart32,0x402D0010\0" \
+	"earlycon=lpuart32,0x402D0000\0" \
 	"ip_dyn=yes\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
@@ -194,7 +171,7 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-#ifndef CONFIG_SYS_DCACHE_OFF
+#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 #define CONFIG_CMD_CACHE
 #endif
 
@@ -210,30 +187,27 @@
 /* USB Configs */
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
 
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_IMX_OPTEE
+#define TEE_ENV "tee=yes\0"
+#else
+#define TEE_ENV "tee=no\0"
+#endif
+
+#ifdef CONFIG_DM_VIDEO
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
-
-#define CONFIG_HX8363
-#define CONFIG_RM68200
 #endif
 
-#define CONFIG_OF_SYSTEM_SETUP
-
-#if defined(CONFIG_ANDROID_SUPPORT)
+#ifdef CONFIG_ANDROID_SUPPORT
 #include "mx7ulp_evk_android.h"
 #endif
 
-#ifdef CONFIG_IMX_OPTEE
-#define TEE_ENV "tee=yes\0"
-#else
-#define TEE_ENV "tee=no\0"
-#endif
 #endif	/* __CONFIG_H */

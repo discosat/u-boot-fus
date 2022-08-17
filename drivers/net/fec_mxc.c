@@ -7,8 +7,9 @@
  * (C) Copyright 2007 Pengutronix, Juergen Beisert <j.beisert@pengutronix.de>
  */
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
-#include <environment.h>
+#include <env.h>
 #include <malloc.h>
 #include <memalign.h>
 #include <miiphy.h>
@@ -26,8 +27,8 @@
 #include <asm-generic/gpio.h>
 
 #include "fec_mxc.h"
-#include <asm/arch/sys_proto.h>
 #include <eth_phy.h>
+#include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -124,30 +125,38 @@ static int fec_mdio_read(struct ethernet_regs *eth, uint8_t phyaddr,
 	return val;
 }
 
+#ifndef imx_get_fecclk
+u32 __weak imx_get_fecclk(void)
+{
+	return 0;
+}
+#endif
+
 static int fec_get_clk_rate(void *udev, int idx)
 {
-#if IS_ENABLED(CONFIG_IMX8)
 	struct fec_priv *fec;
 	struct udevice *dev;
 	int ret;
 
-	dev = udev;
-	if (!dev) {
-		ret = uclass_get_device_by_seq(UCLASS_ETH, idx, &dev);
-		if (ret < 0) {
-			debug("Can't get FEC udev%d: %d\n", idx, ret);
-			return ret;
+	if (IS_ENABLED(CONFIG_IMX8) ||
+	    CONFIG_IS_ENABLED(CLK_CCF)) {
+		dev = udev;
+		if (!dev) {
+			ret = uclass_get_device_by_seq(UCLASS_ETH, idx, &dev);
+			if (ret < 0) {
+				debug("Can't get FEC udev: %d\n", ret);
+				return ret;
+			}
 		}
+
+		fec = dev_get_priv(dev);
+		if (fec)
+			return fec->clk_rate;
+
+		return -EINVAL;
+	} else {
+		return imx_get_fecclk();
 	}
-
-	fec = dev_get_priv(dev);
-	if (fec)
-		return fec->clk_rate;
-
-	return -EINVAL;
-#else
-	return imx_get_fecclk();
-#endif
 }
 
 static void fec_mii_setspeed(struct ethernet_regs *eth, int idx)
@@ -604,7 +613,7 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 	writel(0x00000000, &fec->eth->gaddr1);
 	writel(0x00000000, &fec->eth->gaddr2);
 
-	/* Do not access reserved register for i.MX6UL/6ULL/i.MX8/i.MX8M */
+	/* Do not access reserved register */
 	if (!is_mx6ul() && !is_mx6ull() && !is_imx8() && !is_imx8m()) {
 		/* clear MIB RAM */
 		for (i = mib_ptr; i <= mib_ptr + 0xfc; i += 4)
@@ -1313,7 +1322,7 @@ static int fec_phy_init(struct fec_priv *priv, struct udevice *dev)
 	return 0;
 }
 
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 /* FEC GPIO reset */
 static void fec_gpio_reset(struct fec_priv *priv)
 {
@@ -1344,7 +1353,7 @@ static int fecmxc_probe(struct udevice *dev)
 #endif
 
 	if (IS_ENABLED(CONFIG_IMX8)) {
-		struct clk ref_clk, clk_2x_txclk;
+		struct clk clk_2x_txclk;
 		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
 		if (ret < 0) {
 			debug("Can't get FEC ipg clk: %d\n", ret);
@@ -1367,9 +1376,9 @@ static int fecmxc_probe(struct udevice *dev)
 			return ret;
 		}
 
-		ret = clk_get_by_name(dev, "enet_clk_ref", &ref_clk);
+		ret = clk_get_by_name(dev, "enet_clk_ref", &priv->clk_ref);
 		if (ret >= 0) {
-			ret = clk_enable(&ref_clk);
+			ret = clk_enable(&priv->clk_ref);
 			if (ret < 0) {
 				debug("Can't enable FEC ref clk: %d\n", ret);
 				return ret;
@@ -1383,6 +1392,47 @@ static int fecmxc_probe(struct udevice *dev)
 				debug("Can't enable FEC 2x_tx clk: %d\n", ret);
 				return ret;
 			}
+		}
+
+		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
+	} else if (CONFIG_IS_ENABLED(CLK_CCF)) {
+		ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ipg clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ipg_clk);
+		if(ret)
+			return ret;
+
+		ret = clk_get_by_name(dev, "ahb", &priv->ahb_clk);
+		if (ret < 0) {
+			debug("Can't get FEC ahb clk: %d\n", ret);
+			return ret;
+		}
+		ret = clk_enable(&priv->ahb_clk);
+		if (ret)
+			return ret;
+
+		ret = clk_get_by_name(dev, "enet_out", &priv->clk_enet_out);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_enet_out);
+			if (ret)
+				return ret;
+		}
+
+		ret = clk_get_by_name(dev, "enet_clk_ref", &priv->clk_ref);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_ref);
+			if (ret)
+				return ret;
+		}
+
+		ret = clk_get_by_name(dev, "ptp", &priv->clk_ptp);
+		if (!ret) {
+			ret = clk_enable(&priv->clk_ptp);
+			if (ret)
+				return ret;
 		}
 
 		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
@@ -1402,7 +1452,7 @@ static int fecmxc_probe(struct udevice *dev)
 	}
 #endif
 
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	fec_gpio_reset(priv);
 #endif
 	/* Reset chip. */
@@ -1518,7 +1568,7 @@ static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 	device_get_supply_regulator(dev, "phy-supply", &priv->phy_supply);
 #endif
 
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	ret = gpio_request_by_name(dev, "phy-reset-gpios", 0,
 				   &priv->phy_reset_gpio, GPIOD_IS_OUT);
 	if (ret < 0)
@@ -1545,12 +1595,14 @@ static int fecmxc_ofdata_to_platdata(struct udevice *dev)
 }
 
 static const struct udevice_id fecmxc_ids[] = {
+	{ .compatible = "fsl,imx28-fec" },
 	{ .compatible = "fsl,imx6q-fec" },
 	{ .compatible = "fsl,imx6sl-fec" },
 	{ .compatible = "fsl,imx6sx-fec" },
 	{ .compatible = "fsl,imx6ul-fec" },
 	{ .compatible = "fsl,imx53-fec" },
 	{ .compatible = "fsl,imx7d-fec" },
+	{ .compatible = "fsl,mvf600-fec" },
 	{ .compatible = "fsl,imx8qm-fec" },
 	{ }
 };

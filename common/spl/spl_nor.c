@@ -6,7 +6,6 @@
 #include <common.h>
 #include <spl.h>
 
-#ifdef CONFIG_SPL_LOAD_FIT
 static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
 			       ulong count, void *buf)
 {
@@ -16,20 +15,11 @@ static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
 
 	return count;
 }
-#endif
 
-unsigned long  __weak spl_nor_get_uboot_base(void)
+unsigned long __weak spl_nor_get_uboot_base(void)
 {
 	return CONFIG_SYS_UBOOT_BASE;
 }
-
-#ifdef CONFIG_PARSE_CONTAINER
-int __weak nor_load_image_parse_container(struct spl_image_info *spl_image,
-					  unsigned long offset)
-{
-	return -EINVAL;
-}
-#endif
 
 static int spl_nor_load_image(struct spl_image_info *spl_image,
 			      struct spl_boot_device *bootdev)
@@ -61,6 +51,11 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 						  CONFIG_SYS_OS_BASE,
 						  (void *)header);
 
+#if defined CONFIG_SYS_SPL_ARGS_ADDR && defined CONFIG_CMD_SPL_NOR_OFS
+			memcpy((void *)CONFIG_SYS_SPL_ARGS_ADDR,
+			       (void *)CONFIG_CMD_SPL_NOR_OFS,
+			       CONFIG_CMD_SPL_WRITE_SIZE);
+#endif
 			return ret;
 		}
 #endif
@@ -105,12 +100,13 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 		return ret;
 	}
 #endif
+	if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
+		load.bl_len = 1;
+		load.read = spl_nor_load_read;
+		return spl_load_imx_container(spl_image, &load,
+					      spl_nor_get_uboot_base());
+	}
 
-#ifdef CONFIG_PARSE_CONTAINER
-	ret = nor_load_image_parse_container(spl_image,
-							     spl_nor_get_uboot_base());
-	return ret;
-#else
 	ret = spl_parse_image_header(spl_image,
 			(const struct image_header *)spl_nor_get_uboot_base());
 	if (ret)
@@ -119,7 +115,6 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 	memcpy((void *)(unsigned long)spl_image->load_addr,
 	       (void *)(spl_nor_get_uboot_base() + sizeof(struct image_header)),
 	       spl_image->size);
-#endif
 
 	return 0;
 }

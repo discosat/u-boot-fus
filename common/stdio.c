@@ -16,6 +16,8 @@
 #include <malloc.h>
 #include <stdio_dev.h>
 #include <serial.h>
+#include <splash.h>
+#include <video_link.h>
 
 #if defined(CONFIG_SYS_I2C)
 #include <i2c.h>
@@ -344,6 +346,10 @@ int stdio_add_devices(void)
 #else
 #endif
 #ifdef CONFIG_DM_VIDEO
+
+#ifdef CONFIG_VIDEO_LINK
+	video_link_init();
+#endif
 	/*
 	 * If the console setting is not in environment variables then
 	 * console_init_r() will not be calling iomux_doenv() (which calls
@@ -366,6 +372,9 @@ int stdio_add_devices(void)
 	if (ret)
 		printf("%s: Video device failed (ret=%d)\n", __func__, ret);
 #endif /* !CONFIG_SYS_CONSOLE_IS_IN_ENV */
+#if defined(CONFIG_SPLASH_SCREEN) && defined(CONFIG_CMD_BMP)
+	splash_display();
+#endif /* CONFIG_SPLASH_SCREEN && CONFIG_CMD_BMP */
 #else
 # if defined(CONFIG_LCD)
 	drv_lcd_init ();

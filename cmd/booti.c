@@ -8,6 +8,7 @@
 #include <bootm.h>
 #include <command.h>
 #include <image.h>
+#include <irq_func.h>
 #include <lmb.h>
 #include <mapmem.h>
 #include <linux/kernel.h>
@@ -29,9 +30,9 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
-		ld = load_addr;
+		ld = image_load_addr;
 		debug("*  kernel: default image load address = 0x%08lx\n",
-				load_addr);
+				image_load_addr);
 	} else {
 		ld = simple_strtoul(argv[0], NULL, 16);
 		debug("*  kernel: cmdline image address = 0x%08lx\n", ld);
@@ -41,7 +42,7 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret != 0)
 		return 1;
 
-#ifdef CONFIG_SECURE_BOOT
+#if defined(CONFIG_IMX_HAB) && !defined(CONFIG_AVB_SUPPORT)
 	extern int authenticate_image(
 		uint32_t ddr_start, uint32_t raw_image_size);
 	if (authenticate_image(ld, image_size) != 0) {
@@ -58,6 +59,9 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	images->ep = relocated_addr;
+	images->os.start = relocated_addr;
+	images->os.end = relocated_addr + image_size;
+
 	lmb_reserve(&images->lmb, images->ep, le32_to_cpu(image_size));
 
 	/*
@@ -87,7 +91,11 @@ int do_booti(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	bootm_disable_interrupts();
 
 	images.os.os = IH_OS_LINUX;
+#ifdef CONFIG_RISCV_SMODE
+	images.os.arch = IH_ARCH_RISCV;
+#elif CONFIG_ARM64
 	images.os.arch = IH_ARCH_ARM64;
+#endif
 	ret = do_bootm_states(cmdtp, flag, argc, argv,
 #ifdef CONFIG_SYS_BOOT_RAMDISK_HIGH
 			      BOOTM_STATE_RAMDISK |
@@ -102,7 +110,7 @@ int do_booti(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #ifdef CONFIG_SYS_LONGHELP
 static char booti_help_text[] =
 	"[addr [initrd[:size]] [fdt]]\n"
-	"    - boot arm64 Linux Image stored in memory\n"
+	"    - boot Linux 'Image' stored at 'addr'\n"
 	"\tThe argument 'initrd' is optional and specifies the address\n"
 	"\tof an initrd in memory. The optional parameter ':size' allows\n"
 	"\tspecifying the size of a RAW initrd.\n"
@@ -117,5 +125,5 @@ static char booti_help_text[] =
 
 U_BOOT_CMD(
 	booti,	CONFIG_SYS_MAXARGS,	1,	do_booti,
-	"boot arm64 Linux Image image from memory", booti_help_text
+	"boot Linux kernel 'Image' format from memory", booti_help_text
 );

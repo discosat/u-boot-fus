@@ -342,22 +342,6 @@ static int nxp_tmu_enable_msite(struct udevice *dev)
 	return 0;
 }
 
-static int nxp_tmu_probe(struct udevice *dev)
-{
-	struct nxp_tmu_plat *pdata = dev_get_platdata(dev);
-
-	debug("%s dev name %s\n", __func__, dev->name);
-
-	if (pdata->zone_node) {
-		nxp_tmu_init(dev);
-		nxp_tmu_calibration(dev);
-	} else {
-		nxp_tmu_enable_msite(dev);
-	}
-
-	return 0;
-}
-
 static int nxp_tmu_bind(struct udevice *dev)
 {
 	int ret;
@@ -389,7 +373,7 @@ static int nxp_tmu_bind(struct udevice *dev)
 	return 0;
 }
 
-static int nxp_tmu_ofdata_to_platdata(struct udevice *dev)
+static int nxp_tmu_parse_fdt(struct udevice *dev)
 {
 	int ret;
 	int trips_np;
@@ -400,7 +384,7 @@ static int nxp_tmu_ofdata_to_platdata(struct udevice *dev)
 	debug("%s dev name %s\n", __func__, dev->name);
 
 	if (pdata->zone_node) {
-		pdata->regs = (union tmu_regs *)fdtdec_get_addr(gd->fdt_blob, dev_of_offset(dev), "reg");
+		pdata->regs = (union tmu_regs *)devfdt_get_addr(dev);
 
 		if ((fdt_addr_t)pdata->regs == FDT_ADDR_T_NONE)
 			return -EINVAL;
@@ -447,6 +431,27 @@ static int nxp_tmu_ofdata_to_platdata(struct udevice *dev)
 	return 0;
 }
 
+static int nxp_tmu_probe(struct udevice *dev)
+{
+	struct nxp_tmu_plat *pdata = dev_get_platdata(dev);
+	int ret;
+
+	ret = nxp_tmu_parse_fdt(dev);
+	if (ret) {
+		printf("Error in parsing TMU FDT %d\n", ret);
+		return ret;
+	}
+
+	if (pdata->zone_node) {
+		nxp_tmu_init(dev);
+		nxp_tmu_calibration(dev);
+	} else {
+		nxp_tmu_enable_msite(dev);
+	}
+
+	return 0;
+}
+
 static const struct udevice_id nxp_tmu_ids[] = {
 	{ .compatible = "fsl,imx8mq-tmu", },
 	{ .compatible = "fsl,imx8mm-tmu", .data=FLAGS_VER2, },
@@ -461,7 +466,6 @@ U_BOOT_DRIVER(nxp_tmu) = {
 	.of_match = nxp_tmu_ids,
 	.bind = nxp_tmu_bind,
 	.probe	= nxp_tmu_probe,
-	.ofdata_to_platdata = nxp_tmu_ofdata_to_platdata,
 	.platdata_auto_alloc_size = sizeof(struct nxp_tmu_plat),
 	.flags  = DM_FLAG_PRE_RELOC,
 };

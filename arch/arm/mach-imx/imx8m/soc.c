@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -15,6 +16,7 @@
 #include <asm/mach-imx/optee.h>
 #include <asm/mach-imx/syscounter.h>
 #include <asm/armv8/mmu.h>
+#include <dm/uclass.h>
 #include <errno.h>
 #include <fdt_support.h>
 #include <fdtdec.h>
@@ -26,12 +28,13 @@
 #ifdef CONFIG_IMX_SEC_INIT
 #include <fsl_caam.h>
 #endif
-#include <environment.h>
+#include <env.h>
+#include <env_internal.h>
 #include <efi_loader.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if defined(CONFIG_SECURE_BOOT) || defined(CONFIG_AVB_ATX) || defined(CONFIG_IMX_TRUSTY_OS)
+#if defined(CONFIG_IMX_HAB) || defined(CONFIG_AVB_ATX) || defined(CONFIG_IMX_TRUSTY_OS)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
 	.bank = 1,
 	.word = 3,
@@ -65,13 +68,12 @@ void enable_tzc380(void)
 	/* Enable TZASC and lock setting */
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN);
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN_LOCK);
-#if defined(CONFIG_IMX8MM) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
-	setbits_le32(&gpr->gpr[10], GPR_TZASC_SWAP_ID);
-#endif
-
+	if (is_imx8mm() || is_imx8mn() || is_imx8mp())
+		setbits_le32(&gpr->gpr[10], BIT(1));
 	/*
-	 * set Region 0 attribute to allow secure and non-secure read/write permission
-	 * Found some masters like usb dwc3 controllers can't work with secure memory.
+	 * set Region 0 attribute to allow secure and non-secure
+	 * read/write permission. Found some masters like usb dwc3
+	 * controllers can't work with secure memory.
 	 */
 	writel(0xf0000000, TZASC_BASE_ADDR + 0x108);
 }
@@ -316,19 +318,59 @@ static u32 get_cpu_variant_type(u32 type)
 	} else if (type == MXC_CPU_IMX8MN) {
 		switch (value & 0x3) {
 		case 2:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNDL;
-			else
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUD;
+				else
+					return MXC_CPU_IMX8MNDL;
+			} else {
 				return MXC_CPU_IMX8MND;
+			}
 		case 3:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNSL;
-			else
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUS;
+				else
+					return MXC_CPU_IMX8MNSL;
+			} else {
 				return MXC_CPU_IMX8MNS;
+			}
 		default:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNL;
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUQ;
+				else
+					return MXC_CPU_IMX8MNL;
+			}
 			break;
+		}
+	} else if (type == MXC_CPU_IMX8MP) {
+		u32 value0 = readl(&fuse->tester3);
+		u32 flag = 0;
+
+		if ((value0 & 0xc0000) == 0x80000) {
+			return MXC_CPU_IMX8MPD;
+		} else {
+			/* vpu disabled */
+			if ((value0 & 0x43000000) == 0x43000000)
+				flag = 1;
+
+			/* npu disabled*/
+			if ((value & 0x8) == 0x8)
+				flag |= (1 << 1);
+
+			/* isp disabled */
+			if ((value & 0x3) == 0x3)
+				flag |= (1 << 2);
+
+			switch (flag) {
+			case 7:
+				return MXC_CPU_IMX8MPL;
+			case 2:
+				return MXC_CPU_IMX8MP6;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -347,30 +389,28 @@ u32 get_cpu_rev(void)
 
 	/* iMX8MP */
 	if (major_low == 0x43) {
-		return (MXC_CPU_IMX8MP << 12) | reg;
+		type = get_cpu_variant_type(MXC_CPU_IMX8MP);
 	} else if (major_low == 0x42) {
 		/* iMX8MN */
 		type = get_cpu_variant_type(MXC_CPU_IMX8MN);
-		return (type << 12) | reg;
-	 } else if (major_low == 0x41) {
-		/* iMX8MM */
+	} else if (major_low == 0x41) {
 		type = get_cpu_variant_type(MXC_CPU_IMX8MM);
-		return (type << 12) | reg;
 	} else {
-		/* iMX8MQ */
 		if (reg == CHIP_REV_1_0) {
 			/*
-			 * For B0 chip, the DIGPROG is not updated, still TO1.0.
-			 * we have to check ROM version or OCOTP_READ_FUSE_DATA
+			 * For B0 chip, the DIGPROG is not updated,
+			 * it is still TO1.0. we have to check ROM
+			 * version or OCOTP_READ_FUSE_DATA.
+			 * 0xff0055aa is magic number for B1.
 			 */
-			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40))
-				== 0xff0055aa) {
-				/* 0xff0055aa is magic number for B1 */
+			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40)) == 0xff0055aa) {
 				reg = CHIP_REV_2_1;
 			} else {
-				rom_version = readb((void __iomem *)ROM_VERSION_A0);
+				rom_version =
+					readl((void __iomem *)ROM_VERSION_A0);
 				if (rom_version != CHIP_REV_1_0) {
-					rom_version = readb((void __iomem *)ROM_VERSION_B0);
+					rom_version = readl((void __iomem *)ROM_VERSION_B0);
+					rom_version &= 0xff;
 					if (rom_version == CHIP_REV_2_0)
 						reg = CHIP_REV_2_0;
 				}
@@ -378,9 +418,9 @@ u32 get_cpu_rev(void)
 		}
 
 		type = get_cpu_variant_type(type);
-
-		return (type << 12) | reg;
 	}
+
+	return (type << 12) | reg;
 }
 
 static void imx_set_wdog_powerdown(bool enable)
@@ -395,7 +435,25 @@ static void imx_set_wdog_powerdown(bool enable)
 	writew(enable, &wdog3->wmcr);
 }
 
-#if defined(CONFIG_SECURE_BOOT) && defined(CONFIG_IMX8MQ)
+int arch_cpu_init_dm(void)
+{
+	struct udevice *dev;
+	int ret;
+
+	if (CONFIG_IS_ENABLED(CLK)) {
+		ret = uclass_get_device_by_name(UCLASS_CLK,
+						"clock-controller@30380000",
+						&dev);
+		if (ret < 0) {
+			printf("Failed to find clock node. Check device tree\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_IMX_HAB) && defined(CONFIG_IMX8MQ)
 static bool is_hdmi_fused(void) {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 	struct fuse_bank *bank = &ocotp->bank[1];
@@ -433,9 +491,6 @@ static void secure_lockup(void)
 		clock_enable(CCGR_OCOTP, 1);
 		setbits_le32(&ocotp->sw_sticky, 0x6); /* Lock up field return and SRK revoke */
 		writel(0x80000000, &ocotp->scs_set); /* Lock up SCS */
-
-		/* Clear mfg prot private key in CAAM */
-		setbits_le32((ulong)(CONFIG_SYS_FSL_SEC_ADDR + 0xc), 0x08000000);
 #else
 		/* Check the Unique ID, if it is matched with UID config, then allow to leave sticky bits unlocked */
 		if (!is_uid_matched(CONFIG_IMX_UNIQUE_ID))
@@ -449,22 +504,27 @@ int arch_cpu_init(void)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 	/*
-	 * Init timer at very early state, because pll setting will use it,
-	 * Rom Turnned off SCTR, enable it before timer_init
+	 * ROM might disable clock for SCTR,
+	 * enable the clock before timer_init.
 	 */
-
-	clock_enable(CCGR_SCTR, 1);
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		clock_enable(CCGR_SCTR, 1);
+	/*
+	 * Init timer at very early state, because sscg pll setting
+	 * will use it
+	 */
 	timer_init();
 
 	if (IS_ENABLED(CONFIG_SPL_BUILD)) {
 		clock_init();
 		imx_set_wdog_powerdown(false);
 
-#if defined(CONFIG_SECURE_BOOT) && defined(CONFIG_IMX8MQ)
+#if defined(CONFIG_IMX_HAB) && defined(CONFIG_IMX8MQ)
 		secure_lockup();
 #endif
 		if (is_imx8md() || is_imx8mmd() || is_imx8mmdl() || is_imx8mms() || is_imx8mmsl() ||
-			is_imx8mnd() || is_imx8mndl() || is_imx8mns() || is_imx8mnsl()) {
+			is_imx8mnd() || is_imx8mndl() || is_imx8mns() || is_imx8mnsl() || is_imx8mpd() ||
+			is_imx8mnud() || is_imx8mnus()) {
 			/* Power down cpu core 1, 2 and 3 for iMX8M Dual core or Single core */
 			struct pgc_reg *pgc_core1 = (struct pgc_reg *)(GPC_BASE_ADDR + 0x840);
 			struct pgc_reg *pgc_core2 = (struct pgc_reg *)(GPC_BASE_ADDR + 0x880);
@@ -473,7 +533,7 @@ int arch_cpu_init(void)
 
 			writel(0x1, &pgc_core2->pgcr);
 			writel(0x1, &pgc_core3->pgcr);
-			if (is_imx8mms() || is_imx8mmsl() || is_imx8mns() || is_imx8mnsl()) {
+			if (is_imx8mms() || is_imx8mmsl() || is_imx8mns() || is_imx8mnsl() || is_imx8mnus()) {
 				writel(0x1, &pgc_core1->pgcr);
 				writel(0xE, &gpc->cpu_pgc_dn_trg);
 			} else {
@@ -501,43 +561,20 @@ int arch_cpu_init(void)
 }
 
 #if defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
-struct rom_api
-{
-	uint16_t ver;
-	uint16_t tag;
-	uint32_t reserved1;
-	uint32_t (*download_image)(uint8_t * dest, uint32_t offset, uint32_t size,  uint32_t xor);
-	uint32_t (*query_boot_infor)(uint32_t info_type, uint32_t *info, uint32_t xor);
-};
-static struct rom_api* g_rom_api = (struct rom_api*)0x980;
-
-typedef enum {
-    BT_DEV_TYPE_SD = 1,
-    BT_DEV_TYPE_MMC = 2,
-    BT_DEV_TYPE_NAND = 3,
-    BT_DEV_TYPE_FLEXSPINOR = 4,
-
-    BT_DEV_TYPE_USB = 0xE,
-    BT_DEV_TYPE_MEM_DEV = 0xF,
-
-    BT_DEV_TYPE_INVALID = 0xFF
-} boot_dev_type_e;
-
-#define QUERY_BT_DEV		2
-
-#define ROM_API_OKAY		0xF0
+struct rom_api *g_rom_api = (struct rom_api *)0x980;
 
 enum boot_device get_boot_device(void)
 {
 	volatile gd_t *pgd = gd;
 	int ret;
-	uint32_t boot;
+	u32 boot;
 	u16 boot_type;
 	u8 boot_instance;
 	enum boot_device boot_dev = SD1_BOOT;
 
-	ret = g_rom_api->query_boot_infor(QUERY_BT_DEV, &boot, ((uintptr_t) &boot)^ QUERY_BT_DEV);
-        gd =  pgd;
+	ret = g_rom_api->query_boot_infor(QUERY_BT_DEV, &boot,
+					  ((uintptr_t)&boot) ^ QUERY_BT_DEV);
+	gd = pgd;
 
 	if (ret != ROM_API_OKAY) {
 		puts("ROMAPI: failure at query_boot_info\n");
@@ -658,6 +695,7 @@ static int disable_mipi_dsi_nodes(void *blob)
 		"/dsi_phy@30A00300",
 		"/soc@0/bus@30800000/mipi_dsi@30a00000",
 		"/soc@0/bus@30800000/dphy@30a00300"
+		"/soc@0/bus@30800000/mipi-dsi@30a00000",
 	};
 
 	return disable_fdt_nodes(blob, nodes_path, ARRAY_SIZE(nodes_path));
@@ -685,7 +723,8 @@ static int check_mipi_dsi_nodes(void *blob)
 {
 	const char *lcdif_path[] = {
 		"/lcdif@30320000",
-		"/soc@0/bus@30000000/lcdif@30320000"
+		"/soc@0/bus@30000000/lcdif@30320000",
+		"/soc@0/bus@30000000/lcd-controller@30320000"
 	};
 	const char *mipi_dsi_path[] = {
 		"/mipi_dsi@30A00000",
@@ -693,11 +732,13 @@ static int check_mipi_dsi_nodes(void *blob)
 	};
 	const char *lcdif_ep_path[] = {
 		"/lcdif@30320000/port@0/mipi-dsi-endpoint",
-		"/soc@0/bus@30000000/lcdif@30320000/port@0/endpoint"
+		"/soc@0/bus@30000000/lcdif@30320000/port@0/endpoint",
+		"/soc@0/bus@30000000/lcd-controller@30320000/port@0/endpoint"
 	};
 	const char *mipi_dsi_ep_path[] = {
 		"/mipi_dsi@30A00000/port@1/endpoint",
-		"/soc@0/bus@30800000/mipi_dsi@30a00000/ports/port@0/endpoint"
+		"/soc@0/bus@30800000/mipi_dsi@30a00000/ports/port@0/endpoint",
+		"/soc@0/bus@30800000/mipi-dsi@30a00000/ports/port@0/endpoint@0"
 	};
 
 	int nodeoff;
@@ -732,6 +773,7 @@ static int check_mipi_dsi_nodes(void *blob)
 	}
 
 }
+#endif
 
 void board_quiesce_devices(void)
 {
@@ -740,7 +782,6 @@ void board_quiesce_devices(void)
 		disconnect_from_pc();
 #endif
 }
-#endif
 
 int disable_vpu_nodes(void *blob)
 {
@@ -755,25 +796,171 @@ int disable_vpu_nodes(void *blob)
 		"/vpu_h1@38320000"
 	};
 
+	const char *nodes_path_8mp[] = {
+		"/vpu_g1@38300000",
+		"/vpu_g2@38310000",
+		"/vpu_vc8000e@38320000"
+	};
+
 	if (is_imx8mq())
 		return disable_fdt_nodes(blob, nodes_path_8mq, ARRAY_SIZE(nodes_path_8mq));
 	else if (is_imx8mm())
 		return disable_fdt_nodes(blob, nodes_path_8mm, ARRAY_SIZE(nodes_path_8mm));
+	else if (is_imx8mp())
+		return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
 	else
 		return -EPERM;
 
 }
 
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+static int low_drive_gpu_freq(void *blob)
+{
+	const char *nodes_path_8mn[] = {
+		"/gpu@38000000",
+		"/soc@0/gpu@38000000"
+	};
+
+	int nodeoff, cnt, i, j;
+	u32 assignedclks[7];
+
+	for (i = 0; i < ARRAY_SIZE(nodes_path_8mn); i++) {
+		nodeoff = fdt_path_offset(blob, nodes_path_8mn[i]);
+		if (nodeoff < 0)
+			continue;
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "assigned-clock-rates", assignedclks, 7);
+		if (cnt < 0)
+			return cnt;
+
+		if (cnt != 7)
+			printf("Warning: %s, assigned-clock-rates count %d\n", nodes_path_8mn[i], cnt);
+
+		assignedclks[cnt - 1] = 200000000;
+		assignedclks[cnt - 2] = 200000000;
+
+		for (j = 0; j < cnt; j++) {
+			debug("<%u>, ", assignedclks[j]);
+			assignedclks[j] = cpu_to_fdt32(assignedclks[j]);
+		}
+		debug("\n");
+
+		return fdt_setprop(blob, nodeoff, "assigned-clock-rates", &assignedclks, sizeof(assignedclks));
+	}
+
+	return -ENOENT;
+}
+#endif
+
 int disable_gpu_nodes(void *blob)
 {
 	const char *nodes_path_8mn[] = {
-		"/gpu@38000000"
+		"/gpu@38000000",
+		"/soc@/gpu@38000000"
 	};
 
 	return disable_fdt_nodes(blob, nodes_path_8mn, ARRAY_SIZE(nodes_path_8mn));
 }
 
-int disable_cpu_nodes(void *blob, u32 disabled_cores)
+int disable_npu_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/vipsi@38500000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+int disable_isp_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/soc@0/bus@32c00000/camera/isp@32e10000",
+		"/soc@0/bus@32c00000/camera/isp@32e20000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+int disable_dsp_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/dsp@3b6e8000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+static void disable_thermal_cpu_nodes(void *blob, u32 disabled_cores)
+{
+	const char *thermal_path[] = {
+		"/thermal-zones/cpu-thermal/cooling-maps/map0"
+	};
+
+	int nodeoff, cnt, i, ret, j;
+	u32 cooling_dev[12];
+
+	for (i = 0; i < ARRAY_SIZE(thermal_path); i++) {
+		nodeoff = fdt_path_offset(blob, thermal_path[i]);
+		if (nodeoff < 0)
+			continue; /* Not found, skip it */
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "cooling-device", cooling_dev, 12);
+		if (cnt < 0)
+			continue;
+
+		if (cnt != 12)
+			printf("Warning: %s, cooling-device count %d\n", thermal_path[i], cnt);
+
+		for (j = 0; j < cnt; j++) {
+			cooling_dev[j] = cpu_to_fdt32(cooling_dev[j]);
+		}
+
+		ret= fdt_setprop(blob, nodeoff, "cooling-device", &cooling_dev, sizeof(u32) * (12 - disabled_cores * 3));
+		if (ret < 0) {
+			printf("Warning: %s, cooling-device setprop failed %d\n", thermal_path[i], ret);
+			continue;
+		}
+
+		printf("Update node %s, cooling-device prop\n", thermal_path[i]);
+	}
+}
+
+static void disable_pmu_cpu_nodes(void *blob, u32 disabled_cores)
+{
+	const char *pmu_path[] = {
+		"/pmu"
+	};
+
+	int nodeoff, cnt, i, ret, j;
+	u32 irq_affinity[4];
+
+	for (i = 0; i < ARRAY_SIZE(pmu_path); i++) {
+		nodeoff = fdt_path_offset(blob, pmu_path[i]);
+		if (nodeoff < 0)
+			continue; /* Not found, skip it */
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "interrupt-affinity", irq_affinity, 4);
+		if (cnt < 0)
+			continue;
+
+		if (cnt != 4)
+			printf("Warning: %s, interrupt-affinity count %d\n", pmu_path[i], cnt);
+
+		for (j = 0; j < cnt; j++) {
+			irq_affinity[j] = cpu_to_fdt32(irq_affinity[j]);
+		}
+
+		ret= fdt_setprop(blob, nodeoff, "interrupt-affinity", &irq_affinity, sizeof(u32) * (4 - disabled_cores));
+		if (ret < 0) {
+			printf("Warning: %s, interrupt-affinity setprop failed %d\n", pmu_path[i], ret);
+			continue;
+		}
+
+		printf("Update node %s, interrupt-affinity prop\n", pmu_path[i]);
+	}
+}
+
+static int disable_cpu_nodes(void *blob, u32 disabled_cores)
 {
 	const char *nodes_path[] = {
 			"/cpus/cpu@1",
@@ -805,6 +992,9 @@ int disable_cpu_nodes(void *blob, u32 disabled_cores)
 			printf("Delete node %s\n", nodes_path[i]);
 		}
 	}
+
+	disable_thermal_cpu_nodes(blob, disabled_cores);
+	disable_pmu_cpu_nodes(blob, disabled_cores);
 
 	return 0;
 }
@@ -904,20 +1094,49 @@ usb_modify_speed:
 #elif defined(CONFIG_IMX8MN)
 	if (is_imx8mnl() || is_imx8mndl() ||  is_imx8mnsl())
 		disable_gpu_nodes(blob);
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+	else {
+		int ldm_gpu = low_drive_gpu_freq(blob);
+		if (ldm_gpu < 0)
+			printf("Update GPU node assigned-clock-rates failed\n");
+		else
+			printf("Update GPU node assigned-clock-rates ok\n");
+	}
+#endif
 
-	if (is_imx8mnd() || is_imx8mndl())
+	if (is_imx8mnd() || is_imx8mndl() || is_imx8mnud())
 		disable_cpu_nodes(blob, 2);
-	else if (is_imx8mns() || is_imx8mnsl())
+	else if (is_imx8mns() || is_imx8mnsl() || is_imx8mnus())
 		disable_cpu_nodes(blob, 3);
+
+#elif defined(CONFIG_IMX8MP)
+	if (is_imx8mpl())
+		disable_vpu_nodes(blob);
+
+	if (is_imx8mpl() || is_imx8mp6())
+		disable_npu_nodes(blob);
+
+	if (is_imx8mpl())
+		disable_isp_nodes(blob);
+
+	if (is_imx8mpl() || is_imx8mp6())
+		disable_dsp_nodes(blob);
+
+	if (is_imx8mpd())
+		disable_cpu_nodes(blob, 2);
 #endif
 
 	return ft_add_optee_node(blob, bd);
 }
 #endif
 
+#if defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SYSRESET)
 void reset_cpu(ulong addr)
 {
-	struct watchdog_regs *wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
+	struct watchdog_regs *wdog = (struct watchdog_regs *)addr;
+
+	if (!addr)
+		wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
 
 	/* Clear WDA to trigger WDOG_B immediately */
 	writew((SET_WCR_WT(1) | WCR_WDT | WCR_WDE | WCR_SRS), &wdog->wcr);
@@ -928,6 +1147,7 @@ void reset_cpu(ulong addr)
 		 */
 	}
 }
+#endif
 
 #if defined(CONFIG_ARCH_MISC_INIT)
 #define FSL_SIP_BUILDINFO			0xC2000003
@@ -1001,13 +1221,17 @@ int imx8m_usb_power(int usb_id, bool on)
 {
 	if (usb_id > 1)
 		return -EINVAL;
+
 #ifdef CONFIG_SPL_BUILD
 	imx8m_usb_power_domain(2 + usb_id, on);
 #else
-	if (call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN,
-			 2 + usb_id, on, 0))
+	unsigned long ret;
+	ret = call_imx_sip(FSL_SIP_GPC,
+			FSL_SIP_CONFIG_GPC_PM_DOMAIN, 2 + usb_id, on, 0);
+	if (ret)
 		return -EPERM;
 #endif
+
 	return 0;
 }
 
@@ -1149,7 +1373,7 @@ enum env_location env_get_location(enum env_operation op, int prio)
 		break;
 #endif
 	default:
-#if defined(CONFIG_ENV_DEFAULT_NOWHERE) || defined(CONFIG_ENV_IS_NOWHERE)
+#if defined(CONFIG_ENV_IS_NOWHERE)
 		env_loc = ENVL_NOWHERE;
 #endif
 		break;
@@ -1173,4 +1397,17 @@ long long env_get_offset(long long defautl_offset)
 	return defautl_offset;
 }
 #endif
+#endif
+
+#ifdef CONFIG_IMX8MQ
+int imx8m_dcss_power_init(void)
+{
+	/* Enable the display CCGR before power on */
+	clock_enable(CCGR_DISPLAY, 1);
+
+	writel(0x0000ffff, 0x303A00EC); /*PGC_CPU_MAPPING */
+	setbits_le32(0x303A00F8, 0x1 << 10); /*PU_PGC_SW_PUP_REQ : disp was 10 */
+
+	return 0;
+}
 #endif

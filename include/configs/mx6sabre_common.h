@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright 2018-2019 NXP
+ * Copyright 2018 NXP
  *
  * Configuration settings for the Freescale i.MX6Q SabreSD board.
  */
@@ -23,14 +23,8 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR      0
 
 #define CONFIG_FEC_MXC
-#define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RGMII
-#ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME			"eth0"
-#else
-#define CONFIG_ETHPRIME			"FEC"
-#endif
-#define CONFIG_FEC_MXC_PHYADDR		1
 
 #define CONFIG_PHY_ATHEROS
 
@@ -58,7 +52,7 @@
 	"sd_dev=2\0" \
 	"weim_uboot=0x08001000\0"\
 	"weim_base=0x08000000\0"\
-	"spi_bus=1\0"\
+	"spi_bus=0\0"\
 	"spi_uboot=0x400\0" \
 	"mtdparts=" MFG_NAND_PARTITION \
 	"\0"\
@@ -100,6 +94,7 @@
 	"fdt_addr=0x18000000\0" \
 	"tee_addr=0x20000000\0" \
 	"fdt_high=0xffffffff\0"	  \
+	"splashimage=0x28000000\0" \
 	"console=" CONSOLE_DEV "\0" \
 	"bootargs=console=" CONSOLE_DEV ",115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
@@ -123,6 +118,7 @@
 		"fdt_file=undefined\0" \
 		"fdt_addr=0x18000000\0" \
 		"fdt_high=0xffffffff\0"   \
+		"splashimage=0x28000000\0" \
 		"tee_addr=0x20000000\0" \
 		"tee_file=undefined\0" \
 		"findfdt="\
@@ -196,6 +192,7 @@
 	"dfu_alt_info=spl raw 0x400\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
+	"splashimage=0x28000000\0" \
 	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0" \
 	"mmcpart=1\0" \
 	"finduuid=part uuid mmc ${mmcdev}:2 uuid\0" \
@@ -289,8 +286,7 @@
 				"if test $board_name = SABRESD && test $board_rev = MX6DL; then " \
 					"setenv fdt_file imx6dl-sabresd.dtb; fi; " \
 				"if test $fdt_file = undefined; then " \
-					"echo WARNING: Could not determine dtb to use; " \
-				"fi; " \
+					"echo WARNING: Could not determine dtb to use; fi; " \
 			"fi;\0" \
 		"findtee="\
 			"if test $tee_file = undefined; then " \
@@ -344,9 +340,6 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-/* Environment organization */
-#define CONFIG_ENV_SIZE			(8 * 1024)
-
 #ifdef CONFIG_MTD_NOR_FLASH
 #define CONFIG_SYS_FLASH_BASE           WEIM_ARB_BASE_ADDR
 #define CONFIG_SYS_FLASH_SECT_SIZE      (128 * 1024)
@@ -370,26 +363,14 @@
 #endif
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
 #elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET              (896 * 1024)
-#define CONFIG_ENV_SECT_SIZE           (64 * 1024)
 #define CONFIG_ENV_SPI_BUS             CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS              CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE            CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ          CONFIG_SF_DEFAULT_SPEED
 #elif defined(CONFIG_ENV_IS_IN_FLASH)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE                        CONFIG_SYS_FLASH_SECT_SIZE
-#define CONFIG_ENV_SECT_SIZE           CONFIG_SYS_FLASH_SECT_SIZE
-#define CONFIG_ENV_OFFSET              (7 * CONFIG_SYS_FLASH_SECT_SIZE)
 #elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET              (60 << 20)
-#define CONFIG_ENV_SECT_SIZE           (128 << 10)
-#define CONFIG_ENV_SIZE                        CONFIG_ENV_SECT_SIZE
 #elif defined(CONFIG_ENV_IS_IN_SATA)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
 #define CONFIG_SYS_SATA_ENV_DEV		0
 #endif
 
@@ -414,11 +395,11 @@
 #endif
 
 /* Framebuffer */
-#define CONFIG_VIDEO_IPUV3
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_BMP_16BPP
+#define CONFIG_CMD_BMP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_VIDEO_BMP_LOGO
 #define CONFIG_IMX_HDMI

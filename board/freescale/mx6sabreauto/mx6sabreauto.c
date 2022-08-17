@@ -7,11 +7,13 @@
  */
 
 #include <common.h>
+#include <init.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/mx6-pins.h>
+#include <env.h>
 #include <linux/errno.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
@@ -19,9 +21,8 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/spi.h>
 #include <mmc.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc_imx.h>
 #include <miiphy.h>
-#include <netdev.h>
 #include <asm/arch/sys_proto.h>
 #include <i2c.h>
 #include <input.h>
@@ -92,25 +93,6 @@ int dram_init(void)
 static iomux_v3_cfg_t const uart4_pads[] = {
 	IOMUX_PADS(PAD_KEY_COL0__UART4_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
 	IOMUX_PADS(PAD_KEY_ROW0__UART4_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
-};
-
-static iomux_v3_cfg_t const enet_pads[] = {
-	IOMUX_PADS(PAD_KEY_COL1__ENET_MDIO		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_KEY_COL2__ENET_MDC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD1__RGMII_TD1		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD2__RGMII_TD2		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD3__RGMII_TD3		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TX_CTL__RGMII_TX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RXC__RGMII_RXC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD0__RGMII_RD0		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD1__RGMII_RD1		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD2__RGMII_RD2		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD3__RGMII_RD3		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RX_CTL__RGMII_RX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_GPIO_16__ENET_REF_CLK		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
 };
 
 #ifdef CONFIG_SYS_I2C
@@ -242,19 +224,35 @@ static void eim_clk_setup(void)
 
 static void setup_iomux_eimnor(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	SETUP_IOMUX_PADS(eimnor_pads);
 
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
+	ret = dm_gpio_lookup_name("GPIO5_4", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_4 failed ret = %d\n", __func__, ret);
+		return;
+	}
+	ret = dm_gpio_request(&desc, "steer ctrl");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE | GPIOD_ACTIVE_LOW);
 
 	eimnor_cs_setup();
 }
 #endif
 
-static void setup_iomux_enet(void)
+
+static void setup_iomux_uart(void)
 {
-	SETUP_IOMUX_PADS(enet_pads);
+	SETUP_IOMUX_PADS(uart4_pads);
 }
 
+#ifdef CONFIG_FSL_ESDHC_IMX
+#if !CONFIG_IS_ENABLED(DM_MMC)
 static iomux_v3_cfg_t const usdhc1_pads[] = {
 	/*To avoid pin conflict with NAND, set usdhc1 to 4 pins*/
 	IOMUX_PADS(PAD_SD1_CLK__SD1_CLK	| MUX_PAD_CTRL(USDHC1_PAD_CTRL)),
@@ -282,13 +280,6 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IOMUX_PADS(PAD_GPIO_18__SD3_VSELECT	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_NANDF_CS2__GPIO6_IO15	| MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
-
-static void setup_iomux_uart(void)
-{
-	SETUP_IOMUX_PADS(uart4_pads);
-}
-
-#ifdef CONFIG_FSL_ESDHC
 
 #define USDHC1_CD_GPIO	IMX_GPIO_NR(1, 1)
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(6, 15)
@@ -354,6 +345,7 @@ int board_mmc_init(bd_t *bis)
 	return 0;
 }
 #endif
+#endif
 
 #ifdef CONFIG_NAND_MXS
 static iomux_v3_cfg_t gpmi_pads[] = {
@@ -407,13 +399,6 @@ static void setup_fec(void)
 	ret = enable_fec_anatop_clock(0, ENET_125MHZ);
 	if (ret)
 		printf("Error fec anatop clock settings!\n");
-}
-
-int board_eth_init(bd_t *bis)
-{
-	setup_iomux_enet();
-
-	return cpu_eth_init(bis);
 }
 
 u32 get_board_rev(void)
@@ -521,8 +506,22 @@ iomux_v3_cfg_t const backlight_pads[] = {
 
 static void setup_iomux_backlight(void)
 {
-	gpio_request(IMX_GPIO_NR(2, 9), "backlight");
-	gpio_direction_output(IMX_GPIO_NR(2, 9), 1);
+	int ret;
+	struct gpio_desc desc;
+
+	ret = dm_gpio_lookup_name("GPIO2_9", &desc);
+	if (ret) {
+		printf("%s lookup GPIO2_9 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&desc, "backlight");
+	if (ret) {
+		printf("%s request backlight failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	SETUP_IOMUX_PADS(backlight_pads);
 }
 
@@ -602,9 +601,22 @@ iomux_v3_cfg_t const ecspi1_pads[] = {
 
 void setup_spinor(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	SETUP_IOMUX_PADS(ecspi1_pads);
 
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
+	ret = dm_gpio_lookup_name("GPIO5_4", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_4 failed ret = %d\n", __func__, ret);
+		return;
+	}
+	ret = dm_gpio_request(&desc, "steer ctrl");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE | GPIOD_ACTIVE_LOW);
 }
 #endif
 
@@ -624,6 +636,9 @@ int board_early_init_f(void)
 
 int board_init(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
@@ -635,8 +650,17 @@ int board_init(void)
 #endif
 #endif
 
-	gpio_request(IMX_GPIO_NR(1, 15), "expander en");
-	gpio_direction_output(IMX_GPIO_NR(1, 15), 1);
+	ret = dm_gpio_lookup_name("GPIO1_15", &desc);
+	if (ret) {
+		printf("%s lookup GPIO1_15 failed ret = %d\n", __func__, ret);
+		return -ENODEV;
+	}
+	ret = dm_gpio_request(&desc, "expander en");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return -ENODEV;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	SETUP_IOMUX_PADS(port_exp);
 
 #ifdef CONFIG_VIDEO_IPUV3
@@ -844,7 +868,7 @@ void ldo_mode_set(int ldo_bypass)
 	struct udevice *dev;
 	int ret;
 
-	ret = pmic_get("pfuze100", &dev);
+	ret = pmic_get("pfuze100@8", &dev);
 	if (ret == -ENODEV) {
 		printf("No PMIC found!\n");
 		return;
@@ -937,7 +961,6 @@ int board_ehci_hcd_init(int port)
 #ifdef CONFIG_FSL_FASTBOOT
 #ifdef CONFIG_ANDROID_RECOVERY
 
-#define GPIO_VOL_DN_KEY IMX_GPIO_NR(5, 14)
 iomux_v3_cfg_t const recovery_key_pads[] = {
 	IOMUX_PADS(PAD_DISP0_DAT20__GPIO5_IO14 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -945,14 +968,27 @@ iomux_v3_cfg_t const recovery_key_pads[] = {
 int is_recovery_key_pressing(void)
 {
 	int button_pressed = 0;
+	int ret;
+	struct gpio_desc desc;
 
 	/* Check Recovery Combo Button press or not. */
 	SETUP_IOMUX_PADS(recovery_key_pads);
 
-	gpio_request(GPIO_VOL_DN_KEY, "volume_dn_key");
-	gpio_direction_input(GPIO_VOL_DN_KEY);
+	ret = dm_gpio_lookup_name("GPIO5_14", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_14 failed ret = %d\n", __func__, ret);
+		return;
+	}
 
-	if (gpio_get_value(GPIO_VOL_DN_KEY) == 0) { /* VOL_DN key is low assert */
+	ret = dm_gpio_request(&desc, "volume_dn_key");
+	if (ret) {
+		printf("%s request volume_dn_key failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_IN);
+
+	if (dm_gpio_get_value(&desc) == 0) { /* VOL_DN key is low assert */
 		button_pressed = 1;
 		printf("Recovery key pressed\n");
 	}

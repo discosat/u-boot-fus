@@ -13,8 +13,11 @@
 
 #include <common.h>
 #include <command.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <hang.h>
 #include <dm/root.h>
+#include <env.h>
 #include <image.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
@@ -26,6 +29,7 @@
 #include <linux/compiler.h>
 #include <bootm.h>
 #include <vxworks.h>
+#include <video_link.h>
 
 #ifdef CONFIG_ARMV7_NONSEC
 #include <asm/armv7.h>
@@ -98,6 +102,10 @@ static void announce_and_cleanup(int fake)
 
 #ifdef CONFIG_USB_DEVICE
 	udc_disconnect();
+#endif
+
+#if defined(CONFIG_VIDEO_LINK)
+	video_link_shut_down();
 #endif
 
 	board_quiesce_devices();
@@ -225,6 +233,8 @@ static void do_nonsec_virt_switch(void)
 }
 #endif
 
+__weak void board_prep_linux(bootm_headers_t *images) { }
+
 /* Subcommand: PREP */
 static void boot_prep_linux(bootm_headers_t *images)
 {
@@ -271,6 +281,8 @@ static void boot_prep_linux(bootm_headers_t *images)
 		printf("FDT and ATAGS support not compiled in - hanging\n");
 		hang();
 	}
+
+	board_prep_linux(images);
 }
 
 __weak bool armv7_boot_nonsec_default(void)

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017,2019 NXP
+ * Copyright 2017 NXP
  *
  * Configuration settings for the Freescale i.MX6UL 14x14 EVK board.
  */
@@ -14,12 +14,6 @@
 #include "mx6_common.h"
 #include <asm/mach-imx/gpio.h>
 #include "imx_env.h"
-
-#ifdef CONFIG_SECURE_BOOT
-#ifndef CONFIG_CSF_SIZE
-#define CONFIG_CSF_SIZE 0x4000
-#endif
-#endif
 
 #define is_mx6ull_9x9_evk()	CONFIG_IS_ENABLED(TARGET_MX6ULL_9X9_EVK)
 
@@ -44,7 +38,7 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
 
 /* NAND pin conflicts with usdhc2 */
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 #define CONFIG_SYS_FSL_USDHC_NUM	1
 #else
 #define CONFIG_SYS_FSL_USDHC_NUM	2
@@ -85,7 +79,7 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
 	TEE_ENV \
-	"panel=TFT43AB\0" \
+	"splashimage=0x8c000000\0" \
 	"fdt_addr=0x83000000\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"tee_addr=0x84000000\0" \
@@ -119,7 +113,7 @@
 	"tee_file=undefined\0" \
 	"boot_fdt=try\0" \
 	"ip_dyn=yes\0" \
-	"panel=TFT43AB\0" \
+	"splashimage=0x8c000000\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
@@ -269,21 +263,11 @@
 /* DMA stuff, needed for GPMI/MXS NAND support */
 #endif
 
-#define CONFIG_ENV_SIZE			SZ_8K
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
-#define CONFIG_ENV_SECT_SIZE		(64 * 1024)
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
 #define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET		(60 << 20)
-#define CONFIG_ENV_SECT_SIZE		(128 << 10)
-#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
 #endif
 
 /* USB Configs */
@@ -294,37 +278,21 @@
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 #endif
 
-#ifdef CONFIG_FEC_MXC
-#define CONFIG_CMD_MII
-#define CONFIG_FEC_ENET_DEV		1
-
-#if (CONFIG_FEC_ENET_DEV == 0)
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x2
 #define CONFIG_FEC_XCV_TYPE             RMII
-#define CONFIG_ETHPRIME			"eth0"
-#elif (CONFIG_FEC_ENET_DEV == 1)
-#define IMX_FEC_BASE			ENET2_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR		0x1
-#define CONFIG_FEC_XCV_TYPE		RMII
 #define CONFIG_ETHPRIME			"eth1"
-#endif
-
-#define CONFIG_FEC_MXC_MDIO_BASE ENET2_BASE_ADDR
-#endif
 
 #define CONFIG_IMX_THERMAL
 
 #ifndef CONFIG_SPL_BUILD
-#ifdef CONFIG_VIDEO
+#if defined(CONFIG_DM_VIDEO)
 #define CONFIG_VIDEO_MXS
+#define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
 #endif
 #endif
 

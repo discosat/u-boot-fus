@@ -14,6 +14,7 @@
 #include <misc.h>
 #include <asm/mach-imx/imx_vservice.h>
 #include <imx_m4_mu.h>
+#include <malloc.h>
 
 static LIST_HEAD(vservice_channels);
 

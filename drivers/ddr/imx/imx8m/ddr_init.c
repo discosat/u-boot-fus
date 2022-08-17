@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
-* Copyright 2018-2019 NXP
-*
-* SPDX-License-Identifier: GPL-2.0+
-*/
+ * Copyright 2018-2019 NXP
+ */
 
 #include <common.h>
 #include <errno.h>
@@ -91,9 +90,10 @@ void __weak board_dram_ecc_scrub(void)
 {
 }
 
-void ddr_init(struct dram_timing_info *dram_timing)
+int ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int tmp, initial_drate, target_freq;
+	int ret;
 
 	printf("DDRINFO: start DRAM init\n");
 
@@ -118,6 +118,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	initial_drate = dram_timing->fsp_msg[0].drate;
 	/* default to the frequency point 0 clock */
+	printf("DDRINFO: DRAM rate %dMTS\n", initial_drate);
 	ddrphy_init_set_dfi_clk(initial_drate);
 
 	/* D-aasert the presetn */
@@ -169,7 +170,11 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	 * accessing relevant PUB registers
 	 */
 	debug("DDRINFO:ddrphy config start\n");
-	ddr_cfg_phy(dram_timing);
+
+	ret = ddr_cfg_phy(dram_timing);
+	if (ret)
+		return ret;
+
 	debug("DDRINFO: ddrphy config done\n");
 
 	/*
@@ -184,6 +189,9 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	/* Step15: Set SWCTL.sw_done to 0 */
 	reg32_write(DDRC_SWCTL(0), 0x00000000);
+
+	/* Apply rank-to-rank workaround */
+	update_umctl2_rank_space_setting(dram_timing->fsp_msg_num - 1);
 
 	/* Step16: Set DFIMISC.dfi_init_start to 1 */
 	setbits_le32(DDRC_DFIMISC(0), (0x1 << 5));
@@ -227,8 +235,6 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	/* Step26: Set back register in Step4 to the original values if desired */
 	reg32_write(DDRC_RFSHCTL3(0), 0x0000000);
-	/* enable selfref_en by default */
-	setbits_le32(DDRC_PWRCTL(0), 0x1);
 
 	/* enable port 0 */
 	reg32_write(DDRC_PCTRL_0(0), 0x00000001);
@@ -236,6 +242,11 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	board_dram_ecc_scrub();
 
+	/* enable selfref_en by default */
+	setbits_le32(DDRC_PWRCTL(0), 0x1);
+
 	/* save the dram timing config into memory */
 	dram_config_save(dram_timing, CONFIG_SAVED_DRAM_TIMING_BASE);
+
+	return 0;
 }

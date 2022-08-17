@@ -12,10 +12,13 @@
  */
 
 #include <common.h>
+#include <malloc.h>
 #include <nand.h>
+#include <dm/devres.h>
 
 #include <asm/io.h>
 #include <jffs2/jffs2.h>
+#include <linux/bch.h>
 #include <linux/mtd/mtd.h>
 
 #include <asm/arch/sys_proto.h>
@@ -25,6 +28,8 @@
 #include <linux/mtd/mtd.h>
 #include <nand.h>
 #include <fuse.h>
+
+#include "../../../cmd/legacy-mtd-utils.h"
 
 /* FCB related flags */
 /* FCB layout with leading 12B reserved */
@@ -263,7 +268,7 @@ static int nandbcb_set_boot_config(int argc, char * const argv[], struct boot_co
 			       boot_stream1_address);
 
 	if (boot_cfg->secondary_boot_stream_off_in_MB) {
-		boot_stream2_address = boot_cfg->secondary_boot_stream_off_in_MB * 1024 * 1024;
+		boot_stream2_address = (loff_t)boot_cfg->secondary_boot_stream_off_in_MB * 1024 * 1024;
 	}
 
 	max_boot_stream_size = boot_stream2_address - boot_stream1_address;
@@ -310,6 +315,68 @@ static int nandbcb_check_space(struct boot_config *boot_cfg)
 	return CMD_RET_SUCCESS;
 }
 
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+static uint8_t reverse_bit(uint8_t b)
+{
+	b = (b & 0xf0) >> 4 | (b & 0x0f) << 4;
+	b = (b & 0xcc) >> 2 | (b & 0x33) << 2;
+	b = (b & 0xaa) >> 1 | (b & 0x55) << 1;
+
+	return b;
+}
+
+static void encode_bch_ecc(void *buf, struct fcb_block *fcb, int eccbits)
+{
+	int i, j, m = 13;
+	int blocksize = 128;
+	int numblocks = 8;
+	int ecc_buf_size = (m * eccbits + 7) / 8;
+	struct bch_control *bch = init_bch(m, eccbits, 0);
+	u8 *ecc_buf = kzalloc(ecc_buf_size, GFP_KERNEL);
+	u8 *tmp_buf = kzalloc(blocksize * numblocks, GFP_KERNEL);
+	u8 *psrc, *pdst;
+
+	/*
+	 * The blocks here are bit aligned. If eccbits is a multiple of 8,
+	 * we just can copy bytes. Otherwiese we must move the blocks to
+	 * the next free bit position.
+	 */
+	WARN_ON(eccbits % 8);
+
+	memcpy(tmp_buf, fcb, sizeof(*fcb));
+
+	for (i = 0; i < numblocks; i++) {
+		memset(ecc_buf, 0, ecc_buf_size);
+		psrc = tmp_buf + i * blocksize;
+		pdst = buf + i * (blocksize + ecc_buf_size);
+
+		/* copy data byte aligned to destination buf */
+		memcpy(pdst, psrc, blocksize);
+
+		/*
+		 * imx-kobs use a modified encode_bch which reverse the
+		 * bit order of the data before calculating bch.
+		 * Do this in the buffer and use the bch lib here.
+		 */
+		for (j = 0; j < blocksize; j++)
+			psrc[j] = reverse_bit(psrc[j]);
+
+		encode_bch(bch, psrc, blocksize, ecc_buf);
+
+		/* reverse ecc bit */
+		for (j = 0; j < ecc_buf_size; j++)
+			ecc_buf[j] = reverse_bit(ecc_buf[j]);
+
+		/* Here eccbuf is byte aligned and we can just copy it */
+		memcpy(pdst + blocksize, ecc_buf, ecc_buf_size);
+	}
+
+	kfree(ecc_buf);
+	kfree(tmp_buf);
+	free_bch(bch);
+}
+#else
+
 static u8 calculate_parity_13_8(u8 d)
 {
 	u8 p = 0;
@@ -335,6 +402,7 @@ static void encode_hamming_13_8(void *_src, void *_ecc, size_t size)
 	for (i = 0; i < size; i++)
 		ecc[i] = calculate_parity_13_8(src[i]);
 }
+#endif
 
 static u32 calc_chksum(void *buf, size_t size)
 {
@@ -402,7 +470,7 @@ static int fill_dbbt_data(struct mtd_info *mtd, void *buf, int num_blocks)
 	u32 *n_bad_blocksp = buf + 0x4;
 
 	for (n = 0; n < num_blocks; n++) {
-		loff_t offset = n * mtd->erasesize;
+		loff_t offset = (loff_t)n * mtd->erasesize;
 			if (mtd_block_isbad(mtd, offset)) {
 				n_bad_blocks++;
 				*bb = n;
@@ -429,11 +497,16 @@ static int read_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb,
 	int ret = 0;
 
 	mtd = boot_cfg->mtd;
-	fcb_raw_page = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
-
 	if (mtd_block_isbad(mtd, off)) {
 		printf("Block %d is bad, skipped\n", (int)CONV_TO_BLOCKS(off));
 		return 1;
+	}
+
+	fcb_raw_page = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!fcb_raw_page) {
+		debug("failed to allocate fcb_raw_page\n");
+		ret = -ENOMEM;
+		return ret;
 	}
 
 	/*
@@ -490,7 +563,7 @@ static int write_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb)
 {
 	struct mtd_info *mtd;
 	void *fcb_raw_page = NULL;
-	int i, ret;
+	int i, ret = 0;
 	loff_t off;
 	size_t size;
 
@@ -511,9 +584,14 @@ static int write_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb)
 			return ret;
 		}
 
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+		/* 40 bit BCH, for i.MX6UL(L) */
+		encode_bch_ecc(fcb_raw_page + 32, fcb, 40);
+#else
 		memcpy(fcb_raw_page + 12, fcb, sizeof(struct fcb_block));
-		encode_hamming_13_8(fcb_raw_page + 12, fcb_raw_page +
-				    12 + 512, 512);
+		encode_hamming_13_8(fcb_raw_page + 12,
+				    fcb_raw_page + 12 + 512, 512);
+#endif
 		/*
 		 * Set the first and second byte of OOB data to 0xFF,
 		 * not 0x00. These bytes are used as the Manufacturers Bad
@@ -577,8 +655,6 @@ static int write_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb)
 		/* next writing location */
 		off += g_boot_search_stride;
 	}
-
-	return 0;
 
 fcb_raw_page_err:
 	if (fcb_raw_page)
@@ -1415,9 +1491,9 @@ static int do_nandbcb(cmd_tbl_t *cmdtp, int flag, int argc,
 		plat_config = imx8mq_plat_config;
 	else if (is_imx8mm())
 		plat_config = imx8mm_plat_config;
-	else if (is_imx8mn())
+	else if (is_imx8mn() || is_imx8mp())
 		plat_config = imx8mn_plat_config;
-	else if (is_imx8qm() || is_imx8qxp())
+	else if (is_imx8qm() || is_imx8qxp() || is_imx8dxl())
 		plat_config = imx8q_plat_config;
 	else {
 		printf("ERROR: Unknown platform\n");
@@ -1425,12 +1501,14 @@ static int do_nandbcb(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	if ((plat_config.misc_flags) & BT_SEARCH_CNT_FROM_FUSE) {
-		if (is_imx8qxp()) {
+		if (is_imx8qxp() || is_imx8dxl())
 			g_boot_search_count = fuse_to_search_count(0, 720,
 								   0xc0, 6);
-			printf("search count set to %d from fuse\n",
-			       g_boot_search_count);
-		}
+		if (is_imx8mn() || is_imx8mp())
+			g_boot_search_count = fuse_to_search_count(2, 2,
+								   0x6000, 13);
+		printf("search count set to %d from fuse\n",
+		       g_boot_search_count);
 	}
 
 	cmd = argv[1];
@@ -1459,14 +1537,21 @@ usage:
 	return CMD_RET_USAGE;
 }
 
+#ifdef CONFIG_SYS_LONGHELP
 static char nandbcb_help_text[] =
 	"init addr off|partition len - update 'len' bytes starting at\n"
-	"        'off|part' to memory address 'addr', skipping  bad blocks\n"
-        "nandbcb bcbonly off|partition fw1-off fw1-size [fw2-off fw2-size]\n"
-	"	 - write BCB only (FCB and DBBT), fwx-size and fwx-off in bytes\n"
+	"       'off|part' to memory address 'addr', skipping  bad blocks\n"
+	"nandbcb bcbonly off|partition fw1-off fw1-size [fw2-off fw2-size]\n"
+	"	    - write BCB only (FCB and DBBT)\n"
+	"       where `fwx-size` is fw sizes in bytes, `fw1-off`\n"
+	"       and `fw2-off` - firmware offsets\n"
+	"       FIY, BCB isn't erased automatically, so mtd erase should\n"
+	"       be called in advance before writing new BCB:\n"
+	"           > mtd erase mx7-bcb\n"
 	"nandbcb dump off|partition - dump/verify boot structures\n";
+#endif
 
 U_BOOT_CMD(nandbcb, 7, 1, do_nandbcb,
-	   "i.MX Nand BCB",
+	   "i.MX NAND Boot Control Blocks write",
 	   nandbcb_help_text
 );

@@ -16,17 +16,19 @@ endif
 obj-y += mmc_env.o
 obj-$(CONFIG_FEC_MXC) += mac.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
-obj-$(CONFIG_SECURE_BOOT) += hab.o
-obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
+obj-$(CONFIG_IMX_HAB) += hab.o
 obj-y += cpu.o
 endif
 
 ifeq ($(SOC),$(filter $(SOC),mx5 mx6))
 obj-y	+= cpu.o speed.o
+ifneq ($(CONFIG_MX51),y)
+obj-y	+= mmdc_size.o
+endif
 obj-$(CONFIG_GPT_TIMER) += timer.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 endif
-ifeq ($(SOC),$(filter $(SOC),mx7 mx6 mxs mx7ulp imx8m imx8))
+ifeq ($(SOC),$(filter $(SOC),mx7 mx6 mxs mx7ulp imx8m imx8 imxrt))
 obj-y	+= misc.o
 obj-$(CONFIG_CMD_PRIBLOB) += priblob.o
 obj-$(CONFIG_SPL_BUILD)	+= spl.o
@@ -53,14 +55,13 @@ ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 obj-$(CONFIG_SATA) += sata.o
-obj-$(CONFIG_SECURE_BOOT)    += hab.o
+obj-$(CONFIG_IMX_HAB)    += hab.o
 obj-$(CONFIG_SYSCOUNTER_TIMER) += syscounter.o
 obj-$(CONFIG_IMX_TRUSTY_OS) += trusty.o
 endif
 ifeq ($(SOC),$(filter $(SOC),mx7ulp))
-obj-y  += cache.o
-obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
-obj-$(CONFIG_SECURE_BOOT) += hab.o
+obj-y  += cache.o mmdc_size.o
+obj-$(CONFIG_IMX_HAB) += hab.o
 endif
 ifeq ($(SOC),$(filter $(SOC),vf610))
 obj-y += ddrmc-vf610.o
@@ -69,7 +70,6 @@ endif
 ifeq ($(SOC),$(filter $(SOC),imx8))
 ifneq ($(CONFIG_SPL_BUILD),y)
 obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
-obj-$(CONFIG_IMX_VIDEO_SKIP) += video.o
 obj-y  += misc.o
 endif
 endif
@@ -79,21 +79,6 @@ obj-$(CONFIG_CMD_HDMIDETECT) += cmd_hdmidet.o
 obj-$(CONFIG_CMD_DEKBLOB) += cmd_dek.o
 obj-$(CONFIG_CMD_NANDBCB) += cmd_nandbcb.o
 obj-$(CONFIG_IMX_VSERVICE) += imx_vservice.o
-endif
-
-ifneq ($(CONFIG_BOARD_SIZE_LIMIT),)
-BOARD_SIZE_CHECK = \
-        @actual=`wc -c $@ | awk '{print $$1}'`; \
-        limit=`printf "%d" $(CONFIG_BOARD_SIZE_LIMIT)`; \
-        if test $$actual -gt $$limit; then \
-                echo "$@ exceeds file size limit:" >&2 ; \
-                echo "  limit:  $$limit bytes" >&2 ; \
-                echo "  actual: $$actual bytes" >&2 ; \
-                echo "  excess: $$((actual - limit)) bytes" >&2; \
-                exit 1; \
-        fi
-else
-BOARD_SIZE_CHECK =
 endif
 
 PLUGIN = board/$(BOARDDIR)/plugin
@@ -124,10 +109,17 @@ IMX_CONFIG = $(CONFIG_IMX_CONFIG:"%"=%)
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,cpp_cfg)
 
+IMX_CONTAINER_CFG = $(CONFIG_IMX_CONTAINER_CFG:"%"=%)
+container.cfg: $(IMX_CONTAINER_CFG) FORCE
+	$(Q)mkdir -p $(dir $@)
+	$(call if_changed_dep,cpp_cfg)
+
 ifeq ($(CONFIG_ARCH_IMX8), y)
 CNTR_DEPFILES := $(srctree)/tools/imx_cntr_image.sh
 IMAGE_TYPE := imx8image
+ifeq ($(CONFIG_SPL_BUILD),y)
 SPL_DEPFILE_EXISTS := $(shell $(CPP) $(cpp_flags) -x c -o spl/u-boot-spl.cfgout $(srctree)/$(IMX_CONFIG); if [ -f spl/u-boot-spl.cfgout ]; then $(CNTR_DEPFILES) spl/u-boot-spl.cfgout; echo $$?; fi)
+endif
 DEPFILE_EXISTS := $(shell $(CPP) $(cpp_flags) -x c -o u-boot-dtb.cfgout $(srctree)/$(IMX_CONFIG); if [ -f u-boot-dtb.cfgout ]; then $(CNTR_DEPFILES) u-boot-dtb.cfgout; echo $$?; fi)
 else ifeq ($(CONFIG_ARCH_IMX8M), y)
 IMAGE_TYPE := imx8mimage
@@ -162,7 +154,6 @@ endif
 
 u-boot.imx: u-boot.bin u-boot.cfgout $(PLUGIN).bin $(QSPI_HEADER) FORCE
 	$(call if_changed,mkimage)
-	$(BOARD_SIZE_CHECK)
 ifeq ($(CONFIG_QSPI_BOOT),y)
 	@awk '{s="0000000"$$1;l=length(s);if(!((NR-1)%4))printf "%08x ",(NR-1)*4; \
 		for(i=1;i<8;i+=2)printf " %s",substr(s,l-i,2);if(!(NR%4))printf "\n";}' \
@@ -175,7 +166,16 @@ ifeq ($(CONFIG_QSPI_BOOT),y)
 	@echo "Packed QSPI header with $@"
 endif
 
-ifeq ($(CONFIG_OF_SEPARATE),y)
+ifeq ($(CONFIG_MULTI_DTB_FIT),y)
+MKIMAGEFLAGS_u-boot-dtb.imx = -n $(filter-out $(PLUGIN).bin $< $(PHONY),$^) \
+	-T $(IMAGE_TYPE) -e $(CONFIG_SYS_TEXT_BASE)
+u-boot-dtb.imx: MKIMAGEOUTPUT = u-boot-dtb.imx.log
+
+u-boot-dtb.imx: u-boot-fit-dtb.bin u-boot-dtb.cfgout $(PLUGIN).bin FORCE
+ifeq ($(DEPFILE_EXISTS),0)
+	$(call if_changed,mkimage)
+endif
+else ifeq ($(CONFIG_OF_SEPARATE),y)
 MKIMAGEFLAGS_u-boot-dtb.imx = -n $(filter-out $(PLUGIN).bin $(QSPI_HEADER) $< $(PHONY),$^) \
 	-T $(IMAGE_TYPE) -e $(CONFIG_SYS_TEXT_BASE)
 u-boot-dtb.imx: MKIMAGEOUTPUT = u-boot-dtb.imx.log
@@ -211,9 +211,7 @@ ifeq ($(DEPFILE_EXISTS),0)
 endif
 
 flash.bin: spl/u-boot-spl-ddr.bin u-boot.itb FORCE
-ifeq ($(DEPFILE_EXISTS),0)
 	$(call if_changed,mkimage)
-endif
 endif
 
 ifeq ($(CONFIG_ARCH_IMX8), y)
@@ -222,8 +220,20 @@ SPL:
 MKIMAGEFLAGS_flash.bin = -n spl/u-boot-spl.cfgout -T $(IMAGE_TYPE) -e 0x100000
 flash.bin: MKIMAGEOUTPUT = flash.log
 
-flash.bin: spl/u-boot-spl.bin u-boot.itb FORCE
-ifeq ($(SPL_DEPFILE_EXISTS),0)
+MKIMAGEFLAGS_u-boot.cnt = -n container.cfg -T $(IMAGE_TYPE) -e 0x100000
+u-boot.cnt: MKIMAGEOUTPUT = u-boot.cnt.log
+
+ifeq ($(CONFIG_SPL_LOAD_IMX_CONTAINER), y)
+u-boot.cnt: u-boot.bin container.cfg FORCE
+	$(call if_changed,mkimage)
+flash.bin: spl/u-boot-spl.bin FORCE
+	$(call if_changed,mkimage)
+	@flashbin_size=`wc -c flash.bin | awk '{print $$1}'`; \
+                   pad_cnt=$$(((flashbin_size + 0x400 - 1) / 0x400)); \
+                   echo "append u-boot.cnt at $$pad_cnt KB"; \
+                   dd if=u-boot.cnt of=flash.bin bs=1K seek=$$pad_cnt;
+else
+flash.bin: spl/u-boot-spl.bin FORCE
 	$(call if_changed,mkimage)
 endif
 endif
@@ -272,4 +282,6 @@ obj-$(CONFIG_MX7) += mx7/
 obj-$(CONFIG_ARCH_MX7ULP) += mx7ulp/
 obj-$(CONFIG_IMX8M) += imx8m/
 obj-$(CONFIG_ARCH_IMX8) += imx8/
-obj-$(CONFIG_CMD_WRITEBCB_MX7) += cmd_writebcb_mx7.o
+obj-$(CONFIG_ARCH_IMXRT) += imxrt/
+
+obj-$(CONFIG_SPL_BOOTROM_SUPPORT) += spl_imx_romapi.o

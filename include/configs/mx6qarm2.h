@@ -128,8 +128,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* Environment organization */
-#define CONFIG_ENV_OFFSET		(14 * 64 * 1024)
-#define CONFIG_ENV_SIZE			(8 * 1024)
 #define CONFIG_SYS_MMC_ENV_DEV		3
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user partition */
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* SDHC4 */
@@ -142,8 +140,4 @@
 #define CONFIG_USB_MAX_CONTROLLER_COUNT	1
 #endif
 
-#if defined(CONFIG_FASTBOOT)
-#include "mx6qarm2_android.h"
-#endif
-
-#endif                         /* __CONFIG_H */
+#endif				/* __CONFIG_H */

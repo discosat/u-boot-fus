@@ -15,7 +15,7 @@
 #include "imx6dl.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite Armadillo2 Board";
+	model = "i.MX6 DualLite Armadillo2 Board";
 	compatible = "fsl,imx6q-arm2", "fsl,imx6q";
 
 	memory {

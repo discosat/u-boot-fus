@@ -1,10 +1,6 @@
-/*
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2014 Freescale Semiconductor, Inc.
 
 /dts-v1/;
 
@@ -13,14 +9,15 @@
 #include "imx6sx.dtsi"
 
 / {
-	model = "Freescale i.MX6 SoloX SDB Board";
+	model = "NXP i.MX6 SoloX SDB Board";
 	compatible = "fsl,imx6sx-sdb", "fsl,imx6sx";
 
 	chosen {
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
 
@@ -48,12 +45,14 @@
 			label = "Volume Up";
 			gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
+			wakeup-source;
 		};
 	};
 
@@ -83,7 +82,7 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
-			u-boot,off-on-delay-us = <20000>;
+			off-on-delay-us = <20000>;
 			enable-active-high;
 		};
 
@@ -250,8 +249,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-supply = <&reg_enet_3v3>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
+	phy-reset-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	mdio {
@@ -330,7 +330,7 @@
 	sda-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze200";
 		reg = <0x08>;
 
@@ -800,6 +800,8 @@
 				MX6SX_PAD_RGMII1_RD3__ENET1_RX_DATA_3	0x3081
 				MX6SX_PAD_RGMII1_RX_CTL__ENET1_RX_EN	0x3081
 				MX6SX_PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M	0x91
+				/* phy reset */
+				MX6SX_PAD_ENET2_CRS__GPIO2_IO_7		0x10b0
 			>;
 		};
 

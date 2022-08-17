@@ -19,7 +19,9 @@ endif
 obj-y	+= cache.o
 obj-y	+= tlb.o
 obj-y	+= transition.o
+ifndef CONFIG_ARMV8_PSCI
 obj-y	+= fwcall.o
+endif
 obj-y	+= cpu-dt.o
 obj-$(CONFIG_ARM_SMCCC)		+= smccc-call.o
 
@@ -33,3 +35,4 @@ obj-$(CONFIG_S32V234) += s32v234/
 obj-$(CONFIG_TARGET_HIKEY) += hisilicon/
 obj-$(CONFIG_ARMV8_PSCI) += psci.o
 obj-$(CONFIG_ARCH_SUNXI) += lowlevel_init.o
+obj-$(CONFIG_XEN) += xen/

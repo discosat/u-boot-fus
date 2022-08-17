@@ -7,7 +7,6 @@
 
 #include <common.h>
 #include <command.h>
-#include <environment.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
 #include <linux/compiler.h>
@@ -19,6 +18,7 @@
 #include <asm/arch/sci/sci.h>
 #include <asm/arch/image.h>
 #endif
+#include <cpu_func.h>
 
 /**
 * blob_dek() - Encapsulate the DEK as a blob using CAM's Key
@@ -32,7 +32,6 @@
 static int blob_encap_dek(uint32_t src_addr, uint32_t dst_addr, uint32_t len)
 {
 	uint8_t *src_ptr, *dst_ptr;
-	int i;
 
 	src_ptr = map_sysmem(src_addr, len / 8);
 	dst_ptr = map_sysmem(dst_addr, BLOB_SIZE(len / 8));
@@ -89,13 +88,13 @@ static int blob_encap_dek(uint32_t src_addr, uint32_t dst_addr, uint32_t len)
 	}
 
 	/* Allocate shared input and output buffers for TA */
-	ret = tee_shm_register(dev, (void *)src_addr, len / 8, 0x0, &shm_input);
+	ret = tee_shm_register(dev, (void *)(ulong)src_addr, len / 8, 0x0, &shm_input);
 	if (ret < 0) {
 		printf("Cannot register input shared memory 0x%X\n", ret);
 		goto error;
 	}
 
-	ret = tee_shm_register(dev, (void *)dst_addr,
+	ret = tee_shm_register(dev, (void *)(ulong)dst_addr,
 			       BLOB_SIZE(len / 8) + OPTEE_BLOB_HDR_SIZE,
 			       0x0, &shm_output);
 	if (ret < 0) {
@@ -245,8 +244,8 @@ static int blob_encap_dek(uint32_t src_addr, uint32_t dst_addr, uint32_t len)
 	}
 
 	/* Flush output data before SECO operation */
-	flush_dcache_range(dst_ptr, dst_ptr +
-			roundup(out_size, ARCH_DMA_MINALIGN));
+	flush_dcache_range((ulong)dst_ptr, (ulong)(dst_ptr +
+			roundup(out_size, ARCH_DMA_MINALIGN)));
 
 	/* Generate DEK blob */
 	err = sc_seco_gen_key_blob((-1), 0x0, src_addr, dst_addr, out_size);
@@ -256,12 +255,12 @@ static int blob_encap_dek(uint32_t src_addr, uint32_t dst_addr, uint32_t len)
 	}
 
 	/* Invalidate output buffer */
-	invalidate_dcache_range(dst_ptr, dst_ptr +
-			roundup(out_size, ARCH_DMA_MINALIGN));
+	invalidate_dcache_range((ulong)dst_ptr, (ulong)(dst_ptr +
+			roundup(out_size, ARCH_DMA_MINALIGN)));
 
 	printf("DEK Blob\n");
 	for (i = 0; i < DEK_BLOB_HDR_SIZE + BLOB_SIZE(len / 8); i++)
-		printf("%02X", ((uint8_t *)(dst_ptr)[i]));
+		printf("%02X", dst_ptr[i]);
 	printf("\n");
 
 error:

@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018-2019 NXP
- *
+ * Copyright 2018 NXP
  */
 
 #ifndef __ASM_ARCH_IMX8_REGS_H__
 #define __ASM_ARCH_IMX8_REGS_H__
+
+#include <asm/mach-imx/regs-lcdif.h>
 
 #define ARCH_MXC
 

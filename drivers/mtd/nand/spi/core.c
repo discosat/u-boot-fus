@@ -24,6 +24,8 @@
 #include <errno.h>
 #include <spi.h>
 #include <spi-mem.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
 #include <linux/mtd/spinand.h>
 #endif
 
@@ -981,8 +983,6 @@ static int spinand_detect(struct spinand_device *spinand)
 	if (ret) {
 		dev_err(dev, "unknown raw ID %*phN\n", SPINAND_MAX_ID_LEN,
 			spinand->id.data);
-		dev_err(dev, "0x%x, 0x%x, 0x%x, 0x%x\n",
-			spinand->id.data[0], spinand->id.data[1], spinand->id.data[2], spinand->id.data[3]);
 		return ret;
 	}
 
@@ -1023,7 +1023,7 @@ static int spinand_noecc_ooblayout_free(struct mtd_info *mtd, int section,
 
 static const struct mtd_ooblayout_ops spinand_noecc_ooblayout = {
 	.ecc = spinand_noecc_ooblayout_ecc,
-	.free = spinand_noecc_ooblayout_free,
+	.rfree = spinand_noecc_ooblayout_free,
 };
 
 static int spinand_init(struct spinand_device *spinand)

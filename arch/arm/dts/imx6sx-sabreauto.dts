@@ -12,7 +12,7 @@
 #include "imx6sx.dtsi"
 
 / {
-	model = "Freescale i.MX6 SoloX Sabre Auto Board";
+	model = "i.MX6 SoloX Sabre Auto Board";
 	compatible = "fsl,imx6sx-sabreauto", "fsl,imx6sx";
 
 	backlight2 {
@@ -336,7 +336,7 @@
 		out-default = /bits/ 16 <0x1 0x1>;
 	};
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

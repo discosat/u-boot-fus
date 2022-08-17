@@ -11,6 +11,8 @@
  */
 
 #include <common.h>
+#include <command.h>
+#include <env.h>
 #include <fastboot.h>
 #include <net/fastboot.h>
 
@@ -126,7 +128,7 @@ void fastboot_boot(void)
 		};
 
 		snprintf(boot_addr_start, sizeof(boot_addr_start) - 1,
-			 "0x%p", (void *)load_addr);
+			 "0x%p", (void *)image_load_addr);
 #else
 		static char *const bootm_args[] = {
 			"bootm", boot_addr_start, NULL

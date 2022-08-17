@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -17,9 +17,9 @@
 		.kdiv	=	(_k),				\
 	}
 
-#define LOCK_STATUS 	BIT(31)
+#define LOCK_STATUS	BIT(31)
 #define LOCK_SEL_MASK	BIT(29)
-#define CLKE_MASK	BIT(11)
+#define CLKE_MASK	BIT(13)
 #define RST_MASK	BIT(9)
 #define BYPASS_MASK	BIT(4)
 #define	MDIV_SHIFT	12
@@ -158,8 +158,8 @@ enum clk_root_index {
 enum clk_root_index {
 	ARM_A53_CLK_ROOT		= 0,
 	ARM_M7_CLK_ROOT			= 1,
-	GPU_CORE_CLK_ROOT			= 3,
-	GPU_SHADER_CLK_ROOT			= 4,
+	GPU_CORE_CLK_ROOT		= 3,
+	GPU_SHADER_CLK_ROOT		= 4,
 	MAIN_AXI_CLK_ROOT		= 16,
 	ENET_AXI_CLK_ROOT		= 17,
 	NAND_USDHC_BUS_CLK_ROOT		= 18,
@@ -170,7 +170,6 @@ enum clk_root_index {
 	GPU_AHB_CLK_ROOT		= 25,
 	NOC_CLK_ROOT			= 26,
 	AHB_CLK_ROOT			= 32,
-	/* TODO: IPG Not sure */
 	IPG_CLK_ROOT			= 33,
 	AUDIO_AHB_CLK_ROOT		= 34,
 	DRAM_SEL_CFG			= 48,
@@ -222,7 +221,7 @@ enum clk_root_index {
 	DISPLAY_DSI_PHY_REF_CLK_ROOT	= 119,
 	MIPI_DSI_DBI_CLK_ROOT		= 120,
 	USDHC3_CLK_ROOT			= 121,
-	DISPLAY_CAMERA_PIXEL_CLK_ROOT		= 122,
+	DISPLAY_CAMERA_PIXEL_CLK_ROOT	= 122,
 	MIPI_CSI1_PHY_REF_CLK_ROOT	= 123,
 	MIPI_CSI2_PHY_REF_CLK_ROOT	= 126,
 	MIPI_CSI2_ESC_CLK_ROOT		= 127,
@@ -231,7 +230,6 @@ enum clk_root_index {
 	SAI7_CLK_ROOT			= 134,
 	CLK_ROOT_MAX,
 };
-
 #else
 enum clk_root_index {
 	ARM_A53_CLK_ROOT		= 0,
@@ -252,7 +250,6 @@ enum clk_root_index {
 	NOC_CLK_ROOT			= 26,
 	NOC_APB_CLK_ROOT		= 27,
 	AHB_CLK_ROOT			= 32,
-	/* TODO: IPG Not sure */
 	IPG_CLK_ROOT			= 33,
 	AUDIO_AHB_CLK_ROOT		= 34,
 	MIPI_DSI_ESC_RX_CLK_ROOT	= 36,

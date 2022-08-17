@@ -76,12 +76,14 @@ struct dataflash {
 static inline int dataflash_status(struct spi_slave *spi)
 {
 	int ret;
+	u8 opcode = OP_READ_STATUS;
 	u8 status;
+
 	/*
 	 * NOTE:  at45db321c over 25 MHz wants to write
 	 * a dummy byte after the opcode...
 	 */
-	ret = spi_flash_cmd(spi, OP_READ_STATUS, &status, 1);
+	ret =  spi_write_then_read(spi, &opcode, 1, NULL, &status, 1);
 	return ret ? -EIO : status;
 }
 
@@ -131,11 +133,11 @@ static int spi_dataflash_erase(struct udevice *dev, u32 offset, size_t len)
 	memset(dataflash->command, 0 , sizeof(dataflash->command));
 	command = dataflash->command;
 
-	debug("%s: erase addr=0x%x len 0x%x\n", dev->name, offset, len);
+	debug("%s: erase addr=0x%x len 0x%lx\n", dev->name, offset, len);
 
 	div_u64_rem(len, spi_flash->page_size, &rem);
 	if (rem) {
-		printf("%s: len(0x%x) isn't the multiple of page size(0x%x)\n",
+		printf("%s: len(0x%lx) isn't the multiple of page size(0x%x)\n",
 		       dev->name, len, spi_flash->page_size);
 		return -EINVAL;
 	}
@@ -173,7 +175,7 @@ static int spi_dataflash_erase(struct udevice *dev, u32 offset, size_t len)
 		      command[0], command[1], command[2], command[3],
 		      pageaddr);
 
-		status = spi_flash_cmd_write(spi, command, 4, NULL, 0);
+		status = spi_write_then_read(spi, command, 4, NULL, NULL, 0);
 		if (status < 0) {
 			debug("%s: erase send command error!\n", dev->name);
 			return -EIO;
@@ -222,7 +224,7 @@ static int spi_dataflash_read(struct udevice *dev, u32 offset, size_t len,
 	memset(dataflash->command, 0 , sizeof(dataflash->command));
 	command = dataflash->command;
 
-	debug("%s: erase addr=0x%x len 0x%x\n", dev->name, offset, len);
+	debug("%s: erase addr=0x%x len 0x%lx\n", dev->name, offset, len);
 	debug("READ: (%x) %x %x %x\n",
 	      command[0], command[1], command[2], command[3]);
 
@@ -248,7 +250,7 @@ static int spi_dataflash_read(struct udevice *dev, u32 offset, size_t len,
 	command[3] = (uint8_t)(addr >> 0);
 
 	/* plus 4 "don't care" bytes, command len: 4 + 4 "don't care" bytes */
-	status = spi_flash_cmd_read(spi, command, 8, buf, len);
+	status = spi_write_then_read(spi, command, 8, NULL, buf, len);
 
 	spi_release_bus(spi);
 
@@ -280,7 +282,7 @@ int spi_dataflash_write(struct udevice *dev, u32 offset, size_t len,
 	memset(dataflash->command, 0 , sizeof(dataflash->command));
 	command = dataflash->command;
 
-	debug("%s: write 0x%x..0x%x\n", dev->name, offset, (offset + len));
+	debug("%s: write 0x%x..0x%lx\n", dev->name, offset, (offset + len));
 
 	pageaddr = ((unsigned)offset / spi_flash->page_size);
 	to = ((unsigned)offset % spi_flash->page_size);
@@ -327,7 +329,8 @@ int spi_dataflash_write(struct udevice *dev, u32 offset, size_t len,
 			debug("TRANSFER: (%x) %x %x %x\n",
 			      command[0], command[1], command[2], command[3]);
 
-			status = spi_flash_cmd_write(spi, command, 4, NULL, 0);
+			status = spi_write_then_read(spi, command, 4,
+						     NULL, NULL, 0);
 			if (status < 0) {
 				debug("%s: write(<pagesize) command error!\n",
 				      dev->name);
@@ -352,8 +355,8 @@ int spi_dataflash_write(struct udevice *dev, u32 offset, size_t len,
 		debug("PROGRAM: (%x) %x %x %x\n",
 		      command[0], command[1], command[2], command[3]);
 
-		status = spi_flash_cmd_write(spi, command,
-					     4, writebuf, writelen);
+		status = spi_write_then_read(spi, command, 4,
+					     writebuf, NULL, writelen);
 		if (status < 0) {
 			debug("%s: write send command error!\n", dev->name);
 			return -EIO;
@@ -376,8 +379,8 @@ int spi_dataflash_write(struct udevice *dev, u32 offset, size_t len,
 		debug("COMPARE: (%x) %x %x %x\n",
 		      command[0], command[1], command[2], command[3]);
 
-		status = spi_flash_cmd_write(spi, command,
-					     4, writebuf, writelen);
+		status = spi_write_then_read(spi, command, 4,
+					     writebuf, NULL, writelen);
 		if (status < 0) {
 			debug("%s: write(compare) send command error!\n",
 			      dev->name);
@@ -508,6 +511,7 @@ static struct data_flash_info *jedec_probe(struct spi_slave *spi)
 	uint8_t			id[5];
 	uint32_t		jedec;
 	struct data_flash_info	*info;
+	u8 opcode		= CMD_READ_ID;
 	int status;
 
 	/*
@@ -519,7 +523,7 @@ static struct data_flash_info *jedec_probe(struct spi_slave *spi)
 	 * That's not an error; only rev C and newer chips handle it, and
 	 * only Atmel sells these chips.
 	 */
-	tmp = spi_flash_cmd(spi, CMD_READ_ID, id, sizeof(id));
+	tmp = spi_write_then_read(spi, &opcode, 1, NULL, id, sizeof(id));
 	if (tmp < 0) {
 		printf("dataflash: error %d reading JEDEC ID\n", tmp);
 		return ERR_PTR(tmp);

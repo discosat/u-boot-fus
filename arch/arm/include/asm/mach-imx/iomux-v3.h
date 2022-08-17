@@ -5,7 +5,6 @@
  *			<armlinux@phytec.de>
  *
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
  */
 
 #ifndef __MACH_IOMUX_V3_H__

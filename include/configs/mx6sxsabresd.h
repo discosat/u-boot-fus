@@ -210,32 +210,8 @@
 #endif
 
 /* Network */
-#define CONFIG_FEC_MXC
-
-#define CONFIG_FEC_ENET_DEV 0
-
-#if (CONFIG_FEC_ENET_DEV == 0)
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x1
-#ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME                 "eth0"
-#else
-#define CONFIG_ETHPRIME                 "FEC0"
-#endif
-#elif (CONFIG_FEC_ENET_DEV == 1)
-#define IMX_FEC_BASE			ENET2_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x2
-#ifdef CONFIG_DM_ETH
-#define CONFIG_ETHPRIME                 "eth1"
-#else
-#define CONFIG_ETHPRIME                 "FEC1"
-#endif
-#endif
-
 #define CONFIG_FEC_XCV_TYPE             RGMII
-
-#define CONFIG_PHY_ATHEROS
-#define CONFIG_FEC_MXC_MDIO_BASE	ENET_BASE_ADDR
 
 #ifdef CONFIG_CMD_USB
 #define CONFIG_EHCI_HCD_INIT_AFTER_RESET
@@ -280,12 +256,7 @@
 #endif
 #endif
 
-#define CONFIG_ENV_SIZE			SZ_8K
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
-#define CONFIG_ENV_SECT_SIZE		(64 * 1024)
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
 #define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
@@ -296,9 +267,5 @@
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* USDHC4 */
 #define CONFIG_SYS_MMC_ENV_DEV		3  /*USDHC4*/
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "mx6sxsabresdandroid.h"
-#endif
 
 #endif				/* __CONFIG_H */

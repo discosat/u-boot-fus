@@ -373,7 +373,8 @@ static int prepare_write(struct ocotp_regs **regs, u32 bank, u32 word,
 	/* Only bank 0 and 1 are redundancy mode, others are ECC mode */
 	if (bank != 0 && bank != 1) {
 		if ((soc_rev() < CHIP_REV_2_0) ||
-		    ((soc_rev() >= CHIP_REV_2_0) && bank != 9 && bank != 10 && bank != 28)) {
+		    ((soc_rev() >= CHIP_REV_2_0) &&
+		    bank != 9 && bank != 10 && bank != 28)) {
 			ret = fuse_sense(bank, word, &val);
 			if (ret)
 				return ret;

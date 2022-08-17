@@ -58,23 +58,7 @@
 	u-boot,dm-spl;
 };
 
-&pinctrl_usdhc2_100mhz {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc2_200mhz {
-	u-boot,dm-spl;
-};
-
 &pinctrl_usdhc1 {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc1_100mhz {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc1_200mhz {
 	u-boot,dm-spl;
 };
 
@@ -102,6 +86,14 @@
 	u-boot,dm-spl;
 };
 
+&pd_dma {
+	u-boot,dm-spl;
+};
+
+&pd_dma_lpuart0 {
+	u-boot,dm-spl;
+};
+
 &pd_lsio_flexspi0 {
 	u-boot,dm-spl;
 };
@@ -124,10 +116,13 @@
 
 &usdhc1 {
 	u-boot,dm-spl;
+	mmc-hs400-1_8v;
 };
 
 &usdhc2 {
 	u-boot,dm-spl;
+	sd-uhs-sdr104;
+	sd-uhs-ddr50;
 };
 
 &flexspi0 {

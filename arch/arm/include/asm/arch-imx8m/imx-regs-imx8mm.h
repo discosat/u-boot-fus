@@ -181,6 +181,7 @@
 #define SRC_IPS_BASE_ADDR	0x30390000
 #define SRC_DDRC_RCR_ADDR	0x30391000
 #define SRC_DDRC2_RCR_ADDR	0x30391004
+#define SRC_DDR1_ENABLE_MASK		0x8F000000UL
 
 #define DDRC_DDR_SS_GPR0	0x3d000000
 #define DDRC_IPS_BASE_ADDR(X)	(0x3d400000 + ((X) * 0x2000000))
@@ -203,6 +204,8 @@
 #define IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK 0x2000u
 #define IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT 13
 #define IOMUXC_GPR_GPR1_GPR_ENET_QOS_INTF_SEL_MASK 0x70000
+
+#define SNVS_HPSR		(SNVS_HP_BASE_ADDR + 0x14)
 
 struct iomuxc_gpr_base_regs {
 	u32 gpr[48];
@@ -240,6 +243,16 @@ struct ocotp_regs {
 	} bank[0];
 };
 
+#ifdef CONFIG_IMX8MP
+struct fuse_bank0_regs {
+	u32 lock;
+	u32 rsvd0[7];
+	u32 uid_low;
+	u32 rsvd1[3];
+	u32 uid_high;
+	u32 rsvd2[3];
+};
+#else
 struct fuse_bank0_regs {
 	u32 lock;
 	u32 rsvd0[3];
@@ -248,6 +261,7 @@ struct fuse_bank0_regs {
 	u32 uid_high;
 	u32 rsvd2[7];
 };
+#endif
 
 struct fuse_bank1_regs {
 	u32 tester3;

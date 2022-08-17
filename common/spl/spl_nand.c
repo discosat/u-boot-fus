@@ -11,17 +11,9 @@
 #include <linux/libfdt_env.h>
 #include <fdt.h>
 
-#ifdef CONFIG_PARSE_CONTAINER
-int __weak nand_load_image_parse_container(struct spl_image_info *spl_image,
-				   unsigned long offset)
-{
-	return -EINVAL;
-}
-#endif
-
 uint32_t __weak spl_nand_get_uboot_raw_page(void)
 {
-       return CONFIG_SYS_NAND_U_BOOT_OFFS;
+	return CONFIG_SYS_NAND_U_BOOT_OFFS;
 }
 
 #if defined(CONFIG_SPL_NAND_RAW_ONLY)
@@ -29,9 +21,14 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 			struct spl_boot_device *bootdev)
 {
 	nand_init();
+
+	printf("Loading U-Boot from 0x%08x (size 0x%08x) to 0x%08x\n",
+	       CONFIG_SYS_NAND_U_BOOT_OFFS, CONFIG_SYS_NAND_U_BOOT_SIZE,
+	       CONFIG_SYS_NAND_U_BOOT_DST);
+
 	nand_spl_load_image(spl_nand_get_uboot_raw_page(),
-						CONFIG_SYS_NAND_U_BOOT_SIZE,
-						(void *)CONFIG_SYS_NAND_U_BOOT_DST);
+			    CONFIG_SYS_NAND_U_BOOT_SIZE,
+			    (void *)CONFIG_SYS_NAND_U_BOOT_DST);
 	spl_set_header_raw_uboot(spl_image);
 	nand_deselect();
 
@@ -71,16 +68,21 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 		load.bl_len = 1;
 		load.read = spl_nand_fit_read;
 		return spl_load_simple_fit(spl_image, &load, offset, header);
+	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
+		struct spl_load_info load;
+
+		load.dev = NULL;
+		load.priv = NULL;
+		load.filename = NULL;
+		load.bl_len = 1;
+		load.read = spl_nand_fit_read;
+		return spl_load_imx_container(spl_image, &load, offset);
 	} else {
-#ifdef CONFIG_PARSE_CONTAINER
-		return nand_load_image_parse_container(spl_image, offset);
-#else
 		err = spl_parse_image_header(spl_image, header);
 		if (err)
 			return err;
 		return nand_spl_load_image(offset, spl_image->size,
 					   (void *)(ulong)spl_image->load_addr);
-#endif
 	}
 }
 

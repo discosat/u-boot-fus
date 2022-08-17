@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2018 NXP
  */
 
 #ifndef __IMX8QM_MEK_H
@@ -11,13 +11,10 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_PARSE_CONTAINER
-#define CONFIG_SPL_TEXT_BASE				0x100000
 #define CONFIG_SPL_MAX_SIZE				(192 * 1024)
 #define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR                0x1040 /* (flash.bin_offset + 2Mb)/sector_size */
-#define CONFIG_SYS_SPI_U_BOOT_OFFS 0x200000
 
 /*
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
@@ -28,32 +25,23 @@
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION             0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
-/*
- * The memory layout on stack:  DATA section save + gd + early malloc
- * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
- * CONFIG_SYS_SPL_MALLOC_START
- */
 #define CONFIG_SPL_STACK		0x013fff0
 #define CONFIG_SPL_BSS_START_ADDR      0x00130000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
 #define CONFIG_SYS_SPL_MALLOC_START	0x82200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
 #define CONFIG_SERIAL_LPUART_BASE	0x5a060000
-#define CONFIG_SYS_ICACHE_OFF
-#define CONFIG_SYS_DCACHE_OFF
 #define CONFIG_MALLOC_F_ADDR		0x00138000
 
 #define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
 
-#define CONFIG_SPL_ABORT_ON_RAW_IMAGE /* For RAW image gives a error info not panic */
+#define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
-#define CONFIG_OF_EMBED
 #endif
 
 #define CONFIG_REMAKE_ELF
 
 #define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_ARCH_MISC_INIT
 
 #define CONFIG_CMD_READ
 
@@ -65,14 +53,10 @@
 #undef CONFIG_CMD_IMLS
 
 #undef CONFIG_CMD_CRC32
-#undef CONFIG_BOOTM_NETBSD
 
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
 #define CONFIG_ENV_OVERWRITE
 
@@ -84,6 +68,7 @@
 
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #define FEC_QUIRK_ENET_MAC
+#define PHY_ANEG_TIMEOUT 20000
 
 /* ENET0 connects AR8031 on CPU board, ENET1 connects to base board */
 #define CONFIG_FEC_ENET_DEV 0
@@ -98,16 +83,12 @@
 #define CONFIG_ETHPRIME                 "eth1"
 #endif
 
-#ifndef CONFIG_LIB_RAND
-#define CONFIG_LIB_RAND
-#endif
-#define CONFIG_NET_RANDOM_ETHADDR
-
 #ifdef CONFIG_AHAB_BOOT
 #define AHAB_ENV "sec_boot=yes\0"
 #else
 #define AHAB_ENV "sec_boot=no\0"
 #endif
+
 
 #define JAILHOUSE_ENV \
 	"jh_mmcboot=" \
@@ -121,7 +102,7 @@
 
 #define XEN_BOOT_ENV \
 	    "domu-android-auto=no\0" \
-            "xenhyper_bootargs=console=dtuart dtuart=/serial@5a060000 dom0_mem=2048M dom0_max_vcpus=2 dom0_vcpus_pin=true hmp-unsafe=true\0" \
+            "xenhyper_bootargs=console=dtuart dom0_mem=2048M dom0_max_vcpus=2 dom0_vcpus_pin=true hmp-unsafe=true\0" \
             "xenlinux_bootargs= \0" \
             "xenlinux_console=hvc0 earlycon=xen\0" \
             "xenlinux_addr=0x9e000000\0" \
@@ -130,7 +111,6 @@
                 "${get_cmd} ${loadaddr} xen;" \
                 "${get_cmd} ${fdt_addr} ${dom0fdt_file};" \
                 "if ${get_cmd} ${hdp_addr} ${hdp_file}; then; hdp load ${hdp_addr}; fi;" \
-				"if ${get_cmd} ${hdprx_addr} ${hdprx_file}; then; hdprx load ${hdprx_addr}; fi;" \
                 "${get_cmd} ${xenlinux_addr} ${image};" \
                 "fdt addr ${fdt_addr};" \
                 "fdt resize 256;" \
@@ -186,7 +166,7 @@
 	AHAB_ENV \
 	"script=boot.scr\0" \
 	"image=Image\0" \
-	"panel=NULL\0" \
+	"splashimage=0x9e000000\0" \
 	"console=ttyLP0\0" \
 	"fdt_addr=0x83000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
@@ -244,7 +224,6 @@
 			"setenv get_cmd tftp; " \
 		"fi; " \
 		"if ${get_cmd} ${hdp_addr} ${hdp_file}; then; hdp load ${hdp_addr}; fi;" \
-		"if ${get_cmd} ${hdprx_addr} ${hdprx_file}; then; hdprx load ${hdprx_addr}; fi;" \
 		"if test ${sec_boot} = yes; then " \
 			"${get_cmd} ${cntr_addr} ${cntr_file}; " \
 			"if run auth_os; then " \
@@ -291,30 +270,26 @@
 
 #define CONFIG_SYS_INIT_SP_ADDR         0x80200000
 
-/* Default environment is in SD */
-#define CONFIG_ENV_SIZE			0x2000
 
 #ifdef CONFIG_QSPI_BOOT
-#define CONFIG_ENV_OFFSET       (4 * 1024 * 1024)
 #define CONFIG_ENV_SECT_SIZE	(128 * 1024)
 #define CONFIG_ENV_SPI_BUS	CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
 #else
-#define CONFIG_ENV_OFFSET       (64 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
+/* On LPDDR4 board, USDHC1 is for eMMC, USDHC2 is for SD on CPU board */
 #define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
-
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32*1024)) * 1024)
+#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32 * 1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000
@@ -338,8 +313,6 @@
 
 /* Generic Timer Definitions */
 #define COUNTER_FREQUENCY		8000000	/* 8MHz */
-
-#define CONFIG_IMX_SMMU
 
 /* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
 #ifdef CONFIG_FSL_FSPI
@@ -373,24 +346,24 @@
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #endif
 
-/* Framebuffer */
-#ifdef CONFIG_VIDEO
-#define CONFIG_VIDEO_IMXDPUV1
-#define CONFIG_VIDEO_BMP_RLE8
+#ifdef CONFIG_DM_VIDEO
+#define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_LOGO
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
 #endif
-
-#define CONFIG_OF_SYSTEM_SETUP
 
 #if defined(CONFIG_ANDROID_SUPPORT)
 #include "imx8qm_mek_android.h"
 #elif defined (CONFIG_ANDROID_AUTO_SUPPORT)
 #include "imx8qm_mek_android_auto.h"
+#elif defined(CONFIG_IMX8_TRUSTY_XEN)
+#include "imx8qm_mek_trusty_xen.h"
 #endif
 
 #endif /* __IMX8QM_MEK_H */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2018 NXP
  *
  * Configuration settings for the Freescale i.MX7D SABRESD board.
  */
@@ -19,39 +19,16 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(32 * SZ_1M)
 
-/* Network */
-#ifdef CONFIG_DM_ETH
-#define CONFIG_FEC_MXC
-#define CONFIG_FEC_XCV_TYPE             RGMII
-#define CONFIG_FEC_ENET_DEV		0
-
-#define CONFIG_PHY_BROADCOM
-/* ENET1 */
-#if (CONFIG_FEC_ENET_DEV == 0)
-#define IMX_FEC_BASE			ENET_IPS_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x0
-#define CONFIG_ETHPRIME                 "eth0"
-#elif (CONFIG_FEC_ENET_DEV == 1)
-#define IMX_FEC_BASE			ENET2_IPS_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x1
-#define CONFIG_ETHPRIME                 "eth1"
-#endif
-
-#define CONFIG_FEC_MXC_MDIO_BASE	ENET_IPS_BASE_ADDR
-#endif
-
 /* MMC Config*/
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 
-#undef CONFIG_BOOTM_NETBSD
-#undef CONFIG_BOOTM_PLAN9
-#undef CONFIG_BOOTM_RTEMS
+/* Default ETH port */
+#define CONFIG_ETHPRIME                 "eth0"
 
 /* I2C configs */
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_SPEED		100000
 
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_IMX_BOOTAUX
@@ -110,7 +87,6 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
 	TEE_ENV \
-	"panel=TFT43AB\0" \
 	"fdt_addr=0x83000000\0" \
 	"tee_addr=0x84000000\0" \
 	"fdt_high=0xffffffff\0"	  \
@@ -119,7 +95,7 @@
 		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
 		MFG_NAND_PARTITION \
 		"\0" \
-	"bootcmd=nand read ${loadaddr} 0x4000000 0xa00000;"\
+	"bootcmd=nand read ${loadaddr} 0x4000000 0xc00000;"\
 		"nand read ${fdt_addr} 0x5000000 0x100000;"\
 		"if test ${tee} = yes; then " \
 			"nand read ${tee_addr} 0x6000000 0x400000;"\
@@ -145,7 +121,7 @@
 	"tee_file=uTee-7dsdb\0" \
 	"boot_fdt=try\0" \
 	"ip_dyn=yes\0" \
-	"panel=TFT43AB\0" \
+	"splashimage=0x8c000000\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
@@ -247,22 +223,12 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
-#define CONFIG_ENV_SIZE			SZ_8K
 
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
-#define CONFIG_ENV_SECT_SIZE		(64 * 1024)
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
 #define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET		(60 << 20)
-#define CONFIG_ENV_SECT_SIZE		(128 << 10)
-#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
 #endif
 
 #ifdef CONFIG_FSL_QSPI
@@ -303,7 +269,8 @@
 
 #define CONFIG_IMX_THERMAL
 
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_DM_VIDEO
+#define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
@@ -311,7 +278,6 @@
 #define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
-#define CONFIG_IMX_VIDEO_SKIP
 #endif
 
 /* #define CONFIG_SPLASH_SCREEN*/
@@ -344,14 +310,6 @@
 #define FSL_QSPI_FLASH_SIZE		SZ_64M
 #define QSPI0_BASE_ADDR			QSPI1_IPS_BASE_ADDR
 #define QSPI0_AMBA_BASE			QSPI0_ARB_BASE_ADDR
-#endif
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "mx7dsabresdandroid.h"
-#elif defined(CONFIG_ANDROID_THINGS_SUPPORT)
-#include "mx7dsabresd_androidthings.h"
-#else
-#define CONFIG_USBD_HS
 #endif
 
 #endif	/* __CONFIG_H */

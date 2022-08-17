@@ -1,8 +1,8 @@
-/* Copyright 2018 NXP
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2018-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
- *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #include <common.h>
@@ -17,21 +17,19 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct anamix_pll *ana_pll = (struct anamix_pll *)ANATOP_BASE_ADDR;
 
-u32 get_root_clk(enum clk_root_index clock_id);
+static u32 get_root_clk(enum clk_root_index clock_id);
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable)
 {
 	/* The CAAM clock is always on for iMX8M */
 }
 #endif
 
-#ifdef CONFIG_MXC_OCOTP
 void enable_ocotp_clk(unsigned char enable)
 {
 	clock_enable(CCGR_OCOTP, !!enable);
 }
-#endif
 
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 {
@@ -42,218 +40,6 @@ int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 	clock_enable(CCGR_I2C1 + i2c_num, !!enable);
 
 	return 0;
-}
-
-u32 decode_intpll(enum clk_root_src intpll)
-{
-	u32 pll_gnrl_ctl, pll_div_ctl, pll_clke_mask;
-	u32 main_div, pre_div, post_div, div;
-	u64 freq;
-
-	switch (intpll) {
-	case ARM_PLL_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->arm_pll_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->arm_pll_div_ctl);
-		break;
-	case GPU_PLL_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->gpu_pll_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->gpu_pll_div_ctl);
-		break;
-	case VPU_PLL_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->vpu_pll_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->vpu_pll_div_ctl);
-		break;
-	case SYSTEM_PLL1_800M_CLK:
-	case SYSTEM_PLL1_400M_CLK:
-	case SYSTEM_PLL1_266M_CLK:
-	case SYSTEM_PLL1_200M_CLK:
-	case SYSTEM_PLL1_160M_CLK:
-	case SYSTEM_PLL1_133M_CLK:
-	case SYSTEM_PLL1_100M_CLK:
-	case SYSTEM_PLL1_80M_CLK:
-	case SYSTEM_PLL1_40M_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->sys_pll1_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->sys_pll1_div_ctl);
-		break;
-	case SYSTEM_PLL2_1000M_CLK:
-	case SYSTEM_PLL2_500M_CLK:
-	case SYSTEM_PLL2_333M_CLK:
-	case SYSTEM_PLL2_250M_CLK:
-	case SYSTEM_PLL2_200M_CLK:
-	case SYSTEM_PLL2_166M_CLK:
-	case SYSTEM_PLL2_125M_CLK:
-	case SYSTEM_PLL2_100M_CLK:
-	case SYSTEM_PLL2_50M_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->sys_pll2_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->sys_pll2_div_ctl);
-		break;
-	case SYSTEM_PLL3_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->sys_pll3_gnrl_ctl);
-		pll_div_ctl = readl(&ana_pll->sys_pll3_div_ctl);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* Only support SYS_XTAL 24M, PAD_CLK not take into consideration */
-	if ((pll_gnrl_ctl & INTPLL_REF_CLK_SEL_MASK) != 0)
-		return 0;
-
-	if ((pll_gnrl_ctl & INTPLL_RST_MASK) == 0)
-		return 0;
-
-	/*
-	 * When BYPASS is equal to 1, PLL enters the bypass mode
-	 * regardless of the values of RESETB
-	 */
-	if (pll_gnrl_ctl & INTPLL_BYPASS_MASK)
-		return 24000000u;
-
-	if (!(pll_gnrl_ctl & INTPLL_LOCK_MASK)) {
-		puts("pll not locked\n");
-		return 0;
-	}
-
-	switch (intpll) {
-	case ARM_PLL_CLK:
-	case GPU_PLL_CLK:
-	case VPU_PLL_CLK:
-	case SYSTEM_PLL3_CLK:
-	case SYSTEM_PLL1_800M_CLK:
-	case SYSTEM_PLL2_1000M_CLK:
-		pll_clke_mask = INTPLL_CLKE_MASK;
-		div = 1;
-		break;
-
-	case SYSTEM_PLL1_400M_CLK:
-	case SYSTEM_PLL2_500M_CLK:
-		pll_clke_mask = INTPLL_DIV2_CLKE_MASK;
-		div = 2;
-		break;
-
-	case SYSTEM_PLL1_266M_CLK:
-	case SYSTEM_PLL2_333M_CLK:
-		pll_clke_mask = INTPLL_DIV3_CLKE_MASK;
-		div = 3;
-		break;
-
-	case SYSTEM_PLL1_200M_CLK:
-	case SYSTEM_PLL2_250M_CLK:
-		pll_clke_mask = INTPLL_DIV4_CLKE_MASK;
-		div = 4;
-		break;
-
-	case SYSTEM_PLL1_160M_CLK:
-	case SYSTEM_PLL2_200M_CLK:
-		pll_clke_mask = INTPLL_DIV5_CLKE_MASK;
-		div = 5;
-		break;
-
-	case SYSTEM_PLL1_133M_CLK:
-	case SYSTEM_PLL2_166M_CLK:
-		pll_clke_mask = INTPLL_DIV6_CLKE_MASK;
-		div = 6;
-		break;
-
-	case SYSTEM_PLL1_100M_CLK:
-	case SYSTEM_PLL2_125M_CLK:
-		pll_clke_mask = INTPLL_DIV8_CLKE_MASK;
-		div = 8;
-		break;
-
-	case SYSTEM_PLL1_80M_CLK:
-	case SYSTEM_PLL2_100M_CLK:
-		pll_clke_mask = INTPLL_DIV10_CLKE_MASK;
-		div = 10;
-		break;
-
-	case SYSTEM_PLL1_40M_CLK:
-	case SYSTEM_PLL2_50M_CLK:
-		pll_clke_mask = INTPLL_DIV20_CLKE_MASK;
-		div = 20;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if ((pll_gnrl_ctl & pll_clke_mask) == 0)
-		return 0;
-
-	main_div = (pll_div_ctl & INTPLL_MAIN_DIV_MASK) >>
-		INTPLL_MAIN_DIV_SHIFT;
-	pre_div = (pll_div_ctl & INTPLL_PRE_DIV_MASK) >>
-		INTPLL_PRE_DIV_SHIFT;
-	post_div = (pll_div_ctl & INTPLL_POST_DIV_MASK) >>
-		INTPLL_POST_DIV_SHIFT;
-
-	/* FFVCO = (m * FFIN) / p, FFOUT = (m * FFIN) / (p * 2^s) */
-	freq = 24000000ULL * main_div;
-	return lldiv(freq, pre_div * (1 << post_div) * div);
-}
-
-u32 decode_fracpll(enum clk_root_src frac_pll)
-{
-	u32 pll_gnrl_ctl, pll_fdiv_ctl0, pll_fdiv_ctl1;
-	u32 main_div, pre_div, post_div, k;
-
-	switch (frac_pll) {
-	case DRAM_PLL1_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->dram_pll_gnrl_ctl);
-		pll_fdiv_ctl0 = readl(&ana_pll->dram_pll_fdiv_ctl0);
-		pll_fdiv_ctl1 = readl(&ana_pll->dram_pll_fdiv_ctl1);
-		break;
-	case AUDIO_PLL1_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->audio_pll1_gnrl_ctl);
-		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll1_fdiv_ctl0);
-		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll1_fdiv_ctl1);
-		break;
-	case AUDIO_PLL2_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->audio_pll2_gnrl_ctl);
-		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll2_fdiv_ctl0);
-		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll2_fdiv_ctl1);
-		break;
-	case VIDEO_PLL_CLK:
-		pll_gnrl_ctl = readl(&ana_pll->video_pll1_gnrl_ctl);
-		pll_fdiv_ctl0 = readl(&ana_pll->video_pll1_fdiv_ctl0);
-		pll_fdiv_ctl1 = readl(&ana_pll->video_pll1_fdiv_ctl1);
-		break;
-	default:
-		printf("Not supported\n");
-		return 0;
-	}
-
-	/* Only support SYS_XTAL 24M, PAD_CLK not take into consideration */
-	if ((pll_gnrl_ctl & INTPLL_REF_CLK_SEL_MASK) != 0)
-		return 0;
-
-	if ((pll_gnrl_ctl & INTPLL_RST_MASK) == 0)
-		return 0;
-	/*
-	 * When BYPASS is equal to 1, PLL enters the bypass mode
-	 * regardless of the values of RESETB
-	 */
-	if (pll_gnrl_ctl & INTPLL_BYPASS_MASK)
-		return 24000000u;
-
-	if (!(pll_gnrl_ctl & INTPLL_LOCK_MASK)) {
-		puts("pll not locked\n");
-		return 0;
-	}
-
-	if (!(pll_gnrl_ctl & INTPLL_CLKE_MASK))
-		return 0;
-
-	main_div = (pll_fdiv_ctl0 & INTPLL_MAIN_DIV_MASK) >>
-		INTPLL_MAIN_DIV_SHIFT;
-	pre_div = (pll_fdiv_ctl0 & INTPLL_PRE_DIV_MASK) >>
-		INTPLL_PRE_DIV_SHIFT;
-	post_div = (pll_fdiv_ctl0 & INTPLL_POST_DIV_MASK) >>
-		INTPLL_POST_DIV_SHIFT;
-
-	k = pll_fdiv_ctl1 & GENMASK(15, 0);
-
-	/* FFOUT = ((m + k / 65536) * FFIN) / (p * 2^s), 1 ¡Ü p ¡Ü 63, 64 ¡Ü m ¡Ü 1023, 0 ¡Ü s ¡Ü 6 */
-	return lldiv((main_div * 65536 + k) * 24000000ULL, 65536 * pre_div * (1 << post_div));
 }
 
 static struct imx_int_pll_rate_table imx8mm_fracpll_tbl[] = {
@@ -269,7 +55,7 @@ static struct imx_int_pll_rate_table imx8mm_fracpll_tbl[] = {
 	PLL_1443X_RATE(100000000U, 200, 3, 4, 0),
 };
 
-int fracpll_configure(enum pll_clocks pll, u32 freq)
+static int fracpll_configure(enum pll_clocks pll, u32 freq)
 {
 	int i;
 	u32 tmp, div_val;
@@ -290,7 +76,6 @@ int fracpll_configure(enum pll_clocks pll, u32 freq)
 
 	switch (pll) {
 	case ANATOP_DRAM_PLL:
-		#define SRC_DDR1_ENABLE_MASK (0x8F000000UL)
 		setbits_le32(GPC_BASE_ADDR + 0xEC, 1 << 7);
 		setbits_le32(GPC_BASE_ADDR + 0xF8, 1 << 5);
 		writel(SRC_DDR1_ENABLE_MASK, SRC_BASE_ADDR + 0x1004);
@@ -341,9 +126,12 @@ void dram_pll_init(ulong pll_val)
 }
 
 static struct dram_bypass_clk_setting imx8mm_dram_bypass_tbl[] = {
-	DRAM_BYPASS_ROOT_CONFIG(MHZ(100), 2, CLK_ROOT_PRE_DIV1, 2, CLK_ROOT_PRE_DIV2),
-	DRAM_BYPASS_ROOT_CONFIG(MHZ(250), 3, CLK_ROOT_PRE_DIV2, 2, CLK_ROOT_PRE_DIV2),
-	DRAM_BYPASS_ROOT_CONFIG(MHZ(400), 1, CLK_ROOT_PRE_DIV2, 3, CLK_ROOT_PRE_DIV2),
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(100), 2, CLK_ROOT_PRE_DIV1, 2,
+				CLK_ROOT_PRE_DIV2),
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(250), 3, CLK_ROOT_PRE_DIV2, 2,
+				CLK_ROOT_PRE_DIV2),
+	DRAM_BYPASS_ROOT_CONFIG(MHZ(400), 1, CLK_ROOT_PRE_DIV2, 3,
+				CLK_ROOT_PRE_DIV2),
 };
 
 void dram_enable_bypass(ulong clk_val)
@@ -363,15 +151,23 @@ void dram_enable_bypass(ulong clk_val)
 
 	config = &imx8mm_dram_bypass_tbl[i];
 
-	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(config->alt_root_sel) | CLK_ROOT_PRE_DIV(config->alt_pre_div));
-	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(config->apb_root_sel) | CLK_ROOT_PRE_DIV(config->apb_pre_div));
-	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(config->alt_root_sel) |
+			     CLK_ROOT_PRE_DIV(config->alt_pre_div));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(config->apb_root_sel) |
+			     CLK_ROOT_PRE_DIV(config->apb_pre_div));
+	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(1));
 }
 
 void dram_disable_bypass(void)
 {
-	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
-	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(4) | CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV5));
+	clock_set_target_val(DRAM_SEL_CFG, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(0));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(4) |
+			     CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV5));
 }
 #endif
 
@@ -659,6 +455,7 @@ void init_clk_ecspi(u32 index)
 		clock_enable(CCGR_ECSPI2, 0);
 		clock_set_target_val(ECSPI2_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
 		clock_enable(CCGR_ECSPI2, 1);
+		return;
 	case 2:
 		clock_enable(CCGR_ECSPI3, 0);
 		clock_set_target_val(ECSPI3_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(0));
@@ -682,11 +479,12 @@ void init_nand_clk(void)
 	clock_enable(CCGR_RAWNAND, 1);
 }
 
-int clock_init()
+int clock_init(void)
 {
-	uint32_t val_cfg0;
+	u32 val_cfg0;
 
 	/*
+	 * The gate is not exported to clk tree, so configure them here.
 	 * According to ANAMIX SPEC
 	 * sys pll1 fixed at 800MHz
 	 * sys pll2 fixed at 1GHz
@@ -724,23 +522,25 @@ int clock_init()
 
 #ifdef CONFIG_IMX8MP
 	/* 8MP ROM already set NOC to 800Mhz, only need to configure NOC_IO clk to 600Mhz */
-	/* 8MP ROM already set GIC to 400Mhz, system_pll1_800m with div = 2 */
 	clock_set_target_val(NOC_IO_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(2));
 #else
 	clock_set_target_val(NOC_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(2));
 
 	/* config GIC to sys_pll2_100m */
 	clock_enable(CCGR_GIC, 0);
-	clock_set_target_val(GIC_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(3));
+	clock_set_target_val(GIC_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(3));
 	clock_enable(CCGR_GIC, 1);
 #endif
 
 	clock_set_target_val(NAND_USDHC_BUS_CLK_ROOT, CLK_ROOT_ON |
-						CLK_ROOT_SOURCE_SEL(1));
+			     CLK_ROOT_SOURCE_SEL(1));
 
 	clock_enable(CCGR_DDR1, 0);
-	clock_set_target_val(DRAM_ALT_CLK_ROOT,CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
-	clock_set_target_val(DRAM_APB_CLK_ROOT,CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(1));
+	clock_set_target_val(DRAM_APB_CLK_ROOT, CLK_ROOT_ON |
+			     CLK_ROOT_SOURCE_SEL(1));
 	clock_enable(CCGR_DDR1, 1);
 
 	init_wdog_clk();
@@ -753,7 +553,7 @@ int clock_init()
 	return 0;
 };
 
-int set_clk_qspi(void)
+void init_clk_fspi(int index)
 {
 	/*
 	 * set qspi root
@@ -762,8 +562,6 @@ int set_clk_qspi(void)
 	clock_enable(CCGR_QSPI, 0);
 	clock_set_target_val(QSPI_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(7));
 	clock_enable(CCGR_QSPI, 1);
-
-	return 0;
 }
 
 #ifdef CONFIG_DWC_ETH_QOS
@@ -906,7 +704,219 @@ int set_clk_enet(enum enet_freq type)
 }
 #endif
 
-u32 get_root_src_clk(enum clk_root_src root_src)
+static u32 decode_intpll(enum clk_root_src intpll)
+{
+	u32 pll_gnrl_ctl, pll_div_ctl, pll_clke_mask;
+	u32 main_div, pre_div, post_div, div;
+	u64 freq;
+
+	switch (intpll) {
+	case ARM_PLL_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->arm_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->arm_pll_div_ctl);
+		break;
+	case GPU_PLL_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->gpu_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->gpu_pll_div_ctl);
+		break;
+	case VPU_PLL_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->vpu_pll_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->vpu_pll_div_ctl);
+		break;
+	case SYSTEM_PLL1_800M_CLK:
+	case SYSTEM_PLL1_400M_CLK:
+	case SYSTEM_PLL1_266M_CLK:
+	case SYSTEM_PLL1_200M_CLK:
+	case SYSTEM_PLL1_160M_CLK:
+	case SYSTEM_PLL1_133M_CLK:
+	case SYSTEM_PLL1_100M_CLK:
+	case SYSTEM_PLL1_80M_CLK:
+	case SYSTEM_PLL1_40M_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll1_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll1_div_ctl);
+		break;
+	case SYSTEM_PLL2_1000M_CLK:
+	case SYSTEM_PLL2_500M_CLK:
+	case SYSTEM_PLL2_333M_CLK:
+	case SYSTEM_PLL2_250M_CLK:
+	case SYSTEM_PLL2_200M_CLK:
+	case SYSTEM_PLL2_166M_CLK:
+	case SYSTEM_PLL2_125M_CLK:
+	case SYSTEM_PLL2_100M_CLK:
+	case SYSTEM_PLL2_50M_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll2_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll2_div_ctl);
+		break;
+	case SYSTEM_PLL3_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->sys_pll3_gnrl_ctl);
+		pll_div_ctl = readl(&ana_pll->sys_pll3_div_ctl);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Only support SYS_XTAL 24M, PAD_CLK not take into consideration */
+	if ((pll_gnrl_ctl & INTPLL_REF_CLK_SEL_MASK) != 0)
+		return 0;
+
+	if ((pll_gnrl_ctl & INTPLL_RST_MASK) == 0)
+		return 0;
+
+	/*
+	 * When BYPASS is equal to 1, PLL enters the bypass mode
+	 * regardless of the values of RESETB
+	 */
+	if (pll_gnrl_ctl & INTPLL_BYPASS_MASK)
+		return 24000000u;
+
+	if (!(pll_gnrl_ctl & INTPLL_LOCK_MASK)) {
+		puts("pll not locked\n");
+		return 0;
+	}
+
+	switch (intpll) {
+	case ARM_PLL_CLK:
+	case GPU_PLL_CLK:
+	case VPU_PLL_CLK:
+	case SYSTEM_PLL3_CLK:
+	case SYSTEM_PLL1_800M_CLK:
+	case SYSTEM_PLL2_1000M_CLK:
+		pll_clke_mask = INTPLL_CLKE_MASK;
+		div = 1;
+		break;
+
+	case SYSTEM_PLL1_400M_CLK:
+	case SYSTEM_PLL2_500M_CLK:
+		pll_clke_mask = INTPLL_DIV2_CLKE_MASK;
+		div = 2;
+		break;
+
+	case SYSTEM_PLL1_266M_CLK:
+	case SYSTEM_PLL2_333M_CLK:
+		pll_clke_mask = INTPLL_DIV3_CLKE_MASK;
+		div = 3;
+		break;
+
+	case SYSTEM_PLL1_200M_CLK:
+	case SYSTEM_PLL2_250M_CLK:
+		pll_clke_mask = INTPLL_DIV4_CLKE_MASK;
+		div = 4;
+		break;
+
+	case SYSTEM_PLL1_160M_CLK:
+	case SYSTEM_PLL2_200M_CLK:
+		pll_clke_mask = INTPLL_DIV5_CLKE_MASK;
+		div = 5;
+		break;
+
+	case SYSTEM_PLL1_133M_CLK:
+	case SYSTEM_PLL2_166M_CLK:
+		pll_clke_mask = INTPLL_DIV6_CLKE_MASK;
+		div = 6;
+		break;
+
+	case SYSTEM_PLL1_100M_CLK:
+	case SYSTEM_PLL2_125M_CLK:
+		pll_clke_mask = INTPLL_DIV8_CLKE_MASK;
+		div = 8;
+		break;
+
+	case SYSTEM_PLL1_80M_CLK:
+	case SYSTEM_PLL2_100M_CLK:
+		pll_clke_mask = INTPLL_DIV10_CLKE_MASK;
+		div = 10;
+		break;
+
+	case SYSTEM_PLL1_40M_CLK:
+	case SYSTEM_PLL2_50M_CLK:
+		pll_clke_mask = INTPLL_DIV20_CLKE_MASK;
+		div = 20;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if ((pll_gnrl_ctl & pll_clke_mask) == 0)
+		return 0;
+
+	main_div = (pll_div_ctl & INTPLL_MAIN_DIV_MASK) >>
+		INTPLL_MAIN_DIV_SHIFT;
+	pre_div = (pll_div_ctl & INTPLL_PRE_DIV_MASK) >>
+		INTPLL_PRE_DIV_SHIFT;
+	post_div = (pll_div_ctl & INTPLL_POST_DIV_MASK) >>
+		INTPLL_POST_DIV_SHIFT;
+
+	/* FFVCO = (m * FFIN) / p, FFOUT = (m * FFIN) / (p * 2^s) */
+	freq = 24000000ULL * main_div;
+	return lldiv(freq, pre_div * (1 << post_div) * div);
+}
+
+static u32 decode_fracpll(enum clk_root_src frac_pll)
+{
+	u32 pll_gnrl_ctl, pll_fdiv_ctl0, pll_fdiv_ctl1;
+	u32 main_div, pre_div, post_div, k;
+
+	switch (frac_pll) {
+	case DRAM_PLL1_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->dram_pll_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->dram_pll_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->dram_pll_fdiv_ctl1);
+		break;
+	case AUDIO_PLL1_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->audio_pll1_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll1_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll1_fdiv_ctl1);
+		break;
+	case AUDIO_PLL2_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->audio_pll2_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->audio_pll2_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->audio_pll2_fdiv_ctl1);
+		break;
+	case VIDEO_PLL_CLK:
+		pll_gnrl_ctl = readl(&ana_pll->video_pll1_gnrl_ctl);
+		pll_fdiv_ctl0 = readl(&ana_pll->video_pll1_fdiv_ctl0);
+		pll_fdiv_ctl1 = readl(&ana_pll->video_pll1_fdiv_ctl1);
+		break;
+	default:
+		printf("Not supported\n");
+		return 0;
+	}
+
+	/* Only support SYS_XTAL 24M, PAD_CLK not take into consideration */
+	if ((pll_gnrl_ctl & GENMASK(1, 0)) != 0)
+		return 0;
+
+	if ((pll_gnrl_ctl & RST_MASK) == 0)
+		return 0;
+	/*
+	 * When BYPASS is equal to 1, PLL enters the bypass mode
+	 * regardless of the values of RESETB
+	 */
+	if (pll_gnrl_ctl & BYPASS_MASK)
+		return 24000000u;
+
+	if (!(pll_gnrl_ctl & LOCK_STATUS)) {
+		puts("pll not locked\n");
+		return 0;
+	}
+
+	if (!(pll_gnrl_ctl & CLKE_MASK))
+		return 0;
+
+	main_div = (pll_fdiv_ctl0 & MDIV_MASK) >>
+		MDIV_SHIFT;
+	pre_div = (pll_fdiv_ctl0 & PDIV_MASK) >>
+		PDIV_SHIFT;
+	post_div = (pll_fdiv_ctl0 & SDIV_MASK) >>
+		SDIV_SHIFT;
+
+	k = pll_fdiv_ctl1 & KDIV_MASK;
+
+	return lldiv((main_div * 65536 + k) * 24000000ULL,
+		     65536 * pre_div * (1 << post_div));
+}
+
+static u32 get_root_src_clk(enum clk_root_src root_src)
 {
 	switch (root_src) {
 	case OSC_24M_CLK:
@@ -952,7 +962,7 @@ u32 get_root_src_clk(enum clk_root_src root_src)
 	return 0;
 }
 
-u32 get_root_clk(enum clk_root_index clock_id)
+static u32 get_root_clk(enum clk_root_index clock_id)
 {
 	enum clk_root_src root_src;
 	u32 post_podf, pre_podf, root_src_clk;
@@ -992,29 +1002,29 @@ u32 mxc_get_clock(enum mxc_clock clk)
 	u32 val;
 
 	switch (clk) {
-		case MXC_ARM_CLK:
-			return get_arm_core_clk();
-		case MXC_IPG_CLK:
-			clock_get_target_val(IPG_CLK_ROOT, &val);
-			val = val & 0x3;
-			return get_root_clk(AHB_CLK_ROOT) / 2 / (val + 1);
-		case MXC_CSPI_CLK:
-			return get_root_clk(ECSPI1_CLK_ROOT);
-		case MXC_ESDHC_CLK:
-			return get_root_clk(USDHC1_CLK_ROOT);
-		case MXC_ESDHC2_CLK:
-			return get_root_clk(USDHC2_CLK_ROOT);
-		case MXC_ESDHC3_CLK:
-			return get_root_clk(USDHC3_CLK_ROOT);
-		case MXC_I2C_CLK:
-			return get_root_clk(I2C1_CLK_ROOT);
-		case MXC_UART_CLK:
-			return get_root_clk(UART1_CLK_ROOT);
-		case MXC_QSPI_CLK:
-			return get_root_clk(QSPI_CLK_ROOT);
-		default:
-			printf("Unsupported mxc_clock %d\n", clk);
-			break;
+	case MXC_ARM_CLK:
+		return get_arm_core_clk();
+	case MXC_IPG_CLK:
+		clock_get_target_val(IPG_CLK_ROOT, &val);
+		val = val & 0x3;
+		return get_root_clk(AHB_CLK_ROOT) / 2 / (val + 1);
+	case MXC_CSPI_CLK:
+		return get_root_clk(ECSPI1_CLK_ROOT);
+	case MXC_ESDHC_CLK:
+		return get_root_clk(USDHC1_CLK_ROOT);
+	case MXC_ESDHC2_CLK:
+		return get_root_clk(USDHC2_CLK_ROOT);
+	case MXC_ESDHC3_CLK:
+		return get_root_clk(USDHC3_CLK_ROOT);
+	case MXC_I2C_CLK:
+		return get_root_clk(I2C1_CLK_ROOT);
+	case MXC_UART_CLK:
+		return get_root_clk(UART1_CLK_ROOT);
+	case MXC_QSPI_CLK:
+		return get_root_clk(QSPI_CLK_ROOT);
+	default:
+		printf("Unsupported mxc_clock %d\n", clk);
+		break;
 	}
 
 	return 0;
@@ -1081,6 +1091,8 @@ int do_mscale_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 
 	freq = decode_intpll(ARM_PLL_CLK);
 	printf("ARM_PLL    %8d MHz\n", freq / 1000000);
+	freq = decode_fracpll(DRAM_PLL1_CLK);
+	printf("DRAM_PLL    %8d MHz\n", freq / 1000000);
 	freq = decode_intpll(SYSTEM_PLL1_800M_CLK);
 	printf("SYS_PLL1_800    %8d MHz\n", freq / 1000000);
 	freq = decode_intpll(SYSTEM_PLL1_400M_CLK);

@@ -17,7 +17,7 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/setup.h>
-#include <environment.h>
+#include <env.h>
 #ifdef CONFIG_ANDROID_RECOVERY
 #include <recovery.h>
 #endif
@@ -53,8 +53,8 @@ extern void trusty_os_init(void);
 
 #if defined(CONFIG_AVB_SUPPORT) && defined(CONFIG_MMC)
 AvbABOps fsl_avb_ab_ops = {
-	.read_ab_metadata = fsl_read_ab_metadata,
-	.write_ab_metadata = fsl_write_ab_metadata,
+	.read_ab_metadata = fsl_avb_ab_data_read,
+	.write_ab_metadata = fsl_avb_ab_data_write,
 	.ops = NULL
 };
 #ifdef CONFIG_AVB_ATX
@@ -400,7 +400,7 @@ static void fastboot_puts(struct stdio_dev *dev, const char *s)
 			left = FASTBOOT_MAX_LEN - 4;
 
 		memcpy(buff + 4, s + i, left);
-		buff[left + 4 + 1] = 0;
+		buff[left + 4] = 0;
 		fastboot_tx_write_more(buff);
 	}
 }

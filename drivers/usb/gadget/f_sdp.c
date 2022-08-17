@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <common.h>
 #include <console.h>
+#include <env.h>
 #include <malloc.h>
 
 #include <linux/usb/ch9.h>
@@ -70,6 +71,8 @@ struct hid_report {
 #define SDP_COMMAND_LEN		16
 
 #define SDP_HID_PACKET_SIZE_EP1 1024
+
+#define SDP_EXIT 1
 
 struct sdp_command {
 	u16 cmd;
@@ -276,18 +279,6 @@ static struct usb_gadget_strings *sdp_generic_strings[] = {
 	&stringtab_sdp_generic,
 	NULL,
 };
-
-#ifdef CONFIG_PARSE_CONTAINER
-int __weak sdp_load_image_parse_container(struct spl_image_info *spl_image,
-				   unsigned long offset)
-{
-	return -EINVAL;
-}
-#endif
-
-void __weak board_sdp_cleanup(void)
-{
-}
 
 static inline void *sdp_ptr(u32 val)
 {
@@ -744,16 +735,28 @@ static u32 sdp_jump_imxheader(void *address)
 	return 0;
 }
 
-static ulong sdp_spl_fit_read(struct spl_load_info *load, ulong sector,
-			      ulong count, void *buf)
+#ifdef CONFIG_SPL_BUILD
+static ulong sdp_load_read(struct spl_load_info *load, ulong sector,
+			  ulong count, void *buf)
 {
-	memcpy(buf, (void *)sector, count);
-
+	debug("%s: sector %lx, count %lx, buf %lx\n",
+	      __func__, sector, count, (ulong)buf);
+	memcpy(buf, (void *)(load->dev + sector), count);
 	return count;
 }
 
-#ifdef CONFIG_SPL_BUILD
-#ifdef CONFIG_PARSE_CONTAINER
+#ifdef CONFIG_SPL_LOAD_FIT
+static ulong search_fit_header(ulong p, int size)
+{
+	int i = 0;
+	for (i = 0; i < size; i += 4) {
+                if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
+                        return p + i;
+	}
+
+        return 0;
+}
+#elif defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
 static ulong search_container_header(ulong p, int size)
 {
 	int i = 0;
@@ -766,21 +769,10 @@ static ulong search_container_header(ulong p, int size)
 	}
         return 0;
 }
-#else
-static ulong search_fit_header(ulong p, int size)
-{
-	int i = 0;
-	for (i = 0; i < size; i += 4) {
-                if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
-                        return p + i;
-	}
-
-        return 0;
-}
 #endif
 #endif
 
-static void sdp_handle_in_ep(void)
+static int sdp_handle_in_ep(struct spl_image_info *spl_image)
 {
 	u8 *data = sdp_func->in_req->buf;
 	u32 status;
@@ -832,16 +824,12 @@ static void sdp_handle_in_ep(void)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
-			struct image_header *header;
-			struct spl_image_info spl_image = {};
-
-#ifdef CONFIG_PARSE_CONTAINER
+#if defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
 			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
 				sdp_func->dnl_bytes);
-#else
-			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
-				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
-					sdp_func->dnl_bytes);
+#elif defined(CONFIG_SPL_LOAD_FIT)
+			sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
+				sdp_func->dnl_bytes);
 #endif
 			if (sdp_func->jmp_address == 0) {
 				panic("Error in search header, failed to jump\n");
@@ -849,38 +837,38 @@ static void sdp_handle_in_ep(void)
 
 			printf("Found header at 0x%08x\n", sdp_func->jmp_address);
 
-			header = (struct image_header *)(ulong)(sdp_func->jmp_address);
-
-			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
-			    image_get_magic(header) == FDT_MAGIC) {
+			image_header_t *header =
+				sdp_ptr(sdp_func->jmp_address);
+#ifdef CONFIG_SPL_LOAD_FIT
+			if (image_get_magic(header) == FDT_MAGIC) {
 				struct spl_load_info load;
 
 				debug("Found FIT\n");
-				load.dev = NULL;
-				load.priv = NULL;
-				load.filename = NULL;
+				load.dev = header;
 				load.bl_len = 1;
-				load.read = sdp_spl_fit_read;
-				spl_load_simple_fit(&spl_image, &load,
-							  sdp_func->jmp_address,
-							  (void *)header);
-			} else {
-#ifdef CONFIG_PARSE_CONTAINER
-				sdp_load_image_parse_container(&spl_image,
-							     sdp_func->jmp_address);
-#else
-				/* In SPL, allow jumps to U-Boot images */
-				spl_parse_image_header(&spl_image,
-					(struct image_header *)(ulong)(sdp_func->jmp_address));
+				load.read = sdp_load_read;
+				spl_load_simple_fit(spl_image, &load, 0,
+						    header);
+
+				return SDP_EXIT;
+			}
 #endif
+			if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
+				struct spl_load_info load;
+				load.dev = header;
+				load.bl_len = 1;
+				load.read = sdp_load_read;
+				spl_load_imx_container(spl_image, &load, 0);
+				return SDP_EXIT;
 			}
 
-			board_sdp_cleanup();
-
+			/* In SPL, allow jumps to U-Boot images */
+			struct spl_image_info spl_image = {};
+			spl_parse_image_header(&spl_image, header);
 			jump_to_image_no_args(&spl_image);
 #else
 			/* In U-Boot, allow jumps to scripts */
-			source(sdp_func->jmp_address, "script@1");
+			image_source_script(sdp_func->jmp_address, "script@1");
 #endif
 		}
 
@@ -896,6 +884,8 @@ static void sdp_handle_in_ep(void)
 	default:
 		break;
 	};
+
+	return 0;
 }
 
 static void sdp_handle_out_ep(void)
@@ -919,19 +909,31 @@ static void sdp_handle_out_ep(void)
 	}
 }
 
-void sdp_handle(int controller_index)
+#ifndef CONFIG_SPL_BUILD
+int sdp_handle(int controller_index)
+#else
+int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image)
+#endif
 {
+	int flag = 0;
 	printf("SDP: handle requests...\n");
 	while (1) {
 		if (ctrlc()) {
 			puts("\rCTRL+C - Operation aborted.\n");
-			return;
+			return -EINVAL;
 		}
+
+		if (flag == SDP_EXIT)
+			return 0;
 
 		WATCHDOG_RESET();
 		usb_gadget_handle_interrupts(controller_index);
 
-		sdp_handle_in_ep();
+#ifdef CONFIG_SPL_BUILD
+		flag = sdp_handle_in_ep(spl_image);
+#else
+		flag = sdp_handle_in_ep(NULL);
+#endif
 		if (sdp_func->ep_int_enable)
 			sdp_handle_out_ep();
 	}

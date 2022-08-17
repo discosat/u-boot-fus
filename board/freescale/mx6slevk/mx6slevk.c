@@ -16,14 +16,12 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <asm/mach-imx/spi.h>
 #include <asm/io.h>
 #include <linux/sizes.h>
 #include <common.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc_imx.h>
 #include <i2c.h>
 #include <mmc.h>
-#include <netdev.h>
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/pfuze.h"
@@ -33,13 +31,6 @@
 #include <lcd.h>
 #include <mxc_epdc_fb.h>
 #endif
-#ifdef CONFIG_FSL_FASTBOOT
-#include <fb_fsl.h>
-#ifdef CONFIG_ANDROID_RECOVERY
-#include "../common/recovery_keypad.h"
-#include <recovery.h>
-#endif
-#endif /*CONFIG_FSL_FASTBOOT*/
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -54,9 +45,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ENET_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |             \
 	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED   |             \
 	PAD_CTL_DSE_40ohm   | PAD_CTL_HYS)
-
-#define SPI_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_SPEED_MED | \
-		      PAD_CTL_DSE_40ohm | PAD_CTL_SRE_FAST)
 
 #define I2C_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
 		      PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |	\
@@ -144,47 +132,11 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 };
 #endif
 
-static iomux_v3_cfg_t const fec_pads[] = {
-	MX6_PAD_FEC_MDC__FEC_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_MDIO__FEC_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_CRS_DV__FEC_RX_DV | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RXD0__FEC_RX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RXD1__FEC_RX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TX_EN__FEC_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TXD0__FEC_TX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TXD1__FEC_TX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_REF_CLK__FEC_REF_OUT | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RX_ER__GPIO_4_19 | MUX_PAD_CTRL(NO_PAD_CTRL),
-	MX6_PAD_FEC_TX_CLK__GPIO_4_21 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
 static iomux_v3_cfg_t const elan_pads[] = {
 	MX6_PAD_EPDC_PWRCTRL2__GPIO_2_9 | MUX_PAD_CTRL(NO_PAD_CTRL),
 	MX6_PAD_EPDC_PWRCTRL3__GPIO_2_10 | MUX_PAD_CTRL(ELAN_INTR_PAD_CTRL),
 	MX6_PAD_KEY_COL6__GPIO_4_4 | MUX_PAD_CTRL(EPDC_PAD_CTRL),
 };
-
-#ifdef CONFIG_MXC_SPI
-static iomux_v3_cfg_t ecspi1_pads[] = {
-	MX6_PAD_ECSPI1_MISO__ECSPI_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_MOSI__ECSPI_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_SCLK__ECSPI_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_SS0__GPIO4_IO11  | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 11)) : -1;
-}
-
-static void setup_spi(void)
-{
-	imx_iomux_v3_setup_multiple_pads(ecspi1_pads, ARRAY_SIZE(ecspi1_pads));
-
-	gpio_request(IMX_GPIO_NR(4, 11), "escpi cs");
-	gpio_direction_output(IMX_GPIO_NR(4, 11), 0);
-}
-#endif
 
 #ifdef CONFIG_MXC_EPDC
 static iomux_v3_cfg_t const epdc_enable_pads[] = {
@@ -237,16 +189,6 @@ static iomux_v3_cfg_t const epdc_disable_pads[] = {
 static void setup_iomux_uart(void)
 {
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
-}
-
-static void setup_iomux_fec(void)
-{
-	imx_iomux_v3_setup_multiple_pads(fec_pads, ARRAY_SIZE(fec_pads));
-
-	/* Power up LAN8720 PHY */
-	gpio_request(ETH_PHY_POWER, "eth_pwr");
-	gpio_direction_output(ETH_PHY_POWER , 1);
-	udelay(15000);
 }
 
 #ifdef CONFIG_SYS_I2C
@@ -411,7 +353,7 @@ void ldo_mode_set(int ldo_bypass)
 	int is_400M;
 	u32 vddarm;
 
-	ret = pmic_get("pfuze100", &dev);
+	ret = pmic_get("pfuze100@8", &dev);
 	if (ret == -ENODEV) {
 		printf("No PMIC found!\n");
 		return;
@@ -447,16 +389,10 @@ void ldo_mode_set(int ldo_bypass)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
-{
-	return cpu_eth_init(bis);
-}
-
 static int setup_fec(void)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 
-	setup_iomux_fec();
 	/* clear gpr1[14], gpr1[18:17] to select anatop clock */
 	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC_MASK, 0);
 
@@ -724,10 +660,6 @@ int board_init(void)
 #endif
 #endif
 
-#ifdef CONFIG_MXC_SPI
-	setup_spi();
-#endif
-
 	return 0;
 }
 
@@ -805,16 +737,6 @@ int setup_mxc_kpd(void)
 	return 0;
 }
 #endif /*CONFIG_MXC_KPD*/
-
-#ifdef CONFIG_FSL_FASTBOOT
-#ifdef CONFIG_ANDROID_RECOVERY
-int is_recovery_key_pressing(void)
-{
-    return is_recovery_keypad_pressing();
-}
-
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
 
 #ifdef CONFIG_SPL_BUILD
 #include <spl.h>

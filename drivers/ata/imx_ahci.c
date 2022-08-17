@@ -19,6 +19,7 @@
 #include <syscon.h>
 #include <regmap.h>
 #include <asm-generic/gpio.h>
+#include <dm/device_compat.h>
 
 enum {
 	/* Timer 1-ms Register */

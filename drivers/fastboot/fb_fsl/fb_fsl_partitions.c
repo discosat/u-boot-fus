@@ -17,7 +17,7 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/setup.h>
-#include <environment.h>
+#include <env.h>
 #ifdef CONFIG_DM_SCSI
 #include <scsi.h>
 #endif
@@ -119,13 +119,14 @@ static int _fastboot_parts_add_ptable_entry(int ptable_index,
 	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_VENDOR_A) ||
 	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_OEM_B) ||
 	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_VENDOR_B) ||
-	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_DATA))
+	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_DATA) ||
 #else
 	if (!strcmp((const char *)info.name, FASTBOOT_PARTITION_SYSTEM) ||
 	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_DATA) ||
 	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_DEVICE) ||
-	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_CACHE))
+	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_CACHE) ||
 #endif
+	    !strcmp((const char *)info.name, FASTBOOT_PARTITION_METADATA))
 		strcpy(ptable[ptable_index].fstype, "ext4");
 	else
 		strcpy(ptable[ptable_index].fstype, "raw");
@@ -275,7 +276,7 @@ void fastboot_flash_dump_ptn(void)
 	unsigned int n;
 	for (n = 0; n < g_pcount; n++) {
 		struct fastboot_ptentry *ptn = g_ptable + n;
-		printf("idx %d, ptn %d name='%s' start=%d len=%d\n",
+		printf("idx %d, ptn %d name='%s' start=%d len=%ld\n",
 			n, ptn->partition_index, ptn->name, ptn->start, ptn->length);
 	}
 }
@@ -352,7 +353,7 @@ bool fastboot_parts_is_raw(struct fastboot_ptentry *ptn)
 	 return false;
 }
 
-static bool is_exist(char (*partition_base_name)[16], char *buffer, int count)
+static bool is_exist(char (*partition_base_name)[20], char *buffer, int count)
 {
 	int n;
 
@@ -364,7 +365,7 @@ static bool is_exist(char (*partition_base_name)[16], char *buffer, int count)
 }
 
 /*get partition base name from gpt without "_a/_b"*/
-int fastboot_parts_get_name(char (*partition_base_name)[16])
+int fastboot_parts_get_name(char (*partition_base_name)[20])
 {
 	int n = 0;
 	int count = 0;

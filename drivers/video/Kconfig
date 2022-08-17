@@ -38,7 +38,7 @@ config BACKLIGHT_GPIO
 config VIDEO_BPP8
 	bool "Support 8-bit-per-pixel displays"
 	depends on DM_VIDEO
-	default y if DM_VIDEO
+	default y
 	help
 	  Support drawing text and bitmaps onto a 8-bit-per-pixel display.
 	  Enabling this will include code to support this display. Without
@@ -48,7 +48,7 @@ config VIDEO_BPP8
 config VIDEO_BPP16
 	bool "Support 16-bit-per-pixel displays"
 	depends on DM_VIDEO
-	default y if DM_VIDEO
+	default y
 	help
 	  Support drawing text and bitmaps onto a 16-bit-per-pixel display.
 	  Enabling this will include code to support this display. Without
@@ -58,7 +58,7 @@ config VIDEO_BPP16
 config VIDEO_BPP32
 	bool "Support 32-bit-per-pixel displays"
 	depends on DM_VIDEO
-	default y if DM_VIDEO
+	default y
 	help
 	  Support drawing text and bitmaps onto a 32-bit-per-pixel display.
 	  Enabling this will include code to support this display. Without
@@ -68,10 +68,18 @@ config VIDEO_BPP32
 config VIDEO_ANSI
 	bool "Support ANSI escape sequences in video console"
 	depends on DM_VIDEO
-	default y if DM_VIDEO
+	default y
 	help
 	  Enable ANSI escape sequence decoding for a more fully functional
 	  console.
+
+config VIDEO_MIPI_DSI
+	bool "Support MIPI DSI interface"
+	depends on DM_VIDEO
+	help
+	  Support MIPI DSI interface for driving a MIPI compatible device.
+	  The MIPI Display Serial Interface (MIPI DSI) defines a high-speed
+	  serial interface between a host processor and a display module.
 
 config CONSOLE_NORMAL
 	bool "Support a simple text console"
@@ -120,7 +128,7 @@ config CONSOLE_TRUETYPE_SIZE
 
 config SYS_WHITE_ON_BLACK
 	bool "Display console as white on a black background"
-	default y if ARCH_AT91 || ARCH_EXYNOS || ARCH_ROCKCHIP || TEGRA || X86
+	default y if ARCH_AT91 || ARCH_EXYNOS || ARCH_ROCKCHIP || TEGRA || X86 || ARCH_SUNXI
 	help
 	 Normally the display is black on a white background, Enable this
 	 option to invert this, i.e. white on a black background. This can be
@@ -320,6 +328,33 @@ config VIDEO_LCD_ANX9804
 	from a parallel LCD interface and translate it on the fy into a DP
 	interface for driving eDP TFT displays. It uses I2C for configuration.
 
+config VIDEO_LCD_ORISETECH_OTM8009A
+	bool "OTM8009A DSI LCD panel support"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for Orise Technology
+	otm8009a 480x800 dsi 2dl panel.
+
+config VIDEO_LCD_RAYDIUM_RM68200
+	bool "RM68200 DSI LCD panel support"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for Raydium RM68200
+	720x1280 DSI video mode panel.
+
+config VIDEO_LCD_RAYDIUM_RM67191
+	bool "RM67191 DSI LCD panel support"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for Raydium RM68200
+	1080x1920 DSI video mode panel.
+
 config VIDEO_LCD_SSD2828
 	bool "SSD2828 bridge chip"
 	default n
@@ -484,7 +519,7 @@ config VIDEO_IVYBRIDGE_IGD
 
 config VIDEO_FSL_DCU_FB
 	bool "Enable Freescale Display Control Unit"
-	depends on VIDEO
+	depends on VIDEO || DM_VIDEO
 	help
 	 This enables support for Freescale Display Control Unit (DCU4)
 	 module found on Freescale Vybrid and QorIQ family of SoCs.
@@ -538,6 +573,8 @@ config VIDEO_TEGRA124
 
 source "drivers/video/bridge/Kconfig"
 
+source "drivers/video/imx/Kconfig"
+
 config VIDEO
 	bool "Enable legacy video support"
 	depends on !DM_VIDEO
@@ -546,64 +583,6 @@ config VIDEO
 	  drivers use this because they are not yet converted to driver
 	  model. Video drivers typically provide a colour text console and
 	  cursor.
-
-config VIDEO_IPUV3
-	bool "i.MX IPUv3 Core video support"
-	depends on VIDEO && MX6
-	help
-	  This enables framebuffer driver for i.MX processors working
-	  on the IPUv3(Image Processing Unit) internal graphic processor.
-
-config VIDEO_IMXDPUV1
-	bool "i.MX DPU V1 display support"
-	default n
-	depends on VIDEO && IMX8
-	help
-	  Support for IMXDPU V1 display controller for i.MX8 processors.
-
-config VIDEO_IMXDCSS
-	bool "i.MX8 DCSS display support"
-	default n
-	depends on VIDEO && IMX8M
-	help
-	  Support for DCSS display controller for i.MX8 processors.
-
-config VIDEO_IMX_HDP_LOAD
-	bool "i.MX8 HDMI/DP firmware loading"
-	default n
-	depends on VIDEO && IMX8QM
-	help
-	  Support for HDMI/DP firmware loading for i.MX8QM processors. The
-	  firmware is copied from system memory to the HDMI/DP IRAM and
-	  DRAM memory.
-
-config VIDEO_IMX8_HDMI
-	bool "i.MX8 HDMI Splash screen"
-	default n
-	depends on VIDEO && IMX8M
-	help
-	  Support for HDMI i.MX8 processors.
-
-config IMX_MIPI_DSI_BRIDGE
-	bool
-	help
-	  Enable MIPI DSI bridge interface for display controller.
-
-config IMX_NORTHWEST_MIPI_DSI
-	bool "i.MX northwest's MIPI DSI"
-	default n
-	select IMX_MIPI_DSI_BRIDGE
-	depends on VIDEO && MX7ULP
-	help
-	  Support for i.MX7ULP MIPI DSI controller.
-
-config IMX_SEC_MIPI_DSI
-	bool "i.MX Samsung's MIPI DSI"
-	default n
-	select IMX_MIPI_DSI_BRIDGE
-	depends on VIDEO && (IMX8MM || IMX8MN || MX7 || IMX8MP)
-	help
-	  Support for i.MX7, i.MX8MM and i.MX8MN MIPI DSI controller.
 
 config MXC_EPDC
 	bool "i.MX EPDC support"
@@ -616,12 +595,6 @@ config WAVEFORM_BUF_SIZE
 	depends on MXC_EPDC
 	help
 	  Set the buffer size for loading waveform file.
-
-config VIDEO_IMX_LCDIFV3
-	bool "i.MX LCDIFv3 support"
-	depends on VIDEO && IMX8MP
-	help
-	  Support for i.MX8MP LCDIFv3 controller.
 
 config CFB_CONSOLE
 	bool "Enable colour frame buffer console"
@@ -752,6 +725,27 @@ config VIDEO_DW_HDMI
 	  rather requires a SoC-specific glue driver to call it), it
 	  can not be enabled from the configuration menu.
 
+config VIDEO_DSI_HOST_SANDBOX
+	bool "Enable sandbox for dsi host"
+	depends on SANDBOX
+	select VIDEO_MIPI_DSI
+	help
+	  Enable support for sandbox dsi host device used for testing
+	  purposes.
+	  Display Serial Interface (DSI) defines a serial bus and
+	  a communication protocol between the host and the device
+	  (panel, bridge).
+
+config VIDEO_DW_MIPI_DSI
+	bool
+	select VIDEO_MIPI_DSI
+	help
+	  Enables the common driver code for the Synopsis Designware
+	  MIPI DSI block found in SoCs from various vendors.
+	  As this does not provide any functionality by itself (but
+	  rather requires a SoC-specific glue driver to call it), it
+	  can not be enabled from the configuration menu.
+
 config VIDEO_SIMPLE
 	bool "Simple display driver for preconfigured display"
 	help
@@ -792,5 +786,30 @@ config IHS_VIDEO_OUT
 	  Enable support for the gdsys Integrated Hardware Systems (IHS) video
 	  out On-screen Display (OSD) used on gdsys FPGAs to control dynamic
 	  textual overlays of the display outputs.
+
+config VIDEO_LINK
+	bool "Enable video link framework support"
+	depends on DM_VIDEO
+	help
+	   This option enables a video link framework basing on port-endpoint graph
+	   to connect video components.
+
+config VIDEO_IT6263_BRIDGE
+	bool "ITE6263 LVDS to HDMI connector"
+	depends on DM_VIDEO
+	select VIDEO_BRIDGE
+	default n
+	help
+	Say Y here if you want to enable support for ITE IT6263
+	LVDS to HDMI connector, currently only support 1280x720P.
+
+config VIDEO_ADV7535
+	bool "ADV7535 MIPI DSI to HDMI connector"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for ADI ADV7535
+	DSI to HDMI connector, currently only support 1920x1080.
 
 endmenu

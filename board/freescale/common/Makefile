@@ -59,7 +59,7 @@ obj-$(CONFIG_VSC_CROSSBAR)    += vsc3316_3308.o
 obj-$(CONFIG_IDT8T49N222A)	+= idt8t49n222a_serdes_clk.o
 obj-$(CONFIG_ZM7300)		+= zm7300.o
 obj-$(CONFIG_POWER_PFUZE100)	+= pfuze.o
-obj-$(CONFIG_$(SPL_)DM_PMIC_PFUZE100)	+= pfuze.o
+obj-$(CONFIG_DM_PMIC_PFUZE100)	+= pfuze.o
 obj-$(CONFIG_POWER_MC34VR500)	+= mc34vr500.o
 obj-$(CONFIG_MXC_EPDC)		+= epdc_setup.o
 obj-y				+= mmc.o
@@ -80,7 +80,7 @@ obj-$(CONFIG_TARGET_P5040DS)	+= p_corenet/
 
 obj-$(CONFIG_LAYERSCAPE_NS_ACCESS)	+= ns_access.o
 
-ifdef CONFIG_SECURE_BOOT
+ifdef CONFIG_NXP_ESBC
 obj-$(CONFIG_CMD_ESBC_VALIDATE) += fsl_validate.o cmd_esbc_validate.o
 endif
 obj-$(CONFIG_CHAIN_OF_TRUST) += fsl_chain_of_trust.o
