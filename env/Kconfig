@@ -483,6 +483,24 @@ config ENV_EXT4_FILE
 	  It's a string of the EXT4 file name. This file use to store the
 	  environment (explicit path to the file)
 
+config ENV_SIZE
+	hex "Environment Size"
+	default 0x40000 if ENV_IS_IN_SPI_FLASH && ARCH_ZYNQMP
+	default 0x20000 if ARCH_SUNXI || ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91
+	default 0x8000 if ARCH_ROCKCHIP || ARCH_ZYNQMP || ARCH_VERSAL
+	default 0x4000 if ARC
+	default 0x1f000
+	help
+	  Size of the environment storage area
+
+config ENV_SECT_SIZE
+	hex "Environment Sector-Size"
+	depends on ENV_IS_IN_FLASH || ENV_IS_IN_SPI_FLASH
+	default 0x40000 if ARCH_ZYNQMP || ARCH_VERSAL
+	default 0x20000 if ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91
+	help
+	  Size of the sector containing the environment.
+
 config ENV_ADDR
 	hex "Environment address"
 	depends on ENV_IS_IN_FLASH || ENV_IS_IN_NVRAM || ENV_IS_IN_ONENAND || \
@@ -521,23 +539,63 @@ config ENV_OFFSET_REDUND
 	  Offset from the start of the device (or partition) of the redundant
 	  environment location.
 
-config ENV_SIZE
-	hex "Environment Size"
-	default 0x40000 if ENV_IS_IN_SPI_FLASH && ARCH_ZYNQMP
-	default 0x20000 if ARCH_SUNXI || ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91
-	default 0x8000 if ARCH_ROCKCHIP || ARCH_ZYNQMP || ARCH_VERSAL
-	default 0x4000 if ARC
-	default 0x1f000
+config ENV_MMC_EXTRA
+	bool "Have extra offsets for MMC"
+	depends on ENV_IS_IN_MMC
 	help
-	  Size of the environment storage area
+	  Have extra settings for MMC; this is required if two or more
+	  environment locations are possible and MMC needs different offsets.
 
-config ENV_SECT_SIZE
-	hex "Environment Sector-Size"
-	depends on ENV_IS_IN_FLASH || ENV_IS_IN_SPI_FLASH
-	default 0x40000 if ARCH_ZYNQMP || ARCH_VERSAL
-	default 0x20000 if ARCH_ZYNQ || ARCH_OMAP2PLUS || ARCH_AT91
+if ENV_MMC_EXTRA
+config ENV_MMC_OFFSET
+	hex "Environment offset for MMC"
 	help
-	  Size of the sector containing the environment.
+	  Offset from the start of the device of the regular environment.
+
+config ENV_MMC_OFFSET_REDUND
+	hex "Redundand environment offset for MMC"
+	depends on SYS_REDUNDAND_ENVIRONMENT
+	help
+	  Offset from the start of the device of the redundant environment.
+
+endif
+
+config ENV_NAND_EXTRA
+	bool "Have extra offsets for NAND"
+	depends on ENV_IS_IN_NAND
+	help
+	  Have extra settings for NAND; this is required if two or more
+	  environment locations are possible and NAND needs different offsets.
+
+if ENV_NAND_EXTRA
+config ENV_NAND_OFFSET
+	hex "Environment offset for NAND"
+	help
+	  Offset from the start of the device of the regular environment.
+
+config ENV_NAND_OFFSET_REDUND
+	hex "Redundand environment offset for NAND"
+	depends on SYS_REDUNDAND_ENVIRONMENT
+	help
+	  Offset from the start of the device of the redundant environment.
+
+config ENV_NAND_HAVE_RANGE
+	bool "Define a NAND range for the environment"
+	help
+	  Have an extra setting to define a larger NAND region where the
+	  enviroment is located in, typically based on NAND erase blocks.
+
+config ENV_NAND_RANGE
+	hex "Size of NAND region that contains the environment"
+	depends on ENV_NAND_HAVE_RANGE
+	help
+	  Specifies the length of the region in which the environment
+	  can be written.  This should be a multiple of the NAND device's
+	  block size.  Specifying a range with more erase blocks than
+	  are needed to hold CONFIG_ENV_SIZE allows bad blocks within
+	  the range to be avoided.
+
+endif
 
 config ENV_UBI_PART
 	string "UBI partition name"

@@ -22,6 +22,17 @@
 #define __STR(X) #X
 #define STR(X) __STR(X)
 
+/*
+ * We do not want to break exisiting configs, so if the MMC specific values
+ * are missing, use the generic values instead
+ */
+#ifndef CONFIG_ENV_MMC_OFFSET
+#define CONFIG_ENV_MMC_OFFSET CONFIG_ENV_OFFSET
+#endif
+#if !defined(CONFIG_ENV_MMC_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#define CONFIG_ENV_MMC_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)

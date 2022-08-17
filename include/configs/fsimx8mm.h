@@ -150,7 +150,7 @@
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
 #define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 #define CONFIG_CSF_SIZE			0x2000 /* 8K region */
 #endif
 
@@ -678,20 +678,15 @@
  * Environment
  ************************************************************************/
 
-/* Environment settings for large blocks (128KB). The environment is held in
-   the heap, so keep the real env size small to not waste malloc space. */
+/*
+ * Environment size and location are now set in the device tree. However there
+ * are fallback values set in the defconfig if values in the device tree are
+ * missing or damaged. The environment is held in the heap, so keep the real
+ * size small to not waste malloc space. Use two blocks (0x40000, 256KB) for
+ * CONFIG_ENV_NAND_RANGE to have one spare block in case of a bad first block.
+ * See also MMC and NAND layout above.
+ */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
-
-#define CONFIG_ENV_SIZE		0x4000		/* 16KB */
-
-/* Fallback values if values in the device tree are missing/damaged */
-#define CONFIG_ENV_MMC_OFFSET	0x100000
-#define CONFIG_ENV_MMC_OFFSET_REDUND 0x104000
-
-/* Use redundant environment, also in case without update support */
-#define CONFIG_ENV_NAND_RANGE	0x00040000	/* 2 blocks = 256KB each copy */
-#define CONFIG_ENV_NAND_OFFSET	0x00480000	/* Before u-boot */
-#define CONFIG_ENV_NAND_OFFSET_REDUND   0x004c0000
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN	((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)

@@ -15,9 +15,9 @@
  * eMMC flash layout with separate Kernel/FDT MTD partition
  * -------------------------------------------------------------------------
  * BOOTPARTITION1
- * 0x0000_0400 - 0x0008_0400: UBoot: U-Boot image (768KB)
+ * 0x0000_0400 - 0x000C_0400: UBoot: U-Boot image (768KB)
  * 0x0010_0000 - 0x0010_8000: UBoot: U-Boot Environment (32KB)
- * 0x0010_8000 - 0x0040_0000: Empty: (3.1MB)
+ * 0x0010_8000 - 0x0040_0000: Empty (3MB-32KB)
  *
  * User HW partition only:
  * 0x0000_0000 - 0x0000_0200: MasterBootRecord (512B)
@@ -92,7 +92,6 @@
 /* Physical addresses of DDR and CPU-internal SRAM */
 #define PHYS_SDRAM		0x60000000ul
 #define PHYS_SDRAM_SIZE		SZ_1G
-#define CONFIG_NR_DRAM_BANKS	1
 #define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM
 
 /* MX7ULP has 256KB SRAM, mapped from 0x2F000000-0x2F03FFFF */
@@ -155,8 +154,6 @@
 /*****************************************************************************
  * OTP Memory (Fuses)
  *****************************************************************************/
-#define CONFIG_CMD_FUSE
-#define CONFIG_MXC_OCOTP
 
 
 /*****************************************************************************
@@ -245,9 +242,6 @@
 /*****************************************************************************
  * SD/MMC Card, eMMC
  *****************************************************************************/
-#define CONFIG_FSL_ESDHC		/* use Freescale ESDHC driver */
-#define CONFIG_FSL_USDHC		/* with USDHC modifications */
-#define CONFIG_SUPPORT_EMMC_BOOT 	/* eMMC specific */
 #define CONFIG_SYS_FSL_ESDHC_ADDR 	0
 #define CONFIG_SYS_FSL_USDHC_NUM       	1
 
@@ -353,19 +347,12 @@
 /*****************************************************************************
  * Environment
  *****************************************************************************/
-/* Environment settings for large blocks (128KB). The environment is held in
-   the heap, so keep the real env size small to not waste malloc space. */
-#define CONFIG_ENV_SIZE		SZ_256K
+/*
+ * Environment size and location are now set in the defconfig. The environment
+ * is held in the heap, so keep the real size small to not waste malloc space.
+ * We could activate CONFIG_SYS_REDUNDAND_ENVIRONMENT, this would make sense.
+ */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
-
-#define CONFIG_ENV_MMC_OFFSET	SZ_1M	        /* See MMC layout above */
-
-/* When saving the environment, we usually have a short period of time between
-   erasing the NAND region and writing the new data where no valid environment
-   is available. To avoid this time, we can save the environment alternatively
-   to two different locations in the NAND flash. Then at least one of the
-   environments is always valid. Currently we don't use this feature. */
-/*#define CONFIG_ENV_MMC_OFFSET_REDUND   SZ_2M */
 
 #define CONFIG_ETHPRIME		"usb_ether"
 #define CONFIG_NETMASK		255.255.255.0

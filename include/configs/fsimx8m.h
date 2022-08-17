@@ -31,7 +31,7 @@
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
 #define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 #define CONFIG_CSF_SIZE			0x2000 /* 8K region */
 #endif
 
@@ -290,18 +290,16 @@
  * Environment
  ************************************************************************/
 
-/* Environment settings for large blocks (128KB). The environment is held in
-   the heap, so keep the real env size small to not waste malloc space. */
-#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
+/*
+ * Environment size and location are now set in the device tree. However there
+ * are fallback values set in the defconfig if values in the device tree are
+ * missing or damaged. The environment is held in the heap, so keep the real
+ * size small to not waste malloc space. Use two blocks (0x40000, 256KB) for
+ * CONFIG_ENV_NAND_RANGE to have one spare block in case of a bad first block.
+ * See also MMC and NAND layout above.
+ */
+
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
-
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET               (64 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#define CONFIG_ENV_RANGE	    0x00040000	/* 2 blocks = 256KB */
-#define CONFIG_ENV_OFFSET       0x00800000 /* after u-boot */
-#endif
-
 
 #define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC2 */
 #define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* USDHC2 */
@@ -312,7 +310,6 @@
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define PHYS_SDRAM                      0x40000000
 #define PHYS_SDRAM_SIZE			0x80000000 /* 2GB DDR */
-#define CONFIG_NR_DRAM_BANKS		1
 
 #define CONFIG_SYS_MEMTEST_START    	PHYS_SDRAM
 #define CONFIG_SYS_MEMTEST_END      	(CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
@@ -358,9 +355,6 @@
 
 /* USDHC */
 #define CONFIG_CMD_MMC
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
-
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 
@@ -373,19 +367,10 @@
 #define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
-#define CONFIG_MXC_GPIO
-
-#define CONFIG_MXC_OCOTP
-#define CONFIG_CMD_FUSE
-
 /* I2C Configs */
 #define CONFIG_SYS_I2C_SPEED		100000
 
 #ifdef CONFIG_NAND_BOOT
-
-#define CONFIG_NAND_MXS
-#define CONFIG_CMD_NAND
-#define CONFIG_CMD_NAND_TRIMFFS
 
 /* NAND stuff */
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
@@ -412,15 +397,9 @@
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_USB_MAX_CONTROLLER_COUNT         2
 
-#define CONFIG_CMD_USB
 #define CONFIG_USB_STORAGE
 
 #define CONFIG_USBD_HS
-
-#define CONFIG_CMD_USB_MASS_STORAGE
-#define CONFIG_USB_GADGET_MASS_STORAGE
-#define CONFIG_USB_FUNCTION_MASS_STORAGE
-#define CONFIG_USB_GADGET_VBUS_DRAW 2
 
 #endif
 

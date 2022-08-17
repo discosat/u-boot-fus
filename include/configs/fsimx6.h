@@ -345,26 +345,15 @@
 /************************************************************************
  * Environment
  ************************************************************************/
-
-/* Environment settings for large blocks (128KB). The environment is held in
-   the heap, so keep the real env size small to not waste malloc space. */
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define CONFIG_ENV_SIZE		0x00020000	/* 128KB */
-#define CONFIG_ENV_OFFSET	0x00060000	/* See MMC layout above */
+/*
+ * Environment size and location are now set in the defconfig. The environment
+ * is held in the heap, so keep the real size small to not waste malloc space.
+ * Use two blocks (0x40000, 256KB) for CONFIG_ENV_NAND_RANGE to have one spare
+ * block in case of a bad first block. See also NAND layout above. If we ever
+ * change this layout, we should also make room for a second environment and
+ * activate CONFIG_SYS_REDUNDAND_ENVIRONMENT.
+ */
 #define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
-#else
-#define CONFIG_ENV_SIZE		0x00004000	/* 16KB */
-#define CONFIG_ENV_RANGE	0x00040000	/* 2 blocks = 256KB */
-#define CONFIG_ENV_OFFSET	0x00200000	/* See NAND layout above */
-#define CONFIG_ENV_OVERWRITE			/* Allow overwriting ethaddr */
-#endif
-
-/* When saving the environment, we usually have a short period of time between
-   erasing the NAND region and writing the new data where no valid environment
-   is available. To avoid this time, we can save the environment alternatively
-   to two different locations in the NAND flash. Then at least one of the
-   environments is always valid. Currently we don't use this feature. */
-/*#define CONFIG_SYS_ENV_OFFSET_REDUND   0x001C0000*/
 
 #define CONFIG_ETHPRIME		"FEC"
 #define CONFIG_NETMASK		255.255.255.0

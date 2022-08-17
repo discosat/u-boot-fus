@@ -33,8 +33,22 @@
 #error CONFIG_ENV_NAND_OFFSET_REDUND must have CONFIG_CMD_SAVEENV & CONFIG_CMD_NAND
 #endif
 
+/*
+ * We do not want to break exisiting configs, so if the NAND specific values
+ * are missing, use the generic values instead
+ */
+#ifndef CONFIG_ENV_NAND_OFFSET
+#define CONFIG_ENV_NAND_OFFSET CONFIG_ENV_OFFSET
+#endif
+#if !defined(CONFIG_ENV_NAND_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#define CONFIG_ENV_NAND_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+#endif
 #ifndef CONFIG_ENV_NAND_RANGE
-#define CONFIG_ENV_NAND_RANGE	CONFIG_ENV_SIZE
+#ifdef CONFIG_ENV_RANGE
+#define CONFIG_ENV_NAND_RANGE CONFIG_ENV_RANGE
+#else
+#define CONFIG_ENV_NAND_RANGE CONFIG_ENV_SIZE
+#endif
 #endif
 
 #if defined(ENV_IS_EMBEDDED)
@@ -306,38 +320,6 @@ static int readenv(size_t offset, u_char *buf)
 }
 #endif /* #if defined(CONFIG_SPL_BUILD) */
 
-#ifdef CONFIG_ENV_OFFSET_OOB
-int get_nand_env_oob(struct mtd_info *mtd, unsigned long *result)
-{
-	struct mtd_oob_ops ops;
-	uint32_t oob_buf[ENV_OFFSET_SIZE / sizeof(uint32_t)];
-	int ret;
-
-	ops.datbuf	= NULL;
-	ops.mode	= MTD_OOB_AUTO;
-	ops.ooboffs	= 0;
-	ops.ooblen	= ENV_OFFSET_SIZE;
-	ops.oobbuf	= (void *)oob_buf;
-
-	ret = mtd->read_oob(mtd, ENV_OFFSET_SIZE, &ops);
-	if (ret) {
-		printf("error reading OOB block 0\n");
-		return ret;
-	}
-
-	if (oob_buf[0] == ENV_OOB_MARKER) {
-		*result = oob_buf[1] * mtd->erasesize;
-	} else if (oob_buf[0] == ENV_OOB_MARKER_OLD) {
-		*result = oob_buf[1];
-	} else {
-		printf("No dynamic environment marker in OOB block 0\n");
-		return -ENOENT;
-	}
-
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 static int env_nand_load(void)
 {
@@ -381,20 +363,6 @@ static int env_nand_load(void)
 #if !defined(ENV_IS_EMBEDDED)
 	int ret;
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
-
-#if defined(CONFIG_ENV_OFFSET_OOB)
-	struct mtd_info *mtd  = get_nand_dev_by_index(0);
-	/*
-	 * If unable to read environment offset from NAND OOB then fall through
-	 * to the normal environment reading code below
-	 */
-	if (mtd && !get_nand_env_oob(mtd, &nand_env_oob_offset)) {
-		printf("Found Environment offset in OOB..\n");
-	} else {
-		env_set_default("no env offset in OOB", 0);
-		return;
-	}
-#endif
 
 	ret = readenv(nand_offset(0), (u_char *)buf);
 	if (ret) {
