@@ -156,15 +156,6 @@ void	fdc_hw_init   (void);
 # define CONFIG_SYS_DEF_EEPROM_ADDR CONFIG_SYS_I2C_EEPROM_ADDR
 #endif
 
-#ifdef CONFIG_CMD_BLINK
-extern int start_blink_timer(unsigned int);
-extern void stop_blink_timer(void);
-extern void set_blink_timer(unsigned int);
-extern void run_blink_callbacks(void);
-extern int add_blink_callback(interrupt_handler_t *, void *);
-extern void remove_blink_callback(interrupt_handler_t *);
-#endif
-
 #if defined(CONFIG_SYS_DRAM_TEST)
 int testdram(void);
 #endif /* CONFIG_SYS_DRAM_TEST */

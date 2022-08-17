@@ -8,6 +8,7 @@
  */
 
 #include <common.h>
+#include <blink.h>
 #include <asm/io.h>
 #include <asm/arch/vybrid-regs.h>	/* CA5SCU_ICCIAR, N_IRQS, ... */
 

@@ -16,6 +16,9 @@
 #include <config.h>
 #include <command.h>
 #include <status_led.h>
+#ifdef CONFIG_CMD_BLINK
+#include <blink.h>
+#endif
 
 struct led_tbl_s {
 	char		*string;	/* String for use in the command */

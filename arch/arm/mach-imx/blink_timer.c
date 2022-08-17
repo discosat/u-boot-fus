@@ -8,6 +8,7 @@
  */
 
 #include <common.h>
+#include <blink.h>			/* run_blink_callbacks(), ... */
 #include <errno.h>			/* ENXIO */
 #include <asm/io.h>			/* writel(), readl() */
 #include <asm/arch/imx-regs.h>		/* struct epit, EPIT1_BASE_ADDR */

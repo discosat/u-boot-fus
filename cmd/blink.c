@@ -7,6 +7,7 @@
  */
 
 #include <common.h>
+#include <blink.h>
 
 #ifndef CONFIG_SYS_BLINK_CLIENTS
 #define CONFIG_SYS_BLINK_CLIENTS 1
