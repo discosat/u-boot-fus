@@ -42,10 +42,12 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MM 0x0
 #define BT_PICOCOREMX8MX 0x1
+#define BT_PICOCOREMX8MMr2 0x2
 
 static const char *board_names[] = {
 	"PicoCoreMX8MM",
 	"PicoCoreMX8MX",
+	"PicoCoreMX8MMr2",
 	"(unknown)"
 };
 
@@ -100,6 +102,7 @@ int power_init_board(void)
 	{
 	default:
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		setup_i2c(I2C_PMIC_8MM, CONFIG_SYS_I2C_SPEED, 0x7f,
 			  &i2c_pad_info_8mm);
 		ret = power_bd71837_init(I2C_PMIC_8MM);
@@ -131,6 +134,7 @@ int power_init_board(void)
 	switch (board_type)
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		/* increase VDD_DRAM to 0.975v f-*or 3Ghz DDR */
 		pmic_reg_write(p, BD71837_BUCK5_VOLT, 0x83);
 		break;
@@ -184,6 +188,7 @@ static void config_uart(int board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		/* Setup UART pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mm,
 						 ARRAY_SIZE(uart_pads_mm));
@@ -352,6 +357,9 @@ static void fs_board_early_init(void)
 		break;
 	case BT_PICOCOREMX8MX:
 			imx_iomux_v3_setup_pad(lvds_rst_8mx_110_pads);
+		break;
+	case BT_PICOCOREMX8MMr2:
+			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
 		break;
 	}
 }
