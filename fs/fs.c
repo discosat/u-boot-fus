@@ -695,9 +695,9 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		else
 		addr = get_loadaddr();
 	if (argc >= 5)
-		filename = parse_bootfile(argv[4]);
+		filename = env_parse_bootfile(argv[4]);
 	else
-		filename = get_bootfile();
+		filename = env_get_bootfile();
 	if (!filename) {
 		puts("** No boot file defined **\n");
 		return 1;

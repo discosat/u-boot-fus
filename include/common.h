@@ -37,9 +37,6 @@
 #include <init.h>
 #include <display_options.h>
 
-const char *get_bootfile(void);
-const char *parse_bootfile(const char *buffer);
-
 /* Get the load address; should be the same as environment variable loadaddr */
 ulong get_loadaddr(void);
 

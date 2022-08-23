@@ -49,7 +49,7 @@ static int do_zfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		return CMD_RET_USAGE;
 
 	addr = (argc > 3) ? parse_loadaddr(argv[3], NULL) : get_loadaddr();
-	filename = (argc > 4) ? parse_bootfile(argv[4]) : get_bootfile();
+	filename = (argc > 4) ? env_parse_bootfile(argv[4]) : env_get_bootfile();
 	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
 	pos = (argc > 6) ? simple_strtoul(argv[6], NULL, 16) : 0;
 	set_fileaddr(addr);

@@ -120,15 +120,15 @@ int do_cramfs_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* pre-set Boot file name and offset */
 	offset = get_loadaddr();
-	filename = get_bootfile();
+	filename = env_get_bootfile();
 
 	if (argc == 2) {
-		filename = parse_bootfile(argv[1]);
+		filename = env_parse_bootfile(argv[1]);
 	}
 	if (argc == 3) {
 		offset = parse_loadaddr(argv[1], NULL);
 		set_fileaddr(offset);
-		filename = parse_bootfile(argv[2]);
+		filename = env_parse_bootfile(argv[2]);
 	}
 
 	offset_virt = map_sysmem(offset, 0);

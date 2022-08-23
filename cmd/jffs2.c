@@ -480,14 +480,14 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	ulong addr;
 
 	addr = get_loadaddr();
-	filename = get_bootfile();
+	filename = env_get_bootfile();
 
 	if (argc == 2) {
-		filename = parse_bootfile(argv[1]);
+		filename = env_parse_bootfile(argv[1]);
 	}
 	if (argc == 3) {
 		addr = parse_loadaddr(argv[1], NULL);
-		filename = parse_bootfile(argv[2]);
+		filename = env_parse_bootfile(argv[2]);
 	}
 
 	/* make sure we are in sync with env variables */

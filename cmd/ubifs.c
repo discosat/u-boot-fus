@@ -116,7 +116,7 @@ static int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	addr = (argc > 1) ? parse_loadaddr(argv[1], NULL) : get_loadaddr();
-	filename = (argc > 2) ? parse_bootfile(argv[2]) : get_bootfile();
+	filename = (argc > 2) ? env_parse_bootfile(argv[2]) : env_get_bootfile();
 	size = (argc > 3) ? simple_strtoul(argv[3], NULL, 16) : 0;
 
 	debug("Loading file '%s' to address 0x%08x (size %d)\n",

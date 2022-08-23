@@ -765,7 +765,7 @@ ulong env_get_ulong(const char *name, int base, ulong default_val)
 	return str ? simple_strtoul(str, NULL, base) : default_val;
 }
 
-const char *get_bootfile(void)
+const char *env_get_bootfile(void)
 {
 	const char *p;
 
@@ -775,10 +775,10 @@ const char *get_bootfile(void)
 	return CONFIG_BOOTFILE;
 }
 
-const char *parse_bootfile(const char *buffer)
+const char *env_parse_bootfile(const char *buffer)
 {
 	if ((buffer[0] == '.') && (buffer[1] == 0))
-		return get_bootfile();
+		return env_get_bootfile();
 	return buffer;
 }
 
