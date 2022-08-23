@@ -1436,6 +1436,24 @@ struct cipher_algo *image_get_cipher_algo(const char *full_name);
 #endif /* CONFIG_FIT_VERBOSE */
 #endif /* CONFIG_FIT */
 
+/* Get the load address; should be the same as environment variable loadaddr */
+ulong get_loadaddr(void);
+
+/* Parse address, in case of "." return current get_loadaddr() */
+ulong parse_loadaddr(const char *buffer, char **endp);
+
+/* Like simple_loadaddr(), but return error in case of trailing garbage */
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
+
+/* Set address where to load next file */
+void set_fileaddr(ulong addr);
+
+/* Get address where to load next file */
+ulong get_fileaddr(void);
+
+/* Set environment variables fileaddr and filesize */
+void env_set_fileinfo(ulong size);
+
 #if defined(CONFIG_ANDROID_BOOT_IMAGE)
 struct andr_img_hdr;
 int android_image_check_header(const struct andr_img_hdr *hdr);

@@ -9,6 +9,7 @@
 
 #include <common.h>
 #include <spl.h>
+#include <hang.h>
 #include <asm/io.h>
 #include <errno.h>
 #include <asm/io.h>
@@ -525,7 +526,7 @@ unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 }
 
 /* U-Boot is always loaded from the User HW partition */
-int spl_boot_part(struct mmc *mmc)
+int spl_mmc_emmc_boot_partition(struct mmc *mmc)
 {
 	return 0;
 }

@@ -36,25 +36,6 @@
 #include <asm/global_data.h>	/* global data used for startup functions */
 #include <init.h>
 #include <display_options.h>
-
-/* Get the load address; should be the same as environment variable loadaddr */
-ulong get_loadaddr(void);
-
-/* Parse address, in case of "." return current get_loadaddr() */
-ulong parse_loadaddr(const char *buffer, char **endp);
-
-/* Like simple_loadaddr(), but return error in case of trailing garbage */
-int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
-
-/* Set address where to load next file */
-void set_fileaddr(ulong addr);
-
-/* Get address where to load next file */
-ulong get_fileaddr(void);
-
-/* Set environment variables fileaddr and filesize */
-void env_set_fileinfo(ulong size);
-
 #include <uuid.h>
 #include <vsprintf.h>
 #include <net.h>
