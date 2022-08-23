@@ -387,7 +387,7 @@ u32 get_cpu_rev(void)
 	} else if (major_low == 0x42) {
 		/* iMX8MN */
 		type = get_cpu_variant_type(MXC_CPU_IMX8MN);
-	 } else if (major_low == 0x41) {
+	} else if (major_low == 0x41) {
 		type = get_cpu_variant_type(MXC_CPU_IMX8MM);
 	} else {
 		if (reg == CHIP_REV_1_0) {
@@ -398,15 +398,6 @@ u32 get_cpu_rev(void)
 			 * 0xff0055aa is magic number for B1.
 			 */
 			if (readl((void __iomem *)(OCOTP_BASE_ADDR + 0x40)) == 0xff0055aa) {
-				/*
-				 * B2 uses same DIGPROG and OCOTP_READ_FUSE_DATA value with B1,
-				 * so have to check ROM to distinguish them
-				 */
-				rom_version = readl((void __iomem *)ROM_VERSION_B0);
-				rom_version &= 0xff;
-				if (rom_version == CHIP_REV_2_2)
-					reg = CHIP_REV_2_2;
-				else
 				reg = CHIP_REV_2_1;
 			} else {
 				rom_version =
@@ -494,9 +485,6 @@ static void secure_lockup(void)
 		clock_enable(CCGR_OCOTP, 1);
 		setbits_le32(&ocotp->sw_sticky, 0x6); /* Lock up field return and SRK revoke */
 		writel(0x80000000, &ocotp->scs_set); /* Lock up SCS */
-
-		/* Clear mfg prot private key in CAAM */
-		setbits_le32((ulong)(CONFIG_SYS_FSL_SEC_ADDR + 0xc), 0x08000000);
 #else
 		/* Check the Unique ID, if it is matched with UID config, then allow to leave sticky bits unlocked */
 		if (!is_uid_matched(CONFIG_IMX_UNIQUE_ID))
@@ -543,7 +531,7 @@ int arch_cpu_init(void)
 				writel(0xE, &gpc->cpu_pgc_dn_trg);
 			} else {
 				writel(0xC, &gpc->cpu_pgc_dn_trg);
-			}
+	}
 		}
 	}
 
@@ -579,7 +567,7 @@ enum boot_device get_boot_device(void)
 
 	ret = g_rom_api->query_boot_infor(QUERY_BT_DEV, &boot,
 					  ((uintptr_t)&boot) ^ QUERY_BT_DEV);
-        gd =  pgd;
+	gd = pgd;
 
 	if (ret != ROM_API_OKAY) {
 		puts("ROMAPI: failure at query_boot_info\n");
@@ -823,7 +811,7 @@ int disable_gpu_nodes(void *blob)
 	return disable_fdt_nodes(blob, nodes_path_8mn, ARRAY_SIZE(nodes_path_8mn));
 }
 
-int disable_cpu_nodes(void *blob, u32 disabled_cores)
+static int disable_cpu_nodes(void *blob, u32 disabled_cores)
 {
 	const char *nodes_path[] = {
 			"/cpus/cpu@1",
@@ -973,14 +961,14 @@ void reset_cpu(ulong addr)
        if (!addr)
 	       wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
 
-	/* Clear WDA to trigger WDOG_B immediately */
+       /* Clear WDA to trigger WDOG_B immediately */
 	writew((SET_WCR_WT(1) | WCR_WDT | WCR_WDE | WCR_SRS), &wdog->wcr);
 
-	while (1) {
-		/*
+       while (1) {
+               /*
 		 * spin for 1 second before timeout reset
-		 */
-	}
+                */
+       }
 }
 #endif
 

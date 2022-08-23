@@ -183,16 +183,6 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-/* Environment organization */
-#define CONFIG_ENV_SIZE			SZ_8K
-
-#if defined CONFIG_SPI_BOOT
-#define CONFIG_ENV_OFFSET               (896 * 1024)
-#define CONFIG_ENV_SECT_SIZE            (64 * 1024)
-#else
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#endif
-
 /* USB Configs */
 #ifdef CONFIG_CMD_USB
 #define CONFIG_EHCI_HCD_INIT_AFTER_RESET
@@ -223,9 +213,5 @@
 
 	#define CONFIG_WAVEFORM_BUF_SIZE		0x400000
 #endif /* CONFIG_SPLASH_SCREEN */
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "mx6slevkandroid.h"
-#endif
 
 #endif				/* __CONFIG_H */

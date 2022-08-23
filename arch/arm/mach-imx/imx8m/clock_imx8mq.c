@@ -691,7 +691,7 @@ void dram_pll_init(ulong pll_val)
 		;
 }
 
-int frac_pll_init(u32 pll, enum frac_pll_out_val val)
+static int frac_pll_init(u32 pll, enum frac_pll_out_val val)
 {
 	void __iomem *pll_cfg0, __iomem *pll_cfg1;
 	u32 val_cfg0, val_cfg1, divq;
@@ -866,13 +866,15 @@ int clock_init(void)
  * Dump some clockes.
  */
 #ifndef CONFIG_SPL_BUILD
-int do_imx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_imx8m_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
 	u32 freq;
 
 	freq = decode_frac_pll(ARM_PLL_CLK);
 	printf("ARM_PLL    %8d MHz\n", freq / 1000000);
+	freq = decode_sscg_pll(DRAM_PLL1_CLK);
+	printf("DRAM_PLL    %8d MHz\n", freq / 1000000);
 	freq = decode_sscg_pll(SYSTEM_PLL1_800M_CLK);
 	printf("SYS_PLL1_800    %8d MHz\n", freq / 1000000);
 	freq = decode_sscg_pll(SYSTEM_PLL1_400M_CLK);

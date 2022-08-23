@@ -23,7 +23,6 @@
 #include <mmc.h>
 #include <fsl_esdhc_imx.h>
 #include <miiphy.h>
-#include <netdev.h>
 #include <asm/arch/sys_proto.h>
 #include <i2c.h>
 #include <input.h>
@@ -94,25 +93,6 @@ int dram_init(void)
 static iomux_v3_cfg_t const uart4_pads[] = {
 	IOMUX_PADS(PAD_KEY_COL0__UART4_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
 	IOMUX_PADS(PAD_KEY_ROW0__UART4_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
-};
-
-static iomux_v3_cfg_t const enet_pads[] = {
-	IOMUX_PADS(PAD_KEY_COL1__ENET_MDIO		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_KEY_COL2__ENET_MDC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD1__RGMII_TD1		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD2__RGMII_TD2		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD3__RGMII_TD3		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TX_CTL__RGMII_TX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RXC__RGMII_RXC		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD0__RGMII_RD0		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD1__RGMII_RD1		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD2__RGMII_RD2		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD3__RGMII_RD3		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RX_CTL__RGMII_RX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_GPIO_16__ENET_REF_CLK		| MUX_PAD_CTRL(ENET_PAD_CTRL)),
 };
 
 #ifdef CONFIG_SYS_I2C
@@ -252,11 +232,14 @@ static void setup_iomux_eimnor(void)
 }
 #endif
 
-static void setup_iomux_enet(void)
+
+static void setup_iomux_uart(void)
 {
-	SETUP_IOMUX_PADS(enet_pads);
+	SETUP_IOMUX_PADS(uart4_pads);
 }
 
+#ifdef CONFIG_FSL_ESDHC_IMX
+#if !CONFIG_IS_ENABLED(DM_MMC)
 static iomux_v3_cfg_t const usdhc1_pads[] = {
 	/*To avoid pin conflict with NAND, set usdhc1 to 4 pins*/
 	IOMUX_PADS(PAD_SD1_CLK__SD1_CLK	| MUX_PAD_CTRL(USDHC1_PAD_CTRL)),
@@ -284,13 +267,6 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IOMUX_PADS(PAD_GPIO_18__SD3_VSELECT	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_NANDF_CS2__GPIO6_IO15	| MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
-
-static void setup_iomux_uart(void)
-{
-	SETUP_IOMUX_PADS(uart4_pads);
-}
-
-#ifdef CONFIG_FSL_ESDHC_IMX
 
 #define USDHC1_CD_GPIO	IMX_GPIO_NR(1, 1)
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(6, 15)
@@ -356,6 +332,7 @@ int board_mmc_init(bd_t *bis)
 	return 0;
 }
 #endif
+#endif
 
 #ifdef CONFIG_NAND_MXS
 static iomux_v3_cfg_t gpmi_pads[] = {
@@ -409,13 +386,6 @@ static void setup_fec(void)
 	ret = enable_fec_anatop_clock(0, ENET_125MHZ);
 	if (ret)
 		printf("Error fec anatop clock settings!\n");
-}
-
-int board_eth_init(bd_t *bis)
-{
-	setup_iomux_enet();
-
-	return cpu_eth_init(bis);
 }
 
 u32 get_board_rev(void)
@@ -846,7 +816,7 @@ void ldo_mode_set(int ldo_bypass)
 	struct udevice *dev;
 	int ret;
 
-	ret = pmic_get("pfuze100", &dev);
+	ret = pmic_get("pfuze100@8", &dev);
 	if (ret == -ENODEV) {
 		printf("No PMIC found!\n");
 		return;

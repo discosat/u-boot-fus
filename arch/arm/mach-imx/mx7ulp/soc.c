@@ -3,6 +3,7 @@
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
  */
+#include <cpu_func.h>
 #include <init.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -198,6 +199,7 @@ void init_wdog(void)
 	disable_wdog(WDG2_RBASE);
 }
 
+#if !defined(CONFIG_SPL) || (defined(CONFIG_SPL) && defined(CONFIG_SPL_BUILD))
 #if defined(CONFIG_LDO_ENABLED_MODE)
 static void init_ldo_mode(void)
 {
@@ -260,6 +262,7 @@ void s_init(void)
 #endif
 	return;
 }
+#endif
 
 #ifndef CONFIG_ULP_WATCHDOG
 void reset_cpu(ulong addr)

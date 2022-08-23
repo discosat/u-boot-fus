@@ -39,7 +39,7 @@ config IMX_RDC
 
 config IMX_BOOTAUX
 	bool "Support boot auxiliary core"
-	depends on ARCH_MX7 || ARCH_MX7ULP || ARCH_MX6 || ARCH_IMX8 || ARCH_IMX8M
+	depends on ARCH_MX7 || ARCH_MX7ULP || ARCH_MX6 || ARCH_VF610 || ARCH_IMX8 || ARCH_IMX8M
 	help
 	  bootaux [addr] to boot auxiliary core.
 
@@ -139,7 +139,7 @@ config IMX_SECO_DEK_ENCAP
 
 config CMD_PRIBLOB
 	bool "Support the set_priblob_bitfield command"
-	depends on HAS_CAAM && SECURE_BOOT
+	depends on HAS_CAAM && IMX_HAB
 	help
 	  This option enables the priblob command which can be used
 		to set the priblob setting to 0x3.
@@ -150,9 +150,21 @@ config CMD_HDMIDETECT
 	  This enables the 'hdmidet' command which detects if an HDMI monitor
 	  is connected.
 
+config CMD_NANDBCB
+	bool "i.MX6 NAND Boot Control Block(BCB) command"
+	depends on MTD_RAW_NAND && CMD_MTDPARTS
+	select BCH if MX6UL || MX6ULL
+	default y if ((ARCH_MX6 || ARCH_MX7 || ARCH_IMX8M || ARCH_IMX8) && NAND_MXS)
+	help
+	  Unlike normal 'nand write/erase' commands, this command update
+	  Boot Control Block(BCB) for i.MX6 platform NAND IP's.
+
+	  This is similar to kobs-ng, which is used in Linux as separate
+	  rootfs package.
+
 config FSL_MFGPROT
 	bool "Support the 'mfgprot' command"
-	depends on SECURE_BOOT || AHAB_BOOT
+	depends on IMX_HAB || AHAB_BOOT
 	select IMX_CAAM_MFG_PROT if ARCH_MX7
 	select IMX_SECO_MFG_PROT if ARCH_IMX8
 	help
@@ -180,18 +192,6 @@ config DBG_MONITOR
 	  This option enables the debug monitor which prints out last
 	  failed AXI access info when system reboot is caused by AXI
 	  access failure.
-
-config CMD_NANDBCB
-	bool "i.MX6 NAND Boot Control Block(BCB) command"
-	depends on MTD_RAW_NAND && CMD_MTDPARTS
-	select BCH if MX6UL || MX6ULL
-	default y if ((ARCH_MX6 || ARCH_MX7 || ARCH_IMX8M || ARCH_IMX8) && NAND_MXS)
-	help
-	  Unlike normal 'nand write/erase' commands, this command update
-	  Boot Control Block(BCB) for i.MX6 platform NAND IP's.
-
-	  This is similar to kobs-ng, which is used in Linux as separate
-	  rootfs package.
 
 config NXP_BOARD_REVISION
 	bool "Read NXP board revision from fuses"
@@ -221,7 +221,7 @@ config DDRMC_VF610_CALIBRATION
 
 config SPL_IMX_ROMAPI_LOADADDR
 	hex "Default load address to load image through ROM API"
-	depends on IMX8MN
+	depends on IMX8MN || IMX8MP
 
 config IMX_DCD_ADDR
 	hex "DCD Blocks location on the image"

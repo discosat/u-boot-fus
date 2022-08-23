@@ -134,5 +134,6 @@ source "board/freescale/imx8mp_evk/Kconfig"
 source "board/F+S/fsimx8mm/Kconfig"
 source "board/F+S/fsimx8m/Kconfig"
 source "board/F+S/fsimx8mn/Kconfig"
+source "board/toradex/verdin-imx8mm/Kconfig"
 
 endif

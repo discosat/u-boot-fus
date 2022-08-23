@@ -13,6 +13,7 @@
 #include <console.h>
 #include <env.h>
 #include <linux/ctype.h>
+#include <cli.h>
 
 /*
  * Use puts() instead of printf() to avoid printf buffer overflow
@@ -464,7 +465,7 @@ int cmd_get_data_size(char* arg, int default_size)
 			return 2;
 		case 'l':
 			return 4;
-#ifdef CONFIG_SYS_SUPPORT_64BIT_DATA
+#ifdef MEM_SUPPORT_64BIT_DATA
 		case 'q':
 			return 8;
 #endif

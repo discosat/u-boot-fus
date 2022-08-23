@@ -49,19 +49,26 @@ ulong h_spl_load_read(struct spl_load_info *load, ulong sector,
 	return blk_dread(mmc_get_blk_desc(mmc), sector, count, buf);
 }
 
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
-/* Pre-declaration of check_rpmb_blob. */
-int check_rpmb_blob(struct mmc *mmc);
+static __maybe_unused unsigned long spl_mmc_raw_uboot_offset(int part)
+{
+#if IS_ENABLED(CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR)
+	if (part == 0)
+		return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_DATA_PART_OFFSET;
 #endif
 
-#ifdef CONFIG_DUAL_BOOTLOADER
-/* Pre-declaration of mmc_load_image_raw_sector_dual_uboot().
- */
-extern int mmc_load_image_raw_sector_dual_uboot(struct spl_image_info *spl_image,
-						struct mmc *mmc);
-extern int mmc_load_image_parse_container_dual_uboot(struct spl_image_info *spl_image,
-						struct mmc *mmc);
-#else
+	return 0;
+}
+
+#if defined(CONFIG_DUAL_BOOTLOADER)
+int mmc_load_image_raw_sector_dual_uboot(struct spl_image_info *spl_image,
+					 struct mmc *mmc);
+#endif
+
+int __weak mmc_image_load_late(struct mmc *mmc)
+{
+	return 0;
+}
+
 static __maybe_unused
 int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 			      struct mmc *mmc, unsigned long sector)
@@ -114,14 +121,9 @@ end:
 		return -1;
 	}
 
-	/* Images loaded, now check the rpmb keyblob for Trusty OS. */
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
-	ret = check_rpmb_blob(mmc);
-#endif
+	ret = mmc_image_load_late(mmc);
 	return ret;
 }
-
-#endif /* CONFIG_DUAL_BOOTLOADER */
 
 static int spl_mmc_get_device_index(u32 boot_device)
 {
@@ -187,7 +189,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 		err = part_get_info(mmc_get_blk_desc(mmc), type_part, &info);
 		if (err)
 			continue;
-		if (info.sys_ind == 
+		if (info.sys_ind ==
 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION_TYPE) {
 			partition = type_part;
 			break;
@@ -318,26 +320,6 @@ u32 __weak spl_boot_mode(const u32 boot_device)
 #endif
 }
 
-int __weak spl_boot_part(struct mmc *mmc)
-{
-	int part;
-
-#ifdef CONFIG_DUAL_BOOTLOADER
-	/* Bootloader is stored in eMMC user partition for dual bootloader */
-	part = 0;
-#else
-	/*
-	 * We need to check what the partition is configured to.
-	 * 1 and 2 match up to boot0 / boot1 and 7 is user data
-	 * which is the first physical partition (0).
-	 */
-	part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
-	if (part == 7)
-		part = 0;
-#endif
-	return part;
-}
-
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
 __weak
 int spl_boot_partition(const u32 boot_device)
@@ -346,30 +328,39 @@ int spl_boot_partition(const u32 boot_device)
 }
 #endif
 
-unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+unsigned long __weak spl_mmc_get_uboot_raw_sector(struct mmc *mmc,
+						  unsigned long raw_sect)
 {
-#ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR
-	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
-#else
-	return 0;
-#endif
+	return raw_sect;
 }
 
-#ifdef CONFIG_PARSE_CONTAINER
-int __weak mmc_load_image_parse_container(struct spl_image_info *spl_image,
-				     struct mmc *mmc, unsigned long sector)
+int __weak spl_mmc_emmc_boot_partition(struct mmc *mmc)
 {
-	return -ENODEV;
-};
+	int part = 0;
 
 #ifdef CONFIG_DUAL_BOOTLOADER
-int __weak mmc_load_image_parse_container_dual_bootloader(struct spl_image_info *spl_image,
-				     struct mmc *mmc, unsigned long sector)
-{
-	return -ENODEV;
+	/* Bootloader is stored in eMMC user partition for
+	 * dual bootloader.
+	 */
+	part = 0;
+#else
+#ifdef CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION
+	part = CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION;
+#else
+	/*
+	 * We need to check what the partition is configured to.
+	 * 1 and 2 match up to boot0 / boot1 and 7 is user data
+	 * which is the first physical partition (0).
+	 */
+	part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
+
+	if (part == 7)
+		part = 0;
+#endif
+#endif
+
+	return part;
 }
-#endif
-#endif
 
 int spl_mmc_load(struct spl_image_info *spl_image,
 		 struct spl_boot_device *bootdev,
@@ -380,7 +371,7 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 	static struct mmc *mmc;
 	u32 boot_mode;
 	int err = 0;
-	__maybe_unused int part;
+	__maybe_unused int part = 0;
 
 	/* Perform peripheral init only once */
 	if (!mmc) {
@@ -402,24 +393,20 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 	err = -EINVAL;
 	switch (boot_mode) {
 	case MMCSD_MODE_EMMCBOOT:
-#ifdef CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION
-		part = CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION;
-#else
-		part = spl_boot_part(mmc);
-#endif
+		part = spl_mmc_emmc_boot_partition(mmc);
 
-			if (CONFIG_IS_ENABLED(MMC_TINY))
-				err = mmc_switch_part(mmc, part);
-			else
-				err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
+		if (CONFIG_IS_ENABLED(MMC_TINY))
+			err = mmc_switch_part(mmc, part);
+		else
+			err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), part);
 
-			if (err) {
+		if (err) {
 #ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
-				puts("spl: mmc partition switch failed\n");
+			puts("spl: mmc partition switch failed\n");
 #endif
-				return err;
-			}
-			/* Fall through */
+			return err;
+		}
+		/* Fall through */
 	case MMCSD_MODE_RAW:
 		debug("spl: mmc boot mode: raw\n");
 
@@ -429,7 +416,9 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 				return err;
 		}
 
-		raw_sect = spl_mmc_get_uboot_raw_sector(mmc);
+#ifndef CONFIG_DUAL_BOOTLOADER
+		raw_sect = spl_mmc_get_uboot_raw_sector(mmc, raw_sect);
+#endif
 
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
 		err = mmc_load_image_raw_partition(spl_image, mmc, raw_part,
@@ -439,20 +428,10 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 #endif
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #ifdef CONFIG_DUAL_BOOTLOADER
-#ifdef CONFIG_PARSE_CONTAINER
-		err = mmc_load_image_parse_container_dual_uboot(spl_image,
-								mmc);
+		err = mmc_load_image_raw_sector_dual_uboot(spl_image, mmc);
 #else
-		err = mmc_load_image_raw_sector_dual_uboot(spl_image,
-							   mmc);
-#endif
-#else
-#ifdef CONFIG_PARSE_CONTAINER
-		err = mmc_load_image_parse_container(spl_image, mmc,
-				spl_mmc_get_uboot_raw_sector(mmc));
-#else
-		err = mmc_load_image_raw_sector(spl_image, mmc, raw_sect);
-#endif
+		err = mmc_load_image_raw_sector(spl_image, mmc,
+				raw_sect + spl_mmc_raw_uboot_offset(part));
 #endif
 		if (!err)
 			return err;

@@ -28,6 +28,8 @@
 #ifdef CONFIG_IMX_SEC_INIT
 #include <fsl_caam.h>
 #endif
+#include <hang.h>
+#include <cpu_func.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 

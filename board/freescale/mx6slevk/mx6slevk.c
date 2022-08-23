@@ -22,7 +22,6 @@
 #include <fsl_esdhc_imx.h>
 #include <i2c.h>
 #include <mmc.h>
-#include <netdev.h>
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/pfuze.h"
@@ -32,13 +31,6 @@
 #include <lcd.h>
 #include <mxc_epdc_fb.h>
 #endif
-#ifdef CONFIG_FSL_FASTBOOT
-#include <fb_fsl.h>
-#ifdef CONFIG_ANDROID_RECOVERY
-#include "../common/recovery_keypad.h"
-#include <recovery.h>
-#endif
-#endif /*CONFIG_FSL_FASTBOOT*/
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -140,20 +132,6 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 };
 #endif
 
-static iomux_v3_cfg_t const fec_pads[] = {
-	MX6_PAD_FEC_MDC__FEC_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_MDIO__FEC_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_CRS_DV__FEC_RX_DV | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RXD0__FEC_RX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RXD1__FEC_RX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TX_EN__FEC_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TXD0__FEC_TX_DATA0 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_TXD1__FEC_TX_DATA1 | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_REF_CLK__FEC_REF_OUT | MUX_PAD_CTRL(ENET_PAD_CTRL),
-	MX6_PAD_FEC_RX_ER__GPIO_4_19 | MUX_PAD_CTRL(NO_PAD_CTRL),
-	MX6_PAD_FEC_TX_CLK__GPIO_4_21 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
 static iomux_v3_cfg_t const elan_pads[] = {
 	MX6_PAD_EPDC_PWRCTRL2__GPIO_2_9 | MUX_PAD_CTRL(NO_PAD_CTRL),
 	MX6_PAD_EPDC_PWRCTRL3__GPIO_2_10 | MUX_PAD_CTRL(ELAN_INTR_PAD_CTRL),
@@ -235,16 +213,6 @@ static void setup_iomux_uart(void)
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
 }
 
-static void setup_iomux_fec(void)
-{
-	imx_iomux_v3_setup_multiple_pads(fec_pads, ARRAY_SIZE(fec_pads));
-
-	/* Power up LAN8720 PHY */
-	gpio_request(ETH_PHY_POWER, "eth_pwr");
-	gpio_direction_output(ETH_PHY_POWER , 1);
-	udelay(15000);
-}
-
 #ifdef CONFIG_SYS_I2C
 #define PC	MUX_PAD_CTRL(I2C_PAD_CTRL)
 /* I2C1 for PMIC */
@@ -310,9 +278,9 @@ int power_init_board(void)
 	unsigned int reg;
 	int ret;
 
-	dev = pfuze_common_init();
-	if (!dev)
-		return -ENODEV;
+	ret = pmic_get("pfuze100", &dev);
+	if (ret == -ENODEV)
+		return 0;
 
 	ret = pfuze_mode_init(dev, APS_PFM);
 	if (ret < 0)
@@ -407,7 +375,7 @@ void ldo_mode_set(int ldo_bypass)
 	int is_400M;
 	u32 vddarm;
 
-	ret = pmic_get("pfuze100", &dev);
+	ret = pmic_get("pfuze100@8", &dev);
 	if (ret == -ENODEV) {
 		printf("No PMIC found!\n");
 		return;
@@ -443,16 +411,10 @@ void ldo_mode_set(int ldo_bypass)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
-{
-	return cpu_eth_init(bis);
-}
-
 static int setup_fec(void)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 
-	setup_iomux_fec();
 	/* clear gpr1[14], gpr1[18:17] to select anatop clock */
 	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC_MASK, 0);
 
@@ -801,16 +763,6 @@ int setup_mxc_kpd(void)
 	return 0;
 }
 #endif /*CONFIG_MXC_KPD*/
-
-#ifdef CONFIG_FSL_FASTBOOT
-#ifdef CONFIG_ANDROID_RECOVERY
-int is_recovery_key_pressing(void)
-{
-    return is_recovery_keypad_pressing();
-}
-
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
 
 #ifdef CONFIG_SPL_BUILD
 #include <spl.h>

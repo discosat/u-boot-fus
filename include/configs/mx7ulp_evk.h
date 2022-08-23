@@ -10,26 +10,17 @@
 
 #include <linux/sizes.h>
 #include <asm/arch/imx-regs.h>
+#include "imx_env.h"
 
 #define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_SYS_BOOTM_LEN		0x1000000
 
-#define SRC_BASE_ADDR			CMC1_RBASE
-#define IRAM_BASE_ADDR			OCRAM_0_BASE
-#define IOMUXC_BASE_ADDR		IOMUXC1_RBASE
-
 #define CONFIG_SERIAL_TAG
 
-#define CONFIG_SYS_FSL_USDHC_NUM        1
-
-#define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define CONFIG_SYS_MMC_ENV_DEV          0	/* USDHC1 */
 #define CONFIG_SYS_MMC_ENV_PART         0	/* user area */
 #define CONFIG_MMCROOT                  "/dev/mmcblk0p2"  /* USDHC1 */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART    1
-
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#define CONFIG_ENV_SIZE			SZ_8K
 
 /* Using ULP WDOG for reset */
 #define WDOG_BASE_ADDR			WDG1_RBASE
@@ -90,7 +81,7 @@
 	"tee_addr=0x64000000\0" \
 	"tee_file=uTee-7ulp\0" \
 	"boot_fdt=try\0" \
-	"earlycon=lpuart32,0x402D0010\0" \
+	"earlycon=lpuart32,0x402D0000\0" \
 	"ip_dyn=yes\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
@@ -208,11 +199,14 @@
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #endif
 
-#if defined(CONFIG_ANDROID_SUPPORT)
+#ifdef CONFIG_ANDROID_SUPPORT
 #include "mx7ulp_evk_android.h"
 #endif
+
 #endif	/* __CONFIG_H */

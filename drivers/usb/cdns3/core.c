@@ -133,7 +133,7 @@ static void cdns3_reset_core(struct cdns3 *cdns)
 	value |= ALL_SW_RESET;
 	writel(value, cdns->none_core_regs + USB3_CORE_CTRL1);
 	udelay(1);
-}
+	}
 
 static void cdns3_set_role(struct cdns3 *cdns, enum cdns3_roles role)
 {
@@ -190,7 +190,7 @@ static void cdns3_set_role(struct cdns3 *cdns, enum cdns3_roles role)
 		while (!(value & HOST_POWER_ON_READY) && timeout_us-- > 0) {
 			value = readl(cdns->none_core_regs + USB3_CORE_STATUS);
 			udelay(1);
-		}
+}
 
 		if (timeout_us <= 0)
 			dev_err(cdns->dev, "wait xhci_power_on_ready timeout\n");
@@ -388,7 +388,7 @@ int cdns3_init(struct cdns3 *cdns)
 	if (ret) {
 		dev_err(dev, "can't start %s role\n", cdns3_role(cdns)->name);
 		goto err;
-	}
+}
 
 	dev_dbg(dev, "Cadence USB3 core: probe succeed\n");
 

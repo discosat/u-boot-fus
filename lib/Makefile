@@ -22,6 +22,8 @@ obj-y += crypto/
 obj-$(CONFIG_IMX_TRUSTY_OS) += trusty/ql-tipc/
 
 obj-$(CONFIG_AES) += aes.o
+obj-$(CONFIG_AES) += aes/
+obj-$(CONFIG_$(SPL_TPL_)BINMAN_FDT) += binman.o
 
 ifndef API_BUILD
 ifneq ($(CONFIG_UT_UNICODE)$(CONFIG_EFI_LOADER),)
@@ -57,7 +59,7 @@ obj-$(CONFIG_TPM_V1) += tpm-v1.o
 obj-$(CONFIG_TPM_V2) += tpm-v2.o
 endif
 
-obj-$(CONFIG_RSA) += rsa/
+obj-$(CONFIG_$(SPL_)RSA) += rsa/
 obj-$(CONFIG_SHA1) += sha1.o
 obj-$(CONFIG_SHA256) += sha256.o
 
@@ -79,7 +81,7 @@ endif
 ifdef CONFIG_SPL_BUILD
 obj-$(CONFIG_SPL_YMODEM_SUPPORT) += crc16.o
 obj-$(CONFIG_$(SPL_TPL_)HASH_SUPPORT) += crc16.o
-obj-$(CONFIG_SPL_NET_SUPPORT) += net_utils.o
+obj-y += net_utils.o
 endif
 obj-$(CONFIG_ADDR_MAP) += addr_map.o
 obj-y += qsort.o

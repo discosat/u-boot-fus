@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017,2019 NXP
+ * Copyright 2017 NXP
  *
  * Configuration settings for the Freescale i.MX6UL 14x14 EVK board.
  */
@@ -43,7 +43,7 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC2_BASE_ADDR
 
 /* NAND pin conflicts with usdhc2 */
-#ifdef CONFIG_CMD_NAND
+#ifdef CONFIG_NAND_MXS
 #define CONFIG_SYS_FSL_USDHC_NUM	1
 #else
 #define CONFIG_SYS_FSL_USDHC_NUM	2
@@ -85,7 +85,6 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
 	TEE_ENV \
-	"panel=TFT43AB\0" \
 	"fdt_addr=0x83000000\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"tee_addr=0x84000000\0" \
@@ -187,7 +186,7 @@
 		"findtee="\
 			"if test $tee_file = undefined; then " \
 				"if test $board_name = EVK && test $board_rev = 9X9; then " \
-					"setenv tee_file uTee-6ul9x9; fi; " \
+					"setenv tee_file uTee-6ul9x9evk; fi; " \
 				"if test $board_name = EVK && test $board_rev = 14X14; then " \
 					"setenv tee_file uTee-6ulevk; fi; " \
 				"if test $fdt_file = undefined; then " \
@@ -240,8 +239,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
-#define CONFIG_ENV_SIZE			SZ_8K
-#define CONFIG_ENV_OFFSET		(8 * SZ_64K)
 #define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
@@ -262,22 +259,11 @@
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
 #endif
-
-#define CONFIG_ENV_SIZE			SZ_8K
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
-#define CONFIG_ENV_SECT_SIZE		(64 * 1024)
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
 #define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET		(60 << 20)
-#define CONFIG_ENV_SECT_SIZE		(128 << 10)
-#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
 #endif
 
 /* USB Configs */
@@ -313,6 +299,7 @@
 #ifndef CONFIG_SPL_BUILD
 #if defined(CONFIG_DM_VIDEO)
 #define CONFIG_VIDEO_MXS
+#define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
@@ -324,12 +311,4 @@
 
 #define CONFIG_MODULE_FUSE
 #define CONFIG_OF_SYSTEM_SETUP
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "mx6ul_14x14_evk_android.h"
-#endif
-
-#if defined(CONFIG_ANDROID_THINGS_SUPPORT)
-#include "mx6ul_14x14_evkandroidthings.h"
-#endif
 #endif

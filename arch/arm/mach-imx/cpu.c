@@ -37,24 +37,22 @@
 #include <fsl_esdhc_imx.h>
 #endif
 
-static u32 reset_cause = -1;
-
 u32 get_imx_reset_cause(void)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	DECLARE_GLOBAL_DATA_PTR;
 
-	if (reset_cause == -1) {
-		reset_cause = readl(&src_regs->srsr);
+	if (!gd->arch.reset_cause) {
+		struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+
+		gd->arch.reset_cause = readl(&src_regs->srsr);
+
 /* preserve the value for U-Boot proper */
-#if !defined(CONFIG_SPL_BUILD) && !defined(CONFIG_ANDROID_BOOT_IMAGE)
-		/* We will read the ssrs states later for android so we don't
-		 * clear the states here.
-		 */
-		writel(reset_cause, &src_regs->srsr);
+#if !defined(CONFIG_SPL_BUILD)
+		writel(gd->arch.reset_cause, &src_regs->srsr);
 #endif
 	}
 
-	return reset_cause;
+	return gd->arch.reset_cause;
 }
 
 #if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
@@ -104,11 +102,7 @@ const char *get_reset_cause(void)
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 void get_reboot_reason(char *ret)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
-
-	strcpy(ret, (const char *)get_reset_cause());
-	/* clear the srsr here, its state has been recorded in reset_cause */
-	writel(reset_cause, &src_regs->srsr);
+	strcpy(ret, get_reset_cause());
 }
 #endif
 #endif
@@ -190,10 +184,7 @@ const char *get_imx_type(u32 imxtype)
 #ifndef CONFIG_ARCH_MX7ULP
 int print_cpuinfo(void)
 {
-	DECLARE_GLOBAL_DATA_PTR;
 	u32 cpurev = get_cpu_rev();
-	u32 cause;
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
 	int ret = 0;
 	u32 max_freq;
 	int minc, maxc;
@@ -231,19 +222,28 @@ int print_cpuinfo(void)
 		break;
 	}
 	printf("CPU:   %s temperature grade (%dC to %dC)", temp, minc, maxc);
-#if defined(CONFIG_IMX_THERMAL) && defined(CONFIG_DM)
+#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
 	{
 		struct udevice *thermal_dev;
 		int cpu_tmp;
 
-	ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
-	if (!ret) {
-		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
-		if (!ret)
+		/*
+		 * 23.08.2022 HK: WARNING!
+		 * print_cpuinfo() is called in the board_f phase where no
+		 * global variables should be used. However probing the TMU
+		 * driver violates this rule and causes damages to the device
+		 * tree. So do not use CONFIG_NXP_TMU for now.
+		 */
+		ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
+		if (!ret) {
+			ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+			if (!ret)
 				printf(" running at %dC", cpu_tmp);
 		}
 	}
 #endif
+
+	puts("\n");
 
 #if defined(CONFIG_DBG_MONITOR)
 	if (readl(&dbg->snvs_addr))
@@ -252,12 +252,8 @@ int print_cpuinfo(void)
 		       readl(&dbg->snvs_data),
 		       readl(&dbg->snvs_info));
 #endif
-	puts("\n");
 
-	cause = readl(&src_regs->srsr);
-	writel(cause, &src_regs->srsr);
-	gd->arch.reset_cause = cause;
-
+	get_imx_reset_cause();
 	printf("Reset: %s\n", get_reset_cause());
 
 	return ret;

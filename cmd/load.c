@@ -12,6 +12,8 @@
 #include <console.h>
 #include <cpu_func.h>
 #include <env.h>
+#include <flash.h>
+#include <image.h>
 #include <s_record.h>
 #include <net.h>
 #include <exports.h>

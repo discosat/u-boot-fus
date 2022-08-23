@@ -344,9 +344,6 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-/* Environment organization */
-#define CONFIG_ENV_SIZE			(8 * 1024)
-
 #ifdef CONFIG_MTD_NOR_FLASH
 #define CONFIG_SYS_FLASH_BASE           WEIM_ARB_BASE_ADDR
 #define CONFIG_SYS_FLASH_SECT_SIZE      (128 * 1024)
@@ -370,26 +367,14 @@
 #endif
 
 #if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
 #elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET              (896 * 1024)
-#define CONFIG_ENV_SECT_SIZE           (64 * 1024)
 #define CONFIG_ENV_SPI_BUS             CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS              CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE            CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ          CONFIG_SF_DEFAULT_SPEED
 #elif defined(CONFIG_ENV_IS_IN_FLASH)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_SIZE                        CONFIG_SYS_FLASH_SECT_SIZE
-#define CONFIG_ENV_SECT_SIZE           CONFIG_SYS_FLASH_SECT_SIZE
-#define CONFIG_ENV_OFFSET              (7 * CONFIG_SYS_FLASH_SECT_SIZE)
 #elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET              (60 << 20)
-#define CONFIG_ENV_SECT_SIZE           (128 << 10)
-#define CONFIG_ENV_SIZE                        CONFIG_ENV_SECT_SIZE
 #elif defined(CONFIG_ENV_IS_IN_SATA)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
 #define CONFIG_SYS_SATA_ENV_DEV		0
 #endif
 
@@ -418,6 +403,7 @@
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_BMP_16BPP
+#define CONFIG_CMD_BMP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_VIDEO_BMP_LOGO
 #define CONFIG_IMX_HDMI

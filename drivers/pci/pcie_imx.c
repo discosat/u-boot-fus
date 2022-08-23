@@ -14,6 +14,7 @@
 
 #include <common.h>
 #include <init.h>
+#include <malloc.h>
 #include <pci.h>
 #if CONFIG_IS_ENABLED(CLK)
 #include <clk.h>
@@ -603,7 +604,7 @@ static void __iomem *get_bus_address(struct imx_pcie_priv *priv,
 					 (ulong)priv->cfg_base,
 					 d << 8,
 					 priv->cfg_size >> 1);
-			va_address = priv->cfg_base;
+		va_address = priv->cfg_base;
 		} else {
 			/* Outbound TLP matched the bus behind the bridge uses type CFG1 */
 			imx_pcie_atu_outbound_set(priv, PCIE_ATU_REGION_INDEX1,
@@ -665,7 +666,7 @@ static void imx_pcie_fix_dabt_handler(bool set)
 }
 
 static int imx_pcie_read_cfg(struct imx_pcie_priv *priv, pci_dev_t d,
-				int where, u32 *val)
+			     int where, u32 *val)
 {
 	void __iomem *va_address;
 	int ret;
@@ -694,7 +695,7 @@ static int imx_pcie_read_cfg(struct imx_pcie_priv *priv, pci_dev_t d,
 }
 
 static int imx_pcie_write_cfg(struct imx_pcie_priv *priv, pci_dev_t d,
-			int where, u32 val)
+			      int where, u32 val)
 {
 	void __iomem *va_address = NULL;
 	int ret;
@@ -1503,7 +1504,7 @@ int pci_skip_dev(struct pci_controller *hose, pci_dev_t dev)
 }
 
 #else
-static int imx_pcie_dm_read_config(struct udevice *dev, pci_dev_t bdf,
+static int imx_pcie_dm_read_config(const struct udevice *dev, pci_dev_t bdf,
 				   uint offset, ulong *value,
 				   enum pci_size_t size)
 {

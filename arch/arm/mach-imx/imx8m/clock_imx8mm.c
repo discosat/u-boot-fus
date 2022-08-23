@@ -17,13 +17,13 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct anamix_pll *ana_pll = (struct anamix_pll *)ANATOP_BASE_ADDR;
 
-u32 get_root_clk(enum clk_root_index clock_id);
+static u32 get_root_clk(enum clk_root_index clock_id);
 
 #ifdef CONFIG_IMX_HAB
 void hab_caam_clock_enable(unsigned char enable)
 {
 	/* The CAAM clock is always on for iMX8M */
-}
+	}
 #endif
 
 #ifdef CONFIG_MXC_OCOTP
@@ -57,7 +57,7 @@ static struct imx_int_pll_rate_table imx8mm_fracpll_tbl[] = {
 	PLL_1443X_RATE(100000000U, 200, 3, 4, 0),
 };
 
-int fracpll_configure(enum pll_clocks pll, u32 freq)
+static int fracpll_configure(enum pll_clocks pll, u32 freq)
 {
 	int i;
 	u32 tmp, div_val;
@@ -125,7 +125,7 @@ int fracpll_configure(enum pll_clocks pll, u32 freq)
 void dram_pll_init(ulong pll_val)
 {
 	fracpll_configure(ANATOP_DRAM_PLL, pll_val);
-	}
+}
 
 static struct dram_bypass_clk_setting imx8mm_dram_bypass_tbl[] = {
 	DRAM_BYPASS_ROOT_CONFIG(MHZ(100), 2, CLK_ROOT_PRE_DIV1, 2,
@@ -537,7 +537,7 @@ int clock_init(void)
 #endif
 
 	clock_set_target_val(NAND_USDHC_BUS_CLK_ROOT, CLK_ROOT_ON |
-						CLK_ROOT_SOURCE_SEL(1));
+			     CLK_ROOT_SOURCE_SEL(1));
 
 	clock_enable(CCGR_DDR1, 0);
 	clock_set_target_val(DRAM_ALT_CLK_ROOT, CLK_ROOT_ON |
@@ -709,7 +709,7 @@ int set_clk_enet(enum enet_freq type)
 }
 #endif
 
-u32 decode_intpll(enum clk_root_src intpll)
+static u32 decode_intpll(enum clk_root_src intpll)
 {
 	u32 pll_gnrl_ctl, pll_div_ctl, pll_clke_mask;
 	u32 main_div, pre_div, post_div, div;
@@ -856,7 +856,7 @@ u32 decode_intpll(enum clk_root_src intpll)
 	return lldiv(freq, pre_div * (1 << post_div) * div);
 }
 
-u32 decode_fracpll(enum clk_root_src frac_pll)
+static u32 decode_fracpll(enum clk_root_src frac_pll)
 {
 	u32 pll_gnrl_ctl, pll_fdiv_ctl0, pll_fdiv_ctl1;
 	u32 main_div, pre_div, post_div, k;
@@ -917,11 +917,13 @@ u32 decode_fracpll(enum clk_root_src frac_pll)
 
 	k = pll_fdiv_ctl1 & GENMASK(15, 0);
 
-	/* FFOUT = ((m + k / 65536) * FFIN) / (p * 2^s), 1 ≤ p ≤ 63, 64 ≤ m ≤ 1023, 0 ≤ s ≤ 6 */
-	return lldiv((main_div * 65536 + k) * 24000000ULL, 65536 * pre_div * (1 << post_div));
+	/* FFOUT = ((m + k / 65536) * FFIN) / (p * 2^s),
+	   1 <= p <= 63, 64 <= m <= 1023, 0 <= s <= 6 */
+	return lldiv((main_div * 65536 + k) * 24000000ULL,
+		     65536 * pre_div * (1 << post_div));
 }
 
-u32 get_root_src_clk(enum clk_root_src root_src)
+static u32 get_root_src_clk(enum clk_root_src root_src)
 {
 	switch (root_src) {
 	case OSC_24M_CLK:
@@ -967,7 +969,7 @@ u32 get_root_src_clk(enum clk_root_src root_src)
 	return 0;
 }
 
-u32 get_root_clk(enum clk_root_index clock_id)
+static u32 get_root_clk(enum clk_root_index clock_id)
 {
 	enum clk_root_src root_src;
 	u32 post_podf, pre_podf, root_src_clk;
@@ -1027,7 +1029,7 @@ u32 mxc_get_clock(enum mxc_clock clk)
 			return get_root_clk(UART1_CLK_ROOT);
 		case MXC_QSPI_CLK:
 			return get_root_clk(QSPI_CLK_ROOT);
-		default:
+	default:
 			printf("Unsupported mxc_clock %d\n", clk);
 			break;
 	}
@@ -1096,6 +1098,8 @@ int do_mscale_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 
 	freq = decode_intpll(ARM_PLL_CLK);
 	printf("ARM_PLL    %8d MHz\n", freq / 1000000);
+	freq = decode_fracpll(DRAM_PLL1_CLK);
+	printf("DRAM_PLL    %8d MHz\n", freq / 1000000);
 	freq = decode_intpll(SYSTEM_PLL1_800M_CLK);
 	printf("SYS_PLL1_800    %8d MHz\n", freq / 1000000);
 	freq = decode_intpll(SYSTEM_PLL1_400M_CLK);

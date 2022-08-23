@@ -93,6 +93,7 @@
 #include <env.h>
 #include <env_internal.h>
 #include <errno.h>
+#include <image.h>
 #include <net.h>
 #include <net/fastboot.h>
 #include <net/tftp.h>
@@ -845,7 +846,7 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 	case IPPROTO_UDP:
 		net_set_udp_header(pkt + eth_hdr_size, dest, dport, sport,
 				   payload_len);
-	pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
+		pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
 		break;
 	default:
 		return -EINVAL;
@@ -881,9 +882,6 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
  * to the algorithm in RFC815. It returns NULL or the pointer to
  * a complete packet, in static storage
  */
-#ifndef CONFIG_NET_MAXDEFRAG
-#define CONFIG_NET_MAXDEFRAG 16384
-#endif
 #define IP_PKTSIZE (CONFIG_NET_MAXDEFRAG)
 
 #define IP_MAXUDP (IP_PKTSIZE - IP_HDR_SIZE)

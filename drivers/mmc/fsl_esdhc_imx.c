@@ -19,6 +19,8 @@
 #include <hwconfig.h>
 #include <mmc.h>
 #include <part.h>
+#include <dm/device_compat.h>
+#include <linux/err.h>
 #include <power/regulator.h>
 #include <malloc.h>
 #include <fsl_esdhc_imx.h>
@@ -79,7 +81,7 @@ struct fsl_esdhc {
 	uint    vendorspec;
 	uint    mmcboot;
 	uint    vendorspec2;
-	uint    tuning_ctrl;	/* on i.MX6/7/8 */
+	uint    tuning_ctrl;	/* on i.MX6/7/8/RT */
 	char	reserved5[44];
 	uint    hostver;	/* Host controller version register */
 	char    reserved6[4];	/* reserved */
@@ -118,6 +120,7 @@ struct esdhc_soc_data {
  * Following is used when Driver Model is enabled for MMC
  * @dev: pointer for the device
  * @non_removable: 0: removable; 1: non-removable
+ * @broken_cd: 0: use GPIO for card detect; 1: Do not use GPIO for card detect
  * @wp_enable: 1: enable checking wp; 0: no check
  * @vs18_enable: 1: use 1.8V voltage; 0: use 3.3V
  * @flags: ESDHC_FLAG_xx in include/fsl_esdhc_imx.h
@@ -139,6 +142,7 @@ struct fsl_esdhc_priv {
 #if CONFIG_IS_ENABLED(DM_MMC)
 	struct udevice *dev;
 	int non_removable;
+	int broken_cd;
 #ifdef MMC_SUPPORTS_TUNING
 	unsigned int mode;
 	u32 tuning_step;
@@ -151,7 +155,7 @@ struct fsl_esdhc_priv {
 	struct udevice *vqmmc_dev;
 	struct udevice *vmmc_dev;
 #endif
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	struct gpio_desc cd_gpio;
 	struct gpio_desc wp_gpio;
 #endif
@@ -304,8 +308,9 @@ static int esdhc_setup_data(struct fsl_esdhc_priv *priv, struct mmc *mmc,
 				return -ETIMEDOUT;
 			}
 		} else {
-#ifdef CONFIG_DM_GPIO
-			if (dm_gpio_is_valid(&priv->wp_gpio) && dm_gpio_get_value(&priv->wp_gpio)) {
+#if CONFIG_IS_ENABLED(DM_GPIO)
+			if (dm_gpio_is_valid(&priv->wp_gpio) &&
+			    dm_gpio_get_value(&priv->wp_gpio)) {
 				printf("\nThe SD card is locked. Can not write to a locked card.\n\n");
 				return -ETIMEDOUT;
 			}
@@ -671,35 +676,6 @@ static void set_sysctl(struct fsl_esdhc_priv *priv, struct mmc *mmc, uint clock)
 	priv->clock = clock;
 }
 
-#ifdef CONFIG_FSL_ESDHC_USE_PERIPHERAL_CLK
-static void esdhc_clock_control(struct fsl_esdhc_priv *priv, bool enable)
-{
-	struct fsl_esdhc *regs = (struct fsl_esdhc *)priv->esdhc.esdhc_base;
-	u32 value;
-	u32 time_out;
-
-	value = esdhc_read32(&regs->sysctl);
-
-	if (enable)
-		value |= SYSCTL_CKEN;
-	else
-		value &= ~SYSCTL_CKEN;
-
-	esdhc_write32(&regs->sysctl, value);
-
-	time_out = 20;
-	value = PRSSTAT_SDSTB;
-	while (!(esdhc_read32(&regs->prsstat) & value)) {
-		if (time_out == 0) {
-			printf("fsl_esdhc: Internal clock never stabilised.\n");
-			break;
-		}
-		time_out--;
-		mdelay(1);
-	}
-}
-#endif
-
 #ifdef MMC_SUPPORTS_TUNING
 static int esdhc_change_pinstate(struct udevice *dev)
 {
@@ -780,7 +756,6 @@ static int esdhc_set_timing(struct mmc *mmc)
 
 	switch (mmc->selected_mode) {
 	case MMC_LEGACY:
-	case SD_LEGACY:
 		esdhc_reset_tuning(mmc);
 		writel(mixctrl, &regs->mixctrl);
 		break;
@@ -971,13 +946,6 @@ static int esdhc_set_ios_common(struct fsl_esdhc_priv *priv, struct mmc *mmc)
 	int ret __maybe_unused;
 	u32 clock;
 
-#ifdef CONFIG_FSL_ESDHC_USE_PERIPHERAL_CLK
-	/* Select to use peripheral clock */
-	esdhc_clock_control(priv, false);
-	esdhc_setbits32(&regs->scr, ESDHCCTL_PCS);
-	esdhc_clock_control(priv, true);
-#endif
-
 	/* Set the clock speed */
 	clock = mmc->clock;
 	if (clock < mmc->cfg->f_min)
@@ -1109,7 +1077,10 @@ static int esdhc_getcd_common(struct fsl_esdhc_priv *priv)
 #if CONFIG_IS_ENABLED(DM_MMC)
 	if (priv->non_removable)
 		return 1;
-#ifdef CONFIG_DM_GPIO
+
+	if (priv->broken_cd)
+		return 1;
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	if (dm_gpio_is_valid(&priv->cd_gpio))
 		return dm_gpio_get_value(&priv->cd_gpio);
 #endif
@@ -1410,13 +1381,8 @@ void fdt_fixup_esdhc(void *blob, bd_t *bd)
 	if (esdhc_status_fixup(blob, compat))
 		return;
 
-#ifdef CONFIG_FSL_ESDHC_USE_PERIPHERAL_CLK
-	do_fixup_by_compat_u32(blob, compat, "peripheral-frequency",
-			       gd->arch.sdhc_clk, 1);
-#else
 	do_fixup_by_compat_u32(blob, compat, "clock-frequency",
 			       gd->arch.sdhc_clk, 1);
-#endif
 }
 #endif
 
@@ -1481,11 +1447,14 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	priv->strobe_dll_delay_target = val;
 #endif
 
+	if (dev_read_bool(dev, "broken-cd"))
+		priv->broken_cd = 1;
+
 	if (dev_read_bool(dev, "non-removable")) {
 		priv->non_removable = 1;
 	 } else {
 		priv->non_removable = 0;
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 		gpio_request_by_name(dev, "cd-gpios", 0, &priv->cd_gpio,
 				     GPIOD_IS_IN);
 #endif
@@ -1495,7 +1464,7 @@ static int fsl_esdhc_probe(struct udevice *dev)
 		priv->esdhc.wp_enable = 1;
 	} else {
 		priv->esdhc.wp_enable = 0;
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 		gpio_request_by_name(dev, "wp-gpios", 0, &priv->wp_gpio,
 				   GPIOD_IS_IN);
 #endif
@@ -1545,7 +1514,7 @@ static int fsl_esdhc_probe(struct udevice *dev)
 
 	init_clk_usdhc(dev->seq);
 
-	if (CONFIG_IS_ENABLED(CLK)) {
+#if CONFIG_IS_ENABLED(CLK)
 		/* Assigned clock already set clock */
 		ret = clk_get_by_name(dev, "per", &priv->per_clk);
 		if (ret) {
@@ -1559,13 +1528,13 @@ static int fsl_esdhc_probe(struct udevice *dev)
 		}
 
 		priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
-	} else {
+#else
 		priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
 		if (priv->esdhc.sdhc_clk <= 0) {
 			dev_err(dev, "Unable to get clk for %s\n", dev->name);
 			return -EINVAL;
 		}
-	}
+#endif
 
 	ret = fsl_esdhc_init(priv, plat);
 	if (ret) {
@@ -1682,6 +1651,7 @@ static const struct udevice_id fsl_esdhc_ids[] = {
 	{ .compatible = "fsl,imx8mm-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
 	{ .compatible = "fsl,imx8mn-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
 	{ .compatible = "fsl,imx8mq-usdhc", .data = (ulong)&usdhc_imx8qm_data,},
+	{ .compatible = "fsl,imxrt-usdhc", },
 	{ .compatible = "fsl,esdhc", },
 	{ /* sentinel */ }
 };

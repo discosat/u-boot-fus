@@ -12,7 +12,9 @@
  */
 
 #include <common.h>
+#include <malloc.h>
 #include <nand.h>
+#include <dm/devres.h>
 
 #include <asm/io.h>
 #include <jffs2/jffs2.h>
@@ -266,7 +268,7 @@ static int nandbcb_set_boot_config(int argc, char * const argv[], struct boot_co
 			       boot_stream1_address);
 
 	if (boot_cfg->secondary_boot_stream_off_in_MB) {
-		boot_stream2_address = boot_cfg->secondary_boot_stream_off_in_MB * 1024 * 1024;
+		boot_stream2_address = (loff_t)boot_cfg->secondary_boot_stream_off_in_MB * 1024 * 1024;
 	}
 
 	max_boot_stream_size = boot_stream2_address - boot_stream1_address;
@@ -468,7 +470,7 @@ static int fill_dbbt_data(struct mtd_info *mtd, void *buf, int num_blocks)
 	u32 *n_bad_blocksp = buf + 0x4;
 
 	for (n = 0; n < num_blocks; n++) {
-		loff_t offset = n * mtd->erasesize;
+		loff_t offset = (loff_t)n * mtd->erasesize;
 			if (mtd_block_isbad(mtd, offset)) {
 				n_bad_blocks++;
 				*bb = n;
@@ -495,11 +497,16 @@ static int read_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb,
 	int ret = 0;
 
 	mtd = boot_cfg->mtd;
-	fcb_raw_page = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
-
 	if (mtd_block_isbad(mtd, off)) {
 		printf("Block %d is bad, skipped\n", (int)CONV_TO_BLOCKS(off));
 		return 1;
+	}
+
+	fcb_raw_page = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!fcb_raw_page) {
+		debug("failed to allocate fcb_raw_page\n");
+		ret = -ENOMEM;
+		return ret;
 	}
 
 	/*
@@ -577,9 +584,14 @@ static int write_fcb(struct boot_config *boot_cfg, struct fcb_block *fcb)
 			return ret;
 		}
 
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+		/* 40 bit BCH, for i.MX6UL(L) */
+		encode_bch_ecc(fcb_raw_page + 32, fcb, 40);
+#else
 		memcpy(fcb_raw_page + 12, fcb, sizeof(struct fcb_block));
-		encode_hamming_13_8(fcb_raw_page + 12, fcb_raw_page +
-				    12 + 512, 512);
+		encode_hamming_13_8(fcb_raw_page + 12,
+				    fcb_raw_page + 12 + 512, 512);
+#endif
 		/*
 		 * Set the first and second byte of OOB data to 0xFF,
 		 * not 0x00. These bytes are used as the Manufacturers Bad
@@ -1528,9 +1540,14 @@ usage:
 #ifdef CONFIG_SYS_LONGHELP
 static char nandbcb_help_text[] =
 	"init addr off|partition len - update 'len' bytes starting at\n"
-	"        'off|part' to memory address 'addr', skipping  bad blocks\n"
-        "nandbcb bcbonly off|partition fw1-off fw1-size [fw2-off fw2-size]\n"
-	"	 - write BCB only (FCB and DBBT), fwx-size and fwx-off in bytes\n"
+	"       'off|part' to memory address 'addr', skipping  bad blocks\n"
+	"nandbcb bcbonly off|partition fw1-off fw1-size [fw2-off fw2-size]\n"
+	"	    - write BCB only (FCB and DBBT)\n"
+	"       where `fwx-size` is fw sizes in bytes, `fw1-off`\n"
+	"       and `fw2-off` - firmware offsets\n"
+	"       FIY, BCB isn't erased automatically, so mtd erase should\n"
+	"       be called in advance before writing new BCB:\n"
+	"           > mtd erase mx7-bcb\n"
 	"nandbcb dump off|partition - dump/verify boot structures\n";
 #endif
 

@@ -10,6 +10,7 @@
 #include <common.h>
 #include <cpu_func.h>
 #include <env.h>
+#include <malloc.h>
 #include <u-boot/crc.h>
 #include <watchdog.h>
 
@@ -137,6 +138,7 @@ static const table_entry_t uimage_os[] = {
 	{	IH_OS_OPENRTOS,	"openrtos",	"OpenRTOS",		},
 #endif
 	{	IH_OS_OPENSBI,	"opensbi",	"RISC-V OpenSBI",	},
+	{	IH_OS_EFI,	"efi",		"EFI Firmware" },
 
 	{	-1,		"",		"",			},
 };

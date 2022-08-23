@@ -10,6 +10,7 @@
 #include <command.h>
 #include <efi_loader.h>
 #include <env.h>
+#include <image.h>
 #include <mapmem.h>
 #include <net.h>
 #include <net/tftp.h>
@@ -220,7 +221,7 @@ static int load_block(unsigned block, uchar *dst, unsigned len)
 
 	tosend = min(net_boot_file_size - offset, tosend);
 	(void)memcpy(dst, (void *)(get_fileaddr() + offset), tosend);
-	debug("%s: block=%d, offset=%ld, len=%d, tosend=%ld\n", __func__,
+	debug("%s: block=%u, offset=%lu, len=%u, tosend=%lu\n", __func__,
 	      block, offset, len, tosend);
 	return tosend;
 }
@@ -608,7 +609,7 @@ static void tftp_timeout_handler(void)
 	}
 }
 
-/* Initialize tftp_load_addr and tftp_load_size from load_addr and lmb */
+/* Initialize tftp_load_addr and tftp_load_size from image_load_addr and lmb */
 static int tftp_init_load_addr(void)
 {
 #ifdef CONFIG_LMB

@@ -46,6 +46,7 @@
 
 / {
 	aliases {
+		ethernet1 = &fec2;
 		usb1 = &usbotg2;
 		usbgadget1 = &usbg2;
 	};
@@ -66,20 +67,6 @@
 			device_type = "cpu";
 			reg = <1>;
 			clock-frequency = <996000000>;
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		/* global autoconfigured region for contiguous allocations */
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x14000000>;
-			linux,cma-default;
 		};
 	};
 

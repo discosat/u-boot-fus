@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- *
  */
 
 #include <common.h>
@@ -39,7 +38,8 @@ static int pca9450_write(struct udevice *dev, uint reg, const uint8_t *buff,
 	return 0;
 }
 
-static int pca9450_read(struct udevice *dev, uint reg, uint8_t *buff, int len)
+static int pca9450_read(struct udevice *dev, uint reg, uint8_t *buff,
+			int len)
 {
 	if (dm_i2c_read(dev, reg, buff, len)) {
 		pr_err("read error from device: %p register: %#x!", dev, reg);
@@ -63,7 +63,8 @@ static int pca9450_bind(struct udevice *dev)
 
 	debug("%s: '%s' - found regulators subnode\n", __func__, dev->name);
 
-	children = pmic_bind_children(dev, regulators_node, pmic_children_info);
+	children = pmic_bind_children(dev, regulators_node,
+				      pmic_children_info);
 	if (!children)
 		debug("%s: %s - no child found\n", __func__, dev->name);
 

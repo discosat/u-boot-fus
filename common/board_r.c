@@ -12,12 +12,17 @@
 #include <common.h>
 #include <api.h>
 #include <cpu_func.h>
+#include <exports.h>
+#include <hang.h>
+#include <image.h>
 #include <irq_func.h>
+#include <net.h>
 #include <u-boot/crc.h>
 /* TODO: can we just include all these headers whether needed or not? */
 #if defined(CONFIG_CMD_BEDBUG)
 #include <bedbug/type.h>
 #endif
+#include <binman.h>
 #include <command.h>
 #include <console.h>
 #include <dm.h>
@@ -25,6 +30,7 @@
 #include <env_internal.h>
 #include <fdtdec.h>
 #include <ide.h>
+#include <init.h>
 #include <initcall.h>
 #if defined(CONFIG_CMD_KGDB)
 #include <kgdb.h>
@@ -317,15 +323,23 @@ static int initr_dm(void)
 	bootstage_accum(BOOTSTATE_ID_ACCUM_DM_R);
 	if (ret)
 		return ret;
-#ifdef CONFIG_TIMER_EARLY
-	ret = dm_timer_init();
-	if (ret)
-		return ret;
-#endif
 
 	return 0;
 }
 #endif
+
+static int initr_dm_devices(void)
+{
+	int ret;
+
+	if (IS_ENABLED(CONFIG_TIMER_EARLY)) {
+	ret = dm_timer_init();
+	if (ret)
+		return ret;
+	}
+
+	return 0;
+}
 
 static int initr_bootstage(void)
 {
@@ -353,6 +367,14 @@ static int initr_manual_reloc_cmdtable(void)
 	return 0;
 }
 #endif
+
+static int initr_binman(void)
+{
+	if (!CONFIG_IS_ENABLED(BINMAN_FDT))
+		return 0;
+
+	return binman_init();
+}
 
 #if defined(CONFIG_MTD_NOR_FLASH)
 static int initr_flash(void)
@@ -745,6 +767,11 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_EFI_LOADER
 	efi_memory_init,
 #endif
+	initr_binman,
+#ifdef CONFIG_FSP_VERSION2
+	arch_fsp_init_r,
+#endif
+	initr_dm_devices,
 	stdio_init_tables,
 	initr_serial,
 	initr_announce,
@@ -888,6 +915,9 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #if defined(CONFIG_PRAM)
 	initr_mem,
+#endif
+#if defined(CONFIG_M68K) && defined(CONFIG_BLOCK_CACHE)
+	blkcache_init,
 #endif
 #if defined(AVB_RPMB) && !defined(CONFIG_SPL)
 	initr_avbkey,

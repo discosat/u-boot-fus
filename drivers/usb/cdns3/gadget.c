@@ -72,7 +72,7 @@ static int usb_ss_gadget_ep_enable(struct usb_ep *ep,
 	const struct usb_endpoint_descriptor *desc);
 static int usb_ss_gadget_ep_disable(struct usb_ep *ep);
 static struct usb_request *usb_ss_gadget_ep_alloc_request(struct usb_ep *ep,
-	gfp_t gfp_flags);
+				   gfp_t gfp_flags);
 static void usb_ss_gadget_ep_free_request(struct usb_ep *ep,
 	struct usb_request *request);
 static int usb_ss_gadget_ep_queue(struct usb_ep *ep,
@@ -151,7 +151,7 @@ static void select_ep(struct usb_ss_dev *usb_ss, u32 ep)
 	if (!usb_ss || !usb_ss->regs) {
 		dev_err(&usb_ss->dev, "Failed to select endpoint!\n");
 		return;
-	}
+}
 
 	gadget_writel(usb_ss, &usb_ss->regs->ep_sel, ep);
 }
@@ -175,7 +175,7 @@ static int usb_ss_allocate_trb_pool(struct usb_ss_endpoint *usb_ss_ep)
 		dev_err(&(usb_ss_ep->usb_ss->dev),
 				"Failed to allocate TRB pool for endpoint %s\n",
 				usb_ss_ep->name);
-		return -ENOMEM;
+			return -ENOMEM;
 	}
 
 	memset(usb_ss_ep->trb_pool, 0, sizeof(struct usb_ss_trb) * USB_SS_TRBS_NUM);
@@ -351,7 +351,7 @@ static int cdns_ep_run_transfer(struct usb_ss_endpoint *usb_ss_ep)
 	if (request->dma % ADDR_MODULO_8) {
 		memcpy(usb_ss_ep->cpu_addr, request->buf, request->length);
 		trb_dma = usb_ss_ep->dma_addr;
-	}
+		}
 
 	cdns_flush_cache((uintptr_t)trb_dma, request->length);
 
@@ -379,7 +379,7 @@ static int cdns_ep_run_transfer(struct usb_ss_endpoint *usb_ss_ep)
 	gadget_writel(usb_ss, &usb_ss->regs->ep_cmd,
 		EP_CMD__DRDY__MASK); /* DRDY */
 	return 0;
-}
+		}
 
 /**
  * cdns_get_setup_ret - Returns status of handling setup packet
@@ -400,7 +400,7 @@ static int cdns_get_setup_ret(struct usb_ss_dev *usb_ss,
 	usb_ss->setup_pending = 0;
 	spin_lock(&usb_ss->lock);
 	return ret;
-}
+	}
 
 static void cdns_prepare_setup_packet(struct usb_ss_dev *usb_ss)
 {
@@ -419,7 +419,7 @@ static int cdns_req_ep0_set_address(struct usb_ss_dev *usb_ss,
 		struct usb_ctrlrequest *ctrl_req)
 {
 	enum usb_device_state device_state = usb_ss->gadget.state;
-	u32 reg;
+		u32 reg;
 	u32 addr;
 
 	addr = le16_to_cpu(ctrl_req->wValue);
@@ -429,12 +429,12 @@ static int cdns_req_ep0_set_address(struct usb_ss_dev *usb_ss,
 			"Device address (%d) cannot be greater than %d\n",
 				addr, DEVICE_ADDRESS_MAX);
 		return -EINVAL;
-	}
+		}
 
 	if (device_state == USB_STATE_CONFIGURED) {
 		dev_err(&usb_ss->dev, "USB device already configured\n");
 		return -EINVAL;
-	}
+		}
 
 	reg = gadget_readl(usb_ss, &usb_ss->regs->usb_cmd);
 
@@ -585,7 +585,7 @@ static int cdns_req_ep0_handle_feature(struct usb_ss_dev *usb_ss,
 				ctrl_req->bRequestType & USB_DIR_IN) {
 				dev_err(&usb_ss->dev, "req is error\n");
 				return -EINVAL;
-			}
+		}
 			tmode = le16_to_cpu(ctrl_req->wIndex) >> 8;
 			switch (tmode) {
 			case TEST_J:
@@ -604,12 +604,12 @@ static int cdns_req_ep0_handle_feature(struct usb_ss_dev *usb_ss,
 				break;
 			default:
 				return -EINVAL;
-			}
+	}
 			break;
 
 		default:
 			return -EINVAL;
-		}
+}
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -628,7 +628,7 @@ static int cdns_req_ep0_handle_feature(struct usb_ss_dev *usb_ss,
 				usb_ss_ep = usb_ss->eps[CAST_EP_ADDR_TO_INDEX(
 						ctrl_req->wIndex)];
 				usb_ss_ep->stalled_flag = 1;
-			}
+		}
 		} else {
 			struct usb_request *request;
 
@@ -636,7 +636,7 @@ static int cdns_req_ep0_handle_feature(struct usb_ss_dev *usb_ss,
 				if (usb_ss->eps[CAST_EP_ADDR_TO_INDEX(
 					ctrl_req->wIndex)]->wedge_flag)
 					goto jmp_wedge;
-			}
+}
 
 			/* clear stall */
 			gadget_writel(usb_ss, &usb_ss->regs->ep_cmd,
@@ -656,7 +656,7 @@ static int cdns_req_ep0_handle_feature(struct usb_ss_dev *usb_ss,
 						&usb_ss_ep->request_list);
 				if (request)
 					cdns_ep_run_transfer(usb_ss_ep);
-			}
+		}
 		}
 jmp_wedge:
 		select_ep(usb_ss, 0x00);
@@ -695,8 +695,8 @@ static int cdns_req_ep0_set_sel(struct usb_ss_dev *usb_ss,
 	usb_ss->actual_ep0_request = NULL;
 	cdns_ep0_run_transfer(usb_ss, usb_ss->setup_dma, 6, 1);
 
-	return 0;
-}
+			return 0;
+		}
 
 /**
  * cdns_req_ep0_set_isoch_delay -
@@ -741,7 +741,7 @@ static int cdns_req_ep0_set_configuration(struct usb_ss_dev *usb_ss,
 			&usb_ss->ep_match_list, ep_match_pending_list) {
 			cdns_ep_config(usb_ss_ep);
 			list_del(&usb_ss_ep->ep_match_pending_list);
-		}
+	}
 
 		list_for_each_entry(ep, &(usb_ss->gadget.ep_list), ep_list) {
 			usb_ss_ep = to_usb_ss_ep(ep);
@@ -779,8 +779,8 @@ static int cdns_req_ep0_set_configuration(struct usb_ss_dev *usb_ss,
 					if (to_usb_ss_ep(ep)->enabled)
 						cdns_ep_run_transfer(
 							to_usb_ss_ep(ep));
-				}
-			}
+		}
+	}
 
 			usb_gadget_set_state(&usb_ss->gadget,
 						USB_STATE_CONFIGURED);
@@ -810,7 +810,7 @@ static int cdns_req_ep0_set_configuration(struct usb_ss_dev *usb_ss,
 	}
 
 	return result;
-}
+	}
 
 /**
  * cdns_ep0_standard_request - Handling standard USB requests
@@ -914,7 +914,7 @@ static int cdns_check_ep_interrupt_proceed(struct usb_ss_endpoint *usb_ss_ep)
 			&usb_ss->regs->ep_sts, EP_STS__NRDY__MASK);
 		dev_dbg(&usb_ss->dev, "NRDY(%02X)\n",
 			usb_ss_ep->endpoint.desc->bEndpointAddress);
-	}
+}
 
 	if ((ep_sts_reg & EP_STS__IOC__MASK)
 			|| (ep_sts_reg & EP_STS__ISP__MASK)) {
@@ -947,13 +947,13 @@ static int cdns_check_ep_interrupt_proceed(struct usb_ss_endpoint *usb_ss_ep)
 			usb_gadget_giveback_request(&usb_ss_ep->endpoint,
 				request);
 			spin_lock(&usb_ss->lock);
-		}
+	}
 
 		/* handle deferred STALL */
 		if (usb_ss_ep->stalled_flag) {
 			cdns_ep_stall_flush(usb_ss_ep);
 			return 0;
-		}
+}
 
 		/* exit if hardware transfer already started */
 		if (usb_ss_ep->hw_pending_flag)
@@ -1007,14 +1007,14 @@ static void cdns_check_ep0_interrupt_proceed(struct usb_ss_dev *usb_ss, int dir)
 		ep_sts_reg &= ~(EP_STS__SETUP__MASK |
 			EP_STS__IOC__MASK |
 			EP_STS__ISP__MASK);
-	}
+			}
 
 	if (ep_sts_reg & EP_STS__TRBERR__MASK) {
 		gadget_writel(usb_ss,
 			&usb_ss->regs->ep_sts, EP_STS__TRBERR__MASK);
 		dev_dbg(&usb_ss->dev, "TRBERR(%02X)\n",
 			dir ? USB_DIR_IN : USB_DIR_OUT);
-	}
+			}
 
 	if (ep_sts_reg & EP_STS__DESCMIS__MASK) {
 		gadget_writel(usb_ss,
@@ -1049,7 +1049,7 @@ static void cdns_check_ep0_interrupt_proceed(struct usb_ss_dev *usb_ss, int dir)
 				dir ? USB_DIR_IN : USB_DIR_OUT,
 				usb_ss->actual_ep0_request->actual);
 			list_del_init(&usb_ss->actual_ep0_request->list);
-		}
+}
 
 		if (usb_ss->actual_ep0_request &&
 			usb_ss->actual_ep0_request->complete) {
@@ -1071,7 +1071,7 @@ static void cdns_check_ep0_interrupt_proceed(struct usb_ss_dev *usb_ss, int dir)
  * (usb_ists register value)
  */
 static void cdns_check_usb_interrupt_proceed(struct usb_ss_dev *usb_ss,
-		u32 usb_ists)
+					      u32 usb_ists)
 {
 	int interrupt_bit = ffs(usb_ists) - 1;
 	int speed;
@@ -1166,7 +1166,7 @@ static void cdns_check_usb_interrupt_proceed(struct usb_ss_dev *usb_ss,
 		break;
 	default:
 		break;
-	}
+		}
 
 	/* Clear interrupt bit */
 	gadget_writel(usb_ss, &usb_ss->regs->usb_ists, (1uL << interrupt_bit));
@@ -1286,15 +1286,15 @@ static int usb_ss_gadget_ep0_enable(struct usb_ep *ep,
 	return -EINVAL;
 }
 
-/**
+		/**
  * usb_ss_gadget_ep0_disable
  * Function shouldn't be called by gadget driver,
  * endpoint 0 is allways active
- */
+		 */
 static int usb_ss_gadget_ep0_disable(struct usb_ep *ep)
 {
 	return -EINVAL;
-}
+	}
 
 /**
  * usb_ss_gadget_ep0_set_halt
@@ -1372,7 +1372,7 @@ static int usb_ss_gadget_ep0_queue(struct usb_ep *ep,
 	if (ret) {
 		dev_err(&usb_ss->dev, "failed to map request\n");
 		return -EINVAL;
-	}
+		}
 
 	usb_ss->actual_ep0_request = request;
 	cdns_ep0_run_transfer(usb_ss, request->dma, request->length, 1);
@@ -1449,7 +1449,7 @@ static void cdns_ep_config(struct usb_ss_endpoint *usb_ss_ep)
 	} else {
 		ep_cfg |= EP_CFG__BUFFERING__WRITE(3);
 		ep_cfg |= EP_CFG__MAXBURST__WRITE(15);
-	}
+}
 
 	select_ep(usb_ss, bEndpointAddress);
 	gadget_writel(usb_ss, &usb_ss->regs->ep_cfg, ep_cfg);
@@ -1470,7 +1470,7 @@ static void cdns_ep_config(struct usb_ss_endpoint *usb_ss_ep)
  * Returns 0 on success, error code elsewhere
  */
 static int usb_ss_gadget_ep_enable(struct usb_ep *ep,
-		const struct usb_endpoint_descriptor *desc)
+				  const struct usb_endpoint_descriptor *desc)
 {
 	struct usb_ss_endpoint *usb_ss_ep;
 	struct usb_ss_dev *usb_ss;
@@ -1517,7 +1517,7 @@ static int usb_ss_gadget_ep_enable(struct usb_ep *ep,
 	spin_unlock_irqrestore(&usb_ss->lock, flags);
 
 	return 0;
-}
+	}
 
 static int cdns3_disable_reset_ep(struct usb_ss_dev *usb_ss,
 				   struct usb_ss_endpoint *usb_ss_ep)
@@ -1572,7 +1572,7 @@ static int cdns3_disable_reset_ep(struct usb_ss_dev *usb_ss,
 	spin_unlock_irqrestore(&usb_ss->lock, flags);
 
 	return ret;
-}
+	}
 
 static int usb_ss_gadget_match_ep(struct usb_gadget *gadget,
 		struct usb_ep *ep,
@@ -1666,7 +1666,7 @@ static int usb_ss_gadget_ep_disable(struct usb_ep *ep)
 	spin_unlock_irqrestore(&usb_ss->lock, flags);
 
 	return ret;
-}
+	}
 
 /**
  * usb_ss_gadget_ep_alloc_request Allocates request
@@ -1685,7 +1685,7 @@ static struct usb_request *usb_ss_gadget_ep_alloc_request(struct usb_ep *ep,
 		return NULL;
 
 	return request;
-}
+	}
 
 /**
  * usb_ss_gadget_ep_free_request Free memory occupied by request
@@ -1740,8 +1740,8 @@ static int usb_ss_gadget_ep_queue(struct usb_ep *ep,
 
 	if (!usb_ss->hw_configured_flag) {
 		spin_unlock_irqrestore(&usb_ss->lock, flags);
-		return 0;
-	}
+	return 0;
+}
 
 	if (empty_list) {
 		if (!usb_ss_ep->stalled_flag)
@@ -1760,7 +1760,7 @@ static int usb_ss_gadget_ep_queue(struct usb_ep *ep,
  * Returns 0 on success, error code elsewhere
  */
 static int usb_ss_gadget_ep_dequeue(struct usb_ep *ep,
-		struct usb_request *request)
+			    struct usb_request *request)
 {
 	struct usb_ss_endpoint *usb_ss_ep =
 		to_usb_ss_ep(ep);
@@ -1790,7 +1790,7 @@ static int usb_ss_gadget_ep_dequeue(struct usb_ep *ep,
 				usb_gadget_giveback_request
 					(&usb_ss_ep->endpoint, request);
 				spin_lock(&usb_ss->lock);
-			}
+	}
 			break;
 		}
 	}
@@ -1821,7 +1821,7 @@ static int usb_ss_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	if (usb_ss_ep->hw_pending_flag && value) {
 		usb_ss_ep->stalled_flag = 1;
 		return 0;
-	}
+}
 
 	dev_dbg(&usb_ss->dev, "HALT(%02X) %d\n", usb_ss_ep->address, value);
 
@@ -1838,7 +1838,7 @@ static int usb_ss_gadget_ep_set_halt(struct usb_ep *ep, int value)
 		usb_ss_ep->wedge_flag = 0;
 		gadget_writel(usb_ss, &usb_ss->regs->ep_cmd,
 		EP_CMD__CSTALL__MASK | EP_CMD__EPRST__MASK);
-		/* wait for EPRST cleared */
+	/* wait for EPRST cleared */
 		while (gadget_readl(usb_ss,
 			&usb_ss->regs->ep_cmd) & EP_CMD__EPRST__MASK)
 			;
@@ -1866,7 +1866,7 @@ static int usb_ss_gadget_ep_set_wedge(struct usb_ep *ep)
 	usb_ss_gadget_ep_set_halt(ep, 1);
 	usb_ss_ep->wedge_flag = 1;
 	return 0;
-}
+	}
 
 static const struct usb_ep_ops usb_ss_gadget_ep0_ops = {
 	.enable = usb_ss_gadget_ep0_enable,
@@ -1913,7 +1913,7 @@ static int usb_ss_gadget_wakeup(struct usb_gadget *gadget)
 }
 
 static int usb_ss_gadget_set_selfpowered(struct usb_gadget *gadget,
-		int is_selfpowered)
+					int is_selfpowered)
 {
 	struct usb_ss_dev __maybe_unused *usb_ss = gadget_to_usb_ss(gadget);
 
@@ -1928,7 +1928,7 @@ static int usb_ss_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	struct usb_ep *ep;
 
 	if (!usb_ss->start_gadget)
-		return 0;
+	return 0;
 
 	dev_dbg(&usb_ss->dev, "usb_ss_gadget_pullup: %d\n", is_on);
 
@@ -1941,7 +1941,7 @@ static int usb_ss_gadget_pullup(struct usb_gadget *gadget, int is_on)
 			ep_list) {
 			if (to_usb_ss_ep(ep)->enabled)
 				cdns3_disable_reset_ep(usb_ss, to_usb_ss_ep(ep));
-		}
+	}
 
 		gadget_writel(usb_ss, &usb_ss->regs->usb_conf,
 				USB_CONF__DEVDS__MASK);
@@ -1957,7 +1957,7 @@ static int usb_ss_gadget_pullup(struct usb_gadget *gadget, int is_on)
  * Returns 0 on success, error code elsewhere
  */
 static int usb_ss_gadget_udc_start(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+				  struct usb_gadget_driver *driver)
 {
 	struct usb_ss_dev *usb_ss = gadget_to_usb_ss(gadget);
 	unsigned long flags;
@@ -2022,7 +2022,7 @@ static int usb_ss_gadget_udc_stop(struct usb_gadget *gadget)
 		usb_ss_free_trb_pool(usb_ss->eps[i]);
 
 	return 0;
-}
+	}
 
 static const struct usb_gadget_ops usb_ss_gadget_ops = {
 	.get_frame = usb_ss_gadget_get_frame,
@@ -2069,7 +2069,7 @@ static int usb_ss_init_ep(struct usb_ss_dev *usb_ss)
 
 		/* create empty endpoint object */
 		usb_ss_ep = devm_kzalloc(&usb_ss->dev, sizeof(*usb_ss_ep),
-		GFP_KERNEL);
+				       GFP_KERNEL);
 		if (!usb_ss_ep)
 			return -ENOMEM;
 
@@ -2081,7 +2081,7 @@ static int usb_ss_init_ep(struct usb_ss_dev *usb_ss)
 
 		/* set name of endpoint */
 		snprintf(usb_ss_ep->name, sizeof(usb_ss_ep->name), "ep%d%s",
-				ep_number, !!ep_dir ? "in" : "out");
+				 ep_number, !!ep_dir ? "in" : "out");
 		usb_ss_ep->endpoint.name = usb_ss_ep->name;
 		dev_dbg(&usb_ss->dev, "Initializing endpoint: %s\n",
 				usb_ss_ep->name);
@@ -2090,9 +2090,9 @@ static int usb_ss_init_ep(struct usb_ss_dev *usb_ss)
 		ENDPOINT_MAX_PACKET_LIMIT);
 		usb_ss_ep->endpoint.max_streams = ENDPOINT_MAX_STREAMS;
 		usb_ss_ep->endpoint.ops = &usb_ss_gadget_ep_ops;
-		if (ep_dir)
+			if (ep_dir)
 			usb_ss_ep->caps.dir_in = 1;
-		else
+			else
 			usb_ss_ep->caps.dir_out = 1;
 
 		/* check endpoint type */
@@ -2150,7 +2150,7 @@ static int usb_ss_init_ep0(struct usb_ss_dev *usb_ss)
 	INIT_LIST_HEAD(&ep0->request_list);
 
 	return 0;
-}
+	}
 
 #if !CONFIG_IS_ENABLED(DM_USB_GADGET)
 static void cdns3_gadget_release(struct device *dev)

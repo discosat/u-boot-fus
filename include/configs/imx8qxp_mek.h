@@ -165,14 +165,14 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if run loadfdt; then " \
 					"run boot_os; " \
+				"else " \
+					"echo WARN: Cannot load the DT; " \
+				"fi; " \
 			"else " \
-				"echo WARN: Cannot load the DT; " \
-			"fi; " \
-		"else " \
-			"echo wait for boot; " \
+				"echo wait for boot; " \
 			"fi;" \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} earlycon " \
@@ -193,15 +193,15 @@
 				"echo ERR: failed to authenticate; " \
 			"fi; " \
 		"else " \
-		"${get_cmd} ${loadaddr} ${image}; " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+			"${get_cmd} ${loadaddr} ${image}; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
 					"run boot_os; " \
+				"else " \
+					"echo WARN: Cannot load the DT; " \
+				"fi; " \
 			"else " \
-				"echo WARN: Cannot load the DT; " \
-			"fi; " \
-		"else " \
-			"booti; " \
+				"booti; " \
 			"fi;" \
 		"fi;\0"
 
@@ -216,11 +216,11 @@
 				   "else run netboot; " \
 				   "fi; " \
 			    "else " \
-			   "if run loadimage; then " \
-				   "run mmcboot; " \
-			   "else run netboot; " \
-			   "fi; " \
-		   "fi; " \
+				   "if run loadimage; then " \
+					   "run mmcboot; " \
+				   "else run netboot; " \
+				   "fi; " \
+			 "fi; " \
 		   "fi; " \
 	   "else booti ${loadaddr} - ${fdt_addr}; fi"
 

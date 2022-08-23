@@ -13,6 +13,7 @@
 #include <command.h>
 #include <dm.h>
 #include <gzip.h>
+#include <image.h>
 #include <lcd.h>
 #include <malloc.h>
 #include <mapmem.h>
@@ -258,7 +259,7 @@ int bmp_display(ulong addr, int x, int y)
 		if (CONFIG_IS_ENABLED(SPLASH_SCREEN_ALIGN) ||
 		    x == BMP_ALIGN_CENTER ||
 		    y == BMP_ALIGN_CENTER)
-		align = true;
+			align = true;
 
 		ret = video_bmp_display(dev, addr, x, y, align);
 	}

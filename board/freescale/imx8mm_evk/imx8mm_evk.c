@@ -18,6 +18,7 @@
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/arch/clock.h>
+#include <asm/arch/sys_proto.h>
 #include <spl.h>
 #include <asm/mach-imx/dma.h>
 #include <power/pmic.h>
@@ -333,7 +334,7 @@ int board_init(void)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-	setup_fec();
+		setup_fec();
 #endif
 
 #ifdef CONFIG_FSL_FSPI
@@ -370,7 +371,7 @@ static int adv7535_i2c_reg_write(struct udevice *dev, uint addr, uint mask, uint
 		valb |= data;
 	} else {
 		valb = data;
-	}
+}
 
 	err = dm_i2c_write(dev, addr, &valb, 1);
 	return err;

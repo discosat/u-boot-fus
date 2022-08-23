@@ -1184,6 +1184,7 @@ static unsigned long usb_stor_read(struct blk_desc *block_dev, lbaint_t blknr,
 	ss = (struct us_data *)udev->privptr;
 
 	usb_disable_asynch(1); /* asynch transfer not allowed */
+	usb_lock_async(udev, 1);
 	srb->lun = block_dev->lun;
 	buf_addr = (uintptr_t)buffer;
 	start = blknr;
@@ -1222,6 +1223,7 @@ retry_it:
 	debug("usb_read: end startblk " LBAF ", blccnt %x buffer %lx\n",
 	      start, smallblks, buf_addr);
 
+	usb_lock_async(udev, 0);
 	usb_disable_asynch(0); /* asynch transfer allowed */
 	if (blkcnt >= ss->max_xfer_blk)
 		debug("\n");
@@ -1266,6 +1268,7 @@ static unsigned long usb_stor_write(struct blk_desc *block_dev, lbaint_t blknr,
 	ss = (struct us_data *)udev->privptr;
 
 	usb_disable_asynch(1); /* asynch transfer not allowed */
+	usb_lock_async(udev, 1);
 
 	srb->lun = block_dev->lun;
 	buf_addr = (uintptr_t)buffer;
@@ -1307,6 +1310,7 @@ retry_it:
 	debug("usb_write: end startblk " LBAF ", blccnt %x buffer %lx\n",
 	      start, smallblks, buf_addr);
 
+	usb_lock_async(udev, 0);
 	usb_disable_asynch(0); /* asynch transfer allowed */
 	if (blkcnt >= ss->max_xfer_blk)
 		debug("\n");

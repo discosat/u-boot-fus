@@ -93,7 +93,7 @@ void __weak board_dram_ecc_scrub(void)
 int ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int tmp, initial_drate, target_freq;
-	int ret = 0;
+	int ret;
 
 	debug("DDRINFO: start DRAM init\n");
 
@@ -169,7 +169,11 @@ int ddr_init(struct dram_timing_info *dram_timing)
 	 * accessing relevant PUB registers
 	 */
 	debug("DDRINFO:ddrphy config start\n");
+
 	ret = ddr_cfg_phy(dram_timing);
+	if (ret)
+		return ret;
+
 	debug("DDRINFO: ddrphy config done\n");
 
 	/*
@@ -239,5 +243,5 @@ int ddr_init(struct dram_timing_info *dram_timing)
 	/* save the dram timing config into memory */
 	dram_config_save(dram_timing, CONFIG_SAVED_DRAM_TIMING_BASE);
 
-	return ret;
+	return 0;
 }

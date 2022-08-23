@@ -4,6 +4,8 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <hang.h>
 #include <spl.h>
 #include <asm/io.h>
 #include <errno.h>
@@ -22,7 +24,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-void spl_dram_init(void)
+static void spl_dram_init(void)
 {
 	ddr_init(&dram_timing);
 }
@@ -152,14 +154,14 @@ int board_mmc_getcd(struct mmc *mmc)
 
 		imx_iomux_v3_setup_pad(usdhc2_dat3_pad);
 		return ret;
-	}
+}
 
 	return 1;
 }
 
 #ifdef CONFIG_POWER
 #define I2C_PMIC	0
-int power_init_board(void)
+static int power_init_board(void)
 {
 	struct pmic *p;
 	int ret;

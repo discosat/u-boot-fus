@@ -28,6 +28,8 @@
 
 #include <common.h>
 #include <command.h>
+#include <flash.h>
+#include <image.h>
 #include <net.h>
 #include <malloc.h>
 #include <mapmem.h>
@@ -886,7 +888,7 @@ void nfs_start(void)
 			(net_ip.s_addr >> 24) & 0xFF);
 
 		printf("*** Warning: no boot file name; using '%s'\n",
-		      nfs_path);
+		       nfs_path);
 	}
 
 	nfs_filename = basename(nfs_path);
@@ -895,7 +897,7 @@ void nfs_start(void)
 	printf("Using %s device\n", eth_get_name());
 
 	printf("File transfer via NFS from server %pI4; our IP address is %pI4",
-	      &nfs_server_ip, &net_ip);
+	       &nfs_server_ip, &net_ip);
 
 	/* Check if we need to send across this subnet */
 	if (net_gateway.s_addr && net_netmask.s_addr) {
@@ -906,13 +908,13 @@ void nfs_start(void)
 		server_net.s_addr = nfs_server_ip.s_addr & net_netmask.s_addr;
 		if (our_net.s_addr != server_net.s_addr)
 			printf("; sending through gateway %pI4",
-			      &net_gateway);
+			       &net_gateway);
 	}
 	printf("\nFilename '%s/%s'.", nfs_path, nfs_filename);
 
 	if (net_boot_file_expected_size_in_blocks) {
 		printf(" Size is 0x%x Bytes = ",
-		      net_boot_file_expected_size_in_blocks << 9);
+		       net_boot_file_expected_size_in_blocks << 9);
 		print_size(net_boot_file_expected_size_in_blocks << 9, "");
 	}
 	printf ("\nLoad address: 0x%lx\n"

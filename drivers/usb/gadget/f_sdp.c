@@ -820,7 +820,7 @@ static void sdp_handle_in_ep(void)
 			jump_to_image_no_args(&spl_image);
 #else
 			/* In U-Boot, allow jumps to scripts */
-			source(sdp_func->jmp_address, "script@1");
+			image_source_script(sdp_func->jmp_address, "script@1");
 #endif
 		}
 
