@@ -19,6 +19,7 @@
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"
 #include <fuse.h>			/* fuse_read() */
+#include <update.h>			/* enum update_action */
 
 #ifdef HAVE_BOARD_CFG
 #include "fs_image_common.h"		/* fs_image_*() */

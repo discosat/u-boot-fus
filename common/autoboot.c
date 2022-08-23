@@ -20,6 +20,7 @@
 #include <time.h>
 #include <u-boot/sha256.h>
 #include <bootcount.h>
+#include <update.h>			/* enum update_action */
 #ifdef is_boot_from_usb
 #include <env.h>
 #endif
