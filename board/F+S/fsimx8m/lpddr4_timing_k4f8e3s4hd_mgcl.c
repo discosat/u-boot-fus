@@ -1137,4 +1137,3 @@ struct dram_timing_info dram_timing_k4f8e3s4hd_mgcl = {
 	.ddrphy_pie_num = ARRAY_SIZE(ddr_phy_pie),
 	.fsp_table = { 2400, 400, 100, },
 };
-
