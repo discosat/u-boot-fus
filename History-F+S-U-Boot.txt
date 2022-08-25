@@ -1,6 +1,18 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Add Board-Configs for the PicoCoreMX8MMr2
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add PicoCoreMX8MMr2 support
+- Add N-boot History file for nboot-fsimx8mm-2021.04.1
+
+
+
 u-boot-2018.03-fsimx8mm-Y2021.04 (21.04.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
