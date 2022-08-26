@@ -5,7 +5,7 @@
 #include "imx6sx-sdb.dtsi"
 
 / {
-	model = "Freescale i.MX6 SoloX SDB RevB Board";
+	model = "NXP i.MX6 SoloX SDB RevB Board";
 
 	regulators {
 		/* Transceiver EN/STBY is active low on RevB board */
@@ -55,8 +55,6 @@
 		#size-cells = <1>;
 		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <4>;
 		reg = <0>;
 	};
 
@@ -65,8 +63,6 @@
 		#size-cells = <1>;
 		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
-		spi-rx-bus-width = <4>;
-		spi-tx-bus-width = <4>;
 		reg = <2>;
 	};
 #endif

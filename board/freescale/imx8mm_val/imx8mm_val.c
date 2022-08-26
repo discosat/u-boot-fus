@@ -1,28 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
-
 #include <common.h>
-#include <malloc.h>
-#include <errno.h>
 #include <asm/io.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm-generic/gpio.h>
-#include <fsl_esdhc.h>
-#include <mmc.h>
 #include <asm/arch/imx8mm_pins.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/arch/clock.h>
-#include <spl.h>
+#include <i2c.h>
 #include <asm/mach-imx/dma.h>
-#include <power/pmic.h>
-#include <power/bd71837.h>
 #include "../common/tcpc.h"
 #include <usb.h>
 
@@ -40,15 +32,6 @@ static iomux_v3_cfg_t const uart_pads[] = {
 static iomux_v3_cfg_t const wdog_pads[] = {
 	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
-#endif
-
-#ifdef CONFIG_FSL_FSPI
-int board_qspi_init(void)
-{
-	set_clk_qspi();
-
-	return 0;
-}
 #endif
 
 #ifdef CONFIG_MXC_SPI
@@ -75,7 +58,6 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 #endif
 
 #ifdef CONFIG_NAND_MXS
-#ifdef CONFIG_SPL_BUILD
 #define NAND_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_HYS)
 #define NAND_PAD_READY0_CTRL (PAD_CTL_DSE6 | PAD_CTL_FSEL2 | PAD_CTL_PUE)
 static iomux_v3_cfg_t const gpmi_pads[] = {
@@ -95,13 +77,10 @@ static iomux_v3_cfg_t const gpmi_pads[] = {
 	IMX8MM_PAD_NAND_WE_B_RAWNAND_WE_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 	IMX8MM_PAD_NAND_WP_B_RAWNAND_WP_B | MUX_PAD_CTRL(NAND_PAD_CTRL),
 };
-#endif
 
 static void setup_gpmi_nand(void)
 {
-#ifdef CONFIG_SPL_BUILD
 	imx_iomux_v3_setup_multiple_pads(gpmi_pads, ARRAY_SIZE(gpmi_pads));
-#endif
 
 	init_nand_clk();
 }
@@ -128,7 +107,7 @@ int board_early_init_f(void)
 	return 0;
 }
 
-#ifdef CONFIG_FEC_MXC
+#if IS_ENABLED(CONFIG_FEC_MXC)
 #ifndef CONFIG_TARGET_IMX8MM_DDR3L_VAL
 #define FEC_RST_PAD IMX_GPIO_NR(4, 22)
 static iomux_v3_cfg_t const fec1_rst_pads[] = {
@@ -268,7 +247,7 @@ struct tcpc_port_config port2_config = {
 	.i2c_bus = 1, /*i2c2*/
 	.addr = 0x52,
 	.port_type = TYPEC_PORT_UFP,
-	.max_snk_mv = 5000,
+	.max_snk_mv = 9000,
 	.max_snk_ma = 3000,
 	.max_snk_mw = 40000,
 	.op_snk_mv = 9000,
@@ -359,7 +338,7 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 	enum typec_cc_state state;
 	struct tcpc_port *port_ptr;
 
-	if (dev->seq == 0)
+	if (dev->req_seq == 0)
 		port_ptr = &port1;
 	else
 		port_ptr = &port2;
@@ -387,13 +366,8 @@ int board_init(void)
 	setup_spi();
 #endif
 
-#ifdef CONFIG_FEC_MXC
-	setup_fec();
-#endif
-
-#ifdef CONFIG_FSL_FSPI
-	board_qspi_init();
-#endif
+	if (IS_ENABLED(CONFIG_FEC_MXC))
+		setup_fec();
 
 	return 0;
 }
@@ -404,5 +378,9 @@ int board_late_init(void)
 	board_late_mmc_env_init();
 #endif
 
+#ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
+	env_set("board_name", "VAL");
+	env_set("board_rev", "iMX8MM");
+#endif
 	return 0;
 }

@@ -122,12 +122,14 @@ serial_initfunc(mcf_serial_initialize);
 serial_initfunc(mpc85xx_serial_initialize);
 serial_initfunc(mxc_serial_initialize);
 serial_initfunc(serial_lpuart_initialize);
+serial_initfunc(xen_serial_initialize);
 serial_initfunc(ns16550_serial_initialize);
 serial_initfunc(pl01x_serial_initialize);
 serial_initfunc(pxa_serial_initialize);
 serial_initfunc(sh_serial_initialize);
 serial_initfunc(mtk_serial_initialize);
 serial_initfunc(vybrid_serial_initialize);
+serial_initfunc(xen_debug_serial_initialize);
 
 /**
  * serial_register() - Register serial driver with serial driver core
@@ -178,12 +180,14 @@ void serial_initialize(void)
 	mpc85xx_serial_initialize();
 	mxc_serial_initialize();
 	serial_lpuart_initialize();
+	xen_serial_initialize();
 	ns16550_serial_initialize();
 	pl01x_serial_initialize();
 	pxa_serial_initialize();
 	sh_serial_initialize();
 	mtk_serial_initialize();
 	vybrid_serial_initialize();
+	xen_debug_serial_initialize();
 
 	serial_assign(default_serial_console()->name);
 }

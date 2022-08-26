@@ -1156,7 +1156,7 @@ MKIMAGEFLAGS_fit-dtb.blob = -f auto -A $(ARCH) -T firmware -C none -O u-boot \
 
 ifneq ($(EXT_DTB),)
 u-boot-fit-dtb.bin: u-boot-nodtb.bin $(EXT_DTB)
-		$(call if_changed,cat)
+	$(call if_changed,cat)
 else
 u-boot-fit-dtb.bin: u-boot-nodtb.bin $(FINAL_DTB_CONTAINER)
 	$(call if_changed,cat)

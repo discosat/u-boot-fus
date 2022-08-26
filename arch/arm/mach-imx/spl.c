@@ -16,6 +16,7 @@
 #include <asm/mach-imx/hab.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <g_dnl.h>
+#include <mmc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -368,5 +369,29 @@ int dram_init_banksize(void)
 	gd->bd->bi_dram[0].size = imx_ddr_size();
 
 	return 0;
+}
+#endif
+
+#if defined(CONFIG_IMX_TRUSTY_OS) || defined(CONFIG_IMX8_TRUSTY_XEN)
+int check_rpmb_blob(struct mmc *mmc);
+
+int mmc_image_load_late(struct mmc *mmc)
+{
+	struct mmc *rpmb_mmc;
+
+#ifdef CONFIG_IMX8_TRUSTY_XEN
+	/* keyblob is stored at eMMC */
+	if (mmc_init_device(0))
+		printf("mmc init device fail %s\n", __func__);
+	rpmb_mmc = find_mmc_device(0);
+	if (mmc_init(rpmb_mmc)) {
+		printf("mmc init failed %s\n", __func__);
+		return -1;
+       }
+#else
+	rpmb_mmc = mmc;
+#endif
+	/* Check the rpmb key blob for trusty enabled platfrom. */
+	return check_rpmb_blob(rpmb_mmc);
 }
 #endif

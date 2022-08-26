@@ -395,6 +395,14 @@ int arch_cpu_init(void)
 	/* Secure init function such RNG */
 	imx_sec_init();
 #endif
+	configure_tzc380();
+
+	return 0;
+}
+#else
+int arch_cpu_init(void)
+{
+	init_cpu_basic();
 
 	return 0;
 }

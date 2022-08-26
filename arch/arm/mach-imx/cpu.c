@@ -3,8 +3,7 @@
  * (C) Copyright 2007
  * Sascha Hauer, Pengutronix
  *
- * (C) Copyright 2009-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
+ * (C) Copyright 2009 Freescale Semiconductor, Inc.
  */
 
 #include <bootm.h>
@@ -17,17 +16,12 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/mach-imx/boot_mode.h>
-#if defined(CONFIG_VIDEO_IMXDCSS)
-#include <asm/arch/video_common.h>
-#endif
 #include <imx_thermal.h>
 #include <ipu_pixfmt.h>
 #include <thermal.h>
 #include <sata.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
-
-#include <asm/mach-imx/video.h>
 
 #ifdef CONFIG_VIDEO_GIS
 #include <gis.h>
@@ -113,7 +107,13 @@ const char *get_imx_type(u32 imxtype)
 {
 	switch (imxtype) {
 	case MXC_CPU_IMX8MP:
-		return "8MP";	/* Quad-core version of the imx8mp */
+		return "8MP[8]";	/* Quad-core version of the imx8mp */
+	case MXC_CPU_IMX8MPD:
+		return "8MP Dual[3]";	/* Dual-core version of the imx8mp */
+	case MXC_CPU_IMX8MPL:
+		return "8MP Lite[4]";	/* Quad-core Lite version of the imx8mp */
+	case MXC_CPU_IMX8MP6:
+		return "8MP[6]";	/* Quad-core version of the imx8mp, NPU fused */
 	case MXC_CPU_IMX8MN:
 		return "8MNano Quad";/* Quad-core version of the imx8mn */
 	case MXC_CPU_IMX8MND:
@@ -126,6 +126,12 @@ const char *get_imx_type(u32 imxtype)
 		return "8MNano DualLite";/* Dual-core Lite version of the imx8mn */
 	case MXC_CPU_IMX8MNSL:
 		return "8MNano SoloLite";/* Single-core Lite version of the imx8mn */
+	case MXC_CPU_IMX8MNUQ:
+		return "8MNano UltraLite Quad";/* Quad-core UltraLite version of the imx8mn */
+	case MXC_CPU_IMX8MNUD:
+		return "8MNano UltraLite Dual";/* Dual-core UltraLite version of the imx8mn */
+	case MXC_CPU_IMX8MNUS:
+		return "8MNano UltraLite Solo";/* Single-core UltraLite version of the imx8mn */
 	case MXC_CPU_IMX8MM:
 		return "8MMQ";	/* Quad-core version of the imx8mm */
 	case MXC_CPU_IMX8MML:
@@ -195,7 +201,7 @@ int print_cpuinfo(void)
 		(struct dbg_monitor_regs *)DEBUG_MONITOR_BASE_ADDR;
 #endif
 
-	printf("CPU:   Freescale i.MX%s rev%d.%d",
+	printf("CPU:   i.MX%s rev%d.%d",
 	       get_imx_type((cpurev & 0x1FF000) >> 12),
 	       (cpurev & 0x000F0) >> 4,
 	       (cpurev & 0x0000F) >> 0);
@@ -339,12 +345,6 @@ void arch_preboot_os(void)
 #if defined(CONFIG_VIDEO_MXS) && !defined(CONFIG_DM_VIDEO)
 	lcdif_power_down();
 #endif
-#if defined(CONFIG_VIDEO_IMX_LCDIFV3)
-	lcdifv3_power_down();
-#endif
-#if defined(CONFIG_VIDEO_IMXDCSS)
-	imx8m_fb_disable();
-#endif
 }
 
 #ifndef CONFIG_IMX8M
@@ -413,7 +413,7 @@ u32 get_cpu_speed_grade_hz(void)
 	if (is_imx8mm())
 		val &= 0x7;
 	else
-	val &= 0x3;
+		val &= 0x3;
 
 	switch(val) {
 	case OCOTP_TESTER3_SPEED_GRADE0:
@@ -452,7 +452,7 @@ u32 get_cpu_temp_grade(int *minc, int *maxc)
 	if (is_imx8mp())
 		val >>= IMX8MP_OCOTP_TESTER3_TEMP_SHIFT;
 	else
-	val >>= OCOTP_TESTER3_TEMP_SHIFT;
+		val >>= OCOTP_TESTER3_TEMP_SHIFT;
 	val &= 0x3;
 
 	if (minc && maxc) {

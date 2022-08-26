@@ -15,7 +15,7 @@
 #include <linux/usb/dwc3.h>
 #include <asm/arch/sys_proto.h>
 #include <dm.h>
-#include "xhci.h"
+#include <usb/xhci.h>
 
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;

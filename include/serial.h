@@ -346,23 +346,3 @@ int serial_getc(void);
 int serial_tstc(void);
 
 #endif
-
-#ifdef CONFIG_SERIAL_SOFTWARE_FIFO
-void	serial_buffered_init (void);
-void	serial_buffered_putc (const struct stdio_dev *pdev, const char);
-void	serial_buffered_puts (const struct stdio_dev *pdev, const char *);
-int	serial_buffered_getc (const struct stdio_dev *pdev);
-int	serial_buffered_tstc (const struct stdio_dev *pdev);
-#endif /* CONFIG_SERIAL_SOFTWARE_FIFO */
-
-/* arch/$(ARCH)/cpu/$(CPU)/$(SOC)/serial.c */
-int	serial_init   (void);
-void	serial_setbrg (void);
-void	serial_putc   (const char);
-void	serial_putc_raw(const char);
-void	serial_puts   (const char *);
-int	serial_getc   (void);
-int	serial_tstc   (void);
-#ifdef CONFIG_DM_SERIAL
-int	serial_get_alias_seq(void);
-#endif

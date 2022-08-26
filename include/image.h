@@ -112,6 +112,10 @@ struct fdt_region;
 # define IMAGE_OF_SYSTEM_SETUP	0
 #endif
 
+extern ulong image_load_addr;		/* Default Load Address */
+extern ulong image_save_addr;		/* Default Save Address */
+extern ulong image_save_size;		/* Default Save Size */
+
 enum ih_category {
 	IH_ARCH,
 	IH_COMP,
@@ -1456,9 +1460,13 @@ void env_set_fileinfo(ulong size);
 
 #if defined(CONFIG_ANDROID_BOOT_IMAGE)
 struct andr_img_hdr;
+struct boot_img_hdr_v3;
+struct vendor_boot_img_hdr_v3;
 int android_image_check_header(const struct andr_img_hdr *hdr);
+int android_image_check_header_v3(const struct boot_img_hdr_v3 *hdr, const struct vendor_boot_img_hdr_v3 *vendor_hdr);
 int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 			     ulong *os_data, ulong *os_len);
+int android_image_get_kernel_v3(const struct boot_img_hdr_v3 *hdr, const struct vendor_boot_img_hdr_v3 *vendor_hdr);
 int android_image_get_ramdisk(const struct andr_img_hdr *hdr,
 			      ulong *rd_data, ulong *rd_len);
 int android_image_get_second(const struct andr_img_hdr *hdr,

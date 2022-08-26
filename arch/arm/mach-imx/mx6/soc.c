@@ -238,9 +238,6 @@ u32 __weak get_board_rev(void)
 	if (type == MXC_CPU_MX6D)
 		cpurev = (MXC_CPU_MX6Q) << 12 | (cpurev & 0xFFF);
 
-	if (type == MXC_CPU_MX6QP || type == MXC_CPU_MX6DP)
-		cpurev = (MXC_CPU_MX6Q) << 12 | ((cpurev + 0x10) & 0xFFF);
-
 	return cpurev;
 }
 #endif
@@ -415,6 +412,37 @@ static void init_bandgap(void)
 	}
 }
 
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
+static void noc_setup(void)
+{
+	enable_ipu_clock();
+
+	writel(0x80000201, 0xbb0608);
+	/* Bypass IPU1 QoS generator */
+	writel(0x00000002, 0x00bb048c);
+	/* Bypass IPU2 QoS generator */
+	writel(0x00000002, 0x00bb050c);
+	/* Bandwidth THR for of PRE0 */
+	writel(0x00000200, 0x00bb0690);
+	/* Bandwidth THR for of PRE1 */
+	writel(0x00000200, 0x00bb0710);
+	/* Bandwidth THR for of PRE2 */
+	writel(0x00000200, 0x00bb0790);
+	/* Bandwidth THR for of PRE3 */
+	writel(0x00000200, 0x00bb0810);
+	/* Saturation THR for of PRE0 */
+	writel(0x00000010, 0x00bb0694);
+	/* Saturation THR for of PRE1 */
+	writel(0x00000010, 0x00bb0714);
+	/* Saturation THR for of PRE2 */
+	writel(0x00000010, 0x00bb0794);
+	/* Saturation THR for of PRE */
+	writel(0x00000010, 0x00bb0814);
+
+	disable_ipu_clock();
+}
+#endif
+
 static void set_preclk_from_osc(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
@@ -567,27 +595,6 @@ int arch_cpu_init(void)
 		}
 	}
 
-	if (!is_mx6sl() && !is_mx6sx() && !is_mx6ul() && !is_mx6ull()) {
-		/*
-		 * imx6sl doesn't have pcie at all.
-		 * this bit is not used by imx6sx anymore
-		 */
-		u32 val;
-
-		/*
-		 * There are about 0.02% percentage, random pcie link down
-		 * when warm-reset is used.
-		 * clear the ref_ssp_en bit16 of gpr1 to workaround it.
-		 * then warm-reset imx6q/dl/solo again.
-		 */
-		val = readl(IOMUXC_BASE_ADDR + 0x4);
-		if (val & (0x1 << 16)) {
-			val &= ~(0x1 << 16);
-			writel(val, IOMUXC_BASE_ADDR + 0x4);
-			reset_cpu(0);
-		}
-	}
-
 	init_aips();
 
 	init_csu();
@@ -652,19 +659,6 @@ int arch_cpu_init(void)
 			0x3, MX6UL_SNVS_LP_BASE_ADDR);
 	}
 
-	if (is_mx6ull() || is_mx6ul()) {
-		struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
-		if (iomux->gpr[9] & 0x1) {
-			/* When trust zone is enabled,
-			 * set Region 0 attribute to allow secure and non-secure read/write permission
-			 * Because PL301 hard code to non-secure for some masters on m_3/4/5 ports.
-			 * Like LCDIF, PXP, CSI can't work with secure memory.
-			 */
-
-			writel(0xf0000000, IP2APB_TZASC1_BASE_ADDR + 0x108);
-		}
-	}
-
 	/* Set perclk to source from OSC 24MHz */
 	if (is_mx6sl())
 		set_preclk_from_osc();
@@ -682,24 +676,18 @@ int arch_cpu_init(void)
 		!is_mx6ull() && !is_mx6sll())
 		imx_set_vddpu_power_down();
 
-#ifndef CONFIG_PCIE_IMX
-	if (is_mx6sx())
-		set_ldo_voltage(LDO_PU, 0);	/* Set LDO for PCIe to off */
-#endif
-
 	init_src();
 
-#ifndef CONFIG_MX6SX
-	if (is_mx6dqp()) {
-		writel(0x80000201, 0xbb0608);
-		enable_ipu_clock();
-	}
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
+	if (is_mx6dqp())
+		noc_setup();
 #endif
 
 #ifdef CONFIG_IMX_SEC_INIT
 	/* Secure init function such RNG */
 	imx_sec_init();
 #endif
+	configure_tzc380();
 
 	return 0;
 }

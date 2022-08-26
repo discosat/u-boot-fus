@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
  *
  * Configuration settings for the Freescale i.MX6SX Sabreauto board.
  */
@@ -123,18 +122,18 @@
 		"if test ${tee} = yes; then " \
 			"run loadfdt; run loadtee; bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} " \
@@ -153,18 +152,18 @@
 			"${get_cmd} ${fdt_addr} ${fdt_file}; " \
 			"bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi;" \
 		"fi;\0" \
 	"findfdt="\
@@ -222,33 +221,8 @@
 /* DMA stuff, needed for GPMI/MXS NAND support */
 
 /* Network */
-
-#define CONFIG_FEC_MXC
-
-#define CONFIG_FEC_ENET_DEV 1  /* Use onboard ethernet as default */
-
-#if (CONFIG_FEC_ENET_DEV == 0)
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x1
-#ifdef CONFIG_DM_ETH
-#define CONFIG_ETHPRIME                 "eth0"
-#else
-#define CONFIG_ETHPRIME                 "FEC0"
-#endif
-#elif (CONFIG_FEC_ENET_DEV == 1)
-#define IMX_FEC_BASE			ENET2_BASE_ADDR
-#define CONFIG_FEC_MXC_PHYADDR          0x0
-#ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME                 "eth1"
-#else
-#define CONFIG_ETHPRIME                 "FEC1"
-#endif
-#endif
-
 #define CONFIG_FEC_XCV_TYPE             RGMII
-
-#define CONFIG_PHY_ATHEROS
-#define CONFIG_FEC_MXC_MDIO_BASE	ENET_BASE_ADDR
 
 #define CONFIG_SERIAL_TAG
 
@@ -267,28 +241,16 @@
 #define FSL_QSPI_FLASH_NUM		2
 #endif
 
-#define CONFIG_ENV_OFFSET		(8 * SZ_64K)
-#define CONFIG_ENV_SIZE			SZ_8K
-
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 #define CONFIG_MMCROOT			"/dev/mmcblk2p2"  /* USDHC3 */
 #define CONFIG_SYS_MMC_ENV_DEV		2  /*USDHC3*/
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(14 * SZ_64K)
-#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
-#define CONFIG_ENV_OFFSET		(896 * 1024)
-#define CONFIG_ENV_SECT_SIZE		(64 * 1024)
+#if defined(CONFIG_ENV_IS_IN_SPI_FLASH)
 #define CONFIG_ENV_SPI_BUS		CONFIG_SF_DEFAULT_BUS
 #define CONFIG_ENV_SPI_CS		CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE		CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ		CONFIG_SF_DEFAULT_SPEED
-#elif defined(CONFIG_ENV_IS_IN_NAND)
-#undef CONFIG_ENV_SIZE
-#define CONFIG_ENV_OFFSET		(60 << 20)
-#define CONFIG_ENV_SECT_SIZE		(128 << 10)
-#define CONFIG_ENV_SIZE			CONFIG_ENV_SECT_SIZE
 #endif
 
 #ifndef CONFIG_DM_PCA953X
@@ -314,10 +276,6 @@
 #define CONFIG_VIDEO_PXP
 #define CONFIG_VIDEO_VADC
 #endif
-#endif
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "mx6sxsabreautoandroid.h"
 #endif
 
 #endif				/* __CONFIG_H */

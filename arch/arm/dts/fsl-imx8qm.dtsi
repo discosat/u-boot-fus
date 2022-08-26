@@ -57,6 +57,10 @@
 		spi0 = &flexspi0;
 		pci0 = &pciea;
 		pci1 = &pcieb;
+		display0 = &ldb1;
+		display1 = &ldb2;
+		video0 = &dpu1;
+		video1 = &dpu2;
 	};
 
 	memory@80000000 {
@@ -176,7 +180,7 @@
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		fsl,dsp_ap_mu_id = <13>;
 		status = "okay";
-		};
+	};
 
 	mu_m0: mu_m0@2d000000 {
 		compatible = "fsl,imx8-mu0-vpu-m0";
@@ -184,7 +188,7 @@
 		interrupts = <GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>;
 		fsl,vpu_ap_mu_id = <16>;
 		status = "okay";
-		};
+	};
 
 	mu1_m0: mu1_m0@2d020000 {
 		compatible = "fsl,imx8-mu1-vpu-m0";
@@ -247,11 +251,11 @@
 				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-parent = <&gic>;
-	};
+		};
 	};
 
 	#include "fsl-imx8qm-device.dtsi"
-	};
+};
 
 &A53_0 {
 	operating-points = <
@@ -266,7 +270,7 @@
 	clock-latency = <61036>;
 	#cooling-cells = <2>;
 	/delete-property/ cpu-idle-states;
-	};
+};
 
 &A72_0 {
 	operating-points = <
@@ -281,20 +285,19 @@
 	clock-latency = <61036>;
 	#cooling-cells = <2>;
 	/delete-property/ cpu-idle-states;
-	};
-
+};
 
 &A53_1 {
 	/delete-property/ cpu-idle-states;
-	};
+};
 
 &A53_2 {
 	/delete-property/ cpu-idle-states;
-	};
+};
 
 &A53_3 {
 	/delete-property/ cpu-idle-states;
-	};
+};
 
 &A72_1 {
 	/delete-property/ cpu-idle-states;

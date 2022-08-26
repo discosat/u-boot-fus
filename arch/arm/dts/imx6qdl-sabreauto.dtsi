@@ -168,7 +168,7 @@
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio7 8 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			u-boot,off-on-delay-us = <20000>;
+			off-on-delay-us = <20000>;
 			/* remove below line to enable this regulator */
 			status = "disabled";
 		};
@@ -539,7 +539,7 @@
 		wakeup-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
 	};
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

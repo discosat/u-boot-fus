@@ -276,6 +276,7 @@ int clock_get_postdiv(enum clk_root_index clock_id,
 int clock_get_src(enum clk_root_index clock_id, enum clk_root_src *p_clock_src);
 void mxs_set_lcdclk(u32 base_addr, u32 freq);
 int set_clk_qspi(void);
+void init_clk_fspi(int index);
 void enable_ocotp_clk(unsigned char enable);
 int enable_i2c_clk(unsigned char enable, unsigned int i2c_num);
 int set_clk_enet(enum enet_freq type);

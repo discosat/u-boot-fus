@@ -23,14 +23,8 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR      0
 
 #define CONFIG_FEC_MXC
-#define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RGMII
-#ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME			"eth0"
-#else
-#define CONFIG_ETHPRIME			"FEC"
-#endif
-#define CONFIG_FEC_MXC_PHYADDR		1
 
 #define CONFIG_PHY_ATHEROS
 
@@ -58,7 +52,7 @@
 	"sd_dev=2\0" \
 	"weim_uboot=0x08001000\0"\
 	"weim_base=0x08000000\0"\
-	"spi_bus=1\0"\
+	"spi_bus=0\0"\
 	"spi_uboot=0x400\0" \
 	"mtdparts=" MFG_NAND_PARTITION \
 	"\0"\
@@ -100,6 +94,7 @@
 	"fdt_addr=0x18000000\0" \
 	"tee_addr=0x20000000\0" \
 	"fdt_high=0xffffffff\0"	  \
+	"splashimage=0x28000000\0" \
 	"console=" CONSOLE_DEV "\0" \
 	"bootargs=console=" CONSOLE_DEV ",115200 ubi.mtd=nandrootfs "  \
 		"root=ubi0:nandrootfs rootfstype=ubifs "		     \
@@ -123,6 +118,7 @@
 		"fdt_file=undefined\0" \
 		"fdt_addr=0x18000000\0" \
 		"fdt_high=0xffffffff\0"   \
+		"splashimage=0x28000000\0" \
 		"tee_addr=0x20000000\0" \
 		"tee_file=undefined\0" \
 		"findfdt="\
@@ -196,7 +192,7 @@
 	"dfu_alt_info=spl raw 0x400\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
-	"splashimage=" __stringify(CONFIG_LOADADDR) "\0" \
+	"splashimage=0x28000000\0" \
 	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV) "\0" \
 	"mmcpart=1\0" \
 	"finduuid=part uuid mmc ${mmcdev}:2 uuid\0" \
@@ -231,18 +227,18 @@
 		"if test ${tee} = yes; then " \
 			"run loadfdt; run loadtee; bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi;" \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} ${smp} " \
@@ -261,18 +257,18 @@
 			"${get_cmd} ${fdt_addr} ${fdt_file}; " \
 			"bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 		"findfdt="\

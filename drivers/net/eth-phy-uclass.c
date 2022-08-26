@@ -9,7 +9,6 @@
 
 #include <common.h>
 #include <dm.h>
-#include <environment.h>
 #include <net.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>

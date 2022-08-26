@@ -12,6 +12,7 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/image.h>
 #include <console.h>
+#include <cpu_func.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -29,7 +30,7 @@ static inline bool check_in_dram(ulong addr)
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; ++i) {
 		if (bd->bi_dram[i].size) {
 			if (addr >= bd->bi_dram[i].start &&
-				addr < (bd->bi_dram[i].start + bd->bi_dram[i].size))
+			    addr < (bd->bi_dram[i].start + bd->bi_dram[i].size))
 				return true;
 		}
 	}
@@ -54,7 +55,7 @@ int authenticate_os_container(ulong addr)
 	}
 
 	if (!check_in_dram(addr)) {
-		puts("Error: Image's address is invalid \n");
+		puts("Error: Image's address is invalid\n");
 		return -EINVAL;
 	}
 
@@ -85,7 +86,7 @@ int authenticate_os_container(ulong addr)
 	}
 
 	/* Copy images to dest address */
-	for (i=0; i < phdr->num_images; i++) {
+	for (i = 0; i < phdr->num_images; i++) {
 		img = (struct boot_img_t *)(addr +
 					    sizeof(struct container_hdr) +
 					    i * sizeof(struct boot_img_t));
@@ -102,7 +103,7 @@ int authenticate_os_container(ulong addr)
 		flush_dcache_range(s, e);
 
 		/* Find the memreg and set permission for seco pt */
-		err = sc_rm_find_memreg(-1, &mr, s, e);
+		err = sc_rm_find_memreg(-1, &mr, s, e - 1);
 		if (err) {
 			printf("Not found memreg for image: %d, error %d\n",
 			       i, err);
@@ -160,7 +161,7 @@ static int do_authenticate(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	addr = simple_strtoul(argv[1], NULL, 16);
 
-	printf("Authenticate OS container at 0x%lx \n", addr);
+	printf("Authenticate OS container at 0x%lx\n", addr);
 
 	if (authenticate_os_container(addr))
 		return CMD_RET_FAILURE;
@@ -252,7 +253,7 @@ static void display_ahab_auth_event(u32 event)
 }
 
 static int do_ahab_status(cmd_tbl_t *cmdtp, int flag, int argc,
-			 char * const argv[])
+			  char * const argv[])
 {
 	int err;
 	u8 idx = 0U;
@@ -269,7 +270,7 @@ static int do_ahab_status(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	err = sc_seco_get_event(-1, idx, &event);
 	while (err == SC_ERR_NONE) {
-		printf ("SECO Event[%u] = 0x%08X\n", idx, event);
+		printf("SECO Event[%u] = 0x%08X\n", idx, event);
 		display_ahab_auth_event(event);
 
 		idx++;
@@ -285,11 +286,11 @@ static int do_ahab_status(cmd_tbl_t *cmdtp, int flag, int argc,
 static int confirm_close(void)
 {
 	puts("Warning: Please ensure your sample is in NXP closed state, "
-				"OEM SRK hash has been fused, \n"
-			"         and you are able to boot a signed image successfully "
-				"without any SECO events reported.\n"
-			"         If not, your sample will be unrecoverable.\n"
-			"\nReally perform this operation? <y/N>\n");
+	     "OEM SRK hash has been fused, \n"
+	     "         and you are able to boot a signed image successfully "
+	     "without any SECO events reported.\n"
+	     "         If not, your sample will be unrecoverable.\n"
+	     "\nReally perform this operation? <y/N>\n");
 
 	if (confirm_yesno())
 		return 1;
@@ -331,17 +332,17 @@ static int do_ahab_close(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 U_BOOT_CMD(auth_cntr, CONFIG_SYS_MAXARGS, 1, do_authenticate,
-	"autenticate OS container via AHAB",
-	"addr\n"
-	"addr - OS container hex address\n"
+	   "autenticate OS container via AHAB",
+	   "addr\n"
+	   "addr - OS container hex address\n"
 );
 
 U_BOOT_CMD(ahab_status, CONFIG_SYS_MAXARGS, 1, do_ahab_status,
-	"display AHAB lifecycle and events from seco",
-	""
-  );
+	   "display AHAB lifecycle and events from seco",
+	   ""
+);
 
 U_BOOT_CMD(ahab_close, CONFIG_SYS_MAXARGS, 1, do_ahab_close,
-	  "Change AHAB lifecycle to OEM closed",
-	  ""
+	   "Change AHAB lifecycle to OEM closed",
+	   ""
 );

@@ -104,6 +104,7 @@
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 31 0>;
 			startup-delay-us = <500>;
+			regulator-always-on;
 			enable-active-high;
 		};
 
@@ -469,7 +470,7 @@
 		work-mode = <1>;/*DCM mode*/
 	};
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

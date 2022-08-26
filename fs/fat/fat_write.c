@@ -630,14 +630,17 @@ static int new_dir_table(fat_itr *itr)
 	int dir_newclust = 0;
 	unsigned int bytesperclust = mydata->clust_size * mydata->sect_size;
 
-	dir_newclust = find_empty_cluster(mydata);
-	set_fatent_value(mydata, itr->clust, dir_newclust);
-	if (mydata->fatsize == 32)
+	if (mydata->fatsize == 32) {
+		dir_newclust = find_empty_cluster(mydata);
+		set_fatent_value(mydata, itr->clust, dir_newclust);
 		set_fatent_value(mydata, dir_newclust, 0xffffff8);
-	else if (mydata->fatsize == 16)
-		set_fatent_value(mydata, dir_newclust, 0xfff8);
-	else if (mydata->fatsize == 12)
-		set_fatent_value(mydata, dir_newclust, 0xff8);
+	} else {
+		dir_newclust = itr->clust + 1;
+		if (dir_newclust > 1) {
+			printf("error: fail to get empty clust for directory entry\n");
+			return -1;
+		}
+	}
 
 	itr->clust = dir_newclust;
 	itr->next_clust = dir_newclust;
@@ -1063,7 +1066,7 @@ static int normalize_longname(char *l_filename, const char *filename)
 		if ((unsigned char)*p < 0x20)
 			return -1;
 		if (strchr(illegal, *p))
-		return -1;
+			return -1;
 	}
 
 	strcpy(l_filename, filename);

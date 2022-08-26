@@ -558,14 +558,14 @@ static int mv88e61xx_switch_reset(struct phy_device *phydev)
 		return val;
 	val |= GLOBAL1_CTRL_SWRESET;
 	val = mv88e61xx_reg_write(phydev, priv->global1,
-				     GLOBAL1_CTRL, val);
+				  GLOBAL1_CTRL, val);
 	if (val < 0)
 		return val;
 
 	/* Wait up to 1 second for switch reset complete */
 	for (time = 1000; time; time--) {
 		val = mv88e61xx_reg_read(phydev, priv->global1,
-					    GLOBAL1_CTRL);
+					 GLOBAL1_CTRL);
 		if (val >= 0 && ((val & GLOBAL1_CTRL_SWRESET) == 0))
 			break;
 		udelay(1000);
@@ -742,9 +742,9 @@ static int mv88e61xx_fixed_port_setup(struct phy_device *phydev, u8 port)
 	if (priv->id == PORT_SWITCH_ID_6071) {
 		val |= PORT_REG_PHYS_CTRL_SPD100;
 	} else {
-	val |= PORT_REG_PHYS_CTRL_PCS_AN_EN |
-	       PORT_REG_PHYS_CTRL_PCS_AN_RST |
-	       PORT_REG_PHYS_CTRL_SPD1000;
+		val |= PORT_REG_PHYS_CTRL_PCS_AN_EN |
+		       PORT_REG_PHYS_CTRL_PCS_AN_RST |
+		       PORT_REG_PHYS_CTRL_SPD1000;
 	}
 
 	if (port == CONFIG_MV88E61XX_CPU_PORT)
@@ -774,7 +774,7 @@ static int mv88e61xx_set_cpu_port(struct phy_device *phydev)
 			       GLOBAL1_MON_CTRL_CPUDEST_WIDTH,
 			       CONFIG_MV88E61XX_CPU_PORT);
 	val = mv88e61xx_reg_write(phydev, priv->global1,
-				     GLOBAL1_MON_CTRL, val);
+				  GLOBAL1_MON_CTRL, val);
 	if (val < 0)
 		return val;
 

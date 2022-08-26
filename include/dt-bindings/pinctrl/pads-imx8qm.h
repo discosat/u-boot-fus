@@ -3,10 +3,6 @@
  * Copyright 2018 NXP
  */
 
-/*!
- * Header file used to configure SoC pad list.
- */
-
 #ifndef SC_PADS_H
 #define SC_PADS_H
 
@@ -279,13 +275,11 @@
 #define SC_P_ENET1_RGMII_RXD2                    266	/* CONN.ENET1.RGMII_RXD2, CONN.ENET1.RMII_RX_ER, VPU.TSI_S0.CLK, LSIO.GPIO6.IO20 */
 #define SC_P_ENET1_RGMII_RXD3                    267	/* CONN.ENET1.RGMII_RXD3, DMA.UART3.RX, VPU.TSI_S1.CLK, LSIO.GPIO6.IO21 */
 #define SC_P_COMP_CTL_GPIO_1V8_3V3_ENET_ENETA    268	/*  */
-/*@}*/
 
-/*!
- * @name Pad Mux Definitions
+/*
+ * Pad Mux Definitions
  * format: name padid padmux
  */
-/*@{*/
 #define SC_P_SIM0_CLK_DMA_SIM0_CLK                              SC_P_SIM0_CLK                      0
 #define SC_P_SIM0_CLK_LSIO_GPIO0_IO00                           SC_P_SIM0_CLK                      3
 #define SC_P_SIM0_RST_DMA_SIM0_RST                              SC_P_SIM0_RST                      0

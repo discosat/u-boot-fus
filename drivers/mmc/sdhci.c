@@ -141,11 +141,11 @@ static void sdhci_prepare_dma(struct sdhci_host *host, struct mmc_data *data,
 	    (host->force_align_buffer ||
 	     (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR &&
 	      ((unsigned long)buf & 0x7) != 0x0))) {
-			*is_aligned = 0;
-			if (data->flags != MMC_DATA_READ)
+		*is_aligned = 0;
+		if (data->flags != MMC_DATA_READ)
 			memcpy(host->align_buffer, buf, trans_bytes);
 		buf = host->align_buffer;
-		}
+	}
 
 	host->start_addr = dma_map_single(buf, trans_bytes,
 					  mmc_get_dma_dir(data));

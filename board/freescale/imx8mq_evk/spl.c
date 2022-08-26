@@ -6,6 +6,7 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <hang.h>
 #include <asm/io.h>
 #include <errno.h>
@@ -251,4 +252,13 @@ void board_init_f(ulong dummy)
 	spl_dram_init();
 
 	board_init_r(NULL, 0);
+}
+
+int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	puts ("resetting ...\n");
+
+	reset_cpu(WDOG1_BASE_ADDR);
+
+	return 0;
 }

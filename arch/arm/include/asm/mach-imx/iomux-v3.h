@@ -4,8 +4,7 @@
  * Copyright (C) 2009 by Jan Weitzel Phytec Messtechnik GmbH,
  *			<armlinux@phytec.de>
  *
- * Copyright (C) 2011, 2016 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
+ * Copyright (C) 2011 Freescale Semiconductor, Inc.
  */
 
 #ifndef __MACH_IOMUX_V3_H__

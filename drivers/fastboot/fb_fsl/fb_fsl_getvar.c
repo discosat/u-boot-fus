@@ -47,6 +47,10 @@
 #define ATAP_UUID_STR_SIZE ((ATAP_UUID_SIZE*2) + 1)
 #endif
 
+#ifdef CONFIG_VIRTUAL_AB_SUPPORT
+#include "fb_fsl_virtual_ab.h"
+#endif
+
 #if defined(CONFIG_ANDROID_THINGS_SUPPORT) && defined(CONFIG_ARCH_IMX8M)
 #define FASTBOOT_COMMON_VAR_NUM 15
 #else
@@ -223,6 +227,10 @@ static int get_single_var(char *cmd, char *response)
 	} else if (!strcmp_l1("erase-block-size", cmd)) {
 		mmc_dev_no = mmc_get_env_dev();
 		mmc = find_mmc_device(mmc_dev_no);
+		if (!mmc) {
+			strncat(response, "FAILCannot get dev", chars_left);
+			return -1;
+		}
 		blksz = get_block_size();
 		snprintf(response + strlen(response), chars_left, "0x%x",
 				(blksz * mmc->erase_grp_size));
@@ -430,6 +438,16 @@ static int get_single_var(char *cmd, char *response)
 
 	}
 #endif
+#ifdef CONFIG_VIRTUAL_AB_SUPPORT
+	else if (!strcmp_l1("snapshot-update-status", cmd)) {
+		if (virtual_ab_update_is_merging())
+			strncat(response, "merging", chars_left);
+		else if (virtual_ab_update_is_snapshoted())
+			strncat(response, "snapshotted", chars_left);
+		else
+			strncat(response, "none", chars_left);
+	}
+#endif
 	else {
 		char envstr[32];
 
@@ -452,7 +470,7 @@ void fastboot_getvar(char *cmd, char *response)
 	int status = 0;
 	int count = 0;
 	char var_name[FASTBOOT_RESPONSE_LEN];
-	char partition_base_name[MAX_PTN][16];
+	char partition_base_name[MAX_PTN][20];
 	char slot_suffix[2][5] = {"a","b"};
 
 	if (!cmd) {
@@ -535,6 +553,12 @@ void fastboot_getvar(char *cmd, char *response)
 				fastboot_tx_write_more(response);
 			}
 		}
+
+#ifdef CONFIG_VIRTUAL_AB_SUPPORT
+		strncpy(response, "INFOsnapshot-update-status:", FASTBOOT_RESPONSE_LEN);
+		get_single_var("snapshot-update-status", response);
+		fastboot_tx_write_more(response);
+#endif
 
 		strncpy(response, "OKAYDone!", 10);
 		fastboot_tx_write_more(response);

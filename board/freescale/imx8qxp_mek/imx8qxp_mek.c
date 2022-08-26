@@ -19,15 +19,8 @@
 #include <asm/arch/snvs_security_sc.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/sys_proto.h>
-#include <imx8_hsio.h>
 #include <usb.h>
-#include <asm/mach-imx/video.h>
-#include <asm/arch/video_common.h>
-#include <power-domain.h>
 #include "../common/tcpc.h"
-#include <cdns3-uboot.h>
-#include <asm/arch/lpcg.h>
-#include <bootm.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -66,8 +59,6 @@ int board_early_init_f(void)
 	ret = sc_pm_setup_uart(SC_R_UART_0, rate);
 	if (ret)
 		return ret;
-
-	lpcg_all_clock_on(LPUART_0_LPCG);
 
 	setup_iomux_uart();
 
@@ -239,56 +230,10 @@ int checkboard(void)
 	return 0;
 }
 
-#ifdef CONFIG_FSL_HSIO
-
-#define PCIE_PAD_CTRL	((SC_PAD_CONFIG_OD_IN << PADRING_CONFIG_SHIFT))
-static iomux_cfg_t board_pcie_pins[] = {
-	SC_P_PCIE_CTRL0_CLKREQ_B | MUX_MODE_ALT(0) | MUX_PAD_CTRL(PCIE_PAD_CTRL),
-	SC_P_PCIE_CTRL0_WAKE_B | MUX_MODE_ALT(0) | MUX_PAD_CTRL(PCIE_PAD_CTRL),
-	SC_P_PCIE_CTRL0_PERST_B | MUX_MODE_ALT(0) | MUX_PAD_CTRL(PCIE_PAD_CTRL),
-};
-
-static void imx8qxp_hsio_initialize(void)
-{
-	struct power_domain pd;
-	int ret;
-
-	if (!power_domain_lookup_name("hsio_pcie1", &pd)) {
-		ret = power_domain_on(&pd);
-		if (ret)
-			printf("hsio_pcie1 Power up failed! (error = %d)\n", ret);
-}
-
-	if (!power_domain_lookup_name("hsio_gpio", &pd)) {
-		ret = power_domain_on(&pd);
-		if (ret)
-			 printf("hsio_gpio Power up failed! (error = %d)\n", ret);
-	}
-
-	lpcg_all_clock_on(HSIO_PCIE_X1_LPCG);
-	lpcg_all_clock_on(HSIO_PHY_X1_LPCG);
-	lpcg_all_clock_on(HSIO_PHY_X1_CRR1_LPCG);
-	lpcg_all_clock_on(HSIO_PCIE_X1_CRR3_LPCG);
-	lpcg_all_clock_on(HSIO_MISC_LPCG);
-	lpcg_all_clock_on(HSIO_GPIO_LPCG);
-
-	imx8_iomux_setup_multiple_pads(board_pcie_pins, ARRAY_SIZE(board_pcie_pins));
-}
-
-void pci_init_board(void)
-{
-	imx8qxp_hsio_initialize();
-
-	/* test the 1 lane mode of the PCIe A controller */
-	mx8qxp_pcie_init();
-}
-
-#endif
-
 #ifdef CONFIG_USB
 
 #ifdef CONFIG_USB_TCPC
-#define USB_TYPEC_SEL IMX_GPIO_NR(5, 9)
+struct gpio_desc type_sel_desc;
 static iomux_cfg_t ss_mux_gpio[] = {
 	SC_P_ENET0_REFCLK_125M_25M | MUX_MODE_ALT(4) | MUX_PAD_CTRL(GPIO_PAD_CTRL),
 };
@@ -303,9 +248,9 @@ struct tcpc_port_config port_config = {
 void ss_mux_select(enum typec_cc_polarity pol)
 {
 	if (pol == TYPEC_POLARITY_CC1)
-		gpio_direction_output(USB_TYPEC_SEL, 0);
+		dm_gpio_set_value(&type_sel_desc, 0);
 	else
-		gpio_direction_output(USB_TYPEC_SEL, 1);
+		dm_gpio_set_value(&type_sel_desc, 1);
 }
 
 static void setup_typec(void)
@@ -314,7 +259,19 @@ static void setup_typec(void)
 	struct gpio_desc typec_en_desc;
 
 	imx8_iomux_setup_multiple_pads(ss_mux_gpio, ARRAY_SIZE(ss_mux_gpio));
-	gpio_request(USB_TYPEC_SEL, "typec_sel");
+	ret = dm_gpio_lookup_name("GPIO5_9", &type_sel_desc);
+	if (ret) {
+		printf("%s lookup GPIO5_9 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&type_sel_desc, "typec_sel");
+	if (ret) {
+		printf("%s request typec_sel failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&type_sel_desc, GPIOD_IS_OUT);
 
 	ret = dm_gpio_lookup_name("gpio@1a_7", &typec_en_desc);
 	if (ret) {
@@ -394,7 +351,7 @@ int board_init(void)
 	return 0;
 }
 
-void board_quiesce_devices()
+void board_quiesce_devices(void)
 {
 	const char *power_on_devices[] = {
 		"dma_lpuart0",
@@ -405,11 +362,6 @@ void board_quiesce_devices()
 	};
 
 	power_off_pd_devices(power_on_devices, ARRAY_SIZE(power_on_devices));
-}
-
-void detail_board_ddr_info(void)
-{
-	puts("\nDDR    ");
 }
 
 /*
@@ -433,6 +385,10 @@ int board_late_init(void)
 {
 	char *fdt_file;
 	bool m4_boot;
+
+#ifndef CONFIG_ANDROID_AUTO_SUPPORT
+	build_info();
+#endif
 
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 	env_set("board_name", "MEK");
@@ -481,51 +437,11 @@ int is_recovery_key_pressing(void)
 #endif /*CONFIG_ANDROID_RECOVERY*/
 #endif /*CONFIG_FSL_FASTBOOT*/
 
-#if defined(CONFIG_VIDEO_IMXDPUV1)
-static void enable_lvds(struct display_info_t const *dev)
-{
-	struct gpio_desc desc;
-	int ret;
+#ifdef CONFIG_ANDROID_SUPPORT
+bool is_power_key_pressed(void) {
+	sc_bool_t status = SC_FALSE;
 
-	/* MIPI_DSI0_EN on IOEXP 0x1a port 6, MIPI_DSI1_EN on IOEXP 0x1d port 7 */
-	ret = dm_gpio_lookup_name("gpio@1a_6", &desc);
-	if (ret)
-		return;
-
-	ret = dm_gpio_request(&desc, "lvds0_en");
-	if (ret)
-		return;
-
-	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
-
-	display_controller_setup((PS2KHZ(dev->mode.pixclock) * 1000));
-	lvds_soc_setup(dev->bus, (PS2KHZ(dev->mode.pixclock) * 1000));
-	lvds_configure(dev->bus);
-	lvds2hdmi_setup(13);
+	sc_misc_get_button_status(-1, &status);
+	return (bool)status;
 }
-
-struct display_info_t const displays[] = {{
-	.bus	= 0, /* LVDS0 */
-	.addr	= 0, /* LVDS0 */
-	.pixfmt	= IMXDPUV1_PIX_FMT_BGRA32,
-	.detect	= NULL,
-	.enable	= enable_lvds,
-	.mode	= {
-		.name           = "IT6263", /* 720P60 */
-		.refresh        = 60,
-		.xres           = 1280,
-		.yres           = 720,
-		.pixclock       = 13468, /* 74250000 */
-		.left_margin    = 110,
-		.right_margin   = 220,
-		.upper_margin   = 5,
-		.lower_margin   = 20,
-		.hsync_len      = 40,
-		.vsync_len      = 5,
-		.sync           = FB_SYNC_EXT,
-		.vmode          = FB_VMODE_NONINTERLACED
-} } };
-size_t display_count = ARRAY_SIZE(displays);
-
-#endif /* CONFIG_VIDEO_IMXDPUV1 */
-
+#endif

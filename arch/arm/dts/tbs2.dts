@@ -46,7 +46,7 @@
  */
 //#define CONFIG_TBS2_SD_B
 
-#include "fsl-imx8mm.dtsi"
+#include "imx8mm.dtsi"
 
 / {
 	model = "TBS2";

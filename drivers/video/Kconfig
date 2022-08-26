@@ -346,6 +346,15 @@ config VIDEO_LCD_RAYDIUM_RM68200
 	Say Y here if you want to enable support for Raydium RM68200
 	720x1280 DSI video mode panel.
 
+config VIDEO_LCD_RAYDIUM_RM67191
+	bool "RM67191 DSI LCD panel support"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for Raydium RM68200
+	1080x1920 DSI video mode panel.
+
 config VIDEO_LCD_SSD2828
 	bool "SSD2828 bridge chip"
 	default n
@@ -592,57 +601,6 @@ config VIDEO_MXS
 	  This enables framebuffer driver for i.MX processors working
 	  on the LCDIF display driver (MXSFB).
 
-config VIDEO_IMXDPUV1
-	bool "i.MX DPU V1 display support"
-	default n
-	depends on VIDEO && IMX8
-	help
-	  Support for IMXDPU V1 display controller for i.MX8 processors.
-
-config VIDEO_IMXDCSS
-	bool "i.MX8 DCSS display support"
-	default n
-	depends on VIDEO && IMX8M
-	help
-	  Support for DCSS display controller for i.MX8 processors.
-
-config VIDEO_IMX_HDP_LOAD
-	bool "i.MX8 HDMI/DP firmware loading"
-	default n
-	depends on VIDEO && IMX8QM
-	help
-	  Support for HDMI/DP firmware loading for i.MX8QM processors. The
-	  firmware is copied from system memory to the HDMI/DP IRAM and
-	  DRAM memory.
-
-config VIDEO_IMX8_HDMI
-	bool "i.MX8 HDMI Splash screen"
-	default n
-	depends on VIDEO && IMX8M
-	help
-	  Support for HDMI i.MX8 processors.
-
-config IMX_MIPI_DSI_BRIDGE
-	bool
-	help
-	  Enable MIPI DSI bridge interface for display controller.
-
-config IMX_NORTHWEST_MIPI_DSI
-	bool "i.MX northwest's MIPI DSI"
-	default n
-	select IMX_MIPI_DSI_BRIDGE
-	depends on VIDEO && MX7ULP
-	help
-	  Support for i.MX7ULP MIPI DSI controller.
-
-config IMX_SEC_MIPI_DSI
-	bool "i.MX Samsung's MIPI DSI"
-	default n
-	select IMX_MIPI_DSI_BRIDGE
-	depends on VIDEO && (IMX8MM || IMX8MN || MX7 || IMX8MP)
-	help
-	  Support for i.MX7, i.MX8MM and i.MX8MN MIPI DSI controller.
-
 config MXC_EPDC
 	bool "i.MX EPDC support"
 	depends on LCD && (MX7 || MX6)
@@ -654,12 +612,6 @@ config WAVEFORM_BUF_SIZE
 	depends on MXC_EPDC
 	help
 	  Set the buffer size for loading waveform file.
-
-config VIDEO_IMX_LCDIFV3
-	bool "i.MX LCDIFv3 support"
-	depends on VIDEO && IMX8MP
-	help
-	  Support for i.MX8MP LCDIFv3 controller.
 
 config CFB_CONSOLE
 	bool "Enable colour frame buffer console"
@@ -811,6 +763,27 @@ config VIDEO_DW_MIPI_DSI
 	  rather requires a SoC-specific glue driver to call it), it
 	  can not be enabled from the configuration menu.
 
+config VIDEO_DSI_HOST_SANDBOX
+	bool "Enable sandbox for dsi host"
+	depends on SANDBOX
+	select VIDEO_MIPI_DSI
+	help
+	  Enable support for sandbox dsi host device used for testing
+	  purposes.
+	  Display Serial Interface (DSI) defines a serial bus and
+	  a communication protocol between the host and the device
+	  (panel, bridge).
+
+config VIDEO_DW_MIPI_DSI
+	bool
+	select VIDEO_MIPI_DSI
+	help
+	  Enables the common driver code for the Synopsis Designware
+	  MIPI DSI block found in SoCs from various vendors.
+	  As this does not provide any functionality by itself (but
+	  rather requires a SoC-specific glue driver to call it), it
+	  can not be enabled from the configuration menu.
+
 config VIDEO_SIMPLE
 	bool "Simple display driver for preconfigured display"
 	help
@@ -851,5 +824,30 @@ config IHS_VIDEO_OUT
 	  Enable support for the gdsys Integrated Hardware Systems (IHS) video
 	  out On-screen Display (OSD) used on gdsys FPGAs to control dynamic
 	  textual overlays of the display outputs.
+
+config VIDEO_LINK
+	bool "Enable video link framework support"
+	depends on DM_VIDEO
+	help
+	   This option enables a video link framework basing on port-endpoint graph
+	   to connect video components.
+
+config VIDEO_IT6263_BRIDGE
+	bool "ITE6263 LVDS to HDMI connector"
+	depends on DM_VIDEO
+	select VIDEO_BRIDGE
+	default n
+	help
+	Say Y here if you want to enable support for ITE IT6263
+	LVDS to HDMI connector, currently only support 1280x720P.
+
+config VIDEO_ADV7535
+	bool "ADV7535 MIPI DSI to HDMI connector"
+	depends on DM_VIDEO
+	select VIDEO_MIPI_DSI
+	default n
+	help
+	Say Y here if you want to enable support for ADI ADV7535
+	DSI to HDMI connector, currently only support 1920x1080.
 
 endmenu

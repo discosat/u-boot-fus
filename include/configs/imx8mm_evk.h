@@ -13,7 +13,7 @@
 #define CONFIG_SPL_MAX_SIZE		(148 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		SZ_512K
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
+#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	(0x300 + CONFIG_SECONDARY_BOOT_SECTOR_OFFSET)
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 #define CONFIG_SYS_UBOOT_BASE	\
 	(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
@@ -26,19 +26,23 @@
 #define CONFIG_SYS_SPL_MALLOC_SIZE	SZ_512K	/* 512 KB */
 
 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
-#define CONFIG_MALLOC_F_ADDR		0x930000
+#define CONFIG_MALLOC_F_ADDR		0x912000
 /* For RAW image gives a error info not panic */
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
 #define CONFIG_POWER
 #define CONFIG_POWER_I2C
+#if defined(CONFIG_IMX8M_LPDDR4) && defined(CONFIG_TARGET_IMX8MM_EVK)
+#define CONFIG_POWER_PCA9450
+#else
 #define CONFIG_POWER_BD71837
+#endif
 
 #define CONFIG_SYS_I2C
 
 #if defined(CONFIG_NAND_BOOT)
 #define CONFIG_SPL_NAND_SUPPORT
-#define CONFIG_SPL_DMA_SUPPORT
+#define CONFIG_SPL_DMA
 #define CONFIG_SPL_NAND_MXS
 #define CONFIG_SPL_NAND_BASE
 #define CONFIG_SPL_NAND_IDENT
@@ -56,17 +60,18 @@
 #define CONFIG_FASTBOOT_USB_DEV 0
 
 #define CONFIG_REMAKE_ELF
-
 /* ENET Config */
 /* ENET1 */
+#if defined(CONFIG_FEC_MXC)
 #define CONFIG_ETHPRIME                 "FEC"
+#define PHY_ANEG_TIMEOUT 20000
 
-#define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #define CONFIG_FEC_MXC_PHYADDR          0
 #define FEC_QUIRK_ENET_MAC
 
 #define IMX_FEC_BASE			0x30BE0000
+#endif
 
 #ifdef CONFIG_NAND_BOOT
 #define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(nandboot),16m(nandfit),32m(nandkernel),16m(nanddtb),8m(nandtee),-(nandrootfs)"
@@ -95,8 +100,9 @@
 
 /* Initial environment variables */
 #if defined(CONFIG_NAND_BOOT)
-#define CONFIG_EXTRA_ENV_SETTINGS		\
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
+	"splashimage=0x50000000\0" \
 	"fdt_addr=0x43000000\0"			\
 	"fdt_high=0xffffffffffffffff\0" \
 	"mtdparts=" MFG_NAND_PARTITION "\0" \
@@ -115,6 +121,7 @@
 	JAILHOUSE_ENV \
 	"script=boot.scr\0" \
 	"image=Image\0" \
+	"splashimage=0x50000000\0" \
 	"console=ttymxc1,115200\0" \
 	"fdt_addr=0x43000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
@@ -134,14 +141,14 @@
 	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
 		"run mmcargs; " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+		"if test ${boot_fit} = yes || test ${boot_fit} = try; then " \
+			"bootm ${loadaddr}; " \
+		"else " \
 			"if run loadfdt; then " \
 				"booti ${loadaddr} - ${fdt_addr}; " \
 			"else " \
 				"echo WARN: Cannot load the DT; " \
 			"fi; " \
-		"else " \
-			"echo wait for boot; " \
 		"fi;\0" \
 	"netargs=setenv bootargs ${jh_clk} console=${console} " \
 		"root=/dev/nfs " \
@@ -154,14 +161,14 @@
 			"setenv get_cmd tftp; " \
 		"fi; " \
 		"${get_cmd} ${loadaddr} ${image}; " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+		"if test ${boot_fit} = yes || test ${boot_fit} = try; then " \
+			"bootm ${loadaddr}; " \
+		"else " \
 			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
 				"booti ${loadaddr} - ${fdt_addr}; " \
 			"else " \
 				"echo WARN: Cannot load the DT; " \
 			"fi; " \
-		"else " \
-			"booti; " \
 		"fi;\0"
 
 #define CONFIG_BOOTCOMMAND \
@@ -174,7 +181,7 @@
 			   "else run netboot; " \
 			   "fi; " \
 		   "fi; " \
-	   "else booti ${loadaddr} - ${fdt_addr}; fi"
+	   "fi;"
 #endif
 
 /* Link Definitions */
@@ -209,14 +216,9 @@
 #define CONFIG_SYS_MEMTEST_START	PHYS_SDRAM
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
 
-#define CONFIG_BAUDRATE			115200
-
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART2_BASE_ADDR
 
 /* Monitor Command Prompt */
-#undef CONFIG_SYS_PROMPT
-#define CONFIG_SYS_PROMPT		"u-boot=> "
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #define CONFIG_SYS_CBSIZE		2048
 #define CONFIG_SYS_MAXARGS		64
@@ -234,7 +236,7 @@
 #else
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 #endif
-#define CONFIG_SYS_FSL_ESDHC_ADDR	0
+#define CONFIG_SYS_FSL_ESDHC_ADDR       0
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
@@ -285,7 +287,14 @@
 #define CONFIG_SPLASH_SCREEN_ALIGN
 #define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #endif
+
+#if defined(CONFIG_ANDROID_SUPPORT)
+#include "imx8mm_evk_android.h"
+#endif
+
 #endif

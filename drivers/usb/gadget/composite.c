@@ -5,7 +5,7 @@
  * Copyright (C) 2006-2008 David Brownell
  * U-Boot porting: Lukasz Majewski <l.majewski@samsung.com>
  */
-#undef DEBUG
+//#undef DEBUG
 
 #include <dm/devres.h>
 #include <linux/bitops.h>
@@ -23,6 +23,11 @@ static struct usb_configuration *os_desc_config;
 /* Microsoft OS String Descriptor */
 static char qw_sign_buf[OS_STRING_QW_SIGN_LEN / 2] = {'M', 'S', 'F', 'T', '1', '0', '0'};
 
+static inline void le16_add_cpu_packed(__le16_packed *var, u16 val)
+{
+	var->val = cpu_to_le16(le16_to_cpu(var->val) + val);
+}
+
 /**
  * struct usb_os_string - represents OS String to be reported by a gadget
  * @bLength: total length of the entire descritor, always 0x12
@@ -38,11 +43,6 @@ struct usb_os_string {
 	__u8	bMS_VendorCode;
 	__u8	bPad;
 } __packed;
-
-static inline void le16_add_cpu_packed(__le16_packed *var, u16 val)
-{
-	var->val = cpu_to_le16(le16_to_cpu(var->val) + val);
-}
 
 /**
  * usb_add_function() - add a function to a configuration
@@ -784,6 +784,7 @@ static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 static int bos_desc(struct usb_composite_dev *cdev)
 {
 	struct usb_ext_cap_descriptor   *usb_ext;
+	struct usb_dcd_config_params	dcd_config_params;
 	struct usb_bos_descriptor       *bos = cdev->req->buf;
 
 	bos->bLength = USB_DT_BOS_SIZE;
@@ -827,9 +828,19 @@ static int bos_desc(struct usb_composite_dev *cdev)
 				    USB_HIGH_SPEED_OPERATION |
 				    USB_5GBPS_OPERATION);
 		ss_cap->bFunctionalitySupport = USB_LOW_SPEED_OPERATION;
-		ss_cap->bU1devExitLat = USB_DEFAULT_U1_DEV_EXIT_LAT;
-		ss_cap->bU2DevExitLat =
-			cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT);
+
+		/* Get Controller configuration */
+		if (cdev->gadget->ops->get_config_params) {
+			cdev->gadget->ops->get_config_params(
+				&dcd_config_params);
+		} else {
+			dcd_config_params.bU1devExitLat =
+				USB_DEFAULT_U1_DEV_EXIT_LAT;
+			dcd_config_params.bU2DevExitLat =
+				cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT);
+		}
+		ss_cap->bU1devExitLat = dcd_config_params.bU1devExitLat;
+		ss_cap->bU2DevExitLat = dcd_config_params.bU2DevExitLat;
 	}
 	return le16_to_cpu(bos->wTotalLength);
 }

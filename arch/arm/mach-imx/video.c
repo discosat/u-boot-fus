@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
  *
  */
 
@@ -52,12 +51,6 @@ int board_video_skip(void)
 #if defined(CONFIG_VIDEO_IPUV3)
 		ret = ipuv3_fb_init(&displays[i].mode, displays[i].di ? 1 : 0,
 				    displays[i].pixfmt);
-#elif defined(CONFIG_VIDEO_IMXDPUV1)
-		ret = imxdpuv1_fb_init(&displays[i].mode, displays[i].bus,
-					displays[i].pixfmt);
-#elif defined(CONFIG_VIDEO_IMXDCSS)
-		ret = imx8m_fb_init(&displays[i].mode, displays[i].bus,
-					displays[i].pixfmt);
 #elif defined(CONFIG_VIDEO_MXS)
 
 		/* TODO: function call from NXP
@@ -70,10 +63,6 @@ int board_video_skip(void)
 				&displays[i].mode,
 				displays[i].pixfmt, PATTERN_RGB);
 
-#elif defined(CONFIG_VIDEO_IMX_LCDIFV3)
-		ret = lcdifv3_panel_setup(displays[i].mode,
-					displays[i].pixfmt,
-				    displays[i].bus);
 #endif
 		if (!ret) {
 			if (displays[i].enable)
@@ -92,8 +81,7 @@ int board_video_skip(void)
 			printf("LCD %s cannot be configured: %d\n",
 			       displays[i].mode.name, ret);
 	} else {
-		if (strcmp(panel, "NULL"))
-			printf("unsupported panel %s\n", panel);
+		printf("unsupported panel %s\n", panel);
 		return -EINVAL;
 	}
 

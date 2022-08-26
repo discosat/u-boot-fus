@@ -1,217 +1,187 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2017 NXP
+ * Copyright 2019 NXP
  *
  * NXP i.MX8 USB HOST xHCI Controller (Cadence IP)
  *
  * Author: Peter Chen <peter.chen@nxp.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
-#include <usb.h>
-#include <malloc.h>
-#include <linux/compat.h>
-#include "xhci.h"
-#include <usb/imx8_usb3_reg_def.h>
+#include <clk.h>
 #include <dm.h>
+#include <generic-phy.h>
 #include <power-domain.h>
+#include <usb.h>
+#include <wait_bit.h>
+#include <dm/device-internal.h>
+#include <usb/xhci.h>
 #include <asm/arch/clock.h>
 
 /* Declare global data pointer */
 DECLARE_GLOBAL_DATA_PTR;
 
-/* According to UG CH 3.1.1 Bring-up Sequence */
-static void imx_usb3_phy_init(void)
+/* Host registers */
+#define HCIVERSION_CAPLENGTH	0x10000
+#define USBSTS			0x10084
+
+/* None-core registers */
+#define USB3_CORE_CTRL1		0x00
+#define USB3_CORE_STATUS	0x0c
+#define USB3_SSPHY_STATUS	0x4c
+
+/* USB3_CORE_CTRL1 */
+#define ALL_SW_RESET		0xfc000000
+#define MODE_STRAP_MASK		0x7
+#define PHYAHB_SW_RESET		BIT(26)
+#define OC_DISABLE		BIT(9)
+#define HOST_MODE		BIT(1)
+#define OTG_MODE		BIT(0)
+
+/* USB3_CORE_STATUS */
+#define HOST_POWER_ON_READY	BIT(12)
+
+/* USBSTS */
+#define CONTROLLER_NOT_READY	BIT(11)
+
+/* USB3_SSPHY_STATUS */
+#define CLK_VLD	0xf0000000
+
+struct xhci_imx8_data {
+	void __iomem *usb3_ctrl_base;
+	void __iomem *usb3_core_base;
+	struct clk_bulk clks;
+	struct phy phy;
+};
+
+static struct xhci_imx8_data imx8_data;
+
+static int imx8_xhci_init(void)
 {
-	writel(0x0830, PHY_PMA_CMN_CTRL1);
-	writel(0x10, TB_ADDR_CMN_DIAG_HSCLK_SEL);
-	writel(0x00F0, TB_ADDR_CMN_PLL0_VCOCAL_INIT_TMR);
-	writel(0x0018, TB_ADDR_CMN_PLL0_VCOCAL_ITER_TMR);
-	writel(0x00D0, TB_ADDR_CMN_PLL0_INTDIV);
-	writel(0x4aaa, TB_ADDR_CMN_PLL0_FRACDIV);
-	writel(0x0034, TB_ADDR_CMN_PLL0_HIGH_THR);
-	writel(0x1ee, TB_ADDR_CMN_PLL0_SS_CTRL1);
-	writel(0x7F03, TB_ADDR_CMN_PLL0_SS_CTRL2);
-	writel(0x0020, TB_ADDR_CMN_PLL0_DSM_DIAG);
-	writel(0x0000, TB_ADDR_CMN_DIAG_PLL0_OVRD);
-	writel(0x0000, TB_ADDR_CMN_DIAG_PLL0_FBH_OVRD);
-	writel(0x0000, TB_ADDR_CMN_DIAG_PLL0_FBL_OVRD);
-	writel(0x0007, TB_ADDR_CMN_DIAG_PLL0_V2I_TUNE);
-	writel(0x0027, TB_ADDR_CMN_DIAG_PLL0_CP_TUNE);
-	writel(0x0008, TB_ADDR_CMN_DIAG_PLL0_LF_PROG);
-	writel(0x0022, TB_ADDR_CMN_DIAG_PLL0_TEST_MODE);
-	writel(0x000a, TB_ADDR_CMN_PSM_CLK_CTRL);
-	writel(0x139, TB_ADDR_XCVR_DIAG_RX_LANE_CAL_RST_TMR);
-	writel(0xbefc, TB_ADDR_XCVR_PSM_RCTRL);
+	int ret;
 
-	writel(0x7799, TB_ADDR_TX_PSC_A0);
-	writel(0x7798, TB_ADDR_TX_PSC_A1);
-	writel(0x509b, TB_ADDR_TX_PSC_A2);
-	writel(0x3, TB_ADDR_TX_DIAG_ECTRL_OVRD);
-	writel(0x5098, TB_ADDR_TX_PSC_A3);
-	writel(0x2090, TB_ADDR_TX_PSC_CAL);
-	writel(0x2090, TB_ADDR_TX_PSC_RDY);
-
-	writel(0xA6FD, TB_ADDR_RX_PSC_A0);
-	writel(0xA6FD, TB_ADDR_RX_PSC_A1);
-	writel(0xA410, TB_ADDR_RX_PSC_A2);
-	writel(0x2410, TB_ADDR_RX_PSC_A3);
-
-	writel(0x23FF, TB_ADDR_RX_PSC_CAL);
-	writel(0x2010, TB_ADDR_RX_PSC_RDY);
-
-	writel(0x0020, TB_ADDR_TX_TXCC_MGNLS_MULT_000);
-	writel(0x00ff, TB_ADDR_TX_DIAG_BGREF_PREDRV_DELAY);
-	writel(0x0002, TB_ADDR_RX_SLC_CU_ITER_TMR);
-	writel(0x0013, TB_ADDR_RX_SIGDET_HL_FILT_TMR);
-	writel(0x0000, TB_ADDR_RX_SAMP_DAC_CTRL);
-	writel(0x1004, TB_ADDR_RX_DIAG_SIGDET_TUNE);
-	writel(0x4041, TB_ADDR_RX_DIAG_LFPSDET_TUNE2);
-	writel(0x0480, TB_ADDR_RX_DIAG_BS_TM);
-	writel(0x8006, TB_ADDR_RX_DIAG_DFE_CTRL1);
-	writel(0x003f, TB_ADDR_RX_DIAG_ILL_IQE_TRIM4);
-	writel(0x543f, TB_ADDR_RX_DIAG_ILL_E_TRIM0);
-	writel(0x543f, TB_ADDR_RX_DIAG_ILL_IQ_TRIM0);
-	writel(0x0000, TB_ADDR_RX_DIAG_ILL_IQE_TRIM6);
-	writel(0x8000, TB_ADDR_RX_DIAG_RXFE_TM3);
-	writel(0x0003, TB_ADDR_RX_DIAG_RXFE_TM4);
-	writel(0x2408, TB_ADDR_RX_DIAG_LFPSDET_TUNE);
-	writel(0x05ca, TB_ADDR_RX_DIAG_DFE_CTRL3);
-	writel(0x0258, TB_ADDR_RX_DIAG_SC2C_DELAY);
-	writel(0x1fff, TB_ADDR_RX_REE_VGA_GAIN_NODFE);
-
-	writel(0x02c6, TB_ADDR_XCVR_PSM_CAL_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A0BYP_TMR);
-	writel(0x02c6, TB_ADDR_XCVR_PSM_A0IN_TMR);
-	writel(0x0010, TB_ADDR_XCVR_PSM_A1IN_TMR);
-	writel(0x0010, TB_ADDR_XCVR_PSM_A2IN_TMR);
-	writel(0x0010, TB_ADDR_XCVR_PSM_A3IN_TMR);
-	writel(0x0010, TB_ADDR_XCVR_PSM_A4IN_TMR);
-	writel(0x0010, TB_ADDR_XCVR_PSM_A5IN_TMR);
-
-	writel(0x0002, TB_ADDR_XCVR_PSM_A0OUT_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A1OUT_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A2OUT_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A3OUT_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A4OUT_TMR);
-	writel(0x0002, TB_ADDR_XCVR_PSM_A5OUT_TMR);
-
-	/* Change rx detect parameter */
-	writel(0x960, TB_ADDR_TX_RCVDET_EN_TMR);
-	writel(0x01e0, TB_ADDR_TX_RCVDET_ST_TMR);
-	writel(0x0090, TB_ADDR_XCVR_DIAG_LANE_FCM_EN_MGN_TMR);
-
-	udelay(10);
-
-	/* force rx detect */
-/*	writel(0xc000, TB_ADDR_TX_RCVDET_OVRD); */
-}
-
-void imx8_xhci_init(void)
-{
-	u32 tmp_data;
-
-	tmp_data = readl(USB3_SSPHY_STATUS);
-	writel(tmp_data, USB3_SSPHY_STATUS);
-	tmp_data = readl(USB3_SSPHY_STATUS);
-	while ((tmp_data & 0xf0000000) != 0xf0000000) {
-		printf("clkvld is incorrect = 0x%x\n", tmp_data);
-		udelay(10);
-		tmp_data = readl(USB3_SSPHY_STATUS);
+	writel(CLK_VLD, imx8_data.usb3_ctrl_base + USB3_SSPHY_STATUS);
+	ret = wait_for_bit_le32(imx8_data.usb3_ctrl_base + USB3_SSPHY_STATUS,
+				CLK_VLD, true, 100, false);
+	if (ret) {
+		printf("clkvld is incorrect\n");
+		return ret;
 	}
 
-	tmp_data = readl(USB3_CORE_CTRL1);
-	tmp_data = (tmp_data & 0xfffffff8) | 0x202;
-	writel(tmp_data, USB3_CORE_CTRL1);
-	tmp_data &= ~0x04000000; /* clear PHY apb reset */
-	writel(tmp_data, USB3_CORE_CTRL1);
-	imx_usb3_phy_init();
+	clrsetbits_le32(imx8_data.usb3_ctrl_base + USB3_CORE_CTRL1,
+			MODE_STRAP_MASK,  HOST_MODE | OC_DISABLE);
+	clrbits_le32(imx8_data.usb3_ctrl_base + USB3_CORE_CTRL1,
+		     PHYAHB_SW_RESET);
+	generic_phy_init(&imx8_data.phy);
 
-	tmp_data = readl(USB3_CORE_CTRL1);
-	tmp_data &= ~0xfc000000; /* clear all sw_rst */
-	writel(tmp_data, USB3_CORE_CTRL1);
+	/* clear all sw_rst */
+	clrbits_le32(imx8_data.usb3_ctrl_base + USB3_CORE_CTRL1, ALL_SW_RESET);
 
 	debug("wait xhci_power_on_ready\n");
-	tmp_data = readl(USB3_CORE_STATUS);
-	while (!(tmp_data & 0x1000))
-		tmp_data = readl(USB3_CORE_STATUS);
-
+	ret = wait_for_bit_le32(imx8_data.usb3_ctrl_base + USB3_CORE_STATUS,
+				HOST_POWER_ON_READY, true, 100, false);
+	if (ret) {
+		printf("wait xhci_power_on_ready timeout\n");
+		return ret;
+	}
 	debug("xhci_power_on_ready\n");
 
-	tmp_data = readl(USBSTS);
-	debug("waiting CNR 0x%x\n", tmp_data);
-	while (tmp_data & 0x800)
-		tmp_data = readl(USBSTS);
-
+	debug("waiting CNR\n");
+	ret = wait_for_bit_le32(imx8_data.usb3_core_base + USBSTS,
+				CONTROLLER_NOT_READY, false, 100, false);
+	if (ret) {
+		printf("wait CNR timeout\n");
+		return ret;
+	}
 	debug("check CNR has finished\n");
+
+	return 0;
 }
 
-void imx8_xhci_reset(void)
+static void imx8_xhci_reset(void)
 {
 	/* Set CORE ctrl to default value, that all rst are hold */
-	writel(0xfc000001, USB3_CORE_CTRL1);
+	writel(ALL_SW_RESET | OTG_MODE,
+	       imx8_data.usb3_ctrl_base + USB3_CORE_CTRL1);
 }
 
+static int xhci_imx8_clk_init(struct udevice *dev)
+{
+	int ret;
 
-#ifdef CONFIG_DM_USB
+	ret = clk_get_bulk(dev, &imx8_data.clks);
+	if (ret)
+		return ret;
+
+	ret = clk_enable_bulk(&imx8_data.clks);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static inline void xhci_imx8_get_reg_addr(struct udevice *dev)
+{
+	imx8_data.usb3_ctrl_base =
+			(void __iomem *)devfdt_get_addr_name(dev, "none-core");
+	imx8_data.usb3_core_base =
+			(void __iomem *)devfdt_get_addr_name(dev, "otg");
+
+}
+
 static int xhci_imx8_probe(struct udevice *dev)
 {
 	struct xhci_hccr *hccr;
 	struct xhci_hcor *hcor;
-
+	struct udevice usbotg_dev;
+	struct power_domain pd;
+	int usbotg_off;
 	int ret = 0;
 	int len;
 
-	/* Need to power on the PHY before access it */
-#if CONFIG_IS_ENABLED(POWER_DOMAIN)
-	struct udevice usbotg_dev;
-	struct udevice phy_dev;
-	struct power_domain pd;
-	const void *blob = gd->fdt_blob;
-	int offset = dev_of_offset(dev), usbotg_off, phy_off;
-
-	usbotg_off = fdtdec_lookup_phandle(blob,
-					   offset,
+	usbotg_off = fdtdec_lookup_phandle(gd->fdt_blob,
+					   dev_of_offset(dev),
 					   "cdns3,usb");
 	if (usbotg_off < 0)
 		return -EINVAL;
-
 	usbotg_dev.node = offset_to_ofnode(usbotg_off);
+	usbotg_dev.parent = dev->parent;
+	xhci_imx8_get_reg_addr(&usbotg_dev);
+
+#if CONFIG_IS_ENABLED(POWER_DOMAIN)
 	if (!power_domain_get(&usbotg_dev, &pd)) {
-		if (power_domain_on(&pd))
-			return -EINVAL;
-	}
-
-	phy_off = fdtdec_lookup_phandle(blob,
-					usbotg_off,
-					"cdns3,usbphy");
-	if (phy_off < 0)
-		return -EINVAL;
-
-    phy_dev.node = offset_to_ofnode(phy_off);
-	if (!power_domain_get(&phy_dev, &pd)) {
-		if (power_domain_on(&pd))
-			return -EINVAL;
+		ret = power_domain_on(&pd);
+		if (ret)
+			return ret;
 	}
 #endif
 
-	ret = board_usb_init(dev->seq, USB_INIT_HOST);
+	ret = generic_phy_get_by_index(&usbotg_dev, 0, &imx8_data.phy);
+	if (ret && ret != -ENOENT) {
+		printf("Failed to get USB PHY for %s\n", dev->name);
+		return ret;
+	}
+
+	ret = board_usb_init(dev->req_seq, USB_INIT_HOST);
 	if (ret != 0) {
 		printf("Failed to initialize board for USB\n");
 		return ret;
 	}
 
-	init_clk_usb3(dev->seq);
+#if CONFIG_IS_ENABLED(CLK)
+	xhci_imx8_clk_init(&usbotg_dev);
+#else
+	init_clk_usb3(dev->req_seq);
+#endif
 
 	imx8_xhci_init();
 
-	hccr = (struct xhci_hccr *)HCIVERSION_CAPLENGTH;
+	hccr = (struct xhci_hccr *)(imx8_data.usb3_core_base +
+				    HCIVERSION_CAPLENGTH);
 	len = HC_LENGTH(xhci_readl(&hccr->cr_capbase));
-	hcor = (struct xhci_hcor *)((uintptr_t) hccr + len);
-
+	hcor = (struct xhci_hcor *)((uintptr_t)hccr + len);
 	printf("XHCI-imx8 init hccr 0x%p and hcor 0x%p hc_length %d\n",
-	      (uint32_t *)hccr, (uint32_t *)hcor, len);
+	       (uint32_t *)hccr, (uint32_t *)hcor, len);
 
 	return xhci_register(dev, hccr, hcor);
 }
@@ -219,10 +189,17 @@ static int xhci_imx8_probe(struct udevice *dev)
 static int xhci_imx8_remove(struct udevice *dev)
 {
 	int ret = xhci_deregister(dev);
+
 	if (!ret)
 		imx8_xhci_reset();
 
-	board_usb_cleanup(dev->seq, USB_INIT_HOST);
+#if CONFIG_IS_ENABLED(CLK)
+	clk_release_bulk(&imx8_data.clks);
+#endif
+	if (generic_phy_valid(&imx8_data.phy))
+		device_remove(imx8_data.phy.dev, DM_REMOVE_NORMAL);
+
+	board_usb_cleanup(dev->req_seq, USB_INIT_HOST);
 
 	return ret;
 }
@@ -241,43 +218,5 @@ U_BOOT_DRIVER(xhci_imx8) = {
 	.ops	= &xhci_usb_ops,
 	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
 	.priv_auto_alloc_size = sizeof(struct xhci_ctrl),
-	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
+	.flags	= DM_FLAG_ALLOC_PRIV_DMA | DM_FLAG_OS_PREPARE,
 };
-#else
-int xhci_hcd_init(int index, struct xhci_hccr **ret_hccr,
-		  struct xhci_hcor **ret_hcor)
-{
-	struct xhci_hccr *hccr;
-	struct xhci_hcor *hcor;
-	int len, ret;
-
-	ret = board_usb_init(index, USB_INIT_HOST);
-	if (ret != 0) {
-		printf("Failed to initialize board for USB\n");
-		return ret;
-	}
-
-	init_clk_usb3(index);
-
-	imx8_xhci_init();
-
-	hccr = (struct xhci_hccr *)HCIVERSION_CAPLENGTH;
-	len = HC_LENGTH(xhci_readl(&hccr->cr_capbase));
-	hcor = (struct xhci_hcor *)((uintptr_t) hccr + len);
-
-	printf("XHCI-imx8 init hccr 0x%p and hcor 0x%p hc_length %d\n",
-	      (uint32_t *)hccr, (uint32_t *)hcor, len);
-
-	*ret_hccr = hccr;
-	*ret_hcor = hcor;
-
-	return 0;
-}
-
-void xhci_hcd_stop(int index)
-{
-	imx8_xhci_reset();
-
-	board_usb_cleanup(index, USB_INIT_HOST);
-}
-#endif

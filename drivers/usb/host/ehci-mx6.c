@@ -44,7 +44,7 @@ static void ehci_mx6_powerup_fixup(struct ehci_ctrl *ctrl, uint32_t *status_reg,
 		result = ehci_readl(status_reg);
 		udelay(5);
 		if (!(result & EHCI_PS_PR))
-		break;
+			break;
 		usec--;
 	} while (usec > 0);
 
@@ -130,6 +130,11 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 		board_ehci_power(index, (type == USB_INIT_DEVICE) ? 0 : 1);
 	if (type != init)
 		return -ENODEV;
+
+	if (is_mx6dqp() || is_mx6dq() || is_mx6sdl() ||
+		((is_mx6sl() || is_mx6sx()) && type == USB_INIT_HOST))
+		setbits_le32(&ehci->usbmode, SDIS);
+
 	if (type == USB_INIT_DEVICE)
 		return 0;
 
@@ -192,6 +197,10 @@ static int mx6_init_after_reset(struct ehci_ctrl *dev)
 	}
 #endif
 
+	if (is_mx6dqp() || is_mx6dq() || is_mx6sdl() ||
+		((is_mx6sl() || is_mx6sx()) && type == USB_INIT_HOST))
+		setbits_le32(&ehci->usbmode, SDIS);
+
 	if (type == USB_INIT_DEVICE)
 		return 0;
 
@@ -206,7 +215,7 @@ static int mx6_init_after_reset(struct ehci_ctrl *dev)
 
 static const struct ehci_ops mx6_ehci_ops = {
 	.powerup_fixup		= ehci_mx6_powerup_fixup,
-	.init_after_reset = mx6_init_after_reset
+	.init_after_reset 	= mx6_init_after_reset
 };
 
 /**
@@ -403,7 +412,7 @@ static int ehci_usb_probe(struct udevice *dev)
 #endif
 
 	priv->ehci = ehci;
-	priv->portnr = dev->seq;
+	priv->portnr = dev->req_seq;
 
 	/* Init usb board level according to the requested init type */
 	ret = board_usb_init(priv->portnr, type);
@@ -434,7 +443,7 @@ static int ehci_usb_probe(struct udevice *dev)
 		ret = ehci_usb_phy_mode(dev);
 		if (ret)
 			return ret;
-		if (priv->init_type != type && type!=USB_INIT_UNKNOWN)
+		if (priv->init_type != type)
 			return -ENODEV;
 	}
 	plat->init_type = priv->init_type;
@@ -477,7 +486,7 @@ int ehci_usb_remove(struct udevice *dev)
 
 	plat->init_type = 0; /* Clean the requested usb type to host mode */
 
-	return board_usb_cleanup(dev->seq, priv->init_type);
+	return board_usb_cleanup(dev->req_seq, priv->init_type);
 }
 
 static const struct udevice_id mx6_usb_ids[] = {

@@ -375,13 +375,13 @@ static int prepare_write(struct ocotp_regs **regs, u32 bank, u32 word,
 		if ((soc_rev() < CHIP_REV_2_0) ||
 		    ((soc_rev() >= CHIP_REV_2_0) &&
 		    bank != 9 && bank != 10 && bank != 28)) {
-		ret = fuse_sense(bank, word, &val);
-		if (ret)
-			return ret;
+			ret = fuse_sense(bank, word, &val);
+			if (ret)
+				return ret;
 
-		if (val != 0) {
-			printf("mxc_ocotp: The word has been programmed, no more write\n");
-			return -EPERM;
+			if (val != 0) {
+				printf("mxc_ocotp: The word has been programmed, no more write\n");
+				return -EPERM;
 			}
 		}
 	}

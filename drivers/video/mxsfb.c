@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2011-2013 Marek Vasut <marex@denx.de>
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
  *
  */
 #include <common.h>

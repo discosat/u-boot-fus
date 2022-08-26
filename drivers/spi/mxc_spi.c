@@ -78,8 +78,8 @@ static void mxc_spi_cs_activate(struct mxc_spi_slave *mxcs)
 
 	dm_gpio_set_value(&mxcs->cs_gpios[cs], 1);
 #else
-		if (mxcs->gpio > 0)
-			gpio_set_value(mxcs->gpio, mxcs->ss_pol);
+	if (mxcs->gpio > 0)
+		gpio_set_value(mxcs->gpio, mxcs->ss_pol);
 #endif
 }
 
@@ -96,8 +96,8 @@ static void mxc_spi_cs_deactivate(struct mxc_spi_slave *mxcs)
 
 	dm_gpio_set_value(&mxcs->cs_gpios[cs], 0);
 #else
-		if (mxcs->gpio > 0)
-			gpio_set_value(mxcs->gpio, !(mxcs->ss_pol));
+	if (mxcs->gpio > 0)
+		gpio_set_value(mxcs->gpio, !(mxcs->ss_pol));
 #endif
 }
 
@@ -540,7 +540,7 @@ static int mxc_spi_probe(struct udevice *bus)
 					    GPIOD_IS_OUT | GPIOD_ACTIVE_LOW);
 		if (ret) {
 			dev_err(bus, "Setting cs %d error\n", i);
-		return ret;
+			return ret;
 		}
 	}
 

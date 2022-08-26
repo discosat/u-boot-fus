@@ -376,6 +376,31 @@ void sc_misc_boot_status(sc_ipc_t ipc, sc_misc_boot_status_t status)
 		       __func__, status, RPC_R8(&msg));
 }
 
+int sc_misc_get_boot_container(sc_ipc_t ipc, u8 *idx)
+{
+	struct udevice *dev = gd->arch.scu_dev;
+	int size = sizeof(struct sc_rpc_msg_s);
+	struct sc_rpc_msg_s msg;
+	int ret;
+
+	if (!dev)
+		hang();
+
+	RPC_VER(&msg) = SC_RPC_VERSION;
+	RPC_SIZE(&msg) = 1U;
+	RPC_SVC(&msg) = (u8)SC_RPC_SVC_MISC;
+	RPC_FUNC(&msg) = (u8)MISC_FUNC_GET_BOOT_CONTAINER;
+
+	ret = misc_call(dev, SC_FALSE, &msg, size, &msg, size);
+	if (ret < 0)
+		return ret;
+
+	if (idx != NULL)
+		*idx = (u8) RPC_U8(&msg, 0U);
+
+	return 0;
+}
+
 void sc_misc_build_info(sc_ipc_t ipc, u32 *build, u32 *commit)
 {
 	struct udevice *dev = gd->arch.scu_dev;
@@ -455,6 +480,24 @@ int sc_misc_get_temp(sc_ipc_t ipc, sc_rsrc_t resource, sc_misc_temp_t temp,
 		*tenths = RPC_I8(&msg, 2U);
 
 	return 0;
+}
+
+void sc_misc_get_button_status(sc_ipc_t ipc, sc_bool_t *status)
+{
+	struct sc_rpc_msg_s msg;
+	struct udevice *dev = gd->arch.scu_dev;
+
+	RPC_VER(&msg) = SC_RPC_VERSION;
+	RPC_SIZE(&msg) = 1U;
+	RPC_SVC(&msg) = (u8)(SC_RPC_SVC_MISC);
+	RPC_FUNC(&msg) = (u8)(MISC_FUNC_GET_BUTTON_STATUS);
+
+	misc_call(dev, SC_FALSE, &msg, 1U, &msg, 1U);
+
+	if (status != NULL)
+	{
+		*status = (sc_bool_t)(!!(RPC_U8(&msg, 0U)));
+	}
 }
 
 /* RM */
@@ -764,7 +807,7 @@ sc_bool_t sc_rm_is_pad_owned(sc_ipc_t ipc, sc_pad_t pad)
 	RPC_VER(&msg) = SC_RPC_VERSION;
 	RPC_SVC(&msg) = (u8)SC_RPC_SVC_RM;
 	RPC_FUNC(&msg) = (u8)RM_FUNC_IS_PAD_OWNED;
-	RPC_U8(&msg, 0U) = (u8)pad;
+	RPC_U16(&msg, 0U) = (u16)pad;
 	RPC_SIZE(&msg) = 2U;
 
 	ret = misc_call(dev, SC_FALSE, &msg, size, &msg, size);
@@ -985,6 +1028,31 @@ void sc_seco_build_info(sc_ipc_t ipc, u32 *version, u32 *commit)
 
 	if (commit)
 		*commit = RPC_U32(&msg, 4U);
+}
+
+int sc_seco_v2x_build_info(sc_ipc_t ipc, u32 *version, u32 *commit)
+{
+	struct udevice *dev = gd->arch.scu_dev;
+	struct sc_rpc_msg_s msg;
+	int size = sizeof(struct sc_rpc_msg_s);
+	int ret;
+
+	RPC_VER(&msg) = SC_RPC_VERSION;
+	RPC_SIZE(&msg) = 1U;
+	RPC_SVC(&msg) = (u8)(SC_RPC_SVC_SECO);
+	RPC_FUNC(&msg) = (u8)(SECO_FUNC_V2X_BUILD_INFO);
+
+	ret = misc_call(dev, SC_FALSE, &msg, size, &msg, size);
+	if (ret)
+		printf("%s: res:%d\n", __func__, RPC_R8(&msg));
+
+	if (version)
+		*version = RPC_U32(&msg, 0U);
+
+	if (commit)
+		*commit = RPC_U32(&msg, 4U);
+
+	return ret;
 }
 
 int sc_seco_get_event(sc_ipc_t ipc, u8 idx, u32 *event)

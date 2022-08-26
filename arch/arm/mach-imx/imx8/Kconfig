@@ -23,12 +23,17 @@ config BOOTAUX_RESERVED_MEM_SIZE
 	help
 	  This memory will be reserved by system and linux cannot access.
 
-config IMX_LOAD_HDMI_FIMRWARE
-	bool "Enable HDMI firmware loading"
+config IMX_LOAD_HDMI_FIMRWARE_RX
+	bool "Enable HDMI rx firmware loading"
 	depends on ARCH_IMX8 || VIDEO_IMX_HDP_LOAD
 	help
-	  This enable the hdmi firmware loading. It depends on the "hdp" and
-	  "hdprx" commands.
+	  This enable the hdmi rx firmware loading. It depends on the "hdprx" command.
+
+config IMX_LOAD_HDMI_FIMRWARE_TX
+	bool "Enable HDMI tx firmware loading"
+	depends on ARCH_IMX8 || VIDEO_IMX_HDP_LOAD
+	help
+	  This enable the hdmi tx firmware loading. It depends on the "hdp" command.
 
 config IMX8
 	bool
@@ -74,6 +79,15 @@ config IMX_CONTAINER_CFG
 	  This is to specific the cfg file for generating container
 	  image which will be loaded by SPL.
 
+config PSCI_BOARD_REBOOT
+	bool "Enable psci board reboot command"
+	depends on ARM_PSCI_FW
+	help
+	  This is a optional command used to trigger system board reboot on imx8.
+
+config IMX8_TRUSTY_XEN
+	bool "Support Trusty Xen feature"
+
 choice
 	prompt "i.MX8 board select"
 	optional
@@ -103,12 +117,12 @@ config TARGET_IMX8QM_MEK
 	select BOARD_LATE_INIT
 	select IMX8QM
 
-config TARGET_IMX8QM_LPDDR4_ARM2
+config TARGET_IMX8QM_LPDDR4_VAL
 	bool "Support i.MX8QM lpddr4 validation board"
 	select BOARD_LATE_INIT
 	select IMX8QM
 
-config TARGET_IMX8QM_DDR4_ARM2
+config TARGET_IMX8QM_DDR4_VAL
 	bool "Support i.MX8QM ddr4 validation board"
 	select BOARD_LATE_INIT
 	select IMX8QM
@@ -124,12 +138,12 @@ config TARGET_IMX8QXP_MEK
 	select BOARD_LATE_INIT
 	select IMX8QXP
 
-config TARGET_IMX8QXP_LPDDR4_ARM2
+config TARGET_IMX8QXP_LPDDR4_VAL
 	bool "Support i.MX8QXP lpddr4 validation board"
 	select BOARD_LATE_INIT
 	select IMX8QXP
 
-config TARGET_IMX8QXP_DDR3_ARM2
+config TARGET_IMX8QXP_DDR3_VAL
 	bool "Support i.MX8QXP ddr3 validation board"
 	select BOARD_LATE_INIT
 	select IMX8QXP
@@ -155,17 +169,35 @@ config TARGET_IMX8DXL_EVK
 	select BOARD_LATE_INIT
 	select IMX8DXL
 
+config TARGET_IMX8DXL_DDR3_EVK
+	bool "Support i.MX8DXL EVK board"
+	select BOARD_LATE_INIT
+	select IMX8DXL
+
 endchoice
 
 source "board/freescale/imx8qm_mek/Kconfig"
 source "board/freescale/imx8qxp_mek/Kconfig"
-source "board/freescale/imx8qm_arm2/Kconfig"
-source "board/freescale/imx8qxp_arm2/Kconfig"
+source "board/freescale/imx8qm_val/Kconfig"
+source "board/freescale/imx8qxp_val/Kconfig"
 source "board/freescale/imx8dxl_phantom_mek/Kconfig"
 source "board/freescale/imx8dxl_evk/Kconfig"
 source "board/advantech/imx8qm_rom7720_a1/Kconfig"
 source "board/toradex/apalis-imx8/Kconfig"
 source "board/toradex/colibri-imx8x/Kconfig"
 source "board/siemens/capricorn/Kconfig"
+
+config SNVS_SEC_SC
+	bool "Support SNVS configuration"
+	help
+	  Allow to configure the SNVS via SCU API to configure tampers and secure
+	  violation.
+
+config SNVS_SEC_SC_AUTO
+	bool "Support SNVS configuration command"
+	depends on SNVS_SEC_SC
+	help
+	  This configuration will apply the selected configurations automatically
+	  at boot.
 
 endif

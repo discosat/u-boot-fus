@@ -46,17 +46,8 @@
 #define CONFIG_POWER_PFUZE100_I2C_ADDR	0x08
 #endif
 
-#define CONFIG_FEC_MXC
-#define IMX_FEC_BASE			ENET_BASE_ADDR
 #define CONFIG_FEC_XCV_TYPE		RMII
-#ifdef CONFIG_DM_ETH
 #define CONFIG_ETHPRIME			"eth0"
-#else
-#define CONFIG_ETHPRIME			"FEC"
-#endif
-#define CONFIG_FEC_MXC_PHYADDR		0
-
-#define CONFIG_PHY_SMSC
 
 #define CONFIG_CMD_READ
 #define CONFIG_SERIAL_TAG

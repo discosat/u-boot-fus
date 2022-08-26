@@ -16,7 +16,7 @@
 #include "utils.h"
 #include "debug.h"
 #include "trusty/avb.h"
-#if !defined(CONFIG_IMX_TRUSTY_OS)
+#ifndef CONFIG_LOAD_KEY_FROM_RPMB
 #include "fsl_public_key.h"
 #endif
 #include "fsl_atx_attributes.h"
@@ -336,34 +336,6 @@ fail:
 	return ret;
 }
 
-/* Reads A/B metadata from persistent storage. Returned data is
- * properly byteswapped. Returns AVB_IO_RESULT_OK on success, error
- * code otherwise.
- *
- * If the data read is invalid (e.g. wrong magic or CRC checksum
- * failure), the metadata shoule be reset using avb_ab_data_init()
- * and then written to persistent storage.
- *
- * Implementations will typically want to use avb_ab_data_read()
- * here to use the 'misc' partition for persistent storage.
- */
-AvbIOResult fsl_read_ab_metadata(AvbABOps* ab_ops, struct AvbABData* data)
-{
-	return avb_ab_data_read(ab_ops, data);
-}
-
-/* Writes A/B metadata to persistent storage. This will byteswap and
- * update the CRC as needed. Returns AVB_IO_RESULT_OK on success,
- * error code otherwise.
- *
- * Implementations will typically want to use avb_ab_data_write()
- * here to use the 'misc' partition for persistent storage.
- */
-AvbIOResult fsl_write_ab_metadata(AvbABOps* ab_ops, const struct AvbABData* data)
-{
-	return avb_ab_data_write(ab_ops, data);
-}
-
 /* Gets whether the device is unlocked. The value is returned in
  * |out_is_unlocked| (true if unlocked, false otherwise). Returns
  * AVB_IO_RESULT_OK if the state was retrieved, otherwise an error
@@ -437,7 +409,7 @@ AvbIOResult fsl_get_size_of_partition(AvbOps* ops,
 		fastboot_flash_dump_ptn();
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 	}
-	*out_size_num_bytes = (uint64_t)(pte->length * 512);
+	*out_size_num_bytes = (uint64_t)(pte->length) * 512;
 	return AVB_IO_RESULT_OK;
 }
 
@@ -606,7 +578,7 @@ AvbIOResult fsl_validate_vbmeta_public_key_rpmb(AvbOps* ops,
 	assert(ops != NULL && out_is_trusted != NULL);
 	*out_is_trusted = false;
 
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+#ifdef CONFIG_LOAD_KEY_FROM_RPMB
 	uint8_t public_key_buf[AVB_MAX_BUFFER_LENGTH];
 	if (trusty_read_vbmeta_public_key(public_key_buf,
 						public_key_length) != 0) {

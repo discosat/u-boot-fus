@@ -75,8 +75,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define I2C_PAD MUX_PAD_CTRL(I2C_PAD_CTRL)
 
-#define DISP0_PWR_EN	IMX_GPIO_NR(1, 21)
-
 #define KEY_VOL_UP	IMX_GPIO_NR(1, 4)
 
 int dram_init(void)
@@ -142,9 +140,20 @@ static iomux_v3_cfg_t const bl_pads[] = {
 
 static void enable_backlight(void)
 {
+	struct gpio_desc desc;
+	int ret;
+
 	SETUP_IOMUX_PADS(bl_pads);
-	gpio_request(DISP0_PWR_EN, "Display Power Enable");
-	gpio_direction_output(DISP0_PWR_EN, 1);
+
+	ret = dm_gpio_lookup_name("GPIO1_21", &desc);
+	if (ret)
+		return;
+
+	ret = dm_gpio_request(&desc, "Display Power Enable");
+	if (ret)
+		return;
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 }
 
 static void enable_rgb(struct display_info_t const *dev)
@@ -435,31 +444,82 @@ static iomux_v3_cfg_t const epdc_pwr_ctrl_pads[] = {
 	IOMUX_PADS(PAD_EIM_A18__GPIO2_IO20	| MUX_PAD_CTRL(EPDC_PAD_CTRL)),
 };
 
+struct gpio_desc epd_pwrstat_desc;
+struct gpio_desc epd_vcom_desc;
+struct gpio_desc epd_wakeup_desc;
+struct gpio_desc epd_pwr_ctl0_desc;
+
 static void setup_epdc_power(void)
 {
+	int ret;
+
 	SETUP_IOMUX_PADS(epdc_pwr_ctrl_pads);
 
 	/* Setup epdc voltage */
 
 	/* EIM_A17 - GPIO2[21] for PWR_GOOD status */
 	/* Set as input */
-	gpio_request(IMX_GPIO_NR(2, 21), "EPDC PWRSTAT");
-	gpio_direction_input(IMX_GPIO_NR(2, 21));
+	ret = dm_gpio_lookup_name("GPIO2_21", &epd_pwrstat_desc);
+	if (ret) {
+		printf("%s lookup GPIO2_21 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&epd_pwrstat_desc, "EPDC PWRSTAT");
+	if (ret) {
+		printf("%s request EPDC PWRSTAT failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&epd_pwrstat_desc, GPIOD_IS_IN);
 
 	/* EIM_D17 - GPIO3[17] for VCOM control */
 	/* Set as output */
-	gpio_request(IMX_GPIO_NR(3, 17), "EPDC VCOM0");
-	gpio_direction_output(IMX_GPIO_NR(3, 17), 1);
+	ret = dm_gpio_lookup_name("GPIO3_17", &epd_vcom_desc);
+	if (ret) {
+		printf("%s lookup GPIO3_17 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&epd_vcom_desc, "EPDC VCOM0");
+	if (ret) {
+		printf("%s request EPDC VCOM0 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&epd_vcom_desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 
 	/* EIM_D20 - GPIO3[20] for EPD PMIC WAKEUP */
 	/* Set as output */
-	gpio_request(IMX_GPIO_NR(3, 20), "EPDC PWR WAKEUP");
-	gpio_direction_output(IMX_GPIO_NR(3, 20), 1);
+	ret = dm_gpio_lookup_name("GPIO3_20", &epd_wakeup_desc);
+	if (ret) {
+		printf("%s lookup GPIO3_20 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&epd_wakeup_desc, "EPDC PWR WAKEUP");
+	if (ret) {
+		printf("%s request EPDC PWR WAKEUP failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&epd_wakeup_desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 
 	/* EIM_A18 - GPIO2[20] for EPD PWR CTL0 */
 	/* Set as output */
-	gpio_request(IMX_GPIO_NR(2, 20), "EPDC PWR CTRL0");
-	gpio_direction_output(IMX_GPIO_NR(2, 20), 1);
+	ret = dm_gpio_lookup_name("GPIO2_20", &epd_pwr_ctl0_desc);
+	if (ret) {
+		printf("%s lookup GPIO2_20 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&epd_pwr_ctl0_desc, "EPDC PWR CTRL0");
+	if (ret) {
+		printf("%s request EPDC PWR CTRL0 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&epd_pwr_ctl0_desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 }
 
 static void epdc_enable_pins(void)
@@ -527,14 +587,14 @@ void epdc_power_on(void)
 	struct gpio_regs *gpio_regs = (struct gpio_regs *)GPIO2_BASE_ADDR;
 
 	/* Set EPD_PWR_CTL0 to high - enable EINK_VDD (3.15) */
-	gpio_set_value(IMX_GPIO_NR(2, 20), 1);
+	dm_gpio_set_value(&epd_pwr_ctl0_desc, 1);
 	udelay(1000);
 
 	/* Enable epdc signal pin */
 	epdc_enable_pins();
 
 	/* Set PMIC Wakeup to high - enable Display power */
-	gpio_set_value(IMX_GPIO_NR(3, 20), 1);
+	dm_gpio_set_value(&epd_wakeup_desc, 1);
 
 	/* Wait for PWRGOOD == 1 */
 	while (1) {
@@ -546,7 +606,7 @@ void epdc_power_on(void)
 	}
 
 	/* Enable VCOM */
-	gpio_set_value(IMX_GPIO_NR(3, 17), 1);
+	dm_gpio_set_value(&epd_vcom_desc, 1);
 
 	udelay(500);
 }
@@ -554,15 +614,15 @@ void epdc_power_on(void)
 void epdc_power_off(void)
 {
 	/* Set PMIC Wakeup to low - disable Display power */
-	gpio_set_value(IMX_GPIO_NR(3, 20), 0);
+	dm_gpio_set_value(&epd_wakeup_desc, 0);
 
 	/* Disable VCOM */
-	gpio_set_value(IMX_GPIO_NR(3, 17), 0);
+	dm_gpio_set_value(&epd_vcom_desc, 0);
 
 	epdc_disable_pins();
 
 	/* Set EPD_PWR_CTL0 to low - disable EINK_VDD (3.15) */
-	gpio_set_value(IMX_GPIO_NR(2, 20), 0);
+	dm_gpio_set_value(&epd_pwr_ctl0_desc, 0);
 }
 #endif
 
@@ -1210,14 +1270,27 @@ iomux_v3_cfg_t const recovery_key_pads[] = {
 int is_recovery_key_pressing(void)
 {
 	int button_pressed = 0;
+	int ret;
+	struct gpio_desc desc;
 
 	/* Check Recovery Combo Button press or not. */
 	SETUP_IOMUX_PADS(recovery_key_pads);
 
-	gpio_request(GPIO_VOL_DN_KEY, "volume_dn_key");
-	gpio_direction_input(GPIO_VOL_DN_KEY);
+	ret = dm_gpio_lookup_name("GPIO1_5", &desc);
+	if (ret) {
+		printf("%s lookup GPIO1_5 failed ret = %d\n", __func__, ret);
+		return;
+	}
 
-	if (gpio_get_value(GPIO_VOL_DN_KEY) == 0) { /* VOL_DN key is low assert */
+	ret = dm_gpio_request(&desc, "volume_dn_key");
+	if (ret) {
+		printf("%s request volume_dn_key failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_IN);
+
+	if (dm_gpio_get_value(&desc) == 0) { /* VOL_DN key is low assert */
 		button_pressed = 1;
 		printf("Recovery key pressed\n");
 	}

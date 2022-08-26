@@ -138,28 +138,6 @@ static iomux_v3_cfg_t const elan_pads[] = {
 	MX6_PAD_KEY_COL6__GPIO_4_4 | MUX_PAD_CTRL(EPDC_PAD_CTRL),
 };
 
-#ifdef CONFIG_MXC_SPI
-static iomux_v3_cfg_t ecspi1_pads[] = {
-	MX6_PAD_ECSPI1_MISO__ECSPI_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_MOSI__ECSPI_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_SCLK__ECSPI_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL),
-	MX6_PAD_ECSPI1_SS0__GPIO4_IO11  | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 11)) : -1;
-}
-
-static void setup_spi(void)
-{
-	imx_iomux_v3_setup_multiple_pads(ecspi1_pads, ARRAY_SIZE(ecspi1_pads));
-
-	gpio_request(IMX_GPIO_NR(4, 11), "escpi cs");
-	gpio_direction_output(IMX_GPIO_NR(4, 11), 0);
-}
-#endif
-
 #ifdef CONFIG_MXC_EPDC
 static iomux_v3_cfg_t const epdc_enable_pads[] = {
 	MX6_PAD_EPDC_D0__EPDC_SDDO_0	| MUX_PAD_CTRL(EPDC_PAD_CTRL),
@@ -680,10 +658,6 @@ int board_init(void)
 #ifndef CONFIG_DM_USB
 	setup_usb();
 #endif
-#endif
-
-#ifdef CONFIG_MXC_SPI
-	setup_spi();
 #endif
 
 	return 0;

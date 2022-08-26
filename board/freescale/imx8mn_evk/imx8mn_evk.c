@@ -4,30 +4,19 @@
  */
 
 #include <common.h>
-#include <malloc.h>
-#include <errno.h>
-#include <asm/io.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm-generic/gpio.h>
-#include <fsl_esdhc.h>
-#include <mmc.h>
 #include <asm/arch/imx8mn_pins.h>
+#include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <asm/arch/clock.h>
-#include <spl.h>
-#include <asm/mach-imx/dma.h>
-#include <power/pmic.h>
-#include <power/bd71837.h>
+#include <i2c.h>
+#include <asm/io.h>
 #include "../common/tcpc.h"
 #include <usb.h>
-#include <sec_mipi_dsim.h>
-#include <imx_mipi_dsi_bridge.h>
-#include <mipi_dsi_panel.h>
-#include <asm/mach-imx/video.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -42,15 +31,6 @@ static iomux_v3_cfg_t const uart_pads[] = {
 static iomux_v3_cfg_t const wdog_pads[] = {
 	IMX8MN_PAD_GPIO1_IO02__WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
-
-#ifdef CONFIG_FSL_FSPI
-int board_qspi_init(void)
-{
-	set_clk_qspi();
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_NAND_MXS
 #ifdef CONFIG_SPL_BUILD
@@ -104,34 +84,16 @@ int board_early_init_f(void)
 	return 0;
 }
 
-#ifdef CONFIG_FEC_MXC
-#define FEC_RST_PAD IMX_GPIO_NR(4, 22)
-static iomux_v3_cfg_t const fec1_rst_pads[] = {
-	IMX8MN_PAD_SAI2_RXC__GPIO4_IO22 | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
-static void setup_iomux_fec(void)
-{
-	imx_iomux_v3_setup_multiple_pads(fec1_rst_pads,
-					 ARRAY_SIZE(fec1_rst_pads));
-
-	gpio_request(FEC_RST_PAD, "fec1_rst");
-	gpio_direction_output(FEC_RST_PAD, 0);
-	udelay(500);
-	gpio_direction_output(FEC_RST_PAD, 1);
-}
-
+#if IS_ENABLED(CONFIG_FEC_MXC)
 static int setup_fec(void)
 {
 	struct iomuxc_gpr_base_regs *gpr =
 		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
 
-	setup_iomux_fec();
-
 	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32(&gpr->gpr[1],
-			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_MASK, 0);
-	return set_clk_enet(ENET_125MHZ);
+	clrsetbits_le32(&gpr->gpr[1], 0x2000, 0);
+
+	return 0;
 }
 
 int board_phy_config(struct phy_device *phydev)
@@ -307,7 +269,7 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 	enum typec_cc_state state;
 	struct tcpc_port *port_ptr;
 
-	if (dev->seq == 0)
+	if (dev->req_seq == 0)
 		port_ptr = &port1;
 	else
 		port_ptr = &port2;
@@ -325,19 +287,22 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 
 #endif
 
+#define FSL_SIP_GPC			0xC2000000
+#define FSL_SIP_CONFIG_GPC_PM_DOMAIN	0x3
+#define DISPMIX				9
+#define MIPI				10
+
 int board_init(void)
 {
 #ifdef CONFIG_USB_TCPC
 	setup_typec();
 #endif
 
-#ifdef CONFIG_FEC_MXC
-	setup_fec();
-#endif
+	if (IS_ENABLED(CONFIG_FEC_MXC))
+		setup_fec();
 
-#ifdef CONFIG_FSL_FSPI
-	board_qspi_init();
-#endif
+	call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, DISPMIX, true, 0);
+	call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, MIPI, true, 0);
 
 	return 0;
 }
@@ -348,6 +313,10 @@ int board_late_init(void)
 	board_late_mmc_env_init();
 #endif
 
+#ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
+	env_set("board_name", "DDR4 EVK");
+	env_set("board_rev", "iMX8MN");
+#endif
 	return 0;
 }
 
@@ -359,3 +328,9 @@ int is_recovery_key_pressing(void)
 }
 #endif /*CONFIG_ANDROID_RECOVERY*/
 #endif /*CONFIG_FSL_FASTBOOT*/
+
+#ifdef CONFIG_ANDROID_SUPPORT
+bool is_power_key_pressed(void) {
+	return (bool)(!!(readl(SNVS_HPSR) & (0x1 << 6)));
+}
+#endif

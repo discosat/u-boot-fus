@@ -23,15 +23,13 @@ static u32 get_root_clk(enum clk_root_index clock_id);
 void hab_caam_clock_enable(unsigned char enable)
 {
 	/* The CAAM clock is always on for iMX8M */
-	}
+}
 #endif
 
-#ifdef CONFIG_MXC_OCOTP
 void enable_ocotp_clk(unsigned char enable)
 {
 	clock_enable(CCGR_OCOTP, !!enable);
 }
-#endif
 
 int enable_i2c_clk(unsigned char enable, unsigned i2c_num)
 {
@@ -524,7 +522,6 @@ int clock_init(void)
 
 #ifdef CONFIG_IMX8MP
 	/* 8MP ROM already set NOC to 800Mhz, only need to configure NOC_IO clk to 600Mhz */
-	/* 8MP ROM already set GIC to 400Mhz, system_pll1_800m with div = 2 */
 	clock_set_target_val(NOC_IO_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(2));
 #else
 	clock_set_target_val(NOC_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(2));
@@ -556,7 +553,7 @@ int clock_init(void)
 	return 0;
 };
 
-int set_clk_qspi(void)
+void init_clk_fspi(int index)
 {
 	/*
 	 * set qspi root
@@ -565,8 +562,6 @@ int set_clk_qspi(void)
 	clock_enable(CCGR_QSPI, 0);
 	clock_set_target_val(QSPI_CLK_ROOT, CLK_ROOT_ON | CLK_ROOT_SOURCE_SEL(7));
 	clock_enable(CCGR_QSPI, 1);
-
-	return 0;
 }
 
 #ifdef CONFIG_DWC_ETH_QOS
@@ -888,37 +883,35 @@ static u32 decode_fracpll(enum clk_root_src frac_pll)
 	}
 
 	/* Only support SYS_XTAL 24M, PAD_CLK not take into consideration */
-	if ((pll_gnrl_ctl & INTPLL_REF_CLK_SEL_MASK) != 0)
+	if ((pll_gnrl_ctl & GENMASK(1, 0)) != 0)
 		return 0;
 
-	if ((pll_gnrl_ctl & INTPLL_RST_MASK) == 0)
+	if ((pll_gnrl_ctl & RST_MASK) == 0)
 		return 0;
 	/*
 	 * When BYPASS is equal to 1, PLL enters the bypass mode
 	 * regardless of the values of RESETB
 	 */
-	if (pll_gnrl_ctl & INTPLL_BYPASS_MASK)
+	if (pll_gnrl_ctl & BYPASS_MASK)
 		return 24000000u;
 
-	if (!(pll_gnrl_ctl & INTPLL_LOCK_MASK)) {
+	if (!(pll_gnrl_ctl & LOCK_STATUS)) {
 		puts("pll not locked\n");
 		return 0;
 	}
 
-	if (!(pll_gnrl_ctl & INTPLL_CLKE_MASK))
+	if (!(pll_gnrl_ctl & CLKE_MASK))
 		return 0;
 
-	main_div = (pll_fdiv_ctl0 & INTPLL_MAIN_DIV_MASK) >>
-		INTPLL_MAIN_DIV_SHIFT;
-	pre_div = (pll_fdiv_ctl0 & INTPLL_PRE_DIV_MASK) >>
-		INTPLL_PRE_DIV_SHIFT;
-	post_div = (pll_fdiv_ctl0 & INTPLL_POST_DIV_MASK) >>
-		INTPLL_POST_DIV_SHIFT;
+	main_div = (pll_fdiv_ctl0 & MDIV_MASK) >>
+		MDIV_SHIFT;
+	pre_div = (pll_fdiv_ctl0 & PDIV_MASK) >>
+		PDIV_SHIFT;
+	post_div = (pll_fdiv_ctl0 & SDIV_MASK) >>
+		SDIV_SHIFT;
 
-	k = pll_fdiv_ctl1 & GENMASK(15, 0);
+	k = pll_fdiv_ctl1 & KDIV_MASK;
 
-	/* FFOUT = ((m + k / 65536) * FFIN) / (p * 2^s),
-	   1 <= p <= 63, 64 <= m <= 1023, 0 <= s <= 6 */
 	return lldiv((main_div * 65536 + k) * 24000000ULL,
 		     65536 * pre_div * (1 << post_div));
 }
@@ -1009,29 +1002,29 @@ u32 mxc_get_clock(enum mxc_clock clk)
 	u32 val;
 
 	switch (clk) {
-		case MXC_ARM_CLK:
-			return get_arm_core_clk();
-		case MXC_IPG_CLK:
-			clock_get_target_val(IPG_CLK_ROOT, &val);
-			val = val & 0x3;
-			return get_root_clk(AHB_CLK_ROOT) / 2 / (val + 1);
-		case MXC_CSPI_CLK:
-			return get_root_clk(ECSPI1_CLK_ROOT);
-		case MXC_ESDHC_CLK:
-			return get_root_clk(USDHC1_CLK_ROOT);
-		case MXC_ESDHC2_CLK:
-			return get_root_clk(USDHC2_CLK_ROOT);
-		case MXC_ESDHC3_CLK:
-			return get_root_clk(USDHC3_CLK_ROOT);
-		case MXC_I2C_CLK:
-			return get_root_clk(I2C1_CLK_ROOT);
-		case MXC_UART_CLK:
-			return get_root_clk(UART1_CLK_ROOT);
-		case MXC_QSPI_CLK:
-			return get_root_clk(QSPI_CLK_ROOT);
+	case MXC_ARM_CLK:
+		return get_arm_core_clk();
+	case MXC_IPG_CLK:
+		clock_get_target_val(IPG_CLK_ROOT, &val);
+		val = val & 0x3;
+		return get_root_clk(AHB_CLK_ROOT) / 2 / (val + 1);
+	case MXC_CSPI_CLK:
+		return get_root_clk(ECSPI1_CLK_ROOT);
+	case MXC_ESDHC_CLK:
+		return get_root_clk(USDHC1_CLK_ROOT);
+	case MXC_ESDHC2_CLK:
+		return get_root_clk(USDHC2_CLK_ROOT);
+	case MXC_ESDHC3_CLK:
+		return get_root_clk(USDHC3_CLK_ROOT);
+	case MXC_I2C_CLK:
+		return get_root_clk(I2C1_CLK_ROOT);
+	case MXC_UART_CLK:
+		return get_root_clk(UART1_CLK_ROOT);
+	case MXC_QSPI_CLK:
+		return get_root_clk(QSPI_CLK_ROOT);
 	default:
-			printf("Unsupported mxc_clock %d\n", clk);
-			break;
+		printf("Unsupported mxc_clock %d\n", clk);
+		break;
 	}
 
 	return 0;

@@ -338,6 +338,10 @@ const char *bootdelay_process(void)
 	bootdelay = (int)simple_strtol(s ? s : MK_STR(CONFIG_BOOTDELAY),
 				       NULL, 10);
 
+	if (IS_ENABLED(CONFIG_OF_CONTROL))
+		bootdelay = fdtdec_get_config_int(gd->fdt_blob, "bootdelay",
+						  bootdelay);
+
 #if defined(is_boot_from_usb)
 	if (is_boot_from_usb() && env_get("bootcmd_mfg")) {
 		disconnect_from_pc();
@@ -354,10 +358,6 @@ const char *bootdelay_process(void)
 		printf("Normal Boot\n");
 	}
 #endif
-
-	if (IS_ENABLED(CONFIG_OF_CONTROL))
-		bootdelay = fdtdec_get_config_int(gd->fdt_blob, "bootdelay",
-						  bootdelay);
 
 	debug("### main_loop entered: bootdelay=%d\n\n", bootdelay);
 

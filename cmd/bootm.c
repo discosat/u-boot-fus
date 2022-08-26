@@ -123,7 +123,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return do_bootm_subcommand(cmdtp, flag, argc, argv);
 	}
 
-#ifdef CONFIG_SECURE_BOOT
+#ifdef CONFIG_IMX_HAB
 	extern int authenticate_image(
 			uint32_t ddr_start, uint32_t raw_image_size);
 
@@ -164,7 +164,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #else
 
 	switch (genimg_get_format((const void *)addr)) {
-#if defined(CONFIG_IMAGE_FORMAT_LEGACY)
+#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY:
 		if (authenticate_image(addr,
 			image_get_image_size((image_header_t *)addr)) != 0) {

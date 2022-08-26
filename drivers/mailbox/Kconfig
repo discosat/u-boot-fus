@@ -49,10 +49,10 @@ config ZYNQMP_IPI
 	  communication controller.
 
 config IMX_MU
-        bool "Enable i.MX MU support"
-        depends on DM_MAILBOX
-        help
-          Enable support for i.MX Messaging Unit for communication with other
-          processors on the SoC
+    bool "Enable i.MX MU support"
+    depends on DM_MAILBOX
+    help
+      Enable support for i.MX Messaging Unit for communication with other
+      processors on the SoC
 
 endmenu

@@ -71,7 +71,7 @@
 */
 #define CONFIG_USB_HOST_PWR
 
-#include "fsl-imx8mm.dtsi"
+#include "imx8mm.dtsi"
 
 / {
 	model = "PicoCoreMX8MM-LPDDR4";

@@ -295,7 +295,7 @@ int tcpc_setup_dfp_mode(struct tcpc_port *port)
 	enum typec_cc_state state;
 	int ret;
 
-	if (port == NULL)
+	if ((port == NULL) || (port->i2c_dev == NULL))
 		return -EINVAL;
 
 	if (tcpc_pd_sink_check_charging(port)) {
@@ -362,7 +362,7 @@ int tcpc_setup_ufp_mode(struct tcpc_port *port)
 	enum typec_cc_state state;
 	int ret;
 
-	if (port == NULL)
+	if ((port == NULL) || (port->i2c_dev == NULL))
 		return -EINVAL;
 
 	/* Check if the PD charge is working. If not, need to configure CC role for UFP */
@@ -497,7 +497,7 @@ static int tcpc_pd_transmit_message(struct tcpc_port *port, struct pd_message *m
 {
 	int ret;
 	uint8_t valb;
-	uint16_t val;
+	uint16_t val = 0;
 
 	if (port == NULL)
 		return -EINVAL;

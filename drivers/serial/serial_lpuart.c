@@ -45,10 +45,10 @@
 
 #define FIFO_RXFLUSH		BIT(14)
 #define FIFO_TXFLUSH		BIT(15)
-#define FIFO_TXSIZE_MASK 	0x70
-#define FIFO_TXSIZE_OFF 	4
-#define FIFO_RXSIZE_MASK 	0x7
-#define FIFO_RXSIZE_OFF 	0
+#define FIFO_TXSIZE_MASK	0x70
+#define FIFO_TXSIZE_OFF	4
+#define FIFO_RXSIZE_MASK	0x7
+#define FIFO_RXSIZE_OFF	0
 #define FIFO_TXFE		0x80
 #if defined(CONFIG_ARCH_IMX8) || defined(CONFIG_ARCH_IMXRT)
 #define FIFO_RXFE		0x08
@@ -489,17 +489,29 @@ static int lpuart_serial_probe(struct udevice *dev)
 {
 #if CONFIG_IS_ENABLED(CLK)
 	struct clk per_clk;
+	struct clk ipg_clk;
 	int ret;
 
 	ret = clk_get_by_name(dev, "per", &per_clk);
 	if (!ret) {
 		ret = clk_enable(&per_clk);
 		if (ret) {
-			dev_err(dev, "Failed to get per clk: %d\n", ret);
+			dev_err(dev, "Failed to enable per clk: %d\n", ret);
 			return ret;
 		}
 	} else {
 		debug("%s: Failed to get per clk: %d\n", __func__, ret);
+	}
+
+	ret = clk_get_by_name(dev, "ipg", &ipg_clk);
+	if (!ret) {
+		ret = clk_enable(&ipg_clk);
+		if (ret) {
+			dev_err(dev, "Failed to enable ipg clk: %d\n", ret);
+			return ret;
+		}
+	} else {
+		debug("%s: Failed to get ipg clk: %d\n", __func__, ret);
 	}
 #endif
 

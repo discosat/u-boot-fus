@@ -4,7 +4,6 @@
  */
 
 #include <common.h>
-#include <fdtdec.h>
 #include <errno.h>
 #include <dm.h>
 #include <i2c.h>
@@ -28,7 +27,7 @@ static int bd71837_reg_count(struct udevice *dev)
 }
 
 static int bd71837_write(struct udevice *dev, uint reg, const uint8_t *buff,
-			  int len)
+			 int len)
 {
 	if (dm_i2c_write(dev, reg, buff, len)) {
 		pr_err("write error to device: %p register: %#x!", dev, reg);

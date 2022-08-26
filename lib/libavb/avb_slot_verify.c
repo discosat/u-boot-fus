@@ -15,7 +15,7 @@
 #include "avb_vbmeta_image.h"
 #include "avb_version.h"
 #include <malloc.h>
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX) && !defined(CONFIG_XEN)
 #include "trusty/hwcrypto.h"
 #include <memalign.h>
 #endif
@@ -28,7 +28,6 @@
 
 /* Maximum size of a vbmeta image - 64 KiB. */
 #define VBMETA_MAX_SIZE (64 * 1024)
-
 /* Set the image load addr start from 96MB offset of CONFIG_FASTBOOT_BUF_ADDR */
 #define PARTITION_LOAD_ADDR_START (CONFIG_FASTBOOT_BUF_ADDR + (96 * 1024 * 1024))
 
@@ -295,12 +294,12 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   bool image_preloaded = false;
   uint8_t* digest;
   size_t digest_len;
-  const char* found;
+  const char* found = NULL;
   uint64_t image_size;
   size_t expected_digest_len = 0;
   uint8_t expected_digest_buf[AVB_SHA512_DIGEST_SIZE];
   const uint8_t* expected_digest = NULL;
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX) && !defined(CONFIG_XEN)
   uint8_t* hash_out = NULL;
   uint8_t* hash_buf = NULL;
 #endif
@@ -395,7 +394,9 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   // Although only one of the type might be used, we have to defined the
   // structure here so that they would live outside the 'if/else' scope to be
   // used later.
+#if !defined(CONFIG_IMX_TRUSTY_OS) || defined(CONFIG_AVB_ATX) ||  defined(CONFIG_XEN)
   AvbSHA256Ctx sha256_ctx;
+#endif
   AvbSHA512Ctx sha512_ctx;
   size_t image_size_to_hash = hash_desc.image_size;
   // If we allow verification error and the whole partition is smaller than
@@ -404,7 +405,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     image_size_to_hash = image_size;
   }
   if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX) && !defined(CONFIG_XEN)
     /* DMA requires cache aligned input/output buffer */
     hash_out = memalign(ARCH_DMA_MINALIGN, AVB_SHA256_DIGEST_SIZE);
     if (hash_out == NULL) {
@@ -412,16 +413,14 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
         goto out;
     }
-    uint32_t round_buf_size = ROUND(hash_desc.salt_len + hash_desc.image_size,
-                                ARCH_DMA_MINALIGN);
     hash_buf = (void *)CONFIG_FASTBOOT_BUF_ADDR;
 
     avb_memcpy(hash_buf, desc_salt, hash_desc.salt_len);
     avb_memcpy(hash_buf + hash_desc.salt_len,
-               image_buf, hash_desc.image_size);
+               image_buf, image_size_to_hash);
     /* calculate sha256 hash by caam */
     if (hwcrypto_hash((uint32_t)(ulong)hash_buf,
-                  (hash_desc.salt_len + hash_desc.image_size),
+                  (hash_desc.salt_len + image_size_to_hash),
                   (uint32_t)(ulong)hash_out,
                   AVB_SHA256_DIGEST_SIZE,
                   SHA256) != 0) {
@@ -489,7 +488,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 
 out:
 
-#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX)
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_AVB_ATX) && !defined(CONFIG_XEN)
   if (hash_out != NULL) {
     free(hash_out);
     hash_out = NULL;
@@ -1697,7 +1696,7 @@ void avb_slot_verify_data_free(AvbSlotVerifyData* data) {
       if (loaded_partition->partition_name != NULL) {
         avb_free(loaded_partition->partition_name);
       }
-      }
+    }
     /* partition data is not loaded to heap memory, so we just reset the
      * image_addr_top here. */
     image_addr_top = (void *)PARTITION_LOAD_ADDR_START;

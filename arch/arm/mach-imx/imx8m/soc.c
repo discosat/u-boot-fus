@@ -324,18 +324,30 @@ static u32 get_cpu_variant_type(u32 type)
 	} else if (type == MXC_CPU_IMX8MN) {
 		switch (value & 0x3) {
 		case 2:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNDL;
-			else
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUD;
+				else
+					return MXC_CPU_IMX8MNDL;
+			} else {
 				return MXC_CPU_IMX8MND;
+			}
 		case 3:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNSL;
-			else
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUS;
+				else
+					return MXC_CPU_IMX8MNSL;
+			} else {
 				return MXC_CPU_IMX8MNS;
+			}
 		default:
-			if (value & 0x1000000)
-				return MXC_CPU_IMX8MNL;
+			if (value & 0x1000000) {
+				if (value & 0x10000000)	 /* MIPI DSI */
+					return MXC_CPU_IMX8MNUQ;
+				else
+					return MXC_CPU_IMX8MNL;
+			}
 			break;
 		}
 	} else if (type == MXC_CPU_IMX8MP) {
@@ -517,7 +529,8 @@ int arch_cpu_init(void)
 		secure_lockup();
 #endif
 		if (is_imx8md() || is_imx8mmd() || is_imx8mmdl() || is_imx8mms() || is_imx8mmsl() ||
-			is_imx8mnd() || is_imx8mndl() || is_imx8mns() || is_imx8mnsl()) {
+			is_imx8mnd() || is_imx8mndl() || is_imx8mns() || is_imx8mnsl() || is_imx8mpd() ||
+			is_imx8mnud() || is_imx8mnus()) {
 			/* Power down cpu core 1, 2 and 3 for iMX8M Dual core or Single core */
 			struct pgc_reg *pgc_core1 = (struct pgc_reg *)(GPC_BASE_ADDR + 0x840);
 			struct pgc_reg *pgc_core2 = (struct pgc_reg *)(GPC_BASE_ADDR + 0x880);
@@ -526,12 +539,12 @@ int arch_cpu_init(void)
 
 			writel(0x1, &pgc_core2->pgcr);
 			writel(0x1, &pgc_core3->pgcr);
-			if (is_imx8mms() || is_imx8mmsl() || is_imx8mns() || is_imx8mnsl()) {
+			if (is_imx8mms() || is_imx8mmsl() || is_imx8mns() || is_imx8mnsl() || is_imx8mnus()) {
 				writel(0x1, &pgc_core1->pgcr);
 				writel(0xE, &gpc->cpu_pgc_dn_trg);
 			} else {
 				writel(0xC, &gpc->cpu_pgc_dn_trg);
-	}
+			}
 		}
 	}
 
@@ -688,6 +701,7 @@ static int disable_mipi_dsi_nodes(void *blob)
 		"/dsi_phy@30A00300",
 		"/soc@0/bus@30800000/mipi_dsi@30a00000",
 		"/soc@0/bus@30800000/dphy@30a00300"
+		"/soc@0/bus@30800000/mipi-dsi@30a00000",
 	};
 
 	return disable_fdt_nodes(blob, nodes_path, ARRAY_SIZE(nodes_path));
@@ -715,7 +729,8 @@ static int check_mipi_dsi_nodes(void *blob)
 {
 	const char *lcdif_path[] = {
 		"/lcdif@30320000",
-		"/soc@0/bus@30000000/lcdif@30320000"
+		"/soc@0/bus@30000000/lcdif@30320000",
+		"/soc@0/bus@30000000/lcd-controller@30320000"
 	};
 	const char *mipi_dsi_path[] = {
 		"/mipi_dsi@30A00000",
@@ -723,11 +738,13 @@ static int check_mipi_dsi_nodes(void *blob)
 	};
 	const char *lcdif_ep_path[] = {
 		"/lcdif@30320000/port@0/mipi-dsi-endpoint",
-		"/soc@0/bus@30000000/lcdif@30320000/port@0/endpoint"
+		"/soc@0/bus@30000000/lcdif@30320000/port@0/endpoint",
+		"/soc@0/bus@30000000/lcd-controller@30320000/port@0/endpoint"
 	};
 	const char *mipi_dsi_ep_path[] = {
 		"/mipi_dsi@30A00000/port@1/endpoint",
-		"/soc@0/bus@30800000/mipi_dsi@30a00000/ports/port@0/endpoint"
+		"/soc@0/bus@30800000/mipi_dsi@30a00000/ports/port@0/endpoint",
+		"/soc@0/bus@30800000/mipi-dsi@30a00000/ports/port@0/endpoint@0"
 	};
 
 	int nodeoff;
@@ -802,13 +819,151 @@ int disable_vpu_nodes(void *blob)
 
 }
 
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+static int low_drive_gpu_freq(void *blob)
+{
+	const char *nodes_path_8mn[] = {
+		"/gpu@38000000",
+		"/soc@0/gpu@38000000"
+	};
+
+	int nodeoff, cnt, i, j;
+	u32 assignedclks[7];
+
+	for (i = 0; i < ARRAY_SIZE(nodes_path_8mn); i++) {
+		nodeoff = fdt_path_offset(blob, nodes_path_8mn[i]);
+		if (nodeoff < 0)
+			continue;
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "assigned-clock-rates", assignedclks, 7);
+		if (cnt < 0)
+			return cnt;
+
+		if (cnt != 7)
+			printf("Warning: %s, assigned-clock-rates count %d\n", nodes_path_8mn[i], cnt);
+
+		assignedclks[cnt - 1] = 200000000;
+		assignedclks[cnt - 2] = 200000000;
+
+		for (j = 0; j < cnt; j++) {
+			debug("<%u>, ", assignedclks[j]);
+			assignedclks[j] = cpu_to_fdt32(assignedclks[j]);
+		}
+		debug("\n");
+
+		return fdt_setprop(blob, nodeoff, "assigned-clock-rates", &assignedclks, sizeof(assignedclks));
+	}
+
+	return -ENOENT;
+}
+#endif
+
 int disable_gpu_nodes(void *blob)
 {
 	const char *nodes_path_8mn[] = {
-		"/gpu@38000000"
+		"/gpu@38000000",
+		"/soc@/gpu@38000000"
 	};
 
 	return disable_fdt_nodes(blob, nodes_path_8mn, ARRAY_SIZE(nodes_path_8mn));
+}
+
+int disable_npu_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/vipsi@38500000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+int disable_isp_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/soc@0/bus@32c00000/camera/isp@32e10000",
+		"/soc@0/bus@32c00000/camera/isp@32e20000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+int disable_dsp_nodes(void *blob)
+{
+	const char *nodes_path_8mp[] = {
+		"/dsp@3b6e8000"
+	};
+
+	return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+}
+
+static void disable_thermal_cpu_nodes(void *blob, u32 disabled_cores)
+{
+	const char *thermal_path[] = {
+		"/thermal-zones/cpu-thermal/cooling-maps/map0"
+	};
+
+	int nodeoff, cnt, i, ret, j;
+	u32 cooling_dev[12];
+
+	for (i = 0; i < ARRAY_SIZE(thermal_path); i++) {
+		nodeoff = fdt_path_offset(blob, thermal_path[i]);
+		if (nodeoff < 0)
+			continue; /* Not found, skip it */
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "cooling-device", cooling_dev, 12);
+		if (cnt < 0)
+			continue;
+
+		if (cnt != 12)
+			printf("Warning: %s, cooling-device count %d\n", thermal_path[i], cnt);
+
+		for (j = 0; j < cnt; j++) {
+			cooling_dev[j] = cpu_to_fdt32(cooling_dev[j]);
+		}
+
+		ret= fdt_setprop(blob, nodeoff, "cooling-device", &cooling_dev, sizeof(u32) * (12 - disabled_cores * 3));
+		if (ret < 0) {
+			printf("Warning: %s, cooling-device setprop failed %d\n", thermal_path[i], ret);
+			continue;
+		}
+
+		printf("Update node %s, cooling-device prop\n", thermal_path[i]);
+	}
+}
+
+static void disable_pmu_cpu_nodes(void *blob, u32 disabled_cores)
+{
+	const char *pmu_path[] = {
+		"/pmu"
+	};
+
+	int nodeoff, cnt, i, ret, j;
+	u32 irq_affinity[4];
+
+	for (i = 0; i < ARRAY_SIZE(pmu_path); i++) {
+		nodeoff = fdt_path_offset(blob, pmu_path[i]);
+		if (nodeoff < 0)
+			continue; /* Not found, skip it */
+
+		cnt = fdtdec_get_int_array_count(blob, nodeoff, "interrupt-affinity", irq_affinity, 4);
+		if (cnt < 0)
+			continue;
+
+		if (cnt != 4)
+			printf("Warning: %s, interrupt-affinity count %d\n", pmu_path[i], cnt);
+
+		for (j = 0; j < cnt; j++) {
+			irq_affinity[j] = cpu_to_fdt32(irq_affinity[j]);
+		}
+
+		ret= fdt_setprop(blob, nodeoff, "interrupt-affinity", &irq_affinity, sizeof(u32) * (4 - disabled_cores));
+		if (ret < 0) {
+			printf("Warning: %s, interrupt-affinity setprop failed %d\n", pmu_path[i], ret);
+			continue;
+		}
+
+		printf("Update node %s, interrupt-affinity prop\n", pmu_path[i]);
+	}
 }
 
 static int disable_cpu_nodes(void *blob, u32 disabled_cores)
@@ -843,6 +998,9 @@ static int disable_cpu_nodes(void *blob, u32 disabled_cores)
 			printf("Delete node %s\n", nodes_path[i]);
 		}
 	}
+
+	disable_thermal_cpu_nodes(blob, disabled_cores);
+	disable_pmu_cpu_nodes(blob, disabled_cores);
 
 	return 0;
 }
@@ -942,11 +1100,36 @@ usb_modify_speed:
 #elif defined(CONFIG_IMX8MN)
 	if (is_imx8mnl() || is_imx8mndl() ||  is_imx8mnsl())
 		disable_gpu_nodes(blob);
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+	else {
+		int ldm_gpu = low_drive_gpu_freq(blob);
+		if (ldm_gpu < 0)
+			printf("Update GPU node assigned-clock-rates failed\n");
+		else
+			printf("Update GPU node assigned-clock-rates ok\n");
+	}
+#endif
 
-	if (is_imx8mnd() || is_imx8mndl())
+	if (is_imx8mnd() || is_imx8mndl() || is_imx8mnud())
 		disable_cpu_nodes(blob, 2);
-	else if (is_imx8mns() || is_imx8mnsl())
+	else if (is_imx8mns() || is_imx8mnsl() || is_imx8mnus())
 		disable_cpu_nodes(blob, 3);
+
+#elif defined(CONFIG_IMX8MP)
+	if (is_imx8mpl())
+		disable_vpu_nodes(blob);
+
+	if (is_imx8mpl() || is_imx8mp6())
+		disable_npu_nodes(blob);
+
+	if (is_imx8mpl())
+		disable_isp_nodes(blob);
+
+	if (is_imx8mpl() || is_imx8mp6())
+		disable_dsp_nodes(blob);
+
+	if (is_imx8mpd())
+		disable_cpu_nodes(blob, 2);
 #endif
 
 	return ft_add_optee_node(blob, bd);
@@ -956,19 +1139,19 @@ usb_modify_speed:
 #if defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SYSRESET)
 void reset_cpu(ulong addr)
 {
-       struct watchdog_regs *wdog = (struct watchdog_regs *)addr;
+	struct watchdog_regs *wdog = (struct watchdog_regs *)addr;
 
-       if (!addr)
-	       wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
+	if (!addr)
+		wdog = (struct watchdog_regs *)WDOG1_BASE_ADDR;
 
-       /* Clear WDA to trigger WDOG_B immediately */
+	/* Clear WDA to trigger WDOG_B immediately */
 	writew((SET_WCR_WT(1) | WCR_WDT | WCR_WDE | WCR_SRS), &wdog->wcr);
 
-       while (1) {
-               /*
+	while (1) {
+		/*
 		 * spin for 1 second before timeout reset
-                */
-       }
+		 */
+	}
 }
 #endif
 
@@ -1048,8 +1231,10 @@ int imx8m_usb_power(int usb_id, bool on)
 #ifdef CONFIG_SPL_BUILD
 	imx8m_usb_power_domain(2 + usb_id, on);
 #else
-	if (call_imx_sip(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN,
-			 2 + usb_id, on, 0))
+	unsigned long ret;
+	ret = call_imx_sip(FSL_SIP_GPC,
+			FSL_SIP_CONFIG_GPC_PM_DOMAIN, 2 + usb_id, on, 0);
+	if (ret)
 		return -EPERM;
 #endif
 
@@ -1194,7 +1379,7 @@ enum env_location env_get_location(enum env_operation op, int prio)
 		break;
 #endif
 	default:
-#ifdef CONFIG_ENV_IS_NOWHERE
+#if defined(CONFIG_ENV_IS_NOWHERE)
 		env_loc = ENVL_NOWHERE;
 #endif
 		break;
@@ -1222,4 +1407,17 @@ long long env_get_offset(long long defautl_offset)
 	return defautl_offset;
 }
 #endif
+#endif
+
+#ifdef CONFIG_IMX8MQ
+int imx8m_dcss_power_init(void)
+{
+	/* Enable the display CCGR before power on */
+	clock_enable(CCGR_DISPLAY, 1);
+
+	writel(0x0000ffff, 0x303A00EC); /*PGC_CPU_MAPPING */
+	setbits_le32(0x303A00F8, 0x1 << 10); /*PU_PGC_SW_PUP_REQ : disp was 10 */
+
+	return 0;
+}
 #endif

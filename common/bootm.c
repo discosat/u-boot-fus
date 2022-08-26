@@ -376,8 +376,8 @@ static int bootm_load_os(bootm_headers_t *images, int boot_progress)
 	load_buf = map_sysmem(load, 0);
 	image_buf = map_sysmem(os.image_start, image_len);
 	err = image_decomp(os.comp, load, os.image_start, os.type,
-				 load_buf, image_buf, image_len,
-				 CONFIG_SYS_BOOTM_LEN, &load_end);
+			   load_buf, image_buf, image_len,
+			   CONFIG_SYS_BOOTM_LEN, &load_end);
 	if (err) {
 		err = handle_decomp_error(os.comp, load_end - load, err);
 		bootstage_error(BOOTSTAGE_ID_DECOMP_IMAGE);
@@ -890,14 +890,14 @@ static int bootm_host_load_image(const void *fit, int req_image_type,
 	/* Allow the image to expand by a factor of 4, should be safe */
 	load_buf = malloc((1 << 20) + len * 4);
 	ret = image_decomp(imape_comp, 0, data, image_type, load_buf,
-				 (void *)data, len, CONFIG_SYS_BOOTM_LEN,
-				 &load_end);
+			   (void *)data, len, CONFIG_SYS_BOOTM_LEN,
+			   &load_end);
 	free(load_buf);
 
 	if (ret) {
 		ret = handle_decomp_error(imape_comp, load_end - 0, ret);
 		if (ret != BOOTM_ERR_UNIMPLEMENTED)
-		return ret;
+			return ret;
 	}
 
 	return 0;

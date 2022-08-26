@@ -33,7 +33,7 @@ static int imx8_power_domain_on(struct power_domain *power_domain)
 	debug("%s: resource_id %u\n", __func__, resource_id);
 
 	ret = sc_pm_set_resource_power_mode(-1, resource_id, SC_PM_PW_MODE_ON);
-		if (ret) {
+	if (ret) {
 		printf("Error: %u Power up failed! (error = %d)\n",
 		       resource_id, ret);
 		return ret;

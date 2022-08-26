@@ -4,26 +4,26 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <env.h>
 #include <errno.h>
+#include <init.h>
 #include <linux/libfdt.h>
-#include <environment.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc_imx.h>
+#include <fdt_support.h>
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sci/sci.h>
 #include <asm/arch/imx8-pins.h>
+#include <asm/arch/snvs_security_sc.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/sys_proto.h>
 #include <imx8_hsio.h>
 #include <usb.h>
-#include <asm/mach-imx/video.h>
-#include <asm/arch/video_common.h>
 #include <power-domain.h>
 #include "../common/tcpc.h"
-#include <cdns3-uboot.h>
 #include <asm/arch/lpcg.h>
-#include <bootm.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -55,32 +55,20 @@ static void setup_iomux_uart(void)
 
 int board_early_init_f(void)
 {
+	sc_pm_clock_rate_t rate = SC_80MHZ;
 	int ret;
+
 	/* Set UART0 clock root to 80 MHz */
-	sc_pm_clock_rate_t rate = 80000000;
-
-	/* Power up UART0 */
-	ret = sc_pm_set_resource_power_mode(-1, SC_R_UART_0, SC_PM_PW_MODE_ON);
+	ret = sc_pm_setup_uart(SC_R_UART_0, rate);
 	if (ret)
 		return ret;
-
-	ret = sc_pm_set_clock_rate(-1, SC_R_UART_0, 2, &rate);
-	if (ret)
-		return ret;
-
-	/* Enable UART0 clock root */
-	ret = sc_pm_clock_enable(-1, SC_R_UART_0, 2, true, false);
-	if (ret)
-		return ret;
-
-	lpcg_all_clock_on(LPUART_0_LPCG);
 
 	setup_iomux_uart();
 
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_DM_GPIO)
+#if CONFIG_IS_ENABLED(DM_GPIO)
 static void board_gpio_init(void)
 {
 }
@@ -171,7 +159,7 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	if (index == 0) {
 		if (init == USB_INIT_DEVICE) {
-#ifdef CONFIG_SPL_BUILD
+#if !CONFIG_IS_ENABLED(DM_USB_GADGET) && !CONFIG_IS_ENABLED(DM_USB)
 			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0, SC_PM_PW_MODE_ON);
 			if (ret != SC_ERR_NONE)
 				printf("conn_usb0 Power up failed! (error = %d)\n", ret);
@@ -191,7 +179,7 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 
 	if (index == 0) {
 		if (init == USB_INIT_DEVICE) {
-#ifdef CONFIG_SPL_BUILD
+#if !CONFIG_IS_ENABLED(DM_USB_GADGET) && !CONFIG_IS_ENABLED(DM_USB)
 			ret = sc_pm_set_resource_power_mode(-1, SC_R_USB_0, SC_PM_PW_MODE_OFF);
 			if (ret != SC_ERR_NONE)
 				printf("conn_usb0 Power down failed! (error = %d)\n", ret);
@@ -210,10 +198,19 @@ int board_init(void)
 {
 	board_gpio_init();
 
+#ifdef CONFIG_SNVS_SEC_SC_AUTO
+	{
+		int ret = snvs_security_sc_init();
+
+		if (ret)
+			return ret;
+	}
+#endif
+
 	return 0;
 }
 
-void board_quiesce_devices()
+void board_quiesce_devices(void)
 {
 	const char *power_on_devices[] = {
 		"dma_lpuart0",
@@ -224,11 +221,6 @@ void board_quiesce_devices()
 	};
 
 	power_off_pd_devices(power_on_devices, ARRAY_SIZE(power_on_devices));
-}
-
-void detail_board_ddr_info(void)
-{
-	puts("\nDDR    ");
 }
 
 /*
@@ -250,6 +242,8 @@ int board_late_init(void)
 {
 	char *fdt_file;
 	bool m4_boot;
+
+	build_info();
 
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 	env_set("board_name", "MEK");

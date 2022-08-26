@@ -974,7 +974,7 @@ static ulong load_serial_ymodem(ulong offset, int mode)
 				rc = flash_write((char *) ymodemBuf,
 						  store_addr, res);
 				if (rc != 0) {
-					flash_perror (rc);
+					flash_perror(rc);
 					return (~0);
 				}
 			} else

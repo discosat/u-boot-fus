@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
  *
  */
 
@@ -11,15 +10,8 @@
 #include <linux/fb.h>
 #if defined(CONFIG_VIDEO_IPUV3)
 #include <ipu_pixfmt.h>
-#elif defined(CONFIG_VIDEO_IMXDPUV1)
-#include <imxdpuv1.h>
-#include <asm/arch/video_common.h>
 #elif defined(CONFIG_VIDEO_MXS)
 #include <mxsfb.h>
-#elif defined(CONFIG_VIDEO_IMX_LCDIFV3)
-#include <imx_lcdifv3.h>
-#elif defined(CONFIG_VIDEO_IMXDCSS)
-#include <asm/arch/video_common.h>
 #endif
 
 struct display_info_t {

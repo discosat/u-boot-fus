@@ -333,9 +333,9 @@ static int initr_dm_devices(void)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_TIMER_EARLY)) {
-	ret = dm_timer_init();
-	if (ret)
-		return ret;
+		ret = dm_timer_init();
+		if (ret)
+			return ret;
 	}
 
 	return 0;

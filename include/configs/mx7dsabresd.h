@@ -75,7 +75,7 @@
 	"emmc_dev=2\0"\
 	"sd_dev=0\0" \
 	"mtdparts=" MFG_NAND_PARTITION \
-		"\0" \
+	"\0"\
 
 #define CONFIG_DFU_ENV_SETTINGS \
 	"dfu_alt_info=image raw 0 0x800000;"\
@@ -121,6 +121,7 @@
 	"tee_file=uTee-7dsdb\0" \
 	"boot_fdt=try\0" \
 	"ip_dyn=yes\0" \
+	"splashimage=0x8c000000\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=" __stringify(CONFIG_SYS_MMC_IMG_LOAD_PART) "\0" \
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
@@ -139,18 +140,18 @@
 		"if test ${tee} = yes; then " \
 			"run loadfdt; run loadtee; bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 	"netargs=setenv bootargs console=${console},${baudrate} " \
@@ -169,18 +170,18 @@
 			"${get_cmd} ${fdt_addr} ${fdt_file}; " \
 			"bootm ${tee_addr} - ${fdt_addr}; " \
 		"else " \
-		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+				"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
-			"fi; " \
-		"else " \
-			"bootz; " \
+			"else " \
+				"bootz; " \
 			"fi; " \
 		"fi;\0" \
 		"findfdt="\

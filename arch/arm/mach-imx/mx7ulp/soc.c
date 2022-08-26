@@ -12,8 +12,6 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/hab.h>
-#include <asm/mach-imx/boot_mode.h>
-#include <fdt_support.h>
 #include <asm/setup.h>
 #ifdef CONFIG_IMX_SEC_INIT
 #include <fsl_caam.h>
@@ -300,7 +298,7 @@ int print_cpuinfo(void)
 
 	cpurev = get_cpu_rev();
 
-	printf("CPU:   Freescale i.MX%s rev%d.%d at %d MHz\n",
+	printf("CPU:   i.MX%s rev%d.%d at %d MHz\n",
 	       get_imx_type((cpurev & 0xFF000) >> 12),
 	       (cpurev & 0x000F0) >> 4, (cpurev & 0x0000F) >> 0,
 	       mxc_get_clock(MXC_ARM_CLK) / 1000000);
@@ -416,9 +414,6 @@ void get_reboot_reason(char *ret)
 
 void arch_preboot_os(void)
 {
-#if defined(CONFIG_VIDEO_MXS)
-	lcdif_power_down();
-#endif
 	scg_disable_pll_pfd(SCG_APLL_PFD1_CLK);
 	scg_disable_pll_pfd(SCG_APLL_PFD2_CLK);
 	scg_disable_pll_pfd(SCG_APLL_PFD3_CLK);

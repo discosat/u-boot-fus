@@ -24,7 +24,7 @@
  *                            which the underlying physical block mark appears.
  * @block_mark_bit_offset:    The bit offset into the ECC-based page view at
  *                            which the underlying physical block mark appears.
-  * @ecc_for_meta:             The flag to indicate if there is a dedicate ecc
+ * @ecc_for_meta:             The flag to indicate if there is a dedicate ecc
  *                            for meta.
  */
 struct bch_geometry {

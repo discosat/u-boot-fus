@@ -14,7 +14,7 @@
 #include "imx6sl.dtsi"
 
 / {
-	model = "Freescale i.MX6 SoloLite EVK Board";
+	model = "i.MX6 SoloLite EVK Board";
 	compatible = "fsl,imx6sl-evk", "fsl,imx6sl";
 
 	battery: max8903@0 {
@@ -224,7 +224,7 @@
 	sda-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

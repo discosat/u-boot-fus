@@ -215,7 +215,7 @@ int get_disk_guid(struct blk_desc * dev_desc, char *guid)
 
 	/* This function validates AND fills in the GPT header and PTE */
 	if (find_valid_gpt(dev_desc, gpt_head, &gpt_pte) != 1)
-			return -EINVAL;
+		return -EINVAL;
 
 	guid_bin = gpt_head->disk_guid.b;
 	uuid_bin_to_str(guid_bin, guid, UUID_STR_FORMAT_GUID);
@@ -235,7 +235,7 @@ void part_print_efi(struct blk_desc *dev_desc)
 
 	/* This function validates AND fills in the GPT header and PTE */
 	if (find_valid_gpt(dev_desc, gpt_head, &gpt_pte) != 1)
-			return;
+		return;
 
 	debug("%s: gpt-entry at %p\n", __func__, gpt_pte);
 
@@ -287,7 +287,7 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 
 	/* This function validates AND fills in the GPT header and PTE */
 	if (find_valid_gpt(dev_desc, gpt_head, &gpt_pte) != 1)
-			return -1;
+		return -1;
 
 	if (part > le32_to_cpu(gpt_head->num_partition_entries) ||
 	    !is_pte_valid(&gpt_pte[part - 1])) {
@@ -307,7 +307,7 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 	info->blksz = dev_desc->blksz;
 
 	snprintf((char *)info->name, sizeof(info->name), "%s",
-			print_efiname(&gpt_pte[part - 1]));
+		 print_efiname(&gpt_pte[part - 1]));
 	strcpy((char *)info->type, "U-Boot");
 	info->bootable = is_bootable(&gpt_pte[part - 1]);
 #if CONFIG_IS_ENABLED(PARTITION_UUIDS)
@@ -1072,7 +1072,7 @@ static int find_valid_gpt(struct blk_desc *dev_desc, gpt_header *gpt_head,
 
 	if (r != 1) {
 		if (r != 2)
-			printf("%s: *** ERROR: Invalid GPT ***\n", __func__);
+			debug("%s: *** ERROR: Invalid GPT ***\n", __func__);
 
 		if (is_gpt_valid(dev_desc, (dev_desc->lba - 1), gpt_head,
 				 pgpt_pte) != 1) {
@@ -1081,7 +1081,7 @@ static int find_valid_gpt(struct blk_desc *dev_desc, gpt_header *gpt_head,
 			return 0;
 		}
 		if (r != 2)
-			printf("%s: ***        Using Backup GPT ***\n",
+			debug("%s: ***        Using Backup GPT ***\n",
 			       __func__);
 	}
 	return 1;

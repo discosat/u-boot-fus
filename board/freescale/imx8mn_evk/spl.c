@@ -9,25 +9,51 @@
 #include <hang.h>
 #include <spl.h>
 #include <asm/io.h>
-#include <errno.h>
-#include <asm/io.h>
 #include <asm/mach-imx/iomux-v3.h>
+#include <asm/arch/clock.h>
 #include <asm/arch/imx8mn_pins.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/mach-imx/boot_mode.h>
+#include <asm/arch/ddr.h>
+
 #include <power/pmic.h>
 #ifdef CONFIG_POWER_PCA9450
 #include <power/pca9450.h>
 #else
 #include <power/bd71837.h>
 #endif
-#include <asm/arch/clock.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
-#include <fsl_esdhc.h>
+#include <fsl_esdhc_imx.h>
 #include <mmc.h>
-#include <asm/arch/ddr.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+int spl_board_boot_device(enum boot_device boot_dev_spl)
+{
+#ifdef CONFIG_SPL_BOOTROM_SUPPORT
+	return BOOT_DEVICE_BOOTROM;
+#else
+	switch (boot_dev_spl) {
+	case SD1_BOOT:
+	case MMC1_BOOT:
+	case SD2_BOOT:
+	case MMC2_BOOT:
+		return BOOT_DEVICE_MMC1;
+	case SD3_BOOT:
+	case MMC3_BOOT:
+		return BOOT_DEVICE_MMC2;
+	case QSPI_BOOT:
+		return BOOT_DEVICE_NOR;
+	case NAND_BOOT:
+		return BOOT_DEVICE_NAND;
+	case USB_BOOT:
+		return BOOT_DEVICE_BOARD;
+	default:
+		return BOOT_DEVICE_NONE;
+	}
+#endif
+}
 
 void spl_dram_init(void)
 {
@@ -56,7 +82,6 @@ struct i2c_pads_info i2c_pad_info1 = {
 			 PAD_CTL_FSEL2)
 #define USDHC_GPIO_PAD_CTRL (PAD_CTL_HYS | PAD_CTL_DSE1)
 #define USDHC_CD_PAD_CTRL (PAD_CTL_PE |PAD_CTL_PUE |PAD_CTL_HYS | PAD_CTL_DSE4)
-
 
 static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IMX8MN_PAD_NAND_WE_B__USDHC3_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -164,10 +189,24 @@ int power_init_board(void)
 	/* BUCKxOUT_DVS0/1 control BUCK123 output */
 	pmic_reg_write(p, PCA9450_BUCK123_DVS, 0x29);
 
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+	/* Set VDD_SOC/VDD_DRAM to 0.8v for low drive mode */
+	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x10);
+#elif defined(CONFIG_TARGET_IMX8MN_DDR3_EVK)
+	/* Set VDD_SOC to 0.85v for DDR3L at 1600MTS */
+	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x14);
+
+	/* Disable the BUCK2 */
+	pmic_reg_write(p, PCA9450_BUCK2CTRL, 0x48);
+
+	/* Set NVCC_DRAM to 1.35v */
+	pmic_reg_write(p, PCA9450_BUCK6OUT, 0x1E);
+#else
 	/* increase VDD_SOC/VDD_DRAM to typical value 0.95V before first DRAM access */
+	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x1C);
+#endif
 	/* Set DVS1 to 0.85v for suspend */
 	/* Enable DVS control through PMIC_STBY_REQ and set B1_ENMODE=1 (ON by PMIC_ON_REQ=H) */
-	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x1C);
 	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS1, 0x14);
 	pmic_reg_write(p, PCA9450_BUCK1CTRL, 0x59);
 
@@ -205,18 +244,19 @@ int power_init_board(void)
 	/* Set VDD_ARM to typical value 0.85v for 1.2Ghz */
 	pmic_reg_write(p, BD71837_BUCK2_VOLT_RUN, 0xf);
 
-#ifdef CONFIG_IMX8M_DDR4
+#ifdef CONFIG_IMX8MN_LOW_DRIVE_MODE
+	/* Set VDD_SOC/VDD_DRAM to typical value 0.8v for low drive mode */
+	pmic_reg_write(p, BD71837_BUCK1_VOLT_RUN, 0xa);
+#else
 	/* Set VDD_SOC/VDD_DRAM to typical value 0.85v for nominal mode */
 	pmic_reg_write(p, BD71837_BUCK1_VOLT_RUN, 0xf);
-#endif
+#endif /* CONFIG_IMX8MN_LOW_DRIVE_MODE */
 
 	/* Set VDD_SOC 0.85v for suspend */
 	pmic_reg_write(p, BD71837_BUCK1_VOLT_SUSP, 0xf);
 
-#ifdef CONFIG_IMX8M_DDR4
 	/* increase NVCC_DRAM_1V2 to 1.2v for DDR4 */
 	pmic_reg_write(p, BD71837_BUCK8_VOLT, 0x28);
-#endif
 
 	/* lock the PMIC regs */
 	pmic_reg_write(p, BD71837_REGLOCK, 0x11);
@@ -273,6 +313,15 @@ void board_init_f(ulong dummy)
 	spl_dram_init();
 
 	board_init_r(NULL, 0);
+}
+
+int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	puts("resetting ...\n");
+
+	reset_cpu(WDOG1_BASE_ADDR);
+
+	return 0;
 }
 
 #ifdef CONFIG_SPL_MMC_SUPPORT

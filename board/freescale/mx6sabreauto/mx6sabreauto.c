@@ -224,9 +224,22 @@ static void eim_clk_setup(void)
 
 static void setup_iomux_eimnor(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	SETUP_IOMUX_PADS(eimnor_pads);
 
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
+	ret = dm_gpio_lookup_name("GPIO5_4", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_4 failed ret = %d\n", __func__, ret);
+		return;
+	}
+	ret = dm_gpio_request(&desc, "steer ctrl");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE | GPIOD_ACTIVE_LOW);
 
 	eimnor_cs_setup();
 }
@@ -493,8 +506,22 @@ iomux_v3_cfg_t const backlight_pads[] = {
 
 static void setup_iomux_backlight(void)
 {
-	gpio_request(IMX_GPIO_NR(2, 9), "backlight");
-	gpio_direction_output(IMX_GPIO_NR(2, 9), 1);
+	int ret;
+	struct gpio_desc desc;
+
+	ret = dm_gpio_lookup_name("GPIO2_9", &desc);
+	if (ret) {
+		printf("%s lookup GPIO2_9 failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	ret = dm_gpio_request(&desc, "backlight");
+	if (ret) {
+		printf("%s request backlight failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	SETUP_IOMUX_PADS(backlight_pads);
 }
 
@@ -574,9 +601,22 @@ iomux_v3_cfg_t const ecspi1_pads[] = {
 
 void setup_spinor(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	SETUP_IOMUX_PADS(ecspi1_pads);
 
-	gpio_direction_output(IMX_GPIO_NR(5, 4), 0);
+	ret = dm_gpio_lookup_name("GPIO5_4", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_4 failed ret = %d\n", __func__, ret);
+		return;
+	}
+	ret = dm_gpio_request(&desc, "steer ctrl");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE | GPIOD_ACTIVE_LOW);
 }
 #endif
 
@@ -596,6 +636,9 @@ int board_early_init_f(void)
 
 int board_init(void)
 {
+	int ret;
+	struct gpio_desc desc;
+
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
@@ -607,8 +650,17 @@ int board_init(void)
 #endif
 #endif
 
-	gpio_request(IMX_GPIO_NR(1, 15), "expander en");
-	gpio_direction_output(IMX_GPIO_NR(1, 15), 1);
+	ret = dm_gpio_lookup_name("GPIO1_15", &desc);
+	if (ret) {
+		printf("%s lookup GPIO1_15 failed ret = %d\n", __func__, ret);
+		return -ENODEV;
+	}
+	ret = dm_gpio_request(&desc, "expander en");
+	if (ret) {
+		printf("%s request steer logic failed ret = %d\n", __func__, ret);
+		return -ENODEV;
+	}
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	SETUP_IOMUX_PADS(port_exp);
 
 #ifdef CONFIG_VIDEO_IPUV3
@@ -909,7 +961,6 @@ int board_ehci_hcd_init(int port)
 #ifdef CONFIG_FSL_FASTBOOT
 #ifdef CONFIG_ANDROID_RECOVERY
 
-#define GPIO_VOL_DN_KEY IMX_GPIO_NR(5, 14)
 iomux_v3_cfg_t const recovery_key_pads[] = {
 	IOMUX_PADS(PAD_DISP0_DAT20__GPIO5_IO14 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -917,14 +968,27 @@ iomux_v3_cfg_t const recovery_key_pads[] = {
 int is_recovery_key_pressing(void)
 {
 	int button_pressed = 0;
+	int ret;
+	struct gpio_desc desc;
 
 	/* Check Recovery Combo Button press or not. */
 	SETUP_IOMUX_PADS(recovery_key_pads);
 
-	gpio_request(GPIO_VOL_DN_KEY, "volume_dn_key");
-	gpio_direction_input(GPIO_VOL_DN_KEY);
+	ret = dm_gpio_lookup_name("GPIO5_14", &desc);
+	if (ret) {
+		printf("%s lookup GPIO5_14 failed ret = %d\n", __func__, ret);
+		return;
+	}
 
-	if (gpio_get_value(GPIO_VOL_DN_KEY) == 0) { /* VOL_DN key is low assert */
+	ret = dm_gpio_request(&desc, "volume_dn_key");
+	if (ret) {
+		printf("%s request volume_dn_key failed ret = %d\n", __func__, ret);
+		return;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_IN);
+
+	if (dm_gpio_get_value(&desc) == 0) { /* VOL_DN key is low assert */
 		button_pressed = 1;
 		printf("Recovery key pressed\n");
 	}

@@ -649,7 +649,7 @@ static int ipuv3_video_probe(struct udevice *dev)
 	debug("%s() plat: base 0x%lx, size 0x%x\n",
 	      __func__, plat->base, plat->size);
 
-	ret = ipu_probe();
+	ret = ipu_probe(1, gdisp);
 	if (ret)
 		return ret;
 

@@ -144,7 +144,7 @@ static void dump_reg(
 	const MII_reg_desc_t *prd);
 
 static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
-	ushort regval);
+			  ushort regval);
 
 static void MII_dump(const ushort *regvals, uchar reglo, uchar reghi)
 {
@@ -209,7 +209,7 @@ static void dump_reg(
 */
 
 static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
-	ushort regval)
+			  ushort regval)
 {
 	const ushort sel_bits = (regval >> pdesc->lo) & pdesc->mask;
 
@@ -235,7 +235,7 @@ static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
 		dump_field(pdesc, regval);
 		printf(" = %s",
 		       sel_bits == PHY_ANLPAR_PSB_802_3 ? "IEEE 802.3 CSMA/CD" :
-			sel_bits == PHY_ANLPAR_PSB_802_9 ?
+		       sel_bits == PHY_ANLPAR_PSB_802_9 ?
 		       "IEEE 802.9 ISLAN-16T" : "???");
 		return 1;
 	}
@@ -244,7 +244,7 @@ static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
 		dump_field(pdesc, regval);
 		printf(" = %s",
 		       sel_bits == PHY_ANLPAR_PSB_802_3 ? "IEEE 802.3 CSMA/CD" :
-			sel_bits == PHY_ANLPAR_PSB_802_9 ?
+		       sel_bits == PHY_ANLPAR_PSB_802_9 ?
 		       "IEEE 802.9 ISLAN-16T" : "???");
 		return 1;
 	}

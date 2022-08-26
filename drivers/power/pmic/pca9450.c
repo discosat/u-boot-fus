@@ -28,7 +28,7 @@ static int pca9450_reg_count(struct udevice *dev)
 }
 
 static int pca9450_write(struct udevice *dev, uint reg, const uint8_t *buff,
-			  int len)
+			 int len)
 {
 	if (dm_i2c_write(dev, reg, buff, len)) {
 		pr_err("write error to device: %p register: %#x!", dev, reg);

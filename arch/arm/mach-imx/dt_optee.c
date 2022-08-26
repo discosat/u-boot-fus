@@ -17,6 +17,9 @@ int ft_add_optee_node(void *fdt, bd_t *bd)
 	phys_addr_t optee_start;
 	size_t optee_size;
 
+	/* Not let uboot create the node */
+	if (CONFIG_IS_ENABLED(XEN))
+		return 0;
 	/*
 	 * No TEE space allocated indicating no TEE running, so no
 	 * need to add optee node in dts
@@ -27,7 +30,7 @@ int ft_add_optee_node(void *fdt, bd_t *bd)
 #ifdef CONFIG_OF_LIBFDT_OVERLAY
 	if (rom_pointer[2]) {
 		debug("OP-TEE: applying overlay on 0x%lx\n",rom_pointer[2]);
-		ret = fdt_overlay_apply_verbose(fdt, (void *)rom_pointer[2]);
+		ret = fdt_overlay_apply_verbose(fdt, (void*)rom_pointer[2]);
 		if (ret == 0) {
 			debug("Overlay applied with success");
 			fdt_pack(fdt);

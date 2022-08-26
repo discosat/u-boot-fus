@@ -83,7 +83,7 @@ static enum env_location env_locations[] = {
 #ifdef CONFIG_ENV_IS_IN_UBI
 	ENVL_UBI,
 #endif
-#if defined(CONFIG_ENV_IS_NOWHERE)
+#ifdef CONFIG_ENV_IS_NOWHERE
 	ENVL_NOWHERE,
 #endif
 };
@@ -125,8 +125,8 @@ static void env_set_inited(enum env_location location)
  */
 __weak enum env_location env_get_location(enum env_operation op, int prio)
 {
-		if (prio >= ARRAY_SIZE(env_locations))
-			return ENVL_UNKNOWN;
+	if (prio >= ARRAY_SIZE(env_locations))
+		return ENVL_UNKNOWN;
 
 	gd->env_load_prio = prio;
 
@@ -208,7 +208,7 @@ int env_load(void)
 				best_prio = prio;
 		} else {
 			debug("Failed (%d)\n", ret);
-	}
+		}
 	}
 
 	/*

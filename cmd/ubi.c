@@ -560,15 +560,13 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		int dynamic = 1;	/* default: dynamic volume */
 		int id = UBI_VOL_NUM_AUTO;
 
+		/* E.g., create volume with "skipcheck" bit set */
+		if (argc > 6)
+			skipcheck = strncmp(argv[6], "--skipcheck", 11) == 0;
+
 		/* Get id */
 		if (argc > 5)
 			id = simple_strtoul(argv[5], NULL, 16);
-
-		/* E.g., create volume with "skipcheck" bit set */
-		if (argc == 7) {
-			skipcheck = strncmp(argv[6], "--skipcheck", 11) == 0;
-			argc--;
-		}
 
 		/* Get type */
 		if (argc > 4) {

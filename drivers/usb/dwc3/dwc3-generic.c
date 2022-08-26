@@ -108,7 +108,7 @@ static int dwc3_generic_ofdata_to_platdata(struct udevice *dev)
 }
 
 #if CONFIG_IS_ENABLED(DM_USB_GADGET)
-int dm_usb_gadget_handle_interrupts(struct udevice *dev)
+static int dwc3_generic_peripheral_handle_interrupts(struct udevice *dev)
 {
 	struct dwc3_generic_priv *priv = dev_get_priv(dev);
 	struct dwc3 *dwc3 = &priv->dwc3;

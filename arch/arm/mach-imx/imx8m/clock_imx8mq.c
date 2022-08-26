@@ -350,7 +350,7 @@ unsigned int mxc_get_clock(enum mxc_clock clk)
 {
 	u32 val;
 
-	switch (clk) {
+	switch(clk) {
 	case MXC_ARM_CLK:
 		return get_arm_core_clk();
 	case MXC_IPG_CLK:
@@ -861,6 +861,20 @@ int clock_init(void)
 	return 0;
 }
 #endif
+
+int imx8m_dcss_clock_init(u32 pixclk)
+{
+	/* b_clk: bus_clk_root(4) sel 2nd input source and
+	   pre_div to 0; output should be 800M */
+	clock_set_target_val(DISPLAY_AXI_CLK_ROOT, CLK_ROOT_ON |CLK_ROOT_SOURCE_SEL(2));
+
+	/* rtr_clk: bus_clk_root(6) sel 1st input source
+		   and pre_div to 1; output should be 400M */
+	clock_set_target_val(DISPLAY_RTRM_CLK_ROOT,
+		CLK_ROOT_ON |CLK_ROOT_SOURCE_SEL(1) |CLK_ROOT_PRE_DIV(CLK_ROOT_PRE_DIV2));
+
+	return 0;
+}
 
 /*
  * Dump some clockes.

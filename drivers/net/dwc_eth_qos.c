@@ -44,7 +44,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <eth_phy.h>
-#if defined(CONFIG_IMX8M) || defined(CONFIG_IMX8DXL)
+#if defined(CONFIG_IMX8MP) || defined(CONFIG_IMX8DXL)
 #include <asm/mach-imx/sys_proto.h>
 #endif
 
@@ -652,7 +652,7 @@ err:
 
 static int eqos_start_clks_imx(struct udevice *dev)
 {
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret;
 
@@ -680,7 +680,7 @@ static int eqos_start_clks_imx(struct udevice *dev)
 	debug("%s: OK\n", __func__);
 	return 0;
 
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 err_disable_clk_master_bus:
 	clk_disable(&eqos->clk_master_bus);
 err_disable_clk_slave_bus:
@@ -727,7 +727,7 @@ static void eqos_stop_clks_stm32(struct udevice *dev)
 
 static void eqos_stop_clks_imx(struct udevice *dev)
 {
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
@@ -885,7 +885,7 @@ static ulong eqos_get_tick_clk_rate_stm32(struct udevice *dev)
 
 static ulong eqos_get_tick_clk_rate_imx(struct udevice *dev)
 {
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	struct eqos_priv *eqos = dev_get_priv(dev);
 	return clk_get_rate(&eqos->clk_slave_bus);
 #else
@@ -1037,7 +1037,7 @@ static int eqos_set_tx_clk_speed_imx(struct udevice *dev)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	if (!is_imx8dxl())
 		ret = clk_set_rate(&eqos->clk_tx, rate);
 #else
@@ -1162,7 +1162,7 @@ static int eqos_read_rom_hwaddr(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_platdata(dev);
 
-#ifdef CONFIG_ARCH_IMX8M
+#if defined(CONFIG_IMX8MP) || defined(CONFIG_IMX8DXL)
 	imx_get_mac_from_fuse(dev->req_seq, pdata->enetaddr);
 #endif
 	return !is_valid_ethaddr(pdata->enetaddr);
@@ -1628,6 +1628,8 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 		return -EINVAL;
 	}
 
+	eqos->config->ops->eqos_inval_buffer(packet, length);
+
 	rx_desc = &(eqos->rx_descs[eqos->rx_desc_idx]);
 	rx_desc->des0 = (u32)(ulong)packet;
 	rx_desc->des1 = 0;
@@ -1926,7 +1928,7 @@ static int eqos_probe_resources_imx(struct udevice *dev)
 			mdelay(eqos->reset_post_delay);
 	}
 
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	ret = clk_get_by_name(dev, "aclk", &eqos->clk_master_bus);
 	if (ret) {
 		pr_err("clk_get_by_name(csr) failed: %d", ret);
@@ -1949,7 +1951,7 @@ static int eqos_probe_resources_imx(struct udevice *dev)
 	debug("%s: OK\n", __func__);
 	return 0;
 
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 err_free_clk_slave_bus:
 	clk_free(&eqos->clk_slave_bus);
 err_free_clk_master_bus:
@@ -2022,7 +2024,7 @@ static int eqos_remove_resources_imx(struct udevice *dev)
 	struct eqos_priv *eqos = dev_get_priv(dev);
 
 	debug("%s(dev=%p):\n", __func__, dev);
-#ifdef CONFIG_CLK
+#if CONFIG_IS_ENABLED(CLK) && IS_ENABLED(CONFIG_IMX8)
 	clk_free(&eqos->clk_tx);
 	clk_free(&eqos->clk_slave_bus);
 	clk_free(&eqos->clk_master_bus);
@@ -2206,7 +2208,7 @@ static struct eqos_ops eqos_imx_ops = {
 
 struct eqos_config eqos_imx_config = {
 	.reg_access_always_ok = false,
-	.mdio_wait = 10000,
+	.mdio_wait = 10,
 	.swr_wait = 50,
 	.config_mac = EQOS_MAC_RXQ_CTRL0_RXQ0EN_ENABLED_DCB,
 	.config_mac_mdio = EQOS_MAC_MDIO_ADDRESS_CR_250_300,

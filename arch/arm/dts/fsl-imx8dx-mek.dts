@@ -6,5 +6,5 @@
 #include "fsl-imx8qxp-mek.dts"
 
 / {
-	model = "Freescale i.MX8DX MEK";
+	model = "NXP i.MX8DX MEK";
 };

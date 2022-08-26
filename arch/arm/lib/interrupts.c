@@ -96,7 +96,7 @@ int disable_interrupts (void)
 	return (old & 0x80) == 0;
 }
 #else
-int interrupt_init (void)
+int interrupt_init(void)
 {
 	/*
 	 * setup up stacks if necessary
@@ -106,11 +106,11 @@ int interrupt_init (void)
 	return 0;
 }
 
-void enable_interrupts (void)
+void enable_interrupts(void)
 {
 	return;
 }
-int disable_interrupts (void)
+int disable_interrupts(void)
 {
 	return 0;
 }

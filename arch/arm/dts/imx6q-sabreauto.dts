@@ -9,7 +9,7 @@
 #include "imx6qdl-sabreauto.dtsi"
 
 / {
-	model = "Freescale i.MX6 Quad SABRE Automotive Board";
+	model = "i.MX6 Quad SABRE Automotive Board";
 	compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
 };
 

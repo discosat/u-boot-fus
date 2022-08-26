@@ -112,14 +112,14 @@ config LDO_BYPASS_CHECK
 	default y if !MX6SLL
 	help
 	  This feature searches the gpc node in loaded DTB and checking the
-	  "fsl,ldo-bypass" property. When the property is set, board relevant
-	  PMIC settings are called to adjust for LDO bypass.
+	  "fsl,ldo-bypass" property. When the property is set, board relevant 
+	  PMIC settings are called to adjust for LDO bypass. 
 
 config CMD_BEE
 	bool "Enable commands for Bus Encryption Engine(BEE)"
 	depends on MX6UL
 	help
-	  Set "Y" to enable the bee commands
+	  Set "Y" to enable the bee commands 
 
 config MODULE_FUSE
 	bool "Enable the module disable fuse checking on i.MX6"
@@ -507,15 +507,15 @@ config TARGET_MX6SLEVK
 	select SUPPORT_SPL
 
 config TARGET_MX6SLLEVK
-        bool "mx6sll evk"
+	bool "mx6sll evk"
 	select BOARD_LATE_INIT
-        select DM
-        select DM_THERMAL
+	select DM
+	select DM_THERMAL
 	select MX6SLL
 	imply CMD_DM
 
-config TARGET_MX6SLL_ARM2
-	bool "mx6sll arm2"
+config TARGET_MX6SLL_VAL
+	bool "mx6sll val"
 	select BOARD_LATE_INIT
 	select MX6SLL
 	select DM
@@ -532,16 +532,16 @@ config TARGET_MX6SXSABRESD
 	select SUPPORT_SPL
 
 config TARGET_MX6SXSABREAUTO
-        bool "mx6sxsabreauto"
+	bool "mx6sxsabreauto"
 	select BOARD_EARLY_INIT_F
 	select BOARD_LATE_INIT
-        select DM
-        select DM_THERMAL
+	select DM
+	select DM_THERMAL
 	select MX6SX
 	imply CMD_DM
 
-config TARGET_MX6SX_14X14_ARM2
-	bool "mx6sx_14x14_arm2"
+config TARGET_MX6SX_14X14_VAL
+	bool "mx6sx_14x14_val"
 	select MX6SX
 	select DM
 	select DM_THERMAL
@@ -549,8 +549,8 @@ config TARGET_MX6SX_14X14_ARM2
 	select BOARD_LATE_INIT
 	imply CMD_DM
 
-config TARGET_MX6SX_17X17_ARM2
-	bool "mx6sx_17x17_arm2"
+config TARGET_MX6SX_17X17_VAL
+	bool "mx6sx_17x17_val"
 	select MX6SX
 	select DM
 	select DM_THERMAL
@@ -558,8 +558,8 @@ config TARGET_MX6SX_17X17_ARM2
 	select BOARD_LATE_INIT
 	imply CMD_DM
 
-config TARGET_MX6SX_19X19_ARM2
-	bool "mx6sx_19x19_arm2"
+config TARGET_MX6SX_19X19_VAL
+	bool "mx6sx_19x19_val"
 	select MX6SX
 	select DM
 	select DM_THERMAL
@@ -585,16 +585,16 @@ config TARGET_MX6UL_14X14_EVK
 	select SUPPORT_SPL
 	imply CMD_DM
 
-config TARGET_MX6UL_14X14_DDR3_ARM2
-	bool "mx6ul_14x14_ddr3_arm2"
+config TARGET_MX6UL_14X14_DDR3_VAL
+	bool "mx6ul_14x14_ddr3_val"
 	select BOARD_LATE_INIT
 	select MX6UL
 	select DM
 	select DM_THERMAL
 	imply CMD_DM
 
-config TARGET_MX6UL_14X14_LPDDR2_ARM2
-	bool "mx6ul_14x14_lpddr2_arm2"
+config TARGET_MX6UL_14X14_LPDDR2_VAL
+	bool "mx6ul_14x14_lpddr2_val"
 	select BOARD_LATE_INIT
 	select MX6UL
 	select DM
@@ -619,8 +619,8 @@ config TARGET_MX6UL_ENGICAM
 	select SUPPORT_SPL
 	imply CMD_DM
 
-config TARGET_MX6ULL_DDR3_ARM2
-	bool "Support mx6ull_ddr3_arm2"
+config TARGET_MX6ULL_DDR3_VAL
+	bool "Support mx6ull_ddr3_val"
 	select BOARD_LATE_INIT
 	select MX6ULL
 	select DM
@@ -633,6 +633,7 @@ config TARGET_MX6ULL_9X9_EVK
 	select MX6ULL
 	select DM
 	select DM_THERMAL
+	imply CMD_DM
 
 config TARGET_MX6ULL_14X14_EVK
 	bool "Support mx6ull_14x14_evk"
@@ -879,17 +880,17 @@ source "board/freescale/mx6memcal/Kconfig"
 source "board/freescale/mx6sabreauto/Kconfig"
 source "board/freescale/mx6sabresd/Kconfig"
 source "board/freescale/mx6slevk/Kconfig"
-source "board/freescale/mx6sll_arm2/Kconfig"
+source "board/freescale/mx6sll_val/Kconfig"
 source "board/freescale/mx6sllevk/Kconfig"
 source "board/freescale/mx6sxsabresd/Kconfig"
 source "board/freescale/mx6sxsabreauto/Kconfig"
-source "board/freescale/mx6sx_17x17_arm2/Kconfig"
-source "board/freescale/mx6sx_19x19_arm2/Kconfig"
+source "board/freescale/mx6sx_17x17_val/Kconfig"
+source "board/freescale/mx6sx_19x19_val/Kconfig"
 source "board/freescale/mx6ul_14x14_evk/Kconfig"
-source "board/freescale/mx6ul_14x14_ddr3_arm2/Kconfig"
-source "board/freescale/mx6ul_14x14_lpddr2_arm2/Kconfig"
+source "board/freescale/mx6ul_14x14_ddr3_val/Kconfig"
+source "board/freescale/mx6ul_14x14_lpddr2_val/Kconfig"
 source "board/freescale/mx6ullevk/Kconfig"
-source "board/freescale/mx6ull_ddr3_arm2/Kconfig"
+source "board/freescale/mx6ull_ddr3_val/Kconfig"
 source "board/F+S/fsimx6/Kconfig"
 source "board/F+S/fsimx6sx/Kconfig"
 source "board/F+S/fsimx6ul/Kconfig"

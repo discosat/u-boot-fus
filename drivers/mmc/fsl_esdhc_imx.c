@@ -30,9 +30,16 @@
 #include <asm-generic/gpio.h>
 #include <dm/pinctrl.h>
 #include <asm/arch/sys_proto.h>
+#include <linux/iopoll.h>
 
 #if !CONFIG_IS_ENABLED(BLK)
 #include "mmc_private.h"
+#endif
+
+#ifndef ESDHCI_QUIRK_BROKEN_TIMEOUT_VALUE
+#ifdef CONFIG_FSL_USDHC
+#define ESDHCI_QUIRK_BROKEN_TIMEOUT_VALUE	1
+#endif
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -135,6 +142,8 @@ struct esdhc_soc_data {
 struct fsl_esdhc_priv {
 	struct fsl_esdhc_cfg esdhc;
 	struct clk per_clk;
+	struct clk ipg_clk;
+	struct clk ahb_clk;
 	unsigned int clock;
 #if !CONFIG_IS_ENABLED(BLK)
 	struct mmc *mmc;
@@ -620,6 +629,8 @@ static void set_sysctl(struct fsl_esdhc_priv *priv, struct mmc *mmc, uint clock)
 {
 	struct fsl_esdhc *regs = (struct fsl_esdhc *)priv->esdhc.esdhc_base;
 	int div = 1;
+	u32 tmp;
+	int ret;
 #ifdef ARCH_MXC
 #ifdef CONFIG_MX53
 	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
@@ -665,7 +676,9 @@ static void set_sysctl(struct fsl_esdhc_priv *priv, struct mmc *mmc, uint clock)
 
 	esdhc_clrsetbits32(&regs->sysctl, SYSCTL_CLOCK_MASK, clk);
 
-	udelay(10000);
+	ret = readl_poll_timeout(&regs->prsstat, tmp, tmp & PRSSTAT_SDSTB, 100);
+	if (ret)
+		pr_warn("fsl_esdhc_imx: Internal clock never stabilised.\n");
 
 #ifdef CONFIG_FSL_USDHC
 	esdhc_setbits32(&regs->vendorspec, VENDORSPEC_PEREN | VENDORSPEC_CKEN);
@@ -1308,6 +1321,13 @@ int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg)
 	if (!cfg)
 		return -EINVAL;
 
+#ifdef CONFIG_MX6
+	if (mx6_esdhc_fused(cfg->esdhc_base)) {
+		printf("ESDHC@0x%lx is fused, disable it\n", cfg->esdhc_base);
+		return -ENODEV;
+	}
+#endif
+
 	priv = calloc(sizeof(struct fsl_esdhc_priv), 1);
 	if (!priv)
 		return -ENOMEM;
@@ -1324,14 +1344,6 @@ int fsl_esdhc_initialize(bd_t *bis, struct fsl_esdhc_cfg *cfg)
 		free(priv);
 		return ret;
 	}
-
-#ifdef CONFIG_MX6
-	if (mx6_esdhc_fused(cfg->esdhc_base)) {
-		printf("ESDHC@0x%lx is fused, disable it\n", cfg->esdhc_base);
-		free(priv);
-		return -ENODEV;
-	}
-#endif
 
 	ret = fsl_esdhc_init(priv, plat);
 	if (ret) {
@@ -1415,6 +1427,7 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	addr = dev_read_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
+
 #ifdef CONFIG_MX6
 	if (mx6_esdhc_fused(addr)) {
 		printf("ESDHC@0x%lx is fused, disable it\n", addr);
@@ -1515,25 +1528,45 @@ static int fsl_esdhc_probe(struct udevice *dev)
 	init_clk_usdhc(dev->seq);
 
 #if CONFIG_IS_ENABLED(CLK)
-		/* Assigned clock already set clock */
-		ret = clk_get_by_name(dev, "per", &priv->per_clk);
+	/* Assigned clock already set clock */
+	ret = clk_get_by_name(dev, "ipg", &priv->ipg_clk);
+	if (!ret) {
+		ret = clk_enable(&priv->ipg_clk);
 		if (ret) {
-			printf("Failed to get per_clk\n");
+			printf("Failed to enable ipg_clk\n");
 			return ret;
 		}
-		ret = clk_enable(&priv->per_clk);
-		if (ret) {
-			printf("Failed to enable per_clk\n");
-			return ret;
-		}
+	}
 
-		priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
-#else
-		priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
-		if (priv->esdhc.sdhc_clk <= 0) {
-			dev_err(dev, "Unable to get clk for %s\n", dev->name);
-			return -EINVAL;
+	ret = clk_get_by_name(dev, "ahb", &priv->ahb_clk);
+	if (!ret) {
+		ret = clk_enable(&priv->ahb_clk);
+		if (ret) {
+			printf("Failed to enable ahb_clk\n");
+			return ret;
 		}
+	}
+
+	ret = clk_get_by_name(dev, "per", &priv->per_clk);
+	if (ret) {
+		printf("Failed to get per_clk\n");
+		return ret;
+	}
+	ret = clk_enable(&priv->per_clk);
+	if (ret) {
+		printf("Failed to enable per_clk\n");
+		return ret;
+	}
+
+	priv->esdhc.sdhc_clk = clk_get_rate(&priv->per_clk);
+#else
+	init_clk_usdhc(dev->seq);
+
+	priv->esdhc.sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK + dev->seq);
+	if (priv->esdhc.sdhc_clk <= 0) {
+		dev_err(dev, "Unable to get clk for %s\n", dev->name);
+		return -EINVAL;
+	}
 #endif
 
 	ret = fsl_esdhc_init(priv, plat);

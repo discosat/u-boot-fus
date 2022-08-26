@@ -915,7 +915,7 @@ static const struct dm_mmc_ops fsl_esdhc_ops = {
 	.send_cmd	= fsl_esdhc_send_cmd,
 	.set_ios	= fsl_esdhc_set_ios,
 #ifdef MMC_SUPPORTS_TUNING
-	.execute_tuning	= fsl_esdhc_execute_tuning,
+	.execute_tuning = fsl_esdhc_execute_tuning,
 #endif
 };
 

@@ -27,8 +27,8 @@
 #include <asm-generic/gpio.h>
 
 #include "fec_mxc.h"
-#include <asm/arch/sys_proto.h>
 #include <eth_phy.h>
+#include <asm/arch/sys_proto.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -1483,7 +1483,7 @@ static int fecmxc_probe(struct udevice *dev)
 		if (!ret) {
 			ret = clk_enable(&priv->clk_ptp);
 			if (ret)
-			return ret;
+				return ret;
 		}
 
 		priv->clk_rate = clk_get_rate(&priv->ipg_clk);
@@ -1653,8 +1653,8 @@ static const struct udevice_id fecmxc_ids[] = {
 	{ .compatible = "fsl,imx6ul-fec" },
 	{ .compatible = "fsl,imx53-fec" },
 	{ .compatible = "fsl,imx7d-fec" },
-	{ .compatible = "fsl,imx8qm-fec" },
 	{ .compatible = "fsl,mvf600-fec" },
+	{ .compatible = "fsl,imx8qm-fec" },
 	{ }
 };
 

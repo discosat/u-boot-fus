@@ -217,13 +217,13 @@ enum aux_state arch_auxiliary_core_get(u32 core_id)
  * the reset vector at the head for the image, with SP and PC
  * as the first two words.
  *
- * Per the cortex-M reference manual, the reset vector of M4 needs
- * to exist at 0x0 (TCMUL). The PC and SP are the first two addresses
- * of that vector.  So to boot M4, the A core must build the M4's reset
+ * Per the cortex-M reference manual, the reset vector of M4/M7 needs
+ * to exist at 0x0 (TCMUL/IDTCM). The PC and SP are the first two addresses
+ * of that vector.  So to boot M4/M7, the A core must build the M4/M7's reset
  * vector with getting the PC and SP from image and filling them to
- * TCMUL. When M4 is kicked, it will load the PC and SP by itself.
- * The TCMUL is mapped to (M4_BOOTROM_BASE_ADDR) at A core side for
- * accessing the M4 TCMUL.
+ * TCMUL/IDTCM. When M4/M7 is kicked, it will load the PC and SP by itself.
+ * The TCMUL/IDTCM is mapped to (MCU_BOOTROM_BASE_ADDR) at A core side for
+ * accessing the M4/M7 TCMUL/IDTCM.
  */
 static int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {

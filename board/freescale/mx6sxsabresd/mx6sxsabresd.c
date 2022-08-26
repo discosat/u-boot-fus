@@ -182,20 +182,24 @@ static void setup_iomux_uart(void)
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
 }
 
-static int setup_fec(int fec_id)
+static int setup_fec(void)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
 	int reg, ret;
+	struct gpio_desc desc;
 
-	if (0 == fec_id)
-		/* Use 125M anatop loopback REF_CLK1 for ENET1, clear gpr1[13], gpr1[17]*/
+	/* Use 125M anatop loopback REF_CLK1 for ENET1, clear gpr1[13], gpr1[17]*/
 	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC1_MASK, 0);
-	else
-		/* Use 125M anatop loopback REF_CLK1 for ENET2, clear gpr1[14], gpr1[18]*/
-		clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC2_MASK, 0);
 
-	ret = enable_fec_anatop_clock(fec_id, ENET_125MHZ);
+	/* Use 125M anatop loopback REF_CLK1 for ENET2, clear gpr1[14], gpr1[18]*/
+	clrsetbits_le32(&iomuxc_regs->gpr[1], IOMUX_GPR1_FEC2_MASK, 0);
+
+	ret = enable_fec_anatop_clock(0, ENET_125MHZ);
+	if (ret)
+		return ret;
+
+	ret = enable_fec_anatop_clock(1, ENET_125MHZ);
 	if (ret)
 		return ret;
 
@@ -203,14 +207,37 @@ static int setup_fec(int fec_id)
 					 ARRAY_SIZE(phy_control_pads));
 
 	/* Enable the ENET power, active low */
-	gpio_request(IMX_GPIO_NR(2, 6), "fec power en");
-	gpio_direction_output(IMX_GPIO_NR(2, 6) , 0);
+	ret = dm_gpio_lookup_name("GPIO2_6", &desc);
+	if (ret) {
+		printf("%s lookup GPIO2_6 failed ret = %d\n", __func__, ret);
+		return ret;
+	}
 
-	/* Reset AR8031 PHY */
-	gpio_request(IMX_GPIO_NR(2, 7), "ar8031 reset");
-	gpio_direction_output(IMX_GPIO_NR(2, 7) , 0);
+	ret = dm_gpio_request(&desc, "fec power en");
+	if (ret) {
+		printf("%s request fec power en failed ret = %d\n", __func__, ret);
+		return ret;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT);
+	dm_gpio_set_value(&desc, 0);
+
+	ret = dm_gpio_lookup_name("GPIO2_7", &desc);
+	if (ret) {
+		printf("%s lookup GPIO2_7 failed ret = %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = dm_gpio_request(&desc, "ar8031 reset");
+	if (ret) {
+		printf("%s request ar8031 reset failed ret = %d\n", __func__, ret);
+		return ret;
+	}
+
+	dm_gpio_set_dir_flags(&desc, GPIOD_IS_OUT);
+	dm_gpio_set_value(&desc, 0);
 	mdelay(10);
-	gpio_set_value(IMX_GPIO_NR(2, 7), 1);
+	dm_gpio_set_value(&desc, 1);
 
 	reg = readl(&anatop->pll_enet);
 	reg |= BM_ANADIG_PLL_ENET_REF_25M_ENABLE;
@@ -527,6 +554,14 @@ int board_early_init_f(void)
 	return 0;
 }
 
+#ifdef CONFIG_IMX_BOOTAUX
+ulong board_get_usable_ram_top(ulong total_size)
+{
+	/* Reserve top 1M memory used by M core vring/buffer */
+	return gd->ram_top - SZ_1M;
+}
+#endif
+
 static struct fsl_esdhc_cfg usdhc_cfg[3] = {
 	{USDHC2_BASE_ADDR, 0, 4},
 	{USDHC3_BASE_ADDR},
@@ -817,7 +852,7 @@ int board_init(void)
 
 	/* Also used for OF_CONTROL enabled */
 #ifdef CONFIG_FEC_MXC
-	setup_fec(CONFIG_FEC_ENET_DEV);
+	setup_fec();
 #endif
 
 	return 0;

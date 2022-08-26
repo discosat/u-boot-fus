@@ -240,15 +240,15 @@ int mmc_poll_for_busy(struct mmc *mmc, int timeout_ms)
 
 		if ((status & MMC_STATUS_RDY_FOR_DATA) &&
 		    (status & MMC_STATUS_CURR_STATE) !=
-			     MMC_STATE_PRG)
-				break;
+		     MMC_STATE_PRG)
+			break;
 
 		if (status & MMC_STATUS_MASK) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
 			pr_err("Status Error: 0x%08x\n", status);
 #endif
-				return -ECOMM;
-			}
+			return -ECOMM;
+		}
 
 		if (timeout_ms-- <= 0)
 			break;
@@ -653,12 +653,15 @@ static int mmc_send_op_cond_iter(struct mmc *mmc, int use_arg)
 static int mmc_send_op_cond(struct mmc *mmc)
 {
 	int err, i;
+	int timeout = 1000;
+	uint start;
 
 	/* Some cards seem to need this */
 	mmc_go_idle(mmc);
 
+	start = get_timer(0);
  	/* Asking to the card its capabilities */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; ; i++) {
 		err = mmc_send_op_cond_iter(mmc, i != 0);
 		if (err)
 			return err;
@@ -666,6 +669,10 @@ static int mmc_send_op_cond(struct mmc *mmc)
 		/* exit if not busy (flag seems to be inverted) */
 		if (mmc->ocr & OCR_BUSY)
 			break;
+
+		if (get_timer(start) > timeout)
+			return -ETIMEDOUT;
+		udelay(100);
 	}
 	mmc->op_cond_pending = 1;
 	return 0;
@@ -774,7 +781,7 @@ static int __mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value,
 	/* poll dat0 for rdy/buys status */
 	ret = mmc_wait_dat0(mmc, 1, timeout_ms * 1000);
 	if (ret && ret != -ENOSYS)
-	return ret;
+		return ret;
 
 	/*
 	 * In cases when not allowed to poll by using CMD13 or because we aren't
@@ -837,8 +844,8 @@ static int mmc_set_card_speed(struct mmc *mmc, enum bus_mode mode,
 #endif
 #if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
 	case MMC_HS_400_ES:
-		  speed_bits = EXT_CSD_TIMING_HS400;
-		  break;
+		speed_bits = EXT_CSD_TIMING_HS400;
+		break;
 #endif
 	case MMC_LEGACY:
 		speed_bits = EXT_CSD_TIMING_LEGACY;
@@ -972,8 +979,8 @@ int mmc_switch_part(struct mmc *mmc, unsigned int part_num)
 	do {
 		ret = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_PART_CONF,
-			 (mmc->part_config & ~PART_ACCESS_MASK)
-			 | (part_num & PART_ACCESS_MASK));
+				 (mmc->part_config & ~PART_ACCESS_MASK)
+				 | (part_num & PART_ACCESS_MASK));
 	} while (ret && retry--);
 
 	/*
@@ -1975,6 +1982,47 @@ static int mmc_select_hs400(struct mmc *mmc)
 }
 #endif
 
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+#if !CONFIG_IS_ENABLED(DM_MMC)
+static int mmc_set_enhanced_strobe(struct mmc *mmc)
+{
+	return -ENOTSUPP;
+}
+#endif
+static int mmc_select_hs400es(struct mmc *mmc)
+{
+	int err;
+
+	err = mmc_set_card_speed(mmc, MMC_HS, true);
+	if (err)
+		return err;
+
+	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH,
+			 EXT_CSD_BUS_WIDTH_8 | EXT_CSD_DDR_FLAG |
+			 EXT_CSD_BUS_WIDTH_STROBE);
+	if (err) {
+		printf("switch to bus width for hs400 failed\n");
+		return err;
+	}
+	/* TODO: driver strength */
+	err = mmc_set_card_speed(mmc, MMC_HS_400_ES, false);
+	if (err)
+		return err;
+
+	mmc_select_mode(mmc, MMC_HS_400_ES);
+	err = mmc_set_clock(mmc, mmc->tran_speed, false);
+	if (err)
+		return err;
+
+	return mmc_set_enhanced_strobe(mmc);
+}
+#else
+static int mmc_select_hs400es(struct mmc *mmc)
+{
+	return -ENOTSUPP;
+}
+#endif
+
 #define for_each_supported_width(caps, ddr, ecbv) \
 	for (ecbv = ext_csd_bus_width;\
 	    ecbv < ext_csd_bus_width + ARRAY_SIZE(ext_csd_bus_width);\
@@ -2051,6 +2099,13 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 				err = mmc_select_hs400(mmc);
 				if (err) {
 					printf("Select HS400 failed %d\n", err);
+					goto error;
+				}
+			} else if (mwt->mode == MMC_HS_400_ES) {
+				err = mmc_select_hs400es(mmc);
+				if (err) {
+					printf("Select HS400ES failed %d\n",
+					       err);
 					goto error;
 				}
 			} else {

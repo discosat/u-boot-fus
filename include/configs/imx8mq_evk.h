@@ -13,7 +13,7 @@
 #define CONFIG_SPL_MAX_SIZE		(148 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
+#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	(0x300 + CONFIG_SECONDARY_BOOT_SECTOR_OFFSET)
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 
 #ifdef CONFIG_SPL_BUILD
@@ -47,18 +47,16 @@
 
 /* ENET Config */
 /* ENET1 */
+#if defined(CONFIG_FEC_MXC)
 #define CONFIG_ETHPRIME                 "FEC"
+#define PHY_ANEG_TIMEOUT 20000
 
-#define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
 #define CONFIG_FEC_MXC_PHYADDR          0
 #define FEC_QUIRK_ENET_MAC
 
 #define IMX_FEC_BASE			0x30BE0000
-
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_ATHEROS
-
+#endif
 
 /*
  * Another approach is add the clocks for inmates into clks_init_on
@@ -86,6 +84,7 @@
 	JAILHOUSE_ENV \
 	"script=boot.scr\0" \
 	"image=Image\0" \
+	"splashimage=0x50000000\0" \
 	"console=ttymxc0,115200\0" \
 	"fdt_addr=0x43000000\0"			\
 	"fdt_high=0xffffffffffffffff\0"		\
@@ -174,14 +173,9 @@
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
 					(PHYS_SDRAM_SIZE >> 1))
 
-#define CONFIG_BAUDRATE			115200
-
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_BASE_ADDR
 
 /* Monitor Command Prompt */
-#undef CONFIG_SYS_PROMPT
-#define CONFIG_SYS_PROMPT		"u-boot=> "
 #define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
 #define CONFIG_SYS_CBSIZE		1024
 #define CONFIG_SYS_MAXARGS		64
@@ -197,6 +191,7 @@
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_FSL_QSPI
+#define CONFIG_SYS_FSL_QSPI_AHB
 #define FSL_QSPI_FLASH_SIZE		(SZ_32M)
 #define FSL_QSPI_FLASH_NUM		1
 #endif
@@ -231,16 +226,19 @@
 #endif
 
 #ifdef CONFIG_DM_VIDEO
-#define CONFIG_VIDEO_IMXDCSS
-#define CONFIG_VIDEO_BMP_RLE8
+#define CONFIG_VIDEO_LOGO
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_LOGO
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #endif
 
-#if defined(CONFIG_ANDROID_SUPPORT)
+#ifdef CONFIG_ANDROID_SUPPORT
 #include "imx8mq_evk_android.h"
 #endif
+
 #endif

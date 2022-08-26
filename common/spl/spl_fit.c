@@ -148,8 +148,8 @@ static int spl_fit_get_image_name(const void *fit, int images,
 	}
 
 	if (!found) {
-			debug("no string for index %d\n", index);
-			return -E2BIG;
+		debug("no string for index %d\n", index);
+		return -E2BIG;
 	}
 
 	*outname = str;
@@ -281,7 +281,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 
 	if (IS_ENABLED(CONFIG_SPL_GZIP)) {
 		fit_image_get_comp(fit, node, &image_comp);
-			debug("%s ", genimg_get_comp_name(image_comp));
+		debug("%s ", genimg_get_comp_name(image_comp));
 	}
 
 	if (fit_image_get_load(fit, node, &load_addr))
@@ -577,13 +577,13 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	}
 
 #if defined(CONFIG_DUAL_BOOTLOADER) && defined(CONFIG_IMX_TRUSTY_OS)
-	int rbindex;
-	rbindex = spl_fit_get_rbindex(fit, images);
-	if (rbindex < 0) {
-		printf("Error! Can't get rollback index!\n");
-		return -1;
-	} else
-		spl_image->rbindex = rbindex;
+    int rbindex;
+    rbindex = spl_fit_get_rbindex(fit, images);
+    if (rbindex < 0) {
+        printf("Error! Can't get rollback index!\n");
+        return -1;
+    } else
+        spl_image->rbindex = rbindex;
 #endif
 
 #ifdef CONFIG_SPL_FPGA_SUPPORT
@@ -728,7 +728,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 
 #ifdef CONFIG_IMX_HAB
 	if (!(spl_image->flags & SPL_FIT_BYPASS_POST_LOAD))
-	board_spl_fit_post_load((ulong)fit, size);
+		board_spl_fit_post_load((ulong)fit, size);
 #endif
 
 	return 0;
