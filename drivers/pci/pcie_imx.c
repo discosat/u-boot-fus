@@ -609,7 +609,7 @@ static void __iomem *get_bus_address(struct imx_pcie_priv *priv,
 					 (ulong)priv->cfg_base,
 					 (u64)d << 8,
 					 priv->cfg_size >> 1);
-		va_address = priv->cfg_base;
+			va_address = priv->cfg_base;
 		} else {
 			/* Outbound TLP matched the bus behind the bridge uses type CFG1 */
 			imx_pcie_atu_outbound_set(priv, PCIE_ATU_REGION_INDEX1,
@@ -1079,14 +1079,14 @@ static int imx6_pcie_assert_core_reset(struct imx_pcie_priv *priv,
 
 #if defined(CONFIG_MX6SX)
 	if (priv->variant == IMX6SX) {
-	struct gpc *gpc_regs = (struct gpc *)GPC_BASE_ADDR;
+		struct gpc *gpc_regs = (struct gpc *)GPC_BASE_ADDR;
 
-	/* SSP_EN is not used on MX6SX anymore */
+		/* SSP_EN is not used on MX6SX anymore */
 		imx_pcie_gpr_update_bits(priv, 48, IOMUXC_GPR12_TEST_POWERDOWN, IOMUXC_GPR12_TEST_POWERDOWN);
-	/* Force PCIe PHY reset */
+		/* Force PCIe PHY reset */
 		imx_pcie_gpr_update_bits(priv, 20, IOMUXC_GPR5_PCIE_BTNRST, IOMUXC_GPR5_PCIE_BTNRST);
-	/* Power up PCIe PHY */
-	setbits_le32(&gpc_regs->cntr, PCIE_PHY_PUP_REQ);
+		/* Power up PCIe PHY */
+		setbits_le32(&gpc_regs->cntr, PCIE_PHY_PUP_REQ);
 		pcie_power_up();
 
 		return 0;
@@ -1146,8 +1146,8 @@ static int imx6_pcie_init_phy(struct imx_pcie_priv *priv)
 
 	if (priv->variant == IMX6SX) {
 		imx_pcie_gpr_update_bits(priv, 48,
-			IOMUXC_GPR12_RX_EQ_MASK,
-			IOMUXC_GPR12_RX_EQ_2);
+				IOMUXC_GPR12_RX_EQ_MASK,
+				IOMUXC_GPR12_RX_EQ_2);
 	}
 
 	imx_pcie_gpr_update_bits(priv, 32, 0xffffffff,
@@ -1235,12 +1235,12 @@ static int imx6_pcie_deassert_core_reset(struct imx_pcie_priv *priv)
 	mdelay(50);
 
 	if (priv->variant == IMX6SX) {
-	/* SSP_EN is not used on MX6SX anymore */
+		/* SSP_EN is not used on MX6SX anymore */
 		imx_pcie_gpr_update_bits(priv, 48, IOMUXC_GPR12_TEST_POWERDOWN, 0);
-	/* Clear PCIe PHY reset bit */
+		/* Clear PCIe PHY reset bit */
 		imx_pcie_gpr_update_bits(priv, 20, IOMUXC_GPR5_PCIE_BTNRST, 0);
 	} else {
-	/* Enable PCIe */
+		/* Enable PCIe */
 		imx_pcie_gpr_update_bits(priv, 4, IOMUXC_GPR1_TEST_POWERDOWN, 0);
 		imx_pcie_gpr_update_bits(priv, 4, IOMUXC_GPR1_REF_SSP_EN, IOMUXC_GPR1_REF_SSP_EN);
 	}

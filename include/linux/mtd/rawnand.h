@@ -185,8 +185,12 @@ enum nand_ecc_algo {
  */
 /* Buswidth is 16 bit */
 #define NAND_BUSWIDTH_16	0x00000002
+/* Device supports partial programming without padding */
+#define NAND_NO_PADDING		0x00000004
 /* Chip has cache program function */
 #define NAND_CACHEPRG		0x00000008
+/* Chip has copy back function */
+#define NAND_COPYBACK		0x00000010
 /*
  * Chip requires ready check on read (for auto-incremented sequential read).
  * True only for small page devices; large page devices do not support

@@ -48,7 +48,7 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 	}
 }
 
-static void spl_dram_init(void)
+void spl_dram_init(void)
 {
 	ddr_init(&dram_timing);
 }
@@ -221,7 +221,7 @@ int power_init_board(void)
 	return 0;
 }
 #else
-static int power_init_board(void)
+int power_init_board(void)
 {
 	struct pmic *p;
 	int ret;

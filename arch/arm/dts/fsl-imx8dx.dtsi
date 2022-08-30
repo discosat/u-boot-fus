@@ -968,8 +968,8 @@
 						#power-domain-cells = <0>;
 						#address-cells = <1>;
 						#size-cells = <0>;
-		};
-	};
+					};
+				};
 			};
 			pd_dma_lpuart2: PD_DMA_UART2 {
 				reg = <SC_R_UART_2>;
@@ -1016,9 +1016,9 @@
 						#power-domain-cells = <0>;
 						#address-cells = <1>;
 						#size-cells = <0>;
+					};
+				};
 			};
-		};
-	};
 			pd_dma_lpspi0: PD_DMA_SPI_0 {
 				reg = <SC_R_SPI_0>;
 				#power-domain-cells = <0>;

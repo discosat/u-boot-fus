@@ -65,8 +65,7 @@ endif
 checkgcc6:
 	@if test "$(call cc-name)" = "gcc" -a \
 			"$(call cc-version)" -lt "0600"; then \
-		echo -n '*** Your GCC is older than 6.0 and is not '; \
-		echo 'officially supported anymore since v2018.01.'; \
+		echo '*** Your GCC is older than 6.0 and will not be supported'; \
 	fi
 
 

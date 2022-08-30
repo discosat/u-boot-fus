@@ -256,15 +256,15 @@ int power_init_board(void)
 	unsigned int reg;
 	int ret;
 
-	ret = pmic_get("pfuze100", &dev);
-	if (ret == -ENODEV)
-		return 0;
+	dev = pfuze_common_init();
+	if (!dev)
+		return -ENODEV;
 
 	ret = pfuze_mode_init(dev, APS_PFM);
 	if (ret < 0)
 		return ret;
 
-	/* set SW1AB staby volatage 0.975V */
+	/* set SW1AB staby volatage 0.975V*/
 	reg = pmic_reg_read(dev, PFUZE100_SW1ABSTBY);
 	reg &= ~0x3f;
 	reg |= 0x1b;
@@ -276,7 +276,7 @@ int power_init_board(void)
 	reg |= 0x40;
 	pmic_reg_write(dev, PFUZE100_SW1ABCONF, reg);
 
-	/* set SW1C staby volatage 0.975V */
+	/* set SW1C staby volatage 0.975V*/
 	reg = pmic_reg_read(dev, PFUZE100_SW1CSTBY);
 	reg &= ~0x3f;
 	reg |= 0x1b;
@@ -303,7 +303,7 @@ void ldo_mode_set(int ldo_bypass)
 	if (!p) {
 		printf("No pmic!\n");
 		return;
-}
+	}
 
 	/* swith to ldo_bypass mode */
 	if (ldo_bypass) {

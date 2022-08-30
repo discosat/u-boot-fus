@@ -327,7 +327,7 @@ int board_mmc_init(bd_t *bis)
 			usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
 			break;
 		case 1:
-	SETUP_IOMUX_PADS(usdhc3_pads);
+			SETUP_IOMUX_PADS(usdhc3_pads);
 			gpio_request(USDHC3_CD_GPIO, "usdhc3 cd");
 			gpio_direction_input(USDHC3_CD_GPIO);
 			usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);

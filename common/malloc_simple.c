@@ -22,7 +22,7 @@ static void *alloc_simple(size_t bytes, int align)
 	addr = ALIGN(gd->malloc_base + gd->malloc_ptr, align);
 	new_ptr = addr + bytes - gd->malloc_base;
 	log_debug("size=%zx, ptr=%lx, limit=%lx: ", bytes, new_ptr,
-	      gd->malloc_limit);
+		  gd->malloc_limit);
 	if (new_ptr > gd->malloc_limit) {
 		log_err("alloc space exhausted\n");
 		return NULL;
@@ -45,7 +45,7 @@ void *malloc_simple(size_t bytes)
 	log_debug("%lx\n", (ulong)ptr);
 
 	return ptr;
-	}
+}
 
 void *memalign_simple(size_t align, size_t bytes)
 {

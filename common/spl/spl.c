@@ -26,7 +26,6 @@
 #include <dm/root.h>
 #include <linux/compiler.h>
 #include <fdt_support.h>
-#include <serial.h>
 #include <bootcount.h>
 #include <wdt.h>
 
@@ -773,7 +772,7 @@ void preloader_console_init(void)
 
 #if CONFIG_IS_ENABLED(BANNER_PRINT)
 	puts("\nU-Boot " SPL_TPL_NAME " " PLAIN_VERSION " (" U_BOOT_DATE " - "
-			U_BOOT_TIME " " U_BOOT_TZ ")\n");
+	     U_BOOT_TIME " " U_BOOT_TZ ")\n");
 #endif
 #ifdef CONFIG_SPL_DISPLAY_PRINT
 	spl_display_print();

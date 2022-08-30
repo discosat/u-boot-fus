@@ -55,37 +55,6 @@
 #include <fsl_caam.h>
 #endif
 
-#define IOMUXC_GPR1		0x4
-#define BM_IOMUXC_GPR1_IRQ	0x1000
-
-#define GPC_LPCR_A7_BSC		0x0
-#define GPC_LPCR_M4		0x8
-#define GPC_SLPCR		0x14
-#define GPC_PGC_ACK_SEL_A7	0x24
-#define GPC_IMR1_CORE0		0x30
-#define GPC_IMR1_CORE1		0x40
-#define GPC_IMR1_M4		0x50
-#define GPC_PGC_CPU_MAPPING	0xec
-#define GPC_PGC_C0_PUPSCR	0x804
-#define GPC_PGC_SCU_TIMING	0x890
-#define GPC_PGC_C1_PUPSCR	0x844
-
-#define BM_LPCR_A7_BSC_IRQ_SRC_A7_WAKEUP	0x70000000
-#define BM_LPCR_A7_BSC_CPU_CLK_ON_LPM		0x4000
-#define BM_LPCR_M4_MASK_DSM_TRIGGER		0x80000000
-#define BM_SLPCR_EN_DSM				0x80000000
-#define BM_SLPCR_RBC_EN				0x40000000
-#define BM_SLPCR_REG_BYPASS_COUNT		0x3f000000
-#define BM_SLPCR_VSTBY				0x4
-#define BM_SLPCR_SBYOS				0x2
-#define BM_SLPCR_BYPASS_PMIC_READY		0x1
-#define BM_SLPCR_EN_A7_FASTWUP_WAIT_MODE	0x10000
-
-#define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PUP_ACK	0x80000000
-#define BM_GPC_PGC_ACK_SEL_A7_DUMMY_PDN_ACK	0x8000
-
-#define BM_GPC_PGC_CORE_PUPSCR			0x7fff80
-
 #if defined(CONFIG_IMX_THERMAL)
 static const struct imx_thermal_plat imx7_thermal_plat = {
 	.regs = (void *)ANATOP_BASE_ADDR,
@@ -396,13 +365,6 @@ int arch_cpu_init(void)
 	imx_sec_init();
 #endif
 	configure_tzc380();
-
-	return 0;
-}
-#else
-int arch_cpu_init(void)
-{
-	init_cpu_basic();
 
 	return 0;
 }

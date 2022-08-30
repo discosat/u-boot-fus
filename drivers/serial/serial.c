@@ -299,16 +299,16 @@ void serial_stdio_init(void)
 	struct stdio_dev dev;
 	struct serial_device *s = serial_devices;
 
-		memset(&dev, 0, sizeof(dev));
+	memset(&dev, 0, sizeof(dev));
 
 	strcpy(dev.name, "serial");
-		dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
-		dev.start = serial_stub_start;
-		dev.stop = serial_stub_stop;
-		dev.putc = serial_stub_putc;
-		dev.puts = serial_stub_puts;
-		dev.getc = serial_stub_getc;
-		dev.tstc = serial_stub_tstc;
+	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
+	dev.start = serial_stub_start;
+	dev.stop = serial_stub_stop;
+	dev.putc = serial_stub_putc;
+	dev.puts = serial_stub_puts;
+	dev.getc = serial_stub_getc;
+	dev.tstc = serial_stub_tstc;
 	dev.priv = get_current();
 	stdio_register(&dev);
 
@@ -339,9 +339,9 @@ int serial_assign(const char *name)
 
 	for (s = serial_devices; s; s = s->next) {
 		if (!strcmp(s->name, name)) {
-		serial_current = s;
-		return 0;
-	}
+			serial_current = s;
+			return 0;
+		}
 	}
 
 	return -EINVAL;

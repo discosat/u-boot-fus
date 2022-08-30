@@ -1111,7 +1111,7 @@ static int mxs_nand_set_geometry(struct mtd_info *mtd, struct bch_geometry *geo)
 	if (chip->ecc_strength_ds > nand_info->max_ecc_strength_supported) {
 		printf("unsupported NAND chip, minimum ecc required %d\n"
 			, chip->ecc_strength_ds);
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	if ((!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0) &&

@@ -190,7 +190,7 @@ struct stdio_dev* stdio_clone(const struct stdio_dev *dev)
 	memcpy(_dev, dev, sizeof(struct stdio_dev));
 
 	return _dev;
-	}
+}
 
 int stdio_register_dev(const struct stdio_dev *dev, struct stdio_dev **devp)
 {
@@ -229,7 +229,7 @@ int stdio_deregister_dev(struct stdio_dev *dev, int force)
 				continue;
 			}
 			/* Device is assigned -> report error */
-		return -1;
+			return -1;
 		}
 		memcpy (&temp_names[l][0],
 			stdio_devices[l]->name,
@@ -248,7 +248,7 @@ int stdio_deregister_dev(struct stdio_dev *dev, int force)
 		}
 	}
 	return 0;
-	}
+}
 
 int stdio_deregister(const char *devname, int force)
 {

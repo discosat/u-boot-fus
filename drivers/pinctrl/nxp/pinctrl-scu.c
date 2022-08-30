@@ -14,9 +14,9 @@
 
 #define PADRING_IFMUX_EN_SHIFT		31
 #define PADRING_IFMUX_EN_MASK		BIT(31)
-#define PADRING_GP_EN_SHIFT			30
+#define PADRING_GP_EN_SHIFT		30
 #define PADRING_GP_EN_MASK		BIT(30)
-#define PADRING_IFMUX_SHIFT			27
+#define PADRING_IFMUX_SHIFT		27
 #define PADRING_IFMUX_MASK		GENMASK(29, 27)
 
 static int imx_pinconf_scu_set(struct imx_pinctrl_soc_info *info, u32 pad,

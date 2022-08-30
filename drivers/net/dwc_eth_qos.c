@@ -2073,22 +2073,22 @@ static int eqos_probe(struct udevice *dev)
 	eqos->mii = eth_phy_get_mdio_bus(dev);
 #endif
 	if (!eqos->mii) {
-	eqos->mii = mdio_alloc();
-	if (!eqos->mii) {
-		pr_err("mdio_alloc() failed");
-		ret = -ENOMEM;
-		goto err_remove_resources_tegra;
-	}
-	eqos->mii->read = eqos_mdio_read;
-	eqos->mii->write = eqos_mdio_write;
-	eqos->mii->priv = eqos;
-	strcpy(eqos->mii->name, dev->name);
+		eqos->mii = mdio_alloc();
+		if (!eqos->mii) {
+			pr_err("mdio_alloc() failed");
+			ret = -ENOMEM;
+			goto err_remove_resources_tegra;
+		}
+		eqos->mii->read = eqos_mdio_read;
+		eqos->mii->write = eqos_mdio_write;
+		eqos->mii->priv = eqos;
+		strcpy(eqos->mii->name, dev->name);
 
-	ret = mdio_register(eqos->mii);
-	if (ret < 0) {
-		pr_err("mdio_register() failed: %d", ret);
-		goto err_free_mdio;
-	}
+		ret = mdio_register(eqos->mii);
+		if (ret < 0) {
+			pr_err("mdio_register() failed: %d", ret);
+			goto err_free_mdio;
+		}
 	}
 
 #ifdef CONFIG_DM_ETH_PHY

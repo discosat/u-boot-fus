@@ -286,7 +286,7 @@
 	data-shift = <12>; /* Lines 19:12 used */
 	hsync-active = <1>;
 	vsync-active = <1>;
-	};
+};
 
 &ipu1_csi0_mux_from_parallel_sensor {
 	/* Downstream driver doesn't use endpoints */
@@ -411,7 +411,7 @@
 			0x0000 /* 5:Default */
 		>;
 		amic-mono;
-       };
+	};
 
 	mma8451@1c {
 		compatible = "fsl,mma8451";

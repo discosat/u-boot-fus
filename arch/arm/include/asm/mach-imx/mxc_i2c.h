@@ -108,7 +108,7 @@ struct mxc_i2c_bus {
 			}					\
 		};
 #define I2C_PADS_INFO(name)	\
-					&mx6_##name
+		&mx6_##name
 #endif
 
 int setup_i2c(unsigned i2c_index, int speed, int slave_addr,

@@ -526,7 +526,7 @@ out:
  * Return:	status code
  */
 static efi_status_t EFIAPI efi_file_getpos(struct efi_file_handle *file,
-		u64 *pos)
+					   u64 *pos)
 {
 	efi_status_t ret = EFI_SUCCESS;
 	struct file_handle *fh = to_fh(file);
@@ -554,7 +554,7 @@ out:
  * Return:	status code
  */
 static efi_status_t EFIAPI efi_file_setpos(struct efi_file_handle *file,
-		u64 pos)
+					   u64 pos)
 {
 	struct file_handle *fh = to_fh(file);
 	efi_status_t ret = EFI_SUCCESS;

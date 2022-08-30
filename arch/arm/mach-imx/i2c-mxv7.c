@@ -62,7 +62,7 @@ int force_idle_bus(void *priv)
 
 	/* Get the bus status */
 	gpio_direction_input(p->sda.gp);
-		gpio_direction_input(p->scl.gp);
+	gpio_direction_input(p->scl.gp);
 
 	start_time = get_timer(0);
 	for (;;) {

@@ -419,8 +419,6 @@ static const struct udevice_id mxc_serial_ids[] = {
 	{ .compatible = "fsl,imx53-uart" },
 	{ .compatible = "fsl,imx6sx-uart" },
 	{ .compatible = "fsl,imx6ul-uart" },
-	{ .compatible = "fsl,imx6sx-uart" },
-	{ .compatible = "fsl,imx6q-uart" },
 	{ .compatible = "fsl,imx7d-uart" },
 	{ .compatible = "fsl,imx6q-uart" },
 	{ }

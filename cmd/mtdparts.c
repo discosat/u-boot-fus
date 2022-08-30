@@ -1619,7 +1619,7 @@ static int parse_mtdparts(const char *const mtdparts)
 
 	/* Skip the useless prefix, if any */
 	if (strncmp(p, "mtdparts=", 9) == 0)
-	p += 9;
+		p += 9;
 
 	while (*p != '\0') {
 		err = 1;

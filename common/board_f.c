@@ -34,7 +34,6 @@
 #ifdef CONFIG_SPL
 #include <spl.h>
 #endif
-#include <serial.h>
 #include <status_led.h>
 #include <sysreset.h>
 #include <timer.h>
@@ -168,11 +167,11 @@ static int print_cpuinfo(void)
 	char desc[512];
 	int ret;
 
-	ret = uclass_first_device_err(UCLASS_CPU, &dev);
-	if (ret) {
-		debug("%s: Could not get CPU device (err = %d)\n",
-		      __func__, ret);
-		return ret;
+	dev = cpu_get_current_dev();
+	if (!dev) {
+		debug("%s: Could not get CPU device\n",
+		      __func__);
+		return -ENODEV;
 	}
 
 	ret = cpu_get_desc(dev, desc, sizeof(desc));
@@ -437,16 +436,16 @@ static int reserve_trace(void)
 static int reserve_uboot(void)
 {
 	if (!(gd->flags & GD_FLG_SKIP_RELOC)) {
-	/*
-	 * reserve memory for U-Boot code, data & bss
-	 * round down to next 4 kB limit
-	 */
-	gd->relocaddr -= gd->mon_len;
-	gd->relocaddr &= ~(4096 - 1);
-#if defined(CONFIG_E500) || defined(CONFIG_MIPS)
-	/* round down to next 64 kB limit so that IVPR stays aligned */
-	gd->relocaddr &= ~(65536 - 1);
-#endif
+		/*
+		 * reserve memory for U-Boot code, data & bss
+		 * round down to next 4 kB limit
+		 */
+		gd->relocaddr -= gd->mon_len;
+		gd->relocaddr &= ~(4096 - 1);
+	#if defined(CONFIG_E500) || defined(CONFIG_MIPS)
+		/* round down to next 64 kB limit so that IVPR stays aligned */
+		gd->relocaddr &= ~(65536 - 1);
+	#endif
 
 		debug("Reserving %ldk for U-Boot at: %08lx\n",
 		      gd->mon_len >> 10, gd->relocaddr);

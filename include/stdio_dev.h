@@ -87,7 +87,7 @@ int stdio_add_devices(void);
  *
  * This calls stdio_init_tables() and stdio_add_devices()
  */
-int	stdio_init (void);
+int stdio_init(void);
 
 void	stdio_print_current_devices(void);
 #if CONFIG_IS_ENABLED(SYS_STDIO_DEREGISTER)

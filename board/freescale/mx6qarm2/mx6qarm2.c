@@ -220,7 +220,7 @@ int board_phy_config(struct phy_device *phydev)
 		phydev->drv->config(phydev);
 
 	return 0;
-	}
+}
 
 int board_eth_init(bd_t *bis)
 {

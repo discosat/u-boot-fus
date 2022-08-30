@@ -53,14 +53,14 @@ static int do_fastboot_usb(int argc, char *const argv[],
 		else
 			return CMD_RET_USAGE;
 	} else {
-	usb_controller = argv[1];
-	controller_index = simple_strtoul(usb_controller, &endp, 0);
-	if (*endp != '\0') {
-		pr_err("Error: Wrong USB controller index format\n");
-		return CMD_RET_FAILURE;
-	}
+		usb_controller = argv[1];
+		controller_index = simple_strtoul(usb_controller, &endp, 0);
+		if (*endp != '\0') {
+			pr_err("Error: Wrong USB controller index format\n");
+			return CMD_RET_FAILURE;
+		}
 #ifdef CONFIG_FASTBOOT_USB_DEV
-	controller_index = CONFIG_FASTBOOT_USB_DEV;
+		controller_index = CONFIG_FASTBOOT_USB_DEV;
 #endif
 	}
 

@@ -372,14 +372,14 @@ static int ar8031_phy_fixup(struct phy_device *phydev)
 
 	/* To enable AR8031 ouput a 125MHz clk from CLK_25M */
 	if (!is_mx6dqp()) {
-	phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x7);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0xe, 0x8016);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x4007);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x7);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0xe, 0x8016);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0xd, 0x4007);
 
-	val = phy_read(phydev, MDIO_DEVAD_NONE, 0xe);
-	val &= 0xffe3;
-	val |= 0x18;
-	phy_write(phydev, MDIO_DEVAD_NONE, 0xe, val);
+		val = phy_read(phydev, MDIO_DEVAD_NONE, 0xe);
+		val &= 0xffe3;
+		val |= 0x18;
+		phy_write(phydev, MDIO_DEVAD_NONE, 0xe, val);
 	}
 
 	/* set the IO voltage to 1.8v */
@@ -791,11 +791,11 @@ int board_ehci_hcd_init(int port)
 {
 	switch (port) {
 	case 0:
-	/*
+		/*
 		  * Set daisy chain for otg_pin_id on 6q.
 		 *  For 6dl, this bit is reserved.
-	 */
-	imx_iomux_set_gpr_register(1, 13, 1, 0);
+		 */
+		imx_iomux_set_gpr_register(1, 13, 1, 0);
 		break;
 	case 1:
 		break;
@@ -955,16 +955,16 @@ int power_init_board(void)
 
 	/* VGEN3 and VGEN5 corrected on i.mx6qp board */
 	if (!is_mx6dqp()) {
-	/* Increase VGEN3 from 2.5 to 2.8V */
+		/* Increase VGEN3 from 2.5 to 2.8V */
 		reg = pmic_reg_read(dev, PFUZE100_VGEN3VOL);
-	reg &= ~LDO_VOL_MASK;
-	reg |= LDOB_2_80V;
+		reg &= ~LDO_VOL_MASK;
+		reg |= LDOB_2_80V;
 		pmic_reg_write(dev, PFUZE100_VGEN3VOL, reg);
 
-	/* Increase VGEN5 from 2.8 to 3V */
+		/* Increase VGEN5 from 2.8 to 3V */
 		reg = pmic_reg_read(dev, PFUZE100_VGEN5VOL);
-	reg &= ~LDO_VOL_MASK;
-	reg |= LDOB_3_00V;
+		reg &= ~LDO_VOL_MASK;
+		reg |= LDOB_3_00V;
 		pmic_reg_write(dev, PFUZE100_VGEN5VOL, reg);
 	}
 
@@ -1034,7 +1034,7 @@ void ldo_mode_set(int ldo_bypass)
 	if (!p) {
 		printf("No PMIC found!\n");
 		return;
-}
+	}
 
 	/* increase VDDARM/VDDSOC to support 1.2G chip */
 	if (check_1_2G()) {

@@ -1068,7 +1068,6 @@ static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	int ret_code;
-
 	ops->retlen = ops->oobretlen = 0;
 
 	ret_code = mtd_check_oob_ops(mtd, from, ops);
