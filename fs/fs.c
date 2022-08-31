@@ -692,7 +692,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 
 	if (argc >= 4)
 		addr = parse_loadaddr(argv[3], NULL);
-		else
+	else
 		addr = get_loadaddr();
 	if (argc >= 5)
 		filename = env_parse_bootfile(argv[4]);

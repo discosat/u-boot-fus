@@ -111,6 +111,13 @@ static struct mm_region imx8m_mem_map[] = {
 			 PTE_BLOCK_NON_SHARE |
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
 	}, {
+		/* OCRAM_S */
+		.virt = 0x180000UL,
+		.phys = 0x180000UL,
+		.size = 0x8000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_OUTER_SHARE
+	}, {
 		/* TCM */
 		.virt = 0x7C0000UL,
 		.phys = 0x7C0000UL,
@@ -170,17 +177,31 @@ static struct mm_region imx8m_mem_map[] = {
 
 struct mm_region *mem_map = imx8m_mem_map;
 
+static unsigned int imx8m_find_dram_entry_in_mem_map(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(imx8m_mem_map); i++)
+		if (imx8m_mem_map[i].phys == CONFIG_SYS_SDRAM_BASE)
+			return i;
+
+	hang();	/* Entry not found, this must never happen. */
+}
+
 void enable_caches(void)
 {
 	/*
 	 * If OPTEE runs, remove OPTEE memory from MMU table to avoid
-	 * speculative prefetch
+	 * speculative prefetch. If OPTEE does not run, still update
+	 * the MMU table according to dram banks structure to set
+	 * correct dram size from board_phys_sdram_size().
 	 */
 	int i = 0;
-	/* make sure that initial entry value matches imx8m_mem_map for DRAM1 */
-	int entry = 5;
+	int entry = imx8m_find_dram_entry_in_mem_map();
 	u64 attrs = imx8m_mem_map[entry].attrs;
-	while (i < CONFIG_NR_DRAM_BANKS && entry < ARRAY_SIZE(imx8m_mem_map)) {
+
+	while (i < CONFIG_NR_DRAM_BANKS &&
+	       entry < ARRAY_SIZE(imx8m_mem_map)) {
 		if (gd->bd->bi_dram[i].start == 0)
 			break;
 		imx8m_mem_map[entry].phys = gd->bd->bi_dram[i].start;
@@ -188,8 +209,8 @@ void enable_caches(void)
 		imx8m_mem_map[entry].size = gd->bd->bi_dram[i].size;
 		imx8m_mem_map[entry].attrs = attrs;
 		debug("Added memory mapping (%d): %llx %llx\n", entry,
-			imx8m_mem_map[entry].phys, imx8m_mem_map[entry].size);
-		i++;entry++;
+		      imx8m_mem_map[entry].phys, imx8m_mem_map[entry].size);
+		i++; entry++;
 	}
 
 	icache_enable();
@@ -199,11 +220,16 @@ void enable_caches(void)
 __weak int board_phys_sdram_size(phys_size_t *size)
 {
 #ifdef PHYS_SDRAM_SIZE
-	if (size) {
+	if (!size) {
 		*size = PHYS_SDRAM_SIZE;
+
+#ifdef PHYS_SDRAM_2_SIZE
+		*size += PHYS_SDRAM_2_SIZE;
+#endif
 		return 0;
 	}
 #endif
+
 	return -EINVAL;
 }
 
@@ -216,15 +242,8 @@ int dram_init(void)
 	if (ret)
 		return ret;
 
-	/* rom_pointer[1] contains the size of TEE occupies */
-	if (rom_pointer[1])
-		sdram_size -= rom_pointer[1];
-
-#ifdef PHYS_SDRAM_2_SIZE
-	sdram_size += PHYS_SDRAM_2_SIZE;
-#endif
-
-	gd->ram_size = sdram_size;
+	/* Subtract size of TEE which is in rom_pointer[1] */
+	gd->ram_size = sdram_size - rom_pointer[1];
 
 	return 0;
 }
@@ -234,10 +253,20 @@ int dram_init_banksize(void)
 	int bank = 0;
 	int ret;
 	phys_size_t sdram_size;
+	phys_size_t sdram_b1_size, sdram_b2_size;
 
 	ret = board_phys_sdram_size(&sdram_size);
 	if (ret)
 		return ret;
+
+	/* Bank 1 starts at PHYS_SDRAM (0x40000000) and can't cross over 4GB space */
+	if (sdram_size > 0xc0000000) {
+		sdram_b1_size = 0xc0000000;
+		sdram_b2_size = sdram_size - 0xc0000000;
+	} else {
+		sdram_b1_size = sdram_size;
+		sdram_b2_size = 0;
+	}
 
 	gd->bd->bi_dram[bank].start = PHYS_SDRAM;
 	if (rom_pointer[1]) {
@@ -248,45 +277,60 @@ int dram_init_banksize(void)
 		gd->bd->bi_dram[bank].size = optee_start - PHYS_SDRAM;
 
 		/* If optee reaches end of RAM, no additional entry required */
-		if ((optee_start + optee_size) < (PHYS_SDRAM + sdram_size)) {
+		if ((optee_start + optee_size) < (PHYS_SDRAM + sdram_b1_size)) {
 			if (++bank >= CONFIG_NR_DRAM_BANKS) {
 				puts("CONFIG_NR_DRAM_BANKS is not enough\n");
 				return -1;
 			}
 
-			/* Add entry 1 for region from end of optee to end of RAM */
+			/* Add entry 1 for region from end of optee to end of bank 1 */
 			gd->bd->bi_dram[bank].start = optee_start + optee_size;
 			gd->bd->bi_dram[bank].size = PHYS_SDRAM +
-				sdram_size - gd->bd->bi_dram[bank].start;
+				sdram_b1_size - gd->bd->bi_dram[bank].start;
 		}
 	} else {
 		/* No optee, entry 0 is from start of RAM to end of RAM */
-		gd->bd->bi_dram[bank].size = sdram_size;
+		gd->bd->bi_dram[bank].size = sdram_b1_size;
 	}
 
-#ifdef PHYS_SDRAM_2_SIZE
-	if (++bank >= CONFIG_NR_DRAM_BANKS) {
-		puts("CONFIG_NR_DRAM_BANKS is not enough for SDRAM_2\n");
-		return -1;
+	if (sdram_b2_size) {
+		if (++bank >= CONFIG_NR_DRAM_BANKS) {
+			puts("CONFIG_NR_DRAM_BANKS is not enough for SDRAM_2\n");
+			return -1;
+		}
+		gd->bd->bi_dram[bank].start = 0x100000000UL;
+		gd->bd->bi_dram[bank].size = sdram_b2_size;
 	}
-	gd->bd->bi_dram[bank].start = PHYS_SDRAM_2;
-	gd->bd->bi_dram[bank].size = PHYS_SDRAM_2_SIZE;
-#endif
 
 	return 0;
 }
 
 phys_size_t get_effective_memsize(void)
 {
-	/* return the first bank as effective memory */
-	if (rom_pointer[1])
-		return ((phys_addr_t)rom_pointer[0] - PHYS_SDRAM);
-
-#ifdef PHYS_SDRAM_2_SIZE
-	return gd->ram_size - PHYS_SDRAM_2_SIZE;
+	int ret;
+	phys_size_t sdram_size;
+	ret = board_phys_sdram_size(&sdram_size);
+	if (ret) {
+#ifdef PHYS_SDRAM_SIZE
+		sdram_size = PHYS_SDRAM_SIZE;
 #else
-	return gd->ram_size;
+		return 0;
 #endif
+	}
+
+	/* Reduce size to bank 1, bank 1 can't cross over 4GB space */
+	if (sdram_size > 0xc0000000)
+		sdram_size = 0xc0000000;
+
+	/*
+	 * Relocate u-boot to top of bank 1; if optee is also at top of bank1,
+	 * put u-boot before it by returning a smaller size.
+	 */
+	if (rom_pointer[1] &&
+	    ((rom_pointer[0] + rom_pointer[1]) == (PHYS_SDRAM + sdram_size)))
+		sdram_size -= rom_pointer[1];
+
+	return sdram_size;
 }
 
 static u32 get_cpu_variant_type(u32 type)
@@ -1186,11 +1230,21 @@ int arch_misc_init(void)
 #define FSL_SIP_CONFIG_GPC_PM_DOMAIN	0x03
 
 #ifdef CONFIG_SPL_BUILD
+#if defined(CONFIG_IMX8MP)
+static uint32_t gpc_pu_m_core_offset[4] = {
+	0xb00, 0xb40, 0xb80, 0xbc0,
+};
+#define PU_REQ 0xd8
+#define PDN_REQ 0xe4
+#else
 static uint32_t gpc_pu_m_core_offset[11] = {
 	0xc00, 0xc40, 0xc80, 0xcc0,
 	0xdc0, 0xe00, 0xe40, 0xe80,
 	0xec0, 0xf00, 0xf40,
 };
+#define PU_REQ 0xf8
+#define PDN_REQ 0x104
+#endif
 
 #define PGC_PCR				0
 
@@ -1214,7 +1268,7 @@ void imx8m_usb_power_domain(uint32_t domain_id, bool on)
 
 	imx_gpc_set_m_core_pgc(gpc_pu_m_core_offset[domain_id], true);
 
-	reg = GPC_BASE_ADDR + (on ? 0xf8 : 0x104);
+	reg = GPC_BASE_ADDR + (on ? PU_REQ : PDN_REQ);
 	val = 1 << (domain_id > 3 ? (domain_id + 3) : domain_id);
 	writel(val, reg);
 	while (readl(reg) & val)
@@ -1348,7 +1402,8 @@ void do_error(struct pt_regs *pt_regs, unsigned int esr)
 #endif
 #endif
 
-#if (defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)) && !defined(CONFIG_TARGET_FSIMX8MN)
+#if !defined(CONFIG_TARGET_FSIMX8MN) && !defined(CONFIG_TARGET_FSIMX8MP)
+#if defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 enum env_location env_get_location(enum env_operation op, int prio)
 {
 	enum boot_device dev = get_boot_device();
@@ -1408,6 +1463,7 @@ long long env_get_offset(long long defautl_offset)
 }
 #endif
 #endif
+#endif /* !defined(TARGET_FSIMX8MN) && !defined(TARGET_FSIMX8MP) */
 
 #ifdef CONFIG_IMX8MQ
 int imx8m_dcss_power_init(void)

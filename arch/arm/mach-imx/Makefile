@@ -224,7 +224,12 @@ flash.bin: spl/u-boot-spl-ddr.bin u-boot.itb FORCE
 endif
 
 ifeq ($(CONFIG_ARCH_IMX8), y)
-SPL:
+MKIMAGEFLAGS_SPL = -n spl/u-boot-spl.cfgout \
+		   -T $(IMAGE_TYPE) -e 0x100000
+SPL: MKIMAGEOUTPUT = SPL.log
+
+SPL: spl/u-boot-spl.bin FORCE
+	$(call if_changed,mkimage)
 
 MKIMAGEFLAGS_flash.bin = -n spl/u-boot-spl.cfgout -T $(IMAGE_TYPE) -e 0x100000
 flash.bin: MKIMAGEOUTPUT = flash.log

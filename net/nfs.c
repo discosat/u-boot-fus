@@ -907,10 +907,10 @@ void nfs_start(void)
 		our_net.s_addr = net_ip.s_addr & net_netmask.s_addr;
 		server_net.s_addr = nfs_server_ip.s_addr & net_netmask.s_addr;
 		if (our_net.s_addr != server_net.s_addr)
-			printf("; sending through gateway %pI4",
-			       &net_gateway);
+			debug("; sending through gateway %pI4",
+			      &net_gateway);
 	}
-	printf("\nFilename '%s/%s'.", nfs_path, nfs_filename);
+	debug("\nFilename '%s/%s'.", nfs_path, nfs_filename);
 
 	if (net_boot_file_expected_size_in_blocks) {
 		printf(" Size is 0x%x Bytes = ",

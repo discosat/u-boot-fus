@@ -621,12 +621,6 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 	return 0;
 }
 
-static void dwc3_gadget_run(struct dwc3 *dwc)
-{
-	dwc3_writel(dwc->regs, DWC3_DCTL, DWC3_DCTL_RUN_STOP);
-	mdelay(100);
-}
-
 static void dwc3_core_exit_mode(struct dwc3 *dwc)
 {
 	switch (dwc->dr_mode) {
@@ -644,42 +638,6 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		/* do nothing */
 		break;
 	}
-
-	/*
-	 * switch back to peripheral mode
-	 * This enables the phy to enter idle and then, if enabled, suspend.
-	 */
-	dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-	dwc3_gadget_run(dwc);
-}
-
-static void dwc3_uboot_hsphy_mode(struct dwc3_device *dwc3_dev,
-				  struct dwc3 *dwc)
-{
-	enum usb_phy_interface hsphy_mode = dwc3_dev->hsphy_mode;
-	u32 reg;
-
-	/* Set dwc3 usb2 phy config */
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
-
-	switch (hsphy_mode) {
-	case USBPHY_INTERFACE_MODE_UTMI:
-		reg &= ~(DWC3_GUSB2PHYCFG_PHYIF_MASK |
-			DWC3_GUSB2PHYCFG_USBTRDTIM_MASK);
-		reg |= DWC3_GUSB2PHYCFG_PHYIF(UTMI_PHYIF_8_BIT) |
-			DWC3_GUSB2PHYCFG_USBTRDTIM(USBTRDTIM_UTMI_8_BIT);
-		break;
-	case USBPHY_INTERFACE_MODE_UTMIW:
-		reg &= ~(DWC3_GUSB2PHYCFG_PHYIF_MASK |
-			DWC3_GUSB2PHYCFG_USBTRDTIM_MASK);
-		reg |= DWC3_GUSB2PHYCFG_PHYIF(UTMI_PHYIF_16_BIT) |
-			DWC3_GUSB2PHYCFG_USBTRDTIM(USBTRDTIM_UTMI_16_BIT);
-		break;
-	default:
-		break;
-	}
-
-	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
 }
 
 static void dwc3_uboot_hsphy_mode(struct dwc3_device *dwc3_dev,

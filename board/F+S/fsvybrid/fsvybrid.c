@@ -11,7 +11,6 @@
 
 #include <common.h>
 #ifdef CONFIG_CMD_NET
-#include <asm/fec.h>
 #include <net.h>			/* eth_init(), eth_halt() */
 #include <miiphy.h>
 #include <netdev.h>			/* ne2000_initialize() */

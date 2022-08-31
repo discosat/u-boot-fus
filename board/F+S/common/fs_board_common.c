@@ -687,7 +687,138 @@ const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
 
 #include <fdtdec.h>
 
-#ifdef CONFIG_IMX8MN
+#ifdef CONFIG_IMX8
+/* Definitions in boot_cfg (fuse bank 0, word 18) */
+#define BOOT_CFG_DEVSEL_SHIFT 0
+#define BOOT_CFG_DEVSEL_MASK (0x3F << BOOT_CFG_DEVSEL_SHIFT)
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB (returned by spl_boot_device()), but is basically fused to boot from
+ * NAND (returned here).
+ */
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	enum boot_device boot_dev = USB_BOOT;
+
+	/* boot_cfg is in fuse bank 0, word 18 */
+	if (sc_misc_otp_fuse_read(-1, 18, &val)) {
+		puts("Error reading boot_cfg\n");
+		return boot_dev;
+	}
+
+	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
+	case 0x0: // eFuse
+	printf("eFuse\n");
+		boot_dev = get_boot_device();
+		break;
+
+	case 0x1: // USB
+	printf("USB\n");
+		boot_dev = USB_BOOT;
+		break;
+
+	case 0x2: // eMMC0
+	printf("eMMC0\n");
+		boot_dev = MMC1_BOOT;
+		break;
+
+	case 0x3: // SD1
+	printf("SD1\n");
+		boot_dev = SD2_BOOT;
+		break;
+
+	case 0x4: // NAND(128 pages)
+	case 0x5: // NAND( 32 pages)
+	printf("NAND\n");
+		boot_dev = NAND_BOOT;
+		break;
+
+	case 0x6: // FlexSPI(default)
+	case 0x7: // FlexSPI(Hyperflash 3.0)
+	printf("FlexSPI\n");
+		boot_dev = FLEXSPI_BOOT;
+		break;
+
+	default:
+	printf("Default\n");
+		break;
+	}
+
+	return boot_dev;
+}
+
+#define IMG_CNTN_SET1_OFFSET_SHIFT 24
+#define IMG_CNTN_SET1_OFFSET_MASK 0x1f
+u32 fs_board_get_secondary_offset(void)
+{
+	u32 val;
+
+	/* Secondary boot image offset is in fuse bank 0, word 720 */
+	if (sc_misc_otp_fuse_read(-1, 720, &val)) {
+		puts("Error reading secondary image offset from fuses\n");
+		return 0;
+	}
+
+	val >>= IMG_CNTN_SET1_OFFSET_SHIFT;
+	val &= IMG_CNTN_SET1_OFFSET_MASK;
+	if (val == 0)
+		val = 2;
+	else if (val == 2)
+		val = 0;
+	val += 20;
+	val = 1 << val;
+
+	return val;
+}
+
+#elif CONFIG_IMX8MM
+/* Definitions in boot_cfg (fuse bank 1, word 3) */
+#define BOOT_CFG_DEVSEL_SHIFT 12
+#define BOOT_CFG_DEVSEL_MASK (7 << BOOT_CFG_DEVSEL_SHIFT)
+#define BOOT_CFG_PORTSEL_SHIFT 10
+#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB (returned by spl_boot_device()), but is basically fused to boot from
+ * NAND (returned here).
+ */
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	u32 port;
+	enum boot_device boot_dev = USB_BOOT;
+
+	/* boot_cfg is in fuse bank 1, word 3 */
+	if (fuse_read(1, 3, &val)) {
+		puts("Error reading boot_cfg\n");
+		return boot_dev;
+	}
+
+	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
+	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
+	case BOOT_TYPE_SD:
+		boot_dev = SD1_BOOT + port;
+		break;
+
+	case BOOT_TYPE_MMC:
+		boot_dev = MMC1_BOOT + port;
+		break;
+
+	case BOOT_TYPE_NAND:
+		boot_dev = NAND_BOOT;
+		break;
+
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+
+#elif defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
 #define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
@@ -770,50 +901,6 @@ u32 fs_board_get_secondary_offset(void)
 	return val;
 }
 
-#else
-/* Definitions in boot_cfg (fuse bank 1, word 3) */
-#define BOOT_CFG_DEVSEL_SHIFT 12
-#define BOOT_CFG_DEVSEL_MASK (7 << BOOT_CFG_DEVSEL_SHIFT)
-#define BOOT_CFG_PORTSEL_SHIFT 10
-#define BOOT_CFG_PORTSEL_MASK (3 << BOOT_CFG_PORTSEL_SHIFT)
-/*
- * Return the boot device as programmed in the fuses. This may differ from the
- * currently active boot device. For example the board can currently boot from
- * USB (returned by spl_boot_device()), but is basically fused to boot from
- * NAND (returned here).
- */
-enum boot_device fs_board_get_boot_dev_from_fuses(void)
-{
-	u32 val;
-	u32 port;
-	enum boot_device boot_dev = USB_BOOT;
-
-	/* boot_cfg is in fuse bank 1, word 3 */
-	if (fuse_read(1, 3, &val)) {
-		puts("Error reading boot_cfg\n");
-		return boot_dev;
-	}
-
-	port = (val & BOOT_CFG_PORTSEL_MASK) >> BOOT_CFG_PORTSEL_SHIFT;
-	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
-	case BOOT_TYPE_SD:
-		boot_dev = SD1_BOOT + port;
-		break;
-
-	case BOOT_TYPE_MMC:
-		boot_dev = MMC1_BOOT + port;
-		break;
-
-	case BOOT_TYPE_NAND:
-		boot_dev = NAND_BOOT;
-		break;
-
-	default:
-		break;
-	}
-
-	return boot_dev;
-}
-#endif /* CONFIG_IMX8MN */
+#endif /* CONFIG_IMX8 CONFIG_IMX8MM CONFIG_IMX8MN */
 
 #endif /* HAVE_BOARD_CFG */

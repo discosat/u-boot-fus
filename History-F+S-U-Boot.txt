@@ -1,6 +1,60 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2021.07.3 (19.05.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Add DRAM timings for nt6an512t32av-j2i
+- Add F&S u-boot bootaux functionality
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07.2 (19.07.2021)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+(no changes)
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07.1 (19.07.2021)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Add DRAM timings for fl4c2001g-d9
+- Add support to adapt soc-thermal node
+- Disable FDT changes for PicoCoreMX8MP-V1/2
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07 (09.07.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Improve DRAM timings for k4f6e3s4hm
+- Add DRAM timings for k4f8e3s4hd
+- Improve ddr_init function
+- Add support to handle different LPDDR4 chips
+- Improve fs_board_common support
+- Improve fsimx8mp support
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.06 (31.05.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Start version for fsimx8mp
+- imx8m: fix cache setup for dynamic sdram size
+- Add fsimx8mp support
+- Add FUS optimized FAT driver
+- Add FUS system promt support
+- Add support to use . operator
+- Improve fsimx8mp support
+
+
+
 u-boot-2018.03-fsimx6-B2020.04.1 (01.02.2022)
 ---------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, efusA9, efusA9r2, PicoMODA9,

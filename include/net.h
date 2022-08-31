@@ -250,6 +250,7 @@ void eth_try_another(int first_restart);	/* Change the device */
 void eth_set_current(void);		/* set nterface to ethcur var */
 
 int eth_get_dev_index(void);		/* get the device index */
+void eth_parse_enetaddr(const char *addr, uchar *enetaddr);
 
 /**
  * eth_env_set_enetaddr_by_index() - set the MAC address environment variable

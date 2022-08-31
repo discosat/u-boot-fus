@@ -2,7 +2,6 @@
 /*
  * Copyright 2018-2019 NXP
  */
-
 #include <common.h>
 #include <errno.h>
 #include <asm/io.h>
@@ -93,7 +92,7 @@ void __weak board_dram_ecc_scrub(void)
 int ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int tmp, initial_drate, target_freq;
-	int ret;
+	int ret = 0;
 
 	debug("DDRINFO: start DRAM init\n");
 
@@ -118,7 +117,7 @@ int ddr_init(struct dram_timing_info *dram_timing)
 
 	initial_drate = dram_timing->fsp_msg[0].drate;
 	/* default to the frequency point 0 clock */
-	printf("DDRINFO: DRAM rate %dMTS\n", initial_drate);
+	debug("DDRINFO: DRAM rate %dMTS\n", initial_drate);
 	ddrphy_init_set_dfi_clk(initial_drate);
 
 	/* D-aasert the presetn */

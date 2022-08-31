@@ -148,6 +148,7 @@
 #include <asm/sections.h>
 
 #include "fs_board_common.h"		/* fs_board_*() */
+#include "fs_dram_common.h"			/* fs_dram_init_common() */
 #include "fs_image_common.h"		/* Own interface */
 
 /* Structure to handle board name and revision separately */
@@ -434,7 +435,6 @@ static struct fsimg {
 /* Relocate dram_timing_info structure and initialize DRAM */
 static int fs_image_init_dram(void)
 {
-	struct dram_timing_info *dti;
 	unsigned long *p;
 
 	/* Before we can init DRAM, we have to init the board config */
@@ -442,9 +442,8 @@ static int fs_image_init_dram(void)
 
 	/* The image starts with a pointer to the dram_timing variable */
 	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
-	dti = (struct dram_timing_info *)*p;
 
-	return !ddr_init(dti);
+	return !fs_dram_init_common(p);
 }
 
 /* Store board_id and split into name and revision to ease board_id matching */
@@ -618,7 +617,11 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_DRAM_TYPE:
 		if (fs_image_match(&one_fsh, "DRAM-TYPE", ram_type))
+#ifdef CONFIG_IMX8
+			fs_image_enter(size, FSIMG_STATE_DRAM_TIMING);
+#else
 			fs_image_enter(size, FSIMG_STATE_DRAM_FW);
+#endif
 		else
 			fs_image_skip(size);
 		break;
@@ -1012,6 +1015,7 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 		break;
 #endif
 #ifdef CONFIG_MMC
+	case MMC1_BOOT:
 	case MMC3_BOOT:
 		offs[0] = CONFIG_FUS_BOARDCFG_MMC0;
 		offs[1] = CONFIG_FUS_BOARDCFG_MMC1;

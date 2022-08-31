@@ -94,6 +94,9 @@ static void * const i2c_bases[] = {
 #ifdef I2C4_BASE_ADDR
 	(void *)I2C4_BASE_ADDR,
 #endif
+#ifdef I2C5_BASE_ADDR
+	(void *)I2C5_BASE_ADDR,
+#endif
 };
 
 /* i2c_index can be from 0 - 3 */

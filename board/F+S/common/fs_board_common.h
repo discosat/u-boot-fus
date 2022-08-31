@@ -14,7 +14,7 @@
 
 #include <config.h>
 
-#ifdef CONFIG_ARCH_IMX8M
+#if defined(CONFIG_ARCH_IMX8) || defined(CONFIG_ARCH_IMX8M)
 #define HAVE_BOARD_CFG			/* Use BOARD-CFG, no fs_nboot_args */
 #endif
 

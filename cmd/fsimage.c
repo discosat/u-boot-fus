@@ -839,7 +839,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	if (boot_part == 7)
 		boot_part = 0;
 
-#ifdef CONFIG_IMX8MN
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 	/* If booting from User space, check the fused secondary image offset */
 	if (!boot_part && img[2].si.count > 1) {
 		u32 secondary_offset_fuses = fs_board_get_secondary_offset();
@@ -892,7 +892,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		count = 2;		/* Ignore any extra values */
 
 	for (i = 0; i < count; i++) {
-#ifdef CONFIG_IMX8MN
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 		/* Switch to other boot partition */
 		if (boot_part && (i > 0))
 			boot_part = 3 - boot_part;
@@ -912,7 +912,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		err = 0;
 		if (i < img[1].si.count) {
 			/* Invalidate BOARD-CFG/FIRMWARE */
-#ifdef CONFIG_IMX8MN
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 			/* Only use first entry when writing to boot part */
 			if (boot_part)
 				start = fdt32_to_cpu(img[1].si.start[0]);
@@ -937,7 +937,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		}
 		if (!err && (i < img[1].si.count)) {
 			/* Invalidate SPL */
-#ifdef CONFIG_IMX8MN
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 			if (boot_part)
 				start = 0; /* Always 0 in boot part */
 			else
@@ -1090,6 +1090,9 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 #endif
 
 #ifdef CONFIG_MMC
+	case MMC1_BOOT:
+		ret = fs_image_save_uboot_to_mmc(fdt, &img, copy, 0);
+		break;
 	case MMC3_BOOT:
 		ret = fs_image_save_uboot_to_mmc(fdt, &img, copy, 2);
 		break;
@@ -1307,6 +1310,9 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 #endif
 
 #ifdef CONFIG_MMC
+	case MMC1_BOOT:
+		ret = fs_image_save_nboot_to_mmc(fdt, img, 0);
+		break;
 	case MMC3_BOOT:
 		ret = fs_image_save_nboot_to_mmc(fdt, img, 2);
 		break;
@@ -1422,12 +1428,23 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 	for (i = 0; i < len; i++) {
 		fuse_bw = fdt32_to_cpu(fbws[i]);
 		fuse_val = fdt32_to_cpu(fvals[i]);
-		ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
-		if (ret) {
-			printf("Error: Fuse programming failed for bank 0x%x,"
-			       " word 0x%x, value 0x%08x (%d)\n",
-			       fuse_bw >> 16, fuse_bw & 0xffff, fuse_val, ret);
-			return 1;
+#if defined(CONFIG_IMX8)
+		fuse_mask = fdt32_to_cpu(fmasks[i]);
+		fuse_read(fuse_bw >> 16, fuse_bw & 0xffff, &cur_val);
+		cur_val &= fuse_mask;
+#else
+		cur_val = 0;
+#endif
+		printf("cur_val = 0x%x\n",cur_val);
+		printf("fuse_val = 0x%x\n",fuse_val);
+		if (cur_val != fuse_val) {
+			ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
+			if (ret) {
+				printf("Error: Fuse programming failed for bank 0x%x,"
+					   " word 0x%x, value 0x%08x (%d)\n",
+					   fuse_bw >> 16, fuse_bw & 0xffff, fuse_val, ret);
+				return 1;
+			}
 		}
 	}
 

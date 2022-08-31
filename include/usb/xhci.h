@@ -16,6 +16,7 @@
 #ifndef HOST_XHCI_H_
 #define HOST_XHCI_H_
 
+#include <reset.h>
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <asm/io.h>
@@ -1214,6 +1215,7 @@ struct xhci_ctrl {
 #if CONFIG_IS_ENABLED(DM_USB)
 	struct udevice *dev;
 #endif
+	struct reset_ctl reset;
 	struct xhci_hccr *hccr;	/* R/O registers, not need for volatile */
 	struct xhci_hcor *hcor;
 	struct xhci_doorbell_array *dba;
@@ -1230,6 +1232,9 @@ struct xhci_ctrl {
 	struct xhci_scratchpad *scratchpad;
 	struct xhci_virt_device *devs[MAX_HC_SLOTS];
 	int rootdev;
+	u16 hci_version;
+	u32 quirks;
+#define XHCI_MTK_HOST		BIT(0)
 };
 
 unsigned long trb_addr(struct xhci_segment *seg, union xhci_trb *trb);
