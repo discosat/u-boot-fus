@@ -256,14 +256,9 @@
 #define CONFIG_SYS_DISCOVER_PHY
 
 #if defined(CONFIG_CMD_NET)
-#define CONFIG_CMD_PING
-#define CONFIG_CMD_DHCP
-#define CONFIG_CMD_MII
-#define CONFIG_MII
 #define CONFIG_ETHPRIME                 "FEC"
 #define FDT_SEQ_MACADDR_FROM_ENV
 
-#define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
 /* #define CONFIG_FEC_MXC_PHYADDR          4 */
 #define FEC_QUIRK_ENET_MAC
@@ -689,9 +684,7 @@
 #define CONFIG_SYS_MALLOC_LEN	((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
-#define CONFIG_BAUDRATE			115200
 
-#define CONFIG_MXC_UART
 /* have to define for F&S serial_mxc driver */
 #define UART1_BASE UART1_BASE_ADDR
 #define UART2_BASE UART2_BASE_ADDR
@@ -737,10 +730,6 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
-#define CONFIG_MXC_GPIO
-
-#define CONFIG_CMD_FUSE
-
 #ifndef CONFIG_DM_I2C
 #define CONFIG_SYS_I2C
 #endif
@@ -752,8 +741,6 @@
 
 /* USB configs */
 #ifndef CONFIG_SPL_BUILD
-#define CONFIG_CMD_USB
-#define CONFIG_USB_STORAGE
 #define CONFIG_USBD_HS
 #endif
 

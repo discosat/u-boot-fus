@@ -311,8 +311,6 @@
 #define CONFIG_SYS_MEMTEST_START    	PHYS_SDRAM
 #define CONFIG_SYS_MEMTEST_END      	(CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_SIZE >> 1))
 
-#define CONFIG_BAUDRATE			115200
-
 #define CONFIG_MXC_UART
 /* have to define for F&S serial_mxc driver */
 #define UART1_BASE UART1_BASE_ADDR

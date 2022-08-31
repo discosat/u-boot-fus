@@ -159,7 +159,6 @@
 #define LPUART_BASE		LPUART4_RBASE
 #define CONFIG_SYS_UART_PORT	1	/* Default UART port */
 #define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
-#define CONFIG_BAUDRATE		115200
 
 
 /*****************************************************************************
