@@ -59,6 +59,7 @@
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
+#include <fuse.h>			/* fuse_read() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_usb_common.h"	/* struct fs_usb_port_cfg, fs_usb_*() */
@@ -101,6 +102,10 @@
 #define FDT_RPMSG        "rpmsg"
 #define FDT_RPMSG_LEGACY "/soc/aips-bus@02200000/rpmsg"
 #define FDT_RES_MEM      "/reserved-memory"
+#define FDT_GPU          "gpu3d"
+#define FDT_GPC          "gpc"
+
+#define GPU_DISABLE_MASK (0x4)
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -314,11 +319,32 @@ int board_early_init_f(void)
 	return 0;
 }
 
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX6SX:
+		if (features2 & FEAT2_EMMC) {
+			 boot_dev = MMC2_BOOT;
+			 break;
+		}
+	default:
+		boot_dev = NAND_BOOT;
+		break;
+	}
+
+	return boot_dev;
+}
+
 /* Return the appropriate environment depending on the fused boot device */
 enum env_location env_get_location(enum env_operation op, int prio)
 {
 	if (prio == 0) {
-		switch (fs_board_get_boot_dev_from_fuses()) {
+		switch (fs_board_get_boot_dev()) {
 		case NAND_BOOT:
 			return ENVL_NAND;
 		case SD1_BOOT:
@@ -336,6 +362,15 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	}
 
 	return ENVL_UNKNOWN;
+}
+
+/* We dont want to use the common "is_usb_boot" function, which returns true
+ * if we are e.g. transfer an U-Boot via NetDCU-USB-Loader in N-Boot and
+ * execute the image. We booted from fuse so fuse should be checked and not
+ * some flags. Therefore we return always false.
+ */
+bool is_usb_boot(void) {
+	return false;
 }
 
 /* Check board type */
@@ -2496,6 +2531,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
+	u32 val;
 
 	printf("   Setting run-time properties\n");
 
@@ -2547,6 +2583,19 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		if(err) {
 			printf("   Trying legacy path\n");
 			fs_fdt_enable(fdt, FDT_ETH_B_LEGACY, 0);
+		}
+	}
+
+	/* Check if GPU is present */
+	/* Disabled interfaces are in fuse bank 0, word 4 */
+	if (!(fuse_read(0, 4, &val))) {
+		if (val & GPU_DISABLE_MASK) {
+			fs_fdt_enable(fdt, FDT_GPU, 0);
+			offs = fs_fdt_path_offset(fdt, FDT_GPC);
+			if (offs >= 0) {
+				fs_fdt_set_val(fdt, offs, "no-gpu",
+				NULL, 0, 1);
+			}
 		}
 	}
 

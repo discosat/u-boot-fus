@@ -56,7 +56,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
-#define BT_TBS2 		2
+#define BT_PICOCOREMX8MMr2	2
+#define BT_TBS2 		    3
 
 /* Board features; these values can be resorted and redefined at will */
 #define FEAT_ETH_A	(1<<0)
@@ -131,7 +132,20 @@ const struct fs_board_info board_info[] = {
 		.init = INIT_DEF,
 		.flags = 0,
 	},
-	{	/* 2 (BT_TBS2) */
+	{	/* 2 (BT_PICOCOREMX8MMr2) */
+		.name = "PicoCoreMX8MMr2-LPDDR4",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 3 (BT_TBS2) */
 		.name = "TBS2",
 		.bootdelay = "3",
 		.updatecheck = "mmc0,mmc2",
@@ -412,6 +426,7 @@ static int tc358764_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		i2c_bus = 3;
 		break;
 	case BT_PICOCOREMX8MX:
@@ -799,6 +814,7 @@ void enable_tc358764(struct display_info_t const *dev)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mm_pads));
 		gpio_request (LVDS_RST_8MM_PAD, "LVDS_RST");
 		gpio_direction_output (LVDS_RST_8MM_PAD, 0);
@@ -956,6 +972,7 @@ static int setup_typec(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+    case BT_PICOCOREMX8MMr2:
 		port_config.i2c_bus = 3;
 		break;
 	case BT_PICOCOREMX8MX:
@@ -1144,6 +1161,7 @@ int board_late_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		imx_iomux_v3_setup_multiple_pads (vlcd_on_8mm_pads, ARRAY_SIZE (vlcd_on_8mm_pads));
 		gpio_request (VLCD_ON_8MM_PAD, "VLCD_ON");
 		gpio_direction_output (VLCD_ON_8MM_PAD, 1);

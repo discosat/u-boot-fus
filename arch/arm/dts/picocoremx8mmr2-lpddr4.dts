@@ -10,17 +10,9 @@
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
-*
-* Remark:
-* CONFIG names use "PICOCOREMX8MM" because this is the marking on the PCB.
-* This will make it easier to merge the two device trees picocoremx8mm-lpddr4
-* and picocoremx8mn-lpddr4 in the future.
 */
 
 /dts-v1/;
-
-/* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
-#define CONFIG_PICOCOREMX8MM_BOARD_REVISION	130
 
  /* Network */
 #define CONFIG_PICOCOREMX8MM_ETH
@@ -71,10 +63,13 @@
 */
 #define CONFIG_USB_HOST_PWR
 
+/* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
+#define CONFIG_PICOCOREMX8MM_BOARD_REVISION	100
+
 #include "picocoremx8mm.dtsi"
 
 / {
-	model = "PicoCoreMX8MM-LPDDR4";
+	model = "PicoCoreMX8MMr2-LPDDR4";
 };
 
 #ifdef CONFIG_PICOCOREMX8MM_ETH
@@ -84,7 +79,7 @@
 	phy-mode = "rgmii-id";
 	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 	phy-reset-duration = <11>;
-	phy-reset-post-delay=<1>;
+	phy-reset-post-delay=<50>;
 	phy-handle = <&ethphy4>;
 	fsl,magic-packet;
 	status = "okay";

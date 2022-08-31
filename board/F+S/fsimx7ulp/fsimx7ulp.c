@@ -28,17 +28,15 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct fs_nboot_args nbootargs;
-
-#define BT_PICOCOREMX7ULP 	0
+#define BT_PCOREMX7ULP 	0
 
 /* Board features; these values can be resorted and redefined at will */
-#define FEAT_EMMC	(1<<0)
-#define FEAT_RTC85063	(1<<1)
-#define FEAT_QSPI	(1<<2)
-#define FEAT_SGTL5000	(1<<3)
-#define FEAT_WLAN	(1<<4)
-#define FEAT_MIPI_DSI	(1<<5)
+#define FEAT2_EMMC	(1<<0)
+#define FEAT2_RTC85063	(1<<1)
+#define FEAT2_QSPI	(1<<2)
+#define FEAT2_AUDIO	(1<<3)
+#define FEAT2_WLAN	(1<<4)
+#define FEAT2_MIPI_DSI	(1<<5)
 
 
 #define UART_PAD_CTRL	(PAD_CTL_PUS_UP)
@@ -65,7 +63,7 @@ static struct fs_nboot_args nbootargs;
 #endif
 
 const struct fs_board_info board_info[] = {
-	{	/* 0 (BT_PICOCOREMX7ULP) */
+	{	/* 0 (BT_PCOREMX7ULP) */
 		.name = "PicoCoreMX7ULP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -109,39 +107,25 @@ static void setup_iomux_uart(void)
 /* Check how to add more dynamically, SPL? */
 void fs_board_init_nboot_args(void)
 {
-	struct fs_nboot_args *pargs = (struct fs_nboot_args*)
-				(CONFIG_SYS_SDRAM_BASE + 0x00001000);
+	/* Before relocation we do not have variables, so prepare
+	 * a temporary struct at a fix ram position. This will be
+     * copied to a real variable later in board_init()
+     */
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* initalize ram area with zero before set */
 	memset(pargs, 0x0, sizeof(struct fs_nboot_args));
 
-    	nbootargs.dwID = FSHWCONFIG_ARGS_ID;
-	nbootargs.dwSize = 16*4;
-	nbootargs.dwNBOOT_VER = 1;
-
-	nbootargs.dwMemSize = PHYS_SDRAM_SIZE >> 20;
-
-	nbootargs.dwNumDram = CONFIG_NR_DRAM_BANKS;
-	nbootargs.dwFlashSize = 0x0;		/* size of NAND flash in MB */
-	nbootargs.dwDbgSerPortPA = LPUART_BASE;
-
-	/* get board type */
-        nbootargs.chBoardType = 0x0;
-	/* get board revision */
-        nbootargs.chBoardRev = 120;
-
 	/* fill nboot args first after ram initialization */
-	pargs = fs_board_get_nboot_args();
-
-	pargs->dwID = nbootargs.dwID;
-	pargs->dwSize = nbootargs.dwSize;
-	pargs->dwNBOOT_VER = nbootargs.dwNBOOT_VER;
-	pargs->dwMemSize = nbootargs.dwMemSize;
-	pargs->dwNumDram = nbootargs.dwNumDram;
-	pargs->dwFlashSize = nbootargs.dwFlashSize;
-	pargs->dwDbgSerPortPA = nbootargs.dwDbgSerPortPA;
-	pargs->chBoardRev = nbootargs.chBoardRev;
-	pargs->chBoardType = nbootargs.chBoardType;
+	pargs->dwID =  FSHWCONFIG_ARGS_ID;
+	pargs->dwSize = 16*4;
+	pargs->dwNBOOT_VER =  1;
+	pargs->dwMemSize = PHYS_SDRAM_SIZE >> 20;
+	pargs->dwNumDram = CONFIG_NR_DRAM_BANKS;
+	pargs->dwFlashSize = 0x0;
+	pargs->dwDbgSerPortPA = LPUART_BASE;
+	pargs->chBoardRev = 120;
+	pargs->chBoardType = 0x0;
 	pargs->chFeatures2 = 0x3F;
 }
 
@@ -154,6 +138,24 @@ int board_early_init_f(void)
 	setup_iomux_uart();
 
 	return 0;
+}
+
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX7ULP:
+		if (features2 & FEAT2_EMMC) {
+			boot_dev = MMC1_BOOT;
+			break;
+		}
+	}
+
+	return boot_dev;
 }
 
 /* Return the appropriate environment depending on the fused boot device */
@@ -185,11 +187,11 @@ int checkboard(void)
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
 		board_rev / 100, board_rev % 100);
-	if (features2 & FEAT_WLAN)
+	if (features2 & FEAT2_WLAN)
 		puts ("WLAN, ");
-	if (features2 & FEAT_EMMC)
+	if (features2 & FEAT2_EMMC)
 		puts ("eMMC, ");
-	if (features2 & FEAT_QSPI)
+	if (features2 & FEAT2_QSPI)
 		puts("QSPI, ");
 	printf("%dx DRAM)\n", pargs->dwNumDram);
 
@@ -418,7 +420,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 {
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	int offs;
-
+	int id = 0;
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
 	if (offs >= 0) {
@@ -430,17 +432,18 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		 * which have an integrated mac address. So we don´t
 		 * have to set an own mac address for the module.
 		 */
-//		if (features & FEAT_WLAN)
+		fs_fdt_set_macaddr(fdt, offs, id++);
+//		if (features & FEAT2_WLAN)
 //			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
-	/* Set linux,cma size depending on RAM size. Default is 128MB. */
+	/* Set linux,cma size depending on RAM size. Default is 256MB. */
 	offs = fs_fdt_path_offset(fdt, FDT_CMA);
 	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
 		unsigned int dram_size = pargs->dwMemSize;
 		if ((dram_size == 1023) || (dram_size == 1024)) {
 			fdt32_t tmp;
-			tmp = cpu_to_fdt32(0x08000000);
+			tmp = cpu_to_fdt32(0x10000000);
 			fs_fdt_set_val(fdt, offs, "size", &tmp, sizeof(tmp), 1);
 		}
 	}

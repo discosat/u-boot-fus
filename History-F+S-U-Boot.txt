@@ -45,13 +45,86 @@ u-boot-2020.04-fsimx8mp-Y2021.06 (31.05.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MP
 
-- Start version for fsimx8mp
+- Start version for fsimx8mp (rel_imx_5.4.70_2.3.0)
 - imx8m: fix cache setup for dynamic sdram size
 - Add fsimx8mp support
 - Add FUS optimized FAT driver
 - Add FUS system promt support
 - Add support to use . operator
 - Improve fsimx8mp support
+
+
+============================================================
+
+
+u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Add Board-Configs for the PicoCoreMX8MMr2
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add PicoCoreMX8MMr2 support
+- Add N-boot History file for nboot-fsimx8mm-2021.04.1
+
+
+
+u-boot-2018.03-fsimx7ulp-Y2022.05 (11.05.2022)
+----------------------------------------------
+Supported boards: PicoCoreMX7ULP
+
+- Improve imx7ulp bootaux command
+- Improve imx7ulp reset cause handling
+- Increaseth fsimx7ulp default CMA size
+- Add picocoremx7ulp spi flash device support
+- Set mac address in bdinfo for fsimx7ulp
+- Fix fsimx7ulp reloction error
+
+
+
+u-boot-2018.03-fsimx6ul-B2022.04 (11.04.2022)
+---------------------------------------------
+Supported boards: efusA7UL PicoCOM1.2 PicoCoreMX6UL PicoCoreMX6UL100 PicoCOMA7
+
+- Add support for picocoremx6ul100
+- Add support for same defconfig independent from boot device for fsimx6sx/ul
+- Add support for command fsimage_imx6 (fsimx6sx/ul)
+- Improve fsimx6sx to setup dynamic linux device tree
+- Fix DTS adaption to support backwards compatibility for fsimx6sx/ul
+- Fix bootcmd-fastboot override when booting from USB
+- In mxs-nand-fus.c, set and use ecc.total/ecc.bytes correctly
+- Fix fastboot for i.MX8
+- Add new nboot config TBS2-FERT3
+- Backport new usb gadget driver from version v2019.01
+- lib: errno: avoid error format-overflow
+- gcc-9: silence 'address-of-packed-member' warning
+- Add support for target fsimx7ulp
+- Improve rndis gadget configuration on platform fsimx7ulp
+- Improve cma setup for target fsimx7ulp
+- Improve phy realtek LED setup
+- Improve fsimx6 configuration u-boot size
+- Add GPU detection for fsimx6sx
+- Improve is_usb_boot function for MX6 CPUs
+- Add "is_usb_boot" function for platform fsimx6sx/ul
+- Add config for PCoreMX8MM-FERT15.130
+- Improve board name for PCoreMX8MM-FERT15.130.dts
+- Improve naming of target fsimx7ulp
+- Improve setup of fs_board_get_boot_dev for fsimx6*/7ulp
+- Improve mx6 mmc_get_env_dev/mmc_get_env_part
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
+- Add configs FERT1.130 FERT2.130 FERT17.120 for fsimx8mm
+
+
+
+u-boot-2018.03-fsimx6ul-Y2020.03.1 (15.03.2022)
+-----------------------------------------------
+Supported boards: efusA7UL, PicoCoreMX6UL, PicoCoreMX6UL100, PicoMODA7
+
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
 
 
 
@@ -237,7 +310,6 @@ Supported boards: PicoCoreMX8MM
 - Improve fsimx8mm linux fdt fixups
 - Remove setting ethaddr for WLAN on fsimx8mm
 - Change NBoot version to current one
-
 
 
 u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)

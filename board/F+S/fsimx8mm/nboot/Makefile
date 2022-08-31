@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2022.02
+NBOOT_VERSION = 2022.09
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -33,6 +33,8 @@ NBOOT_VERSION = 2022.02
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
+	PCoreMX8MM-FERT1.130.fs \
+	PCoreMX8MM-FERT2.130.fs \
 	PCoreMX8MM-FERT3.130.fs \
 	PCoreMX8MM-FERT3.120.fs \
 	PCoreMX8MM-FERT3.110.fs \
@@ -44,6 +46,13 @@ BOARD_CONFIGS = \
 	PCoreMX8MM-FERT9.110.fs \
 	PCoreMX8MM-FERT12.130.fs \
 	PCoreMX8MM-FERT13.130.fs \
+	PCoreMX8MM-FERT15.130.fs \
+	PCoreMX8MMr2-FERT3.100.fs \
+	PCoreMX8MMr2-FERT4.100.fs \
+	PCoreMX8MMr2-FERT9.100.fs \
+	PCoreMX8MMr2-FERT12.100.fs \
+	PCoreMX8MMr2-FERT13.100.fs \
+	PCoreMX8MMr2-FERT15.100.fs \
 	PCoreMX8MX-FERT5.120.fs \
 	PCoreMX8MX-FERT5.110.fs \
 	PCoreMX8MX-FERT6.120.fs \
@@ -52,6 +61,7 @@ BOARD_CONFIGS = \
 	PCoreMX8MX-FERT7.110.fs \
 	PCoreMX8MX-FERT8.120.fs \
 	PCoreMX8MX-FERT8.110.fs \
+	PCoreMX8MX-FERT17.120.fs \
 	TBS2-FERT1.111.fs \
 	TBS2-FERT3.120.fs
 
@@ -61,7 +71,9 @@ RT_DDR3L := \
 	ddr3l_2x_mt41k128m16tw_timing.fs
 RT_LPDDR4 := \
 	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f8e304hb_mgcj_timing.fs
+	lpddr4_k4f8e304hb_mgcj_timing.fs \
+	lpddr4_k4f6e3s4hm_mgcl_timing.fs \
+	lpddr4_fl4c2001g_d9_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings

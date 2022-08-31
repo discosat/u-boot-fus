@@ -16,6 +16,8 @@
 #include <common.h>			/* Types, container_of(), ... */
 #include <asm/gpio.h>			/* gpio_get_value(), ... */
 #include <asm/io.h>			/* readl(), writel() */
+#include <asm/mach-imx/boot_mode.h>
+#include "fs_board_common.h"		/* Own interface */
 #if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN) && !defined(CONFIG_ARCH_MX7ULP)
 #include <asm/arch/crm_regs.h>		/* struct mxc_ccm_reg */
 #endif
@@ -144,6 +146,27 @@ int board_mmc_get_env_dev(int devno)
 		mmc_boot_device =   devno;
 	}
 #else
+	enum boot_device boot_dev = fs_board_get_boot_dev();
+	switch (boot_dev) {
+	case SD1_BOOT:
+	case MMC1_BOOT:
+		devno = 0;
+		break;
+	case SD2_BOOT:
+	case MMC2_BOOT:
+		devno = 1;
+		break;
+	case SD3_BOOT:
+	case MMC3_BOOT:
+		devno = 2;
+		break;
+	case SD4_BOOT:
+	case MMC4_BOOT:
+		devno = 3;
+		break;
+	default:
+		return -1;
+	}
 	usdhc_boot_device = devno;
 	mmc_boot_device = usdhc_pos_in_init[devno];
 #endif

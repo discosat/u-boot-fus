@@ -802,6 +802,7 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mn-ddr4-ab2.dtb \
 	imx8mn-ab2.dtb \
 	picocoremx8mm-lpddr4.dtb \
+        picocoremx8mmr2-lpddr4.dtb \
 	picocoremx8mm-ddr3l.dtb \
 	armstonemx8m.dtb \
 	picocoremx8mn-lpddr4.dtb \

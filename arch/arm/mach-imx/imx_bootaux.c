@@ -268,8 +268,13 @@ static int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			arch_auxiliary_core_set(0, state);
 
 			if (arch_auxiliary_core_get(0) != aux_stopped) {
+#ifdef CONFIG_ARCH_MX7ULP
+				printf("## Auxiliary core is already up\n");
+				return CMD_RET_SUCCESS;
+#else
 				printf("Aux core still running, abort!\n");
 				return CMD_RET_FAILURE;
+#endif
 			}
 
 			ret = arch_auxiliary_core_set_reset_address(addr);

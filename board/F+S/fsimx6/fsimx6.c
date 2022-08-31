@@ -16,6 +16,7 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <env_internal.h>
 
 #ifdef CONFIG_FSL_ESDHC_IMX
 #include <mmc.h>
@@ -271,6 +272,44 @@ int board_early_init_f(void)
 #endif
 
 	return 0;
+}
+
+enum boot_device fs_board_get_boot_dev(void)
+{
+	return NAND_BOOT;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev()) {
+		case NAND_BOOT:
+			return ENVL_NAND;
+		case SD1_BOOT:
+		case SD2_BOOT:
+		case SD3_BOOT:
+		case SD4_BOOT:
+		case MMC1_BOOT:
+		case MMC2_BOOT:
+		case MMC3_BOOT:
+		case MMC4_BOOT:
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
+}
+
+/* We dont want to use the common "is_usb_boot" function, which returns true
+ * if we are e.g. transfer an U-Boot via NetDCU-USB-Loader in N-Boot and
+ * execute the image. We booted from fuse so fuse should be checked and not
+ * some flags. Therefore we return always false.
+ */
+bool is_usb_boot(void) {
+	return false;
 }
 
 /* Check board type */

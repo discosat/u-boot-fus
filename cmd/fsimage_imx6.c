@@ -425,7 +425,7 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 		return report_return_code(-EINVAL);
 	}
 
-	switch (fs_board_get_boot_dev_from_fuses()) {
+	switch (fs_board_get_boot_dev()) {
 #ifdef CONFIG_CMD_MMC
 		case SD1_BOOT:
 		case MMC1_BOOT:
