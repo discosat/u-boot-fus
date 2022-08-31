@@ -246,8 +246,6 @@
 #define CONFIG_ETHPRIME                 "eth1" /* Set qos to primary since we use its MDIO */
 #define FDT_SEQ_MACADDR_FROM_ENV
 
-#define CONFIG_FEC_GET_MAC_FROM_FUSES	/* ### we should not use this ### */
-
 #define CONFIG_FEC_XCV_TYPE             RGMII
 //#define CONFIG_FEC_MXC_PHYADDR          5
 #define FEC_QUIRK_ENET_MAC

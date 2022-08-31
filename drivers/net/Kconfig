@@ -267,6 +267,16 @@ config FEC_MXC
 	  This driver supports the 10/100 Fast Ethernet controller for
 	  NXP i.MX processors.
 
+config FEC_GET_MAC_FROM_FUSES
+	bool "Load default MAC address(es) from fuses"
+	depends on FEC_MXC
+	default y
+	help
+	  Most NXP network drivers expect the MAC addresses to be stored
+	  in the OCOTP fuses of the SoC. Say Y here if they should be
+	  loaded at startup. Say N if you have a different way of storing
+	  the MAC addresses and do this yourself, e.g. in the board file.
+
 config FMAN_ENET
 	bool "Freescale FMan ethernet support"
 	depends on ARM || PPC
