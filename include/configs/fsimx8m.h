@@ -114,13 +114,6 @@
 /* Flat Device Tree Definitions */
 #define CONFIG_OF_BOARD_SETUP
 
-#undef CONFIG_CMD_EXPORTENV
-#undef CONFIG_CMD_IMPORTENV
-#undef CONFIG_CMD_IMLS
-
-#undef CONFIG_CMD_CRC32
-#undef CONFIG_BOOTM_NETBSD
-
 /* ENET Config */
 /* ENET1 */
 #define CONFIG_SYS_DISCOVER_PHY

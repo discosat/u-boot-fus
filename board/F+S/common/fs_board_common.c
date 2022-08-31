@@ -18,9 +18,9 @@
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"
+#include <fuse.h>			/* fuse_read() */
 
 #ifdef HAVE_BOARD_CFG
-#include <fuse.h>			/* fuse_read() */
 #include "fs_image_common.h"		/* fs_image_*() */
 #endif
 
@@ -29,7 +29,7 @@
 #ifndef CONFIG_SPL_BUILD
 
 /* String used for system prompt */
-static char fs_sys_prompt[20];
+static char fs_sys_prompt[32];
 
 /* Store a pointer to the current board info */
 static const struct fs_board_info *current_bi;
@@ -86,7 +86,12 @@ struct fs_nboot_args *fs_board_get_nboot_args(void)
 /* Get board type (zero-based) */
 unsigned int fs_board_get_type(void)
 {
-	return fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+	int BoardType = fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+#ifdef CONFIG_TARGET_FSIMX6
+	if (BoardType >= 29)
+		BoardType -= 21;
+#endif
+	return BoardType;
 }
 
 /* Get board revision (major * 100 + minor, e.g. 120 for rev 1.20) */
@@ -100,15 +105,6 @@ ulong board_serial_base(void)
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	return pargs->dwDbgSerPortPA;
-}
-
-enum boot_device fs_board_get_boot_dev(void)
-{
-#ifdef CONFIG_ENV_IS_IN_MMC
-	return MMC2_BOOT;
-#else
-	return NAND_BOOT;
-#endif
 }
 
 /* Get the NBoot version */
@@ -342,6 +338,9 @@ void fs_board_late_init_common(const char *serial_name)
 #endif
 	bool is_nand = (fs_board_get_boot_dev() == NAND_BOOT);
 	const char *bd_kernel, *bd_fdt, *bd_rootfs;
+#ifdef CONFIG_ARCH_MX7ULP
+	const char *bd_auxcore;
+#endif
 	char var_name[20];
 
 	/* Set sercon variable if not already set */
@@ -365,12 +364,14 @@ void fs_board_late_init_common(const char *serial_name)
 		char *p = current_bi->name;
 		char *l = lcasename;
 		char c;
+		int len = 0;
 
 		do {
 			c = *p++;
 			if ((c >= 'A') && (c <= 'Z'))
 				c += 'a' - 'A';
 			*l++ = c;
+			len++;
 		} while (c);
 
 #ifdef CONFIG_MX6QDL
@@ -382,18 +383,45 @@ void fs_board_late_init_common(const char *serial_name)
 #elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 		/*
 		 * In case of i.MX6ULL, append a second 'l' if the name already
-		 * ends with 'ul', otherwise append 'ull'. This results in the
-		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
+		 * have a substring with 'ul', otherwise append 'ull'.
+		 * This results in the names efusa7ull, cubea7ull,
+		 * picocom1.2ull, cube2.0ull, picocoremx6ul100 ...
 		 */
 		if (is_mx6ull()) {
-			l--;
-			/* Names have > 2 chars, so negative index is valid */
-			if ((l[-2] != 'u') || (l[-1] != 'l')) {
-				*l++ = 'u';
+			int i = 0;
+			bool found = false;
+			p = lcasename;
+			do {
+				if (*p == 'u' && *++p == 'l')
+				{
+					i += 2;
+					*l = '\0';
+					do {
+						//*l-- = *l;
+						*l = l[-1];
+						l--;
+						len--;
+					} while (i != len);
+					*l = 'l';
+					found = true;
+					break;
+				}
+				p++;
+				i++;
+			} while (*p);
+
+			if (!found) {
+				l--;
+				/* Names have > 2 chars, so negative index
+				 * is valid
+				 */
+				if ((l[-2] != 'u') || (l[-1] != 'l')) {
+					*l++ = 'u';
+					*l++ = 'l';
+				}
 				*l++ = 'l';
+				*l++ = '\0';
 			}
-			*l++ = 'l';
-			*l++ = '\0';
 		}
 #endif
 		env_set("platform", lcasename);
@@ -422,8 +450,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("updatecheck", current_bi->updatecheck, 0);
 	setup_var("installcheck", current_bi->installcheck, 0);
 	setup_var("recovercheck", current_bi->recovercheck, 0);
+#ifndef CONFIG_ARCH_MX7ULP
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
+#endif
 #ifdef CONFIG_FS_BOARD_MODE_RO
 	setup_var("mode", "ro", 0);
 #else
@@ -437,14 +467,23 @@ void fs_board_late_init_common(const char *serial_name)
 		else
 			bd_kernel = "nand";
 		bd_fdt = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	} else {
 		bd_kernel = "mmc";
 		bd_fdt = bd_kernel;
 		bd_rootfs = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	}
 	setup_var("bd_kernel", bd_kernel, 0);
 	setup_var("bd_fdt", bd_fdt, 0);
 	setup_var("bd_rootfs", bd_rootfs, 0);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bd_auxcore", bd_auxcore, 0);
+#endif
 
 	setup_var("console", current_bi->console, 1);
 	setup_var("login", current_bi->login, 1);
@@ -453,6 +492,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("init", current_bi->init, 1);
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("bootargs", "set_bootargs", 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bootauxfile", "power_mode_switch.img", 0);
+#endif
+
 
 	/* Set some variables by runnning another variable */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
@@ -469,7 +512,12 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("fdt", var_name, 1);
 	sprintf(var_name, ".rootfs_%s", bd_rootfs);
 	setup_var("rootfs", var_name, 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	sprintf(var_name, ".auxcore_%s", bd_auxcore);
+	setup_var("auxcore", var_name, 1);
 #endif
+#endif
+
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
@@ -534,6 +582,90 @@ const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
 
 #include <fdtdec.h>
 
+#ifdef CONFIG_IMX8MN
+/* Definitions in boot_cfg (fuse bank 1, word 3) */
+#define BOOT_CFG_DEVSEL_SHIFT 12
+#define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)
+#define BOOT_CFG_FORCE_ALT_USDHC BIT(11)
+#define BOOT_CFG_ALT_SEL_SHIFT 9
+#define BOOT_CFG_ALT_SEL_MASK (3 << BOOT_CFG_ALT_SEL_SHIFT)
+enum boot_device usdhc_alt[] = {
+	SD1_BOOT,
+	MMC1_BOOT,
+	MMC2_BOOT,
+	SD3_BOOT,
+};
+/*
+ * Return the boot device as programmed in the fuses. This may differ from the
+ * currently active boot device. For example the board can currently boot from
+ * USB (returned by spl_boot_device()), but is basically fused to boot from
+ * NAND (returned here).
+ */
+enum boot_device fs_board_get_boot_dev_from_fuses(void)
+{
+	u32 val;
+	u32 alt;
+	bool force_alt_usdhc;
+	enum boot_device boot_dev = USB_BOOT;
+
+	/* boot_cfg is in fuse bank 1, word 3 */
+	if (fuse_read(1, 3, &val)) {
+		puts("Error reading boot_cfg\n");
+		return boot_dev;
+	}
+
+	force_alt_usdhc = val & BOOT_CFG_FORCE_ALT_USDHC;
+	alt = (val & BOOT_CFG_ALT_SEL_MASK) >> BOOT_CFG_ALT_SEL_SHIFT;
+	switch ((val & BOOT_CFG_DEVSEL_MASK) >> BOOT_CFG_DEVSEL_SHIFT) {
+	case 0x2: // eMMC(SD3)
+		boot_dev = MMC3_BOOT;
+		if (force_alt_usdhc)
+			boot_dev = usdhc_alt[alt];
+		break;
+
+	case 0x3: // SD(SD2)
+		boot_dev = SD2_BOOT;
+		if (force_alt_usdhc)
+			boot_dev = usdhc_alt[alt];
+		break;
+
+	case 0x4: // NAND(256 pages)
+	case 0x5: // NAND(512 pages)
+		boot_dev = NAND_BOOT;
+		break;
+
+	default:
+		break;
+	}
+
+	return boot_dev;
+}
+
+#define IMG_CNTN_SET1_OFFSET_SHIFT 19
+#define IMG_CNTN_SET1_OFFSET_MASK 0x0f
+u32 fs_board_get_secondary_offset(void)
+{
+	u32 val;
+
+	/* Secondary boot image offset is in fuse bank 2, word 1 */
+	if (fuse_read(2, 1, &val)) {
+		puts("Error reading secondary image offset from fuses\n");
+		return 0;
+	}
+
+	val >>= IMG_CNTN_SET1_OFFSET_SHIFT;
+	val &= IMG_CNTN_SET1_OFFSET_MASK;
+	if (val == 0)
+		val = 2;
+	else if (val == 2)
+		val = 0;
+	val += 20;
+	val = 1 << val;
+
+	return val;
+}
+
+#else
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
 #define BOOT_CFG_DEVSEL_MASK (7 << BOOT_CFG_DEVSEL_SHIFT)
@@ -577,5 +709,6 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 
 	return boot_dev;
 }
+#endif /* CONFIG_IMX8MN */
 
 #endif /* HAVE_BOARD_CFG */

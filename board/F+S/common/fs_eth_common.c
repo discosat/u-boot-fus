@@ -78,7 +78,7 @@ void fs_eth_set_ethaddr(int index)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
 #if defined(CONFIG_ARCH_IMX8M)
-	struct fuse_bank *bank = &ocotp->bank[6];
+	struct fuse_bank *bank = &ocotp->bank[9];
 #else
 	struct fuse_bank *bank = &ocotp->bank[4];
 #endif
@@ -95,7 +95,22 @@ void fs_eth_set_ethaddr(int index)
 	if (eth_env_get_enetaddr_by_index("eth", index, enetaddr))
 		return;
 
+	/* To understand how the offsets comes about, here is a small
+	 * description.
+	 * Every word between one bank has an offset of 0x10.
+	 * For i.MX6* there are 8 words each bank.
+	 * For i.MX8M* there are 4 words each bank.
+	 * For each word there are 4 32-bit values. But only the first
+	 * 32-bit entry holds the value, the other 32-bit entrys are reserved.
+	 * For example we need word 2, we need fuse_regs[8] because
+	 * word 0 is fuse_regs[0], word 1 is fuse_regs[4] and word 2 is
+	 * fuse_regs[8].
+	 */
+#if defined(CONFIG_ARCH_IMX8M)
+	count = get_otp_mac(&bank->fuse_regs[0], enetaddr);
+#else
 	count = get_otp_mac(&bank->fuse_regs[8], enetaddr);
+#endif
 	if (count <= offs) {
 		offs -= count;
 		eth_parse_enetaddr(CONFIG_ETHADDR_BASE, enetaddr);

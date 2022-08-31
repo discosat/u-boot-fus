@@ -43,18 +43,19 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MM 0x0
 #define BT_PICOCOREMX8MX 0x1
 #define BT_PICOCOREMX8MMr2 0x2
-
+#define BT_TBS2          0x3
 static const char *board_names[] = {
-	"PicoCoreMX8MM",
-	"PicoCoreMX8MX",
+	"PicoCoreMX8MM-LPDDR4",
+	"PicoCoreMX8MM-DDR3L",
 	"PicoCoreMX8MMr2",
+	"TBS2"
 	"(unknown)"
 };
 
 static unsigned int board_type;
 static unsigned int board_rev;
 static const char *board_name;
-static char board_name_lc[32];		/* Lower case (for FDT match) */
+static const char *board_fdt;
 static enum boot_device used_boot_dev;	/* Boot device used for NAND/MMC */
 static bool boot_dev_init_done;
 static unsigned int uboot_offs;
@@ -108,6 +109,7 @@ int power_init_board(void)
 		ret = power_bd71837_init(I2C_PMIC_8MM);
 		break;
 	case BT_PICOCOREMX8MX:
+	case BT_TBS2:
 		setup_i2c(I2C_PMIC_8MX, CONFIG_SYS_I2C_SPEED, 0x7f,
 			  &i2c_pad_info_8mx);
 		ret = power_bd71837_init(I2C_PMIC_8MX);
@@ -139,6 +141,7 @@ int power_init_board(void)
 		pmic_reg_write(p, BD71837_BUCK5_VOLT, 0x83);
 		break;
 	case BT_PICOCOREMX8MX:
+	case BT_TBS2:
 		/* increase VDD_DRAM to 0.9v for 3Ghz DDR */
 		pmic_reg_write(p, BD71837_BUCK5_VOLT, 0x2);
 
@@ -195,6 +198,7 @@ static void config_uart(int board_type)
 		break;
 
 	case BT_PICOCOREMX8MX:
+	case BT_TBS2:
 		/* Setup UART pads */
 		imx_iomux_v3_setup_multiple_pads(uart_pads_mx,
 						 ARRAY_SIZE(uart_pads_mx));
@@ -348,7 +352,6 @@ static void fs_board_early_init(void)
 {
 	switch (board_type)
 	{
-	default:
 	case BT_PICOCOREMX8MM:
 		if (board_rev < 130)
 			imx_iomux_v3_setup_pad(lvds_rst_8mm_120_pads);
@@ -360,6 +363,8 @@ static void fs_board_early_init(void)
 		break;
 	case BT_PICOCOREMX8MMr2:
 			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
+		break;
+	default:
 		break;
 	}
 }
@@ -382,21 +387,33 @@ static void basic_init(void)
 	}
 	board_type = i;
 
-	/* Switch to lower case for device tree name */
-	i = 0;
-	do {
-		c = board_name[i];
-		if ((c >= 'A') && (c <= 'Z'))
-			c += 'a' - 'A';
-		board_name_lc[i++] = c;
-	} while (c);
+	/*
+	 * If an fdt-name is not given, use board name in lower case. Please
+	 * note that this name is only used for the U-Boot device tree. The
+	 * Linux device tree name is defined by executing U-Boot's environment
+	 * variable set_bootfdt.
+	 */
+	board_fdt = fdt_getprop(fdt, offs, "board-fdt", NULL);
+	if (!board_fdt) {
+		static char board_name_lc[32];
+
+		i = 0;
+		do {
+			c = board_name[i];
+			if ((c >= 'A') && (c <= 'Z'))
+				c += 'a' - 'A';
+			board_name_lc[i++] = c;
+		} while (c);
+
+		board_fdt = (const char *)&board_name_lc[0];
+	}
 
 	board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
 						 "board-rev", 100);
 	config_uart(board_type);
 	if (secondary)
 		puts("Warning! Running secondary SPL, please check if"
-		     " primary SPl is damaged.\n");
+		     " primary SPL is damaged.\n");
 
 	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
 	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
@@ -566,6 +583,6 @@ void board_boot_order(u32 *spl_boot_list)
  */
 int board_fit_config_name_match(const char *name)
 {
-	return strcmp(name, board_name_lc);
+	return strcmp(name, board_fdt);
 }
 #endif

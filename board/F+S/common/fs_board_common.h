@@ -72,8 +72,8 @@ struct cfg_info {
 	unsigned int dram_chips;
 };
 
-/* Get the boot device that is programmed in the fuses. */
-enum boot_device fs_board_get_boot_dev_from_fuses(void);
+/* Get the offset of the Secondary Boot Image from fuses */
+u32 fs_board_get_secondary_offset(void);
 
 #endif /* !HAVE_BOARD_CFG */
 
@@ -126,5 +126,8 @@ void fs_board_init_common(const struct fs_board_info *board_info);
 
 /* Set up all board specific variables */
 void fs_board_late_init_common(const char *serial_name);
+
+/* Get the boot device that is programmed in the fuses. */
+enum boot_device fs_board_get_boot_dev_from_fuses(void);
 
 #endif /* !__FS_BOARD_COMMON_H__ */

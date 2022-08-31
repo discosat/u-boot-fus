@@ -4686,7 +4686,16 @@ int nand_scan_tail(struct mtd_info *mtd)
 		pr_warn("Invalid ECC parameters\n");
 		BUG();
 	}
-	ecc->total = ecc->steps * ecc->bytes;
+
+	/*
+	 * Attention! Some ECC methods (like the BCH engine on i.MX CPUs) may
+	 * produce ECC sums with a bit size per step that is not a multiple of
+	 * bytes. These drivers should compute entry ecc->total in their
+	 * register() code already and ecc->bytes should be ignored then. In
+	 * all other cases, i.e. if ecc->total is still 0, compute it now.
+	 */
+	if (!ecc->total)
+		ecc->total = ecc->steps * ecc->bytes;
 
 	/* Allow subpage writes up to ecc.steps. Not possible for MLC flash */
 	if (!(chip->options & NAND_NO_SUBPAGE_WRITE) && nand_is_slc(chip)) {

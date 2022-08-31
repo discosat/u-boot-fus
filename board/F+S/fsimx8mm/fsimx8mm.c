@@ -32,6 +32,9 @@
 #include <spl.h>
 #include <asm/mach-imx/dma.h>
 #include <power/bd71837.h>
+#ifdef CONFIG_USB_TCPC
+#include "../common/tcpc.h"
+#endif
 #include <usb.h>
 #include <sec_mipi_dsim.h>
 #include <imx_mipi_dsi_bridge.h>
@@ -54,6 +57,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
 #define BT_PICOCOREMX8MMr2	2
+#define BT_TBS2 		    3
 
 /* Board features; these values can be resorted and redefined at will */
 #define FEAT_ETH_A	(1<<0)
@@ -103,7 +107,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 const struct fs_board_info board_info[] = {
 	{	/* 0 (BT_PICOCOREMX8MM) */
-		.name = "PicoCoreMX8MM",
+		.name = "PicoCoreMX8MM-LPDDR4",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -116,7 +120,7 @@ const struct fs_board_info board_info[] = {
 		.flags = 0,
 	},
 	{	/* 1 (BT_PICOCOREMX8MX) */
-		.name = "PicoCoreMX8MX",
+		.name = "PicoCoreMX8MM-DDR3L",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -129,9 +133,22 @@ const struct fs_board_info board_info[] = {
 		.flags = 0,
 	},
 	{	/* 2 (BT_PICOCOREMX8MMr2) */
-		.name = "PicoCoreMX8MMr2",
+		.name = "PicoCoreMX8MMr2-LPDDR4",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 3 (BT_TBS2) */
+		.name = "TBS2",
+		.bootdelay = "3",
+		.updatecheck = "mmc0,mmc2",
 		.installcheck = INSTALL_DEF,
 		.recovercheck = UPDATE_DEF,
 		.console = ".console_serial",
@@ -289,6 +306,10 @@ int checkboard(void)
 }
 
 /* ---- Stage 'r': RAM valid, U-Boot relocated, variables can be used ------ */
+#ifdef CONFIG_USB_TCPC
+#define  USB_INIT_UNKNOWN (USB_INIT_DEVICE + 1)
+static int setup_typec(void);
+#endif
 static int setup_fec(void);
 void fs_ethaddr_init(void);
 static int board_setup_ksz9893r(void);
@@ -299,6 +320,10 @@ int board_init(void)
 
 	/* Prepare command prompt string */
 	fs_board_init_common(&board_info[board_type]);
+
+#ifdef CONFIG_USB_TCPC
+	setup_typec();
+#endif
 
 #ifdef CONFIG_FEC_MXC
 	setup_fec();
@@ -329,6 +354,7 @@ int board_nand_init(struct nand_chip *nand)
  *   -------------------------------------------------------------
  *   PicoCoreMX8MM  4 lanes*  24 bit²    24 bit²
  *   PicoCoreMX8MN  4 lanes*  24 bit²    24 bit²
+ *   TBS2           4 lanes*  -          -
  *
  * The entry marked with * is the default port.
  * The entry marked with ² only work with a MIPI to LVDS converter
@@ -789,7 +815,7 @@ void enable_tc358764(struct display_info_t const *dev)
 	{
 	case BT_PICOCOREMX8MM:
 	case BT_PICOCOREMX8MMr2:
-		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mx_pads));
+		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mm_pads));
 		gpio_request (LVDS_RST_8MM_PAD, "LVDS_RST");
 		gpio_direction_output (LVDS_RST_8MM_PAD, 0);
 		/* period of reset signal > 50 ns */
@@ -925,6 +951,107 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
 	return boot_part;
 }
 
+#ifdef CONFIG_USB_TCPC
+struct tcpc_port port;
+
+struct tcpc_port_config port_config = {
+	.i2c_bus = 0,
+	.addr = 0x52,
+	.port_type = TYPEC_PORT_UFP,
+	.max_snk_mv = 5000,
+	.max_snk_ma = 3000,
+	.max_snk_mw = 40000,
+	.op_snk_mv = 9000,
+	.switch_setup_func = NULL,
+};
+
+static int setup_typec(void)
+{
+	int ret;
+
+	switch (fs_board_get_type())
+	{
+	case BT_PICOCOREMX8MM:
+    case BT_PICOCOREMX8MMr2:
+		port_config.i2c_bus = 3;
+		break;
+	case BT_PICOCOREMX8MX:
+		port_config.i2c_bus = 0;
+		break;
+	}
+
+	debug("tcpc_init port\n");
+	ret = tcpc_init(&port, port_config, NULL);
+	if (ret) {
+		port.i2c_dev = NULL;
+	}
+	return ret;
+}
+
+int board_usb_init(int index, enum usb_init_type init)
+{
+	int ret = 0;
+	struct tcpc_port *port_ptr = &port;
+
+	debug("board_usb_init %d, type %d\n", index, init);
+
+	imx8m_usb_power(index, true);
+
+	if (index == 0) {
+		if (port.i2c_dev) {
+			if (init == USB_INIT_HOST)
+				tcpc_setup_dfp_mode(port_ptr);
+			else
+				tcpc_setup_ufp_mode(port_ptr);
+		}
+	}
+
+	return ret;
+}
+
+int board_usb_cleanup(int index, enum usb_init_type init)
+{
+	int ret = 0;
+	struct tcpc_port *port_ptr = &port;
+
+	debug("board_usb_cleanup %d, type %d\n", index, init);
+
+	if (index == 0) {
+		if (port.i2c_dev) {
+			if (init == USB_INIT_HOST)
+				ret = tcpc_disable_src_vbus(port_ptr);
+		}
+	}
+
+	imx8m_usb_power(index, false);
+	return ret;
+}
+
+int board_ehci_usb_phy_mode(struct udevice *dev)
+{
+	int ret = 0;
+	enum typec_cc_polarity pol;
+	enum typec_cc_state state;
+	struct tcpc_port *port_ptr = &port;
+
+	if (port.i2c_dev) {
+		if (dev->seq == 0) {
+
+			tcpc_setup_ufp_mode(port_ptr);
+
+			ret = tcpc_get_cc_status(port_ptr, &pol, &state);
+			if (!ret) {
+				if (state == TYPEC_STATE_SRC_RD_RA || state == TYPEC_STATE_SRC_RD)
+					return USB_INIT_HOST;
+			}
+		}
+
+		return USB_INIT_DEVICE;
+	}
+	else
+		return USB_INIT_UNKNOWN;
+}
+#else
 /*
  * USB Host support.
  *
@@ -937,6 +1064,7 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
  *    --------------------------------------------------------------------
  *    PicoCoreMX8MM       GPIO1_12 (GPIO1_IO12)(*) -
  *    PicoCoreMX8MN       GPIO1_12 (GPIO1_IO12)(*) -
+ *    TBS2                GPIO1_12 (GPIO1_IO12)    -
  *
  * (*) Signal on SKIT is active low, usually USB_OTG_PWR is active high
  *
@@ -947,6 +1075,7 @@ unsigned int mmc_get_env_part(struct mmc *mmc)
  *    -------------------------------------------------------------------------
  *    PicoCoreMX8MM       GPIO1_14 (GPIO1_IO14)(*) -
  *    PicoCoreMX8MN       GPIO1_14 (GPIO1_IO14)(*) -
+ *    TBS2                -                        -
  *
  * (*) Signal on SKIT is active low, usually USB_HOST_PWR is active high
  *
@@ -983,6 +1112,7 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 	imx8m_usb_power (index, false);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_BOARD_LATE_INIT
 /*
@@ -1041,6 +1171,8 @@ int board_late_init(void)
 		gpio_request (VLCD_ON_8MX_PAD, "VLCD_ON");
 		gpio_direction_output (VLCD_ON_8MX_PAD, 1);
 		break;
+	default:
+		break;
 	}
 	/* backlight on */
 	gpio_direction_output (BL_ON_PAD, 1);
@@ -1085,7 +1217,7 @@ void fs_ethaddr_init(void)
 		fs_eth_set_ethaddr(eth_id++);
 	if (features & FEAT_ETH_B)
 		fs_eth_set_ethaddr(eth_id++);
-	/* All fsimx8mm boards have the same WLAN module
+	/* All fsimx8mm boards have a WLAN module
 	 * which have an integrated mac address. So we don´t
 	 * have to set an own mac address for the module.
 	 */
@@ -1109,11 +1241,12 @@ static int setup_fec(void)
 }
 
 #define KSZ9893R_SLAVE_ADDR		0x5F
-#define KSZ9893R_CHIP_ID_MSB	0x1
-#define KSZ9893R_CHIP_ID_LSB	0x2
+#define KSZ9893R_CHIP_ID_MSB		0x1
+#define KSZ9893R_CHIP_ID_LSB		0x2
 #define KSZ9893R_CHIP_ID		0x9893
 #define KSZ9893R_REG_PORT_3_CTRL_1	0x3301
 #define KSZ9893R_XMII_MODES		BIT(2)
+#define KSZ9893R_RGMII_ID_IG		BIT(4)
 static int ksz9893r_check_id(struct udevice *ksz9893_dev)
 {
 	uint8_t val = 0;
@@ -1122,13 +1255,13 @@ static int ksz9893r_check_id(struct udevice *ksz9893_dev)
 
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_CHIP_ID_MSB, &val, sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access ksz9893r %d\n", __func__, ret);
+		printf("%s: Cannot access ksz9893r %d\n", __func__, ret);
 		return ret;
 	}
 	chip_id |= val << 8;
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_CHIP_ID_LSB, &val, sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access ksz9893r %d\n", __func__, ret);
+		printf("%s: Cannot access ksz9893r %d\n", __func__, ret);
 		return ret;
 	}
 	chip_id |= val;
@@ -1160,8 +1293,8 @@ static int board_setup_ksz9893r(void)
 	ret = dm_i2c_probe(bus, KSZ9893R_SLAVE_ADDR, 0, &ksz9893_dev);
 	if (ret)
 	{
-		printf("%s: Can't find device id=0x%x, on bus %d, ret %d\n", __func__,
-			KSZ9893R_SLAVE_ADDR, i2c_bus, ret);
+		printf("%s: No device id=0x%x, on bus %d, ret %d\n",
+		       __func__, KSZ9893R_SLAVE_ADDR, i2c_bus, ret);
 		return -ENODEV;
 	}
 
@@ -1173,20 +1306,21 @@ static int board_setup_ksz9893r(void)
 	if (ret != 0)
 		return ret;
 
-	/* setup N301 register deaktivate In-Band Status */
+	/* Set ingress delay (on TXC) to 1.5ns and disable In-Band Status */
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_REG_PORT_3_CTRL_1, &val,
 					  sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access register %x of ksz9893r %d\n", __func__,
-			   KSZ9893R_REG_PORT_3_CTRL_1, ret);
+		printf("%s: Cannot access register %x of ksz9893r %d\n",
+		       __func__, KSZ9893R_REG_PORT_3_CTRL_1, ret);
 		return ret;
 	}
+	val |= KSZ9893R_RGMII_ID_IG;
 	val &= ~KSZ9893R_XMII_MODES;
 	ret = dm_i2c_write(ksz9893_dev, KSZ9893R_REG_PORT_3_CTRL_1, &val,
 					   sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access register %x of ksz9893r %d\n", __func__,
-			   KSZ9893R_REG_PORT_3_CTRL_1, ret);
+		printf("%s: Cannot access register %x of ksz9893r %d\n",
+		       __func__, KSZ9893R_REG_PORT_3_CTRL_1, ret);
 		return ret;
 	}
 
@@ -1195,16 +1329,14 @@ static int board_setup_ksz9893r(void)
 
 int board_phy_config(struct phy_device *phydev)
 {
-	/* enable rgmii rxc skew and phy mode select to RGMII copper */
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
+	if (fs_board_get_type() != BT_PICOCOREMX8MX) {
+		/* enable rgmii rxc skew and phy mode select to RGMII copper */
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
 
-	if (fs_board_get_type() == BT_PICOCOREMX8MX) {
-		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x00);
-		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x82ee);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 	}
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
@@ -1214,6 +1346,7 @@ int board_phy_config(struct phy_device *phydev)
 #endif /* CONFIG_FEC_MXC */
 
 #define RDC_PDAP70      0x303d0518
+#define RDC_PDAP105     0x303d05A4
 #define FDT_UART_C      "serial3"
 #define FDT_NAND        "nand"
 #define FDT_EMMC        "emmc"
@@ -1224,7 +1357,8 @@ int board_phy_config(struct phy_device *phydev)
 #define FDT_CAN         "mcp2518fd"
 #define FDT_SGTL5000    "sgtl5000"
 #define FDT_I2C_SWITCH  "i2c4"
-
+#define FDT_TEMP_ALERT   "/thermal-zones/cpu-thermal/trips/trip0"
+#define FDT_TEMP_CRIT    "/thermal-zones/cpu-thermal/trips/trip1"
 /* Do all fixups that are done on both, U-Boot and Linux device tree */
 static int do_fdt_board_setup_common(void *fdt)
 {
@@ -1257,8 +1391,9 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	int offs;
 	unsigned int board_type = fs_board_get_type();
 	unsigned int features = fs_board_get_features();
-
+	int minc, maxc;
 	int id = 0;
+	fdt32_t tmp_val[1];
 
 	/* The following stuff is only set in Linux device tree */
 	/* Disable RTC85063 if it is not available */
@@ -1296,7 +1431,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		if (features & FEAT_ETH_B)
 			fs_fdt_set_macaddr(fdt, offs, id++);
-		/* All fsimx8mm boards have the same WLAN module
+		/* All fsimx8mm boards have a WLAN module
 		 * which have an integrated mac address. So we don´t
 		 * have to set an own mac address for the module.
 		 */
@@ -1309,6 +1444,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	if (!envvar || !strcmp(envvar, "disable")) {
 		/* Disable UART4 for M4. Enabled by ATF. */
 		writel(0xff, RDC_PDAP70);
+		writel(0xff, RDC_PDAP105);
 	} else {
 		/* Disable UART_C in DT */
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
@@ -1324,6 +1460,25 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			tmp[1] = cpu_to_fdt32(0x28000000);
 			fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
 		}
+	}
+
+	/* Set CPU temp grade */
+	get_cpu_temp_grade(&minc, &maxc);
+	/* Sanity check for get_cpu_temp_grade() */
+	if ((minc > -500) && maxc < 500) {
+
+		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_ALERT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
+		}
+		tmp_val[0]=cpu_to_fdt32(maxc*1000);
+		offs = fs_fdt_path_offset(fdt, FDT_TEMP_CRIT);
+		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
+			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
+		}
+	} else {
+		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
 	}
 
 	return do_fdt_board_setup_common(fdt);

@@ -13,7 +13,7 @@
 / {
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MM";
+		board-name = "PicoCoreMX8MM-LPDDR4";
 		board-rev = <130>;		/* Rev 1.30 */
 
 		/* DRAM: 2 GB Samsung */

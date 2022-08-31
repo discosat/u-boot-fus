@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2021.04.1
+NBOOT_VERSION = 2022.04.1
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -33,6 +33,8 @@ NBOOT_VERSION = 2021.04.1
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
+	PCoreMX8MM-FERT1.130.fs \
+	PCoreMX8MM-FERT2.130.fs \
 	PCoreMX8MM-FERT3.130.fs \
 	PCoreMX8MM-FERT3.120.fs \
 	PCoreMX8MM-FERT3.110.fs \
@@ -58,7 +60,10 @@ BOARD_CONFIGS = \
 	PCoreMX8MX-FERT7.120.fs \
 	PCoreMX8MX-FERT7.110.fs \
 	PCoreMX8MX-FERT8.120.fs \
-	PCoreMX8MX-FERT8.110.fs
+	PCoreMX8MX-FERT8.110.fs \
+	PCoreMX8MX-FERT17.120.fs \
+	TBS2-FERT1.111.fs \
+	TBS2-FERT3.120.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
@@ -66,7 +71,9 @@ RT_DDR3L := \
 	ddr3l_2x_mt41k128m16tw_timing.fs
 RT_LPDDR4 := \
 	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f8e304hb_mgcj_timing.fs
+	lpddr4_k4f8e304hb_mgcj_timing.fs \
+	lpddr4_k4f6e3s4hm_mgcl_timing.fs \
+	lpddr4_fl4c2001g_d9_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
@@ -124,7 +131,7 @@ NXP_LPDDR4 = lpddr4_pmu_train_1d_imem.bin lpddr4_pmu_train_1d_dmem.bin \
 	lpddr4_pmu_train_2d_imem.bin lpddr4_pmu_train_2d_dmem.bin
 NXP_DDR4 = ddr4_imem_1d$(NANO).bin ddr4_dmem_1d$(NANO).bin \
 	ddr4_imem_2d$(NANO).bin ddr4_dmem_2d$(NANO).bin
-NXP_ATF = bl31.bin
+NXP_ATF = bl31-imx8mm.bin
 
 # Add path for NXP firmware images
 NXP_PATH = $(srctree)/board/F+S/NXP-Firmware
@@ -168,7 +175,7 @@ DRAM_TIMINGS_LDS = $(obj)/.dram-timings.lds.tmp
 DRAM_TIMINGS_REPLACE_SED_CMD = \
 	-e "s/\#\#\#DRAM_TIMING_ADDR\#\#\#/$(CONFIG_SPL_DRAM_TIMING_ADDR)/g"
 
-$(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds
+$(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds ${srctree}/include/configs/$(BOARD).h
 	$(call cmd,sed,$(DRAM_TIMINGS_REPLACE_SED_CMD))
 
 quiet_cmd_dram_elf = LINK    $@

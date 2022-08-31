@@ -1,0 +1,106 @@
+/*
+* Copyright 2019-2020 F&S Elektronik Systeme GmbH
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* Remark:
+* CONFIG names use "PICOCOREMX8MM" because this is the marking on the PCB.
+* This will make it easier to merge the two device trees picocoremx8mm-lpddr4
+* and picocoremx8mn-lpddr4 in the future.
+*/
+
+/dts-v1/;
+
+ /* Network */
+#define CONFIG_PICOCOREMX8MM_ETH
+
+/* USB */
+#define CONFIG_PICOCOREMX8MM_USB_OTG1
+#define CONFIG_PICOCOREMX8MM_USB_HOST
+
+/* I2C */
+#define CONFIG_PICOCOREMX8MM_I2C_A
+#define CONFIG_PICOCOREMX8MM_I2C_B
+#define CONFIG_PICOCOREMX8MM_I2C_C
+#define CONFIG_PICOCOREMX8MM_I2C_D
+
+/* UART_A - UART1 */
+#define CONFIG_PICOCOREMX8MM_UART_A
+#define CONFIG_PICOCOREMX8MM_UART_A_RTSCTS
+
+
+/*
+ * SD_A - External SD port with Card Detect (CD) and Write Protect (WP)
+ * On PicoCoreMX8MM SKIT: external port is Micro-SD card slot with CD but without WP
+ */
+#define CONFIG_PICOCOREMX8MM_SD_A
+#define CONFIG_PICOCOREMX8MM_SD_A_CD
+//#define CONFIG_PICOCOREMX8MM_SD_A_WP
+
+/*
+ * SD_B - External SD port with Card Detect (CD) and Write Protect (WP)
+ * Not connected on PicoCoreMX8MM SKIT
+ */
+//#define CONFIG_PICOCOREMX8MM_SD_B
+//#define CONFIG_PICOCOREMX8MM_SD_B_CD
+//#define CONFIG_PICOCOREMX8MM_SD_B_WP
+
+/* TODO: Power polarity can't be set by DT
+*  Default its low for both ports. Use regulator
+*  to set pin value to correct state.
+*/
+/* USB0:
+*  Enable regulator to activate
+*  power pin for otg host devices.
+*/
+#define CONFIG_USB_OTG_PWR
+/* USB1:
+*  Enable regulator to activate power pin
+*  for USB Hub.
+*/
+#define CONFIG_USB_HOST_PWR
+
+#define CONFIG_PICOCOREMX8MM_BOARD_REVISION	130
+
+#include "picocoremx8mm.dtsi"
+/* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
+
+
+/ {
+	model = "PicoCoreMX8MM-LPDDR4";
+};
+
+#ifdef CONFIG_PICOCOREMX8MM_ETH
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rgmii-id";
+	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <11>;
+	phy-reset-post-delay=<1>;
+	phy-handle = <&ethphy4>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy4: ethernet-phy@4 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <4>;
+			at803x,led-act-blind-workaround;
+			at803x,eee-okay;
+		};
+	};
+};
+#endif
+

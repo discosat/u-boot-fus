@@ -1786,8 +1786,10 @@ void mxs_nand_register(int nfc_hw_id,
 	chip->ecc.steps = mtd->writesize >> chunk_shift;
 	chip->ecc.size = 1 << chunk_shift;
 	chip->ecc.strength = ecc_strength;
-	chip->ecc.bytes = ecc_strength * chip->ecc.steps * priv->gf / 8;
-	oobavail = mtd->oobsize - chip->ecc.bytes - 4;
+	chip->ecc.total = ecc_strength * chip->ecc.steps * priv->gf / 8;
+	/* Attention! ecc.total/ecc.steps may not be an integer, do not use! */
+	chip->ecc.bytes = chip->ecc.total / chip->ecc.steps;
+	oobavail = mtd->oobsize - chip->ecc.total - 4;
 	chip->ecc.layout->oobfree[0].offset = 4;
 	chip->ecc.layout->oobfree[0].length = oobavail;
 	chip->ecc.layout->oobfree[1].length = 0; /* Sentinel */

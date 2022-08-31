@@ -47,6 +47,7 @@ int ethoc_initialize(u8 dev_num, int base_addr);
 int fec_initialize (bd_t *bis);
 
 #ifdef CONFIG_FEC_MXC
+#include <phy.h>
 /**
  * Supported phy types on this platform
  */
@@ -62,6 +63,9 @@ int fecmxc_initialize(bd_t *bis);
 int fecmxc_initialize_multi(bd_t *bis, int dev_id, int phy_id, uint32_t addr);
 int fecmxc_initialize_multi_type(bd_t *bis, int dev_id, int phy_id,
 				 uint32_t addr, enum xceiver_type xcv_type);
+int fecmxc_initialize_multi_type_if_mode(bd_t *bis, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type,
+				 phy_interface_t if_mode);
 #endif
 
 #define AX88796_MODE_BUS8_DP8	0	/* Buswidth 8, data port width 8 */

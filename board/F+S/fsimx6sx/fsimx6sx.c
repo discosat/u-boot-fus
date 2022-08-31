@@ -16,6 +16,7 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <environment.h>
 
 #ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
@@ -40,6 +41,7 @@
 #include <i2c.h>
 #include <asm/mach-imx/mxc_i2c.h>
 
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -56,6 +58,7 @@
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
+#include <fuse.h>			/* fuse_read() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_usb_common.h"	/* struct fs_usb_port_cfg, fs_usb_*() */
@@ -68,6 +71,7 @@
 #define BT_BEMA9X     3
 #define BT_CONT1      4
 #define BT_PCOREMX6SX 6
+#define BT_VAND3      17
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -87,11 +91,20 @@
 #define M4_DRAM_MAX_CODE_SIZE 0x10000000
 
 /* Device tree paths */
-#define FDT_NAND	"/soc/gpmi-nand@01806000"
-#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
-#define FDT_ETH_B	"/soc/aips-bus@02100000/ethernet@021b4000"
-#define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
-#define FDT_RES_MEM	"/reserved-memory"
+#define FDT_NAND         "nand"
+#define FDT_NAND_LEGACY  "/soc/gpmi-nand@01806000"
+#define FDT_EMMC         "emmc"
+#define FDT_ETH_A        "ethernet0"
+#define FDT_ETH_A_LEGACY "/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_ETH_B        "ethernet1"
+#define FDT_ETH_B_LEGACY "/soc/aips-bus@02100000/ethernet@021b4000"
+#define FDT_RPMSG        "rpmsg"
+#define FDT_RPMSG_LEGACY "/soc/aips-bus@02200000/rpmsg"
+#define FDT_RES_MEM      "/reserved-memory"
+#define FDT_GPU          "gpu3d"
+#define FDT_GPC          "gpc"
+
+#define GPU_DISABLE_MASK (0x4)
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -147,7 +160,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[8] = {
+const struct fs_board_info board_info[19] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
 		.bootdelay = "3",
@@ -232,6 +245,49 @@ const struct fs_board_info board_info[8] = {
 	{	/* 7 (unknown) */
 		.name = "unknown",
 	},
+	{	/* 8 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 9 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 10 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 11 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 12 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 13 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 14 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 15 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 16 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 17 (BT_VAND3) */
+		.name = "VAND3",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
+	{	/* 18 (unknown) */
+		.name = "unknown",
+	},
 };
 
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
@@ -260,6 +316,60 @@ int board_early_init_f(void)
 #endif
 
 	return 0;
+}
+
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX6SX:
+		if (features2 & FEAT2_EMMC) {
+			 boot_dev = MMC2_BOOT;
+			 break;
+		}
+	default:
+		boot_dev = NAND_BOOT;
+		break;
+	}
+
+	return boot_dev;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev()) {
+		case NAND_BOOT:
+			return ENVL_NAND;
+		case SD1_BOOT:
+		case SD2_BOOT:
+		case SD3_BOOT:
+		case SD4_BOOT:
+		case MMC1_BOOT:
+		case MMC2_BOOT:
+		case MMC3_BOOT:
+		case MMC4_BOOT:
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
+}
+
+/* We dont want to use the common "is_usb_boot" function, which returns true
+ * if we are e.g. transfer an U-Boot via NetDCU-USB-Loader in N-Boot and
+ * execute the image. We booted from fuse so fuse should be checked and not
+ * some flags. Therefore we return always false.
+ */
+bool is_usb_boot(void) {
+	return false;
 }
 
 /* Check board type */
@@ -374,18 +484,9 @@ void board_nand_init(void)
 	int reg;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mxs_nand_fus_platform_data pdata;
-#ifdef CONFIG_ENV_IS_IN_MMC
-	unsigned int board_type = fs_board_get_type();
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
-	switch (board_type) {
-
-	case BT_PCOREMX6SX:
-		if (features2 & FEAT2_EMMC)
-			return;
-		break;
-	}
-#endif
+	if (get_boot_device() != NAND_BOOT)
+		return;
 
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nfc_pads);
@@ -910,6 +1011,9 @@ void board_display_set_power(int port, int on)
 		gpio = IMX_GPIO_NR(3, 27);
 		value = !on;
 		break;
+
+	case BT_VAND3:
+		return;
 	}
 
 	/* Switch on when first user enables and off when last user disables */
@@ -1160,6 +1264,14 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad[] = {
 #endif
 };
 
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_vand3[] = {
+#ifdef CONFIG_FS_USB_PWR_USBNC
+	IOMUX_PADS(PAD_QSPI1A_SS0_B__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#else
+	IOMUX_PADS(PAD_QSPI1A_SS0_B__GPIO4_IO_22 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+#endif
+};
+
 /* Init one USB port */
 int board_ehci_hcd_init(int index)
 {
@@ -1197,6 +1309,10 @@ int board_ehci_hcd_init(int index)
 			cfg.id_pad = usb_otg1_id_pad_cont1;
 			cfg.id_gpio = IMX_GPIO_NR(4, 17);
 			break;
+		/* These boards have only HOST function on this port */
+		case BT_VAND3:
+			cfg.mode = FS_USB_HOST;
+			break;
 
 		/* These boards have only DEVICE function on this port */
 		case BT_PICOCOMA9X:
@@ -1218,7 +1334,13 @@ int board_ehci_hcd_init(int index)
 #ifndef CONFIG_FS_USB_PWR_USBNC
 			cfg.pwr_gpio = IMX_GPIO_NR(1, 12);
 #endif
-		break;
+			break;
+		case BT_VAND3:
+			cfg.pwr_pad = usb_otg2_pwr_pad_vand3;
+#ifndef CONFIG_FS_USB_PWR_USBNC
+			cfg.pwr_gpio = IMX_GPIO_NR(4, 22);
+#endif
+			break;
 
 		/* These boards can not switch host power, it is always on */
 		case BT_CONT1:
@@ -1821,6 +1943,55 @@ static iomux_v3_cfg_t const enet_pads_rmii2[] = {
 	IOMUX_PADS(PAD_ENET2_CRS__GPIO2_IO_7 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
+static iomux_v3_cfg_t const enet_pads_rmii1_vand3[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_MDIO__ENET1_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_MDC__ENET1_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_ENET1_TX_CLK__ENET1_REF_CLK1 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC0 (ENET1) */
+	IOMUX_PADS(PAD_RGMII1_TD0__ENET1_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TD1__ENET1_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_TX_CTL__ENET1_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RXC__ENET1_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD0__ENET1_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RD1__ENET1_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII1_RX_CTL__ENET1_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* Interrupt signal for PHY */
+	IOMUX_PADS(PAD_RGMII1_TD3__GPIO5_IO_9 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_RGMII1_TD2__GPIO5_IO_8 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static iomux_v3_cfg_t const enet_pads_rmii2_vand3[] = {
+	/* MDIO */
+	IOMUX_PADS(PAD_ENET1_CRS__ENET2_MDIO | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_ENET1_COL__ENET2_MDC | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+
+	/* 50MHz base clock from CPU to PHY */
+	IOMUX_PADS(PAD_ENET2_TX_CLK__ENET2_REF_CLK2 | MUX_PAD_CTRL(ENET_CLK_PAD_CTRL)),
+
+	/* FEC1 (ENET2) */
+	IOMUX_PADS(PAD_RGMII2_TD0__ENET2_TX_DATA_0 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TD1__ENET2_TX_DATA_1 | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_TX_CTL__ENET2_TX_EN | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RXC__ENET2_RX_ER | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD0__ENET2_RX_DATA_0 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RD1__ENET2_RX_DATA_1 | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+	IOMUX_PADS(PAD_RGMII2_RX_CTL__ENET2_RX_EN | MUX_PAD_CTRL(ENET_RX_PAD_CTRL)),
+
+	/* Interrupt signal for PHY */
+	IOMUX_PADS(PAD_RGMII2_TD3__GPIO5_IO_21 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+
+	/* Reset signal for PHY */
+	IOMUX_PADS(PAD_RGMII2_TD2__GPIO5_IO_20 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+
 /*
  * Allocate MII bus (if appropriate), find PHY and probe FEC. Besides the
  * error code as return value, also return pointer to new MII bus in *pbus.
@@ -2012,6 +2183,70 @@ int board_eth_init(bd_t *bd)
 		if (!ret && (features2 & FEAT2_ETH_B))
 			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RMII,
 					&bus, 1, 17, PHY_INTERFACE_MODE_RMII);
+		break;
+
+	case BT_VAND3:
+		if (features2 & FEAT2_ETH_A) {
+			/* IOMUX for ENET1, use 100 MBit/s LAN on RGMII1 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii1_vand3);
+
+			/*
+			 * ENET1 (FEC0) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 17 to generate the REF
+			 * clock on the pin and bit 13 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC1_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET1 (FEC0) PLL */
+			ret = enable_fec_anatop_clock(0, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (features2 & FEAT2_ETH_B) {
+			/* IOMUX for ENET2, use 100 MBit/s LAN on RGMII2 pins */
+			SETUP_IOMUX_PADS(enet_pads_rmii2_vand3);
+
+			/*
+			 * ENET2 (FEC1) CLK is generated in CPU and is an
+			 * output. Please note that the clock pin must have
+			 * the SION flag set to feed back the clock to the
+			 * internal MAC. This means we also have to set both
+			 * ENET mux bits in gpr1. Bit 18 to generate the REF
+			 * clock on the pin and bit 14 to get the generated
+			 * clock from the PAD back into the MAC.
+			 */
+			gpr1 = readl(&iomux_regs->gpr[1]);
+			gpr1 |= IOMUX_GPR1_FEC2_MASK;
+			writel(gpr1, &iomux_regs->gpr[1]);
+
+			/* Activate ENET2 (FEC1) PLL */
+			ret = enable_fec_anatop_clock(1, ENET_50MHZ);
+			if (ret < 0)
+				return ret;
+		}
+
+		/*
+		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
+		 * reset pulse width and 100us delay before the first MDIO
+		 * access can be done.
+		 */
+		fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 8), IMX_GPIO_NR(5, 20), ~0);
+
+		/* Probe FEC ports, each PHY on its own MII bus */
+		if (features2 & FEAT2_ETH_A)
+			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RMII,
+					&bus, 0, 0, PHY_INTERFACE_MODE_RMII);
+		bus = NULL;
+		if (!ret && (features2 & FEAT2_ETH_B))
+			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RMII,
+					&bus, 1, 3, PHY_INTERFACE_MODE_RMII);
 		break;
 
 	case BT_CONT1:
@@ -2249,6 +2484,10 @@ static void fs_fdt_reserve_ram(void *fdt)
 	if (!vring_size)
 	vring_size = RPMSG_SIZE;
 	offs = fs_fdt_path_offset(fdt, FDT_RPMSG);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_RPMSG_LEGACY);
+	}
 	if (offs >= 0) {
 		fdt32_t tmp[2];
 		vring_base = base + size -vring_size;
@@ -2260,13 +2499,38 @@ static void fs_fdt_reserve_ram(void *fdt)
 	}
 }
 
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features = pargs->chFeatures2;
+
+	/* Disable NAND node only for board type BT_PCOREMX6SX.
+	 * These two board types can either have eMMC or NAND. EFUSA9X can have
+	 * both, therefore we only disable the NAND node in case of PCOREMX6SX.
+	 */
+	if (board_type == BT_PCOREMX6SX) {
+		/* Disable NAND if it is not available */
+		if ((features & FEAT2_EMMC))
+			fs_fdt_enable(fdt, FDT_NAND, 0);
+	}
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT2_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
-	int offs;
+	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
+	u32 val;
 
 	printf("   Setting run-time properties\n");
 
@@ -2275,6 +2539,11 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	/* Set ECC strength for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_NAND_LEGACY);
+	}
+
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 			       pargs->chECCtype, 1);
@@ -2295,17 +2564,41 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		/* WLAN MAC address only required on Silex based board revs */
 		if ((pargs->chFeatures2 & FEAT2_WLAN)
-		    && (board_type == BT_EFUSA9X) && (board_rev >= 120))
+		    && (((board_type == BT_EFUSA9X) && (board_rev >= 120)) || (board_type == BT_VAND3)))
 			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 1);
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(pargs->chFeatures2 & FEAT2_ETH_A))
-		fs_fdt_enable(fdt, FDT_ETH_A, 0);
-	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
-		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_A_LEGACY, 0);
+		}
+	}
 
-	return 0;
+	if (!(pargs->chFeatures2 & FEAT2_ETH_B)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_B, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_B_LEGACY, 0);
+		}
+	}
+
+	/* Check if GPU is present */
+	/* Disabled interfaces are in fuse bank 0, word 4 */
+	if (!(fuse_read(0, 4, &val))) {
+		if (val & GPU_DISABLE_MASK) {
+			fs_fdt_enable(fdt, FDT_GPU, 0);
+			offs = fs_fdt_path_offset(fdt, FDT_GPC);
+			if (offs >= 0) {
+				fs_fdt_set_val(fdt, offs, "no-gpu",
+				NULL, 0, 1);
+			}
+		}
+	}
+
+	return do_fdt_board_setup_common(fdt);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 
