@@ -162,9 +162,6 @@
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x800
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 
-/* The final stack sizes are set up in board.c using the settings below */
-#define CONFIG_SYS_STACK_SIZE	(128*1024)
-
 /* Address in OCRAM where BOARD-CFG is loaded to; U-Boot must know this, too */
 #define CONFIG_FUS_BOARDCFG_ADDR	0x910000
 #define CONFIG_SPL_BSS_START_ADDR	0x912000

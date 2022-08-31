@@ -121,9 +121,6 @@
 /*### TODO: check if needed F&S specific*/
 /*#define CONFIG_SYS_BOOTMAPSZ	0x6f800000*/
 
-/* The final stack sizes are set up in board.c using the settings below */
-#define CONFIG_SYS_STACK_SIZE	(128*1024)
-
 #ifdef CONFIG_USE_IRQ
 #define CONFIG_STACKSIZE_IRQ	(4*1024)
 #define CONFIG_STACKSIZE_FIQ	(128)

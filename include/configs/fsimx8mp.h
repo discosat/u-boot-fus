@@ -201,6 +201,7 @@
 
 #ifdef CONFIG_SPL_BUILD
 #define CONFIG_SPL_STACK		0x91FFF0
+#define CONFIG_SPL_DRIVERS_MISC_SUPPORT
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
 #define CONFIG_FUS_BOARDCFG_MMC0 0x00080000
@@ -244,6 +245,8 @@
 #if defined(CONFIG_CMD_NET)
 #define CONFIG_ETHPRIME                 "eth1" /* Set qos to primary since we use its MDIO */
 #define FDT_SEQ_MACADDR_FROM_ENV
+
+#define CONFIG_FEC_GET_MAC_FROM_FUSES	/* ### we should not use this ### */
 
 #define CONFIG_FEC_XCV_TYPE             RGMII
 //#define CONFIG_FEC_MXC_PHYADDR          5

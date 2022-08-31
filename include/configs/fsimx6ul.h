@@ -137,9 +137,6 @@
    tree after it has set up its final page table. */
 #define CONFIG_SYS_BOOTMAPSZ	0x6f800000
 
-/* The final stack sizes are set up in board.c using the settings below */
-#define CONFIG_SYS_STACK_SIZE	(128*1024)
-
 /* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
    untested) ### If not set, test from beginning of RAM to before stack. */
 #if 0

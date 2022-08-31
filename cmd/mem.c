@@ -22,6 +22,7 @@
 #include <watchdog.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
+#include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -889,8 +890,13 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 #ifdef CONFIG_SYS_MEM_TEST_END
 	end = CONFIG_SYS_MEMTEST_END;
 #else
-	/* End before stack that is before u-boot code at end of RAM */
-	end = gd->start_addr_sp - CONFIG_SYS_STACK_SIZE;
+	/*
+	 * End before the stack. The stack is located before u-boot code at
+	 * the end of RAM. Unfortuntely we do not know the exact size of the
+	 * stack when memtest is called, but as this is typically directly
+	 * called from the main command loop, it should not exceed 16KB.
+	 */
+	end = gd->start_addr_sp - SZ_16K;
 #endif
 
 	if (argc > 1)
