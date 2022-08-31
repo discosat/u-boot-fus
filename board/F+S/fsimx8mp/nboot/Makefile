@@ -45,10 +45,11 @@ BOARD_CONFIGS = \
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
 RT_LPDDR4 := \
-	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f6e3s4hm_mgcj_timing.fs \
-	lpddr4_fl4c2001g-d9_timing.fs \
-	lpddr4_nt6an512t32av_j2i_timing.fs
+	lpddr4_as-k4f8e3s4hd_mgcl_timing.fs \
+	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
+	lpddr4_pc-k4f6e3s4hm_mgcj_timing.fs \
+	lpddr4_pc-fl4c2001g-d9_timing.fs \
+	lpddr4_pc-nt6an512t32av_j2i_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings

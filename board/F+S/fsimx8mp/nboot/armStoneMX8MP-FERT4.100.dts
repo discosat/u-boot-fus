@@ -18,7 +18,7 @@
 
 		/* DRAM: 1GB Samsung */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+		dram-timing = "lpddr4_as-k4f8e3s4hd_mgcl";
 		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <1>;
 
