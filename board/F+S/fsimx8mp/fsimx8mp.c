@@ -212,11 +212,12 @@ enum env_location env_get_location(enum env_operation op, int prio)
 			env_loc = ENVL_SPI_FLASH;
 			break;
 		case MMC1_BOOT:
+		case MMC3_BOOT:
 			env_loc = ENVL_MMC;
 			break;
 		default:
 #if defined(CONFIG_ENV_IS_NOWHERE)
-		env_loc = ENVL_NOWHERE;
+			env_loc = ENVL_NOWHERE;
 #endif
 			break;
 		}
