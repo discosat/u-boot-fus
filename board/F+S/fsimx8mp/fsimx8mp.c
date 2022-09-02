@@ -742,7 +742,17 @@ int board_usb_init(int index, enum usb_init_type init)
 		return dwc3_uboot_init(&dwc3_device_data);
 	} else if (index == 1 && init == USB_INIT_HOST) {
 #ifdef CONFIG_USB_TCPC
-		ret = tcpc_setup_dfp_mode(&port1);
+		/*
+		 * first check upstream facing port (ufp)
+		 * for device
+		 * */
+		ret = tcpc_setup_ufp_mode(&port1);
+		if(ret)
+			/*
+			 * second check downstream facing port (dfp)
+			 * for usb host
+			 * */
+			ret = tcpc_setup_dfp_mode(&port1);
 #endif
 		return ret;
 	} else if (index == 0 && init == USB_INIT_HOST) {
