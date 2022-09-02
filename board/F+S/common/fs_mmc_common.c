@@ -175,12 +175,12 @@ int board_mmc_get_env_dev(int devno)
 }
 #endif
 
-int get_usdhc_boot_device()
+__weak int get_usdhc_boot_device()
 {
 	return usdhc_boot_device;
 }
 
-int get_mmc_boot_device()
+__weak int get_mmc_boot_device()
 {
 	return mmc_boot_device;
 }

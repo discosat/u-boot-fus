@@ -952,22 +952,8 @@ int board_postclk_init(void)
 	return 0;
 }
 #endif /* CONFIG_BOARD_POSTCLK_INIT */
+
 #ifndef CONFIG_SPL_BUILD
-
-#define USDHC_NONE -1
-
-static int usdhc_boot_device = -1;
-static int mmc_boot_device = -1;
-#if !defined(CONFIG_DM_MMC) && !defined(CONFIG_BLK)
-static int usdhc_pos_in_init[] =
-{
-	USDHC_NONE,
-	USDHC_NONE,
-	USDHC_NONE,
-	USDHC_NONE
-};
-#endif
-
 int get_usdhc_boot_device()
 {
 	unsigned int board_type = fs_board_get_type();
@@ -993,32 +979,5 @@ int get_mmc_boot_device()
 		return 0;
 	}
 	return 2;
-}
-
-/* Override board_mmc_get_env_dev to get boot dev from fuse settings */
-int board_mmc_get_env_dev(int devno)
-{
-#if defined(CONFIG_DM_MMC) && defined(CONFIG_BLK)
-	if(!find_mmc_device(devno)) {
-		/* Check device tree node for usdhc[devno]
-                 */
-		debug("Device %d is not available.", devno);
-		return USDHC_NONE;
-	} else {
-		/* Use NXP aliases for mmc devices:
-		 * mmc0 = &usdhc1
-		 * mmc1 = &usdhc2
-		 * mmc2 = &usdhc3
-		 * mmc3 = &usdhc4
-		 */
-		usdhc_boot_device = devno;
-		mmc_boot_device =   devno;
-	}
-#else
-	usdhc_boot_device = devno;
-	mmc_boot_device = usdhc_pos_in_init[devno];
-#endif
-
-	return mmc_boot_device;
 }
 #endif
