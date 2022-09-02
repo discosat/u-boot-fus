@@ -576,8 +576,6 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 #define USB1_RESET IMX_GPIO_NR(1, 6) /* armStoneMX8MP */
 int board_usb_init(int index, enum usb_init_type init)
 {
-	int ret = 0;
-
 	if(usb_initialized)
 		return 0;
 
@@ -594,19 +592,6 @@ int board_usb_init(int index, enum usb_init_type init)
 			dwc3_nxp_usb_phy_init(&dwc3_device_data);
 			return dwc3_uboot_init(&dwc3_device_data);
 		}
-	} else if (index == 1 && init == USB_INIT_HOST) {
-		return ret;
-	} else if (index == 0 && init == USB_INIT_HOST) {
-		if(board_type == BT_ARMSTONEMX8MP) {
-			/* Set reset pin to high */
-			gpio_request(USB1_RESET, "usb1_reset");
-			gpio_direction_output(USB1_RESET, 0);
-			gpio_request(USB1_RESET, "usb1_reset");
-			gpio_direction_output(USB1_RESET, 1);
-		}
-		/* Enable host power */
-		gpio_request(USB1_PWR_EN, "usb1_pwr");
-		gpio_direction_output(USB1_PWR_EN, 1);
 	}
 
 	return 0;
