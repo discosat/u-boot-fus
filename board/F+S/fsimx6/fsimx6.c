@@ -14,6 +14,7 @@
 #include <miiphy.h>
 #include <netdev.h>
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include <phy.h>
 #endif
 #include <serial.h>			/* struct serial_device */
 
@@ -1754,6 +1755,39 @@ int board_eth_init(bd_t *bis)
 	/* If WLAN is available, just set ethaddr variable */
 	if (features2 & FEAT2_WLAN)
 		fs_eth_set_ethaddr(id++);
+
+	return 0;
+}
+
+#define MIIM_RTL8211F_PAGE_SELECT 0x1f
+#define LED_MODE_B (1 << 15)
+#define LED_LINK(X) (0x0b << (5*X))
+#define LED_ACT(X) (0x10 << (5*X))
+
+int board_phy_config(struct phy_device *phydev)
+{
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+
+	if (phydev->drv->config)
+		phydev->drv->config(phydev);
+
+	/* Realtek needs special LED configuration */
+	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
+		switch (board_type) {
+		case BT_EFUSA9R2:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(2) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		case BT_ARMSTONEA9R3:
+		case BT_ARMSTONEA9R4:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(0) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		}
+	}
 
 	return 0;
 }
