@@ -122,13 +122,6 @@ static int rtl8211f_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
 
-	/* Set LED2 for Link, LED1 for Activity */
-	phy_write(phydev, MDIO_DEVAD_NONE,
-		  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0xae00);
-	phy_write(phydev, MDIO_DEVAD_NONE,
-		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
-
 	genphy_config_aneg(phydev);
 
 	return 0;

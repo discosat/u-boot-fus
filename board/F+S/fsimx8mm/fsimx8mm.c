@@ -1195,15 +1195,29 @@ static int board_setup_ksz9893r(void)
 	return ret;
 }
 
+#define MIIM_RTL8211F_PAGE_SELECT      0x1f
+
 int board_phy_config(struct phy_device *phydev)
 {
-	if (fs_board_get_type() != BT_PICOCOREMX8MX) {
+
+	switch (fs_board_get_type())
+	{
+	case BT_PICOCOREMX8MM:
 		/* enable rgmii rxc skew and phy mode select to RGMII copper */
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
 
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
+		break;
+	case BT_PICOCOREMX8MMr2:
+		/* Set LED2 for Link, LED1 for Activity */
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x8360);
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0x0);
+		break;
 	}
 
 	if (phydev->drv->config)
