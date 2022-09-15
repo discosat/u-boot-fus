@@ -69,13 +69,13 @@ BOARD_CONFIGS = \
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
-	ddr3l_2x_im4g16d3fdbg107i_timing.fs \
-	ddr3l_2x_mt41k128m16tw_timing.fs
+	ddr3l_pc-512m1600m2ch2cs_timing.fs \
+	ddr3l_pc-1g1600m2ch2cs_timing.fs
 RT_LPDDR4 := \
-	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f8e304hb_mgcj_timing.fs \
-	lpddr4_k4f6e3s4hm_mgcl_timing.fs \
-	lpddr4_fl4c2001g_d9_timing.fs
+	lpddr4_pc-1g2400m2ch1cs_timing.fs \
+	lpddr4_pc-1g2400m2ch2cs_timing.fs \
+	lpddr4_pc-1g3000m2ch1cs_timing.fs \
+	lpddr4_pc-2g3000m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
@@ -196,7 +196,13 @@ $(obj)/.%.bin.tmp: $(obj)/.%.elf.tmp
 quiet_cmd_fsimg = FSIMG   $@
 cmd_fsimg = ${srctree}/scripts/addfsheader.sh -q -p 16 $2 $^ > $@
 
-$(obj)/%_timing.fs: $(obj)/.%_timing.bin.tmp
+$(obj)/ddr3l_%_timing.fs: $(obj)/.ddr3l_%_timing.bin.tmp
+	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
+
+$(obj)/lpddr4_%_timing.fs: $(obj)/.lpddr4_%_timing.bin.tmp
+	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
+
+$(obj)/ddr4_%_timing.fs: $(obj)/.ddr4_%_timing.bin.tmp
 	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
 
 $(obj)/%_fw.fs: $(obj)/.%_fw.tmp

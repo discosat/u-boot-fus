@@ -12,13 +12,12 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
+		board-cfg-version = <2>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MMr2";
 		board-rev = <100>;		/* Rev 1.00 */
 
-		/* DRAM: 1GB Samsung */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+		dram-timing = "pc-1g3000m2ch1cs";
 		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <1>;
 

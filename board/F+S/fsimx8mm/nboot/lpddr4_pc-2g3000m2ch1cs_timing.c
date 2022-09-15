@@ -9,6 +9,9 @@
  * imx_v2019.04_5.4.x and above version
  * For imx_v2018.03_4.14.78_1.0.0_ga ~ imx_v2018.04_4.19.35_1.1.0_ga:
  * please replace #include <asm/arch/ddr.h> with #include <asm/arch/imx8m_ddr.h>
+ *
+ * lpddr4_pc-2g3000m2ch1cs
+ * LPDDR4_PicoCoreMX8MM-2GB 3000MHZ 2Channel 1Chipselect
  */
 
 #include <linux/kernel.h>

@@ -5,6 +5,9 @@
  *
  * Generated code from MX8M_DDR_tool
  * Align with uboot-imx_v2018.03_4.14.78_1.0.0_ga
+ * 
+ * ddr3l_pc-1g1600m2ch2cs
+ * DDR3L_PicoCoreMX8MM-1GB 1600MHZ 2Channel 2Chipselec
  */
 
 #include <linux/kernel.h>
