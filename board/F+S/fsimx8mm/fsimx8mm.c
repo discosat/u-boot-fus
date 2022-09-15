@@ -1195,6 +1195,13 @@ static int board_setup_ksz9893r(void)
 	return ret;
 }
 
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}
+
 #define MIIM_RTL8211F_PAGE_SELECT      0x1f
 
 int board_phy_config(struct phy_device *phydev)
