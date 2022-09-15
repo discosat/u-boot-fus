@@ -1199,6 +1199,7 @@ static int board_setup_ksz9893r(void)
 
 int board_phy_config(struct phy_device *phydev)
 {
+	u16 reg;
 
 	switch (fs_board_get_type())
 	{
@@ -1217,6 +1218,13 @@ int board_phy_config(struct phy_device *phydev)
 		phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x8360);
 		phy_write(phydev, MDIO_DEVAD_NONE,
 			  MIIM_RTL8211F_PAGE_SELECT, 0x0);
+
+		/* Disable CLKOUT*/
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0xa43);
+		reg = phy_read(phydev, MDIO_DEVAD_NONE, 0x19);
+		reg &= ~(1 << 0);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x19, reg);
 		break;
 	}
 
