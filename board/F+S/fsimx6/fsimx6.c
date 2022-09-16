@@ -14,6 +14,7 @@
 #include <miiphy.h>
 #include <netdev.h>
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
+#include <phy.h>
 #endif
 #include <serial.h>			/* struct serial_device */
 #include <environment.h>
@@ -63,6 +64,8 @@
 #define BT_QBLISSA9R2 6
 #define BT_NETDCUA9   7
 #define BT_EFUSA9R2   8 /* in N-Boot number 29 */
+#define BT_ARMSTONEA9R3 9 /* in N-Boot number 30 */
+#define BT_ARMSTONEA9R4 10 /* in N-Boot number 31 */
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -135,7 +138,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[30] = {
+const struct fs_board_info board_info[11] = {
 	{	/* 0 (BT_EFUSA9) */
 		.name = "efusA9",
 		.bootdelay = "3",
@@ -230,8 +233,34 @@ const struct fs_board_info board_info[30] = {
 		.init = ".init_init",
 		.flags = 0,
 	},
-	{	/* 29 (BT_EFUSA9r2) */
+	{	/* 29 (BT_EFUSA9R2) */
 		.name = "efusA9r2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
+	{	/* 30 (BT_ARMSTONEA9R3) */
+		.name = "armStoneA9r3",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
+	{	/* 31 (BT_ARMSTONEA9R4) */
+		.name = "armStoneA9r4",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -374,7 +403,7 @@ int board_init(void)
 		 */
 		SETUP_IOMUX_PADS(reset_pads);
 		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 26), ~0, ~0);
-	} else if (board_type == BT_ARMSTONEA9R2) {
+	} else if (board_type == BT_ARMSTONEA9R2 || board_type == BT_ARMSTONEA9R4) {
 		/* Reset uBlox WLAN/BT on armStoneA9r2 */
 		SETUP_IOMUX_PADS(wlan_reset_pads);
 		fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 27), ~0, ~0);
@@ -623,12 +652,14 @@ int board_mmc_init(bd_t *bd)
 
 	switch (board_type) {
 	case BT_ARMSTONEA9:
+	case BT_ARMSTONEA9R3:
 		/* mmc0: USDHC3 (on-board micro SD slot), CD: GPIO6_IO15 */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc3_ext],
 				   &sdhc_cd[gpio6_io15]);
 		break;
 
 	case BT_ARMSTONEA9R2:
+	case BT_ARMSTONEA9R4:
 		/* mmc0: USDHC2 (on-board micro SD slot), CD: GPIO1_IO04 */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
 				   &sdhc_cd[gpio1_io04]);
@@ -904,6 +935,7 @@ static void setup_lcd_pads(int on)
 	case BT_EFUSA9:
 	case BT_EFUSA9R2:
 	case BT_ARMSTONEA9:
+	case BT_ARMSTONEA9R3:
 	case BT_PICOMODA9:
 	default:			/* Boards with 18-bit LCD interface */
 		if (on)
@@ -912,6 +944,7 @@ static void setup_lcd_pads(int on)
 			SETUP_IOMUX_PADS(lcd18_pads_low);
 		/* No break, fall through to case BT_ARMSTONEA9R2 */
 	case BT_ARMSTONEA9R2:		/* Boards without LCD interface */
+	case BT_ARMSTONEA9R4:
 	case BT_QBLISSA9:
 	case BT_QBLISSA9R2:
 		SETUP_IOMUX_PADS(lcd_extra_pads);
@@ -974,6 +1007,7 @@ void board_display_set_backlight(int port, int on)
 			fs_disp_set_i2c_backlight(1, on);
 			break;
 		case BT_ARMSTONEA9:
+		case BT_ARMSTONEA9R3:
 			if (!i2c_init) {
 				setup_i2c(2, CONFIG_SYS_I2C_SPEED, 0x60,
 					  I2C_PADS_INFO(armstonea9));
@@ -1128,6 +1162,7 @@ int board_video_skip(void)
 	switch (board_type) {
 	case BT_EFUSA9:
 	case BT_ARMSTONEA9:
+	case BT_ARMSTONEA9R3:
 	case BT_EFUSA9R2:
 		valid_mask = (1 << port_lcd) | (1 << port_lvds0)
 			| (1 << port_lvds1) | (1 << port_hdmi);
@@ -1137,6 +1172,7 @@ int board_video_skip(void)
 	case BT_QBLISSA9:
 	case BT_QBLISSA9R2:
 	case BT_ARMSTONEA9R2:
+	case BT_ARMSTONEA9R4:
 		valid_mask = (1 << port_lvds0) | (1 << port_lvds1)
 			| (1 << port_hdmi);
 		default_port = port_lvds0;
@@ -1318,6 +1354,7 @@ int board_ehci_hcd_init(int index)
 			break;
 		case BT_EFUSA9:
 		case BT_ARMSTONEA9R2:
+		case BT_ARMSTONEA9R4:
 		case BT_QBLISSA9R2:
 		case BT_EFUSA9R2:	/* PWR active low, ID available */
 			cfg.pwr_pol = 1;
@@ -1341,6 +1378,7 @@ int board_ehci_hcd_init(int index)
 			cfg.id_gpio = IMX_GPIO_NR(1, 24);
 			break;
 		case BT_ARMSTONEA9:	/* PWR always on, ID available */
+		case BT_ARMSTONEA9R3:
 			cfg.id_pad = usb_otg_id_pad_other;
 			cfg.id_gpio = IMX_GPIO_NR(1, 24);
 			break;
@@ -1375,11 +1413,13 @@ int board_ehci_hcd_init(int index)
 #endif
 			break;
 		case BT_ARMSTONEA9:
+		case BT_ARMSTONEA9R3:
 		case BT_QBLISSA9:	/* PWR always on, RESET for USB hub */
 			cfg.reset_pad = usb_hub_reset_pad_armstonea9_qblissa9;
 			cfg.reset_gpio = IMX_GPIO_NR(7, 12);
 			break;
 		case BT_ARMSTONEA9R2:	/* PWR always on, RESET for USB hub */
+		case BT_ARMSTONEA9R4:
 			cfg.reset_pad = usb_hub_reset_pad_armstonea9r2;
 			cfg.reset_gpio = IMX_GPIO_NR(2, 29);
 			break;
@@ -1628,6 +1668,8 @@ int board_eth_init(bd_t *bis)
 			xcv_type = RMII;
 			break;
 		case BT_EFUSA9R2:
+		case BT_ARMSTONEA9R3:
+		case BT_ARMSTONEA9R4:
 			/* Realtek RTL8211F(D): Assert reset for at least 10ms */
 			fs_board_issue_reset(10000, 50000, IMX_GPIO_NR(1, 25),
 					     ~0,~0);
@@ -1673,6 +1715,39 @@ int board_eth_init(bd_t *bis)
 
 	return 0;
 }
+
+#define MIIM_RTL8211F_PAGE_SELECT 0x1f
+#define LED_MODE_B (1 << 15)
+#define LED_LINK(X) (0x0b << (5*X))
+#define LED_ACT(X) (0x10 << (5*X))
+
+int board_phy_config(struct phy_device *phydev)
+{
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+
+	if (phydev->drv->config)
+		phydev->drv->config(phydev);
+
+	/* Realtek needs special LED configuration */
+	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
+		switch (board_type) {
+		case BT_EFUSA9R2:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(2) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		case BT_ARMSTONEA9R3:
+		case BT_ARMSTONEA9R4:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(0) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		}
+	}
+
+	return 0;
+}
 #endif /* CONFIG_CMD_NET */
 
 #ifdef CONFIG_LED_STATUS_CMD
@@ -1709,6 +1784,7 @@ static unsigned int get_led_gpio(led_id_t id, int val, int index)
 		break;
 
 	case BT_ARMSTONEA9:
+	case BT_ARMSTONEA9R3:
 	case BT_QBLISSA9:
 		gpio = (id ? IMX_GPIO_NR(4, 7) : IMX_GPIO_NR(4, 6));
 		break;
@@ -1716,6 +1792,7 @@ static unsigned int get_led_gpio(led_id_t id, int val, int index)
 	case BT_EFUSA9:
 	case BT_NETDCUA9:
 	case BT_ARMSTONEA9R2:
+	case BT_ARMSTONEA9R4:
 	case BT_QBLISSA9R2:
 	case BT_EFUSA9R2:
 	default:			/* efusA9/r2, armStoneA9r2, NetDCUA9 */
