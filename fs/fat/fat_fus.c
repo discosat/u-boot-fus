@@ -17,6 +17,7 @@
 #include <malloc.h>
 #include <linux/compiler.h>		/* __aligned() */
 #include <memalign.h>			/* ALLOC_CACHE_ALIGN_BUFFER */
+#include <linux/err.h>			/* IS_ERR() */
 #include <div64.h>
 
 #define CONFIG_SUPPORT_VFAT
@@ -961,7 +962,7 @@ int fat_size(const char *filename, loff_t *size)
 	int err;
 
 	err = file_fat_read(filename, NULL, 0);
-	if (err < 0)
+	if (IS_ERR_VALUE(err))
 		return err;
 
 	*size = err;

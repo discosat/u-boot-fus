@@ -1,6 +1,168 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-Y2021.04.2 (15.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Move LED configuration of Realtek PHY to board_phy_config
+- Enable ALDPS mode and disable EEE LED indication
+- Improve picocoremx8mmr2 device tree
+- Disable phy CLKOUT for PicoCoremx8MMr2
+- Disable ethernet before booting linux for fsimx8mm
+
+
+
+u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Add Board-Configs for the PicoCoreMX8MMr2
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add PicoCoreMX8MMr2 support
+- Add N-boot History file for nboot-fsimx8mm-2021.04.1
+
+
+
+u-boot-2018.03-fsimx7ulp-Y2022.05 (11.05.2022)
+----------------------------------------------
+Supported boards: PicoCoreMX7ULP
+
+- Improve imx7ulp bootaux command
+- Improve imx7ulp reset cause handling
+- Increaseth fsimx7ulp default CMA size
+- Add picocoremx7ulp spi flash device support
+- Set mac address in bdinfo for fsimx7ulp
+- Fix fsimx7ulp reloction error
+
+
+
+u-boot-2018.03-fsimx6ul-B2022.04 (11.04.2022)
+---------------------------------------------
+Supported boards: efusA7UL PicoCOM1.2 PicoCoreMX6UL PicoCoreMX6UL100 PicoCOMA7
+
+- Add support for picocoremx6ul100
+- Add support for same defconfig independent from boot device for fsimx6sx/ul
+- Add support for command fsimage_imx6 (fsimx6sx/ul)
+- Improve fsimx6sx to setup dynamic linux device tree
+- Fix DTS adaption to support backwards compatibility for fsimx6sx/ul
+- Fix bootcmd-fastboot override when booting from USB
+- In mxs-nand-fus.c, set and use ecc.total/ecc.bytes correctly
+- Fix fastboot for i.MX8
+- Add new nboot config TBS2-FERT3
+- Backport new usb gadget driver from version v2019.01
+- lib: errno: avoid error format-overflow
+- gcc-9: silence 'address-of-packed-member' warning
+- Add support for target fsimx7ulp
+- Improve rndis gadget configuration on platform fsimx7ulp
+- Improve cma setup for target fsimx7ulp
+- Improve phy realtek LED setup
+- Improve fsimx6 configuration u-boot size
+- Add GPU detection for fsimx6sx
+- Improve is_usb_boot function for MX6 CPUs
+- Add "is_usb_boot" function for platform fsimx6sx/ul
+- Add config for PCoreMX8MM-FERT15.130
+- Improve board name for PCoreMX8MM-FERT15.130.dts
+- Improve naming of target fsimx7ulp
+- Improve setup of fs_board_get_boot_dev for fsimx6*/7ulp
+- Improve mx6 mmc_get_env_dev/mmc_get_env_part
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
+- Add configs FERT1.130 FERT2.130 FERT17.120 for fsimx8mm
+
+
+
+u-boot-2018.03-fsimx6ul-Y2020.03.1 (15.03.2022)
+-----------------------------------------------
+Supported boards: efusA7UL, PicoCoreMX6UL, PicoCoreMX6UL100, PicoMODA7
+
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
+
+
+
+u-boot-2018.03-fsimx6-B2020.04.1 (01.02.2022)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, efusA9r2, PicoMODA9,
+                   NetDCUA9, QBlissA9, QBlissA9r2, armStoneA5, CUBEA5, Cube2.0
+Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add Ethernet support for efusA9r2
+- Add support for efusA9r2
+
+
+
+u-boot-2018.03-fsimx8mn-Y2021.10 (30.10.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Correct boot from ubi environments to create F&S Updater volumes
+- Add env import/export cmd
+- Fix commands to create F&S Updater volumes in fsimx8mn
+
+
+
+u-boot-2018.03-fsimx6-B2021.10.1 (19.10.2021)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix DTS adaption to support backwards compatibility
+
+
+
+u-boot-2018.03-fsimx6-B2021.10 (15.10.2021)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix fsimx6 usb power polarity
+- Fix imx6 display
+- Fix fsimx6 absolut pathes for Linux device tree adaption
+- phy: Fix u-boot coruption when fixed-phy is used
+- kconfig: Avoid format overflow warning from GCC 8.1
+- net: unaligned copying of unsigned long
+- net: nfs: remove superfluous conversions
+- net: nfs: remove superfluous packed attribute
+- Fix pmoda9 LCD pads
+
+
+
+u-boot-2018.03-fsimx8mn-Y2021.09 (24.09.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Add support for board GAR3
+- Add support for board vand3
+- Increase NBoot version to 2021.07
+- F&S Update Framework interface fixed
+- Improve environment variables for fsimx8mm F&S Updater
+- Move enum fsimg_mode from fs_image_common.h to fs_image_common.c
+- Change fsimx8mn to use NBoot
+- Add -ddr3l/-lpddr4 to device tree names for fsimx8mm/fsimx8mn
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Allow optional board-fdt in BOARD-CFG files
+- Add correct fuse values for fsimx8mn
+- Increase size for fs_sys_prompt[]
+- Handle new eMMC layout on fsimx8mn
+- On fsimx8mn, disable code to detect if running on secondary SPL
+- In fat_fus.c, handle files > 2GB better
+- Remove unused folder fsimx8mx_nano
+- Fix building process for fsimx8mm
+- Adjust NAND areas for fsimx8mn nboot
+- Add USB Type C OTG functionality
+- Add variant of PCoreMX8MN
+
+
+
 u-boot-2018.03-fsimx8mm-B2021.06 (23.06.2021)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
@@ -107,19 +269,19 @@ Supported boards: PicoCoreMX8MM
 - Change NBoot version to current one
 
 
-
 u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
 
-- Avoid compiler warning in ubi.c on ARM64
-- Revert to F&S timer implementation on i.MX
-- Remove stdio_dev from F&S serial devices and netconsole
-- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
-- Add basic device tree support for serial drivers on F&S platforms
-- Fix fsimx6ul PicoCOMA7 USB and Display
-- Improve display support for fsimx8mm
+- Update history file to u-boot-2018.03-fsimx8mm-B2020.08
 - Improve USB support for fsimx8mm
+- Improve display support for fsimx8mm
+- Fix fsimx6ul PicoCOMA7 USB and Display
+- Add basic device tree support for serial drivers on F&S platforms
+- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
+- Remove stdio_dev from F&S serial devices and netconsole
+- Revert to F&S timer implementation on i.MX
+- void compiler warning in ubi.c on ARM64
 
 
 

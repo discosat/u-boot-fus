@@ -16,6 +16,7 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <environment.h>
 
 #ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
@@ -40,6 +41,7 @@
 #include <i2c.h>
 #include <asm/mach-imx/mxc_i2c.h>
 
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -56,6 +58,7 @@
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <malloc.h>			/* free() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
+#include <fuse.h>			/* fuse_read() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_usb_common.h"	/* struct fs_usb_port_cfg, fs_usb_*() */
@@ -88,11 +91,20 @@
 #define M4_DRAM_MAX_CODE_SIZE 0x10000000
 
 /* Device tree paths */
-#define FDT_NAND	"/soc/gpmi-nand@01806000"
-#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
-#define FDT_ETH_B	"/soc/aips-bus@02100000/ethernet@021b4000"
-#define FDT_RPMSG	"/soc/aips-bus@02200000/rpmsg"
-#define FDT_RES_MEM	"/reserved-memory"
+#define FDT_NAND         "nand"
+#define FDT_NAND_LEGACY  "/soc/gpmi-nand@01806000"
+#define FDT_EMMC         "emmc"
+#define FDT_ETH_A        "ethernet0"
+#define FDT_ETH_A_LEGACY "/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_ETH_B        "ethernet1"
+#define FDT_ETH_B_LEGACY "/soc/aips-bus@02100000/ethernet@021b4000"
+#define FDT_RPMSG        "rpmsg"
+#define FDT_RPMSG_LEGACY "/soc/aips-bus@02200000/rpmsg"
+#define FDT_RES_MEM      "/reserved-memory"
+#define FDT_GPU          "gpu3d"
+#define FDT_GPC          "gpc"
+
+#define GPU_DISABLE_MASK (0x4)
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm |			\
@@ -306,6 +318,60 @@ int board_early_init_f(void)
 	return 0;
 }
 
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX6SX:
+		if (features2 & FEAT2_EMMC) {
+			 boot_dev = MMC2_BOOT;
+			 break;
+		}
+	default:
+		boot_dev = NAND_BOOT;
+		break;
+	}
+
+	return boot_dev;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev()) {
+		case NAND_BOOT:
+			return ENVL_NAND;
+		case SD1_BOOT:
+		case SD2_BOOT:
+		case SD3_BOOT:
+		case SD4_BOOT:
+		case MMC1_BOOT:
+		case MMC2_BOOT:
+		case MMC3_BOOT:
+		case MMC4_BOOT:
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
+}
+
+/* We dont want to use the common "is_usb_boot" function, which returns true
+ * if we are e.g. transfer an U-Boot via NetDCU-USB-Loader in N-Boot and
+ * execute the image. We booted from fuse so fuse should be checked and not
+ * some flags. Therefore we return always false.
+ */
+bool is_usb_boot(void) {
+	return false;
+}
+
 /* Check board type */
 int checkboard(void)
 {
@@ -418,18 +484,9 @@ void board_nand_init(void)
 	int reg;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mxs_nand_fus_platform_data pdata;
-#ifdef CONFIG_ENV_IS_IN_MMC
-	unsigned int board_type = fs_board_get_type();
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
-	switch (board_type) {
-
-	case BT_PCOREMX6SX:
-		if (features2 & FEAT2_EMMC)
-			return;
-		break;
-	}
-#endif
+	if (get_boot_device() != NAND_BOOT)
+		return;
 
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nfc_pads);
@@ -2427,6 +2484,10 @@ static void fs_fdt_reserve_ram(void *fdt)
 	if (!vring_size)
 	vring_size = RPMSG_SIZE;
 	offs = fs_fdt_path_offset(fdt, FDT_RPMSG);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_RPMSG_LEGACY);
+	}
 	if (offs >= 0) {
 		fdt32_t tmp[2];
 		vring_base = base + size -vring_size;
@@ -2438,13 +2499,38 @@ static void fs_fdt_reserve_ram(void *fdt)
 	}
 }
 
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features = pargs->chFeatures2;
+
+	/* Disable NAND node only for board type BT_PCOREMX6SX.
+	 * These two board types can either have eMMC or NAND. EFUSA9X can have
+	 * both, therefore we only disable the NAND node in case of PCOREMX6SX.
+	 */
+	if (board_type == BT_PCOREMX6SX) {
+		/* Disable NAND if it is not available */
+		if ((features & FEAT2_EMMC))
+			fs_fdt_enable(fdt, FDT_NAND, 0);
+	}
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT2_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
-	int offs;
+	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
+	u32 val;
 
 	printf("   Setting run-time properties\n");
 
@@ -2453,6 +2539,11 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	/* Set ECC strength for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_NAND_LEGACY);
+	}
+
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 			       pargs->chECCtype, 1);
@@ -2478,12 +2569,36 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(pargs->chFeatures2 & FEAT2_ETH_A))
-		fs_fdt_enable(fdt, FDT_ETH_A, 0);
-	if (!(pargs->chFeatures2 & FEAT2_ETH_B))
-		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_A_LEGACY, 0);
+		}
+	}
 
-	return 0;
+	if (!(pargs->chFeatures2 & FEAT2_ETH_B)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_B, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_B_LEGACY, 0);
+		}
+	}
+
+	/* Check if GPU is present */
+	/* Disabled interfaces are in fuse bank 0, word 4 */
+	if (!(fuse_read(0, 4, &val))) {
+		if (val & GPU_DISABLE_MASK) {
+			fs_fdt_enable(fdt, FDT_GPU, 0);
+			offs = fs_fdt_path_offset(fdt, FDT_GPC);
+			if (offs >= 0) {
+				fs_fdt_set_val(fdt, offs, "no-gpu",
+				NULL, 0, 1);
+			}
+		}
+	}
+
+	return do_fdt_board_setup_common(fdt);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 

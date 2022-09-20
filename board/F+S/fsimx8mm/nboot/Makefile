@@ -65,7 +65,8 @@ BOARD_CONFIGS = \
 	PCoreMX8MX-FERT8.120.fs \
 	PCoreMX8MX-FERT8.110.fs \
 	PCoreMX8MX-FERT17.120.fs \
-	TBS2-FERT1.111.fs
+	TBS2-FERT1.111.fs \
+	TBS2-FERT3.120.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
@@ -133,7 +134,7 @@ NXP_LPDDR4 = lpddr4_pmu_train_1d_imem.bin lpddr4_pmu_train_1d_dmem.bin \
 	lpddr4_pmu_train_2d_imem.bin lpddr4_pmu_train_2d_dmem.bin
 NXP_DDR4 = ddr4_imem_1d$(NANO).bin ddr4_dmem_1d$(NANO).bin \
 	ddr4_imem_2d$(NANO).bin ddr4_dmem_2d$(NANO).bin
-NXP_ATF = bl31.bin
+NXP_ATF = bl31-imx8mm.bin
 
 # Add path for NXP firmware images
 NXP_PATH = $(srctree)/board/F+S/NXP-Firmware
@@ -177,7 +178,7 @@ DRAM_TIMINGS_LDS = $(obj)/.dram-timings.lds.tmp
 DRAM_TIMINGS_REPLACE_SED_CMD = \
 	-e "s/\#\#\#DRAM_TIMING_ADDR\#\#\#/$(CONFIG_SPL_DRAM_TIMING_ADDR)/g"
 
-$(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds
+$(DRAM_TIMINGS_LDS): $(NBOOT_PATH)/dram-timings.lds ${srctree}/include/configs/$(BOARD).h
 	$(call cmd,sed,$(DRAM_TIMINGS_REPLACE_SED_CMD))
 
 quiet_cmd_dram_elf = LINK    $@

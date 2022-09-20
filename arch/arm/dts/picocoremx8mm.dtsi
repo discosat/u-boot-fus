@@ -17,7 +17,7 @@
 #include "fsl-imx8mm.dtsi"
 
 / {
-	compatible = "fus,picocoremx8mm", "fsl,imx8mm";
+	compatible = "fus,picocoremx8mm-lpddr4", "fsl,imx8mm";
 
 	aliases {
 		emmc = &usdhc3;
@@ -393,7 +393,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog_1>;
 
-	picocoremx8mm {
+	picocoremx8mm-lpddr4 {
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
 				/* LVDS_RST */

@@ -17,7 +17,7 @@
 #include <fsl_caam.h>
 #endif
 
-static char *get_reset_cause(char *);
+const char *get_reset_cause(void);
 
 #if defined(CONFIG_SECURE_BOOT)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
@@ -206,7 +206,8 @@ const char *get_imx_type(u32 imxtype)
 int print_cpuinfo(void)
 {
 	u32 cpurev;
-	char cause[18];
+	u32 *reg_ssrs = (u32 *)(SRC_BASE_ADDR + 0x28);
+	DECLARE_GLOBAL_DATA_PTR;
 
 	cpurev = get_cpu_rev();
 
@@ -215,7 +216,12 @@ int print_cpuinfo(void)
 	       (cpurev & 0x000F0) >> 4, (cpurev & 0x0000F) >> 0,
 	       mxc_get_clock(MXC_ARM_CLK) / 1000000);
 
-	printf("Reset cause: %s\n", get_reset_cause(cause));
+	/* Save the reset cause to global varaible and clear
+	   the ssrs register */
+	gd->arch.reset_cause = readl(reg_ssrs);
+	writel(gd->arch.reset_cause, reg_ssrs);
+
+	printf("Reset cause: %s\n", get_reset_cause());
 
 	printf("Boot mode: ");
 	switch (get_boot_mode()) {
@@ -243,7 +249,7 @@ int print_cpuinfo(void)
 #define CMC_SRS_SECURITY                  (1 << 30)
 #define CMC_SRS_TZWDG                     (1 << 29)
 #define CMC_SRS_JTAG_RST                  (1 << 28)
-#define CMC_SRS_CORE1                     (1 << 16)
+#define CMC_SRS_CORE0                     (1 << 16)
 #define CMC_SRS_LOCKUP                    (1 << 15)
 #define CMC_SRS_SW                        (1 << 14)
 #define CMC_SRS_WDG                       (1 << 13)
@@ -254,72 +260,59 @@ int print_cpuinfo(void)
 #define CMC_SRS_POR                       (1 << 1)
 #define CMC_SRS_WUP                       (1 << 0)
 
-static u32 reset_cause = -1;
 
-static char *get_reset_cause(char *ret)
+const char *get_reset_cause(void)
 {
+	DECLARE_GLOBAL_DATA_PTR;
 	u32 cause1, cause = 0, srs = 0;
-	u32 *reg_ssrs = (u32 *)(SRC_BASE_ADDR + 0x28);
+
 	u32 *reg_srs = (u32 *)(SRC_BASE_ADDR + 0x20);
 
-	if (!ret)
-		return "null";
-
 	srs = readl(reg_srs);
-	cause1 = readl(reg_ssrs);
-#ifndef CONFIG_ANDROID_BOOT_IMAGE
-	/* We will read the ssrs states later for android so we don't
-	 * clear the states here.
-	 */
-	writel(cause1, reg_ssrs);
-#endif
-
-	reset_cause = cause1;
+	cause1 = gd->arch.reset_cause;
 
 	cause = cause1 & (CMC_SRS_POR | CMC_SRS_WUP | CMC_SRS_WARM);
 
 	switch (cause) {
 	case CMC_SRS_POR:
-		sprintf(ret, "%s", "POR");
+		return "POR";
 		break;
 	case CMC_SRS_WUP:
-		sprintf(ret, "%s", "WUP");
+		return "WUP";
 		break;
 	case CMC_SRS_WARM:
 		cause = cause1 & (CMC_SRS_WDG | CMC_SRS_SW |
-			CMC_SRS_JTAG_RST);
+			CMC_SRS_JTAG_RST | CMC_SRS_CORE0);
 		switch (cause) {
 		case CMC_SRS_WDG:
-			sprintf(ret, "%s", "WARM-WDG");
+			return "WARM_WDG";
 			break;
 		case CMC_SRS_SW:
-			sprintf(ret, "%s", "WARM-SW");
+			return "WARM-SW";
 			break;
 		case CMC_SRS_JTAG_RST:
-			sprintf(ret, "%s", "WARM-JTAG");
+			return "WARM_JTAG";
+			break;
+		case CMC_SRS_CORE0:
+			return "WARM-CORE0";
 			break;
 		default:
-			sprintf(ret, "%s", "WARM-UNKN");
+			return "WARM_UNKN";
 			break;
 		}
 		break;
 	default:
-		sprintf(ret, "%s-%X", "UNKN", cause1);
+		return "UNKN";
 		break;
 	}
 
 	debug("[%X] SRS[%X] %X - ", cause1, srs, srs^cause1);
-	return ret;
 }
 
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 void get_reboot_reason(char *ret)
 {
-	u32 *reg_ssrs = (u32 *)(SRC_BASE_ADDR + 0x28);
-
-	get_reset_cause(ret);
-	/* clear the ssrs here, its state has been recorded in reset_cause */
-	writel(reset_cause, reg_ssrs);
+	get_reset_cause();
 }
 #endif
 

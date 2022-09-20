@@ -358,6 +358,13 @@ config CMD_FSIMAGE
 	  Save F&S images or show information about them and the current
 	  board configuration.
 
+config CMD_FSIMAGE_IMX6
+	bool "Handle F&S images, e.g. U-Boot"
+	depends on TARGET_FSIMX6SX || TARGET_FSIMX6UL || TARGET_FSIMX7ULP
+	depends on !CMD_FSIMAGE
+	help
+	  Save F&S image U-Boot.
+
 config CMD_ZBOOT
 	bool "zboot - x86 boot command"
 	help

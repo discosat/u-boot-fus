@@ -94,6 +94,8 @@ dumpimage-mkimage-objs := aisimage.o \
 			common/image.o \
 			imagetool.o \
 			imximage.o \
+			imx8image.o \
+			imx8mimage.o \
 			kwbimage.o \
 			lib/md5.o \
 			lpc32xximage.o \
@@ -263,6 +265,7 @@ subdir- += env
 
 ifneq ($(CROSS_BUILD_TOOLS),)
 override HOSTCC = $(CC)
+override HOSTCFLAGS = $(CFLAGS)
 
 quiet_cmd_crosstools_strip = STRIP   $^
       cmd_crosstools_strip = $(STRIP) $^; touch $@

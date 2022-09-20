@@ -37,6 +37,7 @@
 #if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
 static u32 reset_cause = -1;
 
+#ifndef CONFIG_ARCH_MX7ULP
 const char *get_reset_cause(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -91,6 +92,7 @@ void get_reboot_reason(char *ret)
 	/* clear the srsr here, its state has been recorded in reset_cause */
 	writel(reset_cause, &src_regs->srsr);
 }
+#endif
 #endif
 
 u32 get_imx_reset_cause(void)
@@ -224,6 +226,7 @@ const char *get_imx_type(u32 imxtype)
 	}
 }
 
+#ifndef CONFIG_ARCH_MX7ULP
 int print_cpuinfo(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -298,6 +301,7 @@ int print_cpuinfo(void)
 
 	return ret;
 }
+#endif
 #endif
 
 int cpu_eth_init(bd_t *bis)

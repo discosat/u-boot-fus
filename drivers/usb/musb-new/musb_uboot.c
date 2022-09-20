@@ -373,7 +373,7 @@ struct dm_usb_ops musb_usb_ops = {
 #endif /* CONFIG_DM_USB */
 #endif /* CONFIG_USB_MUSB_HOST */
 
-#ifdef CONFIG_USB_MUSB_GADGET
+#if defined(CONFIG_USB_MUSB_GADGET) && !CONFIG_IS_ENABLED(DM_USB_GADGET)
 static struct musb *gadget;
 
 int usb_gadget_handle_interrupts(int index)
@@ -436,7 +436,7 @@ int musb_register(struct musb_hdrc_platform_data *plat, void *bdata,
 		musbp = &musb_host.host;
 		break;
 #endif
-#ifdef CONFIG_USB_MUSB_GADGET
+#if defined(CONFIG_USB_MUSB_GADGET) && !CONFIG_IS_ENABLED(DM_USB_GADGET)
 	case MUSB_PERIPHERAL:
 		musbp = &gadget;
 		break;

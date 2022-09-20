@@ -10,6 +10,11 @@
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
+*
+* Remark:
+* CONFIG names use "PICOCOREMX8MM" because this is the marking on the PCB.
+* This will make it easier to merge the two device trees picocoremx8mm-lpddr4
+* and picocoremx8mn-lpddr4 in the future.
 */
 
 /dts-v1/;
@@ -70,7 +75,7 @@
 
 
 / {
-	model = "PicoCoreMX8MM";
+	model = "PicoCoreMX8MM-LPDDR4";
 };
 
 #ifdef CONFIG_PICOCOREMX8MM_ETH

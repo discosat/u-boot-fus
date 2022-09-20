@@ -1,0 +1,6 @@
+FSIMX7ULP
+M:	Patrick Jakob <jakob@fs-net.de>
+S:	Maintained
+F:	board/F+S/fsimx7ulp/
+F:	include/configs/fsimx7ulp.h
+F:	configs/fsimx7ulp_defconfig

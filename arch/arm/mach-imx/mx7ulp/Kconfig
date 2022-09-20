@@ -32,9 +32,15 @@ config TARGET_MX7ULP_EVK
 	select BOARD_LATE_INIT
 	select MX7ULP
 
+config TARGET_FSIMX7ULP
+        bool "Support fsimx7ulp boards from F&S"
+	select BOARD_LATE_INIT
+	select MX7ULP
+
 endchoice
 
 source "board/freescale/mx7ulp_arm2/Kconfig"
 source "board/freescale/mx7ulp_evk/Kconfig"
+source "board/F+S/fsimx7ulp/Kconfig"
 
 endif

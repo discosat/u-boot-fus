@@ -154,6 +154,7 @@ obj-$(CONFIG_CMD_REGULATOR) += regulator.o
 
 # Handle F&S images, e.g. NBoot
 obj-$(CONFIG_CMD_FSIMAGE) += fsimage.o
+obj-$(CONFIG_CMD_FSIMAGE_IMX6) += fsimage_imx6.o
 
 # Extended LCD support (F&S)
 obj-$(CONFIG_CMD_LCD) += lcd.o

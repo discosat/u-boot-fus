@@ -16,6 +16,7 @@
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
 #endif
 #include <serial.h>			/* struct serial_device */
+#include <environment.h>
 
 #ifdef CONFIG_FSL_ESDHC
 #include <mmc.h>
@@ -33,6 +34,7 @@
 #include "../common/fs_disp_common.h"	/* struct fs_disp_port, fs_disp_*() */
 #endif
 
+#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -66,6 +68,7 @@
 #define BT_PCOREMX6UL 6
 #define BT_GAR2	      8
 #define BT_GAR3	      10
+#define BT_PCOREMX6UL100 12
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -85,10 +88,16 @@
 #define SPEED_LIMIT	528000
 
 /* Device tree paths */
-#define FDT_NAND	"/soc/gpmi-nand@01806000"
-#define FDT_ETH_A	"/soc/aips-bus@02100000/ethernet@02188000"
-#define FDT_ETH_B	"/soc/aips-bus@02000000/ethernet@020b4000"
-#define FDT_CPU0	"/cpus/cpu@0"
+#define FDT_NAND         "nand"
+#define FDT_NAND_LEGACY  "/soc/gpmi-nand@01806000"
+#define FDT_EMMC         "emmc"
+#define FDT_ETH_A        "ethernet0"
+#define FDT_ETH_A_LEGACY "/soc/aips-bus@02100000/ethernet@02188000"
+#define FDT_ETH_B        "ethernet1"
+#define FDT_ETH_B_LEGACY "/soc/aips-bus@02000000/ethernet@020b4000"
+#define FDT_CPU0         "/cpus/cpu@0"
+#define FDT_RTC85063     "rtcpcf85063"
+#define FDT_RTC85263     "rtcpcf85263"
 
 /* IO expander bits (on efusA9UL since board rev. 1.20) */
 #define IOEXP_RESET_WLAN (1 << 0)
@@ -149,7 +158,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[11] = {
+const struct fs_board_info board_info[13] = {
 	{	/* 0 (BT_EFUSA7UL) */
 		.name = "efusA7UL",
 		.bootdelay = "3",
@@ -273,6 +282,22 @@ const struct fs_board_info board_info[11] = {
 		.init = ".init_init",
 		.flags = 0,
 	},
+	{	/* 11 (unknown) */
+		.name = "unknown",
+	},
+	{	/* 12 (BT_PCOREMX6UL100) */
+		.name = "PicoCoreMX6UL100",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
 };
 
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
@@ -280,6 +305,14 @@ const struct fs_board_info board_info[11] = {
 /* DVS (on efusA7UL since board rev 1.10) */
 static iomux_v3_cfg_t const dvs[] = {
 	IOMUX_PADS(PAD_NAND_DQS__GPIO4_IO16 | MUX_PAD_CTRL(0x3010)),
+};
+/* DVS */
+static iomux_v3_cfg_t const dvs_pcoremx6ul100[] = {
+	MX6UL_PAD_SNVS_TAMPER7__GPIO5_IO07 | MUX_PAD_CTRL(0x3010),
+};
+
+static iomux_v3_cfg_t const dvs_pcoremx6ull100[] = {
+	MX6ULL_PAD_SNVS_TAMPER7__GPIO5_IO07 | MUX_PAD_CTRL(0x3010),
 };
 
 /* GAR1 power off leds */
@@ -317,6 +350,13 @@ int board_early_init_f(void)
 		gpio_direction_input(IMX_GPIO_NR(1, 9));
 		break;
 
+	case BT_PCOREMX6UL100:
+		if (is_mx6ull())
+			SETUP_IOMUX_PADS(dvs_pcoremx6ull100);
+		else
+			SETUP_IOMUX_PADS(dvs_pcoremx6ul100);
+		break;
+
 	case BT_EFUSA7UL:
 	case BT_PICOCOM1_2:
 	case BT_PICOCOMA7:
@@ -344,6 +384,61 @@ int board_early_init_f(void)
 #endif
 
 	return 0;
+}
+
+enum boot_device fs_board_get_boot_dev(void)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = pargs->chFeatures2;
+	enum boot_device boot_dev = UNKNOWN_BOOT;
+
+	switch (board_type) {
+	case BT_PCOREMX6UL:
+	case BT_PCOREMX6UL100:
+		if (features2 & FEAT2_EMMC) {
+			 boot_dev = MMC2_BOOT;
+			 break;
+		}
+	default:
+		boot_dev = NAND_BOOT;
+		break;
+	}
+
+	return boot_dev;
+}
+
+/* Return the appropriate environment depending on the fused boot device */
+enum env_location env_get_location(enum env_operation op, int prio)
+{
+	if (prio == 0) {
+		switch (fs_board_get_boot_dev()) {
+		case NAND_BOOT:
+			return ENVL_NAND;
+		case SD1_BOOT:
+		case SD2_BOOT:
+		case SD3_BOOT:
+		case SD4_BOOT:
+		case MMC1_BOOT:
+		case MMC2_BOOT:
+		case MMC3_BOOT:
+		case MMC4_BOOT:
+			return ENVL_MMC;
+		default:
+			break;
+		}
+	}
+
+	return ENVL_UNKNOWN;
+}
+
+/* We dont want to use the common "is_usb_boot" function, which returns true
+ * if we are e.g. transfer an U-Boot via NetDCU-USB-Loader in N-Boot and
+ * execute the image. We booted from fuse so fuse should be checked and not
+ * some flags. Therefore we return always false.
+ */
+bool is_usb_boot(void) {
+	return false;
 }
 
 /* Check board type */
@@ -482,18 +577,9 @@ void board_nand_init(void)
 	int reg;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
 	struct mxs_nand_fus_platform_data pdata;
-#ifdef CONFIG_ENV_IS_IN_MMC
-	unsigned int board_type = fs_board_get_type();
-	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
 
-	switch (board_type) {
-
-	case BT_PCOREMX6UL:
-		if (features2 & FEAT2_EMMC)
-			return;
-		break;
-	}
-#endif
+	if (get_boot_device() != NAND_BOOT)
+		return;
 
 	/* config gpmi nand iomux */
 	SETUP_IOMUX_PADS(nfc_pads);
@@ -550,27 +636,29 @@ void board_nand_init(void)
 /*
  * SD/MMC support.
  *
- *   Board          USDHC   CD-Pin                 Slot
- *   -----------------------------------------------------------------------
+ *   Board          USDHC   CD-Pin                   Slot
+ *   --------------------------------------------------------------------------
  *   efusA7UL (for CD signal see below):
- *        either:   USDHC2  UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
- *            or:   USDHC2  -                      eMMC (8-Bit)
- *        either:   USDHC1  UART1_RTS (GPIO1_IO19) SD_A: Connector (Micro-SD)
- *            or:  [USDHC1  UART1_RTS (GPIO1_IO19) WLAN]
- *   -----------------------------------------------------------------------
- *   PicoCOM1.2:    USDHC2 [GPIO1_IO19]            Connector (SD)
- *                 [USDHC1  GPIO1_IO03             WLAN]
- *   -----------------------------------------------------------------------
- *   PicoCOMA7:     USDHC1 [GPIO1_IO19]            Connector (SD)
- *   -----------------------------------------------------------------------
- *   PicoCoreMX6UL: USDHC1  GPIO1_IO19             SD_A: Connector (Micro-SD)
- *   -----------------------------------------------------------------------
- *   GAR1:         (no SD/MMC)
- *   -----------------------------------------------------------------------
- *   CubeA7UL:     [USDHC1  -                      WLAN]
- *   -----------------------------------------------------------------------
- *   Cube2.0:      [USDHC1  -                      WLAN]
- *   -----------------------------------------------------------------------
+ *        either:      USDHC2 UART1_RTS (GPIO1_IO19) SD_B: Connector (SD)
+ *            or:      USDHC2 -                      eMMC (8-Bit)
+ *        either:      USDHC1 UART1_RTS (GPIO1_IO19) SD_A: Connector (Micro-SD)
+ *            or:     [USDHC1 UART1_RTS (GPIO1_IO19) WLAN]
+ *   -------------------------------------------------------------------------
+ *   PicoCOM1.2:       USDHC2 [GPIO1_IO19]           Connector (SD)
+ *                    [USDHC1  GPIO1_IO03            WLAN]
+ *   --------------------------------------------------------------------------
+ *   PicoCOMA7:        USDHC1 [GPIO1_IO19]           Connector (SD)
+ *   --------------------------------------------------------------------------
+ *   PicoCoreMX6UL:    USDHC1  GPIO1_IO19            SD_A: Connector (Micro-SD)
+ *   --------------------------------------------------------------------------
+ *   PicoCoreMX6UL100: USDHC1  GPIO4_IO26            SD_A: Connector (Micro-SD)
+ *   --------------------------------------------------------------------------
+ *   GAR1:             (no SD/MMC)
+ *   --------------------------------------------------------------------------
+ *   CubeA7UL:        [USDHC1  -                     WLAN]
+ *   --------------------------------------------------------------------------
+ *   Cube2.0:         [USDHC1  -                     WLAN]
+ *   --------------------------------------------------------------------------
  *
  * Remark: The WP pin is ignored in U-Boot, also WLAN
  *
@@ -593,6 +681,16 @@ static iomux_v3_cfg_t const usdhc1_sd_pads_ext_rst[] = {
 	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 };
 
+static iomux_v3_cfg_t const usdhc1_sd_pads_ext_rst_2[] = {
+	IOMUX_PADS(PAD_CSI_DATA06__USDHC1_RESET_B|MUX_PAD_CTRL(USDHC_CLK_INT)),
+	IOMUX_PADS(PAD_SD1_CMD__USDHC1_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_CLK__USDHC1_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA0__USDHC1_DATA0 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA1__USDHC1_DATA1 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA2__USDHC1_DATA2 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+	IOMUX_PADS(PAD_SD1_DATA3__USDHC1_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
+};
+
 static iomux_v3_cfg_t const usdhc2_sd_pads_ext[] = {
 	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_EXT)),
@@ -602,7 +700,7 @@ static iomux_v3_cfg_t const usdhc2_sd_pads_ext[] = {
 	IOMUX_PADS(PAD_LCD_DATA23__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_EXT)),
 };
 
-static iomux_v3_cfg_t const usdhc2_sd_pads_int[] = {
+static iomux_v3_cfg_t const usdhc2_sd_pads_int_efusa7ul[] = {
 	IOMUX_PADS(PAD_LCD_DATA18__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_INT)),
 	IOMUX_PADS(PAD_LCD_DATA19__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_INT)),
 	IOMUX_PADS(PAD_GPIO1_IO09__USDHC2_RESET_B|MUX_PAD_CTRL(USDHC_CLK_INT)),
@@ -616,30 +714,51 @@ static iomux_v3_cfg_t const usdhc2_sd_pads_int[] = {
 	IOMUX_PADS(PAD_NAND_DATA07__USDHC2_DATA7| MUX_PAD_CTRL(USDHC_PAD_INT)),
 };
 
+static iomux_v3_cfg_t const usdhc2_sd_pads_int_pcoremx6ul[] = {
+	IOMUX_PADS(PAD_NAND_RE_B__USDHC2_CLK | MUX_PAD_CTRL(USDHC_CLK_INT)),
+	IOMUX_PADS(PAD_NAND_WE_B__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_ALE__USDHC2_RESET_B | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA00__USDHC2_DATA0 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA01__USDHC2_DATA1 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA02__USDHC2_DATA2 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA03__USDHC2_DATA3 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA04__USDHC2_DATA4 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA05__USDHC2_DATA5 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA06__USDHC2_DATA6 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+	IOMUX_PADS(PAD_NAND_DATA07__USDHC2_DATA7 | MUX_PAD_CTRL(USDHC_PAD_INT)),
+};
+
 /* CD on pad UART1_RTS */
 static iomux_v3_cfg_t const cd_uart1_rts[] = {
 	IOMUX_PADS(PAD_UART1_RTS_B__GPIO1_IO19 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
 };
+/* CD on pad CSI_DATA05 */
+static iomux_v3_cfg_t const cd_csi_data05[] = {
+	IOMUX_PADS(PAD_CSI_DATA05__GPIO4_IO26 | MUX_PAD_CTRL(USDHC_CD_CTRL)),
+};
 
 enum usdhc_pads {
-	usdhc1_ext_rst, usdhc1_ext, usdhc2_ext, usdhc2_int
+	usdhc1_ext_rst, usdhc1_ext_rst_2, usdhc1_ext, usdhc2_ext, usdhc2_int_efusa7ul, usdhc2_int_pcoremx6ul
 };
 
 static struct fs_mmc_cfg sdhc_cfg[] = {
 		          /* pads,                       count, USDHC# */
-	[usdhc1_ext_rst] = { usdhc1_sd_pads_ext_rst,     3,     1 },
-	[usdhc1_ext]     = { &usdhc1_sd_pads_ext_rst[1], 2,     1 },
-	[usdhc2_ext]     = { usdhc2_sd_pads_ext,         2,     2 },
-	[usdhc2_int]     = { usdhc2_sd_pads_int,         3,     2 },
+	[usdhc1_ext_rst]   = { usdhc1_sd_pads_ext_rst,     3,     1 },
+	[usdhc1_ext_rst_2] = { usdhc1_sd_pads_ext_rst_2,   3,     1 },
+	[usdhc1_ext]       = { &usdhc1_sd_pads_ext_rst[1], 2,     1 },
+	[usdhc2_ext]       = { usdhc2_sd_pads_ext,         2,     2 },
+	[usdhc2_int_efusa7ul]   = { usdhc2_sd_pads_int_efusa7ul,     3,     2 },
+	[usdhc2_int_pcoremx6ul] = { usdhc2_sd_pads_int_pcoremx6ul,   3,     2 },
 };
 
 enum usdhc_cds {
-	gpio1_io19
+	gpio1_io19, gpio4_io26
 };
 
 static const struct fs_mmc_cd sdhc_cd[] = {
 		      /* pad,          gpio */
 	[gpio1_io19] = { cd_uart1_rts, IMX_GPIO_NR(1, 19) },
+	[gpio4_io26] = { cd_csi_data05, IMX_GPIO_NR(4, 26) },
 };
 
 int board_mmc_init(bd_t *bd)
@@ -681,12 +800,12 @@ int board_mmc_init(bd_t *bd)
 #ifdef CONFIG_CMD_NAND
 		/* If NAND is equipped, eMMC can only use buswidth 4 */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_int], NULL);
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_int_efusa7ul], NULL);
 #else
 		/* If no NAND is equipped, four additional data lines
 		   are available and eMMC can use buswidth 8 */
 		if (!ret && (features2 & FEAT2_EMMC))
-			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc2_int], NULL);
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc2_int_efusa7ul], NULL);
 #endif
 		break;
 
@@ -706,6 +825,23 @@ int board_mmc_init(bd_t *bd)
 		/* mmc0: USDHC1 (ext. micro SD slot via connector) */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext_rst], 
 				   &sdhc_cd[gpio1_io19]);
+		/* mmc1: USDHC2 (eMMC, if available), no CD */
+		if (!ret && (features2 & FEAT2_EMMC))
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc2_int_pcoremx6ul], NULL);
+		break;
+
+	case BT_PCOREMX6UL100:
+		/*
+		 * If no WLAN is equipped, port SD_A with CD on GPIO4_IO26 can
+		 * be used (USDHC1, ext. SD slot, micro SD on BBDSI SKIT). This
+		 * is either mmc1 if SD_B is available, or mmc0 if not.
+		 */
+		if (!(features2 & FEAT2_WLAN))
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc1_ext_rst_2],
+				   &sdhc_cd[gpio4_io26]);
+
+		if (!ret && (features2 & FEAT2_EMMC))
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc2_int_pcoremx6ul], NULL);
 		break;
 
 	default:
@@ -813,12 +949,12 @@ static iomux_v3_cfg_t const lcd18_pads_active[] = {
 };
 
 static iomux_v3_cfg_t const lcd24_pads_low[] = {
+	IOMUX_PADS(PAD_LCD_DATA17__GPIO3_IO22 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA18__GPIO3_IO23 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA19__GPIO3_IO24 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA20__GPIO3_IO25 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA21__GPIO3_IO26 | MUX_PAD_CTRL(0x3010)),
 	IOMUX_PADS(PAD_LCD_DATA22__GPIO3_IO27 | MUX_PAD_CTRL(0x3010)),
-	IOMUX_PADS(PAD_LCD_DATA23__GPIO3_IO28 | MUX_PAD_CTRL(0x3010)),
 };
 
 static iomux_v3_cfg_t const lcd24_pads_active[] = {
@@ -851,6 +987,16 @@ static iomux_v3_cfg_t const lcd_extra_pads_picocoma7ul[] = {
 static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ul[] = {
 	IOMUX_PADS(PAD_LCD_RESET__GPIO3_IO04 | MUX_PAD_CTRL(0x3010)),
 };
+
+/* Pads for VLCD_ON: active high -> pull-down to switch off */
+static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ul100[] = {
+	MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+
+static iomux_v3_cfg_t const lcd_extra_pads_pcoremx6ull100[] = {
+	MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05 | MUX_PAD_CTRL(0x3010),
+};
+
 
 /* Use bit-banging I2C to talk to RGB adapter */
 
@@ -907,6 +1053,20 @@ static void setup_lcd_pads(int on)
 		SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ul);
 		break;
 
+	case BT_PCOREMX6UL100:
+		if (on) {
+			SETUP_IOMUX_PADS(lcd18_pads_active);
+			SETUP_IOMUX_PADS(lcd24_pads_active);
+		} else {
+			SETUP_IOMUX_PADS(lcd18_pads_low);
+			SETUP_IOMUX_PADS(lcd24_pads_low);
+		}
+		if (is_mx6ull())
+			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ull100);
+		else
+			SETUP_IOMUX_PADS(lcd_extra_pads_pcoremx6ul100);
+		break;
+
 	case BT_PICOCOMA7:		/* 18-bit LCD, power active low */
 		if (on)
 			SETUP_IOMUX_PADS(lcd18_pads_active);
@@ -941,11 +1101,15 @@ void board_display_set_power(int port, int on)
 
 	case BT_PICOCOMA7:		/* VLCD_ON is active low*/
 		gpio = IMX_GPIO_NR(3, 25);
-	    value = !on;
+		value = !on;
 		break;
 
 	case BT_PCOREMX6UL:		/* VLCD_ON is active high */
 		gpio = IMX_GPIO_NR(3, 4);
+		break;
+
+	case BT_PCOREMX6UL100:		/* VLCD_ON is active high */
+		gpio = IMX_GPIO_NR(5, 5);
 		break;
 	}
 
@@ -1015,7 +1179,7 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 	 * function cfb_console.c: video_init().
 	 */
 	freq_khz = PICOS2KHZ(mode->pixclock);
-	if (fs_board_get_type() == BT_PCOREMX6UL)
+	if (fs_board_get_type() == BT_PCOREMX6UL || fs_board_get_type() == BT_PCOREMX6UL100)
 		bpp = 24;
 	mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp, PATTERN_BGR);
 	mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
@@ -1035,6 +1199,7 @@ int board_video_skip(void)
 	case BT_EFUSA7UL:
 	case BT_PICOCOMA7:
 	case BT_PCOREMX6UL:
+	case BT_PCOREMX6UL100:
 		valid_mask = (1 << port_lcd);
 		break;
 
@@ -1059,29 +1224,32 @@ int board_video_skip(void)
  * if environment variable usb0mode is set to "host" on these boards, or if it
  * is set to "otg" and the ID pin is low when usb is started, use host mode.
  *
- *    Board           USB_OTG1_PWR                 USB_OTG1_ID
+ *    Board              USB_OTG1_PWR                 USB_OTG1_ID
  *    ----------------------------------------------------------------------
- *    efusA7UL        GPIO1_IO04(*)                GPIO1_IO00
- *    PicoCOM1.2      ENET2_RX_DATA0 (GPIO2_IO08)  -
- *    PicoCOMA7       (only device mode possible)
- *    PicoCoreMX6UL   SNVS_TAMPER3 (GPIO5_IO03)(*) GPIO1_IO00
- *    CubeA7UL/2.0    (Port is power supply, only device mode possible)
- *    GAR1            (always on)                  GPIO1_IO00
+ *    efusA7UL           GPIO1_IO04(*)                GPIO1_IO00
+ *    PicoCOM1.2         ENET2_RX_DATA0 (GPIO2_IO08)  -
+ *    PicoCOMA7          (only device mode possible)
+ *    PicoCoreMX6UL      SNVS_TAMPER3 (GPIO5_IO03)(*) GPIO1_IO00
+ *    PicoCoreMX6UL100   SNVS_TAMPER9 (GPIO5_IO09)(*) GPIO1_IO00
+ *    CubeA7UL/2.0       (Port is power supply, only device mode possible)
+ *    GAR1               (always on)                  GPIO1_IO00
  *
  * (*) Signal on SKIT is active low, usually USB_OTG1_PWR is active high
+ * (**) Signal on SKIT is n.c.
  *
  * USB1 is OTG2 port that is only used as host port at F&S. It is used on all
  * boards. Some boards may have an additional USB hub with a reset signal
  * connected to this port.
  *
- *    Board           VBUS PWR                     Hub Reset
+ *    Board            VBUS PWR                    Hub Reset
  *    -------------------------------------------------------------------------
- *    efusA7UL        (always on)                  (Hub on SKIT, no reset line)
- *    PicoCOM1.2      ENET2_TX_DATA1 (GPIO2_IO12)  (no Hub)
- *    PicoCOMA7	      UART4_TX_DATA (GPIO1_IO28)   (no Hub)
- *    PicoCoreMX6UL   SNVS_TAMPER2 (GPIO5_IO02)    (no Hub)
- *    CubeA7UL/2.0    GPIO1_IO02                   (no Hub)
- *    GAR1            SD1_DATA1 (GPIO2_IO19)       (no Hub)
+ *    efusA7UL         (always on)                 (Hub on SKIT, no reset line)
+ *    PicoCOM1.2       ENET2_TX_DATA1 (GPIO2_IO12) (no Hub)
+ *    PicoCOMA7	       UART4_TX_DATA               (no Hub)
+ *    PicoCoreMX6UL    SNVS_TAMPER2 (GPIO5_IO02)   (no Hub)
+ *    PicoCoreMX6UL100 SNVS_TAMPER8 (GPIO5_IO08)   (Hub on SKIT, no reset line)
+ *    CubeA7UL/2.0     GPIO1_IO02                  (no Hub)
+ *    GAR1             SD1_DATA1 (GPIO2_IO19)      (no Hub)
  *
  * The polarity for the host VBUS power can be set with environment variable
  * usbxpwr, where x is the port index (0 or 1). If this variable is set to
@@ -1140,6 +1308,15 @@ static iomux_v3_cfg_t const usb_otg1_pwr_pad_pcoremx6ull[] = {
 	MX6ULL_PAD_SNVS_TAMPER2__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
+/* On PCoreMX6UL100, power switching by GPIO only; pins differ on UL and ULL */
+static iomux_v3_cfg_t const usb_otg1_pwr_pad_pcoremx6ul100[] = {
+	MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const usb_otg1_pwr_pad_pcoremx6ull100[] = {
+	MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 /* Some boards can switch the USB Host power (USB_OTG2_PWR) */
 static iomux_v3_cfg_t const usb_otg2_pwr_pad_picocom1_2[] = {
 #ifdef CONFIG_FS_USB_PWR_USBNC
@@ -1176,10 +1353,20 @@ static iomux_v3_cfg_t const usb_otg2_pwr_pad_pcoremx6ull[] = {
 	MX6ULL_PAD_SNVS_TAMPER2__GPIO5_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
+/* On PCoreMX6UL100, power switching by GPIO only; pins differ on UL and ULL */
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_pcoremx6ul100[] = {
+	MX6UL_PAD_SNVS_TAMPER8__GPIO5_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const usb_otg2_pwr_pad_pcoremx6ull100[] = {
+	MX6ULL_PAD_SNVS_TAMPER8__GPIO5_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 /* Init one USB port */
 int board_ehci_hcd_init(int index)
 {
 	unsigned int board_type = fs_board_get_type();
+	unsigned int board_rev = fs_board_get_rev();
 	struct fs_usb_port_cfg cfg;
 
 	if (index > 1)
@@ -1234,6 +1421,17 @@ int board_ehci_hcd_init(int index)
 			cfg.id_gpio = IMX_GPIO_NR(1, 0);
 			break;
 
+		case BT_PCOREMX6UL100:	/* PWR active low, ID available */
+			if (is_mx6ull())
+				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ull100;
+			else
+				cfg.pwr_pad = usb_otg1_pwr_pad_pcoremx6ul100;
+			cfg.pwr_gpio = IMX_GPIO_NR(5, 9); /* GPIO only */
+			cfg.pwr_pol = 1;
+			cfg.id_pad = usb_otg1_id_pad;
+			cfg.id_gpio = IMX_GPIO_NR(1, 0);
+			break;
+
 		/* These boards have only DEVICE function on this port */
 		case BT_CUBEA7UL:
 		case BT_CUBE2_0:
@@ -1277,6 +1475,18 @@ int board_ehci_hcd_init(int index)
 			else
 				cfg.pwr_pad = usb_otg2_pwr_pad_pcoremx6ul;
 			cfg.pwr_gpio = IMX_GPIO_NR(5, 2); /* GPIO only */
+			break;
+		case BT_PCOREMX6UL100:
+			/* usb otg2 (host) have a HW bug so USB can´t work in
+			 * revision 1.00.
+			 */
+			if (board_rev == 100)
+				return 0;
+			else if (is_mx6ull())
+				cfg.pwr_pad = usb_otg2_pwr_pad_pcoremx6ull100;
+			else
+				cfg.pwr_pad = usb_otg2_pwr_pad_pcoremx6ul100;
+			cfg.pwr_gpio = IMX_GPIO_NR(5, 8); /* GPIO only */
 			break;
 
 		/* ### TODO: Starting with board rev 1.2, efusA7UL can switch
@@ -1356,8 +1566,18 @@ static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ull[] = {
 	MX6ULL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
+static iomux_v3_cfg_t const enet_pads_reset_pcoremx6ull100[] = {
+	MX6ULL_PAD_SNVS_TAMPER0__GPIO5_IO00 | MUX_PAD_CTRL(NO_PAD_CTRL),
+	MX6ULL_PAD_SNVS_TAMPER1__GPIO5_IO01 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
 static iomux_v3_cfg_t const enet_pads_reset_efus_picocom_ul[] = {
 	MX6UL_PAD_BOOT_MODE1__GPIO5_IO11 | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const enet_pads_reset_pcoremx6ul100[] = {
+	MX6UL_PAD_SNVS_TAMPER0__GPIO5_IO00 | MUX_PAD_CTRL(NO_PAD_CTRL),
+	MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01 | MUX_PAD_CTRL(NO_PAD_CTRL),
 };
 
 static iomux_v3_cfg_t const enet_pads_reset_picocoma7[] = {
@@ -1563,7 +1783,7 @@ int board_eth_init(bd_t *bis)
 		else
 			phy_addr_a = 0;
 
-		if (board_type == BT_GAR1)
+		if (board_type == BT_GAR1 || (board_type == BT_PICOCOMA7 && board_rev >= 100))
 			phy_addr_b = 17;
 		else
 			phy_addr_b = 3;
@@ -1662,6 +1882,24 @@ int board_eth_init(bd_t *bis)
 					     ~0, ~0);
 		break;
 
+	case BT_PCOREMX6UL100:
+		/*
+		 * Up to two KSZ8081RNA PHYs: This PHY needs at least 500us
+		 * reset pulse width and 100us delay before the first MDIO
+		 * access can be done.
+		 *
+		 * On PicoCoreMX6UL100 reset signal is used for ethernet PHYs only.
+		 * Having the distinction for ULL and UL we are prepared for
+		 * possible PicoCoreMX6UL100 with UL CPU in future.
+		 */
+		if (is_mx6ull())
+			SETUP_IOMUX_PADS(enet_pads_reset_pcoremx6ull100);
+		else
+			SETUP_IOMUX_PADS(enet_pads_reset_pcoremx6ul100);
+			fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 0),
+					     IMX_GPIO_NR(5, 1), ~0);
+		break;
+
 	default:
 		break;
 	}
@@ -1732,8 +1970,11 @@ int board_eth_init(bd_t *bis)
 		id++;
 	}
 
-	/* If WLAN is available, just set ethaddr variable */
-	if (features2 & FEAT2_WLAN)
+	/* If WLAN is available, just set ethaddr variable
+	 * PicoCoreMX6UL100 may have WLAN Azurewave mounted which have an
+	 * integrated mac address.
+	 */
+	if ((features2 & FEAT2_WLAN) && (board_type != BT_PCOREMX6UL100))
 		fs_eth_set_ethaddr(id++);
 
 	return 0;
@@ -1849,10 +2090,34 @@ static void fs_fdt_limit_speed(void *fdt, int offs, char *name)
 	free(new);
 }
 
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features = pargs->chFeatures2;
+
+	/* Disable NAND node only for board type PCOREMX6UL und PCOREMX6UL100.
+	 * These two board types can either have eMMC or NAND. EFUSA7UL can have
+	 * both, therefore we only disable the NAND node in case of PCORE*.
+	 */
+	if (board_type == BT_PCOREMX6UL || board_type == BT_PCOREMX6UL100) {
+		/* Disable NAND if it is not available */
+		if ((features & FEAT2_EMMC))
+			fs_fdt_enable(fdt, FDT_NAND, 0);
+	}
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT2_EMMC))
+		fs_fdt_enable(fdt, FDT_EMMC, 0);
+
+	return 0;
+}
+
 /* Do any additional board-specific device tree modifications */
 int ft_board_setup(void *fdt, bd_t *bd)
 {
-	int offs;
+	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
@@ -1863,8 +2128,19 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	printf("   Setting run-time properties\n");
 
+	/* Disable wrong RTC in device tree */
+	if (board_type == BT_PCOREMX6UL && board_rev >= 120)
+		fs_fdt_enable(fdt, FDT_RTC85063, 0);
+	else if (board_type == BT_PCOREMX6UL && board_rev < 120)
+		fs_fdt_enable(fdt, FDT_RTC85263, 0);
+
 	/* Set ECC strength for NAND driver */
 	offs = fs_fdt_path_offset(fdt, FDT_NAND);
+	if (offs < 0) {
+		printf("   Trying legacy path\n");
+		offs = fs_fdt_path_offset(fdt, FDT_NAND_LEGACY);
+	}
+
 	if (offs >= 0) {
 		fs_fdt_set_u32(fdt, offs, "fus,ecc_strength",
 			       pargs->chECCtype, 1);
@@ -1902,12 +2178,23 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	/* Disable ethernet node(s) if feature is not available */
-	if (!(features2 & FEAT2_ETH_A))
-		fs_fdt_enable(fdt, FDT_ETH_A, 0);
-	if (!(features2 & FEAT2_ETH_B))
-		fs_fdt_enable(fdt, FDT_ETH_B, 0);
+	if (!(pargs->chFeatures2 & FEAT2_ETH_A)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_A, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_A_LEGACY, 0);
+		}
+	}
 
-	return 0;
+	if (!(pargs->chFeatures2 & FEAT2_ETH_B)) {
+		err = fs_fdt_enable(fdt, FDT_ETH_B, 0);
+		if(err) {
+			printf("   Trying legacy path\n");
+			fs_fdt_enable(fdt, FDT_ETH_B_LEGACY, 0);
+		}
+	}
+
+	return do_fdt_board_setup_common(fdt);
 }
 #endif /* CONFIG_OF_BOARD_SETUP */
 

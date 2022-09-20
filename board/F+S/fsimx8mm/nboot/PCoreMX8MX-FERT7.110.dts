@@ -13,7 +13,7 @@
 / {
 	board-cfg {
 		board-cfg-version = <2>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MX";
+		board-name = "PicoCoreMX8MM-DDR3L";
 		board-rev = <110>;		/* Rev 1.10 */
 
 		dram-type = "ddr3l";
