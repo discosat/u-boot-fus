@@ -12,12 +12,12 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <2>;	/* Increment on changes */
+		board-cfg-version = <3>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MM";
 		board-rev = <130>;		/* Rev 1.30 */
 
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_pc-2g3000m2ch1cs";
+		dram-timing = "pc-2g3000m2ch1cs";
 		dram-size = <0x800>;		/* In MiB */
 		dram-chips = <1>;
 
