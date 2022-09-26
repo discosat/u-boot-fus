@@ -53,7 +53,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
-#define BT_TBS2 		2
+#define BT_PICOCOREMX8MMr2	2
+#define BT_TBS2 		3
 
 /* Board features; these values can be resorted and redefined at will */
 #define FEAT_ETH_A	(1<<0)
@@ -128,7 +129,20 @@ const struct fs_board_info board_info[] = {
 		.init = INIT_DEF,
 		.flags = 0,
 	},
-	{	/* 2 (BT_TBS2) */
+	{	/* 2 (BT_PICOCOREMX8MMr2) */
+		.name = "PicoCoreMX8MMr2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 3 (BT_TBS2) */
 		.name = "TBS2",
 		.bootdelay = "3",
 		.updatecheck = "mmc0,mmc2",
@@ -401,6 +415,7 @@ static int tc358764_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		i2c_bus = 3;
 		break;
 	case BT_PICOCOREMX8MX:
@@ -788,6 +803,7 @@ void enable_tc358764(struct display_info_t const *dev)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		imx_iomux_v3_setup_multiple_pads (lvds_rst_8mm_pads, ARRAY_SIZE (lvds_rst_8mx_pads));
 		gpio_request (LVDS_RST_8MM_PAD, "LVDS_RST");
 		gpio_direction_output (LVDS_RST_8MM_PAD, 0);
@@ -1032,6 +1048,7 @@ int board_late_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MM:
+	case BT_PICOCOREMX8MMr2:
 		imx_iomux_v3_setup_multiple_pads (vlcd_on_8mm_pads, ARRAY_SIZE (vlcd_on_8mm_pads));
 		gpio_request (VLCD_ON_8MM_PAD, "VLCD_ON");
 		gpio_direction_output (VLCD_ON_8MM_PAD, 1);
@@ -1111,11 +1128,12 @@ static int setup_fec(void)
 }
 
 #define KSZ9893R_SLAVE_ADDR		0x5F
-#define KSZ9893R_CHIP_ID_MSB	0x1
-#define KSZ9893R_CHIP_ID_LSB	0x2
+#define KSZ9893R_CHIP_ID_MSB		0x1
+#define KSZ9893R_CHIP_ID_LSB		0x2
 #define KSZ9893R_CHIP_ID		0x9893
 #define KSZ9893R_REG_PORT_3_CTRL_1	0x3301
 #define KSZ9893R_XMII_MODES		BIT(2)
+#define KSZ9893R_RGMII_ID_IG		BIT(4)
 static int ksz9893r_check_id(struct udevice *ksz9893_dev)
 {
 	uint8_t val = 0;
@@ -1124,13 +1142,13 @@ static int ksz9893r_check_id(struct udevice *ksz9893_dev)
 
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_CHIP_ID_MSB, &val, sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access ksz9893r %d\n", __func__, ret);
+		printf("%s: Cannot access ksz9893r %d\n", __func__, ret);
 		return ret;
 	}
 	chip_id |= val << 8;
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_CHIP_ID_LSB, &val, sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access ksz9893r %d\n", __func__, ret);
+		printf("%s: Cannot access ksz9893r %d\n", __func__, ret);
 		return ret;
 	}
 	chip_id |= val;
@@ -1162,8 +1180,8 @@ static int board_setup_ksz9893r(void)
 	ret = dm_i2c_probe(bus, KSZ9893R_SLAVE_ADDR, 0, &ksz9893_dev);
 	if (ret)
 	{
-		printf("%s: Can't find device id=0x%x, on bus %d, ret %d\n", __func__,
-			KSZ9893R_SLAVE_ADDR, i2c_bus, ret);
+		printf("%s: No device id=0x%x, on bus %d, ret %d\n",
+		       __func__, KSZ9893R_SLAVE_ADDR, i2c_bus, ret);
 		return -ENODEV;
 	}
 
@@ -1175,38 +1193,66 @@ static int board_setup_ksz9893r(void)
 	if (ret != 0)
 		return ret;
 
-	/* setup N301 register deaktivate In-Band Status */
+	/* Set ingress delay (on TXC) to 1.5ns and disable In-Band Status */
 	ret = dm_i2c_read(ksz9893_dev, KSZ9893R_REG_PORT_3_CTRL_1, &val,
 					  sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access register %x of ksz9893r %d\n", __func__,
-			   KSZ9893R_REG_PORT_3_CTRL_1, ret);
+		printf("%s: Cannot access register %x of ksz9893r %d\n",
+		       __func__, KSZ9893R_REG_PORT_3_CTRL_1, ret);
 		return ret;
 	}
+	val |= KSZ9893R_RGMII_ID_IG;
 	val &= ~KSZ9893R_XMII_MODES;
 	ret = dm_i2c_write(ksz9893_dev, KSZ9893R_REG_PORT_3_CTRL_1, &val,
 					   sizeof(val));
 	if (ret != 0) {
-		printf("%s: Can´t access register %x of ksz9893r %d\n", __func__,
-			   KSZ9893R_REG_PORT_3_CTRL_1, ret);
+		printf("%s: Cannot access register %x of ksz9893r %d\n",
+		       __func__, KSZ9893R_REG_PORT_3_CTRL_1, ret);
 		return ret;
 	}
 
 	return ret;
 }
 
+/* Board specific cleanup before Linux is started */
+void board_preboot_os(void)
+{
+	/* Shut down all ethernet PHYs (suspend mode) */
+	mdio_shutdown_all();
+}
+
+#define MIIM_RTL8211F_PAGE_SELECT      0x1f
+
 int board_phy_config(struct phy_device *phydev)
 {
-	/* enable rgmii rxc skew and phy mode select to RGMII copper */
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
+	u16 reg;
 
-	if (fs_board_get_type() == BT_PICOCOREMX8MX) {
-		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x00);
-		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x82ee);
+	switch (fs_board_get_type())
+	{
+	case BT_PICOCOREMX8MM:
+		/* enable rgmii rxc skew and phy mode select to RGMII copper */
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
+
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
+		break;
+	case BT_PICOCOREMX8MMr2:
+		/* Set LED2 for Link, LED1 for Activity */
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x8360);
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0x0);
+
+		/* Disable CLKOUT*/
+		phy_write(phydev, MDIO_DEVAD_NONE,
+			  MIIM_RTL8211F_PAGE_SELECT, 0xa43);
+		reg = phy_read(phydev, MDIO_DEVAD_NONE, 0x19);
+		reg &= ~(1 << 0);
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x19, reg);
+		break;
 	}
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
 
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
