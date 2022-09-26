@@ -14,6 +14,19 @@ QBlissA9 armStoneA9 armStoneA9r2 armStoneA9r3
 
 
 
+u-boot-2018.03-fsimx8mm-Y2021.04.2 (15.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Move LED configuration of Realtek PHY to board_phy_config
+- Enable ALDPS mode and disable EEE LED indication
+- Improve picocoremx8mmr2 device tree
+- Disable phy CLKOUT for PicoCoremx8MMr2
+- Disable ethernet before booting linux for fsimx8mm
+
+
+
 u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
