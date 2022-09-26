@@ -1,6 +1,14 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx8mm-B2021.06.1 (26.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Merge tag 'fsimx8mm-Y2021.04.2' into HEAD
+
+
+
 u-boot-2018.03-fsimx8mm-Y2021.04.2 (15.09.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
