@@ -1,6 +1,17 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2020.04.2 (09.09.2022)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, efusA9, efusA9r2,
+PicoMODA9, PicoMODA9.2, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Add support for armStoneA9r3 and armStoneA9r4
+- Move LED configuration of Realtek PHY to board_phy_config
+- Enable ALDPS mode and disable EEE LED indication
+
+
+
 u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
