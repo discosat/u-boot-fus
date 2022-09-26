@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2022.04.1
+NBOOT_VERSION = 2022.09.1
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -47,12 +47,15 @@ BOARD_CONFIGS = \
 	PCoreMX8MM-FERT12.130.fs \
 	PCoreMX8MM-FERT13.130.fs \
 	PCoreMX8MM-FERT15.130.fs \
+	PCoreMX8MM-FERT16.130.fs \
+	PCoreMX8MM-FERT18.130.fs \
 	PCoreMX8MMr2-FERT3.100.fs \
 	PCoreMX8MMr2-FERT4.100.fs \
 	PCoreMX8MMr2-FERT9.100.fs \
 	PCoreMX8MMr2-FERT12.100.fs \
 	PCoreMX8MMr2-FERT13.100.fs \
 	PCoreMX8MMr2-FERT15.100.fs \
+	PCoreMX8MMr2-FERT18.100.fs \
 	PCoreMX8MX-FERT5.120.fs \
 	PCoreMX8MX-FERT5.110.fs \
 	PCoreMX8MX-FERT6.120.fs \
@@ -67,13 +70,13 @@ BOARD_CONFIGS = \
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
-	ddr3l_2x_im4g16d3fdbg107i_timing.fs \
-	ddr3l_2x_mt41k128m16tw_timing.fs
+	ddr3l_pc-512m1600m2ch2cs_timing.fs \
+	ddr3l_pc-1g1600m2ch2cs_timing.fs
 RT_LPDDR4 := \
-	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_k4f8e304hb_mgcj_timing.fs \
-	lpddr4_k4f6e3s4hm_mgcl_timing.fs \
-	lpddr4_fl4c2001g_d9_timing.fs
+	lpddr4_pc-1g2400m2ch1cs_timing.fs \
+	lpddr4_pc-1g2400m2ch2cs_timing.fs \
+	lpddr4_pc-1g3000m2ch1cs_timing.fs \
+	lpddr4_pc-2g3000m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
@@ -194,7 +197,13 @@ $(obj)/.%.bin.tmp: $(obj)/.%.elf.tmp
 quiet_cmd_fsimg = FSIMG   $@
 cmd_fsimg = ${srctree}/scripts/addfsheader.sh -q -p 16 $2 $^ > $@
 
-$(obj)/%_timing.fs: $(obj)/.%_timing.bin.tmp
+$(obj)/ddr3l_%_timing.fs: $(obj)/.ddr3l_%_timing.bin.tmp
+	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
+
+$(obj)/lpddr4_%_timing.fs: $(obj)/.lpddr4_%_timing.bin.tmp
+	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
+
+$(obj)/ddr4_%_timing.fs: $(obj)/.ddr4_%_timing.bin.tmp
 	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
 
 $(obj)/%_fw.fs: $(obj)/.%_fw.tmp

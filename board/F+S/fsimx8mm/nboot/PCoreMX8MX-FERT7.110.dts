@@ -12,13 +12,12 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
+		board-cfg-version = <2>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MM-DDR3L";
 		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 1GB Intelligent Memory */
 		dram-type = "ddr3l";
-		dram-timing = "ddr3l_2x_im4g16d3fdbg107i";
+		dram-timing = "pc-1g1600m2ch2cs";
 		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <2>;
 

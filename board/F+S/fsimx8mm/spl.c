@@ -47,7 +47,7 @@ DECLARE_GLOBAL_DATA_PTR;
 static const char *board_names[] = {
 	"PicoCoreMX8MM-LPDDR4",
 	"PicoCoreMX8MM-DDR3L",
-	"PicoCoreMX8MMr2",
+	"PicoCoreMX8MMr2-LPDDR4",
 	"TBS2"
 	"(unknown)"
 };
@@ -363,8 +363,6 @@ static void fs_board_early_init(void)
 		break;
 	case BT_PICOCOREMX8MMr2:
 			imx_iomux_v3_setup_pad(lvds_rst_8mm_130_pads);
-		break;
-	default:
 		break;
 	}
 }
