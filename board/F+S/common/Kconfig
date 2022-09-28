@@ -12,12 +12,6 @@ config FS_BOARD_COMMON
 	bool
 	default y
 
-config FS_BOARD_OFFS
-	int
-	default 16 if TARGET_FSIMX6UL
-	default 8  if TARGET_FSIMX6SX
-	default 0
-
 config FS_BOARD_MODE_RO
 	bool "Load rootfs read-only (F&S)"
 	default y
