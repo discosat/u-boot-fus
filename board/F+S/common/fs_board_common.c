@@ -91,6 +91,11 @@ unsigned int fs_board_get_type(void)
 	if (BoardType >= 29)
 		BoardType -= (29 - 8);
 #elif CONFIG_TARGET_FSIMX6SX
+	if (BoardType == 25)
+		BoardType -= (25 - 7);
+	else if (BoardType >= 32)
+		BoardType -= (32 - 8);
+	else
 		BoardType -= 8;
 #elif CONFIG_TARGET_FSIMX6UL
 	BoardType -= 16;

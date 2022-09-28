@@ -65,13 +65,15 @@
 
 /* ------------------------------------------------------------------------- */
 
-#define BT_EFUSA9X    0
-#define BT_PICOCOMA9X 1
-#define BT_KEN116     2			/* Not supported in Linux */
-#define BT_BEMA9X     3
-#define BT_CONT1      4
-#define BT_PCOREMX6SX 6
-#define BT_VAND3      17
+#define BT_EFUSA9X      0
+#define BT_PICOCOMA9X   1
+#define BT_KEN116       2			/* Not supported in Linux */
+#define BT_BEMA9X       3
+#define BT_CONT1        4
+#define BT_PCOREMX6SX   6
+#define BT_VAND3        7 /* in N-Boot number 25 */
+#define BT_EFUSA9XR2    8 /* in N-Boot number 32 */
+#define BT_PCOREMX6SXR2 9 /* in N-Boot number 33 */
 
 /* Features set in fs_nboot_args.chFeature2 (available since NBoot VN27) */
 #define FEAT2_ETH_A   (1<<0)		/* 0: no LAN0, 1; has LAN0 */
@@ -160,7 +162,7 @@
 #define INSTALL_DEF INSTALL_RAM
 #endif
 
-const struct fs_board_info board_info[19] = {
+const struct fs_board_info board_info[10] = {
 	{	/* 0 (BT_EFUSA9X) */
 		.name = "efusA9X",
 		.bootdelay = "3",
@@ -242,37 +244,7 @@ const struct fs_board_info board_info[19] = {
 		.init = ".init_init",
 		.flags = 0,
 	},
-	{	/* 7 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 8 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 9 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 10 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 11 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 12 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 13 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 14 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 15 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 16 (unknown) */
-		.name = "unknown",
-	},
-	{	/* 17 (BT_VAND3) */
+	{	/* 7 (BT_VAND3) */
 		.name = "VAND3",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -285,8 +257,31 @@ const struct fs_board_info board_info[19] = {
 		.init = ".init_init",
 		.flags = 0,
 	},
-	{	/* 18 (unknown) */
-		.name = "unknown",
+	{	/* 8 (BT_EFUSA9XR2) */
+		.name = "efusA9Xr2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
+	},
+	{	/* 9 (BT_PCOREMX6SXR2) */
+		.name = "PicoCoreMX6SXr2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = ".init_init",
+		.flags = 0,
 	},
 };
 
@@ -327,6 +322,7 @@ enum boot_device fs_board_get_boot_dev(void)
 
 	switch (board_type) {
 	case BT_PCOREMX6SX:
+	case BT_PCOREMX6SXR2:
 		if (features2 & FEAT2_EMMC) {
 			 boot_dev = MMC2_BOOT;
 			 break;
@@ -438,7 +434,7 @@ int board_init(void)
 	 *
 	 * FIXME: Should we do this somewhere else when we know the pulse time?
 	 */
-	if (board_type == BT_EFUSA9X) {
+	if ((board_type == BT_EFUSA9X)||(board_type == BT_EFUSA9XR2)) {
 		unsigned int active_us = 1000;
 
 		if ((features2 && FEAT2_WLAN) && (board_rev < 120))
@@ -682,6 +678,7 @@ int board_mmc_init(bd_t *bd)
 
 	switch (board_type) {
 	case BT_EFUSA9X:
+	case BT_EFUSA9XR2:
 		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
 				   &sdhc_cd[gpio1_io06]);
@@ -727,6 +724,7 @@ int board_mmc_init(bd_t *bd)
 		break;
 
 	case BT_PCOREMX6SX:
+	case BT_PCOREMX6SXR2:
 		/* mmc0: USDHC4 (ext. SD slot, micro SD on picocore SKIT) */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc4_ext_rst],
 				   &sdhc_cd[gpio2_io12]);
@@ -955,6 +953,7 @@ static void setup_lcd_pads(int on)
 	switch (fs_board_get_type())
 	{
 	case BT_EFUSA9X:		/* 18-bit LCD, power active high */
+	case BT_EFUSA9XR2:
 		if (on)
 			SETUP_IOMUX_PADS(lcd18_pads_active);
 		else
@@ -963,6 +962,7 @@ static void setup_lcd_pads(int on)
 		break;
 
 	case BT_PCOREMX6SX:		/* 24-bit LCD, power active high */
+	case BT_PCOREMX6SXR2:
 		if (on) {
 			SETUP_IOMUX_PADS(lcd18_pads_active);
 			SETUP_IOMUX_PADS(lcd24_pads_active);
@@ -998,12 +998,14 @@ void board_display_set_power(int port, int on)
 
 	switch (fs_board_get_type()) {
 	case BT_EFUSA9X:		/* VLCD_ON is active high */
+	case BT_EFUSA9XR2:
 	case BT_BEMA9X:
 	default:
 		gpio = IMX_GPIO_NR(3, 19);
 		break;
 
 	case BT_PCOREMX6SX:		/* VLCD_ON is active high */
+	case BT_PCOREMX6SXR2:
 		gpio = IMX_GPIO_NR(3, 27);
 		break;
 
@@ -1044,6 +1046,7 @@ void board_display_set_backlight(int port, int on)
 	case port_lcd:
 		switch (board_type) {
 		case BT_EFUSA9X:
+		case BT_EFUSA9XR2:
 			if (!i2c_init) {
 				setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
 					  I2C_PADS_INFO(efusa9x));
@@ -1052,6 +1055,7 @@ void board_display_set_backlight(int port, int on)
 			fs_disp_set_i2c_backlight(1, on);
 			break;
 		case BT_PCOREMX6SX:
+		case BT_PCOREMX6SXR2:
 			if (!i2c_init) {
 				setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x60,
 					  I2C_PADS_INFO(pcoremx6sx));
@@ -1076,6 +1080,7 @@ void board_display_set_backlight(int port, int on)
 	case port_lvds:
 		switch (board_type) {
 		case BT_EFUSA9X:
+		case BT_EFUSA9XR2:
 			fs_disp_set_vcfl(port, on, IMX_GPIO_NR(3, 20));
 			fs_disp_set_bklt_pwm(port, on, IMX_GPIO_NR(3, 23));
 			break;
@@ -1139,7 +1144,7 @@ int board_display_start(int port, unsigned flags, struct fb_videomode *mode)
 
 	switch (port) {
 	case port_lcd:
-		if (fs_board_get_type() == BT_PCOREMX6SX)
+		if ((fs_board_get_type() == BT_PCOREMX6SX)||(fs_board_get_type() == BT_PCOREMX6SXR2))
 			bpp = 24;
 		mxs_lcd_panel_setup(LCDIF1_BASE_ADDR, mode, bpp, PATTERN_RGB);
 		mxs_config_lcdif_clk(LCDIF1_BASE_ADDR, freq_khz);
@@ -1167,10 +1172,12 @@ int board_video_skip(void)
 	/* Determine possible displays and default port */
 	switch (board_type) {
 	case BT_EFUSA9X:
+	case BT_EFUSA9XR2:
 		valid_mask = (1 << port_lcd) | (1 << port_lvds);
 		break;
 
 	case BT_PCOREMX6SX:
+	case BT_PCOREMX6SXR2:
 	case BT_PICOCOMA9X:
 	case BT_BEMA9X:
 		valid_mask = (1 << port_lcd);
@@ -1296,7 +1303,9 @@ int board_ehci_hcd_init(int index)
 		switch (board_type) {
 		/* These boards support optional HOST function on this port */
 		case BT_EFUSA9X:	/* PWR active low, ID available */
+		case BT_EFUSA9XR2:
 		case BT_PCOREMX6SX:
+		case BT_PCOREMX6SXR2:
 			cfg.pwr_pol = 1;
 			cfg.pwr_pad = usb_otg1_pwr_pad;
 #ifndef CONFIG_FS_USB_PWR_USBNC
@@ -1327,7 +1336,9 @@ int board_ehci_hcd_init(int index)
 		switch (board_type) {
 		/* These boards can switch host power, PWR is active high */
 		case BT_EFUSA9X:
+		case BT_EFUSA9XR2:
 		case BT_PCOREMX6SX:
+		case BT_PCOREMX6SXR2:
 		case BT_PICOCOMA9X:
 		case BT_BEMA9X:
 			cfg.pwr_pad = usb_otg2_pwr_pad;
@@ -2068,6 +2079,7 @@ int board_eth_init(bd_t *bd)
 	 */
 	switch (board_type) {
 	case BT_EFUSA9X:
+	case BT_PCOREMX6SX:
 		/* The 25 MHz reference clock is generated in the CPU and is an
 		   output on pad ENET2_RX_CLK, i.e. CONFIG_FEC_MXC_25M_REF_CLK
 		   must be set */
@@ -2343,7 +2355,8 @@ int board_eth_init(bd_t *bd)
 #endif
 		break;
 
-	case BT_PCOREMX6SX:
+	case BT_EFUSA9XR2:
+	case BT_PCOREMX6SXR2:
 		/* The 25 MHz reference clock is generated in the CPU and is an
 		   output on pad ENET2_RX_CLK, i.e. CONFIG_FEC_MXC_25M_REF_CLK
 		   must be set */
@@ -2380,17 +2393,16 @@ int board_eth_init(bd_t *bd)
 				return ret;
 		}
 
-		/* Reset both PHYs, Atheros AR8035 needs at least 1ms after
-		   clock is enabled */
-		fs_board_issue_reset(1000, 1000, IMX_GPIO_NR(2, 2), ~0, ~0);
+		/* Realtek RTL8211F(D): Assert reset for at least 10ms */
+		fs_board_issue_reset(10000, 50000, IMX_GPIO_NR(2, 2), ~0, ~0);
 
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
 			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII_ID);
 		if (!ret && (features2 & FEAT2_ETH_B))
 			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII_ID);
 		break;
 
 	default:
@@ -2402,6 +2414,38 @@ int board_eth_init(bd_t *bd)
 		fs_eth_set_ethaddr(eth_id++);
 
 	return ret;
+}
+
+#define MIIM_RTL8211F_PAGE_SELECT 0x1f
+#define LED_MODE_B (1 << 15)
+#define LED_LINK(X) (0x0b << (5*X))
+#define LED_ACT(X) (0x10 << (5*X))
+
+int board_phy_config(struct phy_device *phydev)
+{
+	unsigned int board_type = fs_board_get_type();
+	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+
+	if (phydev->drv->config)
+		phydev->drv->config(phydev);
+
+	/* Realtek needs special LED configuration */
+	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
+		switch (board_type) {
+		case BT_EFUSA9XR2:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(2) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		case BT_PCOREMX6SXR2:
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(1) | LED_ACT(1));
+			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
+			break;
+		}
+	}
+
+	return 0;
 }
 #endif /* CONFIG_CMD_NET */
 
@@ -2510,7 +2554,7 @@ static int do_fdt_board_setup_common(void *fdt)
 	 * These two board types can either have eMMC or NAND. EFUSA9X can have
 	 * both, therefore we only disable the NAND node in case of PCOREMX6SX.
 	 */
-	if (board_type == BT_PCOREMX6SX) {
+	if ((board_type == BT_PCOREMX6SX)||(board_type == BT_PCOREMX6SXR2)) {
 		/* Disable NAND if it is not available */
 		if ((features & FEAT2_EMMC))
 			fs_fdt_enable(fdt, FDT_NAND, 0);
@@ -2564,7 +2608,8 @@ int ft_board_setup(void *fdt, bd_t *bd)
 			fs_fdt_set_macaddr(fdt, offs, id++);
 		/* WLAN MAC address only required on Silex based board revs */
 		if ((pargs->chFeatures2 & FEAT2_WLAN)
-		    && (((board_type == BT_EFUSA9X) && (board_rev >= 120)) || (board_type == BT_VAND3)))
+		    && (((board_type == BT_EFUSA9X) && (board_rev >= 120))
+			|| (board_type == BT_VAND3) || (board_type == BT_EFUSA9XR2)))
 			fs_fdt_set_wlan_macaddr(fdt, offs, id++, 1);
 	}
 
