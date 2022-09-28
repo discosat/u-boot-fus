@@ -127,7 +127,7 @@ static int rtl8211f_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0xa43);
 	reg = phy_read(phydev, MDIO_DEVAD_NONE, 0x18);
-	reg |= (1 << 1) | (1 << 2) | (1 << 12);
+	reg |= (1 << 1) | (1 << 2);
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x18, reg);
 
 	/* restore to default page 0 */
