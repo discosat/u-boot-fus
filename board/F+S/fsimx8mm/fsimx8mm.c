@@ -57,7 +57,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MM 	0
 #define BT_PICOCOREMX8MX	1
 #define BT_PICOCOREMX8MMr2	2
-#define BT_TBS2 		    3
+#define BT_TBS2 		3
 
 /* Board features; these values can be resorted and redefined at will */
 #define FEAT_ETH_A	(1<<0)
