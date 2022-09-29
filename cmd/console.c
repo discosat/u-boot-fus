@@ -33,20 +33,8 @@ static int do_coninfo(cmd_tbl_t *cmd, int flag, int argc, char * const argv[])
 			(dev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
 
 		for (l = 0; l < MAX_FILES; l++) {
-#ifdef CONFIG_CONSOLE_MUX
-			struct stdio_dev *p;
-
-			for (p = stdio_devices[l]; p;
-				p = p->file_next[l]) {
-				if (p == dev) {
-					printf("%s ", stdio_names[l]);
-					break;
-				}
-			}
-#else
 			if (stdio_devices[l] == dev)
 				printf("%s ", stdio_names[l]);
-#endif
 		}
 		putc ('\n');
 	}
