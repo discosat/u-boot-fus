@@ -588,6 +588,9 @@ Free Space:
 
 /* Initial environment variables */
 #define CONFIG_EXTRA_ENV_SETTINGS					\
+	CONFIG_MFG_ENV_SETTINGS \
+	M4_BOOT_ENV \
+	AHAB_ENV \
 	"bd_kernel=undef\0"						\
 	"bd_fdt=undef\0"						\
 	"bd_rootfs=undef\0"						\
