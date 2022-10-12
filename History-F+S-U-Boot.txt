@@ -1,6 +1,15 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2022.10 (30.09.2022)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, efusA9, efusA9r2
+PicoMODA9, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Fix board-cfg for PCoreMx8MM-FERT16 and FERT18
+
+
+
 u-boot-2018.03-fsimx6-Y2022.09 (21.09.2022)
 -------------------------------------------
 Supported boards: efusA9 efusA9r2 armStoneA9 armStoneA9r2 PicoModA9 NetDCUA9
