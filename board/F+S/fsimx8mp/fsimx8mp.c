@@ -243,13 +243,13 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	unsigned int features = fs_board_get_features();
 	int minc, maxc;
 	int id = 0;
-	uint32_t temp_range;
+	__maybe_unused uint32_t temp_range;
 
 	/* get CPU temp grade from the fuses */
 	temp_range = get_cpu_temp_grade(&minc, &maxc);
 
 #if 0 /* TODO: need to rework */
-	if(temp_range == TEMP_COMMERCIAL){
+	if (temp_range == TEMP_COMMERCIAL){
 		/* no wlan abailable */
 		fs_fdt_enable(fdt, "wlan-reset", 0);
 		/* no eeprom available */
@@ -378,29 +378,19 @@ int ft_board_setup(void *fdt, bd_t *bd)
 
 	/* Sanity check for get_cpu_temp_grade() */
 	if ((minc > -500) && maxc < 500) {
-		fdt32_t tmp_val[1];
+		u32 tmp_val;
 
-		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		tmp_val = (maxc - 10) * 1000;
 		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_ALERT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
-		}
-		tmp_val[0]=cpu_to_fdt32(maxc*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_CRIT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
-		}
-
-		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
 		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_ALERT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
-		}
-		tmp_val[0]=cpu_to_fdt32(maxc*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_CRIT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
-		}
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
+
+		tmp_val = maxc * 1000;
+		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_CRIT);
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
+		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_ALERT);
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
 	} else {
 		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
 	}

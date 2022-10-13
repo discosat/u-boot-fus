@@ -1413,16 +1413,18 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
 	}
 
-	/* Set linux,cma size depending on RAM size. Default is 320MB. */
-	offs = fs_fdt_path_offset(fdt, FDT_CMA);
-	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-		unsigned int dram_size = fs_board_get_cfg_info()->dram_size;
-		if ((dram_size == 1023) || (dram_size == 1024)) {
-			fdt32_t tmp[2];
-			tmp[0] = cpu_to_fdt32(0x0);
-			tmp[1] = cpu_to_fdt32(0x28000000);
-			fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
-		}
+	/*
+	 * Set linux,cma size depending on RAM size. Keep default (320MB) from
+	 * device tree if < 1GB, increase to 640MB otherwise.
+	 */
+	if (fs_board_get_cfg_info()->dram_size >= 1023)	{
+		fdt32_t tmp[2];
+
+		tmp[0] = cpu_to_fdt32(0x0);
+		tmp[1] = cpu_to_fdt32(0x28000000);
+
+		offs = fs_fdt_path_offset(fdt, FDT_CMA);
+		fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
 	}
 
 	return do_fdt_board_setup_common(fdt);

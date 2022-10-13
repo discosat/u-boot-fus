@@ -1450,33 +1450,33 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, FDT_UART_C, 0);
 	}
 
-	/* Set linux,cma size depending on RAM size. Default is 320MB. */
-	offs = fs_fdt_path_offset(fdt, FDT_CMA);
-	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-		unsigned int dram_size = fs_board_get_cfg_info()->dram_size;
-		if ((dram_size == 1023) || (dram_size == 1024)) {
-			fdt32_t tmp[2];
-			tmp[0] = cpu_to_fdt32(0x0);
-			tmp[1] = cpu_to_fdt32(0x28000000);
-			fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
-		}
+	/*
+	 * Set linux,cma size depending on RAM size. Keep default (320MB) from
+	 * device tree if < 1GB, increase to 640MB otherwise.
+	 */
+	if (fs_board_get_cfg_info()->dram_size >= 1023)	{
+		fdt32_t tmp[2];
+
+		tmp[0] = cpu_to_fdt32(0x0);
+		tmp[1] = cpu_to_fdt32(0x28000000);
+
+		offs = fs_fdt_path_offset(fdt, FDT_CMA);
+		fs_fdt_set_val(fdt, offs, "size", tmp, sizeof(tmp), 1);
 	}
 
 	/* Set CPU temp grade */
 	get_cpu_temp_grade(&minc, &maxc);
 	/* Sanity check for get_cpu_temp_grade() */
 	if ((minc > -500) && maxc < 500) {
+		u32 tmp_val;
 
-		tmp_val[0]=cpu_to_fdt32((maxc-10)*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_TEMP_ALERT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature",tmp_val , sizeof(tmp_val), 1);
-		}
-		tmp_val[0]=cpu_to_fdt32(maxc*1000);
-		offs = fs_fdt_path_offset(fdt, FDT_TEMP_CRIT);
-		if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-			fs_fdt_set_val(fdt, offs, "temperature", tmp_val, sizeof(tmp_val), 1);
-		}
+		tmp_val = (maxc - 10) * 1000;
+		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_ALERT);
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
+
+		tmp_val = maxc * 1000;
+		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_CRIT);
+		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
 	} else {
 		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
 	}

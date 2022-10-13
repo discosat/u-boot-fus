@@ -437,15 +437,13 @@ int ft_board_setup(void *fdt, bd_t *bd)
 //			fs_fdt_set_macaddr(fdt, offs, id++);
 	}
 
-	/* Set linux,cma size depending on RAM size. Default is 256MB. */
-	offs = fs_fdt_path_offset(fdt, FDT_CMA);
-	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) == NULL) {
-		unsigned int dram_size = pargs->dwMemSize;
-		if ((dram_size == 1023) || (dram_size == 1024)) {
-			fdt32_t tmp;
-			tmp = cpu_to_fdt32(0x10000000);
-			fs_fdt_set_val(fdt, offs, "size", &tmp, sizeof(tmp), 1);
-		}
+	/*
+	 * Set linux,cma size depending on RAM size. Keep default (72MB) from
+	 * device tree if < 1GB, increase to 256MB otherwise.
+	 */
+	if (fs_board_get_cfg_info()->dram_size >= 1023)	{
+		offs = fs_fdt_path_offset(fdt, FDT_CMA);
+		fs_fdt_set_u32(fdt, offs, "size", 0x10000000, 1);
 	}
 
 	return 0;

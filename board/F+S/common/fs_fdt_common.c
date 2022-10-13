@@ -27,6 +27,10 @@ void fs_fdt_set_val(void *fdt, int offs, const char *name, const void *val,
 {
 	int err;
 
+	/* Keep value if "no-uboot-override" is set */
+	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) != NULL)
+		force = 0;
+
 	/* Warn if property already exists in device tree */
 	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
 		printf("## %s property %s/%s from device tree!\n",
