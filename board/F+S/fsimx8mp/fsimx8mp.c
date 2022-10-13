@@ -952,32 +952,3 @@ int board_postclk_init(void)
 	return 0;
 }
 #endif /* CONFIG_BOARD_POSTCLK_INIT */
-
-#ifndef CONFIG_SPL_BUILD
-int get_usdhc_boot_device()
-{
-	unsigned int board_type = fs_board_get_type();
-	switch(board_type) {
-	default:
-	case BT_PICOCOREMX8MP:
-		return 2;
-	case BT_ARMSTONEMX8MP:
-		return 0;
-	}
-
-	return 2;
-}
-
-int get_mmc_boot_device()
-{
-	unsigned int board_type = fs_board_get_type();
-	switch(board_type) {
-	default:
-	case BT_PICOCOREMX8MP:
-		return 2;
-	case BT_ARMSTONEMX8MP:
-		return 0;
-	}
-	return 2;
-}
-#endif

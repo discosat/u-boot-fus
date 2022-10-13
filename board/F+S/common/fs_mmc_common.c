@@ -36,18 +36,8 @@ enum
 	USDHCNUM,
 };
 
-#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN) && !defined(CONFIG_ARCH_MX7ULP)
-static int usdhc_pos_in_init[] =
-{
-	USDHC_NONE,
-	USDHC_NONE,
-	USDHC_NONE,
-	USDHC_NONE
-};
-#endif
-
-static int usdhc_boot_device = -1;
-static int mmc_boot_device = -1;
+static int usdhc_boot_device = USDHC_NONE;
+static int mmc_boot_device = USDHC_NONE;
 
 /* Return value of Card Detect pin (if present) */
 int board_mmc_getcd(struct mmc *mmc)
@@ -62,7 +52,15 @@ int board_mmc_getcd(struct mmc *mmc)
 	return !gpio_get_value(cd_gpio);
 }
 
-#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM) && !defined(CONFIG_IMX8MN) && !defined(CONFIG_ARCH_MX7ULP)
+#if !defined(CONFIG_DM_MMC) || !defined(CONFIG_BLK)
+static int usdhc_pos_in_init[] =
+{
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE,
+	USDHC_NONE
+};
+
 /* Set up control pads, bus pads and card detect pad for one MMC port */
 int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		 const struct fs_mmc_cd *cd)
@@ -129,49 +127,40 @@ int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 /* Override board_mmc_get_env_dev to get boot dev from fuse settings */
 int board_mmc_get_env_dev(int devno)
 {
-#if defined(CONFIG_DM_MMC) && defined(CONFIG_BLK)
-	if(!find_mmc_device(devno)) {
-		/* Check device tree node for usdhc[devno] 
-                 */
-		debug("Device %d is not available.", devno);
-		return USDHC_NONE;
-	} else {
-		/* Use NXP aliases for mmc devices:
-		 * mmc0 = &usdhc1
-		 * mmc1 = &usdhc2
-		 * mmc2 = &usdhc3
-		 * mmc3 = &usdhc4
-		 */
-		usdhc_boot_device = devno;
-		mmc_boot_device =   devno;
-	}
-#else
 	enum boot_device boot_dev = fs_board_get_boot_dev();
+
 	switch (boot_dev) {
 	case SD1_BOOT:
-	case MMC1_BOOT:
-		devno = 0;
-		break;
 	case SD2_BOOT:
-	case MMC2_BOOT:
-		devno = 1;
-		break;
 	case SD3_BOOT:
-	case MMC3_BOOT:
-		devno = 2;
-		break;
 	case SD4_BOOT:
+		devno = boot_dev - SD1_BOOT;
+		break;
+	case MMC1_BOOT:
+	case MMC2_BOOT:
+	case MMC3_BOOT:
 	case MMC4_BOOT:
-		devno = 3;
+		devno = boot_dev - MMC1_BOOT;
 		break;
 	default:
-		return -1;
+		devno = USDHC_NONE;
+		break;
 	}
-	usdhc_boot_device = devno;
-	mmc_boot_device = usdhc_pos_in_init[devno];
-#endif
 
-	return mmc_boot_device;
+	/* Set Linux device number */
+	usdhc_boot_device = devno;
+#if !defined(CONFIG_DM_MMC) || !defined(CONFIG_BLK)
+	/*
+	 * If using device trees, the U-Boot device number is the same as in
+	 * Linux. But if not using device trees, the U-Boot device number
+	 * depends on the initialization sequence.
+	 */
+	if (devno != USDHC_NONE)
+		devno = usdhc_pos_in_init[devno];
+#endif
+	mmc_boot_device = devno;
+
+	return devno;
 }
 #endif
 
