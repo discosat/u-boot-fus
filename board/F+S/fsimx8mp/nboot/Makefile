@@ -40,7 +40,8 @@ BOARD_CONFIGS = \
 	PCoreMX8MP-FERT5.110.fs \
 	PCoreMX8MP-FERT6.110.fs \
 	armStoneMX8MP-FERT4.100.fs \
-	armStoneMX8MP-FERT2.100.fs
+	armStoneMX8MP-FERT2.100.fs \
+	armStoneMX8MP-FERT5.100.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
@@ -49,7 +50,8 @@ RT_LPDDR4 := \
 	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
 	lpddr4_pc-k4f6e3s4hm_mgcj_timing.fs \
 	lpddr4_pc-fl4c2001g-d9_timing.fs \
-	lpddr4_pc-nt6an512t32av_j2i_timing.fs
+	lpddr4_pc-nt6an512t32av_j2i_timing.fs \
+	lpddr4_as-nt6an512t32av_j2i_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
