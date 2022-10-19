@@ -617,12 +617,10 @@ static int setup_typec(void)
 
 	ret = tcpc_init(&port1, port1_config, &ss_mux_select);
 	if (ret) {
-		printf("%s: tcpc port init failed, err=%d\n",
+		debug("%s: tcpc port init failed, err=%d\n",
 		       __func__, ret);
-	} else {
-		return ret;
+		port1.i2c_dev = NULL;
 	}
-
 	return ret;
 }
 #endif
@@ -724,25 +722,26 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	if (index == 1 && init == USB_INIT_DEVICE) {
 #ifdef CONFIG_USB_TCPC
-		ret = tcpc_setup_ufp_mode(&port1);
-		if (ret)
-			return ret;
+		if(port1.i2c_dev)
+			tcpc_setup_ufp_mode(&port1);
 #endif
 		dwc3_nxp_usb_phy_init(&dwc3_device_data);
 		return dwc3_uboot_init(&dwc3_device_data);
 	} else if (index == 1 && init == USB_INIT_HOST) {
 #ifdef CONFIG_USB_TCPC
-		/*
-		 * first check upstream facing port (ufp)
-		 * for device
-		 * */
-		ret = tcpc_setup_ufp_mode(&port1);
-		if(ret)
+		if(port1.i2c_dev) {
 			/*
-			 * second check downstream facing port (dfp)
-			 * for usb host
+			 * first check upstream facing port (ufp)
+			 * for device
 			 * */
-			ret = tcpc_setup_dfp_mode(&port1);
+			ret = tcpc_setup_ufp_mode(&port1);
+			if(ret)
+				/*
+				 * second check downstream facing port (dfp)
+				 * for usb host
+				 * */
+				ret = tcpc_setup_dfp_mode(&port1);
+		}
 #endif
 		return ret;
 	} else if (index == 0 && init == USB_INIT_HOST) {
@@ -775,7 +774,8 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 		dwc3_uboot_exit(index);
 	} else if (index == 1 && init == USB_INIT_HOST) {
 #ifdef CONFIG_USB_TCPC
-		ret = tcpc_disable_src_vbus(&port1);
+		if(port1.i2c_dev)
+			ret = tcpc_disable_src_vbus(&port1);
 #endif
 	} else if (index == 0 && init == USB_INIT_HOST) {
 		/* Disable host power */
