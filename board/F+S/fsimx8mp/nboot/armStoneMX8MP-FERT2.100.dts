@@ -34,7 +34,8 @@
 		//have-nand;
 		have-emmc;
 		have-audio;
-		have-eth-phy;
+		have-eth-phy-a;
+		have-eth-phy-b;
 		//have-wlan;
 		//have-mipi-dsi;
 		have-hdmi;
