@@ -155,6 +155,12 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_ETH_A;
 		features |= FEAT_ETH_B;
 	}
+	if(fdt_getprop(fdt, offs, "have-eth-phy-a", NULL)){
+		features |= FEAT_ETH_A;
+	}
+	if(fdt_getprop(fdt, offs, "have-eth-phy-b", NULL)){
+		features |= FEAT_ETH_B;
+	}
 	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
 		features |= FEAT_WLAN;
 	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
