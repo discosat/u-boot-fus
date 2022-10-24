@@ -274,7 +274,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, "wlan-reset", 0);
 		/* no eeprom available */
 		fs_fdt_enable(fdt, "eeprom", 0);
-		/* no MIPI_CSI2 availble */
+		/* no MIPI_CSI2 available */
 		fs_fdt_enable(fdt, "mipi_csi_1", 0);
 		/* disable image sensing interface for MIPI_CSI2 */
 		fs_fdt_enable(fdt, "isi_1", 0);
@@ -290,16 +290,17 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 #endif
 
-	/* Disable fec node if it is not availale */
+	/* Disable eqos node if it is not available */
 	if (!(features & FEAT_ETH_A)) {
 		fs_fdt_enable(fdt, "ethernet0", 0);
 	}
 
-	/* Disable eqos node if it is not availale */
+	/* Disable fec node if it is not available */
 	if (!(features & FEAT_ETH_B)) {
 		fs_fdt_enable(fdt, "ethernet1", 0);
 	}
 
+#if 0 // TODO:
 	/* Display A/B options */
 	/* -------------------------------------
 	 *                 |    0      |   1   |
@@ -308,13 +309,11 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	 * -------------------------------------
 	 * DISP_B (DSI_B): |   HDMI    | LVDS1 |
 	 * -------------------------------------
+	 *
+	 * in nboot configuration are display features inverted.
 	 * */
 
 	if (!(features & FEAT_DISP_A)) {
-		/* enable mipi_dsi1 */
-		fs_fdt_enable(fdt, "mipi_dsi", 1);
-		fs_fdt_enable(fdt, "lcdif1", 1);
-	}else{
 		/* disable mipi_dsi1 */
 		fs_fdt_enable(fdt, "mipi_dsi", 0);
 
@@ -329,21 +328,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	}
 
 	if (!(features & FEAT_DISP_B)) {
-		/* enable HDMI */
-		fs_fdt_enable(fdt, "irqsteer_hdmi", 1);
-		fs_fdt_enable(fdt, "hdmimix_clk", 1);
-		fs_fdt_enable(fdt, "hdmimix_reset", 1);
-		fs_fdt_enable(fdt, "hdmi_pavi", 1);
-		fs_fdt_enable(fdt, "hdmi", 1);
-		fs_fdt_enable(fdt, "hdmiphy", 1);
-		fs_fdt_enable(fdt, "lcdif3", 1);
-		/* disable LVDS1 */
-		if(!(features & FEAT_DISP_A)) {
-			fs_fdt_enable(fdt, "ldb_phy", 0);
-			fs_fdt_enable(fdt, "ldb", 0);
-		}
-	}else{
-		/* disble HDMI */
+		/* disable HDMI */
 		fs_fdt_enable(fdt, "irqsteer_hdmi", 0);
 		fs_fdt_enable(fdt, "hdmimix_clk", 0);
 		fs_fdt_enable(fdt, "hdmimix_reset", 0);
@@ -351,12 +336,15 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, "hdmi", 0);
 		fs_fdt_enable(fdt, "hdmiphy", 0);
 		fs_fdt_enable(fdt, "lcdif3", 0);
+
 		/* enable LVDS1 */
 		fs_fdt_enable(fdt, "lcdif2", 1);
 		fs_fdt_enable(fdt, "ldb_phy", 1);
 		fs_fdt_enable(fdt, "ldb", 1);
 		fs_fdt_enable(fdt, FDT_LDB_LVDS1, 1);
+
 	}
+#endif
 
 	/* Disable SGTL5000 if it is not available */
 	if (!(features & FEAT_AUDIO)) {
@@ -376,11 +364,6 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, "rtcpcf85263", 0);
 		/* enable internal RTC */
 		fs_fdt_enable(fdt, "snvs_rtc", 1);
-	}else {
-		/* enable external RTC */
-		fs_fdt_enable(fdt, "rtcpcf85263", 1);
-		/* disable internal RTC */
-		fs_fdt_enable(fdt, "snvs_rtc", 0);
 	}
 
 	/* Set bdinfo entries */
