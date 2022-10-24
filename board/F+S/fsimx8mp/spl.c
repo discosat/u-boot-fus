@@ -42,10 +42,12 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MP 0x0
-#define BT_ARMSTONEMX8MP 0x1
+#define BT_PICOCOREMX8MPr2 0x1
+#define BT_ARMSTONEMX8MP 0x2
 
 static const char *board_names[] = {
 	"PicoCoreMX8MP",
+	"PicoCoreMX8MPr2",
 	"armStoneMX8MP",
 	"(unknown)"
 };
@@ -87,6 +89,7 @@ int power_init_board(void)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
 		setup_i2c(I2C_PMIC_8MP, CONFIG_SYS_I2C_SPEED, 0x30, &i2c_pad_info_8mp);
 		ret = power_pca9450b_init(I2C_PMIC_8MP);
@@ -161,6 +164,7 @@ static void config_uart(int board_type)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
 		break;
 	case BT_ARMSTONEMX8MP:
 		/* Initialize SHDN_RS232 and AUTONLINE_RS232
@@ -398,6 +402,7 @@ void board_init_f(ulong dummy)
 	 * You have to provide the board type, we do not know it yet
 	 */
 	//config_uart(BT_PICOCOREMX8MP);
+	//config_uart(BT_PICOCOREMX8MPr2);
 	config_uart(BT_ARMSTONEMX8MP);
 #endif
 	/* Init malloc_f pool and boot stages */
@@ -446,6 +451,7 @@ void spl_board_init(void)
 	{
 	default:
 	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
 		bl_on_pad = MX8MP_PAD_SPDIF_TX__GPIO5_IO03 | MUX_PAD_CTRL(NO_PAD_CTRL);
 		bl_on_gpio = IMX_GPIO_NR(5, 3);
 		break;

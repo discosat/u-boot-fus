@@ -43,7 +43,8 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MP 	0
-#define BT_ARMSTONEMX8MP 	1
+#define BT_PICOCOREMX8MPr2 	1
+#define BT_ARMSTONEMX8MP 	2
 
 #define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
 #define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
@@ -96,7 +97,20 @@ const struct fs_board_info board_info[] = {
 		.init = INIT_DEF,
 		.flags = 0,
 	},
-	{	/* 1 (BT_ARMSTONEMX8MP) */
+	{	/* 1 (BT_PICOCOREMX8MPr2) */
+		.name = "PicoCoreMX8MPr2",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 2 (BT_ARMSTONEMX8MP) */
 		.name = "armStoneMX8MP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
@@ -444,6 +458,7 @@ void fs_ethaddr_init(void)
 	switch (fs_board_get_type())
 	{
 	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
 		if (features2 & FEAT_ETH_A) {
 			fs_eth_set_ethaddr(eth_id++);
@@ -614,6 +629,7 @@ static int setup_typec(void)
 	switch(board_type) {
 	default:
 	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
 		port1_config.i2c_bus = 2; /* i2c3 */
 		break;
 	case BT_ARMSTONEMX8MP:
@@ -874,6 +890,7 @@ static iomux_v3_cfg_t const vlcd_on_pads[] = {
 
 int board_late_init(void)
 {
+#if 0
 	unsigned int board_type = fs_board_get_type();
 
 	switch(board_type) {
@@ -881,12 +898,16 @@ int board_late_init(void)
 	case BT_PICOCOREMX8MP:
 		env_set("platform", "picocoremx8mp");
 		break;
+	case BT_PICOCOREMX8MPr2:
+		env_set("platform", "picocoremx8mpr2");
+		break;
 	case BT_ARMSTONEMX8MP:
 		env_set("platform", "armstonemx8mp");
 		break;
 	}
 
 	env_set("sercon", "ttymxc1");
+#endif
 
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
