@@ -40,9 +40,14 @@ BOARD_CONFIGS = \
 	PCoreMX8MP-FERT5.110.fs \
 	PCoreMX8MP-FERT6.110.fs \
 	PCoreMX8MPr2-FERT0.100.fs \
+	PCoreMX8MPr2-FERT1.100.fs \
+	PCoreMX8MPr2-FERT2.100.fs \
+	PCoreMX8MPr2-FERT3.100.fs \
+	PCoreMX8MPr2-FERT4.100.fs \
+	PCoreMX8MPr2-FERT5.100.fs \
 	armStoneMX8MP-FERT0.100.fs \
-	armStoneMX8MP-FERT4.100.fs \
 	armStoneMX8MP-FERT2.100.fs \
+	armStoneMX8MP-FERT4.100.fs \
 	armStoneMX8MP-FERT5.100.fs
 
 # List of DRAM Timings for each DRAM-TYPE
