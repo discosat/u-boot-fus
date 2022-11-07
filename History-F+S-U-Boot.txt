@@ -1,6 +1,20 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6sx-B2019.11.1 (07.10.2022)
+-----------------------------------------------
+Supported boards: efusA9X, efusA9Xr2, PicoCOMA9X, PicoCoreMX6SX
+
+- Merge tag 'fsimx6-B2020.04.2' into fus-2018.03
+- Merge remote-tracking branch 'remotes/origin/fus-2018.03'
+- Merge tag 'fsimx8mm-B2021.06.1'
+- Remove XTAL-OFF setting for ALDPS in realtek driver
+- Remove obsolete mmc defconfigs
+- Set Board offset directly in fs_board_get_type
+- Add support for efusA9Xr2 and PicoCoreMX6SXr2
+
+
+
 u-boot-2018.03-fsimx8mm-B2021.06.1 (26.09.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
