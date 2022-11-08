@@ -30,6 +30,8 @@
 
 	aliases {
 		emmc = &usdhc1;
+		ethernet0 = &eqos;
+		ethernet1 = &fec;
 	};
 
 	config {
