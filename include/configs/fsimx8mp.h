@@ -403,6 +403,9 @@
 /* Initial environment variables */
 #define CONFIG_EXTRA_ENV_SETTINGS					\
 	FS_UPDATE_SUPPORT 						\
+	"bd_kernel=undef\0"						\
+	"bd_fdt=undef\0"							\
+	"bd_rootfs=undef\0"						\
 	"initrd_addr=0x43800000\0"					\
 	"initrd_high=0xffffffffffffffff\0"				\
 	"console=undef\0"						\
