@@ -243,7 +243,7 @@
 #define CONFIG_SYS_DISCOVER_PHY
 
 #if defined(CONFIG_CMD_NET)
-#define CONFIG_ETHPRIME                 "eth1" /* Set qos to primary since we use its MDIO */
+#define CONFIG_ETHPRIME                 "eth0" /* Set qos to primary since we use its MDIO */
 #define FDT_SEQ_MACADDR_FROM_ENV
 
 #define CONFIG_FEC_XCV_TYPE             RGMII
