@@ -420,14 +420,21 @@ static int do_fdt_board_setup_common(void *fdt)
 /* Do any board-specific modifications on U-Boot device tree before starting */
 int board_fix_fdt(void *fdt)
 {
-	/* TODO:
-	 * Call of the function changes board info structure values (RAM config)
-	 * in global data.
-	 * */
-#if 0
+	unsigned int features = fs_board_get_features();
+
 	/* Make some room in the FDT */
 	fdt_shrink_to_minimum(fdt, 8192);
-#endif
+
+	/* Disable eqos node if it is not available */
+	if (!(features & FEAT_ETH_A)) {
+		fs_fdt_enable(fdt, "ethernet0", 0);
+	}
+
+	/* Disable fec node if it is not available */
+	if (!(features & FEAT_ETH_B)) {
+		fs_fdt_enable(fdt, "ethernet1", 0);
+	}
+
 	return do_fdt_board_setup_common(fdt);
 }
 #endif
@@ -830,7 +837,6 @@ int board_init(void)
 
 	/* Copy NBoot args to variables and prepare command prompt string */
 	fs_board_init_common(&board_info[board_type]);
-
 
 #ifdef CONFIG_USB_TCPC
 	setup_typec();
