@@ -1,6 +1,37 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2022.11 (11.11.2022)
+-----------------------------------------------
+Supported boards: armStoneMX8MP, PicoCoreMX8MP, PicoCoreMX8MPr2
+
+- [fsimx8mp] Disable not used ethernet nodes in device tree
+- Improve phy shutdown for dwc_eth_qos driver
+- Improve primary eth interface for fsimx8mp
+- Add new environments for bootloader fs update in fsimx8mp.h
+- Improve ethernet aliases for fsimx8mp
+- Improve features support for fsimx8mp
+- Add nboot configuration for PicoCoreMX8MPr2-Fert1-5
+- Add support for picocoremx8mpr2
+- Rework device tree for picocoremx8mp
+- Add feature option for eth-phy-a and eth-phy-b
+- Improve nboot config for armStoneMX8MP-Fert2.100
+- Add nboot config for armStoneMX8MP-Fert0.100
+- Improve USB2 support for fsimx8mp
+- Improve nboot configuration for armStoneMX8MP-Fert4.100
+- Add config for armStoneMX8MP-FERT5.100
+- Fix FDT_TEMP entries for fsimx8mm/mp
+- Add no-uboot-override to fs_fdt_set_val()
+- Fix mmc_get_env_dev(), simplify board_mmc_get_env_dev()
+- Enable CONFIG_FASTBOOT_UUU_SUPPORT on fsimx8mm/mn/mp
+- Revert F&S changes in iomux.c and console.c
+- Remove usb host initialization in SPL for fsimx8mp
+- Enable FS mmc common functions for fsimx8mp
+- Improve device detection on typec connector for fsimx8mp
+- Fix env device for fsimx8mp
+- Fix new RAM timings for fsimx8mm
+
+
 u-boot-2020.04-fsimx8mp-Y2021.07.3 (19.05.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MP
