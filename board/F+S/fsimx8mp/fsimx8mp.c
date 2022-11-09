@@ -389,7 +389,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		tmp_val = maxc * 1000;
 		offs = fs_fdt_path_offset(fdt, FDT_CPU_TEMP_CRIT);
 		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
-		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_ALERT);
+		offs = fs_fdt_path_offset(fdt, FDT_SOC_TEMP_CRIT);
 		fs_fdt_set_u32(fdt, offs, "temperature", tmp_val, 1);
 	} else {
 		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
