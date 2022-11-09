@@ -1539,9 +1539,16 @@ static void eqos_stop(struct udevice *dev)
 	clrbits_le32(&eqos->dma_regs->ch0_rx_control,
 		     EQOS_DMA_CH0_RX_CONTROL_SR);
 
+	/* Comment phy shutdown function.
+	 * The U-Boot assumes a permanently active link. For this reason,
+	 * the phy have to stay active.
+	 * All phys will be shut down before kernel started.
+	 * */
+#if 0
 	if (eqos->phy) {
 		phy_shutdown(eqos->phy);
 	}
+#endif
 	eqos->config->ops->eqos_stop_resets(dev);
 	eqos->config->ops->eqos_stop_clks(dev);
 
