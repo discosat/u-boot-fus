@@ -14,7 +14,7 @@ Free Space:
 
  * OCRAM layout SPL                 U-Boot
  * ---------------------------------------------------------
- * 0x0010_0000: SPL                 SPL       (196KB) (loaded by ROM-Loader, address defined by imximage.cfg)
+ * 0x0010_0000: SPL                 SPL       (192KB) (loaded by ROM-Loader, address defined by imximage.cfg)
  * 0x0013_0000: DRAM Timing Data              (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
  * 0x0013_4000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
  * 0x0013_6000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
@@ -22,87 +22,41 @@ Free Space:
  * 0x0013_C000: Stack + Global Data ---       (16KB) CONFIG_SPL_STACK
  * 0x0013_FFFF: END (8X)
  *
- * The SPL must not exceed 196KB (0x30000).
-
-
-
+ * The SPL must not exceed 192KB (0x30000).
+ *
  * DRAM layout  SPL                 U-Boot
  * ---------------------------------------------------------
  * 0x8000_0000: ATF                 ATF       (128KB) CONFIG_SPL_ATF_ADDR
  * 0x8002_0000: UBoot               UBoot     (~700KB) CONFIG_SYS_TEXT_BASE
  * 0xBFFF_FFFF: END (8X)
-
-
-
+ *
+ * Remark: In the following sections the images have the following content:
+ * Boot-Container: SECO, SCFW and SPL, optional: DRAM init, M4 image
+ * FIRMWARE:       DRAM settings and ATF, optional: opTEE
+ *
  * NAND flash layout
  * -------------------------------------------------------------------------
- * Planned when U-Boot can write SPL/FCB/DBBT:
- * 0x0000_0000: BCB Copy 0 (FCB+DBBT) (128KB)               \
- * 0x0002_0000: BCB Copy 1 (FCB+DBBT) (128KB)                |
- * 0x0004_0000: SPL Copy 0 (256KB)                           |
- * 0x0008_0000: SPL Copy 1 (256KB)                           | "NBoot"
- * 0x000C_0000: Reserve in case of bad blocks (256KB)        |
- * 0x0010_0000: BOARD-CFG Copy 0 (8KB)                       |
- * 0x0010_2000: FIRMWARE Copy 0 (1528KB)                     |
- * 0x0028_0000: BOARD-CFG Copy 1 (8KB)                       |
- * 0x0028_0000: FIRMWARE Copy 1 (1528KB)                    /
- * 0x0040_0000: Refresh ...
- * Actually now, when SPL/FCB/DBBT/HDMI is written by NXP tool kobs:
- * 0x0000_0000: FCB Copy 0 (128KB)                          \
- * 0x0002_0000: FCB Copy 1 (128KB)                           |
- * 0x0004_0000: DBBT Copy 0 (128KB)                          |
- * 0x0006_0000: DBBT Copy 1 (128KB)                          |
- * 0x0008_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
- * 0x000C_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
- * 0x000C_2000: FIRMWARE Copy 0 (1272KB)                     |
- * 0x0020_0000: SPL Copy 1 (256KB)         Defined by Fuse   |
- * 0x0024_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0024_2000: FIRMWARE Copy 1 (1272KB)                    /
- * 0x0038_0000: Free (512KB)
- * 0x0040_0000: Refresh (512KB)
- * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
- * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
- * 0x0050_0000: UBoot_A (3MB)              nboot-info: uboot-start[0]
- * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
- * 0x00B0_0000: UserDef (2MB)
- * 0x00D0_0000: Kernel_A (32MB)
- * 0x02D0_0000: FDT_A (1MBKB)
- * 0x02E0_0000: Kernel_B (32MB, opt)
- * 0x04E0_0000: FDT_B (1MB, opt)
- * 0x04F0_0000: TargetFS as UBI Volumes
- *
- * Remarks:
- * - In this scenario, the fuses for the Secondary Image Offset have to be set
- *   to 1 (=2MB). This value can be set to 1MB*2^n, but the values for 0 and 2
- *   are switched so 0 becomes 4MB and 2 becomes 1MB.
- * - nboot-start[] is initialized with CONFIG_FUS_BOARDCFG_NAND0/1.
- * - If Kernel and FDT are part of the Rootfs, these partitions are dropped.
- * - If no Update with Set A and B is used, all _B partitions are dropped;
- *   UBoot_B is replaced by UserDef. This keeps all offsets up to and
- *   including FDT_A fix and also mtd numbers in Linux. In other words: the
- *   version with Update support just inserts Kernel_B and FDT_B in front of
- *   TargetFS and renames UserDef to UBoot_B.
- * - If the size of U-Boot will increase in the future, only UBoot_B must be
- *   moved. All other hardcoded offsets stay as they are.
+ * There is no variant with NAND flash. If NAND is required (e.g. for
+ * SPI-NAND), see fsimx8mm/mn.h for an example.
  *
  * eMMC Layout
  * -----------
- * Scenario 1: NBoot is in Boot1/Boot2 HW-Partition
+ * Scenario 1: NBoot is in Boot1/Boot2 HW-Partition (default)
  *
- * Boot1/2 HW-Partition (Boot Offset for the Primary Image is 0x0000):
- * 0x0000_0000: SPL Copy 0/1 (512KB)       i.MX8X (always 0)
- * 0x0008_0000: BOARD-CFG Copy 0/1 (8KB)   nboot-info: nboot-start[0]
- * 0x0008_2000: FIRMWARE Copy 0/1 (120KB)
- * 0x0010_0000: --- (free, for compatibility reasons with fsimx8mm, 224KB)
- * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
- * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
- * 0x0014_0000: --- (free, may be used for U-Boot in the future)
+ * Boot1/2 HW-Partition (Boot Offset is always 0x0000):
+ * 0x0000_0000: Boot-Container 0/1 (640KB)    i.MX8X (always 0)
+ * 0x000A_0000: --- (free, 32KB, for compatibility with Scenario 2)
+ * 0x000A_8000: UBootEnv (16KB)               in FDT, fallback in defconfig
+ * 0x000A_C000: UBootEnvRed (16KB)            in FDT, fallback in defconfig
+ * 0x000B_0000: BOARD-CFG Copy 0/1 (8KB)      nboot-info: nboot-start[0]
+ * 0x000B_2000: FIRMWARE Copy 0/1 (824KB)     nboot-start[0] + board-cfg-size
+ * 0x0018_0000: --- (free, maybe used for U-Boot in the future)
  *
  * User HW-Partition:
  * 0x0000_0000: --- (free, space for GPT, 32KB)
  * 0x0000_8000: --- (free, 1248KB, may be used for UserDef/M4 image)
- * 0x0014_0000: U-Boot A (3MB)
- * 0x0044_0000: U-Boot B (3MB)
+ * 0x0014_0000: U-Boot A (3MB) (should be moved to 0018_0000, size 2,5MB)
+ * 0x0044_0000: U-Boot B (3MB) (should be moved to 0058_0000, size 2,5MB)
  * 0x0074_0000: --- (free, 768KB)
  * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
  *
@@ -127,36 +81,39 @@ Free Space:
  *   stay at 8MB as with NXP, for example to hold the UserDef data or an M4
  *   image. Or it can be reduced to the size of the partition table which is
  *   one simple sector when using MBR.
+ * - There is an option to either increase the space for the Boot-Container or
+ *   the Environment by 32KB at the cost of a lost compaitibility with
+ *   scenario 2.
  *
- * Scenario 2: NBoot is in User HW-Partition
+ * Scenario 2: NBoot is in User HW-Partition or on SD-Card (optional)
  *
  * Boot1/2 HW-Partition:
  * 0x0000_0000: --- (completely empty)
  *
  * User HW-Partition (Boot Offset for the Primary Image is 0x8000):
  * 0x0000_0000: --- (space for GPT, 32KB)
- * 0x0000_8000: SPL Copy 0 (224KB)         i.MX8X; nboot-info: spl-start[0]
- * 0x0004_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
- * 0x0004_2000: FIRMWARE Copy 0 (760KB)
- * 0x0010_0000: SPL Copy 1 (224KB)         Secondary Image Offset, spl-start[1]
- * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
- * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
- * 0x0014_0000: U-Boot A (3MB)
- * 0x0044_0000: U-Boot B (3MB)
- * 0x0074_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0074_2000: FIRMWARE Copy 1 (760KB)
+ * 0x0000_8000: Boot-Container 0 (640KB)   i.MX8X; nboot-info: spl-start[0]
+ * 0x000A_8000: UBootEnv (16KB)            Defined in device tree
+ * 0x000A_C000: UBootEnvRed (16KB)         Defined in device tree
+ * 0x000B_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
+ * 0x000B_2000: FIRMWARE Copy 0 (824KB)    nboot-start[0] + board-cfg-size
+ * 0x0018_0000: U-Boot A (2,5MB)           nboot-info: uboot-start[0]
+ * 0x0040_0000: Boot-Container 1 (640KB)   Secondary Image Offset, spl-start[1]
+ * 0x004A_0000: --- (free, 64KB)
+ * 0x004B_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
+ * 0x004B_2000: FIRMWARE Copy 1 (824KB)    nboot-start[1] + board-cfg-size
+ * 0x0058_0000: U-Boot B (2,5MB)           nboot-info: uboot-start[1]
  * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
  *
  * Remarks:
  * - In this scenario, the fuses for the Secondary Image Offset have to be set
- *   to 2 (=1MB). This value can be set to 1MB*2^n, so this is the smallest
- *   possible setting.
+ *   to 0 (=4MB). This value can basically be set to 1MB*2^n, but 1MB and 4MB
+ *   are swapped, so 4MB is value 0, not 2.
  * - The reserved region size stays at 8MB as with NXP.
  * - nboot-start[] of nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
  *   Makefile, and both entries for spl-start, nboot-start and uboot-start are
  *   actually used.
  */
-
 
 #ifndef __FSIMX8X_H
 #define __FSIMX8X_H
@@ -220,7 +177,6 @@ Free Space:
 #endif /* CONFIG_SPL_BUILD */
 
 /* Add F&S update */
-#define CONFIG_CMD_UPDATE
 #define CONFIG_CMD_READ
 #define CONFIG_SERIAL_TAG
 #define CONFIG_FASTBOOT_USB_DEV 0
@@ -813,13 +769,10 @@ Free Space:
 
 /* USB configs */
 #ifndef CONFIG_SPL_BUILD
-#define CONFIG_CMD_USB
 #define CONFIG_USB_STORAGE
 #define CONFIG_USBD_HS
 
-#define CONFIG_CMD_USB_MASS_STORAGE
 #define CONFIG_USB_GADGET_MASS_STORAGE
-#define CONFIG_USB_FUNCTION_MASS_STORAGE
 
 #define CONFIG_PHY
 #define CONFIG_CDNS3_USB_PHY
