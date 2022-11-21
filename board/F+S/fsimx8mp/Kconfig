@@ -9,6 +9,4 @@ config SYS_VENDOR
 config SYS_CONFIG_NAME
 	default "fsimx8mp"
 
-source "board/F+S/common/Kconfig"
-
 endif
