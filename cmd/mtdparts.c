@@ -158,6 +158,15 @@ static struct part_info* mtd_part_info(struct mtd_device *dev, unsigned int part
 static struct mtdids* id_find_by_mtd_id(const char *mtd_id, unsigned int mtd_id_len);
 static int device_del(struct mtd_device *dev);
 
+
+static inline const char *__board_get_mtdparts_default(void)
+{
+	return NULL;
+}
+
+const char *board_get_mtdparts_default(void)
+	__attribute__((weak, alias("__board_get_mtdparts_default")));
+
 #ifdef CONFIG_MTDPARTS_SKIP_INVALID
 int skip_counter = 0;
 /*
@@ -336,7 +345,7 @@ static void current_save(void)
  * @param mtd a pointer to an mtd_info instance (output)
  * @return 0 if device is valid, 1 otherwise
  */
-static int get_mtd_info(u8 type, u8 num, struct mtd_info **mtd)
+int get_mtd_info(u8 type, u8 num, struct mtd_info **mtd)
 {
 	char mtd_dev[16];
 
@@ -1339,6 +1348,7 @@ static void print_partition_table(void)
 static void list_partitions(void)
 {
 	struct part_info *part;
+	const char *mtdparts;
 
 	debug("\n---list_partitions---\n");
 	print_partition_table();
@@ -1365,7 +1375,10 @@ static void list_partitions(void)
 	 * printbuffer. Use puts() to prevent system crashes.
 	 */
 	puts("mtdparts: ");
-	puts(mtdparts_default ? mtdparts_default : "none");
+	mtdparts = mtdparts_default;
+	if (!mtdparts)
+		mtdparts = board_get_mtdparts_default();
+	puts(mtdparts ? mtdparts : "none");
 	puts("\n");
 }
 

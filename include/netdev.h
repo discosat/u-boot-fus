@@ -43,8 +43,33 @@ int ep93xx_eth_initialize(u8 dev_num, int base_addr);
 int eth_3com_initialize (bd_t * bis);
 int ethoc_initialize(u8 dev_num, int base_addr);
 int fec_initialize (bd_t *bis);
+
+#ifdef CONFIG_FEC_MXC
+#include <phy.h>
+/**
+ * Supported phy types on this platform
+ */
+enum xceiver_type {
+	SEVENWIRE,	/* 7-wire       */
+	MII10,		/* MII 10Mbps   */
+	MII100,		/* MII 100Mbps  */
+	RMII,		/* RMII */
+	RGMII,		/* RGMII */
+};
+
 int fecmxc_initialize(bd_t *bis);
 int fecmxc_initialize_multi(bd_t *bis, int dev_id, int phy_id, uint32_t addr);
+int fecmxc_initialize_multi_type(bd_t *bis, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type);
+int fecmxc_initialize_multi_type_if_mode(bd_t *bis, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type,
+				 phy_interface_t if_mode);
+#endif
+
+#define AX88796_MODE_BUS8_DP8	0	/* Buswidth 8, data port width 8 */
+#define AX88796_MODE_BUS16_DP8	1	/* Buswidth 16, data port width 8 */
+#define AX88796_MODE_BUS16_DP16	2	/* Buswidth 16, data port width 16 */
+int ax88796_initialize(int dev_id, uint32_t base_addr, int mode); 
 int ftmac100_initialize(bd_t *bits);
 int ftmac110_initialize(bd_t *bits);
 void gt6426x_eth_initialize(bd_t *bis);
@@ -119,8 +144,8 @@ struct mii_dev *fec_get_miibus(ulong base_addr, int dev_id);
 
 #ifdef CONFIG_PHYLIB
 struct phy_device;
-int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, struct phy_device *phydev);
+int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,	struct mii_dev *bus,
+	      struct phy_device *phydev, enum xceiver_type xcv_type);
 #else
 /*
  * Allow FEC to fine-tune MII configuration on boards which require this.

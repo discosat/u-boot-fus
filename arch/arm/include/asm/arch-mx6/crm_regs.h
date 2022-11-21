@@ -63,7 +63,10 @@ struct mxc_ccm_reg {
 	u32 analog_usb1_pll_480_ctrl_set;
 	u32 analog_usb1_pll_480_ctrl_clr;
 	u32 analog_usb1_pll_480_ctrl_tog;
-	u32 analog_reserved0[4];
+	u32 analog_usb2_pll_480_ctrl;		/* 0x4020 */
+	u32 analog_usb2_pll_480_ctrl_set;
+	u32 analog_usb2_pll_480_ctrl_clr;
+	u32 analog_usb2_pll_480_ctrl_tog;
 	u32 analog_pll_528;			/* 0x4030 */
 	u32 analog_pll_528_set;
 	u32 analog_pll_528_clr;
@@ -89,7 +92,11 @@ struct mxc_ccm_reg {
 	u32 analog_pll_video_num;		/* 0x40b0 */
 	u32 analog_reserved6[3];
 	u32 analog_pll_video_denom;		/* 0x40c0 */
-	u32 analog_reserved7[7];
+	u32 analog_reserved7[3];
+	u32 analog_pll_mlb;		        /* 0x40d0 */
+	u32 analog_pll_mlb_set;
+	u32 analog_pll_mlb_clr;
+	u32 analog_pll_mlb_tog;
 	u32 analog_pll_enet;			/* 0x40e0 */
 	u32 analog_pll_enet_set;
 	u32 analog_pll_enet_clr;
@@ -103,96 +110,96 @@ struct mxc_ccm_reg {
 	u32 analog_pfd_528_clr;
 	u32 analog_pfd_528_tog;
 	/* PMU Memory Map/Register Definition */
-	u32 pmu_reg_1p1;
+	u32 pmu_reg_1p1;			/* 0x4110 */
 	u32 pmu_reg_1p1_set;
 	u32 pmu_reg_1p1_clr;
 	u32 pmu_reg_1p1_tog;
-	u32 pmu_reg_3p0;
+	u32 pmu_reg_3p0;			/* 0x4120 */
 	u32 pmu_reg_3p0_set;
 	u32 pmu_reg_3p0_clr;
 	u32 pmu_reg_3p0_tog;
-	u32 pmu_reg_2p5;
+	u32 pmu_reg_2p5;			/* 0x4130 */
 	u32 pmu_reg_2p5_set;
 	u32 pmu_reg_2p5_clr;
 	u32 pmu_reg_2p5_tog;
-	u32 pmu_reg_core;
+	u32 pmu_reg_core;			/* 0x4140 */
 	u32 pmu_reg_core_set;
 	u32 pmu_reg_core_clr;
 	u32 pmu_reg_core_tog;
-	u32 pmu_misc0;
+	u32 pmu_misc0;				/* 0x4150 */
 	u32 pmu_misc0_set;
 	u32 pmu_misc0_clr;
 	u32 pmu_misc0_tog;
-	u32 pmu_misc1;
+	u32 pmu_misc1;				/* 0x4160 */
 	u32 pmu_misc1_set;
 	u32 pmu_misc1_clr;
 	u32 pmu_misc1_tog;
-	u32 pmu_misc2;
+	u32 pmu_misc2;				/* 0x4170 */
 	u32 pmu_misc2_set;
 	u32 pmu_misc2_clr;
 	u32 pmu_misc2_tog;
 	/* TEMPMON Memory Map/Register Definition */
-	u32 tempsense0;
+	u32 tempsense0;				/* 0x4180 */
 	u32 tempsense0_set;
 	u32 tempsense0_clr;
 	u32 tempsense0_tog;
-	u32 tempsense1;
+	u32 tempsense1;				/* 0x4190 */
 	u32 tempsense1_set;
 	u32 tempsense1_clr;
 	u32 tempsense1_tog;
 	/* USB Analog Memory Map/Register Definition */
-	u32 usb1_vbus_detect;
+	u32 usb1_vbus_detect;			/* 0x41a0 */
 	u32 usb1_vbus_detect_set;
 	u32 usb1_vbus_detect_clr;
 	u32 usb1_vbus_detect_tog;
-	u32 usb1_chrg_detect;
+	u32 usb1_chrg_detect;			/* 0x41b0 */
 	u32 usb1_chrg_detect_set;
 	u32 usb1_chrg_detect_clr;
 	u32 usb1_chrg_detect_tog;
-	u32 usb1_vbus_det_stat;
+	u32 usb1_vbus_det_stat;			/* 0x41c0 */
 	u32 usb1_vbus_det_stat_set;
 	u32 usb1_vbus_det_stat_clr;
 	u32 usb1_vbus_det_stat_tog;
-	u32 usb1_chrg_det_stat;
+	u32 usb1_chrg_det_stat;			/* 0x41d0 */
 	u32 usb1_chrg_det_stat_set;
 	u32 usb1_chrg_det_stat_clr;
 	u32 usb1_chrg_det_stat_tog;
-	u32 usb1_loopback;
+	u32 usb1_loopback;			/* 0x41e0 */
 	u32 usb1_loopback_set;
 	u32 usb1_loopback_clr;
 	u32 usb1_loopback_tog;
-	u32 usb1_misc;
+	u32 usb1_misc;				/* 0x41f0 */
 	u32 usb1_misc_set;
 	u32 usb1_misc_clr;
 	u32 usb1_misc_tog;
-	u32 usb2_vbus_detect;
+	u32 usb2_vbus_detect;			/* 0x4200 */
 	u32 usb2_vbus_detect_set;
 	u32 usb2_vbus_detect_clr;
 	u32 usb2_vbus_detect_tog;
-	u32 usb2_chrg_detect;
+	u32 usb2_chrg_detect;			/* 0x4210 */
 	u32 usb2_chrg_detect_set;
 	u32 usb2_chrg_detect_clr;
 	u32 usb2_chrg_detect_tog;
-	u32 usb2_vbus_det_stat;
+	u32 usb2_vbus_det_stat;			/* 0x4220 */
 	u32 usb2_vbus_det_stat_set;
 	u32 usb2_vbus_det_stat_clr;
 	u32 usb2_vbus_det_stat_tog;
-	u32 usb2_chrg_det_stat;
+	u32 usb2_chrg_det_stat;			/* 0x4230 */
 	u32 usb2_chrg_det_stat_set;
 	u32 usb2_chrg_det_stat_clr;
 	u32 usb2_chrg_det_stat_tog;
-	u32 usb2_loopback;
+	u32 usb2_loopback;			/* 0x4240 */
 	u32 usb2_loopback_set;
 	u32 usb2_loopback_clr;
 	u32 usb2_loopback_tog;
-	u32 usb2_misc;
+	u32 usb2_misc;				/* 0x4250 */
 	u32 usb2_misc_set;
 	u32 usb2_misc_clr;
 	u32 usb2_misc_tog;
-	u32 digprog;
+	u32 digprog;				/* 0x4260 */
 	u32 reserved1[7];
 	/* For i.MX 6SoloLite */
-	u32 digprog_sololite;
+	u32 digprog_sololite;			/* 0x4280 */
 };
 #endif
 
@@ -775,6 +782,7 @@ struct mxc_ccm_reg {
 
 #define MXC_CCM_CCGR2_HDMI_TX_IAHBCLK_OFFSET		0
 #define MXC_CCM_CCGR2_HDMI_TX_IAHBCLK_MASK		(3 << MXC_CCM_CCGR2_HDMI_TX_IAHBCLK_OFFSET)
+
 /* i.MX6SX/UL */
 #define MXC_CCM_CCGR2_CSI_OFFSET			2
 #define MXC_CCM_CCGR2_CSI_MASK				(3 << MXC_CCM_CCGR2_CSI_OFFSET)
@@ -1145,10 +1153,10 @@ struct mxc_ccm_reg {
 #define BF_ANADIG_PLL_AUDIO_RSVD0(v)  \
 	(((v) << 22) & BM_ANADIG_PLL_AUDIO_RSVD0)
 #define BM_ANADIG_PLL_AUDIO_SSC_EN 0x00200000
-#define BP_ANADIG_PLL_AUDIO_TEST_DIV_SELECT      19
-#define BM_ANADIG_PLL_AUDIO_TEST_DIV_SELECT 0x00180000
-#define BF_ANADIG_PLL_AUDIO_TEST_DIV_SELECT(v)  \
-	(((v) << 19) & BM_ANADIG_PLL_AUDIO_TEST_DIV_SELECT)
+#define BP_ANADIG_PLL_AUDIO_POST_DIV_SELECT      19
+#define BM_ANADIG_PLL_AUDIO_POST_DIV_SELECT 0x00180000
+#define BF_ANADIG_PLL_AUDIO_POST_DIV_SELECT(v)  \
+	(((v) << 19) & BM_ANADIG_PLL_AUDIO_POST_DIV_SELECT)
 #define BM_ANADIG_PLL_AUDIO_PFD_OFFSET_EN 0x00040000
 #define BM_ANADIG_PLL_AUDIO_DITHER_ENABLE 0x00020000
 #define BM_ANADIG_PLL_AUDIO_BYPASS 0x00010000
@@ -1335,6 +1343,11 @@ struct mxc_ccm_reg {
 #define BM_ANADIG_ANA_MISC0_REFTOP_SELBIASOFF 0x00000008
 #define BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ 0x60
 #define BM_ANADIG_ANA_MISC0_REFTOP_VBGADJ_SHIFT 4
+
+#define BP_PMU_MISC2_VIDEO_DIV      30
+#define BM_PMU_MISC2_VIDEO_DIV 0xC0000000
+#define BF_PMU_MISC2_VIDEO_DIV(v) \
+	(((v) << 30) & BM_PMU_MISC2_VIDEO_DIV)
 
 #define BM_PMU_MISC2_AUDIO_DIV_MSB (1 << 23)
 #define BP_PMU_MISC2_AUDIO_DIV_MSB 23

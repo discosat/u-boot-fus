@@ -52,9 +52,17 @@ int board_video_skip(void)
 		ret = ipuv3_fb_init(&displays[i].mode, displays[i].di ? 1 : 0,
 				    displays[i].pixfmt);
 #elif defined(CONFIG_VIDEO_MXS)
+
+		/* TODO: function call from NXP
 		ret = mxs_lcd_panel_setup(displays[i].mode,
 					displays[i].pixfmt,
 				    displays[i].bus);
+	    */
+
+		ret =  mxs_lcd_panel_setup(displays[i].bus,
+				&displays[i].mode,
+				displays[i].pixfmt, PATTERN_RGB);
+
 #endif
 		if (!ret) {
 			if (displays[i].enable)

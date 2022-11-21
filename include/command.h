@@ -153,6 +153,10 @@ extern int do_env_set_efi(cmd_tbl_t *cmdtp, int flag, int argc,
 int do_raw_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 #endif
 
+#ifdef CONFIG_CMD_FDT
+int fdt_print(void *fdt, const char *pathp, char *prop, int depth);
+#endif
+
 /*
  * Error codes that commands return to cmd_process(). We use the standard 0
  * and 1 for success and failure, but add one more case - failure with a

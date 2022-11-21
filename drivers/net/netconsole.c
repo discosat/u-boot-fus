@@ -224,7 +224,7 @@ static void nc_send_packet(const char *buf, int len)
 	}
 }
 
-static int nc_stdio_start(struct stdio_dev *dev)
+static int nc_stdio_start(const struct stdio_dev *dev)
 {
 	int retval;
 
@@ -244,7 +244,7 @@ static int nc_stdio_start(struct stdio_dev *dev)
 	return 0;
 }
 
-static void nc_stdio_putc(struct stdio_dev *dev, char c)
+static void nc_stdio_putc(const struct stdio_dev *dev, char c)
 {
 	if (output_recursion)
 		return;
@@ -255,7 +255,7 @@ static void nc_stdio_putc(struct stdio_dev *dev, char c)
 	output_recursion = 0;
 }
 
-static void nc_stdio_puts(struct stdio_dev *dev, const char *s)
+static void nc_stdio_puts(const struct stdio_dev *dev, const char *s)
 {
 	int len;
 
@@ -274,7 +274,7 @@ static void nc_stdio_puts(struct stdio_dev *dev, const char *s)
 	output_recursion = 0;
 }
 
-static int nc_stdio_getc(struct stdio_dev *dev)
+static int nc_stdio_getc(const struct stdio_dev *dev)
 {
 	uchar c;
 
@@ -295,7 +295,7 @@ static int nc_stdio_getc(struct stdio_dev *dev)
 	return c;
 }
 
-static int nc_stdio_tstc(struct stdio_dev *dev)
+static int nc_stdio_tstc(const struct stdio_dev *dev)
 {
 #ifdef CONFIG_DM_ETH
 	struct udevice *eth;

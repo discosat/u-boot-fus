@@ -22,6 +22,17 @@
 #define __STR(X) #X
 #define STR(X) __STR(X)
 
+/*
+ * We do not want to break exisiting configs, so if the MMC specific values
+ * are missing, use the generic values instead
+ */
+#ifndef CONFIG_ENV_MMC_OFFSET
+#define CONFIG_ENV_MMC_OFFSET CONFIG_ENV_OFFSET
+#endif
+#if !defined(CONFIG_ENV_MMC_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#define CONFIG_ENV_MMC_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)
@@ -78,12 +89,12 @@ static inline s64 mmc_offset(int copy)
 			return val;
 	}
 
-	defvalue = env_get_offset(CONFIG_ENV_OFFSET);
+	defvalue = env_get_offset(CONFIG_ENV_MMC_OFFSET);
 	propname = dt_prop.offset;
 
-#if defined(CONFIG_ENV_OFFSET_REDUND)
+#if defined(CONFIG_ENV_MMC_OFFSET_REDUND)
 	if (copy) {
-		defvalue = CONFIG_ENV_OFFSET_REDUND;
+		defvalue = CONFIG_ENV_MMC_OFFSET_REDUND;
 		propname = dt_prop.offset_redund;
 	}
 #endif
@@ -92,11 +103,11 @@ static inline s64 mmc_offset(int copy)
 #else
 static inline s64 mmc_offset(int copy)
 {
-	s64 offset = env_get_offset(CONFIG_ENV_OFFSET);
+	s64 offset = env_get_offset(CONFIG_ENV_MMC_OFFSET);
 
-#if defined(CONFIG_ENV_OFFSET_REDUND)
+#if defined(CONFIG_ENV_MMC_OFFSET_REDUND)
 	if (copy)
-		offset = CONFIG_ENV_OFFSET_REDUND;
+		offset = CONFIG_ENV_MMC_OFFSET_REDUND;
 #endif
 	return offset;
 }
@@ -207,7 +218,7 @@ static int env_mmc_save(void)
 	if (ret)
 		goto fini;
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_MMC_OFFSET_REDUND
 	if (gd->env_valid == ENV_VALID)
 		copy = 1;
 #endif
@@ -226,7 +237,7 @@ static int env_mmc_save(void)
 
 	ret = 0;
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_MMC_OFFSET_REDUND
 	gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID : ENV_REDUND;
 #endif
 
@@ -298,7 +309,7 @@ static inline int read_env(struct mmc *mmc, unsigned long size,
 	return (n == blk_cnt) ? 0 : -1;
 }
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_MMC_OFFSET_REDUND
 static int env_mmc_load(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
@@ -343,7 +354,7 @@ err:
 #endif
 	return ret;
 }
-#else /* ! CONFIG_ENV_OFFSET_REDUND */
+#else /* ! CONFIG_ENV_MMC_OFFSET_REDUND */
 static int env_mmc_load(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
@@ -388,7 +399,7 @@ err:
 #endif
 	return ret;
 }
-#endif /* CONFIG_ENV_OFFSET_REDUND */
+#endif /* CONFIG_ENV_MMC_OFFSET_REDUND */
 
 U_BOOT_ENV_LOCATION(mmc) = {
 	.location	= ENVL_MMC,

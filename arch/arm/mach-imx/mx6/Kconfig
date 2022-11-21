@@ -307,6 +307,24 @@ config TARGET_GW_VENTANA
 	imply CMD_SATA
 	imply CMD_SPL
 
+config TARGET_FSIMX6
+	bool "F&S fsimx6 boards & modules"
+	select MX6QDL
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
+
+config TARGET_FSIMX6SX
+	bool "F&S fsimx6sx boards & modules"
+	select MX6SX
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
+
+config TARGET_FSIMX6UL
+	bool "F&S fsimx6ul boards & modules"
+	select MX6ULL
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
+
 config TARGET_KOSAGI_NOVENA
 	bool "Kosagi Novena"
 	select BOARD_LATE_INIT
@@ -873,6 +891,9 @@ source "board/freescale/mx6ul_14x14_ddr3_val/Kconfig"
 source "board/freescale/mx6ul_14x14_lpddr2_val/Kconfig"
 source "board/freescale/mx6ullevk/Kconfig"
 source "board/freescale/mx6ull_ddr3_val/Kconfig"
+source "board/F+S/fsimx6/Kconfig"
+source "board/F+S/fsimx6sx/Kconfig"
+source "board/F+S/fsimx6ul/Kconfig"
 source "board/grinn/liteboard/Kconfig"
 source "board/phytec/pcm058/Kconfig"
 source "board/phytec/pfla02/Kconfig"

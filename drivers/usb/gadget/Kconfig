@@ -67,6 +67,21 @@ config USB_GADGET_PRODUCT_NUM
 	help
 	  Product ID of the USB device emulated, reported to the host device.
 
+config USB_GADGET_RNDIS_VENDOR_NUM
+	hex "Vendor ID of the USB RNDIS device"
+	default 0x0
+	help
+	  Vendor ID of the USB RNDIS device emulated, reported to the host
+	  device. This is usually the board or SoC vendor's, unless you've
+	  registered for one.
+
+config USB_GADGET_RNDIS_PRODUCT_NUM
+	hex "Product ID of the USB RNDIS device"
+	default 0x0
+	help
+	  Product ID of the USB RNDIS device emulated, reported to the host
+	  device.
+
 config USB_GADGET_ATMEL_USBA
 	bool "Atmel USBA"
 	select USB_GADGET_DUALSPEED

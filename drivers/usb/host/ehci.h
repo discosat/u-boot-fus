@@ -248,6 +248,8 @@ struct ehci_ctrl {
 	struct ehci_hccr *hccr;	/* R/O registers, not need for volatile */
 	struct ehci_hcor *hcor;
 	int rootdev;
+	int host_valid;
+	int ports;
 	uint16_t portreset;
 	struct QH qh_list __aligned(USB_DMA_MINALIGN);
 	struct QH periodic_queue __aligned(USB_DMA_MINALIGN);

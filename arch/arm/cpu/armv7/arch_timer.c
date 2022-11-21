@@ -24,8 +24,8 @@ static inline u32 read_cntfrq(void)
 
 int timer_init(void)
 {
-	gd->arch.tbl = 0;
-	gd->arch.tbu = 0;
+	gd->timebase_h = 0;
+	gd->timebase_l = 0;
 
 #ifdef CONFIG_SYS_HZ_CLOCK
 	gd->arch.timer_rate_hz = CONFIG_SYS_HZ_CLOCK;
@@ -41,10 +41,10 @@ unsigned long long get_ticks(void)
 
 	asm volatile("mrrc p15, 0, %0, %1, c14" : "=r" (nowl), "=r" (nowu));
 
-	gd->arch.tbl = nowl;
-	gd->arch.tbu = nowu;
+	gd->timebase_h = nowl;
+	gd->timebase_l = nowu;
 
-	return (((unsigned long long)gd->arch.tbu) << 32) | gd->arch.tbl;
+	return (((unsigned long long)gd->timebase_l) << 32) | gd->timebase_h;
 }
 
 

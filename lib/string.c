@@ -565,18 +565,36 @@ void * memcpy(void *dest, const void *src, size_t count)
  */
 void * memmove(void * dest,const void *src,size_t count)
 {
-	char *tmp, *s;
+	char *d;
+	char *s;
 
-	if (dest <= src) {
-		memcpy(dest, src, count);
-	} else {
-		tmp = (char *) dest + count;
-		s = (char *) src + count;
-		while (count--)
-			*--tmp = *--s;
+	if (dest <= src)
+		return memcpy(dest, src, count);
+
+	d = (char *)dest;
+	s = (char *)src;
+
+	/* while all data is aligned (common case), copy a word at a
+	   time */
+	if ((count >= sizeof(ulong))
+	    && ((((ulong)d | (ulong)s) & (sizeof(ulong) - 1)) == 0)) {
+		while (count & (sizeof(ulong) - 1)) {
+			--count;
+			d[count] = s[count];
 		}
+		while (count) {
+			count -= sizeof(ulong);
+			*(ulong *)&d[count] = *(ulong *)&s[count];
+		}
+		return (void *)d;
+	}
 
-	return dest;
+        /* copy the rest one byte at a time */
+	while (count) {
+		--count;
+		d[count] = s[count];
+	}
+	return (void *)d;
 }
 #endif
 

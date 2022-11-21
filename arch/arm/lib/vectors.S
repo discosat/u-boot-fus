@@ -80,6 +80,7 @@
  *************************************************************************
  */
 
+	.type _start, STT_FUNC
 _start:
 #ifdef CONFIG_SYS_DV_NOR_BOOT_CFG
 	.word	CONFIG_SYS_DV_NOR_BOOT_CFG
@@ -116,6 +117,7 @@ _data_abort:		.word data_abort
 _not_used:		.word not_used
 _irq:			.word irq
 _fiq:			.word fiq
+_pad:                   .word 0x12345678 /* now 16*4=64 */
 
 	.balignl 16,0xdeadbeef
 
@@ -152,6 +154,19 @@ IRQ_STACK_START_IN:
 #else
 	.word	0x0badc0de
 #endif
+
+#ifdef CONFIG_USE_IRQ
+/* IRQ stack memory (calculated at run-time) */
+.globl IRQ_STACK_START
+IRQ_STACK_START:
+	.word	0x0badc0de
+
+/* IRQ stack memory (calculated at run-time) */
+.globl FIQ_STACK_START
+FIQ_STACK_START:
+	.word 0x0badc0de
+
+#endif /* CONFIG_USE_IRQ */
 
 @
 @ IRQ stack frame.
@@ -242,6 +257,14 @@ IRQ_STACK_START_IN:
 	ldr	sp, FIQ_STACK_START
 	.endm
 
+/* Old F&S NBoot versions expect the reset function at offset 0x5C */
+	.align  4
+fs_pseudo_reset:
+	nop					@ Offset 0x50
+	nop
+	nop
+	b	reset				@ Offset 0x5C
+
 /*
  * exception handlers
  */
@@ -276,6 +299,24 @@ not_used:
 	bad_save_user_regs
 	bl	do_not_used
 
+#ifdef CONFIG_USE_IRQ
+
+	.align	5
+irq:
+	get_irq_stack
+	irq_save_user_regs
+	bl	do_irq
+	irq_restore_user_regs
+
+	.align	5
+fiq:
+	get_fiq_stack
+	/* someone ought to write a more effiction fiq_save_user_regs */
+	irq_save_user_regs
+	bl	do_fiq
+	irq_restore_user_regs
+
+#else
 
 	.align	5
 irq:
@@ -288,5 +329,7 @@ fiq:
 	get_bad_stack
 	bad_save_user_regs
 	bl	do_fiq
+
+#endif /* CONFIG_USE_IRQ */
 
 #endif	/* CONFIG_SPL_BUILD */

@@ -16,6 +16,13 @@
 #ifndef _STATUS_LED_H_
 #define	_STATUS_LED_H_
 
+/* led_id_t is unsigned long mask */
+typedef unsigned long led_id_t;
+
+extern void __led_toggle (led_id_t mask);
+extern void __led_init (led_id_t mask, int state);
+extern void __led_set (led_id_t mask, int state);
+
 #ifdef CONFIG_LED_STATUS
 
 #define LED_STATUS_PERIOD	(CONFIG_SYS_HZ / CONFIG_LED_STATUS_FREQ)
@@ -56,13 +63,6 @@ void status_led_set(int led, int state);
    */
 
 #elif defined(CONFIG_LED_STATUS_BOARD_SPECIFIC)
-/* led_id_t is unsigned long mask */
-typedef unsigned long led_id_t;
-
-extern void __led_toggle (led_id_t mask);
-extern void __led_init (led_id_t mask, int state);
-extern void __led_set (led_id_t mask, int state);
-void __led_blink(led_id_t mask, int freq);
 #else
 # error Status LED configuration missing
 #endif

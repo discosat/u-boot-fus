@@ -20,7 +20,7 @@ static int do_fitupd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return CMD_RET_USAGE;
 
 	if (argc == 2)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 
 	return update_tftp(addr, NULL, NULL);
 }

@@ -39,6 +39,10 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
+#ifndef CONFIG_BOOTFILE
+#define CONFIG_BOOTFILE "uImage"
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if	defined(CONFIG_ENV_IS_IN_EEPROM)	|| \
@@ -761,6 +765,23 @@ ulong env_get_ulong(const char *name, int base, ulong default_val)
 	return str ? simple_strtoul(str, NULL, base) : default_val;
 }
 
+const char *env_get_bootfile(void)
+{
+	const char *p;
+
+	p = env_get("bootfile");
+	if (p)
+		return p;
+	return CONFIG_BOOTFILE;
+}
+
+const char *env_parse_bootfile(const char *buffer)
+{
+	if ((buffer[0] == '.') && (buffer[1] == 0))
+		return env_get_bootfile();
+	return buffer;
+}
+
 #ifndef CONFIG_SPL_BUILD
 #if defined(CONFIG_CMD_SAVEENV) && defined(ENV_IS_IN_DEVICE)
 static int do_env_save(cmd_tbl_t *cmdtp, int flag, int argc,
@@ -976,7 +997,7 @@ NXTARG:		;
 	if (argc < 1)
 		return CMD_RET_USAGE;
 
-	addr = simple_strtoul(argv[0], NULL, 16);
+	addr = parse_loadaddr(argv[0], NULL);
 	ptr = map_sysmem(addr, size);
 
 	if (size)
@@ -1115,7 +1136,7 @@ static int do_env_import(cmd_tbl_t *cmdtp, int flag,
 	if (sep != '\n' && crlf_is_lf )
 		crlf_is_lf = 0;
 
-	addr = simple_strtoul(argv[0], NULL, 16);
+	addr = parse_loadaddr(argv[0], NULL);
 	ptr = map_sysmem(addr, 0);
 
 	if (argc >= 2 && strcmp(argv[1], "-")) {

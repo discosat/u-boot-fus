@@ -120,6 +120,9 @@ static u16 i2c_clk_div[50][2] = {
 #ifndef CONFIG_SYS_MXC_I2C4_SPEED
 #define CONFIG_SYS_MXC_I2C4_SPEED 100000
 #endif
+#ifndef CONFIG_SYS_MXC_I2C5_SPEED
+#define CONFIG_SYS_MXC_I2C5_SPEED 100000
+#endif
 
 #ifndef CONFIG_SYS_MXC_I2C1_SLAVE
 #define CONFIG_SYS_MXC_I2C1_SLAVE 0
@@ -132,6 +135,9 @@ static u16 i2c_clk_div[50][2] = {
 #endif
 #ifndef CONFIG_SYS_MXC_I2C4_SLAVE
 #define CONFIG_SYS_MXC_I2C4_SLAVE 0
+#endif
+#ifndef CONFIG_SYS_MXC_I2C5_SLAVE
+#define CONFIG_SYS_MXC_I2C5_SLAVE 0
 #endif
 
 /*

@@ -10,18 +10,26 @@
 #include <g_dnl.h>
 #include <sdp.h>
 
-static struct spl_image_info *image = NULL;
+void board_sdp_cleanup(void)
+{
+	usb_gadget_release(CONFIG_SPL_SDP_USB_DEV);
+}
+
 
 int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 {
 	const int controller_index = CONFIG_SPL_SDP_USB_DEV;
-	int ret = 0;
 
 	/* Should not return, unless in single mode when it returns after one
 	   SDP command */
-	ret = spl_sdp_handle(controller_index, image, ops, single);
+	sdp_handle(controller_index, ops, single);
 
-	return ret;
+	if (!single) {
+		pr_err("SDP ended\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -39,37 +47,39 @@ int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single)
 {
 	int ret;
+	int index;
 	int controller_index = CONFIG_SPL_SDP_USB_DEV;
+
+	index = board_usb_gadget_port_auto();
+	if (index >= 0)
+		controller_index = index;
 
 	usb_gadget_initialize(controller_index);
 
 	g_dnl_clear_detach();
 	g_dnl_register("usb_dnl_sdp");
 
-	ret = sdp_init(controller_index);;
+	ret = sdp_init(controller_index);
 	if (ret) {
 		pr_err("SDP init failed: %d\n", ret);
 		return -ENODEV;
 	}
 
-	/*
-	 * This command either loads a legacy image, jumps and never returns,
-	 * or it loads a FIT image and returns it to be handled by the SPL
-	 * code.
-	 */
-	ret = spl_sdp_stream_continue(ops, single);
-	debug("SDP ended\n");
-
-	return ret;
+	return spl_sdp_stream_continue(ops, single);
 }
 
+/**
+ * Load an image with Serial Download Protocol (SDP)
+ *
+ * @spl_image:	info about the loaded image (ignored)
+ * @bootdev:	info about the device to load from (ignored)
+ *
+ * Download an image with Serial Download Protocol (SDP).
+ */
 static int spl_sdp_load_image(struct spl_image_info *spl_image,
-			      struct spl_boot_device *bootdev)
+				struct spl_boot_device *bootdev)
 {
-	int ret = 0;
-	image = spl_image;
-	ret = spl_sdp_stream_image(NULL, false);
-	return ret;
+	return spl_sdp_stream_image(NULL, false);
 }
 
 SPL_LOAD_IMAGE_METHOD("USB SDP", 0, BOOT_DEVICE_BOARD, spl_sdp_load_image);

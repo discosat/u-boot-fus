@@ -343,6 +343,25 @@ int env_get_char(int index);
  */
 void env_reloc(void);
 
+/**
+ * env_get_bootfile() - Get the bootfile
+ *
+ * Get the bootfile either from the environment or from CONFIG_BOOTFILE
+ *
+ * @return bootfile
+ */
+const char *env_get_bootfile(void);
+
+/**
+ * env_parse_bootfile() - Get the bootfile if "." was entered
+ *
+ * If buffer holds ".", return the bootfile, otherwise keep buffer.
+ *
+ * @buffer: buffer to check for "."
+ * @return replaced bootfile or buffer
+ */
+const char *env_parse_bootfile(const char *buffer);
+
 #ifdef ENV_IS_EMBEDDED
 #define env_get_offset(x) x
 #else

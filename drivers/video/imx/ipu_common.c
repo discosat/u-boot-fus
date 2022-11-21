@@ -18,8 +18,7 @@
 #include <linux/errno.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/crm_regs.h>
-#include <asm/arch/sys_proto.h>
-#include <div64.h>
+#include <asm/arch/clock.h>
 #include "ipu.h"
 #include "ipu_regs.h"
 
@@ -284,85 +283,58 @@ static inline void ipu_ch_param_set_buffer(uint32_t ch, int bufNum,
 
 static void ipu_pixel_clk_recalc(struct clk *clk)
 {
-	u32 div;
-	u64 final_rate = (unsigned long long)clk->parent->rate * 16;
-
-	div = __raw_readl(DI_BS_CLKGEN0(clk->id));
-	debug("read BS_CLKGEN0 div:%d, final_rate:%lld, prate:%ld\n",
-	      div, final_rate, clk->parent->rate);
-
-	clk->rate = 0;
-	if (div != 0) {
-		do_div(final_rate, div);
-		clk->rate = final_rate;
-	}
+	u32 div = __raw_readl(DI_BS_CLKGEN0(clk->id));
+	if (div == 0)
+		clk->rate = 0;
+	else
+		clk->rate = ((clk->parent->rate * 8) / div) * 2;
 }
 
 static unsigned long ipu_pixel_clk_round_rate(struct clk *clk,
 	unsigned long rate)
 {
-	u64 div, final_rate;
-	u32 remainder;
-	u64 parent_rate = (unsigned long long)clk->parent->rate * 16;
-
+	u32 div;
+	unsigned long tmp;
 	/*
 	 * Calculate divider
 	 * Fractional part is 4 bits,
 	 * so simply multiply by 2^4 to get fractional part.
+	 *
+	 * Please note:
+	 * The maximum IPU root clock may be 264 MHz on MX6Q and 270 MHz on
+	 * MX6DL. To avoid an overflow if parent rate >= 2^28 = 268435456 Hz,
+	 * we drop the LSB of the target rate, i.e. only multiply by 8 instead
+	 * of 16 and divide the rate by 2.
 	 */
-	div = parent_rate;
-	remainder = do_div(div, rate);
-	/* Round the divider value */
-	if (remainder > (rate / 2))
-		div++;
+	tmp = clk->parent->rate * 8;
+	rate >>= 1;
+	div = (tmp + rate/2) / rate;
+
 	if (div < 0x10)            /* Min DI disp clock divider is 1 */
 		div = 0x10;
-	if (div & ~0xFEF)
-		div &= 0xFF8;
-	else {
-		/* Round up divider if it gets us closer to desired pix clk */
-		if ((div & 0xC) == 0xC) {
-			div += 0x10;
-			div &= ~0xF;
-		}
-	}
-	final_rate = parent_rate;
-	do_div(final_rate, div);
+	else if (div > 0xFFF)      /* Max divider is 255+15/16 */
+		div = 0xFFF;
 
-	return final_rate;
+	return (tmp / div) * 2;
 }
 
 static int ipu_pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	u64 div, parent_rate;
-	u32 remainder;
+	u32 div;
+	u32 tmp;
 
-	parent_rate = (unsigned long long)clk->parent->rate * 16;
-	div = parent_rate;
-	remainder = do_div(div, rate);
-	/* Round the divider value */
-	if (remainder > (rate / 2))
-		div++;
-
-	/* Round up divider if it gets us closer to desired pix clk */
-	if ((div & 0xC) == 0xC) {
-		div += 0x10;
-		div &= ~0xF;
-	}
-	if (div > 0x1000)
-		debug("Overflow, DI_BS_CLKGEN0 div:0x%x\n", (u32)div);
-
+	tmp = clk->parent->rate * 8;
+	rate >>= 1;
+	div = (tmp + rate/2) / rate;
 	__raw_writel(div, DI_BS_CLKGEN0(clk->id));
 
-	/*
-	 * Setup pixel clock timing
-	 * Down time is half of period
-	 */
+	/* Setup pixel clock timing, up at offset 0, down at offset div/2.
+	   However as this bit field only has one fractional digit while div
+	   uses four fractional digits, we have to divide div by 8 already,
+	   which results in div/8/2 = div/16. */
 	__raw_writel((div / 16) << 16, DI_BS_CLKGEN1(clk->id));
 
-	do_div(parent_rate, div);
-
-	clk->rate = parent_rate;
+	clk->rate = (tmp / div) * 2;
 
 	return 0;
 }
@@ -389,7 +361,8 @@ static int ipu_pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 	u32 di_gen = __raw_readl(DI_GENERAL(clk->id));
 
 	if (parent == g_ipu_clk)
-		di_gen &= ~DI_GEN_DI_CLK_EXT;
+//###		di_gen &= ~DI_GEN_DI_CLK_EXT;
+		di_gen |= DI_GEN_DI_CLK_EXT; /* F&S: We use EXT clock */
 	else if (!IS_ERR(g_di_clk[clk->id]) && parent == g_ldb_clk)
 		di_gen |= DI_GEN_DI_CLK_EXT;
 	else
@@ -457,7 +430,7 @@ static void ipu_reset(void)
  *
  * @return      Returns 0 on success or negative error code on error
  */
-int ipu_probe(void)
+int ipu_probe(unsigned int ipu, unsigned int disp)
 {
 	unsigned long ipu_base;
 #if defined CONFIG_MX51
@@ -484,12 +457,18 @@ int ipu_probe(void)
 	g_pixel_clk[1] = &pixel_clk[1];
 
 	g_ipu_clk = &ipu_clk;
+#if 1
+	/* F&S: IPU clock is set by board setup code, get current rate */
+	g_ipu_clk->rate = ipuv3_get_ipu_di_clock(ipu, disp);
+#else
+	/* IPU clock is used with default values */
 #if defined(CONFIG_MX51)
 	g_ipu_clk->rate = IPUV3_CLK_MX51;
 #elif defined(CONFIG_MX53)
 	g_ipu_clk->rate = IPUV3_CLK_MX53;
 #else
 	g_ipu_clk->rate = is_mx6sdl() ? IPUV3_CLK_MX6DL : IPUV3_CLK_MX6Q;
+#endif
 #endif
 	debug("ipu_clk = %u\n", clk_get_rate(g_ipu_clk));
 	g_ldb_clk = &ldb_clk;

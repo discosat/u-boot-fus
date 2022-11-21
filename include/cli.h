@@ -7,6 +7,9 @@
 #ifndef __CLI_H
 #define __CLI_H
 
+char *get_board_name(void);
+char *get_sys_prompt(void);
+
 /**
  * Go into the command loop
  *

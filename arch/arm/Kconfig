@@ -446,6 +446,15 @@ config TPL_USE_ARCH_MEMCPY
 	  Such an implementation may be faster under some conditions
 	  but may increase the binary size.
 
+config USE_ARCH_MEMMOVE
+	bool "Use an assembly optimized implementation of memmove"
+	default y if CPU_V7
+	depends on !ARM64
+	help
+	  Enable the generation of an optimized version of memmove.
+	  Such implementation may be faster under some conditions
+	  but may increase the binary size.
+
 config USE_ARCH_MEMSET
 	bool "Use an assembly optimized implementation of memset"
 	default y
@@ -471,6 +480,15 @@ config TPL_USE_ARCH_MEMSET
 	help
 	  Enable the generation of an optimized version of memset.
 	  Such an implementation may be faster under some conditions
+	  but may increase the binary size.
+
+config USE_ARCH_MEMSET32
+	bool "Use an assembly optimized implementation of memset32"
+	default y if CPU_V7
+	depends on !ARM64
+	help
+	  Enable the generation of an optimized version of memset32.
+	  Such implementation may be faster under some conditions
 	  but may increase the binary size.
 
 config SET_STACK_SIZE
@@ -880,6 +898,16 @@ config ARCH_MX5
 	select BOARD_EARLY_INIT_F
 	select CPU_V7A
 	imply MXC_GPIO
+
+config TARGET_FSVYBRID
+	bool "F&S fsvybrid boards & modules"
+	select CPU_V7A
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
+	select USB_EHCI_HCD
+	select SYS_FSL_ERRATUM_ESDHC111
+	select SYS_FSL_ERRATUM_ESDHC135
+	select SYS_FSL_ERRATUM_ESDHC_A001
 
 config ARCH_OWL
 	bool "Actions Semi OWL SoCs"
@@ -1825,6 +1853,8 @@ source "arch/arm/mach-imx/Kconfig"
 source "board/bosch/shc/Kconfig"
 source "board/bosch/guardian/Kconfig"
 source "board/CarMediaLab/flea3/Kconfig"
+source "board/F+S/fsvybrid/Kconfig"
+source "board/F+S/common/Kconfig"
 source "board/Marvell/aspenite/Kconfig"
 source "board/Marvell/gplugd/Kconfig"
 source "board/armadeus/apf27/Kconfig"

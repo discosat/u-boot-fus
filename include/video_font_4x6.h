@@ -41,9 +41,12 @@ __END__;
 #ifndef _VIDEO_FONT_DATA_
 #define _VIDEO_FONT_DATA_
 
+#define VIDEO_FONT_TYPE		unsigned char
 #define VIDEO_FONT_CHARS	256
 #define VIDEO_FONT_WIDTH	4
 #define VIDEO_FONT_HEIGHT	6
+#define VIDEO_FONT_UNDERL	5
+#define VIDEO_FONT_STRIKE	2
 #define VIDEO_FONT_SIZE		(VIDEO_FONT_CHARS * VIDEO_FONT_HEIGHT)
 
 static unsigned char video_fontdata[VIDEO_FONT_SIZE] = {

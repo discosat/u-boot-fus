@@ -164,11 +164,11 @@ uint64_t usec_to_tick(unsigned long usec)
 
 void __weak __udelay(unsigned long usec)
 {
-	uint64_t tmp;
+	uint64_t start = get_ticks();
+	uint64_t delay;
 
-	tmp = get_ticks() + usec_to_tick(usec);	/* get current timestamp */
-
-	while (get_ticks() < tmp+1)	/* loop till event */
+	delay = usec_to_tick(usec);
+	while (get_ticks() - start < delay)	/* loop till event */
 		 /*NOP*/;
 }
 

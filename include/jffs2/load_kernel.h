@@ -11,6 +11,8 @@
 
 #include <linux/list.h>
 
+#define PARTITION_MAXLEN 16
+
 /* mtd device types */
 #define MTD_DEV_TYPE_NOR	0x0001
 #define MTD_DEV_TYPE_NAND	0x0002

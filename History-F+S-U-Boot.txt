@@ -14,4 +14,1377 @@ Supported boards: efusMX8X
 - Enable ethernet for efusMX8X
 - Add delay for USB host storage devices
 
-based on NXP version rel_imx_5.4.70_2.3.2
+
+u-boot-2020.04-fsimx8mp-Y2022.11 (11.11.2022)
+-----------------------------------------------
+Supported boards: armStoneMX8MP, PicoCoreMX8MP, PicoCoreMX8MPr2
+
+- [fsimx8mp] Disable not used ethernet nodes in device tree
+- Improve phy shutdown for dwc_eth_qos driver
+- Improve primary eth interface for fsimx8mp
+- Add new environments for bootloader fs update in fsimx8mp.h
+- Improve ethernet aliases for fsimx8mp
+- Improve features support for fsimx8mp
+- Add nboot configuration for PicoCoreMX8MPr2-Fert1-5
+- Add support for picocoremx8mpr2
+- Rework device tree for picocoremx8mp
+- Add feature option for eth-phy-a and eth-phy-b
+- Improve nboot config for armStoneMX8MP-Fert2.100
+- Add nboot config for armStoneMX8MP-Fert0.100
+- Improve USB2 support for fsimx8mp
+- Improve nboot configuration for armStoneMX8MP-Fert4.100
+- Add config for armStoneMX8MP-FERT5.100
+- Fix FDT_TEMP entries for fsimx8mm/mp
+- Add no-uboot-override to fs_fdt_set_val()
+- Fix mmc_get_env_dev(), simplify board_mmc_get_env_dev()
+- Enable CONFIG_FASTBOOT_UUU_SUPPORT on fsimx8mm/mn/mp
+- Revert F&S changes in iomux.c and console.c
+- Remove usb host initialization in SPL for fsimx8mp
+- Enable FS mmc common functions for fsimx8mp
+- Improve device detection on typec connector for fsimx8mp
+- Fix env device for fsimx8mp
+- Fix new RAM timings for fsimx8mm
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07.3 (19.05.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Add DRAM timings for nt6an512t32av-j2i
+- Add F&S u-boot bootaux functionality
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07.2 (19.07.2021)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+(no changes)
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07.1 (19.07.2021)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Add DRAM timings for fl4c2001g-d9
+- Add support to adapt soc-thermal node
+- Disable FDT changes for PicoCoreMX8MP-V1/2
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.07 (09.07.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Improve DRAM timings for k4f6e3s4hm
+- Add DRAM timings for k4f8e3s4hd
+- Improve ddr_init function
+- Add support to handle different LPDDR4 chips
+- Improve fs_board_common support
+- Improve fsimx8mp support
+
+
+
+u-boot-2020.04-fsimx8mp-Y2021.06 (31.05.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MP
+
+- Start version for fsimx8mp (rel_imx_5.4.70_2.3.0)
+- imx8m: fix cache setup for dynamic sdram size
+- Add fsimx8mp support
+- Add FUS optimized FAT driver
+- Add FUS system promt support
+- Add support to use . operator
+- Improve fsimx8mp support
+
+
+============================================================
+
+
+u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Add Board-Configs for the PicoCoreMX8MMr2
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add PicoCoreMX8MMr2 support
+- Add N-boot History file for nboot-fsimx8mm-2021.04.1
+
+
+
+u-boot-2018.03-fsimx7ulp-Y2022.05 (11.05.2022)
+----------------------------------------------
+Supported boards: PicoCoreMX7ULP
+
+- Improve imx7ulp bootaux command
+- Improve imx7ulp reset cause handling
+- Increaseth fsimx7ulp default CMA size
+- Add picocoremx7ulp spi flash device support
+- Set mac address in bdinfo for fsimx7ulp
+- Fix fsimx7ulp reloction error
+
+
+
+u-boot-2018.03-fsimx6ul-B2022.04 (11.04.2022)
+---------------------------------------------
+Supported boards: efusA7UL PicoCOM1.2 PicoCoreMX6UL PicoCoreMX6UL100 PicoCOMA7
+
+- Add support for picocoremx6ul100
+- Add support for same defconfig independent from boot device for fsimx6sx/ul
+- Add support for command fsimage_imx6 (fsimx6sx/ul)
+- Improve fsimx6sx to setup dynamic linux device tree
+- Fix DTS adaption to support backwards compatibility for fsimx6sx/ul
+- Fix bootcmd-fastboot override when booting from USB
+- In mxs-nand-fus.c, set and use ecc.total/ecc.bytes correctly
+- Fix fastboot for i.MX8
+- Add new nboot config TBS2-FERT3
+- Backport new usb gadget driver from version v2019.01
+- lib: errno: avoid error format-overflow
+- gcc-9: silence 'address-of-packed-member' warning
+- Add support for target fsimx7ulp
+- Improve rndis gadget configuration on platform fsimx7ulp
+- Improve cma setup for target fsimx7ulp
+- Improve phy realtek LED setup
+- Improve fsimx6 configuration u-boot size
+- Add GPU detection for fsimx6sx
+- Improve is_usb_boot function for MX6 CPUs
+- Add "is_usb_boot" function for platform fsimx6sx/ul
+- Add config for PCoreMX8MM-FERT15.130
+- Improve board name for PCoreMX8MM-FERT15.130.dts
+- Improve naming of target fsimx7ulp
+- Improve setup of fs_board_get_boot_dev for fsimx6*/7ulp
+- Improve mx6 mmc_get_env_dev/mmc_get_env_part
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
+- Add configs FERT1.130 FERT2.130 FERT17.120 for fsimx8mm
+
+
+
+u-boot-2018.03-fsimx6ul-Y2020.03.1 (15.03.2022)
+-----------------------------------------------
+Supported boards: efusA7UL, PicoCoreMX6UL, PicoCoreMX6UL100, PicoMODA7
+
+- Add support for picocoremx6ul100
+- Add support for command fsimage
+- Change DACR to client access control to fix cache errors
+
+
+
+u-boot-2018.03-fsimx6-B2020.04.1 (01.02.2022)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, efusA9r2, PicoMODA9,
+                   NetDCUA9, QBlissA9, QBlissA9r2, armStoneA5, CUBEA5, Cube2.0
+Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Add rx delay support for RTL8211F
+- Improve phy realtek LED setup
+- Add Ethernet support for efusA9r2
+- Add support for efusA9r2
+
+
+
+u-boot-2018.03-fsimx8mn-Y2021.10 (30.10.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Correct boot from ubi environments to create F&S Updater volumes
+- Add env import/export cmd
+- Fix commands to create F&S Updater volumes in fsimx8mn
+
+
+
+u-boot-2018.03-fsimx6-B2021.10.1 (19.10.2021)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix DTS adaption to support backwards compatibility
+
+
+
+u-boot-2018.03-fsimx6-B2021.10 (15.10.2021)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+QBlissA9, QBlissA9r2
+
+- Fix fsimx6 usb power polarity
+- Fix imx6 display
+- Fix fsimx6 absolut pathes for Linux device tree adaption
+- phy: Fix u-boot coruption when fixed-phy is used
+- kconfig: Avoid format overflow warning from GCC 8.1
+- net: unaligned copying of unsigned long
+- net: nfs: remove superfluous conversions
+- net: nfs: remove superfluous packed attribute
+- Fix pmoda9 LCD pads
+
+
+
+u-boot-2018.03-fsimx8mn-Y2021.09 (24.09.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+- Add support for board GAR3
+- Add support for board vand3
+- Increase NBoot version to 2021.07
+- F&S Update Framework interface fixed
+- Improve environment variables for fsimx8mm F&S Updater
+- Move enum fsimg_mode from fs_image_common.h to fs_image_common.c
+- Change fsimx8mn to use NBoot
+- Add -ddr3l/-lpddr4 to device tree names for fsimx8mm/fsimx8mn
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Allow optional board-fdt in BOARD-CFG files
+- Add correct fuse values for fsimx8mn
+- Increase size for fs_sys_prompt[]
+- Handle new eMMC layout on fsimx8mn
+- On fsimx8mn, disable code to detect if running on secondary SPL
+- In fat_fus.c, handle files > 2GB better
+- Remove unused folder fsimx8mx_nano
+- Fix building process for fsimx8mm
+- Adjust NAND areas for fsimx8mn nboot
+- Add USB Type C OTG functionality
+- Add variant of PCoreMX8MN
+
+
+
+u-boot-2018.03-fsimx8mm-B2021.06 (23.06.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Change DACR to client access control to fix cache errors
+- Improve fsimx8mm mac address setup
+- Set tbs2.c UPDATE_DEF to mmc0,mmc2
+- Improve support for architecture tbs2
+- Merge architecture tbs2 into fsimx8mm
+- Add part command to uboot console
+- Add dynamic setting of cpu temp ranges for fsimx8mm
+- Add config for PCoreMX8MM-FERT13.130
+
+
+
+u-boot-2018.03-fsimx8mm-Y2021.04 (21.04.2021)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Improve OTG support for fsimx8mm
+- Add fsimx8mx support
+- Add support for static board config
+- Add support to read phy address from device-tree for fec_mxc
+- Improve imx8mm_pins.h I2C* pads
+- Improve serial mxc driver clear fifo before reset
+- Improve spl setting for all fsimx8* boards
+- Fix fsimx8mx RAM timings
+- Improve DRAM size configuration for fsimx8mx
+- Improve DRAM size detection for fsimx8mx
+- Use legacy ethernet driver for fsimx8mx
+- Fix fsimx8mx nand defconfig
+- Improve support for static board config
+- Improve MIPI-DSI PMS restriction values
+- Fix build warnigs for n535521 mipi driver
+- Disable display support for fsimx8mx
+- Improve linux,cma size settings for fsimx8mx
+- Improve fsimx8mx defconfigs
+- Add fsimx8mx_nano support
+- Disable display support for fsimx8mx_nano
+- Improve fsimx8mx support
+- Improve bd71837 pmic driver
+- Add possibility to set cma size via DTS for fsimx8mx
+- Improve fixed config for fsimx8mx
+- Improve FDT support and naming for fsimx8mx-nano
+- Improve fsimx8mm target
+- Improve fec_mxc fixed link support for DM
+- Remove target fsimx8mx
+- Remove arch/arm/mach-imx/mx8mx
+- Fix compilation warnings for fsimx8mm
+- Improve feature support for fsimx8mm
+- Improve fsimx8mm SPL settings
+- Improve fsimx8mm mac address setup
+- Add support for I2C_GPIO to configure switch on fsimx8mm
+- Append for commit "Add support for I2C_GPIO to configure switch on fsimx8mm"
+- Also use memalign_simple() in SPL, not only malloc_simple()
+- Add Kconfig options to create a disassembler listing
+- New version of addfsheader as a script, remove old C version
+- Add fsimage script
+- Fix Kconfig prompt for MXC GPIO driver
+- Add streaming option to SDP protocol
+- Add fs_image library to load and handle F&S images on fsimx8mm
+- Change SPL on fsimx8mm to use F&S NBoot images to boot
+- Add nboot build process for fsimx8mm
+- Add fs_board_get_boot_device_from_fuses() to fs_board_common.c
+- cli_hush: Add support for indirect parameter expansion
+- mxs_nand: Reduce malloc usage in SPL
+- mxs_nand_spl: Do not stop when ONFI version is unknown
+- fs_image.c: Have two copies of BOARD-CFG and FIRMWARE
+- Use new MTD partition layout on fsimx8mm, clean up boot srategies
+- Have environment in NAND or MMC on fsimx8mm
+- Move fs_image.[ch] from fsimx8mm to common
+- fsimx8mm: Add nboot-info for BOARD-CFGs, use .*.tmp files in Makefile
+- fsimx8mm: Identify boot system with NXP boot devices
+- fdt_support.c: Fix bug in fdt_getprop_u32_default_node()
+- Allow using function fdt_print() from outside of cmd/fdt.c
+- Add fsimage command to handle NBoot images
+- fsimx8mm: Get rid of fs_nboot_args and use cfg_info instead
+- fsimx8mm: Add fuse subcommand for fsimage
+- Handle kernel, fdt and rootfs according to boot device
+- fsimx8mm: On eMMC, load environment from boot partition
+- Allow NAND environment offsets in device tree
+- fsimx8mm: When loading U-Boot, provide offset values from nboot-info
+- fsimx8mm: Have separate nboot-info for NAND and MMC
+- fsimx8mm: Add MMC loading/saving, refactor fsimage code
+- Also use indendation in scripts/fsimage.sh
+- Also write U-BOOT files in command fsimage save
+- Fix nand_spl_load_image() in case of bad blocks
+- fsimx8mm: Drop debug output, rename MTD partition Spl to NBoot
+- fsimx8mm: Handle device tree fixup more cleanly
+- Add CONFIG_SPL/TPL_AUTOBUILD, do not build SPL by default on fsimx8mm
+- fsimx8mm: Add all current BOARD-CFGs
+- fsimx8mm: Fix handling for PicoCoreMX8MX
+- Fix addfsheade.sh for yocto build
+- Set boardinfo.name to PicoCoreMX8MX for boards with 8mx config
+- Fix have-eth-switch config entry to have-eth-phy
+- Fix DSI_PHY_REF clock settings
+- Fix CONFIG_ENV_SIZE to 16KB
+- Add support for resetting phy via device tree entry
+- Fix-up for devicetrees fsimx8mm
+- Improve fs_board_common environment variable setup
+- Improve fsimx8mm KSZ9893 Switch setup
+- Improve fsimx8mm linux fdt fixups
+- Remove setting ethaddr for WLAN on fsimx8mm
+- Change NBoot version to current one
+
+
+u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM
+
+- Avoid compiler warning in ubi.c on ARM64
+- Revert to F&S timer implementation on i.MX
+- Remove stdio_dev from F&S serial devices and netconsole
+- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
+- Add basic device tree support for serial drivers on F&S platforms
+- Fix fsimx6ul PicoCOMA7 USB and Display
+- Improve display support for fsimx8mm
+- Improve USB support for fsimx8mm
+
+
+
+u-boot-2018.03-fsimx8m(m,n)-Y2020.06 (18.06.2020)
+-------------------------------------------------
+Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
+
+- Improve eMMC support for fsimx8m(m,n)
+- Improve nand environment support for iMX8MN
+
+
+
+u-boot-2018.03-fsimx8mm-Y2020.06 (16.06.2020)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
+
+- Add support for fsimx8mn to boot from emmc
+- Add support for fsimx8mm to boot from emmc
+
+
+
+u-boot-2018.03-fsimx8mn-Y2020.06 (09.06.2020)
+---------------------------------------------
+Supported boards: PicoCoreMX8MN, PicoCoreMX8MM, armStoneMX8M
+
+- Move PMIC initialization to late init (fsimx8mm only)
+- Correct PMIC settings for PicoCoreMX8MM
+- Add basic support for PicoCoreMX8MN
+- Use F&S optimized FAT driver
+- Revert back to F&S version of FAT configuration
+- Improve imx8mm mipi clock settings
+
+
+
+u-boot-2018.03-fsimx8m-Y2020.05 (02.06.2020)
+--------------------------------------------
+Supported boards: PicoCoreMX8MM, armStoneMX8M
+
+- Improve max frequency for HS200 or HS400 modes
+
+
+
+u-boot-2018.03-fsimx8mm-Y2020.05 (14.05.2020)
+---------------------------------------------
+Supported boards: PicoCoreMX8MM, armStoneMX8M
+
+- Improve support for j070wvtc0211 panel
+- Correct initialization of usb device
+- Revert back to F&S version of fsl_esdhc.c
+- config_whitelist.txt should be sorted
+- Merge remote-tracking branch 'origin/master'
+- Add support to activate UART4 for M4 core
+- Switch debug output of the PCoreMX8MM to UART_A
+- Merge remote-tracking branch 'origin/master'
+- Keep .kernel_ubifs and .fdt_ubifs for Cubes
+- Always use two MAC addresses on AGATEWAY
+- AGATEWAY must set MAC_WLAN in bdinfo
+- Enable MMC as bootdevice (fsimx8x)
+- Update history file to u-boot-2018.03-fsimx6sx-Y2020.03
+- Add basic support for armStoneMX8M
+- Use NXP version for FAT configuration
+- Use F&S usb driver
+- Add support for MIPIDSI display g050tan01
+- Update history file to u-boot-2018.03-fsimx6-Y2020.03
+- Use F&S bootaux driver
+- Use F&S serial device driver
+- Use clock function from F&S branch
+- Use SOC functionality from F&S branch
+- Merge branch imx_v2018.03_4.14.98_2.3.0
+- Add NXP U-Boot branch imx_v2018.03_4.14.98_2.3.0
+
+
+
+u-boot-2018.03-fsimx6-B2020.04 (21.04.2020)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, armStoneA5, CUBEA5, Cube2.0
+Not tested:       efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- AGATEWAY must set MAC_WLAN in bdinfo
+- Always use two MAC addresses on AGATEWAY
+- Keep .kernel_ubifs and .fdt_ubifs for Cubes
+
+
+
+u-boot-2018.03-fsimx6ul-Y2020.03 (26.03.2020)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1, efusA7UL, PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2
+Not tested:       CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0
+
+(no changes)
+
+
+
+u-boot-2018.03-fsimx6sx-Y2020.03 (24.03.2020)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA9X,  PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0
+
+(no changes)
+
+
+
+u-boot-2018.03-fsimx6-Y2020.03 (20.03.2020)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, efusA9X,
+                  PicoCOMA9X, PicoCoreMX6SX, CONT1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY,CubeA7UL, Cube2.0,
+
+- Update fsvybrid infrastructure
+- Fix MAC address handling on fsvybrid
+- Disable FEC0 on AGATEWAY instead of FEC1
+
+
+
+u-boot-2018.03-fssecure-V2020.02 (10.02.2020)
+---------------------------------------------
+Supported CPUs: i.MX6 S/DL/D/Q, i.MX6 SX, i.MX6 UL, i.MX6 ULL
+
+- Port drivers/crypto/fsl from NXP UBoot 2018.03
+- Add support for FS_SECURE_BOOT
+- Add defconfigs for FS_SECURE_BOOT
+- Add FS_SECURE_BOOT authenticate images
+- Rename F&S Secure Boot defconfigs
+- Improve verification process of FS_SECURE_BOOT
+- Improve F&S secure boot defconfigs
+
+
+
+u-boot-2018.03-fsimx6sx-B2019.11 (29.11.2019)
+---------------------------------------------
+Supported boards: efusA9X, PicoCOMA9X, PicoCoreMX6SX, CONT1, efusA7UL,
+                  PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2, CubeA7UL, Cube2.0
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, CUBEA5, armStoneA5, NetDCUA5,
+                  PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Fix SPI initialization in fsimx6sx.c
+- Improve board_display_set_power in fsimx6sx.c/fsimx6ul.c
+- Fix fsimx6sx.c lcd settings for PicoCoreMX6SX/PicoCOMA9x
+- Improve the M4 ram reservation for imx6sx
+- Allow percentage sizes and hex numbers in mmc hwpartition
+- Handle different feature bits on GAR2
+
+
+
+u-boot-2018.03-fsimx6ul-B2019.11 (15.11.2019)
+---------------------------------------------
+Supported boards: efusA7UL, PicoCOM1.2, PicoCoreMX6UL, GAR1, GAR2,
+                  CubeA7UL, Cube2.0
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA9X, PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1, CUBEA5, armStoneA5, NetDCUA5, PicoCOMA5, AGATEWAY,
+                  HGATEWAY
+
+- Add support for RGB adapter on fsimx6ul
+- Add basic support for ethernet switch MV88E6071
+- Add register offset 0x00 or 0x10 to mv88e61xx.c driver
+- Add support for GAR2
+- Fix parsing of mii devices in mii command
+- Better argument parsing and error handling in mdio.c
+- On GAR2 do not switch off external PHY on Ethernet switch
+- include: update log2 header from the Linux kernel
+- Handle self-clearing Port Reset bit in ehci-hcd
+- Fix function to find nearest High Speed parent in usb.c
+- Improve USB device detection, add variable usb_connect_time
+- Port drivers/crypto/fsl from NXP UBoot 2018.03
+- Add support for FS_SECURE_BOOT
+- Add defconfigs for FS_SECURE_BOOT
+- Add FS_SECURE_BOOT authenticate images
+- Improve display support for PicoCoreMX6UL
+- Add USB support for GAR2
+
+
+
+u-boot-2018.03-fsimx6-B2019.08 (16.08.2019)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, CubeA7UL, Cube2.0
+Not tested:       efusA7UL, PicoCoreMX6UL, PicoCOM1.2, GAR1, efusA9X,
+                  PicoCOMA9X, PicoCoreMX6SX, CONT1, CUBEA5, armStoneA5,
+                  NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY
+
+- Avoid assert messages in ubifs
+- Reset WLAN chip on armStoneA9r2
+- Fix F&S platform/device tree name on ULL platforms
+- Add support for gar1 revision 1.40
+- Add new F&S default LVDS display (24bpp), add backlight power switching
+- Handle USB storage devices more reliable
+- Fix fatsize command
+- Remove debug output for display settings on F&S boards
+
+
+
+u-boot-2018.03-picocoremx6sx-B2019.03 (21.03.2019)
+--------------------------------------------------
+Supported boards: PicoCoreMX6SX, PicoCoreMX6UL
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1, CUBEA5
+                  armStoneA5, NetDCUA5, PicoCOMA5, AGATEWAY, HGATEWAY
+
+(no changes)
+
+
+
+u-boot-2018.03-picocoremx6ul-B2019.03 (13.03.2019)
+--------------------------------------------------
+Supported boards: PicoCoreMX6UL
+Not tested:       armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, PicoCoreMX6SX,
+                  CONT1, armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5,
+                  AGATEWAY, HGATEWAY
+
+- Improve PLL decoding and clocks command output on i.MX6
+- Add BGR666 pixel format to ipu_disp.c, required for display on efusA9
+- Add IPU clocks for i.MX6
+- Enhance IPU graphics support for i.MX6
+- Fix video and nulldev stdio devices
+- Add I2C_PADS and I2C_PADS_INFO to mxc_i2c.h
+- Add F&S company boot logo
+- Add LCD and LVDS display support for fsimx6
+- Use THUMB code on fsimx6/sx/ul
+- In ipuv3_fb_shutdown, check if at least one display was active
+- Add support for PicoCOMA7
+- Remove unnecessary debug message in fsimx6.c
+- Add I2C_PADS and I2C_PADS_INFO also for other i.MX6 variants
+- Add support for i.MX6UL and i.MX6SX to mxsfb display driver
+- Add display support to fsimx6sx/ul
+- Add PicoCoreMX6UL
+- Add PicoCoreMX6SX
+- Add SD card support to PicoCOREMX6UL
+- Replace GPL comments in F&S files with SPDX-License-Identifier
+- Fix TAGS file creation
+- Add missing checks for MXC_CPU_MX6SOLO in clock.c
+- Switch off backlight and display voltages when booting Linux
+- Add fix for eMMC with activated Enhanced Mode
+- Drop support for fss5pv210 (armStoneA8, NetDCU14, PicoMOD7A)
+- Drop support for fsam335x (never released)
+- Reduce differences to mainline U-Boot
+- F&S boards: Update loadaddr, add fdtaddr, use zImage by default
+- Switch F&S boards to CONFIG_SYS_GENERIC_BOARD
+- Add get_reset_cause() for Vybrid
+- Move F&S specific FDT code to board/F+S/common/fs_fdt_common.[ch]
+- Move F&S common board code to board/F+S/common/fs_board_common.[ch]
+- Move NBoot args from bootm to F&S specific code
+- Move F&S specific mmc code to board/F+S/common/fs_mmc_common.[ch]
+- Move F&S specific ETH code to board/F+S/common/fs_eth_common.[ch]
+- Show new device if usb dev <n> switches storage devices
+- Update F&S specific USB code and move to board/F+S/common/
+- Remove earlyusbinit feature
+- Improve F&S display code and move to board/F+S/common/fs_disp_common
+- Combine and improve display clock code for i.MX6QDL/SX/UL/ULL
+- Move display specific i.MX6 clock code to clock-ipuv3.c/clock-mxsfb.c
+- Rebase to u-boot-2014.10
+- Add defconfigs for fsimx6/sx/ul/fsvybrid
+- Rebase to u-boot-2015.01
+- Change fat.c and wildcard.c to reflect interface changes
+- Allow swapping color channels on mxsfb
+- Rebase to u-boot-2015.04
+- Rebase to u-boot-2015.07
+- On F&S boards, move some command definitions from .h to defconfig
+- Change meaning of loadaddr, always set fileaddr
+- Change RPMsg ring buffer initialization on fsimx6sx
+- Rebase to u-boot-2015.10
+- Move F&S boards from arch/arm/Kconfig to arch/arm/cpu/armv7/mx6/Kconfig
+- Rebase to u-boot-2016.01
+- Fix reset issues for ETH PHYs on F&S boards
+- Rebase to u-boot-2016.03
+- Rebase to u-boot-2016.05
+- On F&S boards, move more CMD settings from .h to defconfig
+- Move set_working_fdt_addr() from cmd/fdt.c to common/image-fdt.c
+- USB hub handling needs some delay before resetting ports
+- Fix fsl_esdhc_cfg handling when using GPIOs for Card Detect (CD)
+- Rebase to u-boot-2016.07
+- Have option to keep CONFIG_BOOTDELAY unset
+- Change nand chip allocation in fsl_nfc_fus.c and mxs_nand_fus.c
+- Rebase to u-boot-2016.09
+- Remove unnecessary flush_cache() from cmd/net.c
+- Move CONFIG_USB_STORAGE from .h to defconfig on F&S boards
+- Remove ram_base from global data
+- Enable mtest command (CONFIG_CMD_MEMTEST) on F&S boards
+- Rebase to u-boot-2016.11
+- Remove patch_sercon() from boot code
+- Move console, UBI and NAND settings from .h to defconfig on F&S boards
+- Handle non-standard CONFIG settings on F&S boards
+- Rebase to u-boot-2017.01
+- Remove CONFIG_USE_ARCH_MEM* from fsvybrid/fsimx6/sx/ul.h
+- Add F&S specific versions of memmove() and memset32() to Kconfig
+- Rebase to u-boot-2017.03
+- Fix status LED infrastructure
+- On F&S boards, move LED, BOARD and some CMD settings to defconfig
+- Rebase to u-boot-2017.05
+- Bring back rudimentary IRQ support for F&S boards
+- Rebase to u-boot-2017.07
+- Reduce diff to mainline u-boot-2017.07
+- Fix const const problems revealed by gcc-7
+- Rebase to u-boot-2017.09
+- Move more F&S configs from *.h to *_defconfig (environment, cmds)
+- Move loadaddr stuff from cmd/nvedit.c to common/image.c
+- Add F&S specific configs to Kconfig
+- Rebase to u-boot-2017.11
+- Add F&S FAT driver again, available as option
+- memcpy.S for ARM must not modify r9
+- Rebase to u-boot-2018.01
+- Rebase to u-boot-2018.03
+- Enable commands env callbacks and env flags on F&S boards
+- Add F&S NAND refresh feature to drivers/mtd/nand/Kconfig
+- Add a missing conversion from r9 to r10 in memcpy()
+- Clean up error message if env can not be loaded
+- Skip extra check for ethaddr if set with setenv
+
+
+
+u-boot-2014.07-fus-Y1.0 (18.05.2018)
+------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix problem with slow USB sticks
+- Toggle WLAN_EN and BT_EN on efusA9X
+- Add support for I2C GPIO expander, toggle WLAN_EN/BT_EN on efusA7UL
+
+
+
+u-boot-2014.07-fsimx6ul-V2.1 (22.02.2018)
+-----------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Improve auxiliary core support
+- Add option to switch off EEE (Energy Efficient Ethernet) for Atheros PHY
+- Backport i.MX6ULL support from u-boot-2016.03 rel_imx_4.1.15_2.0.0_ga
+- Add support for efusa7UL board rev. 1.22 with i.MX6ULL
+- Add CONFIG_IMX_THERMAL to fsimx6/ul/sx to show speed grading and temp range
+- Fix i.MX6ULL pad settings that differ from i.MX6UL
+- Enhance speed grade detection and temperature output on i.MX6UL/ULL
+- Combine mx6ul_pins.h and mx6ull_pins.h to mx6ulull_pins.h
+- On fsimx6ul, add platform names for variants with i.MX6ULL, e.g. efusa7ull
+- Deactivate VLCD_ON and VCFL_ON in U-Boot on fsimx6/sx/ul
+- Initialize DVS signal on fsimx6ul
+- Revert change to IC_INTERFACES_BASE_ADDR in imx-regs.h
+- On fsimx6ul, add option to limit the CPU to 528 MHz
+
+
+
+u-boot-2014.07-fsimx6sx-V2.1 (08.01.2018)
+-----------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY,
+                  HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Use state machine for auxiliary core support (bootaux command)
+- Add support for PCIe on fsimx6sx
+- Set WLAN MAC address in bdinfo for fsimx6sx/fsimx6ul
+
+
+
+u-boot-2014.07-fsimx6-V3.1 (20.11.2017)
+---------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, NetDCUA9,
+                  QBlissA9, QBlissA9r2, efusA7UL, CubeA7UL, Cube2.0,
+                  PicoCOM1.2, GAR1, efusA9X, PicoCOMA9X, CONT1
+Not tested:       BemA9X, armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5,
+                  AGATEWAY, HGATEWAY, armStoneA8, PicoMOD7A, NetDCU14
+
+- Add PicoCOMA9X support for SD card and ethernet
+- Add basic support for Cube2.0, PicoCOM1.2 and LEDs on fsimx6ul
+- Add interrupt support for i.MX6
+- Add blinking LED support for fsimx6 and fsimx6ul
+- Add support for NetDCUA9
+- Remove ATAG creation from fsimx6/fsimx6sx/fsimx6ul platforms
+- Handle board features similarly on fsimx6/fsimx6sx/fsimx6ul
+- Improve LAN/WLAN initialization on fsimx6/fsimx6sx/fsimx6ul
+- Add dynamic device tree boot modifications for F&S boards
+- Add proper support for PicoCOM1.2
+- Add support for second Ethernet port on NetDCUA9
+- Improve timer resolution on i.MX6 CPUs
+- New implementation for AX88796 ethernet controller
+- Fix timer implementation on i.MX6
+- Set pull-down on display signals on fsimx6/fsimx6sx/fsimx6ul
+- Add support for GAR1 and fix BoardType calculation
+- Improve USB power on fsimx6ul
+- [fsimx6/ul/sx] Do not update existing properties in the device tree
+- [fsimx6/sx/ul] Add reset_cause, nboot_version, u-boot_version to bdinfo
+- Fix typos in env_nand.c
+- [fsimx6/sx/ul] Add support for 2 GB RAM
+- [fsimx6/sx/ul] Enhance SDHC initialization, add eMMC support
+- Add recovergpio to all F&S boards
+- Add device tree support for fsvybrid
+- [fsimx6/ul/sx] U-Boot may overwrite device tree settings
+- Add possibility to add function board_preboot_os()
+- [fsimx6/ul/sx] Shut down PHYs before starting Linux
+- Allow DEL key to work in the command line
+- Fix handling of second ethernet port on PicoCOMA9X
+- [fsimx6sx] Enhance ethernet initialization
+- fec_mxc: Add support for MAC-MAC connections without PHY
+- Add support for CONT1
+- [fsimx6sx] Add support for Cortex-M4 core
+- [fsimx6sx] Leave memory space for RPMsg
+- [fsimx6sx] Add port speed setting for SJA1105
+- Improve hush parser command line handling
+- [fsimx6sx] Set CONFIG_NR_DRAM_BANKS to 2, improve dram_init_banksize()
+- [fsimx6/sx/ul] Add issue_reset(), handle RESETOUTn better
+- Improve bootaux command
+- Improve ehci-hcd USB driver
+- Fix setting of platform and sercon variables in board_late_init()
+- ehci-hcd: Shut down USB port power before booting OS
+- [fsimx6/sx/ul] Improve USB configuration
+- Add QBlissA9r2 board_info entry to fsimx6.c
+- [fsimx6/sx/ul] Rework USB support, add host support on OTG port
+- On efusA7UL use same strategy for CD/WP on SD ports as in Linux
+- Add support for CONFIG_NETCONSOLE to fsimx6/sx/ul/fsvybrid
+- Patch shared memory addresses for RPMsg in device tree on fsimx6sx
+- Some small final improvements to fsimx6/sx/ul/fsvybrid
+- Add function to reserve a RAM region in fdt on fsimx6sx
+- Fix drivestrength issues for SD ports on fsimx6/sx/ul
+
+
+
+u-boot-2014.07-fsvybrid-V2.2 (21.10.2016)
+-----------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, QBlissA9,
+                  efusA7UL, CubeA7UL, efusA9X, BemA9X, armStoneA5, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Reduce drive strength for ethernet clock signal on fsvybrid
+
+
+
+u-boot-2014.07-fsimx6sx-V2.0 (20.08.2016)
+-----------------------------------------
+
+No changes.
+
+
+
+u-boot-2014.07-fsimx6ul-V2.0 (18.08.2016)
+-----------------------------------------
+
+No changes.
+
+
+
+u-boot-2014.07-fsimx6-V3.0 (08.08.2016)
+---------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, efusA9, PicoMODA9, QBlissA9,
+                  efusA7UL, CubeA7UL, efusA9X, BemA9X
+Not tested:       armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY,
+                  armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix AIPS3 initialization on i.MX6-SoloX
+- Add missing FEAT2_ETH_MASK to fsimx6ul.c
+- Fix problem with large files on some USB sticks
+- If using ubifs, look for fdt in /boot (like the kernel)
+- Remove fsload variable from fsimx6, fsimx6sx and fsimx6ul
+- Set correct board_info values for CubeA7UL
+- Add status LED support for fsimx6
+- Prepare for compilation with gcc-5.x, remove warnings
+- Add support for armStoneA9r2
+- Add serverip to nfsroot when running .rootfs_nfs
+- Remove architecture prefix from device tree names
+- Add "dl" or "q" to device tree name on fsimx6, depending on actual CPU type
+- Additionally allow installation from RAM on regular F&S boards
+
+
+
+u-boot-2014.07-fsimx6sx-V1.0 (19.02.2016)
+-----------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9,
+                  armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY,
+                  BemA9X
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Add nand convert command (used on fsvybrid)
+- Fix ethernet on NetDCUA5 Board Rev 1.21
+- Add device tree support for fsimx6
+- Add support for BemA9X
+- Add missing .fdt_usb in fsimx6sx and fsimx6ul
+- Show more board infos on fsimx6sx and fsimx6ul
+- Do not power cycle USB hub ports, add usb_pgood_delay variable
+- On F&S boards set bootfdt variable to $arch-$platform.dtb
+
+
+
+u-boot-2014.07-fsimx6-V2.1 (23.12.2015)
+---------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9,
+                  armStoneA5, NetDCUA5, PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+Not tested:       armStoneA8, PicoMOD7A, NetDCU14
+
+- Fix bitflip handling in NAND driver
+- On fsvybrid, in case of uncorrectable NAND errors, return raw data now
+- On fsvybrid, NAND driver also works on flashes with more than 64 bytes OOB
+- Reduce progress line length in tftp/nfs to avoid wrap-around on 80 chars
+  terminals
+- Fix exception vector allocation and relocation
+- On fsimx6sx and fsimx6ul, add possibility to load FDT from UBI/UBIFS
+
+
+
+u-boot-2014.07-fsimx6ul-V1.0 (27.11.2015)
+-----------------------------------------
+Supported boards: efusA7UL, efusA9, efusA9X, armStoneA9, PicoMODA9, QBlissA9
+Not tested:       armStoneA5, armStoneA8, PicoMOD7A, NetDCU14, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+
+- Add AUTO_COMPLETE for fsvybrid, fsam335x and fss5pv210
+- Use new volume name format for ubifsmount
+- Add rootwait for asynchronuous root devices like SD Card
+- Add support for LEDs on HGATEWAY
+- Improve fsvybrid NAND driver, e.g. optimize count_zeroes() function
+- Rebase to u-boot-2014.04
+- Join Vybrid asm-offsets.c with arch/arm/lib/asm-offsets.c
+- Use objcopy to create uboot.nb0 in Makefile
+- Add fat_exists() function in F&S FAT implementation
+- Fix SD/MMC buswidth config on fsimx6 and fsvybrid
+- Activate workarounds for ARM errata 794072+761320 on fsimx6
+- Rebase to u-boot-2014.07
+- Use F&S variants for command interpreters
+- Make U-Boot binary layout work with F&S NBoot again
+- Use IOMUX_PADS() and SETUP_IOMUX_PADS() for fsimx6
+- Remove ARM erratum 742230 from fsimx6
+- Clean up code for update/install/recover infrastructure
+- Add support for i.MX6 Solo-X CPU
+- Add IOMUX_PADS() and SETUP_IOMUX_PADS() for i.MX6 Solo-X
+- Fix irqstaten value in fsl_esdhc driver
+- Add board_usb_phy_mode() to i.MX6 USB driver ehci-mx6.c
+- Add board support for fsimx6sx (efusA9X)
+- Disable warning message for not using generic board
+- Add support for Device Trees (FDT) for fsimx6sx
+- Add FDT partition and Android boot.img support
+- Trigger RESETOUTn at start on fsimx6sx
+- Add basic support for i.MX6UL (taken from rel_imx_3.14.38_6ul_ga)
+- Update necessary ARM errata workarounds for i.MX6
+- Add support for KSZ8081 ethernet PHY
+- Add support for fsimx6ul (efusA7UL)
+- Improve ethernet configuration, add second ETH on fsimx6sx
+- Use SION flag for I2C pads on i.MX6SX
+- Add Micrel KSZ8021/KSZ8031 to drivers/net/phy/micrel.c
+- Fix incorrect PHY name for DP83848
+- Remove unneeded 125MHz reference clock for ethernet on efusA9X
+- Switch LAN on fsvybrid to fec_mxc driver and use PHYLIB
+- During TFTP/NFS, show size and improve timeout handling
+- Improve LAN timeout timing on all F&S boards and modules
+- Backport cache_v7.c from u-boot-2015.07
+- Use CONFIG_SYS_ARM_CACHE_WRITETHROUGH on F&S boards and modules
+- Allow '.' for $loadaddr in mmc read and mmc write
+- Add support for config jumpers on fsimx6ul (needs NBoot VN27 or newer)
+- In fsl_esdhc.c, invalidate dcache twice to be sure
+
+
+
+u-boot-2014.01-fsimx6-V2.0 (22.04.2015)
+---------------------------------------
+Supported boards: armStoneA9, efusA9, PicoMODA9, QBlissA9
+Not tested:       armStoneA5, armStoneA8, PicoMOD7A, NetDCU14, NetDCUA5,
+                  PicoCOMA5, CUBEA5, AGATEWAY, HGATEWAY
+
+- Improve Ethernet support on fsvybrid (avoids a Vybrid hardware bug)
+- Add support for customer specific board HGATEWAY
+- Add basic support for fsimx6/armStoneA9 (previously done in separate tree)
+- Add MMC/SD card support to fsimx6
+- Convert i.MX6 serial driver to F&S serial driver concept
+- Fix kernel booting that failed for some boot strategies
+- Backport Atheros PHY driver from u-boot-2014.01
+- Add Ethernet support for fsimx6
+- Rebase to u-boot-2012.10
+- Modify F&S FAT driver to support reading from a file offset
+- Enable commands timer (start/get) and ini (load set of environment variables)
+- Enable support for EXT4 fileformat on F&S platforms
+- Add USB host support for fsimx6
+- Rebase to u-boot-2013.01
+- Add support for Thumb Mode compilation
+- Convert build process for fsvybrid to Thumb Mode (for size reasons)
+- Enable generic file support: ls, load
+- Enable gettime command that shows uptime since booting
+- Enable read command for raw reads from media without filesystem
+- Implement USB host for Vybrid CPU and activate it on fsvybrid boards
+- Rebase to u-boot-2013.04
+- Improve messages when reading from UBI
+- Drop support for fss3c64xx architecture (PicoMOD6, PicoCOM3)
+- Activate workarounds for some ARM errata on fsimx6
+- Rebase to u-boot-2013.07
+- Activate NAND support for fsimx6
+- Add F&S specific NAND implementation for i.MX6
+- Rebase to u-boot-2013.10
+- Fix env_nand.c to work with variable environment size again
+- Change NAND code to return bitflips on fsimx6, fsvybrid, fss5pv210
+- Add basic support for fsam335x/PicoCOMA8 (previously done in separate tree)
+- Convert serial_ns16550 driver used on fsa,335x to F&S serial driver concept
+- Add NAND flash support to fsam335x
+- Add MMC/SD card support to fsam335x
+- Add USB host support to fsam335x
+- Add Ethernet support to fsam335x
+- Convert build process for fsam335x to Thumb Mode (for size reasons)
+- Rebase to u-boot-2014.01
+- Add support for i.MX6 DualLite/Solo CPU to fsimx6
+- Change compilation process and board support on fsimx6 for new NBoot VN25
+- Change NAND page layout on fsimx6 to match the one from NBoot VN25
+- Heavily rework i.MX6 NAND driver, improve timings/clock settings, use longer
+  DMA chains: writing is now 4x faster, reading is 7x faster than before!
+- Support block refresh on fsimx6
+- Hide boot strategy variables by prefixing them with '.' instead of '_';
+  use printenv -a to see them again
+- Allow setting additional arguments for command line with variable $extra
+- Add basic support for PicoMODA9, QBlissA9 and efusA9
+- Add code for DP83484 PHY to phylib
+- Add Ethernet support for PicoMODA9, QBlissA9 and efusA9
+- Add SD card support for PicoMODA9, QBlissA9 and efusA9
+- Add USB host support for PicoMODA9, QBlissA9 and efusA9
+- Fix bug that caused imx-lib (i.MX6 audio/video acceleration) in Linux to fail
+- Fix update/install check (was broken because of new FAT partition handling)
+- Add earlyusbinit feature to allow better USB device detection (especially
+  behind USB Hubs), add to F&S board support, activate on efusA9
+- Fix console and login_tty settings tom make redirection to display work again
+- Allow arbitrary filesystem types on MMC and USB for update command
+- Update now sets variable updatedev to the device where the script was found
+
+
+u-boot-2012.07-fsvybrid-V2.1 (22.08.2014)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5, CUBEA5, AGATEWAY
+
+- Fix NAND ECC correction on fss3c64xx and fss5pv210
+- Do not reduce NAND size by skip size on fss3c64xx, fss5pv210 and fsvybrid
+- Handle empty NAND pages with bitflips on fsvybrid
+- Further improve NAND implementation on fsvybrid
+- Make _mtdparts_std/_mtdparts_ubionly work with more than one NAND device
+- Add _mode_rw/_mode_ro to make read/write similar to other boot strategies
+- Set bootargs value on start-up to allow simple calls of bootm, nboot, etc.
+- Add platform to fsvybrid environment
+- Switch NAND handling on fss3c64xx and fss5pv210 to fsvybrid style
+- Fix command nboot to allow loading a zImage
+- Switch environment handling on fss3c64xx and fss5pv210 to fsvybrid style
+- Use boot strategies from fsvybrid also on fss3c64xx and fss5pv210
+- Switch command line parsing to hush parser on fss3c64xx and fss5pv210
+- Fully support update/install/recover system on fss3c64xx and fss5pv210
+
+Remark: Architecture fss3c64xx is obsolete now; support for PicoMOD6
+        and PicoCOM3 will therefore be dropped in one of the next relases.
+
+
+u-boot-2012.07-fsvybrid-V2.0 (04.07.2014)
+-----------------------------------------
+Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5, AGATEWAY
+Not tested:       PicoMOD6, PicoMOD7A, PicoCOM3, armStoneA8, NetDCU14
+
+- Activate UBIFS on fsvybrid
+- Update mtdparts layout on Vybrid to support newer NBoot versions >= VN08
+- Add UBI-only mtdparts layout to fsvybrid
+- Do not use flash based bad block table on Vybrid anymore
+- Speed up creation of RAM based bad block table by just reading OOB on Vybrid
+- Also scan second page of a block for bad block marker
+- Completely new Vybrid NAND driver that uses hardware ECC with 16 correctable
+  bit errors now; the previous Freescale version only used software ECC with
+  a single correctable bit error; the new version is also faster
+- Bitflips are only reported with -EUCLEAN if their count exceeds a threshold
+- Add completely new block refresh procedure for blocks with many bitflips
+- Pass NBoot and M4 args to Linux, especially the NAND state from block refresh
+- Read ONFI data on ONFI capable NAND flashs
+- Improve handling of skip region, now also works in OOB-only reads/writes
+- Handle NBoot as skip region on fsvybrid (=no writes, reads as 0xff)
+- Don't let nand read/write exceed into next partition when bad blocks exist,
+  this would be fatal
+- Mark a block as bad when it can not be erased
+- Improve many NAND error messages, suggest marking block as bad if writes fail
+- Show precise error position when writes to NAND fail
+- Add nand read/write.oobauto to just load/store the user part of the OOB
+- Add optional nand torture command to intensely check a block for errors
+- Add support for second ESDHC port on Vybrid
+- Allow using FEC0 and FEC1 separately on Vybrid, improve MAC handling
+- Only start FEC if actually accessed; this speeds up the boot process
+- Improve PHY timing on Vybrid to make ethernet more robust
+- Add support for Micrel KSZ8081RNA Ethernet PHY
+- Add support for OTP fuses on Vybrid
+- If set, read MAC address(es) from OTP fuses on Vybrid
+- Remove setting of fec_mac from fsvybrid bootargs, not required anymore
+- Use a completely new and more flexible system for boot strategies
+- Improve system for board specific settings on fsvybrid
+- Add basic interrupt support for Vybrid
+- Add blink support and blink timer for Vybrid
+- Enhance LED support with blinking
+- Activate preboot command for fsvybrid (executed before boot delay)
+- Improve IOMUX handling on Vybrid
+- Add support for customer specific board AGATEWAY
+- Drop cubea5.h, fsvybrid.h can also be used for CUBEA5 and AGATEWAY now
+
+
+u-boot-2012.07-fsvybrid-V1.2 (23.02.2014)
+-----------------------------------------
+Supported boards: PicoCOMA5, armStoneA5, NetDCUA5, CUBEA5
+Not tested:       PicoMOD6, PicoMOD7A, PicoCOM3, armStoneA8, NetDCU14
+
+- Add LED support for fsvybrid boards
+- Implement clock subsystem for Vybrid, add support for 500MHz CPUs
+  * Replace constants by actual PLL accesses
+  * Add new clock values for DDR, ESDHC
+  * Remove duplicated clock initialization that is already done in NBoot
+  * Remove unneeded clock values
+  * Remove i.MX6 code that does not make sense on Vybrid
+- On Vybrid, show meaningful values in clocks command
+- Fix ESDHC handling on Vybrid
+- Optimize ubi command to make it usable from update command
+- Set filesize variable when reading from UBI volume
+- On command "ubi part" only scan partition anew if partition actually changes
+- Optimize ubifs command to make it usable from update command
+- On command ubifsmount only remount ubi volume if volume name actually changes
+- Optimize nand command to make it usable from update command
+- Completely new implementation of F&S update feature
+  * Support new device ram[@addr] to execute a script already in RAM
+  * Support new device <part>[+<offs>] to load a script from MTD partition
+  * Support new device <part>.ubi(<vol>) to load a script from ubifs volume
+  * Don't create unnecessary code if CONFIG settings don't afford it
+  * Add recovery feature (like update, but use different set of variables)
+  * New update command, see help update; replaces old update/install commands
+  * Improve text output shown during update/install/recover procedure
+- Use new update feature on F&S boards (fsvybrid)
+- Add separate configuration file for CUBEA5
+
+
+u-boot-2012.07-fsvybrid-V1.1 (16.12.2013)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5, CUBEA5
+
+- Add support for CUBEA5
+- Skip blanks in device names in installcheck/updatecheck
+
+
+
+u-boot-2012.07-fsvybrid-V1.0 (19.09.2013)
+-----------------------------------------
+Supported boards: PicoMOD6, PicoMOD7A, PicoCOM3, PicoCOMA5, armStoneA5,
+                  armStoneA8, NetDCU14, NetDCUA5
+
+In this release, the Vybrid boards are merged with the Multi-Platform
+Linux. Therefore this release is mainly targeted for F&S Vybrid
+boards. The other boards also have improvements (e.g. some SD card
+issues are solved) and should work nonetheless, but they are not
+thoroughly tested in this release.
+
+- Merge fsvybrid branch for U-Boot with Multi-Platform-Linux branch;
+  this adds platforms PicoCOMA5, armStoneA5, NetDCUA5
+- On serial ports, switch from serial port numbers to addresses
+- Improve serial driver for Vybrid to allow CONFIG_SERIAL_MULTI
+- Re-implement output for reset cause on Vybrid
+- Fix compiler warnings when compiling for Vybrid
+- Add common fsvybrid platform for PicoCOMA5, armStoneA5, NetDCUA5
+- Make fss3c64xx.h, fss5pv210.h and fsvybrid.h as similar as possible
+- Activate hush parser for all boards; this allows for better scripting
+- Optimize speed for SD cards and fix high speed issues
+- Increase command buffer size, remove jffs2 boot variables
+- Remove some remaining stuff from obsolete F&S MMC driver
+- Remove unused Samsung stuff
+- Also patch serial port for zImage decompressor on Vybrid
+- On fsvybrid, pass board revision via ATAG to Linux kernel
+
+
+
+u-boot-2012.07-f+s-V2.0 (20.11.2012)
+------------------------------------
+Supported boards: PicoMOD6, PicoCOM3, armStoneA8, NetDCU14, PicoMOD7A
+
+- Rebase to u-boot-2012.07
+- Add support for PicoMOD7A
+- New environment variables 'platform' and 'arch' that contain the
+  current board type and architecture
+- Completely new FAT/VFAT implementation (write support still missing)
+- New wildcard module to allow for '*' and '?' in path and file names;
+  currently only working in combination with FAT (fatls, fatload)
+- Improve output of device descriptions (indendation, interface)
+- Patch serial port in zImage (use by zImage decompressor), so the
+  same zImage can be used on boards with different default serial port
+- Allow different ECC modes by virtually splitting NAND; one for NBoot,
+  one for the rest; remove old nboot protection as the new scheme
+  allows a more generic protection per device
+- Fix ecc.bytes and ecc.layout->eccbytes settings
+- Allow a dynamic environment size depending on NAND blocksize
+- Reduce environment size on large NAND blocksizes
+- Allow different default mtdparts sizes depending on NAND blocksize
+- Allow using '.' as default argument in commands with addresses or
+  bootfiles; it is replaced by $(loadaddr) or $(bootfile) respectively
+- Combine PicoMOD6 and PicoCOM3 to a common fss3c64xx platform
+- Bring fss3c64xx in line with fss5pv210 platform
+- Allow board specific default serial port, set sercon variable to it
+- Improve serial driver for S3C64XX to allow CONFIG_SERIAL_MULTI
+- Use ttySACx (instead of s5p_uartx) as name for serial devices
+- Fix early access to serial port
+- Fix serial download
+- Fix generic SDHC driver on S5P
+- Add similar SDHC infrastructure for S3C64XX as for S5P and switch
+  from F&S NBoot MMC driver to generic SDHC driver
+- Add commands update and install to manually trigger installation
+- Improve update command, unused arguments can be skipped with '.'
+- Use NetLoop() instead of netboot_common() for network update/install
+- Allow board specific defaults for updcheck/instcheck
+- Change environment to use new bootz command for loading zImages
+- Remove support to access single files within UBIFS and JFFS2 images
+- Enable device tree support and fdt command
+- Enable unzip command
+- Disable bootelf, bootvx and itest commands
+- Add new default variables bootnfsdhcp, bootubidhcp, bootjffs2dhcp;
+  if called with run, Linux initializes the network devices with DHCP
+- Fix bootcmd to load to dynamic loadaddr instead of fix 0x41000000
+- Fix ethernet settings for boards with more than one port
+- RTC: remove reading of alarm values, they are not used anyway
+
+
+
+u-boot-2011.12-armstonea8-V1.1 (22.05.2012)
+-------------------------------------------
+Supported boards: armStoneA8
+
+This is another interim release targeted to armStoneA8 only (PicoMOD6
+and PicoCOM3 won't work).
+
+- New autoload mechanism to support automatic installation and
+  updates; check on mmc0:1 and usb0:1 by default
+- Increase malloc heap (ubi part failed with large MTD partitions)
+- Don't add CONFIG_ENV_SIZE twice to final heap size
+- Support second LAN port, set pull-up for IRQ, set default eth1addr
+- New function for setting the MAC address on AX88796 LAN chip; this
+  allows for simpler code to set the MAC addresses on F&S boards
+- Recognize all the feature settings that are reported by NBoot
+- Show number of DRAM chips, LAN ports and CPU speed on startup
+- Fix ID for NetDCU14, add some NetDCU14 specific features
+- Add get_board_name() and get_sys_prompt() to allow for dynamic
+  strings (instead of only fix strings from the configuration)
+- Fix some warnings that appeared with new toolchain (GCC 4.6.3)
+
+
+
+u-boot-2011.12-armstonea8-V1.0 (13.04.2012)
+-------------------------------------------
+Supported boards: armStoneA8
+
+This is an interim release targeted to armStoneA8 only (PicoMOD6 and
+PicoCOM3 won't work). It is based on V1.2 with many improvements
+already in place, but many of these features are not yet complete.
+They will be mentioned in the next regular release.
+
+- Rebase to u-boot-2011.12
+- Enable NE2000 ethernet driver to use CONFIG_NET_MULTI; improve DP_*
+  macros to support S5P
+- Add delay after powering USB root hub to detect USB storage devices
+  more reliably
+- Make size of uboot.nb0 configurable by platform configuration header
+  file; on armStoneA8, the size of uboot.nb0 is 384K
+- Add drivers/mtd/nand/s5p_nand.c to support NAND on S5P
+- Add drivers/usb/host/{ehci,ohci}-s5p.c to support EHCI and OHCI USB
+  drivers on S5P
+- Add drivers/rtc/s5p_rtc.c to support real time clock on S5P
+- New timer module arch/arm/cpu/armv7/s5p-common/timer.c that counts
+  from 0xffffffff down; is simpler, creates less code
+- Fix timing computation in drivers/usb/host/ehci-hcd.c and net/net.c
+  that silently assumed a timer tick time of 1ms
+- Extended info in arc/arm/cpu/armv7/s5p-common/cpu_info.c;
+  arch_cpu_init() must not use variables, store in global data instead
+- Improve definition of registers, cpu detection, gpio pin numbers,
+  include files to better support S5P
+- Add check for deleted long dir entries in fs/fat/fat.c
+- Make autoload_script() work with CONFIG_GENERIC_MMC; however this
+  feature will be reworked and is disabled by default in this version
+- Use mach=armv6 instead mach=armv5 as in default u-boot
+- New stdio_dev system to support LCD output better; change serial
+  lines to support this
+- LCD configuration and output is heavily reworked; however it is not
+  yet complete and therefore disabled in this version
+- Support armStoneA8, NetDCU14 (and EASYsom1) in one binary: detect
+  board type and RAM size at runtime, set prompt string, RAM base
+  and default loadaddr accordingly
+- Make loading functions load at address given in environment variable
+  loadaddr, not at fix address CONFIG_SYS_LOAD_ADDR
+- Support UBI and UBIFS, activate appropriate commands
+
+
+u-boot-1.3.4-picomod6-picocom3-V1.2 (05.09.2011)
+------------------------------------------------
+Supported boards: PicoMOD6, PicoCOM3
+
+- Add support for PicoCOM3
+- Fix display power-on/power-off sequence
+- Fix display buffer enable signal (BUF_ENA)
+- Fix "lcd ponseq" and "lcd poffseq" commands
+- Optimize udelay() function
+- Remove some unneeded code
+
+
+u-boot-1.3.4-picomod6-V1.1 (07.06.2011)
+---------------------------------------
+Supported boards: PicoMOD6
+
+- New MMC driver for MMC/SD-Cards, supports external SD-Slot (mmc 0)
+  and on-board Micro-SD-Slot (mmc 1); use after mmcinit
+- New environment variables autoload, autoaddr, autommc and autousb to
+  allow automatic start of an autoscript file from SD-Card or USB
+  stick; this can be used to automatically install software and is
+  therefore enabled by default (clear variables if not wanted)
+- New command line parser to allow quoting with "..." and '...'; this
+  also keeps several words grouped as one argument
+- New LCD driver with up to five overlay windows with arbitrary size,
+  position; support for alpha blending and color keying and 14
+  different pixel formats (1, 2, 4, 8 bpp with color map, and up to 28
+  bits per pixel RGBA-8884 truecolor)
+- New command "lcd" to set and show all display parameters
+- New command "win" to set and show all window parameters
+- List of predefined LCD panels (rather short now, but will be
+  expanded in the future)
+- New command "cmap" to handle color maps
+- New command "fbpool" to handle the framebuffers of the windows
+- New commands "draw" and "adraw" to draw pixels, lines, frames, filled
+  rectangles, circles, filled discs, turtle polygons, text, bitmaps
+  and four different test images; draw simply stores the alpha value
+  to the window, adraw directly applys alpha to the current window
+  content.
+- Support for BMP and PNG bitmaps; bitmaps can be grouped to
+  "multi-bitmaps" and each individual bitmap can be accessed; bitmaps
+  can be drawn with double width and/or double height
+- Text can have attributes bold, inverse, underline, strike-through,
+  double width, double height and transparent; however only one font
+  with 8x16 pixels is available
+- New command "bminfo" to list infos of the bitmaps in a multi-bitmap
+- New automatically generated environment variables "lcd" and "win0"
+  to "win4" holding the current LCD and window configuration. These
+  can be used to permanently store the display settings.
+- New environment variable "splashcmd" that is executed after
+  initalizing the display, e.g. to show a splash screen (boot logo)
+- Improved console devices to support different consoles; e.g. there
+  can be a console on each LCD window
+- Console settings (stdin, stdout, stderr) can be stored in the
+  environment; useful if the console should not appear on the LCD
+- Using the MMU now; however the data cache is not enabled by default
+  as the USB driver will not work then; you can say "dcache on" to
+  enable the data cache manually
+- Support for FAT media without partition table; handle FAT16 root
+  directory correctly
+- Timing is now correct (was way too fast); this also improves USB
+  stick recognition
+- New highly optimized memory functions in assembler (memcpy, memmove,
+  memset, memset32)
+- Compiler now optimizes code for ARMv6 (ARM11)
+- Several small fixes, no compiler warnings anymore
+- Several fixes to reduce memory footprint
+- Removed some unnecessary debug messages
+- Removed serial download (loadb and loads); this was necessary to
+  keep the U-Boot binary size below 256KB.
+
+
+
+u-boot-1.3.4-picomod6-V1.0 (18.10.2010)
+---------------------------------------
+Supported boards: PicoMOD6
+
+- Added support for USB host (USB hubs and mass storage devices)
+- Added support for FAT filesystems (ported back from u-boot-2010.09
+  and enhanced)
+- Changed spare area layout to match the layout of NBoot, added ECC-8
+  support for NBoot region
+- Access to NBoot and U-Boot regions now actually works
+- Added new default partitions NBoot, UBoot and UBootEnv; this moves
+  the TargetFS to /dev/mtdblock5 in Linux
+- Increased Kernel partition from 2MB to 3MB
+- Added software protection for NBoot partition to avoid accidental
+  erasing, e.g. when calling "nand erase" without further parameters:
+    nand nboot [protect | unprotect]
+- Placed environment fix in NAND, removed support for MoviNand and
+  OneNand (not required on PicoMOD6); this reduced the image size
+  considerably
+- Reduced environment to 16KB; this allows for a bad block
+- Added support for sntp command (time synching with time server)
+- Removed command "reginfo" as it only produces empty output on ARM
+- Aligned strings when calling "help"
+- Added new environment variables for easy switching between NFS and
+  local boot and for testing kernels:
+    run bootnfs   --> switch to NFS boot (TargetFS mounted via NFS)
+    run bootlocal --> switch to local boot (TargetFS loaded from NAND)
+    run r         --> download & start kernel without storing to NAND
+- Added target "make uboot.nb0" to create image file that is padded to
+  256KB (required for NBoot); this target is also automatically built
+  when calling "make" without any arguments
+- Removed some debug strings that accidently slipped into the previus
+  releases
+
+
+u-boot-1.3.4-picomod6-V0.2 (05.02.2010)
+---------------------------------------
+Supported boards: PicoMOD6
+
+- Activate ethernet once to set MAC address
+
+
+u-boot-1.3.4-picomod6-V0.1 (22.01.2010)
+---------------------------------------
+Supported boards: PicoMOD6
+
+- First working version
+- Update of U-Boot only possible from NBoot

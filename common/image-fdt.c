@@ -29,6 +29,21 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef CONFIG_CMD_FDT
+extern struct fdt_header *working_fdt;
+#endif
+
+void set_working_fdt_addr(ulong addr)
+{
+	void __maybe_unused *buf;
+
+	buf = map_sysmem(addr, 0);
+#ifdef CONFIG_CMD_FDT
+	working_fdt = buf;
+#endif
+	env_set_hex("fdtaddr", addr);
+}
+
 static void fdt_error(const char *msg)
 {
 	puts("ERROR: ");
@@ -286,8 +301,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 	*of_flat_tree = NULL;
 	*of_size = 0;
 
-	img_addr = (argc == 0) ? image_load_addr :
-			simple_strtoul(argv[0], NULL, 16);
+	img_addr = (argc == 0) ? get_loadaddr() : simple_strtoul(argv[0], NULL, 16);
 	buf = map_sysmem(img_addr, 0);
 
 	if (argc > 2)
@@ -306,7 +320,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 			else if (images->fit_uname_os)
 				default_addr = (ulong)images->fit_hdr_os;
 			else
-				default_addr = image_load_addr;
+				default_addr = get_loadaddr();
 
 			if (fit_parse_conf(select, default_addr,
 					   &fdt_addr, &fit_uname_config)) {
@@ -319,7 +333,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 			} else
 #endif
 			{
-				fdt_addr = simple_strtoul(select, NULL, 16);
+				fdt_addr = parse_loadaddr(select, NULL);
 				debug("*  fdt: cmdline image address = 0x%08lx\n",
 				      fdt_addr);
 			}

@@ -59,7 +59,7 @@ static int do_cbfs_fsload(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* parse offset and count */
-	offset = simple_strtoul(argv[1], NULL, 16);
+	offset = parse_loadaddr(argv[1], NULL);
 	if (argc == 4)
 		count = simple_strtoul(argv[3], NULL, 16);
 	else
@@ -74,13 +74,15 @@ static int do_cbfs_fsload(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 1;
 	}
 
+	set_fileaddr(offset);
 	printf("reading %s\n", file_cbfs_name(file));
 
 	size = file_cbfs_read(file, (void *)offset, count);
 
 	printf("\n%ld bytes read\n", size);
 
-	env_set_hex("filesize", size);
+	/* Set fileaddr and filesize variables */
+	env_set_fileinfo(size);
 
 	return 0;
 }

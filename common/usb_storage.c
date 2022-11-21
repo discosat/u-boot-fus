@@ -153,7 +153,7 @@ int usb_stor_info(void)
 
 	if (usb_max_devs > 0) {
 		for (i = 0; i < usb_max_devs; i++) {
-			printf("  Device %d: ", i);
+			printf("Device %d:\n", i);
 			dev_print(&usb_dev_desc[i]);
 		}
 		return 0;
@@ -954,8 +954,35 @@ static void usb_stor_set_max_xfer_blk(struct usb_device *udev,
 	 * Windows 7 limiting transfers to 128 sectors for both USB2 and USB3
 	 * and Apple Mac OS X 10.11 limiting transfers to 256 sectors for USB2
 	 * and 2048 for USB3 devices.
+	 *
+	 * ### 09.08.2022 HK: Previously, the limit was set to 65535. But some
+	 * USB sticks can not work with more than 65534 blocks in one go, so
+	 * we used at most 65534. In addition there is a time limit of 5s for
+	 * bulk transfers (see usb.h). The more blocks we transfer in one go,
+	 * the higher the risk that we exceed the 5s limit on very slow devices.
+	 * Therefore we reduced the number again quite considerably to 32768.
+	 * This transferred at most 16 MB in one go and should be fine with all
+	 * USB 2.0 storage devices.
+	 *
+	 * In the meantime, mainline U-Boot also has addressed this issue as
+	 * seen above. However limiting to 240 sectors slows down USB access
+	 * considerably because USB polling for transfer completion is very
+	 * slow in U-Boot and that happens with each single transfer. So we
+	 * found a higher limit. Some USB3.1 sticks actually seem to have
+	 * trouble when bit 15 of the block count is set. So 0x7FFF should
+	 * be OK. To be safe, we use 0x7000 (28672, 14 MiB per transfer).
+	 *
+	 * With newer SCSI versions (SPC3), there is a register where the
+	 * maximum number of blocks for one transfer can be read out. We
+	 * should change the code below to read that register. Unfortunately
+	 * this is rather complicated. First load the page with the list of
+	 * available Virtual Product Data (VPD) pages, check for the
+	 * availability of the optional Block Limits VPD page (0xB0), load
+	 * the page and extract the MAXIMUM TRANSFER LENGTH field. If this
+	 * does not exist, use the default values anyway.
 	 */
-	unsigned short blk = 240;
+//###	unsigned short blk = 240;
+	unsigned short blk = 0x7000;
 
 #if CONFIG_IS_ENABLED(DM_USB)
 	size_t size;
@@ -1229,9 +1256,9 @@ static unsigned long usb_stor_write(struct blk_desc *block_dev, lbaint_t blknr,
 #if CONFIG_IS_ENABLED(BLK)
 	block_dev = dev_get_uclass_platdata(dev);
 	udev = dev_get_parent_priv(dev_get_parent(dev));
-	debug("\nusb_read: udev %d\n", block_dev->devnum);
+	debug("\nusb_write: udev %d\n", block_dev->devnum);
 #else
-	debug("\nusb_read: udev %d\n", block_dev->devnum);
+	debug("\nusb_write: udev %d\n", block_dev->devnum);
 	udev = usb_dev_desc[block_dev->devnum].priv;
 	if (!udev) {
 		debug("%s: No device\n", __func__);

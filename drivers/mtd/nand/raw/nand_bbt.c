@@ -419,7 +419,7 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 	ops.oobbuf = buf;
 	ops.ooboffs = 0;
 	ops.datbuf = NULL;
-	ops.mode = MTD_OPS_PLACE_OOB;
+	ops.mode = MTD_OPS_RAW;
 
 	for (j = 0; j < numpages; j++) {
 		/*
@@ -489,7 +489,14 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		BUG_ON(bd->options & NAND_BBT_NO_OOB);
 
-		ret = scan_block_fast(mtd, bd, from, buf, numpages);
+		/* If device has no bad block markers, all blocks are valid by
+		   definition. If we are within the skip area, we don't access
+		   the blocks anyway, so we can mark them valid, too. */
+		if ((this->options & NAND_NO_BADBLOCK) || (from < mtd->skip))
+			ret = 0;
+		else
+			ret = scan_block_fast(mtd, bd, from, buf, numpages);
+
 		if (ret < 0)
 			return ret;
 

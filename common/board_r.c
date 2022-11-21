@@ -70,6 +70,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifndef CONFIG_SYS_LOAD_ADDR
+#define CONFIG_SYS_LOAD_ADDR (CONFIG_SYS_SDRAM_BASE + CONFIG_SYS_LOAD_OFFS)
+#endif
+
 ulong monitor_flash_len;
 
 __weak int board_flash_wp_on(void)
@@ -488,8 +492,9 @@ static int initr_env(void)
 		    (unsigned long)map_to_sysmem(gd->fdt_blob));
 #endif
 
-	/* Initialize from environment */
-	image_load_addr = env_get_ulong("loadaddr", 16, image_load_addr);
+	/* Initialize load address; the internal value is set via callback */
+	env_set_hex("loadaddr",
+		    env_get_ulong("loadaddr", 16, CONFIG_SYS_LOAD_ADDR));
 
 	return 0;
 }

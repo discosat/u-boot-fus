@@ -47,17 +47,6 @@
 # endif
 #endif	/* CONFIG_ENV_IS_IN_FLASH */
 
-#if defined(CONFIG_ENV_IS_IN_NAND)
-# if defined(CONFIG_ENV_OFFSET_OOB)
-#  ifdef CONFIG_ENV_OFFSET_REDUND
-#   error "CONFIG_ENV_OFFSET_REDUND is not supported when CONFIG_ENV_OFFSET_OOB"
-#   error "is set"
-#  endif
-extern unsigned long nand_env_oob_offset;
-#  define CONFIG_ENV_OFFSET nand_env_oob_offset
-# endif /* CONFIG_ENV_OFFSET_OOB */
-#endif /* CONFIG_ENV_IS_IN_NAND */
-
 /*
  * For the flash types where embedded env is supported, but it cannot be
  * calculated automatically (i.e. NAND), take the board opt-in.
@@ -89,6 +78,9 @@ extern unsigned long nand_env_oob_offset;
  * If the environment is in RAM, allocate extra space for it in the malloc
  * region.
  */
+#if 1 //###
+#define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
+#else //###
 #if defined(CONFIG_ENV_IS_EMBEDDED)
 #define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #elif (CONFIG_ENV_ADDR + CONFIG_ENV_SIZE < CONFIG_SYS_MONITOR_BASE) || \
@@ -98,6 +90,7 @@ extern unsigned long nand_env_oob_offset;
 #else
 #define	TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
 #endif
+#endif //1/0 ###
 
 typedef struct environment_s {
 	uint32_t	crc;		/* CRC32 over data bytes	*/

@@ -31,28 +31,26 @@
 #include <fsl_esdhc_imx.h>
 #endif
 
-static u32 reset_cause = -1;
-
 u32 get_imx_reset_cause(void)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+	DECLARE_GLOBAL_DATA_PTR;
 
-	if (reset_cause == -1) {
-		reset_cause = readl(&src_regs->srsr);
+	if (!gd->arch.reset_cause) {
+		struct src *src_regs = (struct src *)SRC_BASE_ADDR;
+
+		gd->arch.reset_cause = readl(&src_regs->srsr);
+
 /* preserve the value for U-Boot proper */
-#if !defined(CONFIG_SPL_BUILD) && !defined(CONFIG_ANDROID_BOOT_IMAGE)
-		/* We will read the ssrs states later for android so we don't
-		 * clear the states here.
-		 */
-		writel(reset_cause, &src_regs->srsr);
+#if !defined(CONFIG_SPL_BUILD)
+		writel(gd->arch.reset_cause, &src_regs->srsr);
 #endif
 	}
 
-	return reset_cause;
+	return gd->arch.reset_cause;
 }
 
 #if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
-static char *get_reset_cause(void)
+const char *get_reset_cause(void)
 {
 	switch (get_imx_reset_cause()) {
 	case 0x00001:
@@ -98,11 +96,7 @@ static char *get_reset_cause(void)
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 void get_reboot_reason(char *ret)
 {
-	struct src *src_regs = (struct src *)SRC_BASE_ADDR;
-
-	strcpy(ret, (const char *)get_reset_cause());
-	/* clear the srsr here, its state has been recorded in reset_cause */
-	writel(reset_cause, &src_regs->srsr);
+	strcpy(ret, get_reset_cause());
 }
 #endif
 #endif
@@ -193,20 +187,19 @@ const char *get_imx_type(u32 imxtype)
 	}
 }
 
+#ifndef CONFIG_ARCH_MX7ULP
 int print_cpuinfo(void)
 {
-	u32 cpurev;
-	__maybe_unused u32 max_freq;
+	u32 cpurev = get_cpu_rev();
+	int ret = 0;
+	u32 max_freq;
+	int minc, maxc;
+	char *temp;
+
 #if defined(CONFIG_DBG_MONITOR)
 	struct dbg_monitor_regs *dbg =
 		(struct dbg_monitor_regs *)DEBUG_MONITOR_BASE_ADDR;
 #endif
-
-	cpurev = get_cpu_rev();
-
-#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
-	struct udevice *thermal_dev;
-	int cpu_tmp, minc, maxc, ret;
 
 	printf("CPU:   i.MX%s rev%d.%d",
 	       get_imx_type((cpurev & 0x1FF000) >> 12),
@@ -216,50 +209,47 @@ int print_cpuinfo(void)
 	if (!max_freq || max_freq == mxc_get_clock(MXC_ARM_CLK)) {
 		printf(" at %dMHz\n", mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	} else {
-		printf(" %d MHz (running at %d MHz)\n", max_freq / 1000000,
+		printf(", %d MHz (running at %d MHz)\n", max_freq / 1000000,
 		       mxc_get_clock(MXC_ARM_CLK) / 1000000);
 	}
-#else
-	printf("CPU:   i.MX%s rev%d.%d at %d MHz\n",
-		get_imx_type((cpurev & 0x1FF000) >> 12),
-		(cpurev & 0x000F0) >> 4,
-		(cpurev & 0x0000F) >> 0,
-		mxc_get_clock(MXC_ARM_CLK) / 1000000);
-#endif
 
-#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
-	puts("CPU:   ");
 	switch (get_cpu_temp_grade(&minc, &maxc)) {
 	case TEMP_AUTOMOTIVE:
-		puts("Automotive temperature grade ");
+		temp = "Automotive";
 		break;
 	case TEMP_INDUSTRIAL:
-		puts("Industrial temperature grade ");
+		temp = "Industrial";
 		break;
 	case TEMP_EXTCOMMERCIAL:
-		puts("Extended Commercial temperature grade ");
+		temp = "Extended Commercial";
 		break;
 	default:
-		puts("Commercial temperature grade ");
+		temp = "Commercial";
 		break;
 	}
-	printf("(%dC to %dC)", minc, maxc);
-#if	defined(CONFIG_NXP_TMU)
-	ret = uclass_get_device_by_name(UCLASS_THERMAL, "cpu-thermal", &thermal_dev);
-#else
-	ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
-#endif
-	if (!ret) {
-		ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+	printf("CPU:   %s temperature grade (%dC to %dC)", temp, minc, maxc);
+#if defined(CONFIG_IMX_THERMAL) || defined(CONFIG_NXP_TMU)
+	{
+		struct udevice *thermal_dev;
+		int cpu_tmp;
 
-		if (!ret)
-			printf(" at %dC\n", cpu_tmp);
-		else
-			debug(" - invalid sensor data\n");
-	} else {
-		debug(" - invalid sensor device\n");
+		/*
+		 * 23.08.2022 HK: WARNING!
+		 * print_cpuinfo() is called in the board_f phase where no
+		 * global variables should be used. However probing the TMU
+		 * driver violates this rule and causes damages to the device
+		 * tree. So do not use CONFIG_NXP_TMU for now.
+		 */
+		ret = uclass_get_device(UCLASS_THERMAL, 0, &thermal_dev);
+		if (!ret) {
+			ret = thermal_get_temp(thermal_dev, &cpu_tmp);
+			if (!ret)
+				printf(" running at %dC", cpu_tmp);
+		}
 	}
 #endif
+
+	puts("\n");
 
 #if defined(CONFIG_DBG_MONITOR)
 	if (readl(&dbg->snvs_addr))
@@ -269,16 +259,19 @@ int print_cpuinfo(void)
 		       readl(&dbg->snvs_info));
 #endif
 
-	printf("Reset cause: %s\n", get_reset_cause());
-	return 0;
+	get_imx_reset_cause();
+	printf("Reset: %s\n", get_reset_cause());
+
+	return ret;
 }
+#endif
 #endif
 
 int cpu_eth_init(bd_t *bis)
 {
 	int rc = -ENODEV;
 
-#if defined(CONFIG_FEC_MXC)
+#if defined(CONFIG_FEC_MXC) && defined(CONFIG_FEC_MXC_PHYADDR)
 	rc = fecmxc_initialize(bis);
 #endif
 
@@ -337,7 +330,8 @@ void arch_preboot_os(void)
 #endif
 	}
 #endif
-#if defined(CONFIG_LDO_BYPASS_CHECK)
+
+#if 0 /* function need to be exist in board file defined(CONFIG_LDO_BYPASS_CHECK) */
 	ldo_mode_set(check_ldo_bypass());
 #endif
 #if defined(CONFIG_VIDEO_IPUV3)

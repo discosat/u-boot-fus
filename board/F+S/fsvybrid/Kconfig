@@ -1,0 +1,18 @@
+if TARGET_FSVYBRID
+
+config SYS_CPU
+	default "armv7"
+
+config SYS_BOARD
+	default "fsvybrid"
+
+config SYS_VENDOR
+	default "F+S"
+
+config SYS_SOC
+	default "vybrid"
+
+config SYS_CONFIG_NAME
+	default "fsvybrid"
+
+endif

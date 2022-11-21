@@ -28,10 +28,10 @@ struct nand_flash_dev;
 struct device_node;
 
 /* Get the flash and manufacturer id and lookup if the type is supported. */
-struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
-					   struct nand_chip *chip,
-					   int *maf_id, int *dev_id,
-					   struct nand_flash_dev *type);
+const struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
+					struct nand_chip *chip,
+					int *maf_id, int *dev_id,
+					const struct nand_flash_dev *type);
 
 /* Scan and identify a NAND device */
 int nand_scan(struct mtd_info *mtd, int max_chips);
@@ -40,7 +40,7 @@ int nand_scan(struct mtd_info *mtd, int max_chips);
  * and override command or ECC setup according to flash type.
  */
 int nand_scan_ident(struct mtd_info *mtd, int max_chips,
-			   struct nand_flash_dev *table);
+		    const struct nand_flash_dev *table);
 int nand_scan_tail(struct mtd_info *mtd);
 
 /* Free resources held by the NAND device */
@@ -218,6 +218,12 @@ enum nand_ecc_algo {
 
 /* Device needs 3rd row address cycle */
 #define NAND_ROW_ADDR_3		0x00004000
+
+/* F&S Extensions */
+/* Chip is software write-protected */
+#define NAND_SW_WRITE_PROTECT	0x08000000
+/* Chip can't use bad block marker because of special type of ECC */
+#define NAND_NO_BADBLOCK	0x04000000
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS NAND_CACHEPRG
@@ -650,12 +656,21 @@ static inline int nand_standard_page_accessors(struct nand_ecc_ctrl *ecc)
  * Do not change the order of buffers. databuf and oobrbuf must be in
  * consecutive order.
  */
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+/* Use malloc to allocate */
+struct nand_buffers {
+	uint8_t	*ecccalc;
+	uint8_t	*ecccode;
+	uint8_t *databuf;
+};
+#else
 struct nand_buffers {
 	uint8_t	ecccalc[ALIGN(NAND_MAX_OOBSIZE, ARCH_DMA_MINALIGN)];
 	uint8_t	ecccode[ALIGN(NAND_MAX_OOBSIZE, ARCH_DMA_MINALIGN)];
 	uint8_t databuf[ALIGN(NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE,
 			      ARCH_DMA_MINALIGN)];
 };
+#endif
 
 /**
  * struct nand_sdr_timings - SDR NAND chip timings
@@ -931,7 +946,7 @@ struct nand_chip {
 	uint64_t chipsize;
 	int pagemask;
 	int pagebuf;
-	unsigned int pagebuf_bitflips;
+	int pagebuf_bitflips;
 	int subpagesize;
 	uint8_t bits_per_cell;
 	uint16_t ecc_strength_ds;
@@ -990,7 +1005,7 @@ static inline struct mtd_info *nand_to_mtd(struct nand_chip *chip)
 	return &chip->mtd;
 }
 
-static inline void *nand_get_controller_data(struct nand_chip *chip)
+static inline void *nand_get_controller_data(const struct nand_chip *chip)
 {
 	return chip->priv;
 }
@@ -1270,6 +1285,27 @@ static inline int jedec_feature(struct nand_chip *chip)
 	return chip->jedec_version ? le16_to_cpu(chip->jedec_params.features)
 		: 0;
 }
+
+/* F&S Extensions */
+void nand_swprotect(struct mtd_info *mtd, int bProtected);
+int nand_is_swprotected(struct mtd_info *mtd);
+
+#ifdef CONFIG_NAND_REFRESH
+#ifdef CONFIG_NAND_REFRESH_DEBUG
+#define nr_debug(args...) printf("--> " args)
+#else
+#define nr_debug(args...)
+#endif
+
+/* State of the NAND system; see nand_refresh.c for description */
+#define NAND_REFRESH_STATE_INSTABLE  0x01
+#define NAND_REFRESH_STATE_EMERGENCY 0x02
+#define NAND_REFRESH_STATE_DATALOSS  0x04
+extern loff_t nand_refresh_final_offset(struct mtd_info *mtd, loff_t offset);
+extern void nand_refresh_free_backup(struct mtd_info *mtd);
+extern int nand_refresh(struct mtd_info *mtd, loff_t refreshoffs);
+extern void nand_refresh_init(struct mtd_info *mtd);
+#endif /* CONFIG_NAND_REFRESH */
 
 /* Standard NAND functions from nand_base.c */
 void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len);

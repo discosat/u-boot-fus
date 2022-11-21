@@ -144,7 +144,6 @@
 #include <mmc.h>
 #include <nand.h>
 #include <sdp.h>
-#include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <asm/sections.h>
 
 #include "fs_board_common.h"		/* fs_board_*() */

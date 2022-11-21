@@ -1,0 +1,14 @@
+if TARGET_FSIMX8MP
+
+config SYS_BOARD
+	default "fsimx8mp"
+
+config SYS_VENDOR
+	default "F+S"
+
+config SYS_CONFIG_NAME
+	default "fsimx8mp"
+
+source "board/F+S/common/Kconfig"
+
+endif

@@ -398,11 +398,13 @@ static void fec_rbd_clean(int last, struct fec_bd *prbd)
 	writew(0, &prbd->data_length);
 }
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 static int fec_get_hwaddr(int dev_id, unsigned char *mac)
 {
 	imx_get_mac_from_fuse(dev_id, mac);
 	return !is_valid_ethaddr(mac);
 }
+#endif
 
 #ifdef CONFIG_DM_ETH
 static int fecmxc_set_hwaddr(struct udevice *dev)
@@ -531,8 +533,20 @@ static int fec_open(struct eth_device *edev)
 	}
 #endif
 
+	/* Determine default speed from link type, PHY may override */
+	switch (fec->xcv_type) {
+	case MII10:
+		speed = _10BASET;
+		break;
+	default:
+		speed = _100BASET;
+		break;
+	case RGMII:
+		speed = _1000BASET;
+		break;
+	}
 #ifdef CONFIG_PHYLIB
-	{
+	if (fec->phydev) {
 		/* Start up the PHY */
 		int ret = phy_startup(fec->phydev);
 
@@ -546,9 +560,11 @@ static int fec_open(struct eth_device *edev)
 #elif CONFIG_FEC_FIXED_SPEED
 	speed = CONFIG_FEC_FIXED_SPEED;
 #else
-	miiphy_wait_aneg(edev);
-	speed = miiphy_speed(edev->name, fec->phy_id);
-	miiphy_duplex(edev->name, fec->phy_id);
+	if (fec->bus) {
+		miiphy_wait_aneg(edev);
+		speed = miiphy_speed(edev->name, fec->phy_id);
+		miiphy_duplex(edev->name, fec->phy_id);
+	}
 #endif
 
 #ifdef FEC_QUIRK_ENET_MAC
@@ -602,7 +618,7 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 
 	fec_reg_setup(fec);
 
-	if (fec->xcv_type != SEVENWIRE)
+	if (fec->bus && (fec->xcv_type != SEVENWIRE))
 		fec_mii_setspeed(fec->bus->priv, fec->dev_id);
 
 	/* Set Opcode/Pause Duration Register */
@@ -633,7 +649,7 @@ static int fec_init(struct eth_device *dev, bd_t *bd)
 	writel((uint32_t)addr, &fec->eth->erdsr);
 
 #ifndef CONFIG_PHYLIB
-	if (fec->xcv_type != SEVENWIRE) {
+	if (fec->bus && (fec->xcv_type != SEVENWIRE)) {
 		int ret = miiphy_restart_aneg(dev);
 		if (ret)
 			return ret;
@@ -1101,17 +1117,18 @@ __weak void init_clk_fec(int index)
 
 #ifndef CONFIG_DM_ETH
 #ifdef CONFIG_PHYLIB
-int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, struct phy_device *phydev)
+int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,	struct mii_dev *bus,
+	      struct phy_device *phydev, enum xceiver_type xcv_type)
 #else
 static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
-		struct mii_dev *bus, int phy_id)
+		struct mii_dev *bus, int phy_id, enum xceiver_type xcv_type)
 #endif
 {
 	struct eth_device *edev;
 	struct fec_priv *fec;
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 	unsigned char ethaddr[6];
-	char mac[16];
+#endif
 	uint32_t start;
 	int ret = 0;
 
@@ -1147,7 +1164,7 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec->eth = (struct ethernet_regs *)(ulong)base_addr;
 	fec->bd = bd;
 
-	fec->xcv_type = CONFIG_FEC_XCV_TYPE;
+	fec->xcv_type = xcv_type;
 
 	/* Reset chip. */
 	writel(readl(&fec->eth->ecntrl) | FEC_ECNTRL_RESET, &fec->eth->ecntrl);
@@ -1164,12 +1181,15 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	fec_set_dev_name(edev->name, dev_id);
 	fec->dev_id = (dev_id == -1) ? 0 : dev_id;
 	fec->bus = bus;
-	fec_mii_setspeed(bus->priv, fec->dev_id);
+	if (bus)
+		fec_mii_setspeed(bus->priv, fec->dev_id);
 #ifdef CONFIG_PHYLIB
 	fec->phydev = phydev;
-	phy_connect_dev(phydev, edev);
-	/* Configure phy */
-	phy_config(phydev);
+	if (phydev) {
+		phy_connect_dev(phydev, edev);
+		/* Configure phy */
+		phy_config(phydev);
+	}
 #else
 	fec->phy_id = phy_id;
 #endif
@@ -1177,7 +1197,10 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 	/* only support one eth device, the index number pointed by dev_id */
 	edev->index = fec->dev_id;
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 	if (fec_get_hwaddr(fec->dev_id, ethaddr) == 0) {
+		char mac[16];
+
 		debug("got MAC%d address from fuse: %pM\n", fec->dev_id, ethaddr);
 		memcpy(edev->enetaddr, ethaddr, 6);
 		if (fec->dev_id)
@@ -1187,6 +1210,7 @@ static int fec_probe(bd_t *bd, int dev_id, uint32_t base_addr,
 		if (!env_get(mac))
 			eth_env_set_enetaddr(mac, ethaddr);
 	}
+#endif
 	return ret;
 err4:
 	fec_free_descs(fec);
@@ -1198,7 +1222,9 @@ err1:
 	return ret;
 }
 
-int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
+int fecmxc_initialize_multi_type_if_mode(bd_t *bd, int dev_id, int phy_id,
+				 uint32_t addr, enum xceiver_type xcv_type,
+				 phy_interface_t if_mode)
 {
 	uint32_t base_mii;
 	struct mii_dev *bus = NULL;
@@ -1225,19 +1251,19 @@ int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
 #endif
 	init_clk_fec(dev_id);
 	debug("eth_init: fec_probe(bd, %i, %i) @ %08x\n", dev_id, phy_id, addr);
-	bus = fec_get_miibus(base_mii, dev_id);
+	bus = fec_get_miibus((ulong)base_mii, dev_id);
 	if (!bus)
 		return -ENOMEM;
 #ifdef CONFIG_PHYLIB
-	phydev = phy_find_by_mask(bus, 1 << phy_id, PHY_INTERFACE_MODE_RGMII);
+	phydev = phy_find_by_mask(bus, 1 << phy_id, if_mode);
 	if (!phydev) {
 		mdio_unregister(bus);
 		free(bus);
 		return -ENOMEM;
 	}
-	ret = fec_probe(bd, dev_id, addr, bus, phydev);
+	ret = fec_probe(bd, dev_id, addr, bus, phydev, xcv_type);
 #else
-	ret = fec_probe(bd, dev_id, addr, bus, phy_id);
+	ret = fec_probe(bd, dev_id, addr, bus, phy_id, xcv_type);
 #endif
 	if (ret) {
 #ifdef CONFIG_PHYLIB
@@ -1249,11 +1275,24 @@ int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
 	return ret;
 }
 
+int fecmxc_initialize_multi_type(bd_t *bd, int dev_id, int phy_id,
+			 	uint32_t addr, enum xceiver_type xcv_type)
+{
+	return fecmxc_initialize_multi_type_if_mode(bd, dev_id, phy_id, addr,
+					xcv_type, PHY_INTERFACE_MODE_RGMII);
+}
+
+int fecmxc_initialize_multi(bd_t *bd, int dev_id, int phy_id, uint32_t addr)
+{
+	return fecmxc_initialize_multi_type(bd, dev_id, phy_id, addr,
+					    CONFIG_FEC_XCV_TYPE);
+}
+
 #ifdef CONFIG_FEC_MXC_PHYADDR
 int fecmxc_initialize(bd_t *bd)
 {
-	return fecmxc_initialize_multi(bd, -1, CONFIG_FEC_MXC_PHYADDR,
-			IMX_FEC_BASE);
+	return fecmxc_initialize_multi_type(bd, -1, CONFIG_FEC_MXC_PHYADDR,
+					    IMX_FEC_BASE, CONFIG_FEC_XCV_TYPE);
 }
 #endif
 
@@ -1268,6 +1307,7 @@ int fecmxc_register_mii_postcall(struct eth_device *dev, int (*cb)(int))
 
 #else
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 static int fecmxc_read_rom_hwaddr(struct udevice *dev)
 {
 	struct fec_priv *priv = dev_get_priv(dev);
@@ -1275,6 +1315,7 @@ static int fecmxc_read_rom_hwaddr(struct udevice *dev)
 
 	return fec_get_hwaddr(priv->dev_id, pdata->enetaddr);
 }
+#endif
 
 static int fecmxc_free_pkt(struct udevice *dev, uchar *packet, int length)
 {
@@ -1291,7 +1332,9 @@ static const struct eth_ops fecmxc_ops = {
 	.free_pkt		= fecmxc_free_pkt,
 	.stop			= fecmxc_halt,
 	.write_hwaddr		= fecmxc_set_hwaddr,
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
 	.read_rom_hwaddr	= fecmxc_read_rom_hwaddr,
+#endif
 };
 
 static int device_get_phy_addr(struct udevice *dev)

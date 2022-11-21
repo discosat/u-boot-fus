@@ -40,6 +40,7 @@ obj-$(CONFIG_PXA_LCD) += pxa_lcd.o
 obj-$(CONFIG_SANDBOX_OSD) += sandbox_osd.o
 obj-$(CONFIG_S6E8AX0) += s6e8ax0.o
 obj-$(CONFIG_SCF0403_LCD) += scf0403_lcd.o
+obj-$(CONFIG_S3C64XX_XLCD) += s3c64xx_xlcd.o
 obj-$(CONFIG_VIDEO_ARM_MALIDP) += mali_dp.o
 obj-$(CONFIG_VIDEO_BCM2835) += bcm2835.o
 obj-$(CONFIG_VIDEO_BROADWELL_IGD) += broadwell_igd.o
@@ -76,6 +77,7 @@ obj-$(CONFIG_VIDEO_VADC) += mxc_vadc.o
 obj-$(CONFIG_VIDEO_CSI) += mxc_csi.o
 obj-$(CONFIG_VIDEO_PXP) += mxc_pxp.o
 obj-$(CONFIG_VIDEO_GIS) += mxc_gis.o
+obj-$(CONFIG_NT35521) += nt35521.o
 
 obj-y += bridge/
 obj-y += sunxi/

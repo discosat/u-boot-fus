@@ -30,9 +30,8 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
-		ld = image_load_addr;
-		debug("*  kernel: default image load address = 0x%08lx\n",
-				image_load_addr);
+		ld = images->ep = get_loadaddr();
+		debug("*  kernel: default image load address = 0x%08lx\n", ld);
 	} else {
 		ld = simple_strtoul(argv[0], NULL, 16);
 		debug("*  kernel: cmdline image address = 0x%08lx\n", ld);

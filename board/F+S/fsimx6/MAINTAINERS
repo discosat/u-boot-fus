@@ -1,0 +1,7 @@
+FSIMX6 BOARDS
+M:	Hartmut Keller <keller@fs-net.de>
+W:	www.fs-net.de
+S:	Maintained
+F:	board/F+S/fsimx6/
+F:	include/configs/fsimx6.h
+F:	configs/fsimx6_defconfig

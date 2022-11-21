@@ -22,6 +22,7 @@
 #include <watchdog.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
+#include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -72,7 +73,7 @@ static int do_mem_md(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		/* Address is specified since argc > 1
 		*/
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		addr += base_address;
 
 		/* If another parameter, it is the length to display.
@@ -127,7 +128,7 @@ static int do_mem_mw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	/* Address is specified since argc > 1
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	addr += base_address;
 
 	/* Get the value to write.
@@ -245,10 +246,10 @@ static int do_mem_cmp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	       size == 4 ? "word" :
 	       size == 2 ? "halfword" : "byte";
 
-	addr1 = simple_strtoul(argv[1], NULL, 16);
+	addr1 = parse_loadaddr(argv[1], NULL);
 	addr1 += base_address;
 
-	addr2 = simple_strtoul(argv[2], NULL, 16);
+	addr2 = parse_loadaddr(argv[2], NULL);
 	addr2 += base_address;
 
 	count = simple_strtoul(argv[3], NULL, 16);
@@ -315,7 +316,7 @@ static int do_mem_cp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if ((size = cmd_get_data_size(argv[0], 4)) < 0)
 		return 1;
 
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 	addr += base_address;
 
 	dest = simple_strtoul(argv[2], NULL, 16);
@@ -365,7 +366,7 @@ static int do_mem_base(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (argc > 1) {
 		/* Set new base address.
 		*/
-		base_address = simple_strtoul(argv[1], NULL, 16);
+		base_address = parse_loadaddr(argv[1], NULL);
 	}
 	/* Print the current base address.
 	*/
@@ -398,7 +399,7 @@ static int do_mem_loop(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Address is always specified.
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 
 	/* Length is the number of objects, not number of bytes.
 	*/
@@ -499,7 +500,7 @@ static int do_mem_loopw(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* Address is always specified.
 	*/
-	addr = simple_strtoul(argv[1], NULL, 16);
+	addr = parse_loadaddr(argv[1], NULL);
 
 	/* Length is the number of objects, not number of bytes.
 	*/
@@ -881,15 +882,29 @@ static int do_mem_mtest(cmd_tbl_t *cmdtp, int flag, int argc,
 	const int alt_test = 0;
 #endif
 
+#ifdef CONFIG_SYS_MEMTEST_START
 	start = CONFIG_SYS_MEMTEST_START;
+#else
+	start = CONFIG_SYS_SDRAM_BASE;
+#endif
+#ifdef CONFIG_SYS_MEM_TEST_END
 	end = CONFIG_SYS_MEMTEST_END;
+#else
+	/*
+	 * End before the stack. The stack is located before u-boot code at
+	 * the end of RAM. Unfortuntely we do not know the exact size of the
+	 * stack when memtest is called, but as this is typically directly
+	 * called from the main command loop, it should not exceed 16KB.
+	 */
+	end = gd->start_addr_sp - SZ_16K;
+#endif
 
 	if (argc > 1)
-		if (strict_strtoul(argv[1], 16, &start) < 0)
+		if (strict_parse_loadaddr(argv[1], &start) < 0)
 			return CMD_RET_USAGE;
 
 	if (argc > 2)
-		if (strict_strtoul(argv[2], 16, &end) < 0)
+		if (strict_parse_loadaddr(argv[2], &end) < 0)
 			return CMD_RET_USAGE;
 
 	if (argc > 3)
@@ -995,7 +1010,7 @@ mod_mem(cmd_tbl_t *cmdtp, int incrflag, int flag, int argc, char * const argv[])
 
 		/* Address is specified since argc > 1
 		*/
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		addr += base_address;
 	}
 

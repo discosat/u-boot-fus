@@ -164,9 +164,16 @@ here:
 # endif
 
 #if ! defined(CONFIG_SPL_BUILD)
-	bl coloured_LED_init
-	bl red_led_on
+#ifdef CONFIG_CMD_LED
+	ldr	lr, =coloured_LED_init
+	blx	lr
+#ifdef STATUS_LED_RED
+	ldr	lr, =red_led_on
+	blx	lr
 #endif
+#endif
+#endif
+
 	/* call board_init_r(gd_t *id, ulong dest_addr) */
 	mov     r0, r9                  /* gd_t */
 	ldr	r1, [r9, #GD_RELOCADDR]	/* dest_addr */

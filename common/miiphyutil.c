@@ -157,6 +157,24 @@ void mdio_list_devices(void)
 	}
 }
 
+/* Shutdown all PHYs on all MDIO busses */
+void mdio_shutdown_all(void)
+{
+	struct list_head *entry;
+
+	list_for_each(entry, &mii_devs) {
+		int i;
+		struct mii_dev *bus = list_entry(entry, struct mii_dev, link);
+
+		for (i = 0; i < PHY_MAX_ADDR; i++) {
+			struct phy_device *phydev = bus->phymap[i];
+
+			if (phydev)
+				phy_shutdown(phydev);
+		}
+	}
+}
+
 int miiphy_set_current_dev(const char *devname)
 {
 	struct mii_dev *dev;

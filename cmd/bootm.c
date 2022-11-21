@@ -110,7 +110,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc > 0) {
 		char *endp;
 
-		simple_strtoul(argv[0], &endp, 16);
+		parse_loadaddr(argv[0], &endp);
 		/* endp pointing to NULL means that argv[0] was just a
 		 * valid number, pass it along to the normal bootm processing
 		 *
@@ -127,6 +127,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	extern int authenticate_image(
 			uint32_t ddr_start, uint32_t raw_image_size);
 
+	ulong addr = get_loadaddr();
 #ifdef CONFIG_IMX_OPTEE
 	ulong tee_addr = 0;
 	int ret;
@@ -151,22 +152,22 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	};
 
-	ret = bootz_setup(image_load_addr, &zi_start, &zi_end);
+	ret = bootz_setup(addr, &zi_start, &zi_end);
 	if (ret != 0)
 		return 1;
 
-	if (authenticate_image(image_load_addr, zi_end - zi_start) != 0) {
+	if (authenticate_image(addr, zi_end - zi_start) != 0) {
 		printf("Authenticate zImage Fail, Please check\n");
 		return 1;
 	}
 
 #else
 
-	switch (genimg_get_format((const void *)image_load_addr)) {
+	switch (genimg_get_format((const void *)addr)) {
 #if defined(CONFIG_LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY:
-		if (authenticate_image(image_load_addr,
-			image_get_image_size((image_header_t *)image_load_addr)) != 0) {
+		if (authenticate_image(addr,
+			image_get_image_size((image_header_t *)addr)) != 0) {
 			printf("Authenticate uImage Fail, Please check\n");
 			return 1;
 		}
@@ -206,7 +207,7 @@ int bootm_maybe_autostart(cmd_tbl_t *cmdtp, const char *cmd)
 		local_args[0] = (char *)cmd;
 		local_args[1] = NULL;
 		printf("Automatic boot of image at addr 0x%08lX ...\n",
-		       image_load_addr);
+		       get_loadaddr());
 		return do_bootm(cmdtp, 0, 1, local_args);
 	}
 
@@ -223,7 +224,7 @@ static char bootm_help_text[] =
 	"\ta third argument is required which is the address of the\n"
 	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
 	"\tuse a '-' for the second argument. If you do not pass a third\n"
-	"\ta bd_info struct will be passed instead\n"
+	"\targument, a bd_info struct will be passed instead\n"
 #endif
 #if defined(CONFIG_FIT)
 	"\t\nFor the new multi component uImage format (FIT) addresses\n"
@@ -294,11 +295,11 @@ static int do_iminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int	rcode = 0;
 
 	if (argc < 2) {
-		return image_info(image_load_addr);
+		return image_info(get_loadaddr());
 	}
 
 	for (arg = 1; arg < argc; ++arg) {
-		addr = simple_strtoul(argv[arg], NULL, 16);
+		addr = parse_loadaddr(argv[arg], NULL);
 		if (image_info(addr) != 0)
 			rcode = 1;
 	}

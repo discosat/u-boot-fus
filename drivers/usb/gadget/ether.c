@@ -2065,7 +2065,12 @@ static int eth_bind(struct usb_gadget *gadget)
 	 * to choose the right configuration otherwise.
 	 */
 	if (rndis) {
-#if defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM)
+#if defined(CONFIG_USB_GADGET_RNDIS_VENDOR_NUM) && defined(CONFIG_USB_GADGET_RNDIS_PRODUCT_NUM)
+		device_desc.idVendor =
+			__constant_cpu_to_le16(CONFIG_USB_GADGET_RNDIS_VENDOR_NUM);
+		device_desc.idProduct =
+			__constant_cpu_to_le16(CONFIG_USB_GADGET_RNDIS_PRODUCT_NUM);
+#elif defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM)
 		device_desc.idVendor =
 			__constant_cpu_to_le16(CONFIG_USB_GADGET_VENDOR_NUM);
 		device_desc.idProduct =

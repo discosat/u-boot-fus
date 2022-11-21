@@ -92,8 +92,23 @@ struct mxc_i2c_bus {
 	};
 
 
+#define I2C_PADS_INFO(name) (is_mx6dq() || is_mx6dqp()) ? &mx6q_##name : &mx6s_##name
+#else
+#define I2C_PADS(name, scl_i2c, scl_gpio, scl_gp, sda_i2c, sda_gpio, sda_gp) \
+		struct i2c_pads_info mx6_##name = {		\
+			.scl = {				\
+				.i2c_mode = MX6_##scl_i2c,	\
+				.gpio_mode = MX6_##scl_gpio,	\
+				.gp = scl_gp,			\
+			},					\
+			.sda = {				\
+				.i2c_mode = MX6_##sda_i2c,	\
+				.gpio_mode = MX6_##sda_gpio,	\
+				.gp = sda_gp,			\
+			}					\
+		};
 #define I2C_PADS_INFO(name)	\
-	(is_mx6dq() || is_mx6dqp()) ? &mx6q_##name : &mx6s_##name
+		&mx6_##name
 #endif
 
 int setup_i2c(unsigned i2c_index, int speed, int slave_addr,

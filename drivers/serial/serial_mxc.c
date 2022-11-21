@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (c) 2007 Sascha Hauer <s.hauer@pengutronix.de>
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -76,6 +75,7 @@
 #define UFCR_RXTL_SHF	0	/* Receiver trigger level shift */
 #define UFCR_RFDIV	(7<<7)	/* Reference freq divider mask */
 #define UFCR_RFDIV_SHF	7	/* Reference freq divider shift */
+#define RFDIV		4	/* divide input clock by 2 */
 #define UFCR_DCEDTE	(1<<6)	/* DTE mode select */
 #define UFCR_TXTL_SHF	10	/* Transmitter trigger level shift */
 #define USR1_PARITYERR	(1<<15)	/* Parity error interrupt flag */
@@ -108,9 +108,8 @@
 #define UTS_RXFULL	(1<<3)	/* RxFIFO full */
 #define UTS_SOFTRST	(1<<0)	/* Software reset */
 
-#define TXTL		2 	/* reset default */
-#define RXTL		1	/* reset default */
-#define RFDIV		4	/* divide input clock by 2 */
+#define TXTL		2  /* reset default */
+#define RXTL		1  /* reset default */
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -140,7 +139,7 @@ struct mxc_uart {
 	u32 ts;
 };
 
-static void _mxc_serial_init(struct mxc_uart *base)
+static void _mxc_serial_init(struct mxc_uart *base, int use_dte)
 {
 	if (readl(&base->cr2) & UCR2_TXEN)
 		while (!(readl(&base->sr2) & USR2_TXDC));
@@ -149,6 +148,11 @@ static void _mxc_serial_init(struct mxc_uart *base)
 	writel(0, &base->cr2);
 
 	while (!(readl(&base->cr2) & UCR2_SRST));
+
+	if (use_dte)
+		writel(0x404 | UCR3_ADNIMP, &base->cr3);
+	else
+		writel(0x704 | UCR3_ADNIMP, &base->cr3);
 
 	writel(0x704 | UCR3_ADNIMP, &base->cr3);
 	writel(0x8000, &base->cr4);
@@ -178,7 +182,7 @@ static void _mxc_serial_setbrg(struct mxc_uart *base, unsigned long clk,
 	writel(UCR1_UARTEN, &base->cr1);
 }
 
-#ifndef CONFIG_DM_SERIAL
+#if !CONFIG_IS_ENABLED(DM_SERIAL)
 
 static void mxc_serial_setbrg(const struct serial_device *sdev)
 {
@@ -197,7 +201,7 @@ static void mxc_serial_setbrg(const struct serial_device *sdev)
  */
 static int mxc_serial_start(const struct serial_device *sdev)
 {
-	_mxc_serial_init(sdev->priv);
+	_mxc_serial_init(sdev->priv, false);
 
 	mxc_serial_setbrg(sdev);
 
@@ -258,6 +262,7 @@ static int mxc_serial_getc(const struct serial_device *sdev)
 /*
  * Test whether a character is in the RX buffer
  */
+static int one_time_rx_line_always_low_workaround_needed = 1;
 static int mxc_serial_tstc(const struct serial_device *sdev)
 {
 	struct mxc_uart *base = sdev->priv;
@@ -265,6 +270,17 @@ static int mxc_serial_tstc(const struct serial_device *sdev)
 	/* If receive fifo is empty, return false */
 	if (readl(&base->ts) & UTS_RXEMPTY)
 		return 0;
+
+	/* Empty RX FIFO if receiver is stuck because of RXD line being low */
+	if (one_time_rx_line_always_low_workaround_needed) {
+		one_time_rx_line_always_low_workaround_needed = 0;
+		if (!(readl(&base->sr2) & USR2_RDR)) {
+			while (!(readl(&base->ts) & UTS_RXEMPTY)) {
+				(void) readl(&base->rxd);
+			}
+			return 0;
+		}
+	}
 
 	return 1;
 }
@@ -317,7 +333,7 @@ void mxc_serial_initialize(void)
 }
 #endif
 
-#ifdef CONFIG_DM_SERIAL
+#if CONFIG_IS_ENABLED(DM_SERIAL)
 
 int mxc_serial_setbrg(struct udevice *dev, int baudrate)
 {
@@ -333,7 +349,7 @@ static int mxc_serial_probe(struct udevice *dev)
 {
 	struct mxc_serial_platdata *plat = dev->platdata;
 
-	_mxc_serial_init(plat->reg);
+	_mxc_serial_init(plat->reg, plat->use_dte);
 
 	return 0;
 }
@@ -399,10 +415,12 @@ static int mxc_serial_ofdata_to_platdata(struct udevice *dev)
 }
 
 static const struct udevice_id mxc_serial_ids[] = {
-	{ .compatible = "fsl,imx6ul-uart" },
+	{ .compatible = "fsl,imx21-uart" },
+	{ .compatible = "fsl,imx53-uart" },
 	{ .compatible = "fsl,imx6sx-uart" },
-	{ .compatible = "fsl,imx6q-uart" },
+	{ .compatible = "fsl,imx6ul-uart" },
 	{ .compatible = "fsl,imx7d-uart" },
+	{ .compatible = "fsl,imx6q-uart" },
 	{ }
 };
 #endif
@@ -428,7 +446,7 @@ static inline void _debug_uart_init(void)
 {
 	struct mxc_uart *base = (struct mxc_uart *)CONFIG_DEBUG_UART_BASE;
 
-	_mxc_serial_init(base);
+	_mxc_serial_init(base, false);
 	_mxc_serial_setbrg(base, CONFIG_DEBUG_UART_CLOCK,
 			   CONFIG_BAUDRATE, false);
 }

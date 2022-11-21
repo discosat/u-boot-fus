@@ -20,14 +20,16 @@ uint32_t __weak spl_nand_get_uboot_raw_page(void)
 static int spl_nand_load_image(struct spl_image_info *spl_image,
 			struct spl_boot_device *bootdev)
 {
+	u32 from;
+	
 	nand_init();
 
+	from = spl_nand_get_uboot_raw_page();
 	printf("Loading U-Boot from 0x%08x (size 0x%08x) to 0x%08x\n",
-	       CONFIG_SYS_NAND_U_BOOT_OFFS, CONFIG_SYS_NAND_U_BOOT_SIZE,
+	       from, CONFIG_SYS_NAND_U_BOOT_SIZE,
 	       CONFIG_SYS_NAND_U_BOOT_DST);
 
-	nand_spl_load_image(spl_nand_get_uboot_raw_page(),
-			    CONFIG_SYS_NAND_U_BOOT_SIZE,
+	nand_spl_load_image(from, CONFIG_SYS_NAND_U_BOOT_SIZE,
 			    (void *)CONFIG_SYS_NAND_U_BOOT_DST);
 	spl_set_header_raw_uboot(spl_image);
 	nand_deselect();

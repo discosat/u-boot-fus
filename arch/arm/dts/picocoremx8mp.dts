@@ -1,0 +1,80 @@
+/*
+* Copyright 2019-2021 F&S Elektronik Systeme GmbH
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
+
+/dts-v1/;
+
+/* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
+#define CONFIG_PICOCOREMX8MP_BOARD_REVISION	100
+
+ /* Network */
+/* Use FIXED_SPEED and LEGACY_ETH for now */
+#define CONFIG_PICOCOREMX8MP_ETH
+
+/* USB */
+#define CONFIG_PICOCOREMX8MP_USB_OTG
+#define CONFIG_PICOCOREMX8MP_USB_HOST
+
+#include "picocoremx8mp.dtsi"
+
+/ {
+	model = "PicoCoreMX8MP";
+};
+
+&eqos {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+	/delete-property/ assigned-clock-rates;
+	compatible = "fsl,imx-eqos";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_eqos>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy0>;
+	phy-reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@4 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <4>;
+			eee-broken-1000t;
+		};
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy1>;
+	fsl,magic-packet;
+	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@5 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <5>;
+			eee-broken-1000t;
+		};
+	};
+};

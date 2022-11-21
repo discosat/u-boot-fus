@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <asm/io.h>
 #include <asm/arch/ddr.h>
-#include <asm/arch/ddr.h>
 #include <asm/arch/lpddr4_define.h>
 #include <asm/sections.h>
 
@@ -76,7 +75,7 @@ void ddr_load_train_firmware(enum fw_type type)
 		tmp32 += ((readw(pr_to32) & 0x0000ffff) << 16);
 
 		if (tmp32 != readl(pr_from32)) {
-			debug("%lx %lx\n", pr_from32, pr_to32);
+			printf("%lx %lx\n", pr_from32, pr_to32);
 			error++;
 		}
 		pr_from32 += 4;
@@ -88,7 +87,7 @@ void ddr_load_train_firmware(enum fw_type type)
 	else
 		debug("check ddr_pmu_train_imem code pass\n");
 
-	debug("check ddr4_pmu_train_dmem code\n");
+	debug("check ddr_pmu_train_dmem code\n");
 	pr_from32 = dmem_start;
 	pr_to32 = DDR_TRAIN_CODE_BASE_ADDR + 4 * DMEM_OFFSET_ADDR;
 	for (i = 0x0; i < DMEM_LEN;) {
@@ -96,7 +95,7 @@ void ddr_load_train_firmware(enum fw_type type)
 		pr_to32 += 4;
 		tmp32 += ((readw(pr_to32) & 0x0000ffff) << 16);
 		if (tmp32 != readl(pr_from32)) {
-			debug("%lx %lx\n", pr_from32, pr_to32);
+			printf("%lx %lx\n", pr_from32, pr_to32);
 			error++;
 		}
 		pr_from32 += 4;

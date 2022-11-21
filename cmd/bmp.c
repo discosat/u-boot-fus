@@ -97,11 +97,11 @@ static int do_bmp_info(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	ulong addr;
 
 	switch (argc) {
-	case 1:		/* use image_load_addr as default address */
-		addr = image_load_addr;
+	case 1:		/* use default address */
+		addr = get_loadaddr();
 		break;
 	case 2:		/* use argument */
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		break;
 	default:
 		return CMD_RET_USAGE;
@@ -118,14 +118,14 @@ static int do_bmp_display(cmd_tbl_t * cmdtp, int flag, int argc, char * const ar
 	splash_get_pos(&x, &y);
 
 	switch (argc) {
-	case 1:		/* use image_load_addr as default address */
-		addr = image_load_addr;
+	case 1:		/* use default address */
+		addr = get_loadaddr();
 		break;
 	case 2:		/* use argument */
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		break;
 	case 4:
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 		if (!strcmp(argv[2], "m"))
 			x = BMP_ALIGN_CENTER;
 		else

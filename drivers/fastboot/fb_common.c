@@ -128,7 +128,7 @@ void fastboot_boot(void)
 		};
 
 		snprintf(boot_addr_start, sizeof(boot_addr_start) - 1,
-			 "0x%p", (void *)image_load_addr);
+			 "0x%p", (void *)get_loadaddr());
 #else
 		static char *const bootm_args[] = {
 			"bootm", boot_addr_start, NULL

@@ -291,7 +291,7 @@ static inline void console_doenv(int file, struct stdio_dev *dev)
 	console_setfile(file, dev);
 }
 #endif
-#endif /* CONIFIG_IS_ENABLED(CONSOLE_MUX) */
+#endif /* CONFIG_IS_ENABLED(CONSOLE_MUX) */
 
 /** U-Boot INITIAL CONSOLE-NOT COMPATIBLE FUNCTIONS *************************/
 

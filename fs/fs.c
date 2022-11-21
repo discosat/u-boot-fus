@@ -172,7 +172,11 @@ static struct fstype_info fstypes[] = {
 		.null_dev_desc_ok = false,
 		.probe = fat_set_blk_dev,
 		.close = fat_close,
+#ifdef CONFIG_FAT_FUS
+		.ls = file_fat_ls,
+#else
 		.ls = fs_ls_generic,
+#endif
 		.exists = fat_exists,
 		.size = fat_size,
 		.read = fat_read_file,
@@ -186,9 +190,14 @@ static struct fstype_info fstypes[] = {
 		.mkdir = fs_mkdir_unsupported,
 #endif
 		.uuid = fs_uuid_unsupported,
+#ifdef CONFIG_FAT_FUS
+		/* We have our own ls with wildcards */
+		.opendir = fs_opendir_unsupported,
+#else
 		.opendir = fat_opendir,
 		.readdir = fat_readdir,
 		.closedir = fat_closedir,
+#endif
 		.ln = fs_ln_unsupported,
 	},
 #endif
@@ -666,14 +675,12 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		int fstype)
 {
 	unsigned long addr;
-	const char *addr_str;
 	const char *filename;
 	loff_t bytes;
 	loff_t pos;
 	loff_t len_read;
 	int ret;
 	unsigned long time;
-	char *ep;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -683,25 +690,17 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (fs_set_blk_dev(argv[1], (argc >= 3) ? argv[2] : NULL, fstype))
 		return 1;
 
-	if (argc >= 4) {
-		addr = simple_strtoul(argv[3], &ep, 16);
-		if (ep == argv[3] || *ep != '\0')
-			return CMD_RET_USAGE;
-	} else {
-		addr_str = env_get("loadaddr");
-		if (addr_str != NULL)
-			addr = simple_strtoul(addr_str, NULL, 16);
-		else
-			addr = CONFIG_SYS_LOAD_ADDR;
-	}
-	if (argc >= 5) {
-		filename = argv[4];
-	} else {
-		filename = env_get("bootfile");
-		if (!filename) {
-			puts("** No boot file defined **\n");
-			return 1;
-		}
+	if (argc >= 4)
+		addr = parse_loadaddr(argv[3], NULL);
+	else
+		addr = get_loadaddr();
+	if (argc >= 5)
+		filename = env_parse_bootfile(argv[4]);
+	else
+		filename = env_get_bootfile();
+	if (!filename) {
+		puts("** No boot file defined **\n");
+		return 1;
 	}
 	if (argc >= 6)
 		bytes = simple_strtoul(argv[5], NULL, 16);
@@ -711,6 +710,8 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		pos = simple_strtoul(argv[6], NULL, 16);
 	else
 		pos = 0;
+
+	set_fileaddr(addr);
 
 #ifdef CONFIG_CMD_BOOTEFI
 	efi_set_bootdev(argv[1], (argc > 2) ? argv[2] : "",
@@ -730,8 +731,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	}
 	puts("\n");
 
-	env_set_hex("fileaddr", addr);
-	env_set_hex("filesize", len_read);
+	env_set_fileinfo(len_read);
 
 	return 0;
 }

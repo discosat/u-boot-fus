@@ -26,16 +26,15 @@ static int do_coninfo(cmd_tbl_t *cmd, int flag, int argc, char * const argv[])
 	list_for_each(pos, list) {
 		dev = list_entry(pos, struct stdio_dev, list);
 
-		printf ("%-8s %08x %c%c ",
+		printf("%-16s%08x %c%c ",
 			dev->name,
 			dev->flags,
 			(dev->flags & DEV_FLAGS_INPUT) ? 'I' : '.',
 			(dev->flags & DEV_FLAGS_OUTPUT) ? 'O' : '.');
 
 		for (l = 0; l < MAX_FILES; l++) {
-			if (stdio_devices[l] == dev) {
-				printf ("%s ", stdio_names[l]);
-			}
+			if (stdio_devices[l] == dev)
+				printf("%s ", stdio_names[l]);
 		}
 		putc ('\n');
 	}

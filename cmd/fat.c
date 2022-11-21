@@ -125,7 +125,7 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 			argv[1], dev, part);
 		return 1;
 	}
-	addr = simple_strtoul(argv[3], NULL, 16);
+	addr = parse_loadaddr(argv[3], NULL);
 	count = (argc <= 5) ? 0 : simple_strtoul(argv[5], NULL, 16);
 	/* offset should be a hex, but "-1" is allowed */
 	offset = (argc <= 6) ? 0 : simple_strtol(argv[6], NULL, 16);

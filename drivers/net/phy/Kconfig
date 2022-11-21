@@ -50,8 +50,18 @@ config MV88E61XX_SWITCH
 
 if MV88E61XX_SWITCH
 
+config MV88E61XX_88E6020_FAMILY
+	bool "Marvell MV88E6020 family support."
+	help
+	  The driver supports 6172/6176/6240/6352 devices in the
+	  default configuration. Select this option to enable support
+	  for 6020/6070/6071/6220/6250 switches.
+
 config MV88E61XX_CPU_PORT
 	int "CPU Port"
+
+config MV88E61XX_REGISTER_OFFSET
+	hex "Address offset for registers (0x00 or 0x10)"
 
 config MV88E61XX_PHY_PORTS
 	hex "Bitmask of PHY Ports"

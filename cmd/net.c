@@ -179,24 +179,17 @@ static void netboot_update_env(void)
 static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		char * const argv[])
 {
-	char *s;
 	char *end;
-	int   rcode = 0;
+	int   rcode;
 	int   size;
+	char  *pname = NULL;
+	char  *paddr = NULL;
 	ulong addr;
 
 	net_boot_file_name_explicit = false;
 
-	/* pre-set image_load_addr */
-	s = env_get("loadaddr");
-	if (s != NULL)
-		image_load_addr = simple_strtoul(s, NULL, 16);
-
 	switch (argc) {
 	case 1:
-		/* refresh bootfile name from env */
-		copy_filename(net_boot_file_name, env_get("bootfile"),
-			      sizeof(net_boot_file_name));
 		break;
 
 	case 2:	/*
@@ -205,43 +198,57 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		 * form must be written in a format which can not be
 		 * mis-interpreted as a valid number.
 		 */
-		addr = simple_strtoul(argv[1], &end, 16);
-		if (end == (argv[1] + strlen(argv[1]))) {
-			image_load_addr = addr;
-			/* refresh bootfile name from env */
-			copy_filename(net_boot_file_name, env_get("bootfile"),
-				      sizeof(net_boot_file_name));
-		} else {
-			net_boot_file_name_explicit = true;
-			copy_filename(net_boot_file_name, argv[1],
-				      sizeof(net_boot_file_name));
-		}
+		parse_loadaddr(argv[1], &end);
+		if (*end)
+			pname = argv[1];
+		else
+			paddr = argv[1];
 		break;
 
 	case 3:
-		image_load_addr = simple_strtoul(argv[1], NULL, 16);
-		net_boot_file_name_explicit = true;
-		copy_filename(net_boot_file_name, argv[2],
-			      sizeof(net_boot_file_name));
-
+		paddr = argv[1];
+		pname = argv[2];
 		break;
 
 #ifdef CONFIG_CMD_TFTPPUT
 	case 4:
-		if (strict_strtoul(argv[1], 16, &image_save_addr) < 0 ||
-		    strict_strtoul(argv[2], 16, &image_save_size) < 0) {
-			printf("Invalid address/size\n");
+	{
+		ulong savesize;
+
+		if ((strict_strtoul(argv[2], 16, &savesize) < 0)
+		    || (savesize == 0)) {
+			puts("Invalid size\n");
 			return CMD_RET_USAGE;
 		}
-		net_boot_file_name_explicit = true;
-		copy_filename(net_boot_file_name, argv[3],
-			      sizeof(net_boot_file_name));
+		net_boot_file_size = savesize;
+		paddr = argv[1];
+		pname = argv[3];
 		break;
+	}
 #endif
 	default:
 		bootstage_error(BOOTSTAGE_ID_NET_START);
 		return CMD_RET_USAGE;
 	}
+	if (paddr) {
+		if (strict_parse_loadaddr(paddr, &addr) < 0) {
+			puts("Invalid address\n");
+			return CMD_RET_USAGE;
+		}
+	} else
+		addr = get_loadaddr();
+	set_fileaddr(addr);
+
+	/* If name not given use default name made from IP address */
+	net_boot_file_name[0] = 0;
+	if (!pname)
+		pname = env_get("bootfile");
+	if (pname) {
+		net_boot_file_name_explicit = true;
+		copy_filename(net_boot_file_name, pname,
+			      sizeof(net_boot_file_name));
+	}
+
 	bootstage_mark(BOOTSTAGE_ID_NET_START);
 
 	size = net_loop(proto);
@@ -259,6 +266,8 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 		bootstage_error(BOOTSTAGE_ID_NET_LOADED);
 		return CMD_RET_SUCCESS;
 	}
+
+	env_set_fileinfo(size);
 
 	bootstage_mark(BOOTSTAGE_ID_NET_LOADED);
 

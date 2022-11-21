@@ -13,6 +13,7 @@
 #include <console.h>
 #include <env.h>
 #include <linux/ctype.h>
+#include <cli.h>
 
 /*
  * Use puts() instead of printf() to avoid printf buffer overflow
@@ -357,13 +358,8 @@ int cmd_auto_complete(const char *const prompt, char *buf, int *np, int *colp)
 	int i, j, k, len, seplen, argc;
 	int cnt;
 	char last_char;
-#ifdef CONFIG_CMDLINE_PS_SUPPORT
-	const char *ps_prompt = env_get("PS1");
-#else
-	const char *ps_prompt = CONFIG_SYS_PROMPT;
-#endif
 
-	if (strcmp(prompt, ps_prompt) != 0)
+	if (strcmp(prompt, get_sys_prompt()) != 0)
 		return 0;	/* not in normal console */
 
 	cnt = strlen(buf);

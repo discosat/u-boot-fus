@@ -18,4 +18,5 @@ enum bt_mode {
 };
 
 enum boot_device get_boot_device(void);
+enum bt_mode get_boot_mode(void);
 #endif

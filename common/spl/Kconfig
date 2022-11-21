@@ -127,6 +127,14 @@ config HANDOFF
 
 if SPL
 
+config SPL_AUTOBUILD
+	bool "Build SPL automatically"
+	default y
+	help
+	  If you want to build SPL together with U-Boot when calling
+	  simply make, say y. If you want to build SPL only when
+	  calling make spl or some other SPL specific target, say n.
+
 config SPL_HANDOFF
 	bool "Pass hand-off information from SPL to U-Boot proper"
 	depends on HANDOFF && SPL_BLOBLIST
@@ -1276,6 +1284,14 @@ config TPL
 	  If you want to build TPL as well as the normal image and SPL, say Y.
 
 if TPL
+
+config TPL_AUTOBUILD
+	bool "Build TPL automatically"
+	default y
+	help
+	  If you want to build TPL together with U-Boot when calling
+	  simply make, say y. If you want to build TPL only when
+	  calling make tpl or some other TPL specific target, say n.
 
 config TPL_SIZE_LIMIT
 	hex "Maximum size of TPL image"

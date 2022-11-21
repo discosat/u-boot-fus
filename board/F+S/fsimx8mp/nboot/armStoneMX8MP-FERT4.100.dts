@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2022 F&S Elektronik Systeme GmbH
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include ".nboot-info-mmc.dtsi.tmp"
+
+/ {
+	board-cfg {
+		board-cfg-version = <1>;	/* Increment on changes */
+		board-name = "armStoneMX8MP";
+		board-rev = <100>;		/* Rev 1.00 */
+
+		/* DRAM: 2GB Nanja */
+		dram-type = "lpddr4";
+		dram-timing = "lpddr4_as-nt6an512t32av_j2i";
+		dram-size = <0x800>;		/* In MiB */
+		dram-chips = <1>;
+
+		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
+		boot-dev = "MMC1";
+
+		/* Fuse settings, fuse-bankword: MSW: Bank, LSW: Fuse-Word */
+		fuse-bankword = <0x00010003>;
+		fuse-mask =     <0x1000fe00>;
+		fuse-value =    <0x10002a00>;
+
+		/* Board Features */
+		//have-nand;
+		have-emmc;
+		have-audio;
+		have-eth-phy-a;
+		have-eth-phy-b;
+		have-wlan;
+		//have-mipi-dsi;
+		have-hdmi;
+		have-ext-rtc;
+		have-security;
+		have-eeprom;
+	};
+};

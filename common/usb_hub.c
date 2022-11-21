@@ -266,7 +266,7 @@ static inline const char *portspeed(int portstatus)
  * @port:	Port number to reset (note ports are numbered from 0 here)
  * @portstat:	Returns port status
  */
-static int usb_hub_port_reset(struct usb_device *dev, int port,
+int usb_hub_port_reset(struct usb_device *dev, int port,
 			      unsigned short *portstat)
 {
 	int err, tries;

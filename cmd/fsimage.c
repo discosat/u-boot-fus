@@ -839,7 +839,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	if (boot_part == 7)
 		boot_part = 0;
 
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN)
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 	/* If booting from User space, check the fused secondary image offset */
 	if (!boot_part && img[2].si.count > 1) {
 		u32 secondary_offset_fuses = fs_board_get_secondary_offset();
@@ -892,7 +892,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		count = 2;		/* Ignore any extra values */
 
 	for (i = 0; i < count; i++) {
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN)
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 		/* Switch to other boot partition */
 		if (boot_part && (i > 0))
 			boot_part = 3 - boot_part;
@@ -912,7 +912,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		err = 0;
 		if (i < img[1].si.count) {
 			/* Invalidate BOARD-CFG/FIRMWARE */
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN)
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 			/* Only use first entry when writing to boot part */
 			if (boot_part)
 				start = fdt32_to_cpu(img[1].si.start[0]);
@@ -937,7 +937,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 		}
 		if (!err && (i < img[1].si.count)) {
 			/* Invalidate SPL */
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN)
+#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 			if (boot_part)
 				start = 0; /* Always 0 in boot part */
 			else
@@ -951,7 +951,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 					blk_desc, img[2].img, start,
 					img[2].size, img[2].type);
 			}
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN)
+#ifdef CONFIG_IMX8MM
 			if (!err && (i == 1)) {
 				/*
 				 * Write Secondary Image Table for redundant
@@ -1149,8 +1149,7 @@ static int do_fsimage_boardcfg(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	printf("FDT part of BOARD-CFG located at 0x%lx\n", (ulong)fdt);
 
-	//return fdt_print(fdt, "/", NULL, 5);
-	return 0;
+	return fdt_print(fdt, "/", NULL, 5);
 }
 #endif
 
@@ -1167,9 +1166,9 @@ static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned long addr;
 
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	fdt = fs_image_get_cfg_addr_check(false);
 	if (!fdt)
@@ -1208,8 +1207,8 @@ static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
 		printf("Loading %s failed (%d)\n", img.type, ret);
 	else {
 		/* Set parameters for loaded file */
-		env_set_hex("fileaddr", addr);
-		env_set_hex("filesize", img.size);
+		set_fileaddr(addr);
+		env_set_fileinfo(img.size);
 		printf("%s with size 0x%x loaded to address 0x%lx\n",
 		       img.type, img.size, addr);
 	}
@@ -1225,9 +1224,9 @@ static int do_fsimage_list(cmd_tbl_t *cmdtp, int flag, int argc,
 	struct fs_header_v1_0 *fsh;
 
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	fsh = (struct fs_header_v1_0 *)addr;
 	if (!fs_image_is_fs_image(fsh)) {
@@ -1267,9 +1266,9 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 		argc--;
 	}
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	/* If this is an U-Boot image, handle separately */
 	if (fs_image_match((void *)addr, "U-BOOT", NULL))
@@ -1355,9 +1354,9 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 		argc--;
 	}
 	if (argc > 1)
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 	else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	ret = fs_image_find_board_cfg(addr, force, &cfg, NULL);
 	if (ret <= 0)
@@ -1436,6 +1435,8 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 #else
 		cur_val = 0;
 #endif
+		printf("cur_val = 0x%x\n",cur_val);
+		printf("fuse_val = 0x%x\n",fuse_val);
 		if (cur_val != fuse_val) {
 			ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
 			if (ret) {

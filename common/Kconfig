@@ -352,10 +352,15 @@ config SPI_BOOT
 
 endmenu
 
+config SET_BOOTDELAY
+	bool "Set specific boot delay"
+	default y
+
 config BOOTDELAY
 	int "delay in seconds before automatically booting"
 	default 2
 	depends on AUTOBOOT
+	depends on SET_BOOTDELAY
 	help
 	  Delay before automatically running bootcmd;
 	  set to 0 to autoboot with no delay, but you can stop it by key input.
@@ -984,6 +989,11 @@ config UPDATE_TFTP_MSEC_MAX
 	int "Delay in mSec to wait for the TFTP server during auto-update"
 	default 100
 	depends on UPDATE_TFTP
+
+config FS_UPDATE_SUPPORT
+	bool "U-Boot support for F&S Updater"
+	help
+		Provides the U-Boot support for the buildroot packge
 
 config ANDROID_AB
 	bool "Android A/B updates"

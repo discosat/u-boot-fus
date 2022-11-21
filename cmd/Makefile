@@ -22,6 +22,7 @@ obj-$(CONFIG_CMD_BDI) += bdinfo.o
 obj-$(CONFIG_CMD_BEDBUG) += bedbug.o
 obj-$(CONFIG_CMD_BIND) += bind.o
 obj-$(CONFIG_CMD_BINOP) += binop.o
+obj-$(CONFIG_CMD_BLINK) += blink.o
 obj-$(CONFIG_CMD_BLOCK_CACHE) += blkcache.o
 obj-$(CONFIG_CMD_BMP) += bmp.o
 obj-$(CONFIG_CMD_BOOTCOUNT) += bootcount.o
@@ -82,7 +83,8 @@ obj-$(CONFIG_CMD_CRAMFS) += cramfs.o
 obj-$(CONFIG_LED_STATUS_CMD) += legacy_led.o
 obj-$(CONFIG_CMD_LED) += led.o
 obj-$(CONFIG_CMD_LICENSE) += license.o
-obj-y += load.o
+obj-$(CONFIG_CMD_LOADS) += load.o
+obj-$(CONFIG_CMD_LOADB) += load.o
 obj-$(CONFIG_CMD_LOG) += log.o
 obj-$(CONFIG_ID_EEPROM) += mac.o
 obj-$(CONFIG_CMD_MD5SUM) += md5sum.o
@@ -176,6 +178,14 @@ obj-$(CONFIG_CMD_REGULATOR) += regulator.o
 
 # Handle F&S images, e.g. NBoot
 obj-$(CONFIG_CMD_FSIMAGE) += fsimage.o
+obj-$(CONFIG_CMD_FSIMAGE_IMX6) += fsimage_imx6.o
+
+# Extended LCD support (F&S)
+obj-$(CONFIG_CMD_LCD) += lcd.o
+obj-$(CONFIG_CMD_WIN) += win.o
+obj-$(CONFIG_CMD_CMAP) += cmap.o
+obj-$(CONFIG_CMD_DRAW) += draw.o
+obj-$(CONFIG_CMD_ADRAW) += draw.o
 
 obj-$(CONFIG_CMD_BLOB) += blob.o
 

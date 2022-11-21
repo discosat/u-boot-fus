@@ -59,112 +59,6 @@ int cli_simple_parse_line(char *line, char *argv[])
 	return nargs;
 }
 
-void cli_simple_process_macros(const char *input, char *output)
-{
-	char c, prev;
-	const char *varname_start = NULL;
-	int inputcnt = strlen(input);
-	int outputcnt = CONFIG_SYS_CBSIZE;
-	int state = 0;		/* 0 = waiting for '$'  */
-
-	/* 1 = waiting for '(' or '{' */
-	/* 2 = waiting for ')' or '}' */
-	/* 3 = waiting for '''  */
-	char __maybe_unused *output_start = output;
-
-	debug_parser("[PROCESS_MACROS] INPUT len %zd: \"%s\"\n", strlen(input),
-		     input);
-
-	prev = '\0';		/* previous character   */
-
-	while (inputcnt && outputcnt) {
-		c = *input++;
-		inputcnt--;
-
-		if (state != 3) {
-			/* remove one level of escape characters */
-			if ((c == '\\') && (prev != '\\')) {
-				if (inputcnt-- == 0)
-					break;
-				prev = c;
-				c = *input++;
-			}
-		}
-
-		switch (state) {
-		case 0:	/* Waiting for (unescaped) $    */
-			if ((c == '\'') && (prev != '\\')) {
-				state = 3;
-				break;
-			}
-			if ((c == '$') && (prev != '\\')) {
-				state++;
-			} else {
-				*(output++) = c;
-				outputcnt--;
-			}
-			break;
-		case 1:	/* Waiting for (        */
-			if (c == '(' || c == '{') {
-				state++;
-				varname_start = input;
-			} else {
-				state = 0;
-				*(output++) = '$';
-				outputcnt--;
-
-				if (outputcnt) {
-					*(output++) = c;
-					outputcnt--;
-				}
-			}
-			break;
-		case 2:	/* Waiting for )        */
-			if (c == ')' || c == '}') {
-				int i;
-				char envname[CONFIG_SYS_CBSIZE], *envval;
-				/* Varname # of chars */
-				int envcnt = input - varname_start - 1;
-
-				/* Get the varname */
-				for (i = 0; i < envcnt; i++)
-					envname[i] = varname_start[i];
-				envname[i] = 0;
-
-				/* Get its value */
-				envval = env_get(envname);
-
-				/* Copy into the line if it exists */
-				if (envval != NULL)
-					while ((*envval) && outputcnt) {
-						*(output++) = *(envval++);
-						outputcnt--;
-					}
-				/* Look for another '$' */
-				state = 0;
-			}
-			break;
-		case 3:	/* Waiting for '        */
-			if ((c == '\'') && (prev != '\\')) {
-				state = 0;
-			} else {
-				*(output++) = c;
-				outputcnt--;
-			}
-			break;
-		}
-		prev = c;
-	}
-
-	if (outputcnt)
-		*output = 0;
-	else
-		*(output - 1) = 0;
-
-	debug_parser("[PROCESS_MACROS] OUTPUT len %zd: \"%s\"\n",
-		     strlen(output_start), output_start);
-}
-
  /*
  * WARNING:
  *
@@ -176,14 +70,27 @@ void cli_simple_process_macros(const char *input, char *output)
 int cli_simple_run_command(const char *cmd, int flag)
 {
 	char cmdbuf[CONFIG_SYS_CBSIZE];	/* working copy of cmd		*/
-	char *token;			/* start of token in cmdbuf	*/
-	char *sep;			/* end of token (separator) in cmdbuf */
-	char finaltoken[CONFIG_SYS_CBSIZE];
-	char *str = cmdbuf;
+	char output[CONFIG_SYS_CBSIZE];
 	char *argv[CONFIG_SYS_MAXARGS + 1];	/* NULL terminated	*/
-	int argc, inquotes;
+	int argc;
 	int repeatable = 1;
 	int rc = 0;
+	char c;
+	char delim;
+	int varindex;
+	char *input = cmdbuf;
+	char *s;
+	int out;
+	int error;
+
+	/* The parser uses a state machine to decide how a character is to be
+	   interpreted. */
+	enum parse_state {
+		PS_WS,	      /* Ignoring whitespace at beginning of argument */
+		PS_NORMAL,    /* Normal unquoted argument */
+		PS_SQ,	      /* Within single quotes */
+		PS_DQ,	      /* Within double quotes */
+	} ps;
 
 	debug_parser("[RUN_COMMAND] cmd[%p]=\"", cmd);
 	if (DEBUG_PARSER) {
@@ -191,69 +98,228 @@ int cli_simple_run_command(const char *cmd, int flag)
 		puts(cmd ? cmd : "NULL");
 		puts("\"\n");
 	}
+
 	clear_ctrlc();		/* forget any previous Control C */
 
-	if (!cmd || !*cmd)
+	if (!cmd || !*cmd) {
 		return -1;	/* empty command */
+	}
 
 	if (strlen(cmd) >= CONFIG_SYS_CBSIZE) {
-		puts("## Command too long!\n");
+		puts ("## Command too long!\n");
 		return -1;
 	}
 
-	strcpy(cmdbuf, cmd);
+	strcpy (cmdbuf, cmd);
 
-	/* Process separators and check for invalid
-	 * repeatable commands
-	 */
+	/* Parse commands, check for invalid and repeatable commands and
+	   execute command */
 
-	debug_parser("[PROCESS_SEPARATORS] %s\n", cmd);
-	while (*str) {
-		/*
-		 * Find separator, or string end
-		 * Allow simple escape of ';' by writing "\;"
-		 */
-		for (inquotes = 0, sep = str; *sep; sep++) {
-			if ((*sep == '\'') &&
-			    (*(sep - 1) != '\\'))
-				inquotes = !inquotes;
+	c = *input++;
+	do {
+		/* New command */
+		out = 0;
+		error = 0;
+		argc = 0;
+		argv[argc] = output;
+		ps = PS_WS;
+		do {
+			/* Command separator */
+			if (c == ';') {
+				if ((ps == PS_WS) || (ps == PS_NORMAL)) {
+					c = *input++;
+					break;
+				}
+				output[out++] = c;
+			} else if (c == '\\') {
+				c = *input++;
+				if (!c) {
+					output[out++] = '\\';
+					break;
+				}
+				output[out++] = c;
+			} else {
+				switch (c) {
+				case ' ':
+				case '\t':
+					if ((ps == PS_DQ) || (ps == PS_SQ))
+						output[out++] = c;
+					else if (ps == PS_NORMAL) {
+						/* Start new argument */
+						output[out++] = 0;
+						argv[argc] = output + out;
+						ps = PS_WS;
+					}
+					break;
 
-			if (!inquotes &&
-			    (*sep == ';') &&	/* separator		*/
-			    (sep != str) &&	/* past string start	*/
-			    (*(sep - 1) != '\\'))	/* and NOT escaped */
+				case '\'':
+					if (ps == PS_DQ)
+						output[out++] = c;
+					else if (ps == PS_SQ)
+						ps = PS_NORMAL;
+					else {
+						if (ps == PS_WS)
+							argc++;
+						ps = PS_SQ;
+					}
+					break;
+
+				case '\"':
+					if (ps == PS_SQ)
+						output[out++] = c;
+					else if (ps == PS_DQ)
+						ps = PS_NORMAL;
+					else {
+						if (ps == PS_WS)
+							argc++;
+						ps = PS_DQ;
+					}
+					break;
+
+				case '$':
+					if (ps == PS_SQ) {
+						output[out++] = c;
+						break;
+					}
+					if (ps == PS_WS) {
+						argc++;
+						ps = PS_NORMAL;
+					}
+					/* Save start of variable */
+					varindex = out;
+					output[out++] = c;
+					if (out >= CONFIG_SYS_CBSIZE)
+						break;
+
+					/* Check for opening brace */
+					c = *input++;
+					if (!c)
+						break;
+
+					if (c == '(')
+						delim = ')';
+					else if (c == '{')
+						delim = '}';
+					else {
+						output[out++] = c;
+						break;
+					}
+
+					/* Copy var name */
+					do {
+						output[out++] = c;
+						c = *input++;
+					} while (c && (c != delim)
+						 && (out < CONFIG_SYS_CBSIZE));
+
+					/* Unexpected end of command or no
+					   more room in buffer */
+					if (!c || (out >= CONFIG_SYS_CBSIZE))
+						break;
+
+					/* The variable name starts 2 chars
+					   after the $( or ${ respectively;
+					   read the environment variable */
+					output[out] = 0;
+					s = env_get(output + varindex + 2);
+#if DEBUG_PARSER
+					printf("[$(%s)='",
+					       output + varindex + 2);
+					puts(s);
+					puts("']\n");
+#endif
+
+					/* Resume to start of variable */
+					out = varindex;
+
+					/* Copy var content to output */
+					if (s) {
+						do {
+							char cc;
+							cc = *s++;
+							if (!cc)
+								break;
+							output[out++] = cc;
+						} while (out < CONFIG_SYS_CBSIZE);
+					}
+					break;
+
+				default:  /* Any other character */
+					output[out++] = c;
+					if (ps == PS_WS) {
+						argc++;
+						ps = PS_NORMAL;
+					}
+					break;
+				}
+			}
+			if (!c)
 				break;
+			/* Make sure that we don't exceed the allowed number
+			   of arguments */
+			if (argc >= CONFIG_SYS_MAXARGS) {
+				argc--;
+				error |= 1; /* Remember as error */
+			}
+
+			/* If string is too long, store all remaining
+			   characters in the last character; this will give a
+			   strange result but as we don't execute this command
+			   anyway, it does not matter. By doing this here, we
+			   don't need to check for enough space in the buffer
+			   in the loop above and we also automatically find
+			   the end of the current command. */
+			if (out >= CONFIG_SYS_CBSIZE) {
+				out--;
+				error |= 2; /* Remember as error */
+			}
+
+			/* Get next character */
+			c = *input++;
+		} while (c);
+
+		/* Write final 0 */
+		output[out] = 0;
+
+#if DEBUG_PARSER
+		{
+			int i;
+
+			for (i=0; i<argc; i++)
+				printf("[argv[%d]='%s']\n", i, argv[i]);
 		}
+#endif
 
-		/*
-		 * Limit the token to data between separators
-		 */
-		token = str;
-		if (*sep) {
-			str = sep + 1;	/* start of command for next pass */
-			*sep = '\0';
-		} else {
-			str = sep;	/* no more commands for next pass */
-		}
-		debug_parser("token: \"%s\"\n", token);
+		/* argv is NULL terminated */
+		argv[argc] = NULL;
 
-		/* find macros in this token and replace them */
-		cli_simple_process_macros(token, finaltoken);
-
-		/* Extract arguments */
-		argc = cli_simple_parse_line(finaltoken, argv);
-		if (argc == 0) {
-			rc = -1;	/* no command at all */
+		/* Check for some errors that may have appeared while parsing
+		   the command */
+		if (error) {
+			char *pReason;
+			if (error & 1)
+				pReason = "Too many command arguments!\n";
+			else
+				pReason = "Expanded command too long!\n";
+			puts(pReason);
+			rc = -1;
 			continue;
 		}
 
+		/* Do we have an empty command? */
+		if (!argc) {
+			rc = -1;
+			continue;
+		}
+
+		/* Find and execute the command */
 		if (cmd_process(flag, argc, argv, &repeatable, NULL))
 			rc = -1;
 
 		/* Did the user stop this? */
-		if (had_ctrlc())
+		if (had_ctrlc ())
 			return -1;	/* if stopped then not repeatable */
-	}
+	} while (c);
 
 	return rc ? rc : repeatable;
 }
@@ -273,7 +339,7 @@ void cli_simple_loop(void)
 			 */
 			bootretry_reset_cmd_timeout();
 		}
-		len = cli_readline(CONFIG_SYS_PROMPT);
+		len = cli_readline(get_sys_prompt());
 
 		flag = 0;	/* assume no special flags for now */
 		if (len > 0)

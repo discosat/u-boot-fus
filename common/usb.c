@@ -55,7 +55,7 @@ static int dev_index;
 /***************************************************************************
  * Init USB Device
  */
-int usb_init(void)
+int usb_init(int verbose)
 {
 	void *ctrl;
 	struct usb_device *dev;
@@ -76,10 +76,12 @@ int usb_init(void)
 	/* init low_level USB */
 	for (i = 0; i < CONFIG_USB_MAX_CONTROLLER_COUNT; i++) {
 		/* init low_level USB */
-		printf("USB%d:   ", i);
+		if (verbose)
+			printf("USB%d:   ", i);
 		ret = usb_lowlevel_init(i, USB_INIT_HOST, &ctrl);
 		if (ret == -ENODEV) {	/* No such device. */
-			puts("Port not available.\n");
+			if (verbose)
+				puts("Port not available as HOST.\n");
 			controllers_initialized++;
 			continue;
 		}
@@ -94,7 +96,8 @@ int usb_init(void)
 		 */
 		controllers_initialized++;
 		start_index = dev_index;
-		printf("scanning bus %d for devices... ", i);
+		if (verbose)
+			printf("scanning bus %d for devices... ", i);
 		ret = usb_alloc_new_device(ctrl, &dev);
 		if (ret)
 			break;
@@ -108,11 +111,13 @@ int usb_init(void)
 			usb_free_device(dev->controller);
 
 		if (start_index == dev_index) {
-			puts("No USB Device found\n");
+			if (verbose)
+				puts("No USB Device found\n");
 			continue;
 		} else {
-			printf("%d USB Device(s) found\n",
-				dev_index - start_index);
+			if (verbose)
+				printf("%d USB Device(s) found\n",
+				       dev_index - start_index);
 		}
 
 		usb_started = 1;
@@ -120,8 +125,10 @@ int usb_init(void)
 
 	debug("scan end\n");
 	/* if we were not able to find at least one working bus, bail out */
-	if (controllers_initialized == 0)
-		puts("USB error: all controllers failed lowlevel init\n");
+	if (controllers_initialized == 0) {
+		if (verbose)
+			puts("USB error: all controllers failed lowlevel init\n");
+	}
 
 	return usb_started ? 0 : -ENODEV;
 }
@@ -919,12 +926,31 @@ __weak int usb_alloc_device(struct usb_device *udev)
 }
 #endif /* !CONFIG_IS_ENABLED(DM_USB) */
 
-static int usb_hub_port_reset(struct usb_device *dev, struct usb_device *hub)
+static int usb_port_reset(struct usb_device *dev, struct usb_device *hub)
 {
-	if (!hub)
+#ifdef CONFIG_DM_USB
+	if (!hub) {
 		usb_reset_root_port(dev);
+	}
+        return 0;
+#else /* !CONFIG_DM_USB */
+	int port;
 
-	return 0;
+	if (!hub) {
+		usb_reset_root_port(dev);
+		return 0;
+	}
+
+	/* Find the port number of the hub we are at */
+	for (port = 0; port < hub->maxchild; port++) {
+		if (hub->children[port] == dev)
+			break;
+	}
+	if (port >= hub->maxchild)
+		return -1;
+
+	return usb_hub_port_reset(hub, port, NULL);
+#endif /* CONFIG_DM_USB */
 }
 
 static int get_descriptor_len(struct usb_device *dev, int len, int expect_len)
@@ -1048,7 +1074,7 @@ retry:
 	err = usb_setup_descriptor(dev, do_read);
 	if (err)
 		return err;
-	err = usb_hub_port_reset(dev, parent);
+	err = usb_port_reset(dev, parent);
 	if (err)
 		return err;
 
@@ -1059,10 +1085,10 @@ retry:
 	if (err < 0) {
 		/* If setting the address failed, reset and try again */
 		debug("Reset again\n");
-		if ((--tries > 0) && !usb_hub_port_reset(dev, parent))
+		if ((--tries > 0) && !usb_port_reset(dev, parent))
 			goto retry;
 
-		printf("\n      USB device not accepting new address " \
+		printf("\n       USB device not accepting new address " \
 			"(error=%lX)\n", dev->status);
 		return err;
 	}
@@ -1090,7 +1116,7 @@ retry:
 	err = get_descriptor_len(dev, USB_DT_DEVICE_SIZE, USB_DT_DEVICE_SIZE);
 	if (err) {
 		puts("Retry...\n");
-		if ((--tries > 0) && !usb_hub_port_reset(dev, parent))
+		if ((--tries > 0) && !usb_port_reset(dev, parent))
 			goto retry;
 
 		return err;

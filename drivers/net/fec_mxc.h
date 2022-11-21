@@ -17,6 +17,7 @@
 #define __FEC_MXC_H
 
 #include <clk.h>
+#include <asm-generic/gpio.h>
 
 /* Layout description of the FEC */
 struct ethernet_regs {
@@ -223,15 +224,6 @@ struct fec_bd {
 	uint16_t data_length;		/* payload's length in bytes */
 	uint16_t status;		/* BD's staus (see datasheet) */
 	uint32_t data_pointer;		/* payload's buffer address */
-};
-
-/* Supported phy types on this platform */
-enum xceiver_type {
-	SEVENWIRE,	/* 7-wire       */
-	MII10,		/* MII 10Mbps   */
-	MII100,		/* MII 100Mbps  */
-	RMII,		/* RMII */
-	RGMII,		/* RGMII */
 };
 
 /* @brief i.MX27-FEC private structure */

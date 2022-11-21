@@ -422,6 +422,7 @@ int phy_ncsi_init(void);
 int phy_xilinx_gmii2rgmii_init(void);
 
 int board_phy_config(struct phy_device *phydev);
+int generic_get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id);
 int get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id);
 
 /**

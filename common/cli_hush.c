@@ -981,7 +981,7 @@ static int uboot_cli_readline(struct in_str *i)
 	char __maybe_unused *ps_prompt = NULL;
 
 	if (i->promptmode == 1)
-		prompt = CONFIG_SYS_PROMPT;
+		prompt = get_sys_prompt();
 	else
 		prompt = CONFIG_SYS_PROMPT_HUSH_PS2;
 
@@ -1903,7 +1903,7 @@ static int run_list_real(struct pipe *pi)
 #else
 		if (rcode < -1) {
 			last_return_code = -rcode - 2;
-			return -2;	/* exit */
+			return rcode;	/* exit */
 		}
 		last_return_code=(rcode == 0) ? 0 : 1;
 #endif
@@ -2773,10 +2773,15 @@ static char *lookup_param(char *src)
 	char *default_val = NULL;
 	int assign = 0;
 	int expand_empty = 0;
+	int indirect = 0;
 
 	if (!src)
 		return NULL;
 
+	if (*src == '!') {
+		indirect = 1;
+		src++;
+	}
 	sep = strchr(src, ':');
 
 	if (sep) {
@@ -2796,6 +2801,13 @@ static char *lookup_param(char *src)
 	p = env_get(src);
 	if (!p)
 		p = get_local_var(src);
+
+	if (p && indirect) {
+		char *p2 = env_get(p);
+		if (!p2)
+			p2 = get_local_var(p);
+		p = p2;
+	}
 
 	if (!p || strlen(p) == 0) {
 		p = default_val;
@@ -2896,6 +2908,11 @@ static int handle_dollar(o_string *dest, struct p_context *ctx, struct in_str *i
 			b_addchr(dest, SPECIAL_VAR_SYMBOL);
 			ctx->child->sp++;
 			b_getch(input);
+			ch = input->peek(input);
+			if (ch == '!') {
+				b_addchr(dest, ch);
+				b_getch(input);
+			}
 			/* XXX maybe someone will try to escape the '}' */
 			while(ch=b_getch(input),ch!=EOF && ch!='}') {
 				b_addchr(dest,ch);
@@ -3215,9 +3232,9 @@ static int parse_stream_outer(struct in_str *inp, int flag)
 			run_list(ctx.list_head);
 #else
 			code = run_list(ctx.list_head);
-			if (code == -2) {	/* exit */
+			if (code <= -2) {	/* exit */
 				b_free(&temp);
-				code = 0;
+				code = last_return_code;
 				/* XXX hackish way to not allow exit from main loop */
 				if (inp->peek == file_peek) {
 					printf("exit not allowed from main input shell.\n");

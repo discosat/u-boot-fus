@@ -20,11 +20,15 @@
 #include <time.h>
 #include <u-boot/sha256.h>
 #include <bootcount.h>
+#include <update.h>			/* enum update_action */
 #ifdef is_boot_from_usb
 #include <env.h>
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#define XMK_STR(x)	#x
+#define MK_STR(x)	XMK_STR(x)
 
 #define MAX_DELAY_STOP_STR 32
 
@@ -331,7 +335,8 @@ const char *bootdelay_process(void)
 	bootcount_inc();
 
 	s = env_get("bootdelay");
-	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
+	bootdelay = (int)simple_strtol(s ? s : MK_STR(CONFIG_BOOTDELAY),
+				       NULL, 10);
 
 	if (IS_ENABLED(CONFIG_OF_CONTROL))
 		bootdelay = fdtdec_get_config_int(gd->fdt_blob, "bootdelay",
@@ -346,7 +351,9 @@ const char *bootdelay_process(void)
 				 mfgtools\n", 0);
 	} else if (is_boot_from_usb()) {
 		printf("Boot from USB for uuu\n");
+#ifdef CONFIG_FASTBOOT
 		env_set("bootcmd", "fastboot 0");
+#endif
 	} else {
 		printf("Normal Boot\n");
 	}

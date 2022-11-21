@@ -477,20 +477,17 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	char *filename;
 	int size;
 	struct part_info *part;
-	ulong offset = image_load_addr;
+	ulong addr;
 
-	/* pre-set Boot file name */
-	filename = env_get("bootfile");
-	if (!filename)
-		filename = "uImage";
+	addr = get_loadaddr();
+	filename = env_get_bootfile();
 
 	if (argc == 2) {
-		filename = argv[1];
+		filename = env_parse_bootfile(argv[1]);
 	}
 	if (argc == 3) {
-		offset = simple_strtoul(argv[1], NULL, 16);
-		image_load_addr = offset;
-		filename = argv[2];
+		addr = parse_loadaddr(argv[1], NULL);
+		filename = env_parse_bootfile(argv[2]);
 	}
 
 	/* make sure we are in sync with env variables */
@@ -501,19 +498,19 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		/* check partition type for cramfs */
 		fsname = (cramfs_check(part) ? "CRAMFS" : "JFFS2");
-		printf("### %s loading '%s' to 0x%lx\n", fsname, filename, offset);
+		printf("### %s loading '%s' to 0x%lx\n", fsname, filename, addr);
 
 		if (cramfs_check(part)) {
-			size = cramfs_load ((char *) offset, part, filename);
+			size = cramfs_load ((char *) addr, part, filename);
 		} else {
 			/* if this is not cramfs assume jffs2 */
-			size = jffs2_1pass_load((char *)offset, part, filename);
+			size = jffs2_1pass_load((char *)addr, part, filename);
 		}
 
 		if (size > 0) {
 			printf("### %s load complete: %d bytes loaded to 0x%lx\n",
-				fsname, size, offset);
-			env_set_hex("filesize", size);
+				fsname, size, addr);
+			env_set_fileinfo(size);
 		} else {
 			printf("### %s LOAD ERROR<%x> for %s!\n", fsname, size, filename);
 		}

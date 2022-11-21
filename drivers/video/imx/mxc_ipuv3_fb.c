@@ -254,11 +254,11 @@ static int mxcfb_set_par(struct fb_info *fbi)
 		sig_cfg.Hsync_pol = 1;
 	if (fbi->var.sync & FB_SYNC_VERT_HIGH_ACT)
 		sig_cfg.Vsync_pol = 1;
-	if (!(fbi->var.sync & FB_SYNC_CLK_LAT_FALL))
+	if (fbi->var.sync & FB_SYNC_ON_GREEN)      /* clock polarity */
 		sig_cfg.clk_pol = 1;
 	if (fbi->var.sync & FB_SYNC_DATA_INVERT)
 		sig_cfg.data_pol = 1;
-	if (!(fbi->var.sync & FB_SYNC_OE_LOW_ACT))
+	if (fbi->var.sync & FB_SYNC_COMP_HIGH_ACT) /* DE polarity */
 		sig_cfg.enable_pol = 1;
 	if (fbi->var.sync & FB_SYNC_CLK_IDLE_EN)
 		sig_cfg.clkidle_en = 1;
@@ -605,7 +605,7 @@ void *video_hw_init(void)
 {
 	int ret;
 
-	ret = ipu_probe();
+	ret = ipu_probe(1, gdisp);
 	if (ret)
 		puts("Error initializing IPU\n");
 
@@ -649,7 +649,7 @@ static int ipuv3_video_probe(struct udevice *dev)
 	debug("%s() plat: base 0x%lx, size 0x%x\n",
 	      __func__, plat->base, plat->size);
 
-	ret = ipu_probe();
+	ret = ipu_probe(1, gdisp);
 	if (ret)
 		return ret;
 

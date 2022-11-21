@@ -314,6 +314,7 @@ enum {
 
 #define LZ4F_MAGIC	0x184D2204	/* LZ4 Magic Number		*/
 #define IH_MAGIC	0x27051956	/* Image Magic Number		*/
+#define IH_ZMAGIC	0x016f2818	/* Magic number for zImages	*/
 #define IH_NMLEN		32	/* Image Name Length		*/
 
 /* Reused from common.h */
@@ -573,6 +574,7 @@ int boot_get_setup(bootm_headers_t *images, uint8_t arch, ulong *setup_start,
 #endif
 #define IMAGE_FORMAT_FIT	0x02	/* new, libfdt based format */
 #define IMAGE_FORMAT_ANDROID	0x03	/* Android boot image */
+#define IMAGE_FORMAT_ZIMAGE	0x04    /* Linux zImage format */
 
 ulong genimg_get_kernel_addr_fit(char * const img_addr,
 			         const char **fit_uname_config,
@@ -1437,6 +1439,24 @@ struct cipher_algo *image_get_cipher_algo(const char *full_name);
 #define fit_unsupported_reset(msg)
 #endif /* CONFIG_FIT_VERBOSE */
 #endif /* CONFIG_FIT */
+
+/* Get the load address; should be the same as environment variable loadaddr */
+ulong get_loadaddr(void);
+
+/* Parse address, in case of "." return current get_loadaddr() */
+ulong parse_loadaddr(const char *buffer, char **endp);
+
+/* Like simple_loadaddr(), but return error in case of trailing garbage */
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr);
+
+/* Set address where to load next file */
+void set_fileaddr(ulong addr);
+
+/* Get address where to load next file */
+ulong get_fileaddr(void);
+
+/* Set environment variables fileaddr and filesize */
+void env_set_fileinfo(ulong size);
 
 #if defined(CONFIG_ANDROID_BOOT_IMAGE)
 struct andr_img_hdr;

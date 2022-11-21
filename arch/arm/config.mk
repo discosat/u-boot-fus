@@ -157,7 +157,9 @@ endif
 ifneq ($(CONFIG_IMX_CONFIG),)
 ifdef CONFIG_SPL
 ifndef CONFIG_SPL_BUILD
+ifdef CONFIG_SPL_AUTOBUILD
 ALL-y += SPL
+endif
 endif
 else
 ifeq ($(CONFIG_OF_SEPARATE),y)

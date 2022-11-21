@@ -558,9 +558,54 @@ static const image_header_t *image_get_ramdisk(ulong rd_addr, uint8_t arch,
 /* Shared dual-format routines */
 /*****************************************************************************/
 #ifndef USE_HOSTCC
-ulong image_load_addr = CONFIG_SYS_LOAD_ADDR;	/* Default Load Address */
-ulong image_save_addr;			/* Default Save Address */
-ulong image_save_size;			/* Default Save Size (in bytes) */
+static ulong load_addr;			/* Default Load Address */
+static ulong file_addr;			/* Load address for current file */
+
+ulong get_fileaddr(void)
+{
+	return file_addr;
+}
+
+/* Remember fileaddr to be used by load/save and network commands */
+void set_fileaddr(ulong addr)
+{
+	file_addr = addr;
+}
+
+/* Store fileaddr/filesize to environment, call if download was successful */
+void env_set_fileinfo(ulong size)
+{
+	env_set_hex("fileaddr", file_addr);
+	env_set_hex("filesize", size);
+}
+
+ulong get_loadaddr(void)
+{
+	return load_addr;
+}
+
+/* If string starts with '.', return current load_addr, else parse address */
+ulong parse_loadaddr(const char *buffer, char ** endp)
+{
+	if (*buffer != '.')
+		return simple_strtoul(buffer, endp, 16);
+	if (endp)
+		*endp = (char *)(buffer + 1);
+	return load_addr;
+}
+
+int strict_parse_loadaddr(const char *buffer, ulong *loadaddr)
+{
+	if (*buffer != '.')
+		return strict_strtoul(buffer, 16, loadaddr);
+
+	*loadaddr = load_addr;
+
+	if (buffer[1])
+		return -EINVAL;
+
+	return 0;
+}
 
 static int on_loadaddr(const char *name, const char *value, enum env_op op,
 	int flags)
@@ -568,7 +613,7 @@ static int on_loadaddr(const char *name, const char *value, enum env_op op,
 	switch (op) {
 	case env_op_create:
 	case env_op_overwrite:
-		image_load_addr = simple_strtoul(value, NULL, 16);
+		load_addr = simple_strtoul(value, NULL, 16);
 		break;
 	default:
 		break;
@@ -937,21 +982,21 @@ ulong genimg_get_kernel_addr_fit(char * const img_addr,
 
 	/* find out kernel image address */
 	if (!img_addr) {
-		kernel_addr = image_load_addr;
+		kernel_addr = get_loadaddr();
 		debug("*  kernel: default image load address = 0x%08lx\n",
-		      image_load_addr);
+		      kernel_addr);
 #if CONFIG_IS_ENABLED(FIT)
-	} else if (fit_parse_conf(img_addr, image_load_addr, &kernel_addr,
+	} else if (fit_parse_conf(img_addr, get_loadaddr(), &kernel_addr,
 				  fit_uname_config)) {
 		debug("*  kernel: config '%s' from image at 0x%08lx\n",
 		      *fit_uname_config, kernel_addr);
-	} else if (fit_parse_subimage(img_addr, image_load_addr, &kernel_addr,
+	} else if (fit_parse_subimage(img_addr, get_loadaddr(), &kernel_addr,
 				     fit_uname_kernel)) {
 		debug("*  kernel: subimage '%s' from image at 0x%08lx\n",
 		      *fit_uname_kernel, kernel_addr);
 #endif
 	} else {
-		kernel_addr = simple_strtoul(img_addr, NULL, 16);
+		kernel_addr = parse_loadaddr(img_addr, NULL);
 		debug("*  kernel: cmdline image address = 0x%08lx\n",
 		      kernel_addr);
 	}
@@ -994,6 +1039,11 @@ int genimg_get_format(const void *img_addr)
 	hdr = (const image_header_t *)img_addr;
 	if (image_check_magic(hdr))
 		return IMAGE_FORMAT_LEGACY;
+#endif
+
+#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM)
+	if (*(ulong *)(img_addr + 9*4) == IH_ZMAGIC)
+		return IMAGE_FORMAT_ZIMAGE;
 #endif
 #if IMAGE_ENABLE_FIT || IMAGE_ENABLE_OF_LIBFDT
 	if (fdt_check_header(img_addr) == 0)
@@ -1103,7 +1153,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 			if (images->fit_uname_os)
 				default_addr = (ulong)images->fit_hdr_os;
 			else
-				default_addr = image_load_addr;
+				default_addr = get_loadaddr();
 
 			if (fit_parse_conf(select, default_addr,
 					   &rd_addr, &fit_uname_config)) {
@@ -1118,7 +1168,7 @@ int boot_get_ramdisk(int argc, char * const argv[], bootm_headers_t *images,
 			} else
 #endif
 			{
-				rd_addr = simple_strtoul(select, NULL, 16);
+				rd_addr = parse_loadaddr(select, NULL);
 				debug("*  ramdisk: cmdline image address = "
 						"0x%08lx\n",
 						rd_addr);

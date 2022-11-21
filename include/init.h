@@ -214,17 +214,7 @@ int init_func_vid(void);
 int checkboard(void);
 int show_board_info(void);
 
-/* common/cmd_source.c */
-enum update_action {
-	UPDATE_ACTION_NONE,
-	UPDATE_ACTION_UPDATE,
-	UPDATE_ACTION_INSTALL,
-	UPDATE_ACTION_RECOVER
-};
-
 int	source (ulong addr, const char *fit_uname);
-int update_script(enum update_action action_id, const char *autocheck,
-		  const char *fname, unsigned long addr);
 
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 void get_reboot_reason(char *ret);

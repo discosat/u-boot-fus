@@ -54,14 +54,15 @@ static void sdhci_cmd_done(struct sdhci_host *host, struct mmc_cmd *cmd)
 
 static void sdhci_transfer_pio(struct sdhci_host *host, struct mmc_data *data)
 {
-	int i;
-	char *offs;
-	for (i = 0; i < data->blocksize; i += 4) {
-		offs = data->dest + i;
-		if (data->flags == MMC_DATA_READ)
-			*(u32 *)offs = sdhci_readl(host, SDHCI_BUFFER);
-		else
-			sdhci_writel(host, *(u32 *)offs, SDHCI_BUFFER);
+	u32 *p = (u32 *)data->dest;
+	u32 *end = p + data->blocksize/4;
+
+	if (data->flags == MMC_DATA_READ) {
+		while (p < end)
+			*p++ = sdhci_readl(host, SDHCI_BUFFER);
+	} else {
+		while (p < end)
+			sdhci_writel(host, *p++, SDHCI_BUFFER);
 	}
 }
 
@@ -172,7 +173,7 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data)
 	unsigned int stat, rdy, mask, timeout, block = 0;
 	bool transfer_done = false;
 
-	timeout = 1000000;
+	timeout = 0;
 	rdy = SDHCI_INT_SPACE_AVAIL | SDHCI_INT_DATA_AVAIL;
 	mask = SDHCI_DATA_AVAILABLE | SDHCI_SPACE_AVAILABLE;
 	do {
@@ -185,8 +186,13 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data)
 		if (!transfer_done && (stat & rdy)) {
 			if (!(sdhci_readl(host, SDHCI_PRESENT_STATE) & mask))
 				continue;
+			if (block >= data->blocks) {
+				puts("Too much data\n");
+				return 0; /* This will send STOP as next cmd */
+			}
 			sdhci_writel(host, rdy, SDHCI_INT_STATUS);
 			sdhci_transfer_pio(host, data);
+			timeout = 0;	  /* restart timeout */
 			data->dest += data->blocksize;
 			if (++block >= data->blocks) {
 				/* Keep looping until the SDHCI_INT_DATA_END is
@@ -207,14 +213,23 @@ static int sdhci_transfer_data(struct sdhci_host *host, struct mmc_data *data)
 				sdhci_writel(host, start_addr,
 					     SDHCI_DMA_ADDRESS);
 			}
+			timeout = 0;	  /* restart timeout */
 		}
-		if (timeout-- > 0)
+		
+		/* When using DMA, the maximum transferred block is up to
+		   512KB. The slowest SD cards are about 2MB/s. This results
+		   in a transfer time of about 512/2048 = 1/4s. We double the
+		   time again and therefore come to a timeout of 500ms. We
+		   are waiting for 10us per cycle, so this is 50000 cycles. */
+		if (timeout++ < 50000)
 			udelay(10);
 		else {
 			printf("%s: Transfer data timeout\n", __func__);
 			return -ETIMEDOUT;
 		}
 	} while (!(stat & SDHCI_INT_DATA_END));
+
+	sdhci_writel(host, SDHCI_INT_DATA_END, SDHCI_INT_STATUS);
 
 	dma_unmap_single(host->start_addr, data->blocks * data->blocksize,
 			 mmc_get_dma_dir(data));

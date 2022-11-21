@@ -27,7 +27,7 @@
  *		when bbt is searched, then we store the found bbts pages here.
  *		Its an array and supports up to 8 chips now
  * @offs:	offset of the pattern in the oob area of the page
- * @veroffs:	offset of the bbt version counter in the oob are of the page
+ * @veroffs:	offset of the bbt version counter in the oob area of the page
  * @version:	version read from the bbt page during scan
  * @len:	length of the pattern, if 0 no pattern check is performed
  * @maxblocks:	maximum number of blocks to search for a bbt. This number of

@@ -38,10 +38,12 @@ enum {
 #include "mx6sl_pins.h"
 #elif defined(CONFIG_MX6SX)
 #include "mx6sx_pins.h"
-#elif defined(CONFIG_MX6ULL)
-#include "mx6ull_pins.h"
-#elif defined(CONFIG_MX6UL)
-#include "mx6ul_pins.h"
+//#elif defined(CONFIG_MX6ULL)
+//#include "mx6ull_pins.h"
+//#elif defined(CONFIG_MX6UL)
+//#include "mx6ul_pins.h"
+#elif defined(CONFIG_MX6ULL) || defined(CONFIG_MX6UL)
+#include "mx6ulull_pins.h"		/* F&S combined version */
 #else
 #error "Please select cpu"
 #endif	/* CONFIG_MX6Q */

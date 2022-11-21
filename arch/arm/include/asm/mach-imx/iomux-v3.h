@@ -278,16 +278,16 @@ if (is_mx6dq() || is_mx6dqp()) {				\
 }
 #define SETUP_IOMUX_PADS(x)					\
 	imx_iomux_v3_setup_multiple_pads(x, ARRAY_SIZE(x)/2)
-#elif defined(CONFIG_MX6Q)
-#define IOMUX_PADS(x) MX6_##x
+#elif defined(CONFIG_MX6Q) || defined(CONFIG_MX6D)
+#define IOMUX_PADS(x) MX6Q_##x
 #define SETUP_IOMUX_PAD(def)					\
-	imx_iomux_v3_setup_pad(MX6_##def);
+	imx_iomux_v3_setup_pad(MX6Q_##def);
 #define SETUP_IOMUX_PADS(x)					\
 	imx_iomux_v3_setup_multiple_pads(x, ARRAY_SIZE(x))
-#elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
-#define IOMUX_PADS(x) MX6_##x
+#elif defined(CONFIG_MX6DL) || defined(CONFIG_MX6S)
+#define IOMUX_PADS(x) MX6DL_##x
 #define SETUP_IOMUX_PAD(def)					\
-	imx_iomux_v3_setup_pad(MX6_##def);
+	imx_iomux_v3_setup_pad(MX6DL_##def);
 #define SETUP_IOMUX_PADS(x)					\
 	imx_iomux_v3_setup_multiple_pads(x, ARRAY_SIZE(x))
 #else

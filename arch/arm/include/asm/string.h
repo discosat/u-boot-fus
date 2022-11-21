@@ -19,7 +19,9 @@ extern char * strchr(const char * s, int c);
 #endif
 extern void * memcpy(void *, const void *, __kernel_size_t);
 
-#undef __HAVE_ARCH_MEMMOVE
+#if CONFIG_IS_ENABLED(USE_ARCH_MEMMOVE)
+#define __HAVE_ARCH_MEMMOVE
+#endif
 extern void * memmove(void *, const void *, __kernel_size_t);
 
 #undef __HAVE_ARCH_MEMCHR
@@ -30,6 +32,12 @@ extern void * memchr(const void *, int, __kernel_size_t);
 #define __HAVE_ARCH_MEMSET
 #endif
 extern void * memset(void *, int, __kernel_size_t);
+
+/* This one is new: fill count words starting at dest with data */
+#ifdef CONFIG_USE_ARCH_MEMSET32
+#define __HAVE_ARCH_MEMSET32
+#endif
+extern unsigned *memset32(unsigned *, unsigned, __kernel_size_t);
 
 #if 0
 extern void __memzero(void *ptr, __kernel_size_t n);

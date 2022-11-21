@@ -342,11 +342,16 @@ static void usb_oc_config(int index)
 
 	setbits_le32(ctrl, UCTRL_OVER_CUR_DIS);
 
+/* F&S sets the power polarity for each port via boardfile or environment
+ * variable. This entry overrides these settings so we disable it.
+ */
+#if 0
 	/* Set power polarity to high active */
 #ifdef CONFIG_MXC_USB_OTG_HACTIVE
 	setbits_le32(ctrl, UCTRL_PWR_POL);
 #else
 	clrbits_le32(ctrl, UCTRL_PWR_POL);
+#endif
 #endif
 }
 

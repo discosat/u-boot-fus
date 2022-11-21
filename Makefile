@@ -645,6 +645,20 @@ ifeq ($(CONFIG_XTENSA),)
 LDPPFLAGS	+= -ansi
 endif
 
+
+ifneq ($(CONFIG_FUS_BOARDTYPE),)
+KBUILD_CFLAGS	+= -DFUS_CONFIG_BOARDTYPE=$(CONFIG_FUS_BOARDTYPE)
+endif
+
+ifneq ($(CONFIG_FUS_BOARDREV),)
+KBUILD_CFLAGS	+= -DFUS_CONFIG_BOARDREV=$(CONFIG_FUS_BOARDREV)
+endif
+
+ifneq ($(CONFIG_FUS_FEATURES2),)
+KBUILD_CFLAGS	+= -DFUS_CONFIG_FEAT2=$(CONFIG_FUS_FEATURES2)
+endif
+
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
@@ -864,7 +878,14 @@ ifneq ($(CONFIG_SECURE_BOOT), y)
 ALL-$(CONFIG_RAMBOOT_PBL) += u-boot.pbl
 endif
 endif
+
+ifdef CONFIG_SPL_AUTOBUILD
 ALL-$(CONFIG_SPL) += spl/u-boot-spl.bin
+endif
+
+PHONY += spl
+spl: spl/u-boot-spl.bin
+
 ifeq ($(CONFIG_MX6)$(CONFIG_IMX_HAB), yy)
 ALL-$(CONFIG_SPL_FRAMEWORK) += u-boot-ivt.img
 else
@@ -874,7 +895,14 @@ else
 ALL-$(CONFIG_SPL_FRAMEWORK) += u-boot.img
 endif
 endif
+
+ifdef CONFIG_TPL_AUTOBUILD
 ALL-$(CONFIG_TPL) += tpl/u-boot-tpl.bin
+endif
+
+PHONY += tpl
+tpl: tpl/u-boot-tpl.bin
+
 ALL-$(CONFIG_OF_SEPARATE) += u-boot.dtb
 ifeq ($(CONFIG_SPL_FRAMEWORK),y)
 ALL-$(CONFIG_OF_SEPARATE) += u-boot-dtb.img
@@ -1127,7 +1155,7 @@ MKIMAGEFLAGS_fit-dtb.blob = -f auto -A $(ARCH) -T firmware -C none -O u-boot \
 
 ifneq ($(EXT_DTB),)
 u-boot-fit-dtb.bin: u-boot-nodtb.bin $(EXT_DTB)
-		$(call if_changed,cat)
+	$(call if_changed,cat)
 else
 u-boot-fit-dtb.bin: u-boot-nodtb.bin $(FINAL_DTB_CONTAINER)
 	$(call if_changed,cat)
@@ -1367,8 +1395,9 @@ u-boot-spl.kwb: u-boot.img spl/u-boot-spl.bin FORCE
 u-boot.sha1:	u-boot.bin
 		tools/ubsha1 u-boot.bin
 
-u-boot.dis:	u-boot
-		$(OBJDUMP) -d $< > $@
+# Create disassembler listings if requested
+quiet_cmd_disasm = DISASM  $(2).dis
+cmd_disasm = $(OBJDUMP) -d $(2) > $(2).dis
 
 OBJCOPYFLAGS_uboot.nb0 = --pad-to $(CONFIG_BOARD_SIZE_LIMIT) -I binary -O binary
 uboot.nb0:	u-boot.bin
@@ -1738,6 +1767,7 @@ ifeq ($(CONFIG_KALLSYMS),y)
 	$(call cmd,smap)
 	$(call cmd,u-boot__) common/system_map.o
 endif
+	$(if $(CONFIG_DISASM),$(call cmd,disasm,$@))
 
 ifeq ($(CONFIG_RISCV),y)
 	@tools/prelink-riscv $@ 0
@@ -1894,6 +1924,7 @@ spl/u-boot-spl: tools prepare \
 		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb) \
 		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_TPL_OF_PLATDATA),dts/dt.dtb)
 	$(Q)$(MAKE) obj=spl -f $(srctree)/scripts/Makefile.spl all
+	$(if $(CONFIG_SPL_DISASM),$(call cmd,disasm,$@))
 
 spl/sunxi-spl.bin: spl/u-boot-spl
 	@:
@@ -1910,6 +1941,7 @@ spl/boot.bin: spl/u-boot-spl
 tpl/u-boot-tpl.bin: tools prepare \
 		$(if $(CONFIG_OF_SEPARATE)$(CONFIG_OF_EMBED)$(CONFIG_SPL_OF_PLATDATA),dts/dt.dtb)
 	$(Q)$(MAKE) obj=tpl -f $(srctree)/scripts/Makefile.spl all
+	$(if $(CONFIG_TPL_DISASM),$(call cmd,disasm,$(basename $@)))
 	$(TPL_SIZE_CHECK)
 
 TAG_SUBDIRS := $(patsubst %,$(srctree)/%,$(u-boot-dirs) include)
@@ -1922,8 +1954,8 @@ tags ctags:
 						-name '*.[chS]' -print`
 		ln -s ctags tags
 
-etags:
-		etags -a -o etags `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
+TAGS etags:
+		etags -a -o TAGS `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
 cscope:
 		$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) -name '*.[chS]' -print > \

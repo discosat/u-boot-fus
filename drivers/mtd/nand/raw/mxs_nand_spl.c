@@ -64,7 +64,7 @@ static int mxs_flash_full_ident(struct mtd_info *mtd)
 {
 	int nand_maf_id, nand_dev_id;
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct nand_flash_dev *type;
+	const struct nand_flash_dev *type;
 
 	type = nand_get_flash_type(mtd, chip, &nand_maf_id, &nand_dev_id, NULL);
 
@@ -156,12 +156,15 @@ static int mxs_read_page_ecc(struct mtd_info *mtd, void *buf, unsigned int page)
 {
 	register struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
+	unsigned int ecc_failures = mtd->ecc_stats.failed;
 
 	chip->cmdfunc(mtd, NAND_CMD_READ0, 0x0, page);
 	ret = nand_chip.ecc.read_page(mtd, chip, buf, 1, page);
+	if ((mtd->ecc_stats.failed - ecc_failures) > 0)
+		ret = -EBADMSG;
 	if (ret < 0) {
 		printf("read_page failed %d\n", ret);
-		return -1;
+		return ret;
 	}
 	return 0;
 }
@@ -182,6 +185,8 @@ static int is_badblock(struct mtd_info *mtd, loff_t offs, int allowbbt)
 }
 
 /* setup mtd and nand structs and init mxs_nand driver */
+extern int mxs_nand_realloc(struct mtd_info *mtd);
+
 void nand_init(void)
 {
 	/* return if already initalized */
@@ -204,8 +209,12 @@ void nand_init(void)
 	}
 
 	/* allocate and initialize buffers */
+#ifdef CONFIG_SPL_RAWNAND_BUFFERS_MALLOC
+	mxs_nand_realloc(mtd);
+#else
 	nand_chip.buffers = memalign(ARCH_DMA_MINALIGN,
 				     sizeof(*nand_chip.buffers));
+#endif
 	nand_chip.oob_poi = nand_chip.buffers->databuf + mtd->writesize;
 	/* setup flash layout (does not scan as we override that) */
 	mtd->size = nand_chip.chipsize;
@@ -221,14 +230,21 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	unsigned int sz = 0;
 	uint8_t *page_buf = NULL;
 	uint32_t page_off;
+	int err;
 
 	chip = mtd_to_nand(mtd);
 	if (!chip->numchips)
 		return -ENODEV;
 
-	page_buf = malloc(mtd->writesize);
-	if (!page_buf)
-		return -ENOMEM;
+	/*
+	 * Use the same buffer where the regular mxs_nand driver loads the
+	 * data anyway, so the memcpy() there in mxs_nand_ecc_read_page() is
+	 * actually a no-op. This is faster and we do not need to allocate a
+	 * new buffer here. In early phases in SPL, when using malloc_f, these
+	 * buffers are not freed and consume more and more of valuable OCRAM
+	 * with each call.
+	 */
+	page_buf = chip->buffers->databuf;
 
 	page = offs >> chip->page_shift;
 	page_off = offs & (mtd->writesize - 1);
@@ -237,8 +253,9 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 	debug("%s offset:0x%08x len:%d page:%x\n", __func__, offs, size, page);
 
 	while (size) {
-		if (mxs_read_page_ecc(mtd, page_buf, page) < 0)
-			return -1;
+		err = mxs_read_page_ecc(mtd, page_buf, page);
+		if (err < 0)
+			return err;
 
 		if (size > (mtd->writesize - page_off))
 			sz = (mtd->writesize - page_off);
@@ -264,16 +281,13 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *buf)
 			 */
 			while (is_badblock(mtd, offs, 1)) {
 				page = page + nand_page_per_block;
+				offs += mtd->erasesize;
 				/* Check i we've reached the end of flash. */
-				if (page >= mtd->size >> chip->page_shift) {
-					free(page_buf);
+				if (page >= mtd->size >> chip->page_shift)
 					return -ENOMEM;
-				}
 			}
 		}
 	}
-
-	free(page_buf);
 
 	return 0;
 }

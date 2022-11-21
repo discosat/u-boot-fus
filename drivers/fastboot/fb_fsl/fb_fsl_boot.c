@@ -1062,11 +1062,11 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		u32 fdt_size = 0;
 		/* load the dtb file */
 		if (hdr->second_addr) {
-			u32 zimage_size = ((u32 *)hdrload->kernel_addr)[ZIMAGE_END_ADDR]
-					- ((u32 *)hdrload->kernel_addr)[ZIMAGE_START_ADDR];
-			fdt_size = hdrload->kernel_size - zimage_size;
-			memcpy((void *)(ulong)hdrload->second_addr,
-					(void*)(ulong)hdrload->kernel_addr + zimage_size, fdt_size);
+			u32 zimage_size = ((u32 *)hdr->kernel_addr)[ZIMAGE_END_ADDR]
+					- ((u32 *)hdr->kernel_addr)[ZIMAGE_START_ADDR];
+			fdt_size = hdr->kernel_size - zimage_size;
+			memcpy((void *)(ulong)hdr->second_addr,
+					(void*)(ulong)hdr->kernel_addr + zimage_size, fdt_size);
 		}
 #endif /*CONFIG_OF_LIBFDT*/
 

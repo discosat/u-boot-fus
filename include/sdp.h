@@ -23,15 +23,8 @@ struct sdp_stream_ops {
 };
 
 int sdp_init(int controller_index);
-
-#ifdef CONFIG_SPL_BUILD
-#include <spl.h>
-int spl_sdp_handle(int controller_index, struct spl_image_info *spl_image,
+void sdp_handle(int controller_index,
 		const struct sdp_stream_ops *ops, bool single);
-#else
-int sdp_handle(int controller_index,
-		const struct sdp_stream_ops *ops, bool single);
-#endif
 
 int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single);
 int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single);

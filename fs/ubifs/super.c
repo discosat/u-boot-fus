@@ -2551,6 +2551,10 @@ int ubifs_init(void)
 #endif
 {
 	int err;
+	static int ubifs_initialized;
+
+	if (ubifs_initialized)
+		return 0;
 
 	BUILD_BUG_ON(sizeof(struct ubifs_ch) != 24);
 
@@ -2638,6 +2642,8 @@ int ubifs_init(void)
 		goto out_dbg;
 	}
 #endif
+	ubifs_initialized = 1;
+
 	return 0;
 
 #ifndef __UBOOT__
@@ -2682,7 +2688,7 @@ MODULE_VERSION(__stringify(UBIFS_VERSION));
 MODULE_AUTHOR("Artem Bityutskiy, Adrian Hunter");
 MODULE_DESCRIPTION("UBIFS - UBI File System");
 #else
-int uboot_ubifs_mount(char *vol_name)
+int uboot_ubifs_mount(const char *vol_name)
 {
 	struct dentry *ret;
 	int flags;

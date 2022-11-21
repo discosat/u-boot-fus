@@ -443,6 +443,11 @@ int genphy_startup(struct phy_device *phydev)
 
 int genphy_shutdown(struct phy_device *phydev)
 {
+	int value;
+
+	value = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, value | BMCR_PDOWN);
+
 	return 0;
 }
 
@@ -704,7 +709,7 @@ static struct phy_device *phy_device_create(struct mii_dev *bus, int addr,
  * Description: Reads the ID registers of the PHY at @addr on the
  *   @bus, stores it in @phy_id and returns zero on success.
  */
-int __weak get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id)
+int generic_get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id)
 {
 	int phy_reg;
 
@@ -728,6 +733,11 @@ int __weak get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id)
 	*phy_id |= (phy_reg & 0xffff);
 
 	return 0;
+}
+
+int __weak get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id)
+{
+	return generic_get_phy_id(bus, addr, devad, phy_id);
 }
 
 static struct phy_device *create_phy_by_mask(struct mii_dev *bus,

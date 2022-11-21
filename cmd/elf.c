@@ -282,11 +282,11 @@ int do_bootelf(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		argc--; argv++;
 	}
 	/* Check for address. */
-	if (argc >= 1 && strict_strtoul(argv[0], 16, &addr) != -EINVAL) {
+	if (argc >= 1 && strict_parse_loadaddr(argv[0], &addr) != -EINVAL) {
 		/* Consume address */
 		argc--; argv++;
 	} else
-		addr = image_load_addr;
+		addr = get_loadaddr();
 
 	if (!valid_elf_image(addr))
 		return 1;
@@ -340,9 +340,9 @@ int do_bootvx(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	 * If we don't know where the image is then we're done.
 	 */
 	if (argc < 2)
-		addr = image_load_addr;
+		addr = get_loadaddr();
 	else
-		addr = simple_strtoul(argv[1], NULL, 16);
+		addr = parse_loadaddr(argv[1], NULL);
 
 #if defined(CONFIG_CMD_NET)
 	/*

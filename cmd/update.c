@@ -19,11 +19,13 @@
 #ifdef CONFIG_CMD_UBIFS
 #include <mtd/ubi-user.h>		/* UBI_MAX_VOLUME_NAME */
 #endif
+#include <update.h>			/* enum update_action */
 #include <linux/ctype.h>		/* isdigit(), isalnum(), ... */
 #include <jffs2/load_kernel.h>		/* struct mtd_device, ... */
 #include <fs.h>				/* FS_TYPE_ANY, fs_read(), ... */
 #include <nand.h>			/* get_nand_dev_by_index() */
-#include <cpu_func.h>		/* flush_cache() */
+#include <cpu_func.h>			/* flush_cache() */
+#include <image.h>			/* image_source_script() */
 
 #ifndef CONFIG_CMD_SOURCE
 #error You need CONFIG_CMD_SOURCE when you define CONFIG_CMD_UPDATE
@@ -252,7 +254,6 @@ static int update_usb(const char *action, const char **check, const char *fname,
 {
 	char if_dev_part_str[MAX_IF_DEV_PART_STR + 1];
 	static int usb_init_done = 0;
-	loff_t actread = 0;
 
 	if (get_if_dev_part_str(if_dev_part_str, check))
 		return 1;		/* Parse error */
@@ -262,7 +263,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 
 	/* Init USB only once during update */
 	if (!usb_init_done) {
-	        if (usb_init() < 0)
+	        if (usb_init(0) < 0)
 			return -1;
 
 		/* Try to recognize storage devices immediately */
@@ -275,7 +276,7 @@ static int update_usb(const char *action, const char **check, const char *fname,
 	if (fs_set_blk_dev("usb", if_dev_part_str + 4, FS_TYPE_ANY))
 		return -1;		  /* Device or partition not valid */
 
-	if (fs_read(fname, addr, 0, 0, &actread) < 0)
+	if (fs_read(fname, addr, 0, 0, NULL) < 0)
 		return -1;		  /* File not found or I/O error */
 
 	env_set(UPDATEDEV, if_dev_part_str);
@@ -301,7 +302,7 @@ static int update_net(const char *action, const char **check, const char *fname,
 	printf(" with %s ----\n", fname);
 
 	copy_filename(net_boot_file_name, fname, sizeof(net_boot_file_name));
-	env_set_hex("fileaddr", addr);
+	set_fileaddr(addr);
 	size = net_loop(proto);
 	if (size < 0)
 		return -1;
@@ -310,7 +311,7 @@ static int update_net(const char *action, const char **check, const char *fname,
 	flush_cache(addr, size);
 
 	/* Set fileaddr and filesize */
-	env_set_hex("filesize", size);
+	env_set_fileinfo(size);
 	env_set(UPDATEDEV, "net");
 
 	return 0;
@@ -362,7 +363,7 @@ int update_script(enum update_action action_id, const char *check,
 	   "installaddr". If the variable does not exist, use $(loadaddr) */
 	if (!addr) {
 		sprintf(varname, "%saddr", action);
-		addr = env_get_ulong(varname, 16, image_load_addr);
+		addr = env_get_ulong(varname, 16, get_loadaddr());
 	}
 
 	/* If called without script filename argument, get filename from
@@ -490,7 +491,7 @@ int do_update(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			if (strcmp(argv[2], ".") != 0)
 				fname = argv[2];
 			if (argc > 3)
-				addr = simple_strtoul(argv[3], NULL, 16);
+				addr = parse_loadaddr(argv[3], NULL);
 		}
 	}
 

@@ -21,32 +21,37 @@
 #define DEV_NAME_SIZE 32
 
 /* Device information */
+typedef struct stdio_dev stdio_dev_t;
+
 struct stdio_dev {
-	int	flags;			/* Device flags: input/output/system	*/
-	int	ext;			/* Supported extensions			*/
-	char	name[DEV_NAME_SIZE];		/* Device name				*/
+	int	flags;			/* Device flags: input/output/system */
+//###	int	ext;			/* Supported extensions */
+	char	name[DEV_NAME_SIZE];	/* Device name */
 
 /* GENERAL functions */
+	/* To start the device */
+	int (*start) (const struct stdio_dev *dev);
 
-	int (*start)(struct stdio_dev *dev);	/* To start the device */
-	int (*stop)(struct stdio_dev *dev);	/* To stop the device */
+	/* To stop the device */
+	int (*stop) (const struct stdio_dev *dev);
 
 /* OUTPUT functions */
-
 	/* To put a char */
-	void (*putc)(struct stdio_dev *dev, const char c);
+	void (*putc) (const struct stdio_dev *dev, const char c);
+
 	/* To put a string (accelerator) */
-	void (*puts)(struct stdio_dev *dev, const char *s);
+	void (*puts) (const struct stdio_dev *dev, const char *s);
 
 /* INPUT functions */
+	/* To test if a char is ready */
+	int (*tstc) (const struct stdio_dev *dev);
 
-	/* To test if a char is ready... */
-	int (*tstc)(struct stdio_dev *dev);
-	int (*getc)(struct stdio_dev *dev);	/* To get that char */
+	/* To get that char */
+	int (*getc) (const struct stdio_dev *dev);
 
 /* Other functions */
 
-	void *priv;			/* Private extensions			*/
+	void *priv;			/* Private extensions */
 	struct list_head list;
 };
 
@@ -59,8 +64,8 @@ extern char *stdio_names[MAX_FILES];
 /*
  * PROTOTYPES
  */
-int	stdio_register (struct stdio_dev * dev);
-int stdio_register_dev(struct stdio_dev *dev, struct stdio_dev **devp);
+int stdio_register(const struct stdio_dev * dev);
+int stdio_register_dev(const struct stdio_dev *dev, struct stdio_dev **devp);
 
 /**
  * stdio_init_tables() - set up stdio tables ready for devices
@@ -91,7 +96,7 @@ int stdio_deregister_dev(struct stdio_dev *dev, int force);
 #endif
 struct list_head* stdio_get_list(void);
 struct stdio_dev* stdio_get_by_name(const char* name);
-struct stdio_dev* stdio_clone(struct stdio_dev *dev);
+struct stdio_dev* stdio_clone(const struct stdio_dev *dev);
 
 #ifdef CONFIG_LCD
 int	drv_lcd_init (void);

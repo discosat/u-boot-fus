@@ -171,5 +171,14 @@ void nand_init(void)
 				 nand_curr_device);
 #endif
 
+#ifdef CONFIG_NAND_REFRESH
+	{
+		int i;
+
+		for (i = 0; i < CONFIG_SYS_MAX_NAND_DEVICE; i++)
+			nand_refresh_init(nand_info[i]);
+	}
+#endif
+
 	create_mtd_concat();
 }

@@ -311,6 +311,26 @@ config PLATFORM_ELFENTRY
 	default "__start" if MIPS
 	default "_start"
 
+config DISASM
+	bool "Create a disassembler listing of U-Boot"
+	help
+	  Create a disassembler listing u-boot.dis after building.
+	  This can be used to find code or compiler problems.
+
+config SPL_DISASM
+	bool "Create a disassembler listing of SPL"
+	depends on DISASM
+	depends on SPL
+	help
+	  Create a disassembler listing spl.dis after building.
+
+config TPL_DISASM
+	bool "Create a disassembler listing of TPL"
+	depends on DISASM
+	depends on TPL
+	help
+	  Create a disassembler listing tpl.dis after building.
+
 endmenu		# General setup
 
 menu "Boot images"

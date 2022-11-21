@@ -271,7 +271,7 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	if (argc < 3)
 		return -1;
 
-	addr = simple_strtoul(argv[1], &endp, 16);
+	addr = parse_loadaddr(argv[1], &endp);
 	if (*argv[1] == 0 || *endp != 0)
 		return -1;
 

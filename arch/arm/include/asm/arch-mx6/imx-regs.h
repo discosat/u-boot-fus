@@ -24,6 +24,7 @@
 #define APBH_DMA_ARB_BASE_ADDR          0x01804000
 #define APBH_DMA_ARB_END_ADDR           0x0180BFFF
 #define MCU_BOOTROM_BASE_ADDR			0x007F8000
+#define M4_BOOTROM_BASE_ADDR			0x007F8000
 
 #elif !defined(CONFIG_MX6SLL)
 #define CAAM_ARB_BASE_ADDR              0x00100000
@@ -66,11 +67,15 @@
 
 #define IRAM_BASE_ADDR			0x00900000
 #define SCU_BASE_ADDR                   0x00A00000
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+#define IC_INTERFACES_BASE_ADDR         0x00A02000
+#else
 #define IC_INTERFACES_BASE_ADDR         0x00A00100
+#define L2_PL310_BASE			0x00A02000
+#endif
 #define GLOBAL_TIMER_BASE_ADDR          0x00A00200
 #define PRIVATE_TIMERS_WD_BASE_ADDR     0x00A00600
 #define IC_DISTRIBUTOR_BASE_ADDR        0x00A01000
-#define L2_PL310_BASE			0x00A02000
 #define GPV0_BASE_ADDR                  0x00B00000
 #define GPV1_BASE_ADDR                  0x00C00000
 
@@ -122,6 +127,11 @@
 #define MMDC1_ARB_END_ADDR              0xFFFFFFFF
 #endif
 
+#define QSPI1_ARB_BASE_ADDR             0x60000000
+#define QSPI1_ARB_END_ADDR              0x6FFFFFFF
+#define QSPI2_ARB_BASE_ADDR             0x70000000
+#define QSPI2_ARB_END_ADDR              0x7FFFFFFF
+
 #if (!(defined(CONFIG_MX6SX) || defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL) || defined(CONFIG_MX6SLL)))
 #define IPU_SOC_BASE_ADDR		IPU1_ARB_BASE_ADDR
 #define IPU_SOC_OFFSET			0x00200000
@@ -151,25 +161,32 @@
 #define MX6SLL_UART3_BASE_ADDR      (ATZ1_BASE_ADDR + 0x34000)
 #define MX6SL_UART4_BASE_ADDR       (ATZ1_BASE_ADDR + 0x38000)
 
-#ifndef CONFIG_MX6SX
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
+#define UART7_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x18000)
+#elif !defined(CONFIG_MX6SX)
 #define ECSPI5_BASE_ADDR            (ATZ1_BASE_ADDR + 0x18000)
 #endif
 #define UART1_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x20000)
 #define UART1_BASE                  (ATZ1_BASE_ADDR + 0x20000)
+#if defined(CONFIG_MX6UL)
+#if defined(CONFIG_MX6ULL)
 #define ESAI1_BASE_ADDR             (ATZ1_BASE_ADDR + 0x24000)
-#define UART8_BASE                  (ATZ1_BASE_ADDR + 0x24000)
-#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
+#else
+#define UART8_IPS_BASE_ADDR         (ATZ1_BASE_ADDR + 0x24000)
+#endif
 #define SAI1_BASE_ADDR              (ATZ1_BASE_ADDR + 0x28000)
 #define SAI2_BASE_ADDR              (ATZ1_BASE_ADDR + 0x2C000)
 #define SAI3_BASE_ADDR              (ATZ1_BASE_ADDR + 0x30000)
 #else
+#define ESAI1_BASE_ADDR             (ATZ1_BASE_ADDR + 0x24000)
+#define UART8_BASE                  (ATZ1_BASE_ADDR + 0x24000)
 #define SSI1_BASE_ADDR              (ATZ1_BASE_ADDR + 0x28000)
 #define SSI2_BASE_ADDR              (ATZ1_BASE_ADDR + 0x2C000)
 #define SSI3_BASE_ADDR              (ATZ1_BASE_ADDR + 0x30000)
 #endif
 #define ASRC_BASE_ADDR              (ATZ1_BASE_ADDR + 0x34000)
 
-#if defined(CONFIG_MX6UL)
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 #define TOUCH_CTRL_BASE_ADDR        (ATZ1_BASE_ADDR + 0x40000)
 #define BEE_BASE_ADDR               (ATZ1_BASE_ADDR + 0x44000)
 #elif !defined(CONFIG_MX6SX)
@@ -256,12 +273,12 @@
 #define AIPS3_ON_BASE_ADDR          (ATZ3_BASE_ADDR + 0x7C000)
 #define AIPS3_OFF_BASE_ADDR         (ATZ3_BASE_ADDR + 0x80000)
 
-#if defined(CONFIG_MX6UL)
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 #define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR + 0x40000)
 #define ARM_BASE_ADDR               (ATZ2_BASE_ADDR)
 #else
 #define CAAM_BASE_ADDR              (ATZ2_BASE_ADDR)
-#define ARM_BASE_ADDR		    	(ATZ2_BASE_ADDR + 0x40000)
+#define ARM_BASE_ADDR		    (ATZ2_BASE_ADDR + 0x40000)
 #endif
 
 #define CONFIG_SYS_FSL_SEC_OFFSET   0
@@ -310,7 +327,7 @@
 #define WEIM_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x38000)
 #define OCOTP_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x3C000)
 #define CSU_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x40000)
-#if (defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL))
+#if defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 #define CSI_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x44000)
 #define PXP_BASE_ADDR               (AIPS2_OFF_BASE_ADDR + 0x4C000)
 #elif defined(CONFIG_MX6SLL)
@@ -332,6 +349,7 @@
 #define SYSCNT_RD_IPS_BASE_ADDR     (AIPS2_OFF_BASE_ADDR + 0x54000)
 #define SYSCNT_CMP_IPS_BASE_ADDR    (AIPS2_OFF_BASE_ADDR + 0x58000)
 #define SYSCNT_CTRL_IPS_BASE_ADDR   (AIPS2_OFF_BASE_ADDR + 0x5C000)
+#define SCTR_BASE_ADDR              SYSCNT_CTRL_IPS_BASE_ADDR
 #define QSPI0_BASE_ADDR             (AIPS2_OFF_BASE_ADDR + 0x60000)
 #elif defined(CONFIG_MX6SX)
 #define SAI1_BASE_ADDR              (AIPS2_OFF_BASE_ADDR + 0x54000)
@@ -397,6 +415,9 @@
 #define EPDC_BASE_ADDR              (AIPS3_ARB_BASE_ADDR + 0x8C000)
 #define IOMUXC_SNVS_BASE_ADDR       (AIPS3_ARB_BASE_ADDR + 0x90000)
 #define SNVS_GPR_BASE_ADDR          (AIPS3_ARB_BASE_ADDR + 0x94000)
+#elif defined(CONFIG_MX6UL)
+/* Unused defines to allow UL and ULL in same code */
+#define IOMUXC_SNVS_BASE_ADDR       (AIPS3_ARB_BASE_ADDR + 0x90000)
 #endif
 
 #define NOC_DDR_BASE_ADDR           (GPV0_BASE_ADDR + 0xB0000)
@@ -428,14 +449,12 @@
 			  MX6SLL_LCDIF_BASE_ADDR :		\
 			  (is_cpu_type(MXC_CPU_MX6SL)) ?	\
 			  MX6SL_LCDIF_BASE_ADDR :		\
-			  ((is_cpu_type(MXC_CPU_MX6UL)) ?	\
+			  (is_mx6ul()) ?	\
 			  MX6UL_LCDIF1_BASE_ADDR :		\
-			  ((is_mx6ull()) ?	\
-			  MX6ULL_LCDIF1_BASE_ADDR : MX6SX_LCDIF1_BASE_ADDR)))
-#define UART6_BASE_ADDR ((is_mx6ul() || is_mx6ull()) ? \
+			  (is_mx6ull()) ?	\
+			  MX6ULL_LCDIF1_BASE_ADDR : MX6SX_LCDIF1_BASE_ADDR)
+#define UART6_BASE_ADDR (((is_mx6ul()) || is_mx6ull()) ? \
 			  MX6UL_UART6_BASE_ADDR : MX6SX_UART6_BASE_ADDR)
-
-#define MXS_LCDIF_BASE LCDIF1_BASE_ADDR
 
 #define MXS_LCDIF_BASE LCDIF1_BASE_ADDR
 
@@ -558,6 +577,8 @@ struct src {
 #define IOMUXC_GPR1_MIPI_IPU2_MUX_IOMUX		BIT(20)
 #define IOMUXC_GPR1_MIPI_IPU1_MUX_IOMUX		BIT(19)
 #define IOMUXC_GPR1_PCIE_TEST_PD			BIT(18)
+#define IOMUXC_GPR1_ENET2_CLK_SEL		BIT(18)
+#define IOMUXC_GPR1_ENET1_CLK_SEL		BIT(17)
 #define IOMUXC_GPR1_IPU_VPU_MUX_IPU2		BIT(17)
 #define IOMUXC_GPR1_PCIE_REF_CLK_EN		BIT(16)
 #define IOMUXC_GPR1_USB_EXP_MODE			BIT(15)
@@ -1101,6 +1122,46 @@ struct dbg_monitor_regs {
 	u32	version[4];		/* Version */
 };
 
+#define EPIT_CR_EN		(1 << 0)
+#define EPIT_CR_ENMOD		(1 << 1)
+#define EPIT_CR_OCIEN		(1 << 2)
+#define EPIT_CR_RLD		(1 << 3)
+#define EPIT_CR_PRESCALER_MASK	(0xFFF << 4)
+#define EPIT_CR_PRESCALER(x)	(((x - 1) << 4) & EPIT_CR_PRESCALER_MASK)
+#define EPIT_CR_SWR		(1 << 16)
+#define EPIT_CR_IOVW		(1 << 17)
+#define EPIT_CR_DBGEN		(1 << 18)
+#define EPIT_CR_WAITEN		(1 << 19)
+#define EPIT_CR_STOPEN		(1 << 21)
+#define EPIT_CR_OM_MASK		(3 << 22)
+#define EPIT_CR_OM_NONE		(0 << 22)
+#define EPIT_CR_OM_TOGGLE	(1 << 22)
+#define EPIT_CR_OM_CLEAR	(2 << 22)
+#define EPIT_CR_OM_SET		(3 << 22)
+#define EPIT_CR_CLKSRC_MASK	(3 << 24)
+#define EPIT_CR_CLKSRC_OFF	(0 << 24)
+#define EPIT_CR_CLKSRC_IPG	(1 << 24)
+#define EPIT_CR_CLKSRC_24M	(2 << 24)
+#define EPIT_CR_CLKSRC_32K	(3 << 24)
+
+struct epit_regs {
+	u32	cr;
+	u32	sr;
+	u32	lr;
+	u32	cmpr;
+	u32	cnr;
+};
+
+#ifdef CONFIG_MX6SX
+extern void vadc_power_up(void);
+extern void vadc_power_down(void);
+extern void pcie_power_up(void);
+extern void pcie_power_off(void);
+#endif
+
+/* gd->flags reserves high 16 bits for arch-specific flags */
+#define GD_FLG_ARCH_MX6_USB_BOOT		0x80000000	 /* If set, the u-boot is booting from USB serial download */ 
+
 /*
  * If ROM fail back to USB recover mode, USBPH0_PWD will be clear to use USB
  * If boot from the other mode, USB0_PWD will keep reset value
@@ -1110,6 +1171,69 @@ bool is_usb_boot(void);
 #define	is_boot_from_usb  is_usb_boot
 #define	is_usbphy_power_on(void) (!(readl(USB_PHY0_BASE_ADDR) & (1<<20)))
 #define	disconnect_from_pc(void) writel(0x0, OTG_BASE_ADDR + 0x140)
+
+/* Interrupts */
+#define N_IRQS			160
+#define IRQ_EPIT1		88
+
+/* GIC Distributor Registers */
+struct gicd_regs {
+	u32	ctlr;			/* 0x000: Control */
+	u32	typer;			/* 0x004: Type */
+	u32	iidr;			/* 0x008: Implementer Identification */
+	u32	_reserved0[29];		/* 0x00C */
+	u32	igroupr[16];		/* 0x080: Interrupt groups */
+	u32	_reserved1[16];		/* 0x0C0 */
+	u32	isenabler[16];		/* 0x100: Set enable (1 bit/int) */
+	u32	_reserved2[16];		/* 0x140 */
+	u32	icenabler[16];		/* 0x180: Clear enable (1 bit/int) */
+	u32	_reserved3[16];		/* 0x1C0 */
+	u32	ispendr[16];		/* 0x200: Set pending (1 bit/int) */
+	u32	_reserved4[16];		/* 0x240 */
+	u32	icpendr[16];		/* 0x280: Clear pending (1 bit/int) */
+	u32	_reserved5[16];		/* 0x2C0 */
+	u32	isactiver[16];		/* 0x300: Set active (1 bit/int) */
+	u32	_reserved6[16];		/* 0x340 */
+	u32	icactiver[16];		/* 0x380: Clear active (1 bit/int) */
+	u32	_reserved7[16];		/* 0x3C0 */
+	u8	ipriorityr[512];	/* 0x400: Priorities (1 byte/int) */
+	u32	_reserved8[128];	/* 0x600 */
+	u8	itargetsr[512];		/* 0x800: Targets (1 byte/int) */
+	u32	_reserved9[128];	/* 0xA00 */
+	u32	icfgr[32];		/* 0xC00: Configuration (2 bits/int) */
+	u32	_reserved10[32];	/* 0xC80 */
+	u32	isr[16];		/* 0xD00: Status (1 bit/int) */
+	u32	_reserved11[112];	/* 0xD40 */
+	u32	sgir;			/* 0xF00: Software Generated Int. */
+	u32	_reserved12[3];		/* 0xF04 */
+	u32	cpendsgir[4];		/* 0xF10: Clear pend. SGI (1 bit/int) */
+	u32	spendsgir[4];		/* 0xF20: Set pend. SGI (1 bit/int) */
+	u32	_reserved13[40];	/* 0xF30 */
+	u32	pidr[8];		/* 0xFD0: Peripheral ID 4-7/0-3 */
+	u32	cidr[4];		/* 0xFF0: Component ID 0-3 */
+};
+
+/* GIC CPU Interface Registers */
+struct gicc_regs {
+	u32	ctlr;			/* 0x00: Control */
+	u32	pmr;			/* 0x04: Priority mask */
+	u32	bpr;			/* 0x08: Binary point */
+	u32	iar;			/* 0x0C: Interrupt acknowledge */
+	u32	eoir;			/* 0x10: End of interrupt */
+	u32	rpr;			/* 0x14: Running priority */
+	u32	hppir;			/* 0x18: Highest priority pending */
+	u32	abpr;			/* 0x1C: Aliased binary point */
+	u32	aiar;			/* 0x20: Aliased interrupt acknowl. */
+	u32	aeoir;			/* 0x24: Aliased end of interrupt */
+	u32	ahppir;			/* 0x28: Aliased highest prio. pend. */
+	u32	_reserved1[41];		/* 0x2C */
+	u32	apr0;			/* 0xD0: Active priority */
+	u32	_reserved2[3];		/* 0xD4 */
+	u32	nsapr0;			/* 0xE0: Non-secure activge priority */
+	u32	_reserved3[6];		/* 0xE4 */
+	u32	iidr;			/* 0xFC: Interface Identification */
+};
+
 
 #endif /* __ASSEMBLER__*/
 #endif /* __ASM_ARCH_MX6_IMX_REGS_H__ */

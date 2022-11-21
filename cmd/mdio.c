@@ -13,32 +13,6 @@
 #include <miiphy.h>
 #include <phy.h>
 
-static char last_op[2];
-static uint last_data;
-static uint last_addr_lo;
-static uint last_addr_hi;
-static uint last_devad_lo;
-static uint last_devad_hi;
-static uint last_reg_lo;
-static uint last_reg_hi;
-
-static int extract_range(char *input, int *plo, int *phi)
-{
-	char *end;
-	*plo = simple_strtol(input, &end, 16);
-	if (end == input)
-		return -1;
-
-	if ((*end == '-') && *(++end))
-		*phi = simple_strtol(end, NULL, 16);
-	else if (*end == '\0')
-		*phi = *plo;
-	else
-		return -1;
-
-	return 0;
-}
-
 static int mdio_write_ranges(struct mii_dev *bus,
 			     int addrlo,
 			     int addrhi, int devadlo, int devadhi,
@@ -47,7 +21,7 @@ static int mdio_write_ranges(struct mii_dev *bus,
 {
 	struct phy_device *phydev;
 	int addr, devad, reg;
-	int err = 0;
+	int err;
 
 	for (addr = addrlo; addr <= addrhi; addr++) {
 		phydev = bus->phymap[addr];
@@ -65,13 +39,12 @@ static int mdio_write_ranges(struct mii_dev *bus,
 							addr, devad, reg, data);
 
 				if (err)
-					goto err_out;
+					return err;
 			}
 		}
 	}
 
-err_out:
-	return err;
+	return 0;
 }
 
 static int mdio_read_ranges(struct mii_dev *bus,
@@ -85,7 +58,7 @@ static int mdio_read_ranges(struct mii_dev *bus,
 	printf("Reading from bus %s\n", bus->name);
 	for (addr = addrlo; addr <= addrhi; addr++) {
 		phydev = bus->phymap[addr];
-		printf("PHY at address %x:\n", addr);
+		printf("PHY at address 0x%02x:\n", addr);
 
 		for (devad = devadlo; devad <= devadhi; devad++) {
 			for (reg = reglo; reg <= reghi; reg++) {
@@ -99,21 +72,41 @@ static int mdio_read_ranges(struct mii_dev *bus,
 					val = phydev->drv->readext(phydev, addr,
 						devad, reg);
 
-				if (val < 0) {
-					printf("Error\n");
-
+				if (val < 0)
 					return val;
-				}
 
+				putc(' ');
 				if (devad >= 0)
-					printf("%d.", devad);
+					printf("0x%02x.", devad);
 
-				printf("%d - 0x%x\n", reg, val & 0xffff);
+				printf("0x%02x: 0x%x\n", reg, val & 0xffff);
 			}
 		}
 	}
 
 	return 0;
+}
+
+static int extract_range(char *input, int *plo, int *phi)
+{
+	char *end;
+	*plo = simple_strtol(input, &end, 16);
+	if (end == input)
+		return CMD_RET_USAGE;
+	if ((*plo < 0) || (*plo > 31))
+		return CMD_RET_FAILURE;
+
+	if ((*end == '-') && *(++end))
+		*phi = simple_strtol(end, NULL, 16);
+	else if (*end == '\0')
+		*phi = *plo;
+	else
+		return CMD_RET_USAGE;
+
+	if ((*phi < 0) || (*phi > 31))
+		return CMD_RET_FAILURE;
+
+	return CMD_RET_SUCCESS;
 }
 
 /* The register will be in the form [a[-b].]x[-y] */
@@ -128,12 +121,14 @@ static int extract_reg_range(char *input, int *devadlo, int *devadhi,
 	/* If it exists, extract the devad(s) */
 	if (regstr) {
 		char devadstr[32];
+		int ret;
 
 		strncpy(devadstr, input, regstr - input);
 		devadstr[regstr - input] = '\0';
 
-		if (extract_range(devadstr, devadlo, devadhi))
-			return -1;
+		ret = extract_range(devadstr, devadlo, devadhi);
+		if (ret)
+			return ret;
 
 		regstr++;
 	} else {
@@ -146,59 +141,17 @@ static int extract_reg_range(char *input, int *devadlo, int *devadhi,
 	return extract_range(regstr, reglo, reghi);
 }
 
-static int extract_phy_range(char *const argv[], int argc, struct mii_dev **bus,
-			     struct phy_device **phydev,
-			     int *addrlo, int *addrhi)
-{
-	struct phy_device *dev = *phydev;
-
-	if ((argc < 1) || (argc > 2))
-		return -1;
-
-	/* If there are two arguments, it's busname addr */
-	if (argc == 2) {
-		*bus = miiphy_get_dev_by_name(argv[0]);
-
-		if (!*bus)
-			return -1;
-
-		return extract_range(argv[1], addrlo, addrhi);
-	}
-
-	/* It must be one argument, here */
-
-	/*
-	 * This argument can be one of two things:
-	 * 1) Ethernet device name
-	 * 2) Just an address (use the previously-used bus)
-	 *
-	 * We check all buses for a PHY which is connected to an ethernet
-	 * device by the given name.  If none are found, we call
-	 * extract_range() on the string, and see if it's an address range.
-	 */
-	dev = mdio_phydev_for_ethname(argv[0]);
-
-	if (dev) {
-		*addrlo = *addrhi = dev->addr;
-		*bus = dev->bus;
-
-		return 0;
-	}
-
-	/* It's an address or nothing useful */
-	return extract_range(argv[0], addrlo, addrhi);
-}
-
 /* ---------------------------------------------------------------- */
 static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	char op[2];
-	int addrlo, addrhi, reglo, reghi, devadlo, devadhi;
-	unsigned short	data;
-	int pos = argc - 1;
+	char *op;
+	int addrlo = 0, addrhi = 0, reglo = 0, reghi = 0;
+	int devadlo = 0, devadhi = 0;
+	unsigned short data = 0;
 	struct mii_dev *bus;
 	struct phy_device *phydev = NULL;
 	int extended = 0;
+	int ret;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -208,104 +161,80 @@ static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	dm_mdio_probe_devices();
 #endif
 
-	/*
-	 * We use the last specified parameters, unless new ones are
-	 * entered.
-	 */
-	op[0] = argv[1][0];
-	addrlo = last_addr_lo;
-	addrhi = last_addr_hi;
-	devadlo = last_devad_lo;
-	devadhi = last_devad_hi;
-	reglo  = last_reg_lo;
-	reghi  = last_reg_hi;
-	data   = last_data;
+	op = argv[1];
 
-	bus = mdio_get_current_dev();
+	switch (op[0]) {
+	case 'l':
+		mdio_list_devices();
 
-	if (flag & CMD_FLAG_REPEAT)
-		op[0] = last_op[0];
+		return 0;
 
-	if (strlen(argv[1]) > 1) {
-		op[1] = argv[1][1];
-		if (op[1] == 'x') {
-			phydev = mdio_phydev_for_ethname(argv[2]);
+	case 'w':
+		if (argc > 1)
+			data = simple_strtoul(argv[--argc], NULL, 16);
+		/* Fall through to case 'r' */
+	case 'r':
+		if ((argc < 4) || (argc > 5))
+			return CMD_RET_USAGE;
 
-			if (phydev) {
-				addrlo = phydev->addr;
-				addrhi = addrlo;
-				bus = phydev->bus;
-				extended = 1;
-			} else {
+		ret = extract_reg_range(argv[--argc], &devadlo, &devadhi,
+					&reglo, &reghi);
+		if (ret)
+			return ret;
+
+		if (argc == 4) {
+			/* MII bus plus PHY address */
+			bus = miiphy_get_dev_by_name(argv[2]);
+			if (!bus) {
+				printf("No such MII bus: %s\n", argv[2]);
 				return CMD_RET_FAILURE;
 			}
+			ret = extract_range(argv[3], &addrlo, &addrhi);
+		} else {		/* argc == 3 */
+			/* Ethernet name or just PHY address on current bus */
+			phydev = mdio_phydev_for_ethname(argv[2]);
+			if (phydev) {
+				bus = phydev->bus;
+				addrlo = phydev->addr;
+				addrhi = addrlo;
+			} else {
+				bus = mdio_get_current_dev();
+				ret = extract_range(argv[2], &addrlo, &addrhi);
+			}
+		}
+		if (ret)
+			return ret;
+		break;
 
-			if (!phydev->drv ||
+	default:
+		return CMD_RET_USAGE;
+	}
+
+	/* Only 'r' or 'w' here */
+	if (op[1] == 'x') {
+		if (!phydev || !phydev->drv ||
 			    (!phydev->drv->writeext && (op[0] == 'w')) ||
 			    (!phydev->drv->readext && (op[0] == 'r'))) {
 				puts("PHY does not have extended functions\n");
 				return CMD_RET_FAILURE;
 			}
-		}
-	}
-
-	switch (op[0]) {
-	case 'w':
-		if (pos > 1)
-			data = simple_strtoul(argv[pos--], NULL, 16);
-		/* Intentional fall-through - Get reg for read and write */
-	case 'r':
-		if (pos > 1)
-			if (extract_reg_range(argv[pos--], &devadlo, &devadhi,
-					      &reglo, &reghi))
-				return CMD_RET_FAILURE;
-		/* Intentional fall-through - Get phy for all commands */
-	default:
-		if (pos > 1)
-			if (extract_phy_range(&argv[2], pos - 1, &bus,
-					      &phydev, &addrlo, &addrhi))
-				return CMD_RET_FAILURE;
-
-		break;
-	}
-
-	if (!bus) {
-		puts("No MDIO bus found\n");
-		return CMD_RET_FAILURE;
-	}
-
-	if (op[0] == 'l') {
-		mdio_list_devices();
-
-		return 0;
+		extended = 1;
 	}
 
 	/* Save the chosen bus */
 	miiphy_set_current_dev(bus->name);
 
-	switch (op[0]) {
-	case 'w':
-		mdio_write_ranges(bus, addrlo, addrhi, devadlo, devadhi,
+	if (op[0] == 'w') {
+		ret = mdio_write_ranges(bus, addrlo, addrhi, devadlo, devadhi,
 				  reglo, reghi, data, extended);
-		break;
-
-	case 'r':
-		mdio_read_ranges(bus, addrlo, addrhi, devadlo, devadhi,
+	} else {
+		ret = mdio_read_ranges(bus, addrlo, addrhi, devadlo, devadhi,
 				 reglo, reghi, extended);
-		break;
 	}
-
-	/*
-	 * Save the parameters for repeats.
-	 */
-	last_op[0] = op[0];
-	last_addr_lo = addrlo;
-	last_addr_hi = addrhi;
-	last_devad_lo = devadlo;
-	last_devad_hi = devadhi;
-	last_reg_lo  = reglo;
-	last_reg_hi  = reghi;
-	last_data    = data;
+	if (ret) {
+		printf("Error %d\n", ret);
+		return CMD_RET_FAILURE;
+	}
 
 	return 0;
 }

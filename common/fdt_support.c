@@ -46,7 +46,7 @@ u32 fdt_getprop_u32_default_node(const void *fdt, int off, int cell,
 	if (len < ((cell + 1) * sizeof(uint32_t)))
 		return dflt;
 
-	return fdt32_to_cpu(*val);
+	return fdt32_to_cpu(val[cell]);
 }
 
 /**
@@ -1204,7 +1204,7 @@ static int of_translate_one(const void *blob, int parent, struct of_bus *bus,
 	 * Unfortunately, while this is very clear in the spec, it's not
 	 * what Apple understood, and they do have things like /uni-n or
 	 * /ht nodes with no "ranges" property and a lot of perfectly
-	 * useable mapped devices below them. Thus we treat the absence of
+	 * usable mapped devices below them. Thus we treat the absence of
 	 * "ranges" as equivalent to an empty "ranges" property which means
 	 * a 1:1 translation at that level. It's up to the caller not to try
 	 * to translate addresses that aren't supposed to be translated in

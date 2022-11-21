@@ -42,7 +42,7 @@
 #define PORT_MASK(port_count)		((1 << (port_count)) - 1)
 
 /* Device addresses */
-#define DEVADDR_PHY(p)			(p)
+#define DEVADDR_PHY(p)			(p + CONFIG_MV88E61XX_REGISTER_OFFSET)
 #define DEVADDR_SERDES			0x0F
 
 /* SMI indirection registers for multichip addressing mode */
@@ -751,8 +751,14 @@ static int mv88e61xx_fixed_port_setup(struct phy_device *phydev, u8 port)
 		val |= PORT_REG_PHYS_CTRL_LINK_VALUE |
 		       PORT_REG_PHYS_CTRL_LINK_FORCE;
 
-	return mv88e61xx_port_write(phydev, port, PORT_REG_PHYS_CTRL,
-				   val);
+	val = mv88e61xx_port_write(phydev, port, PORT_REG_PHYS_CTRL, val);
+	if (val < 0)
+		return val;
+
+	if (port == CONFIG_MV88E61XX_CPU_PORT)
+		return 0;		/* CPU port already enabled */
+
+	return 	mv88e61xx_port_enable(phydev, port);
 }
 
 static int mv88e61xx_set_cpu_port(struct phy_device *phydev)
@@ -913,11 +919,11 @@ static int mv88e61xx_priv_reg_offs_pre_init(struct phy_device *phydev)
 	 * Now try via port registers with device address 0x08
 	 * (88E6020 and compatible switches).
 	 */
-	priv->port_reg_base = 0x08;
+	priv->port_reg_base = 0x08 + CONFIG_MV88E61XX_REGISTER_OFFSET;
 	priv->id = mv88e61xx_get_switch_id(phydev);
 	if (priv->id != 0xfff0) {
-		priv->global1 = 0x0F;
-		priv->global2 = 0x07;
+		priv->global1 = 0x0F + CONFIG_MV88E61XX_REGISTER_OFFSET;
+		priv->global2 = 0x07 + CONFIG_MV88E61XX_REGISTER_OFFSET;
 		return 0;
 	}
 
@@ -925,7 +931,7 @@ static int mv88e61xx_priv_reg_offs_pre_init(struct phy_device *phydev)
 	return -ENODEV;
 }
 
-static int mv88e61xx_probe(struct phy_device *phydev)
+/*static*/ int mv88e61xx_probe(struct phy_device *phydev)
 {
 	struct mii_dev *smi_wrapper;
 	struct mv88e61xx_phy_priv *priv;
@@ -1027,7 +1033,7 @@ static int mv88e61xx_probe(struct phy_device *phydev)
 	return 0;
 }
 
-static int mv88e61xx_phy_config(struct phy_device *phydev)
+/*static*/ int mv88e61xx_phy_config(struct phy_device *phydev)
 {
 	struct mv88e61xx_phy_priv *priv = phydev->priv;
 	int res;
@@ -1040,18 +1046,20 @@ static int mv88e61xx_phy_config(struct phy_device *phydev)
 
 	for (i = 0; i < priv->port_count; i++) {
 		if ((1 << i) & CONFIG_MV88E61XX_PHY_PORTS) {
-			phydev->addr = i;
+			phydev->addr = DEVADDR_PHY(i);
 
 			res = mv88e61xx_phy_enable(phydev, i);
 			if (res < 0) {
 				printf("Error enabling PHY %i\n", i);
 				continue;
 			}
+
 			res = mv88e61xx_phy_setup(phydev, i);
 			if (res < 0) {
 				printf("Error setting up PHY %i\n", i);
 				continue;
 			}
+
 			res = mv88e61xx_phy_config_port(phydev, i);
 			if (res < 0) {
 				printf("Error configuring PHY %i\n", i);
@@ -1063,6 +1071,7 @@ static int mv88e61xx_phy_config(struct phy_device *phydev)
 				printf("Error resetting PHY %i\n", i);
 				continue;
 			}
+
 			res = genphy_config_aneg(phydev);
 			if (res < 0) {
 				printf("Error setting PHY %i autoneg\n", i);
@@ -1099,7 +1108,7 @@ static int mv88e61xx_phy_is_connected(struct phy_device *phydev)
 	return (val & PHY_REG_STATUS1_ENERGY) == 0;
 }
 
-static int mv88e61xx_phy_startup(struct phy_device *phydev)
+/*static*/ int mv88e61xx_phy_startup(struct phy_device *phydev)
 {
 	struct mv88e61xx_phy_priv *priv = phydev->priv;
 	int i;
@@ -1110,7 +1119,7 @@ static int mv88e61xx_phy_startup(struct phy_device *phydev)
 
 	for (i = 0; i < priv->port_count; i++) {
 		if ((1 << i) & CONFIG_MV88E61XX_PHY_PORTS) {
-			phydev->addr = i;
+			phydev->addr = DEVADDR_PHY(i);
 			if (!mv88e61xx_phy_is_connected(phydev))
 				continue;
 			res = genphy_update_link(phydev);
@@ -1185,8 +1194,12 @@ int get_phy_id(struct mii_dev *bus, int smi_addr, int devad, u32 *phy_id)
 	struct mii_dev temp_mii;
 	int val;
 
+	/* Use the original function for addresses not part of the switch */
+	if ((devad < DEVADDR_PHY(0)) || (devad >= DEVADDR_PHY(0) + 0x10))
+		return generic_get_phy_id(bus, smi_addr, devad, phy_id);
+
 	/*
-	 * Buid temporary data structures that the chip reading code needs to
+	 * Build temporary data structures that the chip reading code needs to
 	 * read the ID
 	 */
 	temp_priv.mdio_bus = bus;

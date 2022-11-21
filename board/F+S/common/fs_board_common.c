@@ -18,9 +18,10 @@
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"
+#include <fuse.h>			/* fuse_read() */
+#include <update.h>			/* enum update_action */
 
 #ifdef HAVE_BOARD_CFG
-#include <fuse.h>			/* fuse_read() */
 #include "fs_image_common.h"		/* fs_image_*() */
 #endif
 
@@ -86,7 +87,12 @@ struct fs_nboot_args *fs_board_get_nboot_args(void)
 /* Get board type (zero-based) */
 unsigned int fs_board_get_type(void)
 {
-	return fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+	int BoardType = fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+#ifdef CONFIG_TARGET_FSIMX6
+	if (BoardType >= 29)
+		BoardType -= 21;
+#endif
+	return BoardType;
 }
 
 /* Get board revision (major * 100 + minor, e.g. 120 for rev 1.20) */
@@ -102,15 +108,6 @@ ulong board_serial_base(void)
 	return pargs->dwDbgSerPortPA;
 }
 
-enum boot_device fs_board_get_boot_dev(void)
-{
-#ifdef CONFIG_ENV_IS_IN_MMC
-	return MMC2_BOOT;
-#else
-	return NAND_BOOT;
-#endif
-}
-
 /* Get the NBoot version */
 const char *fs_board_get_nboot_version(void)
 {
@@ -123,10 +120,7 @@ const char *fs_board_get_nboot_version(void)
 	return &version[0];
 }
 
-#ifdef CONFIG_IMX8M
 /* Set RAM size (as given by NBoot) and RAM base */
-#if 0
-/* NXP does dram_init of their own */
 int dram_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -136,8 +130,6 @@ int dram_init(void)
 
 	return 0;
 }
-#endif
-#endif
 
 void board_nand_state(struct mtd_info *mtd, unsigned int state)
 {
@@ -186,20 +178,13 @@ const char *fs_board_get_nboot_version(void)
 	return fs_image_get_nboot_version(NULL);
 }
 
-/* Set RAM size */
-#if 0
-/* NXP does dram_init of their own */
-int dram_init(void)
+/* Set RAM size; optee will be subtracted in dram_init() */
+int board_phys_sdram_size(phys_size_t *size)
 {
-	DECLARE_GLOBAL_DATA_PTR;
-
-	/* rom_pointer[1] holds the size of the TEE */
-	gd->ram_size =
-		(fs_board_get_cfg_info()->dram_size << 20) - rom_pointer[1];
+	*size = fs_board_get_cfg_info()->dram_size << 20;
 
 	return 0;
 }
-#endif
 
 #endif /* HAVE_BOARD_CFG */
 
@@ -350,6 +335,9 @@ void fs_board_late_init_common(const char *serial_name)
 #endif
 	bool is_nand = (fs_board_get_boot_dev() == NAND_BOOT);
 	const char *bd_kernel, *bd_fdt, *bd_rootfs;
+#ifdef CONFIG_ARCH_MX7ULP
+	const char *bd_auxcore;
+#endif
 	char var_name[20];
 
 	/* Set sercon variable if not already set */
@@ -373,12 +361,14 @@ void fs_board_late_init_common(const char *serial_name)
 		char *p = current_bi->name;
 		char *l = lcasename;
 		char c;
+		int len = 0;
 
 		do {
 			c = *p++;
 			if ((c >= 'A') && (c <= 'Z'))
 				c += 'a' - 'A';
 			*l++ = c;
+			len++;
 		} while (c);
 
 #ifdef CONFIG_MX6QDL
@@ -390,18 +380,45 @@ void fs_board_late_init_common(const char *serial_name)
 #elif defined(CONFIG_MX6UL) || defined(CONFIG_MX6ULL)
 		/*
 		 * In case of i.MX6ULL, append a second 'l' if the name already
-		 * ends with 'ul', otherwise append 'ull'. This results in the
-		 * names efusa7ull, cubea7ull, picocom1.2ull, cube2.0ull, ...
+		 * have a substring with 'ul', otherwise append 'ull'.
+		 * This results in the names efusa7ull, cubea7ull,
+		 * picocom1.2ull, cube2.0ull, picocoremx6ul100 ...
 		 */
 		if (is_mx6ull()) {
-			l--;
-			/* Names have > 2 chars, so negative index is valid */
-			if ((l[-2] != 'u') || (l[-1] != 'l')) {
-				*l++ = 'u';
+			int i = 0;
+			bool found = false;
+			p = lcasename;
+			do {
+				if (*p == 'u' && *++p == 'l')
+				{
+					i += 2;
+					*l = '\0';
+					do {
+						//*l-- = *l;
+						*l = l[-1];
+						l--;
+						len--;
+					} while (i != len);
+					*l = 'l';
+					found = true;
+					break;
+				}
+				p++;
+				i++;
+			} while (*p);
+
+			if (!found) {
+				l--;
+				/* Names have > 2 chars, so negative index
+				 * is valid
+				 */
+				if ((l[-2] != 'u') || (l[-1] != 'l')) {
+					*l++ = 'u';
+					*l++ = 'l';
+				}
 				*l++ = 'l';
+				*l++ = '\0';
 			}
-			*l++ = 'l';
-			*l++ = '\0';
 		}
 #endif
 		env_set("platform", lcasename);
@@ -430,8 +447,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("updatecheck", current_bi->updatecheck, 0);
 	setup_var("installcheck", current_bi->installcheck, 0);
 	setup_var("recovercheck", current_bi->recovercheck, 0);
+#ifndef CONFIG_ARCH_MX7ULP
 	setup_var("mtdids", MTDIDS_DEFAULT, 0);
 	setup_var("partition", MTDPART_DEFAULT, 0);
+#endif
 #ifdef CONFIG_FS_BOARD_MODE_RO
 	setup_var("mode", "ro", 0);
 #else
@@ -445,14 +464,23 @@ void fs_board_late_init_common(const char *serial_name)
 		else
 			bd_kernel = "nand";
 		bd_fdt = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	} else {
 		bd_kernel = "mmc";
 		bd_fdt = bd_kernel;
 		bd_rootfs = bd_kernel;
+#ifdef CONFIG_ARCH_MX7ULP
+		bd_auxcore = bd_kernel;
+#endif
 	}
 	setup_var("bd_kernel", bd_kernel, 0);
 	setup_var("bd_fdt", bd_fdt, 0);
 	setup_var("bd_rootfs", bd_rootfs, 0);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bd_auxcore", bd_auxcore, 0);
+#endif
 
 	setup_var("console", current_bi->console, 1);
 	setup_var("login", current_bi->login, 1);
@@ -461,6 +489,10 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("init", current_bi->init, 1);
 	setup_var("bootfdt", "set_bootfdt", 1);
 	setup_var("bootargs", "set_bootargs", 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	setup_var("bootauxfile", "power_mode_switch.img", 0);
+#endif
+
 
 	/* Set some variables by runnning another variable */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
@@ -477,7 +509,12 @@ void fs_board_late_init_common(const char *serial_name)
 	setup_var("fdt", var_name, 1);
 	sprintf(var_name, ".rootfs_%s", bd_rootfs);
 	setup_var("rootfs", var_name, 1);
+#ifdef CONFIG_ARCH_MX7ULP
+	sprintf(var_name, ".auxcore_%s", bd_auxcore);
+	setup_var("auxcore", var_name, 1);
 #endif
+#endif
+
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
@@ -570,28 +607,34 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 		break;
 
 	case 0x1: // USB
+	printf("USB\n");
 		boot_dev = USB_BOOT;
 		break;
 
 	case 0x2: // eMMC0
+	printf("eMMC0\n");
 		boot_dev = MMC1_BOOT;
 		break;
 
 	case 0x3: // SD1
+	printf("SD1\n");
 		boot_dev = SD2_BOOT;
 		break;
 
 	case 0x4: // NAND(128 pages)
 	case 0x5: // NAND( 32 pages)
+	printf("NAND\n");
 		boot_dev = NAND_BOOT;
 		break;
 
 	case 0x6: // FlexSPI(default)
 	case 0x7: // FlexSPI(Hyperflash 3.0)
+	printf("FlexSPI\n");
 		boot_dev = FLEXSPI_BOOT;
 		break;
 
 	default:
+	printf("Default\n");
 		break;
 	}
 
@@ -667,7 +710,7 @@ enum boot_device fs_board_get_boot_dev_from_fuses(void)
 	return boot_dev;
 }
 
-#elif CONFIG_IMX8MN
+#elif defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
 /* Definitions in boot_cfg (fuse bank 1, word 3) */
 #define BOOT_CFG_DEVSEL_SHIFT 12
 #define BOOT_CFG_DEVSEL_MASK (15 << BOOT_CFG_DEVSEL_SHIFT)

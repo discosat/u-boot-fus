@@ -86,41 +86,13 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	unsigned long count;
 	char *addr_str;
 
-	switch (argc) {
-	case 3:
-		addr_str = env_get("loadaddr");
-		if (addr_str != NULL) {
-			addr = simple_strtoul (addr_str, NULL, 16);
-		} else {
-			addr = CONFIG_SYS_LOAD_ADDR;
-		}
-		filename = env_get("bootfile");
-		count = 0;
-		break;
-	case 4:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = env_get("bootfile");
-		count = 0;
-		break;
-	case 5:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = argv[4];
-		count = 0;
-		break;
-	case 6:
-		addr = simple_strtoul (argv[3], NULL, 16);
-		filename = argv[4];
-		count = simple_strtoul (argv[5], NULL, 16);
-		break;
-
-	default:
+	if (argc < 3)
 		return CMD_RET_USAGE;
-	}
 
-	if (!filename) {
-		puts ("\n** No boot file defined **\n");
-		return 1;
-	}
+	addr = (argc > 3) ? parse_loadaddr(argv[3], NULL) : get_loadaddr();
+	filename = (argc > 4) ? env_parse_bootfile(argv[4]) : env_get_bootfile();
+	count = (argc > 5) ? simple_strtoul(argv[5], NULL, 16) : 0;
+	set_fileaddr(addr);
 
 	part = blk_get_device_part_str(argv[1], argv[2], &dev_desc, &info, 1);
 	if (part < 0)
@@ -153,11 +125,8 @@ int do_reiserload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	}
 
-	/* Loading ok, update default load address */
-	image_load_addr = addr;
-
 	printf ("\n%ld bytes read\n", filelen);
-	env_set_hex("filesize", filelen);
+	env_set_fileinfo(filelen);
 
 	return filelen;
 }
@@ -167,5 +136,5 @@ U_BOOT_CMD(
 	"load binary file from a Reiser filesystem",
 	"<interface> <dev[:part]> [addr] [filename] [bytes]\n"
 	"    - load binary file 'filename' from 'dev' on 'interface'\n"
-	"      to address 'addr' from dos filesystem"
+	"      to address 'addr' from Reiser filesystem"
 );

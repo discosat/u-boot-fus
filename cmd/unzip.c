@@ -19,18 +19,19 @@ static int do_unzip(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			dst_len = simple_strtoul(argv[3], NULL, 16);
 			/* fall through */
 		case 3:
-			src = simple_strtoul(argv[1], NULL, 16);
-			dst = simple_strtoul(argv[2], NULL, 16);
+			src = parse_loadaddr(argv[1], NULL);
+			dst = parse_loadaddr(argv[2], NULL);
 			break;
 		default:
 			return CMD_RET_USAGE;
 	}
 
+	set_fileaddr(dst);
 	if (gunzip((void *) dst, dst_len, (void *) src, &src_len) != 0)
 		return 1;
 
 	printf("Uncompressed size: %lu = 0x%lX\n", src_len, src_len);
-	env_set_hex("filesize", src_len);
+	env_set_fileinfo(src_len);
 
 	return 0;
 }

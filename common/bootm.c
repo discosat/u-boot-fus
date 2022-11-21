@@ -27,6 +27,10 @@
 #include <bootm.h>
 #include <image.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/checkboot.h>
+#endif
+
 #ifndef CONFIG_SYS_BOOTM_LEN
 /* use 8MByte as default max gunzip size */
 #define CONFIG_SYS_BOOTM_LEN	0x800000
@@ -83,19 +87,22 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 			 char * const argv[])
 {
 	const void *os_hdr;
+	int image_format;
 	bool ep_found = false;
 	int ret;
 
 	/* get kernel image header, start address and length */
 	os_hdr = boot_get_kernel(cmdtp, flag, argc, argv,
 			&images, &images.os.image_start, &images.os.image_len);
-	if (images.os.image_len == 0) {
+	image_format = genimg_get_format(os_hdr);
+	if ((image_format != IMAGE_FORMAT_ZIMAGE)
+	    && (images.os.image_len == 0)) {
 		puts("ERROR: can't get kernel image!\n");
 		return 1;
 	}
 
 	/* get image parameters */
-	switch (genimg_get_format(os_hdr)) {
+	switch (image_format) {
 #if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY:
 		images.os.type = image_get_type(os_hdr);
@@ -107,6 +114,14 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.os.arch = image_get_arch(os_hdr);
 		break;
 #endif
+	case IMAGE_FORMAT_ZIMAGE:
+		images.os.type = IH_TYPE_KERNEL;
+		images.os.comp = IH_COMP_NONE;
+		images.os.os = IH_OS_LINUX;
+		images.os.load = (ulong)os_hdr;
+		images.os.end = (ulong)os_hdr;
+		images.ep = (ulong)os_hdr;
+		break;
 #if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		if (fit_image_get_type(images.fit_hdr_os,
@@ -164,6 +179,12 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 	default:
 		puts("ERROR: unknown image format type!\n");
 		return 1;
+	}
+
+	if (image_format == IMAGE_FORMAT_ZIMAGE) {
+		images.os.start = (ulong)os_hdr;
+
+		return 0;
 	}
 
 	/* If we have a valid setup.bin, we will use that for entry (x86) */
@@ -525,6 +546,13 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	ulong iflag = 0;
 	int ret = 0, need_boot_fn;
 
+#ifdef CONFIG_FS_SECURE_BOOT
+	/* prepare images for authentification */
+	if (states & BOOTM_STATE_START)
+		if (parse_images_for_authentification(argc, argv))
+			return 1;
+#endif
+
 	images->state |= states;
 
 	/*
@@ -771,6 +799,14 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		bootstage_mark(BOOTSTAGE_ID_DECOMP_IMAGE);
 		break;
 #endif
+
+	case IMAGE_FORMAT_ZIMAGE:
+	{
+		printf ("## Booting kernel from zImage at %08lx\n", img_addr);
+		show_boot_progress(100);
+		break;
+	}
+
 #if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		os_noffset = fit_image_load(images, img_addr,

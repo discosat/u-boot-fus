@@ -252,14 +252,6 @@ static bool special_field(ushort regno, const MII_field_desc_t *pdesc,
 	return 0;
 }
 
-static char last_op[2];
-static uint last_data;
-static uint last_addr_lo;
-static uint last_addr_hi;
-static uint last_reg_lo;
-static uint last_reg_hi;
-static uint last_mask;
-
 static void extract_range(
 	char * input,
 	unsigned char * plo,
@@ -276,13 +268,19 @@ static void extract_range(
 	}
 }
 
+static void mii_err(unsigned char addr, unsigned char reg, bool write)
+{
+	printf("** Error %s PHY addr 0x%02x, reg 0x%02x\n",
+	       write ? "writing to" : "reading from", addr, reg);
+}
+
 /* ---------------------------------------------------------------- */
 static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	char		op[2];
-	unsigned char	addrlo, addrhi, reglo, reghi;
+	char		*op;
+	unsigned char	addrlo = 0, addrhi = 0, reglo = 0, reghi = 0;
 	unsigned char	addr, reg;
-	unsigned short	data, mask;
+	unsigned short	data = 0, mask = 0;
 	int		rcode = 0;
 	const char	*devname;
 
@@ -293,25 +291,15 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	mii_init ();
 #endif
 
-	/*
-	 * We use the last specified parameters, unless new ones are
-	 * entered.
-	 */
-	op[0] = last_op[0];
-	op[1] = last_op[1];
-	addrlo = last_addr_lo;
-	addrhi = last_addr_hi;
-	reglo  = last_reg_lo;
-	reghi  = last_reg_hi;
-	data   = last_data;
-	mask   = last_mask;
-
-	if ((flag & CMD_FLAG_REPEAT) == 0) {
-		op[0] = argv[1][0];
-		if (strlen(argv[1]) > 1)
-			op[1] = argv[1][1];
+	op = argv[1];
+	if (strncmp(op, "de", 2) == 0) {
+		if (argc == 2)
+			miiphy_listdev ();
 		else
-			op[1] = '\0';
+			miiphy_set_current_dev (argv[2]);
+
+		return 0;
+	}
 
 		if (argc >= 3)
 			extract_range(argv[2], &addrlo, &addrhi);
@@ -321,10 +309,8 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			data = simple_strtoul(argv[4], NULL, 16);
 		if (argc >= 6)
 			mask = simple_strtoul(argv[5], NULL, 16);
-	}
-
-	if (addrhi > 31 && strncmp(op, "de", 2)) {
-		printf("Incorrect PHY address. Range should be 0-31\n");
+	if (addrhi > 31) {
+		printf("Incorrect PHY address (0-31)\n");
 		return CMD_RET_USAGE;
 	}
 
@@ -335,7 +321,6 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	 * check info/read/write.
 	 */
 	if (op[0] == 'i') {
-		unsigned char j, start, end;
 		unsigned int oui;
 		unsigned char model;
 		unsigned char rev;
@@ -343,52 +328,48 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		/*
 		 * Look for any and all PHYs.  Valid addresses are 0..31.
 		 */
-		if (argc >= 3) {
-			start = addrlo; end = addrhi;
-		} else {
-			start = 0; end = 31;
-		}
+		if (argc < 3)
+			addrhi = 31;
 
-		for (j = start; j <= end; j++) {
-			if (miiphy_info (devname, j, &oui, &model, &rev) == 0) {
+		for (addr = addrlo; addr <= addrhi; addr++) {
+			if (!miiphy_info(devname, addr, &oui, &model, &rev)) {
 				printf("PHY 0x%02X: "
 					"OUI = 0x%04X, "
 					"Model = 0x%02X, "
 					"Rev = 0x%02X, "
 					"%3dbase%s, %s\n",
-					j, oui, model, rev,
-					miiphy_speed (devname, j),
-					miiphy_is_1000base_x (devname, j)
+					addr, oui, model, rev,
+					miiphy_speed(devname, addr),
+					miiphy_is_1000base_x(devname, addr)
 						? "X" : "T",
-					(miiphy_duplex (devname, j) == FULL)
+					(miiphy_duplex(devname, addr) == FULL)
 						? "FDX" : "HDX");
 			}
 		}
 	} else if (op[0] == 'r') {
+		bool multi = (addrlo != addrhi) || (reglo != reghi);
+
 		for (addr = addrlo; addr <= addrhi; addr++) {
+			if (multi)
+				printf("PHY at address 0x%02x:\n", addr);
+
 			for (reg = reglo; reg <= reghi; reg++) {
 				data = 0xffff;
-				if (miiphy_read (devname, addr, reg, &data) != 0) {
-					printf(
-					"Error reading from the PHY addr=%02x reg=%02x\n",
-						addr, reg);
+				if (miiphy_read(devname, addr, reg, &data)) {
+					mii_err(addr, reg, 0);
 					rcode = 1;
 				} else {
-					if ((addrlo != addrhi) || (reglo != reghi))
-						printf("addr=%02x reg=%02x data=",
-							(uint)addr, (uint)reg);
-					printf("%04X\n", data & 0x0000FFFF);
+					if (multi)
+						printf(" 0x%02x: ", reg);
+					printf("0x%04x\n", data & 0x0000FFFF);
 				}
 			}
-			if ((addrlo != addrhi) && (reglo != reghi))
-				printf("\n");
 		}
 	} else if (op[0] == 'w') {
 		for (addr = addrlo; addr <= addrhi; addr++) {
 			for (reg = reglo; reg <= reghi; reg++) {
-				if (miiphy_write (devname, addr, reg, data) != 0) {
-					printf("Error writing to the PHY addr=%02x reg=%02x\n",
-						addr, reg);
+				if (miiphy_write(devname, addr, reg, data)) {
+					mii_err(addr, reg, 1);
 					rcode = 1;
 				}
 			}
@@ -397,24 +378,19 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		for (addr = addrlo; addr <= addrhi; addr++) {
 			for (reg = reglo; reg <= reghi; reg++) {
 				unsigned short val = 0;
-				if (miiphy_read(devname, addr,
-						reg, &val)) {
-					printf("Error reading from the PHY");
-					printf(" addr=%02x", addr);
-					printf(" reg=%02x\n", reg);
+
+				if (miiphy_read(devname, addr, reg, &val)) {
+					mii_err(addr, reg, 0);
 					rcode = 1;
-				} else {
+					continue;
+				}
 					val = (val & ~mask) | (data & mask);
-					if (miiphy_write(devname, addr,
-							 reg, val)) {
-						printf("Error writing to the PHY");
-						printf(" addr=%02x", addr);
-						printf(" reg=%02x\n", reg);
+				if (miiphy_write(devname, addr, reg, val)) {
+					mii_err(addr, reg, 1);
 						rcode = 1;
 					}
 				}
 			}
-		}
 	} else if (strncmp(op, "du", 2) == 0) {
 		ushort regs[MII_STAT1000 + 1];  /* Last reg is 0x0a */
 		int ok = 1;
@@ -426,10 +402,8 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			for (reg = reglo; reg <= reghi; reg++) {
 				if (miiphy_read(devname, addr, reg,
 						&regs[reg - reglo]) != 0) {
+					mii_err(addr, reg, 0);
 					ok = 0;
-					printf(
-					"Error reading from the PHY addr=%02x reg=%02x\n",
-						addr, reg);
 					rcode = 1;
 				}
 			}
@@ -437,26 +411,9 @@ static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				MII_dump(regs, reglo, reghi);
 			printf("\n");
 		}
-	} else if (strncmp(op, "de", 2) == 0) {
-		if (argc == 2)
-			miiphy_listdev ();
-		else
-			miiphy_set_current_dev (argv[2]);
 	} else {
 		return CMD_RET_USAGE;
 	}
-
-	/*
-	 * Save the parameters for repeats.
-	 */
-	last_op[0] = op[0];
-	last_op[1] = op[1];
-	last_addr_lo = addrlo;
-	last_addr_hi = addrhi;
-	last_reg_lo  = reglo;
-	last_reg_hi  = reghi;
-	last_data    = data;
-	last_mask    = mask;
 
 	return rcode;
 }

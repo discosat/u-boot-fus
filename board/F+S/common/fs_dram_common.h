@@ -1,8 +1,8 @@
 #ifndef FS_DRAM_COMMON_H
 #define FS_DRAM_COMMON_H
 
-#ifdef CONFIG_IMX8M
-#include <asm/arch/imx8m_ddr.h>
+#if CONFIG_IMX8M
+#include <asm/arch/ddr.h>
 #elif CONFIG_IMX8
 #include <asm/arch/sci/sci.h>
 

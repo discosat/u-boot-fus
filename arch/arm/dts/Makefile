@@ -755,7 +755,8 @@ dtb-$(CONFIG_ARCH_MX7ULP) += imx7ulp-com.dtb \
 	imx7ulp-14x14-val.dtb \
 	imx7ulp-evk.dtb \
 	imx7ulp-evk-emmc.dtb \
-	imx7ulp-evk-qspi.dtb
+	imx7ulp-evk-qspi.dtb \
+	picocoremx7ulp.dtb
 
 dtb-$(CONFIG_ARCH_IMX8) += \
 	fsl-imx8qm-apalis.dtb \
@@ -800,7 +801,17 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mm-ddr4-ab2.dtb \
 	imx8mm-ab2.dtb \
 	imx8mn-ddr4-ab2.dtb \
-	imx8mn-ab2.dtb
+	imx8mn-ab2.dtb \
+	picocoremx8mm-lpddr4.dtb \
+	picocoremx8mmr2-lpddr4.dtb \
+	picocoremx8mm-ddr3l.dtb \
+	armstonemx8m.dtb \
+	picocoremx8mn-lpddr4.dtb \
+	picocoremx8mn-ddr3l.dtb \
+	tbs2.dtb \
+	picocoremx8mp.dtb \
+	picocoremx8mpr2.dtb \
+	armstonemx8mp.dtb
 
 dtb-$(CONFIG_ARCH_IMXRT) += imxrt1050-evk.dtb
 
@@ -936,7 +947,7 @@ dtb-$(CONFIG_ARCH_BCM283X) += \
 	bcm2835-rpi-b-rev2.dtb \
 	bcm2835-rpi-cm1-io1.dtb \
 	bcm2835-rpi-zero.dtb \
-	bcm2835-rpi-zero-w.dtb\
+	bcm2835-rpi-zero-w.dtb \
 	bcm2836-rpi-2-b.dtb \
 	bcm2837-rpi-3-a-plus.dtb \
 	bcm2837-rpi-3-b.dtb \

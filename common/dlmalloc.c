@@ -1889,6 +1889,11 @@ Void_t* mEMALIGn(alignment, bytes) size_t alignment; size_t bytes;
   mchunkptr remainder;        /* spare room at end to split off */
   long      remainder_size;   /* its size */
 
+#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+	if (!(gd->flags & GD_FLG_FULL_MALLOC_INIT))
+		return memalign_simple(alignment, bytes);
+#endif
+
   if ((long)bytes < 0) return NULL;
 
 #if CONFIG_VAL(SYS_MALLOC_F_LEN)

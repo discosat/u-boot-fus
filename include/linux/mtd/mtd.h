@@ -151,7 +151,8 @@ struct module;	/* only needed for owner field in mtd_info */
 struct mtd_info {
 	u_char type;
 	uint32_t flags;
-	uint64_t size;	 // Total size of the MTD
+	uint64_t size;	 /* Total size of the MTD */
+	loff_t skip;     /* F&S: Skip these many bytes at start of device */
 
 	/* "Major" erase size for the device. Naïve users may take this
 	 * to be the only erase size available, or may use the more detailed
@@ -178,8 +179,22 @@ struct mtd_info {
 	 */
 	uint32_t writebufsize;
 
-	uint32_t oobsize;   // Amount of OOB data per block (e.g. 16)
-	uint32_t oobavail;  // Available OOB bytes per block
+	uint32_t oobsize;   /* Amount of OOB data per block (e.g. 16) */
+	uint32_t oobavail;  /* Available OOB bytes per block */
+
+#ifdef CONFIG_NAND_REFRESH
+	/* Values for block refresh algorithm */
+#define MTD_EXTRA_REFRESHOFFS 0x01
+	unsigned extraflags; /* Flag what to read from/write to extra data */
+	loff_t extradata;    /* Value to read or write to page */
+	loff_t backupoffs;   /* Offset of block to be used as backup */
+	loff_t backupend;    /* Offset of last possible block for backup */
+	loff_t replaceoffs;  /* Offset of bad block replaced by backup */
+#endif
+
+#ifdef CONFIG_CMD_NAND_CONVERT
+	int convert;         /* Old-style format reading: 0: no, 1: yes */
+#endif
 
 	/*
 	 * If erasesize is a power of 2 then the shift is stored in

@@ -15,6 +15,7 @@
 
 #include <common.h>			/* types, get_board_name(), ... */
 #include <version.h>			/* version_string[] */
+#include <cli.h>			/* get_board_name() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <asm/arch/sys_proto.h>		/* get_reset_cause() */
 #include "fs_fdt_common.h"		/* Own interface */
@@ -25,6 +26,10 @@ void fs_fdt_set_val(void *fdt, int offs, const char *name, const void *val,
 		    int len, int force)
 {
 	int err;
+
+	/* Keep value if "no-uboot-override" is set */
+	if (fdt_get_property(fdt, offs, "no-uboot-override", NULL) != NULL)
+		force = 0;
 
 	/* Warn if property already exists in device tree */
 	if (fdt_get_property(fdt, offs, name, NULL) != NULL) {
@@ -124,7 +129,7 @@ int fs_fdt_path_offset(void *fdt, const char *path)
 }
 
 /* Enable or disable node given by path, overwrite any existing status value */
-void fs_fdt_enable(void *fdt, const char *path, int enable)
+int fs_fdt_enable(void *fdt, const char *path, int enable)
 {
 	int offs, err, len;
 	const void *val;
@@ -132,19 +137,22 @@ void fs_fdt_enable(void *fdt, const char *path, int enable)
 
 	offs = fdt_path_offset(fdt, path);
 	if (offs < 0)
-		return;
+		return offs;
 
 	/* Do not change if status already exists and has this value */
 	val = fdt_getprop(fdt, offs, "status", &len);
 	if (val && len && !strcmp(val, str))
-		return;
+		return -1;
 
 	/* No, set new value */
 	err = fdt_setprop_string(fdt, offs, "status", str);
 	if (err) {
 		printf("## Can not set status of node %s: err=%s\n",
 		       path, fdt_strerror(err));
+		return err;
 	}
+
+	return  0;
 }
 
 /* Store common board specific values in node bdinfo */

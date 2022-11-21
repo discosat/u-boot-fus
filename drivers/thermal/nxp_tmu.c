@@ -348,6 +348,7 @@ static int nxp_tmu_bind(struct udevice *dev)
 	int offset;
 	const char *name;
 	const void *prop;
+	int minc, maxc;
 
 	struct nxp_tmu_plat *pdata = dev_get_platdata(dev);
 
@@ -358,6 +359,11 @@ static int nxp_tmu_bind(struct udevice *dev)
 		return 0;
 	else
 		pdata->zone_node = 1;
+
+	/* default alert/crit temps based on temp grade */
+	get_cpu_temp_grade(&minc, &maxc);
+	pdata->critical = maxc * 1000;
+	pdata->alert = (maxc - 10) * 1000;
 
 	offset = fdt_subnode_offset(gd->fdt_blob, 0, "thermal-zones");
 	fdt_for_each_subnode(offset, gd->fdt_blob, offset) {
@@ -445,6 +451,7 @@ static int nxp_tmu_probe(struct udevice *dev)
 	if (pdata->zone_node) {
 		nxp_tmu_init(dev);
 		nxp_tmu_calibration(dev);
+		nxp_tmu_enable_msite(dev);
 	} else {
 		nxp_tmu_enable_msite(dev);
 	}

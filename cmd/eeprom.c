@@ -412,7 +412,8 @@ int do_eeprom(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		NEXT_PARAM(argc, index);
 
 	if (action == EEPROM_READ || action == EEPROM_WRITE) {
-		addr = parse_numeric_param(argv[index]);
+		if (strict_parse_loadaddr(argv[index], &addr))
+			addr = -1;
 		NEXT_PARAM(argc, index);
 		off = parse_numeric_param(argv[index]);
 		NEXT_PARAM(argc, index);

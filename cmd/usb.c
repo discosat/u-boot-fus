@@ -575,7 +575,7 @@ static void do_usb_start(void)
 {
 	bootstage_mark_name(BOOTSTAGE_ID_USB_START, "usb_start");
 
-	if (usb_init() < 0)
+	if (usb_init(1) < 0)
 		return;
 
 	/* Driver model will probe the devices as they are found */

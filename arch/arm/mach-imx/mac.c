@@ -11,6 +11,8 @@
 #include <asm/arch/sys_proto.h>
 #include <errno.h>
 
+#ifdef CONFIG_FEC_GET_MAC_FROM_FUSES
+
 struct imx_mac_fuse {
 	u32 mac_addr0;
 	u32 rsvd0[3];
@@ -58,3 +60,4 @@ void imx_get_mac_from_fuse(int dev_id, unsigned char *mac)
 		mac[5] = value;
 	}
 }
+#endif /* CONFIG_FEC_GET_MAC_FROM_FUSES */

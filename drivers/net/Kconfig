@@ -100,6 +100,18 @@ config ALTERA_TSE
 	  Please find details on the "Triple-Speed Ethernet MegaCore Function
 	  Resource Center" of Altera.
 
+config DRIVER_AX88796
+	bool "Asix AX88796 Fast Ethernet (NE2000 compatible)"
+	help
+	  This driver supports the Asix AX88796 Fast Ethernet chip (MAC+PHY).
+
+config DRIVER_AX88796_BASE
+	hex "AX88796 base address"
+	depends on DRIVER_AX88796
+	help
+	  The AX88796 is addressed memory mapped. Give the address where
+	  the device is located in the address space.
+
 config BCM_SF2_ETH
 	bool "Broadcom SF2 (Starfighter2) Ethernet support"
 	select PHYLIB
@@ -249,10 +261,21 @@ config FEC_MXC_MDIO_BASE
 
 config FEC_MXC
 	bool "FEC Ethernet controller"
-	depends on MX28 || MX5 || MX6 || MX7 || IMX8 || IMX8M || VF610
+	depends on MX28 || MX5 || MX6 || TARGET_FSVYBRID || MX7 || IMX8 || IMX8M || VF610
+	select MII
 	help
 	  This driver supports the 10/100 Fast Ethernet controller for
 	  NXP i.MX processors.
+
+config FEC_GET_MAC_FROM_FUSES
+	bool "Load default MAC address(es) from fuses"
+	depends on FEC_MXC
+	default y
+	help
+	  Most NXP network drivers expect the MAC addresses to be stored
+	  in the OCOTP fuses of the SoC. Say Y here if they should be
+	  loaded at startup. Say N if you have a different way of storing
+	  the MAC addresses and do this yourself, e.g. in the board file.
 
 config FMAN_ENET
 	bool "Freescale FMan ethernet support"

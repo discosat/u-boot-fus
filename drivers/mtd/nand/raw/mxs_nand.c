@@ -1125,8 +1125,6 @@ static int mxs_nand_set_geometry(struct mtd_info *mtd, struct bch_geometry *geo)
 
 	return mxs_nand_calc_ecc_layout_by_info(geo, mtd,
 				chip->ecc_strength_ds, chip->ecc_step_ds);
-
-	return 0;
 }
 
 /*
@@ -1214,7 +1212,11 @@ int mxs_nand_setup_ecc(struct mtd_info *mtd)
 int mxs_nand_alloc_buffers(struct mxs_nand_info *nand_info)
 {
 	uint8_t *buf;
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+	const int size = 256;		/* Required minimum for ONFI */
+#else
 	const int size = NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE;
+#endif
 
 	nand_info->data_buf_size = roundup(size, MXS_DMA_ALIGNMENT);
 
@@ -1242,6 +1244,30 @@ int mxs_nand_alloc_buffers(struct mxs_nand_info *nand_info)
 
 	return 0;
 }
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_RAWNAND_BUFFERS_MALLOC)
+int mxs_nand_realloc(struct mtd_info *mtd)
+{
+	int size;
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
+
+	/* Allocate data and ecc buffers with the correct sizes */
+	size = roundup(mtd->writesize + mtd->oobsize, MXS_DMA_ALIGNMENT);
+	nand->buffers = malloc(sizeof(*nand->buffers));
+	nand->buffers->ecccalc = memalign(ARCH_DMA_MINALIGN, mtd->oobsize);
+	nand->buffers->ecccode = memalign(ARCH_DMA_MINALIGN, mtd->oobsize);
+	nand->buffers->databuf = memalign(ARCH_DMA_MINALIGN, size);
+
+	/* Use this data buffer now instead of the previous temporary one */
+	free(nand_info->data_buf);
+	nand_info->data_buf_size = size;
+	nand_info->data_buf = nand->buffers->databuf;
+	nand_info->oob_buf = nand_info->data_buf + mtd->writesize;
+
+	return 0;
+}
+#endif
 
 /*
  * Initializes the NFC hardware.
@@ -1431,7 +1457,7 @@ err_free_buffers:
 }
 
 #ifndef CONFIG_NAND_MXS_DT
-void board_nand_init(void)
+void mxs_nand_register(void)
 {
 	struct mxs_nand_info *nand_info;
 
@@ -1446,7 +1472,7 @@ void board_nand_init(void)
 	nand_info->bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;
 
 	/* Refer to Chapter 17 for i.MX6DQ, Chapter 18 for i.MX6SX */
-	if (is_mx6sx() || is_mx7())
+	if (is_mx6sx() || is_mx7() || is_imx8() || is_imx8m())
 		nand_info->max_ecc_strength_supported = 62;
 	else
 		nand_info->max_ecc_strength_supported = 40;
@@ -1462,6 +1488,11 @@ void board_nand_init(void)
 
 err:
 	free(nand_info);
+}
+
+__weak void board_nand_init(void)
+{
+	mxs_nand_register();
 }
 #endif
 
@@ -1495,7 +1526,7 @@ void mxs_nand_get_layout(struct mtd_info *mtd, struct mxs_nand_layout *l)
 /*
  * Set BCH to specific layout used by ROM bootloader to read FCB.
  */
-void mxs_nand_mode_fcb_62bit(struct mtd_info *mtd)
+void mxs_nand_mode_fcb(struct mtd_info *mtd)
 {
 	u32 tmp;
 	struct mxs_bch_regs *bch_regs = (struct mxs_bch_regs *)MXS_BCH_BASE;

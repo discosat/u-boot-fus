@@ -24,16 +24,31 @@
 #include <search.h>
 #include <errno.h>
 #include <u-boot/crc.h>
+#include <fdtdec.h>
 
 #if defined(CONFIG_CMD_SAVEENV) && defined(CONFIG_CMD_NAND) && \
 		!defined(CONFIG_SPL_BUILD)
 #define CMD_SAVEENV
-#elif defined(CONFIG_ENV_OFFSET_REDUND) && !defined(CONFIG_SPL_BUILD)
-#error CONFIG_ENV_OFFSET_REDUND must have CONFIG_CMD_SAVEENV & CONFIG_CMD_NAND
+#elif defined(CONFIG_ENV_NAND_OFFSET_REDUND) && !defined(CONFIG_SPL_BUILD)
+#error CONFIG_ENV_NAND_OFFSET_REDUND must have CONFIG_CMD_SAVEENV & CONFIG_CMD_NAND
 #endif
 
-#ifndef CONFIG_ENV_RANGE
-#define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
+/*
+ * We do not want to break exisiting configs, so if the NAND specific values
+ * are missing, use the generic values instead
+ */
+#ifndef CONFIG_ENV_NAND_OFFSET
+#define CONFIG_ENV_NAND_OFFSET CONFIG_ENV_OFFSET
+#endif
+#if !defined(CONFIG_ENV_NAND_OFFSET_REDUND) && defined(CONFIG_ENV_OFFSET_REDUND)
+#define CONFIG_ENV_NAND_OFFSET_REDUND CONFIG_ENV_OFFSET_REDUND
+#endif
+#ifndef CONFIG_ENV_NAND_RANGE
+#ifdef CONFIG_ENV_RANGE
+#define CONFIG_ENV_NAND_RANGE CONFIG_ENV_RANGE
+#else
+#define CONFIG_ENV_NAND_RANGE CONFIG_ENV_SIZE
+#endif
 #endif
 
 #if defined(ENV_IS_EMBEDDED)
@@ -43,6 +58,42 @@ static env_t *env_ptr = (env_t *)CONFIG_NAND_ENV_DST;
 #endif /* ENV_IS_EMBEDDED */
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+static loff_t nand_offset(int copy)
+{
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
+	if (copy) {
+		return fdtdec_get_config_int(
+			gd->fdt_blob, "u-boot,nand-env-offset-redundant",
+			env_get_offset(CONFIG_ENV_NAND_OFFSET_REDUND));
+	}
+#endif
+	return fdtdec_get_config_int(gd->fdt_blob, "u-boot,nand-env-offset",
+				     env_get_offset(CONFIG_ENV_NAND_OFFSET));
+}
+
+static loff_t nand_range(void)
+{
+	return fdtdec_get_config_int(gd->fdt_blob, "u-boot,nand-env-range",
+				     CONFIG_ENV_NAND_RANGE);
+}
+#else
+static loff_t nand_offset(int copy)
+{
+#if defined(CONFIG_ENV_NAND_OFFSET_REDUND)
+	if (copy)
+		return env_get_offset(CONFIG_ENV_NAND_OFFSET_REDUND);
+#endif
+
+	return env_get_offset(CONFIG_ENV_NAND_OFFSET);
+}
+
+static loff_t nand_range(void)
+{
+	return CONFIG_ENV_NAND_RANGE;
+}
+#endif
 
 /*
  * This is called before nand_init() so we can't read NAND to
@@ -62,7 +113,7 @@ static int env_nand_init(void)
 	int crc1_ok = 0, crc2_ok = 0;
 	env_t *tmp_env1;
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 	env_t *tmp_env2;
 
 	tmp_env2 = (env_t *)((ulong)env_ptr + CONFIG_ENV_SIZE);
@@ -79,7 +130,7 @@ static int env_nand_init(void)
 	} else if (crc1_ok && !crc2_ok) {
 		gd->env_valid = ENV_VALID;
 	}
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 	else if (!crc1_ok && crc2_ok) {
 		gd->env_valid = ENV_REDUND;
 	} else {
@@ -120,7 +171,7 @@ static int env_nand_init(void)
  */
 static int writeenv(size_t offset, u_char *buf)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + nand_range();
 	size_t amount_saved = 0;
 	size_t blocksize, len;
 	struct mtd_info *mtd;
@@ -183,30 +234,31 @@ static int env_nand_save(void)
 	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	int	env_idx = 0;
 	static struct nand_env_location location[2] = {0};
+	loff_t range = nand_range();
 
 	location[0].name = "NAND";
-	location[0].erase_opts.length = CONFIG_ENV_RANGE;
-	location[0].erase_opts.offset = env_get_offset(CONFIG_ENV_OFFSET);
+	location[0].erase_opts.length = range;
+	location[0].erase_opts.offset = nand_offset(0);
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 	location[1].name = "redundant NAND";
-	location[1].erase_opts.length = CONFIG_ENV_RANGE;
-	location[1].erase_opts.offset = CONFIG_ENV_OFFSET_REDUND;
+	location[1].erase_opts.length = range;
+	location[1].erase_opts.offset = nand_offset(1);
 #endif
 
-	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+	if (range < CONFIG_ENV_SIZE)
 		return 1;
 
 	ret = env_export(env_new);
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 	env_idx = (gd->env_valid == ENV_VALID);
 #endif
 
 	ret = erase_and_write_env(&location[env_idx], (u_char *)env_new);
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 	if (!ret) {
 		/* preset other copy for next write */
 		gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID :
@@ -233,7 +285,7 @@ static int readenv(size_t offset, u_char *buf)
 #else
 static int readenv(size_t offset, u_char *buf)
 {
-	size_t end = offset + CONFIG_ENV_RANGE;
+	size_t end = offset + nand_range();
 	size_t amount_loaded = 0;
 	size_t blocksize, len;
 	struct mtd_info *mtd;
@@ -268,39 +320,7 @@ static int readenv(size_t offset, u_char *buf)
 }
 #endif /* #if defined(CONFIG_SPL_BUILD) */
 
-#ifdef CONFIG_ENV_OFFSET_OOB
-int get_nand_env_oob(struct mtd_info *mtd, unsigned long *result)
-{
-	struct mtd_oob_ops ops;
-	uint32_t oob_buf[ENV_OFFSET_SIZE / sizeof(uint32_t)];
-	int ret;
-
-	ops.datbuf	= NULL;
-	ops.mode	= MTD_OOB_AUTO;
-	ops.ooboffs	= 0;
-	ops.ooblen	= ENV_OFFSET_SIZE;
-	ops.oobbuf	= (void *)oob_buf;
-
-	ret = mtd->read_oob(mtd, ENV_OFFSET_SIZE, &ops);
-	if (ret) {
-		printf("error reading OOB block 0\n");
-		return ret;
-	}
-
-	if (oob_buf[0] == ENV_OOB_MARKER) {
-		*result = ovoid ob_buf[1] * mtd->erasesize;
-	} else if (oob_buf[0] == ENV_OOB_MARKER_OLD) {
-		*result = oob_buf[1];
-	} else {
-		printf("No dynamic environment marker in OOB block 0\n");
-		return -ENOENT;
-	}
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_ENV_OFFSET_REDUND
+#ifdef CONFIG_ENV_NAND_OFFSET_REDUND
 static int env_nand_load(void)
 {
 #if defined(ENV_IS_EMBEDDED)
@@ -319,8 +339,8 @@ static int env_nand_load(void)
 		goto done;
 	}
 
-	read1_fail = readenv(env_get_offset(CONFIG_ENV_OFFSET), (u_char *) tmp_env1);
-	read2_fail = readenv(CONFIG_ENV_OFFSET_REDUND, (u_char *) tmp_env2);
+	read1_fail = readenv(nand_offset(0), (u_char *) tmp_env1);
+	read2_fail = readenv(nand_offset(1), (u_char *) tmp_env2);
 
 	ret = env_import_redund((char *)tmp_env1, read1_fail, (char *)tmp_env2,
 				read2_fail);
@@ -332,7 +352,7 @@ done:
 	return ret;
 #endif /* ! ENV_IS_EMBEDDED */
 }
-#else /* ! CONFIG_ENV_OFFSET_REDUND */
+#else /* ! CONFIG_ENV_NAND_OFFSET_REDUND */
 /*
  * The legacy NAND code saved the environment in the first NAND
  * device i.e., nand_dev_desc + 0. This is also the behaviour using
@@ -344,21 +364,7 @@ static int env_nand_load(void)
 	int ret;
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
 
-#if defined(CONFIG_ENV_OFFSET_OOB)
-	struct mtd_info *mtd  = get_nand_dev_by_index(0);
-	/*
-	 * If unable to read environment offset from NAND OOB then fall through
-	 * to the normal environment reading code below
-	 */
-	if (mtd && !get_nand_env_oob(mtd, &nand_env_oob_offset)) {
-		printf("Found Environment offset in OOB..\n");
-	} else {
-		env_set_default("no env offset in OOB", 0);
-		return;
-	}
-#endif
-
-	ret = readenv(env_get_offset(CONFIG_ENV_OFFSET), (u_char *)buf);
+	ret = readenv(nand_offset(0), (u_char *)buf);
 	if (ret) {
 		env_set_default("readenv() failed", 0);
 		return -EIO;
@@ -369,7 +375,7 @@ static int env_nand_load(void)
 
 	return 0;
 }
-#endif /* CONFIG_ENV_OFFSET_REDUND */
+#endif /* CONFIG_ENV_NAND_OFFSET_REDUND */
 
 U_BOOT_ENV_LOCATION(nand) = {
 	.location	= ENVL_NAND,

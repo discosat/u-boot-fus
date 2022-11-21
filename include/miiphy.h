@@ -59,6 +59,7 @@ int mdio_register(struct mii_dev *bus);
 int mdio_register_seq(struct mii_dev *bus, int seq);
 int mdio_unregister(struct mii_dev *bus);
 void mdio_list_devices(void);
+void mdio_shutdown_all(void);
 
 #ifdef CONFIG_BITBANGMII
 

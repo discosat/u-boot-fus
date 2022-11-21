@@ -40,7 +40,9 @@ obj-$(CONFIG_SPL_FRAMEWORK) += zimage.o
 obj-$(CONFIG_OF_LIBFDT) += bootm-fdt.o
 endif
 obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMSET) += memset.o
+obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMSET32) += memset32.o
 obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMCPY) += memcpy.o
+obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMMOVE) += memmove.o
 obj-$(CONFIG_SEMIHOSTING) += semihosting.o
 
 obj-y	+= sections.o

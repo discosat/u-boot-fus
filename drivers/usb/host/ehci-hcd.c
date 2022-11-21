@@ -210,7 +210,9 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 {
 	int i, ret = 0;
 	uint32_t cmd, reg;
-	int max_ports = HCS_N_PORTS(ehci_readl(&ctrl->hccr->cr_hcsparams));
+
+	if (!ctrl->host_valid)
+		return 0;
 
 	cmd = ehci_readl(&ctrl->hcor->or_usbcmd);
 	/* If not run, directly return */
@@ -222,7 +224,7 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 		100 * 1000);
 
 	if (!ret) {
-		for (i = 0; i < max_ports; i++) {
+		for (i = 0; i < ctrl->ports; i++) {
 			reg = ehci_readl(&ctrl->hcor->or_portsc[i]);
 			reg |= EHCI_PS_SUSP;
 			ehci_writel(&ctrl->hcor->or_portsc[i], reg);
@@ -232,6 +234,14 @@ static int ehci_shutdown(struct ehci_ctrl *ctrl)
 		ehci_writel(&ctrl->hcor->or_usbcmd, cmd);
 		ret = handshake(&ctrl->hcor->or_usbsts, STS_HALT, STS_HALT,
 			HCHALT_TIMEOUT);
+
+#ifdef CONFIG_USB_EHCI_POWERDOWN
+		for (i = 0; i < ctrl->ports; i++) {
+			reg = ehci_readl(&ctrl->hcor->or_portsc[i]);
+			reg &= ~EHCI_PS_PP;
+			ehci_writel(&ctrl->hcor->or_portsc[i], reg);
+		}
+#endif
 	}
 
 	if (ret)
@@ -1099,6 +1109,7 @@ static int ehci_common_init(struct ehci_ctrl *ctrl, uint tweaks)
 
 	reg = ehci_readl(&ctrl->hccr->cr_hcsparams);
 	descriptor.hub.bNbrPorts = HCS_N_PORTS(reg);
+	ctrl->ports = HCS_N_PORTS(reg);
 	debug("Register %x NbrPorts %d\n", reg, descriptor.hub.bNbrPorts);
 	/* Port Indicators */
 	if (HCS_INDICATOR(reg))
@@ -1131,6 +1142,8 @@ static int ehci_common_init(struct ehci_ctrl *ctrl, uint tweaks)
 	mdelay(5);
 	reg = HC_VERSION(ehci_readl(&ctrl->hccr->cr_capbase));
 	printf("USB EHCI %x.%02x\n", reg >> 8, reg & 0xff);
+
+	ctrl->host_valid = 1;
 
 	return 0;
 }

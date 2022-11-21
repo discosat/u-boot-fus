@@ -29,6 +29,7 @@
 *.patch
 *.s
 *.su
+*.fs
 *.swp
 *.tab.[ch]
 
@@ -45,6 +46,7 @@ fit-dtb.blob*
 /u-boot*
 /boards.cfg
 /*.log
+/uboot.nb0
 
 #
 # git files that we don't want to ignore even it they are dot-files

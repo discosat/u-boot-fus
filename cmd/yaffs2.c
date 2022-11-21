@@ -188,7 +188,7 @@ int do_yrdm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	}
 
 	filename = argv[1];
-	addr = simple_strtoul(argv[2], NULL, 16);
+	addr = parse_loadaddr(argv[2], NULL);
 
 	cmd_yaffs_mread_file(filename, (char *)addr);
 
@@ -207,7 +207,7 @@ int do_ywrm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	}
 
 	filename = argv[1];
-	addr = simple_strtoul(argv[2], NULL, 16);
+	addr = parse_loadaddr(argv[2], NULL);
 	size = simple_strtoul(argv[3], NULL, 16);
 
 	cmd_yaffs_mwrite_file(filename, (char *)addr, size);

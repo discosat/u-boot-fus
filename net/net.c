@@ -217,6 +217,29 @@ int __maybe_unused net_busy_flag;
 
 /**********************************************************************/
 
+static int on_bootfile(const char *name, const char *value, enum env_op op,
+	int flags)
+{
+	if (flags & H_PROGRAMMATIC)
+		return 0;
+
+	switch (op) {
+	case env_op_create:
+	case env_op_overwrite:
+		if (value == NULL)
+			return -1;
+		else
+			copy_filename(net_boot_file_name, value,
+				      sizeof(net_boot_file_name));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+U_BOOT_ENV_CALLBACK(bootfile, on_bootfile);
+
 static int on_ipaddr(const char *name, const char *value, enum env_op op,
 	int flags)
 {
@@ -452,12 +475,12 @@ restart:
 
 	case 0:
 		net_dev_exists = 1;
+		/* In case of TFTPPUT, NetBootFileXferSize is the send size */
+		if (protocol != TFTPPUT)
 		net_boot_file_size = 0;
 		switch (protocol) {
 		case TFTPGET:
-#ifdef CONFIG_CMD_TFTPPUT
 		case TFTPPUT:
-#endif
 			/* always use ARP to get server ethernet address */
 			tftp_start(protocol);
 			break;
@@ -634,10 +657,9 @@ restart:
 		case NETLOOP_SUCCESS:
 			net_cleanup_loop();
 			if (net_boot_file_size > 0) {
-				printf("Bytes transferred = %d (%x hex)\n",
+				printf("Bytes transferred = %u (0x%x)\n",
 				       net_boot_file_size, net_boot_file_size);
-				env_set_hex("filesize", net_boot_file_size);
-				env_set_hex("fileaddr", image_load_addr);
+				env_set_fileinfo(net_boot_file_size);
 			}
 			if (protocol != NETCONS)
 				eth_halt();
@@ -700,9 +722,9 @@ int net_start_again(void)
 		if (!strcmp(nretry, "yes"))
 			retry_forever = 1;
 		else if (!strcmp(nretry, "no"))
-			retrycnt = 0;
-		else if (!strcmp(nretry, "once"))
 			retrycnt = 1;
+		else if (!strcmp(nretry, "once"))
+			retrycnt = 2;
 		else
 			retrycnt = simple_strtoul(nretry, NULL, 0);
 	} else {

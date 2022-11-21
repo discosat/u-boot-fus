@@ -65,27 +65,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #endif
 
 /*
- * TODO(sjg@chromium.org): IMO this code should be
- * refactored to a single function, something like:
- *
- * void led_set_state(enum led_colour_t colour, int on);
- */
-/************************************************************************
- * Coloured LED functionality
- ************************************************************************
- * May be supplied by boards if desired
- */
-__weak void coloured_LED_init(void) {}
-__weak void red_led_on(void) {}
-__weak void red_led_off(void) {}
-__weak void green_led_on(void) {}
-__weak void green_led_off(void) {}
-__weak void yellow_led_on(void) {}
-__weak void yellow_led_off(void) {}
-__weak void blue_led_on(void) {}
-__weak void blue_led_off(void) {}
-
-/*
  * Why is gd allocated a register? Prior to reloc it might be better to
  * just pass it around to each function in this file?
  *
@@ -147,6 +126,11 @@ static int display_text_info(void)
 
 	debug("U-Boot code: %08lX -> %08lX  BSS: -> %08lX\n",
 	      text_base, bss_start, bss_end);
+#endif
+
+#ifdef CONFIG_USE_IRQ
+	debug("IRQ Stack: %08lx\n", IRQ_STACK_START);
+	debug("FIQ Stack: %08lx\n", FIQ_STACK_START);
 #endif
 
 	return 0;
@@ -472,6 +456,17 @@ static int reserve_uboot(void)
 	return 0;
 }
 
+/*
+ * reserve after start_addr_sp the requested size and make the stack pointer
+ * 16-byte aligned, this alignment is needed for cast on the reserved memory
+ * ref = x86_64 ABI: https://reviews.llvm.org/D30049: 16 bytes
+ *     = ARMv8 Instruction Set Overview: quad word, 16 bytes
+ */
+static unsigned long reserve_stack_aligned(size_t size)
+{
+	return ALIGN_DOWN(gd->start_addr_sp - size, 16);
+}
+
 #ifdef CONFIG_SYS_NONCACHED_MEMORY
 static int reserve_noncached(void)
 {
@@ -497,7 +492,7 @@ static int reserve_noncached(void)
 /* reserve memory for malloc() area */
 static int reserve_malloc(void)
 {
-	gd->start_addr_sp = gd->start_addr_sp - TOTAL_MALLOC_LEN;
+	gd->start_addr_sp = reserve_stack_aligned(TOTAL_MALLOC_LEN);
 	debug("Reserving %dk for malloc() at: %08lx\n",
 	      TOTAL_MALLOC_LEN >> 10, gd->start_addr_sp);
 #ifdef CONFIG_SYS_NONCACHED_MEMORY
@@ -511,11 +506,12 @@ static int reserve_malloc(void)
 static int reserve_board(void)
 {
 	if (!gd->bd) {
-		gd->start_addr_sp -= sizeof(bd_t);
-		gd->bd = (bd_t *)map_sysmem(gd->start_addr_sp, sizeof(bd_t));
-		memset(gd->bd, '\0', sizeof(bd_t));
+		gd->start_addr_sp = reserve_stack_aligned(sizeof(struct bd_info));
+		gd->bd = (struct bd_info *)map_sysmem(gd->start_addr_sp,
+						      sizeof(struct bd_info));
+		memset(gd->bd, '\0', sizeof(struct bd_info));
 		debug("Reserving %zu Bytes for Board Info at: %08lx\n",
-		      sizeof(bd_t), gd->start_addr_sp);
+		      sizeof(struct bd_info), gd->start_addr_sp);
 	}
 	return 0;
 }
@@ -530,7 +526,7 @@ static int setup_machine(void)
 
 static int reserve_global_data(void)
 {
-	gd->start_addr_sp -= sizeof(gd_t);
+	gd->start_addr_sp = reserve_stack_aligned(sizeof(gd_t));
 	gd->new_gd = (gd_t *)map_sysmem(gd->start_addr_sp, sizeof(gd_t));
 	debug("Reserving %zu Bytes for Global Data at: %08lx\n",
 	      sizeof(gd_t), gd->start_addr_sp);
@@ -546,9 +542,9 @@ static int reserve_fdt(void)
 	 * will be relocated with other data.
 	 */
 	if (gd->fdt_blob) {
-		gd->fdt_size = ALIGN(fdt_totalsize(gd->fdt_blob) + 0x1000, 32);
+		gd->fdt_size = ALIGN(fdt_totalsize(gd->fdt_blob), 32);
 
-		gd->start_addr_sp -= gd->fdt_size;
+		gd->start_addr_sp = reserve_stack_aligned(gd->fdt_size);
 		gd->new_fdt = map_sysmem(gd->start_addr_sp, gd->fdt_size);
 		debug("Reserving %lu Bytes for FDT at: %08lx\n",
 		      gd->fdt_size, gd->start_addr_sp);
@@ -563,7 +559,7 @@ static int reserve_bootstage(void)
 #ifdef CONFIG_BOOTSTAGE
 	int size = bootstage_get_size();
 
-	gd->start_addr_sp -= size;
+	gd->start_addr_sp = reserve_stack_aligned(size);
 	gd->new_bootstage = map_sysmem(gd->start_addr_sp, size);
 	debug("Reserving %#x Bytes for bootstage at: %08lx\n", size,
 	      gd->start_addr_sp);
@@ -580,8 +576,7 @@ __weak int arch_reserve_stacks(void)
 static int reserve_stacks(void)
 {
 	/* make stack pointer 16-byte aligned */
-	gd->start_addr_sp -= 16;
-	gd->start_addr_sp &= ~0xf;
+	gd->start_addr_sp = reserve_stack_aligned(16);
 
 	/*
 	 * let the architecture-specific code tailor gd->start_addr_sp and
@@ -593,8 +588,7 @@ static int reserve_stacks(void)
 static int reserve_bloblist(void)
 {
 #ifdef CONFIG_BLOBLIST
-	gd->start_addr_sp &= ~0xf;
-	gd->start_addr_sp -= CONFIG_BLOBLIST_SIZE;
+	gd->start_addr_sp = reserve_stack_aligned(CONFIG_BLOBLIST_SIZE);
 	gd->new_bloblist = map_sysmem(gd->start_addr_sp, CONFIG_BLOBLIST_SIZE);
 #endif
 
@@ -681,7 +675,7 @@ static int reloc_fdt(void)
 	if (gd->flags & GD_FLG_SKIP_RELOC)
 		return 0;
 	if (gd->new_fdt) {
-		memcpy(gd->new_fdt, gd->fdt_blob, gd->fdt_size);
+		memcpy(gd->new_fdt, gd->fdt_blob, fdt_totalsize(gd->fdt_blob));
 		gd->fdt_blob = gd->new_fdt;
 	}
 #endif
@@ -968,6 +962,9 @@ static const init_fnc_t init_sequence_f[] = {
 	 *  - board info struct
 	 */
 	setup_dest_addr,
+#ifdef CONFIG_OF_BOARD_FIXUP
+	fix_fdt,
+#endif
 #ifdef CONFIG_PRAM
 	reserve_pram,
 #endif
@@ -998,9 +995,6 @@ static const init_fnc_t init_sequence_f[] = {
 	setup_board_part2,
 #endif
 	display_new_sp,
-#ifdef CONFIG_OF_BOARD_FIXUP
-	fix_fdt,
-#endif
 	INIT_FUNC_WATCHDOG_RESET
 	reloc_fdt,
 	reloc_bootstage,

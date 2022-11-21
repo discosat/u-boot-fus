@@ -393,6 +393,15 @@ config VIDEO_LCD_HITACHI_TX18D42VM
 	lcd controller which needs to be initialized over SPI, once that is
 	done they work like a regular LVDS panel.
 
+config NT35521
+	bool "MIPI DSI NT35521 display"
+	depends on VIDEO
+	default n
+	---help---
+	Support for  LVDS LCD panels, these panels have a
+	lcd controller which needs to be initialized over SPI, once that is
+	done they work like a regular LVDS panel.
+
 config VIDEO_LCD_SPI_CS
 	string "SPI CS pin for LCD related config job"
 	depends on VIDEO_LCD_SSD2828 || VIDEO_LCD_HITACHI_TX18D42VM
@@ -584,6 +593,14 @@ config VIDEO
 	  model. Video drivers typically provide a colour text console and
 	  cursor.
 
+config VIDEO_MXS
+	bool "MXSFB video support"
+	depends on VIDEO
+	depends on MX6SX || MX6UL || MX6ULL || ARCH_MX7ULP
+	help
+	  This enables framebuffer driver for i.MX processors working
+	  on the LCDIF display driver (MXSFB).
+
 config MXC_EPDC
 	bool "i.MX EPDC support"
 	depends on LCD && (MX7 || MX6)
@@ -721,6 +738,27 @@ config VIDEO_DW_HDMI
 	help
 	  Enables the common driver code for the Designware HDMI TX
 	  block found in SoCs from various vendors.
+	  As this does not provide any functionality by itself (but
+	  rather requires a SoC-specific glue driver to call it), it
+	  can not be enabled from the configuration menu.
+
+config VIDEO_DSI_HOST_SANDBOX
+	bool "Enable sandbox for dsi host"
+	depends on SANDBOX
+	select VIDEO_MIPI_DSI
+	help
+	  Enable support for sandbox dsi host device used for testing
+	  purposes.
+	  Display Serial Interface (DSI) defines a serial bus and
+	  a communication protocol between the host and the device
+	  (panel, bridge).
+
+config VIDEO_DW_MIPI_DSI
+	bool
+	select VIDEO_MIPI_DSI
+	help
+	  Enables the common driver code for the Synopsis Designware
+	  MIPI DSI block found in SoCs from various vendors.
 	  As this does not provide any functionality by itself (but
 	  rather requires a SoC-specific glue driver to call it), it
 	  can not be enabled from the configuration menu.

@@ -37,7 +37,6 @@
 #include "bootp.h"
 #include <time.h>
 
-#define HASHES_PER_LINE 65	/* Number of "loading" hashes per line	*/
 #define NFS_RETRY_COUNT 30
 #ifndef CONFIG_NFS_TIMEOUT
 # define NFS_TIMEOUT 2000UL
@@ -84,20 +83,21 @@ static char supported_nfs_versions = NFSV2_FLAG | NFSV3_FLAG;
 static inline int store_block(uchar *src, unsigned offset, unsigned len)
 {
 	ulong newsize = offset + len;
+	ulong startaddr = get_fileaddr() + offset;
+
 #ifdef CONFIG_SYS_DIRECT_FLASH_NFS
 	int i, rc = 0;
 
 	for (i = 0; i < CONFIG_SYS_MAX_FLASH_BANKS; i++) {
 		/* start address in flash? */
-		if (image_load_addr + offset >= flash_info[i].start[0]) {
+		if (startaddr >= flash_info[i].start[0]) {
 			rc = 1;
 			break;
 		}
 	}
 
 	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write((uchar *)src, (ulong)image_load_addr + offset,
-				 len);
+		rc = flash_write((uchar *)src, startaddr, len);
 		if (rc) {
 			flash_perror(rc);
 			return -1;
@@ -105,9 +105,9 @@ static inline int store_block(uchar *src, unsigned offset, unsigned len)
 	} else
 #endif /* CONFIG_SYS_DIRECT_FLASH_NFS */
 	{
-		void *ptr = map_sysmem(image_load_addr + offset, len);
+		void *ptr = map_sysmem(startaddr, len);
 
-		memcpy(ptr, src, len);
+		(void)memcpy(ptr, src, len);
 		unmap_sysmem(ptr);
 	}
 
@@ -690,9 +690,9 @@ static int nfs_read_reply(uchar *pkt, unsigned len)
 	}
 
 	if ((nfs_offset != 0) && !((nfs_offset) %
-			(NFS_READ_SIZE / 2 * 10 * HASHES_PER_LINE)))
-		puts("\n\t ");
-	if (!(nfs_offset % ((NFS_READ_SIZE / 2) * 10)))
+			(NFS_READ_SIZE * 16 * 64)))
+		printf("  %u KiB\n  ", net_boot_file_size >> 10);
+	if (!(nfs_offset % (NFS_READ_SIZE * 16)))
 		putc('#');
 
 	if (supported_nfs_versions & NFSV2_FLAG) {
@@ -751,6 +751,9 @@ static void nfs_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 
 	if (dest != nfs_our_port)
 		return;
+
+	/* We have received something useful; restart timeout count */
+	nfs_timeout_count = 0;
 
 	switch (nfs_state) {
 	case STATE_PRCLOOKUP_PROG_MOUNT_REQ:
@@ -904,17 +907,18 @@ void nfs_start(void)
 		our_net.s_addr = net_ip.s_addr & net_netmask.s_addr;
 		server_net.s_addr = nfs_server_ip.s_addr & net_netmask.s_addr;
 		if (our_net.s_addr != server_net.s_addr)
-			printf("; sending through gateway %pI4",
-			       &net_gateway);
+			debug("; sending through gateway %pI4",
+			      &net_gateway);
 	}
-	printf("\nFilename '%s/%s'.", nfs_path, nfs_filename);
+	debug("\nFilename '%s/%s'.", nfs_path, nfs_filename);
 
 	if (net_boot_file_expected_size_in_blocks) {
 		printf(" Size is 0x%x Bytes = ",
 		       net_boot_file_expected_size_in_blocks << 9);
 		print_size(net_boot_file_expected_size_in_blocks << 9, "");
 	}
-	printf("\nLoad address: 0x%lx\nLoading: *\b", image_load_addr);
+	printf ("\nLoad address: 0x%lx\n"
+		"Loading:\n  *\b", get_fileaddr());
 
 	net_set_timeout_handler(nfs_timeout, nfs_timeout_handler);
 	net_set_udp_handler(nfs_handler);

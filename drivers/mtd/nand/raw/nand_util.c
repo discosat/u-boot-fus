@@ -31,8 +31,8 @@
 #include <nand.h>
 #include <jffs2/jffs2.h>
 
-typedef struct erase_info	erase_info_t;
-typedef struct mtd_info		mtd_info_t;
+typedef struct erase_info erase_info_t;
+typedef struct mtd_info	  mtd_info_t;
 
 /* support only for native endian JFFS2 */
 #define cpu_to_je16(x) (x)
@@ -57,9 +57,11 @@ int nand_erase_opts(struct mtd_info *mtd,
 	unsigned long erase_length, erased_length; /* in blocks */
 	int result;
 	int percent_complete = -1;
-	const char *mtd_device = mtd->name;
 	struct mtd_oob_ops oob_opts;
 	struct nand_chip *chip = mtd_to_nand(mtd);
+
+	if (chip->options & NAND_SW_WRITE_PROTECT)
+		return -EROFS;
 
 	if ((opts->offset & (mtd->erasesize - 1)) != 0) {
 		printf("Attempt to erase non block-aligned data\n");
@@ -110,9 +112,10 @@ int nand_erase_opts(struct mtd_info *mtd,
 			int ret = mtd_block_isbad(mtd, erase.addr);
 			if (ret > 0) {
 				if (!opts->quiet)
-					printf("\rSkipping bad block at  "
+					printf("\rSkipping bad block at "
 					       "0x%08llx                 "
-					       "                         \n",
+					       "                         "
+					       "         \n",
 					       erase.addr);
 
 				if (!opts->spread)
@@ -121,9 +124,8 @@ int nand_erase_opts(struct mtd_info *mtd,
 				continue;
 
 			} else if (ret < 0) {
-				printf("\n%s: MTD get bad block failed: %d\n",
-				       mtd_device,
-				       ret);
+				printf("\nNAND get bad block failed with "
+				       "error %d\n", ret);
 				return -1;
 			}
 		}
@@ -132,14 +134,21 @@ int nand_erase_opts(struct mtd_info *mtd,
 
 		result = mtd_erase(mtd, &erase);
 		if (result != 0) {
-			printf("\n%s: MTD Erase failure: %d\n",
-			       mtd_device, result);
+			if (result == -EROFS) {
+				printf("\rNAND erase failed at 0x%08llx: "
+				       "read-only device\n", erase.addr);
+				return -1;
+			}
+			mtd_block_markbad(mtd, erase.addr);
+			printf("\rNAND erase failed at 0x%08llx with error %d; "
+			       "block marked bad!\n", erase.addr, result);
 			continue;
 		}
 
 		/* format for JFFS2 ? */
 		if (opts->jffs2 && chip->ecc.layout->oobavail >= 8) {
 			struct mtd_oob_ops ops;
+
 			ops.ooblen = 8;
 			ops.datbuf = NULL;
 			ops.oobbuf = (uint8_t *)&cleanmarker;
@@ -148,8 +157,8 @@ int nand_erase_opts(struct mtd_info *mtd,
 
 			result = mtd_write_oob(mtd, erase.addr, &ops);
 			if (result != 0) {
-				printf("\n%s: MTD writeoob failure: %d\n",
-				       mtd_device, result);
+				printf("\nNAND writeoob failed with error %d\n",
+				       result);
 				continue;
 			}
 		}
@@ -167,7 +176,6 @@ int nand_erase_opts(struct mtd_info *mtd,
 			 */
 			if (percent != percent_complete) {
 				percent_complete = percent;
-
 				printf("\rErasing at 0x%llx -- %3d%% complete.",
 				       erase.addr, percent);
 
@@ -626,10 +634,8 @@ int nand_write_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 		if (rval == 0)
 			return 0;
 
-		*length = 0;
-		printf("NAND write to offset %llx failed %d\n",
-			offset, rval);
-		return rval;
+		offset += *length;
+		goto failed;
 	}
 
 	while (left_to_write > 0) {
@@ -639,7 +645,7 @@ int nand_write_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 		WATCHDOG_RESET();
 
 		if (nand_block_isbad(mtd, offset & ~(mtd->erasesize - 1))) {
-			printf("Skip bad block 0x%08llx\n",
+			printf("Skipping bad block at 0x%08llx\n",
 				offset & ~(mtd->erasesize - 1));
 			offset += mtd->erasesize - block_offset;
 			continue;
@@ -668,16 +674,27 @@ int nand_write_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 		p_buffer += write_size;
 
 		if (rval != 0) {
-			printf("NAND write to offset %llx failed %d\n",
-				offset, rval);
 			*length -= left_to_write;
-			return rval;
+			break;
 		}
 
 		left_to_write -= write_size;
 	}
 
-	return 0;
+failed:
+	if (rval) {
+		if (rval == -EROFS) {
+			printf("NAND write failed at 0x%08llx: "
+			       "read-only device\n", offset);
+		} else {
+			printf("NAND write failed at 0x%08llx with error %d\n"
+			       "Please check block at 0x%08llx and consider "
+			       "marking it bad\n",
+			       offset, rval, offset & ~(mtd->erasesize - 1));
+		}
+	}
+
+	return rval;
 }
 
 /**
@@ -709,7 +726,6 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 	int rval;
 	size_t left_to_read = *length;
 	size_t used_for_read = 0;
-	u_char *p_buffer = buffer;
 	int need_skip;
 
 	if ((offset & (mtd->writesize - 1)) != 0) {
@@ -737,16 +753,18 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 		return -EFBIG;
 	}
 
+#ifndef CONFIG_NAND_REFRESH
 	if (!need_skip) {
 		rval = nand_read(mtd, offset, length, buffer);
 		if (!rval || rval == -EUCLEAN)
 			return 0;
 
+		printf("NAND read failed at 0x%08llx with error %d\n",
+		       offset, rval);
 		*length = 0;
-		printf("NAND read from offset %llx failed %d\n",
-			offset, rval);
 		return rval;
 	}
+#endif
 
 	while (left_to_read > 0) {
 		size_t block_offset = offset & (mtd->erasesize - 1);
@@ -754,21 +772,25 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 
 		WATCHDOG_RESET();
 
-		if (nand_block_isbad(mtd, offset & ~(mtd->erasesize - 1))) {
-			printf("Skipping bad block 0x%08llx\n",
+		if (need_skip
+		    && nand_block_isbad(mtd, offset & ~(mtd->erasesize - 1))) {
+			printf("Skipping bad block at 0x%08llx\n",
 				offset & ~(mtd->erasesize - 1));
 			offset += mtd->erasesize - block_offset;
 			continue;
 		}
 
-		if (left_to_read < (mtd->erasesize - block_offset))
+		read_length = mtd->erasesize - block_offset;
+		if (left_to_read < read_length)
 			read_length = left_to_read;
-		else
-			read_length = mtd->erasesize - block_offset;
 
-		rval = nand_read(mtd, offset, &read_length, p_buffer);
+		rval = nand_read(mtd, offset, &read_length, buffer);
+#ifdef CONFIG_NAND_REFRESH
+	        if (rval == -EUCLEAN)
+			rval = nand_refresh(mtd, offset);
+#endif
 		if (rval && rval != -EUCLEAN) {
-			printf("NAND read from offset %llx failed %d\n",
+			printf("NAND read failed at 0x%08llx with error %d\n",
 				offset, rval);
 			*length -= left_to_read;
 			return rval;
@@ -776,11 +798,139 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 
 		left_to_read -= read_length;
 		offset       += read_length;
-		p_buffer     += read_length;
+		buffer       += read_length;
 	}
 
 	return 0;
 }
+
+#ifdef CONFIG_CMD_NAND_CONVERT
+/**
+ * nand_convert_skip_bad:
+ *
+ * Read region block by block from NAND flash, then write it back block by
+ * block. Blocks that are marked bad are skipped and the next block is used
+ * instead as long as the image is short enough to fit even after
+ * skipping the bad blocks.  In the case where the read would extend
+ * beyond the end of the NAND device or the limit, length is set to 0.
+ * The memory at addr is only used to store one block of data. The data is not
+ * fully available in the buffer after return, just the last block.
+ *
+ * @param nand NAND device
+ * @param offset offset in flash
+ * @param length buffer length, on return holds number of read bytes
+ * @param lim maximum size that actual may be in order to not exceed the
+ * buffer
+ * @param buffer buffer to write to
+ * @return 0 in case of success
+ */
+int nand_convert_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
+			  loff_t lim, u_char *buffer)
+{
+	int rval;
+	size_t left_to_convert = *length;
+	size_t used_for_read = 0;
+	int need_skip;
+	uint32_t erasesize = mtd->erasesize;
+	uint32_t writesize = mtd->writesize;
+	struct erase_info erase;
+
+	if (((offset & (erasesize - 1)) != 0)
+	    || ((left_to_convert & (erasesize - 1)) !=0)) {
+		puts("Attempt to convert non block-aligned data\n");
+		*length = 0;
+		return -EINVAL;
+	}
+
+	need_skip = check_skip_len(mtd, offset, *length, &used_for_read);
+
+	if (need_skip < 0) {
+		puts("Attempt to convert outside the flash area\n");
+		*length = 0;
+		return -EINVAL;
+	}
+
+	if (used_for_read > lim) {
+		puts("Size of convert exceeds partition or device limit\n");
+		*length = 0;
+		return -EFBIG;
+	}
+
+	memset(&erase, 0, sizeof(erase));
+	erase.mtd = mtd;
+	erase.len = erasesize;
+	
+	while (left_to_convert > 0) {
+		size_t read_length;
+		size_t write_length;
+		size_t offs;
+
+		WATCHDOG_RESET();
+
+		if (need_skip
+		    && nand_block_isbad(mtd, offset)) {
+			printf("Skipping bad block at 0x%08llx\n", offset);
+			offset += erasesize;
+			continue;
+		}
+
+		/* Read one block. Ignore any read errors, we have to continue
+		   in any case.
+		   ECLEAN:  Bitflips do not matter, we re-write the data anyway
+		   EBADMSG: Use the raw data that is read, then hope and pray
+		   Other:   Issue warning and hope for the best */
+		read_length = erasesize;
+		rval = nand_read(mtd, offset, &read_length, buffer);
+		if (rval && rval != -EUCLEAN && rval != -EBADMSG) {
+			printf("Reading block at 0x%08llx failed with error %d"
+			       " (ignored)\n", offset, rval);
+		}
+
+		/* Erase block. If this fails, issue warning and pray. */
+		erase.addr = offset;
+		rval = mtd_erase(mtd, &erase);
+		if (rval < 0) {
+			printf("Erasing block at 0x%08llx failed with error %d"
+			       " (ignored)\n", offset, rval);
+		}
+
+		/* Write back data to the block, skip empty pages. */
+		offs = 0;
+		do {
+			uint32_t *buffer32 = (u32 *)(buffer + offs);
+			uint32_t i;
+
+			/* Check for empty page */
+			i = mtd->writesize >> 2;
+			do {
+				if (buffer32[i - 1] != 0xFFFFFFFF)
+					break;
+			} while (--i);
+
+			/* Write page if not empty; if writing fails, issue
+			   warning and hope for the best */
+			if (i) {
+				write_length = writesize;
+				rval = nand_write(mtd, offset + offs,
+						  &write_length, buffer + offs);
+				if (rval < 0) {
+					printf("Writing page at 0x%08llx"
+					       " failed with error %d"
+					       " (ignored)\n", offset + offs,
+					       rval);
+				}
+					
+			}
+			offs += writesize;
+		} while (offs < erasesize);
+
+		left_to_convert -= erasesize;
+		offset += erasesize;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_CMD_NAND_CONVERT */
 
 #ifdef CONFIG_CMD_NAND_TORTURE
 
@@ -849,23 +999,23 @@ int nand_torture(struct mtd_info *mtd, loff_t offset)
 	for (i = 0; i < patt_count; i++) {
 		err = mtd_erase(mtd, &instr);
 		if (err) {
-			printf("%s: erase() failed for block at 0x%llx: %d\n",
-				mtd->name, instr.addr, err);
+			printf("%s: NAND erase failed at 0x%08llx with "
+			       "error %d\n", mtd->name, instr.addr, err);
 			goto out;
 		}
 
 		/* Make sure the block contains only 0xff bytes */
-		err = mtd_read(mtd, offset, mtd->erasesize, &retlen, buf);
+		err = nand->read(mtd, offset, nand->erasesize, &retlen, buf);
 		if ((err && err != -EUCLEAN) || retlen != mtd->erasesize) {
-			printf("%s: read() failed for block at 0x%llx: %d\n",
-				mtd->name, instr.addr, err);
+			printf("%s: NAND read failed at 0x%08llx with "
+			       "error %d\n", mtd->name, instr.addr, err);
 			goto out;
 		}
 
 		err = check_pattern(buf, 0xff, mtd->erasesize);
 		if (!err) {
-			printf("Erased block at 0x%llx, but a non-0xff byte was found\n",
-				offset);
+			printf("Erased block at 0x%08llx, but a non-0xff "
+			       "byte was found\n", offset);
 			ret = -EIO;
 			goto out;
 		}
@@ -874,22 +1024,22 @@ int nand_torture(struct mtd_info *mtd, loff_t offset)
 		memset(buf, patterns[i], mtd->erasesize);
 		err = mtd_write(mtd, offset, mtd->erasesize, &retlen, buf);
 		if (err || retlen != mtd->erasesize) {
-			printf("%s: write() failed for block at 0x%llx: %d\n",
-				mtd->name, instr.addr, err);
+			printf("%s: Write failed at 0x%08llx with error %d\n",
+			       mtd->name, instr.addr, err);
 			goto out;
 		}
 
-		err = mtd_read(mtd, offset, mtd->erasesize, &retlen, buf);
+		err = mtd->read(mtd, offset, mtd->erasesize, &retlen, buf);
 		if ((err && err != -EUCLEAN) || retlen != mtd->erasesize) {
-			printf("%s: read() failed for block at 0x%llx: %d\n",
-				mtd->name, instr.addr, err);
+			printf("%s: Read failed at 0x%08llx with error %d\n",
+			       mtd->name, instr.addr, err);
 			goto out;
 		}
 
 		err = check_pattern(buf, patterns[i], mtd->erasesize);
 		if (!err) {
-			printf("Pattern 0x%.2x checking failed for block at "
-					"0x%llx\n", patterns[i], offset);
+			printf("Pattern 0x%.2x checking failed at 0x%08llx\n",
+			       patterns[i], offset);
 			ret = -EIO;
 			goto out;
 		}

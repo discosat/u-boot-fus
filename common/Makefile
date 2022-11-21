@@ -27,6 +27,8 @@ obj-$(CONFIG_CMD_BOOTM) += bootm.o bootm_os.o
 obj-$(CONFIG_CMD_BOOTZ) += bootm.o bootm_os.o
 obj-$(CONFIG_CMD_BOOTI) += bootm.o bootm_os.o
 
+obj-$(CONFIG_CMD_LOADS) += s_record.o
+obj-$(CONFIG_CMD_LOADB) += xyzModem.o
 obj-$(CONFIG_CMD_BEDBUG) += bedbug.o
 obj-$(CONFIG_$(SPL_TPL_)OF_LIBFDT) += fdt_support.o
 obj-$(CONFIG_MII) += miiphyutil.o
@@ -37,6 +39,15 @@ ifdef CONFIG_USB
 obj-y += usb.o usb_hub.o
 obj-$(CONFIG_USB_STORAGE) += usb_storage.o
 endif
+
+# Extended LCD support
+obj-$(CONFIG_CMD_LCD) += xlcd_panels.o
+obj-$(CONFIG_CMD_DRAW) += xlcd_draw_ll.o xlcd_drawtext_ll.o
+obj-$(CONFIG_CMD_ADRAW) += xlcd_adraw_ll.o
+obj-$(CONFIG_XLCD_CONSOLE) += xlcd_drawtext_ll.o
+obj-$(CONFIG_XLCD_PNG) += xlcd_png.o
+obj-$(CONFIG_XLCD_BMP) += xlcd_bmp.o
+obj-$(CONFIG_XLCD_JPG) += xlcd_jpg.o
 
 # others
 obj-$(CONFIG_CONSOLE_MUX) += iomux.o

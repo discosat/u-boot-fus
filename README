@@ -1024,6 +1024,11 @@ The following options need to be configured:
 		CONFIG_USB_EHCI_TXFIFO_THRESH enables setting of the
 		txfilltuning field in the EHCI controller on reset.
 
+		CONFIG_USB_EHCI_POWERDOWN shuts down USB host power on
+		usb stop (e.g. when starting the main OS). Otherwise the
+		devices are only put to suspend mode and power remains
+		enabled.
+
 		CONFIG_USB_DWC2_REG_ADDR the physical CPU address of the DWC2
 		HW module registers.
 
