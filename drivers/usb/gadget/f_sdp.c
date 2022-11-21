@@ -617,7 +617,8 @@ static void sdp_disable(struct usb_function *f)
 	usb_ep_disable(sdp->in_ep);
 
 	if (sdp->in_req) {
-		free(sdp->in_req);
+		free(sdp->in_req->buf);
+		usb_ep_free_request(sdp->in_ep, sdp->in_req);
 		sdp->in_req = NULL;
 	}
 }
