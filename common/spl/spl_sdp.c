@@ -48,21 +48,27 @@ int spl_sdp_stream_image(const struct sdp_stream_ops *ops, bool single)
 {
 	int ret;
 	int index;
-	int controller_index = CONFIG_SPL_SDP_USB_DEV;
+	static int initdone;
 
-	index = board_usb_gadget_port_auto();
-	if (index >= 0)
-		controller_index = index;
+	if (!initdone) {
+		/* Only init the USB controller once while in SPL */
+		int controller_index = CONFIG_SPL_SDP_USB_DEV;
+		index = board_usb_gadget_port_auto();
+		if (index >= 0)
+			controller_index = index;
 
-	usb_gadget_initialize(controller_index);
+		usb_gadget_initialize(controller_index);
 
-	g_dnl_clear_detach();
-	g_dnl_register("usb_dnl_sdp");
+		g_dnl_clear_detach();
+		g_dnl_register("usb_dnl_sdp");
 
-	ret = sdp_init(controller_index);
-	if (ret) {
-		pr_err("SDP init failed: %d\n", ret);
-		return -ENODEV;
+		ret = sdp_init(controller_index);
+		if (ret) {
+			pr_err("SDP init failed: %d\n", ret);
+			return -ENODEV;
+		}
+
+		initdone = 1;
 	}
 
 	return spl_sdp_stream_continue(ops, single);
