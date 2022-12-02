@@ -191,9 +191,6 @@ struct global_data;
  */
 void arch_setup_gd(struct global_data *gd_ptr);
 
-char	*get_board_name(void);
-char	*get_sys_prompt(void);
-
 /* common/board_r.c */
 void board_init_r(struct global_data *id, ulong dest_addr)
 	__attribute__ ((noreturn));
@@ -213,8 +210,6 @@ int init_func_vid(void);
 /* common/board_info.c */
 int checkboard(void);
 int show_board_info(void);
-
-int	source (ulong addr, const char *fit_uname);
 
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 void get_reboot_reason(char *ret);
