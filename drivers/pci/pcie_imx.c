@@ -14,6 +14,7 @@
 
 #include <common.h>
 #include <init.h>
+#include <log.h>
 #include <malloc.h>
 #include <pci.h>
 #if CONFIG_IS_ENABLED(CLK)
@@ -28,6 +29,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <dm.h>
+#include <linux/delay.h>
 #include <linux/sizes.h>
 #include <linux/ioport.h>
 #include <errno.h>
@@ -1739,7 +1741,7 @@ static int imx_pcie_dm_remove(struct udevice *dev)
 	return 0;
 }
 
-static int imx_pcie_ofdata_to_platdata(struct udevice *dev)
+static int imx_pcie_of_to_plat(struct udevice *dev)
 {
 	struct imx_pcie_priv *priv = dev_get_priv(dev);
 	int ret;
@@ -1805,8 +1807,8 @@ U_BOOT_DRIVER(imx_pcie) = {
 	.ops			= &imx_pcie_ops,
 	.probe			= imx_pcie_dm_probe,
 	.remove			= imx_pcie_dm_remove,
-	.ofdata_to_platdata	= imx_pcie_ofdata_to_platdata,
-	.priv_auto_alloc_size	= sizeof(struct imx_pcie_priv),
+	.of_to_plat	= imx_pcie_of_to_plat,
+	.priv_auto	= sizeof(struct imx_pcie_priv),
 	.flags			= DM_FLAG_OS_PREPARE,
 };
 #endif

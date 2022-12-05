@@ -342,7 +342,7 @@ static int do_part_test(int argc, char * const argv[])
 	return CMD_RET_SUCCESS;
 }
 
-static int do_scu_rm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_scu_rm(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc < 2)
 		return CMD_RET_USAGE;

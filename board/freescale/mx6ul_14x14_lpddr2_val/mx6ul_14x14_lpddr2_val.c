@@ -4,23 +4,29 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <init.h>
+#include <net.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/io.h>
 #include <common.h>
+#include <env.h>
 #include <fsl_esdhc_imx.h>
 #include <i2c.h>
 #include <linux/sizes.h>
 #include <linux/fb.h>
 #include <miiphy.h>
+#include <linux/delay.h>
+#include <linux/sizes.h>
 #include <mmc.h>
 #include <mxsfb.h>
 #include <netdev.h>
@@ -412,7 +418,7 @@ int board_qspi_init(void)
 }
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 #if !defined(CONFIG_CMD_NAND)
 static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 	{USDHC1_BASE_ADDR, 0, 1},
@@ -453,7 +459,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 
@@ -589,7 +595,7 @@ size_t display_count = ARRAY_SIZE(displays);
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret;
 
@@ -610,6 +616,9 @@ static int setup_fec(int fec_id)
 	int ret;
 
 	if (1 == fec_id) {
+		if (check_module_fused(MODULE_ENET2))
+			return -1;
+
 		/*
 		 * Use 50M anatop loopback REF_CLK2 for ENET2,
 		 * clear gpr1[14], set gpr1[18]
@@ -626,6 +635,9 @@ static int setup_fec(int fec_id)
 		udelay(50);
 		gpio_direction_output(IMX_GPIO_NR(5, 2), 1);
 	} else {
+		if (check_module_fused(MODULE_ENET1))
+			return -1;
+
 		/* clk from phy, set gpr1[13], clear gpr1[17]*/
 		clrsetbits_le32(&iomuxc_gpr_regs->gpr[1], IOMUX_GPR1_FEC1_MASK,
 				IOMUX_GPR1_FEC1_CLOCK_MUX2_SEL_MASK);

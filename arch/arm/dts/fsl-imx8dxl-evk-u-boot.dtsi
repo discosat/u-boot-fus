@@ -196,6 +196,31 @@
 	u-boot,dm-spl;
 };
 
+&eqos {
+	compatible = "fsl,imx-eqos";
+	phy-mode = "rgmii-id";
+};
+
+&fec1 {
+	phy-mode = "rgmii-id";
+};
+
+&ethphy0 {
+	vddio0: vddio-regulator {
+		regulator-name = "VDDIO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+&ethphy1 {
+	vddio1: vddio-regulator {
+		regulator-name = "VDDIO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
 &usbphy2 {
         u-boot,dm-spl;
 };

@@ -8,14 +8,16 @@
 #define __IMX8M_VAL_H
 
 #include <linux/sizes.h>
+#include <linux/stringify.h>
 #include <asm/arch/imx-regs.h>
 #include "imx_env.h"
+
+#define CONFIG_SYS_BOOTM_LEN		(32 * SZ_1M)
 
 #define CONFIG_SPL_MAX_SIZE		(148 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	(0x300 + CONFIG_SECONDARY_BOOT_SECTOR_OFFSET)
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 
 #ifdef CONFIG_SPL_BUILD
 /*#define CONFIG_ENABLE_DDR_TRAINING_DEBUG*/
@@ -184,8 +186,7 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
         (CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-#define CONFIG_ENV_OVERWRITE
-#define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
+#define CONFIG_SYS_MMC_ENV_DEV         1   /* USDHC2 */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 
 /* Size of malloc() pool */
@@ -200,10 +201,6 @@
 #define PHYS_SDRAM_2				0x100000000
 #define PHYS_SDRAM_2_SIZE			0x40000000 /* 1GB */
 #endif
-
-#define CONFIG_SYS_MEMTEST_START	PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
-					(PHYS_SDRAM_SIZE >> 1))
 
 #define CONFIG_BAUDRATE			115200
 
@@ -224,11 +221,6 @@
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
-#ifdef CONFIG_FSL_QSPI
-#define FSL_QSPI_FLASH_SIZE		(SZ_2M)
-#define FSL_QSPI_FLASH_NUM		2
-#endif
-
 /* I2C Configs */
 #define CONFIG_SYS_I2C_SPEED		  100000
 
@@ -248,7 +240,6 @@
 #define CONFIG_USB_MAX_CONTROLLER_COUNT         1
 
 #define CONFIG_CMD_USB
-#define CONFIG_USB_STORAGE
 
 #define CONFIG_USBD_HS
 

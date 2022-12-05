@@ -254,7 +254,7 @@ void dram_enable_bypass(ulong clk_val);
 void dram_disable_bypass(void);
 u32 imx_get_fecclk(void);
 u32 imx_get_eqos_csr_clk(void);
-int imx_eqos_txclk_set_rate(u32 rate);
+int imx_eqos_txclk_set_rate(unsigned long rate);
 u32 imx_get_uartclk(void);
 int clock_init(void);
 void init_clk_usdhc(u32 index);

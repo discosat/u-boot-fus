@@ -6,7 +6,11 @@
 
 #include <common.h>
 #include <dm.h>
+#include <image.h>
+#include <init.h>
+#include <log.h>
 #include <spl.h>
+#include <asm/global_data.h>
 #include <dm/uclass.h>
 #include <dm/device.h>
 #include <dm/uclass-internal.h>
@@ -23,7 +27,7 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 	case MMC1_BOOT:
 		return BOOT_DEVICE_MMC1;
 	case SD2_BOOT:
-#ifdef CONFIG_TARGET_IMX8DXL_DDR3_EVK
+#ifdef CONFIG_TARGET_IMX8DXL_DDR3_VAL
 		return BOOT_DEVICE_MMC1;
 #else
 		return BOOT_DEVICE_MMC2_2;

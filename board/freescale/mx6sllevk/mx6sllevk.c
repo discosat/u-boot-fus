@@ -11,12 +11,14 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/io.h>
 #include <common.h>
 #include <linux/sizes.h>
+#include <linux/delay.h>
 #include <mmc.h>
 #include <mxsfb.h>
 #include <power/pmic.h>
@@ -28,6 +30,7 @@
 #include <mxc_epdc_fb.h>
 #endif
 #include <asm/mach-imx/video.h>
+#include <env.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 

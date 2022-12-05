@@ -6,14 +6,18 @@
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
  */
 
+#include <image.h>
 #include <init.h>
+#include <net.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/mx6-pins.h>
+#include <asm/global_data.h>
 #include <asm/mach-imx/spi.h>
 #include <env.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/mach-imx/iomux-v3.h>
@@ -327,7 +331,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	struct src *psrc = (struct src *)SRC_BASE_ADDR;
 	unsigned reg = readl(&psrc->sbmr1) >> 11;
@@ -1250,12 +1254,6 @@ int board_late_init(void)
 	board_late_mmc_env_init();
 #endif
 
-	return 0;
-}
-
-int checkboard(void)
-{
-	puts("Board: MX6-SabreSD\n");
 	return 0;
 }
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <init.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
@@ -21,6 +22,7 @@
 #include <i2c.h>
 #include <linux/sizes.h>
 #include <linux/fb.h>
+#include <linux/delay.h>
 #include <miiphy.h>
 #include <mmc.h>
 #include <mxsfb.h>
@@ -214,7 +216,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 

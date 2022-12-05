@@ -478,7 +478,7 @@ int fsl_save_metadata_if_changed_dual_uboot(struct blk_desc *dev_desc,
 					    struct bootloader_control* ab_data_orig) {
 	struct bootloader_control serialized;
 	size_t num_bytes;
-	disk_partition_t info;
+	struct disk_partition info;
 
 	/* Save metadata if changed. */
 	if (memcmp(ab_data, ab_data_orig, sizeof(struct bootloader_control)) != 0) {
@@ -507,7 +507,7 @@ int fsl_save_metadata_if_changed_dual_uboot(struct blk_desc *dev_desc,
 int fsl_load_metadata_dual_uboot(struct blk_desc *dev_desc,
 				 struct bootloader_control* ab_data,
 				 struct bootloader_control* ab_data_orig) {
-	disk_partition_t info;
+	struct disk_partition info;
 	struct bootloader_control serialized;
 	size_t num_bytes;
 
@@ -616,8 +616,8 @@ static int spl_verify_rbidx(struct mmc *mmc, struct slot_metadata *slot,
 int mmc_load_image_raw_sector_dual_uboot(struct spl_image_info *spl_image,
 					 struct mmc *mmc)
 {
+	struct disk_partition info;
 	unsigned long count;
-	disk_partition_t info;
 	int ret = 0, n = 0;
 	char partition_name[PARTITION_NAME_LEN];
 	struct blk_desc *dev_desc;
@@ -643,13 +643,7 @@ int mmc_load_image_raw_sector_dual_uboot(struct spl_image_info *spl_image,
 
 #if !defined(CONFIG_XEN) && defined(CONFIG_IMX_TRUSTY_OS)
 	read_keyslot_package(&kp);
-	if (strcmp(kp.magic, KEYPACK_MAGIC)) {
-		if (rpmbkey_is_set()) {
-			printf("\nFATAL - RPMB key was destroyed!\n");
-			hang();
-		} else
-			printf("keyslot package magic error, do nothing here!\n");
-	} else {
+	if (!strcmp(kp.magic, KEYPACK_MAGIC)) {
 		/* Set power-on write protection to boot1 partition. */
 		if (mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP, BOOT1_PWR_WP)) {
 			printf("Unable to set power-on write protection to boot1!\n");
@@ -835,12 +829,11 @@ end:
 /*
  * spl_fit_get_rbindex(): Get rollback index of the bootloader.
  * @fit:	Pointer to the FDT blob.
- * @images:	Offset of the /images subnode.
  *
  * Return:	the rollback index value of bootloader or a negative
  * 		error number.
  */
-int spl_fit_get_rbindex(const void *fit, int images)
+int spl_fit_get_rbindex(const void *fit)
 {
 	const char *str;
 	uint64_t index;

@@ -5,7 +5,9 @@
  */
 
 #include <common.h>
+#include <command.h>
 #include <div64.h>
+#include <log.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <asm/arch/imx-regs.h>
@@ -1400,7 +1402,8 @@ void disable_ipu_clock(void)
 /*
  * Dump some core clockes.
  */
-int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_mx6_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[])
 {
 	u32 freq;
 	freq = decode_pll(PLL_SYS, MXC_HCLK);
@@ -1432,8 +1435,8 @@ int do_mx6_showclocks(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }
 
-#if defined(CONFIG_MX6QDL) || defined(CONFIG_MX6Q) || defined(CONFIG_MX6DL) || \
-	defined(CONFIG_MX6S)
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6D) || defined(CONFIG_MX6DL) || \
+	defined(CONFIG_MX6S) || defined(CONFIG_MX6QDL) || defined(CONFIG_MX6QP)
 static void disable_ldb_di_clock_sources(void)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;

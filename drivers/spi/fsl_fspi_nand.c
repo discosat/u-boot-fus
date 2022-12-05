@@ -980,9 +980,9 @@ U_BOOT_DRIVER(fsl_fspi_nand) = {
 	.id	= UCLASS_SPI,
 	.of_match = fsl_fspi_nand_ids,
 	.ops	= &fsl_fspi_nand_ops,
-	.ofdata_to_platdata = fsl_fspi_nand_ofdata_to_platdata,
-	.platdata_auto_alloc_size = sizeof(struct fsl_fspi_platdata),
-	.priv_auto_alloc_size = sizeof(struct fsl_fspi_priv),
+	.of_to_plat = fsl_fspi_nand_ofdata_to_platdata,
+	.plat_auto = sizeof(struct fsl_fspi_platdata),
+	.priv_auto = sizeof(struct fsl_fspi_priv),
 	.probe	= fsl_fspi_nand_probe,
 	.child_pre_probe = fsl_fspi_nand_child_pre_probe,
 };

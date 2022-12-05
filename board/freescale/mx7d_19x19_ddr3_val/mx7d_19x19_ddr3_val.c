@@ -3,7 +3,8 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
-
+#include <init.h>
+#include <net.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx7-pins.h>
@@ -13,6 +14,7 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/io.h>
 #include <linux/sizes.h>
+#include <linux/delay.h>
 #include <common.h>
 #include <fsl_esdhc_imx.h>
 #include <mmc.h>
@@ -332,7 +334,7 @@ int board_mmc_getcd(struct mmc *mmc)
 
 	return ret;
 }
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 	/*
@@ -384,7 +386,7 @@ int board_mmc_init(bd_t *bis)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret;
 

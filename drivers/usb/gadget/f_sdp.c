@@ -20,6 +20,7 @@
 #include <common.h>
 #include <console.h>
 #include <env.h>
+#include <log.h>
 #include <malloc.h>
 
 #include <linux/usb/ch9.h>
@@ -737,7 +738,7 @@ static u32 sdp_jump_imxheader(void *address)
 
 #ifdef CONFIG_SPL_BUILD
 static ulong sdp_load_read(struct spl_load_info *load, ulong sector,
-			  ulong count, void *buf)
+			   ulong count, void *buf)
 {
 	debug("%s: sector %lx, count %lx, buf %lx\n",
 	      __func__, sector, count, (ulong)buf);
@@ -745,31 +746,31 @@ static ulong sdp_load_read(struct spl_load_info *load, ulong sector,
 	return count;
 }
 
-#ifdef CONFIG_SPL_LOAD_FIT
 static ulong search_fit_header(ulong p, int size)
 {
-	int i = 0;
+	int i;
+
 	for (i = 0; i < size; i += 4) {
-                if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
-                        return p + i;
+		if (genimg_get_format((const void *)(p + i)) == IMAGE_FORMAT_FIT)
+			return p + i;
 	}
 
-        return 0;
+	return 0;
 }
-#elif defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
+
 static ulong search_container_header(ulong p, int size)
 {
-	int i = 0;
-	uint8_t *hdr;
+	int i;
+	u8 *hdr;
+
 	for (i = 0; i < size; i += 4) {
-		hdr = (uint8_t *)(p +i);
-		if (*(hdr + 3) == 0x87 && *hdr == 0 &&
-			(*(hdr + 1) != 0 || *(hdr + 2) != 0))
-                        return p +i;
+		hdr = (u8 *)(p + i);
+		if (*(hdr + 3) == 0x87 && *hdr == 0)
+			if (*(hdr + 1) != 0 || *(hdr + 2) != 0)
+				return p + i;
 	}
-        return 0;
+	return 0;
 }
-#endif
 #endif
 
 static int sdp_handle_in_ep(struct spl_image_info *spl_image)
@@ -824,16 +825,12 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
-#if defined(CONFIG_SPL_LOAD_IMX_CONTAINER)
-			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
-				sdp_func->dnl_bytes);
-#elif defined(CONFIG_SPL_LOAD_FIT)
-			sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
-				sdp_func->dnl_bytes);
-#endif
-			if (sdp_func->jmp_address == 0) {
+			if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER))
+				sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address, sdp_func->dnl_bytes);
+			else if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
+				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address, sdp_func->dnl_bytes);
+			if (sdp_func->jmp_address == 0)
 				panic("Error in search header, failed to jump\n");
-			}
 
 			printf("Found header at 0x%08x\n", sdp_func->jmp_address);
 
@@ -855,6 +852,7 @@ static int sdp_handle_in_ep(struct spl_image_info *spl_image)
 #endif
 			if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 				struct spl_load_info load;
+
 				load.dev = header;
 				load.bl_len = 1;
 				load.read = sdp_load_read;

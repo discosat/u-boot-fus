@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2018, 2021 NXP
  */
 
 #include <common.h>
 #include <fdt_support.h>
 #include <i2c.h>
+#include <asm/cache.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/fsl_serdes.h>
@@ -19,7 +22,6 @@
 #include <env_internal.h>
 #include <fsl_mmdc.h>
 #include <netdev.h>
-#include <fsl_sec.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -172,17 +174,13 @@ int board_init(void)
 	gd->env_addr = (ulong)&default_environment[0];
 #endif
 
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
-#endif
-
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif
 	return 0;
 }
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	arch_fixup_fdt(blob);
 

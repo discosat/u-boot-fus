@@ -16,11 +16,10 @@
 #define CONFIG_BOARD_POSTCLK_INIT
 #define CONFIG_SYS_BOOTM_LEN		0x1000000
 
+
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
-#define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
@@ -46,7 +45,6 @@
 #endif
 
 /* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
 #define CONFIG_BAUDRATE			115200
 
 #define CONFIG_SYS_CACHELINE_SIZE      64
@@ -63,21 +61,12 @@
 #define PHYS_SDRAM			0x60000000ul
 #ifdef CONFIG_TARGET_MX7ULP_10X10_VAL
 #define PHYS_SDRAM_SIZE			    SZ_1G   /*LPDDR2 1G*/
-#define CONFIG_SYS_MEMTEST_END      0x9E000000
 #else
 #define PHYS_SDRAM_SIZE			    SZ_512M
-#define CONFIG_SYS_MEMTEST_END      0x7E000000
 #endif
-#define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
 
 #define CONFIG_LOADADDR             0x60800000
-
-#ifdef CONFIG_TARGET_MX7ULP_10X10_VAL
-#define CONFIG_DEFAULT_FDT_FILE		"imx7ulp-10x10-val.dtb"
-#else
-#define CONFIG_DEFAULT_FDT_FILE		"imx7ulp-14x14-val.dtb"
-#endif
 
 #define CONFIG_MFG_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS_DEFAULT  \
@@ -148,25 +137,7 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
-#if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
-#define CONFIG_CMD_CACHE
-#endif
-
 /* USB Configs */
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
-
-/* QSPI configs */
-#ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
-#ifdef CONFIG_TARGET_MX7ULP_10X10_VAL
-#define FSL_QSPI_FLASH_NUM              2
-#define FSL_QSPI_FLASH_SIZE             SZ_32M
-#else
-#define FSL_QSPI_FLASH_NUM              1
-#define FSL_QSPI_FLASH_SIZE             SZ_64M
-#endif
-#define QSPI0_BASE_ADDR                 0x410A5000
-#define QSPI0_AMBA_BASE                 0xC0000000
-#endif
 
 #endif	/* __CONFIG_H */

@@ -20,7 +20,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(16 * SZ_1M)
 
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_IPS_BASE_ADDR
 
 /* MMC Configs */
@@ -159,8 +158,6 @@
 	   "else run netboot; fi"
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + SZ_512M)
 
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
@@ -184,11 +181,6 @@
 
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 #define CONFIG_SYS_FSL_USDHC_NUM	3
-#define CONFIG_SYS_MMC_ENV_DEV		1	/* SDHC2*/
-
-#define CONFIG_IMX_THERMAL
-
-/*#define CONFIG_SPLASH_SCREEN*/
 
 /*
  * SPLASH SCREEN Configs
@@ -197,8 +189,6 @@
 	/*
 	 * Framebuffer and LCD
 	 */
-	#define CONFIG_CMD_BMP
-	#define CONFIG_SPLASH_SCREEN
 	#undef LCD_TEST_PATTERN
 	#define LCD_BPP					LCD_MONOCHROME
 

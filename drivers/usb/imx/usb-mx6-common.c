@@ -20,6 +20,7 @@
 #include <asm/mach-imx/sys_proto.h>
 #include <asm/mach-types.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 

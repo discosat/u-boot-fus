@@ -7,6 +7,8 @@
  */
 #include <common.h>
 #include <dm.h>
+#include <log.h>
+#include <part.h>
 #include <spl.h>
 #include <linux/compiler.h>
 #include <errno.h>
@@ -179,7 +181,7 @@ static int mmc_load_image_raw_partition(struct spl_image_info *spl_image,
 					struct mmc *mmc, int partition,
 					unsigned long sector)
 {
-	disk_partition_t info;
+	struct disk_partition info;
 	int err;
 
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION_TYPE
@@ -309,7 +311,7 @@ static int spl_mmc_do_fs_boot(struct spl_image_info *spl_image, struct mmc *mmc,
 }
 #endif
 
-u32 __weak spl_boot_mode(const u32 boot_device)
+u32 __weak spl_mmc_boot_mode(const u32 boot_device)
 {
 #if defined(CONFIG_SPL_FS_FAT) || defined(CONFIG_SPL_FS_EXT4)
 	return MMCSD_MODE_FS;
@@ -321,8 +323,7 @@ u32 __weak spl_boot_mode(const u32 boot_device)
 }
 
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
-__weak
-int spl_boot_partition(const u32 boot_device)
+int __weak spl_mmc_boot_partition(const u32 boot_device)
 {
 	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION;
 }
@@ -338,12 +339,6 @@ int __weak spl_mmc_emmc_boot_partition(struct mmc *mmc)
 {
 	int part = 0;
 
-#ifdef CONFIG_DUAL_BOOTLOADER
-	/* Bootloader is stored in eMMC user partition for
-	 * dual bootloader.
-	 */
-	part = 0;
-#else
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION
 	part = CONFIG_SYS_MMCSD_RAW_MODE_EMMC_BOOT_PARTITION;
 #else
@@ -352,6 +347,12 @@ int __weak spl_mmc_emmc_boot_partition(struct mmc *mmc)
 	 * 1 and 2 match up to boot0 / boot1 and 7 is user data
 	 * which is the first physical partition (0).
 	 */
+#ifdef CONFIG_DUAL_BOOTLOADER
+		/* Bootloader is stored in eMMC user partition for
+		 * dual bootloader.
+		 */
+		part = 0;
+#else
 	part = (mmc->part_config >> 3) & PART_ACCESS_MASK;
 
 	if (part == 7)
@@ -389,7 +390,7 @@ int spl_mmc_load(struct spl_image_info *spl_image,
 		}
 	}
 
-	boot_mode = spl_boot_mode(bootdev->boot_device);
+	boot_mode = spl_mmc_boot_mode(bootdev->boot_device);
 	err = -EINVAL;
 	switch (boot_mode) {
 	case MMCSD_MODE_EMMCBOOT:
@@ -464,7 +465,7 @@ int spl_mmc_load_image(struct spl_image_info *spl_image,
 			    NULL,
 #endif
 #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION
-			    spl_boot_partition(bootdev->boot_device),
+			    spl_mmc_boot_partition(bootdev->boot_device),
 #else
 			    0,
 #endif

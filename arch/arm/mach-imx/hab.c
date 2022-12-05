@@ -4,6 +4,7 @@
  */
 
 #include <common.h>
+#include <command.h>
 #include <config.h>
 #include <fuse.h>
 #include <mapmem.h>
@@ -13,6 +14,9 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/hab.h>
+#include <asm/global_data.h>
+#include <imx_sip.h>
+#include <linux/arm-smccc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -55,14 +59,6 @@ static int verify_ivt_header(struct ivt_header *ivt_hdr)
 }
 
 #ifdef CONFIG_ARM64
-#define FSL_SIP_HAB		0xC2000007
-#define FSL_SIP_HAB_AUTHENTICATE	0x00
-#define FSL_SIP_HAB_ENTRY		0x01
-#define FSL_SIP_HAB_EXIT		0x02
-#define FSL_SIP_HAB_REPORT_EVENT	0x03
-#define FSL_SIP_HAB_REPORT_STATUS	0x04
-#define FSL_SIP_HAB_FAILSAFE		0x05
-#define FSL_SIP_HAB_CHECK_TARGET	0x06
 static volatile gd_t *gd_save;
 #endif
 
@@ -94,8 +90,11 @@ enum hab_status hab_rvt_report_event(enum hab_status status, uint32_t index,
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (enum hab_status)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_REPORT_EVENT, (unsigned long)index,
-			(unsigned long)event, (unsigned long)bytes);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_REPORT_EVENT, (unsigned long)index,
+			(unsigned long)event, (unsigned long)bytes, 0, 0, 0, &res);
+		ret = (enum hab_status)res.a0;
+
 		return ret;
 	}
 #endif
@@ -118,8 +117,10 @@ enum hab_status hab_rvt_report_status(enum hab_config *config,
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (enum hab_status)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_REPORT_STATUS,
-			(unsigned long)config, (unsigned long)state, 0);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_REPORT_STATUS,
+			(unsigned long)config, (unsigned long)state, 0, 0, 0, 0, &res);
+		ret = (enum hab_status)res.a0;
 		return ret;
 	}
 #endif
@@ -140,7 +141,9 @@ enum hab_status hab_rvt_entry(void)
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (enum hab_status)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_ENTRY, 0, 0, 0);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_ENTRY, 0, 0, 0, 0, 0, 0, &res);
+		ret = (enum hab_status)res.a0;
 		return ret;
 	}
 #endif
@@ -161,7 +164,9 @@ enum hab_status hab_rvt_exit(void)
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (enum hab_status)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_EXIT, 0, 0, 0);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_EXIT, 0, 0, 0, 0, 0, 0, &res);
+		ret = (enum hab_status)res.a0;
 		return ret;
 	}
 #endif
@@ -181,7 +186,7 @@ void hab_rvt_failsafe(void)
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_FAILSAFE, 0, 0, 0);
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_FAILSAFE, 0, 0, 0, 0, 0, 0, NULL);
 		return;
 	}
 #endif
@@ -201,8 +206,10 @@ enum hab_status hab_rvt_check_target(enum hab_target type, const void *start,
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (enum hab_status)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_CHECK_TARGET, (unsigned long)type,
-			(unsigned long)start, (unsigned long)bytes);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_CHECK_TARGET, (unsigned long)type,
+			(unsigned long)start, (unsigned long)bytes, 0, 0, 0, &res);
+		ret = (enum hab_status)res.a0;
 		return ret;
 	}
 #endif
@@ -224,8 +231,10 @@ void *hab_rvt_authenticate_image(uint8_t cid, ptrdiff_t ivt_offset,
 #if defined(CONFIG_ARM64)
 	if (current_el() != 3) {
 		/* call sip */
-		ret = (void *)call_imx_sip(FSL_SIP_HAB, FSL_SIP_HAB_AUTHENTICATE, (unsigned long)ivt_offset,
-			(unsigned long)start, (unsigned long)bytes);
+		struct arm_smccc_res res;
+		arm_smccc_smc(IMX_SIP_HAB, IMX_SIP_HAB_AUTHENTICATE, (unsigned long)ivt_offset,
+			(unsigned long)start, (unsigned long)bytes, 0, 0, 0, &res);
+		ret = (void *)res.a0;
 		return ret;
 	}
 #endif
@@ -547,8 +556,8 @@ static int get_hab_status_m4(void)
 }
 #endif
 
-static int do_hab_status(cmd_tbl_t *cmdtp, int flag, int argc,
-			 char * const argv[])
+static int do_hab_status(struct cmd_tbl *cmdtp, int flag, int argc,
+			 char *const argv[])
 {
 #ifdef CONFIG_MX7ULP
 	if ((argc > 2)) {
@@ -592,8 +601,8 @@ static ulong get_image_ivt_offset(ulong img_addr)
 	}
 }
 
-static int do_authenticate_image(cmd_tbl_t *cmdtp, int flag, int argc,
-				 char * const argv[])
+static int do_authenticate_image(struct cmd_tbl *cmdtp, int flag, int argc,
+				 char *const argv[])
 {
 	ulong	addr, length, ivt_offset;
 	int	rcode = 0;
@@ -617,8 +626,8 @@ static int do_authenticate_image(cmd_tbl_t *cmdtp, int flag, int argc,
 	return rcode;
 }
 
-static int do_hab_failsafe(cmd_tbl_t *cmdtp, int flag, int argc,
-			   char * const argv[])
+static int do_hab_failsafe(struct cmd_tbl *cmdtp, int flag, int argc,
+			   char *const argv[])
 {
 	if (argc != 1) {
 		cmd_usage(cmdtp);
@@ -630,8 +639,8 @@ static int do_hab_failsafe(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_hab_version(cmd_tbl_t *cmdtp, int flag, int argc,
-			  char * const argv[])
+static int do_hab_version(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
 {
 	struct hab_hdr *hdr = (struct hab_hdr *)HAB_RVT_BASE;
 
@@ -645,8 +654,8 @@ static int do_hab_version(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_authenticate_image_or_failover(cmd_tbl_t *cmdtp, int flag,
-					     int argc, char * const argv[])
+static int do_authenticate_image_or_failover(struct cmd_tbl *cmdtp, int flag,
+					     int argc, char *const argv[])
 {
 	int ret = CMD_RET_FAILURE;
 

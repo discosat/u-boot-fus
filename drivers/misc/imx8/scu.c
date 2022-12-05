@@ -6,12 +6,15 @@
  */
 
 #include <common.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <dm.h>
 #include <dm/lists.h>
 #include <dm/root.h>
 #include <dm/device-internal.h>
 #include <asm/arch/sci/sci.h>
+#include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <misc.h>
 
@@ -156,7 +159,7 @@ static int sc_ipc_write(struct mu_type *base, void *data)
 static int imx8_scu_call(struct udevice *dev, int no_resp, void *tx_msg,
 			 int tx_size, void *rx_msg, int rx_size)
 {
-	struct imx8_scu *plat = dev_get_platdata(dev);
+	struct imx8_scu *plat = dev_get_plat(dev);
 	sc_err_t result;
 	int ret;
 
@@ -180,12 +183,12 @@ static int imx8_scu_call(struct udevice *dev, int no_resp, void *tx_msg,
 
 static int imx8_scu_probe(struct udevice *dev)
 {
-	struct imx8_scu *plat = dev_get_platdata(dev);
+	struct imx8_scu *plat = dev_get_plat(dev);
 	fdt_addr_t addr;
 
 	debug("%s(dev=%p) (plat=%p)\n", __func__, dev, plat);
 
-	addr = devfdt_get_addr(dev);
+	addr = dev_read_addr(dev);
 	if (addr == FDT_ADDR_T_NONE)
 		return -EINVAL;
 
@@ -231,6 +234,6 @@ U_BOOT_DRIVER(imx8_scu) = {
 	.bind		= imx8_scu_bind,
 	.remove		= imx8_scu_remove,
 	.ops		= &imx8_scu_ops,
-	.platdata_auto_alloc_size = sizeof(struct imx8_scu),
+	.plat_auto	= sizeof(struct imx8_scu),
 	.flags		= DM_FLAG_PRE_RELOC,
 };

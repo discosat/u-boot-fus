@@ -94,7 +94,7 @@ static int _fastboot_parts_add_ptable_entry(int ptable_index,
 				      struct blk_desc *dev_desc,
 				      struct fastboot_ptentry *ptable)
 {
-	disk_partition_t info;
+	struct disk_partition info;
 
 	if (part_get_info(dev_desc,
 			       mmc_dos_partition_index, &info)) {

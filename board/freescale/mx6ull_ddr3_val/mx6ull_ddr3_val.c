@@ -4,12 +4,14 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <init.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/boot_mode.h>
@@ -20,6 +22,7 @@
 #include <i2c.h>
 #include <linux/sizes.h>
 #include <linux/fb.h>
+#include <linux/delay.h>
 #include <miiphy.h>
 #include <mmc.h>
 #include <mxsfb.h>
@@ -375,7 +378,7 @@ int board_qspi_init(void)
 }
 #endif
 
-#ifdef CONFIG_FSL_ESDHC
+#ifdef CONFIG_FSL_ESDHC_IMX
 static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 #ifdef CONFIG_MX6ULL_DDR3_VAL_EMMC_REWORK
 	/* If want to use qspi, should change to 4 bit width */
@@ -416,7 +419,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 
@@ -742,7 +745,7 @@ void epdc_power_off(void)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret;
 
@@ -763,7 +766,7 @@ static int setup_fec(int fec_id)
 	int ret;
 
 	if (0 == fec_id) {
-		if (check_module_fused(MX6_MODULE_ENET1))
+		if (check_module_fused(MODULE_ENET1))
 			return -1;
 		/*
 		 * Use 50M anatop loopback REF_CLK1 for ENET1,
@@ -782,7 +785,7 @@ static int setup_fec(int fec_id)
 		gpio_direction_output(IMX_GPIO_NR(5, 2), 1);
 
 	} else {
-		if (check_module_fused(MX6_MODULE_ENET2))
+		if (check_module_fused(MODULE_ENET2))
 			return -1;
 
 		/* clk from phy, set gpr1[14], clear gpr1[18]*/

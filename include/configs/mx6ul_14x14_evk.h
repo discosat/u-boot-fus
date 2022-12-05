@@ -10,6 +10,7 @@
 
 #include <asm/arch/imx-regs.h>
 #include <linux/sizes.h>
+#include <linux/stringify.h>
 #include "mx6_common.h"
 #include <asm/mach-imx/gpio.h>
 #include "imx_env.h"
@@ -35,7 +36,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(16 * SZ_1M)
 
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /* MMC Configs */
@@ -221,8 +221,6 @@
 #endif
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x8000000)
 
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 #define CONFIG_SYS_HZ			1000
@@ -241,14 +239,7 @@
 
 /* environment organization */
 #define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
-
-#ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
-#define FSL_QSPI_FLASH_NUM		1
-#define FSL_QSPI_FLASH_SIZE		SZ_32M
-#endif
 
 /* NAND stuff */
 #ifdef CONFIG_NAND_MXS
@@ -278,21 +269,13 @@
 #define CONFIG_FEC_XCV_TYPE             RMII
 #define CONFIG_ETHPRIME			"eth1"
 
-#define CONFIG_IMX_THERMAL
-
 #ifndef CONFIG_SPL_BUILD
 #if defined(CONFIG_DM_VIDEO)
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_LOGO
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #endif
 #endif
 
-#define CONFIG_MODULE_FUSE
-#define CONFIG_OF_SYSTEM_SETUP
 #endif

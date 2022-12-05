@@ -51,3 +51,19 @@ config SYS_FSL_SEC_COMPAT
 
 config SYS_FSL_SEC_LE
 	bool "Little-endian access to Freescale Secure Boot"
+
+if FSL_CAAM
+
+config FSL_CAAM_RNG
+	bool "Enable Random Number Generator support"
+	depends on DM_RNG
+	default y
+	help
+	  Enable support for the hardware based random number generator
+	  module of the CAAM. The random data is fetched from the DRGB
+	  using the prediction resistance flag which means the DRGB is
+	  reseeded from the TRNG every time random data is generated.
+
+config FSL_BLOB
+        bool "Enable Blob Encap/Decap, Blob KEK support"
+endif

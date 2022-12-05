@@ -27,7 +27,6 @@
 
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 #define CONFIG_SYS_MMC_ENV_DEV		2  /* SDHC3 */
-#define CONFIG_SYS_MMC_ENV_PART                0       /* user partition */
 
 /*Since the pin conflicts on EIM D18, disable the USB host if the NOR flash is enabled */
 #ifdef CONFIG_USB

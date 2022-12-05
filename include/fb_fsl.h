@@ -86,9 +86,10 @@
 
 #ifdef CONFIG_IMX_TRUSTY_OS
 #ifndef CONFIG_AVB_ATX
-#define FASTBOOT_SET_RPMB_KEY "set-rpmb-key"
-#define FASTBOOT_SET_RPMB_RANDOM_KEY "set-rpmb-random-key"
+#define FASTBOOT_SET_RPMB_STAGED_KEY "set-rpmb-staged-key"
+#define FASTBOOT_SET_RPMB_HARDWARE_KEY "set-rpmb-hardware-key"
 #define FASTBOOT_SET_VBMETA_PUBLIC_KEY "set-public-key"
+#define FASTBOOT_ERASE_RPMB "erase-rpmb"
 #endif
 
 #define FASTBOOT_SET_CA_RESP "at-set-ca-response"
@@ -104,6 +105,8 @@
 #define FASTBOOT_GET_MPPUBK  "get-mppubk"
 #define FASTBOOT_GET_SERIAL_NUMBER  "get-serial-number"
 #define FASTBOOT_APPEND_ATTESTATION_ID "append-device-id"
+#define FASTBOOT_WV_PROVISION	"provision-wv-keybox"
+#define FASTBOOT_WV_PROVISION_ENC	"provision-wv-keybox-enc"
 #endif
 
 #ifdef CONFIG_ANDROID_THINGS_SUPPORT

@@ -10,6 +10,9 @@
 #include <common.h>
 #include <cpu_func.h>
 #include <hang.h>
+#include <log.h>
+#include <asm/cache.h>
+#include <asm/global_data.h>
 #include <asm/system.h>
 #include <asm/armv8/mmu.h>
 

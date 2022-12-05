@@ -7,7 +7,9 @@
 
 #include <common.h>
 #include <command.h>
+#include <log.h>
 #include <malloc.h>
+#include <memalign.h>
 #include <asm/byteorder.h>
 #include <linux/compiler.h>
 #include <fsl_sec.h>
@@ -293,7 +295,8 @@ error:
  * Returns zero on success, CMD_RET_USAGE in case of misuse and negative
  * on error.
  */
-static int do_dek_blob(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+static int do_dek_blob(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[])
 {
 	uint32_t src_addr, dst_addr, len;
 

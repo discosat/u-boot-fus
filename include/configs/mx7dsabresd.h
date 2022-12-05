@@ -204,9 +204,6 @@
 	   "else run netboot; fi"
 #endif
 
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x20000000)
-
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 #define CONFIG_SYS_HZ			1000
 
@@ -261,27 +258,17 @@
 /* MMC Config*/
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC1 */
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* USDHC1 */
 
 /* USB Configs */
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
 
-#define CONFIG_IMX_THERMAL
-
 #ifdef CONFIG_DM_VIDEO
 #define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LOGO
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #endif
-
-/* #define CONFIG_SPLASH_SCREEN*/
-/* #define CONFIG_MXC_EPDC*/
 
 /*
  * SPLASH SCREEN Configs
@@ -290,7 +277,6 @@
 /*
  * Framebuffer and LCD
  */
-#define CONFIG_SPLASH_SCREEN
 
 #undef LCD_TEST_PATTERN
 /* #define CONFIG_SPLASH_IS_IN_MMC			1 */
@@ -302,14 +288,6 @@
 
 #if defined(CONFIG_MXC_EPDC) && defined(CONFIG_FSL_QSPI)
 #error "EPDC Pins conflicts QSPI, Either EPDC or QSPI can be enabled!"
-#endif
-
-#ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
-#define FSL_QSPI_FLASH_NUM		1
-#define FSL_QSPI_FLASH_SIZE		SZ_64M
-#define QSPI0_BASE_ADDR			QSPI1_IPS_BASE_ADDR
-#define QSPI0_AMBA_BASE			QSPI0_ARB_BASE_ADDR
 #endif
 
 #endif	/* __CONFIG_H */

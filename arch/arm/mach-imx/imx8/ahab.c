@@ -4,7 +4,10 @@
  */
 
 #include <common.h>
+#include <command.h>
 #include <errno.h>
+#include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/sci/sci.h>
 #include <asm/mach-imx/sys_proto.h>
@@ -25,7 +28,7 @@ DECLARE_GLOBAL_DATA_PTR;
 static inline bool check_in_dram(ulong addr)
 {
 	int i;
-	bd_t *bd = gd->bd;
+	struct bd_info *bd = gd->bd;
 
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; ++i) {
 		if (bd->bi_dram[i].size) {
@@ -91,22 +94,21 @@ int authenticate_os_container(ulong addr)
 					    sizeof(struct container_hdr) +
 					    i * sizeof(struct boot_img_t));
 
-		debug("img %d, dst 0x%llx, src 0x%lx, size 0x%x\n",
-		      i, img->dst, img->offset + addr, img->size);
+		debug("img %d, dst 0x%x, src 0x%lux, size 0x%x\n",
+		      i, (uint32_t) img->dst, img->offset + addr, img->size);
 
 		memcpy((void *)img->dst, (const void *)(img->offset + addr),
 		       img->size);
 
 		s = img->dst & ~(CONFIG_SYS_CACHELINE_SIZE - 1);
-		e = ALIGN(img->dst + img->size, CONFIG_SYS_CACHELINE_SIZE);
+		e = ALIGN(img->dst + img->size, CONFIG_SYS_CACHELINE_SIZE) - 1;
 
 		flush_dcache_range(s, e);
 
 		/* Find the memreg and set permission for seco pt */
 		err = sc_rm_find_memreg(-1, &mr, s, e - 1);
 		if (err) {
-			printf("Not found memreg for image: %d, error %d\n",
-			       i, err);
+			printf("Error: can't find memreg for image load address 0x%llx, error %d\n", img->dst, err);
 			ret = -ENOMEM;
 			goto exit;
 		}
@@ -151,8 +153,8 @@ exit:
 	return ret;
 }
 
-static int do_authenticate(cmd_tbl_t *cmdtp, int flag, int argc,
-			   char * const argv[])
+static int do_authenticate(struct cmd_tbl *cmdtp, int flag, int argc,
+			   char *const argv[])
 {
 	ulong addr;
 
@@ -252,8 +254,8 @@ static void display_ahab_auth_event(u32 event)
 	}
 }
 
-static int do_ahab_status(cmd_tbl_t *cmdtp, int flag, int argc,
-			  char * const argv[])
+static int do_ahab_status(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
 {
 	int err;
 	u8 idx = 0U;
@@ -299,13 +301,14 @@ static int confirm_close(void)
 	return 0;
 }
 
-static int do_ahab_close(cmd_tbl_t *cmdtp, int flag, int argc,
-			 char * const argv[])
+static int do_ahab_close(struct cmd_tbl *cmdtp, int flag, int argc,
+			 char *const argv[])
 {
+	int confirmed = argc >= 2 && !strcmp(argv[1], "-y");
 	int err;
 	u16 lc;
 
-	if (!confirm_close())
+	if (!confirmed && !confirm_close())
 		return -EACCES;
 
 	err = sc_seco_chip_info(-1, &lc, NULL, NULL, NULL);
