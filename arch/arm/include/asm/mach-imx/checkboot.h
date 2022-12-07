@@ -25,6 +25,7 @@
 #define IS_DEVTREE_IVT(pAddr)	(__be32_to_cpup((__be32*)(pAddr + HAB_HEADER)) == 0xd00dfeed)
 
 #define HAB_HEADER         0x40
+#define FS_HEADER_SIZE     sizeof(struct fs_header_v1_0)
 
 struct __packed boot_data {
 	uint32_t	start;

@@ -21,6 +21,9 @@
 #include "../board/F+S/common/fs_board_common.h"	/* fs_board_*() */
 #include "../board/F+S/common/fs_image_common.h"	/* fs_image_*() */
 
+#include <asm/mach-imx/hab.h>
+#include <asm/mach-imx/checkboot.h>
+
 struct img_info {
 	struct storage_info si;		/* Info where to store image */
 	void *img;			/* Pointer to image */
@@ -45,6 +48,35 @@ union local_buf {
 
 static union local_buf local_buffer;
 
+/* ------------- Secure Boot helper functions ------------------------------- */
+
+#ifdef CONFIG_FS_SECURE_BOOT
+/* If the config is signed there is an IVT between the FS-Header amd the FDT */
+static void *find_fdt_signed(struct fs_header_v1_0 *cfg)
+{
+	void *fdt = (void *)(cfg + 1);
+
+	if (*(uint8_t*)fdt == IVT_HEADER_MAGIC)
+		fdt += HAB_HEADER;
+
+	return fdt;
+}
+
+static void set_board_config_signed(void* fdt, struct img_info img)
+{
+	struct ivt* ivt = fdt - HAB_HEADER;
+	void *cfg_addr = fs_image_get_cfg_addr(true);
+	size_t offset = 0;
+
+	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
+		memcpy(cfg_addr, img.img, FS_HEADER_SIZE);
+
+		offset = FS_HEADER_SIZE + HAB_HEADER;
+		cfg_addr += FS_HEADER_SIZE;
+	}
+	memcpy(cfg_addr, img.img + offset, img.size - offset);
+}
+#endif
 
 /* ------------- Common helper function ------------------------------------ */
 
@@ -328,7 +360,12 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 	}
 
 	/* Get and show NBoot version as noted in BOARD-CFG */
+#ifndef CONFIG_FS_SECURE_BOOT
 	fdt = (void *)(cfg + 1);
+#else
+	fdt = find_fdt_signed(cfg);
+#endif
+
 	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
 		puts("Unknown NBOOT version, rejecting to save\n");
@@ -597,8 +634,13 @@ static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 	puts("WARNING: Writing SPL skipped, use kobs to write it!\n");
 
 	/* Set the new BOARD-CFG as current */
+#ifndef CONFIG_FS_SECURE_BOOT
 	if (success)
 		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+#else
+	if (success)
+		set_board_config_signed(fdt, img[0]);
+#endif
 
 	return lasterr;
 }
@@ -997,8 +1039,13 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	}
 
 	/* Set the new BOARD-CFG as current */
+#ifndef CONFIG_FS_SECURE_BOOT
 	if (success)
 		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+#else
+	if (success)
+		set_board_config_signed(fdt, img[0]);
+#endif
 
 	return lasterr;
 }
@@ -1063,6 +1110,12 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 	struct img_info img;
 	int ret;
 	int copy;
+
+	struct ivt* ivt = (struct ivt*)(fsh + 1);
+	if(ivt->hdr.magic == IVT_HEADER_MAGIC){
+		printf("IVT found: Please first install an U-Boot, that has been built with security features\n make <ARCH>_seure_boot_defconfig\n make\n");
+		return 1;
+	}
 
 	img.type = "U-BOOT";
 	img.descr = arch;
@@ -1274,11 +1327,43 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (fs_image_match((void *)addr, "U-BOOT", NULL))
 		return fsimage_save_uboot((void *)addr, force);
 
+	int image_size = (int)(((struct fs_header_v0_0*)
+		(addr))->file_size_low) + FS_HEADER_SIZE;
+	struct ivt* ivt = (struct ivt*)(uintptr_t)(addr + image_size);
+#ifdef CONFIG_FS_SECURE_BOOT
+	if(ivt->hdr.magic == IVT_HEADER_MAGIC) {
+		int full_size = (int)(((struct boot_data*)(ulong)
+			((struct ivt*)ivt)->boot)->length);
+		printf("signed nboot\n");
+		if (imx_hab_authenticate_image(addr, full_size, image_size)) {
+			printf("ERROR: NBOOT IS NOT VALID\n");
+			return 1;
+		}
+	}
+	else {
+		if(imx_hab_is_enabled()) {
+			printf("ERROR: UNSIGNED NBOOT ON CLOSED BOARD, REFUSE TO SAVE\n");
+			return -EINVAL;
+		}
+		printf("unsigned nboot\n");
+	}
+#else
+	if(ivt->hdr.magic == IVT_HEADER_MAGIC) {
+		printf("IVT found: Please first install an N-Boot, that has been built with security features\n make <ARCH>_seure_boot_defconfig\n make nboot\n");
+		return 1;
+	}
+#endif
+
 	ret = fs_image_find_board_cfg(addr, force, &cfg, &nboot);
 	if (ret <= 0)
 		return 1;
 
+#ifndef CONFIG_FS_SECURE_BOOT
 	fdt = (void *)(cfg + 1);
+#else
+	fdt = find_fdt_signed(cfg);
+#endif
+
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
 		return 1;
