@@ -1112,10 +1112,32 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 	int copy;
 
 	struct ivt* ivt = (struct ivt*)(fsh + 1);
+#ifdef CONFIG_FS_SECURE_BOOT
+	struct boot_data* boot = (struct boot_data*)(ivt + 1);
+
+	if(ivt->hdr.magic == IVT_HEADER_MAGIC){
+		printf("signed uboot\n");
+		memcpy((void*)CONFIG_SYS_TEXT_BASE - HAB_HEADER, fsh + 1, //- HAB Header?
+		       boot->length);
+		if(imx_hab_authenticate_image(CONFIG_SYS_TEXT_BASE - HAB_HEADER,
+		                              boot->length, 0x0)){
+			printf("ERROR: INVALID SIGNATURE, REFUSING TO SAVE!");
+			return 1;
+		}
+	}
+	else {
+		if(imx_hab_is_enabled()){
+			printf("ERROR: UNSIGNED UBOOT, REFUSING TO SAVE!");
+			return 1;
+		}
+		printf("unsigned uboot\n");
+	}
+#else
 	if(ivt->hdr.magic == IVT_HEADER_MAGIC){
 		printf("IVT found: Please first install an U-Boot, that has been built with security features\n make <ARCH>_seure_boot_defconfig\n make\n");
 		return 1;
 	}
+#endif
 
 	img.type = "U-BOOT";
 	img.descr = arch;

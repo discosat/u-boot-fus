@@ -14,6 +14,15 @@
 #include <spl.h>
 #include <linux/libfdt.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/boot_mode.h>
+#include "../../board/F+S/common/fs_image_common.h"
+#include <asm/mach-imx/checkboot.h>
+#include <hang.h>
+#define SPL_FIT_BUFFER_ADDR ((void *)0x401FF880)
+#endif
+
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #ifndef CONFIG_SPL_LOAD_FIT_APPLY_OVERLAY_BUF_SZ
@@ -373,6 +382,38 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	return 0;
 }
 
+#ifdef CONFIG_FS_SECURE_BOOT
+int spl_load_fit_image_from_memory(struct spl_load_info *info, void *fit,
+			   ulong base_offset, int node, struct spl_image_info *image_info){
+	int offset;
+	int len;
+	ulong load_addr;
+
+	if (fit_image_get_load(fit, node, &load_addr)){
+		load_addr = image_info->load_addr;
+	}
+	if (!fit_image_get_data_position(fit, node, &offset)) {
+	} else if (!fit_image_get_data_offset(fit, node, &offset)) {
+		offset += base_offset;
+	}
+
+	if (fit_image_get_data_size(fit, node, &len))
+		return -ENOENT;
+
+	memcpy((void*)load_addr, (void*)(uintptr_t)(CONFIG_SYS_TEXT_BASE + offset),
+	       (size_t)len);
+
+	if (image_info) {
+		image_info->load_addr = load_addr;
+		image_info->size = len;
+		image_info->entry_point = fdt_getprop_u32(fit, node, "entry");
+	}
+
+	return 0;
+}
+#endif
+
+
 static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 			      struct spl_load_info *info, ulong sector,
 			      void *fit, int images, ulong base_offset)
@@ -477,6 +518,33 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	return ret;
 }
 
+#ifdef CONFIG_FS_SECURE_BOOT
+static int spl_fit_append_fdt_from_memory(struct spl_image_info *spl_image,
+		struct spl_load_info *info, void *fit, int images, ulong base_offset)
+{
+	struct spl_image_info image_info;
+	int node, ret;
+
+	/* Figure out which device tree the board wants to use */
+	node = spl_fit_get_image_node(fit, images, FIT_FDT_PROP, 0);
+
+	/*
+	 * Read the device tree and place it after the image.
+	 * Align the destination address to ARCH_DMA_MINALIGN.
+	 */
+	image_info.load_addr = spl_image->load_addr + spl_image->size;
+	ret = spl_load_fit_image_from_memory(info, fit, base_offset, node,
+				 &image_info);
+
+	if (ret < 0)
+		return ret;
+	/* Make the load-address of the FDT available for the SPL framework */
+	spl_image->fdt_addr = (void *)image_info.load_addr;
+
+	return ret;
+}
+#endif
+
 static int spl_fit_record_loadable(const void *fit, int images, int index,
 				   void *blob, struct spl_image_info *image)
 {
@@ -531,6 +599,16 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	int base_offset;
 	int index = 0;
 	int firmware_node;
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	if(imx_hab_is_enabled()){
+		printf("ERROR: UNSIGNED UBOOT ON CLOSED BOARD!!\n");
+		hang();
+	}
+	else {
+		printf("unsigned uboot\n");
+	}
+#endif
 
 	/*
 	 * For FIT with external data, figure out where the external images
@@ -736,3 +814,53 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 
 	return 0;
 }
+
+#ifdef CONFIG_FS_SECURE_BOOT
+int secure_spl_load_simple_fit(struct spl_image_info *spl_image,
+										struct spl_load_info *info, void *fit){
+	ulong size;
+	int node = -1;
+	int images;
+	int base_offset;
+
+	int ivt = (uintptr_t)fit - HAB_HEADER;
+
+	int checksize = ((struct ivt*)(uintptr_t)ivt)->boot;
+	checksize = ((struct boot_data*)(uintptr_t)checksize)->length;
+
+	printf("signed uboot\n");
+	if(imx_hab_authenticate_image(ivt, checksize, 0x0)){
+		printf("ERROR: INVALID SIGNATURE\n");
+		hang();
+	}
+
+	size = fdt_totalsize(fit);
+	size = (size + 3) & ~3;
+	size = board_spl_fit_size_align(size);
+	base_offset = (size + 3) & ~3;
+
+	memcpy(SPL_FIT_BUFFER_ADDR, fit, size);
+	fit = SPL_FIT_BUFFER_ADDR;
+
+	/* find the node holding the images information */
+	images = fdt_path_offset(fit, FIT_IMAGES_PATH);
+	if (images < 0) {
+		printf("%s: Cannot find /images node: %d\n", __func__, images);
+		return -1;
+	}
+	node = spl_fit_get_image_node(fit, images, "firmware", 0);
+
+	//copy image
+	spl_load_fit_image_from_memory(info, fit, base_offset, node, spl_image);
+
+	//copy fdt
+	spl_fit_append_fdt_from_memory(spl_image, info, fit,
+				   images, base_offset);
+#ifdef CONFIG_SPL_USE_ATF_ENTRYPOINT
+	spl_image->entry_point = CONFIG_SPL_ATF_ADDR;
+#endif
+
+	spl_image->flags |= SPL_FIT_FOUND;
+	return 0;
+}
+#endif
