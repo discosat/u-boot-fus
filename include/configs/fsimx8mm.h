@@ -191,7 +191,7 @@
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
 #define CONFIG_SPL_ATF_ADDR 0x920000
-#define CONFIG_SPL_TEE_ADDR 0xbe000000
+#define CONFIG_SPL_TEE_ADDR 0x56000000
 
 /* TCM Address where DRAM Timings are loaded to */
 #define CONFIG_SPL_DRAM_TIMING_ADDR 0x81C000

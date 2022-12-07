@@ -772,8 +772,14 @@ static void fs_image_handle_header(void)
 		break;
 
 	case FSIMG_STATE_TEE:
+#ifndef CONFIG_FS_SECURE_BOOT
 		fs_image_copy_or_skip(&one_fsh, "TEE", arch,
 				      (void *)CONFIG_SPL_TEE_ADDR, size);
+#else
+		fs_image_copy_or_skip(&one_fsh, "TEE", arch,
+			(void *)CONFIG_SPL_TEE_ADDR + FS_HEADER_SIZE, size);
+		final_load_addr = (void *)CONFIG_SPL_TEE_ADDR;
+#endif
 		break;
 	}
 }
@@ -824,6 +830,7 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_TEE:
 		/* TEE loaded, job done */
+		debug("Got TEE\n");
 		jobs &= ~FSIMG_JOB_TEE;
 		fs_image_next_fw();
 		break;
@@ -1161,7 +1168,7 @@ static int fs_image_loop(struct fs_header_v1_0 *cfg, unsigned int start,
 				err = load(start, count, addr);
 #ifdef CONFIG_FS_SECURE_BOOT
 				if (ready_to_move_header())
-				move_header();
+					move_header();
 				if (ready_to_move_image(true))
 					move_image_and_validate();
 #endif

@@ -1138,6 +1138,11 @@ int board_late_init(void)
 		env_set("platform", "picocoremx8mx");
 #endif
 
+	env_set("tee", "no");
+#ifdef CONFIG_IMX_OPTEE
+	env_set("tee", "yes");
+#endif
+
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 

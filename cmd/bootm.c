@@ -132,7 +132,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			uint32_t ddr_start, uint32_t raw_image_size);
 
 	ulong addr = get_loadaddr();
-#ifdef CONFIG_IMX_OPTEE
+#if defined(CONFIG_IMX_OPTEE) && !defined(CONFIG_FS_SECURE_BOOT)
 	ulong tee_addr = 0;
 	int ret;
 	ulong zi_start, zi_end;
