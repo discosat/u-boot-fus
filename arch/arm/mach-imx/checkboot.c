@@ -257,8 +257,11 @@ int prepare_authentication(uintptr_t addr, OPTIONS eOption)
 	ivt = (struct ivt *)addr;
 
 	/* Verify IVT header bugging out on error */
-	if (verify_ivt_header(&ivt->hdr, 1))
-		return ret;
+	if (verify_ivt_header(&ivt->hdr, 1)){
+		if(imx_hab_is_enabled())
+			return ret;
+		return 0;
+	}
 
 	length = getImageLength(addr);
 
