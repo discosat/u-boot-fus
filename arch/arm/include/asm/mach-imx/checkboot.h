@@ -52,11 +52,11 @@ typedef enum eOptions {
 
 int ivt_header_error(const char *err_str, struct ivt_header *ivt_hdr, int message);
 int verify_ivt_header(struct ivt_header *ivt_hdr, int message);
-void memExchange(u32 srcaddr, u32 dstaddr, u32 length);
-u32 makeSaveCopy(u32 srcaddr, u32 length);
-u32 getImageLength(u32 addr);
-int check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length);
+void memExchange(uintptr_t srcaddr, uintptr_t dstaddr, uintptr_t length);
+uintptr_t makeSaveCopy(uintptr_t srcaddr, uintptr_t length);
+uintptr_t getImageLength(uintptr_t addr);
+int check_flash_partition(uintptr_t addr, OPTIONS eOption, loff_t off, loff_t length);
 int parse_images_for_authentification(int argc, char * const argv[]);
-int prepare_authentication(u32 addr, OPTIONS eOption);
+int prepare_authentication(uintptr_t addr, OPTIONS eOption);
 
 #endif

@@ -70,37 +70,37 @@ int verify_ivt_header(struct ivt_header *ivt_hdr, int message)
 
 
 /*
- * Function:   memExchange(u32 srcaddr, u32 dstaddr, u32 length)
+ * Function:   memExchange(uintptr_t srcaddr, uintptr_t dstaddr, uintptr_t length)
  *
- * Parameters: u32 srcaddr -> start address of the given image
- *             u32 dstaddr -> destination address of the given image
- *             u32 length  -> length of the image
+ * Parameters: uintptr_t srcaddr -> start address of the given image
+ *             uintptr_t dstaddr -> destination address of the given image
+ *             uintptr_t length  -> length of the image
  *
  * Return:     -
  *
  * Content:    Copies memory blocks from 'srcaddr' to 'dstaddr' with 'length'.
  */
-void memExchange(u32 srcaddr, u32 dstaddr, u32 length)
+void memExchange(uintptr_t srcaddr, uintptr_t dstaddr, uintptr_t length)
 {
-	u32 *src_addr = (u32*) srcaddr;
-	u32 *dst_addr = (u32*) dstaddr;
-	u32 image_length = (length + 3) & ~3;
+	uintptr_t *src_addr = (uintptr_t*) srcaddr;
+	uintptr_t *dst_addr = (uintptr_t*) dstaddr;
+	uintptr_t image_length = (length + 3) & ~3;
 	int i = 0;
 
-	if ((u32)src_addr  < (u32) dst_addr) {
-		src_addr = (u32*)(srcaddr + image_length);
-		dst_addr = (u32*)(dstaddr + image_length);
+	if ((uintptr_t)src_addr  < (uintptr_t) dst_addr) {
+		src_addr = (uintptr_t*)(srcaddr + image_length);
+		dst_addr = (uintptr_t*)(dstaddr + image_length);
 
-		for (i=((image_length)/4); i>=0; i--) {
+		for (i=((image_length)/sizeof(uintptr_t)); i>=0; i--) {
 			*dst_addr = *src_addr;
 			dst_addr--;
 			src_addr--;
 		}
-	} else if ((u32)src_addr > (u32)dst_addr) {
-		src_addr = (u32*)srcaddr;
-		dst_addr = (u32*)dstaddr;
+	} else if ((uintptr_t)src_addr > (uintptr_t)dst_addr) {
+		src_addr = (uintptr_t*)srcaddr;
+		dst_addr = (uintptr_t*)dstaddr;
 
-		for(i=0; i<=image_length/4;i++) {
+		for(i=0; i<=image_length/sizeof(uintptr_t);i++) {
 			*dst_addr = *src_addr;
 			dst_addr++;
 			src_addr++;
@@ -110,12 +110,12 @@ void memExchange(u32 srcaddr, u32 dstaddr, u32 length)
 
 
 /*
- * Function:   makeSaveCopy(u32 srcaddr, u32 length)
+ * Function:   makeSaveCopy(uintptr_t srcaddr, uintptr_t length)
  *
  * Parameters: srcaddr -> start address of image
  *             length  -> length of the image
  *
- * Return:     u32: Save address of the image.
+ * Return:     uintptr_t: Save address of the image.
  *
  * Content:    before the image will be checked it must be saved to another
  *             RAM address. This is necessary because if a encrypted image
@@ -124,35 +124,35 @@ void memExchange(u32 srcaddr, u32 dstaddr, u32 length)
  *             an encrypted image in the flash. So thats why we need a save
  *             copy of the original image.
  */
-u32 makeSaveCopy(u32 srcaddr, u32 length)
+uintptr_t makeSaveCopy(uintptr_t srcaddr, uintptr_t length)
 {
 	struct ivt *ivt = (struct ivt *)srcaddr;
-	u32 *checkaddr = 0x0;
-	u32 *saveaddr = 0x0;
+	uintptr_t *checkaddr = 0x0;
+	uintptr_t *saveaddr = 0x0;
 
-	checkaddr = (u32*) ivt->self;
+	checkaddr = (uintptr_t*)(uintptr_t) ivt->self;
 
-	if (srcaddr < (u32)checkaddr)
-		saveaddr = (u32*)(checkaddr + length);
+	if (srcaddr < (uintptr_t)checkaddr)
+		saveaddr = (uintptr_t*)(checkaddr + length);
 	else
-		saveaddr = (u32*)(srcaddr + length);
+		saveaddr = (uintptr_t*)(srcaddr + length);
 
-	memExchange(srcaddr, (u32)saveaddr, length);
+	memExchange(srcaddr, (uintptr_t)saveaddr, length);
 
-	return (u32)saveaddr;
+	return (uintptr_t)saveaddr;
 }
 
 
 /*
- * Function:   getImageLength(u32 addr)
+ * Function:   getImageLength(uintptr_t addr)
  *
  * Parameters: addr -> start address of image
  *
- * Return:     u32: length of the image
+ * Return:     uintptr_t: length of the image
  *
  * Content:    get the image length from the ivt.
  */
-u32 getImageLength(u32 addr)
+uintptr_t getImageLength(uintptr_t addr)
 {
 	struct ivt *ivt = (struct ivt *)addr;
 	signed long offset = (signed long)((signed long)addr - (signed long)ivt->self);
@@ -162,7 +162,7 @@ u32 getImageLength(u32 addr)
 
 
 /*
- * Function:   check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length)
+ * Function:   check_flash_partition(uintptr_t addr, OPTIONS eOption, loff_t off, loff_t length)
  *
  * Parameters: addr     -> start address of image to be checked
  *             eOption  -> enum what to do with the image
@@ -175,7 +175,7 @@ u32 getImageLength(u32 addr)
  * Content:    Checks if the image will be written to the correct partition
  *             and checks if the image fits in the partition.
  */
-int check_flash_partition(u32 addr, OPTIONS eOption, loff_t off, loff_t length)
+int check_flash_partition(uintptr_t addr, OPTIONS eOption, loff_t off, loff_t length)
 {
 	struct mtd_device *dev;
 	struct part_info *part;
@@ -224,6 +224,7 @@ int parse_images_for_authentification(int argc, char * const argv[])
 
 	for (int i = 0; i < argc; i++) {
 		if (strcmp(argv[i], "-") !=  0) {
+
 			ret = prepare_authentication(parse_loadaddr(argv[i], NULL), CUT_IVT);
 			if (ret)
 				return ret;
@@ -235,7 +236,7 @@ int parse_images_for_authentification(int argc, char * const argv[])
 
 
 /*
- * Function:   prepare_authentication(u32 addr, OPTIONS eOption)
+ * Function:   prepare_authentication(uintptr_t addr, OPTIONS eOption)
  *
  * Parameters: addr    -> address in RAM where the image is loaded
  *             eOption -> enum what to do with the image
@@ -245,12 +246,12 @@ int parse_images_for_authentification(int argc, char * const argv[])
  *
  * Content:    Prepare the image that it can be verified.
  */
-int prepare_authentication(u32 addr, OPTIONS eOption)
+int prepare_authentication(uintptr_t addr, OPTIONS eOption)
 {
 	/* HAB Variables */
 	struct ivt *ivt;
-	u32 save_addr = 0;
-	u32 length = 0;
+	uintptr_t save_addr = 0;
+	uintptr_t length = 0;
 	int ret = 1;
 
 	ivt = (struct ivt *)addr;
@@ -269,12 +270,13 @@ int prepare_authentication(u32 addr, OPTIONS eOption)
 
 	ret = imx_hab_authenticate_image(ivt->self, length, 0x0);
 
+	ivt = (struct ivt *)addr;
+
 	if (eOption == BACKUP_IMAGE) {
 		/* get original image saved by 'makeSaveCopy' */
 		memExchange(save_addr, addr, length);
 	} else if (eOption == CUT_IVT) {
 		memExchange((ivt->self + HAB_HEADER), addr, length);
 	}
-
 	return ret;
 }
