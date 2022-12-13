@@ -561,14 +561,18 @@ static int check_fs_image(struct sb_info info, char* name, bool isSigned) {
 			printf("ERROR: %s IS NOT VALID\n", name);
 			return 1;
 		}
+#ifdef CONFIG_FS_SECURE_BOOT_DEBUG
 		printf("signed %s\n", name);
+#endif
 	}
 	else if(imx_hab_is_enabled()) {
 		printf("ERROR: UNSIGNED %s ON CLOSED BOARD\n", name);
 		return 1;
 	}
 	else {
+#ifdef CONFIG_FS_SECURE_BOOT_DEBUG
 		printf("unsigned %s\n", name);
+#endif
 	}
 	return 0;
 }
