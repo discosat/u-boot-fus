@@ -18,7 +18,7 @@
 
 		/* DRAM: 2GB Nanya */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_pc-nt6an512t32av_j2i";
+		dram-timing = "lpddr4_pc_2g1500m2ch1cs";
 		dram-size = <0x800>;		/* In MiB */
 		dram-chips = <1>;
 

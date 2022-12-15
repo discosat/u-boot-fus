@@ -55,9 +55,8 @@ RT_DDR3L :=
 RT_LPDDR4 := \
 	lpddr4_as-k4f8e3s4hd_mgcl_timing.fs \
 	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_pc-k4f6e3s4hm_mgcj_timing.fs \
+	lpddr4_pc_2g1500m2ch1cs_timing.fs \
 	lpddr4_pc-fl4c2001g-d9_timing.fs \
-	lpddr4_pc-nt6an512t32av_j2i_timing.fs \
 	lpddr4_as-nt6an512t32av_j2i_timing.fs
 RT_DDR4 :=
 
