@@ -1041,10 +1041,12 @@ int genimg_get_format(const void *img_addr)
 		return IMAGE_FORMAT_LEGACY;
 #endif
 
-#if !defined(CONFIG_IMX8M) && !defined(CONFIG_IMX8MM)
-	if (*(ulong *)(img_addr + 9*4) == IH_ZMAGIC)
+#ifndef CONFIG_ARM64
+	/* No zImage support on ARM64 */
+	if (*(u32 *)(img_addr + 9*4) == IH_ZMAGIC)
 		return IMAGE_FORMAT_ZIMAGE;
 #endif
+
 #if IMAGE_ENABLE_FIT || IMAGE_ENABLE_OF_LIBFDT
 	if (fdt_check_header(img_addr) == 0)
 		return IMAGE_FORMAT_FIT;

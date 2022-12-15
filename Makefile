@@ -868,7 +868,6 @@ ALL-$(CONFIG_TARGET_FSVYBRID) += uboot.nb0
 ALL-$(CONFIG_ARCH_MX6) += uboot.nb0
 
 ALL-$(CONFIG_ADDFSHEADER) += uboot.fs
-ALL-$(CONFIG_NAND_U_BOOT) += u-boot-nand.bin
 ALL-$(CONFIG_ONENAND_U_BOOT) += u-boot-onenand.bin
 ifeq ($(CONFIG_SPL_FSL_PBL),y)
 ALL-$(CONFIG_RAMBOOT_PBL) += u-boot-with-spl-pbl.bin

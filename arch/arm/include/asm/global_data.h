@@ -85,10 +85,6 @@ struct arch_global_data {
 #ifdef CONFIG_ARCH_IMX8
 	struct udevice *scu_dev;
 #endif
-
-#ifdef CONFIG_ARCH_IMX8
-	struct udevice *scu_dev;
-#endif
 };
 
 #include <asm-generic/global_data.h>

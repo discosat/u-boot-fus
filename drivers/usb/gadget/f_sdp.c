@@ -208,13 +208,31 @@ static struct hid_report sdp_hid_report = {
 		0x95, 0x40, /* Report Count */
 		0x91, 0x02, /* Output Data */
 
+		/*
+		 * When sending a file with the write -f command (OUT report
+		 * 2), the answer is IN report 3 (HAB status) immediately
+		 * followed by IN report 4 (transmit status). However UUU on
+		 * the host side reads all IN reports with 65 bytes length (1
+		 * byte report ID plus 64 bytes data). If the first report has
+		 * less than 65 bytes, older USB drivers on Windows may
+		 * consolidate the two reports in one single message and UUU
+		 * fails to see the second report. So either have a rather
+		 * long delay after the first report to make sure that it is
+		 * fully handled on the host side before the second report
+		 * comes in or (as we do it here) make sure that both reports
+		 * use the full 65 bytes so that no free space is available in
+		 * the first report anymore, which successfully avoids the
+		 * message consolidation. This seems to work well on all
+		 * platforms.
+		 */
 		0x85, 0x03, /* Report ID */
 		0x19, 0x01, /* Usage Minimum */
 		0x29, 0x01, /* Usage Maximum */
 		0x15, 0x00, /* Local Minimum */
 		0x26, 0xFF, 0x00, /* Local Maximum? */
 		0x75, 0x08, /* Report Size 8 */
-		0x95, 0x04, /* Report Count */
+		//### 0x95, 0x04, /* Report Count */
+		0x95, 0x40, /* Report Count */
 		0x81, 0x02, /* Input Data */
 
 		0x85, 0x04, /* Report ID */
@@ -248,18 +266,6 @@ static struct usb_gadget_strings *sdp_generic_strings[] = {
 	&stringtab_sdp_generic,
 	NULL,
 };
-
-#ifdef CONFIG_PARSE_CONTAINER
-int __weak sdp_load_image_parse_container(struct spl_image_info *spl_image,
-				   unsigned long offset)
-{
-	return -EINVAL;
-}
-#endif
-
-void __weak board_sdp_cleanup(void)
-{
-}
 
 static inline void *sdp_ptr(u32 val)
 {
@@ -617,7 +623,8 @@ static void sdp_disable(struct usb_function *f)
 	usb_ep_disable(sdp->in_ep);
 
 	if (sdp->in_req) {
-		free(sdp->in_req);
+		free(sdp->in_req->buf);
+		usb_ep_free_request(sdp->in_ep, sdp->in_req);
 		sdp->in_req = NULL;
 	}
 }
@@ -693,20 +700,6 @@ static ulong sdp_spl_fit_read(struct spl_load_info *load, ulong sector,
 }
 
 #ifdef CONFIG_SPL_BUILD
-#ifdef CONFIG_PARSE_CONTAINER
-static ulong search_container_header(ulong p, int size)
-{
-	int i = 0;
-	uint8_t *hdr;
-	for (i = 0; i < size; i += 4) {
-		hdr = (uint8_t *)(p +i);
-		if (*(hdr + 3) == 0x87 && *hdr == 0 &&
-			(*(hdr + 1) != 0 || *(hdr + 2) != 0))
-                        return p +i;
-	}
-        return 0;
-}
-#else
 static ulong search_fit_header(ulong p, int size)
 {
 	int i = 0;
@@ -717,7 +710,6 @@ static ulong search_fit_header(ulong p, int size)
 
         return 0;
 }
-#endif
 #endif
 
 static void sdp_handle_in_ep(void)
@@ -733,7 +725,8 @@ static void sdp_handle_in_ep(void)
 
 		status = SDP_SECURITY_OPEN;
 		memcpy(&data[1], &status, 4);
-		sdp_func->in_req->length = 5;
+		//### sdp_func->in_req->length = 5;
+		sdp_func->in_req->length = 65;
 		usb_ep_queue(sdp_func->in_ep, sdp_func->in_req, 0);
 		sdp_func->state = SDP_STATE_TX_SEC_CONF_BUSY;
 		break;
@@ -775,14 +768,10 @@ static void sdp_handle_in_ep(void)
 			struct image_header *header;
 			struct spl_image_info spl_image = {};
 
-#ifdef CONFIG_PARSE_CONTAINER
-			sdp_func->jmp_address = (u32)search_container_header((ulong)sdp_func->jmp_address,
-				sdp_func->dnl_bytes);
-#else
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
 				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
 					sdp_func->dnl_bytes);
-#endif
+
 			if (sdp_func->jmp_address == 0) {
 				panic("Error in search header, failed to jump\n");
 			}
@@ -805,17 +794,10 @@ static void sdp_handle_in_ep(void)
 							  sdp_func->jmp_address,
 							  (void *)header);
 			} else {
-#ifdef CONFIG_PARSE_CONTAINER
-				sdp_load_image_parse_container(&spl_image,
-							     sdp_func->jmp_address);
-#else
-			/* In SPL, allow jumps to U-Boot images */
-			spl_parse_image_header(&spl_image,
+				/* In SPL, allow jumps to U-Boot images */
+				spl_parse_image_header(&spl_image,
 					(struct image_header *)(ulong)(sdp_func->jmp_address));
-#endif
 			}
-
-			board_sdp_cleanup();
 
 			jump_to_image_no_args(&spl_image);
 #else

@@ -1,12 +1,12 @@
-if TARGET_FSIMX8MP
+if TARGET_FSIMX8X
 
 config SYS_BOARD
-	default "fsimx8mp"
+	default "fsimx8x"
 
 config SYS_VENDOR
 	default "F+S"
 
 config SYS_CONFIG_NAME
-	default "fsimx8mp"
+	default "fsimx8x"
 
 endif
