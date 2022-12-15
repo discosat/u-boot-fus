@@ -37,6 +37,7 @@
 #include "../common/fs_image_common.h"	/* fs_image_*() */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
+#include "../common/fs_memtest_common.h"
 #include <usb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -441,6 +442,27 @@ void board_init_f(ulong dummy)
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);
 }
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+void dram_test(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	unsigned long dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+			      "dram-size", 0x400);
+	dram_size = dram_size << 20;
+	gd->ram_size = dram_size;
+
+	/* Enable caches */
+	gd->arch.tlb_size = PGTABLE_SIZE;
+	gd->arch.tlb_addr = 0x970000;
+	gd->bd->bi_dram[0].start = PHYS_SDRAM;
+	gd->bd->bi_dram[0].size  = dram_size;
+	enable_caches();
+
+	memtester(PHYS_SDRAM, dram_size);
+	panic(" ");
+}
+#endif
 
 void spl_board_init(void)
 {
@@ -482,6 +504,10 @@ void spl_board_init(void)
 		puts("Back to ROM, SDP\n");
 		restore_boot_params();
 	}
+#endif
+
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+	    dram_test();
 #endif
 	puts("Normal Boot\n");
 }

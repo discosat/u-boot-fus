@@ -63,6 +63,16 @@ config FS_USB_PWR_USBNC
 	  say N, the code will use the GPIO variant, if you say Y,
 	  the dedicated controller function will be used where possible.
 
+config FS_SPL_MEMTEST_COMMON
+	bool "Activate memory test in SPL"
+	depends on TARGET_FSIMX8MP
+	select SPL_CACHE_SUPPORT
+	select LIB_RAND
+	default n
+	help
+        Run a DRAM test in SPL. The board will have to be resettet after
+        the test.
+
 config FS_DISP_COMMON
 	bool
 	default y if TARGET_FSIMX6 || TARGET_FSIMX6SX || TARGET_FSIMX6UL

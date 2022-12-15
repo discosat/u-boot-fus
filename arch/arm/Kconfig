@@ -103,7 +103,7 @@ config SYS_ICACHE_OFF
 
 config SPL_SYS_ICACHE_OFF
 	bool "Do not enable icache in SPL"
-	depends on SPL
+	depends on SPL && !FS_SPL_MEMTEST_COMMON
 	default SYS_ICACHE_OFF
 	help
 	  Do not enable instruction cache in SPL.
@@ -116,7 +116,7 @@ config SYS_DCACHE_OFF
 
 config SPL_SYS_DCACHE_OFF
 	bool "Do not enable dcache in SPL"
-	depends on SPL
+	depends on SPL && !FS_SPL_MEMTEST_COMMON
 	default SYS_DCACHE_OFF
 	help
 	  Do not enable data cache in SPL.
