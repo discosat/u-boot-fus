@@ -461,7 +461,7 @@ int update_script(enum update_action action_id, const char *check,
 	return 1;
 }
 
-int do_update(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_update(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
 {
 	char *check = NULL;
 	char *fname = NULL;

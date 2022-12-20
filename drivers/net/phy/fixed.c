@@ -11,10 +11,11 @@
 #include <phy.h>
 #include <dm.h>
 #include <fdt_support.h>
+#include <asm/global_data.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-int fixedphy_probe(struct phy_device *phydev)
+static int fixedphy_probe(struct phy_device *phydev)
 {
 	struct fixed_link *priv;
 	int ofnode = phydev->addr;
@@ -46,7 +47,7 @@ int fixedphy_probe(struct phy_device *phydev)
 	return 0;
 }
 
-int fixedphy_startup(struct phy_device *phydev)
+static int fixedphy_startup(struct phy_device *phydev)
 {
 	struct fixed_link *priv = phydev->priv;
 
@@ -59,7 +60,7 @@ int fixedphy_startup(struct phy_device *phydev)
 	return 0;
 }
 
-int fixedphy_shutdown(struct phy_device *phydev)
+static int fixedphy_shutdown(struct phy_device *phydev)
 {
 	return 0;
 }

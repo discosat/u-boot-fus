@@ -5,6 +5,8 @@
 
 #include <common.h>
 #include <i2c.h>
+#include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/fsl_serdes.h>
@@ -18,7 +20,6 @@
 #include <fm_eth.h>
 #include <fsl_esdhc.h>
 #include <fsl_ifc.h>
-#include <fsl_sec.h>
 #include "cpld.h"
 #ifdef CONFIG_U_QE
 #include <fsl_qe.h>
@@ -209,10 +210,6 @@ int board_init(void)
 	out_le32(SMMU_NSCR0, val);
 #endif
 
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
-#endif
-
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif
@@ -270,7 +267,7 @@ void fdt_del_qe(void *blob)
 	}
 }
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	u64 base[CONFIG_NR_DRAM_BANKS];
 	u64 size[CONFIG_NR_DRAM_BANKS];
@@ -285,7 +282,9 @@ int ft_board_setup(void *blob, bd_t *bd)
 	ft_cpu_setup(blob, bd);
 
 #ifdef CONFIG_SYS_DPAA_FMAN
+#ifndef CONFIG_DM_ETH
 	fdt_fixup_fman_ethernet(blob);
+#endif
 #endif
 
 	fdt_fixup_icid(blob);

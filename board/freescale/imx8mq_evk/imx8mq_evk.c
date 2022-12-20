@@ -8,6 +8,7 @@
 #include <init.h>
 #include <malloc.h>
 #include <errno.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <miiphy.h>
 #include <netdev.h>
@@ -21,6 +22,7 @@
 #include <asm/mach-imx/mxc_i2c.h>
 #include <asm/arch/clock.h>
 #include <spl.h>
+#include <linux/bitops.h>
 #include <power/pmic.h>
 #include <power/pfuze100_pmic.h>
 #include "../common/tcpc.h"
@@ -78,15 +80,18 @@ static int setup_fec(void)
 
 int board_phy_config(struct phy_device *phydev)
 {
+	if (phydev->drv->config)
+		phydev->drv->config(phydev);
+
+#ifndef CONFIG_DM_ETH
 	/* enable rgmii rxc skew and phy mode select to RGMII copper */
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x1f);
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x8);
 
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1d, 0x05);
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x1e, 0x100);
+#endif
 
-	if (phydev->drv->config)
-		phydev->drv->config(phydev);
 	return 0;
 }
 #endif
@@ -118,9 +123,9 @@ static struct dwc3_device dwc3_device_data = {
 	.power_down_scale = 2,
 };
 
-int usb_gadget_handle_interrupts(void)
+int usb_gadget_handle_interrupts(int index)
 {
-	dwc3_uboot_handle_interrupt(0);
+	dwc3_uboot_handle_interrupt(index);
 	return 0;
 }
 
@@ -275,18 +280,17 @@ int board_late_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_FSL_FASTBOOT
-#ifdef CONFIG_ANDROID_RECOVERY
-int is_recovery_key_pressing(void)
-{
-	return 0; /*TODO*/
-}
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
-
 #ifdef CONFIG_ANDROID_SUPPORT
 bool is_power_key_pressed(void) {
 	return (bool)(!!(readl(SNVS_HPSR) & (0x1 << 6)));
 }
 #endif
 
+#ifdef CONFIG_FSL_FASTBOOT
+#ifdef CONFIG_ANDROID_RECOVERY
+int is_recovery_key_pressing(void)
+{
+	return 0; /* TODO */
+}
+#endif /* CONFIG_ANDROID_RECOVERY */
+#endif /* CONFIG_FSL_FASTBOOT */

@@ -14,6 +14,7 @@
 #include "desc_constr.h"
 #include "jobdesc.h"
 #include "rsa_caam.h"
+#include <asm/cache.h>
 
 #if defined(CONFIG_MX6) || defined(CONFIG_MX7) || defined(CONFIG_MX7ULP) || \
 		defined(CONFIG_IMX8M)
@@ -103,8 +104,8 @@ int caam_page_alloc(uint8_t page_num, uint8_t partition_num)
 
 	/* if the page is not owned => problem */
 	if ((temp_reg & SMCSJR_PO) != PAGE_OWNED) {
-		printf("Allocation of page %d in partition %d failed 0x%X\n",
-		       temp_reg, page_num, partition_num);
+		printf("Allocation of page %u in partition %u failed 0x%X\n",
+		       page_num, partition_num, temp_reg);
 
 		return ERROR_IN_PAGE_ALLOC;
 	}
@@ -206,7 +207,7 @@ void inline_cnstr_jobdesc_hash(uint32_t *desc,
 	append_store(desc, dma_addr_out, storelen,
 		     LDST_CLASS_2_CCB | LDST_SRCDST_BYTE_CONTEXT);
 }
-#ifndef CONFIG_SPL_BUILD
+
 void inline_cnstr_jobdesc_blob_encap(uint32_t *desc, uint8_t *key_idnfr,
 				     uint8_t *plain_txt, uint8_t *enc_blob,
 				     uint32_t in_sz)
@@ -254,12 +255,12 @@ void inline_cnstr_jobdesc_blob_decap(uint32_t *desc, uint8_t *key_idnfr,
 
 	append_operation(desc, OP_TYPE_DECAP_PROTOCOL | OP_PCLID_BLOB);
 }
-#endif
+
 /*
  * Descriptor to instantiate RNG State Handle 0 in normal mode and
  * load the JDKEK, TDKEK and TDSK registers
  */
-void inline_cnstr_jobdesc_rng_instantiation(uint32_t *desc, int handle)
+void inline_cnstr_jobdesc_rng_instantiation(u32 *desc, int handle, int do_sk)
 {
 	u32 *jump_cmd;
 
@@ -267,10 +268,11 @@ void inline_cnstr_jobdesc_rng_instantiation(uint32_t *desc, int handle)
 
 	/* INIT RNG in non-test mode */
 	append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
-			(handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT);
+			 (handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT |
+			 OP_ALG_PR_ON);
 
 	/* For SH0, Secure Keys must be generated as well */
-	if (handle == 0) {
+	if (!handle && do_sk) {
 		/* wait for done */
 		jump_cmd = append_jump(desc, JUMP_CLASS_CLASS1);
 		set_jump_tgt_here(desc, jump_cmd);
@@ -285,6 +287,25 @@ void inline_cnstr_jobdesc_rng_instantiation(uint32_t *desc, int handle)
 		append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
 				OP_ALG_RNG4_SK);
 	}
+}
+
+/* Descriptor for deinstantiation of the RNG block. */
+void inline_cnstr_jobdesc_rng_deinstantiation(u32 *desc, int handle)
+{
+	init_job_desc(desc, 0);
+
+	append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
+			 (handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INITFINAL);
+}
+
+void inline_cnstr_jobdesc_rng(u32 *desc, void *data_out, u32 size)
+{
+	caam_dma_addr_t dma_data_out = virt_to_phys(data_out);
+
+	init_job_desc(desc, 0);
+	append_operation(desc, OP_ALG_ALGSEL_RNG | OP_TYPE_CLASS1_ALG |
+			 OP_ALG_PR_ON);
+	append_fifo_store(desc, dma_data_out, size, FIFOST_TYPE_RNGSTORE);
 }
 
 /* Change key size to bytes form bits in calling function*/
@@ -312,4 +333,17 @@ void inline_cnstr_jobdesc_pkha_rsaexp(uint32_t *desc,
 
 	append_fifo_store(desc, dma_addr_out, out_siz,
 			  LDST_CLASS_1_CCB | FIFOST_TYPE_PKHA_B);
+}
+
+void inline_cnstr_jobdesc_derive_bkek(uint32_t *desc, void *bkek_out, void *key_mod, uint32_t key_sz)
+{
+	dma_addr_t dma_key_mod = virt_to_phys(key_mod);
+	dma_addr_t dma_bkek_out = virt_to_phys(bkek_out);
+
+	init_job_desc(desc, 0);
+	append_load(desc, dma_key_mod, key_sz,	LDST_CLASS_2_CCB |
+						LDST_SRCDST_BYTE_KEY);
+	append_seq_out_ptr_intlen(desc, dma_bkek_out, BKEK_SIZE, 0);
+	append_operation(desc, OP_TYPE_ENCAP_PROTOCOL | OP_PCLID_BLOB |
+							OP_PROTINFO_MKVB);
 }

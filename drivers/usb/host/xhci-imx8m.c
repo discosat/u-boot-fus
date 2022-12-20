@@ -145,14 +145,14 @@ static int xhci_imx8m_probe(struct udevice *dev)
 	struct imx8m_xhci *ctx = &imx8m_xhci;
 	int ret = 0;
 
-	ctx->hcd = (struct xhci_hccr *)(ctr_data[dev->seq].ctr_addr);
+	ctx->hcd = (struct xhci_hccr *)(ctr_data[dev_seq(dev)].ctr_addr);
 	ctx->dwc3_reg = (struct dwc3 *)((char *)(ctx->hcd) + DWC3_REG_OFFSET);
 	ctx->usbmix_reg = (struct imx8m_usbmix *)((char *)(ctx->hcd) +
 							USBMIX_PHY_OFFSET);
 
-	ret = board_usb_init(ctr_data[dev->seq].usb_id, USB_INIT_HOST);
+	ret = board_usb_init(ctr_data[dev_seq(dev)].usb_id, USB_INIT_HOST);
 	if (ret != 0) {
-		imx8m_usb_power(ctr_data[dev->seq].usb_id, false);
+		imx8m_usb_power(ctr_data[dev_seq(dev)].usb_id, false);
 		puts("Failed to initialize board for imx8m USB\n");
 		return ret;
 	}
@@ -178,7 +178,7 @@ static int xhci_imx8m_remove(struct udevice *dev)
 {
 	int ret = xhci_deregister(dev);
 
-	board_usb_cleanup(dev->seq, USB_INIT_HOST);
+	board_usb_cleanup(dev_seq(dev), USB_INIT_HOST);
 
 	return ret;
 }
@@ -195,8 +195,8 @@ U_BOOT_DRIVER(xhci_imx8m) = {
 	.probe = xhci_imx8m_probe,
 	.remove = xhci_imx8m_remove,
 	.ops	= &xhci_usb_ops,
-	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
-	.priv_auto_alloc_size = sizeof(struct xhci_ctrl),
+	.plat_auto = sizeof(struct usb_plat),
+	.priv_auto = sizeof(struct xhci_ctrl),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
 

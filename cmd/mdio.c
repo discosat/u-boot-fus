@@ -10,6 +10,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <dm.h>
 #include <miiphy.h>
 #include <phy.h>
 
@@ -142,7 +143,8 @@ static int extract_reg_range(char *input, int *devadlo, int *devadhi,
 }
 
 /* ---------------------------------------------------------------- */
-static int do_mdio(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_mdio(struct cmd_tbl *cmdtp, int flag, int argc,
+		   char *const argv[])
 {
 	char *op;
 	int addrlo = 0, addrhi = 0, reglo = 0, reghi = 0;

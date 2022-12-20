@@ -8,7 +8,9 @@
  */
 
 #include <common.h>
+#include <env.h>
 #include <init.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -22,16 +24,19 @@
 #include <asm/arch/mxc_hdmi.h>
 #include <asm/arch/crm_regs.h>
 #include <dm.h>
+#include <dm/uclass-internal.h>
+#include <dm/device-internal.h>
 #include <imx_thermal.h>
 #include <mmc.h>
 #include <asm/setup.h>
-#ifdef CONFIG_IMX_SEC_INIT
-#include <fsl_caam.h>
-#endif
 #include <hang.h>
 #include <cpu_func.h>
+#include <env.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#define has_err007805() \
+	(is_mx6sl() || is_mx6dl() || is_mx6solo() || is_mx6ull())
 
 struct scu_regs {
 	u32	ctrl;
@@ -41,16 +46,16 @@ struct scu_regs {
 	u32	fpga_rev;
 };
 
-#if defined(CONFIG_IMX_THERMAL)
+#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_IMX_THERMAL)
 static const struct imx_thermal_plat imx6_thermal_plat = {
 	.regs = (void *)ANATOP_BASE_ADDR,
 	.fuse_bank = 1,
 	.fuse_word = 6,
 };
 
-U_BOOT_DEVICE(imx6_thermal) = {
+U_BOOT_DRVINFO(imx6_thermal) = {
 	.name = "imx_thermal",
-	.platdata = &imx6_thermal_plat,
+	.plat = &imx6_thermal_plat,
 };
 #endif
 
@@ -412,7 +417,7 @@ static void init_bandgap(void)
 	}
 }
 
-#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL) || defined(CONFIG_MX6QP)
 static void noc_setup(void)
 {
 	enable_ipu_clock();
@@ -442,16 +447,6 @@ static void noc_setup(void)
 	disable_ipu_clock();
 }
 #endif
-
-static void set_preclk_from_osc(void)
-{
-	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	u32 reg;
-
-	reg = readl(&mxc_ccm->cscmr1);
-	reg |= MXC_CCM_CSCMR1_PER_CLK_SEL_MASK;
-	writel(reg, &mxc_ccm->cscmr1);
-}
 
 #ifdef CONFIG_MX6SX
 void vadc_power_up(void)
@@ -515,16 +510,6 @@ void pcie_power_off(void)
 }
 #endif
 
-static void set_uart_from_osc(void)
-{
-	u32 reg;
-
-	/* set uart clk to OSC */
-	reg = readl(CCM_BASE_ADDR + 0x24);
-	reg |= MXC_CCM_CSCDR1_UART_CLK_SEL;
-	writel(reg, CCM_BASE_ADDR + 0x24);
-}
-
 static void imx_set_vddpu_power_down(void)
 {
 	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
@@ -569,6 +554,8 @@ __weak bool is_usb_boot(void)
 
 int arch_cpu_init(void)
 {
+	struct mxc_ccm_reg *ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+
 	if (is_usbphy_power_on())
 		gd->flags |= GD_FLG_ARCH_IMX_USB_BOOT;
 
@@ -660,13 +647,13 @@ int arch_cpu_init(void)
 	}
 
 	/* Set perclk to source from OSC 24MHz */
-	if (is_mx6sl())
-		set_preclk_from_osc();
+	if (has_err007805())
+		setbits_le32(&ccm->cscmr1, MXC_CCM_CSCMR1_PER_CLK_SEL_MASK);
 
 	imx_wdog_disable_powerdown(); /* Disable PDE bit of WMCR register */
 
 	if (is_mx6sx())
-		set_uart_from_osc();
+		setbits_le32(&ccm->cscdr1, MXC_CCM_CSCDR1_UART_CLK_SEL);
 
 	if (!is_mx6sl() && !is_mx6ul() &&
 		!is_mx6ull() && !is_mx6sll())
@@ -678,14 +665,9 @@ int arch_cpu_init(void)
 
 	init_src();
 
-#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL)
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QDL) || defined(CONFIG_MX6QP)
 	if (is_mx6dqp())
 		noc_setup();
-#endif
-
-#ifdef CONFIG_IMX_SEC_INIT
-	/* Secure init function such RNG */
-	imx_sec_init();
 #endif
 	configure_tzc380();
 
@@ -992,6 +974,57 @@ void imx_setup_hdmi(void)
 		for (count = 0 ; count < 5 ; count++)
 			writeb(val, &hdmi->fc_invidconf);
 	}
+}
+#endif
+
+#ifdef CONFIG_ARCH_MISC_INIT
+/*
+ * UNIQUE_ID describes a unique ID based on silicon wafer
+ * and die X/Y position
+ *
+ * UNIQUE_ID offset 0x410
+ * 31:0 fuse 0
+ * FSL-wide unique, encoded LOT ID STD II/SJC CHALLENGE/ Unique ID
+ *
+ * UNIQUE_ID offset 0x420
+ * 31:24 fuse 1
+ * The X-coordinate of the die location on the wafer/SJC CHALLENGE/ Unique ID
+ * 23:16 fuse 1
+ * The Y-coordinate of the die location on the wafer/SJC CHALLENGE/ Unique ID
+ * 15:11 fuse 1
+ * The wafer number of the wafer on which the device was fabricated/SJC
+ * CHALLENGE/ Unique ID
+ * 10:0 fuse 1
+ * FSL-wide unique, encoded LOT ID STD II/SJC CHALLENGE/ Unique ID
+ */
+static void setup_serial_number(void)
+{
+	char serial_string[17];
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+
+	if (env_get("serial#"))
+		return;
+
+	snprintf(serial_string, sizeof(serial_string), "%08x%08x",
+		 fuse->uid_low, fuse->uid_high);
+	env_set("serial#", serial_string);
+}
+
+int arch_misc_init(void)
+{
+	struct udevice *dev;
+
+	uclass_find_first_device(UCLASS_MISC, &dev);
+	for (; dev; uclass_find_next_device(&dev)) {
+		if (device_probe(dev))
+			continue;
+	}
+
+	setup_serial_number();
+	return 0;
 }
 #endif
 

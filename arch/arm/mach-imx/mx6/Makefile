@@ -8,6 +8,7 @@
 #
 
 obj-y	:= soc.o clock.o
+obj-$(CONFIG_IMX_MODULE_FUSE) += module_fuse.o
 obj-$(CONFIG_SPL_BUILD)	     += ddr.o
 obj-$(CONFIG_VIDEO_IPUV3)    += clock-ipuv3.o
 obj-$(CONFIG_VIDEO_MXS)      += clock-mxsfb.o
@@ -17,4 +18,3 @@ obj-$(CONFIG_MX6UL_OPOS6UL)  += opos6ul.o
 ifdef CONFIG_MX6UL
 obj-$(CONFIG_CMD_BEE)        += bee.o
 endif
-obj-$(CONFIG_MODULE_FUSE)        += module_fuse.o

@@ -7,6 +7,7 @@
 #define __IMX8QM_VAL_H
 
 #include <linux/sizes.h>
+#include <linux/stringify.h>
 #include <asm/arch/imx-regs.h>
 #include "imx_env.h"
 
@@ -16,7 +17,6 @@
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR                0x1040 /* (flash.bin_offset + 2Mb)/sector_size */
 #define CONFIG_SYS_UBOOT_BASE 0x08281000
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION             0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
 /*
@@ -40,31 +40,18 @@
 
 #define CONFIG_REMAKE_ELF
 
-#define CONFIG_BOARD_EARLY_INIT_F
-
 #define CONFIG_CMD_READ
 
 /* Flat Device Tree Definitions */
 #define CONFIG_OF_BOARD_SETUP
-
-#undef CONFIG_CMD_EXPORTENV
-#undef CONFIG_CMD_IMPORTENV
-#undef CONFIG_CMD_IMLS
-
-#undef CONFIG_CMD_CRC32
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
 #define USDHC3_BASE_ADDR                0x5B030000
 
-#define CONFIG_ENV_OVERWRITE
-
-#define CONFIG_FSL_HSIO
-#define CONFIG_PCIE_IMX8X
+#define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
-#define CONFIG_PCI
-#define CONFIG_PCI_PNP
 #define CONFIG_PCI_SCAN_SHOW
 
 #define CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
@@ -249,8 +236,6 @@
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
-#else
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
@@ -285,9 +270,6 @@
 #define PHYS_SDRAM_2_SIZE		0x80000000	/* 2 GB */
 #endif
 
-#define CONFIG_SYS_MEMTEST_START    0xA0000000
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_1_SIZE >> 2))
-
 /* Serial */
 #define CONFIG_BAUDRATE			115200
 
@@ -306,15 +288,6 @@
 #define CONFIG_PCA953X
 #define CONFIG_CMD_PCA953X
 #define CONFIG_CMD_PCA953X_INFO
-#endif
-
-/* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
-#ifdef CONFIG_FSL_FSPI
-#define FSL_FSPI_FLASH_SIZE		SZ_64M
-#define FSL_FSPI_FLASH_NUM		1
-#define FSPI0_BASE_ADDR			0x5d120000
-#define FSPI0_AMBA_BASE			0
-#define CONFIG_SYS_FSL_FSPI_AHB
 #endif
 
 #define CONFIG_SERIAL_TAG

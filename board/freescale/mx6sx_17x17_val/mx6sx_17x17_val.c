@@ -13,6 +13,7 @@
 #include <asm/mach-imx/iomux-v3.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <linux/sizes.h>
 #include <common.h>
 #include <fsl_esdhc_imx.h>
@@ -414,7 +415,7 @@ int board_mmc_getcd(struct mmc *mmc)
 }
 
 #ifdef CONFIG_MXC_SPI
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 
@@ -450,7 +451,7 @@ int board_mmc_init(bd_t *bis)
 }
 
 #else
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i;
 
@@ -582,7 +583,7 @@ static void setup_gpmi_nand(void)
 #endif
 
 #ifdef CONFIG_FEC_MXC
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret;
 

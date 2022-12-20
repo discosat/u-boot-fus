@@ -10,6 +10,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <dm.h>
 #include <miiphy.h>
 
 typedef struct _MII_field_desc_t {
@@ -275,7 +276,7 @@ static void mii_err(unsigned char addr, unsigned char reg, bool write)
 }
 
 /* ---------------------------------------------------------------- */
-static int do_mii(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_mii(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	char		*op;
 	unsigned char	addrlo = 0, addrhi = 0, reglo = 0, reghi = 0;

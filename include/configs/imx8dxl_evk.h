@@ -27,8 +27,6 @@
 #define CONFIG_SPL_NAND_BASE
 #define CONFIG_SPL_NAND_IDENT
 
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
-
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
 /*
  * The memory layout on stack:  DATA section save + gd + early malloc
@@ -51,25 +49,14 @@
 
 #define CONFIG_REMAKE_ELF
 
-#define CONFIG_BOARD_EARLY_INIT_F
-
 #define CONFIG_CMD_READ
 
 /* Flat Device Tree Definitions */
 #define CONFIG_OF_BOARD_SETUP
 
-#undef CONFIG_CMD_EXPORTENV
-#undef CONFIG_CMD_IMPORTENV
-#undef CONFIG_CMD_IMLS
-
-#undef CONFIG_CMD_CRC32
-
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-
-#define CONFIG_ENV_OVERWRITE
-
 
 #define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
@@ -270,14 +257,12 @@
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
-#else
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 /* USDHC2 for SD */
-#define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
+#define CONFIG_SYS_MMC_ENV_DEV      1   /* USDHC2 */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
@@ -290,15 +275,12 @@
 
 /* total DDR is 1GB */
 #if defined(CONFIG_TARGET_IMX8DXL_DDR3_EVK)
-#define PHYS_SDRAM_1_SIZE		0x1FF00000	/* 512MB - ECC region 1MB */
+#define PHYS_SDRAM_1_SIZE		0x20000000
 #else
-#define PHYS_SDRAM_1_SIZE		0x3FE00000	/* 1 GB - ECC region 2MB */
+#define PHYS_SDRAM_1_SIZE		0x40000000	/* 1 GB */
 #endif
 
 #define PHYS_SDRAM_2_SIZE		0x00000000
-
-#define CONFIG_SYS_MEMTEST_START    0xA0000000
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_1_SIZE >> 2))
 
 /* Serial */
 #define CONFIG_BAUDRATE			115200
@@ -318,14 +300,6 @@
 #define CONFIG_PCA953X
 #define CONFIG_CMD_PCA953X
 #define CONFIG_CMD_PCA953X_INFO
-#endif
-
-/* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
-#ifdef CONFIG_FSL_FSPI
-#define FSL_FSPI_FLASH_SIZE		SZ_64M
-#define FSL_FSPI_FLASH_NUM		1
-#define FSPI0_BASE_ADDR			0x5d120000
-#define FSPI0_AMBA_BASE			0
 #endif
 
 #define CONFIG_SERIAL_TAG
@@ -369,9 +343,7 @@
 #define CONFIG_FEC_MXC_PHYADDR          0x1
 
 #define DWC_NET_PHYADDR			0
-#ifdef CONFIG_DWC_ETH_QOS
-#define CONFIG_SYS_NONCACHED_MEMORY     (1 * SZ_1M)     /* 1M */
-#endif
+
 #define CONFIG_ETHPRIME                 "eth1"
 #define PHY_ANEG_TIMEOUT 20000
 
@@ -379,9 +351,6 @@
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LINK
 #define CONFIG_VIDEO_LOGO
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_CMD_BMP
 #define CONFIG_BMP_16BPP
 #define CONFIG_BMP_24BPP
 #define CONFIG_BMP_32BPP

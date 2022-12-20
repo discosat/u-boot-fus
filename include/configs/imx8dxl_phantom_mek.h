@@ -22,7 +22,6 @@
   * So 3rd container image may start from 0x8181000
  */
 #define CONFIG_SYS_UBOOT_BASE 0x08181000
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
 /*
@@ -46,24 +45,14 @@
 
 #define CONFIG_REMAKE_ELF
 
-#define CONFIG_BOARD_EARLY_INIT_F
-
 #define CONFIG_CMD_READ
 
 /* Flat Device Tree Definitions */
 #define CONFIG_OF_BOARD_SETUP
 
-#undef CONFIG_CMD_EXPORTENV
-#undef CONFIG_CMD_IMPORTENV
-#undef CONFIG_CMD_IMLS
-
-#undef CONFIG_CMD_CRC32
-
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
 #define USDHC1_BASE_ADDR                0x5B010000
 #define USDHC2_BASE_ADDR                0x5B020000
-
-#define CONFIG_ENV_OVERWRITE
 
 #define CONFIG_PCIE_IMX
 #define CONFIG_CMD_PCI
@@ -105,7 +94,7 @@
             "xenlinux_bootargs= \0" \
             "xenlinux_console=hvc0 earlycon=xen\0" \
             "xenlinux_addr=0x9e000000\0" \
-	    "dom0fdt_file=imx8qxp-mek-dom0.dtb\0" \
+            "dom0fdt_file=imx8qxp-mek-dom0.dtb\0" \
             "xenboot_common=" \
                 "${get_cmd} ${loadaddr} xen;" \
                 "${get_cmd} ${fdt_addr} ${dom0fdt_file};" \
@@ -241,14 +230,11 @@
 #define CONFIG_ENV_SPI_CS	CONFIG_SF_DEFAULT_CS
 #define CONFIG_ENV_SPI_MODE	CONFIG_SF_DEFAULT_MODE
 #define CONFIG_ENV_SPI_MAX_HZ	CONFIG_SF_DEFAULT_SPEED
-#else
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #endif
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 /* USDHC1 is for eMMC, USDHC2 is for SD. However SD can't boot due to pinmux in ROM */
-#define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC1 */
 #define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* USDHC1 */
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
@@ -262,9 +248,6 @@
 /* total DDR is 1GB */
 #define PHYS_SDRAM_1_SIZE		0x40000000	/* 1 GB */
 #define PHYS_SDRAM_2_SIZE		0x00000000
-
-#define CONFIG_SYS_MEMTEST_START    0xA0000000
-#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + (PHYS_SDRAM_1_SIZE >> 2))
 
 /* Serial */
 #define CONFIG_BAUDRATE			115200
@@ -284,15 +267,6 @@
 #define CONFIG_PCA953X
 #define CONFIG_CMD_PCA953X
 #define CONFIG_CMD_PCA953X_INFO
-#endif
-
-/* MT35XU512ABA1G12 has only one Die, so QSPI0 B won't work */
-#ifdef CONFIG_FSL_FSPI
-#define FSL_FSPI_FLASH_SIZE		SZ_64M
-#define FSL_FSPI_FLASH_NUM		1
-#define FSPI0_BASE_ADDR			0x5d120000
-#define FSPI0_AMBA_BASE			0
-#define CONFIG_SYS_FSL_FSPI_AHB
 #endif
 
 #define CONFIG_SERIAL_TAG
@@ -323,7 +297,6 @@
 #define CONFIG_ETHPRIME                 "eth1"
 
 #define CONFIG_FEC_XCV_TYPE		RGMII
-#define FEC_QUIRK_ENET_MAC
 #define PHY_ANEG_TIMEOUT 20000
 
 

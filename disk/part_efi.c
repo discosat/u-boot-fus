@@ -7,10 +7,16 @@
 /*
  * NOTE:
  *   when CONFIG_SYS_64BIT_LBA is not defined, lbaint_t is 32 bits; this
- *   limits the maximum size of addressable storage to < 2 Terra Bytes
+ *   limits the maximum size of addressable storage to < 2 tebibytes
  */
-#include <asm/unaligned.h>
 #include <common.h>
+#include <blk.h>
+#include <log.h>
+#include <part.h>
+#include <uuid.h>
+#include <asm/cache.h>
+#include <asm/global_data.h>
+#include <asm/unaligned.h>
 #include <command.h>
 #include <fdtdec.h>
 #include <ide.h>
@@ -71,11 +77,15 @@ static char *print_efiname(gpt_entry *pte)
 
 static const efi_guid_t system_guid = PARTITION_SYSTEM_GUID;
 
-static inline int is_bootable(gpt_entry *p)
+static int get_bootable(gpt_entry *p)
 {
-	return p->attributes.fields.legacy_bios_bootable ||
-		!memcmp(&(p->partition_type_guid), &system_guid,
-			sizeof(efi_guid_t));
+	int ret = 0;
+
+	if (!memcmp(&p->partition_type_guid, &system_guid, sizeof(efi_guid_t)))
+		ret |=  PART_EFI_SYSTEM_PARTITION;
+	if (p->attributes.fields.legacy_bios_bootable)
+		ret |=  PART_BOOTABLE;
+	return ret;
 }
 
 static int validate_gpt_header(gpt_header *gpt_h, lbaint_t lba,
@@ -257,10 +267,11 @@ void part_print_efi(struct blk_desc *dev_desc)
 		uuid_bin = (unsigned char *)gpt_pte[i].partition_type_guid.b;
 		uuid_bin_to_str(uuid_bin, uuid, UUID_STR_FORMAT_GUID);
 		printf("\ttype:\t%s\n", uuid);
-#ifdef CONFIG_PARTITION_TYPE_GUID
-		if (!uuid_guid_get_str(uuid_bin, uuid))
-			printf("\ttype:\t%s\n", uuid);
-#endif
+		if (CONFIG_IS_ENABLED(PARTITION_TYPE_GUID)) {
+			const char *type = uuid_guid_get_str(uuid_bin);
+			if (type)
+				printf("\ttype:\t%s\n", type);
+		}
 		uuid_bin = (unsigned char *)gpt_pte[i].unique_partition_guid.b;
 		uuid_bin_to_str(uuid_bin, uuid, UUID_STR_FORMAT_GUID);
 		printf("\tguid:\t%s\n", uuid);
@@ -274,7 +285,7 @@ void part_print_efi(struct blk_desc *dev_desc)
 }
 
 int part_get_info_efi(struct blk_desc *dev_desc, int part,
-		      disk_partition_t *info)
+		      struct disk_partition *info)
 {
 	ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_head, 1, dev_desc->blksz);
 	gpt_entry *gpt_pte = NULL;
@@ -309,7 +320,7 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 	snprintf((char *)info->name, sizeof(info->name), "%s",
 		 print_efiname(&gpt_pte[part - 1]));
 	strcpy((char *)info->type, "U-Boot");
-	info->bootable = is_bootable(&gpt_pte[part - 1]);
+	info->bootable = get_bootable(&gpt_pte[part - 1]);
 #if CONFIG_IS_ENABLED(PARTITION_UUIDS)
 	uuid_bin_to_str(gpt_pte[part - 1].unique_partition_guid.b, info->uuid,
 			UUID_STR_FORMAT_GUID);
@@ -335,7 +346,7 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 
 #if defined(CONFIG_DUAL_BOOTLOADER) && defined(CONFIG_SPL_BUILD)
 int part_get_info_efi_by_name(struct blk_desc *dev_desc, const char *name,
-		      disk_partition_t *info)
+		      struct disk_partition *info)
 {
 	ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_head, 1, dev_desc->blksz);
 	/* We don't free gpt_pte because the memory is allocated at
@@ -368,7 +379,7 @@ int part_get_info_efi_by_name(struct blk_desc *dev_desc, const char *name,
 
 			snprintf((char *)info->name, sizeof(info->name), "%s", name);
 			strcpy((char *)info->type, "U-Boot");
-			info->bootable = is_bootable(&gpt_pte[i]);
+			info->bootable = get_bootable(&gpt_pte[i]);
 #if CONFIG_IS_ENABLED(PARTITION_UUIDS)
 			uuid_bin_to_str(gpt_pte[i].unique_partition_guid.b, info->uuid,
 					UUID_STR_FORMAT_GUID);
@@ -492,7 +503,7 @@ int write_gpt_table(struct blk_desc *dev_desc,
 
 int gpt_fill_pte(struct blk_desc *dev_desc,
 		 gpt_header *gpt_h, gpt_entry *gpt_e,
-		 disk_partition_t *partitions, int parts)
+		 struct disk_partition *partitions, int parts)
 {
 	lbaint_t offset = (lbaint_t)le64_to_cpu(gpt_h->first_usable_lba);
 	lbaint_t last_usable_lba = (lbaint_t)
@@ -586,7 +597,7 @@ int gpt_fill_pte(struct blk_desc *dev_desc,
 		memset(&gpt_e[i].attributes, 0,
 		       sizeof(gpt_entry_attributes));
 
-		if (partitions[i].bootable)
+		if (partitions[i].bootable & PART_BOOTABLE)
 			gpt_e[i].attributes.fields.legacy_bios_bootable = 1;
 
 		/* partition name */
@@ -682,7 +693,7 @@ int gpt_fill_header(struct blk_desc *dev_desc, gpt_header *gpt_h,
 }
 
 int gpt_restore(struct blk_desc *dev_desc, char *str_disk_guid,
-		disk_partition_t *partitions, int parts_count)
+		struct disk_partition *partitions, int parts_count)
 {
 	gpt_header *gpt_h;
 	gpt_entry *gpt_e;
@@ -777,7 +788,7 @@ int gpt_verify_headers(struct blk_desc *dev_desc, gpt_header *gpt_head,
 }
 
 int gpt_verify_partitions(struct blk_desc *dev_desc,
-			  disk_partition_t *partitions, int parts,
+			  struct disk_partition *partitions, int parts,
 			  gpt_header *gpt_head, gpt_entry **gpt_pte)
 {
 	char efi_str[PARTNAME_SZ + 1];
@@ -941,6 +952,9 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf)
 		       __func__, "Backup GPT Header", cnt, lba);
 		return 1;
 	}
+
+	/* Update the partition table entries*/
+	part_init(dev_desc);
 
 	return 0;
 }

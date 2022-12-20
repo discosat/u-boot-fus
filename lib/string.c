@@ -563,13 +563,31 @@ void * memcpy(void *dest, const void *src, size_t count)
  *
  * Unlike memcpy(), memmove() copes with overlapping areas.
  */
-void * memmove(void * dest,const void *src,size_t count)
+void *memmove(void * dest,const void *src,size_t count)
 {
 	char *d;
 	char *s;
 
-	if (dest <= src)
+	if (dest <= src || (src + count) <= dest) {
+		/*
+		 * Use the fast memcpy implementation (ARCH optimized or
+		 * lib/string.c) when it is possible:
+		 * - when dest is before src (assuming that memcpy is doing
+		 *   forward-copying)
+		 * - when destination don't overlap the source buffer (src +
+		 *   count <= dest)
+		 *
+		 * WARNING: the first optimisation cause an issue, when
+		 * __HAVE_ARCH_MEMCPY is defined, __HAVE_ARCH_MEMMOVE is not
+		 * defined and if the memcpy ARCH-specific implementation is
+		 * not doing a forward-copying.
+		 *
+		 * No issue today because memcpy is doing a forward-copying in
+		 * lib/string.c and for ARM32 architecture; no other arches
+		 * use __HAVE_ARCH_MEMCPY without __HAVE_ARCH_MEMMOVE.
+		 */
 		return memcpy(dest, src, count);
+	}
 
 	d = (char *)dest;
 	s = (char *)src;

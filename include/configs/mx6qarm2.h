@@ -15,7 +15,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + 2 * 1024 * 1024)
 
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART4_BASE
 
 /* MMC Configs */
@@ -108,8 +107,6 @@
 #define CONFIG_ARP_TIMEOUT	200UL
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x10000000
-#define CONFIG_SYS_MEMTEST_END		0x10010000
 
 /* Physical Memory Map */
 #if defined(CONFIG_MX6DQ_POP_LPDDR2)
@@ -128,8 +125,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* Environment organization */
-#define CONFIG_SYS_MMC_ENV_DEV		3
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user partition */
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* SDHC4 */
 
 /* USB Configs */

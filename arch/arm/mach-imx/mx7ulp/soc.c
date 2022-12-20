@@ -3,8 +3,11 @@
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP
  */
+
+#include <common.h>
 #include <cpu_func.h>
 #include <init.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
@@ -12,10 +15,11 @@
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/hab.h>
+#include <linux/bitops.h>
 #include <asm/setup.h>
-#ifdef CONFIG_IMX_SEC_INIT
-#include <fsl_caam.h>
-#endif
+#include <dm.h>
+#include <dm/uclass-internal.h>
+#include <dm/device-internal.h>
 
 #define PMC0_BASE_ADDR		0x410a1000
 #define PMC0_CTRL		0x28
@@ -131,13 +135,22 @@ int arch_cpu_init(void)
 	}
 #endif
 
-#ifdef CONFIG_IMX_SEC_INIT
-	/* Secure init function such RNG */
-	imx_sec_init();
-#endif
-
 	return 0;
 }
+
+#if defined(CONFIG_ARCH_MISC_INIT)
+int arch_misc_init(void)
+{
+	struct udevice *dev;
+
+	uclass_find_first_device(UCLASS_MISC, &dev);
+	for (; dev; uclass_find_next_device(&dev)) {
+		if (device_probe(dev))
+			continue;
+	}
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_BOARD_POSTCLK_INIT
 int board_postclk_init(void)
@@ -197,11 +210,25 @@ void init_wdog(void)
 	disable_wdog(WDG2_RBASE);
 }
 
+static bool ldo_mode_is_enabled(void)
+{
+	unsigned int reg;
+
+	reg = readl(PMC0_BASE_ADDR + PMC0_CTRL);
+	if (reg & PMC0_CTRL_LDOEN)
+		return true;
+	else
+		return false;
+}
+
 #if !defined(CONFIG_SPL) || (defined(CONFIG_SPL) && defined(CONFIG_SPL_BUILD))
 #if defined(CONFIG_LDO_ENABLED_MODE)
 static void init_ldo_mode(void)
 {
 	unsigned int reg;
+
+	if (ldo_mode_is_enabled())
+		return;
 
 	/* Set LDOOKDIS */
 	setbits_le32(PMC0_BASE_ADDR + PMC0_CTRL, PMC0_CTRL_LDOOKDIS);
@@ -275,21 +302,6 @@ void reset_cpu(ulong addr)
 const char *get_imx_type(u32 imxtype)
 {
 	return "7ULP";
-}
-
-#define PMC0_BASE_ADDR		0x410a1000
-#define PMC0_CTRL		0x28
-#define PMC0_CTRL_LDOEN		BIT(31)
-
-static bool ldo_mode_is_enabled(void)
-{
-	unsigned int reg;
-
-	reg = readl(PMC0_BASE_ADDR + PMC0_CTRL);
-	if (reg & PMC0_CTRL_LDOEN)
-		return true;
-	else
-		return false;
 }
 
 int print_cpuinfo(void)

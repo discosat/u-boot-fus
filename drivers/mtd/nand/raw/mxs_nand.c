@@ -16,22 +16,25 @@
 #include <common.h>
 #include <cpu_func.h>
 #include <dm.h>
+#include <dm/device_compat.h>
+#include <malloc.h>
+#include <mxs_nand.h>
+#include <asm/arch/clock.h>
+#include <asm/arch/imx-regs.h>
+#include <asm/arch/sys_proto.h>
+#include <asm/cache.h>
+#include <asm/io.h>
+#include <asm/mach-imx/regs-bch.h>
+#include <asm/mach-imx/regs-gpmi.h>
+#include <linux/errno.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
-#include <malloc.h>
-#include <linux/errno.h>
-#include <asm/io.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/imx-regs.h>
-#include <asm/mach-imx/regs-bch.h>
-#include <asm/mach-imx/regs-gpmi.h>
-#include <asm/arch/sys_proto.h>
-#include <mxs_nand.h>
 
 #define	MXS_NAND_DMA_DESCRIPTOR_COUNT		4
 
-#if (defined(CONFIG_MX6) || defined(CONFIG_MX7) || defined(CONFIG_IMX8) || defined(CONFIG_IMX8M))
+#if defined(CONFIG_MX6) || defined(CONFIG_MX7) || defined(CONFIG_IMX8) || \
+	defined(CONFIG_IMX8M)
 #define	MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT	2
 #else
 #define	MXS_NAND_CHUNK_DATA_CHUNK_SIZE_SHIFT	0
@@ -113,13 +116,14 @@ static uint32_t mxs_nand_aux_status_offset(void)
 	return (MXS_NAND_METADATA_SIZE + 0x3) & ~0x3;
 }
 
-static inline bool mxs_nand_bbm_in_data_chunk(struct bch_geometry *geo, struct mtd_info *mtd,
-		unsigned int *chunk_num)
+static inline bool mxs_nand_bbm_in_data_chunk(struct bch_geometry *geo,
+					      struct mtd_info *mtd,
+					      unsigned int *chunk_num)
 {
 	unsigned int i, j;
 
 	if (geo->ecc_chunk0_size != geo->ecc_chunkn_size) {
-		dev_err(this->dev, "The size of chunk0 must equal to chunkn\n");
+		dev_err(mtd->dev, "The size of chunk0 must equal to chunkn\n");
 		return false;
 	}
 
@@ -132,9 +136,9 @@ static inline bool mxs_nand_bbm_in_data_chunk(struct bch_geometry *geo, struct m
 				geo->ecc_chunkn_size * 8) * i;
 
 	if (j < geo->ecc_chunkn_size * 8) {
-		*chunk_num = i+1;
-		dev_dbg(this->dev, "Set ecc to %d and bbm in chunk %d\n",
-				geo->ecc_strength, *chunk_num);
+		*chunk_num = i + 1;
+		dev_dbg(mtd->dev, "Set ecc to %d and bbm in chunk %d\n",
+			geo->ecc_strength, *chunk_num);
 		return true;
 	}
 
@@ -614,14 +618,14 @@ static uint8_t mxs_nand_read_byte(struct mtd_info *mtd)
 }
 
 static bool mxs_nand_erased_page(struct mtd_info *mtd, struct nand_chip *nand,
-				 uint8_t *buf, int chunk, int page)
+				 u8 *buf, int chunk, int page)
 {
 	struct mxs_nand_info *nand_info = nand_get_controller_data(nand);
 	struct bch_geometry *geo = &nand_info->bch_geometry;
 	unsigned int flip_bits = 0, flip_bits_noecc = 0;
 	unsigned int threshold;
 	unsigned int base = geo->ecc_chunkn_size * chunk;
-	uint32_t *dma_buf = (uint32_t *)buf;
+	u32 *dma_buf = (u32 *)buf;
 	int i;
 
 	threshold = geo->gf_len / 2;
@@ -779,8 +783,8 @@ static int mxs_nand_ecc_read_page(struct mtd_info *mtd, struct nand_chip *nand,
 
 		if (status[i] == 0xff) {
 			if (!nand_info->en_randomizer &&
-			    (is_mx6dqp() || is_mx7() || is_mx6ul()
-			    || is_imx8() || is_imx8m()))
+			    (is_mx6dqp() || is_mx7() || is_mx6ul() ||
+			     is_imx8() || is_imx8m()))
 				if (readl(&bch_regs->hw_bch_debug1))
 					flag = 1;
 			continue;
@@ -1115,8 +1119,8 @@ static int mxs_nand_set_geometry(struct mtd_info *mtd, struct bch_geometry *geo)
 	}
 
 	if ((!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0) &&
-			(mtd->oobsize < 1024)) || nand_info->legacy_bch_geometry) {
-		dev_warn(this->dev, "use legacy bch geometry\n");
+	     mtd->oobsize < 1024) || nand_info->legacy_bch_geometry) {
+		dev_warn(mtd->dev, "use legacy bch geometry\n");
 		return mxs_nand_legacy_calc_ecc_layout(geo, mtd);
 	}
 
@@ -1276,12 +1280,12 @@ static int mxs_nand_init_dma(struct mxs_nand_info *info)
 {
 	int i = 0, j, ret = 0;
 
-#ifdef CONFIG_MX6
-	if (check_module_fused(MX6_MODULE_GPMI)) {
-		printf("NAND GPMI@0x%x is fused, disable it\n", (u32)info->gpmi_regs);
-		return -EPERM;
+	if (CONFIG_IS_ENABLED(IMX_MODULE_FUSE)) {
+		if (check_module_fused(MODULE_GPMI)) {
+			printf("NAND GPMI@0x%lx is fused, disable it\n", (ulong)info->gpmi_regs);
+			return -EPERM;
+		}
 	}
-#endif
 
 	info->desc = malloc(sizeof(struct mxs_dma_desc *) *
 				MXS_NAND_DMA_DESCRIPTOR_COUNT);
@@ -1520,7 +1524,7 @@ void mxs_nand_get_layout(struct mtd_info *mtd, struct mxs_nand_layout *l)
 	l->eccn = (tmp & BCH_FLASHLAYOUT1_ECCN_MASK) >>
 			BCH_FLASHLAYOUT1_ECCN_OFFSET;
 	l->gf_len = (tmp & BCH_FLASHLAYOUT1_GF13_0_GF14_1_MASK) >>
-			BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
+		     BCH_FLASHLAYOUT1_GF13_0_GF14_1_OFFSET;
 }
 
 /*

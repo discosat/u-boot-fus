@@ -13,7 +13,9 @@
 #endif
 #include <asm/mach-imx/sys_proto.h>
 #include <command.h>
+#include <image.h>			/* parse_loadaddr() */
 #include <imx_sip.h>
+#include <linux/arm-smccc.h>
 #include <linux/compiler.h>
 
 /* For the bootaux command we implemented a state machine to switch between
@@ -122,8 +124,10 @@ void arch_auxiliary_core_set(u32 core_id, enum aux_state state)
 {
 #if defined(CONFIG_IMX8M) || defined(CONFIG_IMX8MN)
         /* TODO: Currently only start state */
-        if (state == aux_off || state == aux_stopped)
-		call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_START, 0, 0, 0);
+        if (state == aux_off || state == aux_stopped) {
+		arm_smccc_smc(IMX_SIP_SRC, IMX_SIP_SRC_MCU_START, 0, 0,
+			      0, 0, 0, 0, NULL);
+	}
 #elif CONFIG_ARCH_MX7ULP
 	/* There is no way to switch between states. We are only able to
 	 * start images if there is no pc set and no image is located in
@@ -165,9 +169,11 @@ enum aux_state arch_auxiliary_core_get(u32 core_id)
 {
 #if defined(CONFIG_IMX8M) || defined(CONFIG_IMX8MN)
         /* TODO: check reg values mapping to the state */
-	int reg = call_imx_sip(IMX_SIP_SRC, IMX_SIP_SRC_M4_STARTED, 0, 0, 0);
-        
-	if(reg)
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_SRC, IMX_SIP_SRC_MCU_STARTED, 0, 0,
+		      0, 0, 0, 0, &res);
+	if (res.a0)
 		return aux_running;
         
         return aux_stopped; 
@@ -225,7 +231,8 @@ enum aux_state arch_auxiliary_core_get(u32 core_id)
  * The TCMUL/IDTCM is mapped to (MCU_BOOTROM_BASE_ADDR) at A core side for
  * accessing the M4/M7 TCMUL/IDTCM.
  */
-static int do_bootaux(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_bootaux(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char * const argv[])
 {
 	const char *state_name[] = {"off", "stopped", "running", "paused"};
 	ulong addr = 0;

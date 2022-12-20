@@ -14,7 +14,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(16 * SZ_1M)
 
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /* I2C configs */
@@ -155,8 +154,6 @@
 #endif
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x20000000)
 
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 #define CONFIG_SYS_HZ			1000
@@ -194,12 +191,6 @@
 #define CONFIG_FLASH_CFI_DRIVER         /* Use drivers/cfi_flash.c */
 #define CONFIG_SYS_FLASH_USE_BUFFER_WRITE /* Use buffered writes*/
 #define CONFIG_SYS_FLASH_EMPTY_INFO
-#endif
-
-#ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
-#define FSL_QSPI_FLASH_NUM		1
-#define FSL_QSPI_FLASH_SIZE		SZ_32M
 #endif
 
 #if defined(CONFIG_ENV_IS_IN_SPI_FLASH)

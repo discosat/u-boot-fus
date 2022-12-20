@@ -141,7 +141,7 @@ static void led_blink_callback(void *data)
 }
 #endif
 
-int do_legacy_led(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_legacy_led(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int led, match = 0;
 	int cmd;

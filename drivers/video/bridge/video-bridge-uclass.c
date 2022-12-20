@@ -8,7 +8,9 @@
 #include <dm.h>
 #include <errno.h>
 #include <edid.h>
+#include <log.h>
 #include <video_bridge.h>
+#include <linux/delay.h>
 
 int video_bridge_set_backlight(struct udevice *dev, int percent)
 {
@@ -133,6 +135,6 @@ UCLASS_DRIVER(video_bridge) = {
 	.id		= UCLASS_VIDEO_BRIDGE,
 	.name		= "video_bridge",
 	.flags		= DM_UC_FLAG_SEQ_ALIAS,
-	.per_device_auto_alloc_size	= sizeof(struct video_bridge_priv),
+	.per_device_auto	= sizeof(struct video_bridge_priv),
 	.pre_probe	= video_bridge_pre_probe,
 };

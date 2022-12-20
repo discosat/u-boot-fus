@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * (C) Copyright 2001-2015
- * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
- * Joe Hershberger, National Instruments
- * Copyright 2017 NXP
- *
+ * Copyright 2020 NXP
  */
 
 #include <common.h>
@@ -36,8 +32,9 @@ int eth_phy_binds_nodes(struct udevice *eth_dev)
 
 		debug("* Found child node: '%s'\n", node_name);
 
-		ret = device_bind_driver_to_node(eth_dev, "eth_phy_generic_drv",
-				node_name, phy_node, NULL);
+		ret = device_bind_driver_to_node(eth_dev,
+						 "eth_phy_generic_drv",
+						 node_name, phy_node, NULL);
 		if (ret) {
 			debug("  - Eth phy binding error: %d\n", ret);
 			continue;
@@ -49,17 +46,17 @@ int eth_phy_binds_nodes(struct udevice *eth_dev)
 	return 0;
 }
 
-
 int eth_phy_set_mdio_bus(struct udevice *eth_dev, struct mii_dev *mdio_bus)
 {
 	struct udevice *dev;
-	for (uclass_first_device(UCLASS_ETH_PHY, &dev);
-		dev; uclass_next_device(&dev)) {
+	struct eth_phy_device_priv *uc_priv;
 
+	for (uclass_first_device(UCLASS_ETH_PHY, &dev); dev;
+	     uclass_next_device(&dev)) {
 		if (dev->parent == eth_dev) {
-			struct eth_phy_device_priv *uc_priv = (struct eth_phy_device_priv *)(dev->uclass_priv);
+			uc_priv = (struct eth_phy_device_priv *)(dev_get_uclass_priv(dev));
 
-			if (uc_priv->mdio_bus == NULL)
+			if (!uc_priv->mdio_bus)
 				uc_priv->mdio_bus = mdio_bus;
 		}
 	}
@@ -67,17 +64,22 @@ int eth_phy_set_mdio_bus(struct udevice *eth_dev, struct mii_dev *mdio_bus)
 	return 0;
 }
 
-struct mii_dev * eth_phy_get_mdio_bus(struct udevice *eth_dev)
+struct mii_dev *eth_phy_get_mdio_bus(struct udevice *eth_dev)
 {
 	int ret;
 	struct udevice *phy_dev;
+	struct eth_phy_device_priv *uc_priv;
 
 	/* Will probe the parent of phy device, then phy device */
-	ret = uclass_get_device_by_phandle(UCLASS_ETH_PHY, eth_dev, "phy-handle", &phy_dev);
+	ret = uclass_get_device_by_phandle(UCLASS_ETH_PHY, eth_dev,
+					   "phy-handle", &phy_dev);
 	if (!ret) {
 		if (eth_dev != phy_dev->parent) {
-			/* phy_dev is shared and controlled by other Eth controller */
-			struct eth_phy_device_priv *uc_priv = (struct eth_phy_device_priv *)(phy_dev->uclass_priv);
+			/*
+			 * phy_dev is shared and controlled by
+			 * other eth controller
+			 */
+			uc_priv = (struct eth_phy_device_priv *)(dev_get_uclass_priv(phy_dev));
 			if (uc_priv->mdio_bus)
 				printf("Get shared mii bus on %s\n", eth_dev->name);
 			else
@@ -111,7 +113,7 @@ int eth_phy_get_addr(struct udevice *dev)
 UCLASS_DRIVER(eth_phy_generic) = {
 	.id		= UCLASS_ETH_PHY,
 	.name		= "eth_phy_generic",
-	.per_device_auto_alloc_size = sizeof(struct eth_phy_device_priv),
+	.per_device_auto	= sizeof(struct eth_phy_device_priv),
 };
 
 U_BOOT_DRIVER(eth_phy_generic_drv) = {

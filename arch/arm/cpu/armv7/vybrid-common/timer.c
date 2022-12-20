@@ -24,6 +24,7 @@
 #include <asm/io.h>
 #include <div64.h>
 #include <asm/arch/clock.h>
+#include <asm/global_data.h>
 #include <asm/arch/timer.h>
 #include <asm/arch/vybrid-regs.h>
 

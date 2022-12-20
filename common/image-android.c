@@ -15,12 +15,14 @@
 #include <errno.h>
 #include <asm/unaligned.h>
 #include <mapmem.h>
+#include <linux/libfdt.h>
 #include <asm/bootm.h>
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/arch/sys_proto.h>
 #include <fb_fsl.h>
 #include <asm/setup.h>
 #include <dm.h>
+#include <init.h>
 #include <mmc.h>
 
 #define ANDROID_IMAGE_DEFAULT_KERNEL_ADDR	0x10008000
@@ -43,6 +45,13 @@ static ulong android_image_get_kernel_addr(const struct andr_img_hdr *hdr)
 	 */
 	if (hdr->kernel_addr == ANDROID_IMAGE_DEFAULT_KERNEL_ADDR)
 		return (ulong)hdr + hdr->page_size;
+
+	/*
+	 * abootimg creates images where all load addresses are 0
+	 * and we need to fix them.
+	 */
+	if (hdr->kernel_addr == 0 && hdr->ramdisk_addr == 0)
+		return env_get_ulong("kernel_addr_r", 16, 0);
 
 	return hdr->kernel_addr;
 }
@@ -95,6 +104,14 @@ static void append_kernel_cmdline(char *commandline)
 		sprintf(newbootargs,
 			" androidboot.soc_type=%s",
 			soc_type);
+		strncat(commandline, newbootargs, COMMANDLINE_LENGTH - strlen(commandline));
+	}
+	/* append soc rev into bootargs */
+	char *soc_rev = env_get("soc_rev");
+	if (soc_rev) {
+		sprintf(newbootargs,
+			" androidboot.soc_rev=%s",
+			soc_rev);
 		strncat(commandline, newbootargs, COMMANDLINE_LENGTH - strlen(commandline));
 	}
 
@@ -216,7 +233,7 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 	if (strlen(andr_tmp_str))
 		printf("Android's image name: %s\n", andr_tmp_str);
 
-	debug("Kernel load addr 0x%08x size %u KiB\n",
+	printf("Kernel load addr 0x%08x size %u KiB\n",
 	       kernel_addr, DIV_ROUND_UP(hdr->kernel_size, 1024));
 
 	char commandline[COMMANDLINE_LENGTH] = {0};
@@ -783,4 +800,33 @@ bool image_arm64(void *images)
 	if (ih->magic == le32_to_cpu(ARM64_IMAGE_MAGIC))
 		return true;
 	return false;
+}
+
+uint32_t kernel_size(void *images)
+{
+	struct header_image *ih;
+	uint32_t image_size;
+
+	ih = (struct header_image *)images;
+	image_size = le64_to_cpu(ih->image_size);
+
+	return image_size;
+}
+
+ulong kernel_relocate_addr(ulong images)
+{
+	struct header_image *ih;
+	ulong relocated_addr, text_offset;
+
+	ih = (struct header_image *)images;
+	text_offset = le64_to_cpu(ih->text_offset);
+
+	if (le64_to_cpu(ih->res1) & BIT(3))
+		relocated_addr = images - text_offset;
+	else
+		relocated_addr = gd->bd->bi_dram[0].start;
+
+	relocated_addr = ALIGN(relocated_addr, SZ_2M) + text_offset;
+
+	return relocated_addr;
 }

@@ -59,7 +59,7 @@ struct fat_dirinfo {
 
 static struct blk_desc *cur_dev;
 static unsigned int cur_part_nr;
-static disk_partition_t cur_part_info;
+static struct disk_partition cur_part_info;
 
 /* Device specific data; if we allow parallel access to more than one FAT
    device in the future, we must allocate this dynamically. The following
@@ -103,7 +103,7 @@ __u8 fat_checksum(const char *dirname)
 
 int fat_register_device(struct blk_desc *dev_desc, int part_no)
 {
-	disk_partition_t info;
+	struct disk_partition info;
 
 	/* First close any currently found FAT filesystem */
 	cur_dev = NULL;
@@ -788,7 +788,7 @@ int file_fat_read(const char *pattern, void *buffer, int maxsize)
  *  0 - OK, FAT filesystem initialized;
  * -1 - Error, e.g. no FAT filesystem, error reading data from device, etc.
  */
-int fat_set_blk_dev(struct blk_desc *dev_desc, disk_partition_t *info)
+int fat_set_blk_dev(struct blk_desc *dev_desc, struct disk_partition *info)
 {
 	struct boot_sector *bs;
 	__u32 clusters;

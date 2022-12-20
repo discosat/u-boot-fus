@@ -477,7 +477,7 @@ static bool nxp_fspi_supports_op(struct spi_slave *slave,
 	return true;
 }
 
-/* Instead of busy looping invoke readl_poll_timeout functionality. */
+/* Instead of busy looping invoke readl_poll_sleep_timeout functionality. */
 static int fspi_readl_poll_tout(struct nxp_fspi *f, void __iomem *base,
 				u32 mask, u32 delay_us,
 				u32 timeout_us, bool c)
@@ -488,11 +488,11 @@ static int fspi_readl_poll_tout(struct nxp_fspi *f, void __iomem *base,
 		mask = (u32)cpu_to_be32(mask);
 
 	if (c)
-		return readl_poll_timeout(base, reg, (reg & mask),
-					  timeout_us);
+		return readl_poll_sleep_timeout(base, reg, (reg & mask),
+						delay_us, timeout_us);
 	else
-		return readl_poll_timeout(base, reg, !(reg & mask),
-					  timeout_us);
+		return readl_poll_sleep_timeout(base, reg, !(reg & mask),
+						delay_us, timeout_us);
 }
 
 /*
@@ -827,7 +827,8 @@ static int nxp_fspi_exec_op(struct spi_slave *slave,
 	 * by accessing the mapped memory. In all other cases we use
 	 * IP commands to access the flash.
 	 */
-	if (op->data.nbytes > (f->devtype_data->rxfifo - 4) &&
+	if (!nxp_fspi_ips_access_only(f) &&
+		op->data.nbytes > (f->devtype_data->rxfifo - 4) &&
 	    op->data.dir == SPI_MEM_DATA_IN) {
 		nxp_fspi_read_ahb(f, op);
 	} else {
@@ -860,6 +861,11 @@ static int nxp_fspi_adjust_op_size(struct spi_slave *slave,
 			op->data.nbytes = f->devtype_data->ahb_buf_size;
 		else if (op->data.nbytes > (f->devtype_data->rxfifo - 4))
 			op->data.nbytes = ALIGN_DOWN(op->data.nbytes, 8);
+
+		/* dxl won't use ahb to access data, limit to rxfifo size */
+		if (nxp_fspi_ips_access_only(f) &&
+			op->data.nbytes > f->devtype_data->rxfifo)
+			op->data.nbytes = f->devtype_data->rxfifo;
 	}
 
 	return 0;
@@ -957,7 +963,7 @@ static int nxp_fspi_claim_bus(struct udevice *dev)
 {
 	struct nxp_fspi *f;
 	struct udevice *bus;
-	struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(dev);
+	struct dm_spi_slave_plat *slave_plat = dev_get_parent_plat(dev);
 
 	bus = dev->parent;
 	f = dev_get_priv(bus);
@@ -1070,7 +1076,7 @@ U_BOOT_DRIVER(nxp_fspi) = {
 	.id	= UCLASS_SPI,
 	.of_match = nxp_fspi_ids,
 	.ops	= &nxp_fspi_ops,
-	.ofdata_to_platdata = nxp_fspi_of_to_plat,
-	.priv_auto_alloc_size = sizeof(struct nxp_fspi),
+	.of_to_plat = nxp_fspi_of_to_plat,
+	.priv_auto	= sizeof(struct nxp_fspi),
 	.probe	= nxp_fspi_probe,
 };

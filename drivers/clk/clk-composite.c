@@ -145,12 +145,20 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 	}
 
 	clk = &composite->clk;
+	clk->flags = flags;
 	ret = clk_register(clk, UBOOT_DM_CLK_COMPOSITE, name,
 			   parent_names[clk_composite_get_parent(clk)]);
 	if (ret) {
 		clk = ERR_PTR(ret);
 		goto err;
 	}
+
+	if (composite->mux)
+		composite->mux->dev = clk->dev;
+	if (composite->rate)
+		composite->rate->dev = clk->dev;
+	if (composite->gate)
+		composite->gate->dev = clk->dev;
 
 	return clk;
 

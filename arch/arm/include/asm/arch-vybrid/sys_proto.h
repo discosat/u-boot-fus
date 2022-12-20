@@ -35,6 +35,6 @@ void set_chipselect_size(int const);
  * to override, implement board_eth_init()
  */
 
-int fecmxc_initialize(bd_t *bis);
+int fecmxc_initialize(struct bd_info *bis);
 
 #endif

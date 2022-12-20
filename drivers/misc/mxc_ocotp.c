@@ -13,6 +13,7 @@
 
 #include <common.h>
 #include <fuse.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
@@ -334,7 +335,7 @@ int fuse_sense(u32 bank, u32 word, u32 *val)
 	struct ocotp_regs *regs;
 	int ret;
 
-	if (is_imx8mq() && is_soc_rev(CHIP_REV_2_1)) {
+	if (is_imx8mq() && (soc_rev() >= CHIP_REV_2_1)) {
 		printf("mxc_ocotp %s(): fuse sense is disabled\n", __func__);
 		return -EPERM;
 	}

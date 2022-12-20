@@ -14,7 +14,9 @@
 #include <common.h>
 #include <config.h>
 #include <command.h>
-#include <mtd/ubi-user.h>			/* UBI_MAX_VOLUME_NAME */
+#include <image.h>			/* parse_loadaddr(), ... */
+#include <log.h>
+#include <mtd/ubi-user.h>		/* UBI_MAX_VOLUME_NAME */
 #include <ubifs_uboot.h>
 
 static int ubifs_mounted;
@@ -47,7 +49,7 @@ int cmd_ubifs_mount(const char *vol_name)
 	return 0;
 }
 
-static int do_ubifs_mount(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_ubifs_mount(struct cmd_tbl *cmdtp, int flag, int argc,
 			  char *const argv[])
 {
 	if (argc != 2)
@@ -63,8 +65,8 @@ int ubifs_is_mounted(void)
 	return ubifs_mounted;
 }
 
-static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,
-				char * const argv[])
+static int do_ubifs_umount(struct cmd_tbl *cmdtp, int flag, int argc,
+			   char *const argv[])
 {
 	if (argc != 1)
 		return CMD_RET_USAGE;
@@ -79,7 +81,8 @@ static int do_ubifs_umount(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+static int do_ubifs_ls(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[])
 {
 	char *filename = "/";
 	int ret;
@@ -102,8 +105,8 @@ static int do_ubifs_ls(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	return ret;
 }
 
-static int do_ubifs_load(cmd_tbl_t *cmdtp, int flag, int argc,
-				char * const argv[])
+static int do_ubifs_load(struct cmd_tbl *cmdtp, int flag, int argc,
+			 char *const argv[])
 {
 	const char *filename;
 	int ret;

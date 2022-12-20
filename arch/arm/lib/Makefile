@@ -45,6 +45,7 @@ obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMCPY) += memcpy.o
 obj-$(CONFIG_$(SPL_TPL_)USE_ARCH_MEMMOVE) += memmove.o
 obj-$(CONFIG_SEMIHOSTING) += semihosting.o
 
+obj-y	+= bdinfo.o
 obj-y	+= sections.o
 obj-y	+= stack.o
 ifdef CONFIG_CPU_V7M
@@ -59,7 +60,7 @@ obj-y	+= interrupts_64.o
 else
 obj-y	+= interrupts.o
 endif
-ifndef CONFIG_SYSRESET
+ifndef CONFIG_$(SPL_TPL_)SYSRESET
 obj-y	+= reset.o
 endif
 

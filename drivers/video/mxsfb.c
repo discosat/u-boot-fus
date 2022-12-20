@@ -7,9 +7,13 @@
  *
  */
 #include <common.h>
+#include <clk.h>
 #include <dm.h>
 #include <env.h>
+#include <log.h>
+#include <asm/cache.h>
 #include <dm/device_compat.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <malloc.h>
 #include <video.h>
@@ -18,6 +22,7 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <asm/mach-imx/dma.h>
 #include <asm/io.h>
 
@@ -201,10 +206,11 @@ static int mxs_remove_common(u32 fb, u32 base_addr)
 	struct mxs_lcdif_regs *regs = (struct mxs_lcdif_regs *)base_addr;
 	int timeout = 1000000;
 
-#ifdef CONFIG_MX6
-	if (check_module_fused(MX6_MODULE_LCDIF))
-		return -EINVAL;
-#endif
+	if (CONFIG_IS_ENABLED(IMX_MODULE_FUSE)) {
+		if (check_module_fused(MODULE_LCDIF))
+			return -ENODEV;
+	}
+
 	if (!fb)
 		return -EINVAL;
 
@@ -294,12 +300,12 @@ void *video_hw_init(void)
 		mode.vmode = fbmode->vmode;
 	}
 
-#ifdef CONFIG_MX6
-	if (check_module_fused(MX6_MODULE_LCDIF)) {
-		printf("LCDIF@0x%x is fused, disable it\n", MXS_LCDIF_BASE);
-		return NULL;
+	if (CONFIG_IS_ENABLED(IMX_MODULE_FUSE)) {
+		if (check_module_fused(MODULE_LCDIF)) {
+			printf("LCDIF@0x%x is fused, disable it\n", MXS_LCDIF_BASE);
+			return NULL;
+		}
 	}
-#endif
 	/* fill in Graphic device struct */
 	sprintf(panel.modeIdent, "%dx%dx%d", mode.xres, mode.yres, info.bpp);
 
@@ -408,7 +414,7 @@ static int mxs_of_get_timings(struct udevice *dev,
 
 static int mxs_video_probe(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
 
 	struct ctfb_res_modes mode;
@@ -477,7 +483,7 @@ static int mxs_video_probe(struct udevice *dev)
 
 static int mxs_video_bind(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 	struct display_timing timings;
 	u32 bpp = 0;
 	u32 bytes_pp = 0;
@@ -511,7 +517,7 @@ static int mxs_video_bind(struct udevice *dev)
 
 static int mxs_video_remove(struct udevice *dev)
 {
-	struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
+	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 
 	mxs_remove_common(plat->base, MXS_LCDIF_BASE);
 
@@ -522,6 +528,9 @@ static const struct udevice_id mxs_video_ids[] = {
 	{ .compatible = "fsl,imx23-lcdif" },
 	{ .compatible = "fsl,imx28-lcdif" },
 	{ .compatible = "fsl,imx7ulp-lcdif" },
+	{ .compatible = "fsl,imxrt-lcdif" },
+	{ .compatible = "fsl,imx8mm-lcdif" },
+	{ .compatible = "fsl,imx8mn-lcdif" },
 	{ /* sentinel */ }
 };
 

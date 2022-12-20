@@ -4,7 +4,9 @@
  */
 
 #include <common.h>
+#include <stdlib.h>
 #include <errno.h>
+#include <log.h>
 #include <spl.h>
 #include <asm/arch/image.h>
 #include <asm/arch/sci/sci.h>
@@ -23,8 +25,8 @@ static int authenticate_image(struct boot_img_t *img, int image_index)
 	int err;
 	int ret = 0;
 
-	debug("img %d, dst 0x%llx, src 0x%x, size 0x%x\n",
-	      image_index, img->dst, img->offset, img->size);
+	debug("img %d, dst 0x%x, src 0x%x, size 0x%x\n",
+	      image_index, (uint32_t)img->dst, img->offset, img->size);
 
 	/* Find the memreg and set permission for seco pt */
 	err = sc_rm_find_memreg(-1, &mr,
@@ -32,14 +34,14 @@ static int authenticate_image(struct boot_img_t *img, int image_index)
 				ALIGN(img->dst + img->size, CONFIG_SYS_CACHELINE_SIZE) - 1);
 
 	if (err) {
-		printf("can't find memreg for image: %d, err %d\n",
-		       image_index, err);
+		printf("can't find memreg for image %d load address 0x%x, error %d\n",
+		       image_index, img->dst & ~(CONFIG_SYS_CACHELINE_SIZE - 1), err);
 		return -ENOMEM;
 	}
 
 	err = sc_rm_get_memreg_info(-1, mr, &start, &end);
 	if (!err)
-		debug("memreg %u 0x%llx -- 0x%llx\n", mr, start, end);
+		debug("memreg %u 0x%x -- 0x%x\n", mr, start, end);
 
 	err = sc_rm_set_memreg_permissions(-1, mr,
 					   SECO_PT, SC_RM_PERM_FULL);
@@ -131,21 +133,27 @@ static int read_auth_container(struct spl_image_info *spl_image,
 	 * It will not override the ATF code, so safe to use it here,
 	 * no need malloc
 	 */
-	container = (struct container_hdr *)spl_get_load_buffer(-size, size);
+	container = malloc(size);
+	if (!container)
+		return -ENOMEM;
 
 	debug("%s: container: %p sector: %lu sectors: %u\n", __func__,
 	      container, sector, sectors);
-	if (info->read(info, sector, sectors, container) != sectors)
-		return -EIO;
+	if (info->read(info, sector, sectors, container) != sectors) {
+		ret = -EIO;
+		goto end;
+	}
 
 	if (container->tag != 0x87 && container->version != 0x0) {
 		printf("Wrong container header");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto end;
 	}
 
 	if (!container->num_images) {
 		printf("Wrong container, no image found");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto end;
 	}
 
 	length = container->length_lsb + (container->length_msb << 8);
@@ -155,13 +163,18 @@ static int read_auth_container(struct spl_image_info *spl_image,
 		size = roundup(length, info->bl_len);
 		sectors = size / info->bl_len;
 
-		container = (struct container_hdr *)spl_get_load_buffer(-size, size);
+		free(container);
+		container = malloc(size);
+		if (!container)
+			return -ENOMEM;
 
 		debug("%s: container: %p sector: %lu sectors: %u\n",
 		      __func__, container, sector, sectors);
 		if (info->read(info, sector, sectors, container) !=
-		    sectors)
-			return -EIO;
+		    sectors) {
+			ret = -EIO;
+			goto end;
+		}
 	}
 
 #ifdef CONFIG_AHAB_BOOT
@@ -172,7 +185,7 @@ static int read_auth_container(struct spl_image_info *spl_image,
 				   SECO_LOCAL_SEC_SEC_SECURE_RAM_BASE);
 	if (ret) {
 		printf("authenticate container hdr failed, return %d\n", ret);
-		return ret;
+		goto end;
 	}
 #endif
 
@@ -203,6 +216,10 @@ end_auth:
 	if (sc_seco_authenticate(-1, SC_SECO_REL_CONTAINER, 0))
 		printf("Error: release container failed!\n");
 #endif
+
+end:
+	free(container);
+
 	return ret;
 }
 

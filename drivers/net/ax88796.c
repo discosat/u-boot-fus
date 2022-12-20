@@ -8,6 +8,7 @@
 #include <malloc.h>			/* free() */
 #include <net.h>			/* struct eth_device, eth_register() */
 #include <netdev.h>			/* ax88796_initialize() */
+#include <linux/delay.h>		/* udelay() */
 
 #ifdef CONFIG_PHYLIB
 #include <miiphy.h>			/* mdio_alloc(), mdio_register() */
@@ -687,7 +688,7 @@ static int ax88796_recv(struct eth_device *dev)
 }
 
 /* Start up hardware, prepare to sedn/receive packets */
-static int ax88796_init(struct eth_device *dev, bd_t *bd)
+static int ax88796_init(struct eth_device *dev, struct bd_info *bd)
 	{
 	struct ax88796_priv_data *ax = dev->priv;
 

@@ -6,10 +6,12 @@
 
 #include <common.h>
 #include <dm.h>
+#include <dm/device_compat.h>
 #include <mipi_dsi.h>
 #include <panel.h>
 #include <asm/gpio.h>
 #include <linux/err.h>
+#include <linux/delay.h>
 
 #define CMD_TABLE_LEN 2
 typedef u8 cmd_set_table[CMD_TABLE_LEN];
@@ -223,7 +225,7 @@ static int rad_panel_push_cmd_list(struct mipi_dsi_device *device)
 static int rm67191_enable(struct udevice *dev)
 {
 	struct rm67191_panel_priv *priv = dev_get_priv(dev);
-	struct mipi_dsi_panel_plat *plat = dev_get_platdata(dev);
+	struct mipi_dsi_panel_plat *plat = dev_get_plat(dev);
 	struct mipi_dsi_device *dsi = plat->device;
 	u8 color_format = color_format_from_dsi_format(priv->format);
 	u16 brightness;
@@ -310,7 +312,7 @@ static int rm67191_enable(struct udevice *dev)
 
 static int rm67191_panel_enable_backlight(struct udevice *dev)
 {
-	struct mipi_dsi_panel_plat *plat = dev_get_platdata(dev);
+	struct mipi_dsi_panel_plat *plat = dev_get_plat(dev);
 	struct mipi_dsi_device *device = plat->device;
 	int ret;
 
@@ -324,7 +326,7 @@ static int rm67191_panel_enable_backlight(struct udevice *dev)
 static int rm67191_panel_get_display_timing(struct udevice *dev,
 					    struct display_timing *timings)
 {
-	struct mipi_dsi_panel_plat *plat = dev_get_platdata(dev);
+	struct mipi_dsi_panel_plat *plat = dev_get_plat(dev);
 	struct mipi_dsi_device *device = plat->device;
 	struct rm67191_panel_priv *priv = dev_get_priv(dev);
 
@@ -422,6 +424,6 @@ U_BOOT_DRIVER(rm67191_panel) = {
 	.ops			  = &rm67191_panel_ops,
 	.probe			  = rm67191_panel_probe,
 	.remove			  = rm67191_panel_disable,
-	.platdata_auto_alloc_size = sizeof(struct mipi_dsi_panel_plat),
-	.priv_auto_alloc_size	= sizeof(struct rm67191_panel_priv),
+	.plat_auto = sizeof(struct mipi_dsi_panel_plat),
+	.priv_auto = sizeof(struct rm67191_panel_priv),
 };

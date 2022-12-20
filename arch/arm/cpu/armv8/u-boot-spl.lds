@@ -38,7 +38,7 @@ SECTIONS
 		*(.data*)
 	} >.sram
 
-#ifdef CONFIG_RECOVER_SPL_DATA_SECTION
+#ifdef CONFIG_SPL_RECOVER_DATA_SECTION
 	.data_save : {
 		*(.__data_save_start)
 		. = SIZEOF(.data);

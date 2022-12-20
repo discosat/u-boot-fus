@@ -74,6 +74,7 @@ Add SNMP
 
 #include <common.h>
 #include <command.h>
+#include <linux/delay.h>
 
 #ifndef CONFIG_DRIVER_NE2000_SOFTMAC 
 

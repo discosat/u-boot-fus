@@ -20,6 +20,7 @@
 #include <common.h>
 #include <console.h>
 #include <env.h>
+#include <log.h>
 #include <malloc.h>
 
 #include <linux/usb/ch9.h>
@@ -691,21 +692,22 @@ static u32 sdp_jump_imxheader(void *address)
 	return 0;
 }
 
-static ulong sdp_spl_fit_read(struct spl_load_info *load, ulong sector,
-			      ulong count, void *buf)
+#ifdef CONFIG_SPL_BUILD
+static ulong sdp_load_read(struct spl_load_info *load, ulong sector,
+			   ulong count, void *buf)
 {
 	memcpy(buf, (void *)sector, count);
 
 	return count;
 }
 
-#ifdef CONFIG_SPL_BUILD
 static ulong search_fit_header(ulong p, int size)
 {
-	int i = 0;
+	int i;
+
 	for (i = 0; i < size; i += 4) {
-                if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
-                        return p + i;
+		if (genimg_get_format((const void *)(p+i)) == IMAGE_FORMAT_FIT)
+			return p + i;
 	}
 
         return 0;
@@ -772,9 +774,8 @@ static void sdp_handle_in_ep(void)
 				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
 					sdp_func->dnl_bytes);
 
-			if (sdp_func->jmp_address == 0) {
+			if (sdp_func->jmp_address == 0)
 				panic("Error in search header, failed to jump\n");
-			}
 
 			printf("Found header at 0x%08x\n", sdp_func->jmp_address);
 
@@ -789,16 +790,14 @@ static void sdp_handle_in_ep(void)
 				load.priv = NULL;
 				load.filename = NULL;
 				load.bl_len = 1;
-				load.read = sdp_spl_fit_read;
+				load.read = sdp_load_read;
 				spl_load_simple_fit(&spl_image, &load,
 							  sdp_func->jmp_address,
 							  (void *)header);
 			} else {
 				/* In SPL, allow jumps to U-Boot images */
-				spl_parse_image_header(&spl_image,
-					(struct image_header *)(ulong)(sdp_func->jmp_address));
+				spl_parse_image_header(&spl_image, header);
 			}
-
 			jump_to_image_no_args(&spl_image);
 #else
 			/* In U-Boot, allow jumps to scripts */

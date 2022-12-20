@@ -24,6 +24,7 @@
  */
 
 #include <common.h>
+#include <command.h>
 #include <asm/io.h>
 #include <linux/errno.h>
 #include <asm/arch/vybrid-regs.h>
@@ -379,7 +380,7 @@ unsigned int vybrid_get_esdhc_clk(int esdhc_num)
 }
 
 /* Dump some core clockes. */
-int do_vybrid_showclocks(cmd_tbl_t *cmdtp, int flag, int argc,
+int do_vybrid_showclocks(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char * const argv[])
 {
 	u32 freq;

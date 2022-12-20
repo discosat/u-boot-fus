@@ -22,6 +22,7 @@
 #include <serial.h>			  /* struct serial_device */
 #include <watchdog.h>		          /* WATCHDOG_RESET() */
 #include <asm/io.h>			  /* in_8(), clrbits_8(), ... */
+#include <asm/global_data.h>		  /* DECLARE_GLOBAL_DATA_PTR */
 #include <asm/arch/vybrid-regs.h>	  /* UART?_BASE */
 #include <asm/arch/serial-vybrid.h>	  /* struct vybrid_uart, ... */
 #include <asm/arch/clock.h>		  /* vybrid_get_uartclk() */

@@ -9,6 +9,7 @@
 #include <common.h>
 #include <usb.h>
 #include <errno.h>
+#include <linux/delay.h>
 #include <usb/ehci-ci.h>
 #include <asm/io.h>
 

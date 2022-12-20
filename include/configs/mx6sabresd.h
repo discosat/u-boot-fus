@@ -18,7 +18,7 @@
 #define CONSOLE_DEV		"ttymxc0"
 #define CONFIG_MMCROOT			"/dev/mmcblk2p2"  /* SDHC3 */
 
-#if defined(CONFIG_MX6Q)
+#if defined(CONFIG_MX6Q) || defined(CONFIG_MX6QP)
 #define PHYS_SDRAM_SIZE		(1u * 1024 * 1024 * 1024)
 #elif defined(CONFIG_MX6DL)
 #define PHYS_SDRAM_SIZE		(1u * 1024 * 1024 * 1024)
@@ -39,12 +39,6 @@
 #define CONFIG_SYS_MMCSD_RAW_MODE_KERNEL_SECTOR        0x1000  /* 2MB */
 
 #define CONFIG_SYS_FSL_USDHC_NUM	3
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_SYS_MMC_ENV_DEV		2	/* SDHC3 */
-#ifndef CONFIG_SYS_MMC_ENV_PART
-#define CONFIG_SYS_MMC_ENV_PART                0       /* user partition */
-#endif
-#endif
 
 /*
  * imx6 q/dl/solo pcie would be failed to work properly in kernel, if
@@ -84,7 +78,6 @@
 	/*
 	 * Framebuffer and LCD
 	 */
-	#define CONFIG_CMD_BMP
 	#undef LCD_TEST_PATTERN
 	/* #define CONFIG_SPLASH_IS_IN_MMC			1 */
 	#define LCD_BPP					LCD_MONOCHROME

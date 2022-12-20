@@ -9,6 +9,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include <linux/stringify.h>
+
 #include "mx6_common.h"
 #include "imx_env.h"
 
@@ -21,7 +23,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(32 * SZ_1M)
 
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 #define CONFIG_CMD_READ
@@ -170,8 +171,6 @@
 	   "else run netboot; fi"
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x10000)
 
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
@@ -229,26 +228,10 @@
 #endif
 #endif
 
-#define CONFIG_IMX_THERMAL
-
-#ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
-#ifdef CONFIG_MX6SX_SABRESD_REVA
-#define FSL_QSPI_FLASH_SIZE		SZ_16M
-#else
-#define FSL_QSPI_FLASH_SIZE		SZ_32M
-#endif
-#define FSL_QSPI_FLASH_NUM		2
-#endif
-
 #ifndef CONFIG_SPL_BUILD
 #ifdef CONFIG_VIDEO
 #define CONFIG_VIDEO_MXS
 #define CONFIG_VIDEO_LOGO
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_BMP_16BPP
-#define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_VIDEO_BMP_LOGO
 #define CONFIG_IMX_VIDEO_SKIP
 #define CONFIG_SYS_CONSOLE_BG_COL            0x00
@@ -266,6 +249,5 @@
 #define CONFIG_SYS_FSL_USDHC_NUM	3
 #define CONFIG_MMCROOT			"/dev/mmcblk3p2"  /* USDHC4 */
 #define CONFIG_SYS_MMC_ENV_DEV		3  /*USDHC4*/
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
 #endif				/* __CONFIG_H */

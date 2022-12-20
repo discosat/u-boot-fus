@@ -111,7 +111,7 @@ int print_cpuinfo(void)
 #endif
 
 #ifdef CONFIG_CMD_NET
-int cpu_eth_init(bd_t *bis)
+int cpu_eth_init(struct bd_info *bis)
 {
 	int rc = -ENODEV;
 
@@ -126,7 +126,7 @@ int cpu_eth_init(bd_t *bis)
 /* Initializes on-chip MMC controllers.
  * to override, implement board_mmc_init()
  */
-int cpu_mmc_init(bd_t *bis)
+int cpu_mmc_init(struct bd_info *bis)
 {
 #ifdef CONFIG_FSL_ESDHC
 	return fsl_esdhc_mmc_init(bis);

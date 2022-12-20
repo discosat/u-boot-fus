@@ -15,6 +15,7 @@ obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 obj-$(CONFIG_ENV_IS_IN_MMC) += mmc_env.o
 obj-$(CONFIG_FEC_MXC) += mac.o
+obj-$(CONFIG_DWC_ETH_QOS) += mac.o
 obj-$(CONFIG_SYS_I2C_MXC) += i2c-mxv7.o
 obj-$(CONFIG_IMX_HAB) += hab.o
 obj-y += cpu.o
@@ -71,8 +72,7 @@ obj-$(CONFIG_DDRMC_VF610_CALIBRATION) += ddrmc-vf610-calibration.o
 endif
 ifeq ($(SOC),$(filter $(SOC),imx8))
 ifneq ($(CONFIG_SPL_BUILD),y)
-obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
-obj-y  += misc.o
+###obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 endif
 ifneq ($(CONFIG_SPL_BUILD),y)
@@ -82,6 +82,7 @@ obj-$(CONFIG_BLINK_IMX) += blink_timer.o
 obj-$(CONFIG_USE_IRQ) += interrupts.o
 obj-$(CONFIG_CMD_DEKBLOB) += cmd_dek.o
 obj-$(CONFIG_CMD_NANDBCB) += cmd_nandbcb.o
+obj-$(CONFIG_CMD_QSPIHDR) += cmd_qspihdr.o
 obj-$(CONFIG_IMX_VSERVICE) += imx_vservice.o
 endif
 
@@ -272,10 +273,10 @@ append = cat $(filter-out $< $(PHONY), $^) >> $@
 quiet_cmd_pad_cat = CAT     $@
 cmd_pad_cat = $(cmd_objcopy) && $(append) || rm -f $@
 
-u-boot-with-spl.imx: SPL u-boot.uim FORCE
+u-boot-with-spl.imx: SPL $(if $(CONFIG_OF_SEPARATE),u-boot.img,u-boot.uim) FORCE
 	$(call if_changed,pad_cat)
 
-u-boot-with-nand-spl.imx: spl/u-boot-nand-spl.imx u-boot.uim FORCE
+u-boot-with-nand-spl.imx: spl/u-boot-nand-spl.imx $(if $(CONFIG_OF_SEPARATE),u-boot.img,u-boot.uim) FORCE
 	$(call if_changed,pad_cat)
 
 quiet_cmd_u-boot-nand-spl_imx = GEN     $@
@@ -288,7 +289,7 @@ endif
 
 targets += $(addprefix ../../../,SPL spl/u-boot-spl.cfgout u-boot-dtb.cfgout u-boot.cfgout u-boot.uim spl/u-boot-nand-spl.imx)
 
-obj-$(CONFIG_ARM64) += lowlevel.o sip.o
+obj-$(CONFIG_ARM64) += lowlevel.o
 
 obj-$(CONFIG_MX5) += mx5/
 obj-$(CONFIG_MX6) += mx6/

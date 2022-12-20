@@ -14,9 +14,12 @@
 #include <net.h>
 #include <malloc.h>
 #include <dm.h>
+#include <dm/device_compat.h>
 #include <clk.h>
 #include <power-domain.h>
 #include <asm/byteorder.h>
+#include <asm/cache.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
@@ -1234,7 +1237,7 @@ static int ci_udc_phy_setup(struct udevice *dev, struct ci_udc_priv_data *priv)
 	if (priv->phy_off < 0)
 		return -EINVAL;
 
-	phy_dev.node = offset_to_ofnode(priv->phy_off);
+	dev_set_ofnode(&phy_dev, offset_to_ofnode(priv->phy_off));
 
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 	/* Need to power on the PHY before access it */
@@ -1350,7 +1353,7 @@ static int ci_udc_otg_ofdata_to_platdata(struct udevice *dev)
 	int node = dev_of_offset(dev);
 	int usbotg_off;
 
-	if (usb_get_dr_mode(node) != USB_DR_MODE_PERIPHERAL) {
+	if (usb_get_dr_mode(dev_ofnode(dev)) != USB_DR_MODE_PERIPHERAL) {
 		dev_dbg(dev, "Invalid mode\n");
 		return -ENODEV;
 	}
@@ -1360,7 +1363,7 @@ static int ci_udc_otg_ofdata_to_platdata(struct udevice *dev)
 					   "chipidea,usb");
 	if (usbotg_off < 0)
 		return -EINVAL;
-	priv->otgdev.node = offset_to_ofnode(usbotg_off);
+	dev_set_ofnode(&priv->otgdev, offset_to_ofnode(usbotg_off));
 	priv->otgdev.parent = dev->parent;
 
 	return 0;
@@ -1377,13 +1380,13 @@ static int ci_udc_otg_probe(struct udevice *dev)
 	pinctrl_select_state(&priv->otgdev, "default");
 
 #if defined(CONFIG_MX6)
-	if (mx6_usb_fused((u32)ehci)) {
+	if (usb_fused((u32)ehci)) {
 		printf("USB@0x%x is fused, disable it\n", (u32)ehci);
 		return -ENODEV;
 	}
 #endif
 
-	ret = board_usb_init(dev->seq, USB_INIT_DEVICE);
+	ret = board_usb_init(dev_seq(dev), USB_INIT_DEVICE);
 	if (ret) {
 		printf("Failed to initialize board for USB\n");
 		return ret;
@@ -1404,7 +1407,7 @@ static int ci_udc_otg_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	ret = ehci_mx6_common_init(ehci, dev->seq);
+	ret = ehci_mx6_common_init(ehci, dev_seq(dev));
 	if (ret)
 		return ret;
 
@@ -1441,7 +1444,7 @@ static int ci_udc_otg_remove(struct udevice *dev)
 		return -EINVAL;
 	}
 #endif
-	board_usb_cleanup(dev->seq, USB_INIT_DEVICE);
+	board_usb_cleanup(dev_seq(dev), USB_INIT_DEVICE);
 
 	controller.ctrl = NULL;
 	return 0;
@@ -1456,11 +1459,11 @@ U_BOOT_DRIVER(ci_udc_otg) = {
 	.name	= "ci-udc-otg",
 	.id	= UCLASS_USB_GADGET_GENERIC,
 	.of_match = ci_udc_otg_ids,
-	.ofdata_to_platdata = ci_udc_otg_ofdata_to_platdata,
+	.of_to_plat = ci_udc_otg_ofdata_to_platdata,
 	.probe = ci_udc_otg_probe,
 	.remove = ci_udc_otg_remove,
 	.handle_interrupts = ci_udc_gadget_handle_interrupts,
-	.priv_auto_alloc_size = sizeof(struct ci_udc_priv_data),
+	.priv_auto = sizeof(struct ci_udc_priv_data),
 };
 
 #endif /* !CONFIG_IS_ENABLED(DM_USB_GADGET) */

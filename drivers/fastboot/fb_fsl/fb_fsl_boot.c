@@ -19,6 +19,7 @@
 #include <asm/setup.h>
 #include <env.h>
 #include <lz4.h>
+#include <linux/delay.h>
 #include "../lib/avb/fsl/utils.h"
 
 #ifdef CONFIG_AVB_SUPPORT
@@ -41,17 +42,17 @@
 #include "u-boot/sha256.h"
 #include <trusty/libtipc.h>
 #include <trusty/hwcrypto.h>
+
+#ifndef CONFIG_LOAD_KEY_FROM_RPMB
+#include "../lib/avb/fsl/fsl_public_key.h"
+#endif
+
 #endif
 
 #include "fb_fsl_common.h"
 
-/* max kernel image size */
-#ifdef CONFIG_ARCH_IMX8
-/* imx8q has more limitation so we assign less memory here. */
-#define MAX_KERNEL_LEN (60 * 1024 * 1024)
-#else
-#define MAX_KERNEL_LEN (64 * 1024 * 1024)
-#endif
+/* max kernel image size, used for compressed kernel image */
+#define MAX_KERNEL_LEN (96 * 1024 * 1024)
 
 /* Offset (in u32's) of start and end fields in the zImage header. */
 #define ZIMAGE_START_ADDR	10
@@ -163,7 +164,7 @@ fail:
 
 
 #if defined(CONFIG_FASTBOOT_LOCK)
-int do_lock_status(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
+int do_lock_status(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 	FbLockState status = fastboot_get_lock_stat();
 	if (status != FASTBOOT_LOCK_ERROR) {
 		if (status == FASTBOOT_LOCK)
@@ -186,7 +187,7 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_FLASH_MCUFIRMWARE_SUPPORT) && defined(CONFIG_ARCH_IMX8M)
-static int do_bootmcu(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_bootmcu(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
 {
 	int ret;
 	size_t out_num_read;
@@ -456,11 +457,15 @@ int trusty_setbootparameter(uint32_t os_version,
 	}
 #else
 	uint8_t public_key_buf[AVB_MAX_BUFFER_LENGTH];
+#ifdef CONFIG_LOAD_KEY_FROM_RPMB
 	if (trusty_read_vbmeta_public_key(public_key_buf,
 						AVB_MAX_BUFFER_LENGTH) != 0) {
 		printf("ERROR - failed to read public key for keymaster\n");
 		memset(boot_key_hash, '\0', AVB_SHA256_DIGEST_SIZE);
 	} else
+#else
+	memcpy(public_key_buf, fsl_public_key, AVB_SHA256_DIGEST_SIZE);
+#endif
 		sha256_csum_wd((unsigned char *)public_key_buf, AVB_SHA256_DIGEST_SIZE,
 				(unsigned char *)boot_key_hash, CHUNKSZ_SHA256);
 #endif
@@ -559,10 +564,11 @@ bool __weak is_power_key_pressed(void) {
 	return false;
 }
 
-int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
+int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]) {
 
 	ulong addr = 0;
 	u32 avb_metric;
+	u32 kernel_image_size = 0;
 	bool check_image_arm64 =  false;
 	bool is_recovery_mode = false;
 	bool gki_is_supported = false;
@@ -741,6 +747,8 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 			printf("Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
 			goto fail;
 		}
+
+		kernel_image_size = kernel_size((void *)((ulong)hdr_v3 + 4096));
 	} else {
 #if defined (CONFIG_ARCH_IMX8) || defined (CONFIG_ARCH_IMX8M)
 		if (image_arm64((void *)((ulong)hdr + hdr->page_size))) {
@@ -757,6 +765,8 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 			printf("Wrong kernel image! Please check if you need to enable 'CONFIG_LZ4'\n");
 			goto fail;
 		}
+
+		kernel_image_size = kernel_size((void *)(long)hdr->kernel_addr);
 #else /* CONFIG_ARCH_IMX8 || CONFIG_ARCH_IMX8M */
 		/* copy kernel image and boot header to hdr->kernel_addr - hdr->page_size */
 		memcpy((void *)(ulong)(hdr->kernel_addr - hdr->page_size), (void *)hdr,
@@ -789,15 +799,31 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 #endif
 	}
 
+	/* Check arm64 image */
+	if (gki_is_supported)
+		check_image_arm64  = image_arm64((void *)(ulong)vendor_boot_hdr->kernel_addr);
+	else
+		check_image_arm64  = image_arm64((void *)(ulong)hdr->kernel_addr);
+
 	/* Start loading the dtb file */
 	u32 fdt_addr = 0;
 	u32 fdt_size = 0;
 	struct dt_table_header *dt_img = NULL;
 
-	if (gki_is_supported)
-		fdt_addr = (ulong)((ulong)(vendor_boot_hdr->kernel_addr) + MAX_KERNEL_LEN);
-	else
-		fdt_addr = (ulong)((ulong)(hdr->kernel_addr) + MAX_KERNEL_LEN);
+	/* Kernel addr may need relocatition, put the dtb right after the kernel image. */
+	if (check_image_arm64) {
+		ulong relocated_addr;
+
+		if (gki_is_supported)
+			relocated_addr = kernel_relocate_addr((ulong)(vendor_boot_hdr->kernel_addr));
+		else
+			relocated_addr = kernel_relocate_addr((ulong)(hdr->kernel_addr));
+
+		fdt_addr = relocated_addr + kernel_image_size + 1024; /* 1K gap */
+	} else {
+		/* Let's reserve 64 MB for arm32 case */
+		fdt_addr = (ulong)((ulong)(hdr->kernel_addr) + 64 * 1024 * 1024);
+	}
 
 #ifdef CONFIG_SYSTEM_RAMDISK_SUPPORT
 	/* It means boot.img(recovery) do not include dtb, it need load dtb from partition */
@@ -844,21 +870,19 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 
 	/* Combine cmdline and Print image info  */
 	if (gki_is_supported) {
-		check_image_arm64  = image_arm64((void *)(ulong)vendor_boot_hdr->kernel_addr);
 		android_image_get_kernel_v3(hdr_v3, vendor_boot_hdr);
 		addr = vendor_boot_hdr->kernel_addr;
-		printf("kernel   @ %08x (%d)\n", vendor_boot_hdr->kernel_addr, hdr_v3->kernel_size);
+		printf("kernel   @ %08x (%d)\n", vendor_boot_hdr->kernel_addr, kernel_image_size);
 		printf("ramdisk  @ %08x (%d)\n", vendor_boot_hdr->ramdisk_addr,
 						vendor_boot_hdr->vendor_ramdisk_size + hdr_v3->ramdisk_size);
 	} else {
-		check_image_arm64  = image_arm64((void *)(ulong)hdr->kernel_addr);
 		if (check_image_arm64) {
 			android_image_get_kernel(hdr, 0, NULL, NULL);
 			addr = hdr->kernel_addr;
 		} else {
 			addr = (ulong)(hdr->kernel_addr - hdr->page_size);
 		}
-		printf("kernel   @ %08x (%d)\n", hdr->kernel_addr, hdr->kernel_size);
+		printf("kernel   @ %08x (%d)\n", hdr->kernel_addr, kernel_image_size);
 		printf("ramdisk  @ %08x (%d)\n", hdr->ramdisk_addr, hdr->ramdisk_size);
 	}
 	if (fdt_size)
@@ -960,7 +984,7 @@ U_BOOT_CMD(
 
 #else /* CONFIG_AVB_SUPPORT */
 /* boota <addr> [ mmc0 | mmc1 [ <partition> ] ] */
-int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_boota(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong addr = 0;
 	char *ptn = "boot";
@@ -986,11 +1010,11 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #ifdef CONFIG_MMC
 		struct fastboot_ptentry *pte;
 		struct mmc *mmc;
-		disk_partition_t info;
+		struct disk_partition info;
 		struct blk_desc *dev_desc = NULL;
 		unsigned bootimg_sectors;
 
-		memset((void *)&info, 0 , sizeof(disk_partition_t));
+		memset((void *)&info, 0 , sizeof(struct disk_partition));
 		/* i.MX use MBR as partition table, so this will have
 		   to find the start block and length for the
 		   partition name and register the fastboot pte we

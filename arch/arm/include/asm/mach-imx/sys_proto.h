@@ -10,8 +10,11 @@
 
 #include <asm/io.h>
 #include <asm/mach-imx/regs-common.h>
-#include <common.h>
+#include <asm/mach-imx/module_fuse.h>
+#include <linux/bitops.h>
 #include "../arch-imx/cpu.h"
+
+struct bd_info;
 
 #define soc_rev() (get_cpu_rev() & 0xFF)
 #define is_soc_rev(rev) (soc_rev() == rev)
@@ -73,6 +76,7 @@
 #define is_imx8mpd() (is_cpu_type(MXC_CPU_IMX8MPD))
 #define is_imx8mpl() (is_cpu_type(MXC_CPU_IMX8MPL))
 #define is_imx8mp6() (is_cpu_type(MXC_CPU_IMX8MP6))
+
 #define is_imx8qxp() (is_cpu_type(MXC_CPU_IMX8QXP))
 #define is_imx8dxl() (is_cpu_type(MXC_CPU_IMX8DXL))
 
@@ -80,7 +84,8 @@
 #define GD_FLG_ARCH_IMX_USB_BOOT		0x80000000	 /* Only used for MX6/7, If set, the u-boot is booting from USB serial download */
 
 #ifdef CONFIG_MX6
-#define IMX6_SRC_GPR10_BMODE		BIT(28)
+#define IMX6_SRC_GPR10_BMODE			BIT(28)
+#define IMX6_SRC_GPR10_PERSIST_SECONDARY_BOOT	BIT(30)
 
 #define IMX6_BMODE_MASK			GENMASK(7, 0)
 #define	IMX6_BMODE_SHIFT		4
@@ -127,6 +132,11 @@ u32 imx6_src_get_boot_mode(void);
 void gpr_init(void);
 
 #endif /* CONFIG_MX6 */
+
+#ifdef CONFIG_MX7
+#define IMX7_SRC_GPR10_BMODE			BIT(28)
+#define IMX7_SRC_GPR10_PERSIST_SECONDARY_BOOT	BIT(30)
+#endif
 
 /* address translation table */
 struct rproc_att {
@@ -182,6 +192,12 @@ void init_src(void);
 void init_snvs(void);
 void imx_wdog_disable_powerdown(void);
 
+void board_mem_get_layout(u64 *phys_sdram_1_start,
+			  u64 *phys_sdram_1_size,
+			  u64 *phys_sdram_2_start,
+			  u64 *phys_sdram_2_size);
+
+int arch_auxiliary_core_up(u32 core_id, ulong boot_private_data);
 int arch_auxiliary_core_check_up(u32 core_id);
 
 int board_mmc_get_env_dev(int devno);
@@ -193,7 +209,7 @@ char nxp_board_rev_string(void);
  * Initializes on-chip ethernet controllers.
  * to override, implement board_eth_init()
  */
-int fecmxc_initialize(bd_t *bis);
+int fecmxc_initialize(struct bd_info *bis);
 u32 get_ahb_clk(void);
 u32 get_periph_clk(void);
 
@@ -210,9 +226,6 @@ void vadc_power_down(void);
 
 void pcie_power_up(void);
 void pcie_power_off(void);
-
-int arch_auxiliary_core_up(u32 core_id, ulong boot_private_data);
-int arch_auxiliary_core_check_up(u32 core_id);
 
 unsigned long call_imx_sip(unsigned long id, unsigned long reg0,
 			   unsigned long reg1, unsigned long reg2,

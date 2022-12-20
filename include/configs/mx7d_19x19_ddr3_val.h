@@ -10,8 +10,6 @@
 #define __MX7D_19X19_DDR3_VAL_CONFIG_H
 
 #define CONFIG_SYS_FSL_USDHC_NUM    3
-#define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC2 */
-#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 #define CONFIG_MMCROOT			"/dev/mmcblk1p2"  /* USDHC2 */
 
 #define PHYS_SDRAM_SIZE			SZ_1G
