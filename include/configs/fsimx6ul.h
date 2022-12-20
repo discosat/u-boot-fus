@@ -179,8 +179,6 @@
 
 /* Bus 0: I2C1 (mxc0) to access RGB display adapter - efusA7UL */
 /* Bus 1: I2C4 (mxc3) to access RGB display adapter - PicoCoreMX6UL */
-#define CONFIG_SYS_I2C_MXC_I2C1
-#define CONFIG_SYS_I2C_MXC_I2C4
 #define CONFIG_SYS_I2C_SPEED	100000
 
 /* Bus 2: Soft-I2C (soft00) to access GPIO expander */
@@ -245,11 +243,6 @@
  ************************************************************************/
 #define CONFIG_SYS_FSL_ESDHC_ADDR 0	  /* Not used */
 #define CONFIG_SYS_FSL_USDHC_NUM       1
-
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define CONFIG_SYS_MMC_ENV_DEV 0
-#define CONFIG_SYS_MMC_ENV_PART 1 /* NBoot, UBoot and UbootEnv in BootPart1 */
-#endif
 
 
 /************************************************************************

@@ -10,11 +10,14 @@
  */
 
 #include <config.h>
+#include <env.h>			/* env_get() */
+#include <command.h>			/* run_command() */
 #include <common.h>			/* types, get_board_name(), ... */
 #include <serial.h>			/* get_serial_device() */
 #include <stdio_dev.h>			/* DEV_NAME_SIZE */
 #include <asm/gpio.h>			/* gpio_direction_output(), ... */
 #include <asm/arch/sys_proto.h>		/* is_mx6*() */
+#include <linux/delay.h>
 #include <linux/mtd/rawnand.h>		/* struct mtd_info */
 #include "fs_board_common.h"		/* Own interface */
 #include "fs_mmc_common.h"

@@ -126,16 +126,6 @@
 #define CONFIG_STACKSIZE_FIQ	(128)
 #endif
 
-/* Memory test checks all RAM before U-Boot (i.e. leaves last MB with U-Boot
-   untested) ### If not set, test from beginning of RAM to before stack. */
-#if 0
-#define CONFIG_SYS_MEMTEST_START CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END	(CONFIG_SYS_SDRAM_BASE + OUR_UBOOT_OFFS)
-#endif
-/* ### TODO: check if needed NXP */
-#define CONFIG_SYS_MEMTEST_START	PHYS_SDRAM
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
-				    	(PHYS_SDRAM_SIZE >> 1))
 
 /*****************************************************************************
  * Clock Settings and Timers
@@ -241,11 +231,6 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR 	0
 #define CONFIG_SYS_FSL_USDHC_NUM       	1
 
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define CONFIG_SYS_MMC_ENV_DEV	0
-#define CONFIG_SYS_MMC_ENV_PART	1 /* DCD, UBoot and UbootEnv in BootPart */
-#endif
-
 
 /*****************************************************************************
  * NOR Flash
@@ -257,7 +242,6 @@
  * SPI Flash
  *****************************************************************************/
 #ifdef CONFIG_FSL_QSPI
-#define CONFIG_SYS_FSL_QSPI_AHB
 #define FSL_QSPI_FLASH_NUM	1
 #define FSL_QSPI_FLASH_SIZE	SZ_64M
 #define QSPI0_BASE_ADDR		0x410A5000

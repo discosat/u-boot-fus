@@ -16,7 +16,6 @@
 #include <asm/arch/snvs_security_sc.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/sys_proto.h>
-#include <imx8_hsio.h>
 #include <usb.h>
 #include <asm/mach-imx/video.h>
 #include <power-domain.h>
@@ -251,7 +250,7 @@ int board_init(void)
 	setup_typec();
 #endif
 
-#ifdef CONFIG_SNVS_SEC_SC_AUTO
+#ifdef CONFIG_IMX_SNVS_SEC_SC_AUTO
 	{
 		int ret = snvs_security_sc_init();
 
@@ -566,7 +565,7 @@ int board_fix_fdt(void *fdt)
 }
 
 /* Do any additional board-specific modifications on Linux device tree */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs;
 	unsigned int features = fs_board_get_features();
@@ -641,7 +640,7 @@ void board_quiesce_devices(void)
 		"audio_ocram",
 	};
 
-	power_off_pd_devices(power_on_devices, ARRAY_SIZE(power_on_devices));
+	imx8_power_off_pd_devices(power_on_devices, ARRAY_SIZE(power_on_devices));
 }
 
 /*

@@ -23,12 +23,14 @@
 #include <asm/arch/imx8mp_pins.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/mach-imx/boot_mode.h>
+#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
 #include <power/pmic.h>
 #include <power/pca9450.h>
 #include <asm/arch/clock.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
 #include <fsl_esdhc_imx.h>
+#include <init.h>			/* arch_cpu_init() */
 #include <mmc.h>
 #include <asm/arch/ddr.h>
 #include <dwc3-uboot.h>
@@ -92,7 +94,7 @@ int power_init_board(void)
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
 		setup_i2c(I2C_PMIC_8MP, CONFIG_SYS_I2C_SPEED, 0x30, &i2c_pad_info_8mp);
-		ret = power_pca9450b_init(I2C_PMIC_8MP);
+		ret = power_pca9450_init(I2C_PMIC_8MP);
 		break;
 	}
 
@@ -246,7 +248,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return 1;			/* eMMC always present */
 }
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	struct fsl_esdhc_cfg esdhc;
 	int ret = 0;

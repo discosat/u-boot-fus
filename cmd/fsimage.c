@@ -17,6 +17,7 @@
 #include <console.h>			/* confirm_yesno() */
 #include <jffs2/jffs2.h>		/* struct mtd_device + part_info */
 #include <fuse.h>			/* fuse_read() */
+#include <image.h>			/* parse_loadaddr() */
 
 #include "../board/F+S/common/fs_board_common.h"	/* fs_board_*() */
 #include "../board/F+S/common/fs_image_common.h"	/* fs_image_*() */
@@ -1114,7 +1115,7 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 /* ------------- Command implementation ------------------------------------ */
 
 /* Show the F&S architecture */
-static int do_fsimage_arch(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_arch(struct cmd_tbl *cmdtp, int flag, int argc,
 			   char * const argv[])
 {
 	printf("%s\n", fs_image_get_arch());
@@ -1123,7 +1124,7 @@ static int do_fsimage_arch(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 /* Show the current BOARD-ID */
-static int do_fsimage_boardid(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 			      char * const argv[])
 {
 	char id[MAX_DESCR_LEN + 1];
@@ -1139,7 +1140,7 @@ static int do_fsimage_boardid(cmd_tbl_t *cmdtp, int flag, int argc,
 
 #ifdef CONFIG_CMD_FDT
 /* Print FDT content of current BOARD-CFG */
-static int do_fsimage_boardcfg(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 			       char * const argv[])
 {
 	void *fdt = fs_image_get_cfg_addr_check(false);
@@ -1154,7 +1155,7 @@ static int do_fsimage_boardcfg(cmd_tbl_t *cmdtp, int flag, int argc,
 #endif
 
 /* Load the FIRMWARE image from the boot device (NAND or MMC) to DRAM */
-static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 			       char * const argv[])
 {
 	void *fdt;
@@ -1217,7 +1218,7 @@ static int do_fsimage_firmware(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 /* List contents of an F&S image */
-static int do_fsimage_list(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_list(struct cmd_tbl *cmdtp, int flag, int argc,
 			   char * const argv[])
 {
 	unsigned long addr;
@@ -1244,7 +1245,7 @@ static int do_fsimage_list(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 /* Save the F&S NBoot image to the boot device (NAND or MMC) */
-static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 			   char * const argv[])
 {
 	struct fs_header_v1_0 *cfg;
@@ -1332,7 +1333,7 @@ static int do_fsimage_save(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 /* Burn the fuses according to the NBoot in DRAM */
-static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 			   char * const argv[])
 {
 	struct fs_header_v1_0 *cfg;
@@ -1454,7 +1455,7 @@ static int do_fsimage_fuse(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 /* Subcommands for "fsimage" */
-static cmd_tbl_t cmd_fsimage_sub[] = {
+static struct cmd_tbl cmd_fsimage_sub[] = {
 	U_BOOT_CMD_MKENT(arch, 0, 1, do_fsimage_arch, "", ""),
 	U_BOOT_CMD_MKENT(board-id, 0, 1, do_fsimage_boardid, "", ""),
 #ifdef CONFIG_CMD_FDT
@@ -1466,9 +1467,10 @@ static cmd_tbl_t cmd_fsimage_sub[] = {
 	U_BOOT_CMD_MKENT(fuse, 2, 0, do_fsimage_fuse, "", ""),
 };
 
-static int do_fsimage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char * const argv[])
 {
-	cmd_tbl_t *cp;
+	struct cmd_tbl *cp;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;

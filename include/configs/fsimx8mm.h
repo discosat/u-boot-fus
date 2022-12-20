@@ -39,7 +39,7 @@
  * 0x0018_4000: --- (free)
  * 0x0018_7FFF: End
  *
- * After SPL, U-Boot is loaded to DRAM* at 0x4020_0000. If a TEE program is
+ * After SPL, U-Boot is loaded to DRAM at 0x4020_0000. If a TEE program is
  * loaded, it has to go to 0xBE00_0000 and a DEK_BLOB is loaded to
  * 0x4040_0000. These addresses are defined in ATF.
  *
@@ -158,8 +158,6 @@
 
 #define CONFIG_SPL_MAX_SIZE		(140 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(512 * 1024)
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x800
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 
 /* Address in OCRAM where BOARD-CFG is loaded to; U-Boot must know this, too */
@@ -711,24 +709,10 @@
 
 #define CONFIG_IMX_BOOTAUX
 
-/* USDHC */
-#ifdef CONFIG_SD_BOOT
-/* SPL use the CONFIG_SYS_MMC_ENV_DEV in
- * serial download mode. Otherwise use
- * board_mmc_get_env_dev function.
- * (s. mmc_get_env_dev in mmc_env.c)
- */
-#define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
-#define CONFIG_SYS_MMC_ENV_PART		1 /* Use mmc_get_env_part() */
-/* number of available  */
-#define CONFIG_SYS_FSL_USDHC_NUM	2 /* use USDHC1 and USDHC3 */
-#else
-#define CONFIG_SYS_FSL_USDHC_NUM	1 /* use USDHC1 */
-#define CONFIG_SYS_MMC_ENV_DEV		-1
-#endif
+/* Number of available USDHC ports (USDHC1 and USDHC3) */
+#define CONFIG_SYS_FSL_USDHC_NUM	2
 
 #define CONFIG_SYS_FSL_ESDHC_ADDR       0
-#define CONFIG_SUPPORT_EMMC_BOOT	/* eMMC specific */
 
 #ifndef CONFIG_DM_I2C
 #define CONFIG_SYS_I2C

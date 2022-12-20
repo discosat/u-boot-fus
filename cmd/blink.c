@@ -6,6 +6,7 @@
  * F&S Elektronik Systeme GmbH <keller@fs-net.d>
  */
 
+#include <command.h>
 #include <common.h>
 #include <blink.h>
 
@@ -85,7 +86,7 @@ void remove_blink_callback(interrupt_handler_t *callback)
 	}
 }
 
-int do_blink(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_blink(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc > 2)
 		return CMD_RET_USAGE;

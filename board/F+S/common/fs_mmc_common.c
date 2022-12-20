@@ -62,7 +62,7 @@ static int usdhc_pos_in_init[] =
 };
 
 /* Set up control pads, bus pads and card detect pad for one MMC port */
-int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
+int fs_mmc_setup(struct bd_info *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		 const struct fs_mmc_cd *cd)
 {
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;

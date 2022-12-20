@@ -19,6 +19,7 @@
 #include <asm/gpio.h>
 #include <usb.h>
 #include <dm.h>
+#include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <env_internal.h>		/* enum env_operation */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
@@ -400,7 +401,7 @@ void fs_eth_set_ethaddr(int index)
 	eth_env_set_enetaddr_by_index("eth", index, enetaddr);
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int rc = 0;
 
@@ -416,7 +417,7 @@ int board_eth_init(bd_t *bis)
 
 #define FDT_CMA         "/reserved-memory/linux,cma"
 /* Do any additional board-specific modifications on Linux device tree */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 	int offs;
@@ -441,7 +442,7 @@ int ft_board_setup(void *fdt, bd_t *bd)
 	 * Set linux,cma size depending on RAM size. Keep default (72MB) from
 	 * device tree if < 1GB, increase to 256MB otherwise.
 	 */
-	if (fs_board_get_cfg_info()->dram_size >= 1023)	{
+	if (pargs->dwMemSize >= 1023)	{
 		offs = fs_fdt_path_offset(fdt, FDT_CMA);
 		fs_fdt_set_u32(fdt, offs, "size", 0x10000000, 1);
 	}

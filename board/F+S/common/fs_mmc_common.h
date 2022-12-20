@@ -59,7 +59,7 @@ struct fs_mmc_cd {
 	unsigned int gpio;		/* GPIO number for this pad */
 };
 
-int fs_mmc_setup(bd_t *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
+int fs_mmc_setup(struct bd_info *bd, u8 bus_width, struct fs_mmc_cfg *cfg,
 		 const struct fs_mmc_cd *cd);
 
 int get_usdhc_boot_device(void);

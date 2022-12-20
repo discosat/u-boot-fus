@@ -482,10 +482,11 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
-	phy-mode = "rgmii-txid";
+//###	phy-mode = "rgmii-txid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
-	fsl,rgmii_rxc_dly;
+//###	fsl,rgmii_rxc_dly;
 	status = "okay";
 	phy-reset-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
 	phy-reset-duration = <50>;
@@ -512,10 +513,11 @@
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec2>;
-	phy-mode = "rgmii-txid";
+//###	phy-mode = "rgmii-txid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	fsl,rgmii_rxc_dly;
+//###	fsl,rgmii_rxc_dly;
 	status = "okay";
 	phy-reset-gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 	phy-reset-duration = <50>;

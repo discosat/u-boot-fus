@@ -16,6 +16,7 @@
 #include <common.h>			/* types, get_board_name(), ... */
 #include <version.h>			/* version_string[] */
 #include <cli.h>			/* get_board_name() */
+#include <net.h>			/* eth_env_get_enetaddr_by_index() */
 #include <fdt_support.h>		/* do_fixup_by_path_u32(), ... */
 #include <asm/arch/sys_proto.h>		/* get_reset_cause() */
 #include "fs_fdt_common.h"		/* Own interface */

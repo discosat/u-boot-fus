@@ -14,10 +14,12 @@
 #ifdef CONFIG_USB_EHCI_MX6
 
 #include <common.h>
+#include <env.h>			/* env_get */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
 #include <asm/gpio.h>			/* gpio_direction_input() */
 #include <asm/io.h>			/* readl(), writel() */
 #include <asm/arch/mx6-pins.h>		/* MX6UL_PAD_*, SETUP_IOMUX_PADS() */
+#include <linux/delay.h>		/* udelay() */
 #include "fs_board_common.h"		/* fs_board_issue_reset() */
 #include "fs_usb_common.h"		/* Own interface */
 

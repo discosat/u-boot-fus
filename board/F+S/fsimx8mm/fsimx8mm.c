@@ -41,6 +41,7 @@
 #include <mipi_dsi_panel.h>
 #include <asm/mach-imx/video.h>
 #include <env_internal.h>		/* enum env_operation */
+#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
@@ -806,6 +807,7 @@ static iomux_v3_cfg_t const lvds_rst_8mx_pads[] = {
 void enable_tc358764(struct display_info_t const *dev)
 {
 	int ret = 0;
+	struct arm_smccc_res res;
 
 	mxs_set_lcdclk(dev->bus, PICOS2KHZ(dev->mode.pixclock));
 
@@ -838,8 +840,10 @@ void enable_tc358764(struct display_info_t const *dev)
 
 	udelay (500);
 	/* enable the dispmix & mipi phy power domain */
-	call_imx_sip (FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, DISPMIX, true, 0);
-	call_imx_sip (FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, MIPI, true, 0);
+	arm_smccc_smc(IMX_SIP_GPC, IMX_SIP_GPC_PM_DOMAIN, DISPMIX, true,
+		      0, 0, 0, 0, &res);
+	arm_smccc_smc(IMX_SIP_GPC, IMX_SIP_GPC_PM_DOMAIN, MIPI, true,
+		      0, 0, 0, 0, &res);
 
 	/* Put lcdif out of reset */
 	disp_mix_bus_rstn_reset (imx8mm_mipi_dsim_plat_data.gpr_base, false);
@@ -866,9 +870,13 @@ int detect_mipi_disp(struct display_info_t const *dev)
 
 void enable_mipi_disp(struct display_info_t const *dev)
 {
+	struct arm_smccc_res res;
+
 	/* enable the dispmix & mipi phy power domain */
-	call_imx_sip (FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, DISPMIX, true, 0);
-	call_imx_sip (FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_PM_DOMAIN, MIPI, true, 0);
+	arm_smccc_smc(IMX_SIP_GPC, IMX_SIP_GPC_PM_DOMAIN, DISPMIX, true,
+		      0, 0, 0, 0, &res);
+	arm_smccc_smc(IMX_SIP_GPC, IMX_SIP_GPC_PM_DOMAIN, MIPI, true,
+		      0, 0, 0, 0, &res);
 
 	/* Put lcdif out of reset */
 	disp_mix_bus_rstn_reset (imx8mm_mipi_dsim_plat_data.gpr_base, false);
@@ -1035,7 +1043,7 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 	struct tcpc_port *port_ptr = &port;
 
 	if (port.i2c_dev) {
-		if (dev->seq == 0) {
+		if (dev_seq(dev) == 0) {
 
 			tcpc_setup_ufp_mode(port_ptr);
 
@@ -1385,7 +1393,7 @@ int board_fix_fdt(void *fdt)
 }
 
 /* Do any additional board-specific modifications on Linux device tree */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	const char *envvar;
 	int offs;

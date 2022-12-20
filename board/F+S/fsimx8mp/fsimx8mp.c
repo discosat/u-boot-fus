@@ -33,6 +33,7 @@
 #include <usb.h>
 #include <dwc3-uboot.h>
 #include <mmc.h>
+#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
@@ -257,7 +258,7 @@ enum env_location env_get_location(enum env_operation op, int prio)
 #define FDT_SOC_TEMP_CRIT	"/thermal-zones/soc-thermal/trips/trip1"
 
 /* Do any additional board-specific modifications on Linux device tree */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs;
 	unsigned int features = fs_board_get_features();

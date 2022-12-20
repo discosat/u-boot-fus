@@ -17,10 +17,12 @@
 #include <asm/arch/imx8mn_pins.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/clock.h>
+#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
 #include <power/pmic.h>
 #include <power/bd71837.h>
 #include <asm/mach-imx/gpio.h>
 #include <asm/mach-imx/mxc_i2c.h>
+#include <init.h>			/* arch_cpu_init() */
 #include <mmc.h>
 #include <nand.h>
 #include <asm/arch/ddr.h>
@@ -262,7 +264,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return 1;			/* eMMC always present */
 }
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	struct fsl_esdhc_cfg esdhc;
 

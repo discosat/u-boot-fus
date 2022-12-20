@@ -14,6 +14,9 @@
 #if defined(CONFIG_VIDEO_IPUV3) || defined(CONFIG_VIDEO_MXS)
 
 #include <common.h>			/* types */
+#include <command.h>			/* run_command() */
+#include <env.h>			/* env_get() */
+#include <linux/delay.h>		/* mdelay() */
 #include <asm/gpio.h>			/* gpio_direction_output() */
 #include <i2c.h>			/* i2c_set_bus_num(), i2c_reg_read() */
 #include "fs_disp_common.h"		/* Own interface */

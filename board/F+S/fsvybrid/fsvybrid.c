@@ -240,6 +240,11 @@ int board_early_init_f(void)
 	return 0;
 }
 
+enum boot_device fs_board_get_boot_dev(void)
+{
+	return NAND_BOOT;
+}
+
 /* Check board type */
 int checkboard(void)
 {
@@ -379,7 +384,7 @@ int board_mmc_getcd(struct mmc *mmc)
 
 #define MVF600_GPIO_SDHC_CD \
 	(PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_20ohm | PAD_CTL_IBE_ENABLE)
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int index;
 	u32 val;
@@ -604,7 +609,7 @@ void fs_eth_set_ethaddr(int index)
 }
 
 /* Initialize ethernet by registering the available FEC devices */
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int ret;
 	int id;
@@ -872,7 +877,7 @@ void s3c64xx_lcd_board_disable(int index)
 
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Do any additional board-specific device tree modifications */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();

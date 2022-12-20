@@ -54,6 +54,7 @@
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
 
+#include <linux/delay.h>		/* mdelay() */
 #include <linux/mtd/rawnand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
@@ -674,7 +675,7 @@ static const struct fs_mmc_cd sdhc_cd[] = {
 	[gpio2_io12] = { cd_key_col2,   IMX_GPIO_NR(2, 12) }
 };
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	int ret = 0;
 	unsigned int board_type = fs_board_get_type();
@@ -1787,7 +1788,12 @@ static int sja1105_init(void)
 	u32 reg;
 	struct spi_slave *slave;
 	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
-	struct cspi_regs *regs = (struct cspi_regs *) ECSPI4_BASE_ADDR;
+	//###struct cspi_regs *regs = (struct cspi_regs *) ECSPI4_BASE_ADDR;
+
+	/* Check stucture of SJA1105 config data, fix checksums if necessary */
+	ret = sja1105_parse_config();
+	if (ret)
+		return ret;
 
 	/* Setup iomux for ECSPI4 */
 	SETUP_IOMUX_PADS(ecspi4_pads);
@@ -1797,15 +1803,12 @@ static int sja1105_init(void)
 	reg |= (3 << 6);
 	writel(reg, &mxc_ccm->CCGR1);
 
+#if 0 //### Should not be necessary
 	/* Clear EN bit in conreg */
 	reg = readl(&regs->ctrl);
 	reg &= ~(1 << 0);
 	writel(reg, &regs->ctrl);
-
-	/* Check stucture of SJA1105 config data, fix checksums if necessary */
-	ret = sja1105_parse_config();
-	if (ret)
-		return ret;
+#endif
 
 	/* ECSPI4 has index 3, use 10 MHz, SPI mode 1, CS on GPIO3_IO04 */
 	slave = spi_setup_slave(3, 0, 10000000, SPI_MODE_1);
@@ -1819,10 +1822,12 @@ static int sja1105_init(void)
 
 	spi_release_bus(slave);
 
+#if 0 //### This is done in spi_release_bus() now
 	/* Clear EN bit in conreg */
 	reg = readl(&regs->ctrl);
 	reg &= ~(1 << 0);
 	writel(reg, &regs->ctrl);
+#endif
 
 	/* Disable ECSPI4 clock */
 	reg = readl(&mxc_ccm->CCGR1);
@@ -2002,7 +2007,7 @@ static iomux_v3_cfg_t const enet_pads_rmii2_vand3[] = {
  * - If *pbus == NULL, allocate new MII bus before looking for PHY
  * - Otherwise use MII bus that is given in *pbus.
  */
-int setup_fec(bd_t *bd, uint32_t base_addr, int eth_id,
+int setup_fec(struct bd_info *bd, uint32_t base_addr, int eth_id,
 	      enum xceiver_type xcv_type, struct mii_dev **pbus,
 	      int bus_id, int phy_addr, phy_interface_t interface)
 {
@@ -2053,7 +2058,7 @@ int setup_fec(bd_t *bd, uint32_t base_addr, int eth_id,
 	return 0;
 }
 
-int board_eth_init(bd_t *bd)
+int board_eth_init(struct bd_info *bd)
 {
 	u32 gpr1;
 	int ret = 0;
@@ -2112,10 +2117,12 @@ int board_eth_init(bd_t *bd)
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
 			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 4,
+					PHY_INTERFACE_MODE_RGMII_ID);
 		if (!ret && (features2 & FEAT2_ETH_B))
 			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 5,
+					PHY_INTERFACE_MODE_RGMII_ID);
 		break;
 
 	case BT_PICOCOMA9X:
@@ -2388,10 +2395,12 @@ int board_eth_init(bd_t *bd)
 		/* Probe FEC ports, both PHYs on one MII bus */
 		if (features2 & FEAT2_ETH_A)
 			ret = setup_fec(bd, ENET_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 4, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 4,
+					PHY_INTERFACE_MODE_RGMII_ID);
 		if (!ret && (features2 & FEAT2_ETH_B))
 			ret = setup_fec(bd, ENET2_BASE_ADDR, eth_id++, RGMII,
-					&bus, -1, 5, PHY_INTERFACE_MODE_RGMII);
+					&bus, -1, 5,
+					PHY_INTERFACE_MODE_RGMII_ID);
 		break;
 
 	default:
@@ -2525,7 +2534,7 @@ static int do_fdt_board_setup_common(void *fdt)
 }
 
 /* Do any additional board-specific device tree modifications */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();

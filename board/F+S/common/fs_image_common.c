@@ -140,6 +140,7 @@
  */
 
 #include <common.h>
+#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
 #include <spl.h>
 #include <mmc.h>
 #include <nand.h>
@@ -147,7 +148,7 @@
 #include <asm/sections.h>
 
 #include "fs_board_common.h"		/* fs_board_*() */
-#include "fs_dram_common.h"			/* fs_dram_init_common() */
+#include "fs_dram_common.h"		/* fs_dram_init_common() */
 #include "fs_image_common.h"		/* Own interface */
 
 /* Structure to handle board name and revision separately */

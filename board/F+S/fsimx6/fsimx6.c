@@ -46,6 +46,7 @@
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
 
+#include <linux/delay.h>		/* mdelay() */
 #include <linux/mtd/rawnand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
@@ -615,7 +616,7 @@ static const struct fs_mmc_cd sdhc_cd[] = {
 	[gpio6_io15] = { cd_nandf_cs2, IMX_GPIO_NR(6, 15) },
 };
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	int ret = 0;
 	unsigned int board_type = fs_board_get_type();
@@ -1461,7 +1462,7 @@ static iomux_v3_cfg_t const eim_pads_eth_b[] = {
 };
 
 /* The second ethernet controller is attached via EIM */
-void setup_weim(bd_t *bis)
+void setup_weim(struct bd_info *bis)
 {
 	struct weim *weim = (struct weim *)WEIM_BASE_ADDR;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
@@ -1551,7 +1552,7 @@ static iomux_v3_cfg_t const enet_pads_rmii_netdcua9[] = {
 	IOMUX_PADS(PAD_GPIO_2__GPIO1_IO02 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	u32 gpr1;
 	int ret;
@@ -1559,7 +1560,7 @@ int board_eth_init(bd_t *bis)
 	int reset_gpio;
 	enum xceiver_type xcv_type;
 	enum enet_freq freq;
-	phy_interface_t if_mode = PHY_INTERFACE_MODE_RGMII;
+	phy_interface_t if_mode = PHY_INTERFACE_MODE_RGMII_ID;
 	struct iomuxc *iomux_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 	int id = 0;
 	unsigned int board_type = fs_board_get_type();
@@ -1644,8 +1645,8 @@ int board_eth_init(bd_t *bis)
 			break;
 		}
 
-		ret = fecmxc_initialize_multi_type_if_mode(bis, -1, phy_addr,
-						   ENET_BASE_ADDR, xcv_type, if_mode);
+		ret = fecmxc_initialize_multi_type_if_mode(
+			bis, -1, phy_addr, ENET_BASE_ADDR, xcv_type, if_mode);
 		if (ret < 0)
 			return ret;
 
@@ -1779,7 +1780,7 @@ void __led_toggle(led_id_t id)
 
 #ifdef CONFIG_OF_BOARD_SETUP
 /* Do any additional board-specific device tree modifications */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs,err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();

@@ -6,6 +6,8 @@
 #include <common.h>
 #include <i2c.h>
 #include <time.h>
+#include <dm.h>
+#include <linux/delay.h>
 #include "tcpc.h"
 
 #ifdef DEBUG

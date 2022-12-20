@@ -46,6 +46,7 @@
 #include <asm/arch/crm_regs.h>		/* CCM_CCGR1, nandf clock settings */
 #include <asm/arch/clock.h>		/* enable_fec_anatop_clock(), ... */
 
+#include <linux/delay.h>		/* udelay(), mdelay() */
 #include <linux/mtd/rawnand.h>		/* struct mtd_info, struct nand_chip */
 #include <mtd/mxs_nand_fus.h>		/* struct mxs_nand_fus_platform_data */
 #include <usb.h>			/* USB_INIT_HOST, USB_INIT_DEVICE */
@@ -761,7 +762,7 @@ static const struct fs_mmc_cd sdhc_cd[] = {
 	[gpio4_io26] = { cd_csi_data05, IMX_GPIO_NR(4, 26) },
 };
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	int ret = 0;
 	unsigned int board_type = fs_board_get_type();
@@ -1644,7 +1645,7 @@ int mv88e61xx_phy_startup(struct phy_device *phydev);
  * available on a specific variant of GAR2 and has an extra external PHY on
  * MDIO address 9 then.
  */
-static int mv88e61xx_init(bd_t *bis, struct mii_dev *bus, int id)
+static int mv88e61xx_init(struct bd_info *bis, struct mii_dev *bus, int id)
 {
 	phy_interface_t interface = PHY_INTERFACE_MODE_RMII;
 	struct phy_device *phy_port5, *phy_switch;
@@ -1711,7 +1712,7 @@ static int mv88e61xx_init(bd_t *bis, struct mii_dev *bus, int id)
 	return 0;
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	u32 gpr1;
 	int ret;
@@ -2115,7 +2116,7 @@ static int do_fdt_board_setup_common(void *fdt)
 }
 
 /* Do any additional board-specific device tree modifications */
-int ft_board_setup(void *fdt, bd_t *bd)
+int ft_board_setup(void *fdt, struct bd_info *bd)
 {
 	int offs, err;
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();

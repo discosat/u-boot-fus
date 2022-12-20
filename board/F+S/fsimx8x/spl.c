@@ -23,6 +23,7 @@
 #include <malloc.h>
 #include <bootm.h>
 #include <hang.h>
+#include <init.h>			/* arch_cpu_init() */
 #include <mmc.h>
 #include <fdt_support.h>
 #include <power-domain.h>
@@ -241,7 +242,7 @@ void board_init_f(ulong dummy)
 			continue;
 	}
 
-#if 0
+#if 1 //### FIXME: Should be 0, but then board hangs
 	/*
 	 * Enable this to have early debug output before BOARD-CFG is loaded
 	 * You have to provide the board type, we do not know it yet

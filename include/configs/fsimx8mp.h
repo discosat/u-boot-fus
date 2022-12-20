@@ -32,7 +32,7 @@
  *     DRAM-FW: Training Firmware (up to 96KB, immediately behind end of SPL)
  * 0x0096_C000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
  * 0x0097_0000: ATF (8MP)           ATF       (64KB) CONFIG_SPL_ATF_ADDR
- * 0x0098_FFFF: END (8MP)
+ * 0x0097_FFFF: END (8MP)
  *
  * The sum of SPL and DDR_FW must not exceed 232KB (0x3A000). However there is
  * still room to extend this region if SPL grows larger in the future.
@@ -185,8 +185,6 @@
 
 #define CONFIG_SPL_MAX_SIZE		(152 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	0x300
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 #define CONFIG_SYS_UBOOT_BASE	(QSPI0_AMBA_BASE + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
 
@@ -492,12 +490,12 @@
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 #define CONFIG_SYS_SDRAM_BASE		0x40000000
-#define PHYS_SDRAM		0x40000000
-#define PHYS_SDRAM_SIZE		0x40000000	/* 1 GB */
+//####define PHYS_SDRAM		0x40000000
+//####define PHYS_SDRAM_SIZE		0x40000000	/* 1 GB */
 
-#define CONFIG_SYS_MEMTEST_START	0x40000000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
-					(PHYS_SDRAM_SIZE >> 1))
+//####define CONFIG_SYS_MEMTEST_START	0x40000000
+/*####define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
+					(PHYS_SDRAM_SIZE >> 1))*/
 
 /* have to define for F&S serial_mxc driver */
 #define UART1_BASE UART1_BASE_ADDR
@@ -526,12 +524,6 @@
 #define CONFIG_IMX_BOOTAUX
 
 #define CONFIG_FSL_USDHC
-/* SPL use the CONFIG_SYS_MMC_ENV_DEV in
- * serial download mode. Otherwise use
- * board_mmc_get_env_dev function.
- * (s. mmc_get_env_dev in mmc_env.c)
- */
-#define CONFIG_SYS_MMC_ENV_DEV		2 /* USDHC3 */
 #define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
