@@ -71,7 +71,7 @@
  * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
  * 0x00B0_0000: UserDef (2MB)
  * 0x00D0_0000: Kernel_A (32MB)
- * 0x02D0_0000: FDT_A (1MBKB)
+ * 0x02D0_0000: FDT_A (1MB)
  * 0x02E0_0000: Kernel_B (32MB, opt)
  * 0x04E0_0000: FDT_B (1MB, opt)
  * 0x04F0_0000: TargetFS as UBI Volumes
@@ -170,7 +170,7 @@
 
 #include "imx_env.h"
 
-/* disable FAT write becaue its doesn't work
+/* disable FAT write because its doesn't work
  *  with F&S FAT driver
  */
 #undef CONFIG_FAT_WRITE

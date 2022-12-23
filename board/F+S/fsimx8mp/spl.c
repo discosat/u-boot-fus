@@ -37,7 +37,9 @@
 #include "../common/fs_image_common.h"	/* fs_image_*() */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
 #include "../common/fs_memtest_common.h"
+#endif
 #include <usb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
