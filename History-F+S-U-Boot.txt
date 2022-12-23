@@ -1,6 +1,20 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2022.12 (23.12.2022)
+-----------------------------------------------
+Supported boards: armStoneMX8MP, PicoCoreMX8MP, PicoCoreMX8MPr2
+
+- fsimx8mp: Improve fs_spl_memtest configuration in spl.c
+- fsimx8mp: Correct some comments
+- Correct mmc env offset values in picocoremx8mp.dtsi
+- fsimx8mp: Improve ram timings for picocoremx8mp(r2) 2GB versions
+- Increase nboot version to 2022.12
+- Add history file for fsimx8mp
+- Improve dram timings for armStoneMX8MP-V4I
+- ddr:imx8m: Add DRAM PLL to generate 900MHz output
+- Add SPL dram test for fsimx8mp
+
 u-boot-2020.04-fsimx8mp-Y2022.11 (11.11.2022)
 -----------------------------------------------
 Supported boards: armStoneMX8MP, PicoCoreMX8MP, PicoCoreMX8MPr2
