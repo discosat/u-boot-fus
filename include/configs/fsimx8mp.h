@@ -22,20 +22,21 @@
  *
  * OCRAM layout SPL                 U-Boot
  * ---------------------------------------------------------
- * 0x0090_0000: (Region reserved by ROM loader)(64KB)
- * 0x0091_0000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
- * 0x0091_2000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
- * 0x0091_2800: MALLOC_F pool       ---       (34KB) CONFIG_MALLOC_F_ADDR
- * 0x0091_B000: ---                 ---       (4KB)
- * 0x0091_FFF0: Global Data + Stack --- 	  (20KB) CONFIG_SPL_STACK
- * 0x0092_0000: SPL (<= ~208KB) (loaded by ROM-Loader, address defined by ATF)
+ * 0x0090_0000: (Region reserved by ROM loader)(96KB)
+ * 0x0091_8000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
+ * 0x0091_A000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
+ * 0x0091_A800: MALLOC_F pool       ---       (34KB) CONFIG_MALLOC_F_ADDR
+ * 0x0092_3000: ---                 ---       (4KB)
+ * 0x0092_7FF0: Global Data + Stack ---       (20KB) CONFIG_SPL_STACK
+ * 0x0092_8000: SPL (<= ~208KB) (loaded by ROM-Loader, address defined by ATF)
  *     DRAM-FW: Training Firmware (up to 96KB, immediately behind end of SPL)
- * 0x0096_C000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
- * 0x0097_0000: ATF (8MP)           ATF       (64KB) CONFIG_SPL_ATF_ADDR
- * 0x0098_FFFF: END (8MP)
+ * 0x0096_4000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
+ * 0x0096_8000: ATF (8MP)           ATF       (96KB) CONFIG_SPL_ATF_ADDR
+ * 0x0097_FFFF: END (8MP)
  *
- * The sum of SPL and DDR_FW must not exceed 232KB (0x3A000). However there is
- * still room to extend this region if SPL grows larger in the future.
+ * The sum of SPL and DDR_FW must not exceed 240KB (0x3C000). However there is
+ * still room to extend this region if SPL grows larger in the future, e.g. by
+ * letting DRAM Timing Data overlap with ATF region.
  * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
 
 
@@ -195,12 +196,12 @@
  * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
  * CONFIG_SYS_SPL_MALLOC_START
  */
-#define CONFIG_FUS_BOARDCFG_ADDR	0x00910000
-#define CONFIG_SPL_BSS_START_ADDR      0x00912000
+#define CONFIG_FUS_BOARDCFG_ADDR	0x00918000
+#define CONFIG_SPL_BSS_START_ADDR      0x0091A000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_STACK		0x91FFF0
+#define CONFIG_SPL_STACK		0x927FF0
 #define CONFIG_SPL_DRIVERS_MISC_SUPPORT
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
@@ -214,13 +215,13 @@
 
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
-#define CONFIG_SPL_ATF_ADDR 0x00970000
-#define CONFIG_SPL_TEE_ADDR 0xfe000000
+#define CONFIG_SPL_ATF_ADDR 0x00968000
+#define CONFIG_SPL_TEE_ADDR 0x56000000
 
 /* TCM Address where DRAM Timings are loaded to */
-#define CONFIG_SPL_DRAM_TIMING_ADDR 0x0096C000
+#define CONFIG_SPL_DRAM_TIMING_ADDR 0x00964000
 
-#define CONFIG_MALLOC_F_ADDR		0x912800 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_MALLOC_F_ADDR		0x91A800 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
