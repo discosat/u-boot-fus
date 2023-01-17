@@ -817,7 +817,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 
 #ifdef CONFIG_FS_SECURE_BOOT
 int secure_spl_load_simple_fit(struct spl_image_info *spl_image,
-										struct spl_load_info *info, void *fit){
+			       struct spl_load_info *info, void *fit){
 	ulong size;
 	int node = -1;
 	int images;

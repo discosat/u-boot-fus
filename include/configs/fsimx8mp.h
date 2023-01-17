@@ -472,6 +472,8 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
+#define SECURE_PARTITIONS	"UBoot", "Kernel", "FDT", "Images"
+
 /************************************************************************
  * Environment
  ************************************************************************/
