@@ -248,6 +248,7 @@ typedef enum {
 #define BM_ALGO_RNG_AS            (0x3 << BS_ALGO_RNG_AS)
 #define ALGO_RNG_GENERATE         (0x0 << BS_ALGO_RNG_AS)
 #define ALGO_RNG_INSTANTIATE      BIT(BS_ALGO_RNG_AS)
+#define ALGO_RNG_PR               BIT(1)
 
 /* Prediction Resistance */
 #define ALGO_RNG_PR		BIT(1)

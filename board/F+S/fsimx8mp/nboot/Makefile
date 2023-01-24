@@ -78,7 +78,12 @@ RT_LPDDR4 := lpddr4_fw.fs $(RT_LPDDR4)
 RT_DDR4 := ddr4_fw.fs $(RT_DDR4)
 
 # List of files to add to FIRMWARE image
+ifeq ($(CONFIG_IMX_OPTEE),y)
+FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs $(BOARD)_optee.fs
+else
 FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs
+endif
+
 
 # List of files to add to EXTRA image
 EXTRA_FILES = addfsheader.sh.fs fsimage.sh.fs
@@ -120,6 +125,7 @@ NXP_LPDDR4 = lpddr4_pmu_train_1d_imem$(DDR_FW_VERSION).bin lpddr4_pmu_train_1d_d
 NXP_DDR4 = ddr4_imem_1d$(NANO).bin ddr4_dmem_1d$(NANO).bin \
 	ddr4_imem_2d$(NANO).bin ddr4_dmem_2d$(NANO).bin
 NXP_ATF = bl31-imx8mp.bin
+NXP_TEE = tee-fsimx8mp.bin
 
 # Add path for NXP firmware images
 NXP_PATH = $(srctree)/board/F+S/NXP-Firmware
@@ -127,6 +133,7 @@ NXP_PATH_DDR3L = $(addprefix $(NXP_PATH)/, $(NXP_DDR3L))
 NXP_PATH_LPDDR4 = $(addprefix $(NXP_PATH)/, $(NXP_LPDDR4))
 NXP_PATH_DDR4 = $(addprefix $(NXP_PATH)/, $(NXP_DDR4))
 NXP_PATH_ATF = $(addprefix $(NXP_PATH)/, $(NXP_ATF))
+NXP_PATH_TEE = $(addprefix $(NXP_PATH)/, $(NXP_TEE))
 
 # Concatenate two single files with padding: 32KB + x
 quiet_cmd_dd2 = GROUP   $@
@@ -200,6 +207,9 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 
 %_atf.fs: $(NXP_PATH_ATF)
 	$(call cmd,fsimg,-t ATF -d $(*F))
+
+%_optee.fs: $(NXP_PATH_TEE)
+	$(call cmd,fsimg,-t TEE -d $(*F))
 
 %_firmware.fs: $(OBJ_FIRMWARE_FILES)
 	$(call cmd,fsimg,-t FIRMWARE -d $(*F))

@@ -35,6 +35,8 @@ obj-$(CONFIG_SPL_BUILD)	+= spl.o
 endif
 ifeq ($(SOC),$(filter $(SOC),imx8m imx8))
 obj-y	+= dt_optee.o
+obj-$(CONFIG_IMX_HAB) += hab.o
+obj-$(CONFIG_FS_SECURE_BOOT) += checkboot.o
 endif
 ifeq ($(SOC),$(filter $(SOC),mx7))
 obj-y 	+= cpu.o

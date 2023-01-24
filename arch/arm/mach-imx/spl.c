@@ -327,14 +327,17 @@ ulong board_spl_fit_size_align(ulong size)
 	 * aligned to 0x1000
 	 */
 
+#ifndef CONFIG_FS_SECURE_BOOT
 	size = ALIGN(size, 0x1000);
 	size += CONFIG_CSF_SIZE;
+#endif
 
 	return size;
 }
 
 void board_spl_fit_post_load(ulong load_addr, size_t length)
 {
+#ifndef CONFIG_FS_SECURE_BOOT
 	u32 offset = length - CONFIG_CSF_SIZE;
 
 	if (imx_hab_authenticate_image(load_addr,
@@ -343,6 +346,7 @@ void board_spl_fit_post_load(ulong load_addr, size_t length)
 		puts("spl: ERROR:  image authentication unsuccessful\n");
 		hang();
 	}
+#endif
 }
 #endif
 

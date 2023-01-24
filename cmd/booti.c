@@ -13,6 +13,7 @@
 #include <mapmem.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
+#include <hang.h>
 
 /*
  * Image booting support
@@ -28,6 +29,11 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	ret = do_bootm_states(cmdtp, flag, argc, argv, BOOTM_STATE_START,
 			      images, 1);
 
+	if(ret){
+		printf("Unsigned Image!\n");
+		hang();
+	}
+
 	/* Setup Linux kernel Image entry point */
 	if (!argc) {
 		ld = images->ep = get_loadaddr();
@@ -41,7 +47,8 @@ static int booti_start(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret != 0)
 		return 1;
 
-#if defined(CONFIG_IMX_HAB) && !defined(CONFIG_AVB_SUPPORT)
+#if defined(CONFIG_IMX_HAB) && !defined(CONFIG_AVB_SUPPORT) && \
+                               !defined(CONFIG_FS_SECURE_BOOT)
 	extern int authenticate_image(
 		uint32_t ddr_start, uint32_t raw_image_size);
 	if (authenticate_image(ld, image_size) != 0) {
