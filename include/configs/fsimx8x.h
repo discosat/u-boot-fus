@@ -759,15 +759,7 @@ Free Space:
 #endif
 
 /* USB configs */
-#ifndef CONFIG_SPL_BUILD
-#define CONFIG_USB_STORAGE
 #define CONFIG_USBD_HS
-
-#define CONFIG_USB_GADGET_MASS_STORAGE
-
-#define CONFIG_PHY
-#define CONFIG_CDNS3_USB_PHY
-#endif
 
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 
