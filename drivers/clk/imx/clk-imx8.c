@@ -281,7 +281,17 @@ static int imx8_set_parent_mux(struct udevice *dev, struct imx8_mux_clks *mux_cl
 
 	for (i = 0; i< CLK_IMX8_MAX_MUX_SEL; i++) {
 		if (pid == mux_clk->parent_clks[i]) {
-			ret = sc_pm_set_clock_parent(-1, slice_clkdata->rsrc,  slice_clkdata->pm_clk, i);
+			/*
+			 * Switching clock parents only works if the clock is
+			 * disabled. This is the case for all devices in
+			 * U-Boot proper at this stage, but there may some
+			 * clocks still be enabled from SPL. So disable the
+			 * clock before switching parents to avoid any errors.
+			 */
+			sc_pm_clock_enable(-1, slice_clkdata->rsrc,
+					   SC_PM_CLK_PER, false, false);
+			ret = sc_pm_set_clock_parent(-1, slice_clkdata->rsrc,
+						     slice_clkdata->pm_clk, i);
 			if (ret)
 				printf("Error: fail to set clock parent rsrc %d, pm_clk %d, parent clk %d\n",
 					slice_clkdata->rsrc,  slice_clkdata->pm_clk, i);
