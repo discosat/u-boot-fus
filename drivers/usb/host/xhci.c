@@ -171,7 +171,7 @@ static int xhci_start(struct xhci_hcor *hcor)
 	u32 temp;
 	int ret;
 
-	puts("Starting the controller\n");
+	debug("Starting the controller\n");
 	temp = xhci_readl(&hcor->or_usbcmd);
 	temp |= (CMD_RUN);
 	xhci_writel(&hcor->or_usbcmd, temp);
@@ -1254,7 +1254,7 @@ static int xhci_lowlevel_init(struct xhci_ctrl *ctrl)
 
 	reg = xhci_readl(&hccr->cr_hcsparams1);
 	descriptor.hub.bNbrPorts = HCS_MAX_PORTS(reg);
-	printf("Register %x NbrPorts %d\n", reg, descriptor.hub.bNbrPorts);
+	debug("Register %x NbrPorts %d\n", reg, descriptor.hub.bNbrPorts);
 
 	/* Port Indicators */
 	reg = xhci_readl(&hccr->cr_hccparams);

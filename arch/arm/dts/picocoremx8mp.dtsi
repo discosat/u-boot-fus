@@ -14,17 +14,6 @@
 
 /dts-v1/;
 
-/* Set board revision as 3-digit number, e.g. 110 for board rev. 1.10 */
-#define CONFIG_PICOCOREMX8MP_BOARD_REVISION	100
-
- /* Network */
-/* Use FIXED_SPEED and LEGACY_ETH for now */
-#define CONFIG_PICOCOREMX8MP_ETH
-
-/* USB */
-#define CONFIG_PICOCOREMX8MP_USB_OTG
-#define CONFIG_PICOCOREMX8MP_USB_HOST
-
 #include <dt-bindings/usb/pd.h>
 #include "imx8mp.dtsi"
 
@@ -59,6 +48,7 @@
 		reg = <0x0 0x40000000 0 0x80000000>;
 	};
 
+#if 0
 	reg_usb1_host_vbus: regulator-usb1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_host_vbus";
@@ -70,6 +60,7 @@
 		enable-active-high;
 		regulator-always-on;
 	};
+#endif
 #if 0
 	reg_usb2_otg_vbus: regulator-usb2-vbus {
 		compatible = "regulator-fixed";
@@ -285,23 +276,40 @@
 	status = "okay";
 };
 
+&usb3_0 {
+	status = "okay";
+};
+
 &usb_dwc3_0 {
+	compatible = "fsl,imx8mq-dwc3", "snps,dwc3";
+	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
+	assigned-clock-rates = <400000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb3_0_pwr>;
 	dr_mode = "host";
 	status = "okay";
 };
 #endif
 
-#ifdef CONFIG_PICOCOREMX8MP_USB_OTG
+#if 0 //###def CONFIG_PICOCOREMX8MP_USB_OTG
 &usb3_phy1 {
 	status = "okay";
 };
 
+&usb3_1 {
+	status = "okay";
+};
+
 &usb_dwc3_1 {
+	compatible = "fsl,imx8mq-dwc3", "snps,dwc3";
+	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
+	assigned-clock-rates = <400000000>;
 	dr_mode = "otg";
 	hnp-disable;
 	srp-disable;
 	adp-disable;
-	usb-role-switch;
 	status = "okay";
 };
 #endif
@@ -478,9 +486,10 @@
 		>;
 	};
 
-	pinctrl_usb1_pwr: usb1grp {
+	pinctrl_usb3_0_pwr: usb0grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12	0x19
+//###			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12	0x19
+			MX8MP_IOMUXC_GPIO1_IO12__USB1_OTG_PWR	0x19
 		>;
 	};
 
