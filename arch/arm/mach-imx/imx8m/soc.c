@@ -76,8 +76,19 @@ void enable_tzc380(void)
 	/* Enable TZASC and lock setting */
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN);
 	setbits_le32(&gpr->gpr[10], GPR_TZASC_EN_LOCK);
-	if (is_imx8mm() || is_imx8mn() || is_imx8mp())
-		setbits_le32(&gpr->gpr[10], BIT(1));
+
+	/*
+	 * According to TRM, TZASC_ID_SWAP_BYPASS should be set in
+	 * order to avoid AXI Bus errors when GPU is in use
+	 */
+	setbits_le32(&gpr->gpr[10], GPR_TZASC_ID_SWAP_BYPASS);
+
+	/*
+	 * imx8m implements the lock bit for
+	 * TZASC_ID_SWAP_BYPASS, enable it to lock settings
+	 */
+	setbits_le32(&gpr->gpr[10], GPR_TZASC_ID_SWAP_BYPASS_LOCK);
+
 	/*
 	 * set Region 0 attribute to allow secure and non-secure
 	 * read/write permission. Found some masters like usb dwc3
@@ -415,7 +426,21 @@ static u32 get_cpu_variant_type(u32 type)
 		if ((value & 0x3) == 0x3)
 			flag |= (1 << 2);
 
+		/* gpu disabled */
+		if ((value & 0xc0) == 0xc0)
+			flag |= (1 << 3);
+
+		/* lvds disabled */
+		if ((value & 0x180000) == 0x180000)
+			flag |= (1 << 4);
+
+		/* mipi dsi disabled */
+		if ((value & 0x60000) == 0x60000)
+			flag |= (1 << 5);
+
 		switch (flag) {
+		case 0x3f:
+			return MXC_CPU_IMX8MPUL;
 		case 7:
 			return MXC_CPU_IMX8MPL;
 		case 2:
@@ -707,7 +732,7 @@ static int disable_fdt_nodes(void *blob, const char *const nodes_path[], int siz
 		if (nodeoff < 0)
 			continue; /* Not found, skip it */
 
-		printf("Found %s node\n", nodes_path[i]);
+		debug("Found %s node\n", nodes_path[i]);
 
 add_status:
 		rc = fdt_setprop(blob, nodeoff, "status", status, strlen(status) + 1);
@@ -911,6 +936,91 @@ static int low_drive_gpu_freq(void *blob)
 }
 #endif
 
+static bool check_remote_endpoint(void *blob, const char *ep1, const char *ep2)
+{
+	int lookup_node;
+	int nodeoff;
+
+	nodeoff = fdt_path_offset(blob, ep1);
+	if (nodeoff) {
+		lookup_node = fdtdec_lookup_phandle(blob, nodeoff, "remote-endpoint");
+		nodeoff = fdt_path_offset(blob, ep2);
+
+		if (nodeoff > 0 && nodeoff == lookup_node) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int disable_dsi_lcdif_nodes(void *blob)
+{
+	int ret;
+
+	static const char * const dsi_path_8mp[] = {
+		"/soc@0/bus@32c00000/mipi_dsi@32e60000"
+	};
+
+	static const char * const lcdif_path_8mp[] = {
+		"/soc@0/bus@32c00000/lcd-controller@32e80000"
+	};
+
+	static const char * const lcdif_ep_path_8mp[] = {
+		"/soc@0/bus@32c00000/lcd-controller@32e80000/port@0/endpoint"
+	};
+	static const char * const dsi_ep_path_8mp[] = {
+		"/soc@0/bus@32c00000/mipi_dsi@32e60000/port@0/endpoint"
+	};
+
+	ret = disable_fdt_nodes(blob, dsi_path_8mp, ARRAY_SIZE(dsi_path_8mp));
+	if (ret)
+		return ret;
+
+	if (check_remote_endpoint(blob, dsi_ep_path_8mp[0], lcdif_ep_path_8mp[0])) {
+		/* Disable lcdif node */
+		return disable_fdt_nodes(blob, lcdif_path_8mp, ARRAY_SIZE(lcdif_path_8mp));
+	}
+
+	return 0;
+}
+
+int disable_lvds_lcdif_nodes(void *blob)
+{
+	int ret, i;
+
+	static const char * const ldb_path_8mp[] = {
+		"/soc@0/bus@32c00000/ldb@32ec005c",
+		"/soc@0/bus@32c00000/phy@32ec0128"
+	};
+
+	static const char * const lcdif_path_8mp[] = {
+		"/soc@0/bus@32c00000/lcd-controller@32e90000"
+	};
+
+	static const char * const lcdif_ep_path_8mp[] = {
+		"/soc@0/bus@32c00000/lcd-controller@32e90000/port@0/endpoint@0",
+		"/soc@0/bus@32c00000/lcd-controller@32e90000/port@0/endpoint@1"
+	};
+	static const char * const ldb_ep_path_8mp[] = {
+		"/soc@0/bus@32c00000/ldb@32ec005c/lvds-channel@0/port@0/endpoint",
+		"/soc@0/bus@32c00000/ldb@32ec005c/lvds-channel@1/port@0/endpoint"
+	};
+
+	ret = disable_fdt_nodes(blob, ldb_path_8mp, ARRAY_SIZE(ldb_path_8mp));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(ldb_ep_path_8mp); i++) {
+		if (check_remote_endpoint(blob, ldb_ep_path_8mp[i], lcdif_ep_path_8mp[i])) {
+			/* Disable lcdif node */
+			return disable_fdt_nodes(blob, lcdif_path_8mp, ARRAY_SIZE(lcdif_path_8mp));
+		}
+	}
+
+	return 0;
+}
+
 int disable_gpu_nodes(void *blob)
 {
 	static const char * const nodes_path_8mn[] = {
@@ -918,7 +1028,15 @@ int disable_gpu_nodes(void *blob)
 		"/soc@/gpu@38000000"
 	};
 
-	return disable_fdt_nodes(blob, nodes_path_8mn, ARRAY_SIZE(nodes_path_8mn));
+	static const char * const nodes_path_8mp[] = {
+		"/gpu3d@38000000",
+		"/gpu2d@38008000"
+	};
+
+	if (is_imx8mp())
+		return disable_fdt_nodes(blob, nodes_path_8mp, ARRAY_SIZE(nodes_path_8mp));
+	else
+		return disable_fdt_nodes(blob, nodes_path_8mn, ARRAY_SIZE(nodes_path_8mn));
 }
 
 int disable_npu_nodes(void *blob)
@@ -1057,36 +1175,59 @@ static int disable_cpu_nodes(void *blob, u32 disabled_cores)
 	return 0;
 }
 
-#if defined(CONFIG_IMX8MM)
-static int cleanup_nodes_for_efi(void *blob)
+static int delete_u_boot_nodes(void *blob)
 {
-	static const char * const usbotg_path[] = {
-		"/soc@0/bus@32c00000/usb@32e40000",
-		"/soc@0/bus@32c00000/usb@32e50000"
-		};
-	int nodeoff, i, rc;
+	static const char * const nodes_path = "/u-boot-node";
+	int nodeoff;
+	int rc;
 
-	for (i = 0; i < ARRAY_SIZE(usbotg_path); i++) {
-		nodeoff = fdt_path_offset(blob, usbotg_path[i]);
-		if (nodeoff < 0)
-			continue; /* Not found, skip it */
-		debug("Found %s node\n", usbotg_path[i]);
+	nodeoff = fdt_path_offset(blob, nodes_path);
+	if (nodeoff < 0)
+		return 0;
 
-		rc = fdt_delprop(blob, nodeoff, "extcon");
-		if (rc == -FDT_ERR_NOTFOUND)
-			continue;
-		if (rc) {
-			printf("Unable to update property %s:%s, err=%s\n",
-			       usbotg_path[i], "extcon", fdt_strerror(rc));
-			return rc;
-		}
+	debug("Found %s node\n", nodes_path);
 
-		printf("Remove %s:%s\n", usbotg_path[i], "extcon");
+	rc = fdt_del_node(blob, nodeoff);
+	if (rc < 0) {
+		printf("Unable to delete node %s, err=%s\n",
+		       nodes_path, fdt_strerror(rc));
+	} else {
+		printf("Delete node %s\n", nodes_path);
 	}
 
 	return 0;
 }
-#endif
+
+static int cleanup_nodes_for_efi(void *blob)
+{
+	static const char * const path[][2] = {
+		{ "/soc@0/bus@32c00000/usb@32e40000", "extcon" },
+		{ "/soc@0/bus@32c00000/usb@32e50000", "extcon" },
+		{ "/soc@0/bus@30800000/ethernet@30be0000", "phy-reset-gpios" },
+		{ "/soc@0/bus@30800000/ethernet@30bf0000", "phy-reset-gpios" }
+	};
+	int nodeoff, i, rc;
+
+	for (i = 0; i < ARRAY_SIZE(path); i++) {
+		nodeoff = fdt_path_offset(blob, path[i][0]);
+		if (nodeoff < 0)
+			continue; /* Not found, skip it */
+		debug("Found %s node\n", path[i][0]);
+
+		rc = fdt_delprop(blob, nodeoff, path[i][1]);
+		if (rc == -FDT_ERR_NOTFOUND)
+			continue;
+		if (rc) {
+			printf("Unable to update property %s:%s, err=%s\n",
+			       path[i][0], path[i][1], fdt_strerror(rc));
+			return rc;
+		}
+
+		printf("Remove %s:%s\n", path[i][0], path[i][1]);
+	}
+
+	return 0;
+}
 
 int ft_system_setup(void *blob, struct bd_info *bd)
 {
@@ -1182,8 +1323,6 @@ usb_modify_speed:
 	else if (is_imx8mms() || is_imx8mmsl())
 		disable_cpu_nodes(blob, 3);
 
-	cleanup_nodes_for_efi(blob);
-
 #elif defined(CONFIG_IMX8MN)
 	if (is_imx8mnl() || is_imx8mndl() ||  is_imx8mnsl())
 		disable_gpu_nodes(blob);
@@ -1203,21 +1342,36 @@ usb_modify_speed:
 		disable_cpu_nodes(blob, 3);
 
 #elif defined(CONFIG_IMX8MP)
-	if (is_imx8mpl())
+	if (is_imx8mpul()) {
+		/* Disable GPU */
+		disable_gpu_nodes(blob);
+
+		/* Disable DSI */
+		disable_dsi_lcdif_nodes(blob);
+
+		/* Disable LVDS */
+		disable_lvds_lcdif_nodes(blob);
+	}
+
+	if (is_imx8mpul() || is_imx8mpl())
 		disable_vpu_nodes(blob);
 
-	if (is_imx8mpl() || is_imx8mp6())
+	if (is_imx8mpul() || is_imx8mpl() || is_imx8mp6())
 		disable_npu_nodes(blob);
 
-	if (is_imx8mpl())
+	if (is_imx8mpul() || is_imx8mpl())
 		disable_isp_nodes(blob);
 
-	if (is_imx8mpl() || is_imx8mp6())
+	if (is_imx8mpul() || is_imx8mpl() || is_imx8mp6())
 		disable_dsp_nodes(blob);
 
 	if (is_imx8mpd())
 		disable_cpu_nodes(blob, 2);
 #endif
+
+	cleanup_nodes_for_efi(blob);
+
+	delete_u_boot_nodes(blob);
 
 #if defined(CONFIG_ANDROID_SUPPORT) || defined(CONFIG_ANDROID_AUTO_SUPPORT)
 	return 0;
@@ -1225,6 +1379,40 @@ usb_modify_speed:
 	return ft_add_optee_node(blob, bd);
 #endif
 }
+#endif
+
+#ifdef CONFIG_OF_BOARD_FIXUP
+#ifndef CONFIG_SPL_BUILD
+int board_fix_fdt(void *fdt)
+{
+	if (is_imx8mpul()) {
+		int i = 0;
+		int nodeoff, ret;
+		const char *status = "disabled";
+		static const char * dsi_nodes[] = {
+			"/soc@0/bus@32c00000/mipi_dsi@32e60000",
+			"/soc@0/bus@32c00000/lcd-controller@32e80000",
+			"/dsi-host"
+		};
+
+		for (i = 0; i < ARRAY_SIZE(dsi_nodes); i++) {
+			nodeoff = fdt_path_offset(fdt, dsi_nodes[i]);
+			if (nodeoff > 0) {
+set_status:
+				ret = fdt_setprop(fdt, nodeoff, "status", status,
+					strlen(status) + 1);
+				if (ret == -FDT_ERR_NOSPACE) {
+					ret = fdt_increase_size(fdt, 512);
+					if (!ret)
+						goto set_status;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
 #endif
 
 #if !CONFIG_IS_ENABLED(SYSRESET)
@@ -1263,6 +1451,7 @@ static void acquire_buildinfo(void)
 
 int arch_misc_init(void)
 {
+#ifndef CONFIG_ANDROID_SUPPORT
 	struct udevice *dev;
 
 	uclass_find_first_device(UCLASS_MISC, &dev);
@@ -1270,7 +1459,7 @@ int arch_misc_init(void)
 		if (device_probe(dev))
 			continue;
 	}
-
+#endif
 	acquire_buildinfo();
 
 	return 0;

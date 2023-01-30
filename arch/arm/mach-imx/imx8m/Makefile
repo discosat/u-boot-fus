@@ -8,3 +8,5 @@ obj-$(CONFIG_IMX8MQ) += clock_imx8mq.o
 obj-$(CONFIG_IMX8MM) += clock_imx8mm.o
 obj-$(CONFIG_IMX8MN) += clock_imx8mm.o
 obj-$(CONFIG_IMX8MP) += clock_imx8mm.o
+obj-$(CONFIG_ANDROID_SUPPORT) += imx8m_csu.o
+obj-$(CONFIG_ANDROID_SUPPORT) += imx8m_rdc.o

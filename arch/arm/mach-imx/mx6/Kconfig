@@ -492,6 +492,7 @@ config TARGET_MX6QSABRESD
     select FSL_BLOB
     select MISC
     select ARCH_MISC_INIT
+    select RNG_SELF_TEST
 
 config TARGET_MX6QPSABRESD
 	bool "mx6qpsabresd"
@@ -501,6 +502,7 @@ config TARGET_MX6QPSABRESD
     select FSL_BLOB
     select MISC
     select ARCH_MISC_INIT
+    select RNG_SELF_TEST
 
 config TARGET_MX6DLSABRESD
 	bool "mx6dlsabresd"
@@ -510,6 +512,7 @@ config TARGET_MX6DLSABRESD
     select FSL_BLOB
     select MISC
     select ARCH_MISC_INIT
+    select RNG_SELF_TEST
 
 config TARGET_MX6SOLOSABRESD
 	bool "mx6solosabresd"
@@ -519,6 +522,7 @@ config TARGET_MX6SOLOSABRESD
     select FSL_BLOB
     select MISC
     select ARCH_MISC_INIT
+    select RNG_SELF_TEST
 
 config TARGET_MX6SLEVK
 	bool "mx6slevk"
@@ -553,6 +557,7 @@ config TARGET_MX6SXSABRESD
 	select FSL_BLOB
 	select MISC
 	select ARCH_MISC_INIT
+	select RNG_SELF_TEST
 
 config TARGET_MX6SXSABREAUTO
 	bool "mx6sxsabreauto"
