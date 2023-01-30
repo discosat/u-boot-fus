@@ -1383,7 +1383,7 @@ usb_modify_speed:
 
 #ifdef CONFIG_OF_BOARD_FIXUP
 #ifndef CONFIG_SPL_BUILD
-int board_fix_fdt(void *fdt)
+int arch_fix_fdt(void *fdt)
 {
 	if (is_imx8mpul()) {
 		int i = 0;

@@ -684,8 +684,19 @@ static int setup_reloc(void)
 }
 
 #ifdef CONFIG_OF_BOARD_FIXUP
+__weak int arch_fix_fdt(void *fdt)
+{
+	return 0;
+}
+
 static int fix_fdt(void)
 {
+	int err;
+
+	err = arch_fix_fdt((void *)gd->fdt_blob);
+	if (err < 0)
+		return err;
+
 	return board_fix_fdt((void *)gd->fdt_blob);
 }
 #endif
