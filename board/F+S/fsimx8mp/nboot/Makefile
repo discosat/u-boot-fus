@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2022.12
+NBOOT_VERSION = 2023.03
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -48,7 +48,11 @@ BOARD_CONFIGS = \
 	armStoneMX8MP-FERT0.100.fs \
 	armStoneMX8MP-FERT2.100.fs \
 	armStoneMX8MP-FERT4.100.fs \
-	armStoneMX8MP-FERT5.100.fs
+	armStoneMX8MP-FERT5.100.fs \
+	efusMX8MP-FERT3.100.fs \
+	efusMX8MP-FERT4.100.fs \
+	efusMX8MP-FERT5.100.fs
+
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
@@ -57,7 +61,9 @@ RT_LPDDR4 := \
 	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
 	lpddr4_pc_2g1500m2ch1cs_timing.fs \
 	lpddr4_pc-fl4c2001g-d9_timing.fs \
-	lpddr4_as-nt6an512t32av_j2i_timing.fs
+	lpddr4_as-nt6an512t32av_j2i_timing.fs \
+	lpddr4_ef_2g1800m2ch1cs_timing.fs \
+	lpddr4_ef_1g2000m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings

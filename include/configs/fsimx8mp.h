@@ -181,9 +181,6 @@
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
 #define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
 
-#define CONFIG_SYS_UART_PORT	1	/* Default UART port */
-#define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
-
 #define CONFIG_SPL_MAX_SIZE		(152 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
@@ -509,7 +506,10 @@
 #define UART4_BASE UART4_BASE_ADDR
 #define UART5_BASE 0xFFFFFFFF
 
-#define CONFIG_MXC_UART_BASE		UART2_BASE_ADDR
+/* Not used on F&S boards. Detection depends on
+ * board type is preferred.
+ * */
+#define CONFIG_MXC_UART_BASE		0
 
 /* Monitor Command Prompt */
 
@@ -540,7 +540,7 @@
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_FSL_FSPI
-#define FSL_FSPI_FLASH_SIZE		SZ_32M
+#define FSL_FSPI_FLASH_SIZE		SZ_256M
 #define FSL_FSPI_FLASH_NUM		1
 #define FSPI0_BASE_ADDR			0x30bb0000
 #define FSPI0_AMBA_BASE			0x0

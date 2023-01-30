@@ -45,6 +45,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MP 	0
 #define BT_PICOCOREMX8MPr2 	1
 #define BT_ARMSTONEMX8MP 	2
+#define BT_EFUSMX8MP 	3
 
 #define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
 #define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
@@ -57,6 +58,11 @@ DECLARE_GLOBAL_DATA_PTR;
 #define FEAT_EMMC	(1<<8)	/* 0: no EMMC,  1: has EMMC */
 #define FEAT_SEC_CHIP	(1<<9)	/* 0: no SE050,  1: has SE050 */
 #define FEAT_EEPROM	(1<<10)	/* 0: no EEPROM,  1: has EEPROM */
+#define FEAT_ADC	(1<<11)	/* 0: no ADC,  1: has ADC */
+#define FEAT_DISP_RGB	(1<<12)	/* 0: no RGB Display,  1: has RGB Display */
+#define FEAT_SD_A	(1<<13)	/* 0: no SD_A,  1: has SD_A */
+#define FEAT_SD_B	(1<<14)	/* 0: no SD_B,  1: has SD_B */
+
 
 #define FEAT_ETH_MASK 	(FEAT_ETH_A | FEAT_ETH_B)
 
@@ -112,6 +118,19 @@ const struct fs_board_info board_info[] = {
 	},
 	{	/* 2 (BT_ARMSTONEMX8MP) */
 		.name = "armStoneMX8MP",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 3 (BT_EFUSMX8MP) */
+		.name = "efusMX8MP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -187,6 +206,14 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_SEC_CHIP;
 	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
 		features |= FEAT_EEPROM;
+	if (fdt_getprop(fdt, offs, "have-adc", NULL))
+		features |= FEAT_ADC;
+	if (fdt_getprop(fdt, offs, "have-mipi-to-rgb", NULL))
+		features |= FEAT_DISP_RGB;
+	if (fdt_getprop(fdt, offs, "have-sd-a", NULL))
+		features |= FEAT_SD_A;
+	if (fdt_getprop(fdt, offs, "have-sd-b", NULL))
+		features |= FEAT_SD_B;
 	cfg->features = features;
 }
 
@@ -247,14 +274,108 @@ enum env_location env_get_location(enum env_operation op, int prio)
 }
 
 #ifdef CONFIG_OF_BOARD_SETUP
-#define FDT_NAND        "nand"
-#define FDT_EMMC        "emmc"
 #define FDT_LDB_LVDS0	"ldb/lvds-channel@0"
 #define FDT_LDB_LVDS1	"ldb/lvds-channel@1"
 #define FDT_CPU_TEMP_ALERT	"/thermal-zones/cpu-thermal/trips/trip0"
 #define FDT_CPU_TEMP_CRIT	"/thermal-zones/cpu-thermal/trips/trip1"
 #define FDT_SOC_TEMP_ALERT	"/thermal-zones/soc-thermal/trips/trip0"
 #define FDT_SOC_TEMP_CRIT	"/thermal-zones/soc-thermal/trips/trip1"
+
+/* Do all fixups that are done on both, U-Boot and Linux device tree */
+static int do_fdt_board_setup_common(void *fdt)
+{
+	unsigned int features = fs_board_get_features();
+
+	/* Disable eMMC if it is not available */
+	if (!(features & FEAT_EMMC))
+		fs_fdt_enable(fdt, "emmc", 0);
+
+	/* Disable eqos node if it is not available */
+	if (!(features & FEAT_ETH_A)) {
+		fs_fdt_enable(fdt, "ethernet0", 0);
+	}
+
+	/* Disable fec node if it is not available */
+	if (!(features & FEAT_ETH_B)) {
+		fs_fdt_enable(fdt, "ethernet1", 0);
+	}
+
+	switch (fs_board_get_type()) {
+		case BT_PICOCOREMX8MP:
+		case BT_PICOCOREMX8MPr2:
+		case BT_ARMSTONEMX8MP:
+			break;
+		case BT_EFUSMX8MP:
+			/* Disable eeprom node if it is not available */
+			if (!(features & FEAT_ADC)) {
+				fs_fdt_enable(fdt, "adc", 0);
+			}
+			/* Disable eeprom node if it is not available */
+			if (!(features & FEAT_EEPROM)) {
+				fs_fdt_enable(fdt, "eeprom", 0);
+			}
+			/* Disable eeprom node if it is not available */
+			if (!(features & FEAT_SD_B)) {
+				fs_fdt_enable(fdt, "sd_b", 0);
+			}
+			/* Disable rgb-bridge node if it is not available */
+			if (!(features & FEAT_DISP_RGB)) {
+				fs_fdt_enable(fdt, "rgb_bridge", 0);
+				/* disable mipi_dsi */
+				fs_fdt_enable(fdt, "mipi_dsi", 0);
+			}
+			break;
+		default:
+			break;
+		}
+
+#if 0 // TODO:
+	/* Disable security node if it is not available */
+	if (!(features & FEAT_SEC_CHIP)) {
+		fs_fdt_enable(fdt, "security", 0);
+	}
+#endif
+
+	return 0;
+}
+
+/* Do any board-specific modifications on U-Boot device tree before starting */
+int board_fix_fdt(void *fdt)
+{
+	unsigned int features = fs_board_get_features();
+
+	/* Make some room in the FDT */
+	fdt_shrink_to_minimum(fdt, 8192);
+
+	/* Disable SPI NAND if it is not available
+	 * U-Boot: specific alias name [spi0]
+	 * */
+	if (!(features & FEAT_NAND))
+		fs_fdt_enable(fdt, "spi0", 0);
+
+	/* Disable sd_a if WLAN is available
+	 * U-Boot: support not available
+	 * */
+	if (features & FEAT_WLAN) {
+		char* usdhc_name = "";
+		switch (fs_board_get_type()) {
+		case BT_PICOCOREMX8MP:
+		case BT_PICOCOREMX8MPr2:
+		case BT_ARMSTONEMX8MP:
+			break;
+		case BT_EFUSMX8MP:
+			/* get sd_(x) interface name name for wlan */
+			usdhc_name = "sd_a";
+			break;
+		default:
+			break;
+		}
+		fs_fdt_enable(fdt, usdhc_name, 0);
+
+	}
+
+	return do_fdt_board_setup_common(fdt);
+}
 
 /* Do any additional board-specific modifications on Linux device tree */
 int ft_board_setup(void *fdt, bd_t *bd)
@@ -289,16 +410,6 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, "vipsi", 0);
 	}
 #endif
-
-	/* Disable eqos node if it is not available */
-	if (!(features & FEAT_ETH_A)) {
-		fs_fdt_enable(fdt, "ethernet0", 0);
-	}
-
-	/* Disable fec node if it is not available */
-	if (!(features & FEAT_ETH_B)) {
-		fs_fdt_enable(fdt, "ethernet1", 0);
-	}
 
 #if 0 // TODO:
 	/* Display A/B options */
@@ -366,6 +477,47 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		fs_fdt_enable(fdt, "snvs_rtc", 1);
 	}
 
+	/* Disable flexspi node if it is not available */
+	if (!(features & FEAT_NAND)) {
+		fs_fdt_enable(fdt, "flexspi", 0);
+	}
+
+	/* Disable wlan node if it is not available
+	 * Default in u-boot is disabled.
+	 * */
+	if (!(features & FEAT_WLAN)) {
+		int nodeoffset;
+		char* usdhc_name = "";
+
+		/* delete any existing wlan sub-node in sd_(x) interface */
+		nodeoffset = fdt_path_offset(fdt, "wlan");
+		fdt_del_node(fdt, nodeoffset);
+
+		switch (fs_board_get_type()) {
+			case BT_PICOCOREMX8MP:
+			case BT_PICOCOREMX8MPr2:
+			case BT_ARMSTONEMX8MP:
+				break;
+			case BT_EFUSMX8MP:
+				/* get sd_(x) interface name name for wlan */
+				usdhc_name = "sd_a";
+				break;
+			default:
+				break;
+			}
+
+		if (!strcmp(usdhc_name, "sd_a") || !strcmp(usdhc_name, "sd_b") ||
+				!strcmp(usdhc_name, "sd_c")) {
+			nodeoffset = fdt_path_offset(fdt, usdhc_name);
+			/* delete properties for wlan */
+			fdt_delprop(fdt, nodeoffset, "mmc-pwrseq");
+			fdt_delprop(fdt, nodeoffset, "non-removable");
+			fdt_delprop(fdt, nodeoffset, "pm-ignore-notify");
+			fdt_delprop(fdt, nodeoffset, "cap-power-off-card");
+			fdt_delprop(fdt, nodeoffset, "keep-power-in-suspend");
+		}
+	}
+
 	/* Set bdinfo entries */
 	offs = fs_fdt_path_offset(fdt, "/bdinfo");
 	if (offs >= 0) {
@@ -398,43 +550,6 @@ int ft_board_setup(void *fdt, bd_t *bd)
 		printf("## Wrong cpu temp grade values read! Keeping defaults from device tree\n");
 	}
 
-	return 0;
-}
-
-/* Do all fixups that are done on both, U-Boot and Linux device tree */
-static int do_fdt_board_setup_common(void *fdt)
-{
-	unsigned int features = fs_board_get_features();
-
-	/* Disable NAND if it is not available */
-	if (!(features & FEAT_NAND))
-		fs_fdt_enable(fdt, FDT_NAND, 0);
-
-	/* Disable eMMC if it is not available */
-	if (!(features & FEAT_EMMC))
-		fs_fdt_enable(fdt, FDT_EMMC, 0);
-
-	return 0;
-}
-
-/* Do any board-specific modifications on U-Boot device tree before starting */
-int board_fix_fdt(void *fdt)
-{
-	unsigned int features = fs_board_get_features();
-
-	/* Make some room in the FDT */
-	fdt_shrink_to_minimum(fdt, 8192);
-
-	/* Disable eqos node if it is not available */
-	if (!(features & FEAT_ETH_A)) {
-		fs_fdt_enable(fdt, "ethernet0", 0);
-	}
-
-	/* Disable fec node if it is not available */
-	if (!(features & FEAT_ETH_B)) {
-		fs_fdt_enable(fdt, "ethernet1", 0);
-	}
-
 	return do_fdt_board_setup_common(fdt);
 }
 #endif
@@ -450,6 +565,7 @@ void fs_ethaddr_init(void)
 	case BT_PICOCOREMX8MP:
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
+	case BT_EFUSMX8MP:
 		if (features2 & FEAT_ETH_A) {
 			fs_eth_set_ethaddr(eth_id++);
 		}
@@ -468,8 +584,6 @@ int checkboard(void)
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
 	unsigned int features = fs_board_get_features();
-	int minc, maxc;
-	uint32_t temp_range = get_cpu_temp_grade(&minc, &maxc);
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
 		board_rev / 100, board_rev % 100);
@@ -477,7 +591,7 @@ int checkboard(void)
 		puts ("2x ");
 	if (features & FEAT_ETH_MASK)
 		puts ("LAN, ");
-	if (temp_range != TEMP_COMMERCIAL)
+	if (features & FEAT_WLAN)
 		puts ("WLAN, ");
 	if (features & FEAT_EMMC)
 		puts ("eMMC, ");
@@ -608,8 +722,14 @@ void ss_mux_select(enum typec_cc_polarity pol)
 
 static int setup_typec(void)
 {
-	int ret;
+	int ret = 0;
 	unsigned int board_type = fs_board_get_type();
+
+	/* efusmx8mp does not support typec */
+	if(board_type == BT_EFUSMX8MP) {
+		port1.i2c_dev = NULL;
+		return ret;
+	}
 
 	imx_iomux_v3_setup_multiple_pads(ss_mux_gpio, ARRAY_SIZE(ss_mux_gpio));
 	gpio_request(USB_TYPEC_SEL, "typec_sel");
@@ -661,11 +781,7 @@ static int setup_typec(void)
 
 
 static struct dwc3_device dwc3_device_data = {
-#ifdef CONFIG_SPL_BUILD
-	.maximum_speed = USB_SPEED_HIGH,
-#else
 	.maximum_speed = USB_SPEED_SUPER,
-#endif
 	.base = USB2_BASE_ADDR,
 	.dr_mode = USB_DR_MODE_PERIPHERAL,
 	.index = 1,
@@ -728,7 +844,7 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	if (index == 0 && init == USB_INIT_DEVICE)
 		/* usb host only */
-		return 0;
+		return ret;
 
 	imx8m_usb_power(index, true);
 
@@ -762,7 +878,7 @@ int board_usb_init(int index, enum usb_init_type init)
 			/* Set reset pin to high */
 			gpio_request(USB1_RESET, "usb1_reset");
 			gpio_direction_output(USB1_RESET, 0);
-			gpio_request(USB1_RESET, "usb1_reset");
+			udelay(100);
 			gpio_direction_output(USB1_RESET, 1);
 		}
 		/* Enable host power */
@@ -770,7 +886,7 @@ int board_usb_init(int index, enum usb_init_type init)
 		gpio_direction_output(USB1_PWR_EN, 1);
 	}
 
-	return 0;
+	return ret;
 }
 
 int board_usb_cleanup(int index, enum usb_init_type init)
@@ -879,25 +995,6 @@ static iomux_v3_cfg_t const vlcd_on_pads[] = {
 
 int board_late_init(void)
 {
-#if 0
-	unsigned int board_type = fs_board_get_type();
-
-	switch(board_type) {
-	default:
-	case BT_PICOCOREMX8MP:
-		env_set("platform", "picocoremx8mp");
-		break;
-	case BT_PICOCOREMX8MPr2:
-		env_set("platform", "picocoremx8mpr2");
-		break;
-	case BT_ARMSTONEMX8MP:
-		env_set("platform", "armstonemx8mp");
-		break;
-	}
-
-	env_set("sercon", "ttymxc1");
-#endif
-
 	/* Set up all board specific variables */
 	fs_board_late_init_common("ttymxc");
 
@@ -928,6 +1025,24 @@ ulong board_get_usable_ram_top(ulong total_size)
 	return gd->ram_top;
 }
 #endif
+
+/* Set base address depends on board type.
+ * Override function from serial_mxc.c
+ * */
+ulong board_serial_base(void)
+{
+	switch (fs_board_get_type())
+	{
+	case BT_EFUSMX8MP:
+		return UART1_BASE;
+	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
+	case BT_ARMSTONEMX8MP:
+	default:
+		break;
+	}
+	return UART2_BASE;
+}
 
 #ifdef CONFIG_FSL_FASTBOOT
 #ifdef CONFIG_ANDROID_RECOVERY
