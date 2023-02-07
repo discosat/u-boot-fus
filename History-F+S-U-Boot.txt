@@ -1,6 +1,23 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fssecure-imx8m-V2023.02 (07.02.2023)
+---------------------------------------------------
+Supported boards: PicoCoreMX8MM, PicoCoreMX8MMr2, PicoCoreMX8MN, PicoCoreMX8MX,
+PicoCoreMX8MP, PicoCoreMX8MPr2, armStoneMX8MP
+
+- Remove certain u-boot commands for secure boot
+- Add secure boot for fsimx8mp
+- Fix OC-RAM Layout for fsimx8mp
+- Add support for op-tee
+- Add i.MX8MN support for Secure Boot
+- Support signed Linux images on i.MX8M based Boards
+- Add support for signed U-Boot Images for i.MX8M Boards
+- Improve functions from arch/arm/mach-imx/checkboot.c
+- Add Option to menuconfig to toggle secure boot messages
+- Add functionality for Secure Boot on i.MX8MM Boards
+
+
 u-boot-2020.04-fsimx8mp-Y2022.12 (23.12.2022)
 -----------------------------------------------
 Supported boards: armStoneMX8MP, PicoCoreMX8MP, PicoCoreMX8MPr2
