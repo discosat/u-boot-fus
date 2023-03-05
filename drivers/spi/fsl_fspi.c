@@ -1165,7 +1165,7 @@ void spi_init(void)
 }
 #else
 
-struct fspi_cmd_func_pair fspi_supported_cmds[SEQID_END] = {
+static struct fspi_cmd_func_pair fspi_supported_cmds[SEQID_END] = {
 	{FSPI_CMD_READ, false, &fspi_mem_op_read_data},
 	{FSPI_CMD_WREN, false, &fspi_mem_op_cmd},
 	{FSPI_CMD_FAST_READ, false, &fspi_mem_op_read_data},
