@@ -1,6 +1,17 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2020.04-fsimx8mp-Y2023.03 (09.03.2023)
+---------------------------------------------------
+Supported boards: PicoCoreMX8MM, PicoCoreMX8MMr2, PicoCoreMX8MN, PicoCoreMX8MX,
+PicoCoreMX8MP, PicoCoreMX8MPr2, armStoneMX8MP, efusMX8MP
+
+- spi:fspi: Correct structure definition for supported commands
+- fsimx8mp: Add board support for efusMX8MP
+- fsimx8mp: Add support for I2C6
+- Improve Uboot versioning
+
+
 u-boot-2020.04-fssecure-imx8m-V2023.02 (07.02.2023)
 ---------------------------------------------------
 Supported boards: PicoCoreMX8MM, PicoCoreMX8MMr2, PicoCoreMX8MN, PicoCoreMX8MX,
