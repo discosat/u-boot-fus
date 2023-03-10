@@ -94,6 +94,7 @@
 #define FS_DISP_FLAGS_LVDS_24BPP (1 << 2) /* 0: 18 bpp, 1: 24 bpp */
 #define FS_DISP_FLAGS_LVDS_JEIDA (1 << 3) /* 0: 24 bpp SPWG, 1: 24 bpp JEIDA */
 #define FS_DISP_FLAGS_LVDS_BL_INV (1 << 4) /* 0: normal, 1: inverted */
+#define FS_DISP_FLAGS_LVDS_VCFL_INV (1 << 5) /* 0: normal, 1: inverted */
 
 struct fs_display_port {
 	const char *name;		/* Port name */

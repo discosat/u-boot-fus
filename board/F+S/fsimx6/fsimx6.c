@@ -911,12 +911,13 @@ enum display_port_index {
 /* Define possible displays ports; LVDS ports may have additional settings */
 #define FS_DISP_FLAGS_LVDS						\
 	(FS_DISP_FLAGS_LVDS_2CH | FS_DISP_FLAGS_LVDS_DUP		\
-	 | FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA)
+	 | FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA		\
+	 | FS_DISP_FLAGS_LVDS_BL_INV | FS_DISP_FLAGS_LVDS_VCFL_INV)
 
 static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
 	[port_lcd] =   { "lcd",   FS_DISP_FLAGS_LVDS_BL_INV },
-	[port_lvds0] = { "lvds0", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
-	[port_lvds1] = { "lvds1", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
+	[port_lvds0] = { "lvds0", FS_DISP_FLAGS_LVDS },
+	[port_lvds1] = { "lvds1", FS_DISP_FLAGS_LVDS },
 	[port_hdmi] =  { "hdmi",  0 }
 };
 
