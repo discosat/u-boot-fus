@@ -941,11 +941,13 @@ enum display_port_index {
 };
 
 /* Define possible displays ports; LVDS ports may have additional settings */
-#define FS_DISP_FLAGS_LVDS (FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA)
+#define FS_DISP_FLAGS_LVDS						\
+	(FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA		\
+	 | FS_DISP_FLAGS_LVDS_BL_INV | FS_DISP_FLAGS_LVDS_VCFL_INV)
 
 static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
 	[port_lcd] =  { "lcd",  0 },
-	[port_lvds] = { "lvds", FS_DISP_FLAGS_LVDS | FS_DISP_FLAGS_LVDS_BL_INV },
+	[port_lvds] = { "lvds", FS_DISP_FLAGS_LVDS },
 };
 
 static void setup_lcd_pads(int on)
