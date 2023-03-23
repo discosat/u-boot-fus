@@ -1734,12 +1734,12 @@ int board_phy_config(struct phy_device *phydev)
 	if (features2 & (FEAT2_ETH_A | FEAT2_ETH_B)) {
 		switch (board_type) {
 		case BT_EFUSA9R2:
+		case BT_ARMSTONEA9R4:
 			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
 			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(2) | LED_ACT(1));
 			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
 			break;
 		case BT_ARMSTONEA9R3:
-		case BT_ARMSTONEA9R4:
 			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
 			phy_write(phydev, MDIO_DEVAD_NONE, 0x10, LED_MODE_B | LED_LINK(0) | LED_ACT(1));
 			phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
