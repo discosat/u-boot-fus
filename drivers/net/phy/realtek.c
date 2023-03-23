@@ -118,11 +118,8 @@ static int rtl8211f_config(struct phy_device *phydev)
 		reg &= ~MIIM_RTL8211F_RX_DELAY;
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x15, reg);
 
-	/* Set green LED for Link, yellow LED for Active */
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x617f);
-
 	/* Disable EEE LED indication */
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x11, 0x0);
 

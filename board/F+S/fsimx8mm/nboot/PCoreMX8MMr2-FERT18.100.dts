@@ -13,8 +13,8 @@
 / {
 	board-cfg {
 		board-cfg-version = <2>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MM-LPDDR4";
-		board-rev = <130>;		/* Rev 1.30 */
+		board-name = "PicoCoreMX8MMr2";
+		board-rev = <100>;		/* Rev 1.00 */
 
 		dram-type = "lpddr4";
 		dram-timing = "pc-1g3000m2ch1cs";
@@ -38,7 +38,7 @@
 		//have-rtc-pcf85063;
 		have-rtc-pcf85263;
 		//have-security;
-		have-can;
+		//have-can;
 		//have-eeprom;
 	};
 };

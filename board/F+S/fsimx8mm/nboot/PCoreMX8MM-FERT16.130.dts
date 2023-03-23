@@ -12,8 +12,8 @@
 
 / {
 	board-cfg {
-		board-cfg-version = <2>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MM-LPDDR4";
+		board-cfg-version = <3>;	/* Increment on changes */
+		board-name = "PicoCoreMX8MM";
 		board-rev = <130>;		/* Rev 1.30 */
 
 		dram-type = "lpddr4";
@@ -30,15 +30,15 @@
 		/* Board Features */
 		//have-nand;
 		have-emmc;
-		have-sgtl5000;
-		have-eth-phy;
+		//have-sgtl5000;
+		//have-eth-phy;
 		have-wlan;
 		//have-lvds;
 		have-mipi-dsi;
 		//have-rtc-pcf85063;
 		have-rtc-pcf85263;
 		//have-security;
-		have-can;
+		//have-can;
 		//have-eeprom;
 	};
 };
