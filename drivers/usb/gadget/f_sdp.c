@@ -35,6 +35,15 @@
 #include <imximage.h>
 #include <watchdog.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/boot_mode.h>
+#include "../../../board/F+S/common/fs_image_common.h"
+#include <asm/mach-imx/checkboot.h>
+
+#define SPL_BUFFER_ADDR ((void*)0x401fffc0)
+#endif
+
+
 #define HID_REPORT_ID_MASK	0x000000ff
 
 /*
@@ -781,6 +790,14 @@ static void sdp_handle_in_ep(void)
 
 			header = (struct image_header *)(ulong)(sdp_func->jmp_address);
 
+#ifdef CONFIG_FS_SECURE_BOOT
+			int size;
+			if((uint8_t)*(uint8_t*)(CONFIG_SDP_LOADADDR + HAB_HEADER) == 0xd1){
+				size = (uint32_t)*(uint32_t*)(CONFIG_SDP_LOADADDR + 0x64);
+				memcpy(SPL_BUFFER_ADDR, (void*)CONFIG_SDP_LOADADDR + (size_t)FS_HEADER_SIZE, size);
+			}
+#endif
+
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 			    image_get_magic(header) == FDT_MAGIC) {
 				struct spl_load_info load;
@@ -791,9 +808,20 @@ static void sdp_handle_in_ep(void)
 				load.filename = NULL;
 				load.bl_len = 1;
 				load.read = sdp_load_read;
+#ifndef CONFIG_FS_SECURE_BOOT
 				spl_load_simple_fit(&spl_image, &load,
 							  sdp_func->jmp_address,
 							  (void *)header);
+#else
+				if((uint8_t)*(uint8_t*)(header - 1) == 0xd1){
+					secure_spl_load_simple_fit(&spl_image, &load,
+					                           (void*)CONFIG_SYS_TEXT_BASE);
+				}
+				else{
+					spl_load_simple_fit(&spl_image, &load,
+					                    sdp_func->jmp_address, header);
+				}
+#endif
 			} else {
 				/* In SPL, allow jumps to U-Boot images */
 				spl_parse_image_header(&spl_image, header);

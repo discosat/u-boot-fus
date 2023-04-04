@@ -88,10 +88,12 @@ bool valid_tos() {
 	 * Or check the IVT only.
 	 */
 	bool valid = false;
+#ifndef CONFIG_FS_SECURE_BOOT
 #ifdef CONFIG_IMX_HAB
 	if (is_hab_enabled()) {
 		valid = authenticate_image(TRUSTY_OS_ENTRY, TRUSTY_OS_PADDED_SZ);
 	} else
+#endif
 #endif
 	valid = tos_ivt_check(TRUSTY_OS_ENTRY, TRUSTY_OS_PADDED_SZ);
 

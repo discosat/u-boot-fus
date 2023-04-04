@@ -14,6 +14,10 @@
 #include <linux/libfdt_env.h>
 #include <fdt.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/checkboot.h>
+#endif
+
 uint32_t __weak spl_nand_get_uboot_raw_page(void)
 {
 	return CONFIG_SYS_NAND_U_BOOT_OFFS;
@@ -62,6 +66,17 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 	int err;
 
 	err = nand_spl_load_image(offset, sizeof(*header), (void *)header);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	uint8_t* ivt_magic = (uint8_t*)header;
+	if(*ivt_magic == IVT_HEADER_MAGIC){
+		int size = (uint32_t)(((struct boot_data*)(ulong)
+		           ((struct ivt*)header)->boot)->length);
+		err = nand_spl_load_image(offset, size, header);
+		header += 1;
+	}
+#endif
+
 	if (err)
 		return err;
 
@@ -75,7 +90,16 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 		load.filename = NULL;
 		load.bl_len = 1;
 		load.read = spl_nand_fit_read;
+#ifndef CONFIG_FS_SECURE_BOOT
 		return spl_load_simple_fit(spl_image, &load, offset, header);
+#else
+		if(*ivt_magic == IVT_HEADER_MAGIC){
+			return secure_spl_load_simple_fit(spl_image, &load, header);
+		}
+		else{
+			return spl_load_simple_fit(spl_image, &load, offset, header);
+		}
+#endif
 	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 		struct spl_load_info load;
 
@@ -109,7 +133,11 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 #endif
 	nand_init();
 
+#ifndef CONFIG_FS_SECURE_BOOT
 	header = spl_get_load_buffer(0, sizeof(*header));
+#else
+	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE - 0x40);
+#endif
 
 #ifdef CONFIG_SPL_OS_BOOT
 	if (!spl_start_uboot()) {

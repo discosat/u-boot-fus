@@ -927,7 +927,7 @@ static int fsl_fspi_nand_set_mode(struct udevice *bus, uint mode)
 	return 0;
 }
 
-struct fspi_cmd_func_pair fspi_supported_cmds[SEQID_END] = {
+static struct fspi_cmd_func_pair fspi_supported_cmds[SEQID_END] = {
 	{SPINAND_CMD_RESET, &fspi_nand_op_cmd},
 	{SPINAND_CMD_WREN, &fspi_nand_op_cmd},
 	{SPINAND_CMD_READID, &fspi_nand_op_read_reg},

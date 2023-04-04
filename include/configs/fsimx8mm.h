@@ -150,10 +150,6 @@
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
 #define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
 
-#ifdef CONFIG_IMX_HAB
-#define CONFIG_CSF_SIZE			0x2000 /* 8K region */
-#endif
-
 #define CONFIG_SYS_SERCON_NAME "ttymxc"	/* Base name for serial devices */
 
 #define CONFIG_SPL_MAX_SIZE		(140 * 1024)
@@ -193,7 +189,7 @@
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
 #define CONFIG_SPL_ATF_ADDR 0x920000
-#define CONFIG_SPL_TEE_ADDR 0xbe000000
+#define CONFIG_SPL_TEE_ADDR 0x56000000
 
 /* TCM Address where DRAM Timings are loaded to */
 #define CONFIG_SPL_DRAM_TIMING_ADDR 0x81C000
@@ -288,6 +284,8 @@
 #define CONFIG_BOOTCOMMAND \
 	"run set_bootargs; run kernel; run fdt"
 #endif
+
+#define SECURE_PARTITIONS	"UBoot", "Kernel", "FDT", "Images"
 
 /************************************************************************
  * Environment

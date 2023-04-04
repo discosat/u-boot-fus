@@ -17,6 +17,12 @@
 #include <mmc.h>
 #include <image.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/checkboot.h>
+#define MMC_BLOCK_SIZE 0x200
+#endif
+
+
 static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
 {
@@ -84,6 +90,18 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 
 	/* read image header to find the image size & load address */
 	count = blk_dread(bd, sector, 1, header);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	uint8_t* ivt_magic = (uint8_t*)header;
+	if(*ivt_magic == IVT_HEADER_MAGIC){
+		uint32_t size = (uint32_t)(((struct boot_data*)(ulong)
+		                ((struct ivt*)header)->boot)->length);
+		uint32_t blocks = (size / MMC_BLOCK_SIZE) + 1;
+		count = blk_dread(mmc_get_blk_desc(mmc), sector, blocks, header);
+		header += 1;
+	}
+#endif
+
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
 		ret = -EIO;
@@ -100,7 +118,16 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		load.filename = NULL;
 		load.bl_len = mmc->read_bl_len;
 		load.read = h_spl_load_read;
+#ifndef CONFIG_FS_SECURE_BOOT
 		ret = spl_load_simple_fit(spl_image, &load, sector, header);
+#else
+		if(*ivt_magic == IVT_HEADER_MAGIC){
+			ret = secure_spl_load_simple_fit(spl_image, &load, header);
+		}
+		else{
+			ret = spl_load_simple_fit(spl_image, &load, sector, header);
+		}
+#endif
 	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 		struct spl_load_info load;
 

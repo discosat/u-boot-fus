@@ -22,6 +22,10 @@
 #include <u-boot/zlib.h>
 #include <mapmem.h>
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/checkboot.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined(CONFIG_CMD_IMI)
@@ -130,7 +134,7 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 			uint32_t ddr_start, uint32_t raw_image_size);
 
 	ulong addr = get_loadaddr();
-#ifdef CONFIG_IMX_OPTEE
+#if defined(CONFIG_IMX_OPTEE) && !defined(CONFIG_FS_SECURE_BOOT)
 	ulong tee_addr = 0;
 	int ret;
 	ulong zi_start, zi_end;
@@ -303,8 +307,16 @@ static int do_iminfo(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	for (arg = 1; arg < argc; ++arg) {
 		addr = parse_loadaddr(argv[arg], NULL);
-		if (image_info(addr) != 0)
+		if (image_info(addr) != 0){
+#ifdef CONFIG_FS_SECURE_BOOT
+			printf("trying again, in case of signed RAM disk\n");
+			if (image_info(addr + HAB_HEADER) != 0){
+				rcode = 1;
+			}
+#else
 			rcode = 1;
+#endif
+		}
 	}
 	return rcode;
 }

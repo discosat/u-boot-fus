@@ -37,6 +37,8 @@ obj-$(CONFIG_SPL_BUILD)	+= spl.o
 endif
 ifeq ($(SOC),$(filter $(SOC),imx8m imx8 imx8ulp))
 obj-y	+= dt_optee.o
+obj-$(CONFIG_IMX_HAB) += hab.o
+obj-$(CONFIG_FS_SECURE_BOOT) += checkboot.o
 endif
 ifeq ($(SOC),$(filter $(SOC),mx7))
 obj-y 	+= cpu.o
@@ -75,7 +77,7 @@ obj-$(CONFIG_DDRMC_VF610_CALIBRATION) += ddrmc-vf610-calibration.o
 endif
 ifeq ($(SOC),$(filter $(SOC),imx8))
 ifneq ($(CONFIG_SPL_BUILD),y)
-###obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
+obj-$(CONFIG_IMX_BOOTAUX) += imx_bootaux.o
 endif
 endif
 ifneq ($(CONFIG_SPL_BUILD),y)

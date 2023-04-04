@@ -290,6 +290,11 @@ bool spl_load_simple_fit_skip_processing(void);
 int spl_load_simple_fit(struct spl_image_info *spl_image,
 			struct spl_load_info *info, ulong sector, void *fdt);
 
+#if CONFIG_FS_SECURE_BOOT
+int secure_spl_load_simple_fit(struct spl_image_info *spl_image,
+			struct spl_load_info *info, void *fit);
+#endif
+
 #define SPL_COPY_PAYLOAD_ONLY	1
 #define SPL_FIT_FOUND		2
 #define SPL_FIT_BYPASS_POST_LOAD		4

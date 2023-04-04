@@ -151,6 +151,13 @@
 #include "fs_dram_common.h"		/* fs_dram_init_common() */
 #include "fs_image_common.h"		/* Own interface */
 
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/hab.h>
+#include <asm/mach-imx/checkboot.h>
+#include <stdbool.h>
+#include <hang.h>
+#endif
+
 /* Structure to handle board name and revision separately */
 struct bnr {
 	char name[MAX_DESCR_LEN];
@@ -422,6 +429,11 @@ static const char *ram_timing;
 static basic_init_t basic_init_callback;
 static char board_id[MAX_DESCR_LEN];
 static struct fs_header_v1_0 one_fsh;	/* Buffer for one F&S header */
+#ifdef CONFIG_FS_SECURE_BOOT
+static void *final_load_addr = 0;
+static char* state_names[] = { "Board-Config", "", "", "", "DRAM-Firmware",
+						"DRAM Timing", "ATF", "TEE" };
+#endif
 
 #define MAX_NEST_LEVEL 8
 
@@ -537,6 +549,93 @@ static void fs_image_next_fw(void)
 	}
 }
 
+#ifdef CONFIG_FS_SECURE_BOOT
+static int check_fs_image(struct sb_info info, char* name, bool isSigned) {
+	if(isSigned) {
+		struct fs_header_v1_0* fsh = info.check_addr;
+		int size = fs_image_get_size(fsh, false) + 0x40;
+		uintptr_t check_ptr = (ulong)info.check_addr;
+
+		if (imx_hab_authenticate_image(check_ptr,
+						size, FS_HEADER_SIZE)) {
+			printf("ERROR: %s IS NOT VALID\n", name);
+			return 1;
+		}
+#ifdef CONFIG_FS_SECURE_BOOT_DEBUG
+		printf("signed %s\n", name);
+#endif
+	}
+	else if(imx_hab_is_enabled()) {
+		printf("ERROR: UNSIGNED %s ON CLOSED BOARD\n", name);
+		return 1;
+	}
+	else {
+#ifdef CONFIG_FS_SECURE_BOOT_DEBUG
+		printf("unsigned %s\n", name);
+#endif
+	}
+	return 0;
+}
+
+static int auth_prepare(struct sb_info info, size_t* image_length,
+				char **name, ulong* offset, bool *isSigned) {
+	*name = state_names[info.image_type];
+	*isSigned = (info.image_ivt->hdr.magic == IVT_HEADER_MAGIC)
+			? true : false;
+
+	if(*isSigned) {
+		uintptr_t bd_ptr = (ulong)info.image_ivt->boot;
+		struct boot_data * bd = (struct boot_data*)bd_ptr;
+		*image_length = bd->length;
+		*offset = HAB_HEADER;
+	}
+	else
+	{
+		struct fs_header_v1_0* fsh = info.check_addr;
+		*image_length = fs_image_get_size(fsh, false);
+		*offset = 0;
+	}
+	return 0;
+}
+
+static int copy_valid_fs_image(struct sb_info info, size_t img_length,
+							ulong offset) {
+	void  *img_dst  = info.final_addr;
+	void  *img_src  = info.check_addr + FS_HEADER_SIZE + offset;
+
+	if (info.header == true) {
+		memcpy(info.final_addr, info.check_addr, FS_HEADER_SIZE);
+		img_dst += FS_HEADER_SIZE;
+	}
+
+	memcpy(img_dst, img_src, img_length);
+	return 0;
+}
+
+int copy_if_valid(void *final_addr, void *check_addr, ulong ivt_offset,
+						int image_type, bool header) {
+	size_t image_length = 0;
+	ulong offset = 0;
+	char* name = "";
+	bool isSigned;
+
+	struct sb_info info = {
+		.final_addr = final_addr,
+		.check_addr = check_addr,
+		.image_ivt = (struct ivt*)ivt_offset,
+		.header = header,
+		.image_type = image_type
+	};
+
+	auth_prepare(info, &image_length, &name, &offset, &isSigned);
+	if (check_fs_image(info, name, isSigned))
+		return 1;
+
+	copy_valid_fs_image(info, image_length, offset);
+	return 0;
+}
+#endif
+
 /* State machine: Loading the F&S header of the (sub-)image is done */
 static void fs_image_handle_header(void)
 {
@@ -593,8 +692,14 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_BOARD_CFG:
 		if (fs_image_match_board_id(&one_fsh, "BOARD-CFG")) {
+#ifndef CONFIG_FS_SECURE_BOOT
 			memcpy(fs_image_get_cfg_addr(true), &one_fsh, FSH_SIZE);
 			fs_image_copy(fs_image_get_cfg_addr(false), size);
+#else
+			fs_image_copy((void*)(CONFIG_SPL_ATF_ADDR) +
+							FS_HEADER_SIZE, size);
+			final_load_addr = fs_image_get_cfg_addr(true);
+#endif
 		} else
 			fs_image_skip(size);
 		break;
@@ -628,25 +733,53 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_DRAM_FW:
 		/* Load DDR training firmware behind SPL code */
-		fs_image_copy_or_skip(&one_fsh, "DRAM-FW", ram_type,
-				      &_end, size);
+#ifndef CONFIG_FS_SECURE_BOOT
+		fs_image_copy_or_skip(&one_fsh, "DRAM-FW", ram_type,  &_end,
+				      size);
+#else
+		fs_image_copy_or_skip(&one_fsh, "DRAM-FW", ram_type,  
+				      (void*)(CONFIG_SPL_ATF_ADDR +
+				      FS_HEADER_SIZE), size);
+		final_load_addr = &_end;
+#endif
 		break;
 
 	case FSIMG_STATE_DRAM_TIMING:
 		/* This may overlap ATF */
+#ifndef CONFIG_FS_SECURE_BOOT
 		fs_image_copy_or_skip(&one_fsh, "DRAM-TIMING", ram_timing,
 				      (void *)CONFIG_SPL_DRAM_TIMING_ADDR,
 				      size);
+#else
+		fs_image_copy_or_skip(&one_fsh, "DRAM-TIMING", ram_timing,
+				      (void *)CONFIG_SPL_ATF_ADDR +
+				      FS_HEADER_SIZE,
+				      size);
+		final_load_addr = (void*)CONFIG_SPL_DRAM_TIMING_ADDR;
+#endif
 		break;
 
 	case FSIMG_STATE_ATF:
+#ifndef CONFIG_FS_SECURE_BOOT
 		fs_image_copy_or_skip(&one_fsh, "ATF", arch,
-				      (void *)CONFIG_SPL_ATF_ADDR, size);
+			(void *)(CONFIG_SPL_ATF_ADDR), size);
+#else
+		fs_image_copy_or_skip(&one_fsh, "ATF", arch,
+			(void *)CONFIG_SPL_ATF_ADDR +
+			FS_HEADER_SIZE, size);
+		final_load_addr = (void *)CONFIG_SPL_ATF_ADDR;
+#endif
 		break;
 
 	case FSIMG_STATE_TEE:
+#ifndef CONFIG_FS_SECURE_BOOT
 		fs_image_copy_or_skip(&one_fsh, "TEE", arch,
 				      (void *)CONFIG_SPL_TEE_ADDR, size);
+#else
+		fs_image_copy_or_skip(&one_fsh, "TEE", arch,
+			(void *)CONFIG_SPL_TEE_ADDR + FS_HEADER_SIZE, size);
+		final_load_addr = (void *)CONFIG_SPL_TEE_ADDR;
+#endif
 		break;
 	}
 }
@@ -697,6 +830,7 @@ static void fs_image_handle_image(void)
 
 	case FSIMG_STATE_TEE:
 		/* TEE loaded, job done */
+		debug("Got TEE\n");
 		jobs &= ~FSIMG_JOB_TEE;
 		fs_image_next_fw();
 		break;
@@ -783,6 +917,46 @@ static void fs_image_start(unsigned int size, unsigned int jobs_todo,
 	fs_image_enter(size, FSIMG_STATE_ANY);
 }
 
+#ifdef CONFIG_FS_SECURE_BOOT
+static bool ready_to_move_header(void) {
+	if ((mode == FSIMG_MODE_HEADER) && ((state == FSIMG_STATE_DRAM_FW) ||
+					(state == FSIMG_STATE_DRAM_TIMING) ||
+						(state == FSIMG_STATE_ATF) ||
+						(state == FSIMG_STATE_TEE) ||
+			(fs_image_match_board_id(&one_fsh, "BOARD-CFG")))) {
+		return true;
+	}
+	return false;
+}
+
+static void move_header(void){
+	if(state == FSIMG_STATE_TEE)
+		memcpy((void*)CONFIG_SPL_TEE_ADDR, &one_fsh, FS_HEADER_SIZE);
+	else
+		memcpy((void*)CONFIG_SPL_ATF_ADDR, &one_fsh, FS_HEADER_SIZE);
+}
+
+static bool ready_to_move_image(bool eq) {
+	if((mode == FSIMG_MODE_IMAGE) && eq)
+		return true;
+	return false;
+}
+
+void move_image_and_validate(void) {
+	bool header = false;
+	uintptr_t test_addr = CONFIG_SPL_ATF_ADDR;
+
+	if(fs_image_match_board_id(&one_fsh, "BOARD-CFG"))
+		header = true;
+	if(state == FSIMG_STATE_TEE)
+		test_addr = CONFIG_SPL_TEE_ADDR;
+
+	if(copy_if_valid(final_load_addr, (void *)(uintptr_t)test_addr,
+				test_addr + FS_HEADER_SIZE, state, header))
+		hang();
+}
+#endif
+
 /* Handle a chunk of data that was received via SDP on USB */
 static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 {
@@ -793,6 +967,14 @@ static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 		chunk = min((unsigned int)data_len, count);
 		if ((mode == FSIMG_MODE_IMAGE) || (mode == FSIMG_MODE_HEADER))
 			memcpy(addr, data_buf, chunk);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+		/* For Secure Boot additional steps are nedded, do it here */
+		if (ready_to_move_header())
+			move_header();
+		if (ready_to_move_image(count == chunk))
+			move_image_and_validate();
+#endif
 		addr += chunk;
 		data_buf += chunk;
 		data_len -= chunk;
@@ -984,6 +1166,12 @@ static int fs_image_loop(struct fs_header_v1_0 *cfg, unsigned int start,
 				if (start + count >= end)
 					return -EFBIG;
 				err = load(start, count, addr);
+#ifdef CONFIG_FS_SECURE_BOOT
+				if (ready_to_move_header())
+					move_header();
+				if (ready_to_move_image(true))
+					move_image_and_validate();
+#endif
 				if (err)
 					return err;
 				addr += count;
@@ -1031,10 +1219,24 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 		start = copy ? offs[1] : offs[0];
 
 		/* Try to load BOARD-CFG (normal load) */
+#ifdef CONFIG_FS_SECURE_BOOT
+		void *load_addr = (void*)CONFIG_SPL_ATF_ADDR;
+#else
+		void *load_addr = target;
+#endif
 		if (!load(start, FSH_SIZE, &one_fsh)
 		    && (fs_image_match(&one_fsh, "BOARD-CFG", NULL))
-		    && !load(start, fs_image_get_size(&one_fsh, true), target))
-		{
+		    && !load(start, fs_image_get_size(&one_fsh, true),
+			     (void*)load_addr))
+ 		{
+#ifdef CONFIG_FS_SECURE_BOOT
+			if (copy_if_valid((void *)CONFIG_FUS_BOARDCFG_ADDR,
+				(void *)CONFIG_SPL_ATF_ADDR,
+				CONFIG_SPL_ATF_ADDR + FS_HEADER_SIZE,
+				state, true)) {
+				hang();
+			}
+#endif
 			/* basic_init == NULL means only load BOARD-CFG */
 			if (!basic_init)
 				return 0;

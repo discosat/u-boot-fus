@@ -32,6 +32,7 @@ config IMX_RDC
 config IMX_BOOTAUX
 	bool "Support boot auxiliary core"
 	depends on ARCH_MX7 || ARCH_MX7ULP || ARCH_MX6 || ARCH_VF610 || ARCH_IMX8 || ARCH_IMX8M
+	select LIB_ELF if ARCH_MX6 || ARCH_MX7 || ARCH_MX7ULP
 	help
 	  bootaux [addr] to boot auxiliary core.
 
@@ -92,6 +93,12 @@ config FS_SECURE_BOOT
 	bool "Support FS variant of Secure Boot"
 	help
 	  This option enables the support for F&S secure boot (HAB).
+
+config FS_SECURE_BOOT_DEBUG
+	bool "Additional information during Secure Boot process"
+	depends on FS_SECURE_BOOT
+	help
+	  This options activates F&S Secure Boot specific debug messages.
 
 config CMD_BMODE
 	bool "Support the 'bmode' command"

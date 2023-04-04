@@ -22,6 +22,7 @@ else
 obj-$(CONFIG_FS_BOARD_COMMON)	+= fs_board_common.o
 obj-$(CONFIG_FS_IMAGE_COMMON)	+= fs_image_common.o
 obj-$(CONFIG_FS_DRAM_COMMON)	+= fs_dram_common.o
+obj-$(CONFIG_FS_SPL_MEMTEST_COMMON)     += fs_memtest_common.o
 ifndef CONFIG_SPL_BUILD
 obj-$(CONFIG_FS_FDT_COMMON)	+= fs_fdt_common.o
 obj-$(CONFIG_FS_MMC_COMMON)	+= fs_mmc_common.o

@@ -22,20 +22,21 @@
  *
  * OCRAM layout SPL                 U-Boot
  * ---------------------------------------------------------
- * 0x0090_0000: (Region reserved by ROM loader)(64KB)
- * 0x0091_0000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
- * 0x0091_2000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
- * 0x0091_2800: MALLOC_F pool       ---       (34KB) CONFIG_MALLOC_F_ADDR
- * 0x0091_B000: ---                 ---       (4KB)
- * 0x0091_FFF0: Global Data + Stack --- 	  (20KB) CONFIG_SPL_STACK
- * 0x0092_0000: SPL (<= ~208KB) (loaded by ROM-Loader, address defined by ATF)
+ * 0x0090_0000: (Region reserved by ROM loader)(96KB)
+ * 0x0091_8000: BOARD-CFG           BOARD-CFG (8KB)  CONFIG_FUS_BOARDCFG_ADDR
+ * 0x0091_A000: BSS data            cfg_info  (2KB)  CONFIG_SPL_BSS_START_ADDR
+ * 0x0091_A800: MALLOC_F pool       ---       (34KB) CONFIG_MALLOC_F_ADDR
+ * 0x0092_3000: ---                 ---       (4KB)
+ * 0x0092_7FF0: Global Data + Stack ---       (20KB) CONFIG_SPL_STACK
+ * 0x0092_8000: SPL (<= ~208KB) (loaded by ROM-Loader, address defined by ATF)
  *     DRAM-FW: Training Firmware (up to 96KB, immediately behind end of SPL)
- * 0x0096_C000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
- * 0x0097_0000: ATF (8MP)           ATF       (64KB) CONFIG_SPL_ATF_ADDR
+ * 0x0096_4000: DRAM Timing Data    ---       (16KB) CONFIG_SPL_DRAM_TIMING_ADDR
+ * 0x0096_8000: ATF (8MP)           ATF       (96KB) CONFIG_SPL_ATF_ADDR
  * 0x0097_FFFF: END (8MP)
  *
- * The sum of SPL and DDR_FW must not exceed 232KB (0x3A000). However there is
- * still room to extend this region if SPL grows larger in the future.
+ * The sum of SPL and DDR_FW must not exceed 240KB (0x3C000). However there is
+ * still room to extend this region if SPL grows larger in the future, e.g. by
+ * letting DRAM Timing Data overlap with ATF region.
  * After DRAM is available, SPL uses a MALLOC_R pool at 0x4220_0000.
 
 
@@ -71,7 +72,7 @@
  * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
  * 0x00B0_0000: UserDef (2MB)
  * 0x00D0_0000: Kernel_A (32MB)
- * 0x02D0_0000: FDT_A (1MBKB)
+ * 0x02D0_0000: FDT_A (1MB)
  * 0x02E0_0000: Kernel_B (32MB, opt)
  * 0x04E0_0000: FDT_B (1MB, opt)
  * 0x04F0_0000: TargetFS as UBI Volumes
@@ -170,7 +171,7 @@
 
 #include "imx_env.h"
 
-/* disable FAT write becaue its doesn't work
+/* disable FAT write because its doesn't work
  *  with F&S FAT driver
  */
 #undef CONFIG_FAT_WRITE
@@ -179,9 +180,6 @@
 #define M4_BOOTROM_BASE_ADDR           MCU_BOOTROM_BASE_ADDR
 #define IMX_SIP_SRC_M4_START           IMX_SIP_SRC_MCU_START
 #define IMX_SIP_SRC_M4_STARTED         IMX_SIP_SRC_MCU_STARTED
-
-#define CONFIG_SYS_UART_PORT	1	/* Default UART port */
-#define CONFIG_CONS_INDEX       (CONFIG_SYS_UART_PORT)
 
 #define CONFIG_SPL_MAX_SIZE		(152 * 1024)
 #define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
@@ -193,12 +191,12 @@
  * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
  * CONFIG_SYS_SPL_MALLOC_START
  */
-#define CONFIG_FUS_BOARDCFG_ADDR	0x00910000
-#define CONFIG_SPL_BSS_START_ADDR      0x00912000
+#define CONFIG_FUS_BOARDCFG_ADDR	0x00918000
+#define CONFIG_SPL_BSS_START_ADDR      0x0091A000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_STACK		0x91FFF0
+#define CONFIG_SPL_STACK		0x927FF0
 #define CONFIG_SPL_DRIVERS_MISC_SUPPORT
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
@@ -212,13 +210,13 @@
 
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
-#define CONFIG_SPL_ATF_ADDR 0x00970000
-#define CONFIG_SPL_TEE_ADDR 0xfe000000
+#define CONFIG_SPL_ATF_ADDR 0x00968000
+#define CONFIG_SPL_TEE_ADDR 0x56000000
 
 /* TCM Address where DRAM Timings are loaded to */
-#define CONFIG_SPL_DRAM_TIMING_ADDR 0x0096C000
+#define CONFIG_SPL_DRAM_TIMING_ADDR 0x00964000
 
-#define CONFIG_MALLOC_F_ADDR		0x912800 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
+#define CONFIG_MALLOC_F_ADDR		0x91A800 /* malloc f used before GD_FLG_FULL_MALLOC_INIT set */
 
 #define CONFIG_SPL_ABORT_ON_RAW_IMAGE
 
@@ -469,6 +467,8 @@
 #define CONFIG_SYS_INIT_SP_ADDR \
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
+#define SECURE_PARTITIONS	"UBoot", "Kernel", "FDT", "Images"
+
 /************************************************************************
  * Environment
  ************************************************************************/
@@ -504,7 +504,10 @@
 #define UART4_BASE UART4_BASE_ADDR
 #define UART5_BASE 0xFFFFFFFF
 
-#define CONFIG_MXC_UART_BASE		UART2_BASE_ADDR
+/* Not used on F&S boards. Detection depends on
+ * board type is preferred.
+ * */
+#define CONFIG_MXC_UART_BASE		0
 
 /* Monitor Command Prompt */
 
@@ -529,7 +532,7 @@
 #define CONFIG_SYS_MMC_IMG_LOAD_PART	1
 
 #ifdef CONFIG_FSL_FSPI
-#define FSL_FSPI_FLASH_SIZE		SZ_32M
+#define FSL_FSPI_FLASH_SIZE		SZ_256M
 #define FSL_FSPI_FLASH_NUM		1
 #define FSPI0_BASE_ADDR			0x30bb0000
 #define FSPI0_AMBA_BASE			0x0

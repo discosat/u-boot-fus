@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2022.09
+NBOOT_VERSION = 2023.03
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -48,17 +48,22 @@ BOARD_CONFIGS = \
 	armStoneMX8MP-FERT0.100.fs \
 	armStoneMX8MP-FERT2.100.fs \
 	armStoneMX8MP-FERT4.100.fs \
-	armStoneMX8MP-FERT5.100.fs
+	armStoneMX8MP-FERT5.100.fs \
+	efusMX8MP-FERT3.100.fs \
+	efusMX8MP-FERT4.100.fs \
+	efusMX8MP-FERT5.100.fs
+
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
 RT_LPDDR4 := \
 	lpddr4_as-k4f8e3s4hd_mgcl_timing.fs \
 	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_pc-k4f6e3s4hm_mgcj_timing.fs \
+	lpddr4_pc_2g1500m2ch1cs_timing.fs \
 	lpddr4_pc-fl4c2001g-d9_timing.fs \
-	lpddr4_pc-nt6an512t32av_j2i_timing.fs \
-	lpddr4_as-nt6an512t32av_j2i_timing.fs
+	lpddr4_as-nt6an512t32av_j2i_timing.fs \
+	lpddr4_ef_2g1800m2ch1cs_timing.fs \
+	lpddr4_ef_1g2000m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
@@ -79,7 +84,12 @@ RT_LPDDR4 := lpddr4_fw.fs $(RT_LPDDR4)
 RT_DDR4 := ddr4_fw.fs $(RT_DDR4)
 
 # List of files to add to FIRMWARE image
+ifeq ($(CONFIG_IMX_OPTEE),y)
+FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs $(BOARD)_optee.fs
+else
 FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs
+endif
+
 
 # List of files to add to EXTRA image
 EXTRA_FILES = addfsheader.sh.fs fsimage.sh.fs
@@ -121,6 +131,7 @@ NXP_LPDDR4 = lpddr4_pmu_train_1d_imem$(DDR_FW_VERSION).bin lpddr4_pmu_train_1d_d
 NXP_DDR4 = ddr4_imem_1d$(NANO).bin ddr4_dmem_1d$(NANO).bin \
 	ddr4_imem_2d$(NANO).bin ddr4_dmem_2d$(NANO).bin
 NXP_ATF = bl31-imx8mp.bin
+NXP_TEE = tee-fsimx8mp.bin
 
 # Add path for NXP firmware images
 NXP_PATH = $(srctree)/board/F+S/NXP-Firmware
@@ -128,6 +139,7 @@ NXP_PATH_DDR3L = $(addprefix $(NXP_PATH)/, $(NXP_DDR3L))
 NXP_PATH_LPDDR4 = $(addprefix $(NXP_PATH)/, $(NXP_LPDDR4))
 NXP_PATH_DDR4 = $(addprefix $(NXP_PATH)/, $(NXP_DDR4))
 NXP_PATH_ATF = $(addprefix $(NXP_PATH)/, $(NXP_ATF))
+NXP_PATH_TEE = $(addprefix $(NXP_PATH)/, $(NXP_TEE))
 
 # Concatenate two single files with padding: 32KB + x
 quiet_cmd_dd2 = GROUP   $@
@@ -201,6 +213,9 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 
 %_atf.fs: $(NXP_PATH_ATF)
 	$(call cmd,fsimg,-t ATF -d $(*F))
+
+%_optee.fs: $(NXP_PATH_TEE)
+	$(call cmd,fsimg,-t TEE -d $(*F))
 
 %_firmware.fs: $(OBJ_FIRMWARE_FILES)
 	$(call cmd,fsimg,-t FIRMWARE -d $(*F))

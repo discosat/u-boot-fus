@@ -104,6 +104,18 @@ bool fs_image_match_board_id(struct fs_header_v1_0 *fsh, const char *type);
 /* Set the compare id that will used in fs_image_match_board_id() */
 void fs_image_set_board_id_compare(const char *id);
 
+/* Authenticate an FS-Image at a testing address and copy it to its load address */
+#ifdef CONFIG_FS_SECURE_BOOT
+int authenticate_fs_image(void *final_addr, void *check_addr,
+	ulong image_offset, int image_type, bool header);
+struct sb_info {
+	void *final_addr;
+	void *check_addr;
+	bool header;
+	struct ivt* image_ivt;
+	int image_type;
+};
+#endif
 
 /* ------------- Stuff only for SPL ---------------------------------------- */
 

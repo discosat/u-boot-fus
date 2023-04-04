@@ -39,6 +39,9 @@
 #include "../common/fs_image_common.h"	/* fs_image_*() */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+#include "../common/fs_memtest_common.h"
+#endif
 #include <usb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -46,11 +49,13 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MP 0x0
 #define BT_PICOCOREMX8MPr2 0x1
 #define BT_ARMSTONEMX8MP 0x2
+#define BT_EFUSMX8MP 0x3
 
 static const char *board_names[] = {
 	"PicoCoreMX8MP",
 	"PicoCoreMX8MPr2",
 	"armStoneMX8MP",
+	"efusMX8MP",
 	"(unknown)"
 };
 
@@ -65,7 +70,6 @@ static bool secondary;			/* 0: primary, 1: secondary SPL */
 static bool usb_initialized = false;
 
 #ifdef CONFIG_POWER
-#define I2C_PMIC_8MP	4
 
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
@@ -82,10 +86,25 @@ struct i2c_pads_info i2c_pad_info_8mp = {
 	},
 };
 
+struct i2c_pads_info i2c_pad_info_efusmx8mp = {
+	.scl = {
+		.i2c_mode = MX8MP_PAD_SAI5_RXFS__I2C6_SCL | PC,
+		.gpio_mode = MX8MP_PAD_SAI5_RXFS__GPIO3_IO19 | PC,
+		.gp = IMX_GPIO_NR(3, 19),
+	},
+	.sda = {
+		.i2c_mode = MX8MP_PAD_SAI5_RXC__I2C6_SDA | PC,
+		.gpio_mode = MX8MP_PAD_SAI5_RXC__GPIO3_IO20 | PC,
+		.gp = IMX_GPIO_NR(3, 20),
+	},
+};
+
 int power_init_board(void)
 {
 	struct pmic *p;
 	int ret;
+	struct i2c_pads_info *pi2c_pad_info;
+	unsigned int bus;
 
 	switch (board_type)
 	{
@@ -93,10 +112,17 @@ int power_init_board(void)
 	case BT_PICOCOREMX8MP:
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
-		setup_i2c(I2C_PMIC_8MP, CONFIG_SYS_I2C_SPEED, 0x30, &i2c_pad_info_8mp);
-		ret = power_pca9450_init(I2C_PMIC_8MP);
+		bus = 4;
+		pi2c_pad_info = &i2c_pad_info_8mp;
+		break;
+	case BT_EFUSMX8MP:
+		bus = 5;
+		pi2c_pad_info = &i2c_pad_info_efusmx8mp;
 		break;
 	}
+
+	setup_i2c(bus, CONFIG_SYS_I2C_SPEED, 0x30, pi2c_pad_info);
+	ret = power_pca9450_init(bus);
 
 	if (ret)
 		printf("power init failed");
@@ -151,6 +177,11 @@ static iomux_v3_cfg_t const uart_pads_mp[] = {
 	MX8MP_PAD_SAI3_TXC__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
+static iomux_v3_cfg_t const uart_pads_efusmx8mp[] = {
+	MX8MP_PAD_SAI2_RXC__UART1_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX8MP_PAD_SAI2_RXFS__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
 #define UART_AUTOMOD_CTRL (PAD_CTL_DSE2 | PAD_CTL_PUE | PAD_CTL_PE)
 #define SHDN_R232_PAD IMX_GPIO_NR(1, 3)
 #define AUTONLINE_R232_PAD IMX_GPIO_NR(1, 4)
@@ -160,32 +191,67 @@ static iomux_v3_cfg_t const uart_auto_mode[] = {
 	MX8MP_PAD_GPIO1_IO04__GPIO1_IO04 | MUX_PAD_CTRL(UART_AUTOMOD_CTRL),
 };
 
-static void config_uart(int board_type)
+static void config_uart(int bt)
 {
+	iomux_v3_cfg_t const *pad_list;
+	unsigned pad_list_count;
+	u32 clk_index;
+
+	/* Set board type early for board_serial_base function.
+	 * This is needed to use different UART ports dependent on board type,
+	 * because default_serial_console uses board_serial_base to select correct
+	 * serial_device structure.
+	 * */
+	board_type = bt;
+
 	switch (board_type)
 	{
 	default:
-	case BT_PICOCOREMX8MP:
-	case BT_PICOCOREMX8MPr2:
-		break;
 	case BT_ARMSTONEMX8MP:
 		/* Initialize SHDN_RS232 and AUTONLINE_RS232
-		 *  to auto online mode.
-		 *  */
+		 * to auto online mode.
+		 */
 		imx_iomux_v3_setup_multiple_pads(uart_auto_mode, ARRAY_SIZE(uart_auto_mode));
 		gpio_request (SHDN_R232_PAD, "SHDN");
 		gpio_direction_output (SHDN_R232_PAD, 1);
 		gpio_request (AUTONLINE_R232_PAD, "ONLINE");
 		gpio_direction_output (AUTONLINE_R232_PAD, 0);
+	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
+		pad_list = uart_pads_mp;
+		clk_index = 1;
+		pad_list_count = ARRAY_SIZE(uart_pads_mp);
+		break;
+	case BT_EFUSMX8MP:
+		pad_list = uart_pads_efusmx8mp;
+		clk_index = 0;
+		pad_list_count = ARRAY_SIZE(uart_pads_efusmx8mp);
 		break;
 	}
 
 	/* Setup UART pads */
-	imx_iomux_v3_setup_multiple_pads(uart_pads_mp, ARRAY_SIZE(uart_pads_mp));
+	imx_iomux_v3_setup_multiple_pads(pad_list, pad_list_count);
 	/* enable uart clock */
-	init_uart_clk(1);
+	init_uart_clk(clk_index);
 
 	preloader_console_init();
+}
+/* Set base address depends on board type.
+ * Override function from serial_mxc.c
+ * */
+ulong board_serial_base(void)
+{
+	switch (board_type)
+	{
+	case BT_EFUSMX8MP:
+		return UART1_BASE;
+	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
+	case BT_ARMSTONEMX8MP:
+	default:
+		break;
+	}
+	return UART2_BASE;
 }
 
 #ifdef CONFIG_MMC
@@ -196,7 +262,11 @@ static void config_uart(int board_type)
  *   ----------------------------------------------------------------------
  *   PicoCoreMX8MP:    USDHC3  NA                     On-board eMMC
  *   ----------------------------------------------------------------------
+ *   PicoCoreMX8MPr2:  USDHC3  NA                     On-board eMMC
+ *   ----------------------------------------------------------------------
  *   armStoneMX8MP:    USDHC1  NA                     On-board eMMC
+ *   ----------------------------------------------------------------------
+ *   efusMX8MP:        USDHC1  NA                     On-board eMMC
  */
 /* Pad settings if using eMMC */
 #define USDHC_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE |PAD_CTL_PE | \
@@ -219,7 +289,6 @@ static iomux_v3_cfg_t const usdhc3_pads_int[] = {
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CLE__USDHC3_DATA7,
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_CE1_B__USDHC3_STROBE,
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_READY_B__USDHC3_RESET_B,
-	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_NAND_READY_B__GPIO3_IO16,
 };
 
 static iomux_v3_cfg_t const usdhc1_pads_int[] = {
@@ -294,12 +363,12 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 	used_boot_dev = boot_dev;
 	switch (boot_dev) {
 #ifdef CONFIG_MMC
-	case MMC1_BOOT: /* armStoneMX8MP */
+	case MMC1_BOOT: /* armStoneMX8MP, efusMX8MP */
 		fs_spl_init_emmc_pads(usdhc1_pads_int, ARRAY_SIZE(usdhc1_pads_int));
 		if (start)
 			mmc_initialize(NULL);
 		break;
-	case MMC3_BOOT: /* PicoCoreMX8MP */
+	case MMC3_BOOT: /* PicoCoreMX8MP(r2) */
 		fs_spl_init_emmc_pads(usdhc3_pads_int, ARRAY_SIZE(usdhc3_pads_int));
 		if (start)
 			mmc_initialize(NULL);
@@ -405,7 +474,8 @@ void board_init_f(ulong dummy)
 	 */
 	//config_uart(BT_PICOCOREMX8MP);
 	//config_uart(BT_PICOCOREMX8MPr2);
-	config_uart(BT_ARMSTONEMX8MP);
+	//config_uart(BT_ARMSTONEMX8MP);
+	config_uart(BT_EFUSMX8MP);
 #endif
 	/* Init malloc_f pool and boot stages */
 	ret = spl_init();
@@ -443,6 +513,27 @@ void board_init_f(ulong dummy)
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);
 }
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+void dram_test(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	unsigned long dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+			      "dram-size", 0x400);
+	dram_size = dram_size << 20;
+	gd->ram_size = dram_size;
+
+	/* Enable caches */
+	gd->arch.tlb_size = PGTABLE_SIZE;
+	gd->arch.tlb_addr = 0x970000;
+	gd->bd->bi_dram[0].start = PHYS_SDRAM;
+	gd->bd->bi_dram[0].size  = dram_size;
+	enable_caches();
+
+	memtester(PHYS_SDRAM, dram_size);
+	panic(" ");
+}
+#endif
 
 void spl_board_init(void)
 {
@@ -460,6 +551,10 @@ void spl_board_init(void)
 	case BT_ARMSTONEMX8MP:
 		bl_on_pad = MX8MP_PAD_SAI3_RXFS__GPIO4_IO28 | MUX_PAD_CTRL(NO_PAD_CTRL);
 		bl_on_gpio = IMX_GPIO_NR(4, 28);
+		break;
+	case BT_EFUSMX8MP:
+		bl_on_pad = MX8MP_PAD_GPIO1_IO01__GPIO1_IO01 | MUX_PAD_CTRL(NO_PAD_CTRL);
+		bl_on_gpio = IMX_GPIO_NR(1, 1);
 		break;
 	}
 
@@ -484,6 +579,10 @@ void spl_board_init(void)
 		puts("Back to ROM, SDP\n");
 		restore_boot_params();
 	}
+#endif
+
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+	    dram_test();
 #endif
 	puts("Normal Boot\n");
 }
@@ -580,8 +679,17 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 	writel(RegData, dwc3->base + USB_PHY_CTRL1);
 }
 
+/* efusmx8mp */
+//iomux_v3_cfg_t usb2_pwr_pad = (MX8MP_PAD_GPIO1_IO14__GPIO1_IO14 | MUX_PAD_CTRL(NO_PAD_CTRL));
+//#define USB2_PWR_EN IMX_GPIO_NR(1, 14)
+iomux_v3_cfg_t usb2_pwr_pad = (MX8MP_PAD_GPIO1_IO14__USB2_OTG_PWR | MUX_PAD_CTRL(NO_PAD_CTRL));
+
+//iomux_v3_cfg_t usb2_oc_pad = (MX8MP_PAD_GPIO1_IO15__GPIO1_IO15 | MUX_PAD_CTRL(NO_PAD_CTRL));
+//#define USB2_OC IMX_GPIO_NR(1, 15)
+iomux_v3_cfg_t usb2_oc_pad = (MX8MP_PAD_GPIO1_IO15__USB2_OTG_OC | MUX_PAD_CTRL(NO_PAD_CTRL));
+
 #define USB1_PWR_EN IMX_GPIO_NR(1, 12)
-#define USB1_RESET IMX_GPIO_NR(1, 6) /* armStoneMX8MP */
+
 int board_usb_init(int index, enum usb_init_type init)
 {
 	if(usb_initialized)
@@ -591,12 +699,28 @@ int board_usb_init(int index, enum usb_init_type init)
 		/* usb host only */
 		return 0;
 
+	debug("USB%d: %s init.\n", index, (init)?"otg":"host");
+
 	if (!usb_initialized)
 		imx8m_usb_power(index, true);
 
 	if (index == 1 && init == USB_INIT_DEVICE) {
 		if (!usb_initialized) {
 			usb_initialized = true;
+			switch (board_type)
+			{
+			case BT_EFUSMX8MP:
+				imx_iomux_v3_setup_pad(usb2_oc_pad);
+				//gpio_request(USB2_OC, "usb2_oc");
+				//gpio_direction_output(USB2_OC, 1);
+				/* Enable otg power */
+				imx_iomux_v3_setup_pad(usb2_pwr_pad);
+				//gpio_request(USB2_PWR_EN, "usb2_pwr");
+				//gpio_direction_output(USB2_PWR_EN, 0);
+				break;
+			default:
+				break;
+			}
 			dwc3_nxp_usb_phy_init(&dwc3_device_data);
 			return dwc3_uboot_init(&dwc3_device_data);
 		}
@@ -618,6 +742,9 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 		if (usb_initialized) {
 			usb_initialized = false;
 			dwc3_uboot_exit(index);
+			/* Disable otg power */
+			//gpio_request(USB2_PWR_EN, "usb2_pwr");
+			//gpio_direction_output(USB2_PWR_EN, 1);
 		}
 	} else if (index == 0 && init == USB_INIT_HOST) {
 		/* Disable host power */
