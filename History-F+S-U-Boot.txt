@@ -1,6 +1,16 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2022.10.1 (03.04.2023)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, armStoneA9r4,
+efusA9, efusA9r2 PicoMODA9, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Fix eth-link-led for armStoneA9r4
+- Add display flag vcfl_inv to fs_disp_common for fsimx6/sx
+
+
+
 u-boot-2018.03-fsimx6-B2022.10 (30.09.2022)
 -------------------------------------------
 Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, efusA9, efusA9r2
