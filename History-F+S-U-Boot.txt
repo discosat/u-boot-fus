@@ -1,6 +1,16 @@
 History of Changes for U-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+u-boot-2018.03-fsimx6-B2022.10.1 (03.04.2023)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, armStoneA9r4,
+efusA9, efusA9r2 PicoMODA9, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Fix eth-link-led for armStoneA9r4
+- Add display flag vcfl_inv to fs_disp_common for fsimx6/sx
+
+
+
 u-boot-2018.03-fsimx6sx-B2019.11.1 (07.10.2022)
 -----------------------------------------------
 Supported boards: efusA9X, efusA9Xr2, PicoCOMA9X, PicoCoreMX6SX
@@ -55,17 +65,6 @@ Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
 - Improve picocoremx8mmr2 device tree
 - Disable phy CLKOUT for PicoCoremx8MMr2
 - Disable ethernet before booting linux for fsimx8mm
-
-
-
-u-boot-2018.03-fsimx6-B2020.04.2 (09.09.2022)
----------------------------------------------
-Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, efusA9, efusA9r2,
-PicoMODA9, PicoMODA9.2, NetDCUA9, QBlissA9, QBlissA9r2
-
-- Add support for armStoneA9r3 and armStoneA9r4
-- Move LED configuration of Realtek PHY to board_phy_config
-- Enable ALDPS mode and disable EEE LED indication
 
 
 
