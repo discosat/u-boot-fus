@@ -8,6 +8,12 @@ config ADDFSHEADER
 	bool
 	default y
 
+config FS_NBOOT_ARGS
+	bool
+
+config FS_BOARD_CFG
+	bool
+
 config FS_BOARD_COMMON
 	bool
 	default y
@@ -89,6 +95,5 @@ config USB_TCPC
 	default n if TARGET_FSIMX8MP
 	help
 	  Enable USB type-c port controller (TCPC) driver
-
 
 endif

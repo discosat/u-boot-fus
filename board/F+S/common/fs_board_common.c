@@ -24,7 +24,7 @@
 #include <fuse.h>			/* fuse_read() */
 #include <update.h>			/* enum update_action */
 
-#ifdef HAVE_BOARD_CFG
+#ifdef CONFIG_FS_BOARD_CFG
 #include "fs_image_common.h"		/* fs_image_*() */
 #endif
 
@@ -40,7 +40,7 @@ static const struct fs_board_info *current_bi;
 
 /* ------------- Functions using fs_nboot_args ----------------------------- */
 
-#ifndef HAVE_BOARD_CFG
+#ifndef CONFIG_FS_BOARD_CFG
 
 /* Addresses of arguments coming from NBoot and going to Linux */
 #define NBOOT_ARGS_BASE (CONFIG_SYS_SDRAM_BASE + 0x00001000)
@@ -139,11 +139,11 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 	/* Save state to pass it to Linux later */
 	nboot_args.chECCstate |= (unsigned char)state;
 }
-#endif /* !HAVE_BOARD_CFG */
+#endif /* !CONFIG_FS_BOARD_CFG */
 
 /* ------------- Functions using BOARD-CFG --------------------------------- */
 
-#ifdef HAVE_BOARD_CFG
+#ifdef CONFIG_FS_BOARD_CFG
 
 /* Get Pointer to struct cfg_info */
 struct cfg_info *fs_board_get_cfg_info(void)
@@ -189,7 +189,7 @@ int board_phys_sdram_size(phys_size_t *size)
 	return 0;
 }
 
-#endif /* HAVE_BOARD_CFG */
+#endif /* CONFIG_FS_BOARD_CFG */
 
 /* ------------- Generic functions ----------------------------------------- */
 
@@ -224,7 +224,7 @@ enum update_action board_check_for_recover(void)
 {
 	char *recover_gpio;
 
-#ifndef HAVE_BOARD_CFG
+#ifndef CONFIG_FS_BOARD_CFG
 	/* On some platforms, the check for recovery is already done in NBoot.
 	   Then the ACTION_RECOVER bit in the dwAction value is set. */
 	if (nboot_args.dwAction & ACTION_RECOVER)
@@ -280,7 +280,7 @@ enum update_action board_check_for_recover(void)
 void fs_board_init_common(const struct fs_board_info *board_info)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-#ifndef HAVE_BOARD_CFG
+#ifndef CONFIG_FS_BOARD_CFG
 	struct fs_nboot_args *pargs = (struct fs_nboot_args *)NBOOT_ARGS_BASE;
 
 	/* Save a copy of the NBoot args */
@@ -578,7 +578,7 @@ const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev)
 	return "(unknown)";
 }
 
-#ifdef HAVE_BOARD_CFG
+#ifdef CONFIG_FS_BOARD_CFG
 
 #include <fdtdec.h>
 
@@ -798,4 +798,4 @@ u32 fs_board_get_secondary_offset(void)
 
 #endif /* CONFIG_IMX8 CONFIG_IMX8MM CONFIG_IMX8MN */
 
-#endif /* HAVE_BOARD_CFG */
+#endif /* CONFIG_FS_BOARD_CFG */

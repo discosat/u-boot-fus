@@ -162,7 +162,7 @@ void fs_fdt_set_bdinfo(void *fdt, int offs)
 	char rev[6];
 	unsigned int board_rev = fs_board_get_rev();
 
-#ifndef HAVE_BOARD_CFG
+#ifndef CONFIG_FS_BOARD_CFG
 	struct fs_nboot_args *pargs = fs_board_get_nboot_args();
 
 	/* NAND info, names and features */
@@ -178,7 +178,7 @@ void fs_fdt_set_bdinfo(void *fdt, int offs)
 	fs_fdt_set_u32str(fdt, offs, "features1", pargs->chFeatures1, 1);
 	fs_fdt_set_u32str(fdt, offs, "features2", pargs->chFeatures2, 1);
 	fs_fdt_set_u32str(fdt, offs, "nand_state", pargs->chECCstate, 1);
-#endif /* !HAVE_BOARD_CFG */
+#endif /* !CONFIG_FS_BOARD_CFG */
 	fs_fdt_set_string(fdt, offs, "boot_dev",
 		fs_board_get_name_from_boot_dev(fs_board_get_boot_dev()), 1);
 	fs_fdt_set_string(fdt, offs, "board_name", get_board_name(), 0);

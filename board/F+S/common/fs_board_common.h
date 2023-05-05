@@ -14,13 +14,9 @@
 
 #include <config.h>
 
-#if defined(CONFIG_ARCH_IMX8) || defined(CONFIG_ARCH_IMX8M)
-#define HAVE_BOARD_CFG			/* Use BOARD-CFG, no fs_nboot_args */
-#endif
-
 #include <asm/mach-imx/boot_mode.h>	/* enum boot_device */
 
-#ifndef HAVE_BOARD_CFG
+#ifndef CONFIG_FS_BOARD_CFG
 
 #define FSHWCONFIG_ARGS_ID 0x4E424F54	/* Magic number for dwID: 'NBOT' */ 
 struct fs_nboot_args {
@@ -75,7 +71,7 @@ struct cfg_info {
 /* Get the offset of the Secondary Boot Image from fuses */
 u32 fs_board_get_secondary_offset(void);
 
-#endif /* !HAVE_BOARD_CFG */
+#endif /* !CONFIG_FS_BOARD_CFG */
 
 #define BI_FLAGS_UBIONLY (1 << 0)
 
