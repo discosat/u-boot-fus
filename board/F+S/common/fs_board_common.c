@@ -325,7 +325,7 @@ static void setup_var(const char *varname, const char *content, int runvar)
 		run_command(content, 0);
 }
 
-/* Set up all board specific variables */
+/* Show NBoot version and set up all board specific variables */
 void fs_board_late_init_common(const char *serial_name)
 {
 	const char *envvar;
@@ -342,6 +342,24 @@ void fs_board_late_init_common(const char *serial_name)
 	const char *bd_auxcore;
 #endif
 	char var_name[20];
+	bool conflict = false;
+
+#ifdef CONFIG_FS_BOARD_CFG
+	ulong found_cfg = (ulong)fs_image_get_cfg_addr(true);
+	ulong expected_cfg = (ulong)fs_image_get_regular_cfg_addr();
+
+	printf("CFG:   Found at 0x%lx", found_cfg);
+	if (found_cfg != expected_cfg) {
+		printf(" *** Warning - expected at 0x%lx", expected_cfg);
+		conflict = true;
+	}
+	putc('\n');
+#endif
+
+	printf("NBoot: %s", fs_board_get_nboot_version());
+	if (conflict)
+		puts(" *** Warning - not compatible with current U-Boot!");
+	putc('\n');
 
 	/* Set sercon variable if not already set */
 	envvar = env_get("sercon");

@@ -131,14 +131,14 @@ Free Space:
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
   * So 3rd container image may start from 0x8181000
  */
-#define CONFIG_SYS_UBOOT_BASE 0x08181000
+#define CONFIG_SYS_UBOOT_BASE		0x08181000
 /*
  * The memory layout on stack:  DATA section save + gd + early malloc
  * the idea is re-use the early malloc (CONFIG_SYS_MALLOC_F_LEN) with
  * CONFIG_SYS_SPL_MALLOC_START
  */
 #define CONFIG_FUS_BOARDCFG_ADDR	0x00134000
-#define CONFIG_SPL_BSS_START_ADDR      0x00136000
+#define CONFIG_SPL_BSS_START_ADDR	0x00136000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x800	/* 2 KB */
 
 #ifdef CONFIG_SPL_BUILD
@@ -147,8 +147,8 @@ Free Space:
 #define CONFIG_SPL_STACK		0x13FFF0
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_MMC0 0x00080000
-#define CONFIG_FUS_BOARDCFG_MMC1 0x00740000
+#define CONFIG_FUS_BOARDCFG_MMC0	0x00080000
+#define CONFIG_FUS_BOARDCFG_MMC1	0x00740000
 
 #define CONFIG_SYS_SPL_MALLOC_START	0x82200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000	/* 512 KB */
@@ -157,11 +157,11 @@ Free Space:
 
 /* These addresses are hardcoded in ATF */
 #define CONFIG_SPL_USE_ATF_ENTRYPOINT
-#define CONFIG_SPL_ATF_ADDR 0x80000000
-#define CONFIG_SPL_TEE_ADDR 0xfe000000
+#define CONFIG_SPL_ATF_ADDR		0x80000000
+#define CONFIG_SPL_TEE_ADDR		0xfe000000
 
 /* TCM Address where DRAM Timings are loaded to */
-#define CONFIG_SPL_DRAM_TIMING_ADDR 0x00130000
+#define CONFIG_SPL_DRAM_TIMING_ADDR	0x00130000
 
 #define CONFIG_MALLOC_F_ADDR		0x00136800
 
@@ -701,7 +701,7 @@ Free Space:
 /* Link Definitions */
 #define CONFIG_LOADADDR			0x80280000
 
-#define CONFIG_SYS_LOAD_ADDR           CONFIG_LOADADDR
+#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 #define CONFIG_SYS_INIT_SP_ADDR         0x80200000
 
@@ -721,6 +721,9 @@ Free Space:
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (32 * 1024)) * 1024)
+
+#define CONFIG_SYS_OCRAM_BASE		0x00100000
+#define CONFIG_SYS_OCRAM_SIZE		0x00040000
 
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000

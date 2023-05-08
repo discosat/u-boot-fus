@@ -180,10 +180,21 @@ bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh)
 	return !strncmp(fsh->info.magic, "FSLX", sizeof(fsh->info.magic));
 }
 
-/* Return the address of the board configuration in OCRAM */
+/* Return the intended address of the board configuration in OCRAM */
+void *fs_image_get_regular_cfg_addr(void)
+{
+	return (void*)CONFIG_FUS_BOARDCFG_ADDR;
+}
+
+/* Return the real address of the board configuration in OCRAM */
 void *fs_image_get_cfg_addr(bool with_fs_header)
 {
-	void *cfg = (void*)CONFIG_FUS_BOARDCFG_ADDR;
+	void *cfg;
+
+	if (!gd->board_cfg)
+		gd->board_cfg = (ulong)fs_image_get_regular_cfg_addr();
+
+	cfg = (void *)gd->board_cfg;
 
 	if (!with_fs_header)
 		cfg += FSH_SIZE;
@@ -381,6 +392,56 @@ void fs_image_set_board_id_compare(const char *id)
 	fs_image_get_board_name_rev(id, &compare_bnr);
 }
 
+/* ------------- Functions only in U-Boot, not SPL ------------------------- */
+
+#ifndef CONFIG_SPL_BUILD
+
+/*
+ * Return address of board configuration in OCRAM; search for it if not
+ * available at expected place
+ */
+bool fs_image_find_cfg_in_ocram(void)
+{
+	struct fs_header_v1_0 *fsh;
+	const char *type = "BOARD-CFG";
+
+	/* Try expected location first */
+	fsh = fs_image_get_regular_cfg_addr();
+	if (fs_image_match(fsh, type, NULL))
+		return true;
+
+	/*
+	 * Search it from beginning of OCRAM.
+	 *
+	 * To avoid having to search this location over and over again, save a
+	 * pointer to it in global data.
+	 */
+	fsh = (struct fs_header_v1_0 *)CONFIG_SYS_OCRAM_BASE;
+	do {
+		if (fs_image_match(fsh, type, NULL)) {
+			gd->board_cfg = (ulong)fsh;
+			return true;
+		}
+		fsh++;
+	} while ((ulong)fsh < (CONFIG_SYS_OCRAM_BASE + CONFIG_SYS_OCRAM_SIZE));
+
+	return false;
+}
+
+/* Make sure that BOARD-CFG in OCRAM is still valid and return pointer to it */
+bool fs_image_cfg_is_valid(void)
+{
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
+
+	if (!fs_image_match(fsh, "BOARD-CFG", NULL))
+		return false;
+
+	// ### Verify checksums and/or re-authenticate BOARD-CFG here
+
+	return true;
+}
+
+#endif /* !CONFIG_SPL_BUILD */
 
 /* ------------- Functions only in SPL, not U-Boot ------------------------- */
 

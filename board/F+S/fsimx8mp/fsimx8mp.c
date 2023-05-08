@@ -35,6 +35,7 @@
 #include <mmc.h>
 #include <linux/delay.h>		/* udelay() */
 #include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
+#include <hang.h>			/* hang() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_eth_common.h"	/* fs_eth_*() */
@@ -47,7 +48,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MP 	0
 #define BT_PICOCOREMX8MPr2 	1
 #define BT_ARMSTONEMX8MP 	2
-#define BT_EFUSMX8MP 	3
+#define BT_EFUSMX8MP 		3
 
 #define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
 #define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
@@ -149,35 +150,50 @@ const struct fs_board_info board_info[] = {
 /* ---- Stage 'f': RAM not valid, variables can *not* be used yet ---------- */
 
 /* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
-static void fs_spl_setup_cfg_info(void)
+static void fs_setup_cfg_info(void)
 {
-	void *fdt = fs_image_get_cfg_addr(false);
-	int offs = fs_image_get_cfg_offs(fdt);
+	void *fdt;
+	int offs;
 	int i;
-	struct cfg_info *cfg = fs_board_get_cfg_info();
+	struct cfg_info *info;
 	const char *tmp;
 	unsigned int features;
 
-	memset(cfg, 0, sizeof(struct cfg_info));
+	/*
+	 * If the BOARD-CFG cannot be found in OCRAM or it is corrupted, this
+	 * is fatal. However no output is possible this early, so simply stop.
+	 * If the BOARD-CFG is not at the expected location in OCRAM but is
+	 * found somewhere else, output a warning later in board_late_init().
+	 */
+	if (!fs_image_find_cfg_in_ocram())
+		hang();
 
-	//###nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+	/* Make sure that the BOARD-CFG in OCRAM is still valid */
+	if (!fs_image_cfg_is_valid())
+		hang();
 
+	fdt = fs_image_get_cfg_addr(false);
+	offs = fs_image_get_cfg_offs(fdt);
+	info = fs_board_get_cfg_info();
+	memset(info, 0, sizeof(struct cfg_info));
+
+	/* Parse BOARD-CFG entries and set according entries and flags */
 	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
 		if (!strcmp(tmp, board_info[i].name))
 			break;
 	}
-	cfg->board_type = i;
+	info->board_type = i;
 
 	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
-	cfg->boot_dev = fs_board_get_boot_dev_from_name(tmp);
+	info->boot_dev = fs_board_get_boot_dev_from_name(tmp);
 
-	cfg->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
-						      "board-rev", 100);
-	cfg->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "dram-chips", 1);
-	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
-						      "dram-size", 0x400);
+	info->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "board-rev", 100);
+	info->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
+							"dram-chips", 1);
+	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "dram-size", 0x400);
 
 	features = 0;
 	if (fdt_getprop(fdt, offs, "have-nand", NULL))
@@ -216,7 +232,7 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_SD_A;
 	if (fdt_getprop(fdt, offs, "have-sd-b", NULL))
 		features |= FEAT_SD_B;
-	cfg->features = features;
+	info->features = features;
 }
 
 static iomux_v3_cfg_t const wdog_pads[] = {
@@ -232,7 +248,7 @@ int board_early_init_f(void)
 
 	set_wdog_reset(wdog);
 
-	fs_spl_setup_cfg_info();
+	fs_setup_cfg_info();
 
 	return 0;
 }

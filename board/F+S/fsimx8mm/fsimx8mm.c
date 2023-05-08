@@ -42,6 +42,7 @@
 #include <asm/mach-imx/video.h>
 #include <env_internal.h>		/* enum env_operation */
 #include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
+#include <hang.h>			/* hang() */
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
@@ -185,35 +186,50 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 };
 
 /* Parse the FDT of the BOARD-CFG in OCRAM and create binary info in OCRAM */
-static void fs_spl_setup_cfg_info(void)
+static void fs_setup_cfg_info(void)
 {
-	void *fdt = fs_image_get_cfg_addr(false);
-	int offs = fs_image_get_cfg_offs(fdt);
+	void *fdt;
+	int offs;
 	int i;
-	struct cfg_info *cfg = fs_board_get_cfg_info();
+	struct cfg_info *info;
 	const char *tmp;
 	unsigned int features;
 
-	memset(cfg, 0, sizeof(struct cfg_info));
+	/*
+	 * If the BOARD-CFG cannot be found in OCRAM or it is corrupted, this
+	 * is fatal. However no output is possible this early, so simply stop.
+	 * If the BOARD-CFG is not at the expected location in OCRAM but is
+	 * found somewhere else, output a warning later in board_late_init().
+	 */
+	if (!fs_image_find_cfg_in_ocram())
+		hang();
 
-	//###nbootargs.dwDbgSerPortPA = UART1_BASE_ADDR;
+	/* Make sure that the BOARD-CFG in OCRAM is still valid */
+	if (!fs_image_cfg_is_valid())
+		hang();
 
+	fdt = fs_image_get_cfg_addr(false);
+	offs = fs_image_get_cfg_offs(fdt);
+	info = fs_board_get_cfg_info();
+	memset(info, 0, sizeof(struct cfg_info));
+
+	/* Parse BOARD-CFG entries and set according entries and flags */
 	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
 		if (!strcmp(tmp, board_info[i].name))
 			break;
 	}
-	cfg->board_type = i;
+	info->board_type = i;
 
 	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
-	cfg->boot_dev = fs_board_get_boot_dev_from_name(tmp);
+	info->boot_dev = fs_board_get_boot_dev_from_name(tmp);
 
-	cfg->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
-						      "board-rev", 100);
-	cfg->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "dram-chips", 1);
-	cfg->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
-						      "dram-size", 0x400);
+	info->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "board-rev", 100);
+	info->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
+							"dram-chips", 1);
+	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						       "dram-size", 0x400);
 
 	features = 0;
 	if (fdt_getprop(fdt, offs, "have-nand", NULL))
@@ -224,7 +240,7 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_SGTL5000;
 	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
 		features |= FEAT_ETH_A;
-		if (cfg->board_type == BT_PICOCOREMX8MX)
+		if (info->board_type == BT_PICOCOREMX8MX)
 			features |= FEAT_ETH_B;
 	}
 	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
@@ -243,7 +259,7 @@ static void fs_spl_setup_cfg_info(void)
 		features |= FEAT_CAN;
 	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
 		features |= FEAT_EEPROM;
-	cfg->features = features;
+	info->features = features;
 }
 
 /* Do some very early board specific setup */
@@ -251,7 +267,7 @@ int board_early_init_f(void)
 {
 	struct wdog_regs *wdog = (struct wdog_regs*) WDOG1_BASE_ADDR;
 
-	fs_spl_setup_cfg_info();
+	fs_setup_cfg_info();
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
 
@@ -1146,9 +1162,10 @@ int board_late_init(void)
 		env_set("platform", "picocoremx8mx");
 #endif
 
-	env_set("tee", "no");
 #ifdef CONFIG_IMX_OPTEE
 	env_set("tee", "yes");
+#else
+	env_set("tee", "no");
 #endif
 
 	/* Set up all board specific variables */

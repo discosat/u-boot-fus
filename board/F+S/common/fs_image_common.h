@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2021 F&S Elektronik Systeme GmbH
  *
@@ -5,7 +6,6 @@
  *
  * F&S image processing
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #ifndef __FS_IMAGE_COMMON_H__
@@ -58,7 +58,10 @@ const char *fs_image_get_arch(void);
 /* Check if this is an F&S image */
 bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh);
 
-/* Return the address of the board configuration in OCRAM */
+/* Return the intended address of the board configuration in OCRAM */
+void *fs_image_get_regular_cfg_addr(void);
+
+/* Return the real address of the board configuration in OCRAM */
 void *fs_image_get_cfg_addr(bool with_fs_header);
 
 /* Return the address of the /board-cfg node */
@@ -116,6 +119,21 @@ struct sb_info {
 	int image_type;
 };
 #endif
+
+/* ------------- Stuff only for U-Boot ------------------------------------- */
+
+#ifndef CONFIG_SPL_BUILD
+
+/*
+ * Search board configuration in OCRAM; return true if it was found.
+ * From now on, fs_image_get_cfg_addr() will return the right address.
+ */
+bool fs_image_find_cfg_in_ocram(void);
+
+/* Make sure that BOARD-CFG in OCRAM is still valid */
+bool fs_image_cfg_is_valid(void);
+
+#endif /* !CONFIG_SPL_BUILD */
 
 /* ------------- Stuff only for SPL ---------------------------------------- */
 

@@ -81,27 +81,10 @@ static void set_board_config_signed(void* fdt, struct img_info img)
 
 /* ------------- Common helper function ------------------------------------ */
 
-/* Check if board configuration in OCRAM is OK and return the address */
-static void *fs_image_get_cfg_addr_check(bool with_fs_header)
-{
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
-	const char *type = "BOARD-CFG";
-
-	if (!fs_image_match(fsh, type, NULL)) {
-		printf("%s in OCRAM damaged\n", type);
-		return NULL;
-	}
-
-	if (!with_fs_header)
-		fsh++;
-
-	return fsh;
-}
-
 /* Return the BOARD-ID; id must have room for MAX_DESCR_LEN characters */
 static int fs_image_get_board_id(char *id)
 {
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr_check(true);
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
 
 	if (!fsh)
 		return -ENOENT;
@@ -326,7 +309,7 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 			printf("Warning! Current board is %s but you want to\n"
 			       "save for %s\n", old_id, id);
 			if (!force && !fs_image_confirm()) {
-				puts("Aborted by user, nothing changed.");
+				puts("Aborted by user, nothing changed.\n");
 				return 0; /* used_cfg == NULL in this case */
 			}
 		}
@@ -1149,7 +1132,7 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 		return 1;
 	}
 
-	fdt = fs_image_get_cfg_addr_check(false);
+	fdt = fs_image_get_cfg_addr(false);
 	if (!fdt)
 		return 1;
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
@@ -1218,7 +1201,7 @@ static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 			       char * const argv[])
 {
-	void *fdt = fs_image_get_cfg_addr_check(false);
+	void *fdt = fs_image_get_cfg_addr(false);
 
 	if (!fdt)
 		return 1;
@@ -1246,7 +1229,7 @@ static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 	else
 		addr = get_loadaddr();
 
-	fdt = fs_image_get_cfg_addr_check(false);
+	fdt = fs_image_get_cfg_addr(false);
 	if (!fdt)
 		return 1;
 
@@ -1578,6 +1561,8 @@ static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
 		      char * const argv[])
 {
 	struct cmd_tbl *cp;
+	void *found_cfg;
+	void *expected_cfg;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -1593,11 +1578,30 @@ static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (flag == CMD_FLAG_REPEAT && !cmd_is_repeatable(cp))
 		return CMD_RET_SUCCESS;
 
+	/*
+	 * All fsimage commands will access the BOARD-CFG in OCRAM. Make sure
+	 * it is still valid and not compromised in some way.
+	 */
+	if (!fs_image_cfg_is_valid()) {
+		puts("\n*** Error: BOARD-CFG in OCRAM damaged\n\n");
+		return CMD_RET_FAILURE;
+	}
+
+	found_cfg = fs_image_get_cfg_addr(true);
+	expected_cfg = fs_image_get_regular_cfg_addr();
+	if (found_cfg != expected_cfg) {
+		printf("\n"
+		       "*** Warning!\n"
+		       "*** BOARD-CFG found at 0x%lx, expected at 0x%lx\n"
+		       "*** Installed NBoot and U-Boot are not compatible!\n"
+		       "\n", (ulong)found_cfg, (ulong)expected_cfg);
+	}
+
 	return cp->cmd(cmdtp, flag, argc, argv);
 }
 
 U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
-	   "Handle F&S images, e.g. NBOOT",
+	   "Handle F&S board configuration and F&S images, e.g. U-Boot, NBOOT",
 	   "arch\n"
 	   "    - Show F&S architecture\n"
 	   "fsimage board-id\n"
@@ -1611,7 +1615,7 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "fsimage list [addr]\n"
 	   "    - List the content of the F&S image at addr\n"
 	   "fsimage save [-f] [addr]\n"
-	   "    - Save the F&S image (BOARD-CFG, SPL, FIRMWARE)\n"
+	   "    - Save the F&S image at the right place (U-Boot, NBoot)\n"
 	   "fsimage fuse [-f]\n"
 	   "    - Program fuses according to the current BOARD-CFG.\n"
 	   "      WARNING: This is a one time option and cannot be undone.\n"

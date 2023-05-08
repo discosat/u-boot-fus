@@ -99,6 +99,15 @@ struct global_data {
 	 */
 	unsigned long board_type;
 #endif
+#ifdef CONFIG_FS_BOARD_CFG
+	/**
+	 * @board_cfg: board type
+	 *
+	 * Address where BOARD-CFG is located in OCRAM (on F&S boards).
+	 */
+	unsigned long board_cfg;
+#endif
+
 	/**
 	 * @have_console: console is available
 	 *

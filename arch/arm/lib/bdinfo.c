@@ -45,6 +45,9 @@ void arch_print_bdinfo(void)
 #ifdef CONFIG_BOARD_TYPES
 	printf("Board Type  = %ld\n", gd->board_type);
 #endif
+#ifdef CONFIG_FS_BOARD_CFG
+	bdinfo_print_num_l("BOARD-CFG", gd->board_cfg);
+#endif
 #if CONFIG_VAL(SYS_MALLOC_F_LEN)
 	printf("Early malloc usage: %lx / %x\n", gd->malloc_ptr,
 	       CONFIG_VAL(SYS_MALLOC_F_LEN));
