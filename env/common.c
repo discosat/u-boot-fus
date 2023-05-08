@@ -67,14 +67,14 @@ char *env_get_default(const char *name)
 void env_set_default(const char *s, int flags)
 {
 	if (sizeof(default_environment) > ENV_SIZE) {
-		puts("*** Error - default environment is too large\n\n");
+		puts("*** Error - default environment is too large\n");
 		return;
 	}
 
 	if (s) {
 		if ((flags & H_INTERACTIVE) == 0) {
 			printf("*** Warning - %s, "
-				"using default environment\n\n", s);
+				"using default environment\n", s);
 		} else {
 			puts(s);
 		}

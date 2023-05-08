@@ -130,20 +130,20 @@ void fastboot_run_bootmode(void)
 	switch(boot_mode){
 	case BOOTMODE_FASTBOOT_BCB_CMD:
 		/* Make the boot into fastboot mode*/
-		puts("Fastboot: Got bootloader commands!\n");
+		puts("Fastb: Got fastboot bootloader commands!\n");
 		run_command("fastboot 0", 0);
 		break;
 #ifdef CONFIG_ANDROID_RECOVERY
 	case BOOTMODE_RECOVERY_BCB_CMD:
 	case BOOTMODE_RECOVERY_KEY_PRESSED:
 		/* Make the boot into recovery mode */
-		puts("Fastboot: Got Recovery key pressing or recovery commands!\n");
+		puts("Fastb: Got Recovery key pressing or recovery commands!\n");
 		board_recovery_setup();
 		break;
 #endif
 	default:
 		/* skip special mode boot*/
-		puts("Fastboot: Normal\n");
+		puts("Fastb: Normal fastboot\n");
 		break;
 	}
 }

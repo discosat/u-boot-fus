@@ -144,7 +144,7 @@ void board_fastboot_setup(void)
 			env_set("bootcmd", boot_dev_part);
 		break;
 	case USB_BOOT:
-		printf("Detect USB boot. Will enter fastboot mode!\n");
+		printf("Fastb: Detect USB boot. Will enter fastboot mode!\n");
 		if (!env_get("bootcmd"))
 			env_set("bootcmd", "fastboot 0");
 		break;

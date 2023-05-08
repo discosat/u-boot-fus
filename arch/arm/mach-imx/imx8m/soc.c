@@ -1446,7 +1446,7 @@ static void acquire_buildinfo(void)
 		atf_commit = 0x30; /* Display 0, 0 ascii is 0x30 */
 	}
 
-	printf("\n BuildInfo:\n  - ATF %s\n\n", (char *)&atf_commit);
+	printf("ATF:   %s\n", (char *)&atf_commit);
 }
 
 int arch_misc_init(void)
