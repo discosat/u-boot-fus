@@ -691,12 +691,10 @@
 	" ${network} ${rootfs} ${mode} ${init} ${extra} ${rauc_cmd}\0"
 
 /* Link Definitions */
-#define CONFIG_LOADADDR			0x40480000
+#define CONFIG_SYS_LOAD_ADDR		0x40480000
 
-#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
-
-#define CONFIG_SYS_INIT_RAM_ADDR        0x40000000
-#define CONFIG_SYS_INIT_RAM_SIZE        0x80000
+#define CONFIG_SYS_INIT_RAM_ADDR	0x40000000
+#define CONFIG_SYS_INIT_RAM_SIZE	0x80000
 #define CONFIG_SYS_INIT_SP_OFFSET				\
         (CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 #define CONFIG_SYS_INIT_SP_ADDR					\
