@@ -33,7 +33,7 @@
 		/* Board Features */
 		//have-nand;
 		have-emmc;
-		have-audio;
+		//have-audio;
 		have-eth-phy;
 		have-wlan;
 		have-mipi-dsi;

@@ -16,7 +16,7 @@
 		board-name = "PicoCoreMX8MP";
 		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 2GB Nanya */
+		/* DRAM: 2GB Nanya B.ICDRAM.39 */
 		dram-type = "lpddr4";
 		dram-timing = "lpddr4_pc_2g1500m2ch1cs";
 		dram-size = <0x800>;		/* In MiB */

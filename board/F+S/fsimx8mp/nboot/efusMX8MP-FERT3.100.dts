@@ -16,7 +16,7 @@
 		board-name = "efusMX8MP";
 		board-rev = <100>;		/* Rev 1.00 */
 
-		/* DRAM: 1GB Micron */
+		/* DRAM: 1GB Micron B.ICDRAM.38 */
 		dram-type = "lpddr4";
 		dram-timing = "lpddr4_ef_1g2000m2ch1cs";
 		dram-size = <0x400>;		/* In MiB */

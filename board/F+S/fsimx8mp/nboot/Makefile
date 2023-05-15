@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2023.03
+NBOOT_VERSION = 2023.05
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -39,12 +39,21 @@ BOARD_CONFIGS = \
 	PCoreMX8MP-FERT4.110.fs \
 	PCoreMX8MP-FERT5.110.fs \
 	PCoreMX8MP-FERT6.110.fs \
+	PCoreMX8MPr2-FERT0.110.fs \
 	PCoreMX8MPr2-FERT0.100.fs \
+	PCoreMX8MPr2-FERT1.110.fs \
 	PCoreMX8MPr2-FERT1.100.fs \
+	PCoreMX8MPr2-FERT2.110.fs \
 	PCoreMX8MPr2-FERT2.100.fs \
+	PCoreMX8MPr2-FERT3.110.fs \
 	PCoreMX8MPr2-FERT3.100.fs \
+	PCoreMX8MPr2-FERT4.110.fs \
 	PCoreMX8MPr2-FERT4.100.fs \
+	PCoreMX8MPr2-FERT5.110.fs \
 	PCoreMX8MPr2-FERT5.100.fs \
+	PCoreMX8MPr2-FERT6.110.fs \
+	PCoreMX8MPr2-FERT6.100.fs \
+	PCoreMX8MPr2-FERT7.110.fs \
 	armStoneMX8MP-FERT0.100.fs \
 	armStoneMX8MP-FERT2.100.fs \
 	armStoneMX8MP-FERT4.100.fs \
@@ -57,13 +66,15 @@ BOARD_CONFIGS = \
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L :=
 RT_LPDDR4 := \
-	lpddr4_as-k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_pc-k4f8e3s4hd_mgcl_timing.fs \
-	lpddr4_pc_2g1500m2ch1cs_timing.fs \
-	lpddr4_pc-fl4c2001g-d9_timing.fs \
-	lpddr4_as-nt6an512t32av_j2i_timing.fs \
+	lpddr4_as_2g1600m2ch1cs_timing.fs \
+	lpddr4_as_1g2000m2ch1cs_timing.fs \
+	lpddr4_as_1g1800m2ch1cs_timing.fs \
 	lpddr4_ef_2g1800m2ch1cs_timing.fs \
-	lpddr4_ef_1g2000m2ch1cs_timing.fs
+	lpddr4_ef_1g2000m2ch1cs_timing.fs \
+	lpddr4_pc_2g1500m2ch1cs_timing.fs \
+	lpddr4_pc_2g1300m2ch1cs_timing.fs \
+	lpddr4_pc_1g1800m2ch1cs_timing.fs \
+	lpddr4_pc_1g1500m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
