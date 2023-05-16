@@ -16,9 +16,9 @@
 		board-name = "PicoCoreMX8MP";
 		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 1GB Samsung */
+		/* DRAM: 1GB Samsung B.ICDRAM.41 */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_pc-k4f8e3s4hd_mgcl";
+		dram-timing = "lpddr4_pc_1g1800m2ch1cs";
 		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <1>;
 

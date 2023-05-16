@@ -14,11 +14,11 @@
 	board-cfg {
 		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MPr2";
-		board-rev = <100>;		/* Rev 1.00 */
+		board-rev = <110>;		/* Rev 1.10 */
 
-		/* DRAM: 2GB Samsung B.ICDRAM.30 */
+		/* DRAM: 2GB Nanja B.ICDRAM.39 */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_pc_2g1500m2ch1cs";
+		dram-timing = "lpddr4_pc_2g1300m2ch1cs";
 		dram-size = <0x800>;		/* In MiB */
 		dram-chips = <1>;
 
@@ -37,7 +37,7 @@
 		have-eth-phy;
 		have-wlan;
 		have-mipi-dsi;
-		//have-hdmi;
+		have-hdmi;
 		have-ext-rtc;
 		//have-security;
 		have-eeprom;
