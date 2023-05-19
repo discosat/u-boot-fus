@@ -8,6 +8,4 @@ ifndef CONFIG_SPL_BUILD
 obj-y += fsimx8mn.o
 endif
 
-ifdef CONFIG_SPL_BUILD
-obj-y += spl.o
-endif
+obj-$(CONFIG_SPL_BUILD) += spl.o
