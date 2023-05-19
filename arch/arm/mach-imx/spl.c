@@ -321,20 +321,6 @@ ulong board_spl_fit_size_align(ulong size)
 
 	return size;
 }
-
-void board_spl_fit_post_load(ulong load_addr, size_t length)
-{
-#ifndef CONFIG_FS_SECURE_BOOT
-	u32 offset = length - CONFIG_CSF_SIZE;
-
-	if (imx_hab_authenticate_image(load_addr,
-				       offset + IVT_SIZE + CSF_PAD_SIZE,
-				       offset)) {
-		puts("spl: ERROR:  image authentication unsuccessful\n");
-		hang();
-	}
-#endif
-}
 #endif
 
 void* board_spl_fit_buffer_addr(ulong fit_size, int sectors, int bl_len)
@@ -418,6 +404,7 @@ exit:
 
 void board_spl_fit_post_load(const void *fit, struct spl_image_info *spl_image)
 {
+#ifndef CONFIG_FS_SECURE_BOOT
 #if defined(CONFIG_IMX_HAB) && !defined(CONFIG_SPL_FIT_SIGNATURE)
 	if (!(spl_image->flags & SPL_FIT_BYPASS_POST_LOAD)) {
 		u32 offset = ALIGN(fdt_totalsize(fit), 0x1000);
@@ -428,6 +415,7 @@ void board_spl_fit_post_load(const void *fit, struct spl_image_info *spl_image)
 			panic("spl: ERROR:  image authentication unsuccessful\n");
 		}
 	}
+#endif
 #endif
 #if defined(CONFIG_IMX8MP) || defined(CONFIG_IMX8MN)
 #define MCU_RDC_MAGIC "mcu_rdc"
