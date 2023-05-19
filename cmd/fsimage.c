@@ -52,21 +52,10 @@ static union local_buf local_buffer;
 /* ------------- Secure Boot helper functions ------------------------------- */
 
 #ifdef CONFIG_FS_SECURE_BOOT
-/* If the config is signed there is an IVT between the FS-Header amd the FDT */
-static void *find_fdt_signed(struct fs_header_v1_0 *cfg)
-{
-	void *fdt = (void *)(cfg + 1);
-
-	if (*(uint8_t*)fdt == IVT_HEADER_MAGIC)
-		fdt += HAB_HEADER;
-
-	return fdt;
-}
-
 static void set_board_config_signed(void* fdt, struct img_info img)
 {
 	struct ivt* ivt = fdt - HAB_HEADER;
-	void *cfg_addr = fs_image_get_cfg_addr(true);
+	void *cfg_addr = fs_image_get_cfg_addr();
 	size_t offset = 0;
 
 	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
@@ -84,7 +73,7 @@ static void set_board_config_signed(void* fdt, struct img_info img)
 /* Return the BOARD-ID; id must have room for MAX_DESCR_LEN characters */
 static int fs_image_get_board_id(char *id)
 {
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
 
 	if (!fsh)
 		return -ENOENT;
@@ -344,11 +333,7 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 	}
 
 	/* Get and show NBoot version as noted in BOARD-CFG */
-#ifndef CONFIG_FS_SECURE_BOOT
-	fdt = (void *)(cfg + 1);
-#else
-	fdt = find_fdt_signed(cfg);
-#endif
+	fdt = fs_image_find_cfg_fdt(cfg);
 
 	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
@@ -620,7 +605,7 @@ static int fs_image_save_nboot_to_nand(void *fdt, struct img_info img[3])
 	/* Set the new BOARD-CFG as current */
 #ifndef CONFIG_FS_SECURE_BOOT
 	if (success)
-		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+		memcpy(fs_image_get_cfg_addr(), img[0].img, img[0].size);
 #else
 	if (success)
 		set_board_config_signed(fdt, img[0]);
@@ -1025,7 +1010,7 @@ static int fs_image_save_nboot_to_mmc(void *fdt, struct img_info img[3],
 	/* Set the new BOARD-CFG as current */
 #ifndef CONFIG_FS_SECURE_BOOT
 	if (success)
-		memcpy(fs_image_get_cfg_addr(true), img[0].img, img[0].size);
+		memcpy(fs_image_get_cfg_addr(), img[0].img, img[0].size);
 #else
 	if (success)
 		set_board_config_signed(fdt, img[0]);
@@ -1132,7 +1117,7 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 		return 1;
 	}
 
-	fdt = fs_image_get_cfg_addr(false);
+	fdt = fs_image_get_cfg_fdt();
 	if (!fdt)
 		return 1;
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
@@ -1201,7 +1186,7 @@ static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 			       char * const argv[])
 {
-	void *fdt = fs_image_get_cfg_addr(false);
+	void *fdt = fs_image_get_cfg_fdt();
 
 	if (!fdt)
 		return 1;
@@ -1229,7 +1214,7 @@ static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 	else
 		addr = get_loadaddr();
 
-	fdt = fs_image_get_cfg_addr(false);
+	fdt = fs_image_get_cfg_fdt();
 	if (!fdt)
 		return 1;
 
@@ -1364,11 +1349,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (ret <= 0)
 		return 1;
 
-#ifndef CONFIG_FS_SECURE_BOOT
-	fdt = (void *)(cfg + 1);
-#else
-	fdt = find_fdt_signed(cfg);
-#endif
+	fdt = fs_image_find_cfg_fdt(cfg);
 
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
@@ -1587,7 +1568,7 @@ static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 	}
 
-	found_cfg = fs_image_get_cfg_addr(true);
+	found_cfg = fs_image_get_cfg_addr();
 	expected_cfg = fs_image_get_regular_cfg_addr();
 	if (found_cfg != expected_cfg) {
 		printf("\n"

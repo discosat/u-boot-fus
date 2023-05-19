@@ -187,7 +187,7 @@ void *fs_image_get_regular_cfg_addr(void)
 }
 
 /* Return the real address of the board configuration in OCRAM */
-void *fs_image_get_cfg_addr(bool with_fs_header)
+void *fs_image_get_cfg_addr(void)
 {
 	void *cfg;
 
@@ -196,10 +196,26 @@ void *fs_image_get_cfg_addr(bool with_fs_header)
 
 	cfg = (void *)gd->board_cfg;
 
-	if (!with_fs_header)
-		cfg += FSH_SIZE;
-
 	return cfg;
+}
+
+/* Return the fdt part of the given board configuration */
+void *fs_image_find_cfg_fdt(struct fs_header_v1_0 *fsh)
+{
+	void *fdt = fsh + 1;
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	if (((struct ivt *)fdt)->hdr.magic == IVT_HEADER_MAGIC)
+		fdt += HAB_HEADER;
+#endif
+
+	return fdt;
+}
+
+/* Return the fdt part of the board configuration in OCRAM */
+void *fs_image_get_cfg_fdt(void)
+{
+	return fs_image_find_cfg_fdt(fs_image_get_cfg_addr());
 }
 
 /* Return the address of the /nboot-info node */
@@ -297,7 +313,7 @@ const char *fs_image_get_nboot_version(void *fdt)
 	int offs;
 
 	if (!fdt)
-		fdt = fs_image_get_cfg_addr(false);
+		fdt = fs_image_get_cfg_fdt();
 
 	offs = fs_image_get_info_offs(fdt);
 	return fdt_getprop(fdt, offs, "version", NULL);
@@ -431,7 +447,7 @@ bool fs_image_find_cfg_in_ocram(void)
 /* Make sure that BOARD-CFG in OCRAM is still valid and return pointer to it */
 bool fs_image_cfg_is_valid(void)
 {
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr(true);
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
 
 	if (!fs_image_match(fsh, "BOARD-CFG", NULL))
 		return false;
@@ -754,12 +770,12 @@ static void fs_image_handle_header(void)
 	case FSIMG_STATE_BOARD_CFG:
 		if (fs_image_match_board_id(&one_fsh, "BOARD-CFG")) {
 #ifndef CONFIG_FS_SECURE_BOOT
-			memcpy(fs_image_get_cfg_addr(true), &one_fsh, FSH_SIZE);
-			fs_image_copy(fs_image_get_cfg_addr(false), size);
+			memcpy(fs_image_get_cfg_addr(), &one_fsh, FSH_SIZE);
+			fs_image_copy(fs_image_get_cfg_addr() + FSH_SIZE, size);
 #else
 			fs_image_copy((void*)(CONFIG_SPL_ATF_ADDR) +
 							FS_HEADER_SIZE, size);
-			final_load_addr = fs_image_get_cfg_addr(true);
+			final_load_addr = fs_image_get_cfg_addr();
 #endif
 		} else
 			fs_image_skip(size);
@@ -768,7 +784,7 @@ static void fs_image_handle_header(void)
 	case FSIMG_STATE_DRAM:
 		/* Get DRAM type and DRAM timing from BOARD-CFG */
 		if (fs_image_match(&one_fsh, "DRAM-SETTINGS", arch)) {
-			void *fdt = fs_image_get_cfg_addr(false);
+			void *fdt = fs_image_get_cfg_fdt();
 			int off = fs_image_get_cfg_offs(fdt);
 
 			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
@@ -1253,7 +1269,7 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 	load_function_t load;
 	unsigned int offs[2];
 	unsigned int start;
-	void *target = fs_image_get_cfg_addr(true);
+	void *target = fs_image_get_cfg_addr();
 
 	switch (boot_dev) {
 #ifdef CONFIG_NAND_MXS
@@ -1288,7 +1304,7 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 		if (!load(start, FSH_SIZE, &one_fsh)
 		    && (fs_image_match(&one_fsh, "BOARD-CFG", NULL))
 		    && !load(start, fs_image_get_size(&one_fsh, true),
-			     (void*)load_addr))
+			     load_addr))
  		{
 #ifdef CONFIG_FS_SECURE_BOOT
 			if (copy_if_valid((void *)CONFIG_FUS_BOARDCFG_ADDR,

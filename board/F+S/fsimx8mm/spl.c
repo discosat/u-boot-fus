@@ -407,7 +407,7 @@ static void fs_board_early_init(void)
 /* Do the basic board setup when we have our final BOARD-CFG */
 static void basic_init(void)
 {
-	void *fdt = fs_image_get_cfg_addr(false);
+	void *fdt = fs_image_get_cfg_fdt();
 	int offs = fs_image_get_cfg_offs(fdt);
 	int i;
 	char c;

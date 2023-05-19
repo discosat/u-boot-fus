@@ -177,7 +177,7 @@ static void fs_setup_cfg_info(void)
 	if (!fs_image_cfg_is_valid())
 		hang();
 
-	fdt = fs_image_get_cfg_addr(false);
+	fdt = fs_image_get_cfg_fdt();
 	offs = fs_image_get_cfg_offs(fdt);
 	info = fs_board_get_cfg_info();
 	memset(info, 0, sizeof(struct cfg_info));

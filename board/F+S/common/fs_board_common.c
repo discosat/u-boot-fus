@@ -345,7 +345,7 @@ void fs_board_late_init_common(const char *serial_name)
 	bool conflict = false;
 
 #ifdef CONFIG_FS_BOARD_CFG
-	ulong found_cfg = (ulong)fs_image_get_cfg_addr(true);
+	ulong found_cfg = (ulong)fs_image_get_cfg_addr();
 	ulong expected_cfg = (ulong)fs_image_get_regular_cfg_addr();
 
 	printf("CFG:   Found at 0x%lx", found_cfg);

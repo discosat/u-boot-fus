@@ -62,7 +62,13 @@ bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh);
 void *fs_image_get_regular_cfg_addr(void);
 
 /* Return the real address of the board configuration in OCRAM */
-void *fs_image_get_cfg_addr(bool with_fs_header);
+void *fs_image_get_cfg_addr(void);
+
+/* Return the fdt part of the board configuration in OCRAM */
+void *fs_image_get_cfg_fdt(void);
+
+/* Return the fdt part of the given board configuration */
+void *fs_image_find_cfg_fdt(struct fs_header_v1_0 *fsh);
 
 /* Return the address of the /board-cfg node */
 int fs_image_get_cfg_offs(void *fdt);
