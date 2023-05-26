@@ -10,8 +10,8 @@
 # be used arbitrarily, for example to specify an entry point for some kind of
 # executable. The flags can be used to indicate the presence of some
 # information. In addition, the size of the final image data can be padded with
-# zeroes to satisfy alignment requirements and a CRC32 checksum can be
-# included if needed.
+# zeroes to satisfy alignment requirements and a CRC32 checksum (with or
+# without the header) can be included if needed.
 #
 # The size of the header depends on the version, which is currently V0.0 (16
 # bytes) or V1.0 (64 bytes). The old version V0.0 was used in the past to
@@ -62,11 +62,12 @@
 #
 # /* Possible values for flags entry above */
 # #define FSH_FLAGS_DESCR 0x8000	/* Description descr is present */
-# #define FSH_FLAGS_CRC32 0x4000	/* p32[7] holds the CRC32 checksum of
-# 					   the image (without header) */
+# #define FSH_FLAGS_CRC32 0x4000	/* CRC32 of image in type[12..15] */
+# #define FSH_FLAGS_SECURE 0x2000	/* CRC32 of header in type[12..15] */
 
 FSH_FLAGS_DESCR=0x8000
 FSH_FLAGS_CRC32=0x4000
+FSH_FLAGS_SECURE=0x2000
 
 usage()
 {
@@ -82,36 +83,32 @@ Usage:
   <in-file> ...         File(s) to include and prepend with an F&S header
 
 Options:
-  -c | --crc32          Store CRC32 checksum in p32[7], set bit 14 of flags
-  -d | --descr <string> Set <string> as description and set bit 15 of flags
+  -a | --align <n>      Align final image with zeroes to be multiple of
+                        <n> bytes; <n> can be: 1..256 (default 1)
+  -c | --crc32          Set flags bit 14, store image CRC32 in type[12..15]
+                        (if -s is also given, then also include the header)
+  -d | --descr <string> Set <string> as description and set flags bit 15
   -f | --flags <value>  Set <value> for flags (16 bit, default 0); additional
                         flags may be set by other options, e.g. -c
   -h | --help           Show this usage
   -j | --just-header    Create just the header, do not append image data
   -o | --output <file>  Store result as file <file> (default stdout)
-  -p | --pad <n>        Pad final image with zeroes to be multiple of
-                        <n> bytes; <n> can be: 1..256 (default 1)
+  -p<s>[<n>]=<val>{,<val>} Set parameter(s) of size <s> starting at index <n>
+                        to the given value(s) <val>.
   -q | --quiet          Do not output progress
-  -s | --set <p-list>   Set parameters as given in <p-list> (default 0)
+  -s | --secure         Set flags bit 13, store header CRC32 in type[12..15]
   -t | --type <string>  Set image type to <string> (at most 16 characters)
   -v | --version <vers> Create a header of version <vers> (default $version)
                         <vers> can be one of: $versions
 
-<p-list> is a comma-separated list of parameter assignments. A
-parameter assignment looks like this:
-
-  p<s>[<n>]=<val>{,<val}
-
-This assigns the given values to the parameters of size <s> (on of 8, 16,
-32 or 64) starting at index <n>. No spaces are allowed in <p-list>.
-
 Example:
 
-  $0 -t U-Boot -s p32[5]=0x01234567,0x89abcdef,p8[2]=0x12,34,56
+  $0 -a 64 -p32[5]=0x01234567,0x89abcdef -p8[2]=0x12,34,56 abc.txt
 
-This will assign the values 0x01234567 to p32[5], 0x89abcdef to p32[6],
-0x12 to p8[2], 0x34 to p8[3] and 0x56 to p8[4]. Be careful, no checks for
-overlapping of description and/or parameters are done.
+This includes the file abc.txt as image and assigns the values 0x01234567 to
+p32[5], 0x89abcdef to p32[6], 0x12 to p8[2], 0x34 to p8[3] and 0x56 to p8[4].
+Be careful to avoid overlapping of description and parameters. If any CRC32
+option is given, the type must not exceed 11 characters.
 
 __USAGE_EOF
 
@@ -134,7 +131,7 @@ reverse()
 # Output a V0.0 header (16 bytes)
 output_header_0.0()
 {
-    if [[ $size -gt 0xFFFFFFFF ]]; then
+    if [[ $size -gt 0xffffffff ]]; then
 	printf "Image size 0x%x too long for V1.0 header" $size >&2
 	exit 1
     fi
@@ -171,112 +168,105 @@ output_header_1.0()
     # Output header version as 8 bit value
     printf "\x${version:0:1}${version:2:1}"
 
-    # Output type (16 characters at most) padded with zeroes
-    printf "$type\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0" | head -c 16
+    # Output type, padded with zeroes; either 16 characters or 12 plus CRC32
+    if [ "$secure$do_crc" != "00" ]; then
+	printf "$type\0\0\0\0\0\0\0\0\0\0\0\0" | head -c 12
+	printf "\x${crc:6:2}\x${crc:4:2}\x${crc:2:2}\x${crc:0:2}"
+    else
+	printf "$type\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0" | head -c 16
+    fi
 
     # Output parameters/description
     echo -n $param | xxd -r -p
 }
 
-parse_params()
+parse_param()
 {
     p_list=$1
-    while [ -n "$p_list" ]; do
-#	echo "p_list='$p_list" >&2
+#    echo "### p_list='$p_list'" >&2
 
-	# A parameter specification must start with a 'p'
+    # Extract size, divide by 4 to refer to $param with hex digits
+    temp=${p_list%%\[*}
+#    echo "### temp='$temp'" >&2
+    if ! psize=$(($temp)); then
+	echo "Invalid parameter size $temp at '$p_list'" >&2
+	return 1
+    fi
+    if [[ ! " 8 16 32 64 " =~ .*\ $psize\ .* ]]; then
+	echo "Size at '$p_list' must be one of: 8 16 32 64" >&2
+	return 1
+    fi
+#    echo "### psize=$psize" >&2
+    psize=$(($psize / 4))
+    p_list=${p_list:${#temp}}
+
+    # Extract index
+    temp=${p_list%%\]*}
+#    echo "### temp='$temp'" >&2
+    if ! index=$((${temp:1})); then
+	echo "Invalid index at '$p_list'" >&2
+	return 1
+    fi
+    index=$(($index * $psize))
+    if [ $index -ge 64 ]; then
+	echo "Index ${temp:1} at '$p_list' exceeds parameter area" >&2
+	return 1
+    fi
+    p_list=${p_list:${#temp}}
+    p_list=${p_list#\]}
+
+#    echo "### index=$index p_list='$p_list'" >&2
+
+    # Parse and set values; in first iteration, check for '='
+    expect="="
+    while [ -n "$p_list" ]; do
+	# Check for '=' or ',' before next value
 	temp=${p_list:0:1}
-	if [[ "${temp,,}" != "p" ]]; then
-	    echo "Parameter at '$p_list' must begin with 'p'" >&2
+	if [[ "${temp,,}" != "$expect" ]]; then
+	    echo "Expected '$expect' at '$p_list'" >&2
 	    return 1
 	fi
 	p_list=${p_list:1}
 
-#    	echo "got 'p' p_list='$p_list'" >&2
+#	echo "### got '$expect' p_list='$p_list'" >&2
 
-	# Extract size, divide by 4 to refer to $param with hex digits
-	temp=${p_list%%\[*}
-	if ! size=$(($temp)); then
-	    echo "Invalid parameter size $temp at '$p_list'" >&2
+	# Get next value and convert to little endian hex value
+	temp=${p_list%%,*}
+#	echo "### temp='$temp'" >&2
+	if [[ ! "$temp" =~ ^[0-9].* ]]; then
+#	    echo "### next param" >&2
+	    break;
+	fi
+	if ! value=$(($temp)); then
+	    echo "Illegal value at '$p_list'" >&2
 	    return 1
 	fi
-	if [[ ! " 8 16 32 64 " =~ .*\ $size\ .* ]]; then
-	    echo "Size at '$p_list' must be one of: 8 16 32 64" >&2
+	hex_be=$(printf "%0${psize}x" $value)
+	if [ ${#hex_be} -gt $psize ]; then
+	    echo "Value at '$p_list' exceeds current size $(($psize * 4))" >&2
 	    return 1
 	fi
-	size=$(($size / 4))
-	p_list=${p_list:${#temp}}
+	hex_le=$(reverse $hex_be)
 
-#	echo "size=$size p_list='$p_list'" >&2
-
-	# Extract index
-	temp=${p_list%%\]*}
-#	echo "temp='$temp'" >&2
-	if ! index=$((${temp:1})); then
-	    echo "Invalid index at '$p_list'" >&2
-	    return 1
-	fi
-	index=$(($index * $size))
+	# Check offset
+	offset=$(($index * $psize))
 	if [ $index -ge 64 ]; then
-	    echo "Index ${temp:1} at '$p_list' exceeds parameter area" >&2
+	    echo "Value $temp at '$param' exceeds parameter area" >&2
 	    return 1
 	fi
 	p_list=${p_list:${#temp}}
-	p_list=${p_list#\]}
 
-#	echo "index=$index p_list='$p_list'" >&2
+#	echo "### hex_le=$hex_le index=$index size=$psize" >&2
 
-	# Parse and set values; in first iteration, check for '='
-	expect="="
-	while [ -n "$p_list" ]; do
-	    # Check for '=' or ',' before next value
-	    temp=${p_list:0:1}
-	    if [[ "${temp,,}" != "$expect" ]]; then
-		echo "Expected '$expect' at '$p_list'" >&2
-		return 1
-	    fi
-	    p_list=${p_list:1}
+	# Fill value into $param, increment index
+#	echo "### a: param=$param" >&2
+	temp=${param:0:$index}
+	index=$(($index + $psize))
+	param=$temp$hex_le${param:$index}
+#	echo "### b: param=$param" >&2
 
-#    	    echo "got '$expect' p_list='$p_list'" >&2
-
-	    # Get next value and convert to little endian hex value
-	    temp=${p_list%%,*}
-#	    echo "temp='$temp'" >&2
-	    if [[ ! "$temp" =~ ^[0-9].* ]]; then
-#		echo "next param" >&2
-		break;
-	    fi
-	    if ! value=$(($temp)); then
-		echo "Illegal value at '$p_list'" >&2
-		return 1
-	    fi
-	    hex_be=$(printf "%0${size}x" $value)
-	    if [ ${#hex_be} -gt $size ]; then
-		echo "Value at '$p_list' exceeds current size $(($size * 4))" >&2
-		return 1
-	    fi
-	    hex_le=$(reverse $hex_be)
-
-	    # Check offset
-	    offset=$(($index * $size))
-	    if [ $index -ge 64 ]; then
-		echo "Value $temp at '$p_list' exceeds parameter area" >&2
-		return 1
-	    fi
-	    p_list=${p_list:${#temp}}
-
-#	    echo "hex_le=$hex_le index=$index size=$size" >&2
-
-	    # Fill value into $param, increment index
-#	    echo "b: param=$param" >&2
-	    temp=${param:0:$index}
-	    index=$(($index + $size))
-	    param=$temp$hex_le${param:$index}
-#	    echo "a: param=$param" >&2
-
-	    # Check for ',' in next iteration
-	    expect=","
-	done
+	# Check for ',' in next iteration
+	expect=","
     done
 
     return 0
@@ -293,9 +283,16 @@ param="0000000000000000000000000000000000000000000000000000000000000000"
 outfile=
 pad=1
 quiet=0
+secure=0
 
 while [ $# -gt 0 ]; do
     case $1 in
+	-a|--align)
+	    if ! pad=$(($2)) || [ "$pad" -lt 1 ] || [ "$pad" -gt 256 ]; then
+		usage "Invalid value '$2' for option $1"
+	    fi
+	    shift
+	    ;;
 	-c|--crc32)
 	    do_crc=1
 	    ;;
@@ -317,20 +314,21 @@ while [ $# -gt 0 ]; do
 	    outfile=$2
 	    shift
 	    ;;
-	-p|--pad)
-	    if ! pad=$(($2)) || [ "$pad" -lt 1 ] || [ "$pad" -gt 256 ]; then
-		usage "Invalid value '$2' for option $1"
+	-p*)
+	    if ! parse_param ${1:2}; then
+		usage
 	    fi
-	    shift
+	    ;;
+	--param*)
+	    if ! parse_param ${1:7}; then
+		usage
+	    fi
 	    ;;
 	-q|--quiet)
 	    quiet=1
 	    ;;
-	-s|--set)
-	    if ! parse_params $2; then
-		usage
-	    fi
-	    shift
+	-s|--secure)
+	    secure=1
 	    ;;
 	-t|--type)
 	    type=$2
@@ -394,21 +392,52 @@ if [ $padsize -gt 0 ]; then
     size=$(($size + $padsize))
 fi
 
-# Compute CRC32 and set flag 14 if requested
-if [ $do_crc -eq 1 ]; then
-    crc=$(crc32 "$temp")
-    param="${param:0:56}${crc:6:2}${crc:4:2}${crc:2:2}${crc:0:2}"
-    flags=$(($flags | $FSH_FLAGS_CRC32))
-fi
-
 # Add description and set flag 15 if requested (<=32 bytes, zero-terminated).
 # This is done last so that the description is always valid; if this overlaps
 # the CRC32, then the CRC32 check will deliberately fail and thus points out
 # the error.
 if [ -n "$descr" ]; then
+    if [ ${#descr} -gt 32 ]; then
+	echo "Description exceeds 32 characters" >&2
+	rm "$temp"
+	exit 1
+    fi
+
     hex=$(printf "%s\0" "$descr" | head -c 32 | xxd -l 32 -c 32 -p)
     param="$hex${param:${#hex}}"
     flags=$(($flags | $FSH_FLAGS_DESCR))
+fi
+
+# Compute final flags before output and CRC32
+if [ $do_crc -eq 1 ]; then
+    flags=$(($flags | $FSH_FLAGS_CRC32))
+fi
+if [ $secure -eq 1 ]; then
+    flags=$(($flags | $FSH_FLAGS_SECURE))
+fi
+
+# Compute CRC32 and store in type[12..15] if requested
+if [ "$secure$do_crc" != "00" ]; then
+    if [ ${#type} -gt 11 ]; then
+	echo "Type exceeds 11 characters, no room for CRC32" >&2
+	rm "$temp"
+	exit 1
+    fi
+
+    secu_temp=$(mktemp -p . "${0##*/}-secu_temp.XXXXXXXXXX")
+    crc="00000000"
+    if [ $secure -eq 1 ]; then
+	output_header_$version >> $secu_temp
+    fi
+    if [ $do_crc -eq 1 ]; then
+	cat "$temp" >> $secu_temp
+    fi
+    crc=$(crc32 "$secu_temp")
+    rm "$secu_temp"
+elif [ ${#type} -gt 16 ]; then
+    echo "Type exceeds 16 characters" >&2
+    rm "$temp"
+    exit 1
 fi
 
 # Call appropriate function to output the header, depending on header version

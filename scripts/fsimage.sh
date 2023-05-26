@@ -8,8 +8,8 @@
 # be used arbitrarily, for example to specify an entry point for some kind of
 # executable. The flags can be used to indicate the presence of some
 # information. In addition, the size of the final image data can be padded with
-# zeroes to satisfy alignment requirements and a CRC32 checksum can be
-# included if needed.
+# zeroes to satisfy alignment requirements and a CRC32 checksum (with or
+# without the header) can be included if needed.
 #
 # The size of the header depends on the version, which is currently V0.0 (16
 # bytes) or V1.0 (64 bytes). The old version V0.0 was used in the past to
@@ -61,11 +61,12 @@
 #
 # /* Possible values for flags entry above */
 # #define FSH_FLAGS_DESCR 0x8000	/* Description descr is present */
-# #define FSH_FLAGS_CRC32 0x4000	/* p32[7] holds the CRC32 checksum of
-# 					   the image (without header) */
+# #define FSH_FLAGS_CRC32 0x4000	/* CRC32 of image in type[12..15] */
+# #define FSH_FLAGS_SECURE 0x2000	/* CRC32 of header in type[12..15] */
 
 FSH_FLAGS_DESCR=0x8000
 FSH_FLAGS_CRC32=0x4000
+FSH_FLAGS_SECURE=0x2000
 
 # Possible fields in show command
 fields="offset magic size os padsize type descr typedescr flags crc32 version"
@@ -223,8 +224,8 @@ get_header_info()
     padsize=$((0x${head:28:2}))
     type=$(get_string ${head:32:32})
     flags=$((0x$(reverse ${head:24:4})))
-    if [ $(($flags & FSH_FLAGS_CRC32)) -ne 0 ]; then
-	crc32=$(reverse ${head:120:8})
+    if [ $(($flags & (FSH_FLAGS_CRC32 | FSH_FLAGS_SECURE))) -ne 0 ]; then
+	crc32=$(reverse ${head:56:8})
     fi
 
     typedescr="$type"
@@ -245,16 +246,32 @@ get_header_info()
 # Compute CRC32 and compare with stored value; return 1 on mismatch
 do_crc32()
 {
-    if [[ $(($flags & FSH_FLAGS_CRC32)) -eq 0 ]]; then
+    if [[ $(($flags & (FSH_FLAGS_CRC32 | FSH_FLAGS_SECURE))) -eq 0 ]]; then
 	echo "File #$index '$typedescr' has no CRC32"
 	return 0
     fi
-    computed=$(head -c $size | crc32 /dev/stdin)
+
+    # If header is required, we need to use a temporary file
+    if [[ $(($flags & FSH_FLAGS_SECURE)) -ne 0 ]]; then
+	# If header is required, we need to use a temporary file. Set CRC32
+	# entry in type[12..15] to 0x00000000 and compute crc32
+	head_temp=${head:0:56}00000000${head:64}
+	secu_temp=$(mktemp -p . "${0##*/}-temp.XXXXXXXXXX")
+	echo -n $head_temp | xxd -r -p > $secu_temp
+	if [[ $(($flags & FSH_FLAGS_CRC32)) -ne 0 ]]; then
+	    head -c $size >> $secu_temp
+	fi
+	computed=$(crc32 "$secu_temp")
+	rm "$secu_temp"
+    else
+	computed=$(head -c $size | crc32 /dev/stdin)
+    fi
+
     if [[ $crc32 = $computed ]]; then
 	printf "CRC32 (%s) is OK\n" $crc32
 	return 0
     fi
-    printf "CRC32 failed, got %s, expected %s\n", $computed, $crc32
+    printf "CRC32 failed, got %s, expected %s\n" $computed $crc32
     return 1
 }
 
@@ -279,6 +296,7 @@ do_info()
     printf "flags:      0x%04x" $flags
     [ $(($flags & $FSH_FLAGS_DESCR)) -ne 0 ] && printf " DESCR"
     [ $(($flags & $FSH_FLAGS_CRC32)) -ne 0 ] && printf " CRC32"
+    [ $(($flags & $FSH_FLAGS_SECURE)) -ne 0 ] && printf " SECURE"
     printf "\ncrc32:      %s\n" $crc32
     printf "\nParameter Interpretations:\n"
     printf "p64[0..1]:  %s %s\n" ${p:48:16} ${p:32:16}
@@ -338,7 +356,6 @@ do_xtract()
 {
     # In a non-F&S image, reinsert the header part that was already read 
     if [ "${magic:0:2}" != "FS" ]; then
-	# 
 	echo $head | xxd -r -p
 	size=$(($size - $headersize))
     fi
@@ -360,7 +377,22 @@ handle_command()
 {
     offset=$1
     if [[ $cmd = "list" ]]; then
-	printf "%2d: $wx $wx %s\n" $index $offset $size "${bl:0:$2}$typedescr"
+	if [ $(($flags & $FSH_FLAGS_DESCR)) -ne 0 ]; then
+	    fl=D
+	else
+	    fl=-
+	fi
+	if [ $(($flags & $FSH_FLAGS_CRC32)) -ne 0 ]; then
+	    fl=${fl}C
+	else
+	    fl=${fl}-
+	fi
+	if [ $(($flags & $FSH_FLAGS_SECURE)) -ne 0 ]; then
+	    fl=${fl}S
+	else
+	    fl=${fl}-
+	fi
+	printf "%2d: $wx $wx %s %s\n" $index $offset $size $fl "${bl:0:$2}$typedescr"
     elif [ "$sel" = "$type" ] || [ "$sel" = "$typedescr" ] || [ $selnum -eq $index ]; then
 	do_$cmd
 	exit
@@ -464,19 +496,30 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ $# -gt 2 ]; then
-    usage "Too many arguments"
-fi
+# Check if input is from a terminal (as opposed to a pipe or input redirection)
+if [ -t 0 ]; then
+    # Yes, we need a file name
+    if [ $# -eq 0 ]; then
+	usage "Missing file name"
+    fi
 
-# If input file is given, redirect it as stdin
-if [ -n "$1" ] && [ $1 != "-" ] ; then
+    # Redirect input file as stdin
     exec < $1
+    shift
 fi
 
 # If selection is not given, assume 0; if it is a number, set selnum to it
-sel=${2:-0}
+sel=0
+if [ $# -gt 0 ]; then
+    sel=${1:-0}
+    shift
+fi
 if ! selnum=$(printf "%d" "$sel" 2> /dev/null); then
     selnum=-1
+fi
+
+if [ $# -gt 0 ]; then
+    usage "Too many arguments"
 fi
 
 # If an output file is given, redirect stdout to it
@@ -497,7 +540,7 @@ wx="%0${#width}x"
 ws="%-${#width}s"
 
 if [[ $cmd = "list" ]]; then
-    printf " #  $ws $ws type (description)\n" offset size
+    printf " #  $ws $ws flg type (description)\n" offset size
     printf "%s\n" "-------------------------------------------------------------------------------"
 fi
 
