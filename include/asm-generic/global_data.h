@@ -24,6 +24,10 @@
 #include <membuff.h>
 #include <linux/list.h>
 
+#ifdef CONFIG_FS_BOARD_CFG
+#include <fs_cfg_info.h>
+#endif
+
 struct acpi_ctx;
 struct driver_rt;
 
@@ -101,11 +105,22 @@ struct global_data {
 #endif
 #ifdef CONFIG_FS_BOARD_CFG
 	/**
-	 * @board_cfg: board type
+	 * @board_cfg: Pointer to BOARD-CFG data (on F&S boards)
 	 *
-	 * Address where BOARD-CFG is located in OCRAM (on F&S boards).
+	 * Address where BOARD-CFG is located in OCRAM.
 	 */
 	unsigned long board_cfg;
+
+#ifndef CONFIG_SPL_BUILD
+	/**
+	 * @cfg_info: Binary board configuration information (on F&S boards)
+	 *
+	 * This structure holds board specific configuration data in binary
+	 * form to avoid having to parse the fdt based BOARD-CFG data more
+	 * than once.
+	 */
+	struct cfg_info cfg_info;
+#endif
 #endif
 
 	/**

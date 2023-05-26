@@ -59,17 +59,13 @@ struct fs_nboot_args *fs_board_get_nboot_args(void);
 
 #else
 
-struct cfg_info {
-	unsigned int board_type;
-	unsigned int board_rev;
-	enum boot_device boot_dev;
-	unsigned int features;
-	unsigned int dram_size;
-	unsigned int dram_chips;
-};
+#include <fs_cfg_info.h>		/* struct cfg_info */
 
 /* Get the offset of the Secondary Boot Image from fuses */
 u32 fs_board_get_secondary_offset(void);
+
+/* Get Pointer to struct cfg_info */
+struct cfg_info *fs_board_get_cfg_info(void);
 
 #endif /* !CONFIG_FS_BOARD_CFG */
 
@@ -95,11 +91,11 @@ enum boot_device fs_board_get_boot_dev(void);
 /* Get the boot device number from the string */
 enum boot_device fs_board_get_boot_dev_from_name(const char *name);
 
+/* Get the boot device that is programmed in the fuses. */
+enum boot_device fs_board_get_boot_dev_from_fuses(void);
+
 /* Get the string from the boot device number */
 const char *fs_board_get_name_from_boot_dev(enum boot_device boot_dev);
-
-/* Get Pointer to struct cfg_info */
-struct cfg_info *fs_board_get_cfg_info(void);
 
 /* Get the board features */
 unsigned int fs_board_get_features(void);
@@ -122,8 +118,5 @@ void fs_board_init_common(const struct fs_board_info *board_info);
 
 /* Set up all board specific variables */
 void fs_board_late_init_common(const char *serial_name);
-
-/* Get the boot device that is programmed in the fuses. */
-enum boot_device fs_board_get_boot_dev_from_fuses(void);
 
 #endif /* !__FS_BOARD_COMMON_H__ */

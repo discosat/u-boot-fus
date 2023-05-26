@@ -148,7 +148,9 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 /* Get Pointer to struct cfg_info */
 struct cfg_info *fs_board_get_cfg_info(void)
 {
-	return (struct cfg_info *)CONFIG_SPL_BSS_START_ADDR;
+	DECLARE_GLOBAL_DATA_PTR;
+
+	return (struct cfg_info *)&gd->cfg_info;
 }
 
 /* Get the boot device from BOARD-CFG) */
