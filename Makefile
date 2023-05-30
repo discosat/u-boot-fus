@@ -1452,7 +1452,7 @@ cmd_addfsheader = $(srctree)/scripts/addfsheader.sh $2 $< > $@
 ifneq ($(CONFIG_TARGET_FSVYBRID)$(CONFIG_ARCH_MX6),)
 FSIMG_OPT = -v 0.0
 else
-FSIMG_OPT = -c -p 16 -t U-BOOT -d $(BOARD)
+FSIMG_OPT = -s -c -a 16 -t U-BOOT -d $(BOARD)
 endif
 ifdef CONFIG_SPL_LOAD_FIT
 addfsheader_target = u-boot-dtb.img

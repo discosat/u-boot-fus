@@ -41,8 +41,9 @@ struct fs_header_v1_0 {			/* Size: 64 bytes */
 
 /* Possible values for flags entry above */
 #define FSH_FLAGS_DESCR 0x8000		/* Description descr is present */
-#define FSH_FLAGS_CRC32 0x4000		/* p32[7] holds the CRC32 checksum of
-					   the image (without header) */
+#define FSH_FLAGS_CRC32 0x4000		/* CRC32 of image in type[12..15] */
+#define FSH_FLAGS_SECURE 0x2000		/* CRC32 of header in type[12..15] */
+
 #define FSH_SIZE sizeof(struct fs_header_v1_0)
 
 /* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */

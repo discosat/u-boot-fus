@@ -32,57 +32,57 @@
  * the NBoot structure.
  *
  *   +--------------------------------------------+
- *   | BOARD-ID (id) (optional)                   |
+ *   | BOARD-ID (id) (optional)                   | CRC32 header
  *   |   +----------------------------------------+
- *   |   | NBOOT (arch)                           |
+ *   |   | NBOOT (arch)                           | Signed / CRC32 header+image
  *   |   |   +------------------------------------+
- *   |   |   | SPL (arch)                         |
+ *   |   |   | SPL (arch)                         | Signed / CRC32 header+image
  *   |   |   +------------------------------------+
- *   |   |   | BOARD-CONFIGS (arch)               |
+ *   |   |   | BOARD-INFO (arch)                  | CRC32 header
  *   |   |   |   +--------------------------------+
- *   |   |   |   | BOARD-CFG (id)                 |
+ *   |   |   |   | BOARD-CFG (id)                 | Signed / CRC32 header+image
  *   |   |   |   +--------------------------------+
- *   |   |   |   | BOARD-CFG (id)                 |
+ *   |   |   |   | BOARD-CFG (id)                 | Signed / CRC32 header+image
  *   |   |   |   +--------------------------------+
  *   |   |   |   | ...                            |
  *   |   |   |---+--------------------------------+
- *   |   |   | FIRMWARE (arch)                    |
+ *   |   |   | FIRMWARE (arch)                    | CRC32 header
  *   |   |   |   +--------------------------------+
- *   |   |   |   | DRAM-SETTINGS (arch)           |
+ *   |   |   |   | DRAM-INFO (arch)               | CRC32 header
  *   |   |   |   |   +----------------------------+
- *   |   |   |   |   | DRAM-TYPE (DDR3L)          |
+ *   |   |   |   |   | DRAM-TYPE (ddr3l)          | CRC32 header
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-FW (DDR3L)        |
+ *   |   |   |   |   |   | DRAM-FW (ddr3l)        | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | ...                    |
- *   |   |   |   |   +---+------------------------+
- *   |   |   |   |   | DRAM-TYPE (DDR4)           |
- *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-FW (DDR4)         |
- *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
- *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
  *   |   |   |   |   |   | ...                    |
  *   |   |   |   |   +---+------------------------+
- *   |   |   |   |   | DRAM-TYPE (LPDDR4)         |
+ *   |   |   |   |   | DRAM-TYPE (ddr4)           | CRC32 header
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-FW (LPDDR4)       |
+ *   |   |   |   |   |   | DRAM-FW (ddr4)         | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
- *   |   |   |   |   |   | DRAM-TIMING (ram-chip) |
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | ...                    |
+ *   |   |   |   |   +---+------------------------+
+ *   |   |   |   |   | DRAM-TYPE (lpddr4)         | CRC32 header
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-FW (lpddr4)       | Signed / CRC32 header+image
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
+ *   |   |   |   |   |   +------------------------+
+ *   |   |   |   |   |   | DRAM-TIMING (ram-chip) | Signed / CRC32 header+image
  *   |   |   |   |   |   +------------------------+
  *   |   |   |   |   |   | ...                    |
  *   |   |   |   +---+---+------------------------+
- *   |   |   |   | ATF (arch)                     |
+ *   |   |   |   | ATF (arch)                     | Signed / CRC32 header+image
  *   |   |   |   +--------------------------------+
- *   |   |   |   | TEE (arch) (optional)          |
+ *   |   |   |   | TEE (arch) (optional)          | Signed / CRC32 header+image
  *   |   |   +---+--------------------------------+
  *   |   |   | EXTRAS                             |
  *   |   |   |   +--------------------------------+
@@ -750,7 +750,7 @@ static void fs_image_handle_header(void)
 			/* Simply enter image, no further action */
 			fs_image_enter(size, state);
 			break;
-		} else if (fs_image_match(&one_fsh, "BOARD-CONFIGS", arch)) {
+		} else if (fs_image_match(&one_fsh, "BOARD-INFO", arch)) {
 			fs_image_enter(size, FSIMG_STATE_BOARD_CFG);
 			break;
 		} else if (fs_image_match(&one_fsh, "FIRMWARE", arch)
@@ -783,7 +783,7 @@ static void fs_image_handle_header(void)
 
 	case FSIMG_STATE_DRAM:
 		/* Get DRAM type and DRAM timing from BOARD-CFG */
-		if (fs_image_match(&one_fsh, "DRAM-SETTINGS", arch)) {
+		if (fs_image_match(&one_fsh, "DRAM-INFO", arch)) {
 			void *fdt = fs_image_get_cfg_fdt();
 			int off = fs_image_get_cfg_offs(fdt);
 

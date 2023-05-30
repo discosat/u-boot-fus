@@ -311,11 +311,15 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		return -EINVAL;
 	}
 
-	/* Look for BOARD-CONFIGS subimage and search for matching BOARD-CFG */
-	cfg = fs_image_find(fsh, "BOARD-CONFIGS", arch, NULL, true);
+	/* Look for BOARD-INFO subimage and search for matching BOARD-CFG */
+	cfg = fs_image_find(fsh, "BOARD-INFO", arch, NULL, true);
 	if (!cfg) {
-		printf("No BOARD-CONFIGS found for arch %s\n", arch);
-		return -ENOENT;
+		/* Fall back to BOARD-CONFIGS for old NBoot variants */
+		cfg = fs_image_find(fsh, "BOARD-CONFIGS", arch, NULL, true);
+		if (!cfg) {
+			printf("No BOARD-INFO/CONFIGS found for %s\n", arch);
+			return -ENOENT;
+		}
 	}
 
 	remaining = fs_image_get_size(cfg++, false);
