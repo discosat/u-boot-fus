@@ -1423,7 +1423,6 @@ int ft_board_setup(void *fdt, struct bd_info *bd)
 	unsigned int features = fs_board_get_features();
 	int minc, maxc;
 	int id = 0;
-	fdt32_t tmp_val[1];
 
 	/* The following stuff is only set in Linux device tree */
 	/* Disable RTC85063 if it is not available */
