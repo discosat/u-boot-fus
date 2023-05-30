@@ -18,6 +18,7 @@
 #include <jffs2/jffs2.h>		/* struct mtd_device + part_info */
 #include <fuse.h>			/* fuse_read() */
 #include <image.h>			/* parse_loadaddr() */
+#include <u-boot/crc.h>			/* crc32() */
 
 #include "../board/F+S/common/fs_board_common.h"	/* fs_board_*() */
 #include "../board/F+S/common/fs_image_common.h"	/* fs_image_*() */
@@ -182,7 +183,7 @@ static void fs_image_parse_image(unsigned long addr, unsigned int offs,
 }
 
 /*
- * Return the header of the given sub-image withing an F&S image or NULL if not
+ * Return the header of the given sub-image within an F&S image or NULL if not
  * found. If img is not NULL, also fill in the struct with or without header.
  */
 struct fs_header_v1_0 *fs_image_find(struct fs_header_v1_0 *fsh,
@@ -215,8 +216,6 @@ struct fs_header_v1_0 *fs_image_find(struct fs_header_v1_0 *fsh,
 		remaining -= size;
 	}
 
-	printf("No %s found for %s\n", type, descr);
-
 	return NULL;
 }
 
@@ -226,7 +225,7 @@ static int fs_image_confirm(void)
 	return confirm_yesno();
 }
 
-/* Check boot device */
+/* Check boot device; Return 0: OK, 1: Not fused yet, <0: Error */
 static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
 {
 	int offs;
@@ -245,18 +244,125 @@ static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
 
 	*used_boot_dev = boot_dev;
 	boot_dev_fuses = fs_board_get_boot_dev_from_fuses();
-	if (boot_dev_fuses != boot_dev_cfg) {
-		if (boot_dev_fuses != USB_BOOT) {
-			printf("Error: New BOARD-CFG wants to boot from %s but"
-			       " board is already fused\nfor %s. Rejecting"
-			       " to save this configuration.\n", boot_dev,
-			       fs_board_get_name_from_boot_dev(boot_dev_fuses));
-			return -EINVAL;
-		}
-		return 1;
+	if (boot_dev_fuses == boot_dev_cfg)
+		return 0;		/* Match, no change */
+
+	if (boot_dev_fuses == USB_BOOT)
+		return 1;		/* Not fused yet */
+
+	printf("Error: New BOARD-CFG wants to boot from %s but board is"
+	       " already fused\nfor %s. Refusing to save this configuration.\n",
+	       boot_dev, fs_board_get_name_from_boot_dev(boot_dev_fuses));
+
+	return -EINVAL;
+}
+
+/* Validate a signed image; Return 0: OK, <0: Error */
+static int fs_image_validate_signed(struct ivt *ivt)
+{
+#ifdef CONFIG_FS_SECURE_BOOT
+	struct boot_data *boot;
+	void *self;
+	u32 length;
+
+	/* Check that boot data entry points directly behind IVT */
+	if (ivt->boot != ivt->self + IVT_TOTAL_LENGTH) {
+		puts("\nError: Invalid image, bad IVT, refusing to save\n");
+		return -EINVAL;
 	}
 
+	boot = (struct boot_data *)(ivt + 1);
+	self = (void *)ivt->self;
+	length = boot_data->length;
+
+	/* Copy to verification address and check signature */
+	memcpy(self, ivt, length);
+	if (imx_hab_authenticate_image(self, length, 0)) {
+		puts("\nError: Invalid signature, refusing to save\n");
+		return -EINVAL;
+	}
+
+	puts(" (signature OK)\n");
+
 	return 0;
+#else
+	printf("\nError: Cannot authenticate, refusing to save\n"
+	       "You need U-Boot with CONFIG_FS_SECURE_BOOT enabled for this\n");
+
+	return -EINVAL;
+#endif
+}
+
+/* Validate an image, either check signature or CRC32; 0: OK, <0: Error */
+static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
+			     const char *descr, ulong addr)
+{
+	u32 expected_cs;
+	u32 computed_cs;
+	u32 *pcs;
+	struct ivt *ivt;
+	unsigned int size;
+	unsigned char *start;
+
+	if (!fs_image_match(fsh, type, descr)) {
+		printf("Error: No %s image for %s found at address 0x%lx\n",
+		       type, descr, addr);
+		return -EINVAL;
+	}
+
+	ivt = (struct ivt *)(fsh + 1);
+
+	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
+		printf("Found signed %s image", type);
+
+		return fs_image_validate_signed(ivt);
+	}
+
+	printf("Found unsigned %s image", type);
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	if (imx_hab_is_enabled) {
+		puts("\nError: Board is closed, refusing to save unsigned"
+		     " image\n");
+		return -EINVAL;
+	}
+#endif
+
+	if (!(fsh->info.flags & (FSH_FLAGS_SECURE | FSH_FLAGS_CRC32))) {
+		/* No CRC32 provided, assume image is OK */
+		puts(" (no checksum)\n");
+		return 0;
+	}
+
+	if (fsh->info.flags & FSH_FLAGS_SECURE) {
+		start = (unsigned char *)fsh;
+		size = FS_HEADER_SIZE;
+		puts(" ### CS header");
+	} else {
+		start = (unsigned char *)(fsh + 1);
+		size = 0;
+	}
+
+	if (fsh->info.flags & FSH_FLAGS_CRC32) {
+		size += fs_image_get_size(fsh, false);
+		puts(" ### CS image");
+	}
+
+	/* CRC32 is in type[12..15]; temporarily set to 0 while computing */
+	pcs = (u32 *)&fsh->type[12];
+	expected_cs = *pcs;
+	*pcs = 0;
+	computed_cs = crc32(0, start, size);
+	*pcs = expected_cs;
+	if (computed_cs == expected_cs) {
+		puts(" (checksum ok)\n");
+		return 0;
+	}
+
+	printf("\nError: Bad CRC32 (found 0x%08x, expected 0x%08x)\n",
+	       computed_cs, expected_cs);
+
+	return -EINVAL;
 }
 
 /*
@@ -264,6 +370,7 @@ static int fs_image_check_bootdev(void *fdt, const char **used_boot_dev)
  * Returns: <0: error; 0: aborted by user; >0: proceed to save
  */
 static int fs_image_find_board_cfg(unsigned long addr, bool force,
+				   const char *action,
 				   struct fs_header_v1_0 **used_cfg,
 				   struct fs_header_v1_0 **nboot)
 {
@@ -295,8 +402,16 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		memcpy(old_id, id, MAX_DESCR_LEN + 1);
 		memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
 		if (strcmp(id, old_id)) {
+#ifdef CONFIG_FS_SECURE_BOOT
+			if (imx_hab_is_enabled()) {
+				puts("Error: Current board is %s and board is"
+				     " closed\nRefusing to %s for %s\n",
+				     old_id, action, id);
+				return -EINVAL;
+			}
+#endif
 			printf("Warning! Current board is %s but you want to\n"
-			       "save for %s\n", old_id, id);
+			       "%s for %s\n", old_id, action, id);
 			if (!force && !fs_image_confirm()) {
 				puts("Aborted by user, nothing changed.\n");
 				return 0; /* used_cfg == NULL in this case */
@@ -305,11 +420,10 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		fsh++;
 	}
 
-	if (!fs_image_match(fsh, "NBOOT", arch)) {
-		printf("No NBOOT image for %s found at address 0x%lx\n",
-		       arch, addr);
-		return -EINVAL;
-	}
+	/* Authenticate signature or check CRC32 */
+	err = fs_image_validate(fsh, "NBOOT", arch, addr);
+	if (err)
+		return err;
 
 	/* Look for BOARD-INFO subimage and search for matching BOARD-CFG */
 	cfg = fs_image_find(fsh, "BOARD-INFO", arch, NULL, true);
@@ -341,7 +455,7 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 
 	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
-		puts("Unknown NBOOT version, rejecting to save\n");
+		puts("Unknown NBOOT version, refusing to save\n");
 		return -EINVAL;
 	}
 	printf("Found NBOOT version %s\n", nboot_version);
@@ -1075,58 +1189,29 @@ static int fs_image_save_uboot_to_mmc(void *fdt, struct img_info *img,
 }
 #endif /* CONFIG_CMD_MMC */
 
-static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
+static int fsimage_save_uboot(ulong addr, bool force)
 {
 	void *fdt;
-	const char *arch = fs_image_get_arch();
 	const char *boot_dev;
 	struct img_info img;
 	int ret;
 	int copy;
-
-	struct ivt* ivt = (struct ivt*)(fsh + 1);
-#ifdef CONFIG_FS_SECURE_BOOT
-	struct boot_data* boot = (struct boot_data*)(ivt + 1);
-
-	if(ivt->hdr.magic == IVT_HEADER_MAGIC){
-		printf("signed uboot\n");
-		memcpy((void*)CONFIG_SYS_TEXT_BASE - HAB_HEADER, fsh + 1, //- HAB Header?
-		       boot->length);
-		if(imx_hab_authenticate_image(CONFIG_SYS_TEXT_BASE - HAB_HEADER,
-		                              boot->length, 0x0)){
-			printf("ERROR: INVALID SIGNATURE, REFUSING TO SAVE!");
-			return 1;
-		}
-	}
-	else {
-		if(imx_hab_is_enabled()){
-			printf("ERROR: UNSIGNED UBOOT, REFUSING TO SAVE!");
-			return 1;
-		}
-		printf("unsigned uboot\n");
-	}
-#else
-	if(ivt->hdr.magic == IVT_HEADER_MAGIC){
-		printf("IVT found: Please first install an U-Boot, that has been built with security features\n make <ARCH>_seure_boot_defconfig\n make\n");
-		return 1;
-	}
-#endif
+	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
 
 	img.type = "U-BOOT";
-	img.descr = arch;
+	img.descr = fs_image_get_arch();
 	img.img = fsh + 1;
 	img.size = fs_image_get_size(fsh, false);
-	if (!fs_image_match(fsh, img.type, img.descr)) {
-		printf("%s image not valid for %s\n", img.type, img.descr);
-		return 1;
-	}
+
+	if (fs_image_validate(fsh, img.type, img.descr, addr))
+		return CMD_RET_FAILURE;
 
 	fdt = fs_image_get_cfg_fdt();
 	if (!fdt)
-		return 1;
+		return CMD_RET_FAILURE;
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
 	copy = 0;
@@ -1156,7 +1241,7 @@ static int fsimage_save_uboot(struct fs_header_v1_0 *fsh, bool force)
 	printf("Saving %s %s\n", img.type,
 	       ret ? "incomplete or failed" : "complete");
 
-	return ret ? 1 : 0;
+	return ret ? CMD_RET_FAILURE : CMD_RET_SUCCESS;
 }
 
 /* ------------- Command implementation ------------------------------------ */
@@ -1167,7 +1252,7 @@ static int do_fsimage_arch(struct cmd_tbl *cmdtp, int flag, int argc,
 {
 	printf("%s\n", fs_image_get_arch());
 
-	return 0;
+	return CMD_RET_SUCCESS;
 }
 
 /* Show the current BOARD-ID */
@@ -1177,12 +1262,12 @@ static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 	char id[MAX_DESCR_LEN + 1];
 
 	if (fs_image_get_board_id(id))
-		return 1;
+		return CMD_RET_FAILURE;
 
 	id[MAX_DESCR_LEN] = '\0';
 	printf("%s\n", id);
 
-	return 0;
+	return CMD_RET_SUCCESS;
 }
 
 #ifdef CONFIG_CMD_FDT
@@ -1193,7 +1278,7 @@ static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 	void *fdt = fs_image_get_cfg_fdt();
 
 	if (!fdt)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	printf("FDT part of BOARD-CFG located at 0x%lx\n", (ulong)fdt);
 
@@ -1220,7 +1305,7 @@ static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fdt = fs_image_get_cfg_fdt();
 	if (!fdt)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	/* Load a FIRMWARE image */
 	img.type = "FIRMWARE";
@@ -1246,7 +1331,7 @@ static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	default:
 		printf("Cannot handle boot device %s\n", boot_dev);
-		return 1;
+		return CMD_RET_FAILURE;
 	}
 
 	if (ret == -ENOENT)
@@ -1261,7 +1346,7 @@ static int do_fsimage_firmware(struct cmd_tbl *cmdtp, int flag, int argc,
 		       img.type, img.size, addr);
 	}
 
-	return ret ? 1 : 0;
+	return ret ? CMD_RET_FAILURE : CMD_RET_SUCCESS;
 }
 
 /* List contents of an F&S image */
@@ -1279,7 +1364,7 @@ static int do_fsimage_list(struct cmd_tbl *cmdtp, int flag, int argc,
 	fsh = (struct fs_header_v1_0 *)addr;
 	if (!fs_image_is_fs_image(fsh)) {
 		printf("No F&S image found at addr 0x%lx\n", addr);
-		return 1;
+		return CMD_RET_FAILURE;
 	}
 
 	printf("offset   size     type (description)\n");
@@ -1288,7 +1373,7 @@ static int do_fsimage_list(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fs_image_parse_image(addr, 0, 0, fs_image_get_size(fsh, false));
 
-	return 0;
+	return CMD_RET_SUCCESS;
 }
 
 /* Save the F&S NBoot image to the boot device (NAND or MMC) */
@@ -1304,7 +1389,6 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	int ret;
 	unsigned long addr;
 	bool force = false;
-	const char *type = "NBOOT";
 
 	if ((argc > 1) && (argv[1][0] == '-')) {
 		if (strcmp(argv[1], "-f"))
@@ -1320,44 +1404,18 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* If this is an U-Boot image, handle separately */
 	if (fs_image_match((void *)addr, "U-BOOT", NULL))
-		return fsimage_save_uboot((void *)addr, force);
+		return fsimage_save_uboot(addr, force);
 
-	int image_size = (int)(((struct fs_header_v0_0*)
-		(addr))->file_size_low) + FS_HEADER_SIZE;
-	struct ivt* ivt = (struct ivt*)(uintptr_t)(addr + image_size);
-#ifdef CONFIG_FS_SECURE_BOOT
-	if(ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		int full_size = (int)(((struct boot_data*)(ulong)
-			((struct ivt*)ivt)->boot)->length);
-		printf("signed nboot\n");
-		if (imx_hab_authenticate_image(addr, full_size, image_size)) {
-			printf("ERROR: NBOOT IS NOT VALID\n");
-			return 1;
-		}
-	}
-	else {
-		if(imx_hab_is_enabled()) {
-			printf("ERROR: UNSIGNED NBOOT ON CLOSED BOARD, REFUSE TO SAVE\n");
-			return -EINVAL;
-		}
-		printf("unsigned nboot\n");
-	}
-#else
-	if(ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		printf("IVT found: Please first install an N-Boot, that has been built with security features\n make <ARCH>_seure_boot_defconfig\n make nboot\n");
-		return 1;
-	}
-#endif
-
-	ret = fs_image_find_board_cfg(addr, force, &cfg, &nboot);
+	/* Handle NBoot image */
+	ret = fs_image_find_board_cfg(addr, force, "save", &cfg, &nboot);
 	if (ret <= 0)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	fdt = fs_image_find_cfg_fdt(cfg);
 
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
-		return 1;
+		return CMD_RET_FAILURE;
 	if (ret > 0) {
 		printf("Warning! Boot fuses not yet set, remember to burn"
 		       " them for %s\n", boot_dev);
@@ -1370,12 +1428,16 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	img[0].size = fs_image_get_size(cfg, true);
 
 	/* Prepare img[1]: FIRMWARE */
-	if (!fs_image_find(nboot, "FIRMWARE", arch, &img[1], true))
-		return 1;
+	if (!fs_image_find(nboot, "FIRMWARE", arch, &img[1], true)) {
+		printf("No FIRMWARE found for %s\n", arch);
+		return CMD_RET_FAILURE;
+	}
 
 	/* Prepare img[2]: SPL */
-	if (!fs_image_find(nboot, "SPL", arch, &img[2], false))
-		return 1;
+	if (!fs_image_find(nboot, "SPL", arch, &img[2], false)) {
+		printf("No SPL found for %s\n", arch);
+		return CMD_RET_FAILURE;
+	}
 
 	/* Found all sub-images, let's go and save NBoot */
 	switch (fs_board_get_boot_dev_from_name(boot_dev)) {
@@ -1395,16 +1457,15 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 #endif
 
 	default:
-		printf("Saving %s to boot device %s not available\n",
-		       type, boot_dev);
+		printf("Saving NBOOT to boot device %s not available\n",
+		       boot_dev);
 		ret = -EINVAL;
 		break;
 	}
 
-	printf("Saving %s %s\n", type,
-	       ret ? "incomplete or failed" : "complete");
+	printf("Saving NBOOT %s\n", ret ? "incomplete or failed" : "complete");
 
-	return ret ? 1 : 0;
+	return ret ? CMD_RET_FAILURE : CMD_RET_SUCCESS;
 }
 
 /* Burn the fuses according to the NBoot in DRAM */
@@ -1434,14 +1495,14 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 	else
 		addr = get_loadaddr();
 
-	ret = fs_image_find_board_cfg(addr, force, &cfg, NULL);
+	ret = fs_image_find_board_cfg(addr, force, "fuse", &cfg, NULL);
 	if (ret <= 0)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	fdt = (void *)(cfg + 1);
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
-		return 1;
+		return CMD_RET_FAILURE;
 
 	/* No contradictions, do an in-depth check */
 	offs = fs_image_get_cfg_offs(fdt);
@@ -1453,7 +1514,7 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 	    || !len || (len % sizeof(fdt32_t) != 0)) {
 		printf("Invalid or missing fuse value settings for boot"
 		       " device %s\n", boot_dev);
-		return 1;
+		return CMD_RET_FAILURE;
 	}
 	len /= sizeof(fdt32_t);
 
@@ -1485,48 +1546,42 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!ret) {
 		printf("Fuses already set correctly to boot from %s\n",
 		       boot_dev);
-		return 0;
+		return CMD_RET_SUCCESS;
 	}
 	if (ret & 1) {
 		printf("Error: New settings for boot device %s would need to"
-		       " clear fuse bits which\nis impossible. Rejecting to"
+		       " clear fuse bits which\nis impossible. Refusing to"
 		       " save this configuration.\n", boot_dev);
-		return 1;
+		return CMD_RET_FAILURE;
 	}
 	if (!force) {
 		puts("The fuses will be changed to the above settings. This is"
 		     " a write once option\nand can not be undone. ");
 		if (!fs_image_confirm())
-			return 0;
+			return CMD_RET_SUCCESS;
 	}
 
 	/* Now there is no way back... actually burn the fuses */
 	for (i = 0; i < len; i++) {
 		fuse_bw = fdt32_to_cpu(fbws[i]);
 		fuse_val = fdt32_to_cpu(fvals[i]);
-#if defined(CONFIG_IMX8)
 		fuse_mask = fdt32_to_cpu(fmasks[i]);
 		fuse_read(fuse_bw >> 16, fuse_bw & 0xffff, &cur_val);
 		cur_val &= fuse_mask;
-#else
-		cur_val = 0;
-#endif
-		printf("cur_val = 0x%x\n",cur_val);
-		printf("fuse_val = 0x%x\n",fuse_val);
-		if (cur_val != fuse_val) {
-			ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
-			if (ret) {
-				printf("Error: Fuse programming failed for bank 0x%x,"
-					   " word 0x%x, value 0x%08x (%d)\n",
-					   fuse_bw >> 16, fuse_bw & 0xffff, fuse_val, ret);
-				return 1;
-			}
+		if (cur_val == fuse_val)
+			continue;	/* Skip unchanged values */
+		ret = fuse_prog(fuse_bw >> 16, fuse_bw & 0xffff, fuse_val);
+		if (ret) {
+			printf("Error: Fuse programming failed for bank 0x%x,"
+			       " word 0x%x, value 0x%08x (%d)\n",
+			       fuse_bw >> 16, fuse_bw & 0xffff, fuse_val, ret);
+			return CMD_RET_FAILURE;
 		}
 	}
 
 	printf("Fuses programmed for boot device %s\n", boot_dev);
 
-	return 0;
+	return CMD_RET_SUCCESS;
 }
 
 /* Subcommands for "fsimage" */
@@ -1568,7 +1623,8 @@ static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
 	 * it is still valid and not compromised in some way.
 	 */
 	if (!fs_image_cfg_is_valid()) {
-		puts("\n*** Error: BOARD-CFG in OCRAM damaged\n\n");
+		printf("Error: BOARD-CFG in OCRAM at 0x%lx damaged\n",
+		       (ulong)found_cfg);
 		return CMD_RET_FAILURE;
 	}
 
