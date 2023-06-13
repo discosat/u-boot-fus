@@ -633,8 +633,7 @@ static int check_fs_image(struct sb_info info, char* name, bool isSigned) {
 		int size = fs_image_get_size(fsh, false) + 0x40;
 		uintptr_t check_ptr = (ulong)info.check_addr;
 
-		if (imx_hab_authenticate_image(check_ptr,
-						size, FS_HEADER_SIZE)) {
+		if (imx_hab_authenticate_image(check_ptr, size, FSH_SIZE)) {
 			printf("ERROR: %s IS NOT VALID\n", name);
 			return 1;
 		}
@@ -678,11 +677,11 @@ static int auth_prepare(struct sb_info info, size_t* image_length,
 static int copy_valid_fs_image(struct sb_info info, size_t img_length,
 							ulong offset) {
 	void  *img_dst  = info.final_addr;
-	void  *img_src  = info.check_addr + FS_HEADER_SIZE + offset;
+	void  *img_src  = info.check_addr + FSH_SIZE + offset;
 
 	if (info.header == true) {
-		memcpy(info.final_addr, info.check_addr, FS_HEADER_SIZE);
-		img_dst += FS_HEADER_SIZE;
+		memcpy(info.final_addr, info.check_addr, FSH_SIZE);
+		img_dst += FSH_SIZE;
 	}
 
 	memcpy(img_dst, img_src, img_length);
@@ -773,8 +772,8 @@ static void fs_image_handle_header(void)
 			memcpy(fs_image_get_cfg_addr(), &one_fsh, FSH_SIZE);
 			fs_image_copy(fs_image_get_cfg_addr() + FSH_SIZE, size);
 #else
-			fs_image_copy((void*)(CONFIG_SPL_ATF_ADDR) +
-							FS_HEADER_SIZE, size);
+			fs_image_copy((void*)(CONFIG_SPL_ATF_ADDR) + FSH_SIZE,
+				      size);
 			final_load_addr = fs_image_get_cfg_addr();
 #endif
 		} else
@@ -815,8 +814,8 @@ static void fs_image_handle_header(void)
 				      size);
 #else
 		fs_image_copy_or_skip(&one_fsh, "DRAM-FW", ram_type,  
-				      (void*)(CONFIG_SPL_ATF_ADDR +
-				      FS_HEADER_SIZE), size);
+				      (void*)(CONFIG_SPL_ATF_ADDR + FSH_SIZE),
+				      size);
 		final_load_addr = &_end;
 #endif
 		break;
@@ -829,8 +828,7 @@ static void fs_image_handle_header(void)
 				      size);
 #else
 		fs_image_copy_or_skip(&one_fsh, "DRAM-TIMING", ram_timing,
-				      (void *)CONFIG_SPL_ATF_ADDR +
-				      FS_HEADER_SIZE,
+				      (void *)CONFIG_SPL_ATF_ADDR + FSH_SIZE,
 				      size);
 		final_load_addr = (void*)CONFIG_SPL_DRAM_TIMING_ADDR;
 #endif
@@ -842,8 +840,7 @@ static void fs_image_handle_header(void)
 			(void *)(CONFIG_SPL_ATF_ADDR), size);
 #else
 		fs_image_copy_or_skip(&one_fsh, "ATF", arch,
-			(void *)CONFIG_SPL_ATF_ADDR +
-			FS_HEADER_SIZE, size);
+			(void *)CONFIG_SPL_ATF_ADDR + FSH_SIZE, size);
 		final_load_addr = (void *)CONFIG_SPL_ATF_ADDR;
 #endif
 		break;
@@ -854,7 +851,7 @@ static void fs_image_handle_header(void)
 				      (void *)CONFIG_SPL_TEE_ADDR, size);
 #else
 		fs_image_copy_or_skip(&one_fsh, "TEE", arch,
-			(void *)CONFIG_SPL_TEE_ADDR + FS_HEADER_SIZE, size);
+			(void *)CONFIG_SPL_TEE_ADDR + FSH_SIZE, size);
 		final_load_addr = (void *)CONFIG_SPL_TEE_ADDR;
 #endif
 		break;
@@ -1008,9 +1005,9 @@ static bool ready_to_move_header(void) {
 
 static void move_header(void){
 	if(state == FSIMG_STATE_TEE)
-		memcpy((void*)CONFIG_SPL_TEE_ADDR, &one_fsh, FS_HEADER_SIZE);
+		memcpy((void*)CONFIG_SPL_TEE_ADDR, &one_fsh, FSH_SIZE);
 	else
-		memcpy((void*)CONFIG_SPL_ATF_ADDR, &one_fsh, FS_HEADER_SIZE);
+		memcpy((void*)CONFIG_SPL_ATF_ADDR, &one_fsh, FSH_SIZE);
 }
 
 static bool ready_to_move_image(bool eq) {
@@ -1029,7 +1026,7 @@ void move_image_and_validate(void) {
 		test_addr = CONFIG_SPL_TEE_ADDR;
 
 	if(copy_if_valid(final_load_addr, (void *)(uintptr_t)test_addr,
-				test_addr + FS_HEADER_SIZE, state, header))
+				test_addr + FSH_SIZE, state, header))
 		hang();
 }
 #endif
@@ -1309,8 +1306,7 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 #ifdef CONFIG_FS_SECURE_BOOT
 			if (copy_if_valid((void *)CONFIG_FUS_BOARDCFG_ADDR,
 				(void *)CONFIG_SPL_ATF_ADDR,
-				CONFIG_SPL_ATF_ADDR + FS_HEADER_SIZE,
-				state, true)) {
+				CONFIG_SPL_ATF_ADDR + FSH_SIZE, state, true)) {
 				hang();
 			}
 #endif

@@ -794,7 +794,7 @@ static void sdp_handle_in_ep(void)
 			int size;
 			if((uint8_t)*(uint8_t*)(CONFIG_SDP_LOADADDR + HAB_HEADER) == 0xd1){
 				size = (uint32_t)*(uint32_t*)(CONFIG_SDP_LOADADDR + 0x64);
-				memcpy(SPL_BUFFER_ADDR, (void*)CONFIG_SDP_LOADADDR + (size_t)FS_HEADER_SIZE, size);
+				memcpy(SPL_BUFFER_ADDR, (void*)CONFIG_SDP_LOADADDR + (size_t)FSH_SIZE, size);
 			}
 #endif
 

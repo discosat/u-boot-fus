@@ -60,10 +60,10 @@ static void set_board_config_signed(void* fdt, struct img_info img)
 	size_t offset = 0;
 
 	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		memcpy(cfg_addr, img.img, FS_HEADER_SIZE);
+		memcpy(cfg_addr, img.img, FSH_SIZE);
 
-		offset = FS_HEADER_SIZE + HAB_HEADER;
-		cfg_addr += FS_HEADER_SIZE;
+		offset = FSH_SIZE + HAB_HEADER;
+		cfg_addr += FSH_SIZE;
 	}
 	memcpy(cfg_addr, img.img + offset, img.size - offset);
 }
@@ -336,7 +336,7 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 
 	if (fsh->info.flags & FSH_FLAGS_SECURE) {
 		start = (unsigned char *)fsh;
-		size = FS_HEADER_SIZE;
+		size = FSH_SIZE;
 		puts(" ### CS header");
 	} else {
 		start = (unsigned char *)(fsh + 1);
