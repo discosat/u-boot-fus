@@ -410,7 +410,7 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 				return -EINVAL;
 			}
 #endif
-			printf("Warning! Current board is %s but you want to\n"
+			printf("Warning! Current board is %s but you will\n"
 			       "%s for %s\n", old_id, action, id);
 			if (!force && !fs_image_confirm()) {
 				puts("Aborted by user, nothing changed.\n");
@@ -455,7 +455,7 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 
 	nboot_version = fs_image_get_nboot_version(fdt);
 	if (!nboot_version) {
-		puts("Unknown NBOOT version, refusing to save\n");
+		printf("Unknown NBOOT version, refusing to %s\n", action);
 		return -EINVAL;
 	}
 	printf("Found NBOOT version %s\n", nboot_version);
@@ -467,6 +467,40 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 	return 1;			/* Proceed */
 }
 
+/* Get addr for image; 0 if "stored", <0: Error */
+static unsigned long fs_image_get_loadaddr(int argc, char * const argv[],
+					     bool use_stored_if_empty)
+{
+	unsigned long addr;
+
+	if (argc > 1) {
+		if (!strncmp(argv[1], "stored", strlen(argv[1])))
+			return 0;
+
+		addr = parse_loadaddr(argv[1], NULL);
+		use_stored_if_empty = false;
+	} else
+		addr = get_loadaddr();
+
+	if (fs_image_is_fs_image((struct fs_header_v1_0 *)addr))
+		return addr;
+
+	printf("No F&S image found at 0x%lx", addr);
+
+	if (argc > 1) {
+		putc('\n');
+		return -ENOENT;
+	}
+
+	if (!use_stored_if_empty) {
+		puts(", use 'stored' to refer to stored NBoot\n");
+		return -ENOENT;
+	}
+
+	puts(", switching to stored NBoot\n\n");
+
+	return 0;
+}
 
 
 /* ------------- NAND handling --------------------------------------------- */
@@ -1275,8 +1309,23 @@ static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 			       char * const argv[])
 {
+	unsigned long addr;
+	int ret;
 	void *fdt = fs_image_get_cfg_fdt();
+	struct fs_header_v1_0 *cfg;
 
+	addr = fs_image_get_loadaddr(argc, argv, true);
+	if (IS_ERR_VALUE(addr))
+		return CMD_RET_USAGE;
+
+	if (addr) {
+		ret = fs_image_find_board_cfg(addr, true, "show", &cfg, NULL);
+		if (ret <= 0)
+			return CMD_RET_FAILURE;
+	} else
+		cfg = fs_image_get_cfg_addr();
+
+	fdt = fs_image_find_cfg_fdt(cfg);
 	if (!fdt)
 		return CMD_RET_FAILURE;
 
@@ -1490,16 +1539,19 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 		argv++;
 		argc--;
 	}
-	if (argc > 1)
-		addr = parse_loadaddr(argv[1], NULL);
-	else
-		addr = get_loadaddr();
 
-	ret = fs_image_find_board_cfg(addr, force, "fuse", &cfg, NULL);
-	if (ret <= 0)
-		return CMD_RET_FAILURE;
+	addr = fs_image_get_loadaddr(argc, argv, false);
+	if (IS_ERR_VALUE(addr))
+		return CMD_RET_USAGE;
 
-	fdt = (void *)(cfg + 1);
+	if (addr) {
+		ret = fs_image_find_board_cfg(addr, force, "fuse", &cfg, NULL);
+		if (ret <= 0)
+			return CMD_RET_FAILURE;
+	} else
+		cfg = fs_image_get_cfg_addr();
+
+	fdt = fs_image_find_cfg_fdt(cfg);
 	ret = fs_image_check_bootdev(fdt, &boot_dev);
 	if (ret < 0)
 		return CMD_RET_FAILURE;
@@ -1589,7 +1641,7 @@ static struct cmd_tbl cmd_fsimage_sub[] = {
 	U_BOOT_CMD_MKENT(arch, 0, 1, do_fsimage_arch, "", ""),
 	U_BOOT_CMD_MKENT(board-id, 0, 1, do_fsimage_boardid, "", ""),
 #ifdef CONFIG_CMD_FDT
-	U_BOOT_CMD_MKENT(board-cfg, 0, 1, do_fsimage_boardcfg, "", ""),
+	U_BOOT_CMD_MKENT(board-cfg, 1, 1, do_fsimage_boardcfg, "", ""),
 #endif
 	U_BOOT_CMD_MKENT(firmware, 1, 1, do_fsimage_firmware, "", ""),
 	U_BOOT_CMD_MKENT(list, 1, 1, do_fsimage_list, "", ""),
@@ -1648,16 +1700,16 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "fsimage board-id\n"
 	   "    - Show current BOARD-ID\n"
 #ifdef CONFIG_CMD_FDT
-	   "fsimage board-cfg [addr]\n"
+	   "fsimage board-cfg [<addr> | stored]\n"
 	   "    - List contents of current BOARD-CFG\n"
 #endif
 	   "fsimage firmware [addr]\n"
 	   "    - Load the current FIRMWARE to addr for inspection\n"
-	   "fsimage list [addr]\n"
-	   "    - List the content of the F&S image at addr\n"
-	   "fsimage save [-f] [addr]\n"
+	   "fsimage list [<addr>]\n"
+	   "    - List the content of the F&S image at <addr>\n"
+	   "fsimage save [-f] [<addr>]\n"
 	   "    - Save the F&S image at the right place (U-Boot, NBoot)\n"
-	   "fsimage fuse [-f]\n"
+	   "fsimage fuse [-f] [<addr> | stored]\n"
 	   "    - Program fuses according to the current BOARD-CFG.\n"
 	   "      WARNING: This is a one time option and cannot be undone.\n"
 	   "\n"
