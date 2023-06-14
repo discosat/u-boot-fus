@@ -46,13 +46,6 @@ struct fs_header_v1_0 {			/* Size: 64 bytes */
 
 #define FSH_SIZE sizeof(struct fs_header_v1_0)
 
-/* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */
-struct storage_info {
-	const fdt32_t *start;		/* List of start addresses *-start */
-	unsigned int size;		/* *-size entry */
-	unsigned int count;		/* Number of entries in start */
-};
-
 /* Return the F&S architecture */
 const char *fs_image_get_arch(void);
 
@@ -75,26 +68,10 @@ void *fs_image_find_cfg_fdt(struct fs_header_v1_0 *fsh);
 int fs_image_get_cfg_offs(void *fdt);
 
 /* Return the address of the /nboot-info node */
-int fs_image_get_info_offs(void *fdt);
+int fs_image_get_nboot_info_offs(void *fdt);
 
 /* Return the address of the /board-cfg node */
 int fs_image_get_cfg_offs(void *fdt);
-
-/* Get the board-cfg-size from nboot-info */
-int fs_image_get_board_cfg_size(void *fdt, int offs, unsigned int align,
-				unsigned int *size);
-
-/* Get nboot-start and nboot-size values from nboot-info */
-int fs_image_get_nboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si);
-
-/* Get spl-start and spl-size values from nboot-info */
-int fs_image_get_spl_info(void *fdt, int offs, unsigned int align,
-			  struct storage_info *si);
-
-/* Get uboot-start and uboot-size values from nboot-info */
-int fs_image_get_uboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si);
 
 /* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
 const char *fs_image_get_nboot_version(void *fdt);

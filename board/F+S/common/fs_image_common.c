@@ -219,7 +219,7 @@ void *fs_image_get_cfg_fdt(void)
 }
 
 /* Return the address of the /nboot-info node */
-int fs_image_get_info_offs(void *fdt)
+int fs_image_get_nboot_info_offs(void *fdt)
 {
 	return fdt_path_offset(fdt, "/nboot-info");
 }
@@ -230,83 +230,6 @@ int fs_image_get_cfg_offs(void *fdt)
 	return fdt_path_offset(fdt, "/board-cfg");
 }
 
-static int fs_image_invalid_nboot_info(const char *name)
-{
-	printf("Missing or invalid entry /nboot-info/%s in BOARD-CFG\n", name);
-
-	return -EINVAL;
-}
-
-static int fs_image_get_storage_size(void *fdt, int offs, unsigned int align,
-				     unsigned int *size, const char *prefix)
-{
-	char name[20];
-
-	sprintf(name, "%s-size", prefix);
-	*size = fdt_getprop_u32_default_node(fdt, offs, 0, name, 0);
-	if (!*size)
-		return fs_image_invalid_nboot_info(name);
-
-	if (align && (*size % align))
-		return fs_image_invalid_nboot_info(name);
-
-	return 0;
-}
-
-/* Get the board-cfg-size from nboot-info */
-int fs_image_get_board_cfg_size(void *fdt, int offs, unsigned int align,
-				unsigned int *size)
-{
-	return fs_image_get_storage_size(fdt, offs, align, size, "board-cfg");
-}
-
-/* Return start and size from nboot-info for entries beginning with prefix */
-static int fs_image_get_storage_info(void *fdt, int offs, unsigned int align,
-				    struct storage_info *si, const char *prefix)
-{
-	char name[20];
-	int len;
-	int i;
-
-	si->count = 0;
-	sprintf(name, "%s-start", prefix);
-	si->start = fdt_getprop(fdt, offs, name, &len);
-	if (!si->start || !len || (len % sizeof(fdt32_t)))
-		return fs_image_invalid_nboot_info(name);
-	si->count = len / sizeof(fdt32_t);
-
-	if (align) {
-		for (i = 0; i < si->count; i++) {
-			if (fdt32_to_cpu(si->start[i]) % align)
-				return fs_image_invalid_nboot_info(name);
-		}
-	}
-
-	return fs_image_get_storage_size(fdt, offs, align, &si->size, prefix);
-}
-
-/* Get nboot-start and nboot-size values from nboot-info */
-int fs_image_get_nboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si)
-{
-	return fs_image_get_storage_info(fdt, offs, align, si, "nboot");
-}
-
-/* Get spl-start and spl-size values from nboot-info */
-int fs_image_get_spl_info(void *fdt, int offs, unsigned int align,
-			  struct storage_info *si)
-{
-	return fs_image_get_storage_info(fdt, offs, align, si, "spl");
-}
-
-/* Get uboot-start and uboot-size values from nboot-info */
-int fs_image_get_uboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si)
-{
-	return fs_image_get_storage_info(fdt, offs, align, si, "uboot");
-}
-
-
 /* Return pointer to string with NBoot version */
 const char *fs_image_get_nboot_version(void *fdt)
 {
@@ -315,7 +238,7 @@ const char *fs_image_get_nboot_version(void *fdt)
 	if (!fdt)
 		fdt = fs_image_get_cfg_fdt();
 
-	offs = fs_image_get_info_offs(fdt);
+	offs = fs_image_get_nboot_info_offs(fdt);
 	return fdt_getprop(fdt, offs, "version", NULL);
 }
 
@@ -1203,24 +1126,25 @@ static int fs_image_gen_load_mmc(uint32_t offs, unsigned int size, void *buf)
 
 #endif /* CONFIG_MMC */
 
-/* Load FIRMWARE from NAND using state machine */
+/* Load FIRMWARE from MMC/NAND using state machine */
 static int fs_image_loop(struct fs_header_v1_0 *cfg, unsigned int start,
 			 load_function_t load)
 {
 	int err;
 	unsigned int end;
 	void *fdt = cfg + 1;
-	int offs = fs_image_get_info_offs(fdt);
+	int offs = fs_image_get_nboot_info_offs(fdt);
 	unsigned int board_cfg_size, nboot_size;
 
 	if (!fdt)
 		return -EINVAL;
-	err = fs_image_get_board_cfg_size(fdt, offs, 0, &board_cfg_size);
-	if (err)
-		return err;
-	err = fs_image_get_storage_size(fdt, offs, 0, &nboot_size, "nboot");
-	if (err)
-		return err;
+        board_cfg_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+						      "board-cfg-size", 0);
+	if (!board_cfg_size)
+		return -EINVAL;
+	nboot_size = fdt_getprop_u32_default_node(fdt, offs, 0, "nboot-size", 0);
+	if (!nboot_size)
+		return -EINVAL;
 
 	end = start + nboot_size;
 	start += board_cfg_size;

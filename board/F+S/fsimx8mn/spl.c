@@ -416,7 +416,7 @@ static void basic_init(void)
 #else
 	index = 0;
 #endif
-	offs = fs_image_get_info_offs(fdt);
+	offs = fs_image_get_nboot_info_offs(fdt);
 	uboot_offs = fdt_getprop_u32_default_node(fdt, offs, index,
 						  "uboot-start", 0);
 
