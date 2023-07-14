@@ -122,9 +122,15 @@ static struct mm_region imx8m_mem_map[] = {
 		.virt = 0x7C0000UL,
 		.phys = 0x7C0000UL,
 		.size = 0x80000UL,
+/* i.MX8MM boots SPL from TCM so we have to apply different atrrs */
+#if defined(CONFIG_FS_SPL_MEMTEST_COMMON) && defined(CONFIG_IMX8MM)
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_OUTER_SHARE
+#else
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE |
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+#endif
 	}, {
 		/* OCRAM */
 		.virt = 0x900000UL,

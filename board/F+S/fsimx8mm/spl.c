@@ -38,6 +38,11 @@
 #include "../common/fs_board_common.h"	/* fs_board_*() */
 #include "../common/fs_mmc_common.h"	/* struct fs_mmc_cd, fs_mmc_*(), ... */
 
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+#include <cpu_func.h>
+#include "../common/fs_memtest_common.h"
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define BT_PICOCOREMX8MM 0x0
@@ -93,6 +98,28 @@ struct i2c_pads_info i2c_pad_info_8mx = {
 		.gp = IMX_GPIO_NR(5, 15),
 	},
 };
+
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+void dram_test(void)
+{
+	void *fdt = fs_image_get_cfg_addr(false);
+	int offs = fs_image_get_cfg_offs(fdt);
+	unsigned long dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+			      "dram-size", 0x400);
+	dram_size = dram_size << 20;
+	gd->ram_size = dram_size;
+
+	/* Enable caches */
+	gd->arch.tlb_size = PGTABLE_SIZE;
+	gd->arch.tlb_addr = 0x00920000;
+	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].size  = dram_size;
+
+	enable_caches();
+	memtester(CONFIG_SYS_SDRAM_BASE, dram_size);
+	panic(" ");
+}
+#endif
 
 int power_init_board(void)
 {
@@ -518,6 +545,9 @@ void spl_board_init(void)
 		puts("Back to ROM, SDP\n");
 		restore_boot_params();
 	}
+#endif
+#ifdef CONFIG_FS_SPL_MEMTEST_COMMON
+	    dram_test();
 #endif
 	puts("Normal Boot\n");
 }

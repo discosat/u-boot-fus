@@ -65,7 +65,7 @@ config FS_USB_PWR_USBNC
 
 config FS_SPL_MEMTEST_COMMON
 	bool "Activate memory test in SPL"
-	depends on TARGET_FSIMX8MP
+	depends on TARGET_FSIMX8MP || TARGET_FSIMX8MM
 	select SPL_CACHE_SUPPORT
 	select LIB_RAND
 	default n
