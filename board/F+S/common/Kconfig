@@ -71,9 +71,10 @@ config FS_USB_PWR_USBNC
 
 config FS_SPL_MEMTEST_COMMON
 	bool "Activate memory test in SPL"
-	depends on TARGET_FSIMX8MP
+	depends on TARGET_FSIMX8MP || TARGET_FSIMX8MM
 	select SPL_CACHE_SUPPORT
 	select LIB_RAND
+	select SPL_ALLOC_BD
 	default n
 	help
         Run a DRAM test in SPL. The board will have to be resettet after
