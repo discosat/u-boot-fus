@@ -173,7 +173,7 @@ static void fs_setup_cfg_info(void)
 		hang();
 
 	fdt = fs_image_get_cfg_fdt();
-	offs = fs_image_get_cfg_offs(fdt);
+	offs = fs_image_get_board_cfg_offs(fdt);
 	info = fs_board_get_cfg_info();
 	memset(info, 0, sizeof(struct cfg_info));
 

@@ -65,13 +65,10 @@ void *fs_image_get_cfg_fdt(void);
 void *fs_image_find_cfg_fdt(struct fs_header_v1_0 *fsh);
 
 /* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt);
+int fs_image_get_board_cfg_offs(void *fdt);
 
 /* Return the address of the /nboot-info node */
 int fs_image_get_nboot_info_offs(void *fdt);
-
-/* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt);
 
 /* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
 const char *fs_image_get_nboot_version(void *fdt);

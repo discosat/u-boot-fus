@@ -365,7 +365,7 @@ static void fs_board_early_init(void)
 static void basic_init(void)
 {
 	void *fdt = fs_image_get_cfg_fdt();
-	int offs = fs_image_get_cfg_offs(fdt);
+	int offs = fs_image_get_board_cfg_offs(fdt);
 	int i;
 	char c;
 	int index;

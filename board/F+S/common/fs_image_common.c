@@ -225,7 +225,7 @@ int fs_image_get_nboot_info_offs(void *fdt)
 }
 
 /* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt)
+int fs_image_get_board_cfg_offs(void *fdt)
 {
 	return fdt_path_offset(fdt, "/board-cfg");
 }
@@ -707,7 +707,7 @@ static void fs_image_handle_header(void)
 		/* Get DRAM type and DRAM timing from BOARD-CFG */
 		if (fs_image_match(&one_fsh, "DRAM-INFO", arch)) {
 			void *fdt = fs_image_get_cfg_fdt();
-			int off = fs_image_get_cfg_offs(fdt);
+			int off = fs_image_get_board_cfg_offs(fdt);
 
 			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
 			ram_timing = fdt_getprop(fdt, off, "dram-timing", NULL);

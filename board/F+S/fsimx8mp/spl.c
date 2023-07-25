@@ -392,7 +392,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 static void basic_init(void)
 {
 	void *fdt = fs_image_get_cfg_fdt();
-	int offs = fs_image_get_cfg_offs(fdt);
+	int offs = fs_image_get_board_cfg_offs(fdt);
 	int i;
 	char c;
 	int index;
@@ -522,7 +522,7 @@ void board_init_f(ulong dummy)
 void dram_test(void)
 {
 	void *fdt = fs_image_get_cfg_fdt();
-	int offs = fs_image_get_cfg_offs(fdt);
+	int offs = fs_image_get_board_cfg_offs(fdt);
 	unsigned long dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 			      "dram-size", 0x400);
 	dram_size = dram_size << 20;
