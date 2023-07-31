@@ -24,6 +24,7 @@
 #include <command.h>
 #include <mmc.h>
 #include <nand.h>
+#include <mxs_nand.h>			/* mxs_nand_mode_fcb_62bit(), ... */
 #include <console.h>			/* confirm_yesno() */
 #include <jffs2/jffs2.h>		/* struct mtd_device + part_info */
 #include <fuse.h>			/* fuse_read() */
@@ -35,6 +36,7 @@
 
 #include <asm/mach-imx/hab.h>
 #include <asm/mach-imx/checkboot.h>
+#include <asm/mach-imx/imx-nandbcb.h>
 
 /* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */
 struct storage_info {
@@ -54,13 +56,20 @@ struct nboot_info {
 	unsigned int board_cfg_size;
 };
 
+#define SUB_HAS_FS_HEADER BIT(0)
+#define SUB_IS_SPL        BIT(1)
+#ifdef CONFIG_NAND_MXS
+#define SUB_IS_FCB        BIT(2)
+#define SUB_IS_DBBT       BIT(3)
+#define SUB_IS_DBBT_DATA  BIT(4)
+#endif
 struct sub_info {
 	void *img;			/* Pointer to image */
 	const char *type;		/* "BOARD-CFG", "FIRMWARE", "SPL" */
 	const char *descr;		/* e.g. board architecture */
 	unsigned int size;		/* Size of image */
 	unsigned int offset;		/* Offset of image within si */
-	bool has_fs_header;		/* true: image has header in flash */
+	unsigned int flags;		/* See SUB_* above */
 };
 
 struct region_info {
@@ -209,6 +218,17 @@ static int fs_image_get_board_id(char *id)
 	return 0;
 }
 
+/* Compute checksum for FCB or DBBT block */
+static u32 fs_image_bcb_checksum(u8 *data, size_t size)
+{
+	u32 checksum = 0;
+
+	while (size--)
+		checksum += *data++;
+
+	return ~checksum;
+}
+
 static void fs_image_parse_image(unsigned long addr, unsigned int offs,
 				 int level, unsigned int remaining)
 {
@@ -295,13 +315,13 @@ static void fs_image_region_create(struct region_info *ri,
  */
 static unsigned int fs_image_region_add(
 	struct region_info *ri, struct fs_header_v1_0 *fsh, const char *type,
-	const char *descr, unsigned int woffset, bool with_header)
+	const char *descr, unsigned int woffset, unsigned int flags)
 {
 	unsigned int size;
 	struct sub_info *sub;
 
 	size = fs_image_get_size(fsh, true);
-	if (!with_header) {
+	if (!(flags & SUB_HAS_FS_HEADER)) {
 		fsh++;
 		size -= FSH_SIZE;
 	}
@@ -317,7 +337,7 @@ static unsigned int fs_image_region_add(
 	sub->img = fsh;
 	sub->size = size;
 	sub->offset = woffset;
-	sub->has_fs_header = with_header;
+	sub->flags = flags;
 
 	return woffset + size;
 }
@@ -328,7 +348,7 @@ static unsigned int fs_image_region_add(
  */
 static unsigned int fs_image_region_find_add(
 	struct region_info *ri, struct fs_header_v1_0 *fsh, const char *type,
-	const char *descr, unsigned int woffset, bool with_header)
+	const char *descr, unsigned int woffset, unsigned int flags)
 {
 	fsh = fs_image_find(fsh, type, descr);
 	if (!fsh) {
@@ -336,7 +356,7 @@ static unsigned int fs_image_region_find_add(
 		return 0;
 	}
 
-	return fs_image_region_add(ri, fsh, type, descr, woffset, with_header);
+	return fs_image_region_add(ri, fsh, type, descr, woffset, flags);
 }
 
 /* Show status after handling a subimage */
@@ -535,7 +555,7 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 /* Get image length from F&S header or IVT (e.g. in case of SPL) */
 static int fs_image_get_size_from_fsh_or_ivt(struct sub_info *sub, size_t *size)
 {
-	if (sub->has_fs_header) {
+	if (sub->flags & SUB_HAS_FS_HEADER) {
 		struct fs_header_v1_0 *fsh = sub->img;
 
 		/* Check image type and get image size from F&S header */
@@ -775,27 +795,170 @@ static int fs_image_load_image_from_nand(struct flash_info *fi, int copy,
 					 struct sub_info *sub)
 {
 	int err;
-	size_t size = sub->has_fs_header ? FSH_SIZE : HAB_HEADER;
+	size_t size;
 	loff_t offs = si->start[copy] + sub->offset;
 	loff_t lim = si->size;
+	u32 checksum;
 
-	printf("  Loading copy %d from NAND offset 0x%llx... ", copy, offs);
+#ifdef CONFIG_IMX8MM
+	/* On i.MX8MM, SPL starts at offset 0x400 in the middle of the page */
+	if (sub->flags & SUB_IS_SPL)
+		offs += 0x400;
+#endif
 
-	/* Get size from F&S header or from IVT (e.g. SPL) */
+	printf("  Loading copy %d from NAND offset 0x%08llx... ", copy, offs);
+
+	if (sub->flags & SUB_IS_FCB) {
+		mxs_nand_mode_fcb_62bit(fi->mtd);
+		size = fi->mtd->writesize; /* Different writesize here! */
+	} else if ((sub->flags & SUB_IS_DBBT)
+		   || (sub->flags & SUB_IS_DBBT_DATA)) {
+		size = fi->mtd->writesize;
+	} else {
+		/* Load IVT (SPL) or FS_HEADER and get size from it */
+		size = (sub->flags & SUB_HAS_FS_HEADER) ? FSH_SIZE : HAB_HEADER;
+
+		err = nand_read_skip_bad(fi->mtd, offs, &size, NULL, lim,
+					 sub->img);
+		if (err)
+			return err;
+
+		err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
+		if (err)
+			return err;
+	}
+
+	/* Load image itself */
 	err = nand_read_skip_bad(fi->mtd, offs, &size, NULL, lim, sub->img);
+	if (sub->flags & SUB_IS_FCB)
+		mxs_nand_mode_normal(fi->mtd);
 	if (err)
 		return err;
 
-	err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
-	if (err)
-		return err;
+	/* Check NAND specific images if corrupted */
+	if (sub->flags & SUB_IS_FCB) {
+		struct fcb_block *fcb = sub->img;
 
-	/* Load whole image incl. header */
-	err = nand_read_skip_bad(fi->mtd, offs, &size, NULL, lim, sub->img);
-	if (err)
-		return err;
+		if ((fcb->fingerprint != FCB_FINGERPRINT)
+		    || (fcb->version != FCB_VERSION_1))
+			return -ENOENT;
+
+		checksum = fs_image_bcb_checksum(sub->img + 4,
+						 sizeof(struct fcb_block) - 4);
+		if (fcb->checksum != checksum)
+			return -EILSEQ;
+	} else if (sub->flags & SUB_IS_DBBT) {
+		struct dbbt_block *dbbt = sub->img;
+
+		if ((dbbt->fingerprint != DBBT_FINGERPRINT)
+		    || (dbbt->version != DBBT_VERSION_1))
+			return -ENOENT;
+
+		if (dbbt->checksum != 0) {
+			checksum = fs_image_bcb_checksum(
+				sub->img + 4, sizeof(struct dbbt_block) - 4);
+			if (dbbt->checksum != checksum)
+				return -EILSEQ;
+		}
+	} else if (sub->flags & SUB_IS_DBBT_DATA) {
+		u32 *dbbt_data = sub->img;
+		u32 count = dbbt_data[1];
+
+		/* Detection is vague, but enough to not accept empty pages */
+		if (count > 32)
+			return -ENOENT;
+		if (dbbt_data[0] != 0) {
+			checksum = fs_image_bcb_checksum(
+				sub->img + 4, (count + 1) * sizeof(u32));
+			if (dbbt_data[0] != checksum)
+				return -EILSEQ;
+		}
+	}
 
 	sub->size = size;
+
+	return 0;
+}
+
+static int fs_image_load_image(struct flash_info *fi,
+			       const struct storage_info *si,
+			       struct sub_info *sub);
+
+
+/* Temporarily load Boot Control Block (BCB) with FCB and DBBT */
+static int fs_image_load_bcb(struct flash_info *fi, struct storage_info *spl,
+			     void *tempaddr)
+{
+	struct fcb_block *fcb;
+	struct dbbt_block *dbbt;
+	u32 *dbbt_data;
+	struct sub_info sub;
+	u32 start;
+	struct storage_info bcb;
+	unsigned int pages_per_block;
+	struct mtd_info *mtd = fi->mtd;
+	int copy;
+	int err;
+
+	/* Load Firmware Configuration Block (FCB) */
+	bcb.start[0] = 0;
+	bcb.start[1] = mtd->erasesize;
+	bcb.size = mtd->erasesize;
+
+	sub.type = "FCB";
+	sub.descr = fs_image_get_arch();
+	sub.img = tempaddr;
+	sub.offset = 0;
+	sub.flags = SUB_IS_FCB;
+	err = fs_image_load_image(fi, &bcb, &sub);
+	if (err)
+		return err;
+
+	fcb = tempaddr + FSH_SIZE;
+	for (copy = 0; copy < 2; copy++) {
+		start = copy ? fcb->fw2_start : fcb->fw1_start;
+		start *= mtd->writesize;
+		if (start != spl->start[copy]) {
+			printf("  Warning! SPL copy %d is on offset 0x%08x,"
+			       " should be on 0x%08x\n",
+			       copy, start, spl->start[copy]);
+			spl->start[copy] = start;
+		}
+	}
+
+	/* Load Discovered Bad Block Table (DBBT) */
+	pages_per_block = mtd->erasesize / mtd->writesize;
+	start = fcb->dbbt_start / pages_per_block * mtd->erasesize;
+	bcb.start[0] = start;
+	bcb.start[1] = start + mtd->erasesize;
+	bcb.size = mtd->erasesize;
+
+	sub.type = "DBBT";
+	sub.offset = fcb->dbbt_start % pages_per_block * mtd->writesize;
+	sub.flags = SUB_IS_DBBT;
+	err = fs_image_load_image(fi, &bcb, &sub);
+	if (err) {
+		printf("  Warning! No Discovered Bad Block Table (DBBT)!\n");
+		return err;
+	}
+
+	dbbt = tempaddr + FSH_SIZE;
+	if (!dbbt->dbbtpages) {
+		printf("  No Bad Blocks in DBBT recorded\n");
+		return 0;
+	}
+
+	sub.type = "DTTB-DATA";
+	sub.offset += 4 * mtd->writesize;
+	sub.flags = SUB_IS_DBBT_DATA;
+	err = fs_image_load_image(fi, &bcb, &sub);
+	if (err) {
+		printf("  Warning! No DBBT data found!\n");
+		return err;
+	}
+
+	dbbt_data = tempaddr + FSH_SIZE;
+	printf("  %d bad block(s) in DBBT recorded\n", dbbt_data[1]);
 
 	return 0;
 }
@@ -1446,6 +1609,13 @@ static int fs_image_load_one_copy(struct flash_info *fi, int copy,
 		break;
 	}
 
+	if (!err && (sub->flags & SUB_HAS_FS_HEADER)) {
+		//### TODO: Check CRC32 if given
+	}
+
+	if (!err)
+		printf("Size 0x%x ", sub->size);
+
 	return fs_image_show_sub_status(err);
 }
 
@@ -1462,7 +1632,7 @@ static int fs_image_load_image(struct flash_info *fi,
 
 	/* Add room for FS header if image has none */
 	fsh = sub->img;
-	if (!sub->has_fs_header)
+	if (!(sub->flags & SUB_HAS_FS_HEADER))
 		sub->img += FSH_SIZE;
 
 	copy0 = sub->img;
@@ -1490,7 +1660,7 @@ static int fs_image_load_image(struct flash_info *fi,
 	/* Fill FS header */
 	sub->img = copy0 + size0;
 	sub->size = size0;
-	if (!sub->has_fs_header)
+	if (!(sub->flags & SUB_HAS_FS_HEADER))
 		fs_image_set_header(fsh, sub->type, sub->descr, sub->size);
 
 	return 0;
@@ -1514,7 +1684,7 @@ static int fsimage_save_uboot(ulong addr, bool force)
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
 	if (!fs_image_region_add(&ri, fsh, "U-BOOT", fs_image_get_arch(),
-				0, false))
+				 0, /* SUB_HAS_FS_HEADER */ 0))
 		return CMD_RET_FAILURE;
 
 	if (fs_image_validate(fsh, sub.type, sub.descr, addr))
@@ -1676,12 +1846,20 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	    || fs_image_get_nboot_info(&fi, fdt, &ni))
 		return CMD_RET_FAILURE;
 
+#ifdef CONFIG_NAND_MXS
+	/* Temporarily load BCB behind NBOOT F&S header */
+	if (fi.boot_dev == NAND_BOOT) {
+		if (fs_image_load_bcb(&fi, &ni.spl, fsh_nboot + 1))
+			return CMD_RET_FAILURE;
+	}
+#endif
+
 	/* Load SPL behind the NBOOT F&S header that is filled later */
 	sub.type = "SPL";
 	sub.descr = fs_image_get_arch();
 	sub.img = fsh_nboot + 1;
 	sub.offset = 0;
-	sub.has_fs_header = false;
+	sub.flags = SUB_IS_SPL;
 	if (fs_image_load_image(&fi, &ni.spl, &sub))
 		return CMD_RET_FAILURE;
 
@@ -1690,7 +1868,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	sub.type = "BOARD-CFG";
 	sub.descr = NULL;
 	sub.img = fsh_board_info + 1;
-	sub.has_fs_header = true;
+	sub.flags = SUB_HAS_FS_HEADER;
 	if (fs_image_load_image(&fi, &ni.nboot, &sub))
 		return CMD_RET_FAILURE;
 	sub.descr = fs_image_get_arch();
@@ -1773,19 +1951,20 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	/* Prepare subimages for NBOOT region: BOARD-CFG + FIRMWARE */
 	fs_image_region_create(&nboot_ri, &ni.nboot, nboot_sub);
 	woffset = fs_image_region_add(&nboot_ri, cfg_fsh, "BOARD-CFG",
-				      arch, 0, true);
+				      arch, 0, SUB_HAS_FS_HEADER);
 	if (!woffset)
 		return CMD_RET_FAILURE;
-	woffset = ni.board_cfg_size;
+	if (ni.board_cfg_size)
+		woffset = ni.board_cfg_size;
 	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "FIRMWARE",
-					   arch, woffset, true);
+					   arch, woffset, SUB_HAS_FS_HEADER);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
 	/* Prepare subimage for SPL */
 	fs_image_region_create(&spl_ri, &ni.spl, &spl_sub);
 	woffset = fs_image_region_find_add(&spl_ri, nboot_fsh, "SPL",
-					   arch, 0, false);
+					   arch, 0, SUB_IS_SPL);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 

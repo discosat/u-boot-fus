@@ -730,6 +730,15 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 	size_t used_for_read = 0;
 	int need_skip;
 
+#if 0 //###
+	/*
+	 * 31.08.2023 HK:
+	 * Reading sequential data in smaller parts makes sense if the caller
+	 * evaluates the "actual" return value accordingly. So restricting
+	 * access to page aligned offsets is not necessary in the same way as
+	 * when writing. We at F&S need this for reading the SPL that is at
+	 * offset 0x400 on some architectures.
+	 */
 	if ((offset & (mtd->writesize - 1)) != 0) {
 		printf("Attempt to read non page-aligned data\n");
 		*length = 0;
@@ -737,6 +746,7 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 			*actual = 0;
 		return -EINVAL;
 	}
+#endif //###
 
 	need_skip = check_skip_len(mtd, offset, *length, &used_for_read);
 
