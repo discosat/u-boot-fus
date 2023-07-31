@@ -77,6 +77,8 @@ struct mxs_nand_info {
 	u32 en_randomizer;
 	u32 writesize;
 	u32 oobsize;
+	u32 metadatasize;
+	u32 chunk_count;
 	u32 bch_flash0layout0;
 	u32 bch_flash0layout1;
 };
