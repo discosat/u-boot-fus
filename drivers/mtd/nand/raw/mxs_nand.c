@@ -1197,22 +1197,6 @@ int mxs_nand_setup_ecc(struct mtd_info *mtd)
 	/* Enable BCH complete interrupt */
 	writel(BCH_CTRL_COMPLETE_IRQ_EN, &bch_regs->hw_bch_ctrl_set);
 
-	/* Hook some operations at the MTD level. */
-	if (mtd->_read_oob != mxs_nand_hook_read_oob) {
-		nand_info->hooked_read_oob = mtd->_read_oob;
-		mtd->_read_oob = mxs_nand_hook_read_oob;
-	}
-
-	if (mtd->_write_oob != mxs_nand_hook_write_oob) {
-		nand_info->hooked_write_oob = mtd->_write_oob;
-		mtd->_write_oob = mxs_nand_hook_write_oob;
-	}
-
-	if (mtd->_block_markbad != mxs_nand_hook_block_markbad) {
-		nand_info->hooked_block_markbad = mtd->_block_markbad;
-		mtd->_block_markbad = mxs_nand_hook_block_markbad;
-	}
-
 	return 0;
 }
 
@@ -1346,6 +1330,7 @@ err1:
 	return ret;
 }
 
+#ifdef CONFIG_SPL_BUILD
 int mxs_nand_init_spl(struct nand_chip *nand)
 {
 	struct mxs_nand_info *nand_info;
@@ -1388,9 +1373,12 @@ int mxs_nand_init_spl(struct nand_chip *nand)
 	nand->ecc.read_page	= mxs_nand_ecc_read_page;
 
 	nand->ecc.mode		= NAND_ECC_HW;
+	nand->ecc_strength_ds	= 4;	// ###
+	nand->ecc_step_ds	= 512;  // ###
 
 	return 0;
 }
+#endif
 
 int mxs_nand_init_ctrl(struct mxs_nand_info *nand_info)
 {
@@ -1452,6 +1440,22 @@ int mxs_nand_init_ctrl(struct mxs_nand_info *nand_info)
 	err = nand_scan_tail(mtd);
 	if (err)
 		goto err_free_buffers;
+
+	/* Hook some operations at the MTD level */
+	if (mtd->_read_oob != mxs_nand_hook_read_oob) {
+		nand_info->hooked_read_oob = mtd->_read_oob;
+		mtd->_read_oob = mxs_nand_hook_read_oob;
+	}
+
+	if (mtd->_write_oob != mxs_nand_hook_write_oob) {
+		nand_info->hooked_write_oob = mtd->_write_oob;
+		mtd->_write_oob = mxs_nand_hook_write_oob;
+	}
+
+	if (mtd->_block_markbad != mxs_nand_hook_block_markbad) {
+		nand_info->hooked_block_markbad = mtd->_block_markbad;
+		mtd->_block_markbad = mxs_nand_hook_block_markbad;
+	}
 
 	err = nand_register(0, mtd);
 	if (err)
