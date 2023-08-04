@@ -515,18 +515,27 @@ static void fs_image_show_sub_status(int err)
 }
 
 /* Show status after saving an image and return CMD_RET code */
-static int fs_image_show_save_status(int err, const char *type)
+static int fs_image_show_save_status(int failed, const char *type)
 {
-	if (!err) {
-		printf("Saving %s complete\n", type);
+	printf("\nSaving %s ", type);
+
+	/* Each bit identifies a copy that failed */
+	if (!failed) {
+		puts("complete\n");
 		return CMD_RET_SUCCESS;
 	}
 
-	printf("Saving %s incomplete or failed!\n\n"
+	if (failed != 3) {
+		puts("incomplete!\n\n"
+		     "*** WARNING! One copy failed, the system is unstable!\n");
+		return CMD_RET_SUCCESS;
+	}
+
+	printf("\nFAILED!\n\n"
 	       "*** ATTENTION!\n"
 	       "*** Do not switch off or restart the board before you have\n"
 	       "*** installed a working %s version. Otherwise the board will\n"
-	       "*** most probably fail to boot.\n", type, type);
+	       "*** most probably fail to boot.\n", type);
 
 	return CMD_RET_FAILURE;
 }
@@ -1413,18 +1422,17 @@ repeat:
 static int fs_image_save_uboot_to_nand(struct flash_info *fi,
 				       struct region_info *ri)
 {
-	int err;
+	int failed = 0;
 	int copy;
 
 	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
 	for (copy = 0; copy < 2; copy++) {
 		printf("Saving copy %d to NAND:\n", copy);
-		err = fs_image_save_region_to_nand(fi, copy, ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_nand(fi, copy, ri))
+			failed |= BIT(copy);
 	}
 
-	return 0;
+	return failed;
 }
 
 /* Save NBOOT and SPL region to NAND */
@@ -1434,7 +1442,7 @@ static int fs_image_save_nboot_to_nand(struct flash_info *fi,
 				       struct region_info *nboot_ri,
 				       struct region_info *spl_ri)
 {
-	int err;
+	int failed;
 	int copy;
 	u32 i, bad_blocks;
 	struct storage_info bcb_si;
@@ -1571,18 +1579,17 @@ static int fs_image_save_nboot_to_nand(struct flash_info *fi,
 
 	fs_image_region_create(&bcb_ri, &bcb_si, bcb_sub);
 	if (!fs_image_region_add_raw(&bcb_ri, &fcb, "FCB", arch, 0,
-				     SUB_IS_FCB | SUB_SYNC, sizeof(fcb)))
-		return -ENOMEM;
-	if (!fs_image_region_add_raw(&bcb_ri, &dbbt, "DBBT", arch,
-				     4 * fi->mtd->writesize,
-				     SUB_IS_DBBT | SUB_SYNC, sizeof(dbbt)))
-		return -ENOMEM;
-	if ((bad_blocks > 0)
-	    && !fs_image_region_add_raw(&bcb_ri, dbbt_data, "DBBT-DATA", arch,
-					8 * fi->mtd->writesize,
-					SUB_IS_DBBT_DATA | SUB_SYNC,
-					bad_blocks * 4 + 8))
-		return -ENOMEM;
+				     SUB_IS_FCB | SUB_SYNC, sizeof(fcb))
+	    || !fs_image_region_add_raw(&bcb_ri, &dbbt, "DBBT", arch,
+					4 * fi->mtd->writesize,
+					SUB_IS_DBBT | SUB_SYNC, sizeof(dbbt))
+	    || ((bad_blocks > 0)
+		&& !fs_image_region_add_raw(&bcb_ri, dbbt_data, "DBBT-DATA",
+					    arch, 8 * fi->mtd->writesize,
+					    SUB_IS_DBBT_DATA | SUB_SYNC,
+					    bad_blocks * 4 + 8))) {
+		return 3;		/* All images failed */
+	}
 
 	/*
 	 * Save sequence:
@@ -1623,22 +1630,20 @@ static int fs_image_save_nboot_to_nand(struct flash_info *fi,
 	 *   from the secondary SPL image, but currently this is not true on
 	 *   i.MX8MN/MP/X because we cannot detect this on these architectures.
 	 */
+	failed = 0;
 	for (copy = 0; copy < 2; copy++) {
 		printf("Saving copy %d to NAND:\n", copy);
-		err = fs_image_save_region_to_nand(fi, copy, nboot_ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_nand(fi, copy, nboot_ri))
+			failed |= BIT(copy);
 
-		err = fs_image_save_region_to_nand(fi, copy, spl_ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_nand(fi, copy, spl_ri))
+			failed |= BIT(copy);
 
-		err = fs_image_save_region_to_nand(fi, copy, &bcb_ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_nand(fi, copy, &bcb_ri))
+			failed |= BIT(copy);
 	}
 
-	return 0;
+	return failed;
 }
 
 #endif /* CONFIG_CMD_NAND */
@@ -1947,19 +1952,18 @@ static int fs_image_save_region_to_mmc(struct flash_info *fi, int copy,
 static int fs_image_save_uboot_to_mmc(struct flash_info *fi,
 				      struct region_info *ri)
 {
-	int err;
+	int failed = 0;
 	int copy;
 
 	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
 	for (copy = 0; copy < 2; copy++) {
 		printf("Saving copy %d to mmc%d:\n", copy,
 		       fi->blk_desc->devnum);
-		err = fs_image_save_region_to_mmc(fi, copy, ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_mmc(fi, copy, ri))
+			failed |= BIT(copy);
 	}
 
-	return 0;
+	return failed;
 }
 
 /* Save NBOOT and SPL region to MMC */
@@ -1967,7 +1971,7 @@ static int fs_image_save_nboot_to_mmc(struct flash_info *fi,
 				      struct region_info *nboot_ri,
 				      struct region_info *spl_ri)
 {
-	int err;
+	int failed;
 	int copy;
 
 	/*
@@ -2007,28 +2011,26 @@ static int fs_image_save_nboot_to_mmc(struct flash_info *fi,
 	 *   from the secondary SPL image, but currently this is not true on
 	 *   i.MX8MN/MP/X because we cannot detect this on these architectures.
 	 */
+	failed = 0;
 	for (copy = 0; copy < 2; copy++) {
 		printf("Saving copy %d to mmc%d:\n", copy,
 		       fi->blk_desc->devnum);
-		err = fs_image_save_region_to_mmc(fi, copy, nboot_ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_mmc(fi, copy, nboot_ri))
+			failed |= BIT(copy);
 
-		err = fs_image_save_region_to_mmc(fi, copy, spl_ri);
-		if (err)
-			return err;
+		if (fs_image_save_region_to_mmc(fi, copy, spl_ri))
+			failed |= BIT(copy);
 
 #ifdef CONFIG_IMX8MM
 		if (copy == 1) {
 			/* Write Secondary Image Table */
-			err = fs_image_write_secondary_table(fi, spl_ri->si);
-			if (err)
-				return err;
+			if (fs_image_write_secondary_table(fi, spl_ri->si))
+				failed = BIT(copy);
 		}
 #endif
 	}
 
-	return 0;
+	return failed;
 }
 #endif /* CONFIG_CMD_MMC */
 
