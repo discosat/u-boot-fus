@@ -14,6 +14,9 @@
 #include <linux/libfdt_env.h>
 #include <fdt.h>
 
+#ifdef CONFIG_FS_BOARD_CFG
+#include "../../board/F+S/common/fs_image_common.h"
+#endif
 #ifdef CONFIG_FS_SECURE_BOOT
 #include <asm/mach-imx/checkboot.h>
 #endif
@@ -64,48 +67,54 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 				 int offset, struct image_header *header)
 {
 	int err;
+	int extra_offset = 0;
+	int hsize = sizeof(*header);
 
-	err = nand_spl_load_image(offset, sizeof(*header), (void *)header);
-
-#ifdef CONFIG_FS_SECURE_BOOT
-	uint8_t* ivt_magic = (uint8_t*)header;
-	if(*ivt_magic == IVT_HEADER_MAGIC){
-		int size = (uint32_t)(((struct boot_data*)(ulong)
-		           ((struct ivt*)header)->boot)->length);
-		err = nand_spl_load_image(offset, size, header);
-		header += 1;
-	}
+#ifdef CONFIG_FS_BOARD_CFG
+	/* Load more to have the F&S header, too, if prepended */
+	hsize += FSH_SIZE;
 #endif
-
+	err = nand_spl_load_image(offset, hsize, (void *)header);
 	if (err)
 		return err;
+
+#ifdef CONFIG_FS_BOARD_CFG
+	/* Allow U-Boot image to be prepended with F&S header */
+	extra_offset = spl_check_fs_header(header);
+	if (extra_offset < 0)
+		return -ENOENT;
+	header = (void *)header + extra_offset;
+#endif
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	/* In case of signed U-Boot, load U-Boot image completely */
+	u32 size = secure_spl_get_uboot_size(header);
+	if (size) {
+		void *addr = spl_get_load_buffer(0, sizeof(*header));
+
+		err = nand_spl_load_image(offset, size, addr);
+		if (err)
+			return err;
+		return secure_spl_load_simple_fit(spl_image, addr, size,
+						  extra_offset);
+	}
+#endif
 
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 	    image_get_magic(header) == FDT_MAGIC) {
 		struct spl_load_info load;
 
 		debug("Found FIT\n");
-		load.dev = NULL;
+		memset(&load, 0, sizeof(load));
 		load.priv = &offset;
-		load.filename = NULL;
 		load.bl_len = 1;
 		load.read = spl_nand_fit_read;
-#ifndef CONFIG_FS_SECURE_BOOT
+		load.extra_offset = extra_offset;
 		return spl_load_simple_fit(spl_image, &load, offset, header);
-#else
-		if(*ivt_magic == IVT_HEADER_MAGIC){
-			return secure_spl_load_simple_fit(spl_image, &load, header);
-		}
-		else{
-			return spl_load_simple_fit(spl_image, &load, offset, header);
-		}
-#endif
 	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 		struct spl_load_info load;
 
-		load.dev = NULL;
-		load.priv = NULL;
-		load.filename = NULL;
+		memset(&load, 0, sizeof(load));
 		load.bl_len = 1;
 		load.read = spl_nand_fit_read;
 		return spl_load_imx_container(spl_image, &load, offset);
@@ -133,11 +142,7 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 #endif
 	nand_init();
 
-#ifndef CONFIG_FS_SECURE_BOOT
 	header = spl_get_load_buffer(0, sizeof(*header));
-#else
-	header = (struct image_header *)(CONFIG_SYS_TEXT_BASE - 0x40);
-#endif
 
 #ifdef CONFIG_SPL_OS_BOOT
 	if (!spl_start_uboot()) {

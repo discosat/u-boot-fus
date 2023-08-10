@@ -52,6 +52,7 @@ static int spl_net_load_image(struct spl_image_info *spl_image,
 		struct spl_load_info load;
 
 		debug("Found FIT\n");
+		memset(&load, 0, sizeof(load));
 		load.bl_len = 1;
 		load.read = spl_net_load_read;
 		rv = spl_load_simple_fit(spl_image, &load, 0, header);

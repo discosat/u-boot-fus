@@ -52,6 +52,7 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
 		struct spl_load_info load;
 
 		debug("Found FIT\n");
+		memset(&load, 0, sizeof(load));
 		load.bl_len = 1;
 		load.read = spl_ram_load_read;
 		spl_load_simple_fit(spl_image, &load, (ulong)header, header);

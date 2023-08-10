@@ -219,6 +219,7 @@ struct spl_image_info {
  * @bl_len: Block length for reading in bytes
  * @filename: Name of the fit image file.
  * @read: Function to call to read from the device
+ * @extra_offset: Image has additional header prepended with this size
  */
 struct spl_load_info {
 	void *dev;
@@ -227,6 +228,7 @@ struct spl_load_info {
 	const char *filename;
 	ulong (*read)(struct spl_load_info *load, ulong sector, ulong count,
 		      void *buf);
+	ulong extra_offset;
 };
 
 /*
@@ -290,9 +292,15 @@ bool spl_load_simple_fit_skip_processing(void);
 int spl_load_simple_fit(struct spl_image_info *spl_image,
 			struct spl_load_info *info, ulong sector, void *fdt);
 
-#if CONFIG_FS_SECURE_BOOT
-int secure_spl_load_simple_fit(struct spl_image_info *spl_image,
-			struct spl_load_info *info, void *fit);
+#ifdef CONFIG_FS_BOARD_CFG
+int spl_check_fs_header(void *header);
+#endif
+
+#ifdef CONFIG_FS_SECURE_BOOT
+u32 secure_spl_get_uboot_size(void *header);
+
+int secure_spl_load_simple_fit(struct spl_image_info *spl_image, void *uboot,
+			       u32 size, int extra_offset);
 #endif
 
 #define SPL_COPY_PAYLOAD_ONLY	1

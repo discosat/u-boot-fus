@@ -136,9 +136,8 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 			struct spl_load_info load;
 
 			debug("Found FIT\n");
+			memset(&load, 0, sizeof(load));
 			load.dev = flash;
-			load.priv = NULL;
-			load.filename = NULL;
 			load.bl_len = 1;
 			load.read = spl_spi_fit_read;
 			err = spl_load_simple_fit(spl_image, &load,
@@ -147,9 +146,8 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 		} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 			struct spl_load_info load;
 
+			memset(&load, 0, sizeof(load));
 			load.dev = flash;
-			load.priv = NULL;
-			load.filename = NULL;
 			load.bl_len = 1;
 			load.read = spl_spi_fit_read;
 

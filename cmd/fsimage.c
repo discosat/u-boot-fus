@@ -699,7 +699,7 @@ static int fs_image_validate_signed(struct ivt *ivt)
 {
 #ifdef CONFIG_FS_SECURE_BOOT
 	struct boot_data *boot;
-	void *self;
+	u32 self;
 	u32 length;
 
 	/* Check that boot data entry points directly behind IVT */
@@ -709,11 +709,11 @@ static int fs_image_validate_signed(struct ivt *ivt)
 	}
 
 	boot = (struct boot_data *)(ivt + 1);
-	self = (void *)ivt->self;
-	length = boot_data->length;
+	self = (ivt->self);
+	length = boot->length;
 
 	/* Copy to verification address and check signature */
-	memcpy(self, ivt, length);
+	memcpy((void *)(ulong)self, ivt, length);
 	if (imx_hab_authenticate_image(self, length, 0)) {
 		puts("\nError: Invalid signature, refusing to save\n");
 		return -EINVAL;
@@ -754,7 +754,7 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 	printf("Found unsigned %s image", type);
 
 #ifdef CONFIG_FS_SECURE_BOOT
-	if (imx_hab_is_enabled) {
+	if (imx_hab_is_enabled()) {
 		puts("\nError: Board is closed, refusing to save unsigned"
 		     " image\n");
 		return -EINVAL;
@@ -847,9 +847,9 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		if (strcmp(id, old_id)) {
 #ifdef CONFIG_FS_SECURE_BOOT
 			if (imx_hab_is_enabled()) {
-				puts("Error: Current board is %s and board is"
-				     " closed\nRefusing to %s for %s\n",
-				     old_id, action, id);
+				printf("Error: Current board is %s and board"
+				       " is closed\nRefusing to %s for %s\n",
+				       old_id, action, id);
 				return -EINVAL;
 			}
 #endif
@@ -2369,6 +2369,7 @@ static int fsimage_save_uboot(ulong addr, bool force)
 	struct nboot_info ni;
 	int failed;
 	int copy;
+	unsigned int flags;
 	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
 
 	fdt = fs_image_get_cfg_fdt();
@@ -2377,8 +2378,9 @@ static int fsimage_save_uboot(ulong addr, bool force)
 		return CMD_RET_FAILURE;
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
+	flags = SUB_SYNC;
 	if (!fs_image_region_add(&ri, fsh, "U-BOOT", fs_image_get_arch(),
-				0, /*###SUB_HAS_FS_HEADER |*/ SUB_SYNC))
+				0, flags))
 		return CMD_RET_FAILURE;
 
 	if (fs_image_validate(fsh, sub.type, sub.descr, addr))
