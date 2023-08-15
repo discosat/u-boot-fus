@@ -246,19 +246,13 @@ struct flash_info {
 	struct flash_ops *ops;		/* Access functions for NAND/MMC */
 };
 
-union local_buf {
-	struct fs_header_v1_0 fsh;	/* Space for one F&S header */
-	u8 ivt[HAB_HEADER];		/* Space for IVT + boot_data */
-#ifdef CONFIG_CMD_MMC
-	struct info_table {		/* Info table for secondary SPL (MMC) */
-		u32 chip_num;		/* unused, set to 0 */
-		u32 drive_type;		/* unused, set to 0 */
-		u32 tag;		/* 0x00112233 */
-		u32 first_sector;	/* Start sector of secondary SPL */
-		u32 sector_count;	/* unused, set to 0 */
-	} secondary;
-	u8 block[0x200];		/* Space for one MMC sector */
-#endif
+/* Info table for secondary SPL (MMC) */
+struct info_table {
+	u32 chip_num;			/* unused, set to 0 */
+	u32 drive_type;			/* unused, set to 0 */
+	u32 tag;			/* 0x00112233 */
+	u32 first_sector;		/* Start sector of secondary SPL */
+	u32 sector_count;		/* unused, set to 0 */
 };
 
 /* Struct that is big enough for all headers that we may want to load */
@@ -267,8 +261,6 @@ union any_header {
 	u8 ivt[HAB_HEADER];
 	struct fdt_header fdt;
 };
-
-static union local_buf local_buffer;
 
 /* ------------- Common helper function ------------------------------------ */
 
@@ -2154,22 +2146,25 @@ static int fs_image_load_extra_mmc(struct flash_info *fi,
 #ifdef CONFIG_IMX8MM
 	unsigned int blksz = fi->blk_desc->blksz;
 	unsigned int offs;
+	unsigned int lim;
 	int err;
+	struct info_table *secondary;
 
 	/* Do nothing if not running from User area of eMMC */
 	if (spl->hwpart[1] != 0)
 		return 0;
 
 	/* Read Secondary Image Table, which is one block before primary SPL */
-	offs = spl->start[0] - blksz;
+	lim = spl->start[0];
+	offs = lim - blksz;
 
 	printf("Loading SECONDARY-SPL-INFO from NAND\n"
 	       "  Loading only copy from offset 0x%08x size 0x%x...",
 	       offs, blksz);
 
-	err = fi->ops->read(fi, offs, blksz, spl->start[0], 0,
-			    local_buffer.block);
-	if (!err && (local_buffer.secondary.tag != 0x00112233))
+	err = fi->ops->read(fi, offs, blksz, lim, 0, fi->temp);
+	secondary = (struct info_table *)(fi->temp);
+	if (!err && (secondary->tag != 0x00112233))
 		err = -ENOENT;
 
 	fs_image_show_sub_status(err);
@@ -2182,12 +2177,13 @@ static int fs_image_load_extra_mmc(struct flash_info *fi,
 	 * must be included, even if empty in the secondary case, which
 	 * results in 0x42 blocks that have to be added.
 	 */
-	offs = (local_buffer.secondary.first_sector + 0x42) * blksz;
+	offs = (secondary->first_sector + 0x42) * blksz;
 	if (offs != spl->start[1]) {
 		printf("  Warning! SPL copy 1 is on offset 0x%08x, should be"
 		       " on 0x%08x\n", offs, spl->start[1]);
 		spl->start[1] = offs;
 	}
+	memset(fi->temp, fi->temp_fill, fi->temp_size);
 #endif
 
 	return 0;
@@ -2198,21 +2194,15 @@ static int fs_image_invalidate_mmc(struct flash_info *fi, int copy,
 				   const struct storage_info *si)
 {
 	unsigned int offs = si->start[copy];
-	lbaint_t blk = offs / fi->blk_desc->blksz;
-	unsigned long n;
-	int err = 0;
+	unsigned int lim = offs + si->size;
+	int err;
 
 	printf("  Invalidating %s at offset 0x%08x size 0x%x...",
 	       si->type, offs, si->size);
+	debug("\n");
 
-	memset(&local_buffer.block, 0, fi->blk_desc->blksz);
-	n = blk_dwrite(fi->blk_desc, blk, 1, &local_buffer.block);
-	if (n < 1)
-		err = -EIO;
-	else if (IS_ERR_VALUE(n))
-		err = (int)n;
-	else
-		err = 0;
+	memset(fi->temp, 0, fi->temp_size);
+	err = fi->ops->write(fi, offs, fi->temp_size, lim, 0, fi->temp);
 
 	fs_image_show_sub_status(err);
 
@@ -2231,6 +2221,7 @@ static int fs_image_write_mmc(struct flash_info *fi, uint offs, uint size,
 	/* Bad block handling is done by eMMC controller */
 	debug("  -> mmc_write to offs 0x%x (block 0x" LBAF ") size 0x%x\n",
 	      offs, blk, size);
+
 	count = blk_dwrite(fi->blk_desc, blk, blk_count, buf);
 	if (count < blk_count)
 		return -EIO;
@@ -2261,10 +2252,10 @@ static int fs_image_write_secondary_table(struct flash_info *fi, int copy,
 					  struct storage_info *si)
 {
 	unsigned int blksz = fi->blk_desc->blksz;
-	lbaint_t blk;
-	unsigned long n;
-	unsigned int offset;
+	unsigned int offs;
+	unsigned int lim;
 	int err;
+	struct info_table *secondary;
 
 	/* Do nothing if not second copy or not in User area of eMMC */
 	if ((copy != 1) || (si->hwpart[1] != 0))
@@ -2279,23 +2270,18 @@ static int fs_image_write_secondary_table(struct flash_info *fi, int copy,
 	 *
 	 * The table itself is located one block before primary SPL.
 	 */
-	memset(&local_buffer.block, 0, blksz);
-	local_buffer.secondary.tag = 0x00112233;
-	local_buffer.secondary.first_sector = si->start[1] / blksz - 0x42;
+	secondary = (struct info_table *)(fi->temp);
+	secondary->tag = 0x00112233;
+	secondary->first_sector = si->start[1] / blksz - 0x42;
 
-	offset = si->start[0] - blksz;
-	blk = offset / blksz;
+	lim = si->start[0];
+	offs = lim - blksz;
 
 	printf("  Writing SECONDARY-SPL-INFO at offset 0x%08x size 0x200...",
-	       offset);
+	       offs);
 
-	n = blk_dwrite(fi->blk_desc, blk, 1, &local_buffer.block);
-	if (n < 1)
-		err = -EIO;
-	else if (IS_ERR_VALUE(n))
-		err = (int)n;
-	else
-		err = 0;
+	err = fi->ops->write(fi, offs, blksz, lim, 0, fi->temp);
+	memset(fi->temp, fi->temp_fill, fi->temp_size);
 
 	fs_image_show_sub_status(err);
 
