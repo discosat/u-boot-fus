@@ -754,6 +754,51 @@ static int fs_image_check_crc32(struct fs_header_v1_0 *fsh)
 	return ret;
 }
 
+/* Check CRC32 from image and all sub-images */
+static int fs_image_check_all_crc32(struct fs_header_v1_0 *fsh)
+{
+	unsigned int size;
+	unsigned int remaining;
+	int err;
+
+	debug("  - %s", fsh->type);
+	err = fs_image_check_crc32(fsh);
+	switch (err) {
+	case 0:
+		debug(" (no CRC32)\n");
+		break;
+	case 1:
+		debug(" (CRC32 header only ok)\n");
+		break;
+	case 2:
+		debug(" (CRC32 image only ok)\n");
+		break;
+	case 3:
+		debug(" (CRC32 header+image ok)\n");
+		break;
+	default:
+		return err;
+	}
+
+	remaining = fs_image_get_size(fsh++, false);
+	while (remaining > 0) {
+		if (!fs_image_is_fs_image(fsh))
+			break;
+
+		/* Check recursively */
+		err = fs_image_check_all_crc32(fsh);
+		if (err)
+			return err;
+
+		/* Go to next sub-image */
+		size = fs_image_get_size(fsh, true);
+		fsh = (void *)fsh + size;
+		remaining -= size;
+	}
+
+	return 0;
+}
+
 /* Validate a signed image; Return 0: OK, <0: Error */
 static int fs_image_validate_signed(struct ivt *ivt)
 {
@@ -1594,9 +1639,7 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 		err = fs_image_check_bcb_checksum(sub->img + 4, cs_size,
 						  dbbt_data[0], true);
 	} else if (sub->flags & SUB_HAS_FS_HEADER) {
-		err = fs_image_check_crc32(sub->img);
-
-		// ### TODO: In case of FIRMWARE, check CRC32 of sub-images
+		err = fs_image_check_all_crc32(sub->img);
 	}
 	if (err < 0)
 		return err;
@@ -2212,11 +2255,9 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 		return err;
 
 	if (sub->flags & SUB_HAS_FS_HEADER) {
-		err = fs_image_check_crc32(sub->img);
+		err = fs_image_check_all_crc32(sub->img);
 		if (err < 0)
 			return err;
-
-		// ### TODO: In case of FIRMWARE, check CRC32 of sub-images
 	}
 
 	sub->size = size;
