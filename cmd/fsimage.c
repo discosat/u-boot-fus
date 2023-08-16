@@ -388,18 +388,6 @@ static int fs_image_get_board_id(char *id)
 	return 0;
 }
 
-/* Compute checksum for FCB or DBBT block */
-static u32 fs_image_bcb_checksum(void *data, size_t size)
-{
-	u32 checksum = 0;
-	u8 *p = data;
-
-	while (size--)
-		checksum += *p++;
-
-	return ~checksum;
-}
-
 static void fs_image_parse_image(unsigned long addr, unsigned int offs,
 				 int level, unsigned int remaining)
 {
@@ -498,7 +486,7 @@ static void fs_image_region_add_raw(
 	sub->offset = woffset;
 	sub->flags = flags;
 
-	debug("- %s(%s): 0x%08lx -> woffset 0x%08x size 0x%x\n", type, descr,
+	debug("- %s(%s): 0x%08lx -> offset 0x%x size 0x%x\n", type, descr,
 	      (unsigned long)img, woffset, size);
 }
 
@@ -687,9 +675,10 @@ static int fs_image_check_crc32(struct fs_header_v1_0 *fsh)
 	computed_cs = crc32(0, start, size);
 	*pcs = expected_cs;
 	if (computed_cs != expected_cs) {
-		printf("\nError: Bad CRC32 (found 0x%08x, expected 0x%08x)\n",
-		       computed_cs, expected_cs);
-		return -EBADMSG;
+		printf(" BAD CRC32");
+		debug(" (got 0x%08x, expected 0x%08x)\n", computed_cs,
+		      expected_cs);
+		return -EILSEQ;
 	}
 
 	return ret;
@@ -747,12 +736,12 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 	ivt = (struct ivt *)(fsh + 1);
 
 	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		printf("Found signed %s image", type);
+		printf("Found signed %s image at 0x%08lx", type, addr);
 
 		return fs_image_validate_signed(ivt);
 	}
 
-	printf("Found unsigned %s image", type);
+	printf("Found unsigned %s image at 0x%08lx", type, addr);
 
 #ifdef CONFIG_FS_SECURE_BOOT
 	if (imx_hab_is_enabled()) {
@@ -765,16 +754,16 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 	err = fs_image_check_crc32(fsh);
 	switch (err) {
 	case 0:
-		puts(" (no checksum)\n");
+		puts(" (no CRC32)\n");
 		break;
 	case 1:
-		puts(" (checksum header only ok)\n");
+		puts(" (CRC32 header only ok)\n");
 		break;
 	case 2:
-		puts(" (checksum image only ok)\n");
+		puts(" (CRC32 image only ok)\n");
 		break;
 	case 3:
-		puts(" (checksum header+image ok)\n");
+		puts(" (CRC32 header+image ok)\n");
 		break;
 	default:
 		return err;
@@ -1384,6 +1373,42 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	return 0;
 }
 
+/* Compute checksum for FCB or DBBT block */
+static u32 fs_image_bcb_checksum(void *data, size_t size)
+{
+	u32 checksum = 0;
+	u8 *p = data;
+
+	while (size--)
+		checksum += *p++;
+
+	return ~checksum;
+}
+
+/* Check if checksum for FCB or DBBT block is correct */
+static int fs_image_check_bcb_checksum(void *data, size_t size,
+					u32 expected, bool accept_zero)
+{
+	u32 checksum;
+
+	debug("  -");
+	if (accept_zero && (expected == 0)) {
+		debug(" Checksum 0 OK\n");
+		return 0;
+	}
+
+	checksum = fs_image_bcb_checksum(data, size);
+	if (checksum == expected) {
+		debug(" Checksum OK\n");
+		return 0;
+	}
+
+	puts(" BAD CHECKSUM");
+	debug(" (got 0x%08x, expected 0x%08x)\n", checksum, expected);
+
+	return -EILSEQ;
+}
+
 /* Load some data from offset with given size */
 static int fs_image_read_nand(struct flash_info *fi, uint offs, uint size,
 			      uint lim, uint flags, u8 *buf)
@@ -1404,14 +1429,20 @@ static int fs_image_read_nand(struct flash_info *fi, uint offs, uint size,
 		}
 	}
 
+	if (flags & SUB_IS_FCB) {
+		debug("  - Switch to 62bit ECC\n");
+		mxs_nand_mode_fcb_62bit(fi->mtd);
+	}
+
 	debug("  -> nand_read from offs 0x%llx size 0x%x maxsize 0x%llx\n",
 	     roffs, size, maxsize);
-	if (flags & SUB_IS_FCB)
-		mxs_nand_mode_fcb_62bit(fi->mtd);
 	err = nand_read_skip_bad(fi->mtd, roffs, &rsize, &actual,
 				  maxsize, buf);
-	if (flags & SUB_IS_FCB)
+
+	if (flags & SUB_IS_FCB) {
+		debug("  - Switch back to normal ECC\n");
 		mxs_nand_mode_normal(fi->mtd);
+	}
 
 	return err;
 }
@@ -1425,9 +1456,10 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	unsigned int size;
 	unsigned int offs = si->start[copy] + sub->offset;
 	unsigned int lim = si->start[copy] + si->size;
-	u32 checksum;
+	size_t cs_size;
 
 	printf("  Loading copy %d from offset 0x%08x", copy, offs);
+	debug("\n");
 
 #ifdef CONFIG_IMX8MM
 	/* On i.MX8MM, SPL starts at offset 0x400 in the middle of the page */
@@ -1464,6 +1496,7 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	}
 
 	printf(" size 0x%x...", size);
+	debug("\n");
 
 	/* Load image itself */
 	err = fi->ops->read(fi, offs, size, lim, sub->flags, sub->img);
@@ -1478,10 +1511,9 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 		    || (fcb->version != FCB_VERSION_1))
 			return -ENOENT;
 
-		checksum = fs_image_bcb_checksum(sub->img + 4,
-						 sizeof(struct fcb_block) - 4);
-		if (fcb->checksum != checksum)
-			return -EILSEQ;
+		cs_size = sizeof(struct fcb_block) - 4;
+		err = fs_image_check_bcb_checksum(sub->img + 4, cs_size,
+						  fcb->checksum, false);
 	} else if (sub->flags & SUB_IS_DBBT) {
 		struct dbbt_block *dbbt = sub->img;
 
@@ -1490,12 +1522,9 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 			return -ENOENT;
 
 		/* NXP's kobs writes checksum as 0, accept that */
-		if (dbbt->checksum != 0) {
-			checksum = fs_image_bcb_checksum(
-				sub->img + 4, sizeof(struct dbbt_block) - 4);
-			if (dbbt->checksum != checksum)
-				return -EILSEQ;
-		}
+		cs_size = sizeof(struct dbbt_block) - 4;
+		err = fs_image_check_bcb_checksum(sub->img + 4, cs_size,
+						  dbbt->checksum, true);
 	} else if (sub->flags & SUB_IS_DBBT_DATA) {
 		u32 *dbbt_data = sub->img;
 		u32 count = dbbt_data[1];
@@ -1505,19 +1534,16 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 			return -ENOENT;
 
 		/* NXP's kobs writes checksum as 0, accept that */
-		if (dbbt_data[0] != 0) {
-			checksum = fs_image_bcb_checksum(
-				sub->img + 4, (count + 1) * sizeof(u32));
-			if (dbbt_data[0] != checksum)
-				return -EILSEQ;
-		}
+		cs_size = (count + 1) * sizeof(u32);
+		err = fs_image_check_bcb_checksum(sub->img + 4, cs_size,
+						  dbbt_data[0], true);
 	} else if (sub->flags & SUB_HAS_FS_HEADER) {
 		err = fs_image_check_crc32(sub->img);
-		if (err < 0)
-			return err;
 
 		// ### TODO: In case of FIRMWARE, check CRC32 of sub-images
 	}
+	if (err < 0)
+		return err;
 
 	sub->size = size;
 
@@ -1616,6 +1642,7 @@ static int fs_image_invalidate_nand(struct flash_info *fi, int copy,
 
 	printf("  Erasing %s region at offset 0x%llx size 0x%zx...",
 	       si->type, offs, size);
+	debug("\n");
 
 	opts.length = size;
 	opts.lim = size;
@@ -2096,6 +2123,7 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 
 	printf("  Loading copy %d from hwpart %d offset 0x%08x", copy, hwpart,
 	       offs);
+	debug("\n");
 
 	err = fs_image_set_hwpart_mmc(fi, copy, si);
 	if (err)
@@ -2120,6 +2148,7 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 		return err;
 
 	printf(" size 0x%x...", size);
+	debug("\n");
 
 	/* Load whole image incl. header */
 	err = fi->ops->read(fi, offs, size, lim, sub->flags, sub->img);
@@ -2500,7 +2529,7 @@ static int fsimage_save_uboot(ulong addr, bool force)
 
 	fs_image_put_flash_info(&fi);
 
-	return fs_image_show_save_status(failed, "U-BOOT");
+	return fs_image_show_save_status(failed, "U-Boot");
 }
 
 /* ------------- Command implementation ------------------------------------ */
@@ -2577,10 +2606,11 @@ static int do_fsimage_list(struct cmd_tbl *cmdtp, int flag, int argc,
 		printf("No F&S image found at addr 0x%lx\n", addr);
 		return CMD_RET_FAILURE;
 	}
+	printf("Content of F&S image at addr 0x%lx\n\n", addr);
 
-	printf("offset   size     type (description)\n");
-	printf("------------------------------------------------------------"
-	       "-------------------\n");
+	puts("offset   size     type (description)\n"
+	     "------------------------------------------------------------"
+	     "-------------------\n");
 
 	fs_image_parse_image(addr, 0, 0, fs_image_get_size(fsh, false));
 
@@ -2597,7 +2627,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	unsigned long addr;
 	bool force;
 	bool load_uboot = false;
-	struct fs_header_v1_0 *fsh_nboot, *fsh_board_info;
+	struct fs_header_v1_0 *nboot_fsh, *board_info_fsh;
 	struct flash_info fi;
 	struct nboot_info ni;
 
@@ -2629,8 +2659,8 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		addr = get_loadaddr();
 
 	/* Ask for confirmation if there is already an F&S image at addr */
-	fsh_nboot = (struct fs_header_v1_0 *)addr;
-	if (fs_image_is_fs_image(fsh_nboot)) {
+	nboot_fsh = (struct fs_header_v1_0 *)addr;
+	if (fs_image_is_fs_image(nboot_fsh)) {
 		printf("Warning! This will overwrite F&S image at RAM address"
 		       " 0x%lx\n", addr);
 		if (force && !fs_image_confirm())
@@ -2638,7 +2668,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	/* Invalidate any old image */
-	memset(fsh_nboot->info.magic, 0, 4);
+	memset(nboot_fsh->info.magic, 0, 4);
 
 	fdt = fs_image_get_cfg_fdt();
 	if (fs_image_get_flash_info(&fi, fdt)
@@ -2658,28 +2688,28 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	/* Load flash specific stuff (NAND: BCB, MMC: Secondary Image Table) */
-	if (fi.ops->load_extra(&fi, &ni.spl, fsh_nboot + 1))
+	if (fi.ops->load_extra(&fi, &ni.spl, nboot_fsh + 1))
 		return CMD_RET_FAILURE;
 
 	/* Load SPL behind the NBOOT F&S header that is filled later */
 	sub.type = "SPL";
 	sub.descr = fs_image_get_arch();
-	sub.img = fsh_nboot + 1;
+	sub.img = nboot_fsh + 1;
 	sub.offset = 0;
 	sub.flags = SUB_IS_SPL;
 	if (fs_image_load_image(&fi, &ni.spl, &sub))
 		return CMD_RET_FAILURE;
 
 	/* Load BOARD_CFG and create BOARD-CONFIGS header */
-	fsh_board_info = sub.img;
+	board_info_fsh = sub.img;
 	sub.type = "BOARD-CFG";
 	sub.descr = NULL;
-	sub.img = fsh_board_info + 1;
+	sub.img = board_info_fsh + 1;
 	sub.flags = SUB_HAS_FS_HEADER;
 	if (fs_image_load_image(&fi, &ni.nboot, &sub))
 		return CMD_RET_FAILURE;
 	sub.descr = fs_image_get_arch();
-	fs_image_set_header(fsh_board_info, "BOARD-CONFIGS", sub.descr,
+	fs_image_set_header(board_info_fsh, "BOARD-CONFIGS", sub.descr,
 			    sub.size);
 
 	/* Load FIRMWARE */
@@ -2689,8 +2719,8 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 
 	/* Fill overall NBOOT header */
-	fs_image_set_header(fsh_nboot, "NBOOT", sub.descr,
-			    sub.img - (void *)(fsh_nboot + 1));
+	fs_image_set_header(nboot_fsh, "NBOOT", sub.descr,
+			    sub.img - (void *)(nboot_fsh + 1));
 
 	fs_image_put_flash_info(&fi);
 
@@ -2786,7 +2816,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fs_image_put_flash_info(&fi);
 
-	ret = fs_image_show_save_status(failed, "NBOOT");
+	ret = fs_image_show_save_status(failed, "NBoot");
 
 	if (ret == CMD_RET_SUCCESS) {
 		/* Success: Activate new BOARD-CFG by copying it to OCRAM */
