@@ -45,13 +45,10 @@
  *
  * So we have to deal with different flash regions, one for BCB, one for SPL
  * and one for NBOOT. We store two copies of each sub-image in each region to
- * be failsafe.
- *
- * The location, where each region is stored in flash, is given by the
- * nboot-info which is part of the BOARD-CFG. For now, handling of these
- * regions is rather simple, but in the future, only the relevant parts of the
- * FIRMWARE will be saved, so the NBOOT region will then consist of more, but
- * smaller sub-images.
+ * be failsafe. The location, where each region is stored in flash, is given
+ * by the nboot-info which is part of the BOARD-CFG. Please note that the
+ * FIRMWARE part actually consists of even more sub-images when saving, we
+ * just want to keep this example as simple as possible.
  *
  * We use several structs to define the relationship between the sub-images in
  * RAM and the regions in flash memory.
@@ -437,21 +434,80 @@ static void fs_image_parse_image(unsigned long addr, unsigned int offs,
 	}
 }
 
+/* Update size, flags and padsize, calculate CRC32 if requested */
+static void fs_image_update_header(struct fs_header_v1_0 *fsh,
+				   uint size, uint fsh_flags)
+{
+	u8 padsize = 0;
+
+	padsize = size % 16;
+	if (padsize)
+		padsize = 16 - padsize;
+
+	fsh->info.file_size_low = size;
+	fsh->info.padsize = padsize;
+	fsh->info.flags = fsh_flags | FSH_FLAGS_DESCR;
+
+	if (fsh_flags & (FSH_FLAGS_CRC32 | FSH_FLAGS_SECURE)) {
+		unsigned char *crc32_start = (unsigned char *)fsh;
+		unsigned int crc32_size = 0;
+		u32 *pcs = (u32 *)&fsh->type[12];
+
+		*pcs = 0;
+		if (fsh_flags & FSH_FLAGS_SECURE)
+			crc32_size += FSH_SIZE;
+		else
+			crc32_start += FSH_SIZE;
+
+		if (fsh_flags & FSH_FLAGS_CRC32)
+			crc32_size += size;
+
+		*pcs = crc32(0, crc32_start, crc32_size);
+		debug("- Setting CRC32 for %s to 0x%08x\n", fsh->type, *pcs);
+	}
+}
+
+/* Set all fields of the F&S header */
+static void fs_image_set_header(struct fs_header_v1_0 *fsh, const char *type,
+				const char *descr, uint size, uint fsh_flags)
+{
+	/* Set basic members */
+	memset(fsh, 0, FSH_SIZE);
+	fsh->info.magic[0] = 'F';
+	fsh->info.magic[1] = 'S';
+	fsh->info.magic[2] = 'L';
+	fsh->info.magic[3] = 'X';
+	fsh->info.version = 0x10;
+	strncpy(fsh->type, type, sizeof(fsh->type));
+	strncpy(fsh->param.descr, descr, sizeof(fsh->param.descr));
+
+	/* Set size, flags and padsize, calculate CRC32 if requested */
+	fs_image_update_header(fsh, size, fsh_flags);
+}
+
 /* Return pointer to the header of the given sub-image or NULL if not found */
 static struct fs_header_v1_0 *fs_image_find(struct fs_header_v1_0 *fsh,
 					    const char *type, const char *descr)
 {
 	unsigned int size;
 	unsigned int remaining;
+	struct fs_header_v1_0 *temp;
 
 	remaining = fs_image_get_size(fsh++, false);
 	while (remaining > 0) {
-		if (!fs_image_is_fs_image(fsh))
-			break;
-		size = fs_image_get_size(fsh, true);
 		if (fs_image_match(fsh, type, descr))
 			return fsh;
-		fsh = (struct fs_header_v1_0 *)((void *)fsh + size);
+		if (!fs_image_is_fs_image(fsh))
+			break;
+
+		/* Search recursively */
+		temp = fs_image_find(fsh, type, descr);
+		if (temp)
+			return temp;
+
+		/* Go to next sub-image */
+		size = fs_image_get_size(fsh, true);
+		fsh = (void *)fsh + size;
 		remaining -= size;
 	}
 
@@ -514,6 +570,20 @@ static unsigned int fs_image_region_add(
 	fs_image_region_add_raw(ri, fsh, type, descr, woffset, flags, size);
 
 	return woffset + size;
+}
+
+/*
+ * Add a single F&S header with given data to the region. Return offset for
+ * next subimage or 0 in case of error.
+ */
+static unsigned int fs_image_region_add_fsh(
+	struct region_info *ri, struct fs_header_v1_0 *fsh, const char *type,
+	const char *descr, unsigned int woffset)
+{
+	fs_image_set_header(fsh, type, descr, 0, 0);
+
+	return fs_image_region_add(ri, fsh, type, descr, woffset,
+				   SUB_HAS_FS_HEADER);
 }
 
 /*
@@ -982,30 +1052,6 @@ static unsigned long fs_image_get_loadaddr(int argc, char * const argv[],
 	return 0;
 }
 
-static void fs_image_set_header(struct fs_header_v1_0 *fsh, const char *type,
-				const char *descr, unsigned int size)
-{
-	u8 padsize = 0;
-
-	padsize = size % 16;
-	if (padsize)
-		padsize = 16 - padsize;
-
-	memset(fsh, 0, FSH_SIZE);
-	fsh->info.magic[0] = 'F';
-	fsh->info.magic[1] = 'S';
-	fsh->info.magic[2] = 'L';
-	fsh->info.magic[3] = 'X';
-	fsh->info.file_size_low = size;
-	fsh->info.flags = FSH_FLAGS_DESCR;
-	fsh->info.padsize = padsize;
-	fsh->info.version = 0x10;
-	strncpy(fsh->type, type, sizeof(fsh->type));
-	strncpy(fsh->param.descr, descr, sizeof(fsh->param.descr));
-
-	//### TODO: Compute checksum if needed
-}
-
 static int fs_image_load_image(struct flash_info *fi,
 			       const struct storage_info *si,
 			       struct sub_info *sub)
@@ -1053,7 +1099,7 @@ static int fs_image_load_image(struct flash_info *fi,
 	sub->img = copy0 + sub->size;
 	memset(copy0 + size0, 0, sub->size - size0);
 	if (!(sub->flags & SUB_HAS_FS_HEADER))
-		fs_image_set_header(fsh, sub->type, sub->descr, size0);
+		fs_image_set_header(fsh, sub->type, sub->descr, size0, 0);
 
 	return 0;
 }
@@ -1063,6 +1109,7 @@ static int fs_image_load_uboot(struct flash_info *fi, struct nboot_info *ni,
 			       void *addr)
 {
 	struct sub_info sub;
+	int err;
 
 	sub.type = "U-BOOT";
 	sub.descr = fs_image_get_arch();
@@ -1070,7 +1117,16 @@ static int fs_image_load_uboot(struct flash_info *fi, struct nboot_info *ni,
 	sub.offset = 0;
 	sub.flags = 0;
 
-	return fs_image_load_image(fi, &ni->uboot, &sub);
+	err = fs_image_load_image(fi, &ni->uboot, &sub);
+	if (err)
+		return err;
+
+	/* Compute CRC32 if it was missing */
+	debug("  ");
+	fs_image_update_header((void *)addr, sub.size,
+			       FSH_FLAGS_CRC32 | FSH_FLAGS_SECURE);
+
+	return 0;
 }
 
 /* Flush the temp buffer to flash */
@@ -2710,7 +2766,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 	sub.descr = fs_image_get_arch();
 	fs_image_set_header(board_info_fsh, "BOARD-CONFIGS", sub.descr,
-			    sub.size);
+			    sub.size, 0);
 
 	/* Load FIRMWARE */
 	sub.type = "FIRMWARE";
@@ -2719,8 +2775,10 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 
 	/* Fill overall NBOOT header */
+	debug("  ");
 	fs_image_set_header(nboot_fsh, "NBOOT", sub.descr,
-			    sub.img - (void *)(nboot_fsh + 1));
+			    sub.img - (void *)(nboot_fsh + 1),
+			    FSH_FLAGS_CRC32 | FSH_FLAGS_SECURE);
 
 	fs_image_put_flash_info(&fi);
 
@@ -2735,10 +2793,15 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 {
 	struct fs_header_v1_0 *cfg_fsh;
 	struct fs_header_v1_0 *nboot_fsh;
+	struct fs_header_v1_0 firmware_fsh, dram_info_fsh, dram_type_fsh;
+	unsigned int firmware_start, dram_info_start, dram_type_start;
 	struct region_info nboot_ri, spl_ri;
-	struct sub_info nboot_sub[2], spl_sub;
+	struct sub_info nboot_sub[8], spl_sub;
 	const char *arch = fs_image_get_arch();
 	void *fdt;
+	int board_cfg_offs;
+	const char *dram_type;
+	const char *dram_timing;
 	struct nboot_info ni;
 	struct flash_info fi;
 	int ret;
@@ -2772,6 +2835,14 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fdt = fs_image_find_cfg_fdt(cfg_fsh);
 
+	board_cfg_offs = fs_image_get_board_cfg_offs(fdt);
+	dram_type = fdt_getprop(fdt, board_cfg_offs, "dram-type", NULL);
+	dram_timing = fdt_getprop(fdt, board_cfg_offs, "dram-timing", NULL);
+	if (!dram_type || !dram_timing) {
+		puts("Error: No dram-type and/or dram-timing in BOARD-CFG\n");
+		return CMD_RET_FAILURE;
+	}
+
 	if (fs_image_get_flash_info(&fi, fdt)
 	    || fs_image_get_nboot_info(&fi, fdt, &ni))
 		return CMD_RET_FAILURE;
@@ -2784,20 +2855,83 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		       " them for %s\n", fi.boot_dev_name);
 	}
 
-	/* Prepare subimages for NBOOT region: BOARD-CFG + FIRMWARE */
+	/* Prepare subimages for NBOOT region */
 	fs_image_region_create(&nboot_ri, &ni.nboot, nboot_sub);
+
+	/* Sub 0: BOARD-CFG */
 	woffset = fs_image_region_add(&nboot_ri, cfg_fsh, "BOARD-CFG",
 				      arch, 0, SUB_HAS_FS_HEADER | SUB_SYNC);
 	if (!woffset)
 		return CMD_RET_FAILURE;
+
+	/* Sub 1: FIRMWARE header */
 	woffset = ni.board_cfg_size;
-	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "FIRMWARE",
-					   arch, woffset,
-					   SUB_HAS_FS_HEADER | SUB_SYNC);
+	woffset = fs_image_region_add_fsh(&nboot_ri, &firmware_fsh, "FIRMWARE",
+					  arch, woffset);
+	if (!woffset)
+		return CMD_RET_FAILURE;
+	firmware_start = woffset;
+
+	/* Sub 2: DRAM-INFO header */
+	woffset = fs_image_region_add_fsh(&nboot_ri, &dram_info_fsh,
+					  "DRAM-INFO", arch, woffset);
+	if (!woffset)
+		return CMD_RET_FAILURE;
+	dram_info_start = woffset;
+
+	/* Sub 3: DRAM-TYPE header */
+	woffset = fs_image_region_add_fsh(&nboot_ri, &dram_type_fsh,
+					  "DRAM-TYPE", dram_type, woffset);
+	if (!woffset)
+		return CMD_RET_FAILURE;
+	dram_type_start = woffset;
+
+
+	/* Sub 4: DRAM-FW image */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "DRAM-FW",
+					   dram_type, woffset,
+					   SUB_HAS_FS_HEADER);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
-	/* Prepare subimage for SPL */
+	/* Sub 5: DRAM-TIMING image */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "DRAM-TIMING",
+					   dram_timing, woffset,
+					   SUB_HAS_FS_HEADER);
+	if (!woffset)
+		return CMD_RET_FAILURE;
+
+	/* Update size and CRC32 (header only) for DRAM-TYPE and DRAM-INFO */
+	fs_image_update_header(&dram_type_fsh, woffset - dram_type_start,
+			       FSH_FLAGS_SECURE);
+	fs_image_update_header(&dram_info_fsh, woffset - dram_info_start,
+			       FSH_FLAGS_SECURE);
+
+#ifdef CONFIG_IMX_OPTEE
+	/* Sub 6: ATF image */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "ATF", arch,
+					   woffset, SUB_HAS_FS_HEADER);
+	if (!woffset)
+		return CMD_RET_FAILURE;
+
+	/* Sub 7: TEE image, last image, SYNC */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "TEE", arch,
+					   woffset,
+					   SUB_HAS_FS_HEADER | SUB_SYNC);
+#else
+	/* Sub 6: ATF image, last image, SYNC */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "ATF", arch,
+					   woffset,
+					   SUB_HAS_FS_HEADER | SUB_SYNC);
+#endif
+	if (!woffset)
+		return CMD_RET_FAILURE;
+
+	/* Update size and CRC32 (header only) for FIRMWARE */
+	fs_image_update_header(&firmware_fsh, woffset - firmware_start,
+			       FSH_FLAGS_SECURE);
+
+	/* Prepare SPL region: sub 0: SPL */
 	fs_image_region_create(&spl_ri, &ni.spl, &spl_sub);
 	woffset = fs_image_region_find_add(&spl_ri, nboot_fsh, "SPL",
 					   arch, 0, SUB_IS_SPL | SUB_SYNC);
