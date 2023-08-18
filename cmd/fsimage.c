@@ -372,19 +372,6 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 	return fi->ops->get_nboot_info(fi, fdt, offs, ni);
 }
 
-/* Return the BOARD-ID; id must have room for MAX_DESCR_LEN characters */
-static int fs_image_get_board_id(char *id)
-{
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
-
-	if (!fsh)
-		return -ENOENT;
-
-	memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
-
-	return 0;
-}
-
 static void fs_image_parse_image(unsigned long addr, unsigned int offs,
 				 int level, unsigned int remaining)
 {
@@ -705,55 +692,6 @@ static int fs_image_check_boot_dev_fuses(enum boot_device boot_dev,
 	return -EINVAL;
 }
 
-/*
- * Check CRC32; return: 0: No CRC32, >0: CRC32 OK, <0: error (CRC32 failed)
- * If CRC32 is OK, the result also gives information about the type of CRC32:
- * 1: CRC32 was Header only (only FSH_FLAGS_SECURE set)
- * 2: CRC32 was Image only (only FSH_FLAGS_CRC32 set)
- * 3: CRC32 was Header+Image (both FSH_FLAGS_SECURE and FSH_FLAGS_CRC32 set)
- */
-static int fs_image_check_crc32(struct fs_header_v1_0 *fsh)
-{
-	u32 expected_cs;
-	u32 computed_cs;
-	u32 *pcs;
-	unsigned int size;
-	unsigned char *start;
-	int ret = 0;
-
-	if (!(fsh->info.flags & (FSH_FLAGS_SECURE | FSH_FLAGS_CRC32)))
-		return 0;		/* No CRC32 */
-
-	if (fsh->info.flags & FSH_FLAGS_SECURE) {
-		start = (unsigned char *)fsh;
-		size = FSH_SIZE;
-		ret |= 1;
-	} else {
-		start = (unsigned char *)(fsh + 1);
-		size = 0;
-	}
-
-	if (fsh->info.flags & FSH_FLAGS_CRC32) {
-		size += fs_image_get_size(fsh, false);
-		ret |= 2;
-	}
-
-	/* CRC32 is in type[12..15]; temporarily set to 0 while computing */
-	pcs = (u32 *)&fsh->type[12];
-	expected_cs = *pcs;
-	*pcs = 0;
-	computed_cs = crc32(0, start, size);
-	*pcs = expected_cs;
-	if (computed_cs != expected_cs) {
-		printf(" BAD CRC32");
-		debug(" (got 0x%08x, expected 0x%08x)\n", computed_cs,
-		      expected_cs);
-		return -EILSEQ;
-	}
-
-	return ret;
-}
-
 /* Check CRC32 from image and all sub-images */
 static int fs_image_check_all_crc32(struct fs_header_v1_0 *fsh)
 {
@@ -777,6 +715,7 @@ static int fs_image_check_all_crc32(struct fs_header_v1_0 *fsh)
 		debug(" (CRC32 header+image ok)\n");
 		break;
 	default:
+		puts(" BAD CRC32");
 		return err;
 	}
 
@@ -856,7 +795,7 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 		return fs_image_validate_signed(ivt);
 	}
 
-	printf("Found unsigned %s image at 0x%08lx", type, addr);
+	printf("Found unsigned %s image at 0x%08lx ", type, addr);
 
 #ifdef CONFIG_FS_SECURE_BOOT
 	if (imx_hab_is_enabled()) {
@@ -869,18 +808,19 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 	err = fs_image_check_crc32(fsh);
 	switch (err) {
 	case 0:
-		puts(" (no CRC32)\n");
+		puts("(no CRC32)\n");
 		break;
 	case 1:
-		puts(" (CRC32 header only ok)\n");
+		puts("(CRC32 header only ok)\n");
 		break;
 	case 2:
-		puts(" (CRC32 image only ok)\n");
+		puts("(CRC32 image only ok)\n");
 		break;
 	case 3:
-		puts(" (CRC32 header+image ok)\n");
+		puts("(CRC32 header+image ok)\n");
 		break;
 	default:
+		puts("- Error: BAD CRC32\n");
 		return err;
 	}
 
@@ -970,7 +910,6 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 {
 	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
 	char id[MAX_DESCR_LEN + 1];
-	char old_id[MAX_DESCR_LEN + 1];
 	void *fdt;
 	struct fs_header_v1_0 *cfg;
 	const char *arch = fs_image_get_arch();
@@ -986,30 +925,30 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 		return -ENOENT;
 	}
 
-	/* Use current BOARD-ID for saving */
-	err = fs_image_get_board_id(id);
-	if (err)
-		return err;
-	id[MAX_DESCR_LEN] = '\0';
-
 	/* In case of an NBoot image with prepended BOARD-ID, use this ID */
 	if (fs_image_match(fsh, "BOARD-ID", NULL)) {
-		memcpy(old_id, id, MAX_DESCR_LEN + 1);
-		memcpy(id, fsh->param.descr, MAX_DESCR_LEN);
-		if (strcmp(id, old_id)) {
+		const char *old_id = fs_image_get_board_id();
+		char new_id[MAX_DESCR_LEN + 1];
+
+		memcpy(new_id, fsh->param.descr, MAX_DESCR_LEN);
+		new_id[MAX_DESCR_LEN] = '\0';
+		if (strcmp(new_id, old_id)) {
 #ifdef CONFIG_FS_SECURE_BOOT
 			if (imx_hab_is_enabled()) {
 				printf("Error: Current board is %s and board"
 				       " is closed\nRefusing to %s for %s\n",
-				       old_id, action, id);
+				       old_id, action, new_id);
 				return -EINVAL;
 			}
 #endif
 			printf("Warning! Current board is %s but you will\n"
-			       "%s for %s\n", old_id, action, id);
+			       "%s for %s\n", old_id, action, new_id);
 			if (!force && !fs_image_confirm()) {
 				return 0; /* used_cfg == NULL in this case */
 			}
+
+			/* Set this BOARD-ID as compare_id */
+			fs_image_set_compare_id(fsh->param.descr);
 			ret = 2;
 		}
 		fsh++;
@@ -1032,13 +971,12 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 	}
 
 	remaining = fs_image_get_size(cfg++, false);
-	fs_image_set_board_id_compare(id);
 	while (1) {
 		if (!remaining || !fs_image_is_fs_image(cfg)) {
 			printf("No BOARD-CFG found for BOARD-ID %s\n", id);
 			return -ENOENT;
 		}
-		if (fs_image_match_board_id(cfg, "BOARD-CFG"))
+		if (fs_image_match_board_id(cfg))
 			break;
 		size = fs_image_get_size(cfg, true);
 		remaining -= size;
@@ -2644,13 +2582,7 @@ static int do_fsimage_arch(struct cmd_tbl *cmdtp, int flag, int argc,
 static int do_fsimage_boardid(struct cmd_tbl *cmdtp, int flag, int argc,
 			      char * const argv[])
 {
-	char id[MAX_DESCR_LEN + 1];
-
-	if (fs_image_get_board_id(id))
-		return CMD_RET_FAILURE;
-
-	id[MAX_DESCR_LEN] = '\0';
-	printf("%s\n", id);
+	printf("%s\n", fs_image_get_board_id());
 
 	return CMD_RET_SUCCESS;
 }
@@ -2724,7 +2656,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	unsigned long addr;
 	bool force;
 	bool load_uboot = false;
-	struct fs_header_v1_0 *nboot_fsh, *board_info_fsh;
+	struct fs_header_v1_0 *nboot_fsh, *board_info_fsh, *board_cfg_fsh;
 	struct flash_info fi;
 	struct nboot_info ni;
 
@@ -2797,14 +2729,26 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (fs_image_load_image(&fi, &ni.spl, &sub))
 		return CMD_RET_FAILURE;
 
-	/* Load BOARD_CFG and create BOARD-CONFIGS header */
+	/* Load BOARD_CFG */
 	board_info_fsh = sub.img;
 	sub.type = "BOARD-CFG";
 	sub.descr = NULL;
-	sub.img = board_info_fsh + 1;
+	board_cfg_fsh = board_info_fsh + 1;
+	sub.img = board_cfg_fsh;
 	sub.flags = SUB_HAS_FS_HEADER;
 	if (fs_image_load_image(&fi, &ni.nboot, &sub))
 		return CMD_RET_FAILURE;
+
+	/* If set, remove BOARD-ID rev (in file_size_high) and update CRC32 */
+	if (board_cfg_fsh->info.file_size_high) {
+		board_cfg_fsh->info.file_size_high = 0;
+		debug("  ");
+		fs_image_update_header(board_cfg_fsh,
+				       fs_image_get_size(board_cfg_fsh, false),
+				       board_cfg_fsh->info.flags);
+	}
+
+	/* Create BOARD-INFO header */
 	sub.descr = fs_image_get_arch();
 	fs_image_set_header(board_info_fsh, "BOARD-CONFIGS", sub.descr,
 			    sub.size, 0);
@@ -2835,10 +2779,13 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	struct fs_header_v1_0 *cfg_fsh;
 	struct fs_header_v1_0 *nboot_fsh;
 	struct fs_header_v1_0 firmware_fsh, dram_info_fsh, dram_type_fsh;
+	struct fs_header_v1_0 cfg_fsh_bak;
 	unsigned int firmware_start, dram_info_start, dram_type_start;
 	struct region_info nboot_ri, spl_ri;
 	struct sub_info nboot_sub[8], spl_sub;
 	const char *arch = fs_image_get_arch();
+	const char *type;
+	unsigned int flags;
 	void *fdt;
 	int board_cfg_offs;
 	const char *dram_type;
@@ -2929,16 +2876,15 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 
 	/* Sub 4: DRAM-FW image */
+	flags = SUB_HAS_FS_HEADER;
 	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "DRAM-FW",
-					   dram_type, woffset,
-					   SUB_HAS_FS_HEADER);
+					   dram_type, woffset, flags);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
 	/* Sub 5: DRAM-TIMING image */
 	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "DRAM-TIMING",
-					   dram_timing, woffset,
-					   SUB_HAS_FS_HEADER);
+					   dram_timing, woffset, flags);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
@@ -2948,23 +2894,20 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	fs_image_update_header(&dram_info_fsh, woffset - dram_info_start,
 			       FSH_FLAGS_SECURE);
 
-#ifdef CONFIG_IMX_OPTEE
 	/* Sub 6: ATF image */
-	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "ATF", arch,
-					   woffset, SUB_HAS_FS_HEADER);
+	type = "ATF";
+#ifdef CONFIG_IMX_OPTEE
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, type, arch,
+					   woffset, flags);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
-	/* Sub 7: TEE image, last image, SYNC */
-	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "TEE", arch,
-					   woffset,
-					   SUB_HAS_FS_HEADER | SUB_SYNC);
-#else
-	/* Sub 6: ATF image, last image, SYNC */
-	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, "ATF", arch,
-					   woffset,
-					   SUB_HAS_FS_HEADER | SUB_SYNC);
+	/* Sub 7: TEE image */
+	type = "TEE";
 #endif
+	/* Last image, set SUB_SYNC */
+	woffset = fs_image_region_find_add(&nboot_ri, nboot_fsh, type, arch,
+					   woffset, flags | SUB_SYNC);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
@@ -2986,7 +2929,11 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (fi.ops->check_for_nboot(&fi, &ni.spl, force))
 		return CMD_RET_FAILURE;
 
-	/* Found all sub-images, let's go and save NBoot */
+	/* Temporarily set BOARD-ID board revision and update CRC32 */
+	cfg_fsh_bak = *cfg_fsh;
+	fs_image_board_cfg_set_board_rev(cfg_fsh);
+
+	/* Found all sub-images, everything is prepared, go and save NBoot */
 	failed = fi.ops->save_nboot(&fi, &nboot_ri, &spl_ri);
 
 	fs_image_put_flash_info(&fi);
@@ -2999,6 +2946,9 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		       fs_image_get_size(cfg_fsh, true));
 		puts("New BOARD-CFG is now active\n");
 	}
+
+	/* Restore BOARD-CFG header to previous content */
+	*cfg_fsh = cfg_fsh_bak;
 
 	return ret;
 }
@@ -3164,13 +3114,19 @@ static int do_fsimage(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/*
 	 * All fsimage commands will access the BOARD-CFG in OCRAM. Make sure
-	 * it is still valid and not compromised in some way.
+	 * it is still valid and not compromised in any way.
 	 */
-	if (!fs_image_cfg_is_valid()) {
+	if (!fs_image_is_ocram_cfg_valid()) {
 		printf("Error: BOARD-CFG in OCRAM at 0x%lx damaged\n",
-		       (ulong)found_cfg);
+		       (ulong)fs_image_get_cfg_addr());
 		return CMD_RET_FAILURE;
 	}
+
+	/*
+	 * Set the current board_id name and the compare_id that is used in
+	 * fs_image_find_board_cfg().
+	 */
+	fs_image_set_board_id_from_cfg();
 
 	found_cfg = fs_image_get_cfg_addr();
 	expected_cfg = fs_image_get_regular_cfg_addr();

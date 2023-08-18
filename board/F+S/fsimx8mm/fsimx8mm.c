@@ -205,7 +205,7 @@ static void fs_setup_cfg_info(void)
 		hang();
 
 	/* Make sure that the BOARD-CFG in OCRAM is still valid */
-	if (!fs_image_cfg_is_valid())
+	if (!fs_image_is_ocram_cfg_valid())
 		hang();
 
 	fdt = fs_image_get_cfg_fdt();

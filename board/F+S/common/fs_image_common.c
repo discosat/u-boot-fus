@@ -146,6 +146,7 @@
 #include <nand.h>
 #include <sdp.h>
 #include <asm/sections.h>
+#include <u-boot/crc.h>			/* crc32() */
 
 #include "fs_board_common.h"		/* fs_board_*() */
 #include "fs_dram_common.h"		/* fs_dram_init_common() */
@@ -165,6 +166,9 @@ struct bnr {
 };
 
 static struct bnr compare_bnr;		/* Used for BOARD-ID comparisons */
+
+static char board_id[MAX_DESCR_LEN + 1]; /* Current board-id */
+
 
 /* ------------- Functions in SPL and U-Boot ------------------------------- */
 
@@ -273,7 +277,8 @@ bool fs_image_match(const struct fs_header_v1_0 *fsh,
 	return true;
 }
 
-static void fs_image_get_board_name_rev(const char *id, struct bnr *bnr)
+static void fs_image_get_board_name_rev(const char id[MAX_DESCR_LEN],
+					struct bnr *bnr)
 {
 	char c;
 	int i;
@@ -295,28 +300,38 @@ static void fs_image_get_board_name_rev(const char *id, struct bnr *bnr)
 	if (rev < 0)
 		return;
 
-	bnr->name[rev] = 0;
-	while (++rev < i)
-		bnr->rev = bnr->rev * 10 + bnr->name[rev] - '0';
+	bnr->name[rev] = '\0';
+	while (++rev < i) {
+		char c = bnr->name[rev];
+
+		if ((c < '0') || (c > '9'))
+			break;
+		bnr->rev = bnr->rev * 10 + c - '0';
+	}
 }
 
-/* Check id, return also true if revision is less than revision of compare id */
-bool fs_image_match_board_id(struct fs_header_v1_0 *fsh, const char *type)
+/* Check if ID of the given BOARD-CFG matches the compare_id */
+bool fs_image_match_board_id(struct fs_header_v1_0 *cfg_fsh)
 {
 	struct bnr bnr;
 
 	/* Compare magic and type */
-	if (!fs_image_match(fsh, type, NULL))
+	if (!fs_image_match(cfg_fsh, "BOARD-CFG", NULL))
 		return false;
 
 	/* A config must include a description, this is the board ID */
-	if (!(fsh->info.flags & FSH_FLAGS_DESCR))
+	if (!(cfg_fsh->info.flags & FSH_FLAGS_DESCR))
 		return false;
 
 	/* Split board ID of the config we look at into name and rev */
-	fs_image_get_board_name_rev(fsh->param.descr, &bnr);
+	fs_image_get_board_name_rev(cfg_fsh->param.descr, &bnr);
 
-	/* Compare with name and rev of the board we are running on */
+	/*
+	 * Compare with name and rev of the BOARD-ID we are looking for (in
+	 * compare_bnr). In the new layout, the BOARD-CFG does not have a
+	 * revision anymore, so here bnr.rev is 0 and is accepted for any
+	 * BOARD-ID of this board type.
+	 */
 	if (strncmp(bnr.name, compare_bnr.name, sizeof(bnr.name)))
 		return false;
 	if (bnr.rev > compare_bnr.rev)
@@ -325,19 +340,183 @@ bool fs_image_match_board_id(struct fs_header_v1_0 *fsh, const char *type)
 	return true;
 }
 
-/* Set the compare id that will used in fs_image_match_board_id() */
-void fs_image_set_board_id_compare(const char *id)
+/*
+ * Check CRC32; return: 0: No CRC32, >0: CRC32 OK, <0: error (CRC32 failed)
+ * If CRC32 is OK, the result also gives information about the type of CRC32:
+ * 1: CRC32 was Header only (only FSH_FLAGS_SECURE set)
+ * 2: CRC32 was Image only (only FSH_FLAGS_CRC32 set)
+ * 3: CRC32 was Header+Image (both FSH_FLAGS_SECURE and FSH_FLAGS_CRC32 set)
+ */
+int fs_image_check_crc32(struct fs_header_v1_0 *fsh)
+{
+	u32 expected_cs;
+	u32 computed_cs;
+	u32 *pcs;
+	unsigned int size;
+	unsigned char *start;
+	int ret = 0;
+
+	if (!(fsh->info.flags & (FSH_FLAGS_SECURE | FSH_FLAGS_CRC32)))
+		return 0;		/* No CRC32 */
+
+	if (fsh->info.flags & FSH_FLAGS_SECURE) {
+		start = (unsigned char *)fsh;
+		size = FSH_SIZE;
+		ret |= 1;
+	} else {
+		start = (unsigned char *)(fsh + 1);
+		size = 0;
+	}
+
+	if (fsh->info.flags & FSH_FLAGS_CRC32) {
+		size += fs_image_get_size(fsh, false);
+		ret |= 2;
+	}
+
+	/* CRC32 is in type[12..15]; temporarily set to 0 while computing */
+	pcs = (u32 *)&fsh->type[12];
+	expected_cs = *pcs;
+	*pcs = 0;
+	computed_cs = crc32(0, start, size);
+	*pcs = expected_cs;
+	if (computed_cs != expected_cs)
+		return -EILSEQ;
+
+	return ret;
+}
+
+/* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
+void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh)
+{
+	u32 *pcs = (u32 *)&cfg_fsh->type[12];
+
+	/* Set compare_id rev in file_size_high, compute new CRC32 */
+	cfg_fsh->info.file_size_high = compare_bnr.rev;
+
+	cfg_fsh->info.flags |= FSH_FLAGS_SECURE | FSH_FLAGS_CRC32;
+	*pcs = 0;
+	*pcs = crc32(0, (uchar *)cfg_fsh, fs_image_get_size(cfg_fsh, true));
+}
+
+/* Store current compare_id as board_id */
+static void fs_image_set_board_id(void)
+{
+	char c;
+	int i;
+
+	/* Copy base name */
+	for (i = 0; i < MAX_DESCR_LEN; i++) {
+		c = compare_bnr.name[i];
+		if (!c)
+			break;
+		board_id[i] = c;
+	}
+
+	/* Add board revision */
+	snprintf(&board_id[i], MAX_DESCR_LEN - i, ".%03d", compare_bnr.rev);
+	board_id[MAX_DESCR_LEN] = '\0';
+}
+
+/* Set the compare_id that will be used in fs_image_match_board_id() */
+void fs_image_set_compare_id(const char id[MAX_DESCR_LEN])
 {
 	fs_image_get_board_name_rev(id, &compare_bnr);
 }
+
+/* Set the board_id and compare_id from the BOARD-CFG */
+void fs_image_set_board_id_from_cfg(void)
+{
+	struct fs_header_v1_0 *cfg_fsh = fs_image_get_cfg_addr();
+	unsigned int rev;
+
+	/* Take base ID from descr; in old layout, this includes the rev */
+	fs_image_get_board_name_rev(cfg_fsh->param.descr, &compare_bnr);
+
+	/* The BOARD-ID rev is stored in file_size_high, 0 for old layout */
+	rev = cfg_fsh->info.file_size_high;
+	if (rev) {
+		debug("Taking BOARD-ID rev from BOARD-CFG: %d\n", rev);
+		compare_bnr.rev = rev;
+	}
+
+	fs_image_set_board_id();
+}
+
+/*
+ * Make sure that BOARD-CFG in OCRAM is valid. This function is called early
+ * in the boot_f phase of U-Boot, and therefore must not access any variables.
+ */
+bool fs_image_is_ocram_cfg_valid(void)
+{
+	struct fs_header_v1_0 *cfg_fsh = fs_image_get_cfg_addr();
+	int err;
+
+	if (!fs_image_match(cfg_fsh, "BOARD-CFG", NULL))
+		return false;
+
+	/*
+	 * Check the additional CRC32. The BOARD-CFG in OCRAM also holds the
+	 * BOARD-ID, which is not covered by the signature, but it is covered
+	 * by the CRC32. So also do the check in case of Secure Boot.
+	 *
+	 * The BOARD-ID is given by the board-revision that is stored (as
+	 * number) in unused entry file_size_high and is typically between 100
+	 * and 999. This is the only part that may differ, the base name is
+	 * always the same as of the ID of the BOARD-CFG itself (in descr).
+	 */
+	err = fs_image_check_crc32(cfg_fsh);
+	if (err < 0)
+		return false;
+
+#ifdef CONFIG_FS_SECURE_BOOT
+	{
+		u16 flags;
+		u32 file_size_high;
+		u32 *pcs = (u32 *)&cfg_fsh->type[12];
+
+		/*
+		 * Signature was made without board-rev in file_size_high
+		 * and without CRC32, so temporarily clear these values.
+		 */
+		file_size_high = cfg_fsh->info.file_size_high;
+		cfg_fsh->info.file_size_high = 0;
+		flags = cfg_fsh->info.flags;
+		cfg_fsh->info.flags &= ~(FSH_FLAGS_SECURE | FSH_FLAGS_CRC32);
+		crc32 = *pcs;
+		*pcs = 0;
+
+		err = imx_hab_authenticate_image((u32)cfg_fsh,
+						 fs_image_get_size(cfg_fsh),
+						 FSH_SIZE);
+
+		/* Bring back the saved values */
+		cfg_fsh->info.file_size_high = file_size_high;
+		cfg_fsh->info.flags = flags;
+		*pcs = crc32;
+
+		if (err)
+			return false;
+	}
+#endif
+
+	return true;
+}
+
 
 /* ------------- Functions only in U-Boot, not SPL ------------------------- */
 
 #ifndef CONFIG_SPL_BUILD
 
+/* Return the current BOARD-ID */
+const char *fs_image_get_board_id(void)
+{
+	return board_id;
+}
+
 /*
  * Return address of board configuration in OCRAM; search for it if not
- * available at expected place
+ * available at expected place. This function is called early in boot_f phase
+ * of U-Boot and must not access any variables. Use global data instead.
  */
 bool fs_image_find_cfg_in_ocram(void)
 {
@@ -365,19 +544,6 @@ bool fs_image_find_cfg_in_ocram(void)
 	} while ((ulong)fsh < (CONFIG_SYS_OCRAM_BASE + CONFIG_SYS_OCRAM_SIZE));
 
 	return false;
-}
-
-/* Make sure that BOARD-CFG in OCRAM is still valid and return pointer to it */
-bool fs_image_cfg_is_valid(void)
-{
-	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
-
-	if (!fs_image_match(fsh, "BOARD-CFG", NULL))
-		return false;
-
-	// ### Verify checksums and/or re-authenticate BOARD-CFG here
-
-	return true;
 }
 
 #endif /* !CONFIG_SPL_BUILD */
@@ -427,7 +593,6 @@ static int nest_level;
 static const char *ram_type;
 static const char *ram_timing;
 static basic_init_t basic_init_callback;
-static char board_id[MAX_DESCR_LEN];
 static struct fs_header_v1_0 one_fsh;	/* Buffer for one F&S header */
 #ifdef CONFIG_FS_SECURE_BOOT
 static void *final_load_addr = 0;
@@ -456,13 +621,6 @@ static int fs_image_init_dram(void)
 	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
 
 	return !fs_dram_init_common(p);
-}
-
-/* Store board_id and split into name and revision to ease board_id matching */
-static void fs_image_set_board_id(const char id[MAX_DESCR_LEN])
-{
-	memcpy(board_id, id, sizeof(board_id));
-	fs_image_set_board_id_compare(id);
 }
 
 /* State machine: Load next header in sub-image */
@@ -664,7 +822,8 @@ static void fs_image_handle_header(void)
 	case FSIMG_STATE_ANY:
 		if (fs_image_match(&one_fsh, "BOARD-ID", NULL)) {
 			/* Save ID and add job to load BOARD-CFG */
-			fs_image_set_board_id(one_fsh.param.descr);
+			fs_image_set_compare_id(one_fsh.param.descr);
+			fs_image_set_board_id();
 			jobs |= FSIMG_JOB_CFG;
 			fs_image_enter(size, state);
 			break;
@@ -690,7 +849,7 @@ static void fs_image_handle_header(void)
 		break;
 
 	case FSIMG_STATE_BOARD_CFG:
-		if (fs_image_match_board_id(&one_fsh, "BOARD-CFG")) {
+		if (fs_image_match_board_id(&one_fsh)) {
 #ifndef CONFIG_FS_SECURE_BOOT
 			memcpy(fs_image_get_cfg_addr(), &one_fsh, FSH_SIZE);
 			fs_image_copy(fs_image_get_cfg_addr() + FSH_SIZE, size);
@@ -796,6 +955,7 @@ static void fs_image_handle_image(void)
 	case FSIMG_STATE_BOARD_CFG:
 		/* We have our config, skip remaining configs */
 		debug("Got BOARD-CFG, ID=%s\n", board_id);
+		fs_image_board_cfg_set_board_rev(fs_image_get_cfg_addr());
 		jobs &= ~FSIMG_JOB_CFG;
 		fs_image_skip(fsimg->remaining);
 		break;
@@ -920,7 +1080,7 @@ static bool ready_to_move_header(void) {
 					(state == FSIMG_STATE_DRAM_TIMING) ||
 						(state == FSIMG_STATE_ATF) ||
 						(state == FSIMG_STATE_TEE) ||
-			(fs_image_match_board_id(&one_fsh, "BOARD-CFG")))) {
+			(fs_image_match_board_id(&one_fsh)))) {
 		return true;
 	}
 	return false;
@@ -943,7 +1103,7 @@ void move_image_and_validate(void) {
 	bool header = false;
 	uintptr_t test_addr = CONFIG_SPL_ATF_ADDR;
 
-	if(fs_image_match_board_id(&one_fsh, "BOARD-CFG"))
+	if(fs_image_match_board_id(&one_fsh))
 		header = true;
 	if(state == FSIMG_STATE_TEE)
 		test_addr = CONFIG_SPL_TEE_ADDR;
@@ -1186,7 +1346,7 @@ static int fs_image_loop(struct fs_header_v1_0 *cfg, unsigned int start,
 int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 			 basic_init_t basic_init)
 {
-	bool copy = secondary;
+	int copy, start_copy;
 	load_function_t load;
 	unsigned int offs[2];
 	unsigned int start;
@@ -1213,27 +1373,19 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 	}
 
 	/* Try both copies (second copy first if running on secondary SPL) */
+	start_copy = secondary ? 1 : 0;
+	copy = start_copy;
 	do {
-		start = copy ? offs[1] : offs[0];
+		start = offs[copy];
 
 		/* Try to load BOARD-CFG (normal load) */
-#ifdef CONFIG_FS_SECURE_BOOT
-		void *load_addr = (void*)CONFIG_SPL_ATF_ADDR;
-#else
-		void *load_addr = target;
-#endif
 		if (!load(start, FSH_SIZE, &one_fsh)
-		    && (fs_image_match(&one_fsh, "BOARD-CFG", NULL))
-		    && !load(start, fs_image_get_size(&one_fsh, true),
-			     load_addr))
+		    && fs_image_match(&one_fsh, "BOARD-CFG", NULL)
+		    && !load(start, fs_image_get_size(&one_fsh, true), target)
+		    && fs_image_is_ocram_cfg_valid())
  		{
-#ifdef CONFIG_FS_SECURE_BOOT
-			if (copy_if_valid((void *)CONFIG_FUS_BOARDCFG_ADDR,
-				(void *)CONFIG_SPL_ATF_ADDR,
-				CONFIG_SPL_ATF_ADDR + FSH_SIZE, state, true)) {
-				hang();
-			}
-#endif
+			fs_image_set_board_id_from_cfg();
+
 			/* basic_init == NULL means only load BOARD-CFG */
 			if (!basic_init)
 				return 0;
@@ -1245,8 +1397,8 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 		}
 
 		/* No, did not work, try other copy */
-		copy = !copy;
-	} while (copy != secondary);
+		copy = 1 - copy;
+	} while (copy != start_copy);
 
 	return -ENOENT;
 }
