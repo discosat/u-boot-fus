@@ -501,9 +501,14 @@ void board_init_f(ulong dummy)
 	enable_tzc380();
 
 	/* Determine if we are running on primary or secondary SPL */
+#if 1
 	src = (struct src *)SRC_BASE_ADDR;
 	if (readl(&src->gpr10) & (1 << 30))
 		secondary = true;
+#else
+	/* Will also work on i.MX8MM, but is slower */
+	secondary = is_imx8m_running_secondary_boot_image();
+#endif
 
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
@@ -524,6 +529,10 @@ void board_init_f(ulong dummy)
 		/* Load the system from USB with Serial Download Protocol */
 		fs_image_all_sdp(need_cfg, basic_init);
 	}
+
+	/* If running on secondary SPL, mark BOARD-CFG to pass info to U-Boot */
+	if (secondary)
+		fs_image_mark_secondary();
 
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);

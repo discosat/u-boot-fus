@@ -14,7 +14,7 @@
  * throughout of U-Boot. It is stored in the global_data, so keep it as small
  * as possible.
  */
-
+#define CI_FLAGS_SECONDARY BIT(0)	/* Running from secondary SPL */
 struct cfg_info {
 	enum boot_device boot_dev;
 	u8 board_type;
@@ -22,6 +22,7 @@ struct cfg_info {
 	u32 features;
 	u32 dram_size;
 	u32 dram_chips;
+	u32 flags;			/* See CI_FLAGS_* above */
 };
 
 #endif /* !__FS_CFG_INFO_H */

@@ -546,6 +546,30 @@ bool fs_image_find_cfg_in_ocram(void)
 	return false;
 }
 
+/*
+ * Return if currently running from Secondary SPL. This function is called
+ * early in boot_f phase of U-Boot and must not access any variables.
+ */
+bool fs_image_is_secondary(void)
+{
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
+	u8 *size = (u8 *)&fsh->info.file_size_low;
+
+	/*
+	 * We know that a BOARD-CFG is smaller than 64KiB. So only the first
+	 * two bytes of the file_size are actually used. Especially the 8th
+	 * byte is definitely 0. SPL uses this byte to indicate if it was
+	 * running from Primary (0) or Secondary SPL (<>0). Take this info and
+	 * reset the byte to 0 before validating the BOARD-CFG.
+	 */
+	if (size[7]) {
+		size[7] = 0;
+		return true;
+	}
+
+	return false;
+}
+
 #endif /* !CONFIG_SPL_BUILD */
 
 /* ------------- Functions only in SPL, not U-Boot ------------------------- */
@@ -608,6 +632,23 @@ static struct fsimg {
 } fsimg_stack[MAX_NEST_LEVEL];
 
 #define reloc(addr, offs) addr = ((void *)addr + (unsigned long)offs)
+
+/* Mark BOARD_CFG to tell U-Boot that we are running on Secondary SPL */
+void fs_image_mark_secondary(void)
+{
+	struct fs_header_v1_0 *fsh = fs_image_get_cfg_addr();
+	u8 *size = (u8 *)&fsh->info.file_size_low;
+
+	/*
+	 * We know that a BOARD-CFG is smaller than 64KiB. So only the first
+	 * two bytes of the file_size are actually used. Especially the 8th
+	 * byte is definitely 0. SPL uses this byte to pass the info if
+	 * running from Primary (0) or Secondary SPL (<>0) to U-Boot. Please
+	 * note that this info is not included in the CRC32 and signature, so
+	 * U-Boot has to reset this byte to 0 before validating the BOARD-CFG.
+	 */
+	size[7] = 0xff;
+}
 
 /* Relocate dram_timing_info structure and initialize DRAM */
 static int fs_image_init_dram(void)

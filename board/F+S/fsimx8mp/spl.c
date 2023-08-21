@@ -515,6 +515,10 @@ void board_init_f(ulong dummy)
 		fs_image_all_sdp(need_cfg, basic_init);
 	}
 
+	/* If running on secondary SPL, mark BOARD-CFG to pass info to U-Boot */
+	if (secondary)
+		fs_image_mark_secondary();
+
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);
 }

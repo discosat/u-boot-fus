@@ -121,6 +121,7 @@ static void fs_setup_cfg_info(void)
 	struct cfg_info *info;
 	const char *tmp;
 	unsigned int features;
+	u32 flags = 0;
 
 	/*
 	 * If the BOARD-CFG cannot be found in OCRAM or it is corrupted, this
@@ -130,6 +131,14 @@ static void fs_setup_cfg_info(void)
 	 */
 	if (!fs_image_find_cfg_in_ocram())
 		hang();
+
+	/*
+	 * The flag if running from Primary or Secondary SPL is misusing a
+	 * byte in the BOARD-CFG in OCRAM, so we have to remove this before
+	 * validating the BOARD-CFG.
+	 */
+	if (fs_image_is_secondary())
+		flags |= CI_FLAGS_SECONDARY;
 
 	/* Make sure that the BOARD-CFG in OCRAM is still valid */
 	if (!fs_image_is_ocram_cfg_valid())
@@ -157,6 +166,7 @@ static void fs_setup_cfg_info(void)
 							"dram-chips", 1);
 	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 						       "dram-size", 0x400);
+	info->flags = flags;
 
 	features = 0;
 	if (fdt_getprop(fdt, offs, "have-nand", NULL))

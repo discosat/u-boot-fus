@@ -113,6 +113,9 @@ struct sb_info {
 
 #ifndef CONFIG_SPL_BUILD
 
+/* Return if currently running from Secondary SPL. */
+bool fs_image_is_secondary(void);
+
 /* Return the current BOARD-ID */
 const char *fs_image_get_board_id(void);
 
@@ -132,6 +135,9 @@ bool fs_image_find_cfg_in_ocram(void);
 #ifdef CONFIG_SPL_BUILD
 
 typedef void (*basic_init_t)(void);
+
+/* Mark BOARD_CFG to tell U-Boot that we are running on Secondary SPL */
+void fs_image_mark_secondary(void);
 
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
 void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init);

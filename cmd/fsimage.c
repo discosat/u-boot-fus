@@ -644,6 +644,22 @@ static int fs_image_confirm(void)
 	return yes;
 }
 
+/* Determine first copy to modify depending on which SPL copy we booted */
+static int fs_image_get_start_copy(void)
+{
+	int start_copy;
+
+	if (fs_board_get_cfg_info()->flags & CI_FLAGS_SECONDARY)
+		start_copy = 0;
+	else
+		start_copy = 1;
+
+	printf("Booted from %s SPL, so starting with copy %d\n",
+	       start_copy ? "Primary" : "Secondary", start_copy);
+
+	return start_copy;
+}
+
 static int fs_image_get_boot_dev(void *fdt, enum boot_device *boot_dev,
 				 const char **boot_dev_name)
 {
@@ -1777,7 +1793,7 @@ static int fs_image_save_nboot_nand(struct flash_info *fi,
 				    struct region_info *spl_ri)
 {
 	int failed;
-	int copy;
+	int copy, start_copy;
 	u32 i, bad_blocks;
 	struct storage_info bcb_si;
 	struct region_info bcb_ri;
@@ -1926,46 +1942,75 @@ static int fs_image_save_nboot_nand(struct flash_info *fi,
 	}
 
 	/*
-	 * Save sequence:
-	 *  1. Invalidate NBOOT region. by erasing the region. This immediately
-	 *     invalidates the F&S header of the BOARD-CFG so that this copy
-	 *     will not be loaded anymore. If interrupted here, any copy of
-	 *     (old) SPL will use the second (old) copy of NBOOT that matches
-	 *     the old SPL.
-	 *  2. Write all of NBOOT but the first page. If interrupted, the
-	 *     BOARD-CFG ist still invalid and the same happens as in 1.
-	 *  3. Write first page of NBOOT. This adds the F&S header and makes
-	 *     NBOOT valid.
-	 *  4. Erase SPL region. This immediately invalidates SPL (IVT).
-	 *     If interrupted here, the second (old) copy of SPL will use the
-	 *     second (old) copy of the BOARD-CFG that matches the old SPL.
-	 *     This assumes that the second copy is tried first if booting from
-	 *     the secondary SPL image.
-	 *  5. Write all of SPL but the first page. If interrupted here, SPL is
-	 *     still invalid and the same happens as in 4.
-	 *  6. Write the first page of SPL. This adds the IVT and makes SPL
-	 *     valid. However BCB may still be pointing somewhere else.
-	 *  7. Erase BCB region. If interrupted here, the same happens as in 4.
-	 *  8. Write DBBT and DBBT-DATA. If interrupted here, the same happens
-	 *     as in 4.
-	 *  9. Write FCB. This validates the BCB. If interrupted after that,
-	 *     the first (new) copy of SPL will use the first (new) copy of
-	 *     NBOOT that matches the new SPL.
-	 * 10. Update the second copies in the same sequence.
+	 * When saving NBoot, start with "the other" copy first, i.e. if
+	 * running form Primary SPL, update the Secondary copy first and if
+	 * running from Secondary SPL, update the Primary copy first. The
+	 * reason is that the current copy is apparently working, but the
+	 * other copy may very well be broken. So it makes sense to first
+	 * update the broken version and repair it by doing so, before
+	 * touching the working version.
 	 *
-	 * Remark:
-	 * - There is a small risk that an old SPL will load a new NBOOT copy,
-	 *   e.g. if interrupted between 3. and 4. However this is only a real
-	 *   problem if new NBOOT and old SPL differ significantly. Typically
-	 *   an old SPL can also handle new NBOOT and vice versa.
+	 * For example if currently running on the Secondary copy, this means
+	 * that the Primary copy is damaged. So if the Secondary copy was
+	 * updated first and this failed for some reason, then both copies
+	 * would be non-functional and the board would be bricked. But if the
+	 * damaged Primary copy is updated first and this succeeds, then the
+	 * Primary copy is repaired and provides a working fallback when
+	 * writing the Secondary copy afterwards.
+	 *
+	 * Start with the "other" copy:
+	 *
+	 *  1. Invalidate the "other" NBOOT region by erasing the region. This
+	 *     immediately invalidates the F&S header of the BOARD-CFG so that
+	 *     this copy will definitely not be loaded anymore.
+	 *  2. Write all of the "other" NBOOT but the first block. If
+	 *     interrupted, the BOARD-CFG ist still invalid and will not be
+	 *     loaded.
+	 *  3. Write first block of the "other" NBOOT. This adds the F&S
+	 *     header and makes NBOOT valid.
+	 *  4. Erase the "other" SPL region. This immediately invalidates SPL
+	 *     (IVT) so that this copy will definitely not be loaded anymore.
+	 *  5. Write all of the "other" SPL but the first block. If
+	 *     interrupted, SPL is still invalid and will not be loaded.
+	 *  6. Write the first block of the "other" SPL. This adds the IVT and
+	 *     makes SPL valid.
+	 *  7. Erase the "other" BCB region.
+	 *  8. Write DBBT and DBBT-DATA of the "other" BCB.
+	 *  9. Write FCB of the "other" BCB. This validates the BCB.
+	 *
+	 * If interrupted somewhere in steps 1 to 6, the "current" copy is
+	 * still available and will continue to boot. After step 6, the
+	 * "other" copy is fully functional. So if the "other" copy is the
+	 * Primary copy, it will be booted after Step 6 again. (Unless the
+	 * start address of new SPL has changed so that the old BCB entries do
+	 * not point to it anymore. In that case, the Primary copy will be
+	 * started after step 9 again.)
+	 *
+	 * 10. Update the "current" NBOOT in the same sequence.
+	 * 11. Update the "current" SPL in the same sequence.
+	 * 12. Update the "current" BCB in the same sequence.
+	 *
+	 * The worst case happens if interrupted in step 10 and if "current"
+	 * is the Primary copy. Then the "current" (=Primary) but still old SPL
+	 * will boot, but fails to load the "current" (=Primary) NBOOT,
+	 * because it is invalid right now. So it will fall back to load the
+	 * "other" (=Secondary) NBOOT, which is the new version already. This
+	 * may or may not work, depending on how compatible the old and new
+	 * versions are.
+	 *
+	 * If interrupted in step 11, the "other" (=Secondary) copy is loaded,
+	 * which is the new version already. This is OK. If interrupted in
+	 * step 12, the "current" (=Primary) copy is loaded, but then SPL and
+	 * NBOOT are also both the new version, so this is OK, too.
 	 *
 	 * ### TODO:
-	 * - Step 4 assumes that the second copy is tried first if booting
-	 *   from the secondary SPL image, but currently this is not true on
-	 *   i.MX8MN/MP/X because we cannot detect this on these architectures.
+	 * The sequence above assumes that SPL can detect correctly from which
+	 * copy it was booting. Currently this is not true on i.MX8MN/MP/X.
 	 */
 	failed = 0;
-	for (copy = 0; copy < 2; copy++) {
+	start_copy = fs_image_get_start_copy();
+	copy = start_copy;
+	do {
 		printf("\nSaving copy %d to %s:\n", copy, fi->devname);
 		if (fs_image_save_region(fi, copy, nboot_ri))
 			failed |= BIT(copy);
@@ -1975,7 +2020,8 @@ static int fs_image_save_nboot_nand(struct flash_info *fi,
 
 		if (fs_image_save_region(fi, copy, &bcb_ri))
 			failed |= BIT(copy);
-	}
+		copy = 1 - copy;
+	} while (copy != start_copy);
 
 	return failed;
 }
@@ -2360,47 +2406,77 @@ static int fs_image_save_nboot_mmc(struct flash_info *fi,
 				   struct region_info *spl_ri)
 {
 	int failed;
-	int copy;
+	int copy, start_copy;
 
 	/*
-	 * Save sequence:
-	 * 1. Invalidate NBOOT region by overwriting the first block. This
-	 *    immediately invalidates the F&S header of the BOARD-CFG so that
-	 *    this copy will not be loaded anymore. If interrupted here, any
-	 *    copy of (old) SPL will use the second (old) copy of NBOOT that
-	 *    matches the old SPL.
-	 * 2. Write all of NBOOT but the first block. If interrupted, the
-	 *    BOARD-CFG ist still invalid and the same happens as in 1.
-	 * 3. Write first block of NBOOT. This adds the F&S header and makes
-	 *    NBOOT valid.
-	 * 4. Invalidate SPL region. This immediately invalidates SPL (IVT).
-	 *    If interrupted here, the second (old) copy of SPL will use the
-	 *    second (old) copy of the BOARD-CFG that matches the old SPL.
-	 *    This assumes that the second copy is tried first if booting from
-	 *    the secondary SPL image.
-	 * 5. Write all of SPL but the first block. If interrupted here, SPL
-	 *    is still invalid and the same happens as in 4.
-	 * 6. Write the first block of SPL. This adds the IVT and makes SPL
-	 *    valid. If interrupted after that, the first (new) copy of SPL
-	 *    will use the first (new) copy of NBOOT that matches the new SPL.
-	 *    If for some reason the first copy of SPL can not be loaded, the
-	 *    system boots the old version from the second copy.
-	 * 7. Update the second copies in the same sequence.
-	 * 8. On i.MX8MM: Update the information block for the secondary SPL.
+	 * When saving NBoot, start with "the other" copy first, i.e. if
+	 * running form Primary SPL, update the Secondary copy first and if
+	 * running from Secondary SPL, update the Primary copy first. The
+	 * reason is that the current copy is apparently working, but the
+	 * other copy may very well be broken. So it makes sense to first
+	 * update the broken version and repair it by doing so, before
+	 * touching the working version.
 	 *
-	 * Remark:
-	 * - There is a small risk that an old SPL will load a new NBOOT copy,
-	 *   e.g. if interrupted between 3. and 4. However this is only a real
-	 *   problem if new NBOOT and old SPL differ significantly. Typically
-	 *   an old SPL can also handle new NBOOT and vice versa.
+	 * For example if currently running on the Secondary copy, this means
+	 * that the Primary copy is damaged. So if the Secondary copy was
+	 * updated first and this failed for some reason, then both copies
+	 * would be non-functional and the board would be bricked. But if the
+	 * damaged Primary copy is updated first and this succeeds, the
+	 * Primary copy is repaired and provides a working fallback when
+	 * writing the Secondary copy afterwards.
+	 *
+	 * Start with the "other" copy:
+	 *
+	 *  1. Invalidate the "other" NBOOT region by overwriting the first
+	 *     block. This immediately invalidates the F&S header of the
+	 *     BOARD-CFG so that this copy will definitely not be loaded
+	 *     anymore.
+	 *  2. Write all of the "other" NBOOT but the first block. If
+	 *     interrupted, the BOARD-CFG ist still invalid and will not be
+	 *     loaded.
+	 *  3. Write first block of the "other" NBOOT. This adds the F&S
+	 *     header and makes NBOOT valid.
+	 *  4. Invalidate the "other" SPL region. This immediately invalidates
+	 *     SPL (IVT) so that this copy will definitely not be loaded
+	 *     anymore.
+	 *  5. Write all of the "other" SPL but the first block. If
+	 *     interrupted, SPL is still invalid and will not be loaded.
+	 *  6. Write the first block of the "other" SPL. This adds the IVT and
+	 *     makes SPL valid.
+	 *  7. On i.MX8MM: If booting from User partition and the "other" copy
+	 *     is the Secondary copy, update the information block for the
+	 *     secondary SPL.
+	 *
+	 * If interrupted somewhere in steps 1 to 7, the "current" copy is
+	 * still available and will continue to boot. After step 6, the
+	 * "other" copy is fully functional. So if the "other" copy is the
+	 * Primary copy, it will be booted after Step 6 again.
+	 *
+	 *  8. Update the "current" NBOOT in the same sequence.
+	 *  9. Update the "current" SPL in the same sequence.
+	 * 10. On i.MX8MM: If booting from User partition and the "current" copy
+	 *     is the Secondary copy: Update the information block for the
+	 *     secondary SPL.
+	 *
+	 * The worst case happens if interrupted in step 8 and if "current" is
+	 * the Primary copy. Then the "current" (=Primary) but still old SPL
+	 * will boot, but fails to load the "current" (=Primary) NBOOT,
+	 * because it is invalid right now. So it will fall back to load the
+	 * "other" (=Secondary) NBOOT, which is the new version already. This
+	 * may or may not work, depending on how compatible the old and new
+	 * versions are.
+	 *
+	 * If interrupted in step 9, the "other" (=Secondary) copy is loaded,
+	 * which is the new version already. This is OK.
 	 *
 	 * ### TODO:
-	 * - Step 4 assumes that the second copy is tried first if booting
-	 *   from the secondary SPL image, but currently this is not true on
-	 *   i.MX8MN/MP/X because we cannot detect this on these architectures.
+	 * The sequence above assumes that SPL can detect correctly from which
+	 * copy it was booting. Currently this is not true on i.MX8MN/MP/X.
 	 */
 	failed = 0;
-	for (copy = 0; copy < 2; copy++) {
+	start_copy = fs_image_get_start_copy();
+	copy = start_copy;
+	do {
 		printf("\nSaving copy %d to %s:\n", copy, fi->devname);
 		if (fs_image_save_region(fi, copy, nboot_ri))
 			failed |= BIT(copy);
@@ -2413,7 +2489,8 @@ static int fs_image_save_nboot_mmc(struct flash_info *fi,
 		if (fs_image_write_secondary_table(fi, copy, spl_ri->si))
 			failed = BIT(copy);
 #endif
-	}
+		copy = 1 - copy;
+	} while (copy != start_copy);
 
 	return failed;
 }
@@ -2532,7 +2609,7 @@ static int fsimage_save_uboot(ulong addr, bool force)
 	struct flash_info fi;
 	struct nboot_info ni;
 	int failed;
-	int copy;
+	int copy, start_copy;
 	unsigned int flags;
 	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
 
@@ -2556,11 +2633,14 @@ static int fsimage_save_uboot(ulong addr, bool force)
 
 	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
 	failed = 0;
-	for (copy = 0; copy < 2; copy++) {
+	start_copy = fs_image_get_start_copy();
+	copy = start_copy;
+	do {
 		printf("\nSaving copy %d to %s:\n", copy, fi.devname);
 		if (fs_image_save_region(&fi, copy, &ri))
 			failed |= BIT(copy);
-	}
+		copy = 1 - copy;
+	} while (copy != start_copy);
 
 	fs_image_put_flash_info(&fi);
 
