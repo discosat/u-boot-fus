@@ -20,10 +20,6 @@
 #ifdef CONFIG_FS_BOARD_CFG
 #include "../../board/F+S/common/fs_image_common.h"
 #endif
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/checkboot.h>
-#endif
-
 
 static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
@@ -105,24 +101,24 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 	extra_offset = spl_check_fs_header(header);
 	if (extra_offset < 0)
 		return -1;
-	header = (void *)header + extra_offset;
-#endif
 
-#ifdef CONFIG_FS_SECURE_BOOT
 	/* In case of signed U-Boot, load U-Boot image completely */
-	u32 size = secure_spl_get_uboot_size(header);
-	if (size) {
-		void *addr = spl_get_load_buffer(0, bd->blksz);
-		u32 blocks = (size + bd->blksz - 1) / bd->blksz;
+	if ((extra_offset > 0) && fs_image_is_signed((void *)header)) {
+		u32 size;
+		void *addr = fs_image_get_ivt_info((void *)header, &size);
 
-		count = blk_dread(bd, sector, blocks, addr);
-		if (count != blocks) {
-			ret = -EIO;
-			goto end;
+		if (addr && size) {
+			u32 blocks = (size + bd->blksz - 1) / bd->blksz;
+			count = blk_dread(bd, sector, blocks, addr);
+			if (count != blocks) {
+				ret = -EIO;
+				goto end;
+			}
 		}
-		return secure_spl_load_simple_fit(spl_image, addr, size,
-						  extra_offset);
+		return secure_spl_load_simple_fit(spl_image, addr, size);
 	}
+
+	header = (void *)header + extra_offset;
 #endif
 
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&

@@ -294,13 +294,9 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 
 #ifdef CONFIG_FS_BOARD_CFG
 int spl_check_fs_header(void *header);
-#endif
-
-#ifdef CONFIG_FS_SECURE_BOOT
-u32 secure_spl_get_uboot_size(void *header);
 
 int secure_spl_load_simple_fit(struct spl_image_info *spl_image, void *uboot,
-			       u32 size, int extra_offset);
+			       u32 size);
 #endif
 
 #define SPL_COPY_PAYLOAD_ONLY	1

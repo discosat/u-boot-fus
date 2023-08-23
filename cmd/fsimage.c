@@ -755,46 +755,35 @@ static int fs_image_check_all_crc32(struct fs_header_v1_0 *fsh)
 }
 
 /* Validate a signed image; Return 0: OK, <0: Error */
-static int fs_image_validate_signed(struct ivt *ivt)
+static int fs_image_validate_signed(struct fs_header_v1_0 *fsh)
 {
-#ifdef CONFIG_FS_SECURE_BOOT
-	struct boot_data *boot;
-	u32 self;
-	u32 length;
+	struct fs_header_v1_0 *validate_addr;
+	u32 size;
 
-	/* Check that boot data entry points directly behind IVT */
-	if (ivt->boot != ivt->self + IVT_TOTAL_LENGTH) {
-		puts("\nError: Invalid image, bad IVT, refusing to save\n");
+	validate_addr = fs_image_get_ivt_info(fsh, &size);
+	if (!validate_addr || !size) {
+		puts("Error: Bad IVT, validation impossible\n");
 		return -EINVAL;
 	}
-
-	boot = (struct boot_data *)(ivt + 1);
-	self = (ivt->self);
-	length = boot->length;
 
 	/* Copy to verification address and check signature */
-	memcpy((void *)(ulong)self, ivt, length);
-	if (imx_hab_authenticate_image(self, length, 0)) {
-		puts("\nError: Invalid signature, refusing to save\n");
-		return -EINVAL;
+	debug("Copy 0x%x bytes from 0x%08lx to validation address 0x%08lx\n",
+	      size, (ulong)fsh, (ulong)validate_addr);
+	memcpy(validate_addr, fsh, size);
+	if (fs_image_is_valid_signature(validate_addr)) {
+		puts("Error: Invalid signature, refusing to save\n");
+		return -EILSEQ;
 	}
 
-	puts(" (signature OK)\n");
+	puts("Signature OK\n");
 
 	return 0;
-#else
-	printf("\nError: Cannot authenticate, refusing to save\n"
-	       "You need U-Boot with CONFIG_FS_SECURE_BOOT enabled for this\n");
-
-	return -EINVAL;
-#endif
 }
 
 /* Validate an image, either check signature or CRC32; 0: OK, <0: Error */
 static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 			     const char *descr, ulong addr)
 {
-	struct ivt *ivt;
 	int err;
 
 	if (!fs_image_match(fsh, type, descr)) {
@@ -803,12 +792,10 @@ static int fs_image_validate(struct fs_header_v1_0 *fsh, const char *type,
 		return -EINVAL;
 	}
 
-	ivt = (struct ivt *)(fsh + 1);
+	if (fs_image_is_signed(fsh)) {
+		printf("Found signed %s image at 0x%08lx\n", type, addr);
 
-	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		printf("Found signed %s image at 0x%08lx", type, addr);
-
-		return fs_image_validate_signed(ivt);
+		return fs_image_validate_signed(fsh);
 	}
 
 	printf("Found unsigned %s image at 0x%08lx ", type, addr);
@@ -1544,8 +1531,14 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 			err = fi->ops->read(fi, offs, size, lim, 0, sub->img);
 			if (!err)
 				err = fs_image_get_size_from_fit(sub, &size);
-		} else
+		} else {
 			err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
+#ifdef CONFIG_IMX8MM
+			/* Remove offset */
+			if (sub->flags & SUB_IS_SPL)
+				size -= 0x400;
+#endif
+		}
 		if (err)
 			return err;
 	}
@@ -2225,8 +2218,14 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 		err = fi->ops->read(fi, offs, size, lim, 0, sub->img);
 		if (!err)
 			err = fs_image_get_size_from_fit(sub, &size);
-	} else
+	} else {
 		err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
+#ifdef CONFIG_IMX8MM
+		/* Remove virtual IVT offset */
+		if (sub->flags & SUB_IS_SPL)
+			size -= 0x400;
+#endif
+	}
 	if (err)
 		return err;
 

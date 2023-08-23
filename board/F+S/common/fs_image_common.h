@@ -90,8 +90,17 @@ void fs_image_set_compare_id(const char id[MAX_DESCR_LEN]);
 /* Set the board_id and compare_id from the BOARD-CFG */
 void fs_image_set_board_id_from_cfg(void);
 
+/* Check if the F&S image is signed (followed by an IVT) */
+bool fs_image_is_signed(struct fs_header_v1_0 *fsh);
+
+/* Check IVT integrity of F&S image and return size and validation address */
+void *fs_image_get_ivt_info(struct fs_header_v1_0 *fsh, u32 *size);
+
+/* Validate a signed image; it has to be at the validation address */
+bool fs_image_is_valid_signature(struct fs_header_v1_0 *fsh);
+
 /* Verify CRC32 of given image */
-int fs_image_check_crc32(struct fs_header_v1_0 *fsh);
+int fs_image_check_crc32(const struct fs_header_v1_0 *fsh);
 
 /* Make sure that BOARD-CFG in OCRAM is valid */
 bool fs_image_is_ocram_cfg_valid(void);

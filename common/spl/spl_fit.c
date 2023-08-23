@@ -19,11 +19,7 @@
 
 #ifdef CONFIG_FS_BOARD_CFG
 #include "../../board/F+S/common/fs_image_common.h"
-#endif
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/checkboot.h>
-#include <hang.h>
 #endif
 
 
@@ -807,41 +803,27 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 int spl_check_fs_header(void *header)
 {
 	struct fs_header_v1_0 *fsh = header;
+	bool is_signed;
 
 	if (!fs_image_is_fs_image(fsh))
 		return 0;
 
-	if (fs_image_match(fsh, "U-BOOT", fs_image_get_arch())) {
-		puts("Loading F&S U-Boot...\n");
-		return FSH_SIZE;
+	if (!fs_image_match(fsh, "U-BOOT", fs_image_get_arch())) {
+		puts("Not a valid F&S U-Boot image\n");
+		return -1;
 	}
 
-	puts("Not a valid F&S U-Boot image\n");
-
-	return -1;
-}
+	is_signed = fs_image_is_signed(fsh);
+#ifdef CONFIG_FS_SECURE_BOOT
+	if (!is_signed && imx_hab_is_enabled()) {
+		printf("Error: Unsigned U-Boot on closed board!!\n");
+		return -1;
+	}
 #endif
 
-#ifdef CONFIG_FS_SECURE_BOOT
-/* Return 0 on unsigned U-Boot, size on signed U-Boot */
-u32 secure_spl_get_uboot_size(void *header)
-{
-	struct ivt *ivt = (struct ivt *)header;
+	printf("Loading %ssigned F&S U-Boot...\n", is_signed ? "" : "un");
 
-	if (ivt->hdr.magic == IVT_HEADER_MAGIC) {
-		struct boot_data *boot = (struct boot_data *)(ulong)(ivt->boot);
-
-		puts("Found signed U-Boot\n");
-		return boot->length;
-	}
-	if (imx_hab_is_enabled()){
-		printf("ERROR: UNSIGNED U-BOOT ON CLOSED BOARD!!\n");
-		hang();
-	}
-
-	puts("Found unsigned U-Boot\n");
-
-	return 0;
+	return FSH_SIZE;
 }
 
 static ulong secure_load_read(struct spl_load_info *load, ulong sector,
@@ -853,13 +835,13 @@ static ulong secure_load_read(struct spl_load_info *load, ulong sector,
 }
 
 int secure_spl_load_simple_fit(struct spl_image_info *spl_image, void *uboot,
-			       u32 size, int extra_offset)
+			       u32 size)
 {
 	struct spl_load_info load;
 
-	if (imx_hab_authenticate_image((ulong)uboot, size, extra_offset)){
-		printf("ERROR: INVALID SIGNATURE\n");
-		hang();
+	if (!uboot || !size || !fs_image_is_valid_signature(uboot)) {
+		printf("Error: Invalid signature\n");
+		return -1;
 	}
 
 	/*
@@ -876,7 +858,7 @@ int secure_spl_load_simple_fit(struct spl_image_info *spl_image, void *uboot,
 	memset(&load, 0, sizeof(load));
 	load.bl_len = 1;
 	load.read = secure_load_read;
-	load.extra_offset = extra_offset + HAB_HEADER;
+	load.extra_offset = FSH_SIZE + HAB_HEADER;
 
 	return spl_load_simple_fit(spl_image, &load, (ulong)uboot,
 				   uboot + load.extra_offset);

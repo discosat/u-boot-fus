@@ -35,12 +35,8 @@
 #include <imximage.h>
 #include <watchdog.h>
 
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/boot_mode.h>
+#ifdef CONFIG_FS_BOARD_CFG
 #include "../../../board/F+S/common/fs_image_common.h"
-#include <asm/mach-imx/checkboot.h>
-
-#define SPL_BUFFER_ADDR ((void*)0x401fffc0)
 #endif
 
 
@@ -721,6 +717,33 @@ static ulong search_fit_header(ulong p, int size)
 
         return 0;
 }
+
+static int get_extra_offset(void *header, struct spl_image_info *spl_image)
+{
+	int extra_offset = 0;
+
+#ifdef CONFIG_FS_BOARD_CFG
+	/* Allow U-Boot image to be prepended with F&S header */
+	extra_offset = spl_check_fs_header(header);
+	if (extra_offset < 0)
+		panic("Failed to jump to U-Boot\n");
+
+	/* In case of signed U-Boot, load U-Boot image completely */
+	if ((extra_offset > 0) && fs_image_is_signed(header)) {
+		u32 size;
+		void *addr;
+
+		addr = fs_image_get_ivt_info((void *)header, &size);
+		if (addr && size)
+			memcpy(addr, header, size);
+		if (secure_spl_load_simple_fit(spl_image, addr, size) < 0)
+			panic("Failed to jump to U-Boot\n");
+		jump_to_image_no_args(spl_image);
+	}
+#endif
+
+	return extra_offset;
+}
 #endif
 
 static void sdp_handle_in_ep(void)
@@ -779,29 +802,9 @@ static void sdp_handle_in_ep(void)
 			struct image_header *header = (struct image_header *)
 				(ulong)(sdp_func->jmp_address);
 			struct spl_image_info spl_image = {};
-			int extra_offset = 0;
+			int extra_offset = get_extra_offset(header, &spl_image);
 
-#ifdef CONFIG_FS_BOARD_CFG
-			/* Allow U-Boot image to be prepended with F&S header */
-			extra_offset = spl_check_fs_header(header);
-			if (extra_offset < 0)
-				panic("Failed to jump to U-Boot\n");
 			header = (void *)header + extra_offset;
-#endif
-
-#ifdef CONFIG_FS_SECURE_BOOT
-			/* In case of signed U-Boot, handle differently */
-			u32 size = secure_spl_get_uboot_size(header);
-			if (size) {
-				void *addr = spl_get_load_buffer(0, 0);
-				void *src = (void*)(ulong)sdp_func->jmp_address;
-
-				memcpy(addr, src, size);
-				secure_spl_load_simple_fit(&spl_image, addr,
-							   size, extra_offset);
-				jump_to_image_no_args(&spl_image);
-			}
-#endif
 
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
 				sdp_func->jmp_address = (u32)search_fit_header(

@@ -17,9 +17,6 @@
 #ifdef CONFIG_FS_BOARD_CFG
 #include "../../board/F+S/common/fs_image_common.h"
 #endif
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/checkboot.h>
-#endif
 
 uint32_t __weak spl_nand_get_uboot_raw_page(void)
 {
@@ -83,21 +80,20 @@ static int spl_nand_load_element(struct spl_image_info *spl_image,
 	extra_offset = spl_check_fs_header(header);
 	if (extra_offset < 0)
 		return -ENOENT;
-	header = (void *)header + extra_offset;
-#endif
 
-#ifdef CONFIG_FS_SECURE_BOOT
 	/* In case of signed U-Boot, load U-Boot image completely */
-	u32 size = secure_spl_get_uboot_size(header);
-	if (size) {
-		void *addr = spl_get_load_buffer(0, sizeof(*header));
+	if ((extra_offset > 0) && fs_image_is_signed((void *)header)) {
+		u32 size;
+		void *addr = fs_image_get_ivt_info((void *)header, &size);
 
-		err = nand_spl_load_image(offset, size, addr);
-		if (err)
-			return err;
-		return secure_spl_load_simple_fit(spl_image, addr, size,
-						  extra_offset);
+		if (addr && size) {
+			err = nand_spl_load_image(offset, size, addr);
+			if (err)
+				return err;
+		}
+		return secure_spl_load_simple_fit(spl_image, addr, size);
 	}
+	header = (void *)header + extra_offset;
 #endif
 
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
