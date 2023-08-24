@@ -821,7 +821,7 @@ int spl_check_fs_header(void *header)
 	}
 #endif
 
-	printf("Loading %ssigned F&S U-Boot...\n", is_signed ? "" : "un");
+	debug("Loading %ssigned F&S U-Boot...\n", is_signed ? "" : "un");
 
 	return FSH_SIZE;
 }

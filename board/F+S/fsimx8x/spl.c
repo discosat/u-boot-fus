@@ -195,6 +195,8 @@ static void basic_init(void)
 	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
 	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
 
+	printf("BOARD-ID: %s\n", fs_image_get_board_id());
+
 	/* Get U-Boot offset */
 #ifdef CONFIG_FS_UPDATE_SUPPORT
 	index = 0;			/* ### TODO: Select slot A or B */
@@ -327,7 +329,7 @@ void spl_board_init(void)
 		restore_boot_params();
 	}
 #endif
-	puts("Normal Boot\n");
+	debug("Normal Boot\n");
 }
 
 /* Return the sector number where U-Boot starts in eMMC (User HW partition) */

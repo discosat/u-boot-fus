@@ -84,6 +84,9 @@ bool fs_image_match(const struct fs_header_v1_0 *fsh,
 /* Check id, return also true if revision is less than revision of compare_id */
 bool fs_image_match_board_id(struct fs_header_v1_0 *fsh);
 
+/* Return the current BOARD-ID */
+const char *fs_image_get_board_id(void);
+
 /* Set the compare_id that will be used in fs_image_match_board_id() */
 void fs_image_set_compare_id(const char id[MAX_DESCR_LEN]);
 
@@ -124,9 +127,6 @@ struct sb_info {
 
 /* Return if currently running from Secondary SPL. */
 bool fs_image_is_secondary(void);
-
-/* Return the current BOARD-ID */
-const char *fs_image_get_board_id(void);
 
 /* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
 void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh);

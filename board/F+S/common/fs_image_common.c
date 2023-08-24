@@ -485,6 +485,12 @@ void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh)
 	*pcs = crc32(0, (uchar *)cfg_fsh, fs_image_get_size(cfg_fsh, true));
 }
 
+/* Return the current BOARD-ID */
+const char *fs_image_get_board_id(void)
+{
+	return board_id;
+}
+
 /* Store current compare_id as board_id */
 static void fs_image_set_board_id(void)
 {
@@ -575,12 +581,6 @@ bool fs_image_is_ocram_cfg_valid(void)
 /* ------------- Functions only in U-Boot, not SPL ------------------------- */
 
 #ifndef CONFIG_SPL_BUILD
-
-/* Return the current BOARD-ID */
-const char *fs_image_get_board_id(void)
-{
-	return board_id;
-}
 
 /*
  * Return address of board configuration in OCRAM; search for it if not
