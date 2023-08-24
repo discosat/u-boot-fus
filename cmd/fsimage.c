@@ -235,7 +235,7 @@ struct flash_info {
 	u8 *temp;			/* Buffer for one NAND page/MMC block */
 	unsigned int temp_size;		/* Size of temp buffer */
 	unsigned int base_offs;		/* Offset where temp will be written */
-	unsigned int write_pos;		/* Write position within temp */
+	unsigned int write_pos;		/* temp contains data up to this pos */
 	unsigned int bb_extra_offs;	/* Extra offset due to bad blocks */
 	u8 temp_fill;			/* Default value for temp buffer */
 	enum boot_device boot_dev;	/* Device to boot from */
@@ -880,7 +880,7 @@ static int fs_image_get_size_from_fit(struct sub_info *sub, uint *size)
 /* Get image length from F&S header or IVT (SPL, signed U-Boot) */
 static int fs_image_get_size_from_fsh_or_ivt(struct sub_info *sub, uint *size)
 {
-	if (sub->flags & SUB_HAS_FS_HEADER) {
+	if (fs_image_is_fs_image(sub->img)) {
 		struct fs_header_v1_0 *fsh = sub->img;
 
 		/* Check image type and get image size from F&S header */
@@ -1038,6 +1038,105 @@ static unsigned long fs_image_get_loadaddr(int argc, char * const argv[],
 	return 0;
 }
 
+/* Invalidate the temp buffer read cache */
+static void fs_image_drop_temp(struct flash_info *fi)
+{
+	fi->write_pos = 0;
+	fi->bb_extra_offs = 0;
+	memset(fi->temp, fi->temp_fill, fi->temp_size);
+}
+
+static int fs_image_fill_temp(struct flash_info *fi, uint base_offs, uint lim,
+			      uint flags)
+{
+	int err;
+
+	fi->write_pos = 0;
+
+	debug("  - Fill temp from offs 0x%x\n", base_offs);
+	err = fi->ops->read(fi, base_offs, fi->temp_size, lim, flags, fi->temp);
+	if (err)
+		return err;
+
+	fi->base_offs = base_offs;
+	fi->write_pos = fi->temp_size;
+
+	return 0;
+}
+
+static int fs_image_load_sub(struct flash_info *fi, uint offs, uint size,
+			     uint lim, uint flags, u8 *buf)
+{
+	int err;
+	unsigned int read_pos;
+	unsigned int base_offs;
+	unsigned int chunk_size;
+	unsigned int chunk_mask = fi->temp_size - 1;
+	unsigned int remaining = size;
+
+	/*
+	 * Step 1: If reading starts in the middle of a page/block and we do
+	 * not have this page/block cached in the temp buffer yet, load the
+	 * page/block to the temp buffer.
+	 */
+	base_offs = offs & ~chunk_mask;
+	read_pos = offs & chunk_mask;
+	if ((read_pos) && fi->write_pos && (base_offs != fi->base_offs)) {
+		err = fs_image_fill_temp(fi, base_offs, lim, flags);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * Step 2: If the start of the data is already cached in the
+	 * temp/buffer, take it from there.
+	 */
+	if (fi->write_pos && (base_offs == fi->base_offs)) {
+		chunk_size = fi->temp_size - read_pos;
+		if (chunk_size > remaining)
+			chunk_size = remaining;
+		debug("  - Copy leading bytes from temp pos 0x%x size 0x%x"
+		      " to 0x%lx\n", read_pos, chunk_size, (ulong)buf);
+		memcpy(buf, fi->temp + read_pos, chunk_size);
+		buf += chunk_size;
+		offs += chunk_size;
+		remaining -= chunk_size;
+	}
+
+	/*
+	 * Step 3: Read the middle part consisting of full pages/blocks.
+	 */
+	chunk_size = remaining & ~chunk_mask;
+	if (chunk_size) {
+		debug("  - Read from offs 0x%x lim 0x%x size 0x%x to 0x%lx\n",
+		      offs, lim, chunk_size, (ulong)buf);
+		err = fi->ops->read(fi, offs, chunk_size, lim, flags, buf);
+		if (err)
+			return err;
+		buf += chunk_size;
+		offs += chunk_size;
+		remaining -= chunk_size;
+	}
+
+	/*
+	 * Step 4: Read the last page/block, from which we only need a part
+	 * of, to the temp buffer and take the remaining bytes from there.
+	 */
+	if (remaining) {
+		base_offs = offs & ~chunk_mask;
+		err = fs_image_fill_temp(fi, base_offs, lim, flags);
+		if (err)
+			return err;
+
+		read_pos = offs & chunk_mask;
+		debug("  - Copy trailing bytes from temp pos 0x%x size 0x%x to"
+		      " 0x%lx\n", read_pos, remaining, (ulong)buf);
+		memcpy(buf, fi->temp + read_pos, remaining);
+	}
+
+	return 0;
+}
+
 static int fs_image_load_image(struct flash_info *fi,
 			       const struct storage_info *si,
 			       struct sub_info *sub)
@@ -1097,6 +1196,13 @@ static int fs_image_load_uboot(struct flash_info *fi, struct nboot_info *ni,
 	struct sub_info sub;
 	int err;
 
+	/*
+	 * Assume no F&S header, so fs_image_load_image() creates a new one.
+	 * If the image actually has a header (new U-BOOT versions are stored
+	 * with header), it is used for CRC32 checking, then removed, and the
+	 * own new header is used instead. We create a new CRC32 here anyway,
+	 * so the old header content does not matter.
+	 */
 	sub.type = "U-BOOT";
 	sub.descr = fs_image_get_arch();
 	sub.img = addr;
@@ -1116,16 +1222,15 @@ static int fs_image_load_uboot(struct flash_info *fi, struct nboot_info *ni,
 }
 
 /* Flush the temp buffer to flash */
-static int fs_image_flush_temp(struct flash_info *fi, unsigned int lim,
-			       unsigned int flags)
+static int fs_image_flush_temp(struct flash_info *fi, uint lim, uint flags)
 {
 	int err;
 
 	if (!fi->write_pos)
 		return 0;
 
-	debug("  - Flush temp pos 0x%x to offs 0x%x\n", fi->write_pos,
-	      fi->base_offs);
+	debug("  - Flush temp (filled to pos 0x%x) to offs 0x%x\n",
+	      fi->write_pos, fi->base_offs);
 	err = fi->ops->write(fi, fi->base_offs, fi->temp_size, lim, flags,
 			     fi->temp);
 	fi->write_pos = 0;
@@ -1136,7 +1241,7 @@ static int fs_image_flush_temp(struct flash_info *fi, unsigned int lim,
 
 /* Write one sub-image to flash */
 static int fs_image_save_sub(struct flash_info *fi, uint offs, uint size,
-			     uint lim, u8 *buf, uint flags)
+			     uint lim, uint flags, u8 *buf)
 {
 	int err;
 	unsigned int write_pos;
@@ -1147,7 +1252,7 @@ static int fs_image_save_sub(struct flash_info *fi, uint offs, uint size,
 
 	debug("\n");
 	/*
-	 * Step 1: If the temp buffer was used and we are not continuinig in
+	 * Step 1: If the temp buffer was used and we are not continuing in
 	 * the same page/block, write back the temp buffer first.
 	 */
 	base_offs = offs & ~chunk_mask;
@@ -1170,9 +1275,9 @@ static int fs_image_save_sub(struct flash_info *fi, uint offs, uint size,
 		if (remaining >= chunk_size) {
 			fi->base_offs = base_offs;
 			fi->write_pos = write_pos + chunk_size;
-			debug("  - Copy start from 0x%lx size 0x%x to temp"
-			      " pos 0x%x for offs 0x%x\n", (ulong)buf,
-			      chunk_size, write_pos, base_offs);
+			debug("  - Copy leading bytes from 0x%lx size 0x%x"
+			      " to temp pos 0x%x\n", (ulong)buf, chunk_size,
+			      write_pos);
 			memcpy(fi->temp + write_pos, buf, chunk_size);
 			err = fs_image_flush_temp(fi, lim, flags);
 			if (err)
@@ -1212,9 +1317,8 @@ static int fs_image_save_sub(struct flash_info *fi, uint offs, uint size,
 	 */
 	if (remaining) {
 		fi->base_offs = offs & ~chunk_mask;
-		debug("  - Copy end from 0x%lx size 0x%x to temp pos 0x%x for"
-		      " offs 0x%x\n", (ulong)buf, remaining, fi->write_pos,
-		      fi->base_offs);
+		debug("  - Copy trailing bytes from 0x%lx size 0x%x to temp"
+		      " pos 0x%x\n", (ulong)buf, remaining, fi->write_pos);
 		memcpy(fi->temp + fi->write_pos, buf, remaining);
 		fi->write_pos += remaining;
 
@@ -1306,8 +1410,8 @@ repeat:
 			printf("  %s %s at offset 0x%08x size 0x%x...",
 			       action, s->type, offset, size);
 
-			err = fs_image_save_sub(fi, offset, size, lim, buf,
-						s->flags);
+			err = fs_image_save_sub(fi, offset, size, lim,
+						s->flags, buf);
 			fs_image_show_sub_status(err);
 			if (err == 1) {
 				/* We had new bad blocks when writing */
@@ -1456,10 +1560,11 @@ static int fs_image_read_nand(struct flash_info *fi, uint offs, uint size,
 			      uint lim, uint flags, u8 *buf)
 {
 	int err;
-	size_t rsize = size;
+	size_t rsize;
 	size_t actual;
-	loff_t roffs = offs;
-	loff_t maxsize = lim -offs;
+	loff_t roffs;
+	loff_t maxsize;
+	size_t bb_extra;
 
 	/* FCB, DBBT and DBBT_DATA sub-images ignore any bad block offsets */
 	if (flags & (SUB_IS_FCB | SUB_IS_DBBT | SUB_IS_DBBT_DATA)) {
@@ -1469,12 +1574,15 @@ static int fs_image_read_nand(struct flash_info *fi, uint offs, uint size,
 			puts(" BAD BLOCK!");
 			return -EBADMSG;;
 		}
+		if (flags & SUB_IS_FCB) {
+			debug("  - Switch to 62bit ECC\n");
+			mxs_nand_mode_fcb_62bit(fi->mtd);
+		}
 	}
 
-	if (flags & SUB_IS_FCB) {
-		debug("  - Switch to 62bit ECC\n");
-		mxs_nand_mode_fcb_62bit(fi->mtd);
-	}
+	rsize = size;
+	roffs = offs + fi->bb_extra_offs;
+	maxsize = lim - roffs;
 
 	debug("  -> nand_read from offs 0x%llx size 0x%x maxsize 0x%llx\n",
 	     roffs, size, maxsize);
@@ -1484,6 +1592,12 @@ static int fs_image_read_nand(struct flash_info *fi, uint offs, uint size,
 	if (flags & SUB_IS_FCB) {
 		debug("  - Switch back to normal ECC\n");
 		mxs_nand_mode_normal(fi->mtd);
+	}
+
+	bb_extra = actual - rsize;
+	if (bb_extra) {
+		debug("  - Adding 0x%lx to bad block offset\n", bb_extra);
+		fi->bb_extra_offs += bb_extra;
 	}
 
 	return err;
@@ -1500,6 +1614,8 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	unsigned int lim = si->start[copy] + si->size;
 	size_t cs_size;
 
+	sub->size = 0;
+
 	printf("  Loading copy %d from offset 0x%08x", copy, offs);
 	debug("\n");
 
@@ -1509,7 +1625,8 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 		offs += 0x400;
 #endif
 
-	sub->size = 0;
+	/* Clear the temp buffer (read cache) */
+	fs_image_drop_temp(fi);
 
 	/* Determine sub-image size */
 	if (sub->flags & SUB_IS_FCB) {
@@ -1520,15 +1637,15 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	} else {
 		/* Load header (IVT, FIT or FS_HEADER) and get size from it */
 		size = sizeof(union any_header);
-
-		err = fi->ops->read(fi, offs, size, lim, 0, sub->img);
+		err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
 		if (err)
 			return err;
 
 		if (fdt_magic(sub->img) == FDT_MAGIC) {
 			/* Read the FDT part of the FIT image to get size */
 			size = fdt_totalsize(sub->img);
-			err = fi->ops->read(fi, offs, size, lim, 0, sub->img);
+			err = fs_image_load_sub(fi, offs, size, lim, 0,
+						sub->img);
 			if (!err)
 				err = fs_image_get_size_from_fit(sub, &size);
 		} else {
@@ -1547,7 +1664,7 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	debug("\n");
 
 	/* Load image itself */
-	err = fi->ops->read(fi, offs, size, lim, sub->flags, sub->img);
+	err = fs_image_load_sub(fi, offs, size, lim, sub->flags, sub->img);
 	if (err)
 		return err;
 
@@ -1587,6 +1704,16 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 						  dbbt_data[0], true);
 	} else if (sub->flags & SUB_HAS_FS_HEADER) {
 		err = fs_image_check_all_crc32(sub->img);
+	} else if (fs_image_is_fs_image(sub->img)) {
+		/*
+		 * We found an F&S header on an image that may or may not have
+		 * one (e.g. U-BOOT). Check the CRC32, but then remove the
+		 * header, because the caller has already inserted an empty
+		 * header before sub->img and will fill it after we return.
+		 */
+		err = fs_image_check_all_crc32(sub->img);
+		size -= FSH_SIZE;
+		memmove(sub->img, sub->img + FSH_SIZE, size);
 	}
 	if (err < 0)
 		return err;
@@ -2201,13 +2328,16 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 	       offs);
 	debug("\n");
 
+	/* Clear the temp buffer (read cache) */
+	fs_image_drop_temp(fi);
+
 	err = fs_image_set_hwpart_mmc(fi, copy, si);
 	if (err)
 		return err;
 
 	/* Read F&S header, IVT or FIT header */
-	err = fi->ops->read(fi, offs, sizeof(union any_header), lim, 0,
-			    sub->img);
+	size = sizeof(union any_header);
+	err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
 	if (err)
 		return err;
 
@@ -2215,7 +2345,7 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 	if (fdt_magic(sub->img) == FDT_MAGIC) {
 		/* Read the FDT part of the FIT image to get size */
 		size = fdt_totalsize(sub->img);
-		err = fi->ops->read(fi, offs, size, lim, 0, sub->img);
+		err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
 		if (!err)
 			err = fs_image_get_size_from_fit(sub, &size);
 	} else {
@@ -2233,7 +2363,7 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 	debug("\n");
 
 	/* Load whole image incl. header */
-	err = fi->ops->read(fi, offs, size, lim, sub->flags, sub->img);
+	err = fs_image_load_sub(fi, offs, size, lim, sub->flags, sub->img);
 	if (err)
 		return err;
 
@@ -2241,6 +2371,16 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 		err = fs_image_check_all_crc32(sub->img);
 		if (err < 0)
 			return err;
+	} else if (fs_image_is_fs_image(sub->img)) {
+		/*
+		 * We found an F&S header on an image that may or may not have
+		 * one (e.g. U-BOOT). Check the CRC32, but then remove the
+		 * header, because the caller has already inserted an empty
+		 * header before sub->img and will fill it after we return.
+		 */
+		err = fs_image_check_all_crc32(sub->img);
+		size -= FSH_SIZE;
+		memmove(sub->img, sub->img + FSH_SIZE, size);
 	}
 
 	sub->size = size;
@@ -2619,6 +2759,8 @@ static int fsimage_save_uboot(ulong addr, bool force)
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
 	flags = SUB_SYNC;
+	if (!ni.board_cfg_size)
+		flags |= SUB_HAS_FS_HEADER; /* Save with F&S header in V2 */
 	if (!fs_image_region_add(&ri, fsh, "U-BOOT", fs_image_get_arch(),
 				0, flags))
 		return CMD_RET_FAILURE;
@@ -2834,7 +2976,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* Load FIRMWARE */
 	sub.type = "FIRMWARE";
-	sub.offset = ni.board_cfg_size;
+	sub.offset = ni.board_cfg_size ? ni.board_cfg_size : sub.size;
 	if (fs_image_load_image(&fi, &ni.nboot, &sub))
 		return CMD_RET_FAILURE;
 
@@ -2926,13 +3068,17 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	fs_image_region_create(&nboot_ri, &ni.nboot, nboot_sub);
 
 	/* Sub 0: BOARD-CFG */
+	flags = SUB_HAS_FS_HEADER;
+	if (ni.board_cfg_size)
+		flags |= SUB_SYNC;
 	woffset = fs_image_region_add(&nboot_ri, cfg_fsh, "BOARD-CFG",
-				      arch, 0, SUB_HAS_FS_HEADER | SUB_SYNC);
+				      arch, 0, flags);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
 	/* Sub 1: FIRMWARE header */
-	woffset = ni.board_cfg_size;
+	if (ni.board_cfg_size)
+		woffset = ni.board_cfg_size;
 	woffset = fs_image_region_add_fsh(&nboot_ri, &firmware_fsh, "FIRMWARE",
 					  arch, woffset);
 	if (!woffset)
@@ -3010,7 +3156,8 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* Temporarily set BOARD-ID board revision and update CRC32 */
 	cfg_fsh_bak = *cfg_fsh;
-	fs_image_board_cfg_set_board_rev(cfg_fsh);
+	if (!ni.board_cfg_size)
+		fs_image_board_cfg_set_board_rev(cfg_fsh);
 
 	/* Found all sub-images, everything is prepared, go and save NBoot */
 	failed = fi.ops->save_nboot(&fi, &nboot_ri, &spl_ri);

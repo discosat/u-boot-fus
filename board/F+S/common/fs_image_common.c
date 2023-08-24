@@ -1455,7 +1455,7 @@ static int fs_image_loop(struct flash_info_spl *fi, struct fs_header_v1_0 *cfg,
         board_cfg_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 						      "board-cfg-size", 0);
 	if (!board_cfg_size)
-		return -EINVAL;
+		board_cfg_size = fs_image_get_size(cfg, true);
 
 	nboot_size = fdt_getprop_u32_default_node(fdt, offs, 0, "nboot-size", 0);
 	if (!nboot_size)

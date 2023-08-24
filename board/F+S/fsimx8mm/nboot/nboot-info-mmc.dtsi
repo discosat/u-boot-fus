@@ -56,7 +56,6 @@
 		 * (0x200 = 512 bytes), better even aligned to Linux page size
 		 * (0x1000 = 4096 bytes).
 		 */
-		board-cfg-size = <0x2000>;		/* 8 KiB */
 		spl-start = <0x00008400 0x00108400>;
 		spl-size = <0x00037c00>;		/* 223 KiB */
 		nboot-start = <###MMC_START###>;

@@ -57,7 +57,6 @@
 		 * NAND blocks (0x20000 bytes = 128 KiB).
 		 * 
 		 */
-		board-cfg-size = <0x2000>;		/* 8 KiB */
 		spl-start = <0x00100000 0x00280000>;
 		spl-size = <0x00040000>;		/* 256 KiB */
 		nboot-start = <###NAND_START###>;
