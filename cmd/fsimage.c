@@ -165,7 +165,16 @@ struct storage_info {
 };
 
 /* Storage info from the nboot-info of a BOARD-CFG in binary form */
+#define NI_SUPPORT_CRC32       BIT(0)	/* Support CRC32 in F&S headers */
+#define NI_SAVE_BOARD_ID       BIT(1)	/* Save the board-rev. in BOARD-CFG */
+#define NI_UBOOT_WITH_FSH      BIT(2)	/* Save U-Boot with F&S Header */
+#define NI_UBOOT_EMMC_BOOTPART BIT(3)	/* On eMMC when booting from boot part,
+					   also save U-Boot in boot part */
+#define NI_EMMC_BOTH_BOOTPARTS BIT(4)	/* On eMMC when booting from boot part,
+					   use both boot partitions, one for
+					   each copy */
 struct nboot_info {
+	unsigned int flags;		/* See NI_* above */
 	unsigned int board_cfg_size;
 	struct storage_info spl;
 	struct storage_info nboot;
@@ -269,12 +278,6 @@ static unsigned int early_support_index;
 
 /* ------------- Common helper function ------------------------------------ */
 
-/* Get the board-cfg-size from nboot-info */
-static uint fs_image_get_board_cfg_size(void *fdt, int offs)
-{
-	return fdt_getprop_u32_default_node(fdt, offs, 0, "board-cfg-size", 0);
-}
-
 /* Build lowercase nboot-info property name from upper-case region name */
 static void fs_image_build_nboot_info_name(char *name, const char *prefix,
 				const char *suffix)
@@ -332,8 +335,25 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 
 	memset(ni, 0, sizeof(*ni));
 
-	/* Parse generic BOARD-CFG capablities here */
-	ni->board_cfg_size = fs_image_get_board_cfg_size(fdt, offs);
+	/* Parse generic NBoot capablities here */
+	ni->board_cfg_size = fdt_getprop_u32_default_node(fdt, offs, 0,
+							  "board-cfg-size", 0);
+	if (fdt_getprop(fdt, offs, "support-crc32", NULL))
+		ni->flags |= NI_SUPPORT_CRC32;
+	if (fdt_getprop(fdt, offs, "save-board-id", NULL))
+		ni->flags |= NI_SAVE_BOARD_ID;
+	if (fdt_getprop(fdt, offs, "uboot-with-fsh", NULL))
+		ni->flags |= NI_UBOOT_WITH_FSH;
+	if (fdt_getprop(fdt, offs, "uboot-emmc-bootpart", NULL))
+		ni->flags |= NI_UBOOT_EMMC_BOOTPART;
+#ifdef CONFIG_IMX8MM
+	/* Have a flag that not everything is in one boot partition */
+	if (fdt_getprop(fdt, offs, "emmc-both-bootparts", NULL))
+		ni->flags |= NI_EMMC_BOTH_BOOTPARTS;
+#else
+	/* This has always been the default on all other architectures */
+	ni->flags |= NI_EMMC_BOTH_BOOTPARTS;
+#endif
 
 	/* Parse flash specific settings individually */
 	return fi->ops->get_nboot_info(fi, fdt, offs, ni);
@@ -2233,10 +2253,9 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	u8 first = fi->boot_hwpart;
 	u8 second = first ? (3 - first) : first;
 
-#ifdef CONFIG_IMX8MM
-	/* On fsimx8mm, everything is in same boot hwpart */
-	second = first;
-#endif
+	/* Pre 2023.08, everything was in the same boot hwpart on fsimx8mm */
+	if (!(ni->flags & NI_EMMC_BOTH_BOOTPARTS))
+		second = first;
 
 	/* Get SPL storage info */
 	err = fs_image_get_si(fdt, offs, align, "SPL", &ni->spl);
@@ -2256,8 +2275,13 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	err = fs_image_get_si(fdt, offs, align, "U-BOOT", &ni->uboot);
 	if (err)
 		return err;
-	ni->uboot.hwpart[0] = 0;
-	ni->uboot.hwpart[1] = 0;
+	if (ni->flags & NI_UBOOT_EMMC_BOOTPART) {
+		ni->uboot.hwpart[0] = first;
+		ni->uboot.hwpart[1] = second;
+	} else {
+		ni->uboot.hwpart[0] = 0;
+		ni->uboot.hwpart[1] = 0;
+	}
 
 #ifndef CONFIG_IMX8MM
 	if (first) {
@@ -2781,8 +2805,8 @@ static int fsimage_save_uboot(ulong addr, bool force)
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
 	flags = SUB_SYNC;
-	if (!ni.board_cfg_size)
-		flags |= SUB_HAS_FS_HEADER; /* Save with F&S header in V2 */
+	if (ni.flags & NI_UBOOT_WITH_FSH)
+		flags |= SUB_HAS_FS_HEADER; /* Save with F&S header */
 	if (!fs_image_region_add(&ri, fsh, "U-BOOT", fs_image_get_arch(),
 				0, flags))
 		return CMD_RET_FAILURE;
@@ -2994,8 +3018,11 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* Create BOARD-INFO header */
 	sub.descr = fs_image_get_arch();
-	fs_image_set_header(board_info_fsh, "BOARD-CONFIGS", sub.descr,
-			    sub.size, 0);
+	if (ni.flags & NI_SUPPORT_CRC32)
+		sub.type = "BOARD-INFO";
+	else
+		sub.type = "BOARD-CONFIGS";
+	fs_image_set_header(board_info_fsh, sub.type, sub.descr, sub.size, 0);
 
 	/* Load FIRMWARE */
 	sub.type = "FIRMWARE";
@@ -3118,9 +3145,13 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 	firmware_start = woffset;
 
-	/* Sub 2: DRAM-INFO header */
-	woffset = fs_image_region_add_fsh(&nboot_ri, &dram_info_fsh,
-					  "DRAM-INFO", arch, woffset);
+	/* Sub 2: DRAM-INFO/SETTINGS header */
+	if (ni.flags & NI_SUPPORT_CRC32)
+		type = "DRAM-INFO";
+	else
+		type = "DRAM-SETTINGS";
+	woffset = fs_image_region_add_fsh(&nboot_ri, &dram_info_fsh, type,
+					  arch, woffset);
 	if (!woffset)
 		return CMD_RET_FAILURE;
 	dram_info_start = woffset;
@@ -3149,8 +3180,9 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	/* Update size and CRC32 (header only) for DRAM-TYPE and DRAM-INFO */
 	fs_image_update_header(&dram_type_fsh, woffset - dram_type_start,
 			       FSH_FLAGS_SECURE);
+	/* "DRAM-SETTINGS" is too long, cannot write CRC32 in this case */
 	fs_image_update_header(&dram_info_fsh, woffset - dram_info_start,
-			       FSH_FLAGS_SECURE);
+			 (ni.flags & NI_SUPPORT_CRC32) ? FSH_FLAGS_SECURE : 0);
 
 	/* Sub 6: ATF image */
 	type = "ATF";
@@ -3188,9 +3220,10 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 
 	/* Temporarily set BOARD-ID board revision and update CRC32 */
-	cfg_fsh_bak = *cfg_fsh;
-	if (!ni.board_cfg_size)
+	if (ni.flags & NI_SAVE_BOARD_ID) {
+		cfg_fsh_bak = *cfg_fsh;
 		fs_image_board_cfg_set_board_rev(cfg_fsh);
+	}
 
 	/* Found all sub-images, everything is prepared, go and save NBoot */
 	failed = fi.ops->save_nboot(&fi, &nboot_ri, &spl_ri);
@@ -3207,7 +3240,8 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	/* Restore BOARD-CFG header to previous content */
-	*cfg_fsh = cfg_fsh_bak;
+	if (ni.flags & NI_SAVE_BOARD_ID)
+		*cfg_fsh = cfg_fsh_bak;
 
 	return ret;
 }

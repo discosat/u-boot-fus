@@ -51,6 +51,11 @@
 	nboot-info {
 		version = "###NBOOT_VERSION###";
 
+		/* NBoot capabilities */
+		support-crc32;
+		save-board-id;
+		uboot-with-fsh;
+
 		/*
 		 * Settings for eMMC. All values must be aligned to sectors
 		 * (0x200 = 512 bytes), better even aligned to Linux page size

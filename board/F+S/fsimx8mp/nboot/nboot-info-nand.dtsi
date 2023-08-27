@@ -51,6 +51,12 @@
 	nboot-info {
 		version = "###NBOOT_VERSION###";
 
+		/* NBoot capabilities */
+		support-crc32;
+		save-board-id;
+		uboot-with-fsh;
+		emmc-both-bootparts;
+
 		/*
 		 * Settings for NAND: board-cfg-size must aligned to NAND pages
 		 * (0x800 bytes = 2 KiB), all other values must be aligned to
