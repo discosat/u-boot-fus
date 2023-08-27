@@ -276,6 +276,73 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	return ENVL_UNKNOWN;
 }
 
+static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
+{
+	void *fdt;
+	int offs;
+	unsigned int align;
+	int err;
+
+	if (cfg->flags & CI_FLAGS_HAVE_ENV)
+		return;
+
+	/*
+	 * To find the environment location, we must access the BOARD-CFG in
+	 * OCRAM. However this is not a safe resource, because it can be
+	 * modified at any time. This is why we copy all relevant info to
+	 * struct cfg_info right early in fs_setup_cfg_info() where we checked
+	 * that the BOARD-CFG is valid. But at this early stage, the flash
+	 * environment is not running yet and we cannot determine writesize
+	 * and erasesize. So it is not possible to get the environment
+	 * addresses there.
+	 *
+	 * Therefore we use a cache method. The first time we are called here,
+	 * which is still in board_init_f(), we can assume that the BOARD-CFG
+	 * is still valid. So access the BOARD-CFG, determine the environment
+	 * location and store the start addresses for both copies in the
+	 * cfg_info. From then on, we can use the cfg_info when we are called.
+	 *
+	 * If the environment location is not contained in nboot-info, it was
+	 * located in the device tree of the previous U-Boot and NBoot didn't
+	 * know anything about it. We have a list of known places where the
+	 * environment was located in the past, so we take the first one
+	 * (=newest) of these. As the NAND list only has one entry, this
+	 * should be OK.
+	 */
+
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_nboot_info_offs(fdt);
+	align = mtd->erasesize;
+
+	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+				   2, cfg->env_start);
+	if (err == -ENOENT) {
+		/* This is an old version, use the old known position */
+		err = fs_image_get_known_env_nand(0, cfg->env_start, NULL);
+	}
+	if (err) {
+		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET;
+		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET_REDUND;
+	}
+
+	cfg->flags |= CI_FLAGS_HAVE_ENV;
+}
+
+/* Return environment information if in NAND */
+loff_t board_nand_get_env_offset(struct mtd_info *mtd, int copy)
+{
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+
+	fs_nand_get_env_info(mtd, cfg);
+
+	return cfg->env_start[copy];
+}
+
+loff_t board_nand_get_env_range(struct mtd_info *mtd)
+{
+	return CONFIG_ENV_NAND_RANGE;
+}
+
 /* Check board type */
 int checkboard(void)
 {

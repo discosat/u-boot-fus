@@ -84,6 +84,9 @@ bool fs_image_match(const struct fs_header_v1_0 *fsh,
 /* Check id, return also true if revision is less than revision of compare_id */
 bool fs_image_match_board_id(struct fs_header_v1_0 *fsh);
 
+/* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
+void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh);
+
 /* Return the current BOARD-ID */
 const char *fs_image_get_board_id(void);
 
@@ -128,14 +131,23 @@ struct sb_info {
 /* Return if currently running from Secondary SPL. */
 bool fs_image_is_secondary(void);
 
-/* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
-void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh);
-
 /*
  * Search board configuration in OCRAM; return true if it was found.
  * From now on, fs_image_get_cfg_addr() will return the right address.
  */
 bool fs_image_find_cfg_in_ocram(void);
+
+/* Get count values from given device tree property and check alignment */
+int fs_image_get_fdt_val(void *fdt, int offs, const char *name, uint align,
+			 int count, uint *val);
+
+#ifdef CONFIG_NAND_MXS
+int fs_image_get_known_env_nand(uint index, uint start[2], uint *size);
+#endif
+
+#ifdef CONFIG_MMC
+int fs_image_get_known_env_mmc(uint index, uint start[2], uint *size);
+#endif
 
 #endif /* !CONFIG_SPL_BUILD */
 

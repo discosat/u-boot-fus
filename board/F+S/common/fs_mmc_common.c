@@ -24,6 +24,9 @@
 #include <asm/arch/clock.h>		/* MXC_ESDHC_CLK, ... */
 #include <mmc.h>			/* struct mmc */
 #include "fs_mmc_common.h"		/* Own interface */
+#ifdef CONFIG_FS_BOARD_CFG
+#include "fs_image_common.h"		/* fs_image_*() */
+#endif
 
 #define USDHC_NONE -1
 
@@ -162,6 +165,100 @@ int board_mmc_get_env_dev(int devno)
 
 	return devno;
 }
+
+#ifdef CONFIG_FS_BOARD_CFG
+
+static void fs_mmc_get_env_info(struct mmc *mmc, struct cfg_info *cfg)
+{
+	void *fdt;
+	int offs;
+	unsigned int align;
+	int err;
+
+	if (cfg->flags & CI_FLAGS_HAVE_ENV)
+		return;
+
+	/*
+	 * To find the environment location, we must access the BOARD-CFG in
+	 * OCRAM. However this is not a safe resource, because it can be
+	 * modified at any time. This is why we copy all relevant info to
+	 * struct cfg_info right early in fs_setup_cfg_info() in the board,
+	 * where we checked that the BOARD-CFG is valid. But at this early
+	 * stage, the flash environment is not running yet and we cannot
+	 * determine from which hwpart we are booting. So it is not possible
+	 * to get the environment addresses there.
+	 *
+	 * Therefore we use a cache method. The first time we are called here,
+	 * which is still in board_init_f(), we can assume that the BOARD-CFG
+	 * is still valid. So access the BOARD-CFG, determine the environment
+	 * location and store the start addresses for both copies in the
+	 * cfg_info. From then on, we can use the cfg_info when we are called.
+	 *
+	 * If the environment location is not contained in nboot-info, it was
+	 * located in the device tree of the previous U-Boot and NBoot didn't
+	 * know anything about it. We have a list of known places where the
+	 * environment was located in the past, so we take the first one
+	 * (=newest) of these. This is not necessarily the right one, if a
+	 * very old NBoot is still active right now. Then the environment will
+	 * not be found. Theoretically we could try all entries and check
+	 * CRC32 to find the correct position, but as the old environment may
+	 * even had a different size, current U-Boot will not be able to
+	 * handle this anyway.
+	 *
+	 * If this U-Boot is running in combination with the old NBoot just to
+	 * be able to update NBoot, then do not save the environment in
+	 * U-Boot and try option -e with fsimage save. This may find the
+	 * correct environment and after a restart the old environment is
+	 * available again.
+	 */
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_nboot_info_offs(fdt);
+	align = mmc_get_blk_desc(mmc)->blksz;
+
+	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+				   2, cfg->env_start);
+	if (err == -ENOENT) {
+		/* This is an old version, use the old known position */
+		err = fs_image_get_known_env_mmc(0, cfg->env_start, NULL);
+	}
+	if (err) {
+		cfg->env_start[0] = CONFIG_ENV_MMC_OFFSET;
+		cfg->env_start[1] = CONFIG_ENV_MMC_OFFSET_REDUND;
+	}
+
+	cfg->flags |= CI_FLAGS_HAVE_ENV;
+}
+
+/* Take env address and hwpart from nboot-info */
+int board_mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr)
+{
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+
+	fs_mmc_get_env_info(mmc, cfg);
+
+	*env_addr = cfg->env_start[copy];
+
+	return 0;
+}
+
+uint board_mmc_get_env_part(struct mmc *mmc, int copy)
+{
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+	uint hwpart;
+
+	fs_mmc_get_env_info(mmc, cfg);
+
+	hwpart = (mmc->part_config >>3) & PART_ACCESS_MASK;
+	if (hwpart > 2)
+		hwpart = 0;
+
+	/* If both addresses are equal, the copies are on different hwparts */
+	if (copy && hwpart && (cfg->env_start[0] == cfg->env_start[1]))
+		hwpart = 3 - hwpart;
+
+	return hwpart;
+}
+#endif
 #endif
 
 __weak int get_usdhc_boot_device()

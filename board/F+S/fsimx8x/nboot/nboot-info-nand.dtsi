@@ -63,5 +63,8 @@
 		nboot-size = <0x00140000>;		/* 1280 KiB */
 		uboot-start = <0x00500000 0x00800000>;
 		uboot-size = <0x00300000>;		/* 3 MiB */
+		env-start = <0x00480000 0x004c0000>;
+		env-size = <0x00004000>;		/* 16 KiB */
+		env-range = <0x00040000>;		/* 256 KiB */
 	};
 };

@@ -15,6 +15,7 @@
  * as possible.
  */
 #define CI_FLAGS_SECONDARY BIT(0)	/* Running from secondary SPL */
+#define CI_FLAGS_HAVE_ENV  BIT(1)	/* env_start[] is valid */
 struct cfg_info {
 	enum boot_device boot_dev;
 	u8 board_type;
@@ -23,6 +24,7 @@ struct cfg_info {
 	u32 dram_size;
 	u32 dram_chips;
 	u32 flags;			/* See CI_FLAGS_* above */
+	u32 env_start[2];
 };
 
 #endif /* !__FS_CFG_INFO_H */

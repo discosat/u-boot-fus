@@ -156,7 +156,7 @@
 
 /* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */
 struct storage_info {
-	u32 start[2];			/* *-start entries */
+	unsigned int start[2];			/* *-start entries */
 	unsigned int size;		/* *-size entry */
 #ifdef CONFIG_CMD_MMC
 	u8 hwpart[2];			/* hwpart (in case of eMMC) */
@@ -170,6 +170,11 @@ struct nboot_info {
 	struct storage_info spl;
 	struct storage_info nboot;
 	struct storage_info uboot;
+	struct storage_info env;
+#ifdef CONFIG_NAND_MXS
+	unsigned int env_used;		/* From env-size entry, region size
+					   is from env-range */
+#endif
 };
 
 #define SUB_SYNC          BIT(0)	/* After writing image, flush temp */
@@ -259,23 +264,27 @@ union any_header {
 	struct fdt_header fdt;
 };
 
+/* Argument of option -e in fsimage save */
+static unsigned int early_support_index;
+
 /* ------------- Common helper function ------------------------------------ */
 
 /* Get the board-cfg-size from nboot-info */
-static unsigned int fs_image_get_board_cfg_size(void *fdt, int offs)
+static uint fs_image_get_board_cfg_size(void *fdt, int offs)
 {
 	return fdt_getprop_u32_default_node(fdt, offs, 0, "board-cfg-size", 0);
 }
 
+/* Build lowercase nboot-info property name from upper-case region name */
 static void fs_image_build_nboot_info_name(char *name, const char *prefix,
 				const char *suffix)
 {
 	char c;
 
-	/* Copy prefix in lowercase */
+	/* Copy prefix in lowercase, drop hyphens from region name */
 	do {
 		c = *prefix++;
-		if (c) {
+		if (c && (c != '-')) {
 			if ((c >= 'A') && (c <= 'Z'))
 				c += 'a' - 'A';
 			*name++ = c;
@@ -289,75 +298,26 @@ static void fs_image_build_nboot_info_name(char *name, const char *prefix,
 	} while (c);
 }
 
-/* Return start and size from nboot-info for entries of given type */
-static int fs_image_get_si(void *fdt, int offs, unsigned int align,
-			   struct storage_info *si, const char *type)
+/* Get start[0..1] and size for a storage info */
+static int fs_image_get_si(void *fdt, int offs, uint align, const char *type,
+			   struct storage_info *si)
 {
+	int err;
 	char name[20];
-	int len;
-	const fdt32_t *start;
-
-	fs_image_build_nboot_info_name(name, type, "-start");
-	start = fdt_getprop(fdt, offs, name, &len);
-	if (!start || !len || (len % sizeof(fdt32_t))) {
-		printf("Missing or invalid entry %s in BOARD-CFG\n", name);
-		return -EINVAL;
-	}
-	len /= sizeof(fdt32_t);
-
-	if (len > 2)
-		printf("Ignoring extra data in %s in BOARD-CFG\n", name);
-
-	si->start[0] = fdt32_to_cpu(start[0]);
-	si->start[1] = (len > 1) ? fdt32_to_cpu(start[1]) : si->start[0];
-	si->hwpart[0] = 1;
-#if defined(CONFIG_IMX8) || defined(CONFIG_IMX8MN) || defined(CONFIG_IMX8MP)
-	si->hwpart[1] = 2;
-#else
-	si->hwpart[1] = 1;
-#endif
-
-	if (align && ((si->start[0] % align) || (si->start[1] % align))) {
-		printf("Wrong alignment for %s in BOARD-CFG\n", name);
-		return -EINVAL;
-	}
-
-	fs_image_build_nboot_info_name(name, type, "-size");
-	si->size = fdt_getprop_u32_default_node(fdt, offs, 0, name, 0);
-	if (!si->size) {
-		printf("Missing or invalid entry for %s in BOARD-CFG\n", name);
-		return -EINVAL;
-	}
 
 	si->type = type;
 
-	return 0;
-}
+	/* Create the property name for nboot-info and get value */
+	fs_image_build_nboot_info_name(name, type, "-start");
 
-/* Get nboot-start and nboot-size values from nboot-info */
-static int fs_image_get_nboot_si(void *fdt, int offs, unsigned int align,
-				 struct storage_info *si)
-{
-	return fs_image_get_si(fdt, offs, align, si, "NBOOT");
-}
+	err = fs_image_get_fdt_val(fdt, offs, name, align, 2, si->start);
+	if (err)
+		return err;
 
-/* Get spl-start and spl-size values from nboot-info */
-static int fs_image_get_spl_si(void *fdt, int offs, unsigned int align,
-			       struct storage_info *si)
-{
-	return fs_image_get_si(fdt, offs, align, si, "SPL");
-}
+	/* Create the property name for nboot-info and get value */
+	fs_image_build_nboot_info_name(name, type, "-size");
 
-/* Get uboot-start and uboot-size values from nboot-info */
-static int fs_image_get_uboot_si(void *fdt, int offs, unsigned int align,
-				 struct storage_info *si)
-{
-	int err;
-
-	err = fs_image_get_si(fdt, offs, align, si, "UBOOT");
-	si->type = "U-BOOT";		/* Have same name for region and sub */
-
-	return err;
+	return fs_image_get_fdt_val(fdt, offs, name, align, 1, &si->size);
 }
 
 static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
@@ -369,6 +329,13 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 		puts("Cannot find nboot-info in BOARD-CFG\n");
 		return -ENOENT;
 	}
+
+	memset(ni, 0, sizeof(*ni));
+
+	/* Parse generic BOARD-CFG capablities here */
+	ni->board_cfg_size = fs_image_get_board_cfg_size(fdt, offs);
+
+	/* Parse flash specific settings individually */
 	return fi->ops->get_nboot_info(fi, fdt, offs, ni);
 }
 
@@ -1018,10 +985,10 @@ static unsigned long fs_image_get_loadaddr(int argc, char * const argv[],
 	} else
 		addr = get_loadaddr();
 
-	if (fs_image_is_fs_image((struct fs_header_v1_0 *)addr))
+	if (fs_image_match((void *)addr, "NBOOT", fs_image_get_arch()))
 		return addr;
 
-	printf("No F&S image found at 0x%lx", addr);
+	printf("No F&S NBoot image found at 0x%lx", addr);
 
 	if (argc > 1) {
 		putc('\n');
@@ -1492,18 +1459,45 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 					int offs, struct nboot_info *ni)
 {
 	int err;
+	unsigned int align = fi->mtd->erasesize;
 
-	ni->board_cfg_size = fs_image_get_board_cfg_size(fdt, offs);
-
-	err = fs_image_get_spl_si(fdt, offs, 0, &ni->spl);
+	err = fs_image_get_si(fdt, offs, align, "SPL", &ni->spl);
 	if (err)
 		return err;
 
-	err = fs_image_get_nboot_si(fdt, offs, 0, &ni->nboot);
+	err = fs_image_get_si(fdt, offs, align, "NBOOT", &ni->nboot);
 	if (err)
 		return err;
 
-	err = fs_image_get_uboot_si(fdt, offs, 0, &ni->uboot);
+	err = fs_image_get_si(fdt, offs, align, "U-BOOT", &ni->uboot);
+	if (err)
+		return err;
+
+	/*
+	 * The size of the environment region is actually given by env-range
+	 * entry, from which env-size bytes are then used.
+	 */
+	ni->env.type = "ENV";
+	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+				   2, ni->env.start);
+	if (!err) {
+		err = fs_image_get_fdt_val(fdt, offs, "env-range", align,
+					   1, &ni->env.size);
+		if (err)
+			return err;
+		/* The size only has to be aligned to pages */
+		align = fi->mtd->writesize;
+		err = fs_image_get_fdt_val(fdt, offs, "env-size", align,
+					   1, &ni->env_used);
+	} else if (err == -ENOENT) {
+		/*
+		 * No env data found in nboot-info, fall back to some known
+		 * values. Use option -e to select index.
+		 */
+		err = fs_image_get_known_env_nand(early_support_index,
+						  ni->env.start, &ni->env_used);
+		ni->env.size = CONFIG_ENV_NAND_RANGE;;
+	}
 	if (err)
 		return err;
 
@@ -1515,6 +1509,8 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	      ni->nboot.start[0], ni->nboot.start[1], ni->nboot.size);
 	debug("- uboot: start=0x%08x/0x%08x size=0x%08x\n",
 	      ni->uboot.start[0], ni->uboot.start[1], ni->uboot.size);
+	debug("- env:   start=0x%08x/0x%08x size=0x%08x env_used=0x%08x\n",
+	      ni->env.start[0], ni->env.start[1], ni->env.size, ni->env_used);
 
 	return 0;
 }
@@ -2233,31 +2229,31 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 				       int offs, struct nboot_info *ni)
 {
 	int err;
+	unsigned int align = fi->blk_desc->blksz;
 	u8 first = fi->boot_hwpart;
 	u8 second = first ? (3 - first) : first;
 
-	ni->board_cfg_size = fs_image_get_board_cfg_size(fdt, offs);
 #ifdef CONFIG_IMX8MM
 	/* On fsimx8mm, everything is in same boot hwpart */
 	second = first;
 #endif
 
 	/* Get SPL storage info */
-	err = fs_image_get_spl_si(fdt, offs, 0, &ni->spl);
+	err = fs_image_get_si(fdt, offs, align, "SPL", &ni->spl);
 	if (err)
 		return err;
 	ni->spl.hwpart[0] = first;
 	ni->spl.hwpart[1] = second;
 
 	/* Get NBoot storage info */
-	err = fs_image_get_nboot_si(fdt, offs, 0, &ni->nboot);
+	err = fs_image_get_si(fdt, offs, align, "NBOOT", &ni->nboot);
 	if (err)
 		return err;
 	ni->nboot.hwpart[0] = first;
 	ni->nboot.hwpart[1] = second;
 
 	/* Get U-Boot storage info */
-	err = fs_image_get_uboot_si(fdt, offs, 0, &ni->uboot);
+	err = fs_image_get_si(fdt, offs, align, "U-BOOT", &ni->uboot);
 	if (err)
 		return err;
 	ni->uboot.hwpart[0] = 0;
@@ -2274,6 +2270,29 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	}
 #endif
 
+	/* Get env info from nboot-info */
+	err = fs_image_get_si(fdt, offs, align, "ENV", &ni->env);
+	if (err == -ENOENT) {
+		/*
+		 * No env data found in nboot-info, fall back to some known
+		 * values. Use option -e to select index.
+		 */
+		err = fs_image_get_known_env_mmc(early_support_index,
+						 ni->env.start, &ni->env.size);
+	}
+	if (err)
+		return err;
+
+	/*
+	 * In the past, both environment copies were on the same hwpart. But
+	 * if the two addresses are equal, they are obviously on different
+	 * hwparts.
+	 */
+	ni->env.hwpart[0] = first;
+	ni->env.hwpart[1] = first;
+	if (first && (ni->env.start[0] == ni->env.start[1]))
+		ni->env.hwpart[1] = second;
+
 	debug("- nboot-info@0x%lx (%s): board-cfg-size=0x%08x (%s layout)\n",
 	      (ulong)fdt, first ? "emmc-boot" : "sd-user", ni->board_cfg_size,
 	      ni->board_cfg_size ? "old" : "new");
@@ -2286,6 +2305,9 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	debug("- uboot: start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
 	      ni->uboot.hwpart[0], ni->uboot.start[0],
 	      ni->uboot.hwpart[1], ni->uboot.start[1], ni->uboot.size);
+	debug("- env:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
+	      ni->env.hwpart[0], ni->env.start[0],
+	      ni->env.hwpart[1], ni->env.start[1], ni->env.size);
 
 	return 0;
 }
@@ -2881,6 +2903,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	struct flash_info fi;
 	struct nboot_info ni;
 
+	early_support_index = 0;
 	if ((argc > 1) && (argv[1][0] == '-')) {
 		if (strcmp(argv[1], "-f"))
 			return CMD_RET_USAGE;
@@ -3019,12 +3042,22 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	bool force = false;
 	unsigned int woffset;
 
-	if ((argc > 1) && (argv[1][0] == '-')) {
-		if (strcmp(argv[1], "-f"))
+	early_support_index = 0;
+	while ((argc > 1) && (argv[1][0] == '-')) {
+		if (!strcmp(argv[1], "-e")) {
+			if (argc <= 2) {
+				puts("Missing argument for option -e\n");
+				return CMD_RET_USAGE;
+			}
+			early_support_index = simple_strtoul(argv[2], NULL, 0);
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[1], "-f")) {
+			force = true;
+			argv++;
+			argc--;
+		} else
 			return CMD_RET_USAGE;
-		force = true;
-		argv++;
-		argc--;
 	}
 
 	if (argc > 1)
@@ -3381,7 +3414,7 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "    - List the content of the F&S image at <addr>\n"
 	   "fsimage load [-f] [uboot | nboot] [<addr>]\n"
 	   "    - Verify the current NBoot or U-Boot and load to <addr>\n"
-	   "fsimage save [-f] [<addr>]\n"
+	   "fsimage save [-f] [-e <n>] [<addr>]\n"
 	   "    - Save the F&S image at the right place (NBoot, U-Boot)\n"
 	   "fsimage fuse [-f] [<addr> | stored]\n"
 	   "    - Program fuses according to the current BOARD-CFG.\n"
@@ -3389,5 +3422,9 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "\n"
 	   "If no addr is given, use loadaddr. Using -f forces the command to\n"
 	   "continue without showing any confirmation queries. This is meant\n"
-	   "for non-interactive installation procedures.\n"
+	   "for non-interactive installation procedures. Option -e supports\n"
+	   "handling early NBoot versions. If the environment is not found\n"
+	   "when updating from a pre 2023.08 NBoot version, try increasing\n"
+	   "<n> until it works. Be careful when storing such an old NBoot,\n"
+	   "you need to know the right <n> or you will lose the environment.\n"
 );
