@@ -43,39 +43,12 @@
  * loaded, it has to go to 0xBE00_0000 and a DEK_BLOB is loaded to
  * 0x4040_0000. These addresses are defined in ATF.
  *
- * NAND flash layout
+ * NAND flash layout (MTD partitions)
  * -------------------------------------------------------------------------
- * Planned when U-Boot can write SPL/FCB/DBBT:
- * 0x0000_0000: BCB Copy 0 (FCB+DBBT) (128KB)               \
- * 0x0002_0000: BCB Copy 1 (FCB+DBBT) (128KB)                |
- * 0x0004_0000: SPL Copy 0 (256KB)                           |
- * 0x0008_0000: SPL Copy 1 (256KB)                           | "NBoot"
- * 0x000C_0000: Reserve in case of bad blocks (256KB)        |
- * 0x0010_0000: BOARD-CFG Copy 0 (8KB)                       |
- * 0x0010_2000: FIRMWARE Copy 0 (1528KB)                     |
- * 0x0028_0000: BOARD-CFG Copy 1 (8KB)                       |
- * 0x0028_0000: FIRMWARE Copy 1 (1528KB)                    /
- * 0x0040_0000: Refresh ...
- * Actually now, when SPL/FCB/DBBT/HDMI is written by NXP tool kobs:
- * 0x0000_0000: FCB Copy 0 (128KB)                          \
- * 0x0002_0000: FCB Copy 1 (128KB)                           |
- * 0x0004_0000: FCB Copy 2 (128KB)                           |
- * 0x0006_0000: FCB Copy 3 (128KB)                           |
- * 0x0008_0000: DBBT Copy 0 (128KB)                          |
- * 0x000A_0000: DBBT Copy 1 (128KB)                          |
- * 0x000C_0000: DBBT Copy 2 (128KB)                          |
- * 0x000E_0000: DBBT Copy 3 (128KB)                          |
- * 0x0010_0000: SPL Copy 0 (256KB)         Defined by FCB    | "NBoot"
- * 0x0014_0000: HDMI-FW Copy 0 (256KB, unused but written)   |
- * 0x0018_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
- * 0x0018_2000: FIRMWARE Copy 0 (1016KB)                     |
- * 0x0028_0000: SPL Copy 1 (256KB)         Defined by FCB    |
- * 0x002C_0000: HDMI-FW Copy 1 (256KB, unused but written)   |
- * 0x0030_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0030_2000: FIRMWARE Copy 1 (1016KB)                    /
- * 0x0040_0000: Refresh (512KB)
- * 0x0048_0000: UBootEnv (256KB)           FDT: u-boot,nand-env-offset
- * 0x004C_0000: UBootEnvRed (256KB)        FDT: u-boot,nand-env-offset-redundant
+ * 0x0000_0000: NBoot                      (see nboot/nboot-info.dtsi)
+ * 0x0040_0000: Refresh (512KB)            (###not implemented yet)
+ * 0x0048_0000: UBootEnv (256KB)           nboot-info: env-start[0]
+ * 0x004C_0000: UBootEnvRed (256KB)        nboot-info: env-start[1]
  * 0x0050_0000: UBoot_A (3MB)              nboot-info: uboot-start[0]
  * 0x0080_0000: UBoot_B/UBootRed (3MB)     nboot-info: uboot-start[1]
  * 0x00B0_0000: UserDef (2MB)
@@ -86,50 +59,37 @@
  * 0x04F0_0000: TargetFS as UBI Volumes
  *
  * Remarks:
- * - nboot-start[] is initialized with CONFIG_FUS_BOARDCFG_NAND0/1.
- * - If Kernel and FDT are part of the Rootfs, these partitions are dropped.
- * - If no Update with Set A and B is used, all _B partitions are dropped;
- *   UBoot_B is replaced by UserDef. This keeps all offsets up to and
- *   including FDT_A fix and also mtd numbers in Linux. In other words: the
- *   version with Update support just inserts Kernel_B and FDT_B in front of
- *   TargetFS and renames UserDef to UBoot_B.
- * - If the size of U-Boot will increase in the future, only UBoot_B must be
- *   moved. All other hardcoded offsets stay as they are.
+ * - nboot-start[] in nboot-info is set to CONFIG_FUS_BOARDCFG_NAND0/1 by the
+ *   Makefile. This is the only value where SPL and nboot-info must match.
+ * - If Kernel and FDT are part of the Rootfs, these partitions are dropped
+ *   and TargetFS begins immediately behind UserDef.
+ * - If no Update with Set A and B is used, all B partitions are dropped.
+ *   This keeps all offsets up to and including FDT_A fix and also mtd numbers
+ *   in Linux. In other words: the version with Update support just inserts
+ *   Kernel_B and FDT_B in front of TargetFS and renames UbootRed to UBoot_B.
+ * - UBoot_A/B, UBootEnv and UBootEnvRed are now handled by fsimage save.
+ *   Refresh should also be handled internally. We might drop these MTD
+ *   partitions in the future. However this will make access from Linux more
+ *   difficult, as we already see in case of eMMC. Maybe we'll provide an
+ *   fsimage tool for Linux, too, that handles all this stuff without the need
+ *   of knowing exactly where everything is located.
  *
  * eMMC Layout
  * -----------
- * Boot1/Boot2 or User HW partition:
- * 0x0000_0000: Space for GPT (32KB)
- * 0x0000_8000: Space for MBR (512B, unused)
- * 0x0000_8200: Secondary Image Table (512B)
- * 0x0000_8400: SPL Copy 0 (223KB)         Defined by i.MX8MM
- * 0x0004_0000: BOARD-CFG Copy 0 (8KB)     nboot-info: nboot-start[0]
- * 0x0004_2000: FIRMWARE Copy 0 (760KB)
- * 0x0010_0000: UBootEnv (16KB)
- * 0x0010_4000: UBootEnvRed (16KB)
- * 0x0010_8000: --- (1KB, free)
- * 0x0010_8400: SPL Copy 1 (223KB)         Defined by Secondary Image Table
- * 0x0014_0000: BOARD-CFG Copy 1 (8KB)     nboot-info: nboot-start[1]
- * 0x0014_2000: FIRMWARE Copy 1 (760KB)
+ * The boot process from eMMC can be configured to boot from a Boot partition
+ * or from the User partition. In the latter case, there needs to be a reserved
+ * area of 8MB at the beginning of the User partition.
  *
- * User HW partition only:
- * 0x0020_0000: UBoot_A (3MB)              nboot-info: mmc-u-boot[0]
- * 0x0050_0000: UBoot_B (3MB)              nboot-info: mmc-u-boot[1]
- * 0x0080_0000: Regular filesystem partitions (Kernel, TargetFS, etc)
+ * 0x0000_0000: Space for GPT (32KB)
+ * 0x0000_8000: NBoot (see nboot/nboot-info.dtsi for details)
+ * 0x0080_0000: End of reserved area, start of regular filesystem partitions
  *
  * Remarks:
- * - nboot-start[] is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the Makefile
- * - We can either boot from Boot1, or from Boot2 or from the User partition.
- *   So it will also work on SD cards without a Boot partition.
- * - The reserved region size stays at 8MB as with NXP.
- * - The boot partition requirement is 2 MB and will also work for small eMMC.
- *   If FIRMWARE part grows above 760K, we will need a larger Boot partition.
- * - If booting from a Boot HW partition, there is room in the User partiton
- *   from 0x00008000 to 0x00200000 to store an M4 image for example.
- * - If U-Boot grows beyond 3MB and if we do not want to increase the
- *   reserved region, we can drop the User partition boot option and use the
- *   SPL/BOARD-CFG/FIRMWARE areas for U-Boot, too. Then U-Boot can be almost
- *   4MB in size.
+ * - nboot-start[] in nboot-info is set to CONFIG_FUS_BOARDCFG_MMC0/1 by the
+ *   Makefile. This is the only value where SPL and nboot-info must match.
+ * - The reserved region size is the same as in NXP layouts (8MB).
+ * - The space in the reserved region when booting from Boot partition, can be
+ *   used to store an M4 image or as UserDef region.
  */
 
 #ifndef __FSIMX8MM_H
@@ -174,12 +134,12 @@
 #define CONFIG_SPL_GPIO_SUPPORT
 
 /* Offsets in NAND where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_NAND0 0x180000
-#define CONFIG_FUS_BOARDCFG_NAND1 0x300000
+#define CONFIG_FUS_BOARDCFG_NAND0	0x00180000
+#define CONFIG_FUS_BOARDCFG_NAND1	0x002c0000
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_MMC0 0x00040000
-#define CONFIG_FUS_BOARDCFG_MMC1 0x00140000
+#define CONFIG_FUS_BOARDCFG_MMC0	0x00088000
+#define CONFIG_FUS_BOARDCFG_MMC1	0x00448000
 
 #define CONFIG_SYS_SPL_MALLOC_START	0x42200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000	/* 512 KB */

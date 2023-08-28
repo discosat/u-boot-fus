@@ -45,6 +45,7 @@
 		support-crc32;
 		save-board-id;
 		uboot-with-fsh;
+		uboot-emmc-bootpart;
 		emmc-both-bootparts;
 
 		/*
@@ -62,64 +63,61 @@
 		 */
 		emmc-boot {
 			/*
-			 * SPL and NBOOT are stored in the boot partitions.
- 			 * U-Boot is stored in the User partiton. Both env
-			 * copies of env are in the boot partition we boot from.
+			 * All images are stored in the boot partitions in
+			 * identical layouts. Only one start offset is needed.
 			 *
 			 * Boot1/2 HW-Partition (Boot Offset Primary Image: 0)
-			 * 0x0000_0000: SPL Copy 0/1 (224 KiB)
-			 * 0x0003_8000: --- (free, 32 KiB)
-			 * 0x0004_0000: NBOOT Copy 0/1 (768 KiB)
-			 * 0x0010_0000: --- (compatibility to fsimx8mm, 224 KiB)
-			 * 0x0013_8000: UBootEnv (16 KiB)
-			 * 0x0013_C000: UBootEnvRed (16 KiB)
-			 * 0x0014_0000: --- (free, to end of partition)
+			 * ---------------------------------------------------
+			 * 0x0000_0000: SPL Copy 0/1 (256 KiB)
+			 * 0x0004_0000: UBootEnv/UBootEnvRed (16 KiB)
+			 * 0x0004_4000: - (free, 16 KiB, option for bigger Env)
+			 * 0x0004_8000: NBOOT Copy 0/1 (992 KiB)
+			 * 0x0014_0000: U-Boot A/B (2816 KiB, to end of part)
 			 *
-			 * User HW-Partition:
-			 * 0x0000_0000: --- (free, space for GPT, 32 KiB)
-			 * 0x0000_8000: --- (free, 1248 KiB; UserDef/M4?)
-			 * 0x0014_0000: U-Boot A (3 MiB)
-			 * 0x0044_0000: U-Boot B (3 MiB)
-			 * 0x0074_0000: --- (free, 768KB)
+			 * User HW-Partition
+			 * -----------------
+			 * 0x0000_0000: - (free, 8 MiB)
 			 * 0x0080_0000: End of reserved area
 			 */
 			spl-start = <0x00000000>;
-			spl-size = <0x00038000>;		/* 224 KiB */
+			spl-size = <0x00040000>;		/* 256 KiB */
 			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0 >;
-			nboot-size = <0x000C0000>;		/* 768 KiB */
-			uboot-start = <0x00140000 0x00440000>;
-			uboot-size = <0x00300000>;		/* 3 MiB */
-			env-start = <0x00138000 0x0013c000>;
+			nboot-size = <0x000f8000>;		/* 992 KiB */
+			uboot-start = <0x00140000>;
+			uboot-size = <0x002c0000>;		/* 2816 KiB */
+			env-start = <0x00040000>;
 			env-size = <0x00004000>;		/* 16 KiB */
 		};
 
 		sd-user {
 			/*
-			 * All parts are stored in the User partition.
+			 * All parts are stored in the User partition/SD Card.
 			 *
-			 * Boot1/2 HW-Partition (Boot Offset Primary Image: 0)
+			 * Boot1/2 HW-Partition
+			 * ---------------------------------------------------
 			 * 0x0000_0000: --- (completely empty)
 			 *
 			 * User HW-Partition (Boot Offset Primary Image: 0x8000)
+			 * -----------------------------------------------------
 			 * 0x0000_0000: --- (space for GPT, 32 KiB)
-			 * 0x0000_8000: SPL Copy 0 (224 KiB)
-			 * 0x0004_0000: NBOOT Copy 0 (768 KiB)
-			 * 0x0010_0000: SPL Copy 1 (224 KiB) Second. Image Offs.
-			 * 0x0013_8000: UBootEnv (16 KiB)
-			 * 0x0013_C000: UBootEnvRed (16 KiB)
-			 * 0x0014_0000: U-Boot A (3 MiB)
-			 * 0x0044_0000: U-Boot B (3 MiB)
-			 * 0x0074_0000: NBOOT Copy 1 (768 KiB)
+			 * 0x0000_8000: SPL Copy 0 (256 KiB)
+			 * 0x0004_8000: NBOOT Copy 0 (992 KiB)
+			 * 0x0014_0000: U-Boot A (2816 KiB)
+			 * 0x0040_0000: SPL Copy 1 (256 KiB) Secondary Im. Offs.
+			 * 0x0044_0000: UBootEnv (16 KiB)
+			 * 0x0044_4000: UBootEnvRed (16 KiB)
+			 * 0x0044_8000: NBOOT Copy 1 (992 KiB)
+			 * 0x0054_0000: U-Boot B (2816 MiB)
 			 * 0x0080_0000: End of reserved area
 			 */
-			spl-start = <0x00008000 0x00100000>;
-			spl-size = <0x00038000>;		/* 224 KiB */
+			spl-start = <0x00008000 0x00400000>;
+			spl-size = <0x00040000>;		/* 256 KiB */
 			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0
 					CONFIG_FUS_BOARDCFG_MMC1 >;
-			nboot-size = <0x000C0000>;		/* 768 KiB */
-			uboot-start = <0x00140000 0x00440000>;
-			uboot-size = <0x00300000>;		/* 3 MiB */
-			env-start = <0x00138000 0x0013c000>;
+			nboot-size = <0x000f8000>;		/* 992 KiB */
+			uboot-start = <0x00140000 0x00540000>;
+			uboot-size = <0x002c0000>;		/* 2816 KiB */
+			env-start = <0x00440000 0x00444000>;
 			env-size = <0x00004000>;		/* 16 KiB */
 		};
 	};
