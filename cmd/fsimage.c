@@ -189,10 +189,11 @@ struct nboot_info {
 #define SUB_SYNC          BIT(0)	/* After writing image, flush temp */
 #define SUB_HAS_FS_HEADER BIT(1)	/* Image has an F&S header in flash */
 #define SUB_IS_SPL        BIT(2)	/* SPL: has IVT, may beed offset */
+#define SUB_IS_ENV        BIT(3)	/* Environment data */
 #ifdef CONFIG_NAND_MXS
-#define SUB_IS_FCB        BIT(3)	/* FCB: needs other ECC */
-#define SUB_IS_DBBT       BIT(4)
-#define SUB_IS_DBBT_DATA  BIT(5)
+#define SUB_IS_FCB        BIT(4)	/* FCB: needs other ECC */
+#define SUB_IS_DBBT       BIT(5)
+#define SUB_IS_DBBT_DATA  BIT(6)
 #endif
 struct sub_info {
 	void *img;			/* Pointer to image */
@@ -338,6 +339,11 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 	/* Parse generic NBoot capablities here */
 	ni->board_cfg_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 							  "board-cfg-size", 0);
+#if 0
+	/* ### Debug: Needed to test against versions since the env addresses
+               were moved to nboot-info */
+	ni->flags |= NI_SUPPORT_CRC32 | NI_SAVE_BOARD_ID | NI_UBOOT_WITH_FSH;
+#endif
 	if (fdt_getprop(fdt, offs, "support-crc32", NULL))
 		ni->flags |= NI_SUPPORT_CRC32;
 	if (fdt_getprop(fdt, offs, "save-board-id", NULL))
@@ -1176,6 +1182,56 @@ static int fs_image_load_image(struct flash_info *fi,
 	return 0;
 }
 
+/* Check CRC32 for an environment of given size */
+static int fs_image_check_env_crc32(void *env, unsigned int size)
+{
+	u32 expected;
+	/*
+	 * Check CRC32 of environment. The enviroment starts with the
+	 * CRC32 checksum. In case of redundant env, there is an additional
+	 * status byte. Then follows the environment itself.
+	 */
+	expected = *(u32 *)env;
+	if (crc32(0, env + 5, size - 5) == expected)
+		return 0;
+#if 0
+	/* Check for non-redundant environment */
+	if (crc32(0, env + 4, size - 4) == expected)
+		return -EILSEQ;
+#endif
+
+	return 0;
+}
+
+/* Load one ENV */
+static int fs_image_load_env(struct flash_info *fi, struct storage_info *si,
+			     void *env_addr, int copy)
+{
+	unsigned int size = 0;
+	int err;
+	struct sub_info sub;
+
+	sub.type = copy ? "ENV-RED" : "ENV";
+	sub.descr = fs_image_get_arch();
+	sub.img = env_addr + FSH_SIZE;
+	sub.offset = 0;
+	sub.flags = SUB_IS_ENV;
+
+	err = fi->ops->load_image(fi, copy, si, &sub);
+	fs_image_show_sub_status(err);
+	if (err)
+		return err;
+
+	//### TODO: Change env size if new one differs
+
+	size = sub.size;
+	sub.size = ALIGN(size, 16);
+	memset(sub.img + size, 0, sub.size - size);
+	fs_image_set_header(env_addr, sub.type, sub.descr, size, 0);
+
+	return 0;
+}
+
 /* Load U-Boot to given address */
 static int fs_image_load_uboot(struct flash_info *fi, struct nboot_info *ni,
 			       void *addr)
@@ -1413,6 +1469,25 @@ repeat:
 
 	return 0;
 }
+
+static int fs_image_save_uboot(struct flash_info *fi, struct region_info *ri)
+{
+	int failed;
+	int copy, start_copy;
+
+	failed = 0;
+	start_copy = fs_image_get_start_copy();
+	copy = start_copy;
+	do {
+		printf("\nSaving copy %d to %s:\n", copy, fi->devname);
+		if (fs_image_save_region(fi, copy, ri))
+			failed |= BIT(copy);
+		copy = 1 - copy;
+	} while (copy != start_copy);
+
+	return failed;
+}
+
 
 /* ------------- NAND handling --------------------------------------------- */
 
@@ -1660,6 +1735,8 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	} else if ((sub->flags & SUB_IS_DBBT)
 		   || (sub->flags & SUB_IS_DBBT_DATA)) {
 		size = fi->mtd->writesize;
+	} else if (sub-> flags & SUB_IS_ENV) {
+		size = si->env_used;
 	} else {
 		/* Load header (IVT, FIT or FS_HEADER) and get size from it */
 		size = sizeof(union any_header);
@@ -1728,6 +1805,8 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 		cs_size = (count + 1) * sizeof(u32);
 		err = fs_image_check_bcb_checksum(sub->img + 4, cs_size,
 						  dbbt_data[0], true);
+	} else if (sub->flags & SUB_IS_ENV) {
+		err = fs_image_check_env_crc32(sub->img, size);
 	} else if (sub->flags & SUB_HAS_FS_HEADER) {
 		err = fs_image_check_all_crc32(sub->img);
 	} else if (fs_image_is_fs_image(sub->img)) {
@@ -2298,6 +2377,9 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	if (ni->flags & NI_UBOOT_EMMC_BOOTPART) {
 		ni->uboot.hwpart[0] = first;
 		ni->uboot.hwpart[1] = second;
+		/* Limit U-Boot size to boot part size */
+		if (ni->uboot.size > (u32)(fi->mmc->capacity_boot))
+			ni->uboot.size = (u32)(fi->mmc->capacity_boot);
 	} else {
 		ni->uboot.hwpart[0] = 0;
 		ni->uboot.hwpart[1] = 0;
@@ -2406,29 +2488,34 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 	if (err)
 		return err;
 
-	/* Read F&S header, IVT or FIT header */
-	size = sizeof(union any_header);
-	err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
-	if (err)
-		return err;
-
-	/* Get image size */
-	if (fdt_magic(sub->img) == FDT_MAGIC) {
-		/* Read the FDT part of the FIT image to get size */
-		size = fdt_totalsize(sub->img);
-		err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
-		if (!err)
-			err = fs_image_get_size_from_fit(sub, &size);
+	if (sub->flags & SUB_IS_ENV) {
+		size = si->size;
 	} else {
-		err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
+		/* Read F&S header, IVT or FIT header */
+		size = sizeof(union any_header);
+		err = fs_image_load_sub(fi, offs, size, lim, 0, sub->img);
+		if (err)
+			return err;
+
+		/* Get image size */
+		if (fdt_magic(sub->img) == FDT_MAGIC) {
+			/* Read the FDT part of the FIT image to get size */
+			size = fdt_totalsize(sub->img);
+			err = fs_image_load_sub(fi, offs, size, lim, 0,
+						sub->img);
+			if (!err)
+				err = fs_image_get_size_from_fit(sub, &size);
+		} else {
+			err = fs_image_get_size_from_fsh_or_ivt(sub, &size);
 #ifdef CONFIG_IMX8MM
-		/* Remove virtual IVT offset */
-		if (sub->flags & SUB_IS_SPL)
-			size -= 0x400;
+			/* Remove virtual IVT offset */
+			if (sub->flags & SUB_IS_SPL)
+				size -= 0x400;
 #endif
+		}
+		if (err)
+			return err;
 	}
-	if (err)
-		return err;
 
 	printf(" size 0x%x...", size);
 	debug("\n");
@@ -2438,7 +2525,9 @@ static int fs_image_load_image_mmc(struct flash_info *fi, int copy,
 	if (err)
 		return err;
 
-	if (sub->flags & SUB_HAS_FS_HEADER) {
+	if (sub->flags & SUB_IS_ENV) {
+		err = fs_image_check_env_crc32(sub->img, size);
+	} else if (sub->flags & SUB_HAS_FS_HEADER) {
 		err = fs_image_check_all_crc32(sub->img);
 		if (err < 0)
 			return err;
@@ -2810,8 +2899,9 @@ static void fs_image_put_flash_info(struct flash_info *fi)
 	free(fi->temp);
 }
 
+
 /* Handle fsimage save if loaded image is a U-Boot image */
-static int fsimage_save_uboot(ulong addr, bool force)
+static int do_fsimage_save_uboot(ulong addr, bool force)
 {
 	void *fdt;
 	struct sub_info sub;
@@ -2819,7 +2909,6 @@ static int fsimage_save_uboot(ulong addr, bool force)
 	struct flash_info fi;
 	struct nboot_info ni;
 	int failed;
-	int copy, start_copy;
 	unsigned int flags;
 	struct fs_header_v1_0 *fsh = (struct fs_header_v1_0 *)addr;
 
@@ -2844,16 +2933,7 @@ static int fsimage_save_uboot(ulong addr, bool force)
 		return CMD_RET_FAILURE;
 
 	/* ### TODO: set copy depending on Set A or B (or redundant copy) */
-	failed = 0;
-	start_copy = fs_image_get_start_copy();
-	copy = start_copy;
-	do {
-		printf("\nSaving copy %d to %s:\n", copy, fi.devname);
-		if (fs_image_save_region(&fi, copy, &ri))
-			failed |= BIT(copy);
-		copy = 1 - copy;
-	} while (copy != start_copy);
-
+	failed = fs_image_save_uboot(&fi, &ri);
 	fs_image_put_flash_info(&fi);
 
 	return fs_image_show_save_status(failed, "U-Boot");
@@ -3079,6 +3159,9 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	unsigned int firmware_start, dram_info_start, dram_type_start;
 	struct region_info nboot_ri, spl_ri;
 	struct sub_info nboot_sub[8], spl_sub;
+	void *uboot_addr, *env_addr, *envred_addr;
+	struct region_info uboot_ri, env_ri, envred_ri;
+	struct sub_info uboot_sub, env_sub, envred_sub;
 	const char *arch = fs_image_get_arch();
 	const char *type;
 	unsigned int flags;
@@ -3088,6 +3171,9 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	const char *dram_timing;
 	struct nboot_info ni;
 	struct flash_info fi;
+	bool need_uboot = false, need_env = false;
+	bool ignore_old;
+	struct nboot_info ni_old;
 	int ret;
 	int failed;
 	unsigned long addr;
@@ -3119,13 +3205,14 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	/* If this is an U-Boot image, handle separately */
 	if (fs_image_match((void *)addr, "U-BOOT", NULL))
-		return fsimage_save_uboot(addr, force);
+		return do_fsimage_save_uboot(addr, force);
 
 	/* Handle NBoot image */
 	ret = fs_image_find_board_cfg(addr, force, "save",
 				      &cfg_fsh, &nboot_fsh);
 	if (ret <= 0)
 		return CMD_RET_FAILURE;
+	ignore_old = (ret == 2);	/* Ignore old BOARD-CFG if ID changed */
 
 	fdt = fs_image_find_cfg_fdt(cfg_fsh);
 
@@ -3147,6 +3234,75 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (ret > 0) {
 		printf("Warning! Boot fuses not yet set, remember to burn"
 		       " them for %s\n", fi.boot_dev_name);
+	}
+
+	if (!ignore_old) {
+		void *fdt_old = fs_image_get_cfg_fdt();
+
+		/* Check if U-Boot and/or environment need to be relocated */
+		if (fs_image_get_nboot_info(&fi, fdt_old, &ni_old))
+			ignore_old = true;
+
+		//### TOOD: Also if size, hwpart or env_used changes
+		if ((ni.uboot.start[0] != ni_old.uboot.start[0])
+		    || (ni.uboot.start[1] != ni_old.uboot.start[1]))
+			need_uboot = true;
+		if ((ni.env.start[0] != ni_old.env.start[0])
+		    || (ni.env.start[1] != ni_old.env.start[1]))
+			need_env = true;
+	}
+
+	/* Load U-Boot behind NBoot, if necessary */
+	if (need_uboot) {
+		puts("Need to move U-Boot\n");
+
+		uboot_addr = (void *)nboot_fsh;
+		uboot_addr += fs_image_get_size(uboot_addr, true);
+		if (fs_image_load_uboot(&fi, &ni_old, uboot_addr))
+			return CMD_RET_FAILURE;
+
+		/* Prepare U-BOOT region with one sub-image */
+		fs_image_region_create(&uboot_ri, &ni.uboot, &uboot_sub);
+
+		flags = SUB_SYNC;
+		if (ni.flags & NI_UBOOT_WITH_FSH)
+			flags |= SUB_HAS_FS_HEADER; /* Save with F&S header */
+		if (!fs_image_region_add(&uboot_ri, uboot_addr, "U-BOOT",
+					 arch, 0, flags))
+			return CMD_RET_FAILURE;
+
+		/* Check if all prerequisites for U-Boot are valid */
+		if (fi.ops->check_for_uboot(&ni.uboot, force))
+			return CMD_RET_FAILURE;
+	}
+
+	/* Load Environment behind NBoot (or U-Boot), if necessary */
+	if (need_env) {
+		puts("Need to move Environment\n");
+		printf("Loading ENV from %s\n", fi.devname);
+
+		env_addr = need_uboot ? uboot_addr : nboot_fsh;
+		env_addr += fs_image_get_size(env_addr, true);
+		ret = fs_image_load_env(&fi, &ni_old.env, env_addr, 0);
+		if (ret)
+			return CMD_RET_FAILURE;
+
+		envred_addr = env_addr + fs_image_get_size(env_addr, true);
+		ret = fs_image_load_env(&fi, &ni_old.env, envred_addr, 1);
+		if (ret)
+			return CMD_RET_FAILURE;
+
+		/* Prepare ENV region with one sub-image */
+		fs_image_region_create(&env_ri, &ni.env, &env_sub);
+		if (!fs_image_region_add(&env_ri, env_addr, "ENV",
+					 arch, 0, SUB_SYNC))
+			return CMD_RET_FAILURE;
+
+		/* Prepare ENV-RED region with one sub-image */
+		fs_image_region_create(&envred_ri, &ni.env, &envred_sub);
+		if (!fs_image_region_add(&envred_ri, envred_addr, "ENV-RED",
+					 arch, 0, SUB_SYNC))
+			return CMD_RET_FAILURE;
 	}
 
 	/* Prepare subimages for NBOOT region */
@@ -3237,10 +3393,6 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!woffset)
 		return CMD_RET_FAILURE;
 
-	/* Issue warning if UBoot MTD partitions are missing/differ
-	   ### TODO: only call if U-Boot is moved */
-	fi.ops->check_for_uboot(&ni.uboot, true);
-
 	if (fi.ops->check_for_nboot(&fi, &ni.spl, force))
 		return CMD_RET_FAILURE;
 
@@ -3250,8 +3402,40 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		fs_image_board_cfg_set_board_rev(cfg_fsh);
 	}
 
-	/* Found all sub-images, everything is prepared, go and save NBoot */
-	failed = fi.ops->save_nboot(&fi, &nboot_ri, &spl_ri);
+	/* --- Found all sub-images, everything is prepared, go and save --- */
+
+	/* Save U-Boot if needed */
+	failed = 0;
+	if (need_uboot) {
+		int uboot_failed = fs_image_save_uboot(&fi, &uboot_ri);
+
+		if (!failed || (uboot_failed == 3))
+			failed = uboot_failed;
+	}
+
+	/* Save ENV if needed */
+	if ((failed != 3) && need_env) {
+		int env_failed = 0;
+
+		printf("\nSaving copy 0 to %s:\n", fi.devname);
+		if (fs_image_save_region(&fi, 0, &env_ri))
+			env_failed |= BIT(0);
+
+		printf("\nSaving copy 1 to %s:\n", fi.devname);
+		if (fs_image_save_region(&fi, 1, &envred_ri))
+			env_failed |= BIT(0);
+
+		if (failed || (env_failed == 3))
+			failed = env_failed;
+	}
+
+	/* Finally save NBOOT */
+	if (failed != 3) {
+		int nboot_failed = fi.ops->save_nboot(&fi, &nboot_ri, &spl_ri);
+
+		if (!failed || (nboot_failed == 3))
+			failed = nboot_failed;
+	}
 
 	fs_image_put_flash_info(&fi);
 
