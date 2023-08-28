@@ -389,7 +389,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 }
 
 /* Do the basic board setup when we have our final BOARD-CFG */
-static void basic_init(void)
+static void basic_init(const char *layout_name)
 {
 	void *fdt = fs_image_get_cfg_fdt();
 	int offs = fs_image_get_board_cfg_offs(fdt);
@@ -439,15 +439,19 @@ static void basic_init(void)
 
 	printf("BOARD-ID: %s\n", fs_image_get_board_id());
 
-	/* Get U-Boot offset */
+	/* Get U-Boot offset; not necessary in SDP mode */
+	if (layout_name) {
+		int layout;
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	index = 0;			/* ### TODO: Select slot A or B */
+		index = 0;		/* ### TODO: Select slot A or B */
 #else
-	index = 0;
+		index = 0;
 #endif
-	offs = fs_image_get_nboot_info_offs(fdt);
-	uboot_offs = fdt_getprop_u32_default_node(fdt, offs, index,
-						  "uboot-start", 0);
+		offs = fs_image_get_nboot_info_offs(fdt);
+		layout = fdt_subnode_offset(fdt, offs, layout_name);
+		uboot_offs = fdt_getprop_u32_default_node(fdt, layout, index,
+							  "uboot-start", 0);
+	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
 	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");

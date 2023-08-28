@@ -172,6 +172,9 @@ static void fs_mmc_get_env_info(struct mmc *mmc, struct cfg_info *cfg)
 {
 	void *fdt;
 	int offs;
+	int layout;
+	const char *layout_name;
+	uint boot_hwpart;
 	unsigned int align;
 	int err;
 
@@ -214,8 +217,16 @@ static void fs_mmc_get_env_info(struct mmc *mmc, struct cfg_info *cfg)
 	fdt = fs_image_get_cfg_fdt();
 	offs = fs_image_get_nboot_info_offs(fdt);
 	align = mmc_get_blk_desc(mmc)->blksz;
+	boot_hwpart = (mmc->part_config >>3) & PART_ACCESS_MASK;
+	if (boot_hwpart > 2)
+		boot_hwpart = 0;
 
-	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+	layout_name = boot_hwpart ? "emmc-boot" : "sd-user";
+	layout = fdt_subnode_offset(fdt, offs, layout_name);
+	if (layout < 0)
+		layout = offs;
+
+	err = fs_image_get_fdt_val(fdt, layout, "env-start", align,
 				   2, cfg->env_start);
 	if (err == -ENOENT) {
 		/* This is an old version, use the old known position */

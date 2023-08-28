@@ -1478,18 +1478,28 @@ static bool fs_image_check_for_nboot_nand(struct flash_info *fi,
 static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 					int offs, struct nboot_info *ni)
 {
+	int layout;
+	const char *layout_name;
 	int err;
 	unsigned int align = fi->mtd->erasesize;
 
-	err = fs_image_get_si(fdt, offs, align, "SPL", &ni->spl);
+	/* Go to layout node if present */
+	layout_name = "nand";
+	layout = fdt_subnode_offset(fdt, offs, layout_name);
+	if (layout < 0) {
+		layout_name = "old";
+		layout = offs;
+	}
+
+	err = fs_image_get_si(fdt, layout, align, "SPL", &ni->spl);
 	if (err)
 		return err;
 
-	err = fs_image_get_si(fdt, offs, align, "NBOOT", &ni->nboot);
+	err = fs_image_get_si(fdt, layout, align, "NBOOT", &ni->nboot);
 	if (err)
 		return err;
 
-	err = fs_image_get_si(fdt, offs, align, "U-BOOT", &ni->uboot);
+	err = fs_image_get_si(fdt, layout, align, "U-BOOT", &ni->uboot);
 	if (err)
 		return err;
 
@@ -1498,16 +1508,16 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	 * entry, from which env-size bytes are then used.
 	 */
 	ni->env.type = "ENV";
-	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+	err = fs_image_get_fdt_val(fdt, layout, "env-start", align,
 				   2, ni->env.start);
 	if (!err) {
-		err = fs_image_get_fdt_val(fdt, offs, "env-range", align,
+		err = fs_image_get_fdt_val(fdt, layout, "env-range", align,
 					   1, &ni->env.size);
 		if (err)
 			return err;
 		/* The size only has to be aligned to pages */
 		align = fi->mtd->writesize;
-		err = fs_image_get_fdt_val(fdt, offs, "env-size", align,
+		err = fs_image_get_fdt_val(fdt, layout, "env-size", align,
 					   1, &ni->env_used);
 	} else if (err == -ENOENT) {
 		/*
@@ -1521,8 +1531,8 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	if (err)
 		return err;
 
-	debug("- nboot-info@0x%lx (nand): board-cfg-size=0x%08x (%s layout)\n",
-	      (ulong)fdt, ni->board_cfg_size, ni->board_cfg_size ? "old":"new");
+	debug("- nboot-info@0x%lx (%s layout): board-cfg-size=0x%08x\n",
+	      (ulong)fdt, layout_name, ni->board_cfg_size);
 	debug("- spl:   start=0x%08x/0x%08x size=0x%08x\n",
 	      ni->spl.start[0], ni->spl.start[1], ni->spl.size);
 	debug("- nboot: start=0x%08x/0x%08x size=0x%08x\n",
@@ -2248,31 +2258,41 @@ static int fs_image_set_hwpart_mmc(struct flash_info *fi, int copy,
 static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 				       int offs, struct nboot_info *ni)
 {
+	int layout;
+	const char *layout_name;
 	int err;
 	unsigned int align = fi->blk_desc->blksz;
 	u8 first = fi->boot_hwpart;
 	u8 second = first ? (3 - first) : first;
+
+	/* Go to layout subnode if present */
+	layout_name = first ? "emmc-boot" : "sd-user";
+	layout = fdt_subnode_offset(fdt, offs, layout_name);
+	if (layout < 0) {
+		layout_name = "old";
+		layout = offs;
+	}
 
 	/* Pre 2023.08, everything was in the same boot hwpart on fsimx8mm */
 	if (!(ni->flags & NI_EMMC_BOTH_BOOTPARTS))
 		second = first;
 
 	/* Get SPL storage info */
-	err = fs_image_get_si(fdt, offs, align, "SPL", &ni->spl);
+	err = fs_image_get_si(fdt, layout, align, "SPL", &ni->spl);
 	if (err)
 		return err;
 	ni->spl.hwpart[0] = first;
 	ni->spl.hwpart[1] = second;
 
 	/* Get NBoot storage info */
-	err = fs_image_get_si(fdt, offs, align, "NBOOT", &ni->nboot);
+	err = fs_image_get_si(fdt, layout, align, "NBOOT", &ni->nboot);
 	if (err)
 		return err;
 	ni->nboot.hwpart[0] = first;
 	ni->nboot.hwpart[1] = second;
 
 	/* Get U-Boot storage info */
-	err = fs_image_get_si(fdt, offs, align, "U-BOOT", &ni->uboot);
+	err = fs_image_get_si(fdt, layout, align, "U-BOOT", &ni->uboot);
 	if (err)
 		return err;
 	if (ni->flags & NI_UBOOT_EMMC_BOOTPART) {
@@ -2284,6 +2304,12 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	}
 
 #ifndef CONFIG_IMX8MM
+	/*
+	 * In the old layout some addresses were given for the User hwpart
+	 * only, so we had to know the alternative addresses when booting from
+	 * a boot partiton. This does not contradict with the new layout, so
+	 * we can keep them as they are.
+	 */
 	if (first) {
 		/* SPL always starts on sector 0 in boot1/2 hwpart */
 		ni->spl.start[0] = 0;
@@ -2295,7 +2321,7 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 #endif
 
 	/* Get env info from nboot-info */
-	err = fs_image_get_si(fdt, offs, align, "ENV", &ni->env);
+	err = fs_image_get_si(fdt, layout, align, "ENV", &ni->env);
 	if (err == -ENOENT) {
 		/*
 		 * No env data found in nboot-info, fall back to some known
@@ -2317,9 +2343,8 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	if (first && (ni->env.start[0] == ni->env.start[1]))
 		ni->env.hwpart[1] = second;
 
-	debug("- nboot-info@0x%lx (%s): board-cfg-size=0x%08x (%s layout)\n",
-	      (ulong)fdt, first ? "emmc-boot" : "sd-user", ni->board_cfg_size,
-	      ni->board_cfg_size ? "old" : "new");
+	debug("- nboot-info@0x%lx (%s layout): board-cfg-size=0x%08x\n",
+	      (ulong)fdt, layout_name, ni->board_cfg_size);
 	debug("- spl:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
 	      ni->spl.hwpart[0], ni->spl.start[0],
 	      ni->spl.hwpart[1], ni->spl.start[1], ni->spl.size);

@@ -830,6 +830,7 @@ static int nest_level;
 static const char *ram_type;
 static const char *ram_timing;
 static basic_init_t basic_init_callback;
+static const char *layout_name;
 static struct fs_header_v1_0 one_fsh;	/* Buffer for one F&S header */
 static void *validate_addr = NULL;
 static void *final_addr;
@@ -844,6 +845,7 @@ static struct fsimg {
 
 struct flash_info_spl {
 	unsigned int offs[2];		/* Offset in flash for each copy */
+	const char *layout;		/* Name of the layout */
 #ifdef CONFIG_CMD_MMC
 	struct mmc *mmc;		/* Handle to MMC device */
 	struct blk_desc *blk_desc;	/* Handle to MMC block device */
@@ -879,7 +881,7 @@ static int fs_image_init_dram(void)
 	unsigned long *p;
 
 	/* Before we can init DRAM, we have to init the board config */
-	basic_init_callback();
+	basic_init_callback(layout_name);
 
 	/* The image starts with a pointer to the dram_timing variable */
 	p = (unsigned long *)CONFIG_SPL_DRAM_TIMING_ADDR;
@@ -1346,10 +1348,11 @@ static void fs_image_handle(void)
 
 /* Start state machine for a new F&S image */
 static void fs_image_start(unsigned int size, unsigned int jobs_todo,
-			   basic_init_t basic_init)
+			   basic_init_t basic_init, const char *layout)
 {
 	jobs = jobs_todo;
 	basic_init_callback = basic_init;
+	layout_name = layout;
 	nest_level = -1;
 	fs_image_enter(size, FSIMG_STATE_ANY);
 }
@@ -1379,7 +1382,7 @@ static void fs_image_sdp_rx_data(u8 *data_buf, int data_len)
 /* This is called when the SDP protocol starts a new file */
 static void fs_image_sdp_new_file(u32 dnl_address, u32 size)
 {
-	fs_image_start(size, jobs, basic_init_callback);
+	fs_image_start(size, jobs, basic_init_callback, NULL);
 }
 
 static const struct sdp_stream_ops fs_image_sdp_stream_ops = {
@@ -1427,6 +1430,8 @@ static int fs_image_get_flash_info_spl_nand(struct flash_info_spl *fi)
 	/* Set access functions */
 	fi->load = nand_spl_load_image;
 	fi->set_hwpart = fs_image_set_hwpart_nand;
+
+	fi->layout = "nand";
 
 	return 0;
 }
@@ -1577,6 +1582,8 @@ static int fs_image_get_flash_info_spl_mmc(struct flash_info_spl *fi)
 	fi->load = fs_image_gen_load_mmc;
 	fi->set_hwpart = fs_image_set_hwpart_mmc;
 
+	fi->layout = boot_hwpart ? "emmc-boot" : "sd-user";
+
 	return 0;
 }
 #endif /* CONFIG_MMC */
@@ -1603,6 +1610,11 @@ static int fs_image_loop(struct flash_info_spl *fi, struct fs_header_v1_0 *cfg,
 						      "board-cfg-size", 0);
 	if (!board_cfg_size)
 		board_cfg_size = fs_image_get_size(cfg, true);
+
+	/* Go to the layout subnode */
+	offs = fdt_subnode_offset(fdt, offs, fi->layout);
+	if (offs < 0)
+		return -EINVAL;
 
 	nboot_size = fdt_getprop_u32_default_node(fdt, offs, 0, "nboot-size", 0);
 	if (!nboot_size)
@@ -1689,7 +1701,8 @@ int fs_image_load_system(enum boot_device boot_dev, bool secondary,
 				return 0;
 
 			/* Try to load FIRMWARE (with state machine) */
-			fs_image_start(FSH_SIZE, FSIMG_FW_JOBS, basic_init);
+			fs_image_start(FSH_SIZE, FSIMG_FW_JOBS, basic_init,
+				       fi.layout);
 			if (!fs_image_loop(&fi, cfg, start) && !jobs)
 				return 0;
 		}

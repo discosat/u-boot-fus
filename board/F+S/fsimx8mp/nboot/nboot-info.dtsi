@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2023 F&S Elektronik Systeme GmbH
+ *
+ * This file contains generic NBoot parameters that are included in every
+ * BOARD-CFG file. So keep the set as small as possible. It is used by SPL and
+ * U-Boot. It adds some generic information to the board-cfg node and adds a
+ * new node nboot-info. This node contains the flash layout. It tells where
+ * every part of the system is stored. There is an own layout for every type of
+ * supported flash.
+ *
+ *   SPL:     First stage boot loader, stored separately as required by the
+ *            ROM loader
+ *   NBOOT:   A reduced subset of the NBOOT image consisting only of the
+ *            BOARD-CFG and the FIRMWARE part
+ *   U-BOOT:  The regular boot loader
+ *   ENV:     The U-Boot environment
+ *
+ * The file is processed by the C pre-processor, so you can use macros. But
+ * note that the angle brackets < and > need a separating blank in that case.
+ */
+
+#include <config.h>			/* CONFIG_* */
+
+/ {
+	board-cfg {
+		/* Add dynamic entries to board-cfg node */
+		board-cfg = BOARD_CFG_NAME;
+		board-rev = < BOARD_REV >;
+
+		/*
+		 * Increment if there are changes in BOARD-CFG structure
+		 *  1: Legacy images with either mmc or nand settings
+		 *  2: Flash settings in sub-nodes: emmc-boot, sd-user, nand;
+		 *     added board-cfg name, moved board-cfg-version here;
+		 *     use SECURE and/or CRC32 flags on some FS-Headers
+		 */
+		board-cfg-version = <2>;
+	};
+
+	nboot-info {
+		version = NBOOT_VERSION;
+
+		/* NBoot capabilities */
+		support-crc32;
+		save-board-id;
+		uboot-with-fsh;
+		emmc-both-bootparts;
+
+		/*
+		 * Settings for eMMC/SD.
+		 *
+		 * There are two settings. One is when booting from eMMC boot1
+		 * or boot2 partition and one is when booting from the User
+		 * partition of an eMMC or from an SD card. You can set this
+		 * with U-Boot command "mmc partconf".
+		 *
+		 * Keep both settings as similar as possible. All values must
+		 * be aligned to sectors (0x200 = 512 bytes), better even to
+		 * Linux pages (0x1000 = 4096 bytes). The settings assume an
+		 * 8 MiB reserved area at the beginning of the User partition.
+		 */
+		emmc-boot {
+			/*
+			 * SPL and NBOOT are stored in the boot partitions.
+ 			 * U-Boot is stored in the User partiton. Both env
+			 * copies of env are in the boot partition we boot from.
+			 *
+			 * Boot1/2 HW-Partition (Boot Offset Primary Image: 0)
+			 * 0x0000_0000: SPL Copy 0/1 (224 KiB)
+			 * 0x0003_8000: --- (free, 32 KiB)
+			 * 0x0004_0000: NBOOT Copy 0/1 (768 KiB)
+			 * 0x0010_0000: --- (compatibility to fsimx8mm, 224 KiB)
+			 * 0x0013_8000: UBootEnv (16 KiB)
+			 * 0x0013_C000: UBootEnvRed (16 KiB)
+			 * 0x0014_0000: --- (free, to end of partition)
+			 *
+			 * User HW-Partition:
+			 * 0x0000_0000: --- (free, space for GPT, 32 KiB)
+			 * 0x0000_8000: --- (free, 1248 KiB; UserDef/M4?)
+			 * 0x0014_0000: U-Boot A (3 MiB)
+			 * 0x0044_0000: U-Boot B (3 MiB)
+			 * 0x0074_0000: --- (free, 768KB)
+			 * 0x0080_0000: End of reserved area
+			 */
+			spl-start = <0x00000000>;
+			spl-size = <0x00038000>;		/* 224 KiB */
+			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0 >;
+			nboot-size = <0x000C0000>;		/* 768 KiB */
+			uboot-start = <0x00140000 0x00440000>;
+			uboot-size = <0x00300000>;		/* 3 MiB */
+			env-start = <0x00138000 0x0013c000>;
+			env-size = <0x00004000>;		/* 16 KiB */
+		};
+
+		sd-user {
+			/*
+			 * All parts are stored in the User partition.
+			 *
+			 * Boot1/2 HW-Partition (Boot Offset Primary Image: 0)
+			 * 0x0000_0000: --- (completely empty)
+			 *
+			 * User HW-Partition (Boot Offset Primary Image: 0x8000)
+			 * 0x0000_0000: --- (space for GPT, 32 KiB)
+			 * 0x0000_8000: SPL Copy 0 (224 KiB)
+			 * 0x0004_0000: NBOOT Copy 0 (768 KiB)
+			 * 0x0010_0000: SPL Copy 1 (224 KiB) Second. Image Offs.
+			 * 0x0013_8000: UBootEnv (16 KiB)
+			 * 0x0013_C000: UBootEnvRed (16 KiB)
+			 * 0x0014_0000: U-Boot A (3 MiB)
+			 * 0x0044_0000: U-Boot B (3 MiB)
+			 * 0x0074_0000: NBOOT Copy 1 (768 KiB)
+			 * 0x0080_0000: End of reserved area
+			 */
+			spl-start = <0x00008000 0x00100000>;
+			spl-size = <0x00038000>;		/* 224 KiB */
+			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0
+					CONFIG_FUS_BOARDCFG_MMC1 >;
+			nboot-size = <0x000C0000>;		/* 768 KiB */
+			uboot-start = <0x00140000 0x00440000>;
+			uboot-size = <0x00300000>;		/* 3 MiB */
+			env-start = <0x00138000 0x0013c000>;
+			env-size = <0x00004000>;		/* 16 KiB */
+		};
+	};
+};

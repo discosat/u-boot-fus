@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2023.06
+NBOOT_VERSION = 2023.08
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -205,23 +205,33 @@ $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 %_spl.fs: SPL
 	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_ATF_ADDR) -t SPL -d $(*F))
 
-REPLACE_NAND_START = $(CONFIG_FUS_BOARDCFG_NAND0) $(CONFIG_FUS_BOARDCFG_NAND1)
-REPLACE_MMC_START = $(CONFIG_FUS_BOARDCFG_MMC0) $(CONFIG_FUS_BOARDCFG_MMC1)
-NBOOT_INFO_REPLACE_SED_CMD = \
+### not necessary anymore, use CPP to insert variable values instead
+#REPLACE_NAND_START = $(CONFIG_FUS_BOARDCFG_NAND0) $(CONFIG_FUS_BOARDCFG_NAND1)
+#REPLACE_MMC_START = $(CONFIG_FUS_BOARDCFG_MMC0) $(CONFIG_FUS_BOARDCFG_MMC1)
+#NBOOT_INFO_REPLACE_SED_CMD = \
 	-e "s/\#\#\#NAND_START\#\#\#/$(REPLACE_NAND_START)/g" \
 	-e "s/\#\#\#MMC_START\#\#\#/$(REPLACE_MMC_START)/g" \
 	-e "s/\#\#\#NBOOT_VERSION\#\#\#/$(NBOOT_VERSION)/g"
 
-$(obj)/.nboot-info-%.dtsi.tmp: $(NBOOT_PATH)/nboot-info-%.dtsi
-	$(call cmd,sed,$(NBOOT_INFO_REPLACE_SED_CMD))
+#$(obj)/.nboot-info-%.dtsi.tmp: $(NBOOT_PATH)/nboot-info-%.dtsi
+#	$(call cmd,sed,$(NBOOT_INFO_REPLACE_SED_CMD))
 #	cat $@
 
-quiet_cmd_dtc = DTC     $@
-cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
+#quiet_cmd_dtc = DTC     $@
+#cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
+#cmd_dtc and cmd_dtco are defined in scripts/Makefile.lib
 
-NBOOT_INFO = $(obj)/.nboot-info-nand.dtsi.tmp $(obj)/.nboot-info-mmc.dtsi.tmp
-$(obj)/.%.dtb.tmp: $(NBOOT_PATH)/%.dts $(NBOOT_INFO)
-	$(call cmd,dtc)
+# Prepend some macros with varying content to BOARD-CFG .dts
+$(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts
+	@echo "/* Macros with varying content */" > $@
+	@echo "#define NBOOT_VERSION \"$(NBOOT_VERSION)\"" >> $@
+	@echo "#define BOARD_CFG_NAME \"$(*F)\"" >> $@
+	@echo "#define BOARD_REV $(subst .,,$(suffix $(*F)))" >> $@
+	@echo "#define CONFIG_SPL_BUILD" >> $@
+	@cat $< >> $@
+
+$(obj)/.%.dtb.tmp: $(obj)/.%.dts.tmp $(NBOOT_PATH)/nboot-info.dtsi
+	$(call cmd,dtco)
 
 $(obj)/%.fs: $(obj)/.%.dtb.tmp
 	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_FUS_BOARDCFG_ADDR) -t BOARD-CFG -d $(*F))

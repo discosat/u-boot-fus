@@ -155,7 +155,7 @@ int fs_image_get_known_env_mmc(uint index, uint start[2], uint *size);
 
 #ifdef CONFIG_SPL_BUILD
 
-typedef void (*basic_init_t)(void);
+typedef void (*basic_init_t)(const char *layout_name);
 
 /* Mark BOARD_CFG to tell U-Boot that we are running on Secondary SPL */
 void fs_image_mark_secondary(void);

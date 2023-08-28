@@ -97,8 +97,8 @@
  *
  * Boot1/2 HW-Partition (Boot Offset for the Primary Image is 0x0000):
  * 0x0000_0000: SPL Copy 0/1 (512KB)       i.MX8X (always 0)
- * 0x0008_0000: BOARD-CFG Copy 0/1 (8KB)   nboot-info: nboot-start[0]
- * 0x0008_2000: FIRMWARE Copy 0/1 (120KB)
+ * 0x0004_0000: BOARD-CFG Copy 0/1 (8KB)   nboot-info: nboot-start[0]
+ * 0x0004_2000: FIRMWARE Copy 0/1 (120KB)
  * 0x0010_0000: --- (free, for compatibility reasons with fsimx8mm, 224KB)
  * 0x0013_8000: UBootEnv (16KB)            Defined in device tree
  * 0x0013_C000: UBootEnvRed (16KB)         Defined in device tree
@@ -192,7 +192,7 @@
  * CONFIG_SYS_SPL_MALLOC_START
  */
 #define CONFIG_FUS_BOARDCFG_ADDR	0x00918000
-#define CONFIG_SPL_BSS_START_ADDR      0x0091A000
+#define CONFIG_SPL_BSS_START_ADDR	0x0091a000
 #define CONFIG_SPL_BSS_MAX_SIZE		0x2000	/* 8 KB */
 
 #ifdef CONFIG_SPL_BUILD
@@ -200,8 +200,8 @@
 #define CONFIG_SPL_DRIVERS_MISC_SUPPORT
 
 /* Offsets in eMMC where BOARD-CFG and FIRMWARE are stored */
-#define CONFIG_FUS_BOARDCFG_MMC0 0x00080000
-#define CONFIG_FUS_BOARDCFG_MMC1 0x00740000
+#define CONFIG_FUS_BOARDCFG_MMC0	0x00040000
+#define CONFIG_FUS_BOARDCFG_MMC1	0x00740000
 
 #define CONFIG_SYS_SPL_MALLOC_START	0x42200000
 #define CONFIG_SYS_SPL_MALLOC_SIZE	SZ_1M

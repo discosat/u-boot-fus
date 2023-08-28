@@ -307,10 +307,12 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	return ENVL_UNKNOWN;
 }
 
+#ifdef CONFIG_NAND_MXS
 static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
 {
 	void *fdt;
 	int offs;
+	int layout;
 	unsigned int align;
 	int err;
 
@@ -345,7 +347,11 @@ static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
 	offs = fs_image_get_nboot_info_offs(fdt);
 	align = mtd->erasesize;
 
-	err = fs_image_get_fdt_val(fdt, offs, "env-start", align,
+	layout = fdt_subnode_offset(fdt, offs, "nand");
+	if (layout < 0)
+		layout = offs;
+
+	err = fs_image_get_fdt_val(fdt, layout, "env-start", align,
 				   2, cfg->env_start);
 	if (err == -ENOENT) {
 		/* This is an old version, use the old known position */
@@ -373,6 +379,7 @@ loff_t board_nand_get_env_range(struct mtd_info *mtd)
 {
 	return CONFIG_ENV_NAND_RANGE;
 }
+#endif
 
 /* Check board type */
 int checkboard(void)
