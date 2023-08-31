@@ -3493,7 +3493,7 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fdt = fs_image_find_cfg_fdt(cfg_fsh);
 	if (fs_image_get_boot_dev(fdt, &boot_dev, &boot_dev_name)
-	    || fs_image_check_boot_dev_fuses(boot_dev, "fuse"))
+	    || fs_image_check_boot_dev_fuses(boot_dev, "fuse") < 0)
 		return CMD_RET_FAILURE;
 
 	/* No contradictions, do an in-depth check */
