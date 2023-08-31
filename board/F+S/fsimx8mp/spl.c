@@ -608,18 +608,6 @@ unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 	return uboot_offs / 512;
 }
 
-/* U-Boot is always loaded from the User HW partition */
-int spl_boot_partition(const u32 boot_device)
-{
-	return 0;
-}
-
-/* U-Boot is always loaded from the User HW partition */
-int spl_mmc_emmc_boot_partition(struct mmc *mmc)
-{
-	return 0;
-}
-
 #if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
 
 #define USB_PHY_CTRL0			0xF0040
