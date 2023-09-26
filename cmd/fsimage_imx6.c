@@ -22,6 +22,9 @@
 #include <jffs2/jffs2.h>		/* struct mtd_device + part_info */
 #include "../board/F+S/common/fs_board_common.h"	/* fs_board_*() */
 #include "../board/F+S/common/fs_mmc_common.h"	/* get_mmc_boot_device() */
+#ifdef CONFIG_FS_SECURE_BOOT
+#include <asm/mach-imx/hab.h>
+#endif
 
 /* Structure to hold regions in NAND/eMMC for an image */
 struct storage_info {
@@ -32,6 +35,7 @@ struct storage_info {
 
 static u8 local_buffer[0x200] __aligned(ARCH_DMA_MINALIGN);
 u32 get_image_length(u32 addr);
+u32 get_image_load_address(u32 addr);
 
 #ifdef CONFIG_FS_UPDATE_SUPPORT
 	const char *uboot_mtd_names[] = {"UBoot_A", "UBoot_B"};
@@ -63,7 +67,7 @@ static int report_return_code(int return_code)
 #ifdef CONFIG_CMD_NAND
 
 static int fs_image_setup_storage_info(struct storage_info *si,
-				        struct part_info *part)
+						struct part_info *part)
 {
 	if (part->offset && part->size) {
 		if (part->size < CONFIG_BOARD_SIZE_LIMIT) {
@@ -311,6 +315,23 @@ static int fs_image_save_uboot_to_mmc(unsigned long addr, int mmc_dev)
 	unsigned int img_size = CONFIG_BOARD_SIZE_LIMIT;
 	int err;
 
+	#ifdef CONFIG_FS_SECURE_BOOT
+	if(IS_UBOOT_IVT(addr)) {
+		memcpy((uintptr_t*)get_image_load_address(addr),
+		       (uintptr_t*)addr,
+		       get_image_length(addr));
+		if(imx_hab_authenticate_image(get_image_load_address(addr),
+					      get_image_length(addr), 0)){
+			printf("tainted uboot can not safe!\n");
+			return -1;
+		}
+	}
+	else if(imx_hab_is_enabled()) {
+		printf("unsigned Image can not safe!\n");
+		return -1;
+	}
+	#endif
+
 	if (!mmc) {
 		printf("mmc%d not found\n", mmc_dev);
 		return -ENODEV;
@@ -379,6 +400,12 @@ u32 get_image_length(u32 addr)
 	signed long offset = (signed long)((signed long)addr - (signed long)ivt->self);
 	struct boot_data *data = (struct boot_data *)(ivt->boot + offset);
 	return data->length;
+}
+
+u32 get_image_load_address(u32 addr)
+{
+	struct ivt *ivt = (struct ivt *)addr;
+	return (u32)ivt->self;
 }
 
 LOADER_TYPE GetImageType(u32 addr)

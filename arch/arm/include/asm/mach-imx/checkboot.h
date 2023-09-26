@@ -12,7 +12,6 @@
 #include <common.h>
 #include <asm/mach-imx/hab.h>
 
-
 /* UBoot IVT defines (so uboot recognizes the uboot with ivt)  */
 #define IS_UBOOT(pAddr)      	(__le32_to_cpup((__le32*)(pAddr + 0x3c)) == 0x12345678)
 #define IS_UBOOT_7ULP(pAddr)	(__le32_to_cpup((__le32*)(pAddr + 0xc3c)) == 0x12345678)
@@ -25,7 +24,6 @@
 #define IS_DEVTREE_IVT(pAddr)	(__be32_to_cpup((__be32*)(pAddr + HAB_HEADER)) == 0xd00dfeed)
 
 #define HAB_HEADER         0x40
-#define FS_HEADER_SIZE     sizeof(struct fs_header_v1_0)
 
 struct __packed boot_data {
 	uint32_t	start;
