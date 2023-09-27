@@ -138,10 +138,10 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 	return 0;
 }
 
-static void basic_init(void)
+static void basic_init(const char *layout_name)
 {
-	void *fdt = fs_image_get_cfg_addr(false);
-	int offs = fs_image_get_cfg_offs(fdt);
+	void *fdt = fs_image_get_cfg_fdt();
+	int offs = fs_image_get_board_cfg_offs(fdt);
 	int i;
 	char c;
 	int index;
@@ -195,24 +195,45 @@ static void basic_init(void)
 	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
 	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
 
-	/* Get U-Boot offset */
+	printf("BOARD-ID: %s\n", fs_image_get_board_id());
+
+	/* Get U-Boot offset; not necessary in SDP mode */
+	if (layout_name) {
+		int layout;
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	index = 0;			/* ### TODO: Select slot A or B */
+		index = 0;		/* ### TODO: Select slot A or B */
 #else
-	index = 0;
+		index = 0;
 #endif
-	offs = fs_image_get_info_offs(fdt);
-	uboot_offs = fdt_getprop_u32_default_node(fdt, offs, index,
-						  "uboot-start", 0);
+		offs = fs_image_get_nboot_info_offs(fdt);
+		layout = fdt_subnode_offset(fdt, offs, layout_name);
+		uboot_offs = fdt_getprop_u32_default_node(fdt, layout, index,
+							  "uboot-start", 0);
+	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
 	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
 
 }
 
+static void spl_quiesce_devices(void)
+{
+	const char *power_on_devices[] = {
+		"dma_lpuart2",
+		"PD_UART2_RX",
+		"PD_UART2_TX",
+
+		/* HIFI DSP boot */
+		"audio_sai0",
+		"audio_ocram",
+	};
+
+	imx8_power_off_pd_devices(power_on_devices, ARRAY_SIZE(power_on_devices));
+}
+
 void spl_board_prepare_for_boot(void)
 {
-	board_quiesce_devices();
+	spl_quiesce_devices();
 }
 
 void board_init_f(ulong dummy)
@@ -281,6 +302,10 @@ void board_init_f(ulong dummy)
 		fs_image_all_sdp(need_cfg, basic_init);
 	}
 
+	/* If running on secondary SPL, mark BOARD-CFG to pass info to U-Boot */
+	if (secondary)
+		fs_image_mark_secondary();
+
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);
 }
@@ -308,7 +333,7 @@ void spl_board_init(void)
 		restore_boot_params();
 	}
 #endif
-	puts("Normal Boot\n");
+	debug("Normal Boot\n");
 }
 
 /* Return the sector number where U-Boot starts in eMMC (User HW partition) */

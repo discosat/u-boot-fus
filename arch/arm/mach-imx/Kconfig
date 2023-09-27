@@ -91,6 +91,7 @@ config CSF_SIZE
 
 config FS_SECURE_BOOT
 	bool "Support FS variant of Secure Boot"
+	select IMX_HAB
 	help
 	  This option enables the support for F&S secure boot (HAB).
 

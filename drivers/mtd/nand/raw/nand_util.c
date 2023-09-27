@@ -435,8 +435,10 @@ static int check_skip_len(struct mtd_info *mtd, loff_t offset, size_t length,
 
 		if (!nand_block_isbad(mtd, block_start))
 			len_excl_bad += block_len;
-		else
+		else {
+			block_len = mtd->erasesize;
 			ret = 1;
+		}
 
 		offset += block_len;
 		*used += block_len;
@@ -649,7 +651,7 @@ int nand_write_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 
 		if (nand_block_isbad(mtd, block_start)) {
 			printf("Skip bad block 0x%08llx\n", block_start);
-			offset += mtd->erasesize - block_offset;
+			offset += mtd->erasesize;
 			continue;
 		}
 
@@ -730,6 +732,15 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 	size_t used_for_read = 0;
 	int need_skip;
 
+#if 0 //###
+	/*
+	 * 31.08.2023 HK:
+	 * Reading sequential data in smaller parts makes sense if the caller
+	 * evaluates the "actual" return value accordingly. So restricting
+	 * access to page aligned offsets is not necessary in the same way as
+	 * when writing. We at F&S need this for reading the SPL that is at
+	 * offset 0x400 on some architectures.
+	 */
 	if ((offset & (mtd->writesize - 1)) != 0) {
 		printf("Attempt to read non page-aligned data\n");
 		*length = 0;
@@ -737,6 +748,7 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 			*actual = 0;
 		return -EINVAL;
 	}
+#endif //###
 
 	need_skip = check_skip_len(mtd, offset, *length, &used_for_read);
 
@@ -778,7 +790,7 @@ int nand_read_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 		    && nand_block_isbad(mtd, offset & ~(mtd->erasesize - 1))) {
 			printf("Skipping bad block at 0x%08llx\n",
 				offset & ~(mtd->erasesize - 1));
-			offset += mtd->erasesize - block_offset;
+			offset += mtd->erasesize;
 			continue;
 		}
 
@@ -869,8 +881,7 @@ int nand_convert_skip_bad(struct mtd_info *mtd, loff_t offset, size_t *length,
 
 		WATCHDOG_RESET();
 
-		if (need_skip
-		    && nand_block_isbad(mtd, offset)) {
+		if (need_skip && nand_block_isbad(mtd, offset)) {
 			printf("Skipping bad block at 0x%08llx\n", offset);
 			offset += erasesize;
 			continue;

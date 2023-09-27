@@ -41,16 +41,10 @@ struct fs_header_v1_0 {			/* Size: 64 bytes */
 
 /* Possible values for flags entry above */
 #define FSH_FLAGS_DESCR 0x8000		/* Description descr is present */
-#define FSH_FLAGS_CRC32 0x4000		/* p32[7] holds the CRC32 checksum of
-					   the image (without header) */
-#define FSH_SIZE sizeof(struct fs_header_v1_0)
+#define FSH_FLAGS_CRC32 0x4000		/* CRC32 of image in type[12..15] */
+#define FSH_FLAGS_SECURE 0x2000		/* CRC32 of header in type[12..15] */
 
-/* Structure to hold regions in NAND/eMMC for an image, taken from nboot-info */
-struct storage_info {
-	const fdt32_t *start;		/* List of start addresses *-start */
-	unsigned int size;		/* *-size entry */
-	unsigned int count;		/* Number of entries in start */
-};
+#define FSH_SIZE sizeof(struct fs_header_v1_0)
 
 /* Return the F&S architecture */
 const char *fs_image_get_arch(void);
@@ -62,32 +56,19 @@ bool fs_image_is_fs_image(const struct fs_header_v1_0 *fsh);
 void *fs_image_get_regular_cfg_addr(void);
 
 /* Return the real address of the board configuration in OCRAM */
-void *fs_image_get_cfg_addr(bool with_fs_header);
+void *fs_image_get_cfg_addr(void);
+
+/* Return the fdt part of the board configuration in OCRAM */
+void *fs_image_get_cfg_fdt(void);
+
+/* Return the fdt part of the given board configuration */
+void *fs_image_find_cfg_fdt(struct fs_header_v1_0 *fsh);
 
 /* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt);
+int fs_image_get_board_cfg_offs(void *fdt);
 
 /* Return the address of the /nboot-info node */
-int fs_image_get_info_offs(void *fdt);
-
-/* Return the address of the /board-cfg node */
-int fs_image_get_cfg_offs(void *fdt);
-
-/* Get the board-cfg-size from nboot-info */
-int fs_image_get_board_cfg_size(void *fdt, int offs, unsigned int align,
-				unsigned int *size);
-
-/* Get nboot-start and nboot-size values from nboot-info */
-int fs_image_get_nboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si);
-
-/* Get spl-start and spl-size values from nboot-info */
-int fs_image_get_spl_info(void *fdt, int offs, unsigned int align,
-			  struct storage_info *si);
-
-/* Get uboot-start and uboot-size values from nboot-info */
-int fs_image_get_uboot_info(void *fdt, int offs, unsigned int align,
-			    struct storage_info *si);
+int fs_image_get_nboot_info_offs(void *fdt);
 
 /* Return NBoot version by looking in given fdt (or BOARD-CFG if NULL) */
 const char *fs_image_get_nboot_version(void *fdt);
@@ -100,12 +81,35 @@ unsigned int fs_image_get_size(const struct fs_header_v1_0 *fsh,
 bool fs_image_match(const struct fs_header_v1_0 *fsh,
 		    const char *type, const char *descr);
 
-/* Check id, return also true if revision is less than revision of compare id */
-bool fs_image_match_board_id(struct fs_header_v1_0 *fsh, const char *type);
+/* Check id, return also true if revision is less than revision of compare_id */
+bool fs_image_match_board_id(struct fs_header_v1_0 *fsh);
 
+/* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
+void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh);
 
-/* Set the compare id that will used in fs_image_match_board_id() */
-void fs_image_set_board_id_compare(const char *id);
+/* Return the current BOARD-ID */
+const char *fs_image_get_board_id(void);
+
+/* Set the compare_id that will be used in fs_image_match_board_id() */
+void fs_image_set_compare_id(const char id[MAX_DESCR_LEN]);
+
+/* Set the board_id and compare_id from the BOARD-CFG */
+void fs_image_set_board_id_from_cfg(void);
+
+/* Check if the F&S image is signed (followed by an IVT) */
+bool fs_image_is_signed(struct fs_header_v1_0 *fsh);
+
+/* Check IVT integrity of F&S image and return size and validation address */
+void *fs_image_get_ivt_info(struct fs_header_v1_0 *fsh, u32 *size);
+
+/* Validate a signed image; it has to be at the validation address */
+bool fs_image_is_valid_signature(struct fs_header_v1_0 *fsh);
+
+/* Verify CRC32 of given image */
+int fs_image_check_crc32(const struct fs_header_v1_0 *fsh);
+
+/* Make sure that BOARD-CFG in OCRAM is valid */
+bool fs_image_is_ocram_cfg_valid(void);
 
 /* Authenticate an FS-Image at a testing address and copy it to its load address */
 #ifdef CONFIG_FS_SECURE_BOOT
@@ -124,14 +128,26 @@ struct sb_info {
 
 #ifndef CONFIG_SPL_BUILD
 
+/* Return if currently running from Secondary SPL. */
+bool fs_image_is_secondary(void);
+
 /*
  * Search board configuration in OCRAM; return true if it was found.
  * From now on, fs_image_get_cfg_addr() will return the right address.
  */
 bool fs_image_find_cfg_in_ocram(void);
 
-/* Make sure that BOARD-CFG in OCRAM is still valid */
-bool fs_image_cfg_is_valid(void);
+/* Get count values from given device tree property and check alignment */
+int fs_image_get_fdt_val(void *fdt, int offs, const char *name, uint align,
+			 int count, uint *val);
+
+#ifdef CONFIG_NAND_MXS
+int fs_image_get_known_env_nand(uint index, uint start[2], uint *size);
+#endif
+
+#ifdef CONFIG_MMC
+int fs_image_get_known_env_mmc(uint index, uint start[2], uint *size);
+#endif
 
 #endif /* !CONFIG_SPL_BUILD */
 
@@ -139,7 +155,10 @@ bool fs_image_cfg_is_valid(void);
 
 #ifdef CONFIG_SPL_BUILD
 
-typedef void (*basic_init_t)(void);
+typedef void (*basic_init_t)(const char *layout_name);
+
+/* Mark BOARD_CFG to tell U-Boot that we are running on Secondary SPL */
+void fs_image_mark_secondary(void);
 
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
 void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init);
@@ -170,4 +189,3 @@ int fs_image_cfg_mmc(void);
 #endif /* CONFIG_SPL_BUILD */
 
 #endif /* !__FS_IMAGE_COMMON_H__ */
-

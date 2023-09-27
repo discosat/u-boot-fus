@@ -163,6 +163,7 @@ static void fs_setup_cfg_info(void)
 	struct cfg_info *info;
 	const char *tmp;
 	unsigned int features;
+	u32 flags = 0;
 
 	/*
 	 * If the BOARD-CFG cannot be found in OCRAM or it is corrupted, this
@@ -173,12 +174,20 @@ static void fs_setup_cfg_info(void)
 	if (!fs_image_find_cfg_in_ocram())
 		hang();
 
+	/*
+	 * The flag if running from Primary or Secondary SPL is misusing a
+	 * byte in the BOARD-CFG in OCRAM, so we have to remove this before
+	 * validating the BOARD-CFG.
+	 */
+	if (fs_image_is_secondary())
+		flags |= CI_FLAGS_SECONDARY;
+
 	/* Make sure that the BOARD-CFG in OCRAM is still valid */
-	if (!fs_image_cfg_is_valid())
+	if (!fs_image_is_ocram_cfg_valid())
 		hang();
 
-	fdt = fs_image_get_cfg_addr(false);
-	offs = fs_image_get_cfg_offs(fdt);
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_board_cfg_offs(fdt);
 	info = fs_board_get_cfg_info();
 	memset(info, 0, sizeof(struct cfg_info));
 
@@ -199,6 +208,7 @@ static void fs_setup_cfg_info(void)
 							"dram-chips", 1);
 	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
 						       "dram-size", 0x400);
+	info->flags = flags;
 
 	features = 0;
 	if (fdt_getprop(fdt, offs, "have-nand", NULL))
@@ -265,6 +275,80 @@ enum env_location env_get_location(enum env_operation op, int prio)
 
 	return ENVL_UNKNOWN;
 }
+
+#ifdef CONFIG_NAND_MXS
+static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
+{
+	void *fdt;
+	int offs;
+	int layout;
+	unsigned int align;
+	int err;
+
+	if (cfg->flags & CI_FLAGS_HAVE_ENV)
+		return;
+
+	/*
+	 * To find the environment location, we must access the BOARD-CFG in
+	 * OCRAM. However this is not a safe resource, because it can be
+	 * modified at any time. This is why we copy all relevant info to
+	 * struct cfg_info right early in fs_setup_cfg_info() where we checked
+	 * that the BOARD-CFG is valid. But at this early stage, the flash
+	 * environment is not running yet and we cannot determine writesize
+	 * and erasesize. So it is not possible to get the environment
+	 * addresses there.
+	 *
+	 * Therefore we use a cache method. The first time we are called here,
+	 * which is still in board_init_f(), we can assume that the BOARD-CFG
+	 * is still valid. So access the BOARD-CFG, determine the environment
+	 * location and store the start addresses for both copies in the
+	 * cfg_info. From then on, we can use the cfg_info when we are called.
+	 *
+	 * If the environment location is not contained in nboot-info, it was
+	 * located in the device tree of the previous U-Boot and NBoot didn't
+	 * know anything about it. We have a list of known places where the
+	 * environment was located in the past, so we take the first one
+	 * (=newest) of these. As the NAND list only has one entry, this
+	 * should be OK.
+	 */
+
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_nboot_info_offs(fdt);
+	align = mtd->erasesize;
+
+	layout = fdt_subnode_offset(fdt, offs, "nand");
+	if (layout < 0)
+		layout = offs;
+
+	err = fs_image_get_fdt_val(fdt, layout, "env-start", align,
+				   2, cfg->env_start);
+	if (err == -ENOENT) {
+		/* This is an old version, use the old known position */
+		err = fs_image_get_known_env_nand(0, cfg->env_start, NULL);
+	}
+	if (err) {
+		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET;
+		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET_REDUND;
+	}
+
+	cfg->flags |= CI_FLAGS_HAVE_ENV;
+}
+
+/* Return environment information if in NAND */
+loff_t board_nand_get_env_offset(struct mtd_info *mtd, int copy)
+{
+	struct cfg_info *cfg = fs_board_get_cfg_info();
+
+	fs_nand_get_env_info(mtd, cfg);
+
+	return cfg->env_start[copy];
+}
+
+loff_t board_nand_get_env_range(struct mtd_info *mtd)
+{
+	return CONFIG_ENV_NAND_RANGE;
+}
+#endif
 
 /* Check board type */
 int checkboard(void)

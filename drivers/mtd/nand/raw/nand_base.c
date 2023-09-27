@@ -3335,7 +3335,7 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		writelen -= bytes;
 	} while (writelen);
 
-			chip->select_chip(mtd, -1);
+	chip->select_chip(mtd, -1);
 
 	ops->retlen = ops->len - writelen;
 	if (unlikely(oob))

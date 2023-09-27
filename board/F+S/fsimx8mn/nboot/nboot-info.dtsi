@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2023 F&S Elektronik Systeme GmbH
+ *
+ * This file contains generic NBoot parameters that are included in every
+ * BOARD-CFG file. So keep the set as small as possible. It is used by SPL and
+ * U-Boot. It adds some generic information to the board-cfg node and adds a
+ * new node nboot-info. This node contains the flash layout. It tells where
+ * every part of the system is stored. There is an own layout for every type of
+ * supported flash.
+ *
+ *   SPL:     First stage boot loader, stored separately as required by the
+ *            ROM loader
+ *   NBOOT:   A reduced subset of the NBOOT image consisting only of the
+ *            BOARD-CFG and the FIRMWARE part
+ *   U-BOOT:  The regular boot loader
+ *   ENV:     The U-Boot environment
+ *
+ * The file is processed by the C pre-processor, so you can use macros. But
+ * note that the angle brackets < and > need a separating blank in that case.
+ */
+
+#include <config.h>			/* CONFIG_* */
+
+/ {
+	board-cfg {
+		/* Add dynamic entries to board-cfg node */
+		board-cfg = BOARD_CFG_NAME;
+		board-rev = < BOARD_REV >;
+
+		/*
+		 * Increment if there are changes in BOARD-CFG structure
+		 *  1: Legacy images with either mmc or nand settings
+		 *  2: Flash settings in sub-nodes: emmc-boot, sd-user, nand;
+		 *     added board-cfg name, moved board-cfg-version here;
+		 *     use SECURE and/or CRC32 flags on some FS-Headers
+		 */
+		board-cfg-version = <2>;
+	};
+
+	nboot-info {
+		version = NBOOT_VERSION;
+
+		/* NBoot capabilities */
+		support-crc32;
+		save-board-id;
+		uboot-with-fsh;
+		uboot-emmc-bootpart;
+		emmc-both-bootparts;
+
+		/*
+		 * Settings for NAND. All values must be aligned to NAND erase
+		 * blocks (0x20000 bytes = 128 KiB), only the env-size entry
+		 * may be smaller and only needs to be aligned to NAND page
+		 * size (0x800 bytes = 2 KiB).
+		 */
+		 nand {
+		 	/*
+			 * SPL Copy 1 is on Offset 1 MiB and can be fused in
+			 * the Secondary Image Offset fuses if needed
+			 *
+			 * NAND flash layout (BBR = Bad Block Reserve)
+			 * -------------------------------------------
+			 * 0x0000_0000: BCB Copy 0 (FCB+DBBT) (128 KiB)
+			 * 0x0002_0000: BCB Copy 1 (FCB+DBBT) (128 KiB)
+			 * 0x0004_0000: - (free, 128 KiB, option for BCB Copy 2)
+			 * 0x0006_0000: - (free, 128 KiB, option for BCB Copy 3)
+			 * 0x0008_0000: SPL Copy 0 (256 KiB + 256 KiB BBR)
+			 * 0x0010_0000: SPL Copy 1 (256 KiB + 256 KiB BBR)
+			 * 0x0018_0000: NBOOT Copy 0 (1 MiB + 256 KiB BBR)
+			 * 0x002c_0000: NBOOT Copy 1 (1 MiB + 256 KiB BBR)
+			 * 0x0040_0000: Refresh (128 KiB + 384 KiB BBR)
+			 * 0x0048_0000: UBootEnv (128 KiB + 128 KiB BBR)
+			 * 0x004c_0000: UBootEnvRed (128 KiB + 128 KiB BBR)
+			 * 0x0050_0000: UBoot A (2816 KiB + 256 KiB BBR)
+			 * 0x0080_0000: UBoot B (2816 KiB + 256 KiB BBR)
+			 * 0x00b0_0000: Further MTD partitions (see fsimx8mn.h)
+			 */
+			spl-start = <0x00080000 0x00100000>;
+			spl-size = <0x00080000>;		/* 512 KiB */
+			nboot-start = < CONFIG_FUS_BOARDCFG_NAND0
+				        CONFIG_FUS_BOARDCFG_NAND1 >;
+			nboot-size = <0x00140000>;		/* 1280 KiB */
+			uboot-start = <0x00500000 0x00800000>;
+			uboot-size = <0x00300000>;		/* 3 MiB */
+			env-start = <0x00480000 0x004c0000>;
+			env-size = < CONFIG_ENV_SIZE >;		/* 16 KiB */
+			env-range = <0x00040000>;		/* 256 KiB */
+		};
+
+		/*
+		 * Settings for eMMC/SD.
+		 *
+		 * There are two settings. One is when booting from eMMC boot1
+		 * or boot2 partition and one is when booting from the User
+		 * partition of an eMMC or from an SD card. You can set this
+		 * with U-Boot command "mmc partconf".
+		 *
+		 * Keep both settings as similar as possible. All values must
+		 * be aligned to sectors (0x200 = 512 bytes), better even to
+		 * Linux pages (0x1000 = 4096 bytes). The settings assume an
+		 * 8 MiB reserved area at the beginning of the User partition.
+		 */
+		emmc-boot {
+			/*
+			 * All images are stored in the boot partitions in
+			 * identical layouts. Only one start offset is needed.
+			 *
+			 * Boot1/2 HW-Partition (Boot Offset Primary Image: 0)
+			 * ---------------------------------------------------
+			 * 0x0000_0000: SPL Copy 0/1 (256 KiB)
+			 * 0x0004_0000: UBootEnv/UBootEnvRed (16 KiB)
+			 * 0x0004_4000: - (free, 16 KiB, option for bigger Env)
+			 * 0x0004_8000: NBOOT Copy 0/1 (992 KiB)
+			 * 0x0014_0000: U-Boot A/B (2816 KiB, to end of part)
+			 *
+			 * User HW-Partition
+			 * -----------------
+			 * 0x0000_0000: - (free, 8 MiB)
+			 * 0x0080_0000: End of reserved area
+			 */
+			spl-start = <0x00000000>;
+			spl-size = <0x00040000>;		/* 256 KiB */
+			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0 >;
+			nboot-size = <0x000f8000>;		/* 992 KiB */
+			uboot-start = <0x00140000>;
+			uboot-size = <0x002c0000>;		/* 2816 KiB */
+			env-start = <0x00040000>;
+			env-size = <0x00004000>;		/* 16 KiB */
+		};
+
+		sd-user {
+			/*
+			 * All parts are stored in the User partition/SD-Card.
+			 *
+			 * Boot1/2 HW-Partition
+			 * --------------------
+			 * 0x0000_0000: --- (completely empty)
+			 *
+			 * User HW-Partition (Boot Offset Primary Image: 0x8000)
+			 * -----------------------------------------------------
+			 * 0x0000_0000: --- (space for GPT, 32 KiB)
+			 * 0x0000_8000: SPL Copy 0 (256 KiB)
+			 * 0x0004_8000: NBOOT Copy 0 (992 KiB)
+			 * 0x0014_0000: U-Boot A (2816 KiB)
+			 * 0x0040_0000: SPL Copy 1 (256 KiB) Secondary Im. Offs.
+			 * 0x0044_0000: UBootEnv (16 KiB)
+			 * 0x0044_4000: UBootEnvRed (16 KiB)
+			 * 0x0044_8000: NBOOT Copy 1 (992 KiB)
+			 * 0x0054_0000: U-Boot B (2816 MiB)
+			 * 0x0080_0000: End of reserved area
+			 */
+			spl-start = <0x00008000 0x00400000>;
+			spl-size = <0x00040000>;		/* 256 KiB */
+			nboot-start = < CONFIG_FUS_BOARDCFG_MMC0
+					CONFIG_FUS_BOARDCFG_MMC1 >;
+			nboot-size = <0x000f8000>;		/* 992 KiB */
+			uboot-start = <0x00140000 0x00540000>;
+			uboot-size = <0x002c0000>;		/* 2816 KiB */
+			env-start = <0x00440000 0x00444000>;
+			env-size = <0x00004000>;		/* 16 KiB */
+		};
+	};
+};

@@ -79,8 +79,7 @@
 /* set by defconfig */
 /*#define CONFIG_SYS_TEXT_BASE	0x67800000*/
 
-#define CONFIG_LOADADDR		0x60800000
-#define CONFIG_SYS_LOAD_ADDR	CONFIG_LOADADDR
+#define CONFIG_SYS_LOAD_ADDR	0x60800000
 #define CONFIG_BOARD_SIZE_LIMIT 0xC0000	/* max size of u-boot-dtb.imx */
 
 /* Define U-Boot offset in emmc */

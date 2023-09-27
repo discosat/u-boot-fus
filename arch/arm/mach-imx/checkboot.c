@@ -9,6 +9,7 @@
 
 #include <config.h>
 #include <common.h>		//ALIGN, le16_to_cpu
+#include <image.h>
 #include <jffs2/jffs2.h>	//find_dev_and_part, struct part_info
 #include <nand.h>
 /* HAB includes  */

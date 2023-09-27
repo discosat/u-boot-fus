@@ -1,6 +1,19 @@
 History of Changes for N-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+nboot-fsimx8mp-2023.09.1 (26.09.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP PicoCoreMX8MPr2 armStoneMX8MP efusMX8MP
+
+
+nboot-fsimx8mp-2023.09 (12.09.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MP PicoCoreMX8MPr2 armStoneMX8MP efusMX8MP
+
+ATF-Version: atf-f+s
+			 git commit  fa25831ab255c0cf73631e6f9ed5289428900347
+DDR Training Firmware Version: 8.10.1
+
 nboot-fsimx8mp-2023.05 (16.05.2023)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MP PicoCoreMX8MPr2 armStoneMX8MP efusMX8MP

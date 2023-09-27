@@ -10,7 +10,6 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
-#define DEBUG
 
 #include <common.h>
 #include <spl.h>
@@ -405,10 +404,10 @@ static void fs_board_early_init(void)
 }
 
 /* Do the basic board setup when we have our final BOARD-CFG */
-static void basic_init(void)
+static void basic_init(const char *layout_name)
 {
-	void *fdt = fs_image_get_cfg_addr(false);
-	int offs = fs_image_get_cfg_offs(fdt);
+	void *fdt = fs_image_get_cfg_fdt();
+	int offs = fs_image_get_board_cfg_offs(fdt);
 	int i;
 	char c;
 	int index;
@@ -453,15 +452,21 @@ static void basic_init(void)
 	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
 	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
 
-	/* Get U-Boot offset */
+	printf("BOARD-ID: %s\n", fs_image_get_board_id());
+
+	/* Get U-Boot offset; not necessary in SDP mode */
+	if (layout_name) {
+		int layout;
 #ifdef CONFIG_FS_UPDATE_SUPPORT
-	index = 0;			/* ### TODO: Select slot A or B */
+		index = 0;		/* ### TODO: Select slot A or B */
 #else
-	index = 0;
+		index = 0;
 #endif
-	offs = fs_image_get_info_offs(fdt);
-	uboot_offs = fdt_getprop_u32_default_node(fdt, offs, index,
-						  "uboot-start", 0);
+		offs = fs_image_get_nboot_info_offs(fdt);
+		layout = fdt_subnode_offset(fdt, offs, layout_name);
+		uboot_offs = fdt_getprop_u32_default_node(fdt, layout, index,
+							  "uboot-start", 0);
+	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
 	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
@@ -501,9 +506,14 @@ void board_init_f(ulong dummy)
 	enable_tzc380();
 
 	/* Determine if we are running on primary or secondary SPL */
+#if 1
 	src = (struct src *)SRC_BASE_ADDR;
 	if (readl(&src->gpr10) & (1 << 30))
 		secondary = true;
+#else
+	/* Will also work on i.MX8MM, but is slower */
+	secondary = is_imx8m_running_secondary_boot_image();
+#endif
 
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
@@ -524,6 +534,10 @@ void board_init_f(ulong dummy)
 		/* Load the system from USB with Serial Download Protocol */
 		fs_image_all_sdp(need_cfg, basic_init);
 	}
+
+	/* If running on secondary SPL, mark BOARD-CFG to pass info to U-Boot */
+	if (secondary)
+		fs_image_mark_secondary();
 
 	/* At this point we have a valid system configuration */
 	board_init_r(NULL, 0);
@@ -551,7 +565,7 @@ void spl_board_init(void)
 #ifdef CONFIG_FS_SPL_MEMTEST_COMMON
 	    dram_test();
 #endif
-	puts("Normal Boot\n");
+	debug("Normal Boot\n");
 }
 
 /* Return the offset where U-Boot starts in NAND */
@@ -566,11 +580,6 @@ unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 	return uboot_offs / 512;
 }
 
-/* U-Boot is always loaded from the User HW partition */
-int spl_mmc_emmc_boot_partition(struct mmc *mmc)
-{
-	return 0;
-}
 
 /*
  * Provide our own boot order, which in fact has just one entry: the current

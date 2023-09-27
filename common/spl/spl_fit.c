@@ -17,12 +17,9 @@
 #include <asm/global_data.h>
 #include <linux/libfdt.h>
 
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/boot_mode.h>
+#ifdef CONFIG_FS_BOARD_CFG
 #include "../../board/F+S/common/fs_image_common.h"
 #include <asm/mach-imx/checkboot.h>
-#include <hang.h>
-#define SPL_FIT_BUFFER_ADDR ((void *)0x401FF880)
 #endif
 
 
@@ -488,33 +485,6 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	return ret;
 }
 
-#ifdef CONFIG_FS_SECURE_BOOT
-static int spl_fit_append_fdt_from_memory(struct spl_image_info *spl_image,
-		struct spl_load_info *info, void *fit, int images, ulong base_offset)
-{
-	struct spl_image_info image_info;
-	int node, ret;
-
-	/* Figure out which device tree the board wants to use */
-	node = spl_fit_get_image_node(fit, images, FIT_FDT_PROP, 0);
-
-	/*
-	 * Read the device tree and place it after the image.
-	 * Align the destination address to ARCH_DMA_MINALIGN.
-	 */
-	image_info.load_addr = spl_image->load_addr + spl_image->size;
-	ret = spl_load_fit_image_from_memory(info, fit, base_offset, node,
-				 &image_info);
-
-	if (ret < 0)
-		return ret;
-	/* Make the load-address of the FDT available for the SPL framework */
-	spl_image->fdt_addr = (void *)image_info.load_addr;
-
-	return ret;
-}
-#endif
-
 static int spl_fit_record_loadable(const struct spl_fit_info *ctx, int index,
 				   void *blob, struct spl_image_info *image)
 {
@@ -600,22 +570,12 @@ static int spl_simple_fit_read(struct spl_fit_info *ctx,
 	int sectors;
 	void *buf;
 
-#ifdef CONFIG_FS_SECURE_BOOT
-	if(imx_hab_is_enabled()){
-		printf("ERROR: UNSIGNED UBOOT ON CLOSED BOARD!!\n");
-		hang();
-	}
-	else {
-		printf("unsigned uboot\n");
-	}
-#endif
-
 	/*
 	 * For FIT with external data, figure out where the external images
 	 * start. This is the base for the data-offset properties in each
 	 * image.
 	 */
-	size = ALIGN(fdt_totalsize(fit_header), 4);
+	size = ALIGN(fdt_totalsize(fit_header) + info->extra_offset, 4);
 	size = board_spl_fit_size_align(size);
 	ctx->ext_data_offset = ALIGN(size, 4);
 
@@ -630,7 +590,7 @@ static int spl_simple_fit_read(struct spl_fit_info *ctx,
 	buf = board_spl_fit_buffer_addr(size, sectors, info->bl_len);
 
 	count = info->read(info, sector, sectors, buf);
-	ctx->fit = buf;
+	ctx->fit = buf + info->extra_offset;;
 	debug("fit read sector %lx, sectors=%d, dst=%p, count=%lu, size=0x%lx\n",
 	      sector, sectors, buf, count, size);
 
@@ -838,52 +798,69 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	return 0;
 }
 
-#ifdef CONFIG_FS_SECURE_BOOT
-int secure_spl_load_simple_fit(struct spl_image_info *spl_image,
-			       struct spl_load_info *info, void *fit){
-	ulong size;
-	int node = -1;
-	int images;
-	int base_offset;
+#ifdef CONFIG_FS_BOARD_CFG
+/* Return: -1: No U-Boot image, 0: No F&S Header, >0: size of F&S header */
+int spl_check_fs_header(void *header)
+{
+	struct fs_header_v1_0 *fsh = header;
+	bool is_signed;
 
-	int ivt = (uintptr_t)fit - HAB_HEADER;
+	if (!fs_image_is_fs_image(fsh))
+		return 0;
 
-	int checksize = ((struct ivt*)(uintptr_t)ivt)->boot;
-	checksize = ((struct boot_data*)(uintptr_t)checksize)->length;
-
-	printf("signed uboot\n");
-	if(imx_hab_authenticate_image(ivt, checksize, 0x0)){
-		printf("ERROR: INVALID SIGNATURE\n");
-		hang();
-	}
-
-	size = fdt_totalsize(fit);
-	size = (size + 3) & ~3;
-	size = board_spl_fit_size_align(size);
-	base_offset = (size + 3) & ~3;
-
-	memcpy(SPL_FIT_BUFFER_ADDR, fit, size);
-	fit = SPL_FIT_BUFFER_ADDR;
-
-	/* find the node holding the images information */
-	images = fdt_path_offset(fit, FIT_IMAGES_PATH);
-	if (images < 0) {
-		printf("%s: Cannot find /images node: %d\n", __func__, images);
+	if (!fs_image_match(fsh, "U-BOOT", fs_image_get_arch())) {
+		puts("Not a valid F&S U-Boot image\n");
 		return -1;
 	}
-	node = spl_fit_get_image_node(fit, images, "firmware", 0);
 
-	//copy image
-	spl_load_fit_image_from_memory(info, fit, base_offset, node, spl_image);
-
-	//copy fdt
-	spl_fit_append_fdt_from_memory(spl_image, info, fit,
-				   images, base_offset);
-#ifdef CONFIG_SPL_USE_ATF_ENTRYPOINT
-	spl_image->entry_point = CONFIG_SPL_ATF_ADDR;
+	is_signed = fs_image_is_signed(fsh);
+#ifdef CONFIG_FS_SECURE_BOOT
+	if (!is_signed && imx_hab_is_enabled()) {
+		printf("Error: Unsigned U-Boot on closed board!!\n");
+		return -1;
+	}
 #endif
 
-	spl_image->flags |= SPL_FIT_FOUND;
-	return 0;
+	debug("Loading %ssigned F&S U-Boot...\n", is_signed ? "" : "un");
+
+	return FSH_SIZE;
+}
+
+static ulong secure_load_read(struct spl_load_info *load, ulong sector,
+			      ulong count, void *buf)
+{
+	memcpy(buf, (void *)sector, count);
+
+	return count;
+}
+
+int secure_spl_load_simple_fit(struct spl_image_info *spl_image, void *uboot,
+			       u32 size)
+{
+	struct spl_load_info load;
+
+	if (!uboot || !size || !fs_image_is_valid_signature(uboot)) {
+		printf("Error: Invalid signature\n");
+		return -1;
+	}
+
+	/*
+	 * ### 10.08.23 HK: This is not tested, but should work. U-Boot is
+	 * already loaded to CONFIG_SYS_TEXT_BASE, spl_load_simple_fit() will
+	 * copy the FIT header to a malloc'ed area, so it is save, U-Boot and
+	 * FDT will be copied from somewhere at the end of the FIT image to
+	 * the front of the buffer. This would only fail if FDT images are
+	 * before the U-Boot image in the FIT file. Then copying U-Boot would
+	 * most probably overwrite the FDT images before they are moved away.
+	 * However current U-Boot images have the FDT images behind the U-Boot
+	 * image, so this should work.
+	 */
+	memset(&load, 0, sizeof(load));
+	load.bl_len = 1;
+	load.read = secure_load_read;
+	load.extra_offset = FSH_SIZE + HAB_HEADER;
+
+	return spl_load_simple_fit(spl_image, &load, (ulong)uboot,
+				   uboot + load.extra_offset);
 }
 #endif

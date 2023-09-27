@@ -156,4 +156,10 @@ void sunxi_nand_init(void);
  */
 struct mtd_info *get_nand_dev_by_index(int dev);
 
+/* Get offset where the given copy of the environment starts */
+loff_t board_nand_get_env_offset(struct mtd_info *mtd, int copy);
+
+/* Get the range of the environment in NAND, typically erase block aligned */
+loff_t board_nand_get_env_range(struct mtd_info *mtd);
+
 #endif /* _NAND_H_ */

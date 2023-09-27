@@ -8,13 +8,11 @@
 
 /dts-v1/;
 
-#include ".nboot-info-mmc.dtsi.tmp"
+#include "nboot-info.dtsi"
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "efusMX8MP";
-		board-rev = <100>;		/* Rev 1.00 */
 
 		/* DRAM: 1GB Micron B.ICDRAM.38 */
 		dram-type = "lpddr4";

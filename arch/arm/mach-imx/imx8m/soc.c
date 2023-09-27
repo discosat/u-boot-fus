@@ -696,6 +696,55 @@ enum boot_device get_boot_device(void)
 }
 #endif
 
+#if defined(CONFIG_IMX8M)
+#include <spl.h>
+bool is_imx8m_running_secondary_boot_image(void)
+{
+	u32 *rom_log_addr = (u32 *)0x9e0;
+	u32 *rom_log;
+	u8 event_id;
+	int i;
+	bool secondary = false;
+
+	/* If the ROM event log pointer is not valid. */
+	if (*rom_log_addr < 0x900000 || *rom_log_addr >= 0xb00000 ||
+	    *rom_log_addr & 0x3)
+		return false;
+
+	/* Parse the ROM event ID version 2 log */
+	rom_log = (u32 *)(uintptr_t)(*rom_log_addr);
+	for (i = 0; i < 128; i++) {
+		event_id = rom_log[i] >> 24;
+		switch (event_id) {
+		case 0x00: /* End of list */
+			return secondary;
+		/* Log entries with 1 parameter, skip 1 */
+		case 0x80: /* Start to perform the device initialization */
+		case 0x81: /* The boot device initialization completes */
+		case 0x8f: /* The boot device initialization fails */
+		case 0x90: /* Start to read data from boot device */
+		case 0x91: /* Reading data from boot device completes */
+		case 0x9f: /* Reading data from boot device fails */
+			i += 1;
+			continue;
+		/* Log entries with 2 parameters, skip 2 */
+		case 0xa0: /* Image authentication result */
+		case 0xc0: /* Jump to the boot image soon */
+			i += 2;
+			continue;
+		/* Boot from the secondary boot image */
+		case 0x51:
+			secondary = !secondary;
+			continue;
+		default:
+			continue;
+		}
+	}
+
+	return secondary;
+}
+#endif
+
 bool is_usb_boot(void)
 {
 	return get_boot_device() == USB_BOOT;

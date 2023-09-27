@@ -9,7 +9,7 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2022.09
+NBOOT_VERSION = 2023.08
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
 # names given in the Selectsoft WaWi for the board and the PCB revision. The
@@ -95,17 +95,16 @@ RT_DDR4 := ddr4_fw.fs $(RT_DDR4)
 
 # List of files to add to FIRMWARE image
 ifeq ($(CONFIG_IMX_OPTEE),y)
-FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs $(BOARD)_optee.fs
+FIRMWARE_FILES = $(BOARD)_dram_info.fs $(BOARD)_atf.fs $(BOARD)_optee.fs
 else
-FIRMWARE_FILES = $(BOARD)_dram_settings.fs $(BOARD)_atf.fs
+FIRMWARE_FILES = $(BOARD)_dram_info.fs $(BOARD)_atf.fs
 endif
-
 
 # List of files to add to EXTRA image
 EXTRA_FILES = addfsheader.sh.fs fsimage.sh.fs
 
 # List of files to add to NBOOT image
-NBOOT_FILES = $(BOARD)_spl.fs $(BOARD)_board_configs.fs \
+NBOOT_FILES = $(BOARD)_spl.fs $(BOARD)_board_info.fs \
 	$(BOARD)_firmware.fs $(BOARD)_extra.fs
 
 # Final NBOOT image
@@ -199,59 +198,75 @@ $(obj)/.%.bin.tmp: $(obj)/.%.elf.tmp
 	$(call cmd,dram_bin)
 
 quiet_cmd_fsimg = FSIMG   $@
-cmd_fsimg = ${srctree}/scripts/addfsheader.sh -q -p 16 $2 $^ > $@
+cmd_fsimg = ${srctree}/scripts/addfsheader.sh -q -a 16 $2 $^ > $@
 
 $(obj)/%_timing.fs: $(obj)/.%_timing.bin.tmp
-	$(call cmd,fsimg,-t DRAM-TIMING -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_ATF_ADDR) -t DRAM-TIMING -d $(*F))
 
 $(obj)/%_fw.fs: $(obj)/.%_fw.tmp
-	$(call cmd,fsimg,-t DRAM-FW -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_ATF_ADDR) -t DRAM-FW -d $(*F))
 
 $(obj)/ddr3l_type.fs: $(OBJ_RT_DDR3L)
 $(obj)/lpddr4_type.fs: $(OBJ_RT_LPDDR4)
 $(obj)/ddr4_type.fs: $(OBJ_RT_DDR4)
 
 %_type.fs:
-	$(call cmd,fsimg,-t DRAM-TYPE -d $(*F))
+	$(call cmd,fsimg,-s -t DRAM-TYPE -d $(*F))
 
-%_dram_settings.fs: $(OBJ_DRAM_TYPES)
-	$(call cmd,fsimg,-t DRAM-SETTINGS -d $(*F))
+%_dram_info.fs: $(OBJ_DRAM_TYPES)
+	$(call cmd,fsimg,-s -t DRAM-INFO -d $(*F))
 
 %_atf.fs: $(NXP_PATH_ATF)
-	$(call cmd,fsimg,-t ATF -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_ATF_ADDR) -t ATF -d $(*F))
 
 %_optee.fs: $(NXP_PATH_TEE)
-	$(call cmd,fsimg,-t TEE -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_TEE_ADDR) -t TEE -d $(*F))
 
 %_firmware.fs: $(OBJ_FIRMWARE_FILES)
-	$(call cmd,fsimg,-t FIRMWARE -d $(*F))
+	$(call cmd,fsimg,-s -t FIRMWARE -d $(*F))
 
 %_spl.fs: SPL
-	$(call cmd,fsimg,-t SPL -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SPL_ATF_ADDR) -t SPL -d $(*F))
 
-REPLACE_NAND_START = $(CONFIG_FUS_BOARDCFG_NAND0) $(CONFIG_FUS_BOARDCFG_NAND1)
-REPLACE_MMC_START = $(CONFIG_FUS_BOARDCFG_MMC0) $(CONFIG_FUS_BOARDCFG_MMC1)
-NBOOT_INFO_REPLACE_SED_CMD = \
+### not necessary anymore, use CPP to insert variable values instead
+#REPLACE_NAND_START = $(CONFIG_FUS_BOARDCFG_NAND0) $(CONFIG_FUS_BOARDCFG_NAND1)
+#REPLACE_MMC_START = $(CONFIG_FUS_BOARDCFG_MMC0) $(CONFIG_FUS_BOARDCFG_MMC1)
+#NBOOT_INFO_REPLACE_SED_CMD = \
 	-e "s/\#\#\#NAND_START\#\#\#/$(REPLACE_NAND_START)/g" \
-	-e "s/\#\#\#MMC_START\#\#\#/$(REPLACE_MMC_START)/g" \
+	-e "s/\#\#\#MMC_START_BOOT\#\#\#/$(CONFIG_FUS_BOARDCFG_MMC0)/g" \
+	-e "s/\#\#\#MMC_START_USER\#\#\#/$(REPLACE_MMC_START)/g" \
+	-e "s/\#\#\#ENV_SIZE\#\#\#/$(CONFIG_ENV_SIZE)/g" \
 	-e "s/\#\#\#NBOOT_VERSION\#\#\#/$(NBOOT_VERSION)/g"
 
-$(obj)/.nboot-info-%.dtsi.tmp: $(NBOOT_PATH)/nboot-info-%.dtsi
-	$(call cmd,sed,$(NBOOT_INFO_REPLACE_SED_CMD))
+# Preprocess .dts files: Use cpp and sed to replace macros
+#quiet_cmd_dtscpp = DTSCPP  $@
+#cmd_dtscpp = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp $< | sed $2 > $@
+
+#$(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts $(NBOOT_PATH)/nboot-info.dtsi
+#	$(call cmd,dtscpp,$(NBOOT_INFO_REPLACE_SED_CMD))
 #	cat $@
 
-quiet_cmd_dtc = DTC     $@
-cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
+#quiet_cmd_dtc = DTC     $@
+#cmd_dtc = $(DTC) -I dts -O dtb -a 16 -o $@ $<
+#cmd_dtc and cmd_dtco are defined in scripts/Makefile.lib
 
-NBOOT_INFO = $(obj)/.nboot-info-nand.dtsi.tmp $(obj)/.nboot-info-mmc.dtsi.tmp
-$(obj)/.%.dtb.tmp: $(NBOOT_PATH)/%.dts $(NBOOT_INFO)
-	$(call cmd,dtc)
+# Prepend some macros with varying content to BOARD-CFG .dts
+$(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts
+	@echo "/* Macros with varying content */" > $@
+	@echo "#define NBOOT_VERSION \"$(NBOOT_VERSION)\"" >> $@
+	@echo "#define BOARD_CFG_NAME \"$(*F)\"" >> $@
+	@echo "#define BOARD_REV $(subst .,,$(suffix $(*F)))" >> $@
+	@echo "#define CONFIG_SPL_BUILD" >> $@
+	@cat $< >> $@
+
+$(obj)/.%.dtb.tmp: $(obj)/.%.dts.tmp $(NBOOT_PATH)/nboot-info.dtsi
+	$(call cmd,dtco)
 
 $(obj)/%.fs: $(obj)/.%.dtb.tmp
-	$(call cmd,fsimg,-t BOARD-CFG -d $(*F))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_FUS_BOARDCFG_ADDR) -t BOARD-CFG -d $(*F))
 
-%_board_configs.fs: $(OBJ_BOARD_CONFIGS)
-	$(call cmd,fsimg,-t BOARD-CONFIGS -d $(*F))
+%_board_info.fs: $(OBJ_BOARD_CONFIGS)
+	$(call cmd,fsimg,-s -t BOARD-INFO -d $(*F))
 
 #./scripts/dtc/dtc -O dtb -o arch/arm/dts/picocoremx8mm.dtb -b 0 -i
 #	arch/arm/dts/  -Wno-unit_address_vs_reg -Wno-simple_bus_reg
@@ -270,7 +285,7 @@ $(obj)/fsimage.sh.fs: $(srctree)/scripts/fsimage.sh
 	$(call cmd,fsimg,-t EXTRA -d $(*F))
 
 nboot-$(BOARD)-$(NBOOT_VERSION).fs: $(OBJ_NBOOT_FILES)
-	$(call cmd,fsimg,-t NBOOT -d $(BOARD))
+	$(call cmd,fsimg,-s -c -p32[7]=$(CONFIG_SYS_LOAD_ADDR) -t NBOOT -d $(BOARD))
 
 PHONY += nboot
 nboot: nboot-$(BOARD)-$(NBOOT_VERSION).fs

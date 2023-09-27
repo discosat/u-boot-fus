@@ -35,12 +35,8 @@
 #include <imximage.h>
 #include <watchdog.h>
 
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/boot_mode.h>
+#ifdef CONFIG_FS_BOARD_CFG
 #include "../../../board/F+S/common/fs_image_common.h"
-#include <asm/mach-imx/checkboot.h>
-
-#define SPL_BUFFER_ADDR ((void*)0x401fffc0)
 #endif
 
 
@@ -721,6 +717,33 @@ static ulong search_fit_header(ulong p, int size)
 
         return 0;
 }
+
+static int get_extra_offset(void *header, struct spl_image_info *spl_image)
+{
+	int extra_offset = 0;
+
+#ifdef CONFIG_FS_BOARD_CFG
+	/* Allow U-Boot image to be prepended with F&S header */
+	extra_offset = spl_check_fs_header(header);
+	if (extra_offset < 0)
+		panic("Failed to jump to U-Boot\n");
+
+	/* In case of signed U-Boot, load U-Boot image completely */
+	if ((extra_offset > 0) && fs_image_is_signed(header)) {
+		u32 size;
+		void *addr;
+
+		addr = fs_image_get_ivt_info((void *)header, &size);
+		if (addr && size)
+			memcpy(addr, header, size);
+		if (secure_spl_load_simple_fit(spl_image, addr, size) < 0)
+			panic("Failed to jump to U-Boot\n");
+		jump_to_image_no_args(spl_image);
+	}
+#endif
+
+	return extra_offset;
+}
 #endif
 
 static void sdp_handle_in_ep(void)
@@ -776,12 +799,16 @@ static void sdp_handle_in_ep(void)
 		/* If imx header fails, try some U-Boot specific headers */
 		if (status) {
 #ifdef CONFIG_SPL_BUILD
-			struct image_header *header;
+			struct image_header *header = (struct image_header *)
+				(ulong)(sdp_func->jmp_address);
 			struct spl_image_info spl_image = {};
+			int extra_offset = get_extra_offset(header, &spl_image);
+
+			header = (void *)header + extra_offset;
 
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT))
-				sdp_func->jmp_address = (u32)search_fit_header((ulong)sdp_func->jmp_address,
-					sdp_func->dnl_bytes);
+				sdp_func->jmp_address = (u32)search_fit_header(
+					(ulong)header, sdp_func->dnl_bytes);
 
 			if (sdp_func->jmp_address == 0)
 				panic("Error in search header, failed to jump\n");
@@ -790,38 +817,18 @@ static void sdp_handle_in_ep(void)
 
 			header = (struct image_header *)(ulong)(sdp_func->jmp_address);
 
-#ifdef CONFIG_FS_SECURE_BOOT
-			int size;
-			if((uint8_t)*(uint8_t*)(CONFIG_SDP_LOADADDR + HAB_HEADER) == 0xd1){
-				size = (uint32_t)*(uint32_t*)(CONFIG_SDP_LOADADDR + 0x64);
-				memcpy(SPL_BUFFER_ADDR, (void*)CONFIG_SDP_LOADADDR + (size_t)FS_HEADER_SIZE, size);
-			}
-#endif
-
 			if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 			    image_get_magic(header) == FDT_MAGIC) {
 				struct spl_load_info load;
 
 				debug("Found FIT\n");
-				load.dev = NULL;
-				load.priv = NULL;
-				load.filename = NULL;
+				memset(&load, 0, sizeof(load));
 				load.bl_len = 1;
 				load.read = sdp_load_read;
-#ifndef CONFIG_FS_SECURE_BOOT
+				load.extra_offset = 0;
 				spl_load_simple_fit(&spl_image, &load,
-							  sdp_func->jmp_address,
-							  (void *)header);
-#else
-				if((uint8_t)*(uint8_t*)(header - 1) == 0xd1){
-					secure_spl_load_simple_fit(&spl_image, &load,
-					                           (void*)CONFIG_SYS_TEXT_BASE);
-				}
-				else{
-					spl_load_simple_fit(&spl_image, &load,
-					                    sdp_func->jmp_address, header);
-				}
-#endif
+						    sdp_func->jmp_address,
+						    (void *)header);
 			} else {
 				/* In SPL, allow jumps to U-Boot images */
 				spl_parse_image_header(&spl_image, header);

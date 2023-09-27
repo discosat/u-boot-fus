@@ -979,8 +979,10 @@ void board_mmc_power_init(void);
 int board_mmc_init(struct bd_info *bis);
 int cpu_mmc_init(struct bd_info *bis);
 int mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr);
+int board_mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr);
 # ifdef CONFIG_SYS_MMC_ENV_PART
 extern uint mmc_get_env_part(struct mmc *mmc);
+extern uint board_mmc_get_env_part(struct mmc *mmc, int copy);
 # endif
 int mmc_get_env_dev(void);
 int mmc_map_to_kernel_blk(int dev_no);

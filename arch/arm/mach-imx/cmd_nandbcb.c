@@ -1422,9 +1422,9 @@ static int do_nandbcb_dump(int argc, char * const argv[])
 
 	ret = nandbcb_dump(&cfg);
 	if (ret)
-		return ret;
+		return CMD_RET_FAILURE;
 
-	return ret;
+	return CMD_RET_SUCCESS;
 }
 
 static int do_nandbcb_init(int argc, char * const argv[])

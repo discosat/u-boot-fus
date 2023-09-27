@@ -17,11 +17,9 @@
 #include <mmc.h>
 #include <image.h>
 
-#ifdef CONFIG_FS_SECURE_BOOT
-#include <asm/mach-imx/checkboot.h>
-#define MMC_BLOCK_SIZE 0x200
+#ifdef CONFIG_FS_BOARD_CFG
+#include "../../board/F+S/common/fs_image_common.h"
 #endif
-
 
 static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
@@ -85,22 +83,12 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 	struct image_header *header;
 	struct blk_desc *bd = mmc_get_blk_desc(mmc);
 	int ret = 0;
+	int extra_offset = 0;
 
 	header = spl_get_load_buffer(-sizeof(*header), bd->blksz);
 
 	/* read image header to find the image size & load address */
 	count = blk_dread(bd, sector, 1, header);
-
-#ifdef CONFIG_FS_SECURE_BOOT
-	uint8_t* ivt_magic = (uint8_t*)header;
-	if(*ivt_magic == IVT_HEADER_MAGIC){
-		uint32_t size = (uint32_t)(((struct boot_data*)(ulong)
-		                ((struct ivt*)header)->boot)->length);
-		uint32_t blocks = (size / MMC_BLOCK_SIZE) + 1;
-		count = blk_dread(mmc_get_blk_desc(mmc), sector, blocks, header);
-		header += 1;
-	}
-#endif
 
 	debug("hdr read sector %lx, count=%lu\n", sector, count);
 	if (count == 0) {
@@ -108,32 +96,47 @@ int mmc_load_image_raw_sector(struct spl_image_info *spl_image,
 		goto end;
 	}
 
+#ifdef CONFIG_FS_BOARD_CFG
+	/* Allow U-Boot image to be prepended with F&S header */
+	extra_offset = spl_check_fs_header(header);
+	if (extra_offset < 0)
+		return -1;
+
+	/* In case of signed U-Boot, load U-Boot image completely */
+	if ((extra_offset > 0) && fs_image_is_signed((void *)header)) {
+		u32 size;
+		void *addr = fs_image_get_ivt_info((void *)header, &size);
+
+		if (addr && size) {
+			u32 blocks = (size + bd->blksz - 1) / bd->blksz;
+			count = blk_dread(bd, sector, blocks, addr);
+			if (count != blocks) {
+				ret = -EIO;
+				goto end;
+			}
+		}
+		return secure_spl_load_simple_fit(spl_image, addr, size);
+	}
+
+	header = (void *)header + extra_offset;
+#endif
+
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 	    image_get_magic(header) == FDT_MAGIC) {
 		struct spl_load_info load;
 
 		debug("Found FIT\n");
+		memset(&load, 0, sizeof(load));
 		load.dev = mmc;
-		load.priv = NULL;
-		load.filename = NULL;
 		load.bl_len = mmc->read_bl_len;
 		load.read = h_spl_load_read;
-#ifndef CONFIG_FS_SECURE_BOOT
+		load.extra_offset = extra_offset;
 		ret = spl_load_simple_fit(spl_image, &load, sector, header);
-#else
-		if(*ivt_magic == IVT_HEADER_MAGIC){
-			ret = secure_spl_load_simple_fit(spl_image, &load, header);
-		}
-		else{
-			ret = spl_load_simple_fit(spl_image, &load, sector, header);
-		}
-#endif
 	} else if (IS_ENABLED(CONFIG_SPL_LOAD_IMX_CONTAINER)) {
 		struct spl_load_info load;
 
+		memset(&load, 0, sizeof(load));
 		load.dev = mmc;
-		load.priv = NULL;
-		load.filename = NULL;
 		load.bl_len = mmc->read_bl_len;
 		load.read = h_spl_load_read;
 

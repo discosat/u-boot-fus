@@ -148,7 +148,9 @@ void board_nand_state(struct mtd_info *mtd, unsigned int state)
 /* Get Pointer to struct cfg_info */
 struct cfg_info *fs_board_get_cfg_info(void)
 {
-	return (struct cfg_info *)CONFIG_SPL_BSS_START_ADDR;
+	DECLARE_GLOBAL_DATA_PTR;
+
+	return (struct cfg_info *)&gd->cfg_info;
 }
 
 /* Get the boot device from BOARD-CFG) */
@@ -345,7 +347,7 @@ void fs_board_late_init_common(const char *serial_name)
 	bool conflict = false;
 
 #ifdef CONFIG_FS_BOARD_CFG
-	ulong found_cfg = (ulong)fs_image_get_cfg_addr(true);
+	ulong found_cfg = (ulong)fs_image_get_cfg_addr();
 	ulong expected_cfg = (ulong)fs_image_get_regular_cfg_addr();
 
 	printf("CFG:   Found at 0x%lx", found_cfg);

@@ -266,6 +266,9 @@ config TARGET_FSIMX8MM
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 	select IMX8M_DDR3L
+	select FSL_CAAM
+	select FSL_BLOB
+	select MISC
 	select FS_BOARD_CFG
 
 config TARGET_FSIMX8M
@@ -281,6 +284,9 @@ config TARGET_FSIMX8MN
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 	select IMX8M_DDR3L
+	select FSL_CAAM
+	select FSL_BLOB
+	select MISC
 	select FS_BOARD_CFG
 
 config TARGET_FSIMX8MP
@@ -288,6 +294,9 @@ config TARGET_FSIMX8MP
 	select IMX8MP
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
+	select FSL_CAAM
+	select FSL_BLOB
+	select MISC
 	select FS_BOARD_CFG
 
 endchoice

@@ -8,13 +8,11 @@
 
 /dts-v1/;
 
-#include ".nboot-info-mmc.dtsi.tmp"
+#include "nboot-info.dtsi"
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MPr2";
-		board-rev = <110>;		/* Rev 1.10 */
 
 		/* DRAM: 2GB Samsung B.ICDRAM.30 */
 		dram-type = "lpddr4";
