@@ -416,6 +416,7 @@ int board_init(void)
 	unsigned int board_type = fs_board_get_type();
 	unsigned int board_rev = fs_board_get_rev();
 	unsigned int features2 = fs_board_get_nboot_args()->chFeatures2;
+	unsigned int active_us = 1000;
 
 	/* Copy NBoot args to variables and prepare command prompt string */
 	fs_board_init_common(&board_info[fs_board_get_type()]);
@@ -434,20 +435,31 @@ int board_init(void)
 	 *
 	 * FIXME: Should we do this somewhere else when we know the pulse time?
 	 */
-	if ((board_type == BT_EFUSA9X)||(board_type == BT_EFUSA9XR2)) {
-		unsigned int active_us = 1000;
+	switch(board_type) {
+		case BT_EFUSA9X:
+			if ((features2 && FEAT2_WLAN) && (board_rev < 120))
+				active_us = 100000;
+			SETUP_IOMUX_PADS(efusa9x_reset_pads);
+			fs_board_issue_reset(active_us, 0, IMX_GPIO_NR(2, 1), ~0, ~0);
 
-		if ((features2 && FEAT2_WLAN) && (board_rev < 120))
-			active_us = 100000;
-		SETUP_IOMUX_PADS(efusa9x_reset_pads);
-		fs_board_issue_reset(active_us, 0, IMX_GPIO_NR(2, 1), ~0, ~0);
+			/* Toggle WL_EN and BT_EN on Silex chip */
+			if ((features2 && FEAT2_WLAN) && (board_rev >= 120)) {
+				SETUP_IOMUX_PADS(efusa9x_wlanbt_en_pads);
+				fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 3),
+							 ~0, ~0);
+			}
+			break;
+		case BT_EFUSA9XR2:
+			SETUP_IOMUX_PADS(efusa9x_reset_pads);
+			fs_board_issue_reset(active_us, 0, IMX_GPIO_NR(2, 1), ~0, ~0);
 
-		/* Toggle WL_EN and BT_EN on Silex chip */
-		if ((features2 && FEAT2_WLAN) && (board_rev >= 120)) {
-			SETUP_IOMUX_PADS(efusa9x_wlanbt_en_pads);
-			fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 3),
-					     ~0, ~0);
-		}
+			/* Toggle WL_EN and BT_EN on Silex chip */
+			if (features2 && FEAT2_WLAN) {
+				SETUP_IOMUX_PADS(efusa9x_wlanbt_en_pads);
+				fs_board_issue_reset(1000, 0, IMX_GPIO_NR(1, 3),
+							 ~0, ~0);
+			}
+			break;
 	}
 
 	return 0;
@@ -547,6 +559,12 @@ void board_nand_init(void)
  *            or:  [USDHC1  GPIO1_IO02             WLAN]
  *                  USDHC4  -                      eMMC (8-Bit)
  *   efusA9X (Board Rev >= 1.20):
+ *                  USDHC2  GPIO1_IO06             SD_B: Connector (SD)
+ *        either:   USDHC4  SD4_DATA7 (GPIO6_IO21) SD_A: Connector (Micro-SD)
+ *            or:   USDHC4  -                      eMMC (8-Bit)
+ *                 [USDHC1  GPIO1_IO02             WLAN]
+ *
+ *   efusA9Xr2:
  *                  USDHC2  GPIO1_IO06             SD_B: Connector (SD)
  *        either:   USDHC4  SD4_DATA7 (GPIO6_IO21) SD_A: Connector (Micro-SD)
  *            or:   USDHC4  -                      eMMC (8-Bit)
@@ -678,7 +696,6 @@ int board_mmc_init(bd_t *bd)
 
 	switch (board_type) {
 	case BT_EFUSA9X:
-	case BT_EFUSA9XR2:
 		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
 		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
 				   &sdhc_cd[gpio1_io06]);
@@ -701,6 +718,21 @@ int board_mmc_init(bd_t *bd)
 		/* mmc2: USDHC4 (eMMC, if available), no CD */
 		if (!ret && (features2 & FEAT2_EMMC))
 			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc4_int], NULL);
+		break;
+
+	case BT_EFUSA9XR2:
+		/* mmc0: USDHC2 (ext. SD slot, normal-size SD on efus SKIT) */
+		ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc2_ext],
+				   &sdhc_cd[gpio1_io06]);
+		if (ret)
+			break;
+
+		/* mmc1: USDHC4 (eMMC, if available), no CD */
+		if (features2 & FEAT2_EMMC)
+			ret = fs_mmc_setup(bd, 8, &sdhc_cfg[usdhc4_int], NULL);
+		else /* USDHC4 (ext. SD slot, micro SD on efus SKIT, if eMMC not available)  */
+			ret = fs_mmc_setup(bd, 4, &sdhc_cfg[usdhc4_ext],
+					   &sdhc_cd[gpio6_io21]);
 		break;
 
 	case BT_PICOCOMA9X:
