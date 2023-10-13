@@ -347,21 +347,22 @@ static int ehci_usb_of_to_plat(struct udevice *dev)
 			"extcon", NULL);
 	if (extcon) {
 		priv->init_type = board_ehci_usb_phy_mode(dev);
-		goto check_type;
+		if ( priv->init_type != USB_INIT_UNKNOWN)
+			goto check_type;
 	}
 
 	dr_mode = usb_get_dr_mode(dev_ofnode(dev));
 
 	switch (dr_mode) {
 	case USB_DR_MODE_HOST:
-		plat->init_type = USB_INIT_HOST;
+		priv->init_type = USB_INIT_HOST;
 		break;
 	case USB_DR_MODE_PERIPHERAL:
-		plat->init_type = USB_INIT_DEVICE;
+		priv->init_type = USB_INIT_DEVICE;
 		break;
 	case USB_DR_MODE_OTG:
 	case USB_DR_MODE_UNKNOWN:
-		plat->init_type = USB_INIT_UNKNOWN;
+		priv->init_type = USB_INIT_UNKNOWN;
 		break;
 	};
 
@@ -471,7 +472,7 @@ static int ehci_usb_probe(struct udevice *dev)
 		ret = ehci_usb_phy_mode(dev);
 		if (ret)
 			return ret;
-		if (priv->init_type != type)
+		if (priv->init_type != type && type!=USB_INIT_UNKNOWN)
 			return -ENODEV;
 	}
 	plat->init_type = priv->init_type;
