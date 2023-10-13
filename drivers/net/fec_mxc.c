@@ -509,7 +509,6 @@ static int fec_open(struct eth_device *edev)
 	writel(readl(&fec->eth->ecntrl) | FEC_ECNTRL_ETHER_EN,
 	       &fec->eth->ecntrl);
 
-printf("### ecntrl(0x%p)=0x%x\n", &fec->eth->ecntrl, readl(&fec->eth->ecntrl));
 #ifdef FEC_ENET_ENABLE_TXC_DELAY
 	writel(readl(&fec->eth->ecntrl) | FEC_ECNTRL_TXC_DLY,
 	       &fec->eth->ecntrl);
