@@ -1,0 +1,7 @@
+#include "picocoremx8mm-u-bootinc.dtsi"
+
+&fec1 {
+	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <11>;
+	phy-reset-post-delay=<50>;
+};

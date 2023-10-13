@@ -1,0 +1,10 @@
+#include "picocoremx8mm-u-bootinc.dtsi"
+
+&fec1 {
+	/* reset is done in board file, it needs to be done there
+	 * because of the strapping pins
+	 */
+	/delete-property/	phy-reset-gpios ;
+	/delete-property/	phy-reset-duration;
+	/delete-property/	phy-reset-post-delay;
+};
