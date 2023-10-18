@@ -180,10 +180,6 @@ struct nboot_info {
 	struct storage_info nboot;
 	struct storage_info uboot;
 	struct storage_info env;
-#ifdef CONFIG_NAND_MXS
-	unsigned int env_used;		/* From env-size entry, region size
-					   is from env-range */
-#endif
 };
 
 #define SUB_SYNC          BIT(0)	/* After writing image, flush temp */
@@ -239,6 +235,8 @@ struct flash_ops {
 struct flash_info {
 #ifdef CONFIG_NAND_MXS
 	struct mtd_info *mtd;		/* Handle to NAND */
+	unsigned int env_used;		/* From env-size entry, region size
+					   is from env-range */
 #endif
 #ifdef CONFIG_CMD_MMC
 	struct mmc *mmc;		/* Handle to MMC device */
@@ -1593,14 +1591,14 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 		/* The size only has to be aligned to pages */
 		align = fi->mtd->writesize;
 		err = fs_image_get_fdt_val(fdt, layout, "env-size", align,
-					   1, &ni->env_used);
+					   1, &fi->env_used);
 	} else if (err == -ENOENT) {
 		/*
 		 * No env data found in nboot-info, fall back to some known
 		 * values. Use option -e to select index.
 		 */
 		err = fs_image_get_known_env_nand(early_support_index,
-						  ni->env.start, &ni->env_used);
+						  ni->env.start, &fi->env_used);
 		ni->env.size = CONFIG_ENV_NAND_RANGE;;
 	}
 	if (err)
@@ -1615,7 +1613,7 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	debug("- uboot: start=0x%08x/0x%08x size=0x%08x\n",
 	      ni->uboot.start[0], ni->uboot.start[1], ni->uboot.size);
 	debug("- env:   start=0x%08x/0x%08x size=0x%08x env_used=0x%08x\n",
-	      ni->env.start[0], ni->env.start[1], ni->env.size, ni->env_used);
+	      ni->env.start[0], ni->env.start[1], ni->env.size, fi->env_used);
 
 	return 0;
 }
@@ -1735,8 +1733,10 @@ static int fs_image_load_image_nand(struct flash_info *fi, int copy,
 	} else if ((sub->flags & SUB_IS_DBBT)
 		   || (sub->flags & SUB_IS_DBBT_DATA)) {
 		size = fi->mtd->writesize;
+#ifdef CONFIG_NAND_MXS
 	} else if (sub-> flags & SUB_IS_ENV) {
-		size = si->env_used;
+		size = fi->env_used;
+#endif
 	} else {
 		/* Load header (IVT, FIT or FS_HEADER) and get size from it */
 		size = sizeof(union any_header);
