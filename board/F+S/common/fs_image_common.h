@@ -84,6 +84,14 @@ bool fs_image_match(const struct fs_header_v1_0 *fsh,
 /* Check id, return also true if revision is less than revision of compare_id */
 bool fs_image_match_board_id(struct fs_header_v1_0 *fsh);
 
+/* Read property from board-rev subnode or board-cfg main node */
+const void *fs_image_getprop(const void *fdt, int cfg_offs, int rev_offs,
+			     const char *name, int *lenp);
+
+/* Read u32 property from board-rev subnode or board-cfg main node */
+u32 fs_image_getprop_u32(const void *fdt, int cfg_offs, int rev_offs,
+			 int cell, const char *name, const u32 dflt);
+
 /* Add the board revision as BOARD-ID to the given BOARD-CFG and update CRC32 */
 void fs_image_board_cfg_set_board_rev(struct fs_header_v1_0 *cfg_fsh);
 
@@ -93,8 +101,18 @@ const char *fs_image_get_board_id(void);
 /* Set the compare_id that will be used in fs_image_match_board_id() */
 void fs_image_set_compare_id(const char id[MAX_DESCR_LEN]);
 
+/* Get the board-rev from BOARD-ID (in compare-id) */
+unsigned int fs_image_get_board_rev(void);
+
 /* Set the board_id and compare_id from the BOARD-CFG */
 void fs_image_set_board_id_from_cfg(void);
+
+/* Find board-cfg subnode matching the board-rev in the BOARD-ID */
+int fs_image_get_board_rev_subnode(const void *fdt, int offs);
+
+/* Find board-rev and return matching board-cfg subnode (U-Boot f-phase) */
+int fs_image_get_board_rev_subnode_f(const void *fdt, int offs,
+				     uint *board_rev);
 
 /* Check if the F&S image is signed (followed by an IVT) */
 bool fs_image_is_signed(struct fs_header_v1_0 *fsh);

@@ -9,61 +9,38 @@ include spl/include/autoconf.mk
 # NBoot version with year and month. Please update for every release. If there
 # needs to be more than one release within a month, add .1, .2, .3, ..., e.g.
 # 2021.03.2 for the third release in March 2021.
-NBOOT_VERSION = 2023.08
+NBOOT_VERSION = 2023.10
 
 # List of files to add to BOARD-CONFIGS image. The file name depends on the
-# names given in the Selectsoft WaWi for the board and the PCB revision. The
-# format is:
+# names given in the Selectsoft WaWi for the board, without the PCB revision.
+# The format is:
 #
-#   <board>-FERT<n>.<rev>.fs
+#   <board>-FERT<n>.fs
 #
 # <board>: Name of the board
 # <n>:     Subtype of board (i.e. mounting variant)
-# <rev>:   Revision number, typically the PCB revision 100, 110, 120, etc.
-#
-# Group by <board> and <n>, then within each group sort by *descending* <rev>
-# number, i.e. add new revisions in front of the list. The first configuration
-# where <board> and <n> match and where <rev> is less than or equal to the
-# <rev> of the BOARD-ID is selected. This is because not every new board
-# revision needs a new software configuration. And a board with a new board
-# revision that does not have a its own configuration yet can at least be
-# started with an older configuration.
-#
-# For example assume for a certain board type, there are BOARD-CFGs with
-# revisions .130, .120 and .100. Boards with revision .121 or .120 in their
-# BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
-	PCoreMX8MM-FERT1.130.fs \
-	PCoreMX8MM-FERT2.130.fs \
-	PCoreMX8MM-FERT3.130.fs \
-	PCoreMX8MM-FERT3.120.fs \
-	PCoreMX8MM-FERT3.110.fs \
-	PCoreMX8MM-FERT4.130.fs \
-	PCoreMX8MM-FERT4.120.fs \
-	PCoreMX8MM-FERT4.110.fs \
-	PCoreMX8MM-FERT9.130.fs \
-	PCoreMX8MM-FERT9.120.fs \
-	PCoreMX8MM-FERT9.110.fs \
-	PCoreMX8MM-FERT12.130.fs \
-	PCoreMX8MM-FERT13.130.fs \
-	PCoreMX8MM-FERT15.130.fs \
-	PCoreMX8MMr2-FERT3.100.fs \
-	PCoreMX8MMr2-FERT4.100.fs \
-	PCoreMX8MMr2-FERT9.100.fs \
-	PCoreMX8MMr2-FERT12.100.fs \
-	PCoreMX8MMr2-FERT13.100.fs \
-	PCoreMX8MMr2-FERT15.100.fs \
-	PCoreMX8MX-FERT5.120.fs \
-	PCoreMX8MX-FERT5.110.fs \
-	PCoreMX8MX-FERT6.120.fs \
-	PCoreMX8MX-FERT6.110.fs \
-	PCoreMX8MX-FERT7.120.fs \
-	PCoreMX8MX-FERT7.110.fs \
-	PCoreMX8MX-FERT8.120.fs \
-	PCoreMX8MX-FERT8.110.fs \
-	PCoreMX8MX-FERT17.120.fs \
-	TBS2-FERT1.111.fs \
-	TBS2-FERT3.120.fs
+	PCoreMX8MM-FERT1.fs \
+	PCoreMX8MM-FERT2.fs \
+	PCoreMX8MM-FERT3.fs \
+	PCoreMX8MM-FERT4.fs \
+	PCoreMX8MM-FERT9.fs \
+	PCoreMX8MM-FERT12.fs \
+	PCoreMX8MM-FERT13.fs \
+	PCoreMX8MM-FERT15.fs \
+	PCoreMX8MMr2-FERT3.fs \
+	PCoreMX8MMr2-FERT4.fs \
+	PCoreMX8MMr2-FERT9.fs \
+	PCoreMX8MMr2-FERT12.fs \
+	PCoreMX8MMr2-FERT13.fs \
+	PCoreMX8MMr2-FERT15.fs \
+	PCoreMX8MX-FERT5.fs \
+	PCoreMX8MX-FERT6.fs \
+	PCoreMX8MX-FERT7.fs \
+	PCoreMX8MX-FERT8.fs \
+	PCoreMX8MX-FERT17.fs \
+	TBS2-FERT1.fs \
+	TBS2-FERT3.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
@@ -255,7 +232,6 @@ $(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts
 	@echo "/* Macros with varying content */" > $@
 	@echo "#define NBOOT_VERSION \"$(NBOOT_VERSION)\"" >> $@
 	@echo "#define BOARD_CFG_NAME \"$(*F)\"" >> $@
-	@echo "#define BOARD_REV $(subst .,,$(suffix $(*F)))" >> $@
 	@echo "#define CONFIG_SPL_BUILD" >> $@
 	@cat $< >> $@
 

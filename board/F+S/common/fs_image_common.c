@@ -166,7 +166,6 @@ struct bnr {
 };
 
 static struct bnr compare_bnr;		/* Used for BOARD-ID comparisons */
-
 static char board_id[MAX_DESCR_LEN + 1]; /* Current board-id */
 
 struct env_info {
@@ -341,6 +340,38 @@ bool fs_image_match_board_id(struct fs_header_v1_0 *cfg_fsh)
 		return false;
 
 	return true;
+}
+
+/* Read property from board-rev subnode or board-cfg main node */
+const void *fs_image_getprop(const void *fdt, int cfg_offs, int rev_offs,
+			     const char *name, int *lenp)
+{
+	const void *prop;
+
+	if (rev_offs) {
+		prop = fdt_getprop(fdt, rev_offs, name, lenp);
+		if (prop)
+			return prop;
+	}
+
+	return fdt_getprop(fdt, cfg_offs, name, lenp);
+}
+
+/* Read u32 property from board-rev subnode or board-cfg main node */
+u32 fs_image_getprop_u32(const void *fdt, int cfg_offs, int rev_offs,
+			 int cell, const char *name, const u32 dflt)
+{
+	const void *prop;
+	int len;
+
+	if (rev_offs) {
+		prop = fdt_getprop(fdt, rev_offs, name, &len);
+		if (prop)
+			return fdt_getprop_u32_default_node(fdt, rev_offs,
+							    cell, name, dflt);
+	}
+
+	return fdt_getprop_u32_default_node(fdt, cfg_offs, cell, name, dflt);
 }
 
 /* Check if the F&S image is signed (followed by an IVT) */
@@ -521,23 +552,97 @@ void fs_image_set_compare_id(const char id[MAX_DESCR_LEN])
 	fs_image_get_board_name_rev(id, &compare_bnr);
 }
 
-/* Set the board_id and compare_id from the BOARD-CFG */
-void fs_image_set_board_id_from_cfg(void)
+/* Get the board-rev from BOARD-ID (in compare-id) */
+unsigned int fs_image_get_board_rev(void)
+{
+	return compare_bnr.rev;
+}
+
+/* Get the BOARD-ID from the BOARD-CFG in OCRAM */
+static void _get_board_id_from_cfg(struct bnr *bnr)
 {
 	struct fs_header_v1_0 *cfg_fsh = fs_image_get_cfg_addr();
 	unsigned int rev;
 
 	/* Take base ID from descr; in old layout, this includes the rev */
-	fs_image_get_board_name_rev(cfg_fsh->param.descr, &compare_bnr);
+	fs_image_get_board_name_rev(cfg_fsh->param.descr, bnr);
 
 	/* The BOARD-ID rev is stored in file_size_high, 0 for old layout */
 	rev = cfg_fsh->info.file_size_high;
 	if (rev) {
 		debug("Taking BOARD-ID rev from BOARD-CFG: %d\n", rev);
-		compare_bnr.rev = rev;
+		bnr->rev = rev;
 	}
+}
+
+/* Set the board_id and compare_id from the BOARD-CFG */
+void fs_image_set_board_id_from_cfg(void)
+{
+	_get_board_id_from_cfg(&compare_bnr);
 
 	fs_image_set_board_id();
+}
+
+/*
+ * Find board_rev and return board-cfg subnode matching the given id_rev, 0 if
+ * no subnode was found.
+ */
+static int _get_board_rev_subnode(const void *fdt, int offs, uint id_rev)
+{
+	int subnode;
+	int rev_subnode = 0;
+	int rev = 0;
+	unsigned int temp;
+
+	subnode = fdt_first_subnode(fdt, offs);
+	while (subnode >= 0) {
+		temp = fdt_getprop_u32_default_node(fdt, subnode, 0,
+						    "board-rev", 100);
+		if ((temp > rev) && (temp <= id_rev)) {
+			rev = temp;
+			rev_subnode = subnode;
+			if (rev == id_rev)
+				break;
+		}
+		subnode = fdt_next_subnode(fdt, subnode);
+	}
+
+	/* If no subnode was found, try the board-cfg node itself */
+	if (!rev_subnode) {
+		rev = fdt_getprop_u32_default_node(fdt, offs, 0,
+						   "board-rev", 100);
+	}
+
+	debug("BOARD-ID rev=%u, BOARD-CFG rev=%u\n", id_rev, rev);
+
+	return rev_subnode;
+}
+
+/*
+ * Find board_rev of BOARD-ID (in compare-id) and return board-cfg subnode
+ * matching it. The compare-id has to be set before this call.
+ */
+int fs_image_get_board_rev_subnode(const void *fdt, int offs)
+{
+	return _get_board_rev_subnode(fdt, offs, compare_bnr.rev);
+}
+
+/*
+ * In the f-phase of U-Boot, when there are no variables available, we cannot
+ * call fs_image_get_board_rev_subnode() because it uses the compare-id. We
+ * have to determine the BOARD-ID directly from the BOARD-CFG in OCRAM. Also
+ * return the board-rev (from the BOARD-ID) in this case.
+ */
+int fs_image_get_board_rev_subnode_f(const void *fdt, int offs, uint *board_rev)
+{
+	struct bnr bnr;
+
+	/* Get the BOARD-ID from the BOARD-CFG in OCRAM */
+	_get_board_id_from_cfg(&bnr);
+	if (board_rev)
+		*board_rev = bnr.rev;
+
+	return _get_board_rev_subnode(fdt, offs, bnr.rev);
 }
 
 /*
@@ -1152,10 +1257,15 @@ static void fs_image_handle_header(void)
 		/* Get DRAM type and DRAM timing from BOARD-CFG */
 		if (fs_image_match_check(&one_fsh, "DRAM-INFO", arch)) {
 			void *fdt = fs_image_get_cfg_fdt();
-			int off = fs_image_get_board_cfg_offs(fdt);
+			int offs = fs_image_get_board_cfg_offs(fdt);
+			int rev_offs;
 
-			ram_type = fdt_getprop(fdt, off, "dram-type", NULL);
-			ram_timing = fdt_getprop(fdt, off, "dram-timing", NULL);
+			rev_offs = fs_image_get_board_rev_subnode(fdt, offs);
+
+			ram_type = fs_image_getprop(fdt, offs, rev_offs,
+						    "dram-type", NULL);
+			ram_timing = fs_image_getprop(fdt, offs, rev_offs,
+						      "dram-timing", NULL);
 
 			debug("Looking for: %s, %s\n", ram_type, ram_timing);
 

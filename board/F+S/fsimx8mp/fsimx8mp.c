@@ -34,7 +34,7 @@
 #include <dwc3-uboot.h>
 #include <mmc.h>
 #include <linux/delay.h>		/* udelay() */
-#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
+#include <fdt_support.h>		/* fdt_subnode_offset(), ... */
 #include <hang.h>			/* hang() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
 #include "../common/fs_board_common.h"	/* fs_board_*() */
@@ -154,6 +154,7 @@ static void fs_setup_cfg_info(void)
 {
 	void *fdt;
 	int offs;
+	int rev_offs;
 	int i;
 	struct cfg_info *info;
 	const char *tmp;
@@ -181,66 +182,67 @@ static void fs_setup_cfg_info(void)
 	if (!fs_image_is_ocram_cfg_valid())
 		hang();
 
-	fdt = fs_image_get_cfg_fdt();
-	offs = fs_image_get_board_cfg_offs(fdt);
 	info = fs_board_get_cfg_info();
 	memset(info, 0, sizeof(struct cfg_info));
 
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_board_cfg_offs(fdt);
+	rev_offs = fs_image_get_board_rev_subnode_f(fdt, offs,
+						    &info->board_rev);
+
 	/* Parse BOARD-CFG entries and set according entries and flags */
-	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
+	tmp = fs_image_getprop(fdt, offs, rev_offs, "board-name", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
 		if (!strcmp(tmp, board_info[i].name))
 			break;
 	}
 	info->board_type = i;
 
-	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	tmp = fs_image_getprop(fdt, offs, rev_offs, "boot-dev", NULL);
 	info->boot_dev = fs_board_get_boot_dev_from_name(tmp);
 
-	info->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "board-rev", 100);
-	info->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
-							"dram-chips", 1);
-	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "dram-size", 0x400);
+	info->dram_chips = fs_image_getprop_u32(fdt, offs, rev_offs, 0,
+						"dram-chips", 1);
+	info->dram_size = fs_image_getprop_u32(fdt, offs, rev_offs, 0,
+					       "dram-size", 0x400);
 	info->flags = flags;
 
 	features = 0;
-	if (fdt_getprop(fdt, offs, "have-nand", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-nand", NULL))
 		features |= FEAT_NAND;
-	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-emmc", NULL))
 		features |= FEAT_EMMC;
-	if (fdt_getprop(fdt, offs, "have-audio", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-audio", NULL))
 		features |= FEAT_AUDIO;
-	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-eth-phy", NULL)) {
 		features |= FEAT_ETH_A;
 		features |= FEAT_ETH_B;
 	}
-	if(fdt_getprop(fdt, offs, "have-eth-phy-a", NULL)){
+	if(fs_image_getprop(fdt, offs, rev_offs, "have-eth-phy-a", NULL)){
 		features |= FEAT_ETH_A;
 	}
-	if(fdt_getprop(fdt, offs, "have-eth-phy-b", NULL)){
+	if(fs_image_getprop(fdt, offs, rev_offs, "have-eth-phy-b", NULL)){
 		features |= FEAT_ETH_B;
 	}
-	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-wlan", NULL))
 		features |= FEAT_WLAN;
-	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-mipi-dsi", NULL))
 		features |= FEAT_DISP_A;
-	if (fdt_getprop(fdt, offs, "have-hdmi", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-hdmi", NULL))
 		features |= FEAT_DISP_B;
-	if (fdt_getprop(fdt, offs, "have-ext-rtc", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-ext-rtc", NULL))
 		features |= FEAT_EXT_RTC;
-	if (fdt_getprop(fdt, offs, "have-security", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-security", NULL))
 		features |= FEAT_SEC_CHIP;
-	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-eeprom", NULL))
 		features |= FEAT_EEPROM;
-	if (fdt_getprop(fdt, offs, "have-adc", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-adc", NULL))
 		features |= FEAT_ADC;
-	if (fdt_getprop(fdt, offs, "have-mipi-to-rgb", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-mipi-to-rgb", NULL))
 		features |= FEAT_DISP_RGB;
-	if (fdt_getprop(fdt, offs, "have-sd-a", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-sd-a", NULL))
 		features |= FEAT_SD_A;
-	if (fdt_getprop(fdt, offs, "have-sd-b", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-sd-b", NULL))
 		features |= FEAT_SD_B;
 	info->features = features;
 }
@@ -610,7 +612,8 @@ void fs_ethaddr_init(void)
 int checkboard(void)
 {
 	unsigned int board_type = fs_board_get_type();
-	unsigned int board_rev = fs_board_get_rev();
+	struct cfg_info *info = fs_board_get_cfg_info();
+	unsigned int board_rev = info->board_rev;
 	unsigned int features = fs_board_get_features();
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
@@ -624,7 +627,7 @@ int checkboard(void)
 	if (features & FEAT_EMMC)
 		puts ("eMMC, ");
 
-	printf ("%dx DRAM)\n", fs_board_get_cfg_info()->dram_chips);
+	printf ("%dx DRAM)\n", info->dram_chips);
 
 	return 0;
 }

@@ -655,6 +655,7 @@ static int fs_image_get_boot_dev(void *fdt, enum boot_device *boot_dev,
 				 const char **boot_dev_name)
 {
 	int offs;
+	int rev_offs;
 	const char *boot_dev_prop;
 
 	offs = fs_image_get_board_cfg_offs(fdt);
@@ -662,7 +663,8 @@ static int fs_image_get_boot_dev(void *fdt, enum boot_device *boot_dev,
 		puts("Cannot find BOARD-CFG\n");
 		return -ENOENT;
 	}
-	boot_dev_prop = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	rev_offs = fs_image_get_board_rev_subnode(fdt, offs);
+	boot_dev_prop = fs_image_getprop(fdt, offs, rev_offs, "boot-dev", NULL);
 	if (boot_dev_prop < 0) {
 		puts("Cannot find boot-dev in BOARD-CFG\n");
 		return -ENOENT;
@@ -3167,6 +3169,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	unsigned int flags;
 	void *fdt;
 	int board_cfg_offs;
+	int rev_offs;
 	const char *dram_type;
 	const char *dram_timing;
 	struct nboot_info ni;
@@ -3215,10 +3218,13 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	ignore_old = (ret == 2);	/* Ignore old BOARD-CFG if ID changed */
 
 	fdt = fs_image_find_cfg_fdt(cfg_fsh);
-
 	board_cfg_offs = fs_image_get_board_cfg_offs(fdt);
-	dram_type = fdt_getprop(fdt, board_cfg_offs, "dram-type", NULL);
-	dram_timing = fdt_getprop(fdt, board_cfg_offs, "dram-timing", NULL);
+	rev_offs = fs_image_get_board_rev_subnode(fdt, board_cfg_offs);
+
+	dram_type = fs_image_getprop(fdt, board_cfg_offs, rev_offs,
+				     "dram-type", NULL);
+	dram_timing = fs_image_getprop(fdt, board_cfg_offs, rev_offs,
+				       "dram-timing", NULL);
 	if (!dram_type || !dram_timing) {
 		puts("Error: No dram-type and/or dram-timing in BOARD-CFG\n");
 		return CMD_RET_FAILURE;
@@ -3462,6 +3468,7 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 	struct fs_header_v1_0 *cfg_fsh;
 	void *fdt;
 	int offs;
+	int rev_offs;
 	int ret;
 	enum boot_device boot_dev;
 	const char *boot_dev_name;
@@ -3503,9 +3510,11 @@ static int do_fsimage_fuse(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 	}
 
-	fbws = fdt_getprop(fdt, offs, "fuse-bankword", &len);
-	fmasks = fdt_getprop(fdt, offs, "fuse-mask", &len2);
-	fvals = fdt_getprop(fdt, offs, "fuse-value", &len3);
+	rev_offs = fs_image_get_board_rev_subnode(fdt, offs);
+
+	fbws = fs_image_getprop(fdt, offs, rev_offs, "fuse-bankword", &len);
+	fmasks = fs_image_getprop(fdt, offs, rev_offs, "fuse-mask", &len2);
+	fvals = fs_image_getprop(fdt, offs, rev_offs, "fuse-value", &len3);
 	if (!fbws || !fmasks || !fvals || (len != len2) || (len2 != len3)
 	    || !len || (len % sizeof(fdt32_t) != 0)) {
 		printf("Invalid or missing fuse value settings for boot"

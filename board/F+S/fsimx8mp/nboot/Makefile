@@ -33,35 +33,28 @@ NBOOT_VERSION = 2023.09.1
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
-	PCoreMX8MP-FERT1.110.fs \
-	PCoreMX8MP-FERT2.110.fs \
-	PCoreMX8MP-FERT3.110.fs \
-	PCoreMX8MP-FERT4.110.fs \
-	PCoreMX8MP-FERT5.110.fs \
-	PCoreMX8MP-FERT6.110.fs \
-	PCoreMX8MPr2-FERT0.110.fs \
-	PCoreMX8MPr2-FERT0.100.fs \
-	PCoreMX8MPr2-FERT1.110.fs \
-	PCoreMX8MPr2-FERT1.100.fs \
-	PCoreMX8MPr2-FERT2.110.fs \
-	PCoreMX8MPr2-FERT2.100.fs \
-	PCoreMX8MPr2-FERT3.110.fs \
-	PCoreMX8MPr2-FERT3.100.fs \
-	PCoreMX8MPr2-FERT4.110.fs \
-	PCoreMX8MPr2-FERT4.100.fs \
-	PCoreMX8MPr2-FERT5.110.fs \
-	PCoreMX8MPr2-FERT5.100.fs \
-	PCoreMX8MPr2-FERT6.110.fs \
-	PCoreMX8MPr2-FERT6.100.fs \
-	PCoreMX8MPr2-FERT7.110.fs \
-	PCoreMX8MPr2-FERT9.110.fs \
-	armStoneMX8MP-FERT0.100.fs \
-	armStoneMX8MP-FERT2.100.fs \
-	armStoneMX8MP-FERT4.100.fs \
-	armStoneMX8MP-FERT5.100.fs \
-	efusMX8MP-FERT3.100.fs \
-	efusMX8MP-FERT4.100.fs \
-	efusMX8MP-FERT5.100.fs
+	PCoreMX8MP-FERT1.fs \
+	PCoreMX8MP-FERT2.fs \
+	PCoreMX8MP-FERT3.fs \
+	PCoreMX8MP-FERT4.fs \
+	PCoreMX8MP-FERT5.fs \
+	PCoreMX8MP-FERT6.fs \
+	PCoreMX8MPr2-FERT0.fs \
+	PCoreMX8MPr2-FERT1.fs \
+	PCoreMX8MPr2-FERT2.fs \
+	PCoreMX8MPr2-FERT3.fs \
+	PCoreMX8MPr2-FERT4.fs \
+	PCoreMX8MPr2-FERT5.fs \
+	PCoreMX8MPr2-FERT6.fs \
+	PCoreMX8MPr2-FERT7.fs \
+	PCoreMX8MPr2-FERT9.fs \
+	armStoneMX8MP-FERT0.fs \
+	armStoneMX8MP-FERT2.fs \
+	armStoneMX8MP-FERT4.fs \
+	armStoneMX8MP-FERT5.fs \
+	efusMX8MP-FERT3.fs \
+	efusMX8MP-FERT4.fs \
+	efusMX8MP-FERT5.fs
 
 
 # List of DRAM Timings for each DRAM-TYPE
@@ -255,7 +248,6 @@ $(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts
 	@echo "/* Macros with varying content */" > $@
 	@echo "#define NBOOT_VERSION \"$(NBOOT_VERSION)\"" >> $@
 	@echo "#define BOARD_CFG_NAME \"$(*F)\"" >> $@
-	@echo "#define BOARD_REV $(subst .,,$(suffix $(*F)))" >> $@
 	@echo "#define CONFIG_SPL_BUILD" >> $@
 	@cat $< >> $@
 

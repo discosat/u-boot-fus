@@ -38,7 +38,7 @@
 #include <mipi_dsi_panel.h>
 #include <asm/mach-imx/video.h>
 #include <env_internal.h>		/* enum env_operation */
-#include <fdt_support.h>		/* fdt_getprop_u32_default_node() */
+#include <fdt_support.h>		/* fdt_subnode_offset(), ... */
 #include <hang.h>			/* hang() */
 #include <serial.h>			/* get_serial_device() */
 #include "../common/fs_fdt_common.h"	/* fs_fdt_set_val(), ... */
@@ -159,6 +159,7 @@ static void fs_setup_cfg_info(void)
 {
 	void *fdt;
 	int offs;
+	int rev_offs;
 	int i;
 	struct cfg_info *info;
 	const char *tmp;
@@ -186,57 +187,58 @@ static void fs_setup_cfg_info(void)
 	if (!fs_image_is_ocram_cfg_valid())
 		hang();
 
-	fdt = fs_image_get_cfg_fdt();
-	offs = fs_image_get_board_cfg_offs(fdt);
 	info = fs_board_get_cfg_info();
 	memset(info, 0, sizeof(struct cfg_info));
 
+	fdt = fs_image_get_cfg_fdt();
+	offs = fs_image_get_board_cfg_offs(fdt);
+	rev_offs = fs_image_get_board_rev_subnode_f(fdt, offs,
+						    &info->board_rev);
+
 	/* Parse BOARD-CFG entries and set according entries and flags */
-	tmp = fdt_getprop(fdt, offs, "board-name", NULL);
+	tmp = fs_image_getprop(fdt, offs, rev_offs, "board-name", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_info) - 1; i++) {
 		if (!strcmp(tmp, board_info[i].name))
 			break;
 	}
 	info->board_type = i;
 
-	tmp = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	tmp = fs_image_getprop(fdt, offs, rev_offs, "boot-dev", NULL);
 	info->boot_dev = fs_board_get_boot_dev_from_name(tmp);
 
-	info->board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "board-rev", 100);
-	info->dram_chips = fdt_getprop_u32_default_node(fdt, offs, 0,
-							"dram-chips", 1);
-	info->dram_size = fdt_getprop_u32_default_node(fdt, offs, 0,
-						       "dram-size", 0x400);
+	info->dram_chips = fs_image_getprop_u32(fdt, offs, rev_offs, 0,
+						"dram-chips", 1);
+	info->dram_size = fs_image_getprop_u32(fdt, offs, rev_offs, 0,
+					       "dram-size", 0x400);
 	info->flags = flags;
 
 	features = 0;
-	if (fdt_getprop(fdt, offs, "have-nand", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-nand", NULL))
 		features |= FEAT_NAND;
-	if (fdt_getprop(fdt, offs, "have-emmc", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-emmc", NULL))
 		features |= FEAT_EMMC;
-	if (fdt_getprop(fdt, offs, "have-sgtl5000", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-sgtl5000", NULL))
 		features |= FEAT_SGTL5000;
-	if (fdt_getprop(fdt, offs, "have-eth-phy", NULL)) {
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-eth-phy", NULL)) {
 		features |= FEAT_ETH_A;
 		if (info->board_type == BT_PICOCOREMX8MX)
 			features |= FEAT_ETH_B;
 	}
-	if (fdt_getprop(fdt, offs, "have-wlan", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-wlan", NULL))
 		features |= FEAT_WLAN;
-	if (fdt_getprop(fdt, offs, "have-lvds", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-lvds", NULL))
 		features |= FEAT_LVDS;
-	if (fdt_getprop(fdt, offs, "have-mipi-dsi", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-mipi-dsi", NULL))
 		features |= FEAT_MIPI_DSI;
-	if (fdt_getprop(fdt, offs, "have-rtc-pcf85063", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-rtc-pcf85063", NULL))
 		features |= FEAT_RTC85063;
-	if (fdt_getprop(fdt, offs, "have-rtc-pcf85263", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-rtc-pcf85263", NULL))
 		features |= FEAT_RTC85263;
-	if (fdt_getprop(fdt, offs, "have-security", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-security", NULL))
 		features |= FEAT_SEC_CHIP;
-	if (fdt_getprop(fdt, offs, "have-can", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-can", NULL))
 		features |= FEAT_CAN;
-	if (fdt_getprop(fdt, offs, "have-eeprom", NULL))
+	if (fs_image_getprop(fdt, offs, rev_offs, "have-eeprom", NULL))
 		features |= FEAT_EEPROM;
 	info->features = features;
 }
@@ -277,7 +279,7 @@ enum env_location env_get_location(enum env_operation op, int prio)
 }
 
 #ifdef CONFIG_NAND_MXS
-static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
+static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *info)
 {
 	void *fdt;
 	int offs;
@@ -285,7 +287,7 @@ static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
 	unsigned int align;
 	int err;
 
-	if (cfg->flags & CI_FLAGS_HAVE_ENV)
+	if (info->flags & CI_FLAGS_HAVE_ENV)
 		return;
 
 	/*
@@ -321,27 +323,27 @@ static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *cfg)
 		layout = offs;
 
 	err = fs_image_get_fdt_val(fdt, layout, "env-start", align,
-				   2, cfg->env_start);
+				   2, info->env_start);
 	if (err == -ENOENT) {
 		/* This is an old version, use the old known position */
-		err = fs_image_get_known_env_nand(0, cfg->env_start, NULL);
+		err = fs_image_get_known_env_nand(0, info->env_start, NULL);
 	}
 	if (err) {
-		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET;
-		cfg->env_start[0] = CONFIG_ENV_NAND_OFFSET_REDUND;
+		info->env_start[0] = CONFIG_ENV_NAND_OFFSET;
+		info->env_start[0] = CONFIG_ENV_NAND_OFFSET_REDUND;
 	}
 
-	cfg->flags |= CI_FLAGS_HAVE_ENV;
+	info->flags |= CI_FLAGS_HAVE_ENV;
 }
 
 /* Return environment information if in NAND */
 loff_t board_nand_get_env_offset(struct mtd_info *mtd, int copy)
 {
-	struct cfg_info *cfg = fs_board_get_cfg_info();
+	struct cfg_info *info = fs_board_get_cfg_info();
 
-	fs_nand_get_env_info(mtd, cfg);
+	fs_nand_get_env_info(mtd, info);
 
-	return cfg->env_start[copy];
+	return info->env_start[copy];
 }
 
 loff_t board_nand_get_env_range(struct mtd_info *mtd)
@@ -354,7 +356,8 @@ loff_t board_nand_get_env_range(struct mtd_info *mtd)
 int checkboard(void)
 {
 	unsigned int board_type = fs_board_get_type();
-	unsigned int board_rev = fs_board_get_rev();
+	struct cfg_info *info = fs_board_get_cfg_info();
+	unsigned int board_rev = info->board_rev;
 	unsigned int features = fs_board_get_features();
 
 	printf ("Board: %s Rev %u.%02u (", board_info[board_type].name,
@@ -370,7 +373,7 @@ int checkboard(void)
 	if (features & FEAT_NAND)
 		puts("NAND, ");
 
-	printf ("%dx DRAM)\n", fs_board_get_cfg_info()->dram_chips);
+	printf ("%dx DRAM)\n", info->dram_chips);
 
 	return 0;
 }

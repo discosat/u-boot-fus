@@ -26,7 +26,6 @@
 	board-cfg {
 		/* Add dynamic entries to board-cfg node */
 		board-cfg = BOARD_CFG_NAME;
-		board-rev = < BOARD_REV >;
 
 		/*
 		 * Increment if there are changes in BOARD-CFG structure

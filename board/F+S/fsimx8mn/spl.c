@@ -46,7 +46,6 @@ static const char *board_names[] = {
 };
 
 static unsigned int board_type;
-static unsigned int board_rev;
 static const char *board_name;
 static const char *board_fdt;
 static enum boot_device used_boot_dev;	/* Boot device used for NAND/MMC */
@@ -347,7 +346,7 @@ static void fs_board_early_init(void)
 	switch (board_type)
 	{
 	case BT_PICOCOREMX8MN:
-		if (board_rev < 130)
+		if (fs_image_get_board_rev() < 130)
 			imx_iomux_v3_setup_pad(lvds_rst_8mn_120_pads);
 		else
 			imx_iomux_v3_setup_pad(lvds_rst_8mn_130_pads);
@@ -365,13 +364,14 @@ static void basic_init(const char *layout_name)
 {
 	void *fdt = fs_image_get_cfg_fdt();
 	int offs = fs_image_get_board_cfg_offs(fdt);
+	int rev_offs = fs_image_get_board_rev_subnode(fdt, offs);
 	int i;
 	char c;
 	int index;
 	const char *boot_dev_name;
 	enum boot_device boot_dev;
 
-	board_name = fdt_getprop(fdt, offs, "board-name", NULL);
+	board_name = fs_image_getprop(fdt, offs, rev_offs, "board-fdt", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_names); i++) {
 		if (!strcmp(board_name, board_names[i]))
 			break;
@@ -384,7 +384,7 @@ static void basic_init(const char *layout_name)
 	 * Linux device tree name is defined by executing U-Boot's environment
 	 * variable set_bootfdt.
 	 */
-	board_fdt = fdt_getprop(fdt, offs, "board-fdt", NULL);
+	board_fdt = fs_image_getprop(fdt, offs, rev_offs, "board-fdt", NULL);
 	if (!board_fdt) {
 		static char board_name_lc[32];
 
@@ -399,14 +399,12 @@ static void basic_init(const char *layout_name)
 		board_fdt = (const char *)&board_name_lc[0];
 	}
 
-	board_rev = fdt_getprop_u32_default_node(fdt, offs, 0,
-						 "board-rev", 100);
 	config_uart(board_type);
 	if (secondary)
 		puts("Warning! Running secondary SPL, please check if"
 		     " primary SPL is damaged.\n");
 
-	boot_dev_name = fdt_getprop(fdt, offs, "boot-dev", NULL);
+	boot_dev_name = fs_image_getprop(fdt, offs, rev_offs, "boot-dev", NULL);
 	boot_dev = fs_board_get_boot_dev_from_name(boot_dev_name);
 
 	printf("BOARD-ID: %s\n", fs_image_get_board_id());

@@ -1,0 +1,64 @@
+/*
+ * Copyright (C) 2021 F&S Elektronik Systeme GmbH
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "nboot-info.dtsi"
+
+/ {
+	board-cfg {
+		board-name = "efusMX8X";
+
+		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
+		boot-dev = "MMC1";
+
+		/* Common board features */
+		//have-nand;
+		have-emmc;
+		have-sgtl5000;
+		have-eth-phy;
+		have-lvds;
+		have-mipi-dsi;
+		//have-rtc-pcf85063;
+		have-rtc-pcf85263;
+		//have-security;
+		have-can;
+		//have-eeprom;
+
+		/* Board-revision specific features */
+		EFUSMX8X-FERT1.100 {
+			board-rev = <100>;
+
+			/* DRAM: 1024MB Samsung */
+			dram-type = "lpddr4";
+			dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+			dram-size = <0x400>;		/* In MiB */
+			dram-chips = <1>;
+
+			/* Fuses, fuse-bankword: MSW: Bank, LSW: Fuse-Word */
+			fuse-bankword = <0x00000012 0x00000013 0x000002d0>;
+			fuse-mask =     <0x0000007f 0x00000001 0x1f000000>;
+			fuse-value =    <0x00000042 0x00000001 0x02000000>;
+		};
+
+		EFUSMX8X-FERT1.110 {
+			board-rev = <110>;
+
+			/* DRAM: 1024MB Foresee */
+			dram-type = "lpddr4";
+			dram-timing = "lpddr4_fl4c2001g_d9";
+			dram-size = <0x400>;		/* In MiB */
+			dram-chips = <1>;
+
+			/* Fuses, fuse-bankword: MSW: Bank, LSW: Fuse-Word */
+			fuse-bankword = <0x00000012 0x00000013 0x000002d0>;
+			fuse-mask =     <0x0000003f 0x00000001 0x1f000000>;
+			fuse-value =    <0x00000002 0x00000001 0x02000000>;
+		};
+	};
+};

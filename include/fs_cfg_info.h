@@ -19,7 +19,7 @@
 struct cfg_info {
 	enum boot_device boot_dev;
 	u8 board_type;
-	u16 board_rev;
+	u32 board_rev;
 	u32 features;
 	u32 dram_size;
 	u32 dram_chips;

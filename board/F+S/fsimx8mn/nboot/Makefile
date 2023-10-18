@@ -33,16 +33,11 @@ NBOOT_VERSION = 2023.08
 # revisions .130, .120 and .100. Boards with revision .121 or .120 in their
 # BOARD-ID would both select .120, a board with .110 would select .100.
 BOARD_CONFIGS = \
-	PCoreMX8MN-FERT1.120.fs \
-	PCoreMX8MN-FERT1.110.fs \
-	PCoreMX8MN-FERT3.130.fs \
-	PCoreMX8MN-FERT3.120.fs \
-	PCoreMX8MN-FERT4.130.fs \
-	PCoreMX8MN-FERT4.120.fs \
-	PCoreMX8MN-FERT5.120.fs \
-	PCoreMX8MN-FERT5.110.fs \
-	PCoreMX8MN-FERT6.120.fs \
-	PCoreMX8MN-FERT6.110.fs
+	PCoreMX8MN-FERT1.fs \
+	PCoreMX8MN-FERT3.fs \
+	PCoreMX8MN-FERT4.fs \
+	PCoreMX8MN-FERT5.fs \
+	PCoreMX8MN-FERT6.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
@@ -226,7 +221,6 @@ $(obj)/.%.dts.tmp: $(NBOOT_PATH)/%.dts
 	@echo "/* Macros with varying content */" > $@
 	@echo "#define NBOOT_VERSION \"$(NBOOT_VERSION)\"" >> $@
 	@echo "#define BOARD_CFG_NAME \"$(*F)\"" >> $@
-	@echo "#define BOARD_REV $(subst .,,$(suffix $(*F)))" >> $@
 	@echo "#define CONFIG_SPL_BUILD" >> $@
 	@cat $< >> $@
 
