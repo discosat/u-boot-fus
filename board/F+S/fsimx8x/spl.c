@@ -89,8 +89,7 @@ static void config_uart(int board_type)
 }
 
 /* Configure (and optionally start) the given boot device */
-static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
-				const char *type)
+static int fs_spl_init_boot_dev(enum boot_device boot_dev, const char *type)
 {
 	struct udevice *dev;
 
@@ -126,7 +125,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 //	UCLASS_SPI_FLASH,	/* SPI flash */
 	case USB_BOOT:
 		/* Nothing to do */
-		break;
+		return -ENODEV;
 
 	default:
 		printf("Can not handle %s boot device %s\n", type,
@@ -210,7 +209,7 @@ static void basic_init(const char *layout_name)
 	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
-	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
+	fs_spl_init_boot_dev(boot_dev, "BOARD-CFG");
 
 }
 
@@ -283,7 +282,7 @@ void board_init_f(ulong dummy)
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
 	if (boot_dev != USB_BOOT) {
-		if (fs_spl_init_boot_dev(boot_dev, true, "current")
+		if (fs_spl_init_boot_dev(boot_dev, "current")
 		    || fs_image_load_system(boot_dev, secondary, basic_init))
 			boot_dev = USB_BOOT;
 	}
@@ -292,7 +291,7 @@ void board_init_f(ulong dummy)
 
 		/* Try loading a BOARD-CFG from the fused boot device first */
 		boot_dev = fs_board_get_boot_dev_from_fuses();
-		if (!fs_spl_init_boot_dev(boot_dev, true, "fused")
+		if (!fs_spl_init_boot_dev(boot_dev, "fused")
 		    && !fs_image_load_system(boot_dev, secondary, NULL))
 			need_cfg = false;
 

@@ -305,12 +305,6 @@ static iomux_v3_cfg_t const usdhc1_pads_int[] = {
 	MUX_PAD_CTRL(USDHC_PAD_CTRL) | MX8MP_PAD_SD1_RESET_B__USDHC1_RESET_B,
 };
 
-static void fs_spl_init_emmc_pads(iomux_v3_cfg_t const *emmc_pads, unsigned size)
-{
-	imx_iomux_v3_setup_multiple_pads(emmc_pads, size);
-	boot_dev_init_done = true;
-}
-
 int board_mmc_getcd(struct mmc *mmc)
 {
 	return 1;			/* eMMC always present */
@@ -353,8 +347,7 @@ int board_mmc_init(struct bd_info *bd)
 #endif /* CONFIG_MMC */
 
 /* Configure (and optionally start) the given boot device */
-static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
-				const char *type)
+static int fs_spl_init_boot_dev(enum boot_device boot_dev, const char *type)
 {
 	if (boot_dev_init_done)
 		return 0;
@@ -363,20 +356,18 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 	switch (boot_dev) {
 #ifdef CONFIG_MMC
 	case MMC1_BOOT: /* armStoneMX8MP, efusMX8MP */
-		fs_spl_init_emmc_pads(usdhc1_pads_int, ARRAY_SIZE(usdhc1_pads_int));
-		if (start)
-			mmc_initialize(NULL);
+		imx_iomux_v3_setup_multiple_pads(usdhc1_pads_int, ARRAY_SIZE(usdhc1_pads_int));
+		mmc_initialize(NULL);
 		break;
 	case MMC3_BOOT: /* PicoCoreMX8MP(r2) */
-		fs_spl_init_emmc_pads(usdhc3_pads_int, ARRAY_SIZE(usdhc3_pads_int));
-		if (start)
-			mmc_initialize(NULL);
+		imx_iomux_v3_setup_multiple_pads(usdhc3_pads_int, ARRAY_SIZE(usdhc3_pads_int));
+		mmc_initialize(NULL);
 		break;
 		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
 #endif
 	case USB_BOOT:
 		/* Nothing to do */
-		break;
+		return -ENODEV;
 
 	default:
 		printf("Can not handle %s boot device %s\n", type,
@@ -384,6 +375,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 		return -ENODEV;
 	}
 
+	boot_dev_init_done = true;
 	return 0;
 }
 
@@ -452,7 +444,7 @@ static void basic_init(const char *layout_name)
 	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
-	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
+	fs_spl_init_boot_dev(boot_dev, "BOARD-CFG");
 
 	power_init_board();
 }
@@ -502,7 +494,7 @@ void board_init_f(ulong dummy)
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
 	if (boot_dev != USB_BOOT) {
-		if (fs_spl_init_boot_dev(boot_dev, true, "current")
+		if (fs_spl_init_boot_dev(boot_dev, "current")
 		    || fs_image_load_system(boot_dev, secondary, basic_init))
 			boot_dev = USB_BOOT;
 	}
@@ -511,7 +503,7 @@ void board_init_f(ulong dummy)
 
 		/* Try loading a BOARD-CFG from the fused boot device first */
 		boot_dev = fs_board_get_boot_dev_from_fuses();
-		if (!fs_spl_init_boot_dev(boot_dev, true, "fused")
+		if (!fs_spl_init_boot_dev(boot_dev, "fused")
 		    && !fs_image_load_system(boot_dev, secondary, NULL))
 			need_cfg = false;
 

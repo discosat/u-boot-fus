@@ -220,11 +220,6 @@ static iomux_v3_cfg_t const nand_pads[] = {
 				    | IMX8MN_PAD_NAND_READY_B__RAWNAND_READY_B,
 };
 
-static void fs_spl_init_nand_pads(void)
-{
-	imx_iomux_v3_setup_multiple_pads(nand_pads, ARRAY_SIZE(nand_pads));
-	boot_dev_init_done = true;
-}
 #endif /* CONFIG_NAND_MXS */
 
 #ifdef CONFIG_MMC
@@ -249,13 +244,6 @@ static iomux_v3_cfg_t const emmc_pads[] = {
 	/* IMX8MN_PAD_NAND_READY_B__USDHC3_RESET_B */
 	MUX_PAD_CTRL(USDHC_GPIO_PAD_CTRL) | IMX8MN_PAD_NAND_READY_B__GPIO3_IO16,
 };
-
-static void fs_spl_init_emmc_pads(void)
-{
-	/* Setup USDHC3 on NAND pads */
-	imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
-	boot_dev_init_done = true;
-}
 
 int board_mmc_getcd(struct mmc *mmc)
 {
@@ -290,8 +278,7 @@ int board_mmc_init(struct bd_info *bd)
 #endif /* CONFIG_MMC */
 
 /* Configure (and optionally start) the given boot device */
-static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
-				const char *type)
+static int fs_spl_init_boot_dev(enum boot_device boot_dev, const char *type)
 {
 	if (boot_dev_init_done)
 		return 0;
@@ -300,26 +287,21 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 	switch (boot_dev) {
 #ifdef CONFIG_NAND_MXS
 	case NAND_BOOT:
-		fs_spl_init_nand_pads();
-		if (start) {
-			init_nand_clk();
-			nand_init();
-		}
+		imx_iomux_v3_setup_multiple_pads(nand_pads, ARRAY_SIZE(nand_pads));
+		init_nand_clk();
+		nand_init();
 		break;
 #endif
 #ifdef CONFIG_MMC
 	case MMC3_BOOT:
-		fs_spl_init_emmc_pads();
-		if (start) {
-			init_clk_usdhc(2);
-			mmc_initialize(NULL);
-		}
+		imx_iomux_v3_setup_multiple_pads(emmc_pads, ARRAY_SIZE(emmc_pads));
+		init_clk_usdhc(2);
+		mmc_initialize(NULL);
 		break;
 		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
 #endif
 	case USB_BOOT:
-		/* Nothing to do */
-		break;
+		return -ENODEV;
 
 	default:
 		printf("Can not handle %s boot device %s\n", type,
@@ -327,6 +309,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, bool start,
 		return -ENODEV;
 	}
 
+	boot_dev_init_done = true;
 	return 0;
 }
 
@@ -424,7 +407,7 @@ static void basic_init(const char *layout_name)
 	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
-	fs_spl_init_boot_dev(boot_dev, false, "BOARD-CFG");
+	fs_spl_init_boot_dev(boot_dev, "BOARD-CFG");
 
 	fs_board_early_init();
 	power_init_board();
@@ -473,9 +456,9 @@ void board_init_f(ulong dummy)
 
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();
-	printf("### boot_dev=0x%x\n", boot_dev);
+
 	if (boot_dev != USB_BOOT) {
-		if (fs_spl_init_boot_dev(boot_dev, true, "current")
+		if (fs_spl_init_boot_dev(boot_dev, "current")
 		    || fs_image_load_system(boot_dev, secondary, basic_init))
 			boot_dev = USB_BOOT;
 	}
@@ -484,7 +467,7 @@ void board_init_f(ulong dummy)
 
 		/* Try loading a BOARD-CFG from the fused boot device first */
 		boot_dev = fs_board_get_boot_dev_from_fuses();
-		if (!fs_spl_init_boot_dev(boot_dev, true, "fused")
+		if (!fs_spl_init_boot_dev(boot_dev, "fused")
 		    && !fs_image_load_system(boot_dev, secondary, NULL))
 			need_cfg = false;
 
