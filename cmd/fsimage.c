@@ -212,8 +212,10 @@ struct flash_ops {
 	bool (*check_for_uboot)(struct storage_info *si, bool force);
 	bool (*check_for_nboot)(struct flash_info *fi, struct storage_info *si,
 				bool force);
-	int (*get_nboot_info)(struct flash_info *fi, void *fdt,
-			      int offs, struct nboot_info *ni);
+	int (*get_nboot_info)(struct flash_info *fi, void *fdt, int offs,
+			      struct nboot_info *ni, int hwpart);
+	bool (*si_differs)(const struct storage_info *si1,
+			   const struct storage_info *si2);
 	int (*read)(struct flash_info *fi, uint offs, uint size, uint lim,
 		    uint flags, u8 *buf);
 	int (*load_image)(struct flash_info *fi, int copy,
@@ -228,6 +230,7 @@ struct flash_ops {
 			      struct storage_info *si);
 	int (*save_nboot)(struct flash_info *fi, struct region_info *nboot_ri,
 			  struct region_info *spl_ri);
+	int (*set_boot_hwpart)(struct flash_info *fi, int boot_hwpart);
 	void (*get_flash)(struct flash_info *fi);
 	void (*put_flash)(struct flash_info *fi);
 };
@@ -323,7 +326,7 @@ static int fs_image_get_si(void *fdt, int offs, uint align, const char *type,
 }
 
 static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
-				   struct nboot_info *ni)
+				   struct nboot_info *ni, int boot_hwpart)
 {
 	int offs = fs_image_get_nboot_info_offs(fdt);
 
@@ -360,7 +363,7 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 #endif
 
 	/* Parse flash specific settings individually */
-	return fi->ops->get_nboot_info(fi, fdt, offs, ni);
+	return fi->ops->get_nboot_info(fi, fdt, offs, ni, boot_hwpart);
 }
 
 static void fs_image_parse_image(unsigned long addr, unsigned int offs,
@@ -1554,7 +1557,8 @@ static bool fs_image_check_for_nboot_nand(struct flash_info *fi,
 
 /* Parse nboot-info for NAND settings and fill struct */
 static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
-					int offs, struct nboot_info *ni)
+					int offs, struct nboot_info *ni,
+					int boot_hwpart)
 {
 	int layout;
 	const char *layout_name;
@@ -1621,6 +1625,15 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	      ni->env.start[0], ni->env.start[1], ni->env.size, fi->env_used);
 
 	return 0;
+}
+
+/* Check if start address or size differs */
+static bool fs_image_si_differs_nand(const struct storage_info *si1,
+				     const struct storage_info *si2)
+{
+	return ((si1->size != si2->size)
+		|| (si1->start[0] != si2->start[0])
+		|| (si1->start[1] != si2->start[1]));
 }
 
 /* Compute checksum for FCB or DBBT block */
@@ -2256,6 +2269,12 @@ static int fs_image_save_nboot_nand(struct flash_info *fi,
 	return failed;
 }
 
+static int fs_image_set_boot_hwpart_nand(struct flash_info *fi, int boot_hwpart)
+{
+	/* Nothing to do on NAND */
+	return 0;
+}
+
 static void fs_image_get_flash_nand(struct flash_info *fi)
 {
 	/* Temporary buffer is for one page */
@@ -2275,6 +2294,7 @@ struct flash_ops flash_ops_nand = {
 	.check_for_uboot = fs_image_check_for_uboot_nand,
 	.check_for_nboot = fs_image_check_for_nboot_nand,
 	.get_nboot_info = fs_image_get_nboot_info_nand,
+	.si_differs = fs_image_si_differs_nand,
 	.read = fs_image_read_nand,
 	.load_image = fs_image_load_image_nand,
 	.load_extra = fs_image_load_extra_nand,
@@ -2282,6 +2302,7 @@ struct flash_ops flash_ops_nand = {
 	.write = fs_image_write_nand,
 	.prepare_region = fs_image_prepare_region_nand,
 	.save_nboot = fs_image_save_nboot_nand,
+	.set_boot_hwpart = fs_image_set_boot_hwpart_nand,
 	.get_flash = fs_image_get_flash_nand,
 	.put_flash = fs_image_put_flash_nand,
 };
@@ -2340,13 +2361,14 @@ static int fs_image_set_hwpart_mmc(struct flash_info *fi, int copy,
 
 /* Parse nboot-info for MMC settings and fill struct */
 static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
-				       int offs, struct nboot_info *ni)
+				       int offs, struct nboot_info *ni,
+				       int boot_hwpart)
 {
 	int layout;
 	const char *layout_name;
 	int err;
 	unsigned int align = fi->blk_desc->blksz;
-	u8 first = fi->boot_hwpart;
+	u8 first = (boot_hwpart < 0) ? fi->boot_hwpart : boot_hwpart;
 	u8 second = first ? (3 - first) : first;
 
 	/* Go to layout subnode if present */
@@ -2446,6 +2468,17 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	      ni->env.hwpart[1], ni->env.start[1], ni->env.size);
 
 	return 0;
+}
+
+/* Check if hwpart, start address or size differs */
+static bool fs_image_si_differs_mmc(const struct storage_info *si1,
+				    const struct storage_info *si2)
+{
+	return ((si1->size != si2->size)
+		|| (si1->hwpart[0] != si2->hwpart[0])
+		|| (si1->start[0] != si2->start[0])
+		|| (si1->hwpart[1] != si2->hwpart[1])
+		|| (si1->start[1] != si2->start[1]));
 }
 
 /* Read image at offset with given size */
@@ -2812,12 +2845,36 @@ static int fs_image_save_nboot_mmc(struct flash_info *fi,
 	return failed;
 }
 
+static int fs_image_set_boot_hwpart_mmc(struct flash_info *fi, int boot_hwpart)
+{
+	u8 ack;
+	u8 access;
+	int err;
+
+	if ((boot_hwpart < 0) || (boot_hwpart == fi->boot_hwpart))
+		return 0;
+
+	printf("\nSwitching %s to boot hwpart %d...", fi->devname, boot_hwpart);
+	if (!boot_hwpart)
+		boot_hwpart = 7;
+	ack = EXT_CSD_EXTRACT_BOOT_ACK(fi->mmc->part_config);
+	access = EXT_CSD_EXTRACT_PARTITION_ACCESS(fi->mmc->part_config);
+
+	err = mmc_set_part_conf(fi->mmc, ack, boot_hwpart, access);
+	fs_image_show_sub_status(err);
+
+	if (!err)
+		fi->boot_hwpart = boot_hwpart;
+
+	return err;
+}
+
 static void fs_image_get_flash_mmc(struct flash_info *fi)
 {
 	/* Determine hwpart (when command starts) and boot hwpart */
 	fi->blk_desc = mmc_get_blk_desc(fi->mmc);
 	fi->old_hwpart = fi->blk_desc->hwpart;
-	fi->boot_hwpart = (fi->mmc->part_config >>3) & PART_ACCESS_MASK;
+	fi->boot_hwpart = EXT_CSD_EXTRACT_BOOT_PART(fi->mmc->part_config);
 	if (fi->boot_hwpart > 2)
 		fi->boot_hwpart = 0;
 
@@ -2840,6 +2897,7 @@ struct flash_ops flash_ops_mmc = {
 	.check_for_uboot = fs_image_check_for_uboot_mmc,
 	.check_for_nboot = fs_image_check_for_nboot_mmc,
 	.get_nboot_info = fs_image_get_nboot_info_mmc,
+	.si_differs = fs_image_si_differs_mmc,
 	.read = fs_image_read_mmc,
 	.load_image = fs_image_load_image_mmc,
 	.load_extra = fs_image_load_extra_mmc,
@@ -2847,6 +2905,7 @@ struct flash_ops flash_ops_mmc = {
 	.write = fs_image_write_mmc,
 	.prepare_region = fs_image_prepare_region_mmc,
 	.save_nboot = fs_image_save_nboot_mmc,
+	.set_boot_hwpart = fs_image_set_boot_hwpart_mmc,
 	.get_flash = fs_image_get_flash_mmc,
 	.put_flash = fs_image_put_flash_mmc,
 };
@@ -2932,7 +2991,7 @@ static int do_fsimage_save_uboot(ulong addr, bool force)
 
 	fdt = fs_image_get_cfg_fdt();
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1))
 		return CMD_RET_FAILURE;
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
@@ -3092,7 +3151,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fdt = fs_image_get_cfg_fdt();
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1))
 		return CMD_RET_FAILURE;
 
 	if (load_uboot) {
@@ -3190,6 +3249,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	const char *dram_timing;
 	struct nboot_info ni;
 	struct flash_info fi;
+	int boot_hwpart = -1;
 	bool need_uboot = false, need_env = false;
 	bool ignore_old;
 	struct nboot_info ni_old;
@@ -3207,6 +3267,19 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 				return CMD_RET_USAGE;
 			}
 			early_support_index = simple_strtoul(argv[2], NULL, 0);
+			argv += 2;
+			argc -= 2;
+		} else if (!strcmp(argv[1], "-b")) {
+			if (argc <= 2) {
+				puts("Missing argument for option -b\n");
+				return CMD_RET_USAGE;
+			}
+			boot_hwpart = simple_strtol(argv[2], NULL, 0);
+			if ((boot_hwpart < 0) || (boot_hwpart > 2)) {
+				printf("Invalid argument %s for option -b\n",
+				       argv[2]);
+				return CMD_RET_USAGE;
+			}
 			argv += 2;
 			argc -= 2;
 		} else if (!strcmp(argv[1], "-f")) {
@@ -3247,7 +3320,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, boot_hwpart))
 		return CMD_RET_FAILURE;
 
 	ret = fs_image_check_boot_dev_fuses(fi.boot_dev, "save");
@@ -3262,16 +3335,12 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		void *fdt_old = fs_image_get_cfg_fdt();
 
 		/* Check if U-Boot and/or environment need to be relocated */
-		if (fs_image_get_nboot_info(&fi, fdt_old, &ni_old))
+		if (fs_image_get_nboot_info(&fi, fdt_old, &ni_old, -1))
 			ignore_old = true;
 
-		//### TOOD: Also if size, hwpart or env_used changes
-		if ((ni.uboot.start[0] != ni_old.uboot.start[0])
-		    || (ni.uboot.start[1] != ni_old.uboot.start[1]))
-			need_uboot = true;
-		if ((ni.env.start[0] != ni_old.env.start[0])
-		    || (ni.env.start[1] != ni_old.env.start[1]))
-			need_env = true;
+		/* Check if there are changes */
+		need_uboot = fi.ops->si_differs(&ni.uboot, &ni_old.uboot);
+		need_env = fi.ops->si_differs(&ni.env, &ni_old.env);
 	}
 
 	/* Load U-Boot behind NBoot, if necessary */
@@ -3423,6 +3492,10 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		cfg_fsh_bak = *cfg_fsh;
 		fs_image_board_cfg_set_board_rev(cfg_fsh);
 	}
+
+	/* Set up final boot hwpart */
+	if (fi.ops->set_boot_hwpart(&fi, boot_hwpart))
+		return CMD_RET_FAILURE;
 
 	/* --- Found all sub-images, everything is prepared, go and save --- */
 
@@ -3614,7 +3687,7 @@ static struct cmd_tbl cmd_fsimage_sub[] = {
 #endif
 	U_BOOT_CMD_MKENT(list, 1, 1, do_fsimage_list, "", ""),
 	U_BOOT_CMD_MKENT(load, 2, 1, do_fsimage_load, "", ""),
-	U_BOOT_CMD_MKENT(save, 2, 0, do_fsimage_save, "", ""),
+	U_BOOT_CMD_MKENT(save, 4, 0, do_fsimage_save, "", ""),
 	U_BOOT_CMD_MKENT(fuse, 2, 0, do_fsimage_fuse, "", ""),
 };
 
@@ -3682,7 +3755,7 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "    - List the content of the F&S image at <addr>\n"
 	   "fsimage load [-f] [uboot | nboot] [<addr>]\n"
 	   "    - Verify the current NBoot or U-Boot and load to <addr>\n"
-	   "fsimage save [-f] [-e <n>] [<addr>]\n"
+	   "fsimage save [-f] [-e <n>] [-b <n>] [<addr>]\n"
 	   "    - Save the F&S image at the right place (NBoot, U-Boot)\n"
 	   "fsimage fuse [-f] [<addr> | stored]\n"
 	   "    - Program fuses according to the current BOARD-CFG.\n"
@@ -3690,9 +3763,11 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "\n"
 	   "If no addr is given, use loadaddr. Using -f forces the command to\n"
 	   "continue without showing any confirmation queries. This is meant\n"
-	   "for non-interactive installation procedures. Option -e supports\n"
-	   "handling early NBoot versions. If the environment is not found\n"
-	   "when updating from a pre 2023.08 NBoot version, try increasing\n"
-	   "<n> until it works. Be careful when storing such an old NBoot,\n"
-	   "you need to know the right <n> or you will lose the environment.\n"
+	   "for non-interactive installation procedures. Option -b also sets\n"
+	   "the eMMC hwpart to boot from: 0: User, 1: Boot1, 2: Boot2. This\n"
+	   "option is ignored on NAND. Option -e supports handling early\n"
+	   "NBoot versions. If the environment is not found when updating\n"
+	   "from a pre 2023.08 NBoot version, try increasing <n> until it\n"
+	   "works. Be careful when storing such an old NBoot, you need to\n"
+	   "know the right <n> or you will lose the environment.\n"
 );

@@ -1673,7 +1673,7 @@ static int fs_image_get_flash_info_spl_mmc(struct flash_info_spl *fi)
 	}
 
 	/* Determine hwpart that we boot from */
-	boot_hwpart = (fi->mmc->part_config >> 3) & PART_ACCESS_MASK;
+	boot_hwpart = EXT_CSD_EXTRACT_BOOT_PART(fi->mmc->part_config);
 	if (boot_hwpart > 2)
 		boot_hwpart = 0;
 
