@@ -1396,6 +1396,9 @@ static int fs_image_save_region(struct flash_info *fi, int copy,
 		return err;
 
 repeat:
+	/* Clear the temp buffer (write cache) */
+	fs_image_drop_temp(fi);
+
 	err = fi->ops->invalidate(fi, copy, si);
 	if (err)
 		return err;
