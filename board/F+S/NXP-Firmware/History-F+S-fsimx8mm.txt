@@ -1,6 +1,16 @@
 History of Changes for N-Boot on F&S Boards and Modules
 -------------------------------------------------------
 
+nboot-fsimx8mm-2023.10 (24.10.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM-LPDDR4 PicoCoreMX8MMr2-LPDDR4
+                  PicoCoreMX8MX-DDR3L
+
+ATF-Version: atf-f+s
+			 git commit  fa25831ab255c0cf73631e6f9ed5289428900347
+
+DDR Training Firmware Version: 8.10.1
+
 nboot-fsimx8mm-2021.04.1 (25.08.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
