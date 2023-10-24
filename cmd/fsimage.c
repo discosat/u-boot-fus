@@ -213,7 +213,7 @@ struct flash_ops {
 	bool (*check_for_nboot)(struct flash_info *fi, struct storage_info *si,
 				bool force);
 	int (*get_nboot_info)(struct flash_info *fi, void *fdt, int offs,
-			      struct nboot_info *ni, int hwpart);
+			      struct nboot_info *ni, int hwpart, bool show);
 	bool (*si_differs)(const struct storage_info *si1,
 			   const struct storage_info *si2);
 	int (*read)(struct flash_info *fi, uint offs, uint size, uint lim,
@@ -326,7 +326,7 @@ static int fs_image_get_si(void *fdt, int offs, uint align, const char *type,
 }
 
 static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
-				   struct nboot_info *ni, int boot_hwpart)
+				   struct nboot_info *ni, int hwpart, bool show)
 {
 	int offs = fs_image_get_nboot_info_offs(fdt);
 
@@ -363,7 +363,7 @@ static int fs_image_get_nboot_info(struct flash_info *fi, void *fdt,
 #endif
 
 	/* Parse flash specific settings individually */
-	return fi->ops->get_nboot_info(fi, fdt, offs, ni, boot_hwpart);
+	return fi->ops->get_nboot_info(fi, fdt, offs, ni, hwpart, show);
 }
 
 static void fs_image_parse_image(unsigned long addr, unsigned int offs,
@@ -1558,7 +1558,7 @@ static bool fs_image_check_for_nboot_nand(struct flash_info *fi,
 /* Parse nboot-info for NAND settings and fill struct */
 static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 					int offs, struct nboot_info *ni,
-					int boot_hwpart)
+					int boot_hwpart, bool show)
 {
 	int layout;
 	const char *layout_name;
@@ -1613,16 +1613,23 @@ static int fs_image_get_nboot_info_nand(struct flash_info *fi, void *fdt,
 	if (err)
 		return err;
 
-	debug("- nboot-info@0x%lx (%s layout): board-cfg-size=0x%08x\n",
-	      (ulong)fdt, layout_name, ni->board_cfg_size);
-	debug("- spl:   start=0x%08x/0x%08x size=0x%08x\n",
-	      ni->spl.start[0], ni->spl.start[1], ni->spl.size);
-	debug("- nboot: start=0x%08x/0x%08x size=0x%08x\n",
-	      ni->nboot.start[0], ni->nboot.start[1], ni->nboot.size);
-	debug("- uboot: start=0x%08x/0x%08x size=0x%08x\n",
-	      ni->uboot.start[0], ni->uboot.start[1], ni->uboot.size);
-	debug("- env:   start=0x%08x/0x%08x size=0x%08x env_used=0x%08x\n",
-	      ni->env.start[0], ni->env.start[1], ni->env.size, fi->env_used);
+#ifndef DEBUG
+	if (!show)
+		return 0;
+#endif
+
+	printf("nboot-info@0x%lx (%s layout): Booting from %s\n",
+	       (ulong)fdt, layout_name, fi->devname);
+	if (ni->board_cfg_size)
+		printf("- board-cfg-size=0x%08x\n", ni->board_cfg_size);
+	printf("- spl:   start=0x%08x/0x%08x size=0x%08x\n",
+	       ni->spl.start[0], ni->spl.start[1], ni->spl.size);
+	printf("- nboot: start=0x%08x/0x%08x size=0x%08x\n",
+	       ni->nboot.start[0], ni->nboot.start[1], ni->nboot.size);
+	printf("- uboot: start=0x%08x/0x%08x size=0x%08x\n",
+	       ni->uboot.start[0], ni->uboot.start[1], ni->uboot.size);
+	printf("- env:   start=0x%08x/0x%08x size=0x%08x env_used=0x%08x\n",
+	       ni->env.start[0], ni->env.start[1], ni->env.size, fi->env_used);
 
 	return 0;
 }
@@ -2362,7 +2369,7 @@ static int fs_image_set_hwpart_mmc(struct flash_info *fi, int copy,
 /* Parse nboot-info for MMC settings and fill struct */
 static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 				       int offs, struct nboot_info *ni,
-				       int boot_hwpart)
+				       int boot_hwpart, bool show)
 {
 	int layout;
 	const char *layout_name;
@@ -2452,20 +2459,27 @@ static int fs_image_get_nboot_info_mmc(struct flash_info *fi, void *fdt,
 	if (first && (ni->env.start[0] == ni->env.start[1]))
 		ni->env.hwpart[1] = second;
 
-	debug("- nboot-info@0x%lx (%s layout): board-cfg-size=0x%08x\n",
-	      (ulong)fdt, layout_name, ni->board_cfg_size);
-	debug("- spl:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
-	      ni->spl.hwpart[0], ni->spl.start[0],
-	      ni->spl.hwpart[1], ni->spl.start[1], ni->spl.size);
-	debug("- nboot: start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
-	      ni->nboot.hwpart[0], ni->nboot.start[0],
-	      ni->nboot.hwpart[1], ni->nboot.start[1], ni->nboot.size);
-	debug("- uboot: start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
-	      ni->uboot.hwpart[0], ni->uboot.start[0],
-	      ni->uboot.hwpart[1], ni->uboot.start[1], ni->uboot.size);
-	debug("- env:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
-	      ni->env.hwpart[0], ni->env.start[0],
-	      ni->env.hwpart[1], ni->env.start[1], ni->env.size);
+#ifndef DEBUG
+	if (!show)
+		return 0;
+#endif
+
+	printf("- nboot-info@0x%lx (%s layout): Booting from %s hwpart %d\n",
+	       (ulong)fdt, layout_name, fi->devname, first);
+	if (ni->board_cfg_size)
+		printf("- board-cfg-size=0x%08x\n", ni->board_cfg_size);
+	printf("- spl:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
+	       ni->spl.hwpart[0], ni->spl.start[0],
+	       ni->spl.hwpart[1], ni->spl.start[1], ni->spl.size);
+	printf("- nboot: start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
+	       ni->nboot.hwpart[0], ni->nboot.start[0],
+	       ni->nboot.hwpart[1], ni->nboot.start[1], ni->nboot.size);
+	printf("- uboot: start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
+	       ni->uboot.hwpart[0], ni->uboot.start[0],
+	       ni->uboot.hwpart[1], ni->uboot.start[1], ni->uboot.size);
+	printf("- env:   start=%d:0x%08x/%d:0x%08x size=0x%08x\n",
+	       ni->env.hwpart[0], ni->env.start[0],
+	       ni->env.hwpart[1], ni->env.start[1], ni->env.size);
 
 	return 0;
 }
@@ -2991,7 +3005,7 @@ static int do_fsimage_save_uboot(ulong addr, bool force)
 
 	fdt = fs_image_get_cfg_fdt();
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1, false))
 		return CMD_RET_FAILURE;
 
 	fs_image_region_create(&ri, &ni.uboot, &sub);
@@ -3066,6 +3080,24 @@ static int do_fsimage_boardcfg(struct cmd_tbl *cmdtp, int flag, int argc,
 	return fdt_print(fdt, "/", NULL, 5);
 }
 #endif
+
+/* Show current boot settings */
+static int do_fsimage_boot(struct cmd_tbl *cmdtp, int flag, int argc,
+			   char * const argv[])
+{
+	void *fdt;
+	struct flash_info fi;
+	struct nboot_info ni;
+
+	fdt = fs_image_get_cfg_fdt();
+	if (fs_image_get_flash_info(&fi, fdt)
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1, true))
+		return CMD_RET_FAILURE;
+
+	fs_image_put_flash_info(&fi);
+
+	return CMD_RET_SUCCESS;
+}
 
 /* List contents of an F&S image */
 static int do_fsimage_list(struct cmd_tbl *cmdtp, int flag, int argc,
@@ -3151,7 +3183,7 @@ static int do_fsimage_load(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	fdt = fs_image_get_cfg_fdt();
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, -1, false))
 		return CMD_RET_FAILURE;
 
 	if (load_uboot) {
@@ -3320,7 +3352,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	if (fs_image_get_flash_info(&fi, fdt)
-	    || fs_image_get_nboot_info(&fi, fdt, &ni, boot_hwpart))
+	    || fs_image_get_nboot_info(&fi, fdt, &ni, boot_hwpart, false))
 		return CMD_RET_FAILURE;
 
 	ret = fs_image_check_boot_dev_fuses(fi.boot_dev, "save");
@@ -3335,7 +3367,7 @@ static int do_fsimage_save(struct cmd_tbl *cmdtp, int flag, int argc,
 		void *fdt_old = fs_image_get_cfg_fdt();
 
 		/* Check if U-Boot and/or environment need to be relocated */
-		if (fs_image_get_nboot_info(&fi, fdt_old, &ni_old, -1))
+		if (fs_image_get_nboot_info(&fi, fdt_old, &ni_old, -1, false))
 			ignore_old = true;
 
 		/* Check if there are changes */
@@ -3685,6 +3717,7 @@ static struct cmd_tbl cmd_fsimage_sub[] = {
 #ifdef CONFIG_CMD_FDT
 	U_BOOT_CMD_MKENT(board-cfg, 1, 1, do_fsimage_boardcfg, "", ""),
 #endif
+	U_BOOT_CMD_MKENT(boot, 1, 1, do_fsimage_boot, "", ""),
 	U_BOOT_CMD_MKENT(list, 1, 1, do_fsimage_list, "", ""),
 	U_BOOT_CMD_MKENT(load, 2, 1, do_fsimage_load, "", ""),
 	U_BOOT_CMD_MKENT(save, 4, 0, do_fsimage_save, "", ""),
@@ -3751,6 +3784,8 @@ U_BOOT_CMD(fsimage, 4, 1, do_fsimage,
 	   "fsimage board-cfg [<addr> | stored]\n"
 	   "    - List contents of current BOARD-CFG\n"
 #endif
+	   "fsimage boot\n"
+	   "    - Show the current boot settings\n"
 	   "fsimage list [<addr>]\n"
 	   "    - List the content of the F&S image at <addr>\n"
 	   "fsimage load [-f] [uboot | nboot] [<addr>]\n"
