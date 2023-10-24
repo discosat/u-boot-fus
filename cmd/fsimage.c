@@ -2671,8 +2671,8 @@ static int fs_image_write_secondary_table(struct flash_info *fi, int copy,
 	int err;
 	struct info_table *secondary;
 
-	/* Do nothing if not second copy or not in User area of eMMC */
-	if ((copy != 1) || (si->hwpart[1] != 0))
+	/* Do nothing if not second copy */
+	if (copy != 1)
 		return 0;
 
 	/*
@@ -2693,6 +2693,7 @@ static int fs_image_write_secondary_table(struct flash_info *fi, int copy,
 
 	printf("  Writing SECONDARY-SPL-INFO at offset 0x%08x size 0x200...",
 	       offs);
+	debug("\n");
 
 	err = fi->ops->write(fi, offs, blksz, lim, 0, fi->temp);
 	memset(fi->temp, fi->temp_fill, fi->temp_size);
@@ -2789,9 +2790,21 @@ static int fs_image_save_nboot_mmc(struct flash_info *fi,
 			failed |= BIT(copy);
 
 #ifdef CONFIG_IMX8MM
+		struct storage_info *si = spl_ri->si;
+
 		/* Write Secondary Image Table */
-		if (fs_image_write_secondary_table(fi, copy, spl_ri->si))
+		if (fs_image_write_secondary_table(fi, copy, si))
 			failed = BIT(copy);
+
+		/* If in boot part, write another copy to the other boot part */
+		if (si->hwpart[copy] != si->hwpart[1-copy]) {
+			si->hwpart[copy] = 3 - si->hwpart[copy];
+			if (fs_image_save_region(fi, copy, spl_ri))
+				failed |= BIT(copy);
+			if (fs_image_write_secondary_table(fi, copy, si))
+				failed = BIT(copy);
+			si->hwpart[copy] = 3 - si->hwpart[copy];
+		}
 #endif
 		copy = 1 - copy;
 	} while (copy != start_copy);
