@@ -73,6 +73,7 @@ struct cfg_info *fs_board_get_cfg_info(void);
 
 struct fs_board_info {
 	char *name;			/* Device name */
+	char *alias;			/* Device alias */
 	char *bootdelay;		/* Default value for bootdelay */
 	char *updatecheck;		/* Default value for updatecheck */
 	char *installcheck;		/* Default value for installcheck */
