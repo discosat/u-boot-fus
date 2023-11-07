@@ -364,7 +364,7 @@ static void fs_nand_get_env_info(struct mtd_info *mtd, struct cfg_info *info)
 	}
 	if (err) {
 		info->env_start[0] = CONFIG_ENV_NAND_OFFSET;
-		info->env_start[0] = CONFIG_ENV_NAND_OFFSET_REDUND;
+		info->env_start[1] = CONFIG_ENV_NAND_OFFSET_REDUND;
 	}
 
 	info->flags |= CI_FLAGS_HAVE_ENV;
