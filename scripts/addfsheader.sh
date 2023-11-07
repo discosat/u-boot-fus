@@ -108,7 +108,8 @@ Example:
 This includes the file abc.txt as image and assigns the values 0x01234567 to
 p32[5], 0x89abcdef to p32[6], 0x12 to p8[2], 0x34 to p8[3] and 0x56 to p8[4].
 Be careful to avoid overlapping of description and parameters. If any CRC32
-option is given, the type must not exceed 11 characters.
+option is given, the type must not exceed 11 characters and the crc32 command
+has to be available on the system.
 
 __USAGE_EOF
 
@@ -285,6 +286,13 @@ pad=1
 quiet=0
 secure=0
 
+# We need xxd, check if it is available
+command -v xxd > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Command 'xxd' missing, please install appropriate package"
+    exit 1
+fi
+
 while [ $# -gt 0 ]; do
     case $1 in
 	-a|--align)
@@ -393,9 +401,7 @@ if [ $padsize -gt 0 ]; then
 fi
 
 # Add description and set flag 15 if requested (<=32 bytes, zero-terminated).
-# This is done last so that the description is always valid; if this overlaps
-# the CRC32, then the CRC32 check will deliberately fail and thus points out
-# the error.
+# This is done last so that the description is always valid.
 if [ -n "$descr" ]; then
     if [ ${#descr} -gt 32 ]; then
 	echo "Description exceeds 32 characters" >&2
@@ -420,6 +426,13 @@ fi
 if [ "$secure$do_crc" != "00" ]; then
     if [ ${#type} -gt 11 ]; then
 	echo "Type exceeds 11 characters, no room for CRC32" >&2
+	rm "$temp"
+	exit 1
+    fi
+
+    command -v crc32 > /dev/null
+    if [ $? -ne 0 ]; then
+	echo "Command 'crc32' missing, please install appropriate package"
 	rm "$temp"
 	exit 1
     fi
