@@ -1879,7 +1879,7 @@ int board_eth_init(struct bd_info *bis)
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ull);
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_efus_picocom_ul);
-			fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 11),
+		fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 11),
 					     ~0, ~0);
 		break;
 
@@ -1897,7 +1897,7 @@ int board_eth_init(struct bd_info *bis)
 			SETUP_IOMUX_PADS(enet_pads_reset_pcoremx6ull100);
 		else
 			SETUP_IOMUX_PADS(enet_pads_reset_pcoremx6ul100);
-			fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 0),
+		fs_board_issue_reset(500, 100, IMX_GPIO_NR(5, 0),
 					     IMX_GPIO_NR(5, 1), ~0);
 		break;
 

@@ -726,17 +726,16 @@ int mmc_get_env_dev(void)
 }
 
 #ifdef CONFIG_SYS_MMC_ENV_PART
-__weak int board_mmc_get_env_part(int devno)
+__weak uint board_mmc_get_env_part(struct mmc *mmc, int copy)
 {
 	return CONFIG_SYS_MMC_ENV_PART;
 }
 
 uint mmc_get_env_part(struct mmc *mmc)
 {
-	int envdev = mmc_get_boot_dev();
 	int devno;
 
-	devno = board_mmc_get_env_part(envdev);
+	devno = board_mmc_get_env_part(mmc, 0);
 
 	/* If not boot from sd/mmc, use default value */
 	if (devno < 0)
