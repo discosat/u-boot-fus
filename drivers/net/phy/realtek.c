@@ -237,14 +237,19 @@ static int rtl8211f_config(struct phy_device *phydev)
 		reg &= ~MIIM_RTL8211F_RX_DELAY;
 	phy_write(phydev, MDIO_DEVAD_NONE, 0x15, reg);
 
-	/* restore to default page 0 */
-	phy_write(phydev, MDIO_DEVAD_NONE,
-		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
-
-	/* Set LED2 for Link, LED1 for Activity */
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0xae00);
+	/* Disable EEE LED indication */
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x11, 0x0);
+
+	/* Enable Automatic Link Down Power Saving (ALDPS) mode */
+	phy_write(phydev, MDIO_DEVAD_NONE,
+		  MIIM_RTL8211F_PAGE_SELECT, 0xa43);
+	reg = phy_read(phydev, MDIO_DEVAD_NONE, 0x18);
+	reg |= (1 << 1) | (1 << 2);
+	phy_write(phydev, MDIO_DEVAD_NONE, 0x18, reg);
+
+	/* restore to default page 0 */
 	phy_write(phydev, MDIO_DEVAD_NONE,
 		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
 

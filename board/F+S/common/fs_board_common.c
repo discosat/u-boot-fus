@@ -90,10 +90,19 @@ struct fs_nboot_args *fs_board_get_nboot_args(void)
 /* Get board type (zero-based) */
 unsigned int fs_board_get_type(void)
 {
-	int BoardType = fs_board_get_nboot_args()->chBoardType - CONFIG_FS_BOARD_OFFS;
+	int BoardType = fs_board_get_nboot_args()->chBoardType;
 #ifdef CONFIG_TARGET_FSIMX6
 	if (BoardType >= 29)
-		BoardType -= 21;
+		BoardType -= (29 - 8);
+#elif CONFIG_TARGET_FSIMX6SX
+	if (BoardType == 25)
+		BoardType -= (25 - 7);
+	else if (BoardType >= 32)
+		BoardType -= (32 - 8);
+	else
+		BoardType -= 8;
+#elif CONFIG_TARGET_FSIMX6UL
+	BoardType -= 16;
 #endif
 	return BoardType;
 }

@@ -176,7 +176,10 @@ void fs_disp_set_vcfl(int port, int on, int gpio)
 	if (!on)
 		vcfl_users &= ~(1 << index);
 	if (!vcfl_users) {
-		gpio_direction_output(gpio, on);
+		if (displays[index].flags & FS_DISP_FLAGS_LVDS_VCFL_INV)
+			gpio_direction_output(gpio, !on);
+		else
+			gpio_direction_output(gpio, on);
 		if (on)
 			mdelay(1);
 	}
@@ -220,6 +223,10 @@ static void show_dispflags(unsigned int flags)
 	}
 	if (flags & FS_DISP_FLAGS_LVDS_BL_INV) {
 		strcpy(p, ",bl_inv");
+		p += strlen(p);
+	}
+	if (flags & FS_DISP_FLAGS_LVDS_VCFL_INV) {
+		strcpy(p, ",vcfl_inv");
 		p += strlen(p);
 	}
 
@@ -330,6 +337,9 @@ static int parse_dispflags(unsigned int *flags, unsigned int flags_mask)
 			break;
 		if ((flags_mask & FS_DISP_FLAGS_LVDS_BL_INV)
 		    && parse_flag("bl_inv", flags, FS_DISP_FLAGS_LVDS_BL_INV))
+			break;
+		if ((flags_mask & FS_DISP_FLAGS_LVDS_VCFL_INV)
+		    && parse_flag("vcfl_inv", flags, FS_DISP_FLAGS_LVDS_VCFL_INV))
 			break;
 
 		if (!*parse_pos)

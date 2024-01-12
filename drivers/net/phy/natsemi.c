@@ -128,9 +128,11 @@ static int dp83848_config(struct phy_device *phydev)
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_RBR, reg);
 #endif
 
-	/* LED Mode 2: Show ethernet activity on LINK LED */
 	reg = phy_read(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_PHYCR);
+	/* LED Mode 2: Show ethernet activity on LINK LED */
 	reg &= ~0x20;
+	/* Auto-MDIX: Enable automatic crossover detection */
+	reg |= 0x8000;
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_DP83848_PHYCR, reg);
 
 	genphy_config(phydev);

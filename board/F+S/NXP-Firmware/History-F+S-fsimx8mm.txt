@@ -11,6 +11,24 @@ ATF-Version: atf-f+s
 
 DDR Training Firmware Version: 8.10.1
 
+nboot-fsimx8mm-2022.09.1 (23.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+ATF-Version: atf-f+s
+			 git commit  a168b8509a0d952a7ae9d15f5ee641569a766e77
+			 (Add domain permission for UART2 on M7)
+
+nboot-fsimx8mm-2022.09 (05.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+ATF-Version: atf-f+s
+			 git commit  a168b8509a0d952a7ae9d15f5ee641569a766e77
+			 (Add domain permission for UART2 on M7)
+
+DDR Training Firmware Version: 8.10.1
+
 nboot-fsimx8mm-2021.04.1 (25.08.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX

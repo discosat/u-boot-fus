@@ -1021,9 +1021,7 @@ enum display_port_index {
 	port_lcd
 };
 
-/* Define possible displays ports; LVDS ports may have additional settings */
-#define FS_DISP_FLAGS_LVDS (FS_DISP_FLAGS_LVDS_24BPP | FS_DISP_FLAGS_LVDS_JEIDA)
-
+/* Define possible displays ports */
 static const struct fs_display_port display_ports[CONFIG_FS_DISP_COUNT] = {
 	[port_lcd] = { "lcd", 0 },
 };

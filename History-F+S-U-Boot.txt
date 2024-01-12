@@ -145,6 +145,70 @@ Supported boards: PicoCoreMX8MP
 ============================================================
 
 
+u-boot-2018.03-fsimx6-B2022.10.1 (03.04.2023)
+---------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, armStoneA9r4,
+efusA9, efusA9r2 PicoMODA9, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Fix eth-link-led for armStoneA9r4
+- Add display flag vcfl_inv to fs_disp_common for fsimx6/sx
+
+
+
+u-boot-2018.03-fsimx6sx-B2019.11.1 (07.10.2022)
+-----------------------------------------------
+Supported boards: efusA9X, efusA9Xr2, PicoCOMA9X, PicoCoreMX6SX
+
+- Merge tag 'fsimx6-B2020.04.2' into fus-2018.03
+- Merge remote-tracking branch 'remotes/origin/fus-2018.03'
+- Merge tag 'fsimx8mm-B2021.06.1'
+- Remove XTAL-OFF setting for ALDPS in realtek driver
+- Remove obsolete mmc defconfigs
+- Set Board offset directly in fs_board_get_type
+- Add support for efusA9Xr2 and PicoCoreMX6SXr2
+
+
+
+u-boot-2018.03-fsimx6-B2022.10 (30.09.2022)
+-------------------------------------------
+Supported boards: armStoneA9, armStoneA9r2, armStoneA9r3, efusA9, efusA9r2
+PicoMODA9, NetDCUA9, QBlissA9, QBlissA9r2
+
+- Fix board-cfg for PCoreMx8MM-FERT16 and FERT18
+
+
+
+u-boot-2018.03-fsimx8mm-B2021.06.1 (26.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Merge tag 'fsimx8mm-Y2021.04.2' into HEAD
+
+
+
+u-boot-2018.03-fsimx6-Y2022.09 (21.09.2022)
+-------------------------------------------
+Supported boards: efusA9 efusA9r2 armStoneA9 armStoneA9r2 PicoModA9 NetDCUA9
+QBlissA9 armStoneA9 armStoneA9r2 armStoneA9r3
+
+- Merge remote-tracking branch 'origin/master'
+- Move LED configuration of Realtek PHY to board_phy_config
+- Enable ALDPS mode and disable EEE LED indication
+- Add armStoneA9r3 and armStoneA9r4 for updated fsimx6.c
+- Merge commit 'ed359a267' into fus-2018.03
+
+
+
+u-boot-2018.03-fsimx8mm-Y2021.04.2 (15.09.2022)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
+
+- Change ingress delay for KSZ9893R Ethernet switch on fsimx8mm/mn
+- Move LED configuration of Realtek PHY to board_phy_config
+- Enable ALDPS mode and disable EEE LED indication
+- Improve picocoremx8mmr2 device tree
+- Disable phy CLKOUT for PicoCoremx8MMr2
+
 u-boot-2018.03-fsimx8mm-Y2021.04.1 (25.08.2022)
 -----------------------------------------------
 Supported boards: PicoCoreMX8MM PicoCoreMX8MMr2 PicoCoreMX8MX
@@ -404,14 +468,15 @@ u-boot-2018.03-fsimx8mm-B2020.08 (11.08.2020)
 ---------------------------------------------
 Supported boards: PicoCoreMX8MM
 
-- Avoid compiler warning in ubi.c on ARM64
-- Revert to F&S timer implementation on i.MX
-- Remove stdio_dev from F&S serial devices and netconsole
-- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
-- Add basic device tree support for serial drivers on F&S platforms
-- Fix fsimx6ul PicoCOMA7 USB and Display
-- Improve display support for fsimx8mm
+- Update history file to u-boot-2018.03-fsimx8mm-B2020.08
 - Improve USB support for fsimx8mm
+- Improve display support for fsimx8mm
+- Fix fsimx6ul PicoCOMA7 USB and Display
+- Add basic device tree support for serial drivers on F&S platforms
+- Remove IOMUX_PAD macros for i.MX6UL and ANADIG_PLL_AUDIO_TEST macros
+- Remove stdio_dev from F&S serial devices and netconsole
+- Revert to F&S timer implementation on i.MX
+- void compiler warning in ubi.c on ARM64
 
 
 

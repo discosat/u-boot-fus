@@ -9,19 +9,23 @@
  * imx_v2019.04_5.4.x and above version
  * For imx_v2018.03_4.14.78_1.0.0_ga ~ imx_v2018.04_4.19.35_1.1.0_ga:
  * please replace #include <asm/arch/ddr.h> with #include <asm/arch/imx8m_ddr.h>
+ * 
+ * lpddr4_pc-1g3000m2ch1cs
+ * LPDDR4_PicoCoreMX8MM-1GB 3000MHZ 2Channel 1Chipselect
  */
+
 
 #include <linux/kernel.h>
 #include <asm/arch/ddr.h>
 
-static struct dram_cfg_param ddr_ddrc_cfg[] = {
+struct dram_cfg_param ddr_ddrc_cfg[] = {
 	/** Initialize DDRC registers **/
 	{ 0x3d400304, 0x1 },
 	{ 0x3d400030, 0x1 },
 	{ 0x3d400000, 0xa1080020 },
 	{ 0x3d400020, 0x203 },
 	{ 0x3d400024, 0x3a980 },
-	{ 0x3d400064, 0x5b00d2 },
+	{ 0x3d400064, 0x5b0087 },
 	{ 0x3d4000d0, 0xc00305ba },
 	{ 0x3d4000d4, 0x940000 },
 	{ 0x3d4000dc, 0xd4002d },
@@ -37,7 +41,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d40011c, 0x401 },
 	{ 0x3d400130, 0x20600 },
 	{ 0x3d400134, 0xc100002 },
-	{ 0x3d400138, 0xd8 },
+	{ 0x3d400138, 0x8d },
 	{ 0x3d400144, 0x96004b },
 	{ 0x3d400180, 0x2ee0017 },
 	{ 0x3d400184, 0x2605b8e },
@@ -58,7 +62,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d400210, 0x1f1f },
 	{ 0x3d400204, 0x80808 },
 	{ 0x3d400214, 0x7070707 },
-	{ 0x3d400218, 0x7070707 },
+	{ 0x3d400218, 0xf070707 },
 	{ 0x3d40021c, 0xf0f },
 	{ 0x3d400250, 0x29001701 },
 	{ 0x3d400254, 0x2c },
@@ -74,7 +78,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d402020, 0x1 },
 	{ 0x3d402024, 0x7d00 },
 	{ 0x3d402050, 0x20d040 },
-	{ 0x3d402064, 0xc001c },
+	{ 0x3d402064, 0xc0012 },
 	{ 0x3d4020dc, 0x840000 },
 	{ 0x3d4020e0, 0x310000 },
 	{ 0x3d4020e8, 0x66004d },
@@ -89,7 +93,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d40211c, 0x301 },
 	{ 0x3d402130, 0x20300 },
 	{ 0x3d402134, 0xa100002 },
-	{ 0x3d402138, 0x1d },
+	{ 0x3d402138, 0x13 },
 	{ 0x3d402144, 0x14000a },
 	{ 0x3d402180, 0x640004 },
 	{ 0x3d402190, 0x3818200 },
@@ -99,7 +103,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d403020, 0x1 },
 	{ 0x3d403024, 0x1f40 },
 	{ 0x3d403050, 0x20d040 },
-	{ 0x3d403064, 0x30007 },
+	{ 0x3d403064, 0x30005 },
 	{ 0x3d4030dc, 0x840000 },
 	{ 0x3d4030e0, 0x310000 },
 	{ 0x3d4030e8, 0x66004d },
@@ -114,7 +118,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 	{ 0x3d40311c, 0x301 },
 	{ 0x3d403130, 0x20300 },
 	{ 0x3d403134, 0xa100002 },
-	{ 0x3d403138, 0x8 },
+	{ 0x3d403138, 0x5 },
 	{ 0x3d403144, 0x50003 },
 	{ 0x3d403180, 0x190004 },
 	{ 0x3d403190, 0x3818200 },
@@ -125,7 +129,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
 };
 
 /* PHY Initialize Configuration */
-static struct dram_cfg_param ddr_ddrphy_cfg[] = {
+struct dram_cfg_param ddr_ddrphy_cfg[] = {
 	{ 0x100a0, 0x0 },
 	{ 0x100a1, 0x1 },
 	{ 0x100a2, 0x3 },
@@ -329,7 +333,7 @@ static struct dram_cfg_param ddr_ddrphy_cfg[] = {
 };
 
 /* P0 message block paremeter for training firmware */
-static struct dram_cfg_param ddr_fsp0_cfg[] = {
+struct dram_cfg_param ddr_fsp0_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54003, 0xbb8 },
 	{ 0x54004, 0x2 },
@@ -368,7 +372,7 @@ static struct dram_cfg_param ddr_fsp0_cfg[] = {
 
 
 /* P1 message block paremeter for training firmware */
-static struct dram_cfg_param ddr_fsp1_cfg[] = {
+struct dram_cfg_param ddr_fsp1_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54002, 0x101 },
 	{ 0x54003, 0x190 },
@@ -408,7 +412,7 @@ static struct dram_cfg_param ddr_fsp1_cfg[] = {
 
 
 /* P2 message block paremeter for training firmware */
-static struct dram_cfg_param ddr_fsp2_cfg[] = {
+struct dram_cfg_param ddr_fsp2_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54002, 0x102 },
 	{ 0x54003, 0x64 },
@@ -448,7 +452,7 @@ static struct dram_cfg_param ddr_fsp2_cfg[] = {
 
 
 /* P0 2D message block paremeter for training firmware */
-static struct dram_cfg_param ddr_fsp0_2d_cfg[] = {
+struct dram_cfg_param ddr_fsp0_2d_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54003, 0xbb8 },
 	{ 0x54004, 0x2 },
@@ -488,7 +492,7 @@ static struct dram_cfg_param ddr_fsp0_2d_cfg[] = {
 };
 
 /* DRAM PHY init engine image */
-static struct dram_cfg_param ddr_phy_pie[] = {
+struct dram_cfg_param ddr_phy_pie[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x90000, 0x10 },
 	{ 0x90001, 0x400 },
@@ -1083,7 +1087,7 @@ static struct dram_cfg_param ddr_phy_pie[] = {
 	{ 0xd0000, 0x1 }
 };
 
-static struct dram_fsp_msg ddr_dram_fsp_msg[] = {
+struct dram_fsp_msg ddr_dram_fsp_msg[] = {
 	{
 		/* P0 3000mts 1D */
 		.drate = 3000,

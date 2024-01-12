@@ -1,22 +1,26 @@
 /*
- * Copyright 2018 NXP
+ * Copyright 2019 NXP
  *
  * SPDX-License-Identifier:	GPL-2.0+
  *
  * Generated code from MX8M_DDR_tool
- * Align with uboot-imx_v2018.03_4.14.78_1.0.0_ga
+ * Align with uboot version:
+ * imx_v2018.03_4.14.78_1.0.0_ga ~ imx_v2018.04_4.19.35_1.1.0_ga
+ * 
+ * ddr3l_pc-512m1600m2ch2cs
+ * DDR3L_PicoCoreMX8MM-512MB 1600MHZ 2Channel 2Chipselec
  */
 
 #include <linux/kernel.h>
 #include <asm/arch/ddr.h>
 
-static struct dram_cfg_param ddr3l_ddr_ddrc_cfg[] = {
+static struct dram_cfg_param ddr3l_ddrc_cfg[] = {
 	/** Initialize DDRC registers **/
 	{ 0x3d400304, 0x1 },
 	{ 0x3d400030, 0x20 },
 	{ 0x3d400000, 0x83041001 },
 	{ 0x3d400010, 0x40004030 },
-	{ 0x3d400064, 0x610068 },
+	{ 0x3d400064, 0x610040 },
 	{ 0x3d4000d0, 0xc00200c5 },
 	{ 0x3d4000d4, 0x1000b },
 	{ 0x3d4000dc, 0x1c700004 },
@@ -42,13 +46,13 @@ static struct dram_cfg_param ddr3l_ddr_ddrc_cfg[] = {
 	{ 0x3d4001a4, 0x5003c },
 	{ 0x3d4001a8, 0x80000000 },
 	{ 0x3d4001c4, 0x0 },
-	{ 0x3d400200, 0x15 },
+	{ 0x3d400200, 0x14 },
 	{ 0x3d400204, 0x70707 },
 	{ 0x3d400208, 0x0 },
 	{ 0x3d40020c, 0x1f000000 },
 	{ 0x3d400210, 0x1f1f },
 	{ 0x3d400214, 0x6060606 },
-	{ 0x3d400218, 0xf060606 },
+	{ 0x3d400218, 0xf0f0606 },
 	{ 0x3d400224, 0xa020b06 },
 	{ 0x3d400228, 0xa0a0a0a },
 	{ 0x3d40022c, 0x0 },
@@ -60,7 +64,7 @@ static struct dram_cfg_param ddr3l_ddr_ddrc_cfg[] = {
 };
 
 /* PHY Initialize Configuration */
-static struct dram_cfg_param ddr3l_ddr_ddrphy_cfg[] = {
+static struct dram_cfg_param ddr3l_ddrphy_cfg[] = {
 	{ 0x1005f, 0x3ff },
 	{ 0x1015f, 0x3ff },
 	{ 0x1105f, 0x3ff },
@@ -119,13 +123,12 @@ static struct dram_cfg_param ddr3l_ddr_ddrphy_cfg[] = {
 	{ 0x200f6, 0x5555 },
 	{ 0x200f7, 0xf000 },
 	{ 0x20025, 0x0 },
-	{ 0x2002d, 0x0 },
 	{ 0x200c7, 0x21 },
 	{ 0x200ca, 0x24 },
 };
 
 /* P0 message block paremeter for training firmware */
-static struct dram_cfg_param ddr3l_ddr_fsp0_cfg[] = {
+static struct dram_cfg_param ddr_fsp0_cfg[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x54003, 0x640 },
 	{ 0x54004, 0x2 },
@@ -144,7 +147,7 @@ static struct dram_cfg_param ddr3l_ddr_fsp0_cfg[] = {
 };
 
 /* DRAM PHY init engine image */
-static struct dram_cfg_param ddr3l_ddr_phy_pie[] = {
+static struct dram_cfg_param ddr3l_phy_pie[] = {
 	{ 0xd0000, 0x0 },
 	{ 0x90000, 0x10 },
 	{ 0x90001, 0x400 },
@@ -342,28 +345,28 @@ static struct dram_cfg_param ddr3l_ddr_phy_pie[] = {
 	{ 0xd0000, 0x1 }
 };
 
-static struct dram_fsp_msg ddr3l_ddr_dram_fsp_msg[] = {
+static struct dram_fsp_msg ddr3l_dram_fsp_msg[] = {
 	{
 		/* P0 1600mts 1D */
 		.drate = 1600,
 		.fw_type = FW_1D_IMAGE,
-		.fsp_cfg = ddr3l_ddr_fsp0_cfg,
-		.fsp_cfg_num = ARRAY_SIZE(ddr3l_ddr_fsp0_cfg),
+		.fsp_cfg = ddr_fsp0_cfg,
+		.fsp_cfg_num = ARRAY_SIZE(ddr_fsp0_cfg),
 	},
 };
 
 /* ddr timing config params */
 struct dram_timing_info dram_timing = {
-	.ddrc_cfg = ddr3l_ddr_ddrc_cfg,
-	.ddrc_cfg_num = ARRAY_SIZE(ddr3l_ddr_ddrc_cfg),
-	.ddrphy_cfg = ddr3l_ddr_ddrphy_cfg,
-	.ddrphy_cfg_num = ARRAY_SIZE(ddr3l_ddr_ddrphy_cfg),
-	.fsp_msg = ddr3l_ddr_dram_fsp_msg,
-	.fsp_msg_num = ARRAY_SIZE(ddr3l_ddr_dram_fsp_msg),
+	.ddrc_cfg = ddr3l_ddrc_cfg,
+	.ddrc_cfg_num = ARRAY_SIZE(ddr3l_ddrc_cfg),
+	.ddrphy_cfg = ddr3l_ddrphy_cfg,
+	.ddrphy_cfg_num = ARRAY_SIZE(ddr3l_ddrphy_cfg),
+	.fsp_msg = ddr3l_dram_fsp_msg,
+	.fsp_msg_num = ARRAY_SIZE(ddr3l_dram_fsp_msg),
 	.ddrphy_trained_csr = NULL,
 	.ddrphy_trained_csr_num = 0,
-	.ddrphy_pie = ddr3l_ddr_phy_pie,
-	.ddrphy_pie_num = ARRAY_SIZE(ddr3l_ddr_phy_pie),
+	.ddrphy_pie = ddr3l_phy_pie,
+	.ddrphy_pie_num = ARRAY_SIZE(ddr3l_phy_pie),
 	.fsp_table = { 1600, },
 };
 
