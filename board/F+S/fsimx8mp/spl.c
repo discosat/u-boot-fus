@@ -50,12 +50,14 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MPr2 0x1
 #define BT_ARMSTONEMX8MP 0x2
 #define BT_EFUSMX8MP 0x3
+#define BT_FSSMMX8MP 0x4
 
 static const char *board_names[] = {
 	"PicoCoreMX8MP",
 	"PicoCoreMX8MPr2",
 	"armStoneMX8MP",
 	"efusMX8MP",
+	"FSSMMX8MP",
 	"(unknown)"
 };
 
@@ -115,6 +117,7 @@ int power_init_board(void)
 		pi2c_pad_info = &i2c_pad_info_8mp;
 		break;
 	case BT_EFUSMX8MP:
+	case BT_FSSMMX8MP:
 		bus = 5;
 		pi2c_pad_info = &i2c_pad_info_efusmx8mp;
 		break;
@@ -181,6 +184,11 @@ static iomux_v3_cfg_t const uart_pads_efusmx8mp[] = {
 	MX8MP_PAD_SAI2_RXFS__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
+static iomux_v3_cfg_t const uart_pads_fssmmx8mp[] = {
+	MX8MP_PAD_UART2_RXD__UART2_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX8MP_PAD_UART2_TXD__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
 #define UART_AUTOMOD_CTRL (PAD_CTL_DSE2 | PAD_CTL_PUE | PAD_CTL_PE)
 #define SHDN_R232_PAD IMX_GPIO_NR(1, 3)
 #define AUTONLINE_R232_PAD IMX_GPIO_NR(1, 4)
@@ -226,6 +234,11 @@ static void config_uart(int bt)
 		clk_index = 0;
 		pad_list_count = ARRAY_SIZE(uart_pads_efusmx8mp);
 		break;
+	case BT_FSSMMX8MP:
+		pad_list = uart_pads_fssmmx8mp;
+		clk_index = 1;
+		pad_list_count = ARRAY_SIZE(uart_pads_fssmmx8mp);
+		break;
 	}
 
 	/* Setup UART pads */
@@ -247,6 +260,7 @@ ulong board_serial_base(void)
 	case BT_PICOCOREMX8MP:
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
+	case BT_FSSMMX8MP:
 	default:
 		break;
 	}

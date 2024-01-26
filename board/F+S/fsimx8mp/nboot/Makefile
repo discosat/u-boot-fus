@@ -54,7 +54,9 @@ BOARD_CONFIGS = \
 	armStoneMX8MP-FERT5.fs \
 	efusMX8MP-FERT3.fs \
 	efusMX8MP-FERT4.fs \
-	efusMX8MP-FERT5.fs
+	efusMX8MP-FERT5.fs \
+	SM8MP-FERT4.fs \
+	SM8MP-FERT5.fs
 
 
 # List of DRAM Timings for each DRAM-TYPE
@@ -68,7 +70,9 @@ RT_LPDDR4 := \
 	lpddr4_pc_2g1500m2ch1cs_timing.fs \
 	lpddr4_pc_2g1300m2ch1cs_timing.fs \
 	lpddr4_pc_1g1800m2ch1cs_timing.fs \
-	lpddr4_pc_1g1500m2ch1cs_timing.fs
+	lpddr4_pc_1g1500m2ch1cs_timing.fs \
+	lpddr4_sm_2g2000m2ch1cs_timing.fs \
+	lpddr4_sm_1g2000m2ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings

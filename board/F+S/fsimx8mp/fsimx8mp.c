@@ -49,6 +49,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BT_PICOCOREMX8MPr2 	1
 #define BT_ARMSTONEMX8MP 	2
 #define BT_EFUSMX8MP 		3
+#define BT_FSSMMX8MP 		4
+
 
 #define FEAT_ETH_A 	(1<<0)	/* 0: no LAN0,  1: has LAN0 */
 #define FEAT_ETH_B	(1<<1)	/* 0: no LAN1,  1: has LAN1 */
@@ -134,6 +136,19 @@ const struct fs_board_info board_info[] = {
 	},
 	{	/* 3 (BT_EFUSMX8MP) */
 		.name = "efusMX8MP",
+		.bootdelay = "3",
+		.updatecheck = UPDATE_DEF,
+		.installcheck = INSTALL_DEF,
+		.recovercheck = UPDATE_DEF,
+		.console = ".console_serial",
+		.login = ".login_serial",
+		.mtdparts = ".mtdparts_std",
+		.network = ".network_off",
+		.init = INIT_DEF,
+		.flags = 0,
+	},
+	{	/* 4 (BT_FSSMMX8MP) */
+		.name = "FSSMMX8MP",
 		.bootdelay = "3",
 		.updatecheck = UPDATE_DEF,
 		.installcheck = INSTALL_DEF,
@@ -336,7 +351,7 @@ static int do_fdt_board_setup_common(void *fdt)
 		case BT_ARMSTONEMX8MP:
 			break;
 		case BT_EFUSMX8MP:
-			/* Disable eeprom node if it is not available */
+			/* Disable adc node if it is not available */
 			if (!(features & FEAT_ADC)) {
 				fs_fdt_enable(fdt, "adc", 0);
 			}
@@ -344,7 +359,7 @@ static int do_fdt_board_setup_common(void *fdt)
 			if (!(features & FEAT_EEPROM)) {
 				fs_fdt_enable(fdt, "eeprom", 0);
 			}
-			/* Disable eeprom node if it is not available */
+			/* Disable sd_b node if it is not available */
 			if (!(features & FEAT_SD_B)) {
 				fs_fdt_enable(fdt, "sd_b", 0);
 			}
@@ -353,6 +368,12 @@ static int do_fdt_board_setup_common(void *fdt)
 				fs_fdt_enable(fdt, "rgb_bridge", 0);
 				/* disable mipi_dsi */
 				fs_fdt_enable(fdt, "mipi_dsi", 0);
+			}
+			break;
+		case BT_FSSMMX8MP:
+			/* Disable eeprom node if it is not available */
+			if (!(features & FEAT_EEPROM)) {
+				fs_fdt_enable(fdt, "eeprom", 0);
 			}
 			break;
 		default:
@@ -596,6 +617,7 @@ void fs_ethaddr_init(void)
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
 	case BT_EFUSMX8MP:
+	case BT_FSSMMX8MP:
 		if (features2 & FEAT_ETH_A) {
 			fs_eth_set_ethaddr(eth_id++);
 		}
@@ -758,6 +780,12 @@ static int setup_typec(void)
 
 	/* efusmx8mp does not support typec */
 	if(board_type == BT_EFUSMX8MP) {
+		port1.i2c_dev = NULL;
+		return ret;
+	}
+
+	/* fssmmx8mp does not support typec */
+	if(board_type == BT_FSSMMX8MP) {
 		port1.i2c_dev = NULL;
 		return ret;
 	}
@@ -1069,6 +1097,7 @@ ulong board_serial_base(void)
 	case BT_PICOCOREMX8MP:
 	case BT_PICOCOREMX8MPr2:
 	case BT_ARMSTONEMX8MP:
+	case BT_FSSMMX8MP:
 	default:
 		break;
 	}

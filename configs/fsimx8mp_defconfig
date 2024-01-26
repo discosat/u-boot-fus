@@ -89,7 +89,7 @@ CONFIG_MTDPARTS_DEFAULT="undef"
 CONFIG_EFI_PARTITION=y
 # CONFIG_SPL_EFI_PARTITION is not set
 CONFIG_OF_CONTROL=y
-CONFIG_OF_LIST="picocoremx8mp picocoremx8mpr2 armstonemx8mp efusmx8mp"
+CONFIG_OF_LIST="picocoremx8mp picocoremx8mpr2 armstonemx8mp efusmx8mp fssmmx8mp "
 CONFIG_ENV_IS_NOWHERE=y
 CONFIG_ENV_IS_IN_MMC=y
 CONFIG_SYS_REDUNDAND_ENVIRONMENT=y

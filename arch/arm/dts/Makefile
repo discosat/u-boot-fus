@@ -898,7 +898,8 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	picocoremx8mp.dtb \
 	picocoremx8mpr2.dtb \
 	armstonemx8mp.dtb \
-	efusmx8mp.dtb
+	efusmx8mp.dtb \
+	fssmmx8mp.dtb
 
 dtb-$(CONFIG_ARCH_IMXRT) += imxrt1050-evk.dtb \
 	imxrt1020-evk.dtb
