@@ -577,6 +577,10 @@ void spl_board_init(void)
 		bl_on_pad = MX8MP_PAD_GPIO1_IO01__GPIO1_IO01 | MUX_PAD_CTRL(NO_PAD_CTRL);
 		bl_on_gpio = IMX_GPIO_NR(1, 1);
 		break;
+	case BT_FSSMMX8MP:
+		bl_on_pad = MX8MP_PAD_SAI1_RXFS__GPIO4_IO00 | MUX_PAD_CTRL(NO_PAD_CTRL);
+		bl_on_gpio = IMX_GPIO_NR(4, 0);
+		break;
 	}
 
 	imx_iomux_v3_setup_pad(bl_on_pad);
@@ -704,35 +708,39 @@ int board_usb_init(int index, enum usb_init_type init)
 	if(usb_initialized)
 		return 0;
 
-	if (index == 0 && init == USB_INIT_DEVICE)
-		/* usb host only */
-		return 0;
-
 	debug("USB%d: %s init.\n", index, (init)?"otg":"host");
 
-	if (!usb_initialized)
-		imx8m_usb_power(index, true);
+	imx8m_usb_power(index, true);
 
-	if (index == 1 && init == USB_INIT_DEVICE) {
-		if (!usb_initialized) {
-			usb_initialized = true;
-			switch (board_type)
-			{
-			case BT_EFUSMX8MP:
-				imx_iomux_v3_setup_pad(usb2_oc_pad);
-				//gpio_request(USB2_OC, "usb2_oc");
-				//gpio_direction_output(USB2_OC, 1);
-				/* Enable otg power */
-				imx_iomux_v3_setup_pad(usb2_pwr_pad);
-				//gpio_request(USB2_PWR_EN, "usb2_pwr");
-				//gpio_direction_output(USB2_PWR_EN, 0);
-				break;
-			default:
-				break;
-			}
-			dwc3_nxp_usb_phy_init(&dwc3_device_data);
-			return dwc3_uboot_init(&dwc3_device_data);
+	switch (index) {
+		case 0:
+			dwc3_device_data.base = USB1_BASE_ADDR;
+			dwc3_device_data.index = 0;
+			break;
+		case 1:
+		default:
+			dwc3_device_data.base = USB2_BASE_ADDR;
+			dwc3_device_data.index = 1;
+	}
+
+	if (init == USB_INIT_DEVICE) {
+		usb_initialized = true;
+		switch (board_type)
+		{
+		case BT_EFUSMX8MP:
+			imx_iomux_v3_setup_pad(usb2_oc_pad);
+			//gpio_request(USB2_OC, "usb2_oc");
+			//gpio_direction_output(USB2_OC, 1);
+			/* Enable otg power */
+			imx_iomux_v3_setup_pad(usb2_pwr_pad);
+			//gpio_request(USB2_PWR_EN, "usb2_pwr");
+			//gpio_direction_output(USB2_PWR_EN, 0);
+			break;
+		default:
+			break;
 		}
+		dwc3_nxp_usb_phy_init(&dwc3_device_data);
+		return dwc3_uboot_init(&dwc3_device_data);
 	}
 
 	return 0;
@@ -763,6 +771,21 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 	imx8m_usb_power(index, false);
 
 	return ret;
+}
+
+int board_usb_gadget_port_auto(void)
+{
+	switch (board_type)
+	{
+	default:
+	case BT_PICOCOREMX8MP:
+	case BT_PICOCOREMX8MPr2:
+	case BT_ARMSTONEMX8MP:
+	case BT_EFUSMX8MP:
+		return 1;
+	case BT_FSSMMX8MP:
+		return 0;
+	}
 }
 #endif
 

@@ -898,25 +898,23 @@ int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
 	unsigned int board_type = fs_board_get_type();
+	bool tcpc = (port1.i2c_dev != NULL);
+	struct udevice *dev;
 
 	debug("USB%d: %s init.\n", index, (init)?"otg":"host");
 
-	if (index == 0 && init == USB_INIT_DEVICE)
-		/* usb host only */
-		return ret;
+	ret = uclass_get_device_by_seq(UCLASS_USB, index, &dev);
 
-	imx8m_usb_power(index, true);
+	/* Handle USB_OTG devices */
+	if (!strcmp(dev_read_string(dev, "dr_mode"), "otg")) {
+		/* Shutdown the previous configuration */
+		dwc3_uboot_exit(index);
+		imx8m_usb_power(index, false);
+		/* OTG devices will always be enabled (Device and Host) */
+		dwc3_device_data.dr_mode = USB_DR_MODE_OTG;
 
-	if (index == 1 && init == USB_INIT_DEVICE) {
+		if (tcpc) {
 #ifdef CONFIG_USB_TCPC
-		if(port1.i2c_dev)
-			tcpc_setup_ufp_mode(&port1);
-#endif
-		dwc3_nxp_usb_phy_init(&dwc3_device_data);
-		return dwc3_uboot_init(&dwc3_device_data);
-	} else if (index == 1 && init == USB_INIT_HOST) {
-#ifdef CONFIG_USB_TCPC
-		if(port1.i2c_dev) {
 			/*
 			 * first check upstream facing port (ufp)
 			 * for device
@@ -928,47 +926,73 @@ int board_usb_init(int index, enum usb_init_type init)
 				 * for usb host
 				 * */
 				ret = tcpc_setup_dfp_mode(&port1);
-		}
 #endif
-		return ret;
-	} else if (index == 0 && init == USB_INIT_HOST) {
-
-		if(board_type == BT_ARMSTONEMX8MP) {
-			/* Set reset pin to high */
-			gpio_request(USB1_RESET, "usb1_reset");
-			gpio_direction_output(USB1_RESET, 0);
-			udelay(100);
-			gpio_direction_output(USB1_RESET, 1);
 		}
-		/* Enable host power */
-		gpio_request(USB1_PWR_EN, "usb1_pwr");
-		gpio_direction_output(USB1_PWR_EN, 1);
 	}
 
-	return ret;
+	/* Handle USB_DEV devices */
+	if (!strcmp(dev_read_string(dev, "dr_mode"), "peripheral")) {
+		if (init == USB_INIT_DEVICE)
+			dwc3_device_data.dr_mode = USB_DR_MODE_PERIPHERAL;
+		else
+			return 0;
+	}
+
+	/* Handle USB_HOST devices */
+	if (!strcmp(dev_read_string(dev, "dr_mode"), "host")) {
+		if (init == USB_INIT_HOST)
+			dwc3_device_data.dr_mode = USB_DR_MODE_HOST;
+		/* TODO: Move PWR and RST GPIOs to Device-Tree */
+#if 0
+			if(board_type == BT_ARMSTONEMX8MP) {
+				/* Set reset pin to high */
+				gpio_request(USB1_RESET, "usb1_reset");
+				gpio_direction_output(USB1_RESET, 0);
+				udelay(100);
+				gpio_direction_output(USB1_RESET, 1);
+			}
+			/* Enable host power */
+			gpio_request(USB1_PWR_EN, "usb1_pwr");
+			gpio_direction_output(USB1_PWR_EN, 1);
+#endif
+		else
+			return 0;
+	}
+
+	imx8m_usb_power(index, true);
+	dwc3_device_data.index = index;
+	dwc3_device_data.base = (index)?USB2_BASE_ADDR:USB1_BASE_ADDR;
+	dwc3_nxp_usb_phy_init(&dwc3_device_data);
+	return dwc3_uboot_init(&dwc3_device_data);
 }
 
 int board_usb_cleanup(int index, enum usb_init_type init)
 {
 	int ret = 0;
-
-	if (index == 0 && init == USB_INIT_DEVICE)
-		/* usb host only */
-		return 0;
+	bool tcpc = (port1.i2c_dev != NULL);
+	struct udevice *dev;
 
 	debug("USB%d: %s cleanup.\n", index, (init)?"otg":"host");
-	if (index == 1 && init == USB_INIT_DEVICE) {
-		dwc3_uboot_exit(index);
-	} else if (index == 1 && init == USB_INIT_HOST) {
+
+	ret = uclass_get_device_by_seq(UCLASS_USB, index, &dev);
+
+	/* Handle USB_OTG devices */
+	if (!strcmp(dev_read_string(dev, "dr_mode"), "otg")) {
 #ifdef CONFIG_USB_TCPC
-		if(port1.i2c_dev)
+		if(tcpc)
 			ret = tcpc_disable_src_vbus(&port1);
 #endif
+	}
+	/* Handle USB_HOST devices */
+	if (!strcmp(dev_read_string(dev, "dr_mode"), "host")) {
+	}
+#if 0
 	} else if (index == 0 && init == USB_INIT_HOST) {
 		/* Disable host power */
-		gpio_direction_output(USB1_PWR_EN, 0);
+		//gpio_direction_output(USB1_PWR_EN, 0);
 	}
-
+#endif
+	dwc3_uboot_exit(index);
 	imx8m_usb_power(index, false);
 
 	return ret;

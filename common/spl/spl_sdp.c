@@ -13,13 +13,20 @@
 
 void board_sdp_cleanup(void)
 {
+	int controller_index = CONFIG_SPL_SDP_USB_DEV;
+	int index = board_usb_gadget_port_auto();
+	if (index >= 0)
+		controller_index = index;
 	usb_gadget_release(CONFIG_SPL_SDP_USB_DEV);
 }
 
 
 int spl_sdp_stream_continue(const struct sdp_stream_ops *ops, bool single)
 {
-	const int controller_index = CONFIG_SPL_SDP_USB_DEV;
+	int controller_index = CONFIG_SPL_SDP_USB_DEV;
+	int index = board_usb_gadget_port_auto();
+	if (index >= 0)
+		controller_index = index;
 
 	/* Should not return, unless in single mode when it returns after one
 	   SDP command */
