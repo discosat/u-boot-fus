@@ -69,9 +69,6 @@
 	pinctrl-0 = <&pinctrl_eqos>;
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
-	phy-reset-gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <10>;
-	phy-reset-post-delay = <50>;
 	status = "okay";
 
 	mdio {
@@ -93,9 +90,6 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	phy-reset-gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <10>;
-	phy-reset-post-delay = <50>;
 	status = "okay";
 
 	mdio {
@@ -337,7 +331,7 @@
 };
 #endif
 
-/* SD_C - internal eMCC  */
+/* SD_eMMC */
 &usdhc1 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
@@ -348,12 +342,12 @@
 	status = "okay";
 };
 
-/* SD_A - internal Micro-SD */
-&usdhc3 {
+/* SD_B - SDIO */
+&usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc3>;
-	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	bus-width = <4>;
 	status = "okay";
 };
@@ -386,8 +380,6 @@
 			MX8MP_IOMUXC_ENET_TXC__CCM_ENET_QOS_CLOCK_GENERATE_TX_CLK	0x1f
 			/* ETH_A_PHY_INTn */
 			MX8MP_IOMUXC_SAI1_RXD0__GPIO4_IO02		0x39
-			/* ETH_A_PHY_RSTn */
-			MX8MP_IOMUXC_SAI1_TXD6__GPIO4_IO18		0x159
 		>;
 	};
 
@@ -409,8 +401,6 @@
 			MX8MP_IOMUXC_SAI1_TXD5__ENET1_RGMII_TXC		0x1f
 			/* ETH_B_PHY_INTn - RTL8222 - OD needed*/
 			MX8MP_IOMUXC_SAI1_RXC__GPIO4_IO01		0x39
-			/* ETH_B_PHY_RSTn - PU on*/
-			MX8MP_IOMUXC_SAI1_RXFS__GPIO4_IO00		0x159
 		>;
 	};
 
@@ -528,7 +518,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc2grp-200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1grp-200mhz {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD1_CLK__USDHC1_CLK	0x196
 			MX8MP_IOMUXC_SD1_CMD__USDHC1_CMD	0x1d6
@@ -544,39 +534,45 @@
 		>;
 	};
 
-	pinctrl_usdhc3: usdhc3grp {
+	pinctrl_usdhc2: usdhc2grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK	0x190
-			MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD	0x1d0
-			MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d0
-			MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d0
-			MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d0
-			MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d0
-			MX8MP_IOMUXC_GPIO1_IO11__USDHC3_VSELECT 0x0c1
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK			0x190
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD			0x1d0
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0		0x1d0
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1		0x1d0
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2		0x1d0
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3		0x1d0
+			MX8MP_IOMUXC_SD2_CD_B__USDHC2_CD_B			0x190
+			MX8MP_IOMUXC_SD2_WP__USDHC2_WP				0x190
+			MX8MP_IOMUXC_SD2_RESET_B__USDHC2_RESET_B	0x190
 		>;
 	};
 
-	pinctrl_usdhc3_100mhz: usdhc3grp-100mhz {
+	pinctrl_usdhc2_100mhz: usdhc2grp-100mhz {
 		fsl,pins = <
-			MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK	0x194
-			MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD	0x1d4
-			MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d4
-			MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d4
-			MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d4
-			MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d4
-			MX8MP_IOMUXC_GPIO1_IO11__USDHC3_VSELECT 0x0c1
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK			0x194
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD			0x1d4
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0		0x1d4
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1		0x1d4
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2		0x1d4
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3		0x1d4
+			MX8MP_IOMUXC_SD2_CD_B__USDHC2_CD_B			0x194
+			MX8MP_IOMUXC_SD2_WP__USDHC2_WP				0x194
+			MX8MP_IOMUXC_SD2_RESET_B__USDHC2_RESET_B	0x194
 		>;
 	};
 
-	pinctrl_usdhc3_200mhz: usdhc3grp-200mhz {
+	pinctrl_usdhc2_200mhz: usdhc2grp-200mhz {
 		fsl,pins = <
-			MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK	0x196
-			MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD	0x1d6
-			MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d6
-			MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d6
-			MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d6
-			MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d6
-			MX8MP_IOMUXC_GPIO1_IO11__USDHC3_VSELECT 0x0c1
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK			0x196
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD			0x1d6
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0		0x1d6
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1		0x1d6
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2		0x1d6
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3		0x1d6
+			MX8MP_IOMUXC_SD2_CD_B__USDHC2_CD_B			0x196
+			MX8MP_IOMUXC_SD2_WP__USDHC2_WP				0x196
+			MX8MP_IOMUXC_SD2_RESET_B__USDHC2_RESET_B	0x196
 		>;
 	};
 
