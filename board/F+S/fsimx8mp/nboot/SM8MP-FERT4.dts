@@ -41,5 +41,6 @@
 		have-ext-rtc;
 		have-security;
 		have-eeprom;
+		have-temp;
 	};
 };

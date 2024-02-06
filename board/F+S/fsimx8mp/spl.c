@@ -150,6 +150,16 @@ int power_init_board(void)
 	/* To avoid timing risk from SOC to ARM,increase VDD_ARM to OD voltage 0.95v */
 	pmic_reg_write(p, PCA9450_BUCK2OUT_DVS0, 0x1C);
 
+	if (board_type == BT_FSSMMX8MP) {
+		void *fdt = fs_image_get_cfg_fdt();
+		int offs = fs_image_get_board_cfg_offs(fdt);
+		int rev_offs = fs_image_get_board_rev_subnode(fdt, offs);
+		if(fs_image_getprop(fdt, offs, rev_offs, "have-temp", NULL)){
+			/* Force I2C level translator enable, if we have temp sensors */
+			pmic_reg_write(p, PCA9450_CONFIG2, 0x3);
+		}
+	}
+
 	/* set WDOG_B_CFG to cold reset */
 	pmic_reg_write(p, PCA9450_RESET_CTRL, 0xA1);
 
