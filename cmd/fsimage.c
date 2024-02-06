@@ -693,7 +693,8 @@ static int fs_image_check_boot_dev_fuses(enum boot_device boot_dev,
 	if (boot_dev_fuses == boot_dev)
 		return 0;		/* Match, no change */
 
-	if (boot_dev_fuses == USB_BOOT)
+	if ((boot_dev_fuses == USB_BOOT)
+	|| (boot_dev_fuses == USB2_BOOT))
 		return 1;		/* Not fused yet */
 
 	printf("Error: New BOARD-CFG wants to boot from %s but board is\n"

@@ -61,7 +61,7 @@ static const char *board_names[] = {
 	"(unknown)"
 };
 
-static unsigned int board_type;
+static int board_type = -1;
 static const char *board_name;
 static const char *board_fdt;
 static enum boot_device used_boot_dev;	/* Boot device used for NAND/MMC */
@@ -106,6 +106,7 @@ int power_init_board(void)
 	int ret;
 	struct i2c_pads_info *pi2c_pad_info;
 	unsigned int bus;
+
 
 	switch (board_type)
 	{
@@ -390,6 +391,7 @@ static int fs_spl_init_boot_dev(enum boot_device boot_dev, const char *type)
 		//### TODO: Also have setups for MMC1_BOOT and MMC2_BOOT
 #endif
 	case USB_BOOT:
+	case USB2_BOOT:
 		/* Nothing to do */
 		return -ENODEV;
 
@@ -785,17 +787,28 @@ int board_usb_cleanup(int index, enum usb_init_type init)
 
 int board_usb_gadget_port_auto(void)
 {
-	switch (board_type)
-	{
-	default:
-	case BT_PICOCOREMX8MP:
-	case BT_PICOCOREMX8MPr2:
-	case BT_ARMSTONEMX8MP:
-	case BT_EFUSMX8MP:
-		return 1;
-	case BT_FSSMMX8MP:
-		return 0;
+	if (board_type != -1) {
+		switch (board_type)
+		{
+		default:
+		case BT_PICOCOREMX8MP:
+		case BT_PICOCOREMX8MPr2:
+		case BT_ARMSTONEMX8MP:
+		case BT_EFUSMX8MP:
+			return 1;
+		case BT_FSSMMX8MP:
+			return 0;
+		}
 	}
+	else {
+	/* If the board_type is not clear yet
+	 * read the boot device from ROM pointer */
+		if (is_usb_boot())
+			return get_boot_device() - USB_BOOT;
+	}
+
+	/* If we arrive here, we have no valid device */
+	return -1;
 }
 #endif
 
