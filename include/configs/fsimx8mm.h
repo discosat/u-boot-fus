@@ -529,7 +529,7 @@
 	".fdt_nfs=setenv fdt nfs ${fdtaddr}"				\
 	" ${serverip}:${rootpath}/${bootfdt}" BOOT_WITH_FDT		\
 	".rootfs_nfs=setenv rootfs root=/dev/nfs"			\
-	" nfsroot=${serverip}:${rootpath}\0"
+	" nfsroot=${serverip}:${rootpath},tcp,v3\0"
 
 /* Generic settings when not booting with updates A/B */
 #define FS_BOOT_SYSTEM

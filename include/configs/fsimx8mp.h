@@ -323,7 +323,7 @@
 	".network_dhcp=setenv network ip=dhcp\0"			\
 	"rootfs=undef\0"						\
 	ROOTFS_MEM							\
-	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath}\0" \
+	".rootfs_nfs=setenv rootfs root=/dev/nfs nfsroot=${serverip}:${rootpath},tcp,v3\0" \
 	".rootfs_usb=setenv rootfs root=/dev/sda1 rootwait\0"		\
 	"kernel=undef\0"						\
 	KERNEL_MEM 							\
