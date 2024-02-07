@@ -354,7 +354,7 @@ static void basic_init(const char *layout_name)
 	const char *boot_dev_name;
 	enum boot_device boot_dev;
 
-	board_name = fs_image_getprop(fdt, offs, rev_offs, "board-fdt", NULL);
+	board_name = fs_image_getprop(fdt, offs, rev_offs, "board-name", NULL);
 	for (i = 0; i < ARRAY_SIZE(board_names); i++) {
 		if (!strcmp(board_name, board_names[i]))
 			break;
