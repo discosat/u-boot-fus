@@ -1,23 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Copyright 2019 NXP
- */
-
-/* TODO: Power polarity can't be set by DT
-*  Default its low for both ports. Use regulator
-*  to set pin value to correct state.
-*/
-/* USB0:
-*  Enable regulator to activate
-*  power pin for otg host devices.
-*/
 #define CONFIG_USB_OTG_PWR
-/* USB1:
-*  Enable regulator to activate power pin
-*  for USB Hub.
-*/
-#define CONFIG_USB_HOST_PWR
-
 / {
 	mcu_rdc {
 		compatible = "imx8m,mcu_rdc";
@@ -87,10 +68,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		#ifdef CONFIG_USB_OTG_PWR
+#ifdef CONFIG_USB_OTG_PWR
 		reg_usb_otg_pwr: regulator-usbotg1 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbotg1>;
+			pinctrl-0 = <&pinctrl_usbotg1_uboot>;
 			compatible = "regulator-fixed";
 			regulator-name = "usb_otg_pwr";
 			regulator-min-microvolt = <5000000>;
@@ -99,22 +80,9 @@
 			startup-delay-us = <100>;
 			off-on-delay-us = <12000>;
 		};
-		#endif
-		#ifdef CONFIG_USB_HOST_PWR
-		reg_usb_host_pwr: regulator-usbotg2 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbotg2>;
-			compatible = "regulator-fixed";
-			regulator-name = "usb_host_pwr";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-		#endif
+#endif
 	};
 };
-
 
 &usbotg1 {
 
@@ -123,17 +91,7 @@
 	vbus-supply = <&reg_usb_otg_pwr>;
 	#else
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg1>;
-	#endif
-};
-
-&usbotg2 {
-
-	#ifdef CONFIG_USB_HOST_PWR
-	vbus-supply = <&reg_usb_host_pwr>;
-	#else
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg2>;
+	pinctrl-0 = <&pinctrl_usbotg1_uboot>;
 	#endif
 };
 
@@ -141,25 +99,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	imx8mm-picocoremx8mm {
+	imx8mn-picocoremx8mn {
 
-		pinctrl_usbotg1: usbotg1grp {
+		pinctrl_usbotg1_uboot: usbotg1grp {
 			fsl,pins = <
-				#ifdef CONFIG_USB_OTG_PWR
-				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x00014
-				#else
-				MX8MM_IOMUXC_GPIO1_IO12_USB1_OTG_PWR	0x00014
-				#endif
-			>;
-		};
-
-		pinctrl_usbotg2: usbotg2grp {
-			fsl,pins = <
-				#ifdef CONFIG_USB_HOST_PWR
-				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14	0x00014
-				#else
-				MX8MM_IOMUXC_GPIO1_IO14_USB2_OTG_PWR	0x00014
-				#endif
+#ifdef CONFIG_USB_OTG_PWR
+				MX8MN_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x00014
+#else
+				MX8MN_IOMUXC_GPIO1_IO12_USB1_OTG_PWR	0x00014
+#endif
 			>;
 		};
 	};
@@ -170,4 +118,10 @@
 	sd-uhs-ddr50;
 	fsl,signal-voltage-switch-extra-delay-ms = <8>;
 	/delete-property/ vqmmc-supply;
+};
+
+&fec1 {
+	phy-reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <11>;
+	phy-reset-post-delay=<50>;
 };
