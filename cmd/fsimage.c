@@ -1078,7 +1078,7 @@ static int fs_image_load_sub(struct flash_info *fi, uint offs, uint size,
 	 */
 	base_offs = offs & ~chunk_mask;
 	read_pos = offs & chunk_mask;
-	if ((read_pos) && fi->write_pos && (base_offs != fi->base_offs)) {
+	if ((read_pos) && (!fi->write_pos || (base_offs != fi->base_offs))) {
 		err = fs_image_fill_temp(fi, base_offs, lim, flags);
 		if (err)
 			return err;
