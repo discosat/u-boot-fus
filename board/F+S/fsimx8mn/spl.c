@@ -413,6 +413,14 @@ static void basic_init(const char *layout_name)
 	power_init_board();
 }
 
+int check_if_secondary()
+{
+	uint32_t * csf_addr = (uint32_t *)*(uint32_t**)(CONFIG_SPL_TEXT_BASE - 0x28);
+	uint32_t * copy_addr = csf_addr - 1;
+	int copy_val = *copy_addr;
+	return copy_val;
+}
+
 void board_init_f(ulong dummy)
 {
 	int ret;
@@ -453,6 +461,7 @@ void board_init_f(ulong dummy)
 			secondary = true;
 	}
 #endif
+	secondary = check_if_secondary();
 
 	/* Try loading from the current boot dev. If this fails, try USB. */
 	boot_dev = get_boot_device();

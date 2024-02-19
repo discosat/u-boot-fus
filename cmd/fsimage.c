@@ -2753,6 +2753,21 @@ static int fs_image_write_secondary_table(struct flash_info *fi, int copy,
 
 #endif
 
+static void fs_image_set_spl_secondary_bit(struct region_info *spl_ri, int copy)
+{
+	uint32_t *ivt = *(uint32_t**)(spl_ri->sub);
+
+	uint32_t *spl_csf = ivt + 6;
+	uint32_t *spl_self = ivt + 5;
+	uint32_t offset_csf = *spl_csf - *spl_self;
+
+	//Divide by four, for pointer arithmetic
+	uint32_t *real_csf = ivt + offset_csf/4;
+	uint32_t *copy_addr = real_csf - 1;
+
+	*copy_addr = copy;
+}
+
 /* Save NBOOT and SPL region to MMC */
 static int fs_image_save_nboot_mmc(struct flash_info *fi,
 				   struct region_info *nboot_ri,
@@ -2833,6 +2848,8 @@ static int fs_image_save_nboot_mmc(struct flash_info *fi,
 		printf("\nSaving copy %d to %s:\n", copy, fi->devname);
 		if (fs_image_save_region(fi, copy, nboot_ri))
 			failed |= BIT(copy);
+
+		fs_image_set_spl_secondary_bit(spl_ri, copy);
 
 		if (fs_image_save_region(fi, copy, spl_ri))
 			failed |= BIT(copy);
