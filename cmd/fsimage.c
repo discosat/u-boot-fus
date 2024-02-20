@@ -766,8 +766,8 @@ static int fs_image_validate_signed(struct fs_header_v1_0 *fsh)
 	/* Copy to verification address and check signature */
 	debug("Copy 0x%x bytes from 0x%08lx to validation address 0x%08lx\n",
 	      size, (ulong)fsh, (ulong)validate_addr);
-	memcpy(validate_addr, fsh, size);
-	if (fs_image_is_valid_signature(validate_addr)) {
+	memcpy(validate_addr, fsh, size + FSH_SIZE);
+	if (!fs_image_is_valid_signature(validate_addr)) {
 		puts("Error: Invalid signature, refusing to save\n");
 		return -EILSEQ;
 	}
@@ -958,6 +958,11 @@ static int fs_image_find_board_cfg(unsigned long addr, bool force,
 	err = fs_image_validate(fsh, "NBOOT", arch, addr);
 	if (err)
 		return err;
+	else {
+		if(fs_image_is_signed(fsh)){
+			memcpy((void *)(addr + 0x40), (void *)(addr + 0x80), fsh->info.file_size_low + 0x2000);
+		}
+	}
 
 	/* Look for BOARD-INFO subimage and search for matching BOARD-CFG */
 	cfg = fs_image_find(fsh, "BOARD-INFO", arch);

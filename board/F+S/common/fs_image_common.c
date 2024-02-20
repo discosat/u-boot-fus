@@ -422,8 +422,7 @@ bool fs_image_is_valid_signature(struct fs_header_v1_0 *fsh)
 
 	/* Check IVT integrity */
 	start = fs_image_get_ivt_info(fsh, &size);
-	if (!start || (start != fsh) || ((ulong)(ivt->self) != (ulong)ivt)
-	    || (size != fs_image_get_size(fsh, true)))
+	if (!start || (start != fsh) || ((ulong)(ivt->self) != (ulong)ivt))
 		return false;
 
 #ifdef CONFIG_FS_SECURE_BOOT
@@ -448,7 +447,7 @@ bool fs_image_is_valid_signature(struct fs_header_v1_0 *fsh)
 
 		/* Check signature */
 		err = imx_hab_authenticate_image((u32)(ulong)fsh,
-						 size, FSH_SIZE);
+				fs_image_get_size(fsh, true), FSH_SIZE);
 
 		/* Bring back the saved values */
 		fsh->info.file_size_high = file_size_high;
