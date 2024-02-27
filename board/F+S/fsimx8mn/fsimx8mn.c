@@ -176,12 +176,15 @@ static void fs_setup_cfg_info(void)
 		hang();
 
 	/*
-	 * The flag if running from Primary or Secondary SPL is misusing a
-	 * byte in the BOARD-CFG in OCRAM, so we have to remove this before
-	 * validating the BOARD-CFG.
+	 * The flag if running from Primary or Secondary SPL and UBoot is
+	 * misusing a byte in the BOARD-CFG in OCRAM, so we have to remove this
+	 * before validating the BOARD-CFG.
 	 */
 	if (fs_image_is_secondary())
 		flags |= CI_FLAGS_SECONDARY;
+
+	if (fs_image_is_secondary_uboot())
+		flags |= CI_FLAGS_SECONDARY_UBOOT;
 
 	/* Make sure that the BOARD-CFG in OCRAM is still valid */
 	if (!fs_image_is_ocram_cfg_valid())

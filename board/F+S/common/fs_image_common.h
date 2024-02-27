@@ -149,6 +149,9 @@ struct sb_info {
 /* Return if currently running from Secondary SPL. */
 bool fs_image_is_secondary(void);
 
+/* Return if currently running from Secondary UBoot. */
+bool fs_image_is_secondary_uboot(void);
+
 /*
  * Search board configuration in OCRAM; return true if it was found.
  * From now on, fs_image_get_cfg_addr() will return the right address.
@@ -177,6 +180,9 @@ typedef void (*basic_init_t)(const char *layout_name);
 
 /* Mark BOARD_CFG to tell U-Boot that we are running on Secondary SPL */
 void fs_image_mark_secondary(void);
+
+/* Mark BOARD_CFG to tell U-Boot that we are running on Secondary UBoot */
+void fs_image_mark_secondary_uboot(void);
 
 /* Load FIRMWARE and optionally BOARD-CFG via SDP from USB */
 void fs_image_all_sdp(bool need_cfg, basic_init_t basic_init);

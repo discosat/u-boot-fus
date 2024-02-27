@@ -654,6 +654,21 @@ static int fs_image_get_start_copy(void)
 	return start_copy;
 }
 
+static int fs_image_get_start_copy_uboot(void)
+{
+	int start_copy;
+
+	if (fs_board_get_cfg_info()->flags & CI_FLAGS_SECONDARY_UBOOT)
+		start_copy = 0;
+	else
+		start_copy = 1;
+
+	printf("Booted from %s UBOOT, so starting with copy %d\n",
+	       start_copy ? "Primary" : "Secondary", start_copy);
+
+	return start_copy;
+}
+
 static int fs_image_get_boot_dev(void *fdt, enum boot_device *boot_dev,
 				 const char **boot_dev_name)
 {
@@ -1488,7 +1503,7 @@ static int fs_image_save_uboot(struct flash_info *fi, struct region_info *ri)
 	int copy, start_copy;
 
 	failed = 0;
-	start_copy = fs_image_get_start_copy();
+	start_copy = fs_image_get_start_copy_uboot();
 	copy = start_copy;
 	do {
 		printf("\nSaving copy %d to %s:\n", copy, fi->devname);

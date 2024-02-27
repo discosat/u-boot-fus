@@ -14,8 +14,9 @@
  * throughout of U-Boot. It is stored in the global_data, so keep it as small
  * as possible.
  */
-#define CI_FLAGS_SECONDARY BIT(0)	/* Running from secondary SPL */
-#define CI_FLAGS_HAVE_ENV  BIT(1)	/* env_start[] is valid */
+#define CI_FLAGS_SECONDARY       BIT(0)	/* Running from secondary SPL */
+#define CI_FLAGS_HAVE_ENV        BIT(1)	/* env_start[] is valid */
+#define CI_FLAGS_SECONDARY_UBOOT BIT(2)
 struct cfg_info {
 	enum boot_device boot_dev;
 	u8 board_type;

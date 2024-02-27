@@ -51,7 +51,11 @@ static const char *board_fdt;
 static enum boot_device used_boot_dev;	/* Boot device used for NAND/MMC */
 static bool boot_dev_init_done;
 static unsigned int uboot_offs;
+static unsigned int uboot_offs_redundant; /* offset of redundant UBoot */
+static unsigned int uboot_part;
+static unsigned int uboot_part_redundant; /* partition of redundant UBoot */
 static bool secondary;			/* 0: primary, 1: secondary SPL */
+static int uboot_try; /* 0: first try, 1: second try */
 
 #ifdef CONFIG_POWER
 #define I2C_PMIC_8MN	3
@@ -342,6 +346,18 @@ static void fs_board_early_init(void)
 	}
 }
 
+void mmc_get_parts()
+{
+	if(uboot_offs == uboot_offs_redundant){
+		uboot_part = 1;
+		uboot_part_redundant = 2;
+	}
+	else{
+		uboot_part = 0;
+		uboot_part_redundant = 0;
+	}
+}
+
 /* Do the basic board setup when we have our final BOARD-CFG */
 static void basic_init(const char *layout_name)
 {
@@ -404,6 +420,12 @@ static void basic_init(const char *layout_name)
 		layout = fdt_subnode_offset(fdt, offs, layout_name);
 		uboot_offs = fdt_getprop_u32_default_node(fdt, layout, index,
 							  "uboot-start", 0);
+		uboot_offs_redundant = fdt_getprop_u32_default_node(
+					fdt, layout, index + 1,"uboot-start",
+								uboot_offs);
+
+		/* Only relevant for mmc, but does no harm for Nand */
+		mmc_get_parts();
 	}
 
 	/* We need to have the boot device pads active when starting U-Boot */
@@ -411,6 +433,18 @@ static void basic_init(const char *layout_name)
 
 	fs_board_early_init();
 	power_init_board();
+}
+
+int spl_mmc_emmc_boot_partition(struct mmc *mmc)
+{
+	int part = 0;
+
+	if(uboot_try == 0)
+		part = uboot_part;
+	else
+		part = uboot_part_redundant;
+
+	return part;
 }
 
 int check_if_secondary()
@@ -523,7 +557,15 @@ uint32_t spl_nand_get_uboot_raw_page(void)
 /* Return the sector number where U-Boot starts in eMMC (User HW partition) */
 unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
-	return uboot_offs / 512;
+	int offs;
+
+	if(uboot_try == 0)
+		offs = uboot_offs / 512;
+	else
+		offs = uboot_offs_redundant / 512;
+
+	uboot_try++;
+	return offs;
 }
 
 /*
