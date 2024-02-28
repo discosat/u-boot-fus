@@ -9,3 +9,45 @@ ATF-Version: atf-f+s
 			 git commit  fa25831ab255c0cf73631e6f9ed5289428900347
 
 DDR Training Firmware Version: 8.10.1
+
+
+
+nboot-fsimx8mn-2023.05.3 (15.12.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+
+nboot-fsimx8mn-2023.05.2 (03.08.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+ATF-Version: atf-f+s
+			 git commit  29dcb44c2e34c2deee901001ebb79a869eb19d98
+			 (Add DEBUG_CONSOLE for imx8mn)
+
+DDR Training Firmware Version: 8.10.1
+
+
+
+nboot-fsimx8mn-2023.05.1 (20.06.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+ATF-Version: atf-f+s
+			 git commit  29dcb44c2e34c2deee901001ebb79a869eb19d98
+			 (Add DEBUG_CONSOLE for imx8mn)
+
+DDR Training Firmware Version: 8.10.1
+
+
+
+nboot-fsimx8mn-2023.05 (16.05.2023)
+-----------------------------------------------
+Supported boards: PicoCoreMX8MN
+
+ATF-Version: atf-f+s
+			 git commit  29dcb44c2e34c2deee901001ebb79a869eb19d98
+			 (Add DEBUG_CONSOLE for imx8mn)
+
+DDR Training Firmware Version: 8.10.1
+			 

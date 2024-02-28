@@ -14,7 +14,7 @@
 	board-cfg {
 		board-name = "PicoCoreMX8MN-DDR3L";
 
-		/* DRAM: 512MB Micron */
+		/* DRAM: 512MB Micron B.ICDRAM.34 */
 		dram-type = "ddr3l";
 		dram-timing = "ddr3l_2x_k4b2g1646fbym";
 		dram-size = <0x200>;		/* In MiB */

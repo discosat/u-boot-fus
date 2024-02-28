@@ -14,9 +14,9 @@
 	board-cfg {
 		board-name = "PicoCoreMX8MN-LPDDR4";
 
-		/* DRAM: 1GB Samsung */
+		/* DRAM: 1GB Micron B.ICDRAM.40 */
 		dram-type = "lpddr4";
-		dram-timing = "lpddr4_k4f8e3s4hd_mgcl";
+		dram-timing = "lpddr4_pc_1g1600m1ch1cs";
 		dram-size = <0x400>;		/* In MiB */
 		dram-chips = <1>;
 
@@ -28,29 +28,18 @@
 		fuse-mask =     <0x1000fe00 0xfffdffff 0x0000003f>;
 		fuse-value =    <0x10002000 0x00000000 0x00000000>;
 
-		/* Common board features */
+		/* Board Features */
 		//have-nand;
 		have-emmc;
-		have-sgtl5000;
-		have-eth-phy;
-		have-wlan;
-		have-lvds;
+		//have-sgtl5000;
+		//have-eth-phy;
+		//have-wlan;
+		//have-lvds;
 		//have-mipi-dsi;
+		//have-rtc-pcf85063;
+		have-rtc-pcf85263;
 		//have-security;
 		//have-can;
 		//have-eeprom;
-
-		/* Board-revision specific features */
-		PCoreMX8MN-FERT4.120 {
-			board-rev = <120>;
-			have-rtc-pcf85063;
-			//have-rtc-pcf85263;
-		};
-
-		PCoreMX8MN-FERT4.130 {
-			board-rev = <130>;
-			//have-rtc-pcf85063;
-			have-rtc-pcf85263;
-		};
 	};
 };
