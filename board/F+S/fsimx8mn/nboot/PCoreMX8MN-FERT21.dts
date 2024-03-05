@@ -8,13 +8,11 @@
 
 /dts-v1/;
 
-#include ".nboot-info-mmc.dtsi.tmp"
+#include "nboot-info.dtsi"
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
 		board-name = "PicoCoreMX8MN-LPDDR4";
-		board-rev = <130>;		/* Rev 1.30 */
 
 		/* DRAM: 1GB Micron B.ICDRAM.40 */
 		dram-type = "lpddr4";
@@ -43,5 +41,9 @@
 		//have-security;
 		have-can;
 		//have-eeprom;
+
+		PCoreMX8MN-FERT21.130 {
+			board-rev = <130>;
+		};
 	};
 };

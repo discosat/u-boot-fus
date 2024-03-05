@@ -12,13 +12,13 @@
 
 / {
 	board-cfg {
-		board-name = "PicoCoreMX8MN-LPDDR4";
+		board-name = "PicoCoreMX8MN-DDR3L";
 
-		/* DRAM: 1GB Micron B.ICDRAM.40 */
-		dram-type = "lpddr4";
-		dram-timing = "lpddr4_pc_1g1600m1ch1cs";
+		/* DRAM: 1GB Insignis B.ICDRAM.21 */
+		dram-type = "ddr3l";
+		dram-timing = "ddr3l_pc_1g800m1ch2cs";
 		dram-size = <0x400>;		/* In MiB */
-		dram-chips = <1>;
+		dram-chips = <2>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
 		boot-dev = "MMC3";
@@ -32,14 +32,17 @@
 		//have-nand;
 		have-emmc;
 		//have-sgtl5000;
-		//have-eth-phy;
-		//have-wlan;
-		//have-lvds;
+		have-eth-phy;
+		have-lvds;
 		//have-mipi-dsi;
 		//have-rtc-pcf85063;
 		have-rtc-pcf85263;
 		//have-security;
 		//have-can;
 		//have-eeprom;
+
+		PCoreMX8MN-FERT20.120 {
+			board-rev = <120>;
+		};
 	};
 };

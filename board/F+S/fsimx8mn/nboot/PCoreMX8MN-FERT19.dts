@@ -8,19 +8,17 @@
 
 /dts-v1/;
 
-#include ".nboot-info-mmc.dtsi.tmp"
+#include "nboot-info.dtsi"
 
 / {
 	board-cfg {
-		board-cfg-version = <1>;	/* Increment on changes */
-		board-name = "PicoCoreMX8MN-DDR3L";
-		board-rev = <120>;		/* Rev 1.20 */
+		board-name = "PicoCoreMX8MN-LPDDR4";
 
-		/* DRAM: 1GB Insignis B.ICDRAM.21 */
-		dram-type = "ddr3l";
-		dram-timing = "ddr3l_pc_1g800m1ch2cs";
+		/* DRAM: 1GB Micron B.ICDRAM.40 */
+		dram-type = "lpddr4";
+		dram-timing = "lpddr4_pc_1g1600m1ch1cs";
 		dram-size = <0x400>;		/* In MiB */
-		dram-chips = <2>;
+		dram-chips = <1>;
 
 		/* Boot-Device: NAND | MMC1/2/3 | SD1/2/3 */
 		boot-dev = "MMC3";
@@ -34,13 +32,20 @@
 		//have-nand;
 		have-emmc;
 		//have-sgtl5000;
-		have-eth-phy;
-		have-lvds;
+		//have-eth-phy;
+		//have-wlan;
+		//have-lvds;
 		//have-mipi-dsi;
 		//have-rtc-pcf85063;
 		have-rtc-pcf85263;
 		//have-security;
 		//have-can;
 		//have-eeprom;
+
+		/* Board-revision specific features */
+		PCoreMX8MN-FERT19.130 {
+			board-rev = <130>;
+		};
+
 	};
 };

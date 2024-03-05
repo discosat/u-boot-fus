@@ -37,15 +37,20 @@ BOARD_CONFIGS = \
 	PCoreMX8MN-FERT3.fs \
 	PCoreMX8MN-FERT4.fs \
 	PCoreMX8MN-FERT5.fs \
-	PCoreMX8MN-FERT6.fs
+	PCoreMX8MN-FERT6.fs \
+	PCoreMX8MN-FERT19.fs \
+	PCoreMX8MN-FERT20.fs \
+	PCoreMX8MN-FERT21.fs
 
 # List of DRAM Timings for each DRAM-TYPE
 RT_DDR3L := \
 	ddr3l_k4b2g1646fbym_timing.fs \
 	ddr3l_2x_k4b2g1646fbym_timing.fs \
-	ddr3l_2x_mt41k128m16tw_timing.fs
+	ddr3l_2x_mt41k128m16tw_timing.fs \
+	ddr3l_pc_1g800m1ch2cs_timing.fs
 RT_LPDDR4 := \
-	lpddr4_k4f8e3s4hd_mgcl_timing.fs
+	lpddr4_k4f8e3s4hd_mgcl_timing.fs \
+	lpddr4_pc_1g1600m1ch1cs_timing.fs
 RT_DDR4 :=
 
 # List of DRAM-TYPES for DRAM-SETTINGS image; only add those that have timings
