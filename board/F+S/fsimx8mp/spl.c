@@ -70,8 +70,6 @@ static unsigned int uboot_offs;
 static bool secondary;			/* 0: primary, 1: secondary SPL */
 static bool usb_initialized = false;
 
-#ifdef CONFIG_POWER
-
 #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 #define PC MUX_PAD_CTRL(I2C_PAD_CTRL)
 struct i2c_pads_info i2c_pad_info_8mp = {
@@ -143,7 +141,7 @@ int power_init_board(void)
 	 * Enable DVS control through PMIC_STBY_REQ and
 	 * set B1_ENMODE=1 (ON by PMIC_ON_REQ=H)
 	 */
-	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x1C);
+	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS0, 0x14);
 	pmic_reg_write(p, PCA9450_BUCK1OUT_DVS1, 0x14);
 	pmic_reg_write(p, PCA9450_BUCK1CTRL, 0x59);
 
@@ -166,7 +164,7 @@ int power_init_board(void)
 
 	return 0;
 }
-#endif
+
 
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
